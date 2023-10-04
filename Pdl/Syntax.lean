@@ -8,28 +8,25 @@ mutual
     | and : Formula → Formula → Formula
     | box : Program → Formula → Formula
     | nstar : Formula → Formula
+    deriving Repr -- TODO DecidableEq not posible yet?
   inductive Program : Type
     | atom_prog : Char → Program
     | sequence : Program → Program → Program
     | union : Program → Program → Program
     | star : Program → Program
     | test : Formula → Program
+    deriving Repr -- TODO DecidableEq not posible yet?
 end
 
 -- needed for unions etc
 instance decEqFormula : DecidableEq Formula :=
   sorry
-#align dec_eq_formula decEqFormula
-
--- needed for unions etc
 instance decEqProgram : DecidableEq Program :=
   sorry
-#align dec_eq_program decEqProgram
 
 @[simp]
 def Formula.or : Formula → Formula → Formula
   | f, g => Formula.neg (Formula.and (Formula.neg f) (Formula.neg g))
-#align formula.or Formula.or
 
 -- Notation and abbreviations
 
@@ -53,7 +50,7 @@ infixr:55 "↣" => fun φ ψ => ~φ⋀(~ψ)
 
 infixl:77 "⟷" => fun ϕ ψ => (ϕ↣ψ)⋀(ψ↣ϕ)
 
-infixl:33 ";" => Program.sequence
+infixl:33 ";" => Program.sequence -- TODO avoid ; which has a meaning in Lean 4 ??
 
 instance : Union Program :=
   ⟨Program.union⟩
@@ -62,7 +59,7 @@ prefix:33 "∗" => Program.star
 
 prefix:33 "†" => Formula.nstar
 
-prefix:33 "✓" => Program.test
+prefix:33 "✓" => Program.test -- avoiding ? which has a meaning in Lean 4
 
 -- THE f FUNCTION
 -- | Borzechowski's f function, sort of.
@@ -154,11 +151,8 @@ class HasVocabulary (α : Type) where
 
 open HasVocabulary
 
-instance formulaHasVocabulary : HasVocabulary Formula :=
-  HasVocabulary.mk vocabOfFormula
+instance formulaHasVocabulary : HasVocabulary Formula := ⟨ vocabOfFormula⟩  
 
-instance programHasVocabulary : HasVocabulary Program :=
-  HasVocabulary.mk vocabOfProgram
+instance programHasVocabulary : HasVocabulary Program := ⟨ vocabOfProgram ⟩ 
 
-instance finsetFormulaHasVocabulary : HasVocabulary (Finset Formula) :=
-  HasVocabulary.mk vocabOfSetFormula
+instance finsetFormulaHasVocabulary : HasVocabulary (Finset Formula) := ⟨ vocabOfSetFormula ⟩ 

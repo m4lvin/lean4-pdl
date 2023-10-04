@@ -2,3 +2,4 @@
 -- Import modules here that should be built as part of the library.
 import «Pdl».Syntax
 import «Pdl».Semantics
+import «Pdl».Discon

@@ -1,61 +1,55 @@
-import Oneshot.Syntax
-import Oneshot.Semantics
-import Mathbin.Data.Vector.Basic
-import Mathbin.Tactic.FinCases
-import Mathbin.Tactic.NormFin
-import Mathbin.Tactic.NormNum
+import Pdl.Syntax
+import Pdl.Semantics
+import Mathlib.Data.Vector.Basic
+import Mathlib.Tactic.FinCases
 
 #align_import examples
 
 open Vector
 
 -- some simple silly stuff
-theorem mytaut1 (p : Char) : Tautology (Formula.atomProp p↣Formula.atomProp p) :=
+theorem mytaut1 (p : Char) : tautology (Formula.atom_prop p↣Formula.atom_prop p) :=
   by
-  unfold Tautology EvaluatePoint Evaluate
+  unfold tautology evaluatePoint evaluate
   intro W M w
-  tauto
-#align mytaut1 mytaut1
+  sorry -- tauto
 
 open Classical
 
 /- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
 /- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-theorem mytaut2 (p : Char) : Tautology ((~~·p)↣·p) :=
+theorem mytaut2 (p : Char) : tautology ((~~·p)↣·p) :=
   by
-  unfold Tautology EvaluatePoint Evaluate
+  unfold tautology evaluatePoint evaluate
   intro W M w
   classical tauto
-#align mytaut2 mytaut2
 
 def myModel : KripkeModel ℕ where
   val _ _ := True
   Rel _ _ v := HEq v 1
-#align myModel myModel
 
 /- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-theorem mysat (p : Char) : Satisfiable (·p) :=
+theorem mysat (p : Char) : satisfiable (·p) :=
   by
-  unfold Satisfiable
+  unfold satisfiable
   exists ℕ
   exists myModel
   exists 1
-  unfold EvaluatePoint Evaluate
-#align mysat mysat
+  unfold evaluatePoint evaluate
 
 /- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
 -- Segerberg's axioms
 -- A1
 -- all propositional tautologies
-theorem A2 (a : Program) (X Y : Formula) : Tautology (⌈a⌉ ⊤) :=
+theorem A2 (a : Program) (X Y : Formula) : tautology (⌈a⌉ ⊤) :=
   by
-  unfold Tautology EvaluatePoint Evaluate
-  tauto
+  unfold tautology evaluatePoint evaluate
+  sorry -- tauto
 #align A2 A2
 
-theorem A3 (a : Program) (X Y : Formula) : Tautology (⌈a⌉ (X⋀Y)↣⌈a⌉ X⋀⌈a⌉ Y) :=
+theorem A3 (a : Program) (X Y : Formula) : tautology (⌈a⌉ (X⋀Y)↣⌈a⌉ X⋀⌈a⌉ Y) :=
   by
-  unfold Tautology EvaluatePoint Evaluate
+  unfold tautology evaluatePoint evaluate
   intro W M w
   by_contra hyp
   cases' hyp with hl hr
@@ -68,9 +62,9 @@ theorem A3 (a : Program) (X Y : Formula) : Tautology (⌈a⌉ (X⋀Y)↣⌈a⌉ 
 /- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
 /- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
 /- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-theorem A4 (a b : Program) (p : Char) : Tautology (⌈a;b⌉ (·p)⟷⌈a⌉ (⌈b⌉ (·p))) :=
+theorem A4 (a b : Program) (p : Char) : tautology (⌈a;b⌉ (·p)⟷⌈a⌉ (⌈b⌉ (·p))) :=
   by
-  unfold Tautology EvaluatePoint Evaluate
+  unfold tautology evaluatePoint evaluate
   intro W M w
   constructor
   · -- left to right
@@ -95,9 +89,9 @@ theorem A4 (a b : Program) (p : Char) : Tautology (⌈a;b⌉ (·p)⟷⌈a⌉ (�
     exact hl v1 w_a_v1 v2 v1_b_v2
 #align A4 A4
 
-theorem A5 (a b : Program) (X : Formula) : Tautology (⌈Program.union a b⌉ X⟷(⌈a⌉ X⋀⌈b⌉ X)) :=
+theorem A5 (a b : Program) (X : Formula) : tautology (⌈Program.union a b⌉ X⟷(⌈a⌉ X⋀⌈b⌉ X)) :=
   by
-  unfold Tautology EvaluatePoint Evaluate
+  unfold tautology evaluatePoint evaluate
   intro W M w
   constructor
   · -- left to right
@@ -135,9 +129,9 @@ theorem A5 (a b : Program) (X : Formula) : Tautology (⌈Program.union a b⌉ X�
     · apply rhs_b m_ab_v
 #align A5 A5
 
-theorem A6 (a : Program) (X : Formula) : Tautology (⌈∗a⌉ X⟷(X⋀⌈a⌉ (⌈∗a⌉ X))) :=
+theorem A6 (a : Program) (X : Formula) : tautology (⌈∗a⌉ X⟷(X⋀⌈a⌉ (⌈∗a⌉ X))) :=
   by
-  unfold Tautology EvaluatePoint Evaluate
+  unfold tautology evaluatePoint evaluate
   intro W M w
   constructor
   · -- left to right
@@ -174,7 +168,7 @@ theorem A6 (a : Program) (X : Formula) : Tautology (⌈∗a⌉ X⟷(X⋀⌈a⌉ 
       exact w_aSaX y w_a_y v y_aS_v
 #align A6 A6
 
-example (a b : Program) (X : Formula) : ⌈∗(∗a) ∪ b⌉ X≡X⋀⌈a⌉ (⌈∗(∗a) ∪ b⌉ X)⋀⌈b⌉ (⌈∗(∗a) ∪ b⌉ X) :=
+example (a b : Program) (X : Formula) : ⌈∗(∗a) ∪ b⌉X ≡ X⋀⌈a⌉ (⌈∗(∗a) ∪ b⌉ X)⋀⌈b⌉ (⌈∗(∗a) ∪ b⌉ X) :=
   by
   unfold SemEquiv
   unfold Evaluate Relate
@@ -242,8 +236,8 @@ theorem starIsFinitelyManySteps {W : Type} {M : KripkeModel W} {x z : W} {α : P
 -- related via star <== related via a finite chain
 theorem finitelyManyStepsIsStar {W : Type} {M : KripkeModel W} {α : Program} {n : ℕ}
     {ys : Vector W (Nat.succ n)} :
-    (∀ i : Fin n, Relate M α (get ys i) (get ys (i + 1))) →
-      StarCat (Relate M α) ys.headI ys.getLast :=
+    (∀ i : Fin n, relate M α (get ys i) (get ys (i + 1))) →
+      StarCat (relate M α) ys.headI ys.getLast :=
   by
   simp
   induction n

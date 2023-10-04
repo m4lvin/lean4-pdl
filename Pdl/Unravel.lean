@@ -1,12 +1,10 @@
-import Mathbin.Tactic.Linarith.Frontend
-import Oneshot.Syntax
-import Oneshot.Discon
-import Oneshot.Semantics
-
-#align_import unravel
+import Mathlib.Tactic.Linarith.Frontend
+import Pdl.Syntax
+import Pdl.Discon
+import Pdl.Semantics
 
 -- UPLUS
--- UPLUS
+
 @[simp]
 def pairunion : List (List Formula) → List (List Formula) → List (List Formula)
   | xls, yls => List.join (xls.map fun xl => yls.map fun yl => xl ++ yl)
@@ -18,39 +16,20 @@ def pairunionFinset : Finset (Finset Formula) → Finset (Finset Formula) → Fi
 
 infixl:77 "⊎" => pairunion
 
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
 -- UNRAVELING
 -- | New Definition 10
 def unravel : Formula → List (List Formula)
-  |-- diamonds:
-    ~⌈·a⌉ P =>
-    [[~⌈·a⌉ P]]
-  |-- remove theF here again. fishy? :-/
-    ~⌈Program.union p1 p2⌉ P =>
-    unravel (~⌈p1⌉ P) ∪ unravel (~⌈p2⌉ P)
-  | ~⌈?Q⌉ P => [[Q]]⊎unravel (~P)
+  -- diamonds:
+  | ~⌈·a⌉ P => [[~⌈·a⌉ P]]
+  | ~⌈Program.union p1 p2⌉ P => unravel (~⌈p1⌉ P) ∪ unravel (~⌈p2⌉ P) -- remove theF here again. fishy? :-/
+  | ~⌈✓ Q⌉ P => [[Q]]⊎unravel (~P)
   | ~⌈a;b⌉ P => unravel (~⌈a⌉ (⌈b⌉ P))
   | ~†P => ∅
   | ~⌈∗a⌉ P => unravel (~P) ∪ unravel (~⌈a⌉ (†⌈∗a⌉ P))
-  |-- boxes:
-      ⌈·a⌉
-      P =>
-    [[⌈·a⌉ P]]
+  -- boxes:
+  | ⌈·a⌉P => [[⌈·a⌉ P]]
   | ⌈Program.union a b⌉ P => unravel (⌈a⌉ P)⊎unravel (⌈b⌉ P)
-  | ⌈?Q⌉ P => [[~Q]] ∪ unravel P
+  | ⌈✓ Q⌉ P => [[~Q]] ∪ unravel P
   | ⌈a;b⌉ P => unravel (⌈a⌉ (⌈b⌉ P))
   | †P => {∅}
   | ⌈∗a⌉ P => unravel P⊎unravel (⌈a⌉ (†⌈∗a⌉ P))
@@ -63,19 +42,16 @@ def unravel : Formula → List (List Formula)
   | ~~f => [[~~f]]
   | f⋀g => [[f⋀g]]
   | ~f⋀g => [[~f⋀g]]
-termination_by' ⟨_, measure_wf mOfFormula⟩
-#align unravel unravel
+decreasing_by sorry -- TODO termination_by' ⟨_, measure_wf mOfFormula⟩
 
 theorem disconAnd {XS YS} : discon (XS⊎YS)≡discon XS⋀discon YS :=
   by
-  unfold SemEquiv
+  unfold semEquiv
   intro W M w
-  unfold Evaluate
+  rw [disconEval (XS⊎YS) (by rfl)]
+  simp
   rw [disconEval XS (by rfl)]
   rw [disconEval YS (by rfl)]
-  rw [disconEval (XS⊎YS) (by rfl)]
-  unfold pairunion
-  simp at *
   constructor
   · -- →
     intro lhs
@@ -83,22 +59,34 @@ theorem disconAnd {XS YS} : discon (XS⊎YS)≡discon XS⋀discon YS :=
     rw [← X_Y_is_XY] at satXY 
     simp at satXY 
     constructor
-    · use X; constructor; use X_in; intro f f_in; apply satXY; tauto
-    · use Y; constructor; use Y_in; intro f f_in; apply satXY; tauto
+    · use X
+      constructor
+      use X_in
+      intro f f_in
+      apply satXY
+      tauto
+    · use Y
+      constructor
+      use Y_in
+      intro f f_in
+      apply satXY
+      tauto
   · -- ←
     intro rhs
     rcases rhs with ⟨⟨X, X_in, satX⟩, ⟨Y, Y_in, satY⟩⟩
     use X ++ Y
-    use X; use X_in
-    use Y; use Y_in
+    constructor
+    · use X
+      constructor
+      · assumption
+      · use Y
     intro f
-    finish
-#align disconAnd disconAnd
+    intro f_in
+    simp at f_in
+    cases' f_in with f_in_X f_in_Y -- TODO: nicer match syntax?
+    · apply satX f f_in_X
+    · apply satY f f_in_Y
 
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
 @[simp]
 def nsub : Formula → List Formula
   |-- diamonds:
@@ -119,16 +107,17 @@ def nsub : Formula → List Formula
   | ~~f => nsub f
   | f⋀g => nsub f ++ nsub g
   | ~f⋀g => nsub f ++ nsub g
-#align nsub nsub
 
 theorem likeLemmaFour :
     ∀ (W M) (a : Program) (w v : W) (X' X : List Formula) (P : Formula),
       X = X' ++ {~⌈a⌉ P} →
-        (M, w)⊨Con X → Relate M a w v → (M, v)⊨(~P) → ∃ Y ∈ {X'}⊎unravel (~⌈a⌉ P), (M, w)⊨Con Y :=
+        (M, w)⊨Con X → relate M a w v → (M, v)⊨(~P) → ∃ Y ∈ {X'}⊎unravel (~⌈a⌉ P), (M, w)⊨Con Y :=
   by
   -- TODO: ∧ ∃ a_1 ... a_n: ~⌈a_1⌉...⌈a_n⌉P ∈ Y ∧ relate M (a_1;…;a_n) w v
   intro W M a
   induction a
+  -- 'induction' tactic does not support mutually inductive types, the eliminator 'Program.rec' has multiple motives
+  -- https://leanprover.zulipchat.com/#narrow/stream/113489-new-members/topic/induction.20for.20mutually.20inductive.20types
   case atom_prog A =>
     intro w v X' X P X_def w_sat_X w_a_v v_sat_nP
     use X
@@ -141,8 +130,8 @@ theorem likeLemmaFour :
       fconstructor; rfl
       assumption
     assumption
-  case sequence b c IHb
-    IHc =>
+  case sequence -- a -- b c -- IHb
+    b c =>
     intro w v X' X P X_def w_sat_X w_bc_v v_sat_nP
     unfold Relate at w_bc_v 
     rcases w_bc_v with ⟨u, w_b_u, u_c_v⟩
@@ -165,23 +154,22 @@ theorem likeLemmaFour :
   case test =>
     intro w v X' X P X_def w_sat_X w_a_v v_sat_nP; subst X_def
     sorry
-#align likeLemmaFour likeLemmaFour
 
-theorem newLemmaTwo : ∀ N P, mOfFormula P = N → Tautology (Con (nsub P)↣P⟷discon (unravel P)) :=
+theorem newLemmaTwo : ∀ N P, mOfFormula P = N → tautology (Con (nsub P)↣P⟷discon (unravel P)) :=
   by
   intro N
-  apply Nat.strong_induction_on N
+  refine Nat.strong_induction_on N ?_ -- should be induction N using Nat.strong_induction_on or something similar?
   intro n IH
-  unfold Tautology at *
-  unfold EvaluatePoint at *
+  unfold tautology at *
+  unfold evaluatePoint at *
   intro P
   cases P
-  case bottom => unfold Evaluate unravel; simp; unfold Evaluate; simp
-  case atom_prop pchar => unfold Evaluate unravel; simp; unfold Evaluate; simp
+  case bottom => unfold evaluate unravel; simp
+  case atom_prop pchar => unfold evaluate unravel; simp
   case neg
     f =>
     -- formula.neg
-    unfold Evaluate
+    unfold evaluate
     simp at *
     cases f
     -- TODO: negated forms, hence splitting cases of f again here!
@@ -189,31 +177,35 @@ theorem newLemmaTwo : ∀ N P, mOfFormula P = N → Tautology (Con (nsub P)↣P�
   case and f
     g =>
     -- formula.and
-    unfold Evaluate;
+    unfold evaluate
     simp at *
     unfold unravel
     rw [disconsingle]
-    unfold Evaluate; simp
-    tauto
+    unfold evaluate
+    simp
+    sorry -- tauto
   case box a
     f =>
     -- formula.box
-    unfold Evaluate;
+    unfold evaluate
     simp at *
     cases a
     -- split cases for different programs
     case atom_prog a =>
-      unfold unravel nsub Evaluate discon Con
-      tauto
+      unfold unravel nsub discon Con
+      simp
     case sequence α β =>
       unfold unravel Con nsub
       intro n_def
       intro W M w
       intro Mw_nsub_f
-      specialize IH (mOfFormula (⌈α⌉ (⌈β⌉ f))) _;
-      · unfold mOfFormula; rw [← n_def]; unfold mOfProgram; linarith
+      specialize IH (mOfFormula (⌈α⌉ (⌈β⌉ f))) ?_
+      · unfold mOfFormula
+        rw [← n_def]
+        unfold mOfProgram
+        linarith
       specialize IH (⌈α⌉ (⌈β⌉ f)) (by rfl) W M w
-      unfold Evaluate at IH 
+      unfold evaluate at IH 
       simp at *
       specialize IH Mw_nsub_f
       constructor
@@ -227,7 +219,7 @@ theorem newLemmaTwo : ∀ N P, mOfFormula P = N → Tautology (Con (nsub P)↣P�
         use v
         tauto
       · intro rhs v w_ab_v
-        unfold Relate at w_ab_v 
+        unfold relate at w_ab_v 
         rcases w_ab_v with ⟨z, w_a_y, z_b_v⟩
         cases IH
         apply IH_right rhs
@@ -238,14 +230,14 @@ theorem newLemmaTwo : ∀ N P, mOfFormula P = N → Tautology (Con (nsub P)↣P�
       intro n_def
       intro W M w
       intro Mw_nsub_f
-      rw [disconAnd]; unfold Evaluate
+      rw [disconAnd]; unfold evaluate
       have IHa :=
         IH (mOfFormula (⌈α⌉ f)) (by unfold mOfFormula; rw [← n_def]; unfold mOfProgram; linarith)
       have IHb :=
         IH (mOfFormula (⌈β⌉ f)) (by unfold mOfFormula; rw [← n_def]; unfold mOfProgram; linarith)
       specialize IHa (⌈α⌉ f) (by rfl) W M w
       specialize IHb (⌈β⌉ f) (by rfl) W M w
-      unfold Evaluate at IHa IHb 
+      unfold evaluate at IHa IHb 
       simp at *
       specialize IHa Mw_nsub_f
       specialize IHb Mw_nsub_f
@@ -253,22 +245,30 @@ theorem newLemmaTwo : ∀ N P, mOfFormula P = N → Tautology (Con (nsub P)↣P�
       cases' IHb with IHb1 IHb2
       constructor
       · intro lhs
-        unfold Relate at lhs 
+        unfold relate at lhs 
         constructor
-        · apply IHa1; intro v w_a_v; apply lhs; tauto
-        · apply IHb1; intro v w_b_v; apply lhs; tauto
+        · apply IHa1
+          intro v w_a_v
+          apply lhs
+          tauto
+        · apply IHb1
+          intro v w_b_v
+          apply lhs
+          tauto
       · intro af bf v w_ab_v
-        unfold Relate at w_ab_v 
+        unfold relate at w_ab_v 
         cases' w_ab_v with w_a_v w_b_v
-        · apply IHa2 (by tauto); tauto
-        · apply IHb2 (by tauto); tauto
+        · apply IHa2 (by tauto)
+          tauto
+        · apply IHb2 (by tauto)
+          tauto
     case star =>
       unfold unravel Con nsub
       intro n_def
       intro W M w
       intro Mw_nsub_f
       rw [disconAnd]
-      unfold Evaluate
+      unfold evaluate
       constructor
       -- LEFT TO RIGHT
       · intro box_astar_f
@@ -276,7 +276,7 @@ theorem newLemmaTwo : ∀ N P, mOfFormula P = N → Tautology (Con (nsub P)↣P�
         · have IHf :=
             IH (mOfFormula f) (by subst n_def; unfold mOfProgram; linarith) f (by rfl) W M w
           -- (1)
-          unfold Evaluate at IHf ;
+          unfold evaluate at IHf ;
           simp at *
           specialize IHf Mw_nsub_f
           cases IHf
@@ -288,9 +288,9 @@ theorem newLemmaTwo : ∀ N P, mOfFormula P = N → Tautology (Con (nsub P)↣P�
             IH (mOfFormula (⌈a⌉ (†⌈∗a⌉ f))) (by subst n_def; unfold mOfFormula mOfProgram; linarith)
               (⌈a⌉ (†⌈∗a⌉ f)) (by rfl) W M w
           -- (2)
-          unfold Evaluate at IHf ;
+          unfold evaluate at IHf ;
           simp at *
-          unfold Evaluate at IHf 
+          unfold evaluate at IHf 
           specialize IHf box_astar_f
           cases IHf
           apply IHf_left
@@ -306,7 +306,7 @@ theorem newLemmaTwo : ∀ N P, mOfFormula P = N → Tautology (Con (nsub P)↣P�
       · intro rhs v
         rcases rhs with ⟨w_unravel_f, w_aSaf⟩
         intro w_aS_v
-        unfold Relate at w_aS_v 
+        unfold relate at w_aS_v 
         simp at w_aS_v 
         cases w_aS_v
         -- start = refl or at least one step
@@ -342,9 +342,5 @@ theorem newLemmaTwo : ∀ N P, mOfFormula P = N → Tautology (Con (nsub P)↣P�
     case test f => sorry
   case nstar =>
     intro n_def W M w
-    unfold Evaluate unravel
+    unfold unravel
     simp
-    unfold Evaluate
-    simp
-#align newLemmaTwo newLemmaTwo
-
