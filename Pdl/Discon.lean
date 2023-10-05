@@ -11,41 +11,33 @@ def Con : List Formula → Formula
 
 @[simp]
 theorem conempty : Con ∅ = (⊤ : Formula) := by rfl
-#align conempty conempty
 
 @[simp]
 theorem consingle {f : Formula} : Con [f] = f := by rfl
-#align consingle consingle
 
 @[simp]
 def dis : List Formula → Formula
   | [] => ⊥
   | [f] => f
   | f :: rest => f⋁dis rest
-#align dis dis
 
 @[simp]
 theorem disempty : dis ∅ = (⊥ : Formula) := by rfl
-#align disempty disempty
 
 @[simp]
 theorem dissingle {f : Formula} : dis [f] = f := by rfl
-#align dissingle dissingle
 
 @[simp]
 def discon : List (List Formula) → Formula
   | [] => ⊥
   | [X] => Con X
   | X :: rest => Con X⋁discon rest
-#align discon discon
 
 @[simp]
 theorem disconempty : discon {∅} = (⊤ : Formula) := by rfl
-#align disconempty disconempty
 
 @[simp]
 theorem disconsingle {f : Formula} : discon [[f]] = f := by rfl
-#align disconsingle disconsingle
 
 theorem conEvalHT {X f W M} {w : W} :
     evaluate M w (Con (f :: X)) ↔ evaluate M w f ∧ evaluate M w (Con X) :=
@@ -109,3 +101,58 @@ theorem disconEval {W M} {w : W} :
       rw [conEval]; tauto
     · right
       use Y
+
+
+-- UPLUS
+
+@[simp]
+def pairunion : List (List Formula) → List (List Formula) → List (List Formula)
+  | xls, yls => List.join (xls.map fun xl => yls.map fun yl => xl ++ yl)
+
+def pairunionFinset : Finset (Finset Formula) → Finset (Finset Formula) → Finset (Finset Formula)
+  | X, Y => {X.biUnion fun ga => Y.biUnion fun gb => ga ∪ gb}
+
+infixl:77 "⊎" => pairunion
+
+theorem disconAnd {XS YS} : discon (XS⊎YS)≡discon XS⋀discon YS :=
+  by
+  unfold semEquiv
+  intro W M w
+  rw [disconEval (XS⊎YS) (by rfl)]
+  simp
+  rw [disconEval XS (by rfl)]
+  rw [disconEval YS (by rfl)]
+  constructor
+  · -- →
+    intro lhs
+    rcases lhs with ⟨XY, ⟨X, ⟨X_in, ⟨Y, Y_in, X_Y_is_XY⟩⟩⟩, satXY⟩
+    rw [← X_Y_is_XY] at satXY
+    simp at satXY
+    constructor
+    · use X
+      constructor
+      use X_in
+      intro f f_in
+      apply satXY
+      tauto
+    · use Y
+      constructor
+      use Y_in
+      intro f f_in
+      apply satXY
+      tauto
+  · -- ←
+    intro rhs
+    rcases rhs with ⟨⟨X, X_in, satX⟩, ⟨Y, Y_in, satY⟩⟩
+    use X ++ Y
+    constructor
+    · use X
+      constructor
+      · assumption
+      · use Y
+    intro f
+    intro f_in
+    simp at f_in
+    cases' f_in with f_in_X f_in_Y -- TODO: nicer match syntax?
+    · apply satX f f_in_X
+    · apply satY f f_in_Y

@@ -1,4 +1,7 @@
-import Mathlib.Data.Finset.Basic
+import Std.Classes.SetNotation -- provides Union
+
+import Mathlib.Data.Finset.Basic -- this import affects unrelated stuff below O.o
+-- see https://leanprover.zulipchat.com/#narrow/stream/113489-new-members/topic/induction.20for.20mutually.20inductive.20types/near/395082787
 
 mutual
   inductive Formula : Type
@@ -8,21 +11,19 @@ mutual
     | and : Formula → Formula → Formula
     | box : Program → Formula → Formula
     | nstar : Formula → Formula
-    deriving Repr -- TODO DecidableEq not posible yet?
+    deriving Repr -- DecidableEq is not derivable here?
   inductive Program : Type
     | atom_prog : Char → Program
     | sequence : Program → Program → Program
     | union : Program → Program → Program
     | star : Program → Program
     | test : Formula → Program
-    deriving Repr -- TODO DecidableEq not posible yet?
+    deriving Repr -- DecidableEq is not derivable here?
 end
 
 -- needed for unions etc
-instance decEqFormula : DecidableEq Formula :=
-  sorry
-instance decEqProgram : DecidableEq Program :=
-  sorry
+instance decEqFormula : DecidableEq Formula := sorry
+instance decEqProgram : DecidableEq Program := sorry
 
 @[simp]
 def Formula.or : Formula → Formula → Formula
@@ -52,8 +53,7 @@ infixl:77 "⟷" => fun ϕ ψ => (ϕ↣ψ)⋀(ψ↣ϕ)
 
 infixl:33 ";" => Program.sequence -- TODO avoid ; which has a meaning in Lean 4 ??
 
-instance : Union Program :=
-  ⟨Program.union⟩
+instance : Union Program := ⟨Program.union⟩
 
 prefix:33 "∗" => Program.star
 
@@ -73,59 +73,62 @@ def theF : Formula → Formula
 
 -- COMPLEXITY
 mutual
-  @[simp]
-  def lengthOfProgram : Program → ℕ
-    | ·c => 1
+  def lengthOfProgram : Program → Nat
+    | ·_ => 1
     | α;β => 1 + lengthOfProgram α + lengthOfProgram β
     | Program.union α β => 1 + lengthOfProgram α + lengthOfProgram β
     | ∗α => 1 + lengthOfProgram α
-    | (✓ φ) => 1 + lengthOfFormula φ
-  @[simp]
-  def lengthOfFormula : Formula → ℕ
-    | ⊥ => 1
-    | ·c => 1
+    | ✓φ => 1 + lengthOfFormula φ
+  def lengthOfFormula : Formula → Nat
+    | Formula.bottom => 1
+    | ·_ => 1
     | ~φ => 1 + lengthOfFormula φ
     | φ⋀ψ => 1 + lengthOfFormula φ + lengthOfFormula ψ
-    | ⌈α⌉ φ => 1 + lengthOfProgram α + lengthOfFormula φ
-    | †f => 1 + lengthOfFormula f
+    | ⌈α⌉φ => 1 + lengthOfProgram α + lengthOfFormula φ
+    | † f => 1 + lengthOfFormula f
 end
-decreasing_by sorry -- TODO!
--- see https://lean-lang.org/theorem_proving_in_lean4/induction_and_recursion.html#well-founded-recursion-and-induction
+termination_by -- silly but needed?!
+  lengthOfProgram p => sizeOf p
+  lengthOfFormula f => sizeOf f
 
 -- mwah
 @[simp]
-def lengthOfEither : PSum Program Formula → ℕ
+def lengthOfEither : PSum Program Formula → Nat
   | PSum.inl p => lengthOfProgram p
   | PSum.inr f => lengthOfFormula f
 
 -- MEASURE
 mutual
   @[simp]
-  def mOfProgram : Program → ℕ
-    | ·c => 0
+  def mOfProgram : Program → Nat
+    | ·_ => 0
     | ✓ φ => 1 + mOfFormula φ
     | α;β => 1 + mOfProgram α + mOfProgram β + 1 -- TODO: max (mOfFormula φ) (mOfFormula (~φ))
     | Program.union α β => 1 + mOfProgram α + mOfProgram β + 1
     | ∗α => 1 + mOfProgram α
   @[simp]
-  def mOfFormula : Formula → ℕ
+  def mOfFormula : Formula → Nat
     | ⊥ => 0
     | ~⊥ => 0
     |-- missing in borze?
-      ·c =>
+      ·_ =>
       0
-    | ~·c => 0
+    | ~·_ => 0
     | ~~φ => 1 + mOfFormula φ
     | φ⋀ψ => 1 + mOfFormula φ + mOfFormula ψ
     | ~φ⋀ψ => 1 + mOfFormula (~φ) + mOfFormula (~ψ)
     | ⌈α⌉ φ => mOfProgram α + mOfFormula φ
     | ~⌈α⌉ φ => mOfProgram α + mOfFormula (~φ)
-    | ~†ϕ => 0
-    | †ϕ => 0
+    | ~†_ => 0
+    | †_ => 0
 end
-decreasing_by sorry -- TODO!
+termination_by -- silly but needed?!
+  mOfProgram p => sizeOf p
+  mOfFormula f => sizeOf f
 
--- VOCABULARY
+
+-- VOCAB
+
 mutual
   def vocabOfProgram : Program → Finset Char
     | ·c => {c}
@@ -141,7 +144,10 @@ mutual
     | ⌈α⌉ φ => vocabOfProgram α ∪ vocabOfFormula φ
     | †ϕ => vocabOfFormula ϕ
 end
-decreasing_by sorry -- TODO!
+termination_by -- silly but needed?!
+  vocabOfProgram p => sizeOf p
+  vocabOfFormula f => sizeOf f
+
 
 def vocabOfSetFormula : Finset Formula → Finset Char
   | X => X.biUnion vocabOfFormula
@@ -151,8 +157,8 @@ class HasVocabulary (α : Type) where
 
 open HasVocabulary
 
-instance formulaHasVocabulary : HasVocabulary Formula := ⟨ vocabOfFormula⟩  
+instance formulaHasVocabulary : HasVocabulary Formula := ⟨ vocabOfFormula⟩
 
-instance programHasVocabulary : HasVocabulary Program := ⟨ vocabOfProgram ⟩ 
+instance programHasVocabulary : HasVocabulary Program := ⟨ vocabOfProgram ⟩
 
-instance finsetFormulaHasVocabulary : HasVocabulary (Finset Formula) := ⟨ vocabOfSetFormula ⟩ 
+instance finsetFormulaHasVocabulary : HasVocabulary (Finset Formula) := ⟨ vocabOfSetFormula ⟩

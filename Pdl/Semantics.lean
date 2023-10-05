@@ -1,6 +1,7 @@
 import Mathlib.Order.CompleteLattice
 import Mathlib.Order.FixedPoints
 import Mathlib.Data.Set.Lattice
+
 import Pdl.Syntax
 
 -- Kripke Models aka Labelled Transition Systems
@@ -32,7 +33,7 @@ theorem StarIncl {α : Type} {a : α} {b : α} {r : α → α → Prop} : r a b 
 mutual
   @[simp]
   def evaluate {W : Type} : KripkeModel W → W → Formula → Prop
-    | M, w, ⊥ => False
+    | _, _, ⊥ => False
     | M, w, ·c => M.val w c
     | M, w, ~φ => Not (evaluate M w φ)
     | M, w, φ⋀ψ => evaluate M w φ ∧ evaluate M w ψ
@@ -46,8 +47,9 @@ mutual
     | M, ∗α, w, v => StarCat (relate M α) w v
     | M, ✓φ, w, v => w = v ∧ evaluate M w φ
 end
-decreasing_by sorry -- TODO
--- termination_by' ⟨_, measure_wf complexityOfQuery⟩
+termination_by
+  evaluate _ _ f => sizeOf f
+  relate _ p _ _ => sizeOf p
 
 @[simp]
 theorem evalDis {W M f g} {w : W} : evaluate M w (f⋁g) ↔ evaluate M w f ∨ evaluate M w g :=
