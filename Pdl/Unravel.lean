@@ -1,5 +1,3 @@
-import Mathlib.Tactic.Linarith.Frontend
-
 import Pdl.Syntax
 import Pdl.Discon
 import Pdl.Semantics
@@ -54,8 +52,9 @@ theorem likeLemmaFour :
     ∀ (W M) (a : Program) (w v : W) (X' X : List Formula) (P : Formula),
       X = X' ++ {~⌈a⌉ P} →
         (M, w)⊨Con X → relate M a w v → (M, v)⊨(~P) → ∃ Y ∈ {X'}⊎unravel (~⌈a⌉ P), (M, w)⊨Con Y :=
+        -- TODO: ∧ ∃ a_1 ... a_n: ~⌈a_1⌉...⌈a_n⌉P ∈ Y ∧ relate M (a_1;…;a_n) w v
+        -- first needs a "list of boxes in front of formula def"
   by
-  -- TODO: ∧ ∃ a_1 ... a_n: ~⌈a_1⌉...⌈a_n⌉P ∈ Y ∧ relate M (a_1;…;a_n) w v
   intro W M a
   -- 'induction' tactic does not support mutually inductive types, ...
   -- https://leanprover.zulipchat.com/#narrow/stream/113489-new-members/topic/induction.20for.20mutually.20inductive.20types
@@ -76,9 +75,32 @@ theorem likeLemmaFour :
     unfold relate at w_bc_v
     rcases w_bc_v with ⟨u, w_b_u, u_c_v⟩
     subst X_def
-    have IHb := likeLemmaFour W M b -- here we get an IH using a recursive call!
-    specialize IHb w u X' (X' ++ {~⌈b⌉ (⌈c⌉ P)}) (⌈c⌉ P) (by rfl) _ w_b_u _
-    · sorry
+    have IHb := likeLemmaFour W M b w u X' -- here we get an IH using a recursive call!
+    specialize IHb (X' ++ {~⌈b⌉ (⌈c⌉ P)}) (⌈c⌉ P) (by rfl) _ w_b_u _
+    · convert_to (evaluate M w (Con (X' ++ {~⌈b⌉⌈c⌉P})))
+      rw [conEval]
+      unfold vDash.SemImplies at w_sat_X
+      unfold modelCanSemImplyForm at w_sat_X
+      simp at *
+      rw [conEval] at w_sat_X
+      intro f lhs
+      cases' lhs with f_in_X other
+      · apply w_sat_X f
+        simp
+        left
+        exact f_in_X
+      · simp at other
+        specialize w_sat_X (~⌈b;c⌉P)
+        cases other
+        · specialize w_sat_X _
+          · simp
+            right
+            exact List.mem_of_mem_head? rfl
+          simp at *
+          rcases w_sat_X with ⟨x,y,y_c_x,w_b_y,nP⟩
+          use y
+          tauto
+        · tauto
     · sorry
     -- need (M, u)⊨~⌈c⌉ P
     rcases IHb with ⟨Y, Y_in, w_conY⟩

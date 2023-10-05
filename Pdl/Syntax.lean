@@ -21,6 +21,9 @@ mutual
     deriving Repr -- DecidableEq is not derivable here?
 end
 
+-- TODO: update the above once we have a newer Lean version
+-- including https://github.com/leanprover/lean4/pull/2591
+
 -- needed for unions etc
 instance decEqFormula : DecidableEq Formula := sorry
 instance decEqProgram : DecidableEq Program := sorry
