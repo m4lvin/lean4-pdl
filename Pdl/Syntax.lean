@@ -28,41 +28,40 @@ end
 instance decEqFormula : DecidableEq Formula := sorry
 instance decEqProgram : DecidableEq Program := sorry
 
+-- Notation and abbreviations
+
 @[simp]
 def Formula.or : Formula → Formula → Formula
   | f, g => Formula.neg (Formula.and (Formula.neg f) (Formula.neg g))
 
--- Notation and abbreviations
+@[simp]
+def Formula.boxes : List Program → Formula → Formula
+  | [], f => f
+  | (p :: ps), f => Formula.box p (Formula.boxes ps f)
+
+def Program.steps : List Program → Program
+  | [] => Program.test (Formula.neg Formula.bottom)
+  | [p] => p
+  | (p :: ps) => Program.sequence p (Program.steps ps)
 
 notation "·" c => Formula.atom_prop c
-
 notation "·" c => Program.atom_prog c
-
 prefix:11 "~" => Formula.neg
 
+-- TODO: use class instances to avoid overwriting ⊥ and ⊤
 notation "⊥" => Formula.bottom
-
 notation "⊤" => Formula.neg Formula.bottom
-
-notation "⌈" α "⌉" P => Formula.box α P
-
 infixr:66 "⋀" => Formula.and
-
 infixr:60 "⋁" => Formula.or
-
 infixr:55 "↣" => fun φ ψ => ~φ⋀(~ψ)
-
 infixl:77 "⟷" => fun ϕ ψ => (ϕ↣ψ)⋀(ψ↣ϕ)
-
-infixl:33 ";" => Program.sequence -- TODO avoid ; which has a meaning in Lean 4 ??
-
-instance : Union Program := ⟨Program.union⟩
-
-prefix:33 "∗" => Program.star
-
+notation "⌈" α "⌉" P => Formula.box α P -- TOOD: adjust precedence to make ⌈α⌉⌈β⌉P work, or is it fine already?
 prefix:33 "†" => Formula.nstar
 
-prefix:33 "✓" => Program.test -- avoiding ? which has a meaning in Lean 4
+infixl:33 ";" => Program.sequence -- TODO avoid ; which has a meaning in Lean 4
+instance : Union Program := ⟨Program.union⟩
+prefix:33 "∗" => Program.star
+prefix:33 "✓" => Program.test -- avoiding "?" which has a meaning in Lean 4
 
 -- THE f FUNCTION
 -- | Borzechowski's f function, sort of.
@@ -151,17 +150,12 @@ termination_by -- silly but needed?!
   vocabOfProgram p => sizeOf p
   vocabOfFormula f => sizeOf f
 
-
 def vocabOfSetFormula : Finset Formula → Finset Char
   | X => X.biUnion vocabOfFormula
 
 class HasVocabulary (α : Type) where
   voc : α → Finset Char
 
-open HasVocabulary
-
 instance formulaHasVocabulary : HasVocabulary Formula := ⟨ vocabOfFormula⟩
-
 instance programHasVocabulary : HasVocabulary Program := ⟨ vocabOfProgram ⟩
-
 instance finsetFormulaHasVocabulary : HasVocabulary (Finset Formula) := ⟨ vocabOfSetFormula ⟩
