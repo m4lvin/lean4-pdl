@@ -51,9 +51,10 @@ def nsub : Formula → List Formula
 theorem likeLemmaFour :
     ∀ (W M) (a : Program) (w v : W) (X' X : List Formula) (P : Formula),
       X = X' ++ {~⌈a⌉ P} →
-        (M, w)⊨Con X → relate M a w v → (M, v)⊨(~P) → ∃ Y ∈ {X'}⊎unravel (~⌈a⌉ P), (M, w)⊨Con Y :=
-        -- TODO: ∧ ∃ a_1 ... a_n: ~⌈a_1⌉...⌈a_n⌉P ∈ Y ∧ relate M (a_1;…;a_n) w v
-        -- first needs a "list of boxes in front of formula def"
+        (M, w)⊨Con X → relate M a w v → (M, v)⊨(~P) →
+          ∃ Y ∈ {X'}⊎unravel (~⌈a⌉ P), (M, w)⊨Con Y
+          ∧ ∃ as : List Program, (~ Formula.boxes as P) ∈ Y
+            ∧ relate M (Program.steps as) w v :=
   by
   intro W M a
   -- 'induction' tactic does not support mutually inductive types, ...
@@ -68,7 +69,9 @@ theorem likeLemmaFour :
     constructor
     · subst X_def
       rfl
-    assumption
+    constructor
+    · assumption
+    · sorry
   case sequence -- a -- b c -- IHb
     b c =>
     intro w v X' X P X_def w_sat_X w_bc_v v_sat_nP
@@ -101,13 +104,15 @@ theorem likeLemmaFour :
           use y
           tauto
         · tauto
-    · sorry
-    -- need (M, u)⊨~⌈c⌉ P
+    · sorry -- need (M, u)⊨~⌈c⌉ P -- make and use IHc here ?
     rcases IHb with ⟨Y, Y_in, w_conY⟩
     use Y
     constructor
     sorry
-    exact w_conY
+    constructor
+    · tauto
+    · use [c]
+      sorry
   case union =>
     intro w v X' X P X_def w_sat_X w_a_v v_sat_nP; subst X_def
     sorry
