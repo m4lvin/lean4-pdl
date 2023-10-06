@@ -119,19 +119,20 @@ theorem likeLemmaFour :
       unfold modelCanSemImplyForm at *
       simp at *
       use v
-    rcases IHb with ⟨Y, Y_in, w_conY, as, nBas_in_Y, w_as_u⟩
+    rcases IHb with ⟨Y, Y_in, w_conY, as, nBascP_in_Y, w_as_u⟩
     use Y
     constructor
-    simp at *
-    assumption
-    -- TODO "If n > 0 then we are done, otherwise again apply the IH to Z"
+    · simp at *
+      assumption
     constructor
     · tauto
-    · use [c]
+    · use as ++ [c]
       constructor
-      · sorry
-      ·
+      · have : (~Formula.boxes (as ++ [c]) P) = (~Formula.boxes as (⌈c⌉P))
         sorry
+        rw [this]
+        exact nBascP_in_Y
+      · sorry
   case union =>
     intro w v X' X P X_def w_sat_X w_a_v v_sat_nP; subst X_def
     sorry

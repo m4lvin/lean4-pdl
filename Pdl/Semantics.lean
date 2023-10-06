@@ -92,6 +92,7 @@ class vDash (α : Type) (β : Type) where
 open vDash
 
 instance modelCanSemImplyForm {W : Type} : vDash (KripkeModel W × W) Formula := vDash.mk (@evaluatePoint W)
+instance modelCanSemImplySet {W : Type} : vDash (KripkeModel W × W) (Finset Formula) := vDash.mk (λ ⟨M,w⟩ fs => ∀ f ∈ fs, @evaluate W M w f)
 instance setCanSemImplySet : vDash (Finset Formula) (Finset Formula) := vDash.mk semImpliesSets
 instance setCanSemImplyForm : vDash (Finset Formula) Formula:= vDash.mk fun X ψ => semImpliesSets X {ψ}
 instance formCanSemImplySet : vDash Formula (Finset Formula) := vDash.mk fun φ X => semImpliesSets {φ} X
