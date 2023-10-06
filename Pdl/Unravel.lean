@@ -4,6 +4,7 @@ import Pdl.Semantics
 
 -- UNRAVELING
 -- | New Definition 10
+@[simp]
 def unravel : Formula → List (List Formula)
   -- diamonds:
   | ~⌈·a⌉ P => [[~⌈·a⌉ P]]
@@ -48,6 +49,10 @@ def nsub : Formula → List Formula
   | f⋀g => nsub f ++ nsub g
   | ~f⋀g => nsub f ++ nsub g
 
+-- Like Lemma 4 from Borzechowski, but using "unravel" instead of a local tableau with n-nodes.
+-- see https://malv.in/2020/borzechowski-pdl/Borzechowski1988-PDL-translation-Gattinger2020.pdf#lemma.4
+-- TODO: maybe simplify by not having a context X' here / still as useful for showing soundness of ~* rule?
+-- TODO: analogous lemma for the box case? and * rule?
 theorem likeLemmaFour :
     ∀ (W M) (a : Program) (w v : W) (X' X : List Formula) (P : Formula),
       X = X' ++ {~⌈a⌉ P} →
@@ -66,14 +71,20 @@ theorem likeLemmaFour :
     use X -- "The claim holds with Y = X" says MB.
     unfold unravel
     simp
+    subst X_def
     constructor
-    · subst X_def
-      rfl
+    · rfl
     constructor
     · assumption
-    · sorry
-  case sequence -- a -- b c -- IHb
-    b c =>
+    · use [·A]
+      unfold Formula.boxes
+      simp
+      constructor
+      · right
+        exact List.mem_of_mem_head? rfl
+      · unfold Program.steps
+        exact w_a_v
+  case sequence b c =>
     intro w v X' X P X_def w_sat_X w_bc_v v_sat_nP
     unfold relate at w_bc_v
     rcases w_bc_v with ⟨u, w_b_u, u_c_v⟩
@@ -104,15 +115,23 @@ theorem likeLemmaFour :
           use y
           tauto
         · tauto
-    · sorry -- need (M, u)⊨~⌈c⌉ P -- make and use IHc here ?
-    rcases IHb with ⟨Y, Y_in, w_conY⟩
+    · unfold vDash.SemImplies at *
+      unfold modelCanSemImplyForm at *
+      simp at *
+      use v
+    rcases IHb with ⟨Y, Y_in, w_conY, as, nBas_in_Y, w_as_u⟩
     use Y
     constructor
-    sorry
+    simp at *
+    assumption
+    -- TODO "If n > 0 then we are done, otherwise again apply the IH to Z"
     constructor
     · tauto
     · use [c]
-      sorry
+      constructor
+      · sorry
+      ·
+        sorry
   case union =>
     intro w v X' X P X_def w_sat_X w_a_v v_sat_nP; subst X_def
     sorry
