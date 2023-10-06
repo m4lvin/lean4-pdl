@@ -1,0 +1,43 @@
+# based on https://github.com/leanprover-community/lean-liquid/blob/master/.github/workflow/build.yml
+
+on:
+  push:
+
+name: CI
+
+jobs:
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: ${{ env.GIT_HISTORY_DEPTH }}
+
+      - name: install elan
+        run: |
+          set -o pipefail
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- --default-toolchain none -y
+          ~/.elan/bin/lean --version
+          echo "$HOME/.elan/bin" >> $GITHUB_PATH
+
+      - name: make
+        run: make
+
+  stats:
+    name: Stats
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: install ripgrep
+        run: sudo apt install -y ripgrep
+
+      - name: count lines in src
+        run: |
+          shopt -s globstar
+          wc -l Pdl/**/*.lean
+      - name: count sorries
+        run: |
+          rg --count-matches sorry Pdl | awk -F ':' 'BEGIN {sum = 0} {sum += $2} {print $2 " " $1} END {print sum " sorries in total"}'
