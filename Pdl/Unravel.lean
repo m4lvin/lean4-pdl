@@ -49,6 +49,17 @@ def nsub : Formula → List Formula
   | f⋀g => nsub f ++ nsub g
   | ~f⋀g => nsub f ++ nsub g
 
+lemma rel_steps_last : -- TODO: avoid implicit variables to put as before M
+  relate M (Program.steps (as ++ [a])) t v ↔
+    ∃ mid, relate M (Program.steps (as)) t mid ∧ relate M a mid v :=
+  by
+  induction as
+  case nil =>
+    simp at *
+  case cons a2 as IH =>
+    simp at *
+    sorry
+
 -- Like Lemma 4 from Borzechowski, but using "unravel" instead of a local tableau with n-nodes.
 -- see https://malv.in/2020/borzechowski-pdl/Borzechowski1988-PDL-translation-Gattinger2020.pdf#lemma.4
 -- TODO: maybe simplify by not having a context X' here / still as useful for showing soundness of ~* rule?
@@ -78,12 +89,11 @@ theorem likeLemmaFour :
     · assumption
     · use [·A]
       unfold Formula.boxes
-      simp
+      simp at *
       constructor
       · right
         exact List.mem_of_mem_head? rfl
-      · unfold Program.steps
-        exact w_a_v
+      · exact w_a_v
   case sequence b c =>
     intro w v X' X P X_def w_sat_X w_bc_v v_sat_nP
     unfold relate at w_bc_v
@@ -127,12 +137,22 @@ theorem likeLemmaFour :
     constructor
     · tauto
     · use as ++ [c]
-      constructor
-      · have : (~Formula.boxes (as ++ [c]) P) = (~Formula.boxes as (⌈c⌉P))
-        sorry
-        rw [this]
-        exact nBascP_in_Y
-      · sorry
+      cases as -- a la borze
+      case nil =>
+        simp at *
+        rw [w_as_u]
+        exact ⟨nBascP_in_Y,u_c_v⟩
+      case cons a as =>
+        simp at *
+        constructor
+        · rw [boxes_last]
+          exact nBascP_in_Y
+        · rcases w_as_u with ⟨t, w_a_t, y_as_u⟩
+          use t
+          constructor
+          · assumption
+          · rw [rel_steps_last]
+            use u
   case union =>
     intro w v X' X P X_def w_sat_X w_a_v v_sat_nP; subst X_def
     sorry

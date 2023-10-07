@@ -39,9 +39,9 @@ def Formula.boxes : List Program → Formula → Formula
   | [], f => f
   | (p :: ps), f => Formula.box p (Formula.boxes ps f)
 
+@[simp]
 def Program.steps : List Program → Program
   | [] => Program.test (Formula.neg Formula.bottom)
-  | [p] => p
   | (p :: ps) => Program.sequence p (Program.steps ps)
 
 notation "·" c => Formula.atom_prop c
@@ -159,3 +159,12 @@ class HasVocabulary (α : Type) where
 instance formulaHasVocabulary : HasVocabulary Formula := ⟨ vocabOfFormula⟩
 instance programHasVocabulary : HasVocabulary Program := ⟨ vocabOfProgram ⟩
 instance finsetFormulaHasVocabulary : HasVocabulary (Finset Formula) := ⟨ vocabOfSetFormula ⟩
+
+
+lemma boxes_last : ∀ {a as P} , (~⌈a⌉Formula.boxes (as ++ [c]) P) = (~⌈a⌉Formula.boxes as (⌈c⌉P)) :=
+  by
+  intro a as P
+  induction as
+  · simp
+  · simp at *
+    assumption
