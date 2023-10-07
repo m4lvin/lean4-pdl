@@ -4,3 +4,6 @@ import «Pdl».Syntax
 import «Pdl».Semantics
 import «Pdl».Discon
 import «Pdl».Unravel
+import «Pdl».Tableau
+-- import «Pdl».Examples -- TODO!
+import «Pdl».Interpolation

@@ -3,8 +3,6 @@ import Pdl.Semantics
 import Mathlib.Data.Vector.Basic
 import Mathlib.Tactic.FinCases
 
-#align_import examples
-
 open Vector
 
 -- some simple silly stuff
@@ -16,19 +14,17 @@ theorem mytaut1 (p : Char) : tautology (Formula.atom_prop p↣Formula.atom_prop 
 
 open Classical
 
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
 theorem mytaut2 (p : Char) : tautology ((~~·p)↣·p) :=
   by
   unfold tautology evaluatePoint evaluate
   intro W M w
-  classical tauto
+  classical
+  tauto
 
 def myModel : KripkeModel ℕ where
   val _ _ := True
   Rel _ _ v := HEq v 1
 
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
 theorem mysat (p : Char) : satisfiable (·p) :=
   by
   unfold satisfiable
@@ -37,32 +33,29 @@ theorem mysat (p : Char) : satisfiable (·p) :=
   exists 1
   unfold evaluatePoint evaluate
 
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
 -- Segerberg's axioms
--- A1
--- all propositional tautologies
+
+-- A1: all propositional tautologies
+
 theorem A2 (a : Program) (X Y : Formula) : tautology (⌈a⌉ ⊤) :=
   by
   unfold tautology evaluatePoint evaluate
   sorry -- tauto
-#align A2 A2
 
-theorem A3 (a : Program) (X Y : Formula) : tautology (⌈a⌉ (X⋀Y)↣⌈a⌉ X⋀⌈a⌉ Y) :=
+theorem A3 (a : Program) (X Y : Formula) : tautology ((⌈a⌉(X⋀Y)) ↣ (⌈a⌉X) ⋀ (⌈a⌉Y)) :=
   by
-  unfold tautology evaluatePoint evaluate
-  intro W M w
-  by_contra hyp
-  cases' hyp with hl hr
-  contrapose! hr
+  unfold tautology
+  simp
+  intro W M w hyp
   constructor
-  · intro v1 ass; exact (hl v1 ass).1
-  · intro v2 ass; exact (hl v2 ass).2
-#align A3 A3
+  · intro v
+    specialize hyp v
+    tauto
+  · intro v
+    specialize hyp v
+    tauto
 
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-theorem A4 (a b : Program) (p : Char) : tautology (⌈a;b⌉ (·p)⟷⌈a⌉ (⌈b⌉ (·p))) :=
+theorem A4 (a b : Program) (p : Char) : tautology ((⌈a;b⌉(·p)) ⟷ (⌈a⌉(⌈b⌉(·p)))) :=
   by
   unfold tautology evaluatePoint evaluate
   intro W M w
@@ -87,9 +80,8 @@ theorem A4 (a b : Program) (p : Char) : tautology (⌈a;b⌉ (·p)⟷⌈a⌉ (�
     unfold Relate at w_ab_v2 
     rcases w_ab_v2 with ⟨v1, w_a_v1, v1_b_v2⟩
     exact hl v1 w_a_v1 v2 v1_b_v2
-#align A4 A4
 
-theorem A5 (a b : Program) (X : Formula) : tautology (⌈Program.union a b⌉ X⟷(⌈a⌉ X⋀⌈b⌉ X)) :=
+theorem A5 (a b : Program) (X : Formula) : tautology ((⌈a ∪ b⌉X) ⟷((⌈a⌉X) ⋀ (⌈b⌉X))) :=
   by
   unfold tautology evaluatePoint evaluate
   intro W M w
@@ -127,12 +119,12 @@ theorem A5 (a b : Program) (X : Formula) : tautology (⌈Program.union a b⌉ X�
     cases m_ab_v
     · apply rhs_a m_ab_v
     · apply rhs_b m_ab_v
-#align A5 A5
 
-theorem A6 (a : Program) (X : Formula) : tautology (⌈∗a⌉ X⟷(X⋀⌈a⌉ (⌈∗a⌉ X))) :=
+theorem A6 (a : Program) (X : Formula) : tautology ((⌈∗a⌉X) ⟷ (X ⋀ (⌈a⌉(⌈∗a⌉X)))) :=
   by
   unfold tautology evaluatePoint evaluate
   intro W M w
+  simp
   constructor
   · -- left to right
     intro lhs
@@ -166,12 +158,11 @@ theorem A6 (a : Program) (X : Formula) : tautology (⌈∗a⌉ X⟷(X⋀⌈a⌉ 
       unfold Relate at w_aSaX 
       simp at w_aSaX 
       exact w_aSaX y w_a_y v y_aS_v
-#align A6 A6
 
-example (a b : Program) (X : Formula) : ⌈∗(∗a) ∪ b⌉X ≡ X⋀⌈a⌉ (⌈∗(∗a) ∪ b⌉ X)⋀⌈b⌉ (⌈∗(∗a) ∪ b⌉ X) :=
+example (a b : Program) (X : Formula) :
+  (⌈∗(∗a) ∪ b⌉X) ≡ X ⋀ (⌈a⌉(⌈∗(∗a) ∪ b⌉ X)) ⋀ (⌈b⌉(⌈∗(∗a) ∪ b⌉ X)) :=
   by
-  unfold SemEquiv
-  unfold Evaluate Relate
+  unfold semEquiv
   simp
   intro W M w
   sorry
@@ -230,7 +221,6 @@ theorem starIsFinitelyManySteps {W : Type} {M : KripkeModel W} {x z : W} {α : P
         rw [h1]
         rw [h2]
         apply IH3
-#align starIsFinitelyManySteps starIsFinitelyManySteps
 
 -- rest of chain by IH
 -- related via star <== related via a finite chain
@@ -274,7 +264,6 @@ theorem finitelyManyStepsIsStar {W : Type} {M : KripkeModel W} {α : Program} {n
       specialize lhs i.succ
       simp [Fin.succ_castSucc]
       apply lhs
-#align finitelyManyStepsIsStar finitelyManyStepsIsStar
 
 -- related via star <=> related via a finite chain
 theorem starIffFinitelyManySteps (W : Type) (M : KripkeModel W) (x z : W) (α : Program) :
@@ -289,23 +278,20 @@ theorem starIffFinitelyManySteps (W : Type) (M : KripkeModel W) (x z : W) (α : 
   rw [x_is_head]
   rw [z_is_last]
   apply finitelyManyStepsIsStar rhs
-#align starIffFinitelyManySteps starIffFinitelyManySteps
 
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
 -- preparation for next lemma
 theorem stepStarIsStarStep {W : Type} {M : KripkeModel W} {x z : W} {a : Program} :
-    Relate M (a;∗a) x z ↔ Relate M (∗a;a) x z :=
+    relate M (a;(∗a)) x z ↔ relate M (∗a;a) x z :=
   by
   constructor
   · intro lhs
-    unfold Relate at lhs 
+    unfold relate at lhs
     cases' lhs with y lhs
     simp at lhs 
     cases' lhs with x_a_y y_aS_z
     rw [starIffFinitelyManySteps] at y_aS_z 
     rcases y_aS_z with ⟨n, ys, y_is_head, z_is_last, hyp⟩
-    unfold Relate
+    unfold relate
     let newY := last (cons x (remove_nth (coe n) ys))
     use newY
     constructor
@@ -333,26 +319,21 @@ theorem stepStarIsStarStep {W : Type} {M : KripkeModel W} {x z : W} {a : Program
       -- TODO apply hyp ↑n,
       sorry
   · sorry
-#align stepStarIsStarStep stepStarIsStarStep
 
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-theorem stepStarIsStarStepBoxes {a : Program} {φ : Formula} : Tautology (⌈a;∗a⌉ φ↣⌈∗a;a⌉ φ) :=
+theorem stepStarIsStarStepBoxes {a : Program} {φ : Formula} : tautology ((⌈a;(∗a)⌉φ) ↣ (⌈∗a;a⌉φ)) :=
   by
   simp
-  unfold Tautology EvaluatePoint Evaluate
   intro W M w
   simp
   intro lhs
   intro x
   rw [← stepStarIsStarStep]
   apply lhs
-#align stepStarIsStarStepBoxes stepStarIsStarStepBoxes
 
 -- Example 1 in Borzechowski
-theorem inductionAxiom (a : Program) (φ : Formula) : Tautology (φ⋀⌈∗a⌉ (φ↣⌈a⌉ φ)↣⌈∗a⌉ φ) :=
+theorem inductionAxiom (a : Program) (φ : Formula) : tautology (φ ⋀ (⌈∗a⌉(φ ↣ (⌈a⌉φ)) ↣ (⌈∗a⌉φ))) :=
   by
-  unfold Tautology EvaluatePoint Evaluate
+  simp
   intro W M w
   simp
   intro Mwφ
@@ -378,5 +359,3 @@ theorem inductionAxiom (a : Program) (φ : Formula) : Tautology (φ⋀⌈∗a⌉
     sorry
   rw [x_is_ys_nsucc]
   exact claim
-#align inductionAxiom inductionAxiom
-
