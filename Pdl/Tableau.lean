@@ -46,18 +46,51 @@ inductive localRule : Finset Formula → Finset (Finset Formula) → Type
   -- TODO which rules need and modify markings?
   -- TODO only apply * if there is a marking.
 
-
--- TODO: rephrase this like Lemma 5 of MB with both directions / invertible?
+-- Like Lemma 5 of MB
 lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
   localRule X B → ((∃ Y ∈ B, (M,w) ⊨ Y) ↔ (M,w) ⊨ X) :=
   by
   intro locR
   cases locR
   case nSt a f aSf_in_X =>
-    have := likeLemmaFour M (∗ a)
-    simp at *
-    -- TODO
-    sorry
+    have lemFour := likeLemmaFour M (∗ a)
+    constructor
+    · intro lhs
+      sorry
+    · intro Mw_X
+      have w_adiamond_f := Mw_X (~⌈∗a⌉f) aSf_in_X
+      simp at w_adiamond_f lemFour
+      rcases w_adiamond_f with ⟨v, w_aS_x, v_nF⟩
+      -- Now we use Lemma 4 here:
+      specialize lemFour w v X.toList (X.toList ++ {~⌈∗a⌉f}) f rfl
+      unfold vDash.SemImplies modelCanSemImplyForm at lemFour -- mwah, why simp not do this?
+      simp at lemFour
+      specialize lemFour _ w_aS_x v_nF
+      · rw [conEval]
+        intro g g_in
+        simp at g_in
+        apply Mw_X
+        cases g_in
+        case inl => assumption
+        case inr h =>
+          convert aSf_in_X
+          cases h
+          · rfl
+          · exfalso
+            tauto
+      rcases lemFour with ⟨Z, Z_in, Mw_ZX, ⟨as, nBasf_in, w_as_v⟩⟩
+      use (X \ {~⌈∗a⌉f}) ∪ Z.toFinset -- hmmm, good guess?
+      constructor
+      · apply union_elem_uplus
+        · simp
+        · simp
+          use Z
+      · rw [conEval] at Mw_ZX
+        intro g g_in
+        apply Mw_ZX
+        simp
+        simp at g_in
+        tauto
   -- TODO
   all_goals { sorry }
 

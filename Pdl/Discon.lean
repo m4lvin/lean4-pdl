@@ -165,3 +165,24 @@ theorem disconAnd {XS YS} : discon (XS ⊎ YS) ≡ discon XS ⋀ discon YS :=
     cases' f_in with f_in_X f_in_Y -- TODO: nicer match syntax?
     · apply satX f f_in_X
     · apply satY f f_in_Y
+
+theorem union_elem_uplus {XS YS : Finset (Finset Formula)} {X Y : Finset Formula} :
+  X ∈ XS → Y ∈ YS → ((X ∪ Y) ∈ (XS ⊎ YS)) :=
+  by
+  intro X_in Y_in
+  simp
+  ext1 -- this seems to go wrong?
+  constructor
+  · intro f_in
+    simp at f_in
+    simp
+    use X
+    constructor
+    · exact X_in
+    · use Y
+  · intro f_in
+    simp
+    simp at f_in
+    rcases f_in with ⟨X', X'_in, Y', Y'_in, f_in⟩
+    -- But now X' Y' are unrelated to X and Y :-(
+    sorry
