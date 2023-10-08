@@ -156,10 +156,9 @@ def vocabOfSetFormula : Finset Formula → Finset Char
 class HasVocabulary (α : Type) where
   voc : α → Finset Char
 
-instance formulaHasVocabulary : HasVocabulary Formula := ⟨ vocabOfFormula⟩
-instance programHasVocabulary : HasVocabulary Program := ⟨ vocabOfProgram ⟩
-instance finsetFormulaHasVocabulary : HasVocabulary (Finset Formula) := ⟨ vocabOfSetFormula ⟩
-
+instance formulaHasVocabulary : HasVocabulary Formula := ⟨vocabOfFormula⟩
+instance programHasVocabulary : HasVocabulary Program := ⟨vocabOfProgram⟩
+instance finsetFormulaHasVocabulary : HasVocabulary (Finset Formula) := ⟨vocabOfSetFormula⟩
 
 lemma boxes_last : ∀ {a as P} , (~⌈a⌉Formula.boxes (as ++ [c]) P) = (~⌈a⌉Formula.boxes as (⌈c⌉P)) :=
   by

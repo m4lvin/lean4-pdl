@@ -12,6 +12,10 @@ import Pdl.Unravel
 -- TODO: Can we use variables below without making them arguments of localRule?
 -- variable (X : Finset Formula) (f g : Formula) (a b : Program)
 
+@[simp]
+def listsToSets : List (List Formula) → Finset (Finset Formula)
+| LS => (LS.map List.toFinset).toFinset
+
 -- Local rules: given this set, we get these sets as child nodes
 inductive localRule : Finset Formula → Finset (Finset Formula) → Type
   -- PROP LOGIC
@@ -36,16 +40,26 @@ inductive localRule : Finset Formula → Finset (Finset Formula) → Type
   | nUn {a b f} (h : (~⌈a ∪ b⌉f) ∈ X) : localRule X { X \ {~⌈a ∪ b⌉f} ∪ {~⌈a⌉f}
                                                     , X \ {~⌈a ∪ b⌉f} ∪ {~⌈b⌉f} }
   -- STAR
-  | sta {X a f} (h : (⌈∗a⌉f) ∈ X) : localRule X (pairunionFinset { X \ {⌈∗a⌉f} } ((unravel (⌈∗a⌉f)).map List.toFinset).toFinset)
-  | nSt {a f} (h : (~⌈∗a⌉f) ∈ X) : localRule X (pairunionFinset { X \ {~⌈∗a⌉f} } ((unravel (~⌈∗a⌉f)).map List.toFinset).toFinset)
+  | sta {X a f} (h : (⌈∗a⌉f) ∈ X) : localRule X ({ X \ {⌈∗a⌉f} } ⊎ (listsToSets (unravel (⌈∗a⌉f))))
+  | nSt {a f} (h : (~⌈∗a⌉f) ∈ X) : localRule X ({ X \ {~⌈∗a⌉f} } ⊎ (listsToSets (unravel (~⌈∗a⌉f))))
 
   -- TODO which rules need and modify markings?
   -- TODO only apply * if there is a marking.
 
 
 -- TODO: rephrase this like Lemma 5 of MB with both directions / invertible?
-lemma localRuleTruth {W : Type} {M : KripkeModel W} {w : W} {X : Finset Formula} {B : Finset (Finset Formula)} :
-  localRule X B → (∃ Y ∈ B, (M,w) ⊨ Y) → (M,w) ⊨ X := sorry
+lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
+  localRule X B → ((∃ Y ∈ B, (M,w) ⊨ Y) ↔ (M,w) ⊨ X) :=
+  by
+  intro locR
+  cases locR
+  case nSt a f aSf_in_X =>
+    have := likeLemmaFour M (∗ a)
+    simp at *
+    -- TODO
+    sorry
+  -- TODO
+  all_goals { sorry }
 
 
 -- TODO inductive LocalTableau
@@ -53,7 +67,7 @@ lemma localRuleTruth {W : Type} {M : KripkeModel W} {w : W} {X : Finset Formula}
 
 -- TABLEAUX
 
-inductive Tableau
+inductive Tableau -- to be rewritten as in tablean?
   | leaf : Set Formula → Tableau
   | Rule : Rule → List (Set Formula) → Tableau
 

@@ -6,11 +6,11 @@ import Mathlib.Tactic.FinCases
 open Vector
 
 -- some simple silly stuff
-theorem mytaut1 (p : Char) : tautology (Formula.atom_prop p↣Formula.atom_prop p) :=
+theorem mytaut1 (p : Char) : tautology ((·p) ↣ (·p)) :=
   by
-  unfold tautology evaluatePoint evaluate
+  unfold tautology
   intro W M w
-  sorry -- tauto
+  simp
 
 open Classical
 
@@ -18,8 +18,7 @@ theorem mytaut2 (p : Char) : tautology ((~~·p)↣·p) :=
   by
   unfold tautology evaluatePoint evaluate
   intro W M w
-  classical
-  tauto
+  simp
 
 def myModel : KripkeModel ℕ where
   val _ _ := True
@@ -27,11 +26,9 @@ def myModel : KripkeModel ℕ where
 
 theorem mysat (p : Char) : satisfiable (·p) :=
   by
-  unfold satisfiable
-  exists ℕ
-  exists myModel
-  exists 1
-  unfold evaluatePoint evaluate
+  use ℕ, myModel, 1
+  unfold myModel
+  simp
 
 -- Segerberg's axioms
 
@@ -39,8 +36,8 @@ theorem mysat (p : Char) : satisfiable (·p) :=
 
 theorem A2 (a : Program) (X Y : Formula) : tautology (⌈a⌉ ⊤) :=
   by
-  unfold tautology evaluatePoint evaluate
-  sorry -- tauto
+  unfold tautology
+  simp
 
 theorem A3 (a : Program) (X Y : Formula) : tautology ((⌈a⌉(X⋀Y)) ↣ (⌈a⌉X) ⋀ (⌈a⌉Y)) :=
   by
@@ -67,7 +64,7 @@ theorem A4 (a b : Program) (p : Char) : tautology ((⌈a;b⌉(·p)) ⟷ (⌈a⌉
     intro v w_a_v v1 v_b_v1
     specialize hl v1
     apply hl
-    unfold Relate
+    simp
     use v
     constructor
     · exact w_a_v
@@ -77,7 +74,7 @@ theorem A4 (a b : Program) (p : Char) : tautology ((⌈a;b⌉(·p)) ⟷ (⌈a⌉
     cases' hyp with hl hr
     contrapose! hr
     intro v2 w_ab_v2
-    unfold Relate at w_ab_v2 
+    simp at w_ab_v2
     rcases w_ab_v2 with ⟨v1, w_a_v1, v1_b_v2⟩
     exact hl v1 w_a_v1 v2 v1_b_v2
 
@@ -94,16 +91,16 @@ theorem A5 (a b : Program) (X : Formula) : tautology ((⌈a ∪ b⌉X) ⟷((⌈a
     · -- show ⌈α⌉X
       intro v
       specialize lhs v
-      intro (w_a_v : Relate M a w v)
-      unfold Relate at lhs 
+      intro (w_a_v : relate M a w v)
+      unfold relate at lhs
       apply lhs
       left
       exact w_a_v
     · -- show ⌈β⌉X
       intro v
       specialize lhs v
-      intro (w_b_v : Relate M b w v)
-      unfold Relate at lhs 
+      intro (w_b_v : relate M b w v)
+      unfold relate at lhs
       apply lhs
       right
       exact w_b_v
@@ -115,7 +112,7 @@ theorem A5 (a b : Program) (X : Formula) : tautology ((⌈a ∪ b⌉X) ⟷((⌈a
     intro v; intro m_ab_v
     specialize rhs_a v
     specialize rhs_b v
-    unfold Relate at m_ab_v 
+    unfold relate at m_ab_v
     cases m_ab_v
     · apply rhs_a m_ab_v
     · apply rhs_b m_ab_v
@@ -133,16 +130,15 @@ theorem A6 (a : Program) (X : Formula) : tautology ((⌈∗a⌉X) ⟷ (X ⋀ (�
     constructor
     · -- show X using refl:
       apply starAX
-      unfold Relate
       simp
       exact StarCat.refl w
     · -- show [α][α∗]X using star.step:
       intro v w_a_v v_1 v_aS_v1
       apply starAX
-      unfold Relate
+      unfold relate
       apply StarCat.step w v v_1
       exact w_a_v
-      unfold Relate at v_aS_v1 
+      unfold relate at v_aS_v1
       exact v_aS_v1
   · -- right to left
     by_contra hyp
@@ -150,13 +146,11 @@ theorem A6 (a : Program) (X : Formula) : tautology ((⌈∗a⌉X) ⟷ (X ⋀ (�
     contrapose! hr
     cases' hl with w_X w_aSaX
     intro v w_aStar_v
-    unfold Relate at w_aStar_v 
-    simp at w_aStar_v 
+    simp at w_aStar_v
     cases w_aStar_v
     case refl => exact w_X
     case step w y v w_a_y y_aS_v =>
-      unfold Relate at w_aSaX 
-      simp at w_aSaX 
+      simp at w_aSaX
       exact w_aSaX y w_a_y v y_aS_v
 
 example (a b : Program) (X : Formula) :
@@ -169,9 +163,9 @@ example (a b : Program) (X : Formula) :
 
 -- related via star ==> related via a finite chain
 theorem starIsFinitelyManySteps {W : Type} {M : KripkeModel W} {x z : W} {α : Program} :
-    StarCat (Relate M α) x z →
+    StarCat (relate M α) x z →
       ∃ (n : ℕ) (ys : Vector W n.succ),
-        x = ys.headI ∧ z = ys.getLast ∧ ∀ i : Fin n, Relate M α (get ys i) (get ys (i + 1)) :=
+        x = ys.headI ∧ z = ys.getLast ∧ ∀ i : Fin n, relate M α (get ys i) (get ys (i + 1)) :=
   by
   intro x_aS_z
   induction x_aS_z
@@ -227,7 +221,7 @@ theorem starIsFinitelyManySteps {W : Type} {M : KripkeModel W} {x z : W} {α : P
 theorem finitelyManyStepsIsStar {W : Type} {M : KripkeModel W} {α : Program} {n : ℕ}
     {ys : Vector W (Nat.succ n)} :
     (∀ i : Fin n, relate M α (get ys i) (get ys (i + 1))) →
-      StarCat (relate M α) ys.headI ys.getLast :=
+      StarCat (relate M α) ys.head ys.last :=
   by
   simp
   induction n
@@ -241,7 +235,7 @@ theorem finitelyManyStepsIsStar {W : Type} {M : KripkeModel W} {α : Program} {n
     intro lhs
     apply StarCat.step
     · -- ys has at least two elements now
-      show Relate M α ys.head ys.tail.head
+      show relate M α ys.head ys.tail.head
       specialize lhs 0
       simp at lhs 
       have foo : ys.nth 1 = ys.tail.head :=
@@ -267,9 +261,9 @@ theorem finitelyManyStepsIsStar {W : Type} {M : KripkeModel W} {α : Program} {n
 
 -- related via star <=> related via a finite chain
 theorem starIffFinitelyManySteps (W : Type) (M : KripkeModel W) (x z : W) (α : Program) :
-    StarCat (Relate M α) x z ↔
+    StarCat (relate M α) x z ↔
       ∃ (n : ℕ) (ys : Vector W n.succ),
-        x = ys.headI ∧ z = ys.getLast ∧ ∀ i : Fin n, Relate M α (get ys i) (get ys (i + 1)) :=
+        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, relate M α (get ys i) (get ys (i + 1)) :=
   by
   constructor
   apply starIsFinitelyManySteps
@@ -331,7 +325,7 @@ theorem stepStarIsStarStepBoxes {a : Program} {φ : Formula} : tautology ((⌈a;
   apply lhs
 
 -- Example 1 in Borzechowski
-theorem inductionAxiom (a : Program) (φ : Formula) : tautology (φ ⋀ (⌈∗a⌉(φ ↣ (⌈a⌉φ)) ↣ (⌈∗a⌉φ))) :=
+theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a⌉(φ ↣ (⌈a⌉φ))) ↣ (⌈∗a⌉φ)) :=
   by
   simp
   intro W M w
@@ -339,9 +333,7 @@ theorem inductionAxiom (a : Program) (φ : Formula) : tautology (φ ⋀ (⌈∗a
   intro Mwφ
   intro MwStarImpHyp
   intro x w_starA_x
-  unfold Relate at w_starA_x 
-  simp at w_starA_x 
-  rw [starIffFinitelyManySteps] at w_starA_x 
+  rw [starIffFinitelyManySteps] at w_starA_x
   rcases w_starA_x with ⟨n, ys, w_is_head, x_is_last, i_a_isucc⟩
   have claim : ∀ i : Fin n.succ, Evaluate M (ys.nth ↑i) φ :=
     by

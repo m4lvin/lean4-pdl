@@ -106,19 +106,28 @@ theorem disconEval {W M} {w : W} :
 -- UPLUS
 
 @[simp]
-def pairunion : List (List Formula) → List (List Formula) → List (List Formula)
+def pairunionList : List (List Formula) → List (List Formula) → List (List Formula)
   | xls, yls => List.join (xls.map fun xl => yls.map fun yl => xl ++ yl)
 
+@[simp]
 def pairunionFinset : Finset (Finset Formula) → Finset (Finset Formula) → Finset (Finset Formula)
   | X, Y => {X.biUnion fun ga => Y.biUnion fun gb => ga ∪ gb}
 
-infixl:77 "⊎" => pairunion
+class HasUplus (α : Type → Type) where
+  pairunion : α (α Formula) → α (α Formula) → α (α Formula)
 
-theorem disconAnd {XS YS} : discon (XS⊎YS)≡discon XS⋀discon YS :=
+infixl:77 "⊎" => HasUplus.pairunion
+
+@[simp]
+instance listHasUplus : HasUplus List := ⟨pairunionList⟩
+@[simp]
+instance finsetHasUplus : HasUplus Finset := ⟨pairunionFinset⟩
+
+theorem disconAnd {XS YS} : discon (XS ⊎ YS) ≡ discon XS ⋀ discon YS :=
   by
   unfold semEquiv
   intro W M w
-  rw [disconEval (XS⊎YS) (by rfl)]
+  rw [disconEval (XS ⊎ YS) (by rfl)]
   simp
   rw [disconEval XS (by rfl)]
   rw [disconEval YS (by rfl)]
