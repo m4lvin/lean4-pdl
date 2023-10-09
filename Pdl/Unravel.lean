@@ -9,19 +9,19 @@ import Pdl.Semantics
 @[simp]
 def unravel : Formula → List (List Formula)
   -- diamonds:
-  | ~⌈·a⌉ P => [[~⌈·a⌉ P]]
-  | ~⌈Program.union p1 p2⌉ P => unravel (~⌈p1⌉ P) ∪ unravel (~⌈p2⌉ P) -- no theF here. fishy?
-  | ~⌈✓ Q⌉ P => [[Q]]⊎unravel (~P)
-  | ~⌈a;b⌉ P => unravel (~⌈a⌉ (⌈b⌉ P))
+  | ~⌈·a⌉P => [[~⌈·a⌉P]]
+  | ~⌈Program.union p1 p2⌉P => unravel (~⌈p1⌉P) ∪ unravel (~⌈p2⌉P) -- no theF here. fishy?
+  | ~⌈✓ Q⌉P => [[Q]] ⊎ unravel (~P)
+  | ~⌈a;b⌉P => unravel (~⌈a⌉(⌈b⌉P))
   | ~†_ => ∅
-  | ~⌈∗a⌉ P => unravel (~P) ∪ unravel (~⌈a⌉ (†⌈∗a⌉ P))
+  | ~⌈∗a⌉P => unravel (~P) ∪ unravel (~⌈a⌉(†⌈∗a⌉P))
   -- boxes:
   | ⌈·a⌉P => [[⌈·a⌉ P]]
-  | ⌈Program.union a b⌉ P => unravel (⌈a⌉ P)⊎unravel (⌈b⌉ P)
-  | ⌈✓ Q⌉ P => [[~Q]] ∪ unravel P
-  | ⌈a;b⌉ P => unravel (⌈a⌉ (⌈b⌉ P))
+  | ⌈Program.union a b⌉ P => unravel (⌈a⌉P) ⊎ unravel (⌈b⌉P)
+  | ⌈✓ Q⌉P => [[~Q]] ∪ unravel P
+  | ⌈a;b⌉P => unravel (⌈a⌉(⌈b⌉P))
   | †P => {∅}
-  | ⌈∗a⌉ P => unravel P⊎unravel (⌈a⌉ (†⌈∗a⌉ P))
+  | ⌈∗a⌉P => unravel P ⊎ unravel (⌈a⌉(†⌈∗a⌉P))
   -- all other formulas we do nothing, but let's pattern match them all.
   | ·c => [[·c]]
   | ~·c => [[~·c]]
@@ -75,11 +75,28 @@ theorem rel_steps_last {as} : ∀ v w,
 -- see https://malv.in/2020/borzechowski-pdl/Borzechowski1988-PDL-translation-Gattinger2020.pdf#lemma.4
 -- TODO: maybe simplify by not having a context X' here / still as useful for showing soundness of ~* rule?
 -- TODO: analogous lemma for the box case? and * rule?
+-- TODO: rename to:
+-- - diamondStarSound <<<
+-- - diamondStarInvert
+-- - boxStarSound
+-- - boxStarInvert
+-- and more?
+
+theorem likeLemmaFourWithoutX :
+    ∀ M (a : Program) (w v : W) (P : Formula),
+      -- (M, w) ⊨ (~⌈a⌉P) →
+        relate M a w v → (M, v)⊨(~P) →
+          ∃ Y ∈ unravel (~⌈a⌉P), (M, w)⊨Con Y
+          ∧ ∃ as : List Program, (~ Formula.boxes as P) ∈ Y
+            ∧ relate M (Program.steps as) w v :=
+  by
+  sorry
+
 theorem likeLemmaFour :
     ∀ M (a : Program) (w v : W) (X' X : List Formula) (P : Formula),
       X = X' ++ {~⌈a⌉ P} →
         (M, w)⊨Con X → relate M a w v → (M, v)⊨(~P) →
-          ∃ Y ∈ {X'}⊎unravel (~⌈a⌉ P), (M, w)⊨Con Y
+          ∃ Y ∈ {X'} ⊎ unravel (~⌈a⌉P), (M, w)⊨Con Y
           ∧ ∃ as : List Program, (~ Formula.boxes as P) ∈ Y
             ∧ relate M (Program.steps as) w v :=
   by
@@ -235,7 +252,10 @@ theorem likeLemmaFour :
         · use as
   case star =>
     intro w v X' X P X_def w_sat_X w_a_v v_sat_nP; subst X_def
+    -- TODO next next.
+
     sorry
   case test =>
     intro w v X' X P X_def w_sat_X w_a_v v_sat_nP; subst X_def
+    -- TODO next!
     sorry

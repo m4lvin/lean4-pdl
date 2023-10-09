@@ -166,6 +166,10 @@ theorem disconAnd {XS YS} : discon (XS ⊎ YS) ≡ discon XS ⋀ discon YS :=
     · apply satX f f_in_X
     · apply satY f f_in_Y
 
+theorem disconOr {XS YS} : discon (XS ∪ YS) ≡ discon XS ⋁ discon YS :=
+  by
+  sorry
+
 theorem union_elem_uplus {XS YS : Finset (Finset Formula)} {X Y : Finset Formula} :
   X ∈ XS → Y ∈ YS → ((X ∪ Y) ∈ (XS ⊎ YS)) :=
   by

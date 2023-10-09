@@ -55,17 +55,20 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
   case nSt a f aSf_in_X =>
     have lemFour := likeLemmaFour M (∗ a)
     constructor
-    · intro lhs
+    · intro lhs -- invertibility
       sorry
-    · intro Mw_X
+    · intro Mw_X -- soundness
       have w_adiamond_f := Mw_X (~⌈∗a⌉f) aSf_in_X
       simp at w_adiamond_f lemFour
-      rcases w_adiamond_f with ⟨v, w_aS_x, v_nF⟩
+      rcases w_adiamond_f with ⟨v, w_aS_v, v_nF⟩
+      -- TODO: update the below when Lemma 4 is updated to demand v ≠ w.
+      -- a atomic, then done?
+      -- a not atomic, disitnguish cases if v = w
       -- Now we use Lemma 4 here:
       specialize lemFour w v X.toList (X.toList ++ {~⌈∗a⌉f}) f rfl
       unfold vDash.SemImplies modelCanSemImplyForm at lemFour -- mwah, why simp not do this?
       simp at lemFour
-      specialize lemFour _ w_aS_x v_nF
+      specialize lemFour _ w_aS_v v_nF
       · rw [conEval]
         intro g g_in
         simp at g_in
