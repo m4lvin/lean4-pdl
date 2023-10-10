@@ -14,14 +14,14 @@ def unravel : Formula → List (List Formula)
   | ~⌈✓ Q⌉P => [[Q]] ⊎ unravel (~P)
   | ~⌈a;b⌉P => unravel (~⌈a⌉(⌈b⌉P))
   | ~†_ => ∅
-  | ~⌈∗a⌉P => unravel (~P) ∪ unravel (~⌈a⌉(†⌈∗a⌉P))
+  | ~⌈∗a⌉P => {{~P}} ∪ unravel (~⌈a⌉(†⌈∗a⌉P)) -- {{~P}} was "unravel P"
   -- boxes:
   | ⌈·a⌉P => [[⌈·a⌉ P]]
   | ⌈Program.union a b⌉ P => unravel (⌈a⌉P) ⊎ unravel (⌈b⌉P)
   | ⌈✓ Q⌉P => [[~Q]] ∪ unravel P
   | ⌈a;b⌉P => unravel (⌈a⌉(⌈b⌉P))
   | †P => {∅}
-  | ⌈∗a⌉P => unravel P ⊎ unravel (⌈a⌉(†⌈∗a⌉P))
+  | ⌈∗a⌉P => {{P}} ⊎ unravel (⌈a⌉(†⌈∗a⌉P)) -- {{P}} was "unravel P"
   -- all other formulas we do nothing, but let's pattern match them all.
   | ·c => [[·c]]
   | ~·c => [[~·c]]
@@ -250,11 +250,45 @@ theorem likeLemmaFour :
       · constructor
         · exact w_conY
         · use as
-  case star =>
-    intro w v X' X P X_def w_sat_X w_a_v v_sat_nP; subst X_def
-    -- TODO next next.
-
-    sorry
+  case star a =>
+    intro w v X' X P X_def w_sat_X w_aS_v v_sat_nP
+    unfold relate at w_aS_v
+    subst X_def
+    have : v = w ∨ v ≠ w := by tauto
+    cases this
+    case inl v_is_w => -- MB: "If S = T, then ..."
+      simp [unravel]
+      use ([~P] : List Formula)
+      constructor
+      · left
+        exact List.mem_of_mem_head? rfl
+      · constructor
+        · unfold vDash.SemImplies at *
+          unfold modelCanSemImplyForm at *
+          simp at *
+          rw [conEval]
+          intro f f_in
+          simp at f_in
+          cases f_in
+          · rw [conEval] at w_sat_X
+            apply w_sat_X
+            simp
+            left
+            assumption
+          case inr f_is_nP =>
+            subst v_is_w
+            subst f_is_nP
+            simp
+            assumption
+        · use List.nil
+          subst v_is_w
+          simp
+    case inr v_neq_w =>
+      cases w_aS_v
+      case refl =>
+        sorry -- this case will be impossible with v = w
+      case step u w_a_u u_aS_v =>
+        sorry
   case test =>
     intro w v X' X P X_def w_sat_X w_a_v v_sat_nP; subst X_def
     -- TODO next!
