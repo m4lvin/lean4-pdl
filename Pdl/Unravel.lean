@@ -286,10 +286,40 @@ theorem likeLemmaFour :
     case inr v_neq_w =>
       cases w_aS_v
       case refl =>
-        sorry -- this case will be impossible with v = w
+        absurd v_neq_w
+        rfl
       case step u w_a_u u_aS_v =>
-        sorry
-  case test =>
-    intro w v X' X P X_def w_sat_X w_a_v v_sat_nP; subst X_def
+        have IHa := likeLemmaFour M a w u X'
+        specialize IHa (X' ++ {~⌈a⌉⌈∗a⌉P}) (⌈∗a⌉P) (by rfl) _ w_a_u _
+        · sorry
+        · sorry
+        rcases IHa with ⟨Y, Y_in, w_conY, as, nBasaSP_in_Y, w_as_u⟩
+        use Y
+        constructor
+        · -- mismatch:  unravel (~⌈a⌉⌈∗a⌉P)  vs.  unravel (~⌈∗a⌉P)  :-(
+          simp
+          simp [unravel] at Y_in
+          sorry
+        · constructor
+          · assumption
+          · use (as ++ [∗a])
+            constructor
+            · -- use boxes_last or something similar?
+              sorry
+            · rw [rel_steps_last]
+              use u
+              constructor
+              · assumption
+              · simp
+                assumption
+  case test f =>
+    intro w v X' X P X_def w_sat_X w_tf_v v_sat_nP
+    unfold relate at w_tf_v
+    subst X_def
+    rcases w_tf_v with ⟨w_is_v, w_f⟩
+    subst w_is_v
+    -- Here MB uses ~(theF(P)) and things seem fishy ...
+    use X' ++ {f, ~P}
+    simp [unravel]
     -- TODO next!
     sorry
