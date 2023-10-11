@@ -53,8 +53,8 @@ notation "⊥" => Formula.bottom
 notation "⊤" => Formula.neg Formula.bottom
 infixr:66 "⋀" => Formula.and
 infixr:60 "⋁" => Formula.or
-infixr:55 "↣" => fun φ ψ => ~φ⋀(~ψ)
-infixl:77 "⟷" => fun ϕ ψ => (ϕ↣ψ)⋀(ψ↣ϕ)
+notation:55 φ:56 " ↣ " ψ:55 => ~φ ⋀ (~ψ)
+notation:55 φ:56 " ⟷ " ψ:55 => (φ↣ψ) ⋀ (φ↣φ)
 notation "⌈" α "⌉" P => Formula.box α P -- TOOD: adjust precedence to make ⌈α⌉⌈β⌉P work, or is it fine already?
 prefix:33 "†" => Formula.nstar
 
