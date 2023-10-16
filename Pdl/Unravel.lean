@@ -93,7 +93,8 @@ theorem likeLemmaFourWithoutX :
   sorry
 
 theorem likeLemmaFour :
-    ∀ M (a : Program) (w v : W) (X' X : List Formula) (P : Formula),
+  ∀ M (a : Program) (w v : W) (X' X : List Formula) (P : Formula),
+    w ≠ v →
       X = X' ++ {~⌈a⌉ P} →
         (M, w)⊨Con X → relate M a w v → (M, v)⊨(~P) →
           ∃ Y ∈ {X'} ⊎ unravel (~⌈a⌉P), (M, w)⊨Con Y
@@ -104,7 +105,7 @@ theorem likeLemmaFour :
   -- no 'induction', but using recursive calls instead
   cases a
   case atom_prog A =>
-    intro w v X' X P X_def w_sat_X w_a_v v_sat_nP
+    intro w v X' X P w_neq_v X_def w_sat_X w_a_v v_sat_nP
     use X -- "The claim holds with Y = X" says MB.
     unfold unravel
     simp
@@ -121,12 +122,13 @@ theorem likeLemmaFour :
         exact List.mem_of_mem_head? rfl
       · exact w_a_v
   case sequence b c =>
-    intro w v X' X P X_def w_sat_X w_bc_v v_sat_nP
+    intro w v X' X P w_neq_v X_def w_sat_X w_bc_v v_sat_nP
     unfold relate at w_bc_v
     rcases w_bc_v with ⟨u, w_b_u, u_c_v⟩
     subst X_def
     have IHb := likeLemmaFour M b w u X' -- get IH using a recursive call
-    specialize IHb (X' ++ {~⌈b⌉ (⌈c⌉ P)}) (⌈c⌉ P) (by rfl) _ w_b_u _
+    specialize IHb (X' ++ {~⌈b⌉ (⌈c⌉ P)}) (⌈c⌉ P) _ (by rfl) _ w_b_u _
+    · sorry -- need w ≠ u here?
     · convert_to (evaluate M w (Con (X' ++ {~⌈b⌉⌈c⌉P})))
       rw [conEval]
       unfold vDash.SemImplies at w_sat_X
@@ -180,13 +182,14 @@ theorem likeLemmaFour :
           · rw [rel_steps_last]
             use u
   case union a b =>
-    intro w v X' X P X_def w_sat_X w_aub_v v_sat_nP
+    intro w v X' X P w_neq_v X_def w_sat_X w_aub_v v_sat_nP
     unfold relate at w_aub_v
     subst X_def
     cases w_aub_v
     case inl w_a_v =>
-      have IH := likeLemmaFour M a w v X' (X' ++ {~⌈a⌉ P}) (P) (by rfl)
-      specialize IH _ w_a_v _
+      have IH := likeLemmaFour M a w v X' (X' ++ {~⌈a⌉ P})
+      specialize IH  (P) _ (by rfl) _ w_a_v _
+      · sorry
       · unfold vDash.SemImplies at *
         unfold modelCanSemImplyForm at *
         simp at *
@@ -218,8 +221,9 @@ theorem likeLemmaFour :
         · exact w_conY
         · use as
     case inr w_b_v =>
-      have IH := likeLemmaFour M b w v X' (X' ++ {~⌈b⌉ P}) (P) (by rfl)
-      specialize IH _ w_b_v _
+      have IH := likeLemmaFour M b w v X' (X' ++ {~⌈b⌉ P}) (P)
+      specialize IH _  (by rfl) _ w_b_v _
+      · sorry
       · unfold vDash.SemImplies at *
         unfold modelCanSemImplyForm at *
         simp at *
@@ -251,9 +255,10 @@ theorem likeLemmaFour :
         · exact w_conY
         · use as
   case star a =>
-    intro w v X' X P X_def w_sat_X w_aS_v v_sat_nP
+    intro w v X' X P w_neq_v X_def w_sat_X w_aS_v v_sat_nP
     unfold relate at w_aS_v
     subst X_def
+    -- TODO get rid of the below, we now have w_neq_v
     have : v = w ∨ v ≠ w := by tauto
     cases this
     case inl v_is_w => -- MB: "If S = T, then ..."
@@ -290,7 +295,8 @@ theorem likeLemmaFour :
         rfl
       case step u w_a_u u_aS_v =>
         have IHa := likeLemmaFour M a w u X'
-        specialize IHa (X' ++ {~⌈a⌉⌈∗a⌉P}) (⌈∗a⌉P) (by rfl) _ w_a_u _
+        specialize IHa (X' ++ {~⌈a⌉⌈∗a⌉P}) (⌈∗a⌉P) _ (by rfl) _ w_a_u _
+        · sorry
         · sorry
         · sorry
         rcases IHa with ⟨Y, Y_in, w_conY, as, nBasaSP_in_Y, w_as_u⟩
@@ -313,13 +319,9 @@ theorem likeLemmaFour :
               · simp
                 assumption
   case test f =>
-    intro w v X' X P X_def w_sat_X w_tf_v v_sat_nP
+    intro w v X' X P w_neq_v X_def w_sat_X w_tf_v v_sat_nP
     unfold relate at w_tf_v
-    subst X_def
     rcases w_tf_v with ⟨w_is_v, w_f⟩
     subst w_is_v
-    -- Here MB uses ~(theF(P)) and things seem fishy ...
-    use X' ++ {f, ~P}
-    simp [unravel]
-    -- TODO next!
-    sorry
+    absurd w_neq_v
+    rfl

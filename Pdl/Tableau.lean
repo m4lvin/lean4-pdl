@@ -61,39 +61,63 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       have w_adiamond_f := Mw_X (~⌈∗a⌉f) aSf_in_X
       simp at w_adiamond_f lemFour
       rcases w_adiamond_f with ⟨v, w_aS_v, v_nF⟩
-      -- TODO: update the below when Lemma 4 is updated to demand v ≠ w.
-      -- a atomic, then done?
-      -- a not atomic, disitnguish cases if v = w
-      -- Now we use Lemma 4 here:
-      specialize lemFour w v X.toList (X.toList ++ {~⌈∗a⌉f}) f rfl
-      unfold vDash.SemImplies modelCanSemImplyForm at lemFour -- mwah, why simp not do this?
-      simp at lemFour
-      specialize lemFour _ w_aS_v v_nF
-      · rw [conEval]
-        intro g g_in
-        simp at g_in
-        apply Mw_X
-        cases g_in
-        case inl => assumption
-        case inr h =>
-          convert aSf_in_X
-          cases h
+      -- NOTE: Borze also makes a distinction whether a is atomic. Not needed?
+      -- We still distinguish cases whether v = w
+      have : w = v ∨ w ≠ v := by tauto
+      cases this
+      case inl w_is_v =>
+        -- Same world, we can use the left branch.
+        subst w_is_v
+        use (X \ {~⌈∗a⌉f} ∪ {~f})
+        constructor
+        · apply union_elem_uplus
+          simp
+          unfold unravel
+          simp
+          use {~f}
+          constructor
+          · left
+            exact List.mem_of_mem_head? rfl
           · rfl
-          · exfalso
-            tauto
-      rcases lemFour with ⟨Z, Z_in, Mw_ZX, ⟨as, nBasf_in, w_as_v⟩⟩
-      use (X \ {~⌈∗a⌉f}) ∪ Z.toFinset -- hmmm, good guess?
-      constructor
-      · apply union_elem_uplus
-        · simp
-        · simp
-          use Z
-      · rw [conEval] at Mw_ZX
-        intro g g_in
-        apply Mw_ZX
-        simp
-        simp at g_in
-        tauto
+        · intro g g_in
+          simp at g_in
+          cases g_in
+          · tauto
+          case h.right.inr hyp =>
+            subst hyp
+            unfold evaluate
+            assumption
+      case inr w_neq_v =>
+        -- Different world, we use the right branch and Lemma 4 here:
+        specialize lemFour w v X.toList (X.toList ++ {~⌈∗a⌉f}) f w_neq_v rfl
+        unfold vDash.SemImplies modelCanSemImplyForm at lemFour -- mwah, why simp not do this?
+        simp at lemFour
+        specialize lemFour _ w_aS_v v_nF
+        · rw [conEval]
+          intro g g_in
+          simp at g_in
+          apply Mw_X
+          cases g_in
+          case a.inl => assumption
+          case a.inr h =>
+            convert aSf_in_X
+            cases h
+            · rfl
+            · exfalso
+              tauto
+        rcases lemFour with ⟨Z, Z_in, Mw_ZX, ⟨as, nBasf_in, w_as_v⟩⟩
+        use (X \ {~⌈∗a⌉f}) ∪ Z.toFinset -- hmmm, good guess?
+        constructor
+        · apply union_elem_uplus
+          · simp
+          · simp
+            use Z
+        · rw [conEval] at Mw_ZX
+          intro g g_in
+          apply Mw_ZX
+          simp
+          simp at g_in
+          tauto
   -- TODO
   all_goals { sorry }
 
