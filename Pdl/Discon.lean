@@ -111,7 +111,7 @@ def pairunionList : List (List Formula) → List (List Formula) → List (List F
 
 @[simp]
 def pairunionFinset : Finset (Finset Formula) → Finset (Finset Formula) → Finset (Finset Formula)
-  | X, Y => {X.biUnion fun ga => Y.biUnion fun gb => ga ∪ gb}
+  | X, Y => X.biUnion fun ga => Y.biUnion fun gb => {ga ∪ gb}
 
 class HasUplus (α : Type → Type) where
   pairunion : α (α Formula) → α (α Formula) → α (α Formula)
@@ -175,18 +175,4 @@ theorem union_elem_uplus {XS YS : Finset (Finset Formula)} {X Y : Finset Formula
   by
   intro X_in Y_in
   simp
-  ext1 -- this seems to go wrong?
-  constructor
-  · intro f_in
-    simp at f_in
-    simp
-    use X
-    constructor
-    · exact X_in
-    · use Y
-  · intro f_in
-    simp
-    simp at f_in
-    rcases f_in with ⟨X', X'_in, Y', Y'_in, f_in⟩
-    -- But now X' Y' are unrelated to X and Y :-(
-    sorry
+  exact ⟨X, X_in, Y, Y_in, rfl⟩

@@ -188,8 +188,7 @@ theorem likeLemmaFour :
     cases w_aub_v
     case inl w_a_v =>
       have IH := likeLemmaFour M a w v X' (X' ++ {~⌈a⌉ P})
-      specialize IH  (P) _ (by rfl) _ w_a_v _
-      · sorry
+      specialize IH (P) w_neq_v (by rfl) _ w_a_v _
       · unfold vDash.SemImplies at *
         unfold modelCanSemImplyForm at *
         simp at *
@@ -222,8 +221,7 @@ theorem likeLemmaFour :
         · use as
     case inr w_b_v =>
       have IH := likeLemmaFour M b w v X' (X' ++ {~⌈b⌉ P}) (P)
-      specialize IH _  (by rfl) _ w_b_v _
-      · sorry
+      specialize IH w_neq_v (by rfl) _ w_b_v _
       · unfold vDash.SemImplies at *
         unfold modelCanSemImplyForm at *
         simp at *
@@ -258,66 +256,35 @@ theorem likeLemmaFour :
     intro w v X' X P w_neq_v X_def w_sat_X w_aS_v v_sat_nP
     unfold relate at w_aS_v
     subst X_def
-    -- TODO get rid of the below, we now have w_neq_v
-    have : v = w ∨ v ≠ w := by tauto
-    cases this
-    case inl v_is_w => -- MB: "If S = T, then ..."
-      simp [unravel]
-      use ([~P] : List Formula)
+    cases w_aS_v
+    case refl =>
+      absurd w_neq_v
+      rfl
+    case step u w_a_u u_aS_v =>
+      have IHa := likeLemmaFour M a w u X'
+      specialize IHa (X' ++ {~⌈a⌉⌈∗a⌉P}) (⌈∗a⌉P) _ (by rfl) _ w_a_u _
+      · sorry
+      · sorry
+      · sorry
+      rcases IHa with ⟨Y, Y_in, w_conY, as, nBasaSP_in_Y, w_as_u⟩
+      use Y
       constructor
-      · left
-        exact List.mem_of_mem_head? rfl
+      · -- mismatch:  unravel (~⌈a⌉⌈∗a⌉P)  vs.  unravel (~⌈∗a⌉P)  :-(
+        simp
+        simp [unravel] at Y_in
+        sorry
       · constructor
-        · unfold vDash.SemImplies at *
-          unfold modelCanSemImplyForm at *
-          simp at *
-          rw [conEval]
-          intro f f_in
-          simp at f_in
-          cases f_in
-          · rw [conEval] at w_sat_X
-            apply w_sat_X
-            simp
-            left
-            assumption
-          case inr f_is_nP =>
-            subst v_is_w
-            subst f_is_nP
-            simp
-            assumption
-        · use List.nil
-          subst v_is_w
-          simp
-    case inr v_neq_w =>
-      cases w_aS_v
-      case refl =>
-        absurd v_neq_w
-        rfl
-      case step u w_a_u u_aS_v =>
-        have IHa := likeLemmaFour M a w u X'
-        specialize IHa (X' ++ {~⌈a⌉⌈∗a⌉P}) (⌈∗a⌉P) _ (by rfl) _ w_a_u _
-        · sorry
-        · sorry
-        · sorry
-        rcases IHa with ⟨Y, Y_in, w_conY, as, nBasaSP_in_Y, w_as_u⟩
-        use Y
-        constructor
-        · -- mismatch:  unravel (~⌈a⌉⌈∗a⌉P)  vs.  unravel (~⌈∗a⌉P)  :-(
-          simp
-          simp [unravel] at Y_in
-          sorry
-        · constructor
-          · assumption
-          · use (as ++ [∗a])
+        · assumption
+        · use (as ++ [∗a])
+          constructor
+          · -- use boxes_last or something similar?
+            sorry
+          · rw [rel_steps_last]
+            use u
             constructor
-            · -- use boxes_last or something similar?
-              sorry
-            · rw [rel_steps_last]
-              use u
-              constructor
-              · assumption
-              · simp
-                assumption
+            · assumption
+            · simp
+              assumption
   case test f =>
     intro w v X' X P w_neq_v X_def w_sat_X w_tf_v v_sat_nP
     unfold relate at w_tf_v
