@@ -8,20 +8,20 @@ import Pdl.Semantics
 -- | New Definition 10
 @[simp]
 def unravel : Formula → List (List Formula)
-  -- diamonds:
+  -- diamonds: ⋓
   | ~⌈·a⌉P => [[~⌈·a⌉P]]
-  | ~⌈Program.union p1 p2⌉P => unravel (~⌈p1⌉P) ∪ unravel (~⌈p2⌉P) -- no theF here. fishy?
+  | ~⌈a ⋓ b⌉P => unravel (~⌈a⌉P) ∪ unravel (~⌈b⌉P)
   | ~⌈✓ Q⌉P => [[Q]] ⊎ unravel (~P)
-  | ~⌈a;b⌉P => unravel (~⌈a⌉(⌈b⌉P))
+  | ~⌈a;b⌉P => unravel (~⌈a⌉⌈b⌉P)
   | ~†_ => ∅
-  | ~⌈∗a⌉P => {{~P}} ∪ unravel (~⌈a⌉(†⌈∗a⌉P)) -- {{~P}} was "unravel P"
+  | ~⌈∗a⌉P => {{~P}} ∪ unravel (~⌈a⌉(†⌈∗a⌉P)) -- TODO omit {{~P}} if P contains dagger
   -- boxes:
   | ⌈·a⌉P => [[⌈·a⌉ P]]
-  | ⌈Program.union a b⌉ P => unravel (⌈a⌉P) ⊎ unravel (⌈b⌉P)
+  | ⌈a ⋓ b⌉ P => unravel (⌈a⌉P) ⊎ unravel (⌈b⌉P)
   | ⌈✓ Q⌉P => [[~Q]] ∪ unravel P
-  | ⌈a;b⌉P => unravel (⌈a⌉(⌈b⌉P))
+  | ⌈a;b⌉P => unravel (⌈a⌉⌈b⌉P)
   | †P => {∅}
-  | ⌈∗a⌉P => {{P}} ⊎ unravel (⌈a⌉(†⌈∗a⌉P)) -- {{P}} was "unravel P"
+  | ⌈∗a⌉P => {{P}} ⊎ unravel (⌈a⌉(†⌈∗a⌉P)) -- TODO omit {{P}} when P contains dagger
   -- all other formulas we do nothing, but let's pattern match them all.
   | ·c => [[·c]]
   | ~·c => [[~·c]]

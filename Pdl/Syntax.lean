@@ -55,11 +55,11 @@ infixr:66 "⋀" => Formula.and
 infixr:60 "⋁" => Formula.or
 notation:55 φ:56 " ↣ " ψ:55 => ~φ ⋀ (~ψ)
 notation:55 φ:56 " ⟷ " ψ:55 => (φ↣ψ) ⋀ (φ↣φ)
-notation "⌈" α "⌉" P => Formula.box α P -- TOOD: adjust precedence to make ⌈α⌉⌈β⌉P work, or is it fine already?
+notation "⌈" α "⌉" P => Formula.box α P
 prefix:33 "†" => Formula.nstar
 
 infixl:33 ";" => Program.sequence -- TODO avoid ; which has a meaning in Lean 4
-instance : Union Program := ⟨Program.union⟩
+infixl:33 "⋓" => Program.union
 prefix:33 "∗" => Program.star
 prefix:33 "✓" => Program.test -- avoiding "?" which has a meaning in Lean 4
 
@@ -78,7 +78,7 @@ mutual
   def lengthOfProgram : Program → Nat
     | ·_ => 1
     | α;β => 1 + lengthOfProgram α + lengthOfProgram β
-    | Program.union α β => 1 + lengthOfProgram α + lengthOfProgram β
+    | α⋓β => 1 + lengthOfProgram α + lengthOfProgram β
     | ∗α => 1 + lengthOfProgram α
     | ✓φ => 1 + lengthOfFormula φ
   def lengthOfFormula : Formula → Nat
@@ -106,7 +106,7 @@ mutual
     | ·_ => 0
     | ✓ φ => 1 + mOfFormula φ
     | α;β => 1 + mOfProgram α + mOfProgram β + 1 -- TODO: max (mOfFormula φ) (mOfFormula (~φ))
-    | Program.union α β => 1 + mOfProgram α + mOfProgram β + 1
+    | α⋓β => 1 + mOfProgram α + mOfProgram β + 1
     | ∗α => 1 + mOfProgram α
   @[simp]
   def mOfFormula : Formula → Nat

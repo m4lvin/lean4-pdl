@@ -32,13 +32,13 @@ inductive localRule : Finset Formula → Finset (Finset Formula) → Type
   -- Single-branch rules:
   | nTe {X φ ψ} (h : (~⌈✓φ⌉ψ) ∈ X) : localRule X { X \ {~⌈✓φ⌉ψ} ∪ {φ, ~ψ}} -- TODO should remove marking ?
   | nSe {X a b f} (h : (~⌈a;b⌉f) ∈ X) : localRule X { X \ {~⌈a;b⌉f} ∪ {~⌈a⌉⌈b⌉f}}
-  | uni {X a b f} (h : (⌈a∪b⌉f) ∈ X) : localRule X { X \ {⌈a∪b⌉f} ∪ {⌈a⌉ f, ⌈b⌉ f}}
+  | uni {X a b f} (h : (⌈a⋓b⌉f) ∈ X) : localRule X { X \ {⌈a⋓b⌉f} ∪ {⌈a⌉ f, ⌈b⌉ f}}
   | seq {X a b f} (h : (⌈a;b⌉f) ∈ X) : localRule X { X \ {⌈a⌉⌈b⌉f}}
   -- Splitting rules:
   | tes {X f g} (h : (⌈✓f⌉g) ∈ X) : localRule X { X \ {⌈✓f⌉g} ∪ {~f}
                                                  , X \ {⌈✓f⌉g} ∪ {g} }
-  | nUn {a b f} (h : (~⌈a ∪ b⌉f) ∈ X) : localRule X { X \ {~⌈a ∪ b⌉f} ∪ {~⌈a⌉f}
-                                                    , X \ {~⌈a ∪ b⌉f} ∪ {~⌈b⌉f} }
+  | nUn {a b f} (h : (~⌈a ⋓ b⌉f) ∈ X) : localRule X { X \ {~⌈a ⋓ b⌉f} ∪ {~⌈a⌉f}
+                                                    , X \ {~⌈a ⋓ b⌉f} ∪ {~⌈b⌉f} }
   -- STAR
   | sta {X a f} (h : (⌈∗a⌉f) ∈ X) : localRule X ({ X \ {⌈∗a⌉f} } ⊎ (listsToSets (unravel (⌈∗a⌉f))))
   | nSt {a f} (h : (~⌈∗a⌉f) ∈ X) : localRule X ({ X \ {~⌈∗a⌉f} } ⊎ (listsToSets (unravel (~⌈∗a⌉f))))
