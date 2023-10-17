@@ -93,6 +93,7 @@ open vDash
 
 instance modelCanSemImplyForm {W : Type} : vDash (KripkeModel W × W) Formula := vDash.mk (@evaluatePoint W)
 instance modelCanSemImplySet {W : Type} : vDash (KripkeModel W × W) (Finset Formula) := vDash.mk (λ ⟨M,w⟩ fs => ∀ f ∈ fs, @evaluate W M w f)
+instance modelCanSemImplyList {W : Type} : vDash (KripkeModel W × W) (List Formula) := vDash.mk (λ ⟨M,w⟩ fs => ∀ f ∈ fs, @evaluate W M w f)
 instance setCanSemImplySet : vDash (Finset Formula) (Finset Formula) := vDash.mk semImpliesSets
 instance setCanSemImplyForm : vDash (Finset Formula) Formula:= vDash.mk fun X ψ => semImpliesSets X {ψ}
 instance formCanSemImplySet : vDash Formula (Finset Formula) := vDash.mk fun φ X => semImpliesSets {φ} X
@@ -104,7 +105,7 @@ infixl:40 "≡" => semEquiv
 
 infixl:40 "⊭" => fun a b => ¬a⊨b
 
--- useful lemmas to connect all the different ⊨ cases
+-- useful lemmas to connect different ⊨ cases
 theorem forms_to_sets {φ ψ : Formula} : φ⊨ψ → ({φ} : Finset Formula)⊨({ψ} : Finset Formula) :=
   by
   intro impTaut
@@ -115,4 +116,3 @@ theorem forms_to_sets {φ ψ : Formula} : φ⊨ψ → ({φ} : Finset Formula)⊨
   -- needed even though no ψ_1 in goal here?!
   apply impTaut
   exact lhs
-#align forms_to_sets forms_to_sets

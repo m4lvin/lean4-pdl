@@ -82,22 +82,11 @@ theorem rel_steps_last {as} : ∀ v w,
 -- - boxStarInvert
 -- and more?
 
-theorem likeLemmaFourWithoutX :
-    ∀ M (a : Program) (w v : W) (P : Formula),
-      -- (M, w) ⊨ (~⌈a⌉P) →
-        relate M a w v → (M, v)⊨(~P) →
-          ∃ Y ∈ unravel (~⌈a⌉P), (M, w)⊨Con Y
-          ∧ ∃ as : List Program, (~ Formula.boxes as P) ∈ Y
-            ∧ relate M (Program.steps as) w v :=
-  by
-  sorry
-
 theorem likeLemmaFour :
-  ∀ M (a : Program) (w v : W) (X' X : List Formula) (P : Formula),
+  ∀ M (a : Program) (w v : W) (X' : List Formula) (P : Formula),
     w ≠ v →
-      X = X' ++ {~⌈a⌉ P} →
-        (M, w)⊨Con X → relate M a w v → (M, v)⊨(~P) →
-          ∃ Y ∈ {X'} ⊎ unravel (~⌈a⌉P), (M, w)⊨Con Y
+      (M, w) ⊨ (X' ++ [~⌈a⌉P]) → relate M a w v → (M, v)⊨(~P) →
+        ∃ Y ∈ {X'} ⊎ unravel (~⌈a⌉P), (M, w)⊨Y
           ∧ ∃ as : List Program, (~ Formula.boxes as P) ∈ Y
             ∧ relate M (Program.steps as) w v :=
   by
@@ -105,37 +94,25 @@ theorem likeLemmaFour :
   -- no 'induction', but using recursive calls instead
   cases a
   case atom_prog A =>
-    intro w v X' X P w_neq_v X_def w_sat_X w_a_v v_sat_nP
-    use X -- "The claim holds with Y = X" says MB.
+    intro w v X' P w_neq_v w_sat_X w_a_v v_sat_nP
+    use X' ++ [(~⌈·A⌉P)] -- "The claim holds with Y = X" says MB.
     unfold unravel
     simp
-    subst X_def
-    constructor
-    · rfl
     constructor
     · assumption
     · use [·A]
       unfold Formula.boxes
       simp at *
-      constructor
-      · right
-        exact List.mem_of_mem_head? rfl
-      · exact w_a_v
+      exact w_a_v
   case sequence b c =>
-    intro w v X' X P w_neq_v X_def w_sat_X w_bc_v v_sat_nP
+    intro w v X' P w_neq_v w_sat_X w_bc_v v_sat_nP
     unfold relate at w_bc_v
     rcases w_bc_v with ⟨u, w_b_u, u_c_v⟩
-    subst X_def
     have IHb := likeLemmaFour M b w u X' -- get IH using a recursive call
-    specialize IHb (X' ++ {~⌈b⌉ (⌈c⌉ P)}) (⌈c⌉ P) _ (by rfl) _ w_b_u _
+    specialize IHb (⌈c⌉ P) _ _ w_b_u _
     · sorry -- need w ≠ u here?
-    · convert_to (evaluate M w (Con (X' ++ {~⌈b⌉⌈c⌉P})))
-      rw [conEval]
-      unfold vDash.SemImplies at w_sat_X
-      unfold modelCanSemImplyForm at w_sat_X
-      simp at *
-      rw [conEval] at w_sat_X
-      intro f lhs
+    · intro f lhs
+      simp at lhs
       cases' lhs with f_in_X other
       · apply w_sat_X f
         simp
@@ -143,16 +120,13 @@ theorem likeLemmaFour :
         exact f_in_X
       · simp at other
         specialize w_sat_X (~⌈b;c⌉P)
-        cases other
-        · specialize w_sat_X _
-          · simp
-            right
-            exact List.mem_of_mem_head? rfl
-          simp at *
-          rcases w_sat_X with ⟨x,y,y_c_x,w_b_y,nP⟩
-          use y
-          tauto
-        · tauto
+        subst other
+        specialize w_sat_X _
+        · simp
+        simp at *
+        rcases w_sat_X with ⟨x,y,y_c_x,w_b_y,nP⟩
+        use y
+        tauto
     · unfold vDash.SemImplies at *
       unfold modelCanSemImplyForm at *
       simp at *
@@ -182,32 +156,26 @@ theorem likeLemmaFour :
           · rw [rel_steps_last]
             use u
   case union a b =>
-    intro w v X' X P w_neq_v X_def w_sat_X w_aub_v v_sat_nP
+    intro w v X' P w_neq_v w_sat_X w_aub_v v_sat_nP
     unfold relate at w_aub_v
-    subst X_def
     cases w_aub_v
     case inl w_a_v =>
-      have IH := likeLemmaFour M a w v X' (X' ++ {~⌈a⌉ P})
-      specialize IH (P) w_neq_v (by rfl) _ w_a_v _
+      have IH := likeLemmaFour M a w v X'
+      specialize IH P w_neq_v _ w_a_v _
       · unfold vDash.SemImplies at *
+        unfold modelCanSemImplyList at *
         unfold modelCanSemImplyForm at *
         simp at *
-        rw [conEval] at *
-        intro f
-        simp
-        intro f_in
+        intro f f_in
         cases f_in
         case inl f_in_X' =>
           apply w_sat_X f
-          simp
           left
           exact f_in_X'
         case inr f_is_naP =>
-          cases f_is_naP -- silly, why does simp not use Finset.mem_singleton here?
-          · simp
-            use v
-          · exfalso
-            tauto
+          subst f_is_naP
+          simp
+          use v
       · exact v_sat_nP
       rcases IH with ⟨Y, Y_in, w_conY, as, nBasP_in_Y, w_as_v⟩
       use Y
@@ -220,27 +188,22 @@ theorem likeLemmaFour :
         · exact w_conY
         · use as
     case inr w_b_v =>
-      have IH := likeLemmaFour M b w v X' (X' ++ {~⌈b⌉ P}) (P)
-      specialize IH w_neq_v (by rfl) _ w_b_v _
+      have IH := likeLemmaFour M b w v X' P
+      specialize IH w_neq_v _ w_b_v _
       · unfold vDash.SemImplies at *
+        unfold modelCanSemImplyList at *
         unfold modelCanSemImplyForm at *
         simp at *
-        rw [conEval] at *
-        intro f
-        simp
-        intro f_in
+        intro f f_in
         cases f_in
         case inl f_in_X' =>
           apply w_sat_X f
-          simp
           left
           exact f_in_X'
         case inr f_is_nbP =>
-          cases f_is_nbP -- silly, why does simp not use Finset.mem_singleton here?
-          · simp
-            use v
-          · exfalso
-            tauto
+          subst f_is_nbP
+          simp
+          use v
       · exact v_sat_nP
       rcases IH with ⟨Y, Y_in, w_conY, as, nBasP_in_Y, w_as_v⟩
       use Y
@@ -253,16 +216,15 @@ theorem likeLemmaFour :
         · exact w_conY
         · use as
   case star a =>
-    intro w v X' X P w_neq_v X_def w_sat_X w_aS_v v_sat_nP
+    intro w v X' P w_neq_v w_sat_X w_aS_v v_sat_nP
     unfold relate at w_aS_v
-    subst X_def
     cases w_aS_v
     case refl =>
       absurd w_neq_v
       rfl
     case step u w_a_u u_aS_v =>
       have IHa := likeLemmaFour M a w u X'
-      specialize IHa (X' ++ {~⌈a⌉⌈∗a⌉P}) (⌈∗a⌉P) _ (by rfl) _ w_a_u _
+      specialize IHa (⌈∗a⌉P) _ _ w_a_u _
       · sorry
       · sorry
       · sorry
@@ -286,7 +248,7 @@ theorem likeLemmaFour :
             · simp
               assumption
   case test f =>
-    intro w v X' X P w_neq_v X_def w_sat_X w_tf_v v_sat_nP
+    intro w v X' P w_neq_v w_sat_X w_tf_v v_sat_nP
     unfold relate at w_tf_v
     rcases w_tf_v with ⟨w_is_v, w_f⟩
     subst w_is_v

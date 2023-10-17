@@ -53,13 +53,22 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
   intro locR
   cases locR
   case nSt a f aSf_in_X =>
-    have lemFour := likeLemmaFour M (∗ a)
     constructor
     · intro lhs -- invertibility
-      sorry
+      rcases lhs with ⟨Y, Y_in, MwY⟩
+      simp at Y_in
+      rcases Y_in with ⟨FS,FS_in,Y_def⟩
+      subst Y_def
+      intro g g_in_X
+      -- TODO disitinguish cases whether g = ~[∗]f
+      cases FS_in
+      case inl FS_is_nF =>
+        sorry
+      case inr FS_in_unrav =>
+        sorry
     · intro Mw_X -- soundness
       have w_adiamond_f := Mw_X (~⌈∗a⌉f) aSf_in_X
-      simp at w_adiamond_f lemFour
+      simp at w_adiamond_f
       rcases w_adiamond_f with ⟨v, w_aS_v, v_nF⟩
       -- NOTE: Borze also makes a distinction whether a is atomic. Not needed?
       -- We still distinguish cases whether v = w
@@ -89,22 +98,17 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
             assumption
       case inr w_neq_v =>
         -- Different world, we use the right branch and Lemma 4 here:
-        specialize lemFour w v X.toList (X.toList ++ {~⌈∗a⌉f}) f w_neq_v rfl
-        unfold vDash.SemImplies modelCanSemImplyForm at lemFour -- mwah, why simp not do this?
+        have lemFour := likeLemmaFour M (∗ a)
+        specialize lemFour w v X.toList f w_neq_v
+        unfold vDash.SemImplies modelCanSemImplyForm modelCanSemImplyList at lemFour -- mwah, why simp not do this?
         simp at lemFour
         specialize lemFour _ w_aS_v v_nF
-        · rw [conEval]
-          intro g g_in
-          simp at g_in
+        · intro g g_in
           apply Mw_X
           cases g_in
           case a.inl => assumption
           case a.inr h =>
             convert aSf_in_X
-            cases h
-            · rfl
-            · exfalso
-              tauto
         rcases lemFour with ⟨Z, Z_in, Mw_ZX, ⟨as, nBasf_in, w_as_v⟩⟩
         use (X \ {~⌈∗a⌉f}) ∪ Z.toFinset -- hmmm, good guess?
         constructor
@@ -112,10 +116,8 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
           · simp
           · simp
             use Z
-        · rw [conEval] at Mw_ZX
-          intro g g_in
+        · intro g g_in
           apply Mw_ZX
-          simp
           simp at g_in
           tauto
   -- TODO
