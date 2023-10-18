@@ -138,22 +138,22 @@ example (a b : Program) (X : Formula) :
 theorem starIsFinitelyManySteps {W : Type} {M : KripkeModel W} {x z : W} {α : Program} :
     StarCat (relate M α) x z →
       ∃ (n : ℕ) (ys : Vector W n.succ),
-        x = ys.headI ∧ z = ys.getLast ∧ ∀ i : Fin n, relate M α (get ys i) (get ys (i + 1)) :=
+        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, relate M α (get ys i) (get ys (i + 1)) :=
   by
   intro x_aS_z
   induction x_aS_z
   case refl x =>
     use 0
     use cons x nil
-    simp [Vector.last_def]
-  case step a b c a_a_b b_aS_c
-    IH =>
+    simp
+    rfl
+  case step a b c a_a_b b_aS_c IH =>
     -- ∃ chain ...
     rcases IH with ⟨n, ys, IH⟩
     use n + 1
     use cons a ys
     constructor
-    · finish
+    · simp
     rcases IH with ⟨IH1, IH2, IH3⟩
     constructor
     · rw [IH2]
@@ -164,11 +164,11 @@ theorem starIsFinitelyManySteps {W : Type} {M : KripkeModel W} {x z : W} {α : P
       apply Fin.cases
       · simp
         rw [IH1] at a_a_b 
-        have hyp : (cons a ys).get? 1 = ys.head :=
+        have hyp : (cons a ys).get 1 = ys.head :=
           by
           cases' ys with ys_list hys
           cases ys_list
-          simpa using hys
+          simp at hys
           rfl
         rw [hyp]
         apply a_a_b
@@ -176,18 +176,20 @@ theorem starIsFinitelyManySteps {W : Type} {M : KripkeModel W} {x z : W} {α : P
       · simp
         intro i
         specialize IH3 i
-        have h1 : (a ::ᵥ ys).get? (Fin.castSuccEmb i.succ) = ys.nth i :=
+        simp at *
+        have h1 : (a ::ᵥ ys).get (i + 1) = ys.get i :=
           by
-          rw [← Fin.succ_castSucc]
-          rw [← Vector.get_cons_succ a ys]
           simp
-        have h2 : ys.nth i.succ = ys.nth (i + 1) :=
-          by
-          rw [← Vector.get_cons_succ a ys]
-          simp
+          sorry
         rw [h1]
+        have h2 : (Vector.get (a ::ᵥ ys) (i + 1 + 1)) = (Vector.get ys (i + 1)) :=
+          by
+          simp
+          sorry
         rw [h2]
-        apply IH3
+        convert IH3
+        · simp
+        · simp
 
 -- rest of chain by IH
 -- related via star <== related via a finite chain
@@ -199,7 +201,7 @@ theorem finitelyManyStepsIsStar {W : Type} {M : KripkeModel W} {α : Program} {n
   simp
   induction n
   case zero =>
-    intro lhs
+    intro _
     have same : ys.head = ys.last := by simp [Vector.last_def, ← Fin.cast_nat_eq_last]
     -- thanks Ruben!
     rw [same]
@@ -211,15 +213,16 @@ theorem finitelyManyStepsIsStar {W : Type} {M : KripkeModel W} {α : Program} {n
       show relate M α ys.head ys.tail.head
       specialize lhs 0
       simp at lhs 
-      have foo : ys.nth 1 = ys.tail.head :=
+      have foo : ys.get 1 = ys.tail.head :=
         by
         cases' ys with ys_list ys_hyp
         cases' ys_list with a ys
-        simpa using ys_hyp
+        simp at ys_hyp
         -- ys_hyp is a contradiction
         cases' ys with b ys
-        simp at ys_hyp ; injection ys_hyp; contradiction
         -- thanks Kyle!
+        simp at ys_hyp
+        injection ys_hyp
         rfl
       rw [← foo]
       apply lhs
@@ -258,49 +261,20 @@ theorem stepStarIsStarStep {W : Type} {M : KripkeModel W} {x z : W} {a : Program
     cases' lhs with x_a_y y_aS_z
     rw [starIffFinitelyManySteps] at y_aS_z 
     rcases y_aS_z with ⟨n, ys, y_is_head, z_is_last, hyp⟩
-    unfold relate
-    let newY := last (cons x (remove_nth (coe n) ys))
-    use newY
-    constructor
-    · rw [starIffFinitelyManySteps]
-      use n
-      use cons x (remove_nth (coe n) ys)
-      simp
-      -- takes care of head and last :-)
-      intro i
-      cases i
-      cases i_val
-      case
-        zero =>
-        -- if i=0 use x_a_y
-        simp
-        rw [y_is_head] at x_a_y 
-        have hyp : ys.head = (remove_nth (↑n) ys).get? ⟨0, _⟩ := by sorry
-        rw [← hyp]
-        apply x_a_y
-      · -- if i>0 use hyp i-1,
-        simp
-        sorry
-    -- TODO: apply hyp ,
-    · rw [z_is_last]
-      -- TODO apply hyp ↑n,
-      sorry
+    sorry
   · sorry
 
 theorem stepStarIsStarStepBoxes {a : Program} {φ : Formula} : tautology ((⌈a;(∗a)⌉φ) ↣ (⌈∗a;a⌉φ)) :=
   by
-  simp
   intro W M w
   simp
   intro lhs
   intro x
-  rw [← stepStarIsStarStep]
-  apply lhs
+  sorry
 
 -- Example 1 in Borzechowski
 theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a⌉(φ ↣ (⌈a⌉φ))) ↣ (⌈∗a⌉φ)) :=
   by
-  simp
   intro W M w
   simp
   intro Mwφ
@@ -308,17 +282,16 @@ theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a
   intro x w_starA_x
   rw [starIffFinitelyManySteps] at w_starA_x
   rcases w_starA_x with ⟨n, ys, w_is_head, x_is_last, i_a_isucc⟩
-  have claim : ∀ i : Fin n.succ, Evaluate M (ys.nth ↑i) φ :=
+  have claim : ∀ i : Fin n.succ, evaluate M (ys.get i) φ :=
     by
     apply Fin.induction
     · simp
       rw [← w_is_head]
       exact Mwφ
-    · simp
-      sorry
+    · sorry
   specialize claim n.succ
   simp at claim 
-  have x_is_ys_nsucc : x = ys.nth (n + 1) :=
+  have x_is_ys_nsucc : x = ys.get (n + 1) :=
     by
     simp [Vector.last_def] at x_is_last 
     sorry
