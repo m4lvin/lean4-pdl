@@ -22,7 +22,6 @@ inductive StarCat {α : Type} (r : α → α → Prop) : α → α → Prop
   | refl (a : α) : StarCat r a a
   | step (a b c : α) : r a b → StarCat r b c → StarCat r a c
 
-
 theorem StarIncl {α : Type} {a : α} {b : α} {r : α → α → Prop} : r a b → StarCat r a b :=
   by
   intro a_r_b
@@ -30,6 +29,22 @@ theorem StarIncl {α : Type} {a : α} {b : α} {r : α → α → Prop} : r a b 
   exact a_r_b
   exact StarCat.refl b
 
+theorem starCases {α : Type} {a c : α} {r : α → α → Prop} :
+  StarCat r a c ↔ a = c ∨ (a ≠ c ∧ ∃ b, r a b ∧ StarCat r b c) :=
+  by
+  constructor
+  · intro r_aS_c
+    sorry
+  · intro rhs
+    cases rhs
+    case inl a_is_c =>
+      subst a_is_c
+      apply StarCat.refl
+    case inr hyp =>
+      rcases hyp with ⟨_, b, b_aS_c⟩
+      apply StarCat.step a b c
+      tauto
+      tauto
 mutual
   @[simp]
   def evaluate {W : Type} : KripkeModel W → W → Formula → Prop

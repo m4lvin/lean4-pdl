@@ -223,6 +223,7 @@ theorem likeLemmaFour :
       absurd w_neq_v
       rfl
     case step u w_a_u u_aS_v =>
+      -- idea: use starCases here?
       have IHa := likeLemmaFour M a w u X'
       specialize IHa (⌈∗a⌉P) _ _ w_a_u _
       · sorry
