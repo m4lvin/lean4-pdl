@@ -34,12 +34,12 @@ theorem mysat (p : Char) : satisfiable (·p) :=
 
 -- A1: all propositional tautologies
 
-theorem A2 (a : Program) (X Y : Formula) : tautology (⌈a⌉ ⊤) :=
+theorem A2 : tautology (⌈a⌉ ⊤) :=
   by
   unfold tautology
   simp
 
-theorem A3 (a : Program) (X Y : Formula) : tautology ((⌈a⌉(X⋀Y)) ↣ (⌈a⌉X) ⋀ (⌈a⌉Y)) :=
+theorem A3 : tautology ((⌈a⌉(X⋀Y)) ↣ (⌈a⌉X) ⋀ (⌈a⌉Y)) :=
   by
   unfold tautology
   simp
@@ -52,39 +52,37 @@ theorem A3 (a : Program) (X Y : Formula) : tautology ((⌈a⌉(X⋀Y)) ↣ (⌈a
     specialize hyp v
     tauto
 
-theorem A4 (a b : Program) (p : Char) : tautology ((⌈a;b⌉(·p)) ⟷ (⌈a⌉(⌈b⌉(·p)))) :=
+theorem A4 : tautology ((⌈a;b⌉(·p)) ⟷ (⌈a⌉(⌈b⌉(·p)))) :=
   by
   unfold tautology evaluatePoint evaluate
   intro W M w
   constructor
   · -- left to right
     by_contra hyp
+    simp at *
     cases' hyp with hl hr
     contrapose! hr
     intro v w_a_v v1 v_b_v1
-    specialize hl v1
+    specialize hl v1 v
     apply hl
-    simp
-    use v
-    constructor
-    · exact w_a_v
-    · exact v_b_v1
+    exact w_a_v
+    exact v_b_v1
   · -- right to left
     by_contra hyp
+    simp at *
     cases' hyp with hl hr
     contrapose! hr
-    intro v2 w_ab_v2
-    simp at w_ab_v2
-    rcases w_ab_v2 with ⟨v1, w_a_v1, v1_b_v2⟩
-    exact hl v1 w_a_v1 v2 v1_b_v2
+    intro v1 v2 w_a_v2 v2_b_v1
+    exact hl v1 v2 w_a_v2 v2_b_v1
 
-theorem A5 (a b : Program) (X : Formula) : tautology ((⌈a ∪ b⌉X) ⟷((⌈a⌉X) ⋀ (⌈b⌉X))) :=
+theorem A5 : tautology ((⌈a ⋓ b⌉X) ⟷ ((⌈a⌉X) ⋀ (⌈b⌉X))) :=
   by
   unfold tautology evaluatePoint evaluate
   intro W M w
   constructor
   · -- left to right
     by_contra hyp
+    simp at *
     cases' hyp with lhs rhs
     contrapose! rhs
     constructor
@@ -92,7 +90,6 @@ theorem A5 (a b : Program) (X : Formula) : tautology ((⌈a ∪ b⌉X) ⟷((⌈a
       intro v
       specialize lhs v
       intro (w_a_v : relate M a w v)
-      unfold relate at lhs
       apply lhs
       left
       exact w_a_v
@@ -100,61 +97,37 @@ theorem A5 (a b : Program) (X : Formula) : tautology ((⌈a ∪ b⌉X) ⟷((⌈a
       intro v
       specialize lhs v
       intro (w_b_v : relate M b w v)
-      unfold relate at lhs
       apply lhs
       right
       exact w_b_v
   · -- right to left
     by_contra hyp
-    cases' hyp with rhs lhs
-    contrapose! lhs
-    cases' rhs with rhs_a rhs_b
-    intro v; intro m_ab_v
-    specialize rhs_a v
-    specialize rhs_b v
-    unfold relate at m_ab_v
-    cases m_ab_v
-    · apply rhs_a m_ab_v
-    · apply rhs_b m_ab_v
+    simp at *
 
 theorem A6 (a : Program) (X : Formula) : tautology ((⌈∗a⌉X) ⟷ (X ⋀ (⌈a⌉(⌈∗a⌉X)))) :=
   by
   unfold tautology evaluatePoint evaluate
   intro W M w
-  simp
   constructor
   · -- left to right
-    intro lhs
-    contrapose! lhs
+    simp
     intro starAX
     constructor
     · -- show X using refl:
       apply starAX
-      simp
       exact StarCat.refl w
     · -- show [α][α∗]X using star.step:
       intro v w_a_v v_1 v_aS_v1
       apply starAX
-      unfold relate
       apply StarCat.step w v v_1
       exact w_a_v
-      unfold relate at v_aS_v1
       exact v_aS_v1
   · -- right to left
     by_contra hyp
-    cases' hyp with hl hr
-    contrapose! hr
-    cases' hl with w_X w_aSaX
-    intro v w_aStar_v
-    simp at w_aStar_v
-    cases w_aStar_v
-    case refl => exact w_X
-    case step w y v w_a_y y_aS_v =>
-      simp at w_aSaX
-      exact w_aSaX y w_a_y v y_aS_v
+    simp at hyp
 
 example (a b : Program) (X : Formula) :
-  (⌈∗(∗a) ∪ b⌉X) ≡ X ⋀ (⌈a⌉(⌈∗(∗a) ∪ b⌉ X)) ⋀ (⌈b⌉(⌈∗(∗a) ∪ b⌉ X)) :=
+  (⌈∗(∗a) ⋓ b⌉X) ≡ X ⋀ (⌈a⌉(⌈∗(∗a) ⋓ b⌉ X)) ⋀ (⌈b⌉(⌈∗(∗a) ⋓ b⌉ X)) :=
   by
   unfold semEquiv
   simp
@@ -351,3 +324,108 @@ theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a
     sorry
   rw [x_is_ys_nsucc]
   exact claim
+
+
+
+
+
+-- proven and true, but not actually what I wanted.
+theorem starCases {α : Type} (a c : α) (r : α → α → Prop) :
+  StarCat r a c ↔ a = c ∨ (a ≠ c ∧ ∃ b, r a b ∧ StarCat r b c) :=
+  by
+  constructor
+  · intro a_rS_c
+    have : a = c ∨ a ≠ c
+    · tauto
+    cases this
+    case inl a_is_c =>
+      left
+      exact a_is_c
+    case inr a_neq_c =>
+      right
+      constructor
+      · exact a_neq_c
+      · cases a_rS_c
+        · exfalso
+          tauto
+        case step b a_r_b b_Sr_c =>
+          use b
+  · intro rhs
+    cases rhs
+    case inl a_is_c =>
+      subst a_is_c
+      apply StarCat.refl
+    case inr hyp =>
+      rcases hyp with ⟨_, b, b_rS_c⟩
+      apply StarCat.step a b c
+      tauto
+      tauto
+
+-- almost proven, but Lean does not see the termination
+-- Both of these get sizeOf 0
+-- #eval sizeOf (StarCat.refl 1 : StarCat (fun x y => x > y) _ _)
+-- #eval sizeOf (StarCat.step 3 2 2 (by simp) (StarCat.refl 2) : StarCat (fun x y => x > y) 3 2)
+-- It also seems we cannot define our own sizeOf because
+-- "StarCat" is a Prop, not a type.
+/-
+theorem starCasesActuallyRec (α : Type) (a c : α) (r : α → α → Prop) :
+  StarCat r a c → a = c ∨ (∃ b, a ≠ b ∧ r a b ∧ StarCat r b c) :=
+  by
+    intro a_rS_c
+    have : a = c ∨ a ≠ c
+    · tauto
+    cases this
+    case inl a_is_c =>
+      left
+      exact a_is_c
+    case inr a_neq_c =>
+      right
+      cases a_rS_c
+      · exfalso
+        tauto
+      case step b a_r_b b_Sr_c =>
+        have IH := starCasesActuallyRec α b c r
+        specialize IH b_Sr_c
+        cases IH
+        case inl b_is_c =>
+          subst b_is_c
+          use b
+        case inr hyp =>
+          rcases hyp with ⟨b2, b2_neq_b, b_r_b2, b_rS_c⟩
+          have : a = b ∨ a ≠ b
+          · tauto
+          cases this
+          case inl a_is_b =>
+            subst a_is_b
+            use b2
+          case inr a_neq_b =>
+            use b
+termination_by
+  starCasesActuallyRec α a c r star => sizeOf star -- always 0 ???
+-/
+
+theorem starCasesActually {α : Type} (a c : α) (r : α → α → Prop) :
+  StarCat r a c → a = c ∨ (a ≠ c ∧ ∃ b, a ≠ b ∧ r a b ∧ StarCat r b c) :=
+  by
+  intro a_rS_c
+  induction a_rS_c
+  · left
+    rfl
+  case step a b c a_r_b b_rS_c IH  =>
+    have : a = c ∨ a ≠ c
+    · tauto
+    cases this
+    case inl a_is_c =>
+      left
+      assumption
+    case inr a_neq_c =>
+      cases IH
+      case inl b_is_c =>
+        subst b_is_c
+        right
+        constructor
+        · assumption
+        sorry
+      case inr other =>
+        convert other.right
+        sorry
