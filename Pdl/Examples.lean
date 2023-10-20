@@ -2,6 +2,7 @@ import Pdl.Syntax
 import Pdl.Semantics
 import Mathlib.Data.Vector.Basic
 import Mathlib.Tactic.FinCases
+import Mathlib.Data.Fin.Basic
 
 open Vector
 
@@ -134,11 +135,16 @@ example (a b : Program) (X : Formula) :
   intro W M w
   sorry
 
+theorem vec_succ (i : Fin n) (ys : Vector α n.succ) : (a ::ᵥ ys).get (i.succ) = ys.get i :=
+  by
+  simp
+  sorry
+
 -- related via star ==> related via a finite chain
-theorem starIsFinitelyManySteps {W : Type} {M : KripkeModel W} {x z : W} {α : Program} :
-    StarCat (relate M α) x z →
-      ∃ (n : ℕ) (ys : Vector W n.succ),
-        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, relate M α (get ys i) (get ys (i + 1)) :=
+theorem starIsFinitelyManySteps  (r : α → α → Prop) (x z : α) :
+  StarCat r x z →
+    ∃ (n : ℕ) (ys : Vector α n.succ),
+      x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (get ys i) (get ys (i.succ)) :=
   by
   intro x_aS_z
   induction x_aS_z
@@ -150,7 +156,7 @@ theorem starIsFinitelyManySteps {W : Type} {M : KripkeModel W} {x z : W} {α : P
   case step a b c a_a_b b_aS_c IH =>
     -- ∃ chain ...
     rcases IH with ⟨n, ys, IH⟩
-    use n + 1
+    use n.succ
     use cons a ys
     constructor
     · simp
@@ -164,39 +170,27 @@ theorem starIsFinitelyManySteps {W : Type} {M : KripkeModel W} {x z : W} {α : P
       apply Fin.cases
       · simp
         rw [IH1] at a_a_b 
-        have hyp : (cons a ys).get 1 = ys.head :=
+        have : (cons a ys).get 1 = ys.head :=
           by
           cases' ys with ys_list hys
           cases ys_list
           simp at hys
           rfl
-        rw [hyp]
+        rw [this]
         apply a_a_b
       -- first step: a -a-> b
-      · simp
-        intro i
+      · intro i
         specialize IH3 i
-        simp at *
-        have h1 : (a ::ᵥ ys).get (i + 1) = ys.get i :=
+        have h1 : (a ::ᵥ ys).get (i.succ) = ys.get i :=
           by
-          simp
-          sorry
+          apply vec_succ
         rw [h1]
-        have h2 : (Vector.get (a ::ᵥ ys) (i + 1 + 1)) = (Vector.get ys (i + 1)) :=
-          by
-          simp
-          sorry
-        rw [h2]
-        convert IH3
-        · simp
-        · simp
+        exact IH3
 
 -- rest of chain by IH
 -- related via star <== related via a finite chain
-theorem finitelyManyStepsIsStar {W : Type} {M : KripkeModel W} {α : Program} {n : ℕ}
-    {ys : Vector W (Nat.succ n)} :
-    (∀ i : Fin n, relate M α (get ys i) (get ys (i + 1))) →
-      StarCat (relate M α) ys.head ys.last :=
+theorem finitelyManyStepsIsStar (r : α → α → Prop) {n : ℕ} {ys : Vector α (Nat.succ n)} :
+  (∀ i : Fin n, r (get ys i) (get ys (i + 1))) → StarCat r ys.head ys.last :=
   by
   simp
   induction n
@@ -210,7 +204,7 @@ theorem finitelyManyStepsIsStar {W : Type} {M : KripkeModel W} {α : Program} {n
     intro lhs
     apply StarCat.step
     · -- ys has at least two elements now
-      show relate M α ys.head ys.tail.head
+      show r ys.head ys.tail.head
       specialize lhs 0
       simp at lhs 
       have foo : ys.get 1 = ys.tail.head :=
@@ -236,10 +230,10 @@ theorem finitelyManyStepsIsStar {W : Type} {M : KripkeModel W} {α : Program} {n
       apply lhs
 
 -- related via star <=> related via a finite chain
-theorem starIffFinitelyManySteps (W : Type) (M : KripkeModel W) (x z : W) (α : Program) :
-    StarCat (relate M α) x z ↔
-      ∃ (n : ℕ) (ys : Vector W n.succ),
-        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, relate M α (get ys i) (get ys (i + 1)) :=
+theorem starIffFinitelyManySteps (r : α → α → Prop) (x z : α) :
+    StarCat r x z ↔
+      ∃ (n : ℕ) (ys : Vector α n.succ),
+        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (get ys i) (get ys (i + 1)) :=
   by
   constructor
   apply starIsFinitelyManySteps
@@ -247,30 +241,15 @@ theorem starIffFinitelyManySteps (W : Type) (M : KripkeModel W) (x z : W) (α : 
   rcases rhs with ⟨n, ys, x_is_head, z_is_last, rhs⟩
   rw [x_is_head]
   rw [z_is_last]
-  apply finitelyManyStepsIsStar rhs
+  exact finitelyManyStepsIsStar r rhs
 
--- preparation for next lemma
-theorem stepStarIsStarStep {W : Type} {M : KripkeModel W} {x z : W} {a : Program} :
-    relate M (a;(∗a)) x z ↔ relate M (∗a;a) x z :=
+-- related via star <=> related via a finite chain
+theorem starIffFinitelyManyStepsModel (W : Type) (M : KripkeModel W) (x z : W) (α : Program) :
+    StarCat (relate M α) x z ↔
+      ∃ (n : ℕ) (ys : Vector W n.succ),
+        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, relate M α (get ys i) (get ys (i + 1)) :=
   by
-  constructor
-  · intro lhs
-    unfold relate at lhs
-    cases' lhs with y lhs
-    simp at lhs 
-    cases' lhs with x_a_y y_aS_z
-    rw [starIffFinitelyManySteps] at y_aS_z 
-    rcases y_aS_z with ⟨n, ys, y_is_head, z_is_last, hyp⟩
-    sorry
-  · sorry
-
-theorem stepStarIsStarStepBoxes {a : Program} {φ : Formula} : tautology ((⌈a;(∗a)⌉φ) ↣ (⌈∗a;a⌉φ)) :=
-  by
-  intro W M w
-  simp
-  intro lhs
-  intro x
-  sorry
+  exact starIffFinitelyManySteps (relate M α) x z
 
 -- Example 1 in Borzechowski
 theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a⌉(φ ↣ (⌈a⌉φ))) ↣ (⌈∗a⌉φ)) :=
@@ -280,7 +259,7 @@ theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a
   intro Mwφ
   intro MwStarImpHyp
   intro x w_starA_x
-  rw [starIffFinitelyManySteps] at w_starA_x
+  rw [starIffFinitelyManyStepsModel] at w_starA_x
   rcases w_starA_x with ⟨n, ys, w_is_head, x_is_last, i_a_isucc⟩
   have claim : ∀ i : Fin n.succ, evaluate M (ys.get i) φ :=
     by
@@ -381,24 +360,11 @@ theorem starCasesActually {α : Type} (a c : α) (r : α → α → Prop) :
   StarCat r a c → a = c ∨ (a ≠ c ∧ ∃ b, a ≠ b ∧ r a b ∧ StarCat r b c) :=
   by
   intro a_rS_c
-  induction a_rS_c
+  rw [starIffFinitelyManySteps] at a_rS_c
+  rcases a_rS_c with ⟨n, vec, a_is_head, c_is_last, all_i_rel⟩
+  induction n
   · left
-    rfl
-  case step a b c a_r_b b_rS_c IH  =>
-    have : a = c ∨ a ≠ c
-    · tauto
-    cases this
-    case inl a_is_c =>
-      left
-      assumption
-    case inr a_neq_c =>
-      cases IH
-      case inl b_is_c =>
-        subst b_is_c
-        right
-        constructor
-        · assumption
-        sorry
-      case inr other =>
-        convert other.right
-        sorry
+    subst a_is_head
+    subst c_is_last
+    sorry
+  · sorry
