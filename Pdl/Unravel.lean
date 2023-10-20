@@ -3,6 +3,7 @@ import Mathlib.Data.Finset.Basic
 import Pdl.Syntax
 import Pdl.Discon
 import Pdl.Semantics
+import Pdl.Star
 
 -- UNRAVELING
 -- | New Definition 10
@@ -218,12 +219,16 @@ theorem likeLemmaFour :
   case star a =>
     intro w v X' P w_neq_v w_sat_X w_aS_v v_sat_nP
     unfold relate at w_aS_v
+    rw [Relation.ReflTransGen.cases_head_iff] at w_aS_v
     cases w_aS_v
-    case refl =>
+    case inl =>
       absurd w_neq_v
-      rfl
-    case step u w_a_u u_aS_v =>
+      assumption
+    case inr hyp =>
+      rcases hyp with ⟨u, w_a_u, u_aS_v⟩
       -- idea: use starCases here?
+
+
       have IHa := likeLemmaFour M a w u X'
       specialize IHa (⌈∗a⌉P) _ _ w_a_u _
       · sorry

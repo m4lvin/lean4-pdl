@@ -3,6 +3,7 @@ import Pdl.Semantics
 import Mathlib.Data.Vector.Basic
 import Mathlib.Tactic.FinCases
 import Mathlib.Data.Fin.Basic
+import Mathlib.Logic.Relation
 
 open Vector
 
@@ -116,11 +117,11 @@ theorem A6 (a : Program) (X : Formula) : tautology ((⌈∗a⌉X) ⟷ (X ⋀ (�
     constructor
     · -- show X using refl:
       apply starAX
-      exact StarCat.refl w
+      exact Relation.ReflTransGen.refl w
     · -- show [α][α∗]X using star.step:
       intro v w_a_v v_1 v_aS_v1
       apply starAX
-      apply StarCat.step w v v_1
+      apply Relation.ReflTransGen.step w v v_1
       exact w_a_v
       exact v_aS_v1
   · -- right to left
@@ -135,27 +136,27 @@ example (a b : Program) (X : Formula) :
   intro W M w
   sorry
 
-theorem vec_succ (i : Fin n) (ys : Vector α n.succ) : (a ::ᵥ ys).get (i.succ) = ys.get i :=
-  by
-  simp
-  sorry
-
 -- related via star ==> related via a finite chain
 theorem starIsFinitelyManySteps  (r : α → α → Prop) (x z : α) :
-  StarCat r x z →
+  Relation.ReflTransGen r x z →
     ∃ (n : ℕ) (ys : Vector α n.succ),
       x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (get ys i) (get ys (i.succ)) :=
   by
   intro x_aS_z
-  induction x_aS_z
-  case refl x =>
+  rw [Relation.ReflTransGen.cases_head_iff] at x_aS_z
+  cases x_aS_z
+  case inl x_is_z =>
+    subst x_is_z
     use 0
     use cons x nil
     simp
     rfl
-  case step a b c a_a_b b_aS_c IH =>
-    -- ∃ chain ...
-    rcases IH with ⟨n, ys, IH⟩
+  case inr hyp =>
+    rcases hyp with ⟨c, x_r_c, c_rS_z⟩
+    rw [Relation.ReflTransGen.cases_head_iff] at c_rS_z
+    sorry
+    /-
+    rcases c_rS_z with ⟨n, ys, IH⟩
     use n.succ
     use cons a ys
     constructor
@@ -182,15 +183,16 @@ theorem starIsFinitelyManySteps  (r : α → α → Prop) (x z : α) :
       · intro i
         specialize IH3 i
         have h1 : (a ::ᵥ ys).get (i.succ) = ys.get i :=
-          by
-          apply vec_succ
+
+          sorry
         rw [h1]
         exact IH3
+      -/
 
 -- rest of chain by IH
 -- related via star <== related via a finite chain
 theorem finitelyManyStepsIsStar (r : α → α → Prop) {n : ℕ} {ys : Vector α (Nat.succ n)} :
-  (∀ i : Fin n, r (get ys i) (get ys (i + 1))) → StarCat r ys.head ys.last :=
+  (∀ i : Fin n, r (get ys i) (get ys i.succ)) → Relation.ReflTransGen r ys.head ys.last :=
   by
   simp
   induction n
@@ -199,11 +201,21 @@ theorem finitelyManyStepsIsStar (r : α → α → Prop) {n : ℕ} {ys : Vector 
     have same : ys.head = ys.last := by simp [Vector.last_def, ← Fin.cast_nat_eq_last]
     -- thanks Ruben!
     rw [same]
-    apply StarCat.refl ys.last
   case succ n IH =>
     intro lhs
-    apply StarCat.step
-    · -- ys has at least two elements now
+    sorry
+     /-
+    apply Relation.ReflTransGen.tail
+    · have sameLast : ys.last = ys.tail.last := by simp [Vector.last_def]
+      -- thanks Ruben!
+      rw [sameLast]
+      apply IH
+      intro i
+      specialize lhs i.succ
+      simp [Fin.succ_castSucc]
+      apply lhs
+    · sorry
+      -- ys has at least two elements now
       show r ys.head ys.tail.head
       specialize lhs 0
       simp at lhs 
@@ -220,23 +232,16 @@ theorem finitelyManyStepsIsStar (r : α → α → Prop) {n : ℕ} {ys : Vector 
         rfl
       rw [← foo]
       apply lhs
-    · have sameLast : ys.last = ys.tail.last := by simp [Vector.last_def]
-      -- thanks Ruben!
-      rw [sameLast]
-      apply IH
-      intro i
-      specialize lhs i.succ
-      simp [Fin.succ_castSucc]
-      apply lhs
+     -/
 
 -- related via star <=> related via a finite chain
 theorem starIffFinitelyManySteps (r : α → α → Prop) (x z : α) :
-    StarCat r x z ↔
+    Relation.ReflTransGen r x z ↔
       ∃ (n : ℕ) (ys : Vector α n.succ),
-        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (get ys i) (get ys (i + 1)) :=
+        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (get ys i) (get ys (i.succ)) :=
   by
   constructor
-  apply starIsFinitelyManySteps
+  apply starIsFinitelyManySteps r x z
   intro rhs
   rcases rhs with ⟨n, ys, x_is_head, z_is_last, rhs⟩
   rw [x_is_head]
@@ -245,9 +250,9 @@ theorem starIffFinitelyManySteps (r : α → α → Prop) (x z : α) :
 
 -- related via star <=> related via a finite chain
 theorem starIffFinitelyManyStepsModel (W : Type) (M : KripkeModel W) (x z : W) (α : Program) :
-    StarCat (relate M α) x z ↔
+    Relation.ReflTransGen (relate M α) x z ↔
       ∃ (n : ℕ) (ys : Vector W n.succ),
-        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, relate M α (get ys i) (get ys (i + 1)) :=
+        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, relate M α (get ys i) (get ys (i.succ)) :=
   by
   exact starIffFinitelyManySteps (relate M α) x z
 
@@ -276,95 +281,3 @@ theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a
     sorry
   rw [x_is_ys_nsucc]
   exact claim
-
-
-
-
-
--- proven and true, but not actually what I wanted.
-theorem starCases {α : Type} (a c : α) (r : α → α → Prop) :
-  StarCat r a c ↔ a = c ∨ (a ≠ c ∧ ∃ b, r a b ∧ StarCat r b c) :=
-  by
-  constructor
-  · intro a_rS_c
-    have : a = c ∨ a ≠ c
-    · tauto
-    cases this
-    case inl a_is_c =>
-      left
-      exact a_is_c
-    case inr a_neq_c =>
-      right
-      constructor
-      · exact a_neq_c
-      · cases a_rS_c
-        · exfalso
-          tauto
-        case step b a_r_b b_Sr_c =>
-          use b
-  · intro rhs
-    cases rhs
-    case inl a_is_c =>
-      subst a_is_c
-      apply StarCat.refl
-    case inr hyp =>
-      rcases hyp with ⟨_, b, b_rS_c⟩
-      apply StarCat.step a b c
-      tauto
-      tauto
-
--- almost proven, but Lean does not see the termination
--- Both of these get sizeOf 0
--- #eval sizeOf (StarCat.refl 1 : StarCat (fun x y => x > y) _ _)
--- #eval sizeOf (StarCat.step 3 2 2 (by simp) (StarCat.refl 2) : StarCat (fun x y => x > y) 3 2)
--- It also seems we cannot define our own sizeOf because
--- "StarCat" is a Prop, not a type.
-/-
-theorem starCasesActuallyRec (α : Type) (a c : α) (r : α → α → Prop) :
-  StarCat r a c → a = c ∨ (∃ b, a ≠ b ∧ r a b ∧ StarCat r b c) :=
-  by
-    intro a_rS_c
-    have : a = c ∨ a ≠ c
-    · tauto
-    cases this
-    case inl a_is_c =>
-      left
-      exact a_is_c
-    case inr a_neq_c =>
-      right
-      cases a_rS_c
-      · exfalso
-        tauto
-      case step b a_r_b b_Sr_c =>
-        have IH := starCasesActuallyRec α b c r
-        specialize IH b_Sr_c
-        cases IH
-        case inl b_is_c =>
-          subst b_is_c
-          use b
-        case inr hyp =>
-          rcases hyp with ⟨b2, b2_neq_b, b_r_b2, b_rS_c⟩
-          have : a = b ∨ a ≠ b
-          · tauto
-          cases this
-          case inl a_is_b =>
-            subst a_is_b
-            use b2
-          case inr a_neq_b =>
-            use b
-termination_by
-  starCasesActuallyRec α a c r star => sizeOf star -- always 0 ???
--/
-
-theorem starCasesActually {α : Type} (a c : α) (r : α → α → Prop) :
-  StarCat r a c → a = c ∨ (a ≠ c ∧ ∃ b, a ≠ b ∧ r a b ∧ StarCat r b c) :=
-  by
-  intro a_rS_c
-  rw [starIffFinitelyManySteps] at a_rS_c
-  rcases a_rS_c with ⟨n, vec, a_is_head, c_is_last, all_i_rel⟩
-  induction n
-  · left
-    subst a_is_head
-    subst c_is_last
-    sorry
-  · sorry

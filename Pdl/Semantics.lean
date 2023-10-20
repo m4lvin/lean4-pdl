@@ -1,6 +1,7 @@
 import Mathlib.Order.CompleteLattice
 import Mathlib.Order.FixedPoints
 import Mathlib.Data.Set.Lattice
+import Mathlib.Logic.Relation
 
 import Pdl.Syntax
 
@@ -16,19 +17,6 @@ def complexityOfQuery {W : Type} :
   | PSum.inl val => lengthOfFormula val.snd.snd
   | PSum.inr val => lengthOfProgram val.snd.fst
 
--- Reflexive-transitive closure
--- adapted from "Hitchhiker's Guide to Logical Verification", page 77
-inductive StarCat {α : Type} (r : α → α → Prop) : α → α → Prop
-  | refl (a : α) : StarCat r a a
-  | step (a b c : α) : r a b → StarCat r b c → StarCat r a c
-
-theorem StarIncl {α : Type} {a : α} {b : α} {r : α → α → Prop} : r a b → StarCat r a b :=
-  by
-  intro a_r_b
-  apply StarCat.step
-  exact a_r_b
-  exact StarCat.refl b
-
 mutual
   @[simp]
   def evaluate {W : Type} : KripkeModel W → W → Formula → Prop
@@ -43,7 +31,7 @@ mutual
     | M, ·c, w, v => M.Rel c w v
     | M, α;β, w, v => ∃ y, relate M α w y ∧ relate M β y v
     | M, α⋓β, w, v => relate M α w v ∨ relate M β w v
-    | M, ∗α, w, v => StarCat (relate M α) w v
+    | M, ∗α, w, v => Relation.ReflTransGen (relate M α) w v
     | M, ✓φ, w, v => w = v ∧ evaluate M w φ
 end
 termination_by
