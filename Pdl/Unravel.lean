@@ -218,41 +218,43 @@ theorem likeLemmaFour :
         · use as
   case star a =>
     intro w v X' P w_neq_v w_sat_X w_aS_v v_sat_nP
+    unfold vDash.SemImplies at v_sat_nP -- mwah
+    unfold modelCanSemImplyForm at v_sat_nP
+    simp at v_sat_nP
     unfold relate at w_aS_v
-    rw [Relation.ReflTransGen.cases_head_iff] at w_aS_v
-    cases w_aS_v
-    case inl =>
+    have := starCases w_aS_v
+    cases this
+    case inl w_is_v =>
       absurd w_neq_v
       assumption
     case inr hyp =>
-      rcases hyp with ⟨u, w_a_u, u_aS_v⟩
-      -- idea: use starCases here?
-
-
-      have IHa := likeLemmaFour M a w u X'
-      specialize IHa (⌈∗a⌉P) _ _ w_a_u _
-      · sorry
-      · sorry
-      · sorry
+      rcases hyp with ⟨w_neq_v, ⟨y, w_neq_y, w_a_y, y_aS_v⟩⟩
+      have IHa := likeLemmaFour M a w y X' (†⌈∗a⌉P) w_neq_y
+      specialize IHa _ w_a_y _
+      · intro f
+        simp
+        intro f_in
+        cases f_in
+        · apply w_sat_X
+          simp
+          left
+          assumption
+        case inr f_def =>
+          subst f_def
+          simp
+          use y
+          constructor
+          · assumption
+          · use v
+      · unfold vDash.SemImplies
+        unfold modelCanSemImplyForm
+        simp
+        use v
       rcases IHa with ⟨Y, Y_in, w_conY, as, nBasaSP_in_Y, w_as_u⟩
       use Y
       constructor
-      · -- mismatch:  unravel (~⌈a⌉⌈∗a⌉P)  vs.  unravel (~⌈∗a⌉P)  :-(
-        simp
-        simp [unravel] at Y_in
-        sorry
-      · constructor
-        · assumption
-        · use (as ++ [∗a])
-          constructor
-          · -- use boxes_last or something similar?
-            sorry
-          · rw [rel_steps_last]
-            use u
-            constructor
-            · assumption
-            · simp
-              assumption
+      · sorry -- mismatch:  unravel (~⌈a⌉†⌈∗a⌉P)  vs.  unravel (~⌈∗a⌉P)  :-(
+      · sorry
   case test f =>
     intro w v X' P w_neq_v w_sat_X w_tf_v v_sat_nP
     unfold relate at w_tf_v
