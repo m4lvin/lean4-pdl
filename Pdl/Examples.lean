@@ -1,10 +1,11 @@
 import Pdl.Syntax
 import Pdl.Semantics
+import Pdl.Star
 import Mathlib.Data.Vector.Basic
 import Mathlib.Tactic.FinCases
 import Mathlib.Data.Fin.Basic
 import Mathlib.Logic.Relation
-
+import Mathlib.Data.Vector.Snoc
 open Vector
 
 -- some simple silly stuff
@@ -58,24 +59,8 @@ theorem A4 : tautology ((⌈a;b⌉(·p)) ⟷ (⌈a⌉(⌈b⌉(·p)))) :=
   by
   unfold tautology evaluatePoint evaluate
   intro W M w
-  constructor
-  · -- left to right
-    by_contra hyp
-    simp at *
-    cases' hyp with hl hr
-    contrapose! hr
-    intro v w_a_v v1 v_b_v1
-    specialize hl v1 v
-    apply hl
-    exact w_a_v
-    exact v_b_v1
-  · -- right to left
-    by_contra hyp
-    simp at *
-    cases' hyp with hl hr
-    contrapose! hr
-    intro v1 v2 w_a_v2 v2_b_v1
-    exact hl v1 v2 w_a_v2 v2_b_v1
+  simp
+  tauto
 
 theorem A5 : tautology ((⌈a ⋓ b⌉X) ⟷ ((⌈a⌉X) ⋀ (⌈b⌉X))) :=
   by
@@ -103,8 +88,8 @@ theorem A5 : tautology ((⌈a ⋓ b⌉X) ⟷ ((⌈a⌉X) ⋀ (⌈b⌉X))) :=
       right
       exact w_b_v
   · -- right to left
-    by_contra hyp
-    simp at *
+    simp only [evaluate]
+    tauto
 
 theorem A6 (a : Program) (X : Formula) : tautology ((⌈∗a⌉X) ⟷ (X ⋀ (⌈a⌉(⌈∗a⌉X)))) :=
   by
@@ -117,77 +102,89 @@ theorem A6 (a : Program) (X : Formula) : tautology ((⌈∗a⌉X) ⟷ (X ⋀ (�
     constructor
     · -- show X using refl:
       apply starAX
-      exact Relation.ReflTransGen.refl w
-    · -- show [α][α∗]X using star.step:
+      exact Relation.ReflTransGen.refl
+    · -- show [α][α∗]X using cases_head_iff:
       intro v w_a_v v_1 v_aS_v1
       apply starAX
-      apply Relation.ReflTransGen.step w v v_1
-      exact w_a_v
-      exact v_aS_v1
+      rw [Relation.ReflTransGen.cases_head_iff]
+      right
+      use v
   · -- right to left
-    by_contra hyp
-    simp at hyp
+    simp
 
 example (a b : Program) (X : Formula) :
   (⌈∗(∗a) ⋓ b⌉X) ≡ X ⋀ (⌈a⌉(⌈∗(∗a) ⋓ b⌉ X)) ⋀ (⌈b⌉(⌈∗(∗a) ⋓ b⌉ X)) :=
   by
   unfold semEquiv
-  simp
   intro W M w
   sorry
 
+theorem last_snoc {m b} {ys : Vector α m} : b = last (snoc ys b) :=
+  by
+  sorry
+
 -- related via star ==> related via a finite chain
-theorem starIsFinitelyManySteps  (r : α → α → Prop) (x z : α) :
+theorem starIsFinitelyManySteps (r : α → α → Prop) (x z : α) :
   Relation.ReflTransGen r x z →
     ∃ (n : ℕ) (ys : Vector α n.succ),
       x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (get ys i) (get ys (i.succ)) :=
   by
   intro x_aS_z
-  rw [Relation.ReflTransGen.cases_head_iff] at x_aS_z
-  cases x_aS_z
-  case inl x_is_z =>
-    subst x_is_z
+  induction x_aS_z
+  case refl =>
+    use 0
+    use cons x nil
+    simp
+    rfl
+  case tail a b a_r_b b_rS_z IH =>
+    rcases IH with ⟨n, ys,⟨x_def, a_def, rel_steps⟩⟩
+    subst x_def
+    subst a_def
+    use n.succ
+    use snoc ys b
+    simp at *
+    constructor
+    · cases ys using Vector.inductionOn
+      simp
+    · constructor
+      · exact last_snoc
+      · sorry
+
+-- related via star ==> related via a finite chain
+theorem starIsFinitelyManySteps_attempt (r : α → α → Prop) (x z : α) :
+  Relation.ReflTransGen r x z →
+    ∃ (n : ℕ) (ys : Vector α n.succ),
+      x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (get ys i) (get ys (i.succ)) :=
+  by
+  intro x_aS_z
+  have := starCases x_aS_z
+  cases this
+  case inl hyp =>
+    subst hyp
     use 0
     use cons x nil
     simp
     rfl
   case inr hyp =>
-    rcases hyp with ⟨c, x_r_c, c_rS_z⟩
-    rw [Relation.ReflTransGen.cases_head_iff] at c_rS_z
+   rcases hyp with ⟨x_neq_z, ⟨y, x_neq_y, x_r_y, y_rS_z⟩⟩
+   -- rcases IH_b_z with ⟨n, ys,⟨ y_def, z_def, rel_steps⟩⟩
+   induction y_rS_z using Relation.ReflTransGen.head_induction_on
+   case refl =>
+    use 1
+    use cons x (cons z nil)
+    simp
+    constructor
+    · rfl
+    · exact x_r_y
+   case head a b a_r_b b_rS_z IH_b_z =>
+    -- apply IH_b_z
+    -- rcases IH_b_z with ⟨n, ys,⟨ y_def, z_def, rel_steps⟩⟩
+    -- subst y_def
+    -- subst z_def
+    -- use n.succ
+    -- use cons x ys
+    simp at *
     sorry
-    /-
-    rcases c_rS_z with ⟨n, ys, IH⟩
-    use n.succ
-    use cons a ys
-    constructor
-    · simp
-    rcases IH with ⟨IH1, IH2, IH3⟩
-    constructor
-    · rw [IH2]
-      simp [Vector.last_def]
-      rw [← Fin.succ_last]
-      rw [Vector.get_cons_succ a ys]
-    · -- i : fin (n + 1)
-      apply Fin.cases
-      · simp
-        rw [IH1] at a_a_b 
-        have : (cons a ys).get 1 = ys.head :=
-          by
-          cases' ys with ys_list hys
-          cases ys_list
-          simp at hys
-          rfl
-        rw [this]
-        apply a_a_b
-      -- first step: a -a-> b
-      · intro i
-        specialize IH3 i
-        have h1 : (a ::ᵥ ys).get (i.succ) = ys.get i :=
-
-          sorry
-        rw [h1]
-        exact IH3
-      -/
 
 -- rest of chain by IH
 -- related via star <== related via a finite chain

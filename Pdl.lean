@@ -6,5 +6,5 @@ import «Pdl».Star
 import «Pdl».Discon
 import «Pdl».Unravel
 import «Pdl».Tableau
--- import «Pdl».Examples -- TODO!
+import «Pdl».Examples
 import «Pdl».Interpolation
