@@ -12,7 +12,7 @@ inductive DagFormula : Type
   | and : DagFormula → DagFormula → DagFormula
   | box : Program → DagFormula → DagFormula
   | dag : Program → DagFormula → DagFormula
-  deriving Repr -- DecidableEq is not derivable here?
+  deriving Repr
 
 local notation "·" c => DagFormula.atom_prop c
 local prefix:11 "~" => DagFormula.neg
@@ -45,9 +45,6 @@ def inject : Formula → DagFormula
   | φ⋀ψ => inject φ ⋀ inject ψ
   | ⌈α⌉φ => ⌈α⌉(inject φ)
 
--- instance : Coe Formula DagFormula := ⟨inject⟩ -- nope
--- read https://leanprover-community.github.io/mathlib4_docs/Init/Coe.html
-
 -- | Borzechowski's f function, sort of.
 @[simp]
 def containsDag : DagFormula → Bool
@@ -73,30 +70,26 @@ lemma undag_inject {f} : undag (inject f) = f :=
     apply undag_inject
 
 @[simp]
-lemma inject_never_containsDag f : ¬ containsDag (inject f) :=
+lemma inject_never_containsDag : ∀ f, containsDag (inject f) = false :=
   by
-  cases f
+  apply Formula.rec
   case bottom => simp
   case atom_prop => simp
-  case neg f =>
-    apply inject_never_containsDag
-  case and f g =>
-    have := inject_never_containsDag f
-    have := inject_never_containsDag g
+  case neg =>
+    intro f
+    simp
+  case and =>
+    intro g h
     simp [containsDag]
     tauto
-  case box _ f =>
-    simp [containsDag]
-    have := inject_never_containsDag f
-    simp at this
-    tauto
-termination_by
-  inject_never_containsDag => lengthOfFormula f -- maybe bad, because it counts α from box too
-decreasing_by
-  simp at *
-  -- TODO
-  -- read https://github.com/leanprover/theorem_proving_in_lean4/blob/master/induction_and_recursion.md
-  sorry
+  case box =>
+    intro a f
+    simp
+  -- The recursor introduces program cases which we do not care about.
+  case motive_2 =>
+    intro _
+    exact True
+  all_goals { simp }
 
 -- MEASURE
 @[simp]

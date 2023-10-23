@@ -117,6 +117,7 @@ example (a b : Program) (X : Formula) :
   by
   unfold semEquiv
   intro W M w
+  simp
   sorry
 
 theorem last_snoc {m b} {ys : Vector α m} : b = last (snoc ys b) :=
