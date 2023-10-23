@@ -160,9 +160,15 @@ instance formulaHasVocabulary : HasVocabulary Formula := ⟨vocabOfFormula⟩
 instance programHasVocabulary : HasVocabulary Program := ⟨vocabOfProgram⟩
 instance finsetFormulaHasVocabulary : HasVocabulary (Finset Formula) := ⟨vocabOfSetFormula⟩
 
-lemma boxes_last : ∀ {a as P} , (~⌈a⌉Formula.boxes (as ++ [c]) P) = (~⌈a⌉Formula.boxes as (⌈c⌉P)) :=
+lemma boxes_last : (~⌈a⌉Formula.boxes (as ++ [c]) P) = (~⌈a⌉Formula.boxes as (⌈c⌉P)) :=
   by
-  intro a as P
+  induction as
+  · simp
+  · simp at *
+    assumption
+
+lemma boxes_append : Formula.boxes (as ++ bs) P = Formula.boxes as (Formula.boxes bs P) :=
+  by
   induction as
   · simp
   · simp at *

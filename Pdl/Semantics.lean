@@ -103,3 +103,27 @@ theorem forms_to_sets {φ ψ : Formula} : φ⊨ψ → ({φ} : Finset Formula)⊨
   -- needed even though no ψ_1 in goal here?!
   apply impTaut
   exact lhs
+
+lemma relate_steps : ∀ x z, relate M (Program.steps (as ++ bs)) x z  ↔
+  ∃ y, relate M (Program.steps as) x y ∧ relate M (Program.steps bs) y z :=
+  by
+  induction as
+  · simp
+  case cons a as IH =>
+    intro x z
+    constructor
+    · intro lhs
+      simp at *
+      rcases lhs with ⟨y, x_a_y, y_asbs_z⟩
+      rw [IH] at y_asbs_z
+      rcases y_asbs_z with ⟨y', y_as_ys', ys'_bs_z⟩
+      use y'
+      constructor
+      · use y
+      · exact ys'_bs_z
+    · intro rhs
+      simp at *
+      rcases rhs with ⟨y, ⟨y', x_a_y', y'_as_y⟩, bla⟩
+      use y'
+      rw [IH y' z]
+      tauto

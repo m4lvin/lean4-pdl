@@ -229,32 +229,50 @@ theorem likeLemmaFour :
       assumption
     case inr hyp =>
       rcases hyp with ⟨w_neq_v, ⟨y, w_neq_y, w_a_y, y_aS_v⟩⟩
-      have IHa := likeLemmaFour M a w y X' (†⌈∗a⌉P) w_neq_y
+      have IHa := likeLemmaFour M a w y X' (†⌈∗a⌉P) w_neq_y -- dagger here or not?
       specialize IHa _ w_a_y _
       · intro f
         simp
         intro f_in
         cases f_in
-        · apply w_sat_X
+        case inl f_in_X' =>
+          apply w_sat_X
           simp
           left
-          assumption
+          exact f_in_X'
         case inr f_def =>
           subst f_def
           simp
           use y
           constructor
-          · assumption
+          · exact w_a_y
           · use v
       · unfold vDash.SemImplies
         unfold modelCanSemImplyForm
         simp
         use v
-      rcases IHa with ⟨Y, Y_in, w_conY, as, nBasaSP_in_Y, w_as_u⟩
+      rcases IHa with ⟨Y, Y_in, w_conY, as, nBasaSP_in_Y, w_as_y⟩
       use Y
       constructor
-      · sorry -- mismatch:  unravel (~⌈a⌉†⌈∗a⌉P)  vs.  unravel (~⌈∗a⌉P)  :-(
-      · sorry
+      · simp
+        simp at Y_in
+        rcases Y_in with ⟨L, L_in_unrav, defY⟩
+        use L
+        constructor
+        · right
+          exact L_in_unrav -- wants dagger
+        · exact defY
+      · constructor
+        · assumption
+        · use (as ++ [∗ a])
+          rw [boxes_append]
+          simp
+          constructor
+          · sorry -- exact nBasaSP_in_Y -- wants no dagger
+          · rw [relate_steps]
+            use y
+            simp
+            exact ⟨w_as_y, y_aS_v⟩
   case test f =>
     intro w v X' P w_neq_v w_sat_X w_tf_v v_sat_nP
     unfold relate at w_tf_v
