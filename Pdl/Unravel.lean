@@ -59,13 +59,43 @@ def containsDag : DagFormula → Bool
   | ⌈_†⌉ _ => True
 
 @[simp]
-lemma undag_inject : undag (inject f) = f :=
+lemma undag_inject {f} : undag (inject f) = f :=
   by
-  sorry
+  cases f
+  all_goals simp
+  case neg f =>
+    rw [@undag_inject f]
+  case and f g =>
+    rw [@undag_inject f]
+    rw [@undag_inject g]
+    exact ⟨rfl,rfl⟩
+  case box a f =>
+    apply undag_inject
 
 @[simp]
-lemma inject_never_containsDag : containsDag (inject f) = False :=
+lemma inject_never_containsDag f : ¬ containsDag (inject f) :=
   by
+  cases f
+  case bottom => simp
+  case atom_prop => simp
+  case neg f =>
+    apply inject_never_containsDag
+  case and f g =>
+    have := inject_never_containsDag f
+    have := inject_never_containsDag g
+    simp [containsDag]
+    tauto
+  case box _ f =>
+    simp [containsDag]
+    have := inject_never_containsDag f
+    simp at this
+    tauto
+termination_by
+  inject_never_containsDag => lengthOfFormula f -- maybe bad, because it counts α from box too
+decreasing_by
+  simp at *
+  -- TODO
+  -- read https://github.com/leanprover/theorem_proving_in_lean4/blob/master/induction_and_recursion.md
   sorry
 
 -- MEASURE
