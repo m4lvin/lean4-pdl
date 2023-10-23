@@ -40,8 +40,8 @@ inductive localRule : Finset Formula → Finset (Finset Formula) → Type
   | nUn {a b f} (h : (~⌈a ⋓ b⌉f) ∈ X) : localRule X { X \ {~⌈a ⋓ b⌉f} ∪ {~⌈a⌉f}
                                                     , X \ {~⌈a ⋓ b⌉f} ∪ {~⌈b⌉f} }
   -- STAR
-  | sta {X a f} (h : (⌈∗a⌉f) ∈ X) : localRule X ({ X \ {⌈∗a⌉f} } ⊎ (listsToSets (unravel (⌈∗a⌉f))))
-  | nSt {a f} (h : (~⌈∗a⌉f) ∈ X) : localRule X ({ X \ {~⌈∗a⌉f} } ⊎ (listsToSets (unravel (~⌈∗a⌉f))))
+  | sta {X a f} (h : (⌈∗a⌉f) ∈ X) : localRule X ({ X \ {⌈∗a⌉f} } ⊎ (listsToSets (unravel (inject (⌈∗a⌉f)))))
+  | nSt {a f} (h : (~⌈∗a⌉f) ∈ X) : localRule X ({ X \ {~⌈∗a⌉f} } ⊎ (listsToSets (unravel (inject (~⌈∗a⌉f)))))
 
   -- TODO which rules need and modify markings?
   -- TODO only apply * if there is a marking.
@@ -60,7 +60,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       rcases Y_in with ⟨FS,FS_in,Y_def⟩
       subst Y_def
       intro g g_in_X
-      -- TODO disitinguish cases whether g = ~[∗]f
+      -- TODO distinguish cases whether g = ~[∗]f
       cases FS_in
       case inl FS_is_nF =>
         sorry
@@ -99,7 +99,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       case inr w_neq_v =>
         -- Different world, we use the right branch and Lemma 4 here:
         have lemFour := likeLemmaFour M (∗ a)
-        specialize lemFour w v X.toList f w_neq_v
+        specialize lemFour w v X.toList (inject f) w_neq_v
         unfold vDash.SemImplies modelCanSemImplyForm modelCanSemImplyList at lemFour -- mwah, why simp not do this?
         simp at lemFour
         specialize lemFour _ w_aS_v v_nF

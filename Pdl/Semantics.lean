@@ -25,7 +25,6 @@ mutual
     | M, w, ~φ => Not (evaluate M w φ)
     | M, w, φ⋀ψ => evaluate M w φ ∧ evaluate M w ψ
     | M, w, ⌈α⌉ φ => ∀ v : W, relate M α w v → evaluate M v φ
-    | M, w, †ϕ => evaluate M w ϕ
   @[simp]
   def relate {W : Type} : KripkeModel W → Program → W → W → Prop
     | M, ·c, w, v => M.Rel c w v
@@ -126,4 +125,26 @@ lemma relate_steps : ∀ x z, relate M (Program.steps (as ++ bs)) x z  ↔
       rcases rhs with ⟨y, ⟨y', x_a_y', y'_as_y⟩, bla⟩
       use y'
       rw [IH y' z]
+      tauto
+
+-- TODO: remove this, special instance of previous?
+theorem rel_steps_last {as} : ∀ v w,
+  relate M (Program.steps (as ++ [a])) v w ↔
+    ∃ mid, relate M (Program.steps as) v mid ∧ relate M a mid w :=
+  by
+  induction as
+  case nil =>
+    simp at *
+  case cons a2 as IH =>
+    intro s t
+    simp at *
+    constructor
+    · intro lhs
+      rcases lhs with ⟨next, s_a2_next, next_asa_t⟩
+      rw [IH] at next_asa_t
+      tauto
+    · intro rhs
+      rcases rhs with ⟨m,⟨y,yP,yP2⟩,mP⟩
+      use y
+      rw [IH]
       tauto
