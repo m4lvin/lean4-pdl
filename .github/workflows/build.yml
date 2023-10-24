@@ -11,7 +11,7 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: ${{ env.GIT_HISTORY_DEPTH }}
 
@@ -25,11 +25,29 @@ jobs:
       - name: make
         run: make
 
+  bml:
+    name: Build Bml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ env.GIT_HISTORY_DEPTH }}
+
+      - name: install elan
+        run: |
+          set -o pipefail
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- --default-toolchain none -y
+          ~/.elan/bin/lean --version
+          echo "$HOME/.elan/bin" >> $GITHUB_PATH
+
+      - name: make bml
+        run: make bml
+
   stats:
     name: Stats
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: install ripgrep
         run: sudo apt install -y ripgrep
@@ -41,3 +59,11 @@ jobs:
       - name: count sorries
         run: |
           rg --count-matches sorry Pdl | awk -F ':' 'BEGIN {sum = 0} {sum += $2} {print $2 " " $1} END {print sum " sorries in total"}'
+
+      - name: Bml count lines in src
+        run: |
+          shopt -s globstar
+          wc -l Bml/**/*.lean
+      - name: Bml count sorries
+        run: |
+          rg --count-matches sorry Bml | awk -F ':' 'BEGIN {sum = 0} {sum += $2} {print $2 " " $1} END {print sum " sorries in total"}'
