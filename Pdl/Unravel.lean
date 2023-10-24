@@ -176,58 +176,90 @@ theorem likeLemmaFour :
     intro w v X' P w_neq_v w_sat_X w_bc_v v_sat_nP
     unfold relate at w_bc_v
     rcases w_bc_v with ⟨u, w_b_u, u_c_v⟩
-    have IHb := likeLemmaFour M b w u X' -- get IH using a recursive call
-    specialize IHb (⌈c⌉ P) _ _ w_b_u _
-    · sorry -- need w ≠ u here?
-    · intro f lhs
-      simp at lhs
-      cases' lhs with f_in_X other
-      · apply w_sat_X f
-        simp
-        left
-        exact f_in_X
-      · simp at other
-        specialize w_sat_X sorry -- (~⌈b;c⌉P)
-        subst other
-        specialize w_sat_X _
-        · simp
-          sorry
-        simp at *
-        sorry
-        -- rcases w_sat_X with ⟨x,y,y_c_x,w_b_y,nP⟩
-        -- use y
-        -- tauto
-    · unfold vDash.SemImplies at *
-      unfold modelCanSemImplyForm at *
-      simp at *
-      sorry -- use v
-    rcases IHb with ⟨Y, Y_in, w_conY, as, nBascP_in_Y, w_as_u⟩
-    use Y
-    constructor
-    · simp at *
-      exact Y_in
-    constructor
-    · tauto
-    · sorry
-      /-
-      use as ++ [c]
-      cases as
-      case nil => -- n = 0, MB says we need IH again?
-        simp at *
-        rw [w_as_u]
-        exact ⟨nBascP_in_Y,u_c_v⟩
-      case cons a as => -- n > 0 in MB
-        simp at *
-        constructor
-        · rw [boxes_last]
-          exact nBascP_in_Y
-        · rcases w_as_u with ⟨t, w_a_t, y_as_u⟩
-          use t
+    simp [vDash.SemImplies, modelCanSemImplyForm] at *
+    cases Classical.em (w = u)
+    case inr w_neq_u =>
+      have IHb := likeLemmaFour M b w u X' (⌈c⌉P) w_neq_u
+      specialize IHb _ w_b_u _
+      · intro f lhs
+        simp at lhs
+        cases' lhs with f_in_X f_def
+        · apply w_sat_X f
+          left
+          exact f_in_X
+        · subst f_def
+          simp
+          use u
           constructor
-          · exact w_a_t
-          · rw [rel_steps_last]
-            use u
-       -/
+          · exact w_b_u
+          · use v
+      · simp [vDash.SemImplies, modelCanSemImplyForm]
+        use v
+      rcases IHb with ⟨Y, Y_in, w_conY, a, as, nBascP_in_Y, w_as_u⟩
+      simp at Y_in
+      rcases Y_in with ⟨L,⟨L_in_unrav,Ydef⟩⟩
+      use L
+      constructor
+      · exact L_in_unrav
+      · constructor
+        · intro f lhs
+          apply w_conY
+          rw [← Ydef]
+          simp
+          exact lhs
+        · use a, (as ++ [c])
+          constructor
+          · rw [boxes_append]
+            rw [← Ydef] at nBascP_in_Y
+            simp at nBascP_in_Y
+            exact nBascP_in_Y
+          · rw [relate_steps] at w_as_u
+            rcases w_as_u with ⟨w', w_a_w', w'_as_u⟩
+            simp at w_a_w'
+            use w'
+            rw [relate_steps]
+            constructor
+            · exact w_a_w'
+            · use u
+              simp
+              exact ⟨w'_as_u,u_c_v⟩
+    case inl w_is_u =>
+      subst w_is_u -- now u is gone, just say w
+      have IHb := likeLemmaFour M c w v X' (P) w_neq_v
+      specialize IHb _ u_c_v _
+      · intro f lhs
+        simp at lhs
+        cases' lhs with f_in_X f_def
+        · apply w_sat_X f
+          left
+          exact f_in_X
+        · subst f_def
+          simp
+          use v
+      · simp [vDash.SemImplies, modelCanSemImplyForm]
+        exact v_sat_nP
+      rcases IHb with ⟨Y, Y_in, w_conY, a, as, nBascP_in_Y, w_as_u⟩
+      simp at Y_in
+      rcases Y_in with ⟨L,⟨L_in_unrav,Ydef⟩⟩
+      use L
+      constructor
+      · sorry -- mismatch:  unravel (~⌈c⌉P) ≠ unravel (~⌈b⌉⌈c⌉P)  ???
+      · constructor
+        · intro f lhs
+          apply w_conY
+          rw [← Ydef]
+          simp
+          exact lhs
+        · use a, as
+          constructor
+          · rw [← Ydef] at nBascP_in_Y
+            simp at nBascP_in_Y
+            exact nBascP_in_Y
+          · rw [relate_steps] at w_as_u
+            rcases w_as_u with ⟨w', w_a_w', w'_as_u⟩
+            simp at w_a_w'
+            use w'
+
   case union a b =>
     intro w v X' P w_neq_v w_sat_X w_aub_v v_sat_nP
     unfold relate at w_aub_v
