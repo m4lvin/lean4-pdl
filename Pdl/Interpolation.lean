@@ -1,4 +1,7 @@
+import Mathlib.Data.Finset.Basic
+
 import Pdl.Syntax
+import Pdl.Vocab
 import Pdl.Semantics
 
 open HasVocabulary vDash

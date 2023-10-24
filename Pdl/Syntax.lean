@@ -1,7 +1,4 @@
-import Std.Classes.SetNotation -- provides Union
-
-import Mathlib.Data.Finset.Basic -- this import affects unrelated stuff below O.o
--- see https://leanprover.zulipchat.com/#narrow/stream/113489-new-members/topic/induction.20for.20mutually.20inductive.20types/near/395082787
+import Mathlib.Order.BoundedOrder
 
 mutual
   inductive Formula : Type
@@ -10,22 +7,15 @@ mutual
     | neg : Formula → Formula
     | and : Formula → Formula → Formula
     | box : Program → Formula → Formula
-    deriving Repr -- DecidableEq is not derivable here?
+    deriving Repr, DecidableEq
   inductive Program : Type
     | atom_prog : Char → Program
     | sequence : Program → Program → Program
     | union : Program → Program → Program
     | star : Program → Program
     | test : Formula → Program
-    deriving Repr -- DecidableEq is not derivable here?
+    deriving Repr, DecidableEq -- is not derivable here?
 end
-
--- TODO: update the above once we have a newer Lean version
--- including https://github.com/leanprover/lean4/pull/2591
-
--- needed for unions etc
-instance decEqFormula : DecidableEq Formula := sorry
-instance decEqProgram : DecidableEq Program := sorry
 
 -- Notation and abbreviations
 
@@ -47,9 +37,11 @@ notation "·" c => Formula.atom_prop c
 notation "·" c => Program.atom_prog c
 prefix:11 "~" => Formula.neg
 
--- TODO: use class instances to avoid overwriting ⊥ and ⊤
-notation "⊥" => Formula.bottom
-notation "⊤" => Formula.neg Formula.bottom
+@[simp]
+instance Formula.instBot : Bot Formula := ⟨Formula.bottom⟩
+@[simp]
+instance Formula.insTop : Top Formula := ⟨Formula.neg Formula.bottom⟩
+
 infixr:66 "⋀" => Formula.and
 infixr:60 "⋁" => Formula.or
 notation:55 φ:56 " ↣ " ψ:55 => ~φ ⋀ (~ψ)
@@ -114,45 +106,14 @@ termination_by -- silly but needed?!
   mOfProgram p => sizeOf p
   mOfFormula f => sizeOf f
 
-
--- VOCAB
-
-mutual
-  def vocabOfProgram : Program → Finset Char
-    | ·c => {c}
-    | α;β => vocabOfProgram α ∪ vocabOfProgram β
-    | Program.union α β => vocabOfProgram α ∪ vocabOfProgram β
-    | ∗α => vocabOfProgram α
-    | ✓ φ => vocabOfFormula φ
-  def vocabOfFormula : Formula → Finset Char
-    | ⊥ => ∅
-    | ·c => {c}
-    | ~φ => vocabOfFormula φ
-    | φ⋀ψ => vocabOfFormula φ ∪ vocabOfFormula ψ
-    | ⌈α⌉ φ => vocabOfProgram α ∪ vocabOfFormula φ
-end
-termination_by -- silly but needed?!
-  vocabOfProgram p => sizeOf p
-  vocabOfFormula f => sizeOf f
-
-def vocabOfSetFormula : Finset Formula → Finset Char
-  | X => X.biUnion vocabOfFormula
-
-class HasVocabulary (α : Type) where
-  voc : α → Finset Char
-
-instance formulaHasVocabulary : HasVocabulary Formula := ⟨vocabOfFormula⟩
-instance programHasVocabulary : HasVocabulary Program := ⟨vocabOfProgram⟩
-instance finsetFormulaHasVocabulary : HasVocabulary (Finset Formula) := ⟨vocabOfSetFormula⟩
-
-lemma boxes_last : (~⌈a⌉Formula.boxes (as ++ [c]) P) = (~⌈a⌉Formula.boxes as (⌈c⌉P)) :=
+theorem boxes_last : (~⌈a⌉Formula.boxes (as ++ [c]) P) = (~⌈a⌉Formula.boxes as (⌈c⌉P)) :=
   by
   induction as
   · simp
   · simp at *
     assumption
 
-lemma boxes_append : Formula.boxes (as ++ bs) P = Formula.boxes as (Formula.boxes bs P) :=
+theorem boxes_append : Formula.boxes (as ++ bs) P = Formula.boxes as (Formula.boxes bs P) :=
   by
   induction as
   · simp
