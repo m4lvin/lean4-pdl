@@ -142,16 +142,13 @@ termination_by
   unravel f => mOfDagFormula f
 
 -- Like Lemma 4 from Borzechowski, but using "unravel" instead of a local tableau with n-nodes.
--- see https://malv.in/2020/borzechowski-pdl/Borzechowski1988-PDL-translation-Gattinger2020.pdf#lemma.4
--- TODO: maybe simplify by not having a context X' here / still as useful for showing soundness of ~* rule?
--- TODO: analogous lemma for the box case? and * rule?
+-- This is used in the proof that the (¬∗) rule is sound.
+-- See https://is.gd/borzepdl#lemma.4 for the original.
 -- TODO: rename to:
 -- - diamondStarSound <<<
 -- - diamondStarInvert
 -- - boxStarSound
 -- - boxStarInvert
--- and more?
-
 theorem likeLemmaFour :
   ∀ M (a : Program) (w v : W) (X' : List Formula) (P : DagFormula),
     w ≠ v →
@@ -375,3 +372,16 @@ theorem likeLemmaFour :
     subst w_is_v
     absurd w_neq_v
     rfl
+
+-- Analogous to Lemma 4 we need one for the box case.
+-- This is used in the proof that the (∗) rule is sound.
+-- TODO statement is probably still a messy mixture of box and diamond case.
+theorem lemmaFourAndThreeQuarters :
+  ∀ M (a : Program) (w v : W) (X' : List Formula) (P : DagFormula),
+    w ≠ v → -- change this?
+      (M, w) ⊨ (X' ++ [⌈a⌉(undag P)]) → relate M a w v → (M, v)⊨(~undag P) →
+        ∃ Y ∈ {X'} ∪ unravel (⌈a⌉P), (M, w)⊨Y
+          ∧ ∃ (a : Char) (as : List Program), (~ ⌈·a⌉ (Formula.boxes as (undag P))) ∈ Y
+            ∧ relate M (Program.steps ([Program.atom_prog a] ++ as)) w v :=
+  by
+  sorry

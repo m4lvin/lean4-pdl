@@ -110,7 +110,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
           case a.inr h =>
             convert aSf_in_X
         rcases lemFour with ⟨Z, Z_in, Mw_ZX, ⟨as, nBasf_in, w_as_v⟩⟩
-        use (X \ {~⌈∗a⌉f}) ∪ Z.toFinset -- hmmm, good guess?
+        use (X \ {~⌈∗a⌉f}) ∪ Z.toFinset
         constructor
         · apply union_elem_uplus
           · simp
@@ -121,6 +121,9 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
           simp at g_in
           tauto
   -- TODO
+  case sta =>
+    have := lemmaFourAndThreeQuarters M -- use here
+    sorry
   all_goals { sorry }
 
 
