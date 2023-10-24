@@ -168,7 +168,38 @@ theorem disconAnd {XS YS} : discon (XS ⊎ YS) ≡ discon XS ⋀ discon YS :=
 
 theorem disconOr {XS YS} : discon (XS ∪ YS) ≡ discon XS ⋁ discon YS :=
   by
-  sorry
+  unfold semEquiv
+  intro W M w
+  rw [disconEval (XS ∪ YS) (by rfl)]
+  simp
+  rw [disconEval XS (by rfl)]
+  rw [disconEval YS (by rfl)]
+  constructor
+  · -- →
+    intro lhs
+    rcases lhs with ⟨Z, Z_in, w_sat_Z⟩
+    intro notL
+    simp at notL
+    cases Z_in
+    case inl Z_in_XS =>
+      specialize notL Z Z_in_XS
+      rcases notL with ⟨f, f_in_Z, w_not_f⟩
+      specialize w_sat_Z f f_in_Z
+      absurd w_sat_Z
+      exact w_not_f
+    use Z
+  · -- ←
+    intro rhs
+    cases (Classical.em (∃ Y, Y ∈ XS ∧ ∀ (f : Formula), f ∈ Y → evaluate M w f))
+    case inl hyp =>
+      rcases hyp with ⟨X, X_in, satX⟩
+      use X
+      exact ⟨Or.inl X_in, satX⟩
+    case inr nothyp =>
+      specialize rhs nothyp
+      rcases rhs with ⟨Y, Y_in, satY⟩
+      use Y
+      exact ⟨Or.inr Y_in, satY⟩
 
 theorem union_elem_uplus {XS YS : Finset (Finset Formula)} {X Y : Finset Formula} :
   X ∈ XS → Y ∈ YS → ((X ∪ Y) ∈ (XS ⊎ YS)) :=
