@@ -1,7 +1,6 @@
 -- SYNTAX
-import Mathlib.Data.Finset.Basic
-
 import Mathlib.Algebra.BigOperators.Basic
+import Mathlib.Data.Finset.Basic
 
 -- Definition 1, page 4
 inductive Formula : Type

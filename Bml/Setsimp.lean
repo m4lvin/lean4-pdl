@@ -1,37 +1,35 @@
 -- SETSIMP
-import Syntax
+import Mathlib.Algebra.BigOperators.Basic
+import Mathlib.Data.Finset.Basic
 
-#align_import setsimp
+import Bml.Syntax
 
 @[simp]
 theorem union_singleton_is_insert {X : Finset Formula} {ϕ : Formula} : X ∪ {ϕ} = insert ϕ X :=
   by
   have fo := Finset.insert_eq ϕ X
-  finish
-#align union_singleton_is_insert union_singleton_is_insert
+  aesop
 
 @[simp]
-theorem sdiff_singleton_is_erase {X : Finset Formula} {ϕ : Formula} : X \ {ϕ} = X.eraseₓ ϕ :=
+theorem sdiff_singleton_is_erase {X : Finset Formula} {ϕ : Formula} : X \ {ϕ} = X.erase ϕ :=
   by
-  apply Finset.induction_on X
+  induction X using Finset.induction_on
   simp
-  intro g Y gNotInY IH
   ext1
-  finish
-#align sdiff_singleton_is_erase sdiff_singleton_is_erase
+  aesop
 
 @[simp]
 theorem lengthAdd {X : Finset Formula} :
     ∀ {ϕ} (h : ϕ ∉ X), lengthOfSet (insert ϕ X) = lengthOfSet X + lengthOfFormula ϕ :=
   by
-  apply Finset.induction_on X
+  induction X using Finset.induction_on
   · unfold lengthOfSet
     simp
-  · intro ψ Y psiNotInY IH
+  case insert ψ Y psiNotInY IH =>
     unfold lengthOfSet at *
     intro ϕ h
-    finish
-#align lengthAdd lengthAdd
+    simp
+    sorry -- finish
 
 @[simp]
 theorem lengthOf_insert_leq_plus {X : Finset Formula} {ϕ : Formula} :
@@ -40,11 +38,10 @@ theorem lengthOf_insert_leq_plus {X : Finset Formula} {ϕ : Formula} :
   cases' em (ϕ ∈ X) with in_x not_in_x
   · rw [Finset.insert_eq_of_mem in_x]; simp
   · rw [lengthAdd not_in_x]
-#align lengthOf_insert_leq_plus lengthOf_insert_leq_plus
 
 @[simp]
 theorem lengthRemove (X : Finset Formula) :
-    ∀ ϕ ∈ X, lengthOfSet (X.eraseₓ ϕ) + lengthOfFormula ϕ = lengthOfSet X :=
+    ∀ ϕ ∈ X, lengthOfSet (X.erase ϕ) + lengthOfFormula ϕ = lengthOfSet X :=
   by
   intro ϕ in_X
   have claim : lengthOfSet (insert ϕ (X \ {ϕ})) = lengthOfSet (X \ {ϕ}) + lengthOfFormula ϕ :=
@@ -55,20 +52,17 @@ theorem lengthRemove (X : Finset Formula) :
     ext1
     simp only [Finset.mem_sdiff, Finset.mem_insert, Finset.mem_singleton]
     constructor
-    finish
+    aesop
     tauto
   rw [anotherClaim] at claim 
-  finish
-#align lengthRemove lengthRemove
+  aesop
 
 @[simp]
 theorem sum_union_le {T} [DecidableEq T] :
-    ∀ {X Y : Finset T} {F : T → ℕ}, (X ∪ Y).Sum F ≤ X.Sum F + Y.Sum F :=
+    ∀ {X Y : Finset T} {F : T → ℕ}, (X ∪ Y).sum F ≤ X.sum F + Y.sum F :=
   by
   intro X Y F
   ·
     calc
-      (X ∪ Y).Sum F ≤ (X ∪ Y).Sum F + (X ∩ Y).Sum F := by simp
+      (X ∪ Y).sum F ≤ (X ∪ Y).sum F + (X ∩ Y).sum F := by simp
       _ = X.sum F + Y.sum F := Finset.sum_union_inter
-#align sum_union_le sum_union_le
-

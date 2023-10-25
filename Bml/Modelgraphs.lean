@@ -1,16 +1,13 @@
 -- MODELGRAPHS
-import Syntax
-import Semantics
-
-#align_import modelgraphs
+import Bml.Syntax
+import Bml.Semantics
 
 open Formula
 
 -- Definition 18, page 31
 def Saturated : Finset Formula → Prop
   | X =>
-    ∀ P Q : Formula, (~~P ∈ X → P ∈ X) ∧ (P⋏Q ∈ X → P ∈ X ∧ Q ∈ X) ∧ (~(P⋏Q) ∈ X → ~P ∈ X ∨ ~Q ∈ X)
-#align saturated Saturated
+    ∀ P Q : Formula, (~~P ∈ X → P ∈ X) ∧ (P⋀Q ∈ X → P ∈ X ∧ Q ∈ X) ∧ (~(P⋀Q) ∈ X → ~P ∈ X ∨ ~Q ∈ X)
 
 -- TODO: closure for program combinators!
 -- Definition 19, page 31
@@ -24,7 +21,6 @@ def ModelGraph (Worlds : Finset (Finset Formula)) :=
   fun M : KripkeModel W => ∀ (X Y : W) (P), M.Rel X Y → □P ∈ X.val → P ∈ Y.val
   let iv := fun M : KripkeModel W => ∀ (X : W) (P), ~(□P) ∈ X.val → ∃ Y, M.Rel X Y ∧ ~P ∈ Y.val
   Subtype fun M : KripkeModel W => i ∧ ii M ∧ iii M ∧ iv M
-#align modelGraph ModelGraph
 
 -- Lemma 9, page 32
 theorem truthLemma {Worlds : Finset (Finset Formula)} (MG : ModelGraph Worlds) :
@@ -36,7 +32,7 @@ theorem truthLemma {Worlds : Finset (Finset Formula)} (MG : ModelGraph Worlds) :
   -- induction loading!!
   let plus P (X : Worlds) := P ∈ X.val → Evaluate (M, X) P
   let minus P (X : Worlds) := ~P ∈ X.val → ¬Evaluate (M, X) P
-  let oh P (X : Worlds) := □P ∈ X.val → ∀ Y, M.rel X Y → P ∈ Y.val
+  let oh P (X : Worlds) := □P ∈ X.val → ∀ Y, M.Rel X Y → P ∈ Y.val
   have claim : ∀ P X, plus P X ∧ minus P X ∧ oh P X :=
     by
     intro P
@@ -46,7 +42,7 @@ theorem truthLemma {Worlds : Finset (Finset Formula)} (MG : ModelGraph Worlds) :
       rcases i with ⟨_, bot_not_in_X, _⟩
       repeat' constructor
       · intro P_in_X; apply absurd P_in_X bot_not_in_X
-      · intro notP_in_X; tauto
+      · tauto
       · intro boxBot_in_X Y X_rel_Y; exact iii X Y ⊥ X_rel_Y boxBot_in_X
     case atom_prop pp =>
       repeat' constructor
@@ -56,7 +52,7 @@ theorem truthLemma {Worlds : Finset (Finset Formula)} (MG : ModelGraph Worlds) :
         specialize P_in_then_notP_not_in (·pp); tauto
       · intro boxPp_in_X Y X_rel_Y; exact iii X Y (·pp) X_rel_Y boxPp_in_X
     case neg P IH =>
-      rcases IH X with ⟨plus_IH, minus_IH, oh_OH⟩
+      rcases IH X with ⟨plus_IH, minus_IH, _⟩
       repeat' constructor
       · intro notP_in_X; unfold Evaluate
         exact minus_IH notP_in_X
@@ -68,24 +64,26 @@ theorem truthLemma {Worlds : Finset (Finset Formula)} (MG : ModelGraph Worlds) :
         simp
         exact plus_IH (doubleNeg notnotP_in_X)
       · intro notPp_in_X Y X_rel_Y; exact iii X Y (~P) X_rel_Y notPp_in_X
-    case and P Q IH_P IH_Q =>
-      rcases IH_P X with ⟨plus_IH_P, minus_IH_P, oh_P⟩
-      rcases IH_Q X with ⟨plus_IH_Q, minus_IH_Q, oh_Q⟩
+    case And P Q IH_P IH_Q =>
+      rcases IH_P X with ⟨plus_IH_P, minus_IH_P, _⟩
+      rcases IH_Q X with ⟨plus_IH_Q, minus_IH_Q, _⟩
       rcases i X with ⟨X_saturated, _, _⟩
       unfold Saturated at X_saturated 
-      rcases X_saturated P Q with ⟨doubleNeg, andSplit, notAndSplit⟩
+      rcases X_saturated P Q with ⟨_, andSplit, notAndSplit⟩
       repeat' constructor
       · intro PandQ_in_X
         specialize andSplit PandQ_in_X; cases' andSplit with P_in_X Q_in_X
         unfold Evaluate
-        constructor; · exact plus_IH_P P_in_X; · exact plus_IH_Q Q_in_X
+        constructor
+        · exact plus_IH_P P_in_X
+        · exact plus_IH_Q Q_in_X
       · intro notPandQ_in_X
         unfold Evaluate; rw [not_and_or]
         specialize notAndSplit notPandQ_in_X
         cases' notAndSplit with notP_in_X notQ_in_X
         · left; exact minus_IH_P notP_in_X
         · right; exact minus_IH_Q notQ_in_X
-      · intro PandQ_in_X Y X_rel_Y; exact iii X Y (P⋏Q) X_rel_Y PandQ_in_X
+      · intro PandQ_in_X Y X_rel_Y; exact iii X Y (P⋀Q) X_rel_Y PandQ_in_X
     case box P IH =>
       repeat' constructor
       · intro boxP_in_X; unfold Evaluate
@@ -102,5 +100,3 @@ theorem truthLemma {Worlds : Finset (Finset Formula)} (MG : ModelGraph Worlds) :
         exact minus_IH_Y notP_in_Y
       · intro boxBoxP_in_X Y X_rel_Y; exact iii X Y (□P) X_rel_Y boxBoxP_in_X
   apply (claim P X).left
-#align truthLemma truthLemma
-

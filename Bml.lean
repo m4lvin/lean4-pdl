@@ -2,9 +2,9 @@
 -- Import modules here that should be built as part of the library.
 import «Bml».Syntax
 import «Bml».Semantics
--- TODO import «Bml».Setsimp
--- TODO import «Bml».Modelgraphs
--- TODO import «Bml».Tableau
+import «Bml».Setsimp
+import «Bml».Modelgraphs
+import «Bml».Tableau
 -- TODO import «Bml».Examples
 -- TODO import «Bml».Vocabulary
 -- TODO import «Bml».Soundness
