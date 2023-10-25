@@ -24,15 +24,14 @@ prefix:88 "~" => Formula.neg
 
 prefix:77 "□" => Formula.box
 
-infixr:66 "⋏" => Formula.And
+infixr:66 "⋀" => Formula.And
 
 @[simp]
-def impl (φ ψ : Formula) := ~(φ ⋏ ~ψ)
-#align impl impl
+def impl (φ ψ : Formula) := ~(φ ⋀ ~ψ)
 
 infixr:55 "↣" => impl
 
-infixl:77 "⟷" => fun ϕ ψ => (ϕ↣ψ)⋏(ψ↣ϕ)
+infixl:77 "⟷" => fun ϕ ψ => (ϕ↣ψ)⋀(ψ↣ϕ)
 
 @[simp]
 instance : Bot Formula :=
@@ -42,15 +41,15 @@ instance : Top Formula :=
   ⟨Formula.neg Formula.bottom⟩
 
 -- showing formulas as strings that are valid Lean code
-def formToString : Formula → String
-  | ⊥ => "⊥"
-  | ·c => sorry -- repr c
-  | ~ϕ => "~" ++ formToString ϕ
-  | ϕ⋏ψ => "(" ++ formToString ϕ ++ " ⋏ " ++ formToString ψ ++ ")"
-  | □ϕ => "(□ " ++ formToString ϕ ++ ")"
+def formToString : Formula → ℕ → Lean.Format
+  | ⊥, _ => "⊥"
+  | ·c, _ => "·" ++ repr c
+  | ~ϕ, n => "~" ++ formToString ϕ n
+  | ϕ⋀ψ, n => "(" ++ formToString ϕ n ++ " ⋀ " ++ formToString ψ n ++ ")"
+  | □ϕ, n => "(□ " ++ formToString ϕ n ++ ")"
 
--- instance : Repr Formula :=
---   ⟨formToString⟩
+instance : Repr Formula :=
+   ⟨formToString⟩
 
 -- COMPLEXITY
 -- this should later be the measure from Lemma 2, page 20
@@ -59,7 +58,7 @@ def lengthOfFormula : Formula → ℕ
   | ⊥ => 1
   | ·_ => 1
   | ~φ => 1 + lengthOfFormula φ
-  | φ⋏ψ => 1 + lengthOfFormula φ + lengthOfFormula ψ
+  | φ⋀ψ => 1 + lengthOfFormula φ + lengthOfFormula ψ
   | □φ => 1 + lengthOfFormula φ
 
 @[simp]
@@ -82,7 +81,7 @@ def complexityOfFormula : Formula → ℕ
   | ⊥ => 1
   | ·_ => 1
   | ~φ => 1 + complexityOfFormula φ
-  | φ⋏ψ => 1 + max (complexityOfFormula φ) (complexityOfFormula ψ)
+  | φ⋀ψ => 1 + max (complexityOfFormula φ) (complexityOfFormula ψ)
   | □φ => 1 + complexityOfFormula φ
 
 def complexityOfSet : Finset Formula → ℕ

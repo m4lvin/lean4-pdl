@@ -1,7 +1,7 @@
 -- This module serves as the root of the `Pdl` library.
 -- Import modules here that should be built as part of the library.
 import «Bml».Syntax
--- TODO import «Bml».Semantics
+import «Bml».Semantics
 -- TODO import «Bml».Setsimp
 -- TODO import «Bml».Modelgraphs
 -- TODO import «Bml».Tableau
