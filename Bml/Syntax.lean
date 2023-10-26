@@ -68,12 +68,10 @@ class HasLength (α : Type) where
   lengthOf : α → ℕ
 
 open HasLength
-
-instance formulaHasLength : HasLength Formula :=
-  HasLength.mk lengthOfFormula
-
-instance setFormulaHasLength : HasLength (Finset Formula) :=
-  HasLength.mk lengthOfSet
+@[simp]
+instance formulaHasLength : HasLength Formula := ⟨lengthOfFormula⟩
+@[simp]
+instance setFormulaHasLength : HasLength (Finset Formula) := ⟨lengthOfSet⟩
 
 @[simp]
 def complexityOfFormula : Formula → ℕ

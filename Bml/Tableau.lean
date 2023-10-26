@@ -1,9 +1,10 @@
 -- TABLEAU
 
+import Mathlib.Algebra.BigOperators.Order
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Finset.PImage
-import Mathlib.Algebra.BigOperators.Order
 import Mathlib.Order.WellFoundedSet
+import Mathlib.Tactic.Ring
 
 import Bml.Syntax
 import Bml.Semantics
@@ -63,10 +64,10 @@ theorem projection_length_leq : ∀ f, (projection {f}).sum lengthOfFormula ≤ 
   by
   intro f
   cases f
-  · sorry -- omega
-  · sorry -- exact by decide
-  · sorry -- exact by decide
-  · sorry -- exact by decide
+  · unfold projection; simp
+  · unfold projection; simp
+  · unfold projection; simp
+  · unfold projection; simp
   case box f =>
     have subsubClaim : projection {□f} = {f} := by ext1; rw [proj]; simp
     rw [subsubClaim]
@@ -151,7 +152,7 @@ theorem localRulesDecreaseLength {X : Finset Formula} {B : Finset (Finset Formul
         lengthOfSet (insert ϕ (X.erase (~~ϕ))) ≤ lengthOfSet (X.erase (~~ϕ)) + lengthOf ϕ := by
           apply lengthOf_insert_leq_plus
         _ < lengthOfSet (X.erase (~~ϕ)) + lengthOf ϕ + 2 := by simp
-        _ = lengthOfSet (X.erase (~~ϕ)) + lengthOf (~~ϕ) := by sorry
+        _ = lengthOfSet (X.erase (~~ϕ)) + lengthOf (~~ϕ) := by simp; ring
         _ = lengthOfSet X := lengthRemove X (~~ϕ) notnot_in_X
   case Con ϕ ψ in_X =>
     subst inB
@@ -161,9 +162,9 @@ theorem localRulesDecreaseLength {X : Finset Formula} {B : Finset (Finset Formul
             lengthOf (insert ψ (X.erase (ϕ⋀ψ))) + lengthOf ϕ :=
           by apply lengthOf_insert_leq_plus
         _ ≤ lengthOf (X.erase (ϕ⋀ψ)) + lengthOf ψ + lengthOf ϕ := by simp; apply lengthOf_insert_leq_plus
-        _ = lengthOf (X.erase (ϕ⋀ψ)) + lengthOf ϕ + lengthOf ψ := by sorry
-        _ < lengthOf (X.erase (ϕ⋀ψ)) + lengthOf ϕ + lengthOf ψ + 1 := by unfold lengthOf; simp
-        _ = lengthOf (X.erase (ϕ⋀ψ)) + lengthOf (ϕ⋀ψ) := by unfold lengthOf; sorry
+        _ = lengthOf (X.erase (ϕ⋀ψ)) + lengthOf ϕ + lengthOf ψ := by ring
+        _ < lengthOf (X.erase (ϕ⋀ψ)) + lengthOf ϕ + lengthOf ψ + 1 := by simp
+        _ = lengthOf (X.erase (ϕ⋀ψ)) + lengthOf (ϕ⋀ψ) := by simp; ring
         _ = lengthOfSet X := lengthRemove X (ϕ⋀ψ) in_X
   case nCo ϕ ψ in_X =>
     cases inB
@@ -174,8 +175,8 @@ theorem localRulesDecreaseLength {X : Finset Formula} {B : Finset (Finset Formul
         lengthOfSet (insert (~ϕ) (X.erase (~(ϕ⋀ψ)))) ≤
             lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~ϕ) :=
           lengthOf_insert_leq_plus
-        _ < lengthOfSet (X.erase (~(ϕ⋀ψ))) + 1 + 1 + lengthOf ϕ + lengthOf ψ := by unfold lengthOf; sorry
-        _ = lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~(ϕ⋀ψ)) := by unfold lengthOf; sorry
+        _ < lengthOfSet (X.erase (~(ϕ⋀ψ))) + 1 + 1 + lengthOf ϕ + lengthOf ψ := by simp; ring_nf; sorry
+        _ = lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~(ϕ⋀ψ)) := by simp; ring
         _ = lengthOfSet X := lengthRemove X (~(ϕ⋀ψ)) in_X
     case inr inB => -- g
       subst inB
@@ -183,8 +184,8 @@ theorem localRulesDecreaseLength {X : Finset Formula} {B : Finset (Finset Formul
         lengthOfSet (insert (~ψ) (X.erase (~(ϕ⋀ψ)))) ≤
             lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~ψ) :=
           lengthOf_insert_leq_plus
-        _ < lengthOfSet (X.erase (~(ϕ⋀ψ))) + 1 + 1 + lengthOf ϕ + lengthOf ψ := by unfold lengthOf; sorry
-        _ = lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~(ϕ⋀ψ)) := by unfold lengthOf; sorry
+        _ < lengthOfSet (X.erase (~(ϕ⋀ψ))) + 1 + 1 + lengthOf ϕ + lengthOf ψ := by simp; ring_nf; sorry
+        _ = lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~(ϕ⋀ψ)) := by simp; ring
         _ = lengthOfSet X := lengthRemove X (~(ϕ⋀ψ)) in_X
 
 theorem atmRuleDecreasesLength {X : Finset Formula} {ϕ} :
@@ -204,9 +205,9 @@ theorem atmRuleDecreasesLength {X : Finset Formula} {ϕ} :
     calc
       lengthOfSet (insert (~ϕ) (projection X)) ≤ lengthOfSet (projection X) + lengthOf (~ϕ) :=
         lengthOf_insert_leq_plus
-      _ = lengthOfSet (projection X) + 1 + lengthOf ϕ := by unfold lengthOf; simp; unfold lengthOfFormula; sorry
+      _ = lengthOfSet (projection X) + 1 + lengthOf ϕ := by simp; ring
       _ < lengthOfSet (projection X) + 1 + 1 + lengthOf ϕ := by simp
-      _ = lengthOfSet (projection X) + lengthOf (~(□ϕ)) := by unfold lengthOf; simp; unfold lengthOfFormula; sorry
+      _ = lengthOfSet (projection X) + lengthOf (~(□ϕ)) := by simp; ring
       _ = lengthOfSet (projection (X.erase (~(□ϕ)))) + lengthOf (~(□ϕ)) := by rw [otherClaim]
       _ ≤ lengthOfSet (X.erase (~(□ϕ))) + lengthOf (~(□ϕ)) := by simp; apply projection_set_length_leq
       _ = lengthOfSet X := lengthRemove X (~(□ϕ)) notBoxPhi_in_X
@@ -222,7 +223,7 @@ open LocalTableau
 
 -- needed for endNodesOf
 instance localTableauHasSizeof : SizeOf (Σ X, LocalTableau X) :=
-  ⟨fun ⟨X, T⟩ => lengthOfSet X⟩
+  ⟨fun ⟨X, _⟩ => lengthOfSet X⟩
 
 -- open end nodes of a given localTableau
 @[simp]
@@ -277,8 +278,8 @@ theorem nCoEndNodes {X ϕ ψ h n} :
     · subst bD1; simp; left; simp at *; exact bIn
     · subst bD2; simp; right; simp at *; exact bIn
   · intro rhs; rw [Finset.mem_union] at rhs ; cases rhs
-    · use X \ {~(ϕ⋀ψ)} ∪ {~ϕ}; sorry
-    · use X \ {~(ϕ⋀ψ)} ∪ {~ψ}; sorry
+    · use X \ {~(ϕ⋀ψ)} ∪ {~ϕ}; aesop
+    · use X \ {~(ϕ⋀ψ)} ∪ {~ψ}; aesop
 
 -- Definition 16, page 29
 inductive ClosedTableau : Finset Formula → Type
@@ -347,8 +348,7 @@ theorem endNodesOfLEQ {X Z ltX} : Z ∈ endNodesOf ⟨X, ltX⟩ → lengthOf Z �
   induction ltX
   case byLocalRule Y B lr next IH =>
     intro Z_endOf_Y
-    have foo := localRulesDecreaseLength lr Y
-    unfold endNodesOf at Z_endOf_Y 
+    unfold endNodesOf at Z_endOf_Y
     simp at Z_endOf_Y 
     rcases Z_endOf_Y with ⟨W, W_in_B, Z_endOf_W⟩
     apply le_of_lt
@@ -366,13 +366,9 @@ theorem endNodesOfLocalRuleLT {X Z B next lr} :
   by
   intro ZisEndNode
   rw [endNodesOf] at ZisEndNode 
-  simp only [Finset.mem_biUnion, Finset.mem_attach, exists_true_left, Subtype.exists] at ZisEndNode 
+  simp at ZisEndNode
   rcases ZisEndNode with ⟨a, a_in_WS, Z_endOf_a⟩
-  sorry
-  /-
   change Z ∈ endNodesOf ⟨a, next a a_in_WS⟩ at Z_endOf_a
-  ·
-    calc
+  · calc
       lengthOf Z ≤ lengthOf a := endNodesOfLEQ Z_endOf_a
       _ < lengthOfSet X := localRulesDecreaseLength lr a a_in_WS
-  -/
