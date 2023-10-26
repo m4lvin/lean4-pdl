@@ -1,12 +1,11 @@
 -- SOUNDNESS
-import Syntax
-import Tableau
 
-#align_import soundness
+import Bml.Syntax
+import Bml.Tableau
 
 open Classical
 
-attribute [local instance 10] prop_decidable
+-- attribute [local instance 10] prop_decidable -- delete me?
 
 open HasSat
 
@@ -21,26 +20,23 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W ×
   · -- making the valuation function:
     intro world
     cases world
-    · -- the one new world:
-      cases world
-      exact newVal
-    -- use new given valuation here!!
-    · -- world in one of the given models:
-      cases' world with R w
+    case inl newWorld => -- the one new world
+      cases newWorld
+      exact newVal -- use new given valuation here!!
+    case inr oldWorld => -- world in one of the given models:
+      cases' oldWorld with R w
       exact (collection R).snd.fst.val w
   · -- defining relations:
     intro worldOne worldTwo
-    cases worldOne <;> cases worldTwo
-    -- four cases about two new or old worlds:
-    · exact False
-    -- no reflexive loop at the new world.
-    · exact HEq worldTwo.snd (collection worldTwo.fst).snd.snd
-    -- conect new world to given points.
-    · exact False
-    -- no connection from models to new world
-    · -- connect two old worlds iff they are from the same model and were connected there already:
-      cases' worldOne with kOne wOne
-      cases' worldTwo with kTwo wTwo
+    cases worldOne <;> cases worldTwo -- four cases about two new or old worlds
+    case inl.inl => exact False -- no reflexive loop at the new world.
+    case inl.inr newWorld oldWorld =>
+      exact HEq oldWorld.snd (collection oldWorld.fst).snd.snd -- conect new world to given points.
+    case inr.inl => exact False -- no connection from models to new world
+    case inr.inr oldWorldOne oldWorldTwo =>
+      -- connect two old worlds iff they are from the same model and were connected there already:
+      cases' oldWorldOne with kOne wOne
+      cases' oldWorldTwo with kTwo wTwo
       have help : kOne = kTwo → Prop := by
         intro same
         have sameCol : collection kOne = collection kTwo := by rw [← same]
@@ -50,7 +46,6 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W ×
   · -- point at the new world:
     left
     exact ()
-#align combinedModel combinedModel
 
 -- The combined model preserves all truths at the old worlds.
 theorem combMo_preserves_truth_at_oldWOrld {β : Type}
@@ -61,14 +56,14 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
   by
   intro f
   induction f <;> intro R oldWorld
-  case bottom => finish
+  case bottom => aesop
   case atom_prop c =>
     unfold combinedModel
-    unfold Evaluate
+    simp
   case neg f f_IH =>
     unfold Evaluate
     rw [f_IH R oldWorld]
-  case and f g f_IH g_IH =>
+  case And f g f_IH g_IH =>
     unfold Evaluate
     rw [f_IH R oldWorld]
     rw [g_IH R oldWorld]
@@ -97,14 +92,13 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
         unfold combinedModel at rel_in_new_model 
         have sameR : R = otherR := by
           by_contra
-          classical finish
+          aesop
         subst sameR
         rw [f_IH]
         apply true_in_old
         -- remains to show that related in old model
         simp at *
         exact rel_in_new_model
-#align combMo_preserves_truth_at_oldWOrld combMo_preserves_truth_at_oldWOrld
 
 -- The combined model for X satisfies X.
 theorem combMo_sat_X {X : Finset Formula} {β : Set Formula}
@@ -131,7 +125,7 @@ theorem combMo_sat_X {X : Finset Formula} {β : Set Formula}
     simp
     exact f_in_X
   case
-    neg =>
+    neg f =>
     -- subcases :-/
     cases f
     case atom_prop =>
@@ -150,14 +144,15 @@ theorem combMo_sat_X {X : Finset Formula} {β : Set Formula}
           ((combinedModel collection fun c => (·c) ∈ X).fst,
             (combinedModel collection fun c : Char => (·c) ∈ X).snd)
           (~(□newf))
-      unfold Evaluate
-      rw [Classical.not_forall]
+      simp
       -- need a reachable world where newf holds, choose the witness
       let h : newf ∈ β := by
         rw [beta_def]
         use f_in_X
       let oldWorld : Sum Unit (Σ k : β, (collection k).fst) :=
         Sum.inr ⟨⟨newf, h⟩, (collection ⟨newf, h⟩).snd.snd⟩
+      sorry
+      /-
       use oldWorld
       simp
       constructor
@@ -173,38 +168,42 @@ theorem combMo_sat_X {X : Finset Formula} {β : Set Formula}
         unfold Evaluate at all_pro_sat 
         simp at *
         exact all_pro_sat
+        -/
     case bottom => tauto
-    all_goals
+    case neg f =>
       unfold Simple at simple_X 
-      by_contra
-      exact simple_X _ f_in_X
-  case and fa fb =>
+      simp at *
+      sorry
+    case And f g =>
+      sorry
+  case And fa fb =>
     unfold Simple at simple_X 
-    by_contra
-    exact simple_X (fa⋏fb) f_in_X
+    simp at simple_X
+    sorry
+    -- apply all_pro_sat
+    -- exact simple_X (fa⋀fb) f_in_X
   case box f =>
     unfold Evaluate
     intro otherWorld is_rel
     cases otherWorld
     · cases is_rel
-    -- otherWorld cannot be the (unreachable) new world
-    have coMoLemma :=
-      combMo_preserves_truth_at_oldWOrld collection (fun c => (·c) ∈ X) f otherWorld.fst
-        otherWorld.snd
-    simp at coMoLemma 
-    rw [coMoLemma]
-    specialize all_pro_sat otherWorld.fst f
-    simp at all_pro_sat 
-    rw [or_imp] at all_pro_sat 
-    cases' all_pro_sat with _ all_pro_sat_right
-    rw [← proj] at f_in_X 
-    specialize all_pro_sat_right f_in_X
-    have sameWorld : otherWorld.snd = (collection otherWorld.fst).snd.snd := by
-      rw [heq_iff_eq.mp (HEq.symm is_rel)]
-    rw [sameWorld]
-    simp
-    exact all_pro_sat_right
-#align combMo_sat_X combMo_sat_X
+    case inr otherWorld => -- otherWorld cannot be the (unreachable) new world
+      have coMoLemma :=
+        combMo_preserves_truth_at_oldWOrld collection (fun c => (·c) ∈ X) f otherWorld.fst
+          otherWorld.snd
+      simp at coMoLemma
+      rw [coMoLemma]
+      specialize all_pro_sat otherWorld.fst f
+      simp at all_pro_sat
+      rw [or_imp] at all_pro_sat
+      cases' all_pro_sat with _ all_pro_sat_right
+      rw [← proj] at f_in_X
+      specialize all_pro_sat_right f_in_X
+      have sameWorld : otherWorld.snd = (collection otherWorld.fst).snd.snd := by
+        rw [heq_iff_eq.mp (HEq.symm is_rel)]
+      rw [sameWorld]
+      simp
+      exact all_pro_sat_right
 
 -- Lemma 1 (page 16)
 -- A simple set of formulas X is satisfiable if and only if
@@ -216,7 +215,7 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {X : Finset Formula} :
   constructor
   · -- left to right
     intro sat_X
-    unfold satisfiable at *
+    unfold Satisfiable at *
     rcases sat_X with ⟨W, M, w, w_sat_X⟩
     constructor
     · -- show that X is not closed:
@@ -227,7 +226,6 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {X : Finset Formula} :
       · rcases f_and_notf_in_X with ⟨f, f_in_X, notf_in_X⟩
         let w_sat_f := w_sat_X f f_in_X
         let w_sat_notf := w_sat_X (~f) notf_in_X
-        unfold Evaluate at *
         exact absurd w_sat_f w_sat_notf
     · -- show that for each ~[]R ∈ X the projection with ~R is satisfiable:
       intro R notboxr_in_X
@@ -251,7 +249,7 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {X : Finset Formula} :
   · -- right to left
     intro rhs
     cases' rhs with not_closed_X all_pro_sat
-    unfold satisfiable at *
+    unfold Satisfiable at *
     -- Let's build a new Kripke model!
     let β := {R : Formula | ~(□R) ∈ X}
     -- beware, using Axioms of Choice here!
@@ -286,12 +284,12 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {X : Finset Formula} :
       exact this_pro_sat_l f_inpro
     · -- case where f is ~[]R
       cases f_is_notboxR
-      specialize this_pro_sat (~R)
-      rw [or_imp] at this_pro_sat 
-      cases' this_pro_sat with this_pro_sat_l this_pro_sat_r
-      exact this_pro_sat_r f_is_notboxR
+      case refl =>
+        specialize this_pro_sat (~R)
+        rw [or_imp] at this_pro_sat
+        cases' this_pro_sat with this_pro_sat_l this_pro_sat_r
+        tauto
     simp
-#align Lemma1_simple_sat_iff_all_projections_sat Lemma1_simple_sat_iff_all_projections_sat
 
 -- to check β
 -- Each rule is sound and preserves satisfiability "downwards"
@@ -300,15 +298,15 @@ theorem localRuleSoundness {α : Finset Formula} {B : Finset (Finset Formula)} :
   by
   intro r
   intro a_sat
-  unfold satisfiable at a_sat 
+  unfold Satisfiable at a_sat
   rcases a_sat with ⟨W, M, w, w_sat_a⟩
   cases r
-  case bot a bot_in_a =>
+  case bot bot_in_a =>
     by_contra
     let w_sat_bot := w_sat_a ⊥ bot_in_a
     unfold Evaluate at w_sat_bot 
     exact w_sat_bot
-  case not a f hyp =>
+  case Not f hyp =>
     by_contra
     have w_sat_f : Evaluate (M, w) f := by
       apply w_sat_a
@@ -317,60 +315,53 @@ theorem localRuleSoundness {α : Finset Formula} {B : Finset (Finset Formula)} :
       by
       apply w_sat_a (~f)
       exact hyp.right
-    unfold Evaluate at *
+    simp at *
     exact absurd w_sat_f w_sat_not_f
-  case neg a f
+  case neg f
     hyp =>
     have w_sat_f : Evaluate (M, w) f :=
       by
       specialize w_sat_a (~~f) hyp
-      unfold Evaluate at *
-      finish
-    use a \ {~~f} ∪ {f}
-    simp only [true_and_iff, eq_self_iff_true, sdiff_singleton_is_erase, Multiset.mem_singleton,
-      Finset.mem_mk]
-    unfold satisfiable
+      aesop
+    use α \ {~~f} ∪ {f}
+    simp
     use W, M, w
-    intro g
-    simp only [Ne.def, union_singleton_is_insert, Finset.mem_insert, Finset.mem_erase]
-    rw [or_imp]
     constructor
-    · intro g_is_f; rw [g_is_f]; apply w_sat_f
-    · rw [and_imp]
-      intro g_neq_notnotf g_in_a
+    · exact w_sat_f
+    · intro g_neq_notnotf g_in_a
       apply w_sat_a
-      exact g_in_a
-  case con a f g hyp =>
-    use a \ {f⋏g} ∪ {f, g}
+  case Con f g hyp =>
+    use α \ {f⋀g} ∪ {f, g}
     constructor
     simp
-    unfold satisfiable
+    unfold Satisfiable
     use W, M, w
     simp only [and_imp, forall_eq_or_imp, sdiff_singleton_is_erase, Ne.def, Finset.union_insert,
       Finset.mem_insert, Finset.mem_erase]
     constructor
     · -- f
-      specialize w_sat_a (f⋏g) hyp
-      unfold Evaluate at *
+      specialize w_sat_a (f⋀g) hyp
+      simp at *
       exact w_sat_a.left
     · intro h hhyp
       simp at hhyp 
       cases hhyp
-      · -- h = g
-        specialize w_sat_a (f⋏g) hyp
-        unfold Evaluate at *
-        rw [hhyp]
+      case inl h_is_g => -- h = g
+        specialize w_sat_a (f⋀g) hyp
+        simp at *
+        rw [h_is_g]
         exact w_sat_a.right
-      ·-- h in a
-        exact w_sat_a h hhyp.right
-  case nCo a f g notfandg_in_a =>
-    unfold satisfiable
-    simp
-    let w_sat_phi := w_sat_a (~(f⋏g)) notfandg_in_a
-    unfold Evaluate at w_sat_phi 
-    rw [not_and_or] at w_sat_phi 
+      case inr h_in_a => -- h in a
+        exact w_sat_a h h_in_a.right
+  case nCo f g notfandg_in_a =>
+    unfold Satisfiable
+    let w_sat_phi := w_sat_a (~(f⋀g)) notfandg_in_a
+    simp [Evaluate] at w_sat_phi
+    rw [imp_iff_not_or] at w_sat_phi
     cases' w_sat_phi with not_w_f not_w_g
-    · use a \ {~(f⋏g)} ∪ {~f}
+    · use α \ {~(f⋀g)} ∪ {~f}
+      sorry
+    · use α \ {~(f⋀g)} ∪ {~g}
       constructor
       · simp at *
       · use W, M, w
@@ -378,34 +369,22 @@ theorem localRuleSoundness {α : Finset Formula} {B : Finset (Finset Formula)} :
         simp
         intro psi_def
         cases psi_def
-        · rw [psi_def]
-          unfold Evaluate
-          exact not_w_f
-        · cases' psi_def with psi_in_a
-          exact w_sat_a psi psi_def_right
-    · use a \ {~(f⋏g)} ∪ {~g}
-      constructor
-      · simp at *
-      · use W, M, w
-        intro psi
-        simp
-        intro psi_def
-        cases psi_def
-        · rw [psi_def]
+        case inl psi_def =>
+          rw [psi_def]
           unfold Evaluate
           exact not_w_g
-        · cases' psi_def with psi_in_a
+        case inr psi_def =>
+          cases' psi_def with psi_in_a psi_def_right
           exact w_sat_a psi psi_def_right
-#align localRuleSoundness localRuleSoundness
 
 -- The critical roule is sound and preserves satisfiability "downwards".
 -- TODO: is this the same as (one of the directions of) Lemma 1 ??
 theorem atmSoundness {α : Finset Formula} {f} (not_box_f_in_a : ~(□f) ∈ α) :
     Simple α → Satisfiable α → Satisfiable (projection α ∪ {~f}) :=
   by
-  intro s
+  intro _s -- sus?!
   intro aSat
-  unfold satisfiable at aSat 
+  unfold Satisfiable at aSat
   rcases aSat with ⟨W, M, w, w_sat_a⟩
   constructor
   simp
@@ -417,15 +396,13 @@ theorem atmSoundness {α : Finset Formula} {f} (not_box_f_in_a : ~(□f) ∈ α)
   -- show that the projection is satisfiable:
   use M, v
   constructor
-  · unfold Evaluate
-    exact v_not_sat_f
+  · exact v_not_sat_f
   intro phi phi_in_proj
   rw [proj] at phi_in_proj 
   · specialize w_sat_a phi.box _
     exact phi_in_proj
     unfold Evaluate at w_sat_a 
     exact w_sat_a v w_rel_v
-#align atmSoundness atmSoundness
 
 theorem localTableauAndEndNodesUnsatThenNotSat {Z} (ltZ : LocalTableau Z) :
     (∀ Y, Y ∈ endNodesOf ⟨Z, ltZ⟩ → ¬Satisfiable Y) → ¬Satisfiable Z :=
@@ -445,35 +422,28 @@ theorem localTableauAndEndNodesUnsatThenNotSat {Z} (ltZ : LocalTableau Z) :
       simp only [endNodesOf, Finset.mem_biUnion, Finset.mem_attach, exists_true_left,
         Subtype.exists]
       use Y, Y_in_YS
-      assumption
-    have endsOfYnotSat : ∀ Y_1 : Finset Formula, Y_1 ∈ endNodesOf ⟨Y, ltY⟩ → ¬satisfiable Y_1 :=
+    have endsOfYnotSat : ∀ Y_1 : Finset Formula, Y_1 ∈ endNodesOf ⟨Y, ltY⟩ → ¬Satisfiable Y_1 :=
       by
       intro W W_is_endOf_Y
       apply endsOfXnotSat W (endNodesInclusion W W_is_endOf_Y)
-    finish
+    aesop
   case sim X X_is_simple =>
     apply endsOfXnotSat
     unfold endNodesOf
     simp
-#align localTableauAndEndNodesUnsatThenNotSat localTableauAndEndNodesUnsatThenNotSat
 
 theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
   by
   intro X t
   induction t
-  case loc Y ltY next IH =>
+  case loc Y ltY _ IH =>
     apply localTableauAndEndNodesUnsatThenNotSat ltY
     intro Z ZisEndOfY
     exact IH Z ZisEndOfY
-  case atm Y ϕ notBoxPhiInY Y_is_simple
-    ltProYnPhi =>
+  case atm φ notBoxPhiInY Y_is_simple ltProYnPhi notSatProj =>
     rw [Lemma1_simple_sat_iff_all_projections_sat Y_is_simple]
     simp
-    intro Ynotclosed
-    use ϕ
-    use notBoxPhiInY
-    finish
-#align tableauThenNotSat tableauThenNotSat
+    aesop
 
 -- Theorem 2, page 30
 theorem correctness : ∀ X, Satisfiable X → Consistent X :=
@@ -481,12 +451,10 @@ theorem correctness : ∀ X, Satisfiable X → Consistent X :=
   intro X
   contrapose
   unfold Consistent
-  simp
   unfold Inconsistent
+  simp only [not_nonempty_iff, not_isEmpty_iff, not_exists, not_forall, exists_prop, Nonempty.forall]
   intro hyp
-  cases' hyp with t
-  exact tableauThenNotSat X t
-#align correctness correctness
+  apply tableauThenNotSat X hyp
 
 theorem soundTableau : ∀ φ, Provable φ → ¬Satisfiable ({~φ} : Finset Formula) :=
   by
@@ -494,8 +462,7 @@ theorem soundTableau : ∀ φ, Provable φ → ¬Satisfiable ({~φ} : Finset For
   intro prov
   cases' prov with _ tabl
   apply tableauThenNotSat
-  exact tabl
-#align soundTableau soundTableau
+  assumption
 
 theorem soundness : ∀ φ, Provable φ → Tautology φ :=
   by
@@ -504,5 +471,3 @@ theorem soundness : ∀ φ, Provable φ → Tautology φ :=
   rw [← singletonSat_iff_sat]
   apply soundTableau
   exact prov
-#align soundness soundness
-

@@ -5,10 +5,10 @@ import «Bml».Semantics
 import «Bml».Setsimp
 import «Bml».Modelgraphs
 import «Bml».Tableau
--- TODO import «Bml».Examples
--- TODO import «Bml».Vocabulary
--- TODO import «Bml».Soundness
--- TODO import «Bml».Tableauexamples
--- TODO import «Bml».Completeness
+import «Bml».Examples
+import «Bml».Vocabulary
+import «Bml».Soundness
+import «Bml».Tableauexamples
+import «Bml».Completeness
 -- TODO import «Bml».Partitions
 -- TODO import «Bml».Interpolation

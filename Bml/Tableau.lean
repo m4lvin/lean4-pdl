@@ -42,6 +42,7 @@ def formProjection : Formula → Option Formula
 def projection : Finset Formula → Finset Formula
   | X => X.biUnion fun x => (formProjection x).toFinset
 
+-- TODO @[simp]
 theorem proj {g : Formula} {X : Finset Formula} : g ∈ projection X ↔ □g ∈ X :=
   by
   rw [projection]
@@ -101,14 +102,14 @@ theorem projection_set_length_leq : ∀ X, lengthOfSet (projection X) ≤ length
         _ ≤ lengthOfFormula f + S.sum lengthOfFormula := by simp; apply IH
 
 -- local rules: given this set, we get these sets as child nodes
-inductive LocalRule : Finset Formula → Finset (Finset Formula) → Type-- closing rules:
-
+inductive LocalRule : Finset Formula → Finset (Finset Formula) → Type
+  -- closing rules:
   | bot {X} (h : ⊥ ∈ X) : LocalRule X ∅
-  | Not {X ϕ} (h : ϕ ∈ X ∧ ~ϕ ∈ X) : LocalRule X ∅-- one-child rules:
-
+  | Not {X ϕ} (h : ϕ ∈ X ∧ ~ϕ ∈ X) : LocalRule X ∅
+  -- one-child rules:
   | neg {X ϕ} (h : ~~ϕ ∈ X) : LocalRule X {X \ {~~ϕ} ∪ {ϕ}}
-  | Con {X ϕ ψ} (h : ϕ⋀ψ ∈ X) : LocalRule X {X \ {ϕ⋀ψ} ∪ {ϕ, ψ}}-- splitting rule:
-
+  | Con {X ϕ ψ} (h : ϕ⋀ψ ∈ X) : LocalRule X {X \ {ϕ⋀ψ} ∪ {ϕ, ψ}}
+  -- splitting rule:
   | nCo {X ϕ ψ} (h : ~(ϕ⋀ψ) ∈ X) : LocalRule X {X \ {~(ϕ⋀ψ)} ∪ {~ϕ}, X \ {~(ϕ⋀ψ)} ∪ {~ψ}}
 
 -- If X is not simple, then a local rule can be applied.
@@ -171,20 +172,18 @@ theorem localRulesDecreaseLength {X : Finset Formula} {B : Finset (Finset Formul
     -- splitting rule!
     case inl inB => -- f
       subst inB
-      calc
-        lengthOfSet (insert (~ϕ) (X.erase (~(ϕ⋀ψ)))) ≤
-            lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~ϕ) :=
-          lengthOf_insert_leq_plus
-        _ < lengthOfSet (X.erase (~(ϕ⋀ψ))) + 1 + 1 + lengthOf ϕ + lengthOf ψ := by simp; ring_nf; sorry
+      calc  lengthOfSet (insert (~ϕ) (X.erase (~(ϕ⋀ψ))))
+          ≤ lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~ϕ) := lengthOf_insert_leq_plus
+        _ < lengthOfSet (X.erase (~(ϕ⋀ψ))) + 1 + (1 + lengthOf ϕ) := by simp
+        _ ≤ lengthOfSet (X.erase (~(ϕ⋀ψ))) + 1 + (1 + lengthOf ϕ) + lengthOf ψ := by simp
         _ = lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~(ϕ⋀ψ)) := by simp; ring
         _ = lengthOfSet X := lengthRemove X (~(ϕ⋀ψ)) in_X
     case inr inB => -- g
       subst inB
-      calc
-        lengthOfSet (insert (~ψ) (X.erase (~(ϕ⋀ψ)))) ≤
-            lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~ψ) :=
-          lengthOf_insert_leq_plus
-        _ < lengthOfSet (X.erase (~(ϕ⋀ψ))) + 1 + 1 + lengthOf ϕ + lengthOf ψ := by simp; ring_nf; sorry
+      calc  lengthOfSet (insert (~ψ) (X.erase (~(ϕ⋀ψ))))
+          ≤ lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~ψ) := lengthOf_insert_leq_plus
+        _ < lengthOfSet (X.erase (~(ϕ⋀ψ))) + 1 + (1 + lengthOf ψ) := by simp
+        _ ≤ lengthOfSet (X.erase (~(ϕ⋀ψ))) + 1 + lengthOf ϕ + (1 + lengthOf ψ) := by simp
         _ = lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~(ϕ⋀ψ)) := by simp; ring
         _ = lengthOfSet X := lengthRemove X (~(ϕ⋀ψ)) in_X
 
@@ -193,9 +192,6 @@ theorem atmRuleDecreasesLength {X : Finset Formula} {ϕ} :
   by
   intro notBoxPhi_in_X
   simp
-  have proj_form_lt : ∀ f g, some g = formProjection f → lengthOfFormula g < lengthOfFormula f := by
-    intro f g g_is_fP_f; cases f; all_goals aesop
-  have lengthSingleton : ∀ f, lengthOfFormula f = lengthOfSet {f} := by intro f; unfold lengthOfSet; simp
   have otherClaim : projection X = projection (X.erase (~(□ϕ))) :=
     by
     ext1 phi

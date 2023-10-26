@@ -1,15 +1,13 @@
 -- INTERPOLATION
-import Syntax
-import Completeness
-import Partitions
 
-#align_import interpolation
+import Bml.Syntax
+import Bml.Completeness
+import Bml.Partitions
 
 open HasVocabulary
 
 def Interpolant (φ : Formula) (ψ : Formula) (θ : Formula) :=
   Tautology (φ↣θ) ∧ Tautology (θ↣ψ) ∧ voc θ ⊆ voc φ ∩ voc ψ
-#align interpolant Interpolant
 
 theorem interpolation {ϕ ψ} : Tautology (ϕ↣ψ) → ∃ θ, Interpolant ϕ ψ θ :=
   by
@@ -36,5 +34,3 @@ theorem interpolation {ϕ ψ} : Tautology (ϕ↣ψ) → ∃ θ, Interpolant ϕ �
   constructor
   · rw [tautImp_iff_comboNotUnsat]; simp at *; tauto
   · cases pI_prop; unfold voc vocabOfSetFormula at *; simp at *; tauto
-#align interpolation interpolation
-
