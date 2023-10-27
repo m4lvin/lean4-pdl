@@ -171,17 +171,20 @@ theorem combMo_sat_X {X : Finset Formula} {β : Set Formula}
         -/
     case bottom => tauto
     case neg f =>
-      unfold Simple at simple_X 
-      simp at *
-      sorry
+      unfold Simple SimpleForm at simple_X
+      simp at simple_X
+      specialize simple_X (~~f) f_in_X
+      simp at simple_X
     case And f g =>
-      sorry
+      unfold Simple SimpleForm at simple_X
+      simp at simple_X
+      specialize simple_X (~(f⋀g)) f_in_X
+      simp at simple_X
   case And fa fb =>
     unfold Simple at simple_X 
     simp at simple_X
-    sorry
-    -- apply all_pro_sat
-    -- exact simple_X (fa⋀fb) f_in_X
+    specialize simple_X (fa⋀fb) f_in_X
+    simp at simple_X
   case box f =>
     unfold Evaluate
     intro otherWorld is_rel
@@ -360,7 +363,9 @@ theorem localRuleSoundness {α : Finset Formula} {B : Finset (Finset Formula)} :
     rw [imp_iff_not_or] at w_sat_phi
     cases' w_sat_phi with not_w_f not_w_g
     · use α \ {~(f⋀g)} ∪ {~f}
-      sorry
+      simp
+      use W, M, w
+      tauto
     · use α \ {~(f⋀g)} ∪ {~g}
       constructor
       · simp at *

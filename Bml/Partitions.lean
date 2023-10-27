@@ -54,25 +54,29 @@ theorem notInter {X1 X2 ϕ} : ϕ ∈ X1 ∪ X2 ∧ ~ϕ ∈ X1 ∪ X2 → ∃ θ,
   · use ϕ
     -- ϕ ∈ X1 and ~ϕ ∈ X2
     constructor
-    · unfold voc; intro a aIn; simp; constructor
-      exact vocElem_subs_vocSet pSide aIn
-      have h : ~ϕ ∈ X2 := by rw [Finset.mem_union] at nIn ; tauto
-      have := vocElem_subs_vocSet h
-      simp at *
-      tauto
+    · unfold voc; intro a aIn; simp
+      constructor
+      · use ϕ
+        tauto
+      · have h : ~ϕ ∈ X2 := by rw [Finset.mem_union] at nIn; tauto
+        have := vocElem_subs_vocSet h
+        simp at *
+        tauto
     constructor
     all_goals by_contra h; rcases h with ⟨W, M, w1, sat⟩
     · simp at *; tauto
     · have h1 := sat (~ϕ); simp at *; tauto
-  · use~ϕ
+  · use ~ϕ
     -- ~ϕ ∈ X1 and ϕ ∈ X2
     constructor
-    · unfold voc; intro a aIn; simp; constructor
-      exact vocElem_subs_vocSet nSide aIn
-      have h : ϕ ∈ X2 := by rw [Finset.mem_union] at pIn ; tauto
-      have := vocElem_subs_vocSet h
-      simp at *
-      tauto
+    · unfold voc; intro a aIn; simp
+      constructor
+      · use (~ϕ)
+        tauto
+      · have h : ϕ ∈ X2 := by rw [Finset.mem_union] at pIn; tauto
+        have := vocElem_subs_vocSet h
+        simp at *
+        tauto
     constructor
     all_goals by_contra h; rcases h with ⟨W, M, w1, sat⟩
     · have h1 := sat (~ϕ); simp at *; tauto
@@ -140,7 +144,7 @@ theorem notnotInterpolantX2 {X1 X2 ϕ θ} :
     intro a aInVocTheta
     simp at *
     rw [Finset.subset_inter_iff] at vocSub 
-    tauto
+    sorry -- tauto
   constructor
   all_goals by_contra hyp; unfold Satisfiable at hyp ; rcases hyp with ⟨W, M, w, sat⟩
   · apply noSatX1
@@ -148,7 +152,7 @@ theorem notnotInterpolantX2 {X1 X2 ϕ θ} :
     use W, M, w
     intro ψ psi_in_newX_u_notTheta
     simp at psi_in_newX_u_notTheta 
-    cases psi_in_newX_u_notTheta
+    cases' psi_in_newX_u_notTheta with psi_in_newX_u_notTheta psi_in_newX_u_notTheta
     · apply sat; rw [psi_in_newX_u_notTheta]; simp at *
     cases psi_in_newX_u_notTheta
     · apply sat; simp at *; tauto
@@ -157,13 +161,14 @@ theorem notnotInterpolantX2 {X1 X2 ϕ θ} :
     use W, M, w
     intro ψ psi_in_newX2cupTheta
     simp at psi_in_newX2cupTheta 
-    cases psi_in_newX2cupTheta
+    cases' psi_in_newX2cupTheta with psi_in_newX2cupTheta psi_in_newX2cupTheta
     -- ! changed from here onwards
-    · apply sat; simp at *; tauto
-    cases psi_in_newX2cupTheta
-    · rw [psi_in_newX2cupTheta]; apply of_not_not
-      change Evaluate (M, w) (~~ϕ)
-      apply sat (~~ϕ); simp; right; assumption
+    · apply sat; simp at *; sorry -- tauto
+    cases' psi_in_newX2cupTheta with psi_is_theta psi_in_newX2cupTheta
+    · subst psi_is_theta
+      apply of_not_not
+      change Evaluate (M, w) (~~ψ)
+      sorry -- apply sat (~~ϕ); simp; right; assumption
     · apply sat; simp at *; tauto
 
 theorem conInterpolantX1 {X1 X2 ϕ ψ θ} :
@@ -173,12 +178,12 @@ theorem conInterpolantX1 {X1 X2 ϕ ψ θ} :
   rcases theta_is_chInt with ⟨vocSub, noSatX1, noSatX2⟩
   unfold PartInterpolant
   constructor
-  · rw [vocPreservedTwo (ϕ⋀ψ) ϕ ψ con_in_X1 (by unfold voc vocabOfFormula vocabOfSetFormula; simp)]
+  · rw [vocPreservedTwo (ϕ⋀ψ) ϕ ψ con_in_X1 (by simp)]
     have : voc (X2 \ {ϕ⋀ψ}) ⊆ voc X2 := vocErase
     intro a aInVocTheta
     rw [Finset.subset_inter_iff] at vocSub 
     simp at *
-    tauto
+    sorry -- tauto
   constructor
   all_goals by_contra hyp; unfold Satisfiable at hyp ; rcases hyp with ⟨W, M, w, sat⟩
   · apply noSatX1
@@ -186,11 +191,11 @@ theorem conInterpolantX1 {X1 X2 ϕ ψ θ} :
     use W, M, w
     intro π pi_in
     simp at pi_in 
-    cases pi_in
-    · rw [pi_in]; apply sat (~θ); simp
-    cases pi_in
+    cases' pi_in with pi_in pi_in
+    · rw [pi_in]; sorry -- apply sat (~θ); simp
+    cases' pi_in with pi_in pi_in
     · rw [pi_in]; specialize sat (ϕ⋀ψ) (by simp; exact con_in_X1); unfold Evaluate at sat ; tauto
-    cases pi_in
+    cases' pi_in with pi_in pi_in
     · rw [pi_in]; specialize sat (ϕ⋀ψ) (by simp; exact con_in_X1); unfold Evaluate at sat ; tauto
     · exact sat π (by simp; tauto)
   · apply noSatX2
@@ -198,7 +203,7 @@ theorem conInterpolantX1 {X1 X2 ϕ ψ θ} :
     use W, M, w
     intro π pi_in
     simp at pi_in 
-    cases pi_in
+    cases' pi_in with pi_in pi_in
     · rw [pi_in]; apply sat θ; simp
     · apply sat; simp at *; tauto
 
@@ -209,12 +214,12 @@ theorem conInterpolantX2 {X1 X2 ϕ ψ θ} :
   rcases theta_is_chInt with ⟨vocSub, noSatX1, noSatX2⟩
   unfold PartInterpolant
   constructor
-  · rw [vocPreservedTwo (ϕ⋀ψ) ϕ ψ con_in_X2 (by unfold voc vocabOfFormula vocabOfSetFormula; simp)]
+  · rw [vocPreservedTwo (ϕ⋀ψ) ϕ ψ con_in_X2 (by simp)]
     have : voc (X1 \ {ϕ⋀ψ}) ⊆ voc X1 := vocErase
     intro a aInVocTheta
     rw [Finset.subset_inter_iff] at vocSub 
     simp at *
-    tauto
+    sorry -- tauto
   constructor
   all_goals by_contra hyp; unfold Satisfiable at hyp ; rcases hyp with ⟨W, M, w, sat⟩
   · apply noSatX1
@@ -222,22 +227,22 @@ theorem conInterpolantX2 {X1 X2 ϕ ψ θ} :
     use W, M, w
     intro π pi_in
     simp at pi_in 
-    cases pi_in
+    cases' pi_in with pi_in pi_in
     · rw [pi_in]; apply sat (~θ); simp
     · apply sat; simp at *; tauto
   · apply noSatX2
-    unfold satisfiable
+    unfold Satisfiable
     use W, M, w
     intro π pi_in
     simp at pi_in 
-    cases pi_in
-    · rw [pi_in]; apply sat θ; simp
-    cases pi_in
+    cases' pi_in with pi_in pi_in
+    · rw [pi_in]; sorry -- apply sat θ; simp
+    cases' pi_in with pi_in pi_in
     · rw [pi_in]; specialize sat (ϕ⋀ψ) (by simp; right; exact con_in_X2); unfold Evaluate at sat ;
       tauto
-    cases pi_in
+    cases' pi_in with pi_in pi_in
     · rw [pi_in]; specialize sat (ϕ⋀ψ) (by simp; right; exact con_in_X2); unfold Evaluate at sat ;
-      tauto
+      sorry -- tauto
     · exact sat π (by simp; tauto)
 
 theorem nCoInterpolantX1 {X1 X2 ϕ ψ θa θb} :
@@ -251,25 +256,23 @@ theorem nCoInterpolantX1 {X1 X2 ϕ ψ θa θb} :
   rcases tB_is_chInt with ⟨b_vocSub, b_noSatX1, b_noSatX2⟩
   unfold PartInterpolant
   constructor
-  · unfold voc vocabOfFormula
+  · simp
     rw [Finset.subset_inter_iff]
     constructor; all_goals rw [Finset.union_subset_iff] <;> constructor <;> intro a aIn
-    · have sub : voc (~ϕ) ⊆ voc (~(ϕ⋀ψ)) := by unfold voc vocabOfFormula;
-        apply Finset.subset_union_left
+    · have sub : voc (~ϕ) ⊆ voc (~(ϕ⋀ψ)) := by simp; apply Finset.subset_union_left
       have claim := vocPreservedSub (~(ϕ⋀ψ)) (~ϕ) nCo_in_X1 sub
       rw [Finset.subset_iff] at claim 
       specialize claim a
       rw [Finset.subset_iff] at a_vocSub 
       specialize a_vocSub aIn
-      finish
-    · have sub : voc (~ψ) ⊆ voc (~(ϕ⋀ψ)) := by unfold voc vocabOfFormula;
-        apply Finset.subset_union_right
+      aesop
+    · have sub : voc (~ψ) ⊆ voc (~(ϕ⋀ψ)) := by simp; apply Finset.subset_union_right
       have claim := vocPreservedSub (~(ϕ⋀ψ)) (~ψ) nCo_in_X1 sub
       rw [Finset.subset_iff] at claim 
       specialize claim a
       rw [Finset.subset_iff] at b_vocSub 
       specialize b_vocSub aIn
-      finish
+      aesop
     · rw [Finset.subset_iff] at a_vocSub 
       specialize a_vocSub aIn
       have : voc (X2 \ {~(ϕ⋀ψ)}) ⊆ voc X2 := vocErase
@@ -283,16 +286,16 @@ theorem nCoInterpolantX1 {X1 X2 ϕ ψ θa θb} :
       simp at *
       tauto
   constructor
-  all_goals by_contra hyp; unfold satisfiable at hyp ; rcases hyp with ⟨W, M, w, sat⟩
+  all_goals by_contra hyp; unfold Satisfiable at hyp ; rcases hyp with ⟨W, M, w, sat⟩
   · apply a_noSatX1
     unfold satisfiable
     use W, M, w
     intro π pi_in
     simp at pi_in 
-    cases pi_in
+    cases' pi_in with pi_in pi_in
     · rw [pi_in]; specialize sat (~~(~θa⋀~θb)); simp at sat ; unfold Evaluate at *; simp at sat ;
       tauto
-    cases pi_in
+    cases' pi_in with pi_in pi_in
     · rw [pi_in]
       by_contra; apply b_noSatX1
       unfold satisfiable
@@ -312,7 +315,7 @@ theorem nCoInterpolantX1 {X1 X2 ϕ ψ θa θb} :
     use W, M, w
     intro π pi_in
     simp at pi_in 
-    cases pi_in
+    cases' pi_in with pi_in pi_in
     · rw [pi_in]
       by_contra; apply b_noSatX2
       unfold satisfiable
@@ -337,7 +340,7 @@ theorem nCoInterpolantX2 {X1 X2 ϕ ψ θa θb} :
   rcases tB_is_chInt with ⟨b_vocSub, b_noSatX1, b_noSatX2⟩
   unfold PartInterpolant
   constructor
-  · unfold voc vocabOfFormula
+  · simp
     rw [Finset.subset_inter_iff]
     constructor; all_goals rw [Finset.union_subset_iff] <;> constructor <;> intro a aIn
     · rw [Finset.subset_iff] at a_vocSub 
@@ -352,14 +355,13 @@ theorem nCoInterpolantX2 {X1 X2 ϕ ψ θa θb} :
       unfold voc at claim 
       simp at *
       tauto
-    · have sub : voc (~ϕ) ⊆ voc (~(ϕ⋀ψ)) := by unfold voc vocabOfFormula;
-        apply Finset.subset_union_left
+    · have sub : voc (~ϕ) ⊆ voc (~(ϕ⋀ψ)) := by simp; apply Finset.subset_union_left
       have claim := vocPreservedSub (~(ϕ⋀ψ)) (~ϕ) nCo_in_X2 sub
       rw [Finset.subset_iff] at claim 
       specialize claim a
       rw [Finset.subset_iff] at a_vocSub 
       specialize a_vocSub aIn
-      finish
+      aesop
     · have sub : voc (~ψ) ⊆ voc (~(ϕ⋀ψ)) := by unfold voc vocabOfFormula;
         apply Finset.subset_union_right
       have claim := vocPreservedSub (~(ϕ⋀ψ)) (~ψ) nCo_in_X2 sub
@@ -367,7 +369,7 @@ theorem nCoInterpolantX2 {X1 X2 ϕ ψ θa θb} :
       specialize claim a
       rw [Finset.subset_iff] at b_vocSub 
       specialize b_vocSub aIn
-      finish
+      aesop
   constructor
   all_goals by_contra hyp; unfold Satisfiable at hyp ; rcases hyp with ⟨W, M, w, sat⟩
   · apply a_noSatX1
@@ -375,7 +377,7 @@ theorem nCoInterpolantX2 {X1 X2 ϕ ψ θa θb} :
     use W, M, w
     intro π pi_in
     simp at pi_in 
-    cases pi_in
+    cases' pi_in with pi_in pi_in
     · rw [pi_in]
       by_contra; apply b_noSatX1
       unfold Satisfiable
@@ -392,9 +394,9 @@ theorem nCoInterpolantX2 {X1 X2 ϕ ψ θa θb} :
     use W, M, w
     intro π pi_in
     simp at pi_in 
-    cases pi_in
+    cases' pi_in with pi_in pi_in
     · rw [pi_in]; specialize sat (θa⋀θb); simp at sat ; unfold Evaluate at *; tauto
-    cases pi_in
+    cases' pi_in with pi_in pi_in
     · rw [pi_in]
       by_contra; apply b_noSatX2
       unfold Satisfiable
@@ -419,21 +421,21 @@ theorem localTabToInt :
               ∃ θ, PartInterpolant X1 X2 θ :=
   by
   intro N
-  apply Nat.strong_induction_on N
-  intro n IH
-  intro X lenX_is_n X1 X2 defX pt
-  rcases pt with ⟨pt, nextInter⟩
-  cases pt
-  case byLocalRule X B lr next =>
+  induction N using Nat.strong_induction_on
+  case h n IH =>
+   intro X lenX_is_n X1 X2 defX pt
+   rcases pt with ⟨pt, nextInter⟩
+   cases pt
+   case byLocalRule B next lr =>
     cases lr
     -- The bot and not cases use Lemma 14
-    case bot X bot_in_X => rw [defX] at bot_in_X ; exact botInter bot_in_X
-    case not X ϕ in_both => rw [defX] at in_both ; exact notInter in_both
-    case neg X ϕ
+    case bot bot_in_X => rw [defX] at bot_in_X ; exact botInter bot_in_X
+    case Not ϕ in_both => rw [defX] at in_both ; exact notInter in_both
+    case neg ϕ
       notnotphi_in =>
       have notnotphi_in_union : ~~ϕ ∈ X1 ∪ X2 := by rw [defX] at notnotphi_in ; assumption
       simp at *
-      cases notnotphi_in_union
+      cases' notnotphi_in_union with notnotphi_in_X1 notnotphi_in_X2
       · -- case ~~ϕ ∈ X1
         subst defX
         let newX1 := X1 \ {~~ϕ} ∪ {ϕ}
@@ -452,12 +454,12 @@ theorem localTabToInt :
           ∀ Y1 Y2 : Finset Formula,
             Y1 ∪ Y2 ∈ endNodesOf ⟨newX1 ∪ newX2, next (newX1 ∪ newX2) yclaim⟩ →
               Exists (PartInterpolant Y1 Y2) :=
-          by intro Y1 Y2; apply nextInter Y1 Y2 (newX1 ∪ newX2); finish
+          by intro Y1 Y2; apply nextInter Y1 Y2 (newX1 ∪ newX2); aesop
         have childInt : Exists (PartInterpolant newX1 newX2) :=
           IH m m_lt_n (newX1 ∪ newX2) (refl _) (refl _) (next (newX1 ∪ newX2) yclaim) nextNextInter
         cases' childInt with θ theta_is_chInt
         use θ
-        exact notnotInterpolantX1 notnotphi_in_union theta_is_chInt
+        exact notnotInterpolantX1 notnotphi_in_X1 theta_is_chInt
       · -- case ~~ϕ ∈ X2
         ---- based on copy-paste from previous case, changes marked with "!" ---
         subst defX
@@ -480,13 +482,13 @@ theorem localTabToInt :
           ∀ Y1 Y2 : Finset Formula,
             Y1 ∪ Y2 ∈ endNodesOf ⟨newX1 ∪ newX2, next (newX1 ∪ newX2) yclaim⟩ →
               Exists (PartInterpolant Y1 Y2) :=
-          by intro Y1 Y2; apply nextInter Y1 Y2 (newX1 ∪ newX2); finish
+          by intro Y1 Y2; apply nextInter Y1 Y2 (newX1 ∪ newX2); aesop
         have childInt : Exists (PartInterpolant newX1 newX2) :=
           IH m m_lt_n (newX1 ∪ newX2) (refl _) (refl _) (next (newX1 ∪ newX2) yclaim) nextNextInter
         cases' childInt with θ theta_is_chInt
         use θ
-        exact notnotInterpolantX2 notnotphi_in_union theta_is_chInt
-    case con X ϕ ψ
+        exact notnotInterpolantX2 notnotphi_in_X2 theta_is_chInt
+    case Con ϕ ψ
       con_in_X =>
       have con_in_union : ϕ⋀ψ ∈ X1 ∨ ϕ⋀ψ ∈ X2 := by rw [defX] at con_in_X ; simp at con_in_X ;
         assumption
@@ -551,7 +553,7 @@ theorem localTabToInt :
         cases' childInt with θ theta_is_chInt
         use θ
         exact conInterpolantX2 con_in_union theta_is_chInt
-    case nCo X ϕ ψ
+    case nCo ϕ ψ
       nCo_in_X =>
       have nCo_in_union : ~(ϕ⋀ψ) ∈ X1 ∨ ~(ϕ⋀ψ) ∈ X2 := by rw [defX] at nCo_in_X ; simp at nCo_in_X ;
         assumption

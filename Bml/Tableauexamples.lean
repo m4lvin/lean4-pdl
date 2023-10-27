@@ -116,7 +116,7 @@ example : ClosedTableau {r⋀~(□p), r↣□(p⋀q)} :=
       apply LocalTableau.sim
       rw [Finset.mem_singleton] at childDef 
       rw [childDef]
-      unfold Simple; simp at *; unfold SimpleForm
+      unfold Simple; simp at *
       intro f f_notDef1 f_in_branch
       cases b_in
       · tauto

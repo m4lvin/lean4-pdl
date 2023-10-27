@@ -19,12 +19,11 @@ open HasLength
 def Closed : Finset Formula → Prop := fun X => ⊥ ∈ X ∨ ∃ f ∈ X, ~f ∈ X
 
 -- A set X is simple  iff  all P ∈ X are (negated) atoms or [A]_ or ¬[A]_.
+@[simp]
 def SimpleForm : Formula → Bool
   | ⊥ => True
   | ~⊥ => True
-  |-- added!
-    ·_ =>
-    True
+  | ·_ => True
   | ~·_ => True
   | □_ => True
   | ~(□_) => True
@@ -131,12 +130,10 @@ theorem notSimpleThenLocalRule {X} : ¬Simple X → ∃ B, Nonempty (LocalRule X
       use{X \ {~~ψ} ∪ {ψ}}
       use LocalRule.neg ϕ_in_X
     case And ψ1 ψ2 =>
-      unfold SimpleForm at *
       use{X \ {~(ψ1⋀ψ2)} ∪ {~ψ1}, X \ {~(ψ1⋀ψ2)} ∪ {~ψ2}}
       use LocalRule.nCo ϕ_in_X
-    case box => unfold SimpleForm at *; tauto
+    case box => tauto
   case And ψ1 ψ2 =>
-    unfold SimpleForm at *
     use{X \ {ψ1⋀ψ2} ∪ {ψ1, ψ2}}
     use LocalRule.Con ϕ_in_X
   case box => tauto

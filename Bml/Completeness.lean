@@ -25,7 +25,7 @@ theorem localRuleTruth {W : Type} {M : KripkeModel W} {w : W} {X : Finset Formul
       by
       rw [b_is_af]
       simp
-      sorry
+      tauto
     cases' phi_in_b_or_is_f with phi_in_b phi_is_notnotf
     · apply w_sat_b
       exact phi_in_b
@@ -46,7 +46,7 @@ theorem localRuleTruth {W : Type} {M : KripkeModel W} {w : W} {X : Finset Formul
       by
       rw [b_is_fga]
       simp
-      sorry
+      tauto
     cases' phi_in_b_or_is_fandg with phi_in_b phi_is_fandg
     · apply w_sat_b
       exact phi_in_b
