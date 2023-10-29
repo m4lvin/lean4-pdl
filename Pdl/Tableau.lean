@@ -52,6 +52,101 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
   by
   intro locR
   cases locR
+  case bot bot_in_a =>
+    constructor
+    · intro hyp; rcases hyp with ⟨Y,Y_in,w_Y⟩; simp at Y_in
+    · intro w_sat_a
+      by_contra
+      let w_sat_bot := w_sat_a ⊥ bot_in_a
+      simp at w_sat_bot
+  case not f hyp =>
+    constructor
+    · sorry
+    · intro w_sat_a
+      by_contra
+      have w_sat_f : evaluate M w f := by
+        apply w_sat_a
+        exact hyp.left
+      have w_sat_not_f : evaluate M w (~f) :=
+        by
+        apply w_sat_a (~f)
+        exact hyp.right
+      simp at *
+      exact absurd w_sat_f w_sat_not_f
+  case neg f hyp =>
+    constructor
+    · sorry
+    · intro w_sat_a
+      have w_sat_f : evaluate M w f :=
+        by
+        specialize w_sat_a (~~f) hyp
+        aesop
+      use X \ {~~f} ∪ {f}
+      simp
+      intro g
+      simp
+      intro g_in
+      cases g_in
+      case inl hyp =>
+        apply w_sat_a
+        exact hyp.left
+      case inr g_is_f => subst g_is_f; exact w_sat_f
+  case con f g hyp =>
+    constructor
+    · sorry
+    · intro w_sat_a
+      use X \ {f⋀g} ∪ {f, g}
+      simp
+      intro h
+      simp
+      intro h_in
+      cases h_in
+      case inl h_is_f =>
+        rw [h_is_f]
+        specialize w_sat_a (f⋀g) hyp
+        simp at *
+        exact w_sat_a.left
+      case inr whatever =>
+        cases whatever
+        case inr h_is_g =>
+          rw [h_is_g]
+          specialize w_sat_a (f⋀g) hyp
+          simp at *
+          exact w_sat_a.right
+        case inl h_in_X =>
+          exact w_sat_a h h_in_X.left
+  case nCo f g notfandg_in_a =>
+    constructor
+    · sorry
+    · intro w_sat_a
+      let w_sat_phi := w_sat_a (~(f⋀g)) notfandg_in_a
+      simp at w_sat_phi
+      rw [imp_iff_not_or] at w_sat_phi
+      cases' w_sat_phi with not_w_f not_w_g
+      · use X \ {~(f⋀g)} ∪ {~f}
+        simp
+        intro h h_in
+        simp at h_in
+        cases h_in
+        case inl h_in_X =>
+          apply w_sat_a
+          exact h_in_X.left
+        case inr h_is_notf =>
+          rw [h_is_notf]
+          simp
+          exact not_w_f
+      · use X \ {~(f⋀g)} ∪ {~g}
+        simp
+        intro h h_in
+        simp at h_in
+        cases h_in
+        case inl h_in_X =>
+          apply w_sat_a
+          exact h_in_X.left
+        case inr h_is_notf =>
+          rw [h_is_notf]
+          simp
+          exact not_w_g
   case nSt a f aSf_in_X =>
     constructor
     · intro lhs -- invertibility
