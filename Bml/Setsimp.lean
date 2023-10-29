@@ -19,10 +19,10 @@ theorem sdiff_singleton_is_erase {X : Finset Formula} {ϕ : Formula} : X \ {ϕ} 
   aesop
 
 @[simp]
-theorem lengthAdd {X : Finset Formula} :
-    ∀ {ϕ} (h : ϕ ∉ X), lengthOfSet (insert ϕ X) = lengthOfSet X + lengthOfFormula ϕ :=
+theorem lengthAdd {X : Finset Formula} {ϕ} :
+    ϕ ∉ X → lengthOfSet (insert ϕ X) = lengthOfSet X + lengthOfFormula ϕ :=
   by
-  intro psi notin
+  intro notin
   unfold lengthOfSet
   rw [Finset.sum_insert notin]
   apply Nat.add_comm
@@ -50,7 +50,7 @@ theorem lengthRemove (X : Finset Formula) :
     constructor
     aesop
     tauto
-  rw [anotherClaim] at claim 
+  rw [anotherClaim] at claim
   aesop
 
 @[simp]
