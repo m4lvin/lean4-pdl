@@ -22,14 +22,10 @@ theorem sdiff_singleton_is_erase {X : Finset Formula} {ϕ : Formula} : X \ {ϕ} 
 theorem lengthAdd {X : Finset Formula} :
     ∀ {ϕ} (h : ϕ ∉ X), lengthOfSet (insert ϕ X) = lengthOfSet X + lengthOfFormula ϕ :=
   by
-  induction X using Finset.induction_on
-  · unfold lengthOfSet
-    simp
-  case insert ψ Y psiNotInY IH =>
-    unfold lengthOfSet at *
-    intro ϕ h
-    simp
-    sorry -- finish
+  intro psi notin
+  unfold lengthOfSet
+  rw [Finset.sum_insert notin]
+  apply Nat.add_comm
 
 @[simp]
 theorem lengthOf_insert_leq_plus {X : Finset Formula} {ϕ : Formula} :
