@@ -135,40 +135,27 @@ theorem combMo_sat_X {X : Finset Formula} {β : Set Formula}
       rw [not_or] at not_closed_X 
       simp at *
       tauto
-    case box
-      newf =>
+    case box f =>
       -- set coMo := ,
-      --unfold combinedModel,
-      change
-        Evaluate
-          ((combinedModel collection fun c => (·c) ∈ X).fst,
-            (combinedModel collection fun c : Char => (·c) ∈ X).snd)
-          (~(□newf))
-      simp
-      -- need a reachable world where newf holds, choose the witness
-      let h : newf ∈ β := by
-        rw [beta_def]
-        use f_in_X
+      simp only [Evaluate, not_forall]
+      -- need reachable world with ~f, use the β-witness
+      let h : f ∈ β := by rw [beta_def]; use f_in_X
       let oldWorld : Sum Unit (Σ k : β, (collection k).fst) :=
-        Sum.inr ⟨⟨newf, h⟩, (collection ⟨newf, h⟩).snd.snd⟩
-      sorry
-      /-
+        Sum.inr ⟨⟨f, h⟩, (collection ⟨f, h⟩).snd.snd⟩
       use oldWorld
-      simp
       constructor
+      · -- show that f is false at old world
+        have coMoLemma :=
+          combMo_preserves_truth_at_oldWOrld collection (fun c : Char => (·c) ∈ X) f ⟨f, h⟩
+            (collection ⟨f, h⟩).snd.snd
+        rw [coMoLemma]
+        specialize all_pro_sat ⟨f, h⟩ (~f)
+        unfold Evaluate at all_pro_sat
+        simp at *
+        exact all_pro_sat
       ·-- show that worlds are related in combined model (def above, case 2)
         unfold combinedModel;
         simp
-      · -- show that f is false at old world
-        have coMoLemma :=
-          combMo_preserves_truth_at_oldWOrld collection (fun c : Char => (·c) ∈ X) newf ⟨newf, h⟩
-            (collection ⟨newf, h⟩).snd.snd
-        rw [coMoLemma]
-        specialize all_pro_sat ⟨newf, h⟩ (~newf)
-        unfold Evaluate at all_pro_sat 
-        simp at *
-        exact all_pro_sat
-        -/
     case bottom => tauto
     case neg f =>
       unfold Simple SimpleForm at simple_X
@@ -331,7 +318,7 @@ theorem localRuleSoundness {α : Finset Formula} {B : Finset (Finset Formula)} :
     use W, M, w
     constructor
     · exact w_sat_f
-    · intro g_neq_notnotf g_in_a
+    · intro _ _
       apply w_sat_a
   case Con f g hyp =>
     use α \ {f⋀g} ∪ {f, g}
