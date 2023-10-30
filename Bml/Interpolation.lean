@@ -33,4 +33,4 @@ theorem interpolation {ϕ ψ} : Tautology (ϕ↣ψ) → ∃ θ, Interpolant ϕ �
   · rw [tautImp_iff_comboNotUnsat]; tauto
   constructor
   · rw [tautImp_iff_comboNotUnsat]; simp at *; tauto
-  · cases pI_prop; unfold voc vocabOfSetFormula at *; simp at *; tauto
+  · cases pI_prop; simp at *; tauto
