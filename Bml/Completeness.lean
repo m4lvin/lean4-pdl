@@ -158,35 +158,22 @@ theorem locTabEndSatThenSat {X Y} (ltX : LocalTableau X) (Y_endOf_X : Y ∈ endN
       subst W_def
       exact Y_endOf_W
     case nCo ϕ ψ _ =>
-      simp at *
+      rw [nCoEndNodes, Finset.mem_union] at Y_endOf_X
       cases Y_endOf_X
       case inl Y_endOf_X =>
-        left
-        simp at *
-        sorry
-        /-
-        rcases Y_endOf_X with ⟨W, W_def, Y_endOf_W⟩
-        subst W_def
-        specialize IH (insert (~ϕ) (X.erase (~(ϕ⋀ψ))))
-        simp at IH 
-        use insert (~ϕ) (X.erase (~(ϕ⋀ψ)))
+        specialize IH (X \ {~(ϕ⋀ψ)} ∪ {~ϕ})
+        use X \ {~(ϕ⋀ψ)} ∪ {~ϕ}
         constructor
-        · left; rfl
-        · apply IH; exact Y_endOf_W
-        -/
+        · simp
+        · apply IH
+          convert Y_endOf_X;
       case inr Y_endOf_X =>
-        right
-        sorry
-        /-
-        rcases Y_endOf_X with ⟨W, W_def, Y_endOf_W⟩
-        subst W_def
-        specialize IH (insert (~ψ) (X.erase (~(ϕ⋀ψ))))
-        simp at IH 
-        use insert (~ψ) (X.erase (~(ϕ⋀ψ)))
+        specialize IH (X \ {~(ϕ⋀ψ)} ∪ {~ψ})
+        use X \ {~(ϕ⋀ψ)} ∪ {~ψ}
         constructor
-        · right; rfl
-        · apply IH; exact Y_endOf_W
-        -/
+        · simp
+        · apply IH
+          convert Y_endOf_X;
   case sim X simpX => aesop
 
 theorem almostCompleteness : ∀ n X, lengthOfSet X = n → Consistent X → Satisfiable X :=
