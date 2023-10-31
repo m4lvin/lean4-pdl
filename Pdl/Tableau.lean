@@ -52,9 +52,11 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
   by
   intro locR
   cases locR
+  all_goals try simp only [Finset.mem_singleton, Finset.union_insert, Finset.mem_union, Finset.mem_sdiff, Finset.not_mem_empty]
+  -- PROPOSITIONAL LOGIC
   case bot bot_in_a =>
     constructor
-    · intro hyp; rcases hyp with ⟨Y,Y_in,w_Y⟩; simp at Y_in
+    · intro ⟨Y,Y_in,w_Y⟩; simp at Y_in
     · intro w_sat_a
       by_contra
       let w_sat_bot := w_sat_a ⊥ bot_in_a
@@ -147,10 +149,10 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
           rw [h_is_notf]
           simp
           exact not_w_g
+  -- STAR RULES
   case nSt a f aSf_in_X =>
     constructor
-    · intro lhs -- invertibility
-      rcases lhs with ⟨Y, Y_in, MwY⟩
+    · rintro ⟨Y, Y_in, MwY⟩ -- invertibility
       simp at Y_in
       rcases Y_in with ⟨FS,FS_in,Y_def⟩
       subst Y_def
@@ -215,11 +217,102 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
           apply Mw_ZX
           simp at g_in
           tauto
-  -- TODO
-  case sta =>
+  case sta =>  -- TODO
     have := lemmaFourAndThreeQuarters M -- use here
     sorry
-  all_goals { sorry }
+
+  -- OTHER PDL RULES
+  case nTe φ ψ in_X =>
+    constructor
+    · rintro ⟨Y, Y_in, w_Y⟩
+      subst Y_in
+      intro f f_inX
+      cases Classical.em (f = (~⌈✓φ⌉ψ))
+      case inl f_def =>
+        subst f_def
+        simp
+        constructor
+        · apply w_Y
+          simp
+        · specialize w_Y (~ψ)
+          simp at w_Y
+          exact w_Y
+      case inr f_not =>
+        apply w_Y
+        simp
+        tauto
+    · intro w_X
+      simp
+      intro f f_in
+      simp at f_in
+      rcases f_in with f_is_phi | ⟨f_in_X, not_f⟩ | f_is_notPsi
+      · subst f_is_phi
+        specialize w_X _ in_X
+        simp at w_X
+        tauto
+      · exact w_X _ f_in_X
+      · subst f_is_notPsi
+        specialize w_X _ in_X
+        simp at *
+        tauto
+  case nSe => -- {X a b f} (h : (~⌈a;b⌉f) ∈ X) : localRule X { X \ {~⌈a;b⌉f} ∪ {~⌈a⌉⌈b⌉f}}
+    constructor
+    · rintro ⟨Y, Y_in, w_Y⟩
+      subst Y_in
+      intro f f_inX
+      sorry
+    · intro w_X
+      simp
+      intro f f_in
+      simp at f_in
+      sorry
+  case uni => -- {X a b f} (h : (⌈a⋓b⌉f) ∈ X) : localRule X { X \ {⌈a⋓b⌉f} ∪ {⌈a⌉ f, ⌈b⌉ f}}
+    constructor
+    · rintro ⟨Y, Y_in, w_Y⟩
+      subst Y_in
+      intro f f_inX
+      sorry
+    · intro w_X
+      simp
+      intro f f_in
+      simp at f_in
+      sorry
+  case seq => -- {X a b f} (h : (⌈a;b⌉f) ∈ X) : localRule X { X \ {⌈a⌉⌈b⌉f}}
+    constructor
+    · rintro ⟨Y, Y_in, w_Y⟩
+      subst Y_in
+      intro f f_inX
+      sorry
+    · intro w_X
+      simp
+      intro f f_in
+      simp at f_in
+      sorry
+  -- Splitting rules:
+  case tes => -- {X f g} (h : (⌈✓f⌉g) ∈ X) : localRule X { X \ {⌈✓f⌉g} ∪ {~f} , X \ {⌈✓f⌉g} ∪ {g} }
+    constructor
+    · rintro ⟨Y, Y_in, w_Y⟩
+      simp at Y_in
+      intro f f_inX
+      cases Y_in
+      · sorry
+      · sorry
+    · intro w_X
+      simp
+      -- split TODO!
+      sorry
+  case nUn => -- {a b f} (h : (~⌈a ⋓ b⌉f) ∈ X) : localRule X { X \ {~⌈a ⋓ b⌉f} ∪ {~⌈a⌉f}, X \ {~⌈a ⋓ b⌉f} ∪ {~⌈b⌉f} }
+    constructor
+    · rintro ⟨Y, Y_in, w_Y⟩
+      simp at Y_in
+      intro f f_inX
+      cases Y_in
+      · sorry
+      · sorry
+    · intro w_X
+      simp
+      -- split TODO
+      sorry
 
 
 -- TODO inductive LocalTableau
