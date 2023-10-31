@@ -10,3 +10,6 @@ require mathlib from git
 @[default_target]
 lean_lib «Pdl» where
   -- add any library configuration options here
+
+lean_lib «Bml» where
+  -- add any library configuration options here
