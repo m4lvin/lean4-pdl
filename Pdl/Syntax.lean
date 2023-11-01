@@ -14,7 +14,7 @@ mutual
     | union : Program → Program → Program
     | star : Program → Program
     | test : Formula → Program
-    deriving Repr, DecidableEq -- is not derivable here?
+    deriving Repr, DecidableEq
 end
 
 -- Notation and abbreviations
@@ -52,59 +52,6 @@ infixl:33 ";" => Program.sequence -- TODO avoid ; which has a meaning in Lean 4
 infixl:33 "⋓" => Program.union
 prefix:33 "∗" => Program.star
 prefix:33 "✓" => Program.test -- avoiding "?" which has a meaning in Lean 4
-
-
--- COMPLEXITY
-mutual
-  def lengthOfProgram : Program → Nat
-    | ·_ => 1
-    | α;β => 1 + lengthOfProgram α + lengthOfProgram β
-    | α⋓β => 1 + lengthOfProgram α + lengthOfProgram β
-    | ∗α => 1 + lengthOfProgram α
-    | ✓φ => 1 + lengthOfFormula φ
-  def lengthOfFormula : Formula → Nat
-    | Formula.bottom => 1
-    | ·_ => 1
-    | ~φ => 1 + lengthOfFormula φ
-    | φ⋀ψ => 1 + lengthOfFormula φ + lengthOfFormula ψ
-    | ⌈α⌉φ => 1 + lengthOfProgram α + lengthOfFormula φ
-end
-termination_by -- silly but needed?!
-  lengthOfProgram p => sizeOf p
-  lengthOfFormula f => sizeOf f
-
--- mwah
-@[simp]
-def lengthOfEither : PSum Program Formula → Nat
-  | PSum.inl p => lengthOfProgram p
-  | PSum.inr f => lengthOfFormula f
-
--- MEASURE
-mutual
-  @[simp]
-  def mOfProgram : Program → Nat
-    | ·_ => 0
-    | ✓ φ => 1 + mOfFormula φ
-    | α;β => 1 + mOfProgram α + mOfProgram β + 1 -- TODO: max (mOfFormula φ) (mOfFormula (~φ))
-    | α⋓β => 1 + mOfProgram α + mOfProgram β + 1
-    | ∗α => 1 + mOfProgram α
-  @[simp]
-  def mOfFormula : Formula → Nat
-    | ⊥ => 0
-    | ~⊥ => 0
-    |-- missing in borze?
-      ·_ =>
-      0
-    | ~·_ => 0
-    | ~~φ => 1 + mOfFormula φ
-    | φ⋀ψ => 1 + mOfFormula φ + mOfFormula ψ
-    | ~φ⋀ψ => 1 + mOfFormula (~φ) + mOfFormula (~ψ)
-    | ⌈α⌉ φ => mOfProgram α + mOfFormula φ
-    | ~⌈α⌉ φ => mOfProgram α + mOfFormula (~φ)
-end
-termination_by -- silly but needed?!
-  mOfProgram p => sizeOf p
-  mOfFormula f => sizeOf f
 
 theorem boxes_last : (~⌈a⌉Formula.boxes (as ++ [c]) P) = (~⌈a⌉Formula.boxes as (⌈c⌉P)) :=
   by

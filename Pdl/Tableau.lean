@@ -1,20 +1,25 @@
+-- TABLEAU
+
+import Mathlib.Data.Finset.Basic
+import Mathlib.Data.Finset.Option
+
 import Pdl.Syntax
+import Pdl.Measures
 import Pdl.Semantics
 import Pdl.Discon
 import Pdl.Unravel
 
--- NOTE: Much here should be replaced with extended versions of
--- https://github.com/m4lvin/tablean/blob/main/src/tableau.lean
--- but maybe we should mathport that project to Lean 4 first?
-
--- LOCAL TABLEAU
-
--- TODO: Can we use variables below without making them arguments of localRule?
--- variable (X : Finset Formula) (f g : Formula) (a b : Program)
+-- HELPER FUNCTIONS
 
 @[simp]
 def listsToSets : List (List Formula) → Finset (Finset Formula)
 | LS => (LS.map List.toFinset).toFinset
+
+-- LOCAL TABLEAU
+
+-- Definition 9, page 15
+-- A set X is closed  iff  0 ∈ X or X contains a formula and its negation.
+def Closed : Finset Formula → Prop := fun X => ⊥ ∈ X ∨ ∃ f ∈ X, (~f) ∈ X
 
 -- Local rules: given this set, we get these sets as child nodes
 inductive localRule : Finset Formula → Finset (Finset Formula) → Type
@@ -314,19 +319,90 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       -- split TODO
       sorry
 
+-- A set X is simple  iff  all P ∈ X are (negated) atoms or [A]_ or ¬[A]_.
+@[simp]
+def SimpleForm : Formula → Bool
+  | ⊥ => True
+  | ~⊥ => True
+  | ·_ => True
+  | ~·_ => True
+  | ⌈·_⌉_ => True
+  | ~⌈·_⌉_ => True
+  | _ => False
 
--- TODO inductive LocalTableau
+def Simple : Finset Formula → Bool
+  | X => ∀ P ∈ X, SimpleForm P
 
+-- Definition 8, page 14
+-- mixed with Definition 11 (with all PDL stuff missing for now)
+-- a local tableau for X, must be maximal
+inductive LocalTableau : Finset Formula → Type
+  | byLocalRule {X B} (_ : localRule X B) (next : ∀ Y ∈ B, LocalTableau Y) : LocalTableau X
+  | sim {X} : Simple X → LocalTableau X
+
+open LocalTableau
+
+open HasLength
+
+-- needed for endNodesOf
+instance localTableauHasSizeof : SizeOf (Σ X, LocalTableau X) :=
+  ⟨fun ⟨X, _⟩ => lengthOf X⟩
+
+-- open end nodes of a given localTableau
+@[simp]
+def endNodesOf : (Σ X, LocalTableau X) → Finset (Finset Formula)
+  | ⟨X, @byLocalRule _ B lr next⟩ =>
+    B.attach.biUnion fun ⟨Y, h⟩ =>
+      have : lengthOf Y < lengthOf X := sorry -- localRulesDecreaseLength lr Y h
+      endNodesOf ⟨Y, next Y h⟩
+  | ⟨X, sim _⟩ => {X}
+
+-- PROJECTIONS
+
+@[simp]
+def formProjection : Char → Formula → Option Formula
+  | A, ⌈·B⌉φ => if A == B then some φ else none
+  | _, _ => none
+
+def projection : Char → Finset Formula → Finset Formula
+  | A, X => X.biUnion fun x => (formProjection A x).toFinset
+
+@[simp]
+theorem proj : g ∈ projection A X ↔ (⌈·A⌉g) ∈ X :=
+  by
+  rw [projection]
+  simp
+  constructor
+  · intro lhs
+    rcases lhs with ⟨boxg, boxg_in_X, projboxg_is_g⟩
+    cases boxg
+    repeat' aesop
+  · intro rhs
+    use ⌈·A⌉g
+    simp
+    exact rhs
+
+theorem projSet : projection A X = {ϕ | (⌈·A⌉ϕ) ∈ X} :=
+  by
+  ext1
+  simp
 
 -- TABLEAUX
 
-inductive Tableau -- to be rewritten as in tablean?
-  | leaf : Set Formula → Tableau
-  | Rule : Rule → List (Set Formula) → Tableau
+-- Definition 16, page 29
+-- TODO: do we want a ClosedTableau or more general Tableau type?
+-- If more general, do we want an "open" constructor with(out) arguments/proofs?
+inductive ClosedTableau : List (Finset Formula) → Finset Formula → Type
+  | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf ⟨X, lt⟩, ClosedTableau Hist Y) → ClosedTableau Hist X
+  | atm {A X ϕ} : (~⌈·A⌉ϕ) ∈ X → Simple X → ClosedTableau (X :: Hist) (projection A X ∪ {~ϕ}) → ClosedTableau Hist X
+  | repeat {X} : X ∈ Hist → ClosedTableau Hist X
 
-def projection : Char → Formula → Option Formula
-  | a, ⌈·b⌉ f => if a = b then some f else none
-  | _, _ => none
+inductive Provable : Formula → Prop
+  | byTableau {φ : Formula} : ClosedTableau _ {~φ} → Provable φ
 
--- TODO inductive globalRule : ...
---  | nSt {a f} (h : (~⌈·a⌉f) ∈ X) : localRule X { X \ {~⌈·a⌉f} ∪ {~f} } -- TODO projection!!
+-- Definition 17, page 30
+def Inconsistent : Finset Formula → Prop
+  | X => Nonempty (ClosedTableau [] X)
+
+def Consistent : Finset Formula → Prop
+  | X => ¬Inconsistent X

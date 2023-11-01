@@ -5,6 +5,7 @@ import Mathlib.Order.CompleteLattice
 import Mathlib.Order.FixedPoints
 
 import Pdl.Syntax
+import Pdl.Measures
 
 -- Kripke Models aka Labelled Transition Systems
 structure KripkeModel (W : Type) : Type where
