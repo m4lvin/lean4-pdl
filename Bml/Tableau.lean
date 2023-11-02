@@ -3,6 +3,7 @@
 import Mathlib.Algebra.BigOperators.Order
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Finset.PImage
+import Mathlib.Logic.IsEmpty
 import Mathlib.Order.WellFoundedSet
 import Mathlib.Tactic.Ring
 
@@ -21,7 +22,7 @@ def Closed : Finset Formula → Prop := fun X => ⊥ ∈ X ∨ ∃ f ∈ X, ~f �
 -- A set X is simple  iff  all P ∈ X are (negated) atoms or [A]_ or ¬[A]_.
 @[simp]
 def SimpleForm : Formula → Bool
-  | ⊥ => True
+  | ⊥ => True  -- TODO remove / change to False? (covered by bot rule)
   | ~⊥ => True
   | ·_ => True
   | ~·_ => True
@@ -212,6 +213,52 @@ inductive LocalTableau : Finset Formula → Type
   | byLocalRule {X B} (_ : LocalRule X B) (next : ∀ Y ∈ B, LocalTableau Y) : LocalTableau X
   | sim {X} : Simple X → LocalTableau X
 
+def existsLocalTableauFor : ∀ N α, N = lengthOf α → Nonempty (LocalTableau α) :=
+  by
+  intro N
+  induction N using Nat.strong_induction_on
+  case h n IH =>
+  intro α nDef
+  cases em ¬∃ B, Nonempty (LocalRule α B)
+  case inl canApplyRule =>
+    constructor
+    apply LocalTableau.sim
+    by_contra hyp
+    have := notSimpleThenLocalRule hyp
+    tauto
+  case inr canApplyRule =>
+    simp at canApplyRule
+    cases' canApplyRule with B r_exists
+    cases' r_exists with r
+    cases r
+    case bot h =>
+      have t := LocalTableau.byLocalRule (LocalRule.bot h) ?_; use t
+      intro Y; intro Y_in_empty; tauto
+    case Not h =>
+      have t := LocalTableau.byLocalRule (LocalRule.Not h) ?_; use t
+      intro Y; intro Y_in_empty; tauto
+    case neg f h =>
+      have t := LocalTableau.byLocalRule (LocalRule.neg h) ?_; use t
+      intro Y Y_def
+      have rDec := localRulesDecreaseLength (LocalRule.neg h) Y Y_def
+      subst nDef
+      specialize IH (lengthOf Y) rDec Y (refl _)
+      apply Classical.choice IH
+    case Con f g h =>
+      have t := LocalTableau.byLocalRule (LocalRule.Con h) ?_; use t
+      intro Y Y_def
+      have rDec := localRulesDecreaseLength (LocalRule.Con h) Y Y_def
+      subst nDef
+      specialize IH (lengthOf Y) rDec Y (refl _)
+      apply Classical.choice IH
+    case nCo f g h =>
+      have t := LocalTableau.byLocalRule (LocalRule.nCo h) ?_; use t
+      intro Y Y_def
+      have rDec := localRulesDecreaseLength (LocalRule.nCo h) Y Y_def
+      subst nDef
+      specialize IH (lengthOf Y) rDec Y (refl _)
+      apply Classical.choice IH
+
 open LocalTableau
 
 -- needed for endNodesOf
@@ -274,6 +321,36 @@ theorem nCoEndNodes {X ϕ ψ h n} :
     · use X \ {~(ϕ⋀ψ)} ∪ {~ϕ}; aesop
     · use X \ {~(ϕ⋀ψ)} ∪ {~ψ}; aesop
 
+theorem endNodesOfLEQ {X Z ltX} : Z ∈ endNodesOf ⟨X, ltX⟩ → lengthOf Z ≤ lengthOf X :=
+  by
+  induction ltX
+  case byLocalRule Y B lr next IH =>
+    intro Z_endOf_Y
+    unfold endNodesOf at Z_endOf_Y
+    simp at Z_endOf_Y
+    rcases Z_endOf_Y with ⟨W, W_in_B, Z_endOf_W⟩
+    apply le_of_lt
+    ·
+      calc
+        lengthOf Z ≤ lengthOf W := IH W W_in_B Z_endOf_W
+        _ < lengthOf Y := localRulesDecreaseLength lr W W_in_B
+  case sim a b =>
+    intro Z_endOf_Y
+    unfold endNodesOf at Z_endOf_Y
+    aesop
+
+theorem endNodesOfLocalRuleLT {X Z B next lr} :
+    Z ∈ endNodesOf ⟨X, @LocalTableau.byLocalRule _ B lr next⟩ → lengthOf Z < lengthOf X :=
+  by
+  intro ZisEndNode
+  rw [endNodesOf] at ZisEndNode
+  simp at ZisEndNode
+  rcases ZisEndNode with ⟨a, a_in_WS, Z_endOf_a⟩
+  change Z ∈ endNodesOf ⟨a, next a a_in_WS⟩ at Z_endOf_a
+  · calc
+      lengthOf Z ≤ lengthOf a := endNodesOfLEQ Z_endOf_a
+      _ < lengthOfSet X := localRulesDecreaseLength lr a a_in_WS
+
 -- Definition 16, page 29
 inductive ClosedTableau : Finset Formula → Type
   | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf ⟨X, lt⟩, ClosedTableau Y) → ClosedTableau X
@@ -289,79 +366,50 @@ def Inconsistent : Finset Formula → Prop
 def Consistent : Finset Formula → Prop
   | X => ¬Inconsistent X
 
-def existsLocalTableauFor : ∀ N α, N = lengthOf α → Nonempty (LocalTableau α) :=
+
+-- A tableau may be open.
+-- But if it's open, then it comes with proofs that it cannot be closed.
+inductive Tableau : Finset Formula → Type
+  | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf ⟨X, lt⟩, Tableau Y) → Tableau X
+  | atm {X ϕ} : ~(□ϕ) ∈ X → Simple X → Tableau (projection X ∪ {~ϕ}) → Tableau X
+  | opn {X} : Simple X → (∀ φ, ~(□φ) ∈ X → IsEmpty (ClosedTableau (projection X ∪ {~φ}))) → Tableau X
+
+def injectTab : ClosedTableau X → Tableau X
+  | (ClosedTableau.loc lt ends) => Tableau.loc lt (λ _ Y_in => injectTab (ends _ Y_in))
+  | (ClosedTableau.atm nB_in_X simX ctProj) => Tableau.atm nB_in_X simX (injectTab ctProj)
+
+theorem existsTableauFor {α} : Nonempty (Tableau α) :=
   by
-  intro N
-  induction N using Nat.strong_induction_on
-  case h n IH =>
-  intro α nDef
-  have canApplyRule := em ¬∃ B, Nonempty (LocalRule α B)
-  cases canApplyRule
+  cases em (∃ B, Nonempty (LocalRule α B))
   case inl canApplyRule =>
+    rcases canApplyRule with ⟨YS, has_lr⟩
+    cases' has_lr with lr
     constructor
-    apply LocalTableau.sim
-    by_contra hyp
-    have := notSimpleThenLocalRule hyp
-    tauto
-  case inr canApplyRule =>
-    simp at canApplyRule
-    cases' canApplyRule with B r_exists
-    cases' r_exists with r
-    cases r
-    case bot h =>
-      have t := LocalTableau.byLocalRule (LocalRule.bot h) ?_; use t
-      intro Y; intro Y_in_empty; tauto
-    case Not h =>
-      have t := LocalTableau.byLocalRule (LocalRule.Not h) ?_; use t
-      intro Y; intro Y_in_empty; tauto
-    case neg f h =>
-      have t := LocalTableau.byLocalRule (LocalRule.neg h) ?_; use t
-      intro Y Y_def
-      have rDec := localRulesDecreaseLength (LocalRule.neg h) Y Y_def
-      subst nDef
-      specialize IH (lengthOf Y) rDec Y (refl _)
-      apply Classical.choice IH
-    case Con f g h =>
-      have t := LocalTableau.byLocalRule (LocalRule.Con h) ?_; use t
-      intro Y Y_def
-      have rDec := localRulesDecreaseLength (LocalRule.Con h) Y Y_def
-      subst nDef
-      specialize IH (lengthOf Y) rDec Y (refl _)
-      apply Classical.choice IH
-    case nCo f g h =>
-      have t := LocalTableau.byLocalRule (LocalRule.nCo h) ?_; use t
-      intro Y Y_def
-      have rDec := localRulesDecreaseLength (LocalRule.nCo h) Y Y_def
-      subst nDef
-      specialize IH (lengthOf Y) rDec Y (refl _)
-      apply Classical.choice IH
+    apply Tableau.loc (LocalTableau.byLocalRule lr _) _
+    · intro Y _
+      exact Classical.choice (existsLocalTableauFor (lengthOf Y) Y rfl)
+    · intro Y Y_in_ends
+      apply Classical.choice
+      have : lengthOf Y < lengthOf α := endNodesOfLocalRuleLT Y_in_ends
+      exact existsTableauFor
+  case inr canNotApplyRule =>
+    have is_simp : Simple α := by
+      by_contra hyp
+      have := @notSimpleThenLocalRule α hyp
+      absurd canNotApplyRule
+      exact this
+    cases em (∀ φ, ~(□φ) ∈ α → IsEmpty (ClosedTableau (projection α ∪ {~φ})))
+    case inl hasNoClosedDiamonds => exact ⟨Tableau.opn is_simp hasNoClosedDiamonds⟩
+    case inr hasClosedDiamond =>
+      simp only [not_forall, not_isEmpty_iff, exists_prop] at hasClosedDiamond
+      rcases hasClosedDiamond with ⟨f, nBf_in_a, ⟨ct_notf⟩⟩
+      exact ⟨Tableau.atm nBf_in_a is_simp (injectTab ct_notf)⟩
+termination_by
+  existsTableauFor α => lengthOf α
 
-theorem endNodesOfLEQ {X Z ltX} : Z ∈ endNodesOf ⟨X, ltX⟩ → lengthOf Z ≤ lengthOf X :=
-  by
-  induction ltX
-  case byLocalRule Y B lr next IH =>
-    intro Z_endOf_Y
-    unfold endNodesOf at Z_endOf_Y
-    simp at Z_endOf_Y 
-    rcases Z_endOf_Y with ⟨W, W_in_B, Z_endOf_W⟩
-    apply le_of_lt
-    ·
-      calc
-        lengthOf Z ≤ lengthOf W := IH W W_in_B Z_endOf_W
-        _ < lengthOf Y := localRulesDecreaseLength lr W W_in_B
-  case sim a b =>
-    intro Z_endOf_Y
-    unfold endNodesOf at Z_endOf_Y 
-    aesop
+def isOpen : Tableau X → Prop
+  | (Tableau.loc lt next) => ∃ Y, ∃ h : Y ∈ endNodesOf ⟨X, lt⟩, isOpen (next Y h) -- mwah?!
+  | (Tableau.atm _ _ t_proj) => isOpen t_proj
+  | (Tableau.opn _ _) => True
 
-theorem endNodesOfLocalRuleLT {X Z B next lr} :
-    Z ∈ endNodesOf ⟨X, @LocalTableau.byLocalRule _ B lr next⟩ → lengthOf Z < lengthOf X :=
-  by
-  intro ZisEndNode
-  rw [endNodesOf] at ZisEndNode 
-  simp at ZisEndNode
-  rcases ZisEndNode with ⟨a, a_in_WS, Z_endOf_a⟩
-  change Z ∈ endNodesOf ⟨a, next a a_in_WS⟩ at Z_endOf_a
-  · calc
-      lengthOf Z ≤ lengthOf a := endNodesOfLEQ Z_endOf_a
-      _ < lengthOfSet X := localRulesDecreaseLength lr a a_in_WS
+def OpenTableau (X : Finset Formula) : Type := { t : Tableau X // isOpen t }
