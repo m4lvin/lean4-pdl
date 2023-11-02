@@ -10,10 +10,10 @@ import Pdl.Syntax
 mutual
   def lengthOfProgram : Program → Nat
     | ·_ => 1
-    | α;β => 1 + lengthOfProgram α + lengthOfProgram β
+    | α;'β => 1 + lengthOfProgram α + lengthOfProgram β
     | α⋓β => 1 + lengthOfProgram α + lengthOfProgram β
     | ∗α => 1 + lengthOfProgram α
-    | ✓φ => 1 + lengthOfFormula φ
+    | ?'φ => 1 + lengthOfFormula φ
   def lengthOfFormula : Formula → Nat
     | Formula.bottom => 1
     | ·_ => 1
@@ -45,17 +45,15 @@ mutual
   @[simp]
   def mOfProgram : Program → Nat
     | ·_ => 0
-    | ✓ φ => 1 + mOfFormula φ
-    | α;β => 1 + mOfProgram α + mOfProgram β + 1 -- TODO: max (mOfFormula φ) (mOfFormula (~φ))
+    | ?'φ => 1 + mOfFormula φ
+    | α;'β => 1 + mOfProgram α + mOfProgram β + 1 -- TODO: max (mOfFormula φ) (mOfFormula (~φ))
     | α⋓β => 1 + mOfProgram α + mOfProgram β + 1
     | ∗α => 1 + mOfProgram α
   @[simp]
   def mOfFormula : Formula → Nat
     | ⊥ => 0
     | ~⊥ => 0
-    |-- missing in borze?
-      ·_ =>
-      0
+    | ·_ => 0
     | ~·_ => 0
     | ~~φ => 1 + mOfFormula φ
     | φ⋀ψ => 1 + mOfFormula φ + mOfFormula ψ

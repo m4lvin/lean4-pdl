@@ -35,14 +35,14 @@ inductive localRule : Finset Formula → Finset (Finset Formula) → Type
                                                    , X \ {~(φ⋀ψ)} ∪ {~ψ}  }
   -- PROGRAMS
   -- Single-branch rules:
-  | nTe {X φ ψ} (h : (~⌈✓φ⌉ψ) ∈ X) : localRule X { X \ {~⌈✓φ⌉ψ} ∪ {φ, ~ψ}} -- TODO should remove marking ?
-  | nSe {X a b f} (h : (~⌈a;b⌉f) ∈ X) : localRule X { X \ {~⌈a;b⌉f} ∪ {~⌈a⌉⌈b⌉f}}
+  | nTe {X φ ψ} (h : (~⌈?'φ⌉ψ) ∈ X) : localRule X { X \ {~⌈?'φ⌉ψ} ∪ {φ, ~ψ}} -- TODO should remove marking ?
+  | nSe {X a b f} (h : (~⌈a;'b⌉f) ∈ X) : localRule X { X \ {~⌈a;'b⌉f} ∪ {~⌈a⌉⌈b⌉f}}
   | uni {X a b f} (h : (⌈a⋓b⌉f) ∈ X) : localRule X { X \ {⌈a⋓b⌉f} ∪ {⌈a⌉ f, ⌈b⌉ f}}
-  | seq {X a b f} (h : (⌈a;b⌉f) ∈ X) : localRule X { X \ {⌈a⌉⌈b⌉f}}
+  | seq {X a b f} (h : (⌈a;'b⌉f) ∈ X) : localRule X { X \ {⌈a⌉⌈b⌉f}}
   -- Splitting rules:
-  | tes {X f g} (h : (⌈✓f⌉g) ∈ X) : localRule X { X \ {⌈✓f⌉g} ∪ {~f}
-                                                 , X \ {⌈✓f⌉g} ∪ {g} }
-  | nUn {a b f} (h : (~⌈a ⋓ b⌉f) ∈ X) : localRule X { X \ {~⌈a ⋓ b⌉f} ∪ {~⌈a⌉f}
+  | tes {X f g} (h : (⌈?'f⌉g) ∈ X) : localRule X { X \ {⌈?'f⌉g} ∪ {~f}
+                                                 , X \ {⌈?'f⌉g} ∪ {g} }
+  | nUn {a b f} (h : (~⌈a⋓b⌉f) ∈ X) : localRule X { X \ {~⌈a ⋓ b⌉f} ∪ {~⌈a⌉f}
                                                     , X \ {~⌈a ⋓ b⌉f} ∪ {~⌈b⌉f} }
   -- STAR
   | sta {X a f} (h : (⌈∗a⌉f) ∈ X) : localRule X ({ X \ {⌈∗a⌉f} } ⊎ (listsToSets (unravel (inject (⌈∗a⌉f)))))
@@ -120,8 +120,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
           specialize w_sat_a (f⋀g) hyp
           simp at *
           exact w_sat_a.right
-        case inl h_in_X =>
-          exact w_sat_a h h_in_X.left
+        case inl h_in_X => exact w_sat_a h h_in_X.left
   case nCo f g notfandg_in_a =>
     constructor
     · sorry
@@ -133,27 +132,17 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       · use X \ {~(f⋀g)} ∪ {~f}
         simp
         intro h h_in
-        simp at h_in
+        simp at *
         cases h_in
-        case inl h_in_X =>
-          apply w_sat_a
-          exact h_in_X.left
-        case inr h_is_notf =>
-          rw [h_is_notf]
-          simp
-          exact not_w_f
+        case inl h_in_X => exact w_sat_a _ h_in_X.left
+        case inr h_is_notf => rw [h_is_notf]; simp; exact not_w_f
       · use X \ {~(f⋀g)} ∪ {~g}
         simp
         intro h h_in
         simp at h_in
         cases h_in
-        case inl h_in_X =>
-          apply w_sat_a
-          exact h_in_X.left
-        case inr h_is_notf =>
-          rw [h_is_notf]
-          simp
-          exact not_w_g
+        case inl h_in_X => exact w_sat_a _ h_in_X.left
+        case inr h_is_notf => rw [h_is_notf]; simp; exact not_w_g
   -- STAR RULES
   case nSt a f aSf_in_X =>
     constructor
@@ -174,8 +163,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       rcases w_adiamond_f with ⟨v, w_aS_v, v_nF⟩
       -- NOTE: Borze also makes a distinction whether a is atomic. Not needed?
       -- We still distinguish cases whether v = w
-      have : w = v ∨ w ≠ v := by tauto
-      cases this
+      cases Classical.em (w = v)
       case inl w_is_v =>
         -- Same world, we can use the left branch.
         subst w_is_v
@@ -200,10 +188,8 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
             assumption
       case inr w_neq_v =>
         -- Different world, we use the right branch and Lemma 4 here:
-        have lemFour := likeLemmaFour M (∗ a)
-        specialize lemFour w v X.toList (inject f) w_neq_v
-        unfold vDash.SemImplies modelCanSemImplyForm modelCanSemImplyList at lemFour -- mwah, why simp not do this?
-        simp at lemFour
+        have lemFour := likeLemmaFour M (∗ a) w v X.toList (inject f) w_neq_v
+        simp [vDash, modelCanSemImplyForm, modelCanSemImplyList] at lemFour
         specialize lemFour _ w_aS_v v_nF
         · intro g g_in
           apply Mw_X
@@ -214,14 +200,8 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         rcases lemFour with ⟨Z, Z_in, Mw_ZX, ⟨as, nBasf_in, w_as_v⟩⟩
         use (X \ {~⌈∗a⌉f}) ∪ Z.toFinset
         constructor
-        · apply union_elem_uplus
-          · simp
-          · simp
-            use Z
-        · intro g g_in
-          apply Mw_ZX
-          simp at g_in
-          tauto
+        · exact union_elem_uplus (by simp) (by simp; use Z)
+        · intro g g_in; simp at g_in; apply Mw_ZX; tauto
   case sta =>  -- TODO
     have := lemmaFourAndThreeQuarters M -- use here
     sorry
@@ -232,7 +212,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
     · rintro ⟨Y, Y_in, w_Y⟩
       subst Y_in
       intro f f_inX
-      cases Classical.em (f = (~⌈✓φ⌉ψ))
+      cases Classical.em (f = (~⌈?'φ⌉ψ))
       case inl f_def =>
         subst f_def
         simp
@@ -260,7 +240,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         specialize w_X _ in_X
         simp at *
         tauto
-  case nSe => -- {X a b f} (h : (~⌈a;b⌉f) ∈ X) : localRule X { X \ {~⌈a;b⌉f} ∪ {~⌈a⌉⌈b⌉f}}
+  case nSe => -- {X a b f} (h : (~⌈a;'b⌉f) ∈ X) : localRule X { X \ {~⌈a;'b⌉f} ∪ {~⌈a⌉⌈b⌉f}}
     constructor
     · rintro ⟨Y, Y_in, w_Y⟩
       subst Y_in
@@ -282,7 +262,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       intro f f_in
       simp at f_in
       sorry
-  case seq => -- {X a b f} (h : (⌈a;b⌉f) ∈ X) : localRule X { X \ {⌈a⌉⌈b⌉f}}
+  case seq => -- {X a b f} (h : (⌈a;'b⌉f) ∈ X) : localRule X { X \ {⌈a⌉⌈b⌉f}}
     constructor
     · rintro ⟨Y, Y_in, w_Y⟩
       subst Y_in
@@ -294,7 +274,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       simp at f_in
       sorry
   -- Splitting rules:
-  case tes => -- {X f g} (h : (⌈✓f⌉g) ∈ X) : localRule X { X \ {⌈✓f⌉g} ∪ {~f} , X \ {⌈✓f⌉g} ∪ {g} }
+  case tes => -- {X f g} (h : (⌈?'f⌉g) ∈ X) : localRule X { X \ {⌈?'f⌉g} ∪ {~f} , X \ {⌈?'f⌉g} ∪ {g} }
     constructor
     · rintro ⟨Y, Y_in, w_Y⟩
       simp at Y_in

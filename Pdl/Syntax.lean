@@ -48,10 +48,10 @@ notation:55 φ:56 " ↣ " ψ:55 => ~φ ⋀ (~ψ)
 notation:55 φ:56 " ⟷ " ψ:55 => (φ↣ψ) ⋀ (φ↣φ)
 notation "⌈" α "⌉" P => Formula.box α P
 
-infixl:33 ";" => Program.sequence -- TODO avoid ; which has a meaning in Lean 4
+infixl:33 ";'" => Program.sequence -- avoiding plain ";" which has a meaning in Lean 4
 infixl:33 "⋓" => Program.union
 prefix:33 "∗" => Program.star
-prefix:33 "✓" => Program.test -- avoiding "?" which has a meaning in Lean 4
+prefix:33 "?'" => Program.test -- avoiding plain "?" which has a meaning in Lean 4
 
 theorem boxes_last : (~⌈a⌉Formula.boxes (as ++ [c]) P) = (~⌈a⌉Formula.boxes as (⌈c⌉P)) :=
   by

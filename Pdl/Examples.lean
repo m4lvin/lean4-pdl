@@ -55,7 +55,7 @@ theorem A3 : tautology ((⌈a⌉(X⋀Y)) ↣ (⌈a⌉X) ⋀ (⌈a⌉Y)) :=
     specialize hyp v
     tauto
 
-theorem A4 : tautology ((⌈a;b⌉(·p)) ⟷ (⌈a⌉(⌈b⌉(·p)))) :=
+theorem A4 : tautology ((⌈a;'b⌉(·p)) ⟷ (⌈a⌉(⌈b⌉(·p)))) :=
   by
   unfold tautology evaluatePoint evaluate
   intro W M w

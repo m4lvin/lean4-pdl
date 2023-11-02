@@ -113,8 +113,8 @@ def unravel : DagFormula → List (List Formula)
   -- diamonds: ⋓
   | ~⌈·a⌉P => [[~⌈·a⌉ (undag P)]] -- undag aka "the f"
   | ~⌈a ⋓ b⌉P => unravel (~⌈a⌉P) ∪ unravel (~⌈b⌉P)
-  | ~⌈✓ Q⌉P => [[Q]] ⊎ unravel (~P)
-  | ~⌈a;b⌉P => unravel (~⌈a⌉⌈b⌉P)
+  | ~⌈?'Q⌉P => [[Q]] ⊎ unravel (~P)
+  | ~⌈a;'b⌉P => unravel (~⌈a⌉⌈b⌉P)
   | ~⌈_†⌉_ => ∅
   | ~⌈∗a⌉P =>
       -- omit {{~P}} if P contains dagger
@@ -123,8 +123,8 @@ def unravel : DagFormula → List (List Formula)
   -- boxes:
   | ⌈·a⌉P => [[⌈·a⌉ (undag P)]]
   | ⌈a ⋓ b⌉ P => unravel (⌈a⌉P) ⊎ unravel (⌈b⌉P)
-  | ⌈✓ Q⌉P => [[~Q]] ∪ unravel P
-  | ⌈a;b⌉P => unravel (⌈a⌉⌈b⌉P)
+  | ⌈?'Q⌉P => [[~Q]] ∪ unravel P
+  | ⌈a;'b⌉P => unravel (⌈a⌉⌈b⌉P)
   | ⌈_†⌉_ => {∅}
   | ⌈∗a⌉P =>
       -- omit {{P}} when P contains dagger

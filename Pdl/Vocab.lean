@@ -6,10 +6,10 @@ import Mathlib.Data.Finset.Basic
 mutual
   def vocabOfProgram : Program → Finset Char
     | ·c => {c}
-    | α;β => vocabOfProgram α ∪ vocabOfProgram β
+    | α;'β => vocabOfProgram α ∪ vocabOfProgram β
     | Program.union α β => vocabOfProgram α ∪ vocabOfProgram β
     | ∗α => vocabOfProgram α
-    | ✓ φ => vocabOfFormula φ
+    | ?' φ => vocabOfFormula φ
   def vocabOfFormula : Formula → Finset Char
     | ⊥ => ∅
     | ·c => {c}

@@ -30,10 +30,10 @@ mutual
   @[simp]
   def relate {W : Type} : KripkeModel W → Program → W → W → Prop
     | M, ·c, w, v => M.Rel c w v
-    | M, α;β, w, v => ∃ y, relate M α w y ∧ relate M β y v
+    | M, α;'β, w, v => ∃ y, relate M α w y ∧ relate M β y v
     | M, α⋓β, w, v => relate M α w v ∨ relate M β w v
     | M, ∗α, w, v => Relation.ReflTransGen (relate M α) w v
-    | M, ✓φ, w, v => w = v ∧ evaluate M w φ
+    | M, ?'φ, w, v => w = v ∧ evaluate M w φ
 end
 termination_by
   evaluate _ _ f => sizeOf f
