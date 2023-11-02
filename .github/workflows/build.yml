@@ -22,8 +22,8 @@ jobs:
           ~/.elan/bin/lean --version
           echo "$HOME/.elan/bin" >> $GITHUB_PATH
 
-      - name: make
-        run: make
+      - name: make pdl
+        run: make pdl
 
   bml:
     name: Build Bml

@@ -1,6 +1,8 @@
 
-default: .first-run-done
-	lake build
+all: pdl bml
+
+pdl: .first-run-done
+	lake build Pdl
 
 bml: .first-run-done
 	lake build Bml
