@@ -144,21 +144,37 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         case inl h_in_X => exact w_sat_a _ h_in_X.left
         case inr h_is_notf => rw [h_is_notf]; simp; exact not_w_g
   -- STAR RULES
-  case nSt a f aSf_in_X =>
+  case nSt a f naSf_in_X =>
     constructor
     · rintro ⟨Y, Y_in, MwY⟩ -- invertibility
       simp at Y_in
       rcases Y_in with ⟨FS,FS_in,Y_def⟩
       subst Y_def
       intro g g_in_X
-      -- TODO distinguish cases whether g = ~[∗]f
-      cases FS_in
-      case inl FS_is_nF =>
-        sorry
-      case inr FS_in_unrav =>
+      cases em (g = (~⌈∗a⌉f))
+      case inl g_is_nsSf =>
+        subst g_is_nsSf
+        simp
+        cases FS_in
+        case inl FS_is_nf =>
+          have : (FS : List Formula) = {~f} := by cases FS_is_nf; rfl; tauto
+          subst this
+          use w
+          constructor
+          · exact Relation.ReflTransGen.refl
+          · specialize MwY (~f)
+            simp at MwY
+            apply MwY
+            right
+            exact List.mem_of_mem_head? rfl
+        case inr FS_in_unrav =>
+          simp [unravel] at FS_in_unrav
+          sorry
+      case inr g_neq_nsSf =>
+        apply MwY
         sorry
     · intro Mw_X -- soundness
-      have w_adiamond_f := Mw_X (~⌈∗a⌉f) aSf_in_X
+      have w_adiamond_f := Mw_X (~⌈∗a⌉f) naSf_in_X
       simp at w_adiamond_f
       rcases w_adiamond_f with ⟨v, w_aS_v, v_nF⟩
       -- NOTE: Borze also makes a distinction whether a is atomic. Not needed?
@@ -195,16 +211,19 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
           apply Mw_X
           cases g_in
           case a.inl => assumption
-          case a.inr h =>
-            convert aSf_in_X
+          case a.inr h => convert naSf_in_X
         rcases lemFour with ⟨Z, Z_in, Mw_ZX, ⟨as, nBasf_in, w_as_v⟩⟩
         use (X \ {~⌈∗a⌉f}) ∪ Z.toFinset
         constructor
         · exact union_elem_uplus (by simp) (by simp; use Z)
         · intro g g_in; simp at g_in; apply Mw_ZX; tauto
-  case sta =>  -- TODO
-    have := lemmaFourAndThreeQuarters M -- use here
-    sorry
+  case sta a f aSf_in_X =>  -- TODO
+    constructor
+    ·
+      sorry
+    ·
+      have := lemmaFourAndThreeQuarters M -- use here
+      sorry
 
   -- OTHER PDL RULES
   case nTe φ ψ in_X =>
