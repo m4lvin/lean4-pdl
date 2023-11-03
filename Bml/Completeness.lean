@@ -4,8 +4,6 @@ import Bml.Syntax
 import Bml.Tableau
 import Bml.Soundness
 
--- TODO: import Bml.modelgraphs
-
 open HasSat
 
 -- Each local rule preserves truth "upwards"
@@ -176,12 +174,9 @@ theorem locTabEndSatThenSat {X Y} (ltX : LocalTableau X) (Y_endOf_X : Y ∈ endN
           convert Y_endOf_X;
   case sim X simpX => aesop
 
-theorem almostCompleteness : ∀ n X, lengthOfSet X = n → Consistent X → Satisfiable X :=
+theorem almostCompleteness : (X : Finset Formula) → Consistent X → Satisfiable X :=
   by
-  intro n
-  induction n using Nat.strong_induction_on
-  case h n IH =>
-  intro X lX_is_n consX
+  intro X consX
   refine' if simpX : Simple X then _ else _
   -- CASE 1: X is simple
   rw [Lemma1_simple_sat_iff_all_projections_sat simpX]
@@ -211,12 +206,10 @@ theorem almostCompleteness : ∀ n X, lengthOfSet X = n → Consistent X → Sat
       exact Classical.choice this
   · -- show that all projections are sat
     intro R notBoxR_in_X
-    apply IH (lengthOfSet (projection X ∪ {~R}))
-    · -- projection decreases lengthOfSet
-      subst lX_is_n
-      exact atmRuleDecreasesLength notBoxR_in_X
-    · rfl
-    · exact projOfConsSimpIsCons consX simpX notBoxR_in_X
+    have : Finset.sum (insert (~R) (projection X)) lengthOfFormula < Finset.sum X lengthOfFormula := by
+      convert atmRuleDecreasesLength notBoxR_in_X
+      simp
+    exact almostCompleteness (projection X ∪ {~R}) (projOfConsSimpIsCons consX simpX notBoxR_in_X)
   -- CASE 2: X is not simple
   rename' simpX => notSimpX
   rcases notSimpleThenLocalRule notSimpX with ⟨B, lrExists⟩
@@ -224,17 +217,14 @@ theorem almostCompleteness : ∀ n X, lengthOfSet X = n → Consistent X → Sat
   have rest : ∀ Y : Finset Formula, Y ∈ B → LocalTableau Y :=
     by
     intro Y _
-    set N := HasLength.lengthOf Y
-    exact Classical.choice (existsLocalTableauFor N Y (by rfl))
+    exact Classical.choice (existsLocalTableauFor Y)
   rcases@consToEndNodes X (LocalTableau.byLocalRule lr rest) consX with ⟨E, E_endOf_X, consE⟩
   have satE : Satisfiable E := by
-    apply IH (lengthOfSet E)
-    · -- end Node of local rule is LT
-      subst lX_is_n
-      apply endNodesOfLocalRuleLT E_endOf_X
-    · rfl
-    · exact consE
+    have := endNodesOfLocalRuleLT E_endOf_X
+    exact almostCompleteness E consE
   exact locTabEndSatThenSat (LocalTableau.byLocalRule lr rest) E_endOf_X satE
+termination_by
+  almostCompleteness X _ => lengthOfSet X
 
 -- Theorem 4, page 37
 theorem completeness : ∀ X, Consistent X ↔ Satisfiable X :=
@@ -242,8 +232,7 @@ theorem completeness : ∀ X, Consistent X ↔ Satisfiable X :=
   intro X
   constructor
   · intro X_is_consistent
-    let n := lengthOfSet X
-    apply almostCompleteness n X (by rfl) X_is_consistent
+    apply almostCompleteness X X_is_consistent
   -- use Theorem 2:
   exact correctness X
 

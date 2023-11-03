@@ -89,8 +89,7 @@ theorem projection_set_length_leq : ∀ X, lengthOfSet (projection X) ≤ length
       unfold projection
       ext1 g
       simp
-    ·
-      calc
+    · calc
         (projection (insert f S)).sum lengthOfFormula =
             (projection (insert f S)).sum lengthOfFormula :=
           refl _
@@ -146,8 +145,7 @@ theorem localRulesDecreaseLength {X : Finset Formula} {B : Finset (Finset Formul
   all_goals intro β inB; simp at *
   case neg ϕ notnot_in_X =>
     subst inB
-    ·
-      calc
+    · calc
         lengthOfSet (insert ϕ (X.erase (~~ϕ))) ≤ lengthOfSet (X.erase (~~ϕ)) + lengthOf ϕ := by
           apply lengthOf_insert_leq_plus
         _ < lengthOfSet (X.erase (~~ϕ)) + lengthOf ϕ + 2 := by simp
@@ -155,8 +153,7 @@ theorem localRulesDecreaseLength {X : Finset Formula} {B : Finset (Finset Formul
         _ = lengthOfSet X := lengthRemove X (~~ϕ) notnot_in_X
   case Con ϕ ψ in_X =>
     subst inB
-    ·
-      calc
+    · calc
         lengthOf (insert ϕ (insert ψ (X.erase (ϕ⋀ψ)))) ≤
             lengthOf (insert ψ (X.erase (ϕ⋀ψ))) + lengthOf ϕ :=
           by apply lengthOf_insert_leq_plus
@@ -195,8 +192,7 @@ theorem atmRuleDecreasesLength {X : Finset Formula} {ϕ} :
     ext1 phi
     rw [proj]; rw [proj]
     simp
-  ·
-    calc
+  · calc
       lengthOfSet (insert (~ϕ) (projection X)) ≤ lengthOfSet (projection X) + lengthOf (~ϕ) :=
         lengthOf_insert_leq_plus
       _ = lengthOfSet (projection X) + 1 + lengthOf ϕ := by simp; ring
@@ -213,12 +209,8 @@ inductive LocalTableau : Finset Formula → Type
   | byLocalRule {X B} (_ : LocalRule X B) (next : ∀ Y ∈ B, LocalTableau Y) : LocalTableau X
   | sim {X} : Simple X → LocalTableau X
 
-def existsLocalTableauFor : ∀ N α, N = lengthOf α → Nonempty (LocalTableau α) :=
+def existsLocalTableauFor α : Nonempty (LocalTableau α) :=
   by
-  intro N
-  induction N using Nat.strong_induction_on
-  case h n IH =>
-  intro α nDef
   cases em ¬∃ B, Nonempty (LocalRule α B)
   case inl canApplyRule =>
     constructor
@@ -232,32 +224,28 @@ def existsLocalTableauFor : ∀ N α, N = lengthOf α → Nonempty (LocalTableau
     cases' r_exists with r
     cases r
     case bot h =>
-      have t := LocalTableau.byLocalRule (LocalRule.bot h) ?_; use t
+      use (LocalTableau.byLocalRule (LocalRule.bot h) ?_)
       intro Y; intro Y_in_empty; tauto
     case Not h =>
-      have t := LocalTableau.byLocalRule (LocalRule.Not h) ?_; use t
+      use (LocalTableau.byLocalRule (LocalRule.Not h) ?_)
       intro Y; intro Y_in_empty; tauto
     case neg f h =>
-      have t := LocalTableau.byLocalRule (LocalRule.neg h) ?_; use t
+      use (LocalTableau.byLocalRule (LocalRule.neg h) ?_)
       intro Y Y_def
-      have rDec := localRulesDecreaseLength (LocalRule.neg h) Y Y_def
-      subst nDef
-      specialize IH (lengthOf Y) rDec Y (refl _)
-      apply Classical.choice IH
+      have := localRulesDecreaseLength (LocalRule.neg h) Y Y_def
+      apply Classical.choice (existsLocalTableauFor Y)
     case Con f g h =>
-      have t := LocalTableau.byLocalRule (LocalRule.Con h) ?_; use t
+      use (LocalTableau.byLocalRule (LocalRule.Con h) ?_)
       intro Y Y_def
-      have rDec := localRulesDecreaseLength (LocalRule.Con h) Y Y_def
-      subst nDef
-      specialize IH (lengthOf Y) rDec Y (refl _)
-      apply Classical.choice IH
+      have := localRulesDecreaseLength (LocalRule.Con h) Y Y_def
+      apply Classical.choice (existsLocalTableauFor Y)
     case nCo f g h =>
-      have t := LocalTableau.byLocalRule (LocalRule.nCo h) ?_; use t
+      use (LocalTableau.byLocalRule (LocalRule.nCo h) ?_)
       intro Y Y_def
-      have rDec := localRulesDecreaseLength (LocalRule.nCo h) Y Y_def
-      subst nDef
-      specialize IH (lengthOf Y) rDec Y (refl _)
-      apply Classical.choice IH
+      have := localRulesDecreaseLength (LocalRule.nCo h) Y Y_def
+      apply Classical.choice (existsLocalTableauFor Y)
+termination_by
+  existsLocalTableauFor α => lengthOf α
 
 open LocalTableau
 
@@ -374,11 +362,42 @@ inductive Tableau : Finset Formula → Type
   | atm {X ϕ} : ~(□ϕ) ∈ X → Simple X → Tableau (projection X ∪ {~ϕ}) → Tableau X
   | opn {X} : Simple X → (∀ φ, ~(□φ) ∈ X → IsEmpty (ClosedTableau (projection X ∪ {~φ}))) → Tableau X
 
+def isOpen : Tableau X → Prop
+  | (Tableau.loc lt next) => ∃ Y, ∃ h : Y ∈ endNodesOf ⟨X, lt⟩, isOpen (next Y h) -- mwah?!
+  | (Tableau.atm _ _ t_proj) => isOpen t_proj
+  | (Tableau.opn _ _) => True
+
+def isClosed : Tableau X → Prop
+  | (Tableau.loc lt next) => ∀ Y, ∀ h : Y ∈ endNodesOf ⟨X, lt⟩, isClosed (next Y h) -- mwah?!
+  | (Tableau.atm _ _ t_proj) => isClosed t_proj
+  | (Tableau.opn _ _) => False
+
+theorem open_iff_notClosed {X} {t : Tableau X} : isOpen t ↔ ¬ isClosed t :=
+  by
+  induction t
+  all_goals
+    simp [isOpen, isClosed]
+    try assumption
+  case loc Y ltY next IH  =>
+    constructor
+    · rintro ⟨Z, Z_in, Z_isOp⟩
+      specialize IH Z Z_in
+      use Z, Z_in
+      rw [← IH]
+      exact Z_isOp
+    · rintro ⟨Z, Z_in, Z_notClosed⟩
+      specialize IH Z Z_in
+      use Z, Z_in
+      rw [IH]
+      exact Z_notClosed
+
+def OpenTableau (X : Finset Formula) : Type := { t : Tableau X // isOpen t }
+
 def injectTab : ClosedTableau X → Tableau X
   | (ClosedTableau.loc lt ends) => Tableau.loc lt (λ _ Y_in => injectTab (ends _ Y_in))
   | (ClosedTableau.atm nB_in_X simX ctProj) => Tableau.atm nB_in_X simX (injectTab ctProj)
 
-theorem existsTableauFor {α} : Nonempty (Tableau α) :=
+def existsTableauFor {α} : Nonempty (Tableau α) :=
   by
   cases em (∃ B, Nonempty (LocalRule α B))
   case inl canApplyRule =>
@@ -387,7 +406,7 @@ theorem existsTableauFor {α} : Nonempty (Tableau α) :=
     constructor
     apply Tableau.loc (LocalTableau.byLocalRule lr _) _
     · intro Y _
-      exact Classical.choice (existsLocalTableauFor (lengthOf Y) Y rfl)
+      exact Classical.choice (existsLocalTableauFor Y)
     · intro Y Y_in_ends
       apply Classical.choice
       have : lengthOf Y < lengthOf α := endNodesOfLocalRuleLT Y_in_ends
@@ -406,10 +425,3 @@ theorem existsTableauFor {α} : Nonempty (Tableau α) :=
       exact ⟨Tableau.atm nBf_in_a is_simp (injectTab ct_notf)⟩
 termination_by
   existsTableauFor α => lengthOf α
-
-def isOpen : Tableau X → Prop
-  | (Tableau.loc lt next) => ∃ Y, ∃ h : Y ∈ endNodesOf ⟨X, lt⟩, isOpen (next Y h) -- mwah?!
-  | (Tableau.atm _ _ t_proj) => isOpen t_proj
-  | (Tableau.opn _ _) => True
-
-def OpenTableau (X : Finset Formula) : Type := { t : Tableau X // isOpen t }
