@@ -24,10 +24,11 @@ def Saturated : Finset Formula → Prop
 -- Definition 19, page 31
 def ModelGraph (W : Finset (Finset Formula)) :=
   let i := ∀ X : W, Saturated X.val ∧ ⊥ ∉ X.val ∧ ∀ P, P ∈ X.val → (~P) ∉ X.val
-  let ii M := ∀ (X : W) p, (·p : Formula) ∈ X.val ↔ M.val X p
+  let ii M := ∀ X p, (·p : Formula) ∈ X.val ↔ M.val X p
   -- Note: Borzechowski only has → in ii. We follow BRV, Def 4.18 and 4.84.
-  let iii M := ∀ (X Y : W) A P, M.Rel A X Y → (⌈·A⌉P) ∈ X.val → P ∈ Y.val
-  let iv M := ∀ (X : W) A P, (~⌈·A⌉P) ∈ X.val → ∃ Y, M.Rel A X Y ∧ (~P) ∈ Y.val
+  let iii M := ∀ X Y A P, M.Rel A X Y → (⌈·A⌉P) ∈ X.val → P ∈ Y.val
+  let iv M := ∀ X a P, (~⌈a⌉P) ∈ X.val → ∃ Y, relate M a X Y ∧ (~P) ∈ Y.val
+  -- Note: In iii the A is atomic, but in iv the a is any program!
   Subtype fun M : KripkeModel W => i ∧ ii M ∧ iii M ∧ iv M
 
 -- Lemma 9, page 32, stronger version for induction loading.
@@ -48,21 +49,28 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
       tauto
     · simp
     · intro a
-      -- TODO cases a
-      all_goals simp
-      intro boxBot_in_X Y X_rel_Y
+      simp
+      intro boxBot_in_X Y Y_in X_rel_Y
       have ⟨M,⟨_,_,iii,_⟩⟩ := MG
       sorry -- exact iii X Y _ _ _ boxBot_in_X
+      -- TODO cases a
   case atom_prop pp =>
+    have ⟨M,⟨i,ii,_,_⟩⟩ := MG
     repeat' constructor
-    · intro P_in_X; unfold evaluate; sorry -- rw [ii X pp] at P_in_X ; exact P_in_X
-    · intro notP_in_X; unfold evaluate; sorry /- rw [← ii X pp]
+    · intro P_in_X
+      simp
+      rw [ii X pp] at P_in_X
+      exact P_in_X
+    · intro notP_in_X
+      simp
+      rw [← ii X pp]
       rcases i X with ⟨_, _, P_in_then_notP_not_in⟩
-      specialize P_in_then_notP_not_in (·pp); tauto -/
-    · intro boxPp_in_X Y X_rel_Y; sorry -- exact iii X Y A (·pp) X_rel_Y boxPp_in_X
-  case neg Q => -- what is the Y here?
-    have IH := loadedTruthLemma MG X Q
-    have ⟨plus,minus,oh⟩ := IH
+      specialize P_in_then_notP_not_in (·pp)
+      tauto
+    · intro boxPp_in_X Y X_rel_Y
+      sorry -- exact iii X Y A (·pp) X_rel_Y boxPp_in_X
+  case neg Q =>
+    have ⟨plus,minus,oh⟩ := loadedTruthLemma MG X Q
     repeat' constructor
     · intro notQ_in_X
       simp
@@ -111,11 +119,12 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
       have ⟨M,⟨i,ii,iii,iv⟩⟩ := MG
       cases a
       case atom_prog A =>
-        rcases iv X A P notBoxP_in_X with ⟨Y, X_rel_Y, notP_in_Y⟩
+        rcases iv X (·A) P notBoxP_in_X with ⟨Y, X_rel_Y, notP_in_Y⟩
         have ⟨_, minus_Y, _⟩ := loadedTruthLemma ⟨M,⟨i,ii,iii,iv⟩⟩ Y P
         use Y
         simp
         constructor
+        simp at X_rel_Y
         exact X_rel_Y
         exact minus_Y notP_in_Y
       all_goals sorry
