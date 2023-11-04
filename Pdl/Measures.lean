@@ -8,12 +8,14 @@ import Pdl.Syntax
 -- COMPLEXITY
 
 mutual
+  @[simp]
   def lengthOfProgram : Program → Nat
     | ·_ => 1
     | α;'β => 1 + lengthOfProgram α + lengthOfProgram β
     | α⋓β => 1 + lengthOfProgram α + lengthOfProgram β
     | ∗α => 1 + lengthOfProgram α
     | ?'φ => 1 + lengthOfFormula φ
+  @[simp]
   def lengthOfFormula : Formula → Nat
     | Formula.bottom => 1
     | ·_ => 1
@@ -39,6 +41,10 @@ open HasLength
 instance formulaHasLength : HasLength Formula := ⟨lengthOfFormula⟩
 @[simp]
 instance setFormulaHasLength : HasLength (Finset Formula) := ⟨fun X => X.sum lengthOfFormula⟩
+@[simp]
+instance programHasLength : HasLength Program := ⟨lengthOfProgram⟩
+@[simp]
+instance setProgramHasLength : HasLength (Finset Program) := ⟨fun X => X.sum lengthOfProgram⟩
 
 -- MEASURE
 mutual
