@@ -68,7 +68,9 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       simp at w_sat_bot
   case not f hyp =>
     constructor
-    · sorry
+    · intro ⟨_, fls, _⟩
+      exfalso
+      exact fls
     · intro w_sat_a
       by_contra
       have w_sat_f : evaluate M w f := by
@@ -82,7 +84,20 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       exact absurd w_sat_f w_sat_not_f
   case neg f hyp =>
     constructor
-    · sorry
+    · simp
+      intro lhs g g_in
+      cases em (g = (~~f))
+      case inl g_is_notnotf =>
+        subst g_is_notnotf
+        simp  only [evaluate, not_not]
+        apply lhs
+        simp
+      case inr g_is_not_notnotf =>
+        specialize lhs g
+        simp at lhs
+        apply lhs
+        left
+        exact ⟨g_in,g_is_not_notnotf⟩
     · intro w_sat_a
       have w_sat_f : evaluate M w f :=
         by
@@ -100,7 +115,24 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       case inr g_is_f => subst g_is_f; exact w_sat_f
   case con f g hyp =>
     constructor
-    · sorry
+    · simp
+      intro lhs h h_in
+      cases em (h = f⋀g)
+      case inl h_is_fandg =>
+        subst h_is_fandg
+        simp
+        constructor
+        · apply lhs
+          simp
+        · apply lhs
+          simp
+      case inr h_is_not_fandg =>
+        specialize lhs h
+        simp at lhs
+        apply lhs
+        right
+        left
+        exact ⟨h_in, h_is_not_fandg⟩
     · intro w_sat_a
       use X \ {f⋀g} ∪ {f, g}
       simp
@@ -123,7 +155,33 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         case inl h_in_X => exact w_sat_a h h_in_X.left
   case nCo f g notfandg_in_a =>
     constructor
-    · sorry
+    · simp
+      intro lhs h h_in
+      cases em (h = (~(f⋀g)))
+      case inl h_is_notforg =>
+        subst h_is_notforg
+        simp
+        have : evaluate M w (~f) ∨ evaluate M w (~g) := by
+          cases lhs
+          case inl w_nf =>
+            left
+            specialize w_nf (~f)
+            simp at *
+            exact w_nf
+          case inr w_ng =>
+            right
+            specialize w_ng (~g)
+            simp at *
+            exact w_ng
+        simp at this
+        tauto
+      case inr h_is_not_notforg =>
+        cases' lhs with hyp hyp
+        all_goals
+          apply hyp
+          simp
+          left
+          exact ⟨h_in,h_is_not_notforg⟩
     · intro w_sat_a
       let w_sat_phi := w_sat_a (~(f⋀g)) notfandg_in_a
       simp at w_sat_phi
@@ -236,11 +294,8 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         subst f_def
         simp
         constructor
-        · apply w_Y
-          simp
-        · specialize w_Y (~ψ)
-          simp at w_Y
-          exact w_Y
+        · apply w_Y; simp
+        · specialize w_Y (~ψ); simp at w_Y; exact w_Y
       case inr f_not =>
         apply w_Y
         simp
