@@ -152,37 +152,65 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
       have : lengthOf c < lengthOf (b⋓c) := by simp
       exact (loadedTruthLemmaProg MG c X) P bP_and_cP_in_X.right Y X_c_Y
   case star a =>
-    rcases starIsFinitelyManySteps _ X Y X_rel_Y with ⟨n, ys, X_is_head, Y_is_last, steprel⟩
     -- We now follow MB and do another level of induction over n.
     have P_and_aSaP_in_X : P ∈ X.val ∧ (⌈a⌉⌈∗a⌉P) ∈ X.val := by
       have ⟨M,⟨i,ii,iii,iv⟩⟩ := MG
       have := (i X).left
       simp [Saturated] at this
       exact (this P P a a).right.right.right.right.right.right.left boxP_in_X
-    induction n
-    case zero =>
-      convert P_and_aSaP_in_X.left
-      subst X_is_head
-      subst Y_is_last
-      cases ys using Vector.inductionOn
-      case h_cons rest _ =>
-        cases rest using Vector.inductionOn; simp only [Nat.zero_eq, Vector.head_cons]; rfl
-    case succ m IH =>
-      let Z := ys.get 1
-      have X_a_Z : relate MG.val a X Z := by
-        convert (steprel 0)
-        subst X_is_head
-        simp
-      have : (⌈∗a⌉P) ∈ Z.val := (loadedTruthLemmaProg MG a X) (⌈∗a⌉P) P_and_aSaP_in_X.right Z X_a_Z
-      -- How to apply IH, and to which vector?
-      -- Our IH for n now wants [X,...,Y]
-      -- but want to apply it to [Z,...,Y] which is a subsequence of [X,Z,...,Y]
-      -- Does MB have a more general IH for n, or a different starIsFinitelyManySteps lemma?
-      apply IH
-      · sorry
-      · sorry
-      · sorry
-      · sorry
+    have claim : ∀ n (ys : Vector Worlds n.succ),
+      (⌈∗a⌉P) ∈ ys.head.val → (∀ i : Fin n, relate MG.val a (ys.get i) (ys.get (i.succ))) → P ∈ ys.last.val
+      := by
+      intro n
+      induction n
+      case zero =>
+        rintro ys boxP_in_head steprel
+        have : ys.last = ys.head := by
+          cases ys using Vector.inductionOn
+          case h_cons rest _ =>
+            cases rest using Vector.inductionOn; simp only [Nat.zero_eq, Vector.head_cons]; rfl
+        rw [this]
+        have ⟨M,⟨i,ii,iii,iv⟩⟩ := MG
+        have := (i ys.head).left
+        simp [Saturated] at this
+        exact ((this P P a a).right.right.right.right.right.right.left boxP_in_head).left
+      case succ m IH =>
+        rintro ys boxP_in_head steprel
+        let Z := ys.get 1
+        have head_a_Z : relate MG.val a ys.head Z := by
+          convert (steprel 0)
+          simp
+        have : (⌈a⌉⌈∗a⌉P) ∈ ys.head.val := by
+          have ⟨M,⟨i,ii,iii,iv⟩⟩ := MG
+          have := (i ys.head).left
+          simp [Saturated] at this
+          exact ((this P P a a).right.right.right.right.right.right.left boxP_in_head).right
+        have boxP_in_Z : (⌈∗a⌉P) ∈ Z.val := loadedTruthLemmaProg MG a ys.head (⌈∗a⌉P) this Z head_a_Z
+        -- How to apply IH, and to which vector?
+        -- Our IH for n now wants [X,...,Y]
+        -- but want to apply it to [Z,...,Y] which is a subsequence of [X,Z,...,Y]
+        -- Does MB have a more general IH for n, or a different starIsFinitelyManySteps lemma?
+        have : ys.last = ys.tail.last := by
+          cases ys using Vector.inductionOn
+          case h_cons rest _ =>
+            cases rest using Vector.inductionOn; simp; rfl
+        rw [this]
+        apply IH ys.tail
+        · convert boxP_in_Z
+          simp
+          cases ys using Vector.inductionOn
+          case h_cons _ rest _ _ =>
+            cases rest using Vector.inductionOn
+            · aesop
+        · intro i
+          specialize steprel i.succ
+          simp at steprel
+          -- convert steprel -- mwah
+          sorry
+    rcases starIsFinitelyManySteps _ X Y X_rel_Y with ⟨n, ys, X_is_head, Y_is_last, steprel⟩
+    rw [Y_is_last]
+    rw [X_is_head] at boxP_in_X
+    exact claim n ys boxP_in_X steprel
   case test R =>
     have nR_or_P_in_X : (~R) ∈ X.val ∨ P ∈ X.val := by
       have ⟨M,⟨i,ii,iii,iv⟩⟩ := MG
