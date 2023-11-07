@@ -40,7 +40,7 @@ theorem starCases {r : α → α → Prop} {x z : α} :
 theorem starIsFinitelyManySteps (r : α → α → Prop) (x z : α) :
   Relation.ReflTransGen r x z →
     ∃ (n : ℕ) (ys : Vector α n.succ),
-      x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (ys.get i) (ys.get (i.succ)) :=
+      x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (ys.get i.castSucc) (ys.get (i.succ)) :=
   by
   intro x_aS_z
   induction x_aS_z using Relation.ReflTransGen.head_induction_on
@@ -48,7 +48,6 @@ theorem starIsFinitelyManySteps (r : α → α → Prop) (x z : α) :
     use 0, Vector.cons z Vector.nil
     aesop
   case head a b a_r_b b_rS_z IH_b_z =>
-    simp
     rcases IH_b_z with ⟨m, zs, b_is_head_zs, z_is_last_zs, zs_steps⟩
     use m + 1
     use a ::ᵥ zs

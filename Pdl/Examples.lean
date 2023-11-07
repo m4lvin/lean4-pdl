@@ -124,9 +124,8 @@ example (a b : Program) (X : Formula) :
 
 -- related via a finite chain ==> related via star
 theorem finitelyManyStepsIsStar (r : α → α → Prop) {n : ℕ} (ys : Vector α (Nat.succ n)) :
-  (∀ i : Fin n, r (get ys i) (get ys i.succ)) → Relation.ReflTransGen r ys.head ys.last :=
+  (∀ i : Fin n, r (get ys i.castSucc) (get ys i.succ)) → Relation.ReflTransGen r ys.head ys.last :=
   by
-  simp
   induction n
   case zero =>
     intro _
@@ -164,7 +163,7 @@ theorem finitelyManyStepsIsStar (r : α → α → Prop) {n : ℕ} (ys : Vector 
 theorem starIffFinitelyManySteps (r : α → α → Prop) (x z : α) :
     Relation.ReflTransGen r x z ↔
       ∃ (n : ℕ) (ys : Vector α n.succ),
-        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (get ys i) (get ys (i.succ)) :=
+        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (get ys i.castSucc) (get ys (i.succ)) :=
   by
   constructor
   apply starIsFinitelyManySteps r x z
@@ -178,7 +177,7 @@ theorem starIffFinitelyManySteps (r : α → α → Prop) (x z : α) :
 theorem starIffFinitelyManyStepsModel (W : Type) (M : KripkeModel W) (x z : W) (α : Program) :
     Relation.ReflTransGen (relate M α) x z ↔
       ∃ (n : ℕ) (ys : Vector W n.succ),
-        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, relate M α (get ys i) (get ys (i.succ)) :=
+        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, relate M α (get ys i.castSucc) (get ys (i.succ)) :=
   by
   exact starIffFinitelyManySteps (relate M α) x z
 

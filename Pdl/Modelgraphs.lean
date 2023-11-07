@@ -49,7 +49,7 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
     repeat' constructor
     · intro P_in_X
       apply absurd P_in_X
-      have ⟨M,⟨i,_,_,_⟩⟩ := MG
+      have ⟨_,⟨i,_,_,_⟩⟩ := MG
       specialize i X
       tauto
     · simp
@@ -127,11 +127,11 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
   cases a
   all_goals (intro Y X_rel_Y; simp at X_rel_Y)
   case atom_prog A =>
-    have ⟨M,⟨_,_,iii,_⟩⟩ := MG
+    have ⟨_,⟨_,_,iii,_⟩⟩ := MG
     exact iii X Y _ _ X_rel_Y boxP_in_X
   case sequence b c =>
     have bcP_in_X : (⌈b⌉⌈c⌉P) ∈ X.val := by
-      have ⟨M,⟨i,ii,iii,iv⟩⟩ := MG
+      have ⟨_,⟨i,_,_,_⟩⟩ := MG
       have := (i X).left
       simp [Saturated] at this
       exact (this P P b c).right.right.right.left boxP_in_X
@@ -141,7 +141,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
     exact (loadedTruthLemmaProg MG c ⟨Z, Z_in⟩) P cP_in_Z Y Z_c_Y
   case union b c =>
     have bP_and_cP_in_X : (⌈b⌉P) ∈ X.val ∧ (⌈c⌉P) ∈ X.val := by
-      have ⟨M,⟨i,ii,iii,iv⟩⟩ := MG
+      have ⟨_,⟨i,_,_,_⟩⟩ := MG
       have := (i X).left
       simp [Saturated] at this
       exact (this P P b c).right.right.right.right.left boxP_in_X
@@ -154,12 +154,12 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
   case star a =>
     -- We now follow MB and do another level of induction over n.
     have P_and_aSaP_in_X : P ∈ X.val ∧ (⌈a⌉⌈∗a⌉P) ∈ X.val := by
-      have ⟨M,⟨i,ii,iii,iv⟩⟩ := MG
+      have ⟨_,⟨i,_,_,_⟩⟩ := MG
       have := (i X).left
       simp [Saturated] at this
       exact (this P P a a).right.right.right.right.right.right.left boxP_in_X
     have claim : ∀ n (ys : Vector Worlds n.succ),
-      (⌈∗a⌉P) ∈ ys.head.val → (∀ i : Fin n, relate MG.val a (ys.get i) (ys.get (i.succ))) → P ∈ ys.last.val
+      (⌈∗a⌉P) ∈ ys.head.val → (∀ i : Fin n, relate MG.val a (ys.get i.castSucc) (ys.get (i.succ))) → P ∈ ys.last.val
       := by
       intro n
       induction n
@@ -170,7 +170,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
           case h_cons rest _ =>
             cases rest using Vector.inductionOn; simp only [Nat.zero_eq, Vector.head_cons]; rfl
         rw [this]
-        have ⟨M,⟨i,ii,iii,iv⟩⟩ := MG
+        have ⟨_,⟨i,_,_,_⟩⟩ := MG
         have := (i ys.head).left
         simp [Saturated] at this
         exact ((this P P a a).right.right.right.right.right.right.left boxP_in_head).left
@@ -181,15 +181,11 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
           convert (steprel 0)
           simp
         have : (⌈a⌉⌈∗a⌉P) ∈ ys.head.val := by
-          have ⟨M,⟨i,ii,iii,iv⟩⟩ := MG
+          have ⟨_,⟨i,_,_,_⟩⟩ := MG
           have := (i ys.head).left
           simp [Saturated] at this
           exact ((this P P a a).right.right.right.right.right.right.left boxP_in_head).right
         have boxP_in_Z : (⌈∗a⌉P) ∈ Z.val := loadedTruthLemmaProg MG a ys.head (⌈∗a⌉P) this Z head_a_Z
-        -- How to apply IH, and to which vector?
-        -- Our IH for n now wants [X,...,Y]
-        -- but want to apply it to [Z,...,Y] which is a subsequence of [X,Z,...,Y]
-        -- Does MB have a more general IH for n, or a different starIsFinitelyManySteps lemma?
         have : ys.last = ys.tail.last := by
           cases ys using Vector.inductionOn
           case h_cons rest _ =>
@@ -203,17 +199,20 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
             cases rest using Vector.inductionOn
             · aesop
         · intro i
-          specialize steprel i.succ
+          specialize steprel (i.succ).castSucc
+          simp
           simp at steprel
-          -- convert steprel -- mwah
-          sorry
+          have : (Fin.succ (Fin.castSucc i)) = (Fin.castSucc (Fin.succ i)) := by
+            rfl
+          rw [this]
+          exact steprel
     rcases starIsFinitelyManySteps _ X Y X_rel_Y with ⟨n, ys, X_is_head, Y_is_last, steprel⟩
     rw [Y_is_last]
     rw [X_is_head] at boxP_in_X
     exact claim n ys boxP_in_X steprel
   case test R =>
     have nR_or_P_in_X : (~R) ∈ X.val ∨ P ∈ X.val := by
-      have ⟨M,⟨i,ii,iii,iv⟩⟩ := MG
+      have ⟨_,⟨i,_,_,_⟩⟩ := MG
       have := (i X).left
       simp [Saturated] at this
       exact (this P R (?'⊤) (?'⊤)).right.right.right.right.right.left boxP_in_X
