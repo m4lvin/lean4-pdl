@@ -1,3 +1,4 @@
+import Mathlib.Data.Vector.Basic
 import Mathlib.Logic.Relation
 
 theorem starCases {r : α → α → Prop} {x z : α} :
@@ -34,3 +35,25 @@ theorem starCases {r : α → α → Prop} {x z : α} :
           constructor
           · assumption
           · use b
+
+-- related via star ==> related via a finite chain
+theorem starIsFinitelyManySteps (r : α → α → Prop) (x z : α) :
+  Relation.ReflTransGen r x z →
+    ∃ (n : ℕ) (ys : Vector α n.succ),
+      x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (ys.get i.castSucc) (ys.get (i.succ)) :=
+  by
+  intro x_aS_z
+  induction x_aS_z using Relation.ReflTransGen.head_induction_on
+  case refl =>
+    use 0, Vector.cons z Vector.nil
+    aesop
+  case head a b a_r_b b_rS_z IH_b_z =>
+    rcases IH_b_z with ⟨m, zs, b_is_head_zs, z_is_last_zs, zs_steps⟩
+    use m + 1
+    use a ::ᵥ zs
+    simp
+    constructor
+    · aesop
+    · intro i
+      induction i using Fin.induction
+      all_goals aesop

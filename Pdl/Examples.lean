@@ -1,11 +1,13 @@
-import Pdl.Syntax
-import Pdl.Semantics
-import Pdl.Star
 import Mathlib.Data.Vector.Basic
 import Mathlib.Tactic.FinCases
 import Mathlib.Data.Fin.Basic
 import Mathlib.Logic.Relation
 import Mathlib.Data.Vector.Snoc
+
+import Pdl.Syntax
+import Pdl.Semantics
+import Pdl.Star
+
 open Vector
 
 -- some simple silly stuff
@@ -120,123 +122,48 @@ example (a b : Program) (X : Formula) :
   simp
   sorry
 
-theorem last_snoc {m b} {ys : Vector α m} : b = last (snoc ys b) :=
+-- related via a finite chain ==> related via star
+theorem finitelyManyStepsIsStar (r : α → α → Prop) {n : ℕ} (ys : Vector α (Nat.succ n)) :
+  (∀ i : Fin n, r (get ys i.castSucc) (get ys i.succ)) → Relation.ReflTransGen r ys.head ys.last :=
   by
-  sorry
-
--- related via star ==> related via a finite chain
-theorem starIsFinitelyManySteps (r : α → α → Prop) (x z : α) :
-  Relation.ReflTransGen r x z →
-    ∃ (n : ℕ) (ys : Vector α n.succ),
-      x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (get ys i) (get ys (i.succ)) :=
-  by
-  intro x_aS_z
-  induction x_aS_z
-  case refl =>
-    use 0
-    use cons x nil
-    simp
-    rfl
-  case tail a b a_r_b b_rS_z IH =>
-    rcases IH with ⟨n, ys,⟨x_def, a_def, rel_steps⟩⟩
-    subst x_def
-    subst a_def
-    use n.succ
-    use snoc ys b
-    simp at *
-    constructor
-    · cases ys using Vector.inductionOn
-      simp
-    · constructor
-      · exact last_snoc
-      · sorry
-
--- related via star ==> related via a finite chain
-theorem starIsFinitelyManySteps_attempt (r : α → α → Prop) (x z : α) :
-  Relation.ReflTransGen r x z →
-    ∃ (n : ℕ) (ys : Vector α n.succ),
-      x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (get ys i) (get ys (i.succ)) :=
-  by
-  intro x_aS_z
-  have := starCases x_aS_z
-  cases this
-  case inl hyp =>
-    subst hyp
-    use 0
-    use cons x nil
-    simp
-    rfl
-  case inr hyp =>
-   rcases hyp with ⟨x_neq_z, ⟨y, x_neq_y, x_r_y, y_rS_z⟩⟩
-   -- rcases IH_b_z with ⟨n, ys,⟨ y_def, z_def, rel_steps⟩⟩
-   induction y_rS_z using Relation.ReflTransGen.head_induction_on
-   case refl =>
-    use 1
-    use cons x (cons z nil)
-    simp
-    constructor
-    · rfl
-    · exact x_r_y
-   case head a b a_r_b b_rS_z IH_b_z =>
-    -- apply IH_b_z
-    -- rcases IH_b_z with ⟨n, ys,⟨ y_def, z_def, rel_steps⟩⟩
-    -- subst y_def
-    -- subst z_def
-    -- use n.succ
-    -- use cons x ys
-    simp at *
-    sorry
-
--- rest of chain by IH
--- related via star <== related via a finite chain
-theorem finitelyManyStepsIsStar (r : α → α → Prop) {n : ℕ} {ys : Vector α (Nat.succ n)} :
-  (∀ i : Fin n, r (get ys i) (get ys i.succ)) → Relation.ReflTransGen r ys.head ys.last :=
-  by
-  simp
   induction n
   case zero =>
     intro _
-    have same : ys.head = ys.last := by simp [Vector.last_def, ← Fin.cast_nat_eq_last]
-    -- thanks Ruben!
-    rw [same]
+    have : ys.head = ys.last := by simp [Vector.last_def, ← Fin.cast_nat_eq_last] -- thanks Ruben!
+    rw [this]
   case succ n IH =>
     intro lhs
-    sorry
-     /-
-    apply Relation.ReflTransGen.tail
-    · have sameLast : ys.last = ys.tail.last := by simp [Vector.last_def]
-      -- thanks Ruben!
+    let a := ys.head
+    let b := ys.tail.head
+    let c := ys.last
+    rw [Relation.ReflTransGen.cases_head_iff]
+    right
+    use b
+    constructor
+    · specialize lhs 0
+      simp at lhs
+      convert lhs
+      change ys.tail.head = ys.get 1
+      sorry
+    · specialize IH (tail ys) _
+      · intro i
+        induction i using Fin.succRec
+        · simp
+          specialize lhs 1
+          simp at lhs
+          convert lhs
+          sorry
+        · simp
+          sorry
+      have sameLast : ys.last = ys.tail.last := by sorry
       rw [sameLast]
-      apply IH
-      intro i
-      specialize lhs i.succ
-      simp [Fin.succ_castSucc]
-      apply lhs
-    · sorry
-      -- ys has at least two elements now
-      show r ys.head ys.tail.head
-      specialize lhs 0
-      simp at lhs 
-      have foo : ys.get 1 = ys.tail.head :=
-        by
-        cases' ys with ys_list ys_hyp
-        cases' ys_list with a ys
-        simp at ys_hyp
-        -- ys_hyp is a contradiction
-        cases' ys with b ys
-        -- thanks Kyle!
-        simp at ys_hyp
-        injection ys_hyp
-        rfl
-      rw [← foo]
-      apply lhs
-     -/
+      exact IH
 
 -- related via star <=> related via a finite chain
 theorem starIffFinitelyManySteps (r : α → α → Prop) (x z : α) :
     Relation.ReflTransGen r x z ↔
       ∃ (n : ℕ) (ys : Vector α n.succ),
-        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (get ys i) (get ys (i.succ)) :=
+        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (get ys i.castSucc) (get ys (i.succ)) :=
   by
   constructor
   apply starIsFinitelyManySteps r x z
@@ -244,13 +171,13 @@ theorem starIffFinitelyManySteps (r : α → α → Prop) (x z : α) :
   rcases rhs with ⟨n, ys, x_is_head, z_is_last, rhs⟩
   rw [x_is_head]
   rw [z_is_last]
-  exact finitelyManyStepsIsStar r rhs
+  exact finitelyManyStepsIsStar r _ rhs
 
 -- related via star <=> related via a finite chain
 theorem starIffFinitelyManyStepsModel (W : Type) (M : KripkeModel W) (x z : W) (α : Program) :
     Relation.ReflTransGen (relate M α) x z ↔
       ∃ (n : ℕ) (ys : Vector W n.succ),
-        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, relate M α (get ys i) (get ys (i.succ)) :=
+        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, relate M α (get ys i.castSucc) (get ys (i.succ)) :=
   by
   exact starIffFinitelyManySteps (relate M α) x z
 
