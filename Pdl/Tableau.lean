@@ -5,6 +5,7 @@ import Mathlib.Data.Finset.Option
 
 import Pdl.Syntax
 import Pdl.Measures
+import Pdl.Setsimp
 import Pdl.Semantics
 import Pdl.Discon
 import Pdl.Unravel
@@ -35,10 +36,10 @@ inductive localRule : Finset Formula → Finset (Finset Formula) → Type
                                                    , X \ {~(φ⋀ψ)} ∪ {~ψ}  }
   -- PROGRAMS
   -- Single-branch rules:
-  | nTe {X φ ψ} (h : (~⌈?'φ⌉ψ) ∈ X) : localRule X { X \ {~⌈?'φ⌉ψ} ∪ {φ, ~ψ}} -- TODO should remove marking ?
-  | nSe {X a b f} (h : (~⌈a;'b⌉f) ∈ X) : localRule X { X \ {~⌈a;'b⌉f} ∪ {~⌈a⌉⌈b⌉f}}
-  | uni {X a b f} (h : (⌈a⋓b⌉f) ∈ X) : localRule X { X \ {⌈a⋓b⌉f} ∪ {⌈a⌉ f, ⌈b⌉ f}}
-  | seq {X a b f} (h : (⌈a;'b⌉f) ∈ X) : localRule X { X \ {⌈a⌉⌈b⌉f}}
+  | nTe {X φ ψ} (h : (~⌈?'φ⌉ψ) ∈ X) : localRule X { X \ {~⌈?'φ⌉ψ} ∪ {φ, ~ψ} } -- TODO should remove marking ?
+  | nSe {X a b f} (h : (~⌈a;'b⌉f) ∈ X) : localRule X { X \ {~⌈a;'b⌉f} ∪ {~⌈a⌉⌈b⌉f} }
+  | uni {X a b f} (h : (⌈a⋓b⌉f) ∈ X) : localRule X { X \ {⌈a⋓b⌉f} ∪ {⌈a⌉ f, ⌈b⌉ f} }
+  | seq {X a b f} (h : (⌈a;'b⌉f) ∈ X) : localRule X { X \ {⌈a;'b⌉f} ∪ {⌈a⌉⌈b⌉f} }
   -- Splitting rules:
   | tes {X f g} (h : (⌈?'f⌉g) ∈ X) : localRule X { X \ {⌈?'f⌉g} ∪ {~f}
                                                  , X \ {⌈?'f⌉g} ∪ {g} }
@@ -275,12 +276,26 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         constructor
         · exact union_elem_uplus (by simp) (by simp; use Z)
         · intro g g_in; simp at g_in; apply Mw_ZX; tauto
-  case sta a f aSf_in_X =>  -- TODO
+  case sta a f aSf_in_X =>
     constructor
-    ·
-      sorry
-    ·
-      have := lemmaFourAndThreeQuarters M -- use here
+    · rintro ⟨Y, Y_in, w_Y⟩ -- invertibility
+      simp at Y_in
+      rcases Y_in with ⟨Z, Z_in_unrav, Y_def⟩
+      subst Y_def
+      intro g g_in_X
+      cases Classical.em (g = (⌈∗a⌉f))
+      case inl g_def =>
+        subst g_def
+        simp
+        intro v w_a_v
+        sorry
+      case inr g_not =>
+        apply w_Y
+        simp
+        tauto
+    · intro w_X -- soundness
+      simp
+      have := lemmaFourAndThreeQuarters M -- use here?
       sorry
 
   -- OTHER PDL RULES
@@ -296,10 +311,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         constructor
         · apply w_Y; simp
         · specialize w_Y (~ψ); simp at w_Y; exact w_Y
-      case inr f_not =>
-        apply w_Y
-        simp
-        tauto
+      case inr f_not => apply w_Y; simp; tauto
     · intro w_X
       simp
       intro f f_in
@@ -314,39 +326,79 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         specialize w_X _ in_X
         simp at *
         tauto
-  case nSe => -- {X a b f} (h : (~⌈a;'b⌉f) ∈ X) : localRule X { X \ {~⌈a;'b⌉f} ∪ {~⌈a⌉⌈b⌉f}}
+  case nSe a b φ nabf_in_X => -- {X a b f} (h : (~⌈a;'b⌉f) ∈ X) : localRule X { X \ {~⌈a;'b⌉f} ∪ {~⌈a⌉⌈b⌉f} }
     constructor
     · rintro ⟨Y, Y_in, w_Y⟩
       subst Y_in
       intro f f_inX
-      sorry
+      cases Classical.em (f = (~⌈a;'b⌉φ))
+      case inl f_def =>
+        subst f_def
+        specialize w_Y (~⌈a⌉⌈b⌉φ) (by simp)
+        simp at w_Y
+        simp
+        tauto
+      case inr f_not => apply w_Y; simp; tauto
     · intro w_X
       simp
       intro f f_in
       simp at f_in
-      sorry
-  case uni => -- {X a b f} (h : (⌈a⋓b⌉f) ∈ X) : localRule X { X \ {⌈a⋓b⌉f} ∪ {⌈a⌉ f, ⌈b⌉ f}}
+      rcases f_in with ⟨f_in_X, not_f⟩ | f_is_notabPhi
+      · exact w_X _ f_in_X
+      · subst f_is_notabPhi
+        specialize w_X (~(⌈a;'b⌉φ)) nabf_in_X
+        simp at *
+        tauto
+  case uni a b φ aubPhi_in_X => -- {X a b f} (h : (⌈a⋓b⌉f) ∈ X) : localRule X { X \ {⌈a⋓b⌉f} ∪ {⌈a⌉ f, ⌈b⌉ f} }
     constructor
     · rintro ⟨Y, Y_in, w_Y⟩
       subst Y_in
       intro f f_inX
-      sorry
+      cases Classical.em (f = (⌈a⋓b⌉φ))
+      case inl f_def =>
+        subst f_def
+        have := w_Y (⌈a⌉φ) (by simp)
+        have := w_Y (⌈b⌉φ) (by simp)
+        simp at *
+        tauto
+      case inr f_not => apply w_Y; simp; tauto
     · intro w_X
       simp
       intro f f_in
       simp at f_in
-      sorry
-  case seq => -- {X a b f} (h : (⌈a;'b⌉f) ∈ X) : localRule X { X \ {⌈a⌉⌈b⌉f}}
+      rcases f_in with f_is_aPhi | ⟨f_in_X, f_is_not_aubPhi⟩ | f_is_bPhi
+      · subst f_is_aPhi
+        specialize w_X (⌈a⋓b⌉φ) aubPhi_in_X
+        simp at *
+        aesop
+      · exact w_X _ f_in_X
+      · subst f_is_bPhi
+        specialize w_X (⌈a⋓b⌉φ) aubPhi_in_X
+        simp at *
+        aesop
+  case seq a b φ abPhi_in_X => -- {X a b f} (h : (⌈a;'b⌉f) ∈ X) : localRule X { X \ {⌈a;'b⌉f} ∪ {⌈a⌉⌈b⌉f} }
     constructor
     · rintro ⟨Y, Y_in, w_Y⟩
       subst Y_in
       intro f f_inX
-      sorry
+      cases Classical.em (f = ⌈a;'b⌉φ)
+      case inl f_def =>
+        subst f_def
+        specialize w_Y (⌈a⌉⌈b⌉φ) (by simp)
+        simp at w_Y
+        simp
+        tauto
+      case inr f_not => apply w_Y; simp; tauto
     · intro w_X
       simp
       intro f f_in
       simp at f_in
-      sorry
+      rcases f_in with ⟨f_in_X, not_f⟩ | f_is_abPhi
+      · exact w_X _ f_in_X
+      · subst f_is_abPhi
+        specialize w_X (⌈a;'b⌉φ) abPhi_in_X
+        simp at *
+        tauto
   -- Splitting rules:
   case tes => -- {X f g} (h : (⌈?'f⌉g) ∈ X) : localRule X { X \ {⌈?'f⌉g} ∪ {~f} , X \ {⌈?'f⌉g} ∪ {g} }
     constructor
@@ -402,12 +454,22 @@ open HasLength
 instance localTableauHasSizeof : SizeOf (Σ X, LocalTableau X) :=
   ⟨fun ⟨X, _⟩ => lengthOf X⟩
 
+-- TODO: is this even going to be true for our new system?
+-- Maybe use a different measure than lengthOf?
+theorem localRulesDecreaseLength {X : Finset Formula} {B : Finset (Finset Formula)}
+    (r : localRule X B) : ∀ Y ∈ B, lengthOf Y < lengthOf X :=
+  by
+  cases r
+  all_goals intro β inB; simp at *
+  -- TODO: see Bml, first enable additional simps in Pdl.Setsimp
+  all_goals sorry
+
 -- open end nodes of a given localTableau
 @[simp]
 def endNodesOf : (Σ X, LocalTableau X) → Finset (Finset Formula)
   | ⟨X, @byLocalRule _ B lr next⟩ =>
     B.attach.biUnion fun ⟨Y, h⟩ =>
-      have : lengthOf Y < lengthOf X := sorry -- localRulesDecreaseLength lr Y h
+      have : lengthOf Y < lengthOf X := localRulesDecreaseLength lr Y h
       endNodesOf ⟨Y, next Y h⟩
   | ⟨X, sim _⟩ => {X}
 

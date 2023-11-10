@@ -120,7 +120,21 @@ example (a b : Program) (X : Formula) :
   unfold semEquiv
   intro W M w
   simp
-  sorry
+  constructor
+  · intro lhs
+    constructor
+    · apply lhs
+      exact Relation.ReflTransGen.refl
+    · constructor
+      · intro v w_a_v u
+        intro v_aSubS_w
+        apply lhs
+        sorry
+      · intro v w_b_v u v_aSubS_u
+        apply lhs
+        sorry
+  · rintro ⟨w_X, aBox, bBox⟩ v w_aSubS_v
+    sorry
 
 -- related via star <=> related via a finite chain
 theorem starIffFinitelyManyStepsModel (W : Type) (M : KripkeModel W) (x z : W) (α : Program) :
@@ -146,7 +160,10 @@ theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a
     · simp
       rw [← w_is_head]
       exact Mwφ
-    · sorry
+    · intro i
+      specialize i_a_isucc i
+      intro sat_phi
+      sorry
   specialize claim n.succ
   simp at claim 
   have x_is_ys_nsucc : x = ys.get (n + 1) :=

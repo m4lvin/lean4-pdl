@@ -1,14 +1,18 @@
 -- SETSIMP
+import Mathlib.Data.Finset.Basic
 
-import Bml.Syntax
+import Pdl.Syntax
+import Pdl.Measures
 
-@[simp]
+open HasLength
+
+-- TODO @[simp]
 theorem union_singleton_is_insert {X : Finset Formula} {ϕ : Formula} : X ∪ {ϕ} = insert ϕ X :=
   by
   have fo := Finset.insert_eq ϕ X
   aesop
 
-@[simp]
+-- TODO @[simp]
 theorem sdiff_singleton_is_erase {X : Finset Formula} {ϕ : Formula} : X \ {ϕ} = X.erase ϕ :=
   by
   induction X using Finset.induction_on
@@ -16,29 +20,30 @@ theorem sdiff_singleton_is_erase {X : Finset Formula} {ϕ : Formula} : X \ {ϕ} 
   ext1
   aesop
 
-@[simp]
+-- TODO @[simp]
 theorem lengthAdd {X : Finset Formula} {ϕ} :
-    ϕ ∉ X → lengthOfSet (insert ϕ X) = lengthOfSet X + lengthOfFormula ϕ :=
+    ϕ ∉ X → lengthOf (insert ϕ X) = lengthOf X + lengthOfFormula ϕ :=
   by
   intro notin
-  unfold lengthOfSet
+  unfold lengthOf
+  simp
   rw [Finset.sum_insert notin]
   apply Nat.add_comm
 
-@[simp]
+-- TODO @[simp]
 theorem lengthOf_insert_leq_plus {X : Finset Formula} {ϕ : Formula} :
-    lengthOfSet (insert ϕ X) ≤ lengthOfSet X + lengthOfFormula ϕ :=
+    lengthOf (insert ϕ X) ≤ lengthOf X + lengthOfFormula ϕ :=
   by
   cases' em (ϕ ∈ X) with in_x not_in_x
   · rw [Finset.insert_eq_of_mem in_x]; simp
   · rw [lengthAdd not_in_x]
 
-@[simp]
+-- TODO @[simp]
 theorem lengthRemove (X : Finset Formula) :
-    ∀ ϕ ∈ X, lengthOfSet (X.erase ϕ) + lengthOfFormula ϕ = lengthOfSet X :=
+    ∀ ϕ ∈ X, lengthOf (X.erase ϕ) + lengthOfFormula ϕ = lengthOf X :=
   by
   intro ϕ in_X
-  have claim : lengthOfSet (insert ϕ (X \ {ϕ})) = lengthOfSet (X \ {ϕ}) + lengthOfFormula ϕ :=
+  have claim : lengthOf (insert ϕ (X \ {ϕ})) = lengthOf (X \ {ϕ}) + lengthOfFormula ϕ :=
     by
     apply lengthAdd
     simp
@@ -49,9 +54,10 @@ theorem lengthRemove (X : Finset Formula) :
     aesop
     tauto
   rw [anotherClaim] at claim
+  rw [sdiff_singleton_is_erase] at claim
   aesop
 
-@[simp]
+-- TODO @[simp]
 theorem sum_union_le {T} [DecidableEq T] :
     ∀ {X Y : Finset T} {F : T → ℕ}, (X ∪ Y).sum F ≤ X.sum F + Y.sum F :=
   by
