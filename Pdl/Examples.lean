@@ -122,57 +122,6 @@ example (a b : Program) (X : Formula) :
   simp
   sorry
 
--- related via a finite chain ==> related via star
-theorem finitelyManyStepsIsStar (r : α → α → Prop) {n : ℕ} (ys : Vector α (Nat.succ n)) :
-  (∀ i : Fin n, r (get ys i.castSucc) (get ys i.succ)) → Relation.ReflTransGen r ys.head ys.last :=
-  by
-  induction n
-  case zero =>
-    intro _
-    have : ys.head = ys.last := by simp [Vector.last_def, ← Fin.cast_nat_eq_last] -- thanks Ruben!
-    rw [this]
-  case succ n IH =>
-    intro lhs
-    let a := ys.head
-    let b := ys.tail.head
-    let c := ys.last
-    rw [Relation.ReflTransGen.cases_head_iff]
-    right
-    use b
-    constructor
-    · specialize lhs 0
-      simp at lhs
-      convert lhs
-      change ys.tail.head = ys.get 1
-      sorry
-    · specialize IH (tail ys) _
-      · intro i
-        induction i using Fin.succRec
-        · simp
-          specialize lhs 1
-          simp at lhs
-          convert lhs
-          sorry
-        · simp
-          sorry
-      have sameLast : ys.last = ys.tail.last := by sorry
-      rw [sameLast]
-      exact IH
-
--- related via star <=> related via a finite chain
-theorem starIffFinitelyManySteps (r : α → α → Prop) (x z : α) :
-    Relation.ReflTransGen r x z ↔
-      ∃ (n : ℕ) (ys : Vector α n.succ),
-        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (get ys i.castSucc) (get ys (i.succ)) :=
-  by
-  constructor
-  apply starIsFinitelyManySteps r x z
-  intro rhs
-  rcases rhs with ⟨n, ys, x_is_head, z_is_last, rhs⟩
-  rw [x_is_head]
-  rw [z_is_last]
-  exact finitelyManyStepsIsStar r _ rhs
-
 -- related via star <=> related via a finite chain
 theorem starIffFinitelyManyStepsModel (W : Type) (M : KripkeModel W) (x z : W) (α : Program) :
     Relation.ReflTransGen (relate M α) x z ↔
