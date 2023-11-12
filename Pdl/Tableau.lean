@@ -74,14 +74,9 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       exact fls
     · intro w_sat_a
       by_contra
-      have w_sat_f : evaluate M w f := by
-        apply w_sat_a
-        exact hyp.left
-      have w_sat_not_f : evaluate M w (~f) :=
-        by
-        apply w_sat_a (~f)
-        exact hyp.right
-      simp at *
+      have w_sat_f : evaluate M w f := w_sat_a f hyp.left
+      have w_sat_not_f : evaluate M w (~f) :=  w_sat_a (~f) hyp.right
+      simp at w_sat_not_f
       exact absurd w_sat_f w_sat_not_f
   case neg f hyp =>
     constructor
@@ -90,7 +85,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       cases em (g = (~~f))
       case inl g_is_notnotf =>
         subst g_is_notnotf
-        simp  only [evaluate, not_not]
+        simp only [evaluate, not_not]
         apply lhs
         simp
       case inr g_is_not_notnotf =>
@@ -103,7 +98,8 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       have w_sat_f : evaluate M w f :=
         by
         specialize w_sat_a (~~f) hyp
-        aesop
+        simp at w_sat_a
+        exact w_sat_a
       use X \ {~~f} ∪ {f}
       simp
       intro g
@@ -123,10 +119,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         subst h_is_fandg
         simp
         constructor
-        · apply lhs
-          simp
-        · apply lhs
-          simp
+        all_goals (apply lhs; simp)
       case inr h_is_not_fandg =>
         specialize lhs h
         simp at lhs
@@ -144,14 +137,14 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       case inl h_is_f =>
         rw [h_is_f]
         specialize w_sat_a (f⋀g) hyp
-        simp at *
+        simp at w_sat_a
         exact w_sat_a.left
       case inr whatever =>
         cases whatever
         case inr h_is_g =>
           rw [h_is_g]
           specialize w_sat_a (f⋀g) hyp
-          simp at *
+          simp at w_sat_a
           exact w_sat_a.right
         case inl h_in_X => exact w_sat_a h h_in_X.left
   case nCo f g notfandg_in_a =>
@@ -167,12 +160,14 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
           case inl w_nf =>
             left
             specialize w_nf (~f)
-            simp at *
+            simp at w_nf
+            simp
             exact w_nf
           case inr w_ng =>
             right
             specialize w_ng (~g)
-            simp at *
+            simp at w_ng
+            simp
             exact w_ng
         simp at this
         tauto
@@ -326,7 +321,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         specialize w_X _ in_X
         simp at *
         tauto
-  case nSe a b φ nabf_in_X => -- {X a b f} (h : (~⌈a;'b⌉f) ∈ X) : localRule X { X \ {~⌈a;'b⌉f} ∪ {~⌈a⌉⌈b⌉f} }
+  case nSe a b φ nabf_in_X => -- { X \ {~⌈a;'b⌉f} ∪ {~⌈a⌉⌈b⌉f} }
     constructor
     · rintro ⟨Y, Y_in, w_Y⟩
       subst Y_in
@@ -349,7 +344,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         specialize w_X (~(⌈a;'b⌉φ)) nabf_in_X
         simp at *
         tauto
-  case uni a b φ aubPhi_in_X => -- {X a b f} (h : (⌈a⋓b⌉f) ∈ X) : localRule X { X \ {⌈a⋓b⌉f} ∪ {⌈a⌉ f, ⌈b⌉ f} }
+  case uni a b φ aubPhi_in_X => -- { X \ {⌈a⋓b⌉f} ∪ {⌈a⌉ f, ⌈b⌉ f} }
     constructor
     · rintro ⟨Y, Y_in, w_Y⟩
       subst Y_in
@@ -376,12 +371,12 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         specialize w_X (⌈a⋓b⌉φ) aubPhi_in_X
         simp at *
         aesop
-  case seq a b φ abPhi_in_X => -- {X a b f} (h : (⌈a;'b⌉f) ∈ X) : localRule X { X \ {⌈a;'b⌉f} ∪ {⌈a⌉⌈b⌉f} }
+  case seq a b φ abPhi_in_X => -- { X \ {⌈a;'b⌉f} ∪ {⌈a⌉⌈b⌉f} }
     constructor
     · rintro ⟨Y, Y_in, w_Y⟩
       subst Y_in
       intro f f_inX
-      cases Classical.em (f = ⌈a;'b⌉φ)
+      cases em (f = ⌈a;'b⌉φ)
       case inl f_def =>
         subst f_def
         specialize w_Y (⌈a⌉⌈b⌉φ) (by simp)
@@ -400,30 +395,109 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         simp at *
         tauto
   -- Splitting rules:
-  case tes => -- {X f g} (h : (⌈?'f⌉g) ∈ X) : localRule X { X \ {⌈?'f⌉g} ∪ {~f} , X \ {⌈?'f⌉g} ∪ {g} }
+  case tes ψ φ tPsiPhi_in_X => -- { X \ {⌈?'f⌉g} ∪ {~f} , X \ {⌈?'f⌉g} ∪ {g} }
     constructor
     · rintro ⟨Y, Y_in, w_Y⟩
       simp at Y_in
       intro f f_inX
-      cases Y_in
-      · sorry
-      · sorry
+      cases em (f = (⌈?'ψ⌉φ))
+      case inl f_is_tPsiPhi =>
+        subst f_is_tPsiPhi
+        cases Y_in
+        case inl Y_def =>
+          subst Y_def
+          simp
+          intro w_Phi
+          specialize w_Y (~ψ) (by simp)
+          simp at w_Y
+          tauto
+        case inr Y_def =>
+          subst Y_def
+          specialize w_Y φ
+          simp at *
+          tauto
+      case inr f_neq_tPsiPhi =>
+        specialize w_Y f
+        aesop
     · intro w_X
       simp
-      -- split TODO!
-      sorry
-  case nUn => -- {a b f} (h : (~⌈a ⋓ b⌉f) ∈ X) : localRule X { X \ {~⌈a ⋓ b⌉f} ∪ {~⌈a⌉f}, X \ {~⌈a ⋓ b⌉f} ∪ {~⌈b⌉f} }
+      have := w_X (⌈?'ψ⌉φ) tPsiPhi_in_X
+      simp at this
+      rw [imp_iff_not_or] at this
+      cases this
+      case inl w_notPsi =>
+        left
+        intro f f_in
+        simp at f_in
+        cases f_in
+        case inl f_hyp =>
+          exact w_X f f_hyp.left
+        case inr f_def =>
+          subst f_def
+          simp
+          exact w_notPsi
+      case inr w_Phi =>
+        right
+        intro f f_in
+        simp at f_in
+        cases f_in
+        case inl f_hyp =>
+          exact w_X f f_hyp.left
+        case inr f_def =>
+          subst f_def
+          exact w_Phi
+  case nUn a b φ naubPhi_in_X  => -- localRule X { X \ {~⌈a ⋓ b⌉φ} ∪ {~⌈a⌉φ}, X \ {~⌈a ⋓ b⌉φ} ∪ {~⌈b⌉φ} }
     constructor
     · rintro ⟨Y, Y_in, w_Y⟩
       simp at Y_in
       intro f f_inX
-      cases Y_in
-      · sorry
-      · sorry
+      cases em (f = (~⌈a ⋓ b⌉φ))
+      case inl f_def =>
+        subst f_def
+        cases Y_in
+        case inl Y_def =>
+          subst Y_def
+          simp
+          specialize w_Y (~⌈a⌉φ)
+          simp at w_Y
+          aesop
+        case inr Y_def =>
+          subst Y_def
+          simp
+          specialize w_Y (~⌈b⌉φ)
+          simp at w_Y
+          aesop
+      case inr f_neq =>
+        specialize w_Y f
+        apply w_Y
+        aesop
     · intro w_X
       simp
-      -- split TODO
-      sorry
+      have := w_X (~⌈a ⋓ b⌉φ) naubPhi_in_X
+      simp at this
+      rcases this with ⟨v, w_a_v | w_b_v, not_v_Phi⟩
+      case inl =>
+        left
+        intro f f_in
+        simp at f_in
+        cases f_in
+        case inl f_hyp =>
+          exact w_X f f_hyp.left
+        case inr f_def =>
+          subst f_def
+          simp
+          use v
+      case inr =>
+        right
+        intro f f_in
+        simp at f_in
+        cases f_in
+        case inl f_hyp =>
+          exact w_X f f_hyp.left
+        case inr f_def =>
+          subst f_def
+          simp
+          use v
 
 -- A set X is simple  iff  all P ∈ X are (negated) atoms or [A]_ or ¬[A]_.
 @[simp]
