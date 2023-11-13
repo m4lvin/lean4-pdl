@@ -226,7 +226,9 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
           sorry
       case inr g_neq_nsSf =>
         apply MwY
-        sorry
+        simp
+        left
+        exact ⟨g_in_X, g_neq_nsSf⟩
     · intro Mw_X -- soundness
       have w_adiamond_f := Mw_X (~⌈∗a⌉f) naSf_in_X
       simp at w_adiamond_f
