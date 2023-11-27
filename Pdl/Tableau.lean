@@ -200,7 +200,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
   -- STAR RULES
   case nSt a f naSf_in_X =>
     constructor
-    · rintro ⟨Y, Y_in, MwY⟩ -- invertibility
+    · rintro ⟨Y, Y_in, MwY⟩ -- invertibility, should be easy
       simp at Y_in
       rcases Y_in with ⟨FS,FS_in,Y_def⟩
       subst Y_def
@@ -222,14 +222,14 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
             right
             exact List.mem_of_mem_head? rfl
         case inr FS_in_unrav =>
-          simp [unravel] at FS_in_unrav
+
           sorry
       case inr g_neq_nsSf =>
         apply MwY
         simp
         left
         exact ⟨g_in_X, g_neq_nsSf⟩
-    · intro Mw_X -- soundness
+    · intro Mw_X -- soundness, needs Lemma
       have w_adiamond_f := Mw_X (~⌈∗a⌉f) naSf_in_X
       simp at w_adiamond_f
       rcases w_adiamond_f with ⟨v, w_aS_v, v_nF⟩
@@ -275,7 +275,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         · intro g g_in; simp at g_in; apply Mw_ZX; tauto
   case sta a f aSf_in_X =>
     constructor
-    · rintro ⟨Y, Y_in, w_Y⟩ -- invertibility
+    · rintro ⟨Y, Y_in, w_Y⟩ -- invertibility, needs Lemma 4 3/4
       simp at Y_in
       rcases Y_in with ⟨Z, Z_in_unrav, Y_def⟩
       subst Y_def
@@ -285,14 +285,18 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         subst g_def
         simp
         intro v w_a_v
+        have := lemmaFourAndThreeQuarters M -- use here?
         sorry
       case inr g_not =>
         apply w_Y
         simp
         tauto
-    · intro w_X -- soundness
+    · intro w_X -- soundness, should be easy
       simp
-      have := lemmaFourAndThreeQuarters M -- use here?
+      specialize w_X (⌈∗a⌉f) aSf_in_X
+      simp at w_X
+      simp
+      use (X \ {⌈∗a⌉f} ∪ (List.toFinset {f} ∪ List.toFinset a_1))
       sorry
 
   -- OTHER PDL RULES
