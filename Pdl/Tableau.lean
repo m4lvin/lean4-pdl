@@ -504,7 +504,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
 -- A set X is simple  iff  all P ∈ X are (negated) atoms or [A]_ or ¬[A]_.
 @[simp]
 def SimpleForm : Formula → Bool
-  | ⊥ => True
+  | ⊥ => True -- TODO: change to False, covered by bot rule?
   | ~⊥ => True
   | ·_ => True
   | ~·_ => True

@@ -397,7 +397,7 @@ def injectTab : ClosedTableau X → Tableau X
   | (ClosedTableau.loc lt ends) => Tableau.loc lt (λ _ Y_in => injectTab (ends _ Y_in))
   | (ClosedTableau.atm nB_in_X simX ctProj) => Tableau.atm nB_in_X simX (injectTab ctProj)
 
-def existsTableauFor {α} : Nonempty (Tableau α) :=
+def existsTableauFor α : Nonempty (Tableau α) :=
   by
   cases em (∃ B, Nonempty (LocalRule α B))
   case inl canApplyRule =>
@@ -410,7 +410,7 @@ def existsTableauFor {α} : Nonempty (Tableau α) :=
     · intro Y Y_in_ends
       apply Classical.choice
       have : lengthOf Y < lengthOf α := endNodesOfLocalRuleLT Y_in_ends
-      exact existsTableauFor
+      exact existsTableauFor _
   case inr canNotApplyRule =>
     have is_simp : Simple α := by
       by_contra hyp

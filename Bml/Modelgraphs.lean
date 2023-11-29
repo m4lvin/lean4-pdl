@@ -9,9 +9,7 @@ def Saturated : Finset Formula → Prop
   | X =>
     ∀ P Q : Formula, (~~P ∈ X → P ∈ X) ∧ (P⋀Q ∈ X → P ∈ X ∧ Q ∈ X) ∧ (~(P⋀Q) ∈ X → ~P ∈ X ∨ ~Q ∈ X)
 
--- TODO: closure for program combinators!
 -- Definition 19, page 31
--- TODO: change [] to [A] later
 @[simp]
 def ModelGraph (Worlds : Finset (Finset Formula)) :=
   let W := Subtype fun x => x ∈ Worlds

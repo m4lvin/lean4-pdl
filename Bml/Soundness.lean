@@ -369,12 +369,12 @@ theorem localRuleSoundness {α : Finset Formula} {B : Finset (Finset Formula)} :
           cases' psi_def with psi_in_a psi_def_right
           exact w_sat_a psi psi_def_right
 
--- The critical roule is sound and preserves satisfiability "downwards".
--- TODO: is this the same as (one of the directions of) Lemma 1 ??
+/-
+-- The critical rule is sound and preserves satisfiability "downwards".
+-- NOTE: This is stronger than Lemma 1, but we do not need.
 theorem atmSoundness {α : Finset Formula} {f} (not_box_f_in_a : ~(□f) ∈ α) :
-    Simple α → Satisfiable α → Satisfiable (projection α ∪ {~f}) :=
+    Satisfiable α → Satisfiable (projection α ∪ {~f}) :=
   by
-  intro _s -- sus?!
   intro aSat
   unfold Satisfiable at aSat
   rcases aSat with ⟨W, M, w, w_sat_a⟩
@@ -395,6 +395,7 @@ theorem atmSoundness {α : Finset Formula} {f} (not_box_f_in_a : ~(□f) ∈ α)
     exact phi_in_proj
     unfold Evaluate at w_sat_a 
     exact w_sat_a v w_rel_v
+-/
 
 theorem localTableauAndEndNodesUnsatThenNotSat {Z} (ltZ : LocalTableau Z) :
     (∀ Y, Y ∈ endNodesOf ⟨Z, ltZ⟩ → ¬Satisfiable Y) → ¬Satisfiable Z :=
