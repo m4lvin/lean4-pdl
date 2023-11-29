@@ -5,6 +5,7 @@
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/m4lvin/lean4-pdl?quickstart=1)
 
-Relevant links:
-- https://malv.in/2020/borzechowski-pdl
-- https://github.com/m4lvin/tablean
+## References and Links
+- https://malv.in/2020/borzechowski-pdl - the German original proof by Borzechowski (1988) and the English translation (2020)
+- https://github.com/m4lvin/tablean - previous project for Basic Modal Logic, in Lean 3. Code from there has been ported to Lean 4 and is included here in the `Bml` folder.
+- https://w4eg.de/malvin/illc/tapdleau - tableaux prover implemented in Haskell, useful to run examples.
