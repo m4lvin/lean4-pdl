@@ -347,8 +347,52 @@ theorem notStarSoundnessNext (a : Program) M (v w : W) (fs)
         simp at v_neq_u
         exact v_neq_u
 
-  case sequence α β =>
-    sorry -- TODO
+  case sequence β γ =>
+    simp at v_a_w
+    rcases v_a_w with ⟨u, v_β_u, u_γ_w⟩
+    have u_nGphi : (M,u) ⊨ (~⌈γ⌉undag φ) := by sorry -- should be easy
+    have := notStarSoundnessNext β M v u fs (⌈γ⌉φ)
+    specialize this _ v_β_u u_nGphi
+    · intro f
+      simp
+      intro f_in
+      sorry
+    rcases this with ⟨S, S_in, v_S, (⟨a,as,aasG_in_S,v_aas_u⟩ | ⟨ngPhi_in_S, v_is_u⟩)⟩ -- Σ
+    · use S -- "If (1), then we are done."
+      constructor
+      · rw [dagNextTransRefl]; simp; tauto
+      · constructor
+        · exact v_S
+        · left
+          simp
+          use a, as ++ [γ]
+          constructor
+          · simp [undag] at  aasG_in_S
+            rw [boxes_last]
+            exact aasG_in_S
+          · simp at v_aas_u
+            rcases v_aas_u with ⟨y, v_a_y, y_asg_w⟩
+            use y
+            rw [relate_steps]
+            constructor
+            · exact v_a_y
+            · use u
+              aesop
+    · -- TODO "If (2) ..."
+      -- subst v_is_u
+      have := notStarSoundnessNext γ M u w fs φ
+      specialize this _ u_γ_w w_nP
+      · intro f
+        sorry -- should be easy
+      rcases this with ⟨Γ, Γ_in, v_Γ, split⟩
+      -- rcases split with (⟨a,as,aasG_in_Γ, u_aas_w⟩ | ⟨ngPhi_in_Γ, u_is_w⟩)
+      use Γ
+      subst v_is_u
+      constructor
+      · sorry -- exact Γ_in -- PROBLEM?!
+      · constructor
+        · exact v_Γ
+        · exact split
 
   case union α β =>
     simp at v_a_w
