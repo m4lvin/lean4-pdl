@@ -295,8 +295,8 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       simp
       specialize w_X (⌈∗a⌉f) aSf_in_X
       simp at w_X
-      simp
-      use (X \ {⌈∗a⌉f} ∪ (List.toFinset {f} ∪ List.toFinset a_1))
+      -- simp
+      -- use (X \ {⌈∗a⌉f} ∪ (List.toFinset {f} ∪ List.toFinset a_1))
       sorry
 
   -- OTHER PDL RULES

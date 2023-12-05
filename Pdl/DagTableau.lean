@@ -5,8 +5,6 @@ import Pdl.Discon
 import Pdl.Semantics
 import Pdl.Star
 
--- IDEA: adjust the type to forbid atomic program on (neg)top level?
-
 inductive DagFormula : Type
   | bottom : DagFormula
   | atom_prop : Char → DagFormula
@@ -240,6 +238,8 @@ theorem notStarSoundness M (a : Program) (v w : W) (Δ : DagTabNode)
   case test ψ =>
     sorry
 
+-- TODO: for boxes, use List DagFormula instead of Option DagFormula
+
 @[simp]
 def dagNext : (Finset Formula × Option DagFormula) → Finset (Finset Formula × Option DagFormula)
   | (fs, some (~⌈·A⌉φ)) => { (fs ∪ {undag (~⌈·A⌉φ)}, none) }
@@ -254,8 +254,23 @@ def dagNext : (Finset Formula × Option DagFormula) → Finset (Finset Formula �
   | (_, none) => { }  -- maybe wrong?
 
 def dagNextTransRefl : (Finset Formula × Option DagFormula) → Finset (Finset Formula × Option DagFormula)
-  | (fs, mdf) => {(fs,mdf)} ∪ ((dagNext (fs,mdf)).biUnion dagNextTransRefl)
+  | S => {S} ∪ ((dagNext S).biUnion dagNextTransRefl)
 decreasing_by sorry
+
+theorem dagNextTransRefl.Trans S T U
+    (S_in_T : S ∈ dagNextTransRefl T)
+    (T_in_U : T ∈ dagNextTransRefl U)
+    : S ∈ dagNextTransRefl U := by
+  rw [dagNextTransRefl] at *
+  simp only [Finset.mem_union, Finset.mem_singleton, Finset.mem_biUnion, Prod.exists] at *
+  cases S_in_T
+  all_goals (cases T_in_U)
+  · left; aesop
+  · aesop
+  · aesop
+  · right
+
+    all_goals sorry
 
 inductive DagTabNext : (Finset Formula × Option DagFormula) → Type
   | step fs f (next : ∀ Y ∈ dagNext (fs, some f), DagTabNext Y) : DagTabNext (fs, some f)
@@ -271,7 +286,7 @@ def successorsNext : (t : DagTabNext N) → Finset (Finset Formula × Option Dag
   | DagTabNext.step fs f next => {N} ∪ (dagNext (fs, some f)).attach.biUnion (fun ⟨Y, h⟩ => successorsNext (next Y h))
   | DagTabNext.stop _ => {N}
 
-
+-- rename to notStarSoundnessAux
 theorem notStarSoundnessNext (a : Program) M (v w : W) (fs)
     (φ : DagFormula)
     -- TODO: containsDag φ -- needed?
@@ -380,19 +395,27 @@ theorem notStarSoundnessNext (a : Program) M (v w : W) (fs)
               aesop
     · -- TODO "If (2) ..."
       -- subst v_is_u
-      have := notStarSoundnessNext γ M u w fs φ
+      have := notStarSoundnessNext γ M u w S.1 φ -- not use "fs" here!
       specialize this _ u_γ_w w_nP
       · intro f
         sorry -- should be easy
       rcases this with ⟨Γ, Γ_in, v_Γ, split⟩
-      -- rcases split with (⟨a,as,aasG_in_Γ, u_aas_w⟩ | ⟨ngPhi_in_Γ, u_is_w⟩)
+      -- need transitivity here
+      have also_in_prev : Γ ∈ dagNextTransRefl (fs, some (~⌈β;'γ⌉φ)) := by
+        apply dagNextTransRefl.Trans Γ S (fs, some (~⌈β;'γ⌉φ))
+        constructor
+        · convert Γ_in
+        · rw [dagNextTransRefl]
+          simp
+          right
+          exact S_in
       use Γ
       subst v_is_u
       constructor
-      · sorry -- exact Γ_in -- PROBLEM?!
+      · exact also_in_prev
       · constructor
         · exact v_Γ
-        · exact split
+        · tauto --
 
   case union α β =>
     simp at v_a_w
