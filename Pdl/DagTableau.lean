@@ -4,6 +4,7 @@ import Pdl.Syntax
 import Pdl.Discon
 import Pdl.Semantics
 import Pdl.Star
+import Pdl.Closure
 
 inductive DagFormula : Type
   | bottom : DagFormula
@@ -121,125 +122,13 @@ def mOfDagFormula : DagFormula → Nat
     | ~⌈α⌉ φ => mOfProgram α + mOfDagFormula (~φ)
     | ~⌈_†⌉φ => mOfDagFormula (~φ)
 
--- Daggered Tableau, only for diamonds at the moment.
+def mOfDagNode : (Finset Formula × Option DagFormula) → ℕ
+  | ⟨_, none⟩ => 0
+  | ⟨_, some df⟩ => 1 + mOfDagFormula df
 
-structure DagTabNode where
-  fs : Finset Formula
-  dfs : Option DagFormula -- for diamond this is a singleton, but box needs more here
-  deriving DecidableEq
+-- -- -- DIAMONDS -- -- --
 
-inductive dagRule : DagTabNode → Finset (DagTabNode) → Type
-  -- Diamond rules
-  | notUndag (h : ((~⌈·A⌉φ : DagFormula) ∈ X.dfs)) :
-    dagRule X { ⟨X.fs ∪ {undag (~⌈·A⌉φ)}, none⟩ }
-
-  | notUnion {α β φ} (h : ((~⌈α⋓β⌉φ : DagFormula) ∈ X.dfs)) :
-    dagRule X { ⟨X.fs, some (~⌈α⌉φ)⟩
-              , ⟨X.fs, some (~⌈β⌉φ)⟩ }
-
-  | notTest (h : ((⌈?'ψ⌉φ : DagFormula) ∈ X.dfs)) :
-    dagRule X { ⟨X.fs ∪ {ψ}, some φ⟩ }
-
-  | notSequence (h : ((~⌈α;'β⌉φ : DagFormula) ∈ X.dfs)) :
-    dagRule X { ⟨X.fs, none⟩ }
-
-  | notStar (h : ((~⌈∗α⌉φ : DagFormula) ∈ X.dfs)) :
-    dagRule X { ⟨X.fs, some (~φ)⟩
-              , ⟨X.fs, some (~⌈α⌉⌈α†⌉φ)⟩ }
-
-  | notDag (h : ((~⌈α†⌉φ : DagFormula) ∈ X.dfs)) :
-    dagRule X {  } -- ×, i.e. delete branch
-
-/-
-  -- Box rules
-  | undag (h : ((⌈·A⌉φ : DagFormula) ∈ X.dfs)) :
-    dagRule X { ⟨X.fs ∪ {undag (⌈·A⌉φ)}, X.dfs \ {⌈·A⌉φ}⟩ }
-
-  | union {α β φ} (h : ((⌈α⋓β⌉φ : DagFormula) ∈ X.dfs)) :
-    dagRule X { ⟨X.fs, X.dfs \ {⌈α ⋓ b⌉φ} ∪ {⌈α⌉φ, ⌈β⌉φ}⟩ }
-
-  | test (h : ((⌈?'ψ⌉φ : DagFormula) ∈ X.dfs)) :
-    dagRule X { ⟨X.fs ∪ {~ψ}, X.dfs \ {⌈?'ψ⌉φ}⟩
-              , ⟨X.fs, X.dfs \ {⌈?'ψ⌉φ} ∪ {φ}⟩ }
-
-  | sequence (h : ((⌈α;'β⌉φ : DagFormula) ∈ X.dfs)) :
-    dagRule X { ⟨X.fs, X.dfs \ {⌈α⌉⌈b⌉φ}⟩ }
-
-  | star (h : ((~⌈∗α⌉φ : DagFormula) ∈ X.dfs)) :
-    dagRule X { ⟨X.fs, X.dfs \ {~⌈∗α⌉φ} ∪ {~φ}⟩
-              , ⟨X.fs, X.dfs \ {~⌈∗α⌉φ} ∪ {~⌈α⌉⌈α†⌉φ}⟩ }
--/
-
-inductive DagTab : DagTabNode → Type
-  | byRule {X B} (_ : dagRule X B) (next : ∀ Y ∈ B, DagTab Y) : DagTab X
-  | stop {X} (_ : X.dfs = none) : DagTab X
-
-def endNodesOf : DagTab X -> List (List Formula) := sorry -- TODO
---   (or have it -> List (DagTabNode) and prove that dfs will be empty?
-
--- Given a proper dagger formula, define the *unique* DagTab for it?
--- More generally, given a DagTabNode, how to continue?
-def theTabFor (N : DagTabNode) : DagTab N := sorry
-
--- all weak successors of a node in a DagTab, i.e. itself, immediate and later successors.
-def successors : (t : DagTab N) → Finset DagTabNode
-  | @DagTab.byRule X B (_ : dagRule X B) next => {N} ∪ B.attach.biUnion (fun ⟨Y, h⟩ => successors (next Y h))
-  | DagTab.stop _ => {N}
-
-instance modelCanSemImplyDagTabNode {W : Type} : vDash (KripkeModel W × W) (DagTabNode) :=
-  vDash.mk (λ ⟨M,w⟩ Δ => ∀ φ ∈ Δ.fs ∪ (Δ.dfs.map undag).toFinset, evaluate M w φ)
-
-
-theorem notStarSoundness M (a : Program) (v w : W) (Δ : DagTabNode)
-    (φ : DagFormula) (in_D : (~⌈a⌉φ) ∈ Δ.dfs) (t : DagTab Δ)
-    -- TODO: containsDag φ -- needed?
-    (v_D : (M, v) ⊨ Δ) (v_a_w : relate M a v w) (w_nP : (M, w) ⊨ (~undag φ)) :
-    ∃ Γ ∈ successors t,
-      (M, v) ⊨ Γ ∧ ( ( ∃ (a : Char) (as : List Program), (~ ⌈·a⌉⌈⌈as⌉⌉(undag φ)) ∈ Γ.fs
-                       ∧ relate M (Program.steps ([Program.atom_prog a] ++ as)) v w )
-                   ∨ ((~φ) ∈ Γ.dfs ∧ v = w) ) := by
-  cases a
-  case atom_prog A =>
-    -- NOTE: do we really want Γ = Δ here, what about the step done by "undag" rule?
-    use Δ
-    constructor
-    · cases t
-      all_goals simp [successors]
-    · constructor
-      · assumption
-      · left
-        use A, []
-        simp at *
-        constructor
-        ·
-          -- TODO: by contradiction / do not allow A in dfs?
-          sorry
-        · exact v_a_w
-
-  case sequence α β =>
-    sorry
-
-  case union α β =>
-    -- NOTE: how to ensure that notUnion is "eventually" applied in t (: DagTab Δ)?
-    -- May need to redefine DagTab to make it fully deterministic.
-    -- That should work here, but probably not for boxes?
-    simp at v_a_w
-    cases v_a_w
-    · have := notStarSoundness M α v w ?_ φ
-      · sorry
-      sorry
-    · have := notStarSoundness M α v w ?_ φ
-      · sorry
-      sorry
-
-  case star α =>
-    sorry
- 
-  case test ψ =>
-    sorry
-
--- TODO: for boxes, use List DagFormula instead of Option DagFormula
-
+-- Immediate sucessors of a node in a Daggered Tableau, for diamonds.
 @[simp]
 def dagNext : (Finset Formula × Option DagFormula) → Finset (Finset Formula × Option DagFormula)
   | (fs, some (~⌈·A⌉φ)) => { (fs ∪ {undag (~⌈·A⌉φ)}, none) }
@@ -253,43 +142,40 @@ def dagNext : (Finset Formula × Option DagFormula) → Finset (Finset Formula �
   | (_, some _) => { }  -- bad catch-all fallback, and maybe wrong?
   | (_, none) => { }  -- maybe wrong?
 
-def dagNextTransRefl : (Finset Formula × Option DagFormula) → Finset (Finset Formula × Option DagFormula)
-  | S => {S} ∪ ((dagNext S).biUnion dagNextTransRefl)
-decreasing_by sorry
+theorem mOfDagNode.isDec (x y : Finset Formula × Option DagFormula) (y_in : y ∈ dagNext x) :
+    mOfDagNode y < mOfDagNode x := by
+  rcases x with ⟨_, _|dfx⟩
+  case none =>
+    simp [mOfDagNode]
+    cases y_in
+  case some =>
+    simp [mOfDagNode]
+    rcases y with ⟨_, _|dfy⟩
+    case none =>
+      simp
+    case some =>
+      simp
+      cases dfx
+      all_goals (try simp [dagNext]; try cases y_in)
+      case neg g =>
+        cases g
+        all_goals (try simp [dagNext]; try cases y_in)
+        case box a =>
+          cases a
+          all_goals (cases dfy)
+          all_goals (simp [dagNext])
+          all_goals sorry
+          -- There must be a nicer way to do this?!
 
-theorem dagNextTransRefl.Trans S T U
-    (S_in_T : S ∈ dagNextTransRefl T)
-    (T_in_U : T ∈ dagNextTransRefl U)
-    : S ∈ dagNextTransRefl U := by
-  rw [dagNextTransRefl] at *
-  simp only [Finset.mem_union, Finset.mem_singleton, Finset.mem_biUnion, Prod.exists] at *
-  cases S_in_T
-  all_goals (cases T_in_U)
-  · left; aesop
-  · aesop
-  · aesop
-  · right
-
-    all_goals sorry
-
-inductive DagTabNext : (Finset Formula × Option DagFormula) → Type
-  | step fs f (next : ∀ Y ∈ dagNext (fs, some f), DagTabNext Y) : DagTabNext (fs, some f)
-  | stop fs : DagTabNext (fs, none)
+@[simp]
+def dagNextTransRefl : (Finset Formula × Option DagFormula) → Finset (Finset Formula × Option DagFormula) :=
+  ftr dagNext instDecidableEqProd mOfDagNode mOfDagNode.isDec
 
 instance modelCanSemImplyDagTabNodeNext {W : Type} : vDash (KripkeModel W × W) (Finset Formula × Option DagFormula) :=
   vDash.mk (λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ∪ (mf.map undag).toFinset, evaluate M w φ)
 
--- all weak successors of a node in a DagTab, i.e. itself, immediate and later successors.
-@[simp]
--- NOTE: do we actually need it to be reflexive?
-def successorsNext : (t : DagTabNext N) → Finset (Finset Formula × Option DagFormula)
-  | DagTabNext.step fs f next => {N} ∪ (dagNext (fs, some f)).attach.biUnion (fun ⟨Y, h⟩ => successorsNext (next Y h))
-  | DagTabNext.stop _ => {N}
-
--- rename to notStarSoundnessAux
-theorem notStarSoundnessNext (a : Program) M (v w : W) (fs)
+theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
     (φ : DagFormula)
-    -- TODO: containsDag φ -- needed?
     (v_D : (M, v) ⊨ (fs, some (~⌈a⌉φ)))
     (v_a_w : relate M a v w)
     (w_nP : (M, w) ⊨ (~undag φ)) :
@@ -301,7 +187,7 @@ theorem notStarSoundnessNext (a : Program) M (v w : W) (fs)
   case atom_prog A =>
     use (fs ∪ {undag (~⌈·A⌉φ)}, none) -- unique successor by the "undag" rule
     constructor
-    · simp [dagNextTransRefl,successorsNext]
+    · unfold dagNextTransRefl; rw [ftr_iff]; right; simp; rw [ftr_iff]; simp
     · constructor
       · intro f
         aesop
@@ -320,11 +206,7 @@ theorem notStarSoundnessNext (a : Program) M (v w : W) (fs)
     case inl v_is_w =>
       use (fs, some (~φ))
       constructor
-      · rw [dagNextTransRefl]
-        simp
-        right
-        rw [dagNextTransRefl]
-        simp
+      · unfold dagNextTransRefl; rw [ftr_iff]; right; simp; rw [ftr_iff]; simp
       · constructor
         · intro f
           aesop
@@ -333,7 +215,7 @@ theorem notStarSoundnessNext (a : Program) M (v w : W) (fs)
     case inr claim =>
       -- Here we follow the (fs, some (~⌈β⌉⌈β†⌉φ)) branch.
       rcases claim with ⟨v_neq_w, ⟨u, v_neq_u, v_b_u, u_bS_w⟩⟩
-      have := notStarSoundnessNext β M v u fs (⌈β†⌉φ)
+      have := notStarSoundnessAux β M v u fs (⌈β†⌉φ)
       specialize this _ v_b_u _
       · sorry -- should be easy?
       · sorry -- should be easy
@@ -342,7 +224,7 @@ theorem notStarSoundnessNext (a : Program) M (v w : W) (fs)
       cases split
       case inl one =>
         constructor
-        · rw [dagNextTransRefl]; simp; tauto
+        · unfold dagNextTransRefl; rw [ftr_iff]; simp; tauto
         · constructor
           · exact v_Γ
           · simp
@@ -366,16 +248,16 @@ theorem notStarSoundnessNext (a : Program) M (v w : W) (fs)
     simp at v_a_w
     rcases v_a_w with ⟨u, v_β_u, u_γ_w⟩
     have u_nGphi : (M,u) ⊨ (~⌈γ⌉undag φ) := by sorry -- should be easy
-    have := notStarSoundnessNext β M v u fs (⌈γ⌉φ)
+    have := notStarSoundnessAux β M v u fs (⌈γ⌉φ)
     specialize this _ v_β_u u_nGphi
     · intro f
       simp
       intro f_in
-      sorry
+      sorry -- should be easy
     rcases this with ⟨S, S_in, v_S, (⟨a,as,aasG_in_S,v_aas_u⟩ | ⟨ngPhi_in_S, v_is_u⟩)⟩ -- Σ
     · use S -- "If (1), then we are done."
       constructor
-      · rw [dagNextTransRefl]; simp; tauto
+      · unfold dagNextTransRefl; rw [ftr_iff]; simp; tauto
       · constructor
         · exact v_S
         · left
@@ -395,20 +277,16 @@ theorem notStarSoundnessNext (a : Program) M (v w : W) (fs)
               aesop
     · -- TODO "If (2) ..."
       -- subst v_is_u
-      have := notStarSoundnessNext γ M u w S.1 φ -- not use "fs" here!
+      have := notStarSoundnessAux γ M u w S.1 φ -- not use "fs" here!
       specialize this _ u_γ_w w_nP
       · intro f
         sorry -- should be easy
       rcases this with ⟨Γ, Γ_in, v_Γ, split⟩
       -- need transitivity here
       have also_in_prev : Γ ∈ dagNextTransRefl (fs, some (~⌈β;'γ⌉φ)) := by
-        apply dagNextTransRefl.Trans Γ S (fs, some (~⌈β;'γ⌉φ))
-        constructor
+        apply ftr.Trans Γ S (fs, some (~⌈β;'γ⌉φ))
         · convert Γ_in
-        · rw [dagNextTransRefl]
-          simp
-          right
-          exact S_in
+        · rw [ftr_iff]; simp; right; exact S_in
       use Γ
       subst v_is_u
       constructor
@@ -421,7 +299,7 @@ theorem notStarSoundnessNext (a : Program) M (v w : W) (fs)
     simp at v_a_w
     cases v_a_w
     case inl v_a_w =>
-      have := notStarSoundnessNext α M v w fs φ
+      have := notStarSoundnessAux α M v w fs φ
       specialize this _ v_a_w w_nP
       · intro f
         simp
@@ -435,10 +313,10 @@ theorem notStarSoundnessNext (a : Program) M (v w : W) (fs)
       rcases this with ⟨Γ, Γ_in, v_Γ, split⟩
       use Γ
       constructor
-      · rw [dagNextTransRefl]; simp; tauto
+      · unfold dagNextTransRefl; rw [ftr_iff]; simp; tauto
       · exact ⟨v_Γ, split⟩
     case inr v_b_w => -- completely analogous
-      have := notStarSoundnessNext β M v w fs φ
+      have := notStarSoundnessAux β M v w fs φ
       specialize this _ v_b_w w_nP
       · intro f
         simp
@@ -452,27 +330,46 @@ theorem notStarSoundnessNext (a : Program) M (v w : W) (fs)
       rcases this with ⟨Γ, Γ_in, v_Γ, split⟩
       use Γ
       constructor
-      · rw [dagNextTransRefl]; simp; tauto
+      · unfold dagNextTransRefl; rw [ftr_iff]; simp; tauto
       · exact ⟨v_Γ, split⟩
 
   case test ψ =>
-    use (fs ∪ {ψ}, some (~φ)) -- unique successor by the "undag" rule
+    use (fs ∪ {ψ}, some (~φ)) -- unique successor
     constructor
-    · rw [dagNextTransRefl]
-      simp [successorsNext]
-      right
-      rw [dagNextTransRefl]
-      simp
+    · unfold dagNextTransRefl; rw [ftr_iff]; right; simp; rw [ftr_iff]; simp
     · constructor
       · intro f; aesop
       · right; aesop
 
 
 termination_by
-  notStarSoundnessNext α M v w fs φ v_D v_a_w w_nP => mOfProgram α
+  notStarSoundnessAux α M v w fs φ v_D v_a_w w_nP => mOfProgram α
 
 
--- Box notes for later:
+-- -- -- BOXES -- -- --
+
+-- Notes for later:
+/-
+  -- Box rules
+  | undag (h : ((⌈·A⌉φ : DagFormula) ∈ X.dfs)) :
+    dagRule X { ⟨X.fs ∪ {undag (⌈·A⌉φ)}, X.dfs \ {⌈·A⌉φ}⟩ }
+
+  | union {α β φ} (h : ((⌈α⋓β⌉φ : DagFormula) ∈ X.dfs)) :
+    dagRule X { ⟨X.fs, X.dfs \ {⌈α ⋓ b⌉φ} ∪ {⌈α⌉φ, ⌈β⌉φ}⟩ }
+
+  | test (h : ((⌈?'ψ⌉φ : DagFormula) ∈ X.dfs)) :
+    dagRule X { ⟨X.fs ∪ {~ψ}, X.dfs \ {⌈?'ψ⌉φ}⟩
+              , ⟨X.fs, X.dfs \ {⌈?'ψ⌉φ} ∪ {φ}⟩ }
+
+  | sequence (h : ((⌈α;'β⌉φ : DagFormula) ∈ X.dfs)) :
+    dagRule X { ⟨X.fs, X.dfs \ {⌈α⌉⌈b⌉φ}⟩ }
+
+  | star (h : ((~⌈∗α⌉φ : DagFormula) ∈ X.dfs)) :
+    dagRule X { ⟨X.fs, X.dfs \ {~⌈∗α⌉φ} ∪ {~φ}⟩
+              , ⟨X.fs, X.dfs \ {~⌈∗α⌉φ} ∪ {~⌈α⌉⌈α†⌉φ}⟩ }
+-/
+
+
 
 -- how to ensure that union rule is "eventually" applied?
 -- May need to redefine DagTab to make it fully deterministic, even in box cases?
