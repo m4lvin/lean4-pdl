@@ -187,7 +187,7 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
   case atom_prog A =>
     use (fs ∪ {undag (~⌈·A⌉φ)}, none) -- unique successor by the "undag" rule
     constructor
-    · unfold dagNextTransRefl; rw [ftr_iff]; right; simp; rw [ftr_iff]; simp
+    · unfold dagNextTransRefl; rw [ftr.iff]; right; simp; rw [ftr.iff]; simp
     · constructor
       · intro f
         aesop
@@ -206,7 +206,7 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
     case inl v_is_w =>
       use (fs, some (~φ))
       constructor
-      · unfold dagNextTransRefl; rw [ftr_iff]; right; simp; rw [ftr_iff]; simp
+      · unfold dagNextTransRefl; rw [ftr.iff]; right; simp; rw [ftr_iff]; simp
       · constructor
         · intro f
           aesop
@@ -224,7 +224,7 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
       cases split
       case inl one =>
         constructor
-        · unfold dagNextTransRefl; rw [ftr_iff]; simp; tauto
+        · unfold dagNextTransRefl; rw [ftr.iff]; simp; tauto
         · constructor
           · exact v_Γ
           · simp
@@ -257,7 +257,7 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
     rcases this with ⟨S, S_in, v_S, (⟨a,as,aasG_in_S,v_aas_u⟩ | ⟨ngPhi_in_S, v_is_u⟩)⟩ -- Σ
     · use S -- "If (1), then we are done."
       constructor
-      · unfold dagNextTransRefl; rw [ftr_iff]; simp; tauto
+      · unfold dagNextTransRefl; rw [ftr.iff]; simp; tauto
       · constructor
         · exact v_S
         · left
@@ -286,7 +286,7 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
       have also_in_prev : Γ ∈ dagNextTransRefl (fs, some (~⌈β;'γ⌉φ)) := by
         apply ftr.Trans Γ S (fs, some (~⌈β;'γ⌉φ))
         · convert Γ_in
-        · rw [ftr_iff]; simp; right; exact S_in
+        · rw [ftr.iff]; simp; right; exact S_in
       use Γ
       subst v_is_u
       constructor
@@ -313,7 +313,7 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
       rcases this with ⟨Γ, Γ_in, v_Γ, split⟩
       use Γ
       constructor
-      · unfold dagNextTransRefl; rw [ftr_iff]; simp; tauto
+      · unfold dagNextTransRefl; rw [ftr.iff]; simp; tauto
       · exact ⟨v_Γ, split⟩
     case inr v_b_w => -- completely analogous
       have := notStarSoundnessAux β M v w fs φ
@@ -330,13 +330,13 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
       rcases this with ⟨Γ, Γ_in, v_Γ, split⟩
       use Γ
       constructor
-      · unfold dagNextTransRefl; rw [ftr_iff]; simp; tauto
+      · unfold dagNextTransRefl; rw [ftr.iff]; simp; tauto
       · exact ⟨v_Γ, split⟩
 
   case test ψ =>
     use (fs ∪ {ψ}, some (~φ)) -- unique successor
     constructor
-    · unfold dagNextTransRefl; rw [ftr_iff]; right; simp; rw [ftr_iff]; simp
+    · unfold dagNextTransRefl; rw [ftr.iff]; right; simp; rw [ftr.iff]; simp
     · constructor
       · intro f; aesop
       · right; aesop
