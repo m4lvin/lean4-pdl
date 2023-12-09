@@ -1,4 +1,5 @@
 import Mathlib.Data.Finset.Basic
+import Mathlib.Tactic.Linarith
 
 import Pdl.Syntax
 import Pdl.Discon
@@ -42,9 +43,7 @@ local notation "⌈" α "⌉" P => DagFormula.box α P
 local notation "⌈⌈" α "⌉⌉" P => DagFormula.boxes α P
 local notation "⌈" α "†⌉" P => DagFormula.dag α P
 
--- THE f FUNCTION
--- | Borzechowski's f function, sort of.
-
+-- | Borzechowski's function "f".
 def undag : DagFormula → Formula
   | ⊥ => ⊥
   | ~f => ~(undag f)
@@ -61,7 +60,6 @@ def inject : Formula → DagFormula
   | φ⋀ψ => inject φ ⋀ inject ψ
   | ⌈α⌉φ => ⌈α⌉(inject φ)
 
--- | Borzechowski's f function, sort of.
 @[simp]
 def containsDag : DagFormula → Bool
   | ⊥ => False
@@ -142,7 +140,7 @@ def dagNext : (Finset Formula × Option DagFormula) → Finset (Finset Formula �
   | (_, some _) => { }  -- bad catch-all fallback, and maybe wrong?
   | (_, none) => { }  -- maybe wrong?
 
-theorem mOfDagNode.isDec (x y : Finset Formula × Option DagFormula) (y_in : y ∈ dagNext x) :
+theorem mOfDagNode.isDec {x y : Finset Formula × Option DagFormula} (y_in : y ∈ dagNext x) :
     mOfDagNode y < mOfDagNode x := by
   rcases x with ⟨_, _|dfx⟩
   case none =>
@@ -151,29 +149,42 @@ theorem mOfDagNode.isDec (x y : Finset Formula × Option DagFormula) (y_in : y �
   case some =>
     simp [mOfDagNode]
     rcases y with ⟨_, _|dfy⟩
-    case none =>
-      simp
+    all_goals simp
     case some =>
-      simp
       cases dfx
-      all_goals (try simp [dagNext]; try cases y_in)
+      all_goals (try cases y_in)
       case neg g =>
         cases g
-        all_goals (try simp [dagNext]; try cases y_in)
-        case box a =>
+        all_goals (try cases y_in)
+        case box a f =>
           cases a
-          all_goals (cases dfy)
-          all_goals (simp [dagNext])
-          all_goals sorry
-          -- There must be a nicer way to do this?!
+          all_goals (simp [dagNext] at *)
+          case sequence =>
+            rcases y_in with ⟨l,r⟩
+            subst l
+            subst r
+            simp
+            linarith
+          case union a b =>
+            rcases y_in with ⟨l,r⟩|⟨l,r⟩
+            all_goals (subst l; subst r; simp; linarith)
+          case star a =>
+            rcases y_in with ⟨l,r⟩|⟨l,r⟩
+            all_goals (subst l; subst r; simp)
+          case test f =>
+            rcases y_in with ⟨l,r⟩
+            subst l
+            subst r
+            simp
 
 @[simp]
 def dagNextTransRefl : (Finset Formula × Option DagFormula) → Finset (Finset Formula × Option DagFormula) :=
-  ftr dagNext instDecidableEqProd mOfDagNode mOfDagNode.isDec
+  ftr dagNext instDecidableEqProd mOfDagNode @mOfDagNode.isDec
 
 instance modelCanSemImplyDagTabNodeNext {W : Type} : vDash (KripkeModel W × W) (Finset Formula × Option DagFormula) :=
   vDash.mk (λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ∪ (mf.map undag).toFinset, evaluate M w φ)
 
+-- Similar to Borzechowski's Lemma 4
 theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
     (φ : DagFormula)
     (v_D : (M, v) ⊨ (fs, some (~⌈a⌉φ)))
@@ -206,7 +217,7 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
     case inl v_is_w =>
       use (fs, some (~φ))
       constructor
-      · unfold dagNextTransRefl; rw [ftr.iff]; right; simp; rw [ftr_iff]; simp
+      · unfold dagNextTransRefl; rw [ftr.iff]; right; simp; rw [ftr.iff]; simp
       · constructor
         · intro f
           aesop
@@ -275,15 +286,14 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
             · exact v_a_y
             · use u
               aesop
-    · -- TODO "If (2) ..."
-      -- subst v_is_u
+    · -- "If (2) ..."
       have := notStarSoundnessAux γ M u w S.1 φ -- not use "fs" here!
       specialize this _ u_γ_w w_nP
       · intro f
         sorry -- should be easy
       rcases this with ⟨Γ, Γ_in, v_Γ, split⟩
-      -- need transitivity here
       have also_in_prev : Γ ∈ dagNextTransRefl (fs, some (~⌈β;'γ⌉φ)) := by
+        -- Here we use transitivity of "being a successor" in a dagger tableau.
         apply ftr.Trans Γ S (fs, some (~⌈β;'γ⌉φ))
         · convert Γ_in
         · rw [ftr.iff]; simp; right; exact S_in
@@ -341,10 +351,34 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
       · intro f; aesop
       · right; aesop
 
-
 termination_by
   notStarSoundnessAux α M v w fs φ v_D v_a_w w_nP => mOfProgram α
 
+def dagEndNodes : (Finset Formula × Option DagFormula) → Finset (Finset Formula)
+  | (fs, none) => { fs }
+  | (fs, some df) => (dagNext (fs, some df)).attach.biUnion
+      (fun ⟨gsdf, h⟩ =>
+        have : mOfDagNode gsdf < mOfDagNode (fs, some df) := mOfDagNode.isDec h
+        dagEndNodes gsdf)
+termination_by
+  dagEndNodes fs => mOfDagNode fs
+decreasing_by simp_wf; assumption
+
+-- Similar to Borzechowski's Lemma 5
+-- (This is actually soundness AND invertibility.)
+theorem notStarSoundness (a : Program) (M : KripkeModel W) (v : W) (fs)
+    (φ : DagFormula)
+    :
+    ((M, v) ⊨ (fs, some (~⌈∗a⌉φ))) ↔ ∃ Γ ∈ dagEndNodes (fs, ~⌈∗a⌉φ), (M, v) ⊨ Γ := by
+
+    -- TODO: here we will apply Lemma 4:
+    have := notStarSoundnessAux a M
+
+    -- TODO: Sill missing before we can do this proof here
+    -- is a connection between dagEndNodes and dagNextTransRef
+    -- ?!?
+
+    sorry
 
 -- -- -- BOXES -- -- --
 
@@ -374,3 +408,12 @@ termination_by
 -- how to ensure that union rule is "eventually" applied?
 -- May need to redefine DagTab to make it fully deterministic, even in box cases?
 -- Was not a problem for diamonds above.
+
+-- Analogon of Borzechowski's Lemma 5 for boxes, was missing.
+-- (This is actually soundness AND invertibility.)
+theorem starSoundness (a : Program) (M : KripkeModel W) (v : W) (fs)
+    (φ : DagFormula)
+    :
+    ((M, v) ⊨ (fs, some (⌈∗a⌉φ))) ↔ ∃ Γ ∈ dagEndNodes (fs, ⌈∗a⌉φ), (M, v) ⊨ Γ := by
+
+    sorry
