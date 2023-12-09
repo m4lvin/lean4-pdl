@@ -364,21 +364,71 @@ termination_by
   dagEndNodes fs => mOfDagNode fs
 decreasing_by simp_wf; assumption
 
+theorem dagEndNodes_nonEmpty Γ :
+    ∃ x, x ∈ dagEndNodes Γ  := by
+  sorry
+
+theorem dagEnd_subset_next :
+    Ω ∈ dagNext Γ → dagEndNodes Ω ⊆ dagEndNodes Γ := by
+  sorry
+
+theorem dagEnd_subset_trf {Ω Γ} :
+    Ω ∈ dagNextTransRefl Γ → dagEndNodes Ω ⊆ dagEndNodes Γ := by
+  intro O_in
+  unfold dagNextTransRefl at O_in
+  rw [ftr.iff] at O_in
+  cases O_in
+  · aesop
+  case inr hyp =>
+    rcases hyp with ⟨S, S_in, O_in⟩
+    have := dagEnd_subset_next S_in
+    have := dagEnd_subset_trf O_in
+    tauto
+termination_by
+  dagEnd_subset_trf Ω Γ hyp  => mOfDagNode Γ
+decreasing_by simp_wf; apply mOfDagNode.isDec; assumption
+
 -- Similar to Borzechowski's Lemma 5
 -- (This is actually soundness AND invertibility.)
 theorem notStarSoundness (a : Program) (M : KripkeModel W) (v : W) (fs)
     (φ : DagFormula)
     :
     ((M, v) ⊨ (fs, some (~⌈∗a⌉φ))) ↔ ∃ Γ ∈ dagEndNodes (fs, ~⌈∗a⌉φ), (M, v) ⊨ Γ := by
+  constructor
+  · intro lhs -- left to right
+    have := lhs (undag (~⌈∗a⌉φ))
+    simp [undag] at this
+    rcases this with ⟨w, v_aS_w, w_nPhi⟩
+    -- Now apply Lemma 4
+    have := notStarSoundnessAux (∗a) M v w fs φ lhs (by simp; exact v_aS_w)
+    specialize this _
+    · simp [modelCanSemImplyForm, undag]
+      exact w_nPhi
+    rcases this with ⟨Ω, O_in_trf, v_O, ⟨b, bs, aasPhi_in_O, v_bbs_w⟩ | ⟨nPhi_in_O, v_is_w⟩⟩
+    -- Do we even want to distinguish these cases?!
+    · have := dagEndNodes_nonEmpty Ω
+      rcases this with ⟨Γ, Γ_in⟩
+      use Γ
+      constructor
+      · apply dagEnd_subset_trf -- this is what connects trf and endNodes
+        exact O_in_trf
+        exact Γ_in
+      · -- NOTE: Do we want inducton within notStarSoundness here?
+        -- Then it needs to work for any program, not just star?!
+        sorry
+    · subst v_is_w
+      sorry
+  · rintro ⟨Γ, Γ_in, v_Γ⟩ -- right to left
+    intro f f_in
+    simp at f_in
+    cases f_in
+    ·
+      sorry
+    ·
+      sorry
 
-    -- TODO: here we will apply Lemma 4:
-    have := notStarSoundnessAux a M
 
-    -- TODO: Sill missing before we can do this proof here
-    -- is a connection between dagEndNodes and dagNextTransRef
-    -- ?!?
 
-    sorry
 
 -- -- -- BOXES -- -- --
 
