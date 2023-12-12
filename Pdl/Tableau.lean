@@ -10,6 +10,8 @@ import Pdl.Semantics
 import Pdl.Discon
 import Pdl.DagTableau -- replaces Pdl.Unravel
 
+open Undag
+
 -- HELPER FUNCTIONS
 
 @[simp]
@@ -46,8 +48,10 @@ inductive localRule : Finset Formula → Finset (Finset Formula) → Type
   | nUn {a b f} (h : (~⌈a⋓b⌉f) ∈ X) : localRule X { X \ {~⌈a ⋓ b⌉f} ∪ {~⌈a⌉f}
                                                     , X \ {~⌈a ⋓ b⌉f} ∪ {~⌈b⌉f} }
   -- STAR
-  | sta {X a f} (h : (⌈∗a⌉f) ∈ X) : localRule X (dagEndNodes (X \ {⌈∗a⌉f}, inject (⌈∗a⌉f)))
-  | nSt {a f} (h : (~⌈∗a⌉f) ∈ X) : localRule X (dagEndNodes (X \ {~⌈∗a⌉f}, inject (~⌈∗a⌉f)))
+  -- NOTE: we "manually" already make the first unravel/dagger step here to satisfy the (Neg)DagFormula type.
+  | sta {X a f} (h : (⌈∗a⌉f) ∈ X) : localRule X (boxDagEndNodes (X \ {⌈∗a⌉f} ∪ {f}, [ inject [a] a f ]))
+  | nSt {a f}  (h : (~⌈∗a⌉f) ∈ X) : localRule X ( { X \ {~⌈∗a⌉f} ∪ {~f} }
+                                                ∪ dagEndNodes (X \ {~⌈∗a⌉f}, NegDagFormula.neg (inject [a] a f)))
 
   -- TODO which rules need and modify markings?
   -- TODO only apply * if there is a marking.
@@ -199,29 +203,84 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         case inr h_is_notf => rw [h_is_notf]; simp; exact not_w_g
   -- STAR RULES
   case nSt a f naSf_in_X =>
-    rw [Iff.comm]
-    convert notStarSoundness a M w (X \ {~⌈∗a⌉f}) (inject f) -- using Lemma 5
-    all_goals simp [vDash, undag, modelCanSemImplyDagTabNodeNext]
     constructor
-    · intro Mw_X φ phi_in
-      apply Mw_X
-      aesop
-    · intro Mw_X φ phi_in
-      apply Mw_X
-      cases em (φ = (~⌈∗a⌉f))
-      all_goals aesop
+    · simp
+      intro branchSat
+      cases branchSat
+      case inl _ => sorry -- should be easy
+      case inr hyp =>
+        rw [← notStarSoundness] at hyp -- using Lemma about DagTableau
+        simp [vDash,modelCanSemImplyDagTabNode] at hyp
+        intro φ phi_in
+        cases em (φ = (~⌈∗a⌉f))
+        case inl phi_def =>
+          subst phi_def
+          simp
+          specialize hyp (~⌈a⌉⌈∗a⌉f)
+          simp at hyp
+          rcases hyp with ⟨z, w_a_z, y, z_aS_x, y_nf⟩
+          use y
+          constructor
+          · apply Relation.ReflTransGen.head
+            all_goals aesop
+          · assumption
+        case inr => aesop
+    · intro Mw_X
+      simp
+      have := Mw_X (~⌈∗a⌉f) naSf_in_X
+      simp at this
+      rcases this with ⟨y, x_rel_y, y_nf⟩
+      cases Relation.ReflTransGen.cases_head x_rel_y
+      · left
+        intro g g_in
+        aesop
+      case inr hyp =>
+        rcases hyp with ⟨z, w_aS_z, z_a_y⟩
+        right
+
+        -- IDEA A: use notStarSoundnessAux (like Lemma 4) directly here?
+        have := notStarSoundnessAux a M w z (X \ {~⌈∗a⌉f}) (DagFormula.box a (DagFormula.dag a f))
+        specialize this _ w_aS_z _
+        · sorry
+        · sorry -- z ⊨ ...
+        -- now missing connection between dagNextTransRefl and endNodes Of ...
+
+        -- IDEA B: use the still to be proven Lemma (like 5) about DagTableau
+        rw [← notStarSoundness]
+        intro f f_in
+        simp at f_in
+        cases f_in
+        · apply Mw_X
+          tauto
+        case inr f_def =>
+          subst f_def
+          simp
+          aesop
   case sta a f aSf_in_X =>
     rw [Iff.comm]
-    convert starSoundness a M w (X \ {⌈∗a⌉f}) (inject f) -- using the Box version of Lemma 5
-    all_goals simp [vDash, undag, modelCanSemImplyDagTabNodeNext, inject]
+    convert starSoundness M w -- using the Box version of Lemma 5
     constructor
     · intro Mw_X φ phi_in
-      apply Mw_X
-      aesop
+      simp [vDash, undag, modelCanSemImplyDagTabNode, inject] at phi_in
+      cases phi_in
+      · apply Mw_X
+        tauto
+      case inr phi_defs =>
+        specialize Mw_X (⌈∗a⌉f) aSf_in_X
+        cases phi_defs
+        case inl phi_is_f =>
+            subst phi_is_f
+            simp at *
+            apply Mw_X
+            apply Relation.ReflTransGen.refl
+        case inr phi_is_aaSf =>
+            subst phi_is_aaSf
+            simp at *
+            sorry -- should be easy
     · intro Mw_X φ phi_in
       apply Mw_X
       cases em (φ = (⌈∗a⌉f))
-      all_goals aesop
+      all_goals sorry
 
   -- OTHER PDL RULES
   case nTe φ ψ in_X =>
