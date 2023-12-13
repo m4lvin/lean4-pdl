@@ -10,7 +10,7 @@ import Pdl.Closure
 inductive DagFormula : Type
   | dag : Program → Formula → DagFormula
   | box : Program → DagFormula → DagFormula
-  deriving Repr
+  deriving Repr, DecidableEq
 
 @[simp]
 def DagFormula.boxes : List Program → DagFormula → DagFormula
@@ -19,34 +19,15 @@ def DagFormula.boxes : List Program → DagFormula → DagFormula
 
 inductive NegDagFormula : Type
   | neg : DagFormula → NegDagFormula
-  deriving Repr
+  deriving Repr, DecidableEq
 
-def decDagFormula (f g : DagFormula) : Decidable (f = g) :=
-  match f,g with
-  | DagFormula.dag a f, DagFormula.dag b g => sorry
-    -- TODO: below needs DecidableEq Program, which we have, but is not picked up?!
-    /-
-    dite (a = b)
-      (fun h_ab => dite (f = g) (fun h_fg => isTrue (by rw [h_ab,h_fg])) (fun h_notfg => isFalse (by aesop)))
-      (fun h_not_ab => isFalse (by aesop))
-    -/
-  | DagFormula.dag a f, DagFormula.box _ _ => isFalse sorry
-  | DagFormula.box a df, DagFormula.dag _ _ => isFalse sorry
-  | DagFormula.box a ff, DagFormula.box b fg => sorry -- TODO
-
-instance : DecidableEq DagFormula := sorry -- decDagFormula? - or can a newer Lean version derive this?
-
-instance : DecidableEq NegDagFormula := sorry -- decDagFormula? - or can a newer Lean version derive this?
-
--- FIXME: invisible negation!?!?!
 local notation "⌈" a "†⌉" f => DagFormula.dag a f
 local notation "⌈" a "⌉" df => DagFormula.box a df
 local notation "⌈⌈" ps "⌉⌉" df => DagFormula.boxes ps df
 
 local notation "~" df => NegDagFormula.neg df
 
--- | Borzechowski's function "f".
-
+-- Borzechowski's function "f".
 class Undag (α : Type) where
   undag : α → Formula
 

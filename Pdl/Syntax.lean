@@ -7,15 +7,16 @@ mutual
     | neg : Formula → Formula
     | and : Formula → Formula → Formula
     | box : Program → Formula → Formula
-    deriving Repr, DecidableEq
   inductive Program : Type
     | atom_prog : Char → Program
     | sequence : Program → Program → Program
     | union : Program → Program → Program
     | star : Program → Program
     | test : Formula → Program
-    deriving Repr, DecidableEq
 end
+-- workaround, see https://leanprover.zulipchat.com/#narrow/stream/113489-new-members/topic/order.20of.20inductives.20affects.20deriving.20DecidableEq/near/407684123
+deriving instance Repr,DecidableEq for Formula
+deriving instance Repr,DecidableEq for Program
 
 -- Notation and abbreviations
 
