@@ -207,7 +207,22 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
     · simp
       intro branchSat
       cases branchSat
-      case inl _ => sorry -- should be easy
+      case inl Mw_X  =>
+        intro φ phi_in
+        cases em (φ = (~⌈∗a⌉f))
+        case inl phi_def =>
+          subst phi_def
+          simp at *
+          use w
+          constructor
+          · exact Relation.ReflTransGen.refl
+          · specialize Mw_X (~f)
+            simp at Mw_X
+            assumption
+        case inr hyp =>
+          apply Mw_X
+          simp
+          tauto
       case inr hyp =>
         rw [← notStarSoundness] at hyp -- using Lemma about DagTableau
         simp [vDash,modelCanSemImplyDagTabNode] at hyp
@@ -237,15 +252,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       case inr hyp =>
         rcases hyp with ⟨z, w_aS_z, z_a_y⟩
         right
-
-        -- IDEA A: use notStarSoundnessAux (like Lemma 4) directly here?
-        have := notStarSoundnessAux a M w z (X \ {~⌈∗a⌉f}) (DagFormula.box a (DagFormula.dag a f))
-        specialize this _ w_aS_z _
-        · sorry
-        · sorry -- z ⊨ ...
-        -- now missing connection between dagNextTransRefl and endNodes Of ...
-
-        -- IDEA B: use the still to be proven Lemma (like 5) about DagTableau
+        -- PLAN A: use the still to be proven Lemma (like 5) about DagTableau.
         rw [← notStarSoundness]
         intro f f_in
         simp at f_in
@@ -256,6 +263,13 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
           subst f_def
           simp
           aesop
+        -- -- PLAN B: use notStarSoundnessAux (like Lemma 4) directly here, skip Lemma 5.
+        -- have := notStarSoundnessAux a M w z (X \ {~⌈∗a⌉f}) (DagFormula.box a (DagFormula.dag a f))
+        -- specialize this _ w_aS_z _
+        -- · ...
+        -- · ... -- z ⊨ ...
+        -- -- But noww we are missing connection between dagNextTransRefl and endNodesOf.
+        -- ...
   case sta a f aSf_in_X =>
     rw [Iff.comm]
     convert starSoundness M w -- using the Box version of Lemma 5
@@ -276,11 +290,30 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         case inr phi_is_aaSf =>
             subst phi_is_aaSf
             simp at *
-            sorry -- should be easy
+            intro v w_a_v z v_a_z
+            apply Mw_X
+            apply Relation.ReflTransGen.head w_a_v v_a_z
     · intro Mw_X φ phi_in
-      apply Mw_X
       cases em (φ = (⌈∗a⌉f))
-      all_goals sorry
+      case inl phi_def =>
+        subst phi_def
+        simp at *
+        intro v w_aS_v
+        cases Relation.ReflTransGen.cases_head w_aS_v
+        case inl w_is_v =>
+          subst w_is_v
+          specialize Mw_X (f)
+          simp at Mw_X
+          exact Mw_X
+        case inr hyp =>
+          rcases hyp with ⟨z, w_a_z, z_aS_v⟩
+          specialize Mw_X (⌈a⌉⌈∗a⌉f)
+          simp at Mw_X
+          exact Mw_X z w_a_z v z_aS_v
+      case inr hyp =>
+        apply Mw_X
+        simp
+        tauto
 
   -- OTHER PDL RULES
   case nTe φ ψ in_X =>

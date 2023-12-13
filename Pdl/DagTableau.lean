@@ -325,10 +325,6 @@ termination_by
   dagEndNodes fs => mOfDagNode fs
 decreasing_by simp_wf; assumption
 
-theorem dagEndNodes_nonEmpty Γ :
-    ∃ x, x ∈ dagEndNodes Γ  := by
-  sorry
-
 theorem dagEnd_subset_next :
     Ω ∈ dagNext Γ → dagEndNodes Ω ⊆ dagEndNodes Γ := by
   sorry
@@ -429,7 +425,7 @@ instance modelCanSemImplyBoxDagTabNode {W : Type} : vDash (KripkeModel W × W) (
 
 def mOfBoxDagNode : (Finset Formula × List DagFormula) → ℕ
   | ⟨_, []⟩ => 0
-  | ⟨_, dfs⟩ => 1 + dfs.toFinset.sum mOfDagFormula -- BUG: get rid of "toFinset" here?
+  | ⟨_, dfs⟩ => 1 + (dfs.map mOfDagFormula).sum
 
 theorem mOfBoxDagNode.isDec {x y : Finset Formula × List DagFormula} (y_in : y ∈ boxDagNext x) :
     mOfBoxDagNode y < mOfBoxDagNode x := by sorry
