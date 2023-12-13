@@ -146,7 +146,8 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
     (w_nP : (M, w) ⊨ (~undag φ)) :
     ∃ Γ ∈ dagNextTransRefl (fs, ~⌈a⌉φ),
       (M, v) ⊨ Γ ∧ ( ( ∃ (a : Char) (as : List Program), (~ ⌈·a⌉⌈⌈as⌉⌉(undag φ)) ∈ Γ.1
-                       ∧ relate M (Program.steps ([Program.atom_prog a] ++ as)) v w )
+                       ∧ relate M (Program.steps ([Program.atom_prog a] ++ as)) v w
+                       ∧ Γ.2 = none )
                    ∨ ((~φ) ∈ Γ.2 ∧ v = w) ) := by
   cases a
   case atom_prog A =>
@@ -194,15 +195,17 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
           · simp
             left
             simp [undag] at one
-            rcases one with ⟨a,as,aasbs_in_Γ, y, a_v_y, y_as_u⟩
+            rcases one with ⟨a, as, ⟨aasbs_in_, ⟨⟨y, a_v_y, y_as_u⟩, Γ_normal⟩⟩⟩
             use a, as ++ [∗β]
             constructor
             · sorry -- should be easy
-            · use y
-              constructor
+            · constructor
+              · use y
+                constructor
+                · assumption
+                · simp [relate_steps]
+                  use u
               · assumption
-              · simp [relate_steps]
-                use u
       case inr two =>
         absurd two.right
         simp at v_neq_u
@@ -218,7 +221,7 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
       simp
       intro f_in
       sorry -- should be easy
-    rcases this with ⟨S, S_in, v_S, (⟨a,as,aasG_in_S,v_aas_u⟩ | ⟨ngPhi_in_S, v_is_u⟩)⟩ -- Σ
+    rcases this with ⟨S, S_in, v_S, (⟨a,as,aasG_in_S,v_aas_u,Γ_normal⟩ | ⟨ngPhi_in_S, v_is_u⟩)⟩ -- Σ
     · use S -- "If (1), then we are done."
       constructor
       · unfold dagNextTransRefl; rw [ftr.iff]; simp; tauto
@@ -233,12 +236,14 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
             exact aasG_in_S
           · simp at v_aas_u
             rcases v_aas_u with ⟨y, v_a_y, y_asg_w⟩
-            use y
-            rw [relate_steps]
             constructor
-            · exact v_a_y
-            · use u
-              aesop
+            · use y
+              rw [relate_steps]
+              constructor
+              · exact v_a_y
+              · use u
+                aesop
+            · assumption
     · -- "If (2) ..."
       have := notStarSoundnessAux γ M u w S.1 φ -- not use "fs" here!
       specialize this _ u_γ_w w_nP
@@ -329,6 +334,14 @@ theorem dagEnd_subset_next :
     Ω ∈ dagNext Γ → dagEndNodes Ω ⊆ dagEndNodes Γ := by
   sorry
 
+-- A normal successor is an endNode.
+theorem dagNormal_is_dagEnd
+    (Γ_in : Γ ∈ dagNextTransRefl S)
+    (Γ_normal : Γ.2 = none)
+    :
+    (Γ.1 ∈ dagEndNodes S) := by
+  sorry
+
 theorem dagEnd_subset_trf {Ω Γ} :
     Ω ∈ dagNextTransRefl Γ → dagEndNodes Ω ⊆ dagEndNodes Γ := by
   intro O_in
@@ -345,52 +358,11 @@ termination_by
   dagEnd_subset_trf Ω Γ hyp  => mOfDagNode Γ
 decreasing_by simp_wf; apply mOfDagNode.isDec; assumption
 
--- Similar to Borzechowski's Lemma 5
--- (This is actually soundness AND invertibility.)
-theorem notStarSoundness (M : KripkeModel W) (v : W) S
+-- Invertibility for nSt
+theorem notStarInvertAux (M : KripkeModel W) (v : W) S
     :
-    (M, v) ⊨ S ↔ ∃ Γ ∈ dagEndNodes S, (M, v) ⊨ Γ := by
-  constructor
-  · intro lhs -- left to right: soundness
-    rcases S with ⟨S, none|ndf⟩
-    · simp [dagEndNodes]
-      intro f
-      simp [modelCanSemImplyDagTabNode] at lhs
-      apply lhs
-    · cases ndf
-      case neg f =>
-        cases f
-        case box a g =>
-            have := lhs (undag (~⌈a⌉g))
-            simp [undag] at this
-            rcases this with ⟨w, v_aS_w, w_nPhi⟩
-            -- Now apply Lemma 4
-            have := notStarSoundnessAux a M v w S g lhs v_aS_w
-            specialize this _
-            · simp [modelCanSemImplyForm, undag]
-              exact w_nPhi
-            rcases this with ⟨Ω, O_in_trf, v_O, whatever⟩
-
-            -- ALTERNATIVE: distinguish the cases of "whatever" here?
-
-            -- NOTE: Now we do induction within notStarSoundness!
-            rw [notStarSoundness M v Ω] at v_O
-            -- PROBLEM: for termination we must avoid the case where Ω is the same as S :-/
-
-            rcases v_O with ⟨Γ, foo⟩
-            use Γ
-            constructor
-            · apply dagEnd_subset_trf -- this is what connects trf and endNodes
-              exact O_in_trf
-              tauto
-            · tauto
-
-        case dag a f =>
-            simp [dagEndNodes]
-            -- False -- BIG PROBLEM: What if undag is applied to S itself?
-            sorry
-
-  · rintro ⟨Γ, Γ_in, v_Γ⟩ -- right to left: inveritbility
+    (∃ Γ ∈ dagEndNodes S, (M, v) ⊨ Γ) → (M, v) ⊨ S := by
+    rintro ⟨Γ, Γ_in, v_Γ⟩
     intro f f_in
     simp at f_in
     cases f_in
@@ -398,10 +370,9 @@ theorem notStarSoundness (M : KripkeModel W) (v : W) S
       sorry
     ·
       sorry
-termination_by
-  notStarSoundness M v S => mOfDagNode S
-decreasing_by simp_wf; apply mOfDagNode.isDec; sorry -- assumption
-
+-- termination_by
+--   notStarInvert M v S => mOfDagNode S
+-- decreasing_by simp_wf; apply mOfDagNode.isDec; sorry -- assumption
 
 
 -- -- -- BOXES -- -- --

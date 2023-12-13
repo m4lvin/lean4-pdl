@@ -201,10 +201,11 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         cases h_in
         case inl h_in_X => exact w_sat_a _ h_in_X.left
         case inr h_is_notf => rw [h_is_notf]; simp; exact not_w_g
+
   -- STAR RULES
   case nSt a f naSf_in_X =>
     constructor
-    · simp
+    · simp -- invertibility
       intro branchSat
       cases branchSat
       case inl Mw_X  =>
@@ -224,52 +225,64 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
           simp
           tauto
       case inr hyp =>
-        rw [← notStarSoundness] at hyp -- using Lemma about DagTableau
-        simp [vDash,modelCanSemImplyDagTabNode] at hyp
+        have := notStarInvertAux M w _ hyp
+        simp [vDash, modelCanSemImplyDagTabNode] at hyp
         intro φ phi_in
         cases em (φ = (~⌈∗a⌉f))
         case inl phi_def =>
           subst phi_def
           simp
-          specialize hyp (~⌈a⌉⌈∗a⌉f)
-          simp at hyp
-          rcases hyp with ⟨z, w_a_z, y, z_aS_x, y_nf⟩
+          specialize this (~⌈a⌉⌈∗a⌉f)
+          simp at this
+          rcases this with ⟨z, w_a_z, y, z_aS_x, y_nf⟩
           use y
           constructor
           · apply Relation.ReflTransGen.head
             all_goals aesop
           · assumption
         case inr => aesop
-    · intro Mw_X
+    · intro Mw_X -- soundness
       simp
       have := Mw_X (~⌈∗a⌉f) naSf_in_X
       simp at this
       rcases this with ⟨y, x_rel_y, y_nf⟩
-      cases Relation.ReflTransGen.cases_head x_rel_y
+      cases starCases x_rel_y -- NOTE: Relation.ReflTransGen.cases_head without ≠ was not enough here ...
       · left
         intro g g_in
         aesop
       case inr hyp =>
-        rcases hyp with ⟨z, w_aS_z, z_a_y⟩
         right
-        -- PLAN A: use the still to be proven Lemma (like 5) about DagTableau.
-        rw [← notStarSoundness]
-        intro f f_in
-        simp at f_in
-        cases f_in
-        · apply Mw_X
-          tauto
-        case inr f_def =>
-          subst f_def
-          simp
-          aesop
-        -- -- PLAN B: use notStarSoundnessAux (like Lemma 4) directly here, skip Lemma 5.
-        -- have := notStarSoundnessAux a M w z (X \ {~⌈∗a⌉f}) (DagFormula.box a (DagFormula.dag a f))
-        -- specialize this _ w_aS_z _
-        -- · ...
-        -- · ... -- z ⊨ ...
-        -- -- But noww we are missing connection between dagNextTransRefl and endNodesOf.
-        -- ...
+        -- (... because we need to get the in-equality here to get the contradiction below.)
+        rcases hyp with ⟨_, z, w_neq_z, w_a_z, z_aS_y⟩
+        -- MB now distinguishes whether a is atomic, we don't care.
+        have := notStarSoundnessAux a M w z (X \ {~⌈∗a⌉f}) (DagFormula.dag a f)
+        specialize this _ w_a_z _
+        · intro g g_in
+          simp at g_in
+          cases g_in
+          · apply Mw_X; tauto
+          case inr g_def =>
+            subst g_def
+            simp
+            use z
+            constructor
+            · exact w_a_z
+            · use y
+        · simp [vDash,modelCanSemImplyForm]
+          use y
+        rcases this with ⟨Γ, Γ_in, w_Γ, caseOne | caseTwo⟩
+        · rcases caseOne with ⟨A, as, _, _, Γ_normal⟩
+          use Γ.1
+          constructor
+          · exact dagNormal_is_dagEnd Γ_in Γ_normal
+          · intro f f_in
+            apply w_Γ
+            simp
+            left
+            exact f_in
+        · absurd caseTwo.2 -- contradiction!
+          exact w_neq_z
+
   case sta a f aSf_in_X =>
     rw [Iff.comm]
     convert starSoundness M w -- using the Box version of Lemma 5
