@@ -8,8 +8,8 @@ import Pdl.Star
 import Pdl.Closure
 
 inductive DagFormula : Type
-  | dag : Program → Formula → DagFormula
-  | box : Program → DagFormula → DagFormula
+  | dag : Program → Formula → DagFormula -- ⌈a†⌉f
+  | box : Program → DagFormula → DagFormula  -- ⌈a⌉df
   deriving Repr, DecidableEq
 
 @[simp]
@@ -332,7 +332,7 @@ decreasing_by simp_wf; assumption
 
 theorem dagEnd_subset_next :
     Ω ∈ dagNext Γ → dagEndNodes Ω ⊆ dagEndNodes Γ := by
-  sorry
+  sorry -- medium?
 
 -- A normal successor is an endNode.
 theorem dagNormal_is_dagEnd
@@ -340,7 +340,7 @@ theorem dagNormal_is_dagEnd
     (Γ_normal : Γ.2 = none)
     :
     (Γ.1 ∈ dagEndNodes S) := by
-  sorry
+  sorry -- should be easy
 
 theorem dagEnd_subset_trf {Ω Γ} :
     Ω ∈ dagNextTransRefl Γ → dagEndNodes Ω ⊆ dagEndNodes Γ := by
@@ -420,3 +420,4 @@ decreasing_by simp_wf; assumption
 theorem starSoundness (M : KripkeModel W) (v : W) :
     (M, v) ⊨ S ↔ ∃ Γ ∈ boxDagEndNodes S, (M, v) ⊨ Γ := by
   sorry
+  -- TODO: this is not true, needs to be adjusted or done in Tableau.localRuleTruth dircetly, like in the diamond case.
