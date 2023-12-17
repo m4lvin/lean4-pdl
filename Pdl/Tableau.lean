@@ -8,7 +8,9 @@ import Pdl.Measures
 import Pdl.Setsimp
 import Pdl.Semantics
 import Pdl.Discon
-import Pdl.Unravel
+import Pdl.DagTableau -- replaces Pdl.Unravel
+
+open Undag
 
 -- HELPER FUNCTIONS
 
@@ -46,8 +48,10 @@ inductive localRule : Finset Formula → Finset (Finset Formula) → Type
   | nUn {a b f} (h : (~⌈a⋓b⌉f) ∈ X) : localRule X { X \ {~⌈a ⋓ b⌉f} ∪ {~⌈a⌉f}
                                                     , X \ {~⌈a ⋓ b⌉f} ∪ {~⌈b⌉f} }
   -- STAR
-  | sta {X a f} (h : (⌈∗a⌉f) ∈ X) : localRule X ({ X \ {⌈∗a⌉f} } ⊎ (listsToSets (unravel (inject (⌈∗a⌉f)))))
-  | nSt {a f} (h : (~⌈∗a⌉f) ∈ X) : localRule X ({ X \ {~⌈∗a⌉f} } ⊎ (listsToSets (unravel (inject (~⌈∗a⌉f)))))
+  -- NOTE: we "manually" already make the first unravel/dagger step here to satisfy the (Neg)DagFormula type.
+  | sta {X a f} (h : (⌈∗a⌉f) ∈ X) : localRule X (boxDagEndNodes (X \ {⌈∗a⌉f} ∪ {f}, [ inject [a] a f ]))
+  | nSt {a f}  (h : (~⌈∗a⌉f) ∈ X) : localRule X ( { X \ {~⌈∗a⌉f} ∪ {~f} }
+                                                ∪ dagEndNodes (X \ {~⌈∗a⌉f}, NegDagFormula.neg (inject [a] a f)))
 
   -- TODO which rules need and modify markings?
   -- TODO only apply * if there is a marking.
@@ -62,7 +66,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
   -- PROPOSITIONAL LOGIC
   case bot bot_in_a =>
     constructor
-    · intro ⟨Y,Y_in,w_Y⟩; simp at Y_in
+    · intro ⟨_, Y_in, _⟩; simp at Y_in
     · intro w_sat_a
       by_contra
       let w_sat_bot := w_sat_a ⊥ bot_in_a
@@ -197,103 +201,133 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         cases h_in
         case inl h_in_X => exact w_sat_a _ h_in_X.left
         case inr h_is_notf => rw [h_is_notf]; simp; exact not_w_g
+
   -- STAR RULES
   case nSt a f naSf_in_X =>
     constructor
-    · rintro ⟨Y, Y_in, MwY⟩ -- invertibility
-      simp at Y_in
-      rcases Y_in with ⟨FS,FS_in,Y_def⟩
-      subst Y_def
-      intro g g_in_X
-      cases em (g = (~⌈∗a⌉f))
-      case inl g_is_nsSf =>
-        subst g_is_nsSf
-        simp
-        cases FS_in
-        case inl FS_is_nf =>
-          have : (FS : List Formula) = {~f} := by cases FS_is_nf; rfl; tauto
-          subst this
+    · -- invertibility
+      simp
+      intro branchSat
+      cases branchSat
+      case inl Mw_X  =>
+        intro φ phi_in
+        cases em (φ = (~⌈∗a⌉f))
+        case inl phi_def =>
+          subst phi_def
+          simp at *
           use w
           constructor
           · exact Relation.ReflTransGen.refl
-          · specialize MwY (~f)
-            simp at MwY
-            apply MwY
-            right
-            exact List.mem_of_mem_head? rfl
-        case inr FS_in_unrav =>
-          simp [unravel] at FS_in_unrav
-          sorry
-      case inr g_neq_nsSf =>
-        apply MwY
-        simp
-        left
-        exact ⟨g_in_X, g_neq_nsSf⟩
-    · intro Mw_X -- soundness
-      have w_adiamond_f := Mw_X (~⌈∗a⌉f) naSf_in_X
-      simp at w_adiamond_f
-      rcases w_adiamond_f with ⟨v, w_aS_v, v_nF⟩
-      -- NOTE: Borze also makes a distinction whether a is atomic. Not needed?
-      -- We still distinguish cases whether v = w
-      cases Classical.em (w = v)
-      case inl w_is_v =>
-        -- Same world, we can use the left branch.
-        subst w_is_v
-        use (X \ {~⌈∗a⌉f} ∪ {~f})
-        constructor
-        · apply union_elem_uplus
+          · specialize Mw_X (~f)
+            simp at Mw_X
+            assumption
+        case inr hyp =>
+          apply Mw_X
           simp
-          unfold unravel
+          tauto
+      case inr hyp =>
+        have := notStarInvert M w _ hyp
+        simp [vDash, modelCanSemImplyDagTabNode] at hyp
+        intro φ phi_in
+        cases em (φ = (~⌈∗a⌉f))
+        case inl phi_def =>
+          subst phi_def
           simp
-          use {~f}
+          specialize this (~⌈a⌉⌈∗a⌉f)
+          simp at this
+          rcases this with ⟨z, w_a_z, y, z_aS_x, y_nf⟩
+          use y
           constructor
-          · left
-            exact List.mem_of_mem_head? rfl
-          · rfl
+          · apply Relation.ReflTransGen.head
+            all_goals aesop
+          · assumption
+        case inr => aesop
+    · -- soundness
+      intro Mw_X
+      simp
+      have := Mw_X (~⌈∗a⌉f) naSf_in_X
+      simp at this
+      rcases this with ⟨y, x_rel_y, y_nf⟩
+      cases starCases x_rel_y -- NOTE: Relation.ReflTransGen.cases_head without ≠ was not enough here ...
+      · left
+        intro g g_in
+        aesop
+      case inr hyp =>
+        right
+        -- (... because we need to get the in-equality here to get the contradiction below.)
+        rcases hyp with ⟨_, z, w_neq_z, w_a_z, z_aS_y⟩
+        -- MB now distinguishes whether a is atomic, we don't care.
+        have := notStarSoundnessAux a M w z (X \ {~⌈∗a⌉f}) (DagFormula.dag a f)
+        specialize this _ w_a_z _
         · intro g g_in
           simp at g_in
           cases g_in
-          · tauto
-          case h.right.inr hyp =>
-            subst hyp
-            unfold evaluate
-            assumption
-      case inr w_neq_v =>
-        -- Different world, we use the right branch and Lemma 4 here:
-        have lemFour := likeLemmaFour M (∗ a) w v X.toList (inject f) w_neq_v
-        simp [vDash, modelCanSemImplyForm, modelCanSemImplyList] at lemFour
-        specialize lemFour _ w_aS_v v_nF
-        · intro g g_in
-          apply Mw_X
-          cases g_in
-          case a.inl => assumption
-          case a.inr h => convert naSf_in_X
-        rcases lemFour with ⟨Z, Z_in, Mw_ZX, ⟨as, nBasf_in, w_as_v⟩⟩
-        use (X \ {~⌈∗a⌉f}) ∪ Z.toFinset
-        constructor
-        · exact union_elem_uplus (by simp) (by simp; use Z)
-        · intro g g_in; simp at g_in; apply Mw_ZX; tauto
+          · apply Mw_X; tauto
+          case inr g_def =>
+            subst g_def
+            simp
+            exact ⟨z, ⟨w_a_z, ⟨y, ⟨z_aS_y, y_nf⟩⟩⟩⟩
+        · simp [vDash,modelCanSemImplyForm]
+          use y
+        rcases this with ⟨Γ, Γ_in, w_Γ, caseOne | caseTwo⟩
+        · rcases caseOne with ⟨A, as, _, _, Γ_normal⟩
+          use Γ.1
+          constructor
+          · exact dagNormal_is_dagEnd Γ_in Γ_normal
+          · intro f f_in
+            apply w_Γ
+            simp
+            left
+            exact f_in
+        · absurd caseTwo.2 -- contradiction!
+          exact w_neq_z
+
   case sta a f aSf_in_X =>
     constructor
-    · rintro ⟨Y, Y_in, w_Y⟩ -- invertibility
-      simp at Y_in
-      rcases Y_in with ⟨Z, Z_in_unrav, Y_def⟩
-      subst Y_def
-      intro g g_in_X
-      cases Classical.em (g = (⌈∗a⌉f))
-      case inl g_def =>
-        subst g_def
-        simp
-        intro v w_a_v
-        sorry
-      case inr g_not =>
-        apply w_Y
+    · -- invertibility
+      intro hyp
+      have Mw_X := starInvert M w (X \ {⌈∗a⌉f} ∪ {f}, [inject [a] a f]) hyp
+      intro φ phi_in
+      cases em (φ = (⌈∗a⌉f))
+      case inl phi_def =>
+        subst phi_def
+        simp at *
+        intro v w_aS_v
+        cases Relation.ReflTransGen.cases_head w_aS_v
+        case inl w_is_v =>
+          subst w_is_v
+          specialize Mw_X f
+          simp at Mw_X
+          exact Mw_X
+        case inr hyp =>
+          rcases hyp with ⟨z, w_a_z, z_aS_v⟩
+          specialize Mw_X (⌈a⌉⌈∗a⌉f)
+          simp at Mw_X
+          exact Mw_X z w_a_z v z_aS_v
+      case inr hyp =>
+        apply Mw_X
         simp
         tauto
-    · intro w_X -- soundness
-      simp
-      have := lemmaFourAndThreeQuarters M -- use here?
-      sorry
+    · -- soundness
+      intro Mw_X
+      apply starSoundness M w (X \ {⌈∗a⌉f} ∪ {f}, [inject [a] a f])
+      intro φ phi_in
+      simp [vDash, undag, modelCanSemImplyDagTabNode, inject] at phi_in
+      cases phi_in
+      · apply Mw_X
+        tauto
+      case inr phi_defs =>
+        specialize Mw_X (⌈∗a⌉f) aSf_in_X
+        cases phi_defs
+        case inl phi_is_f =>
+            subst phi_is_f
+            simp at *
+            exact Mw_X _ Relation.ReflTransGen.refl
+        case inr phi_is_aaSf =>
+            subst phi_is_aaSf
+            simp at *
+            intro v w_a_v z v_a_z
+            exact Mw_X _ (Relation.ReflTransGen.head w_a_v v_a_z)
 
   -- OTHER PDL RULES
   case nTe φ ψ in_X =>
@@ -313,7 +347,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       simp
       intro f f_in
       simp at f_in
-      rcases f_in with f_is_phi | ⟨f_in_X, not_f⟩ | f_is_notPsi
+      rcases f_in with f_is_phi | ⟨f_in_X, _⟩ | f_is_notPsi
       · subst f_is_phi
         specialize w_X _ in_X
         simp at w_X
@@ -340,7 +374,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       simp
       intro f f_in
       simp at f_in
-      rcases f_in with ⟨f_in_X, not_f⟩ | f_is_notabPhi
+      rcases f_in with ⟨f_in_X, _⟩ | f_is_notabPhi
       · exact w_X _ f_in_X
       · subst f_is_notabPhi
         specialize w_X (~(⌈a;'b⌉φ)) nabf_in_X
@@ -363,7 +397,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       simp
       intro f f_in
       simp at f_in
-      rcases f_in with f_is_aPhi | ⟨f_in_X, f_is_not_aubPhi⟩ | f_is_bPhi
+      rcases f_in with f_is_aPhi | ⟨f_in_X, _⟩ | f_is_bPhi
       · subst f_is_aPhi
         specialize w_X (⌈a⋓b⌉φ) aubPhi_in_X
         simp at *
@@ -390,7 +424,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       simp
       intro f f_in
       simp at f_in
-      rcases f_in with ⟨f_in_X, not_f⟩ | f_is_abPhi
+      rcases f_in with ⟨f_in_X, _⟩ | f_is_abPhi
       · exact w_X _ f_in_X
       · subst f_is_abPhi
         specialize w_X (⌈a;'b⌉φ) abPhi_in_X
@@ -448,7 +482,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         case inr f_def =>
           subst f_def
           exact w_Phi
-  case nUn a b φ naubPhi_in_X  => -- localRule X { X \ {~⌈a ⋓ b⌉φ} ∪ {~⌈a⌉φ}, X \ {~⌈a ⋓ b⌉φ} ∪ {~⌈b⌉φ} }
+  case nUn a b φ naubPhi_in_X => -- { X \ {~⌈a ⋓ b⌉φ} ∪ {~⌈a⌉φ}, X \ {~⌈a ⋓ b⌉φ} ∪ {~⌈b⌉φ} }
     constructor
     · rintro ⟨Y, Y_in, w_Y⟩
       simp at Y_in
