@@ -89,10 +89,9 @@ def dagNext : (Finset Formula × Option NegDagFormula) → Finset (Finset Formul
   | (fs, some (~⌈?'ψ⌉df)) => { (fs ∪ {ψ}, some (~df)) }
   | (fs, some (~⌈α;'β⌉df)) => { (fs, some (~⌈α⌉⌈β⌉df)) }
   | (fs, some (~⌈∗α⌉df)) => { (fs, some (~df))
-                            , (fs, some (~⌈α⌉⌈α†⌉(undag df))) } -- only have one (top most) dagger at a time
+                            , (fs, some (~⌈α⌉⌈α†⌉(undag df))) } -- only keep top-most dagger
   | (_, some (~⌈_†⌉_)) => {  } -- delete branch
-  -- | (_, some _) => { }  -- bad catch-all fallback, and maybe wrong? -- Yeah, no more needed now :-)
-  | (_, none) => { }  -- maybe wrong?
+  | (_, none) => { } -- end node of dagger tableau
 
 theorem mOfDagNode.isDec {x y : Finset Formula × Option NegDagFormula} (y_in : y ∈ dagNext x) :
     mOfDagNode y < mOfDagNode x := by
@@ -337,28 +336,6 @@ termination_by
   dagEndNodes fs => mOfDagNode fs
 decreasing_by simp_wf; assumption
 
-theorem dagEnd_iff_none : dagEndNodes (fs, odf) = {fs} ↔ odf = none := by
-  constructor
-  · intro lhs
-    rcases odf with _ | ⟨⟨df⟩⟩
-    · rfl
-    · simp [dagEndNodes] at lhs
-      cases df
-      · simp at *
-        absurd lhs
-        have := Finset.singleton_ne_empty fs
-        aesop
-      case box a df =>
-        cases a
-        all_goals simp at *
-        -- wait, does this actually hold? What if accidentally we have this end node later?
-        absurd lhs
-        have := Finset.singleton_ne_empty fs
-        all_goals sorry
-  · intro def_odf
-    subst def_odf
-    simp [dagEndNodes]
-
 theorem dagEnd_subset_next
     (O_in : Ω ∈ dagNext Γ) : dagEndNodes Ω ⊆ dagEndNodes Γ := by
   intro e
@@ -371,6 +348,41 @@ theorem dagEnd_subset_next
     simp at O_in
     use Ω.1
     use Ω.2
+
+theorem dagEndOfSome_iff_step : Γ ∈ dagEndNodes (fs, some (~⌈a⌉f)) ↔
+    ∃ S ∈ dagNext (fs, some (~⌈a⌉f)), Γ ∈ dagEndNodes S := by
+  cases a
+  all_goals try (simp [dagEndNodes]; done)
+  case union a b =>
+    constructor
+    · intro lhs
+      simp [dagNext]
+      unfold dagEndNodes at lhs
+      simp at lhs
+      cases lhs
+      · left
+        tauto
+      case inr hyp =>
+        rcases hyp with ⟨fs, mdf, claim⟩
+        aesop
+    · intro rhs
+      rcases rhs with ⟨S, S_in, Γ_in⟩
+      exact dagEnd_subset_next S_in Γ_in
+  case star a => -- exact same as union case
+    constructor
+    · intro lhs
+      simp [dagNext]
+      unfold dagEndNodes at lhs
+      simp at lhs
+      cases lhs
+      · left
+        tauto
+      case inr hyp =>
+        rcases hyp with ⟨fs, mdf, claim⟩
+        aesop
+    · intro rhs
+      rcases rhs with ⟨S, S_in, Γ_in⟩
+      exact dagEnd_subset_next S_in Γ_in
 
 theorem dagEnd_subset_trf {Ω Γ} :
     Ω ∈ dagNextTransRefl Γ → dagEndNodes Ω ⊆ dagEndNodes Γ := by
@@ -388,7 +400,7 @@ termination_by
   dagEnd_subset_trf Ω Γ hyp  => mOfDagNode Γ
 decreasing_by simp_wf; apply mOfDagNode.isDec; assumption
 
--- A normal successor is an endNode.
+-- A normal successor in a diamond dagger tableau is an end node.
 theorem dagNormal_is_dagEnd
     (Γ_in : Γ ∈ dagNextTransRefl S)
     (Γ_normal : Γ.2 = none)
@@ -460,18 +472,39 @@ theorem notStarInvert (M : KripkeModel W) (v : W) S
     :
     (∃ Γ ∈ dagEndNodes S, (M, v) ⊨ Γ) → (M, v) ⊨ S := by
   rintro ⟨Γ, Γ_in, v_Γ⟩
-  -- TODO: use notStarInvertAux and recursive calls here!
-  sorry
--- termination_by
---   notStarInvert M v S => mOfDagNode S
--- decreasing_by simp_wf; apply mOfDagNode.isDec; assumption
+  rcases S with ⟨fs, mdf⟩
+  cases mdf
+  case none =>
+    simp [dagEndNodes] at Γ_in
+    subst Γ_in
+    simp [modelCanSemImplyDagTabNode]
+    exact v_Γ
+  case some ndf =>
+    rcases ndf with ⟨df⟩
+    cases df
+    case dag =>
+      simp [dagEndNodes] at Γ_in
+    case box a f =>
+      rw [dagEndOfSome_iff_step] at Γ_in
+      rcases Γ_in with ⟨T, T_in, Γ_in⟩
+      have v_T := notStarInvert M v T ⟨Γ, ⟨Γ_in, v_Γ⟩⟩ -- recursion!
+      exact notStarInvertAux M v (fs , ~⌈a⌉f) ⟨_, ⟨T_in, v_T⟩⟩
+termination_by
+  notStarInvert M v S claim => mOfDagNode S
+decreasing_by simp_wf; apply mOfDagNode.isDec; sorry -- PROBLEM! Why is "S" no longer defined?
+-- Alternative idea for termination: use measure of Γ instead of S maybe?
 
 
 -- -- -- BOXES -- -- --
 
 -- Here we need a List DagFormula, because of the ⋓ rule.
 
--- Immediate sucessors of a node in a Daggered Tableau, for diamonds.
+def mOfBoxDagNode : (Finset Formula × List DagFormula) → ℕ
+  | ⟨_, []⟩ => 0
+  | ⟨_, dfs⟩ => 1 + (dfs.map mOfDagFormula).sum
+
+-- Immediate sucessors of a node in a Daggered Tableau, for boxes.
+-- Note that this is still fully deterministic.
 @[simp]
 def boxDagNext : (Finset Formula × List DagFormula) → Finset (Finset Formula × List DagFormula)
   | (fs, (⌈·A⌉φ)::rest) => { (fs ∪ {undag (⌈·A⌉φ)}, rest) }
@@ -481,17 +514,17 @@ def boxDagNext : (Finset Formula × List DagFormula) → Finset (Finset Formula 
   | (fs, (⌈α;'β⌉φ)::rest) => { (fs, (⌈α⌉⌈β⌉φ)::rest) }
   | (fs, (⌈∗α⌉φ)::rest) => { (fs, φ::(⌈α⌉⌈α†⌉(undag φ))::rest) } -- NOT splitting!
   | (fs, (⌈_†⌉_)::rest) => { (fs, rest) } -- delete formula, but keep branch!
-  | (_, []) => { }  -- maybe wrong? no, good that we stop!
-
-instance modelCanSemImplyBoxDagTabNode {W : Type} : vDash (KripkeModel W × W) (Finset Formula × List DagFormula) :=
-  vDash.mk (λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ∪ (mf.map undag).toFinset, evaluate M w φ)
-
-def mOfBoxDagNode : (Finset Formula × List DagFormula) → ℕ
-  | ⟨_, []⟩ => 0
-  | ⟨_, dfs⟩ => 1 + (dfs.map mOfDagFormula).sum
+  | (_, []) => { } -- end node of dagger tableau
 
 theorem mOfBoxDagNode.isDec {x y : Finset Formula × List DagFormula} (y_in : y ∈ boxDagNext x) :
     mOfBoxDagNode y < mOfBoxDagNode x := by sorry
+
+@[simp]
+def boxDagNextTransRefl : (Finset Formula × List DagFormula) → Finset (Finset Formula × List DagFormula) :=
+  ftr boxDagNext instDecidableEqProd mOfBoxDagNode @mOfBoxDagNode.isDec
+
+instance modelCanSemImplyBoxDagTabNode {W : Type} : vDash (KripkeModel W × W) (Finset Formula × List DagFormula) :=
+  vDash.mk (λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ∪ (mf.map undag).toFinset, evaluate M w φ)
 
 def boxDagEndNodes : (Finset Formula × List DagFormula) → Finset (Finset Formula)
   | (fs, []) => { fs }
@@ -503,13 +536,62 @@ termination_by
   boxDagEndNodes fs => mOfBoxDagNode fs
 decreasing_by simp_wf; assumption
 
--- how to ensure that union rule is "eventually" applied?
--- May need to redefine DagTab to make it fully deterministic, even in box cases?
--- Was not a problem for diamonds above.
+theorem boxDagEnd_subset_next
+    (O_in : Ω ∈ boxDagNext Γ) : boxDagEndNodes Ω ⊆ boxDagEndNodes Γ := by
+  intro e
+  rcases Γ with ⟨fs, mdf⟩
+  rcases mdf with none | ⟨df⟩
+  · simp [dagNext] at O_in
+  · intro e_in
+    unfold boxDagEndNodes
+    simp
+    simp at O_in
+    use Ω.1
+    use Ω.2
 
--- Analogon of Borzechowski's Lemma 5 for boxes, was missing.
--- (This is actually soundness AND invertibility.)
-theorem starSoundness (M : KripkeModel W) (v : W) :
-    (M, v) ⊨ S ↔ ∃ Γ ∈ boxDagEndNodes S, (M, v) ⊨ Γ := by
+theorem boxDagEnd_subset_trf {Ω Γ} :
+    Ω ∈ boxDagNextTransRefl Γ → boxDagEndNodes Ω ⊆ boxDagEndNodes Γ := by
+  intro O_in
+  unfold boxDagNextTransRefl at O_in
+  rw [ftr.iff] at O_in
+  cases O_in
+  · aesop
+  case inr hyp =>
+    rcases hyp with ⟨S, S_in, O_in⟩
+    have := boxDagEnd_subset_next S_in
+    have := boxDagEnd_subset_trf O_in
+    tauto
+termination_by
+  boxDagEnd_subset_trf Ω Γ hyp  => mOfBoxDagNode Γ
+decreasing_by simp_wf; apply mOfBoxDagNode.isDec; assumption
+
+-- A normal successor in a box dagger tableau is an end node.
+theorem boxDagNormal_is_dagEnd
+    (Γ_in : Γ ∈ boxDagNextTransRefl S)
+    (Γ_normal : Γ.2 = [])
+    :
+    (Γ.1 ∈ boxDagEndNodes S) := by
+  have := boxDagEnd_subset_trf Γ_in
+  apply this
+  rcases Γ with ⟨fs,odf⟩
+  subst Γ_normal
+  simp [boxDagEndNodes]
+
+
+-- TODO starInvertAux ?
+
+
+-- Invertibility for th box star rule.
+theorem starInvert (M : KripkeModel W) (v : W) S
+    :
+    (∃ Γ ∈ boxDagEndNodes S, (M, v) ⊨ Γ) → (M, v) ⊨ S := by
+  rintro ⟨Γ, Γ_in, v_Γ⟩
+  -- TODO: use starInvertAux and recursive calls here?!
   sorry
-  -- TODO: this is not true, needs to be adjusted or done in Tableau.localRuleTruth dircetly, like in the diamond case.
+
+-- Soundness for the the box star rule.
+-- This Lemma was missing in Borzechowski.
+theorem starSoundness (M : KripkeModel W) (v : W) S :
+    (M, v) ⊨ S → ∃ Γ ∈ boxDagEndNodes S, (M, v) ⊨ Γ := by
+
+  sorry

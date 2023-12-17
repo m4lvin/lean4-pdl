@@ -205,7 +205,8 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
   -- STAR RULES
   case nSt a f naSf_in_X =>
     constructor
-    · simp -- invertibility
+    · -- invertibility
+      simp
       intro branchSat
       cases branchSat
       case inl Mw_X  =>
@@ -241,7 +242,8 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
             all_goals aesop
           · assumption
         case inr => aesop
-    · intro Mw_X -- soundness
+    · -- soundness
+      intro Mw_X
       simp
       have := Mw_X (~⌈∗a⌉f) naSf_in_X
       simp at this
@@ -264,10 +266,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
           case inr g_def =>
             subst g_def
             simp
-            use z
-            constructor
-            · exact w_a_z
-            · use y
+            exact ⟨z, ⟨w_a_z, ⟨y, ⟨z_aS_y, y_nf⟩⟩⟩⟩
         · simp [vDash,modelCanSemImplyForm]
           use y
         rcases this with ⟨Γ, Γ_in, w_Γ, caseOne | caseTwo⟩
@@ -284,29 +283,11 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
           exact w_neq_z
 
   case sta a f aSf_in_X =>
-    rw [Iff.comm]
-    convert starSoundness M w -- using the Box version of Lemma 5
     constructor
-    · intro Mw_X φ phi_in
-      simp [vDash, undag, modelCanSemImplyDagTabNode, inject] at phi_in
-      cases phi_in
-      · apply Mw_X
-        tauto
-      case inr phi_defs =>
-        specialize Mw_X (⌈∗a⌉f) aSf_in_X
-        cases phi_defs
-        case inl phi_is_f =>
-            subst phi_is_f
-            simp at *
-            apply Mw_X
-            apply Relation.ReflTransGen.refl
-        case inr phi_is_aaSf =>
-            subst phi_is_aaSf
-            simp at *
-            intro v w_a_v z v_a_z
-            apply Mw_X
-            apply Relation.ReflTransGen.head w_a_v v_a_z
-    · intro Mw_X φ phi_in
+    · -- invertibility
+      intro hyp
+      have Mw_X := starInvert M w (X \ {⌈∗a⌉f} ∪ {f}, [inject [a] a f]) hyp
+      intro φ phi_in
       cases em (φ = (⌈∗a⌉f))
       case inl phi_def =>
         subst phi_def
@@ -315,7 +296,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         cases Relation.ReflTransGen.cases_head w_aS_v
         case inl w_is_v =>
           subst w_is_v
-          specialize Mw_X (f)
+          specialize Mw_X f
           simp at Mw_X
           exact Mw_X
         case inr hyp =>
@@ -327,6 +308,26 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         apply Mw_X
         simp
         tauto
+    · -- soundness
+      intro Mw_X
+      apply starSoundness M w (X \ {⌈∗a⌉f} ∪ {f}, [inject [a] a f])
+      intro φ phi_in
+      simp [vDash, undag, modelCanSemImplyDagTabNode, inject] at phi_in
+      cases phi_in
+      · apply Mw_X
+        tauto
+      case inr phi_defs =>
+        specialize Mw_X (⌈∗a⌉f) aSf_in_X
+        cases phi_defs
+        case inl phi_is_f =>
+            subst phi_is_f
+            simp at *
+            exact Mw_X _ Relation.ReflTransGen.refl
+        case inr phi_is_aaSf =>
+            subst phi_is_aaSf
+            simp at *
+            intro v w_a_v z v_a_z
+            exact Mw_X _ (Relation.ReflTransGen.head w_a_v v_a_z)
 
   -- OTHER PDL RULES
   case nTe φ ψ in_X =>
