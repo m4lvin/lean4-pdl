@@ -225,7 +225,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
           simp
           tauto
       case inr hyp =>
-        have := notStarInvertAux M w _ hyp
+        have := notStarInvert M w _ hyp
         simp [vDash, modelCanSemImplyDagTabNode] at hyp
         intro φ phi_in
         cases em (φ = (~⌈∗a⌉f))

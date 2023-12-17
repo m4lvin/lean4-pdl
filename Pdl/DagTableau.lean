@@ -168,13 +168,20 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
     have := starCases v_a_w
     cases this
     case inl v_is_w =>
+      subst v_is_w
       use (fs, some (~φ))
       constructor
       · unfold dagNextTransRefl; rw [ftr.iff]; right; simp; rw [ftr.iff]; simp
       · constructor
         · intro f
           specialize v_D f
-          sorry -- was: aesop
+          intro f_in
+          simp at f_in
+          cases f_in
+          · aesop
+          case inr f_def =>
+            subst f_def
+            apply w_nP
         · right
           aesop
     case inr claim =>
@@ -330,17 +337,40 @@ termination_by
   dagEndNodes fs => mOfDagNode fs
 decreasing_by simp_wf; assumption
 
-theorem dagEnd_subset_next :
-    Ω ∈ dagNext Γ → dagEndNodes Ω ⊆ dagEndNodes Γ := by
-  sorry -- medium?
+theorem dagEnd_iff_none : dagEndNodes (fs, odf) = {fs} ↔ odf = none := by
+  constructor
+  · intro lhs
+    rcases odf with _ | ⟨⟨df⟩⟩
+    · rfl
+    · simp [dagEndNodes] at lhs
+      cases df
+      · simp at *
+        absurd lhs
+        have := Finset.singleton_ne_empty fs
+        aesop
+      case box a df =>
+        cases a
+        all_goals simp at *
+        -- wait, does this actually hold? What if accidentally we have this end node later?
+        absurd lhs
+        have := Finset.singleton_ne_empty fs
+        all_goals sorry
+  · intro def_odf
+    subst def_odf
+    simp [dagEndNodes]
 
--- A normal successor is an endNode.
-theorem dagNormal_is_dagEnd
-    (Γ_in : Γ ∈ dagNextTransRefl S)
-    (Γ_normal : Γ.2 = none)
-    :
-    (Γ.1 ∈ dagEndNodes S) := by
-  sorry -- should be easy
+theorem dagEnd_subset_next
+    (O_in : Ω ∈ dagNext Γ) : dagEndNodes Ω ⊆ dagEndNodes Γ := by
+  intro e
+  rcases Γ with ⟨fs, mdf⟩
+  rcases mdf with none | ⟨df⟩
+  · simp [dagNext] at O_in
+  · intro e_in
+    unfold dagEndNodes
+    simp
+    simp at O_in
+    use Ω.1
+    use Ω.2
 
 theorem dagEnd_subset_trf {Ω Γ} :
     Ω ∈ dagNextTransRefl Γ → dagEndNodes Ω ⊆ dagEndNodes Γ := by
@@ -358,21 +388,83 @@ termination_by
   dagEnd_subset_trf Ω Γ hyp  => mOfDagNode Γ
 decreasing_by simp_wf; apply mOfDagNode.isDec; assumption
 
+-- A normal successor is an endNode.
+theorem dagNormal_is_dagEnd
+    (Γ_in : Γ ∈ dagNextTransRefl S)
+    (Γ_normal : Γ.2 = none)
+    :
+    (Γ.1 ∈ dagEndNodes S) := by
+  have := dagEnd_subset_trf Γ_in
+  apply this
+  rcases Γ with ⟨fs,odf⟩
+  subst Γ_normal
+  simp [dagEndNodes]
+
+theorem notStarInvertAux (M : KripkeModel W) (v : W) S :
+    (∃ Γ ∈ dagNext S, (M, v) ⊨ Γ) → (M, v) ⊨ S := by
+  intro hyp
+  rcases hyp with ⟨Γ, Γ_in, v_Γ⟩
+  rcases S with ⟨fs, none | ⟨⟨df⟩⟩⟩
+  · simp [dagNext] at Γ_in
+  · cases df
+    case box a df =>
+      cases a
+      all_goals (simp at Γ_in; try cases Γ_in; all_goals try subst Γ_in)
+      all_goals (intro f f_in; simp at f_in)
+      case atom_prog =>
+        cases f_in
+        · apply v_Γ; simp at *; tauto
+        case inr hyp => subst hyp; apply v_Γ; simp
+      case sequence a b =>
+        cases f_in
+        · apply v_Γ; simp at *; tauto
+        case inr hyp => subst hyp; specialize v_Γ (~⌈a⌉⌈b⌉(undag df)); aesop
+      case union.inl a b Γ_is =>
+        cases f_in
+        · apply v_Γ; simp at *; aesop
+        case inr hyp => subst hyp; specialize v_Γ (~⌈a⌉(undag df)); aesop
+      case union.inr a b Γ_is =>
+        cases f_in
+        · apply v_Γ; simp at *; aesop
+        case inr hyp => subst hyp; specialize v_Γ (~⌈b⌉(undag df)); aesop
+      case star.inl a Γ_is =>
+        cases f_in
+        · apply v_Γ; simp at *; aesop
+        case inr hyp =>
+          subst hyp; subst Γ_is; specialize v_Γ (undag (~df)); simp at *
+          use v
+      case star.inr a Γ_is =>
+        cases f_in
+        · apply v_Γ; subst Γ_is; simp at *; aesop
+        case inr hyp =>
+          subst hyp; subst Γ_is;
+          specialize v_Γ (~⌈a⌉⌈∗a⌉(undag df))
+          simp at *
+          rcases v_Γ with ⟨x, v_a_x, y, x_aS_y, y_nf⟩
+          use y
+          exact ⟨Relation.ReflTransGen.head v_a_x x_aS_y, y_nf⟩
+      case test.refl g =>
+        cases f_in
+        · apply v_Γ; simp at *; aesop
+        case inr hyp =>
+          subst hyp
+          simp
+          constructor
+          · specialize v_Γ g; aesop
+          · specialize v_Γ (~(undag df)); simp at v_Γ; aesop
+    case dag =>
+      simp [dagNext] at Γ_in
+
 -- Invertibility for nSt
-theorem notStarInvertAux (M : KripkeModel W) (v : W) S
+theorem notStarInvert (M : KripkeModel W) (v : W) S
     :
     (∃ Γ ∈ dagEndNodes S, (M, v) ⊨ Γ) → (M, v) ⊨ S := by
-    rintro ⟨Γ, Γ_in, v_Γ⟩
-    intro f f_in
-    simp at f_in
-    cases f_in
-    ·
-      sorry
-    ·
-      sorry
+  rintro ⟨Γ, Γ_in, v_Γ⟩
+  -- TODO: use notStarInvertAux and recursive calls here!
+  sorry
 -- termination_by
 --   notStarInvert M v S => mOfDagNode S
--- decreasing_by simp_wf; apply mOfDagNode.isDec; sorry -- assumption
+-- decreasing_by simp_wf; apply mOfDagNode.isDec; assumption
 
 
 -- -- -- BOXES -- -- --
