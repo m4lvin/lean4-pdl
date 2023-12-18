@@ -501,7 +501,7 @@ decreasing_by simp_wf; apply mOfDagNode.isDec; sorry -- PROBLEM! Why is "S" no l
 
 def mOfBoxDagNode : (Finset Formula × List DagFormula) → ℕ
   | ⟨_, []⟩ => 0
-  | ⟨_, dfs⟩ => 1 + (dfs.map mOfDagFormula).sum
+  | ⟨_, dfs⟩ => 1 + (dfs.map mOfDagFormula).sum + (dfs.map mOfDagFormula).length
 
 -- Immediate sucessors of a node in a Daggered Tableau, for boxes.
 -- Note that this is still fully deterministic.
@@ -517,7 +517,34 @@ def boxDagNext : (Finset Formula × List DagFormula) → Finset (Finset Formula 
   | (_, []) => { } -- end node of dagger tableau
 
 theorem mOfBoxDagNode.isDec {x y : Finset Formula × List DagFormula} (y_in : y ∈ boxDagNext x) :
-    mOfBoxDagNode y < mOfBoxDagNode x := by sorry
+    mOfBoxDagNode y < mOfBoxDagNode x := by
+  rcases x with ⟨fs, _|⟨df,rest⟩⟩
+  case nil =>
+    simp at y_in
+  case cons =>
+    cases df
+    case dag =>
+      simp at y_in
+      subst y_in
+      cases rest
+      · simp [mOfBoxDagNode]
+      · simp [mOfBoxDagNode] -- added "length" in "mOfBoxDagNode" to solve this.
+    case box a f =>
+          cases a
+          all_goals (simp [boxDagNext] at *)
+          case atom_prog A =>
+            subst y_in; simp [mOfBoxDagNode]; cases rest; all_goals simp
+            sorry -- needs mOfDagFormula > 1
+          case sequence =>
+            subst y_in; simp [mOfBoxDagNode]; linarith
+          case union a b =>
+            subst y_in; simp [mOfBoxDagNode]; sorry -- PROBLEM! linarith fails here, change mOfBoxDagNode above?
+          case star a =>
+            subst y_in; simp [mOfBoxDagNode]; sorry -- PROBLEM: linarith worked before, now broken with "length"
+          case test f =>
+            rcases y_in with l|r
+            subst l; simp [mOfBoxDagNode]; sorry -- same?
+            subst r; simp [mOfBoxDagNode]
 
 @[simp]
 def boxDagNextTransRefl : (Finset Formula × List DagFormula) → Finset (Finset Formula × List DagFormula) :=
