@@ -105,7 +105,12 @@ example : ClosedTableau {r⋀~(□p), r↣□(p⋀q)} :=
     · -- right branch
       -- not:
       apply LocalTableau.byLocalRule (@LocalRule.Not _ r _) emptyTableau
-      sorry -- was: aesop
+      subst h1
+      subst branch_def
+      simp
+      right
+      by_contra hyp
+      contradiction
     · --left branch
       have h2 : b = branch \ {~(r⋀~(□(p⋀q)))} ∪ {~~(□(p⋀q))} := by tauto
       -- neg:
@@ -141,7 +146,11 @@ example : ClosedTableau {r⋀~(□p), r↣□(p⋀q)} :=
         constructor <;> intro hyp
         aesop
         simp (config := {decide := true}) at *
-        sorry
+        rcases hyp with hyp|(hyp|hyp)
+        all_goals (subst hyp ; simp at *)
+        right
+        by_contra
+        contradiction
       subst Yis
       exact subTabForEx2
 
