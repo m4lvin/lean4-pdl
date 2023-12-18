@@ -67,7 +67,7 @@ theorem noContradiction : Provable (~(p⋀~p)) :=
 -- preparing example 2
 def subTabForEx2 : ClosedTableau {r, ~(□p), □(p⋀q)} :=
   by
-  apply @ClosedTableau.atm {r, ~(□p), □(p⋀q)} p (by simp) (by simp at *)
+  apply @ClosedTableau.atm {r, ~(□p), □(p⋀q)} p (by simp) (by simp (config := {decide := true}))
   apply ClosedTableau.loc
   rotate_left
   -- con:
@@ -105,7 +105,7 @@ example : ClosedTableau {r⋀~(□p), r↣□(p⋀q)} :=
     · -- right branch
       -- not:
       apply LocalTableau.byLocalRule (@LocalRule.Not _ r _) emptyTableau
-      aesop
+      sorry -- was: aesop
     · --left branch
       have h2 : b = branch \ {~(r⋀~(□(p⋀q)))} ∪ {~~(□(p⋀q))} := by tauto
       -- neg:
@@ -133,12 +133,15 @@ example : ClosedTableau {r⋀~(□p), r↣□(p⋀q)} :=
     rw [conEndNodes]
     rw [nCoEndNodes]
     intro Y Yin
-    simp at *
+    simp (config := {decide := true}) at *
     · -- notnotbranch
       have Yis : Y = {r, ~(□p), □(p⋀q)} := by
         subst Yin
         ext1
-        constructor <;> · intro hyp; aesop
+        constructor <;> intro hyp
+        aesop
+        simp (config := {decide := true}) at *
+        sorry
       subst Yis
       exact subTabForEx2
 

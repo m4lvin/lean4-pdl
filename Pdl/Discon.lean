@@ -131,40 +131,7 @@ theorem disconAnd {XS YS} : discon (XS ⊎ YS) ≡ discon XS ⋀ discon YS :=
   simp
   rw [disconEval XS (by rfl)]
   rw [disconEval YS (by rfl)]
-  constructor
-  · -- →
-    intro lhs
-    rcases lhs with ⟨XY, ⟨X, ⟨X_in, ⟨Y, Y_in, X_Y_is_XY⟩⟩⟩, satXY⟩
-    rw [← X_Y_is_XY] at satXY
-    simp at satXY
-    constructor
-    · use X
-      constructor
-      use X_in
-      intro f f_in
-      apply satXY
-      tauto
-    · use Y
-      constructor
-      use Y_in
-      intro f f_in
-      apply satXY
-      tauto
-  · -- ←
-    intro rhs
-    rcases rhs with ⟨⟨X, X_in, satX⟩, ⟨Y, Y_in, satY⟩⟩
-    use X ++ Y
-    constructor
-    · use X
-      constructor
-      · assumption
-      · use Y
-    intro f
-    intro f_in
-    simp at f_in
-    cases' f_in with f_in_X f_in_Y -- TODO: nicer match syntax?
-    · apply satX f f_in_X
-    · apply satY f f_in_Y
+  aesop
 
 theorem disconOr {XS YS} : discon (XS ∪ YS) ≡ discon XS ⋁ discon YS :=
   by

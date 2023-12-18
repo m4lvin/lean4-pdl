@@ -2,3 +2,4 @@
 /lakefile.olean
 /lake-packages/*
 .first-run-done
+.lake

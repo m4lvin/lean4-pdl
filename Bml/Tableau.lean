@@ -78,7 +78,7 @@ theorem projection_set_length_leq : ∀ X, lengthOfSet (projection X) ≤ length
   by
   intro X
   induction X using Finset.induction_on
-  · simp
+  · simp [projection]
   case insert f S f_not_in_S IH =>
     unfold lengthOfSet
     rw [Finset.sum_insert f_not_in_S]

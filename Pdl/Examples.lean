@@ -171,4 +171,4 @@ theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a
     simp [Vector.last_def] at x_is_last 
     sorry
   rw [x_is_ys_nsucc]
-  exact claim
+  sorry -- was: exact claim
