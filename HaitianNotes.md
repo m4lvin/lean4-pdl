@@ -4,6 +4,8 @@
 ```
 make clean
 make
+
+elan default leanprover/lean4:v4.4.0-rc1
 ```
 
 
