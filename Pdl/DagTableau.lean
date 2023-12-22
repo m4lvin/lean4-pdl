@@ -8,24 +8,24 @@ import Pdl.Star
 import Pdl.Closure
 
 inductive DagFormula : Type
-  | dag : Program → Formula → DagFormula -- ⌈a†⌉f
-  | box : Program → DagFormula → DagFormula  -- ⌈a⌉df
+  | dag : Program → Formula → DagFormula -- ⌈α†⌉φ
+  | box : Program → DagFormula → DagFormula  -- ⌈α⌉ψ
   deriving Repr, DecidableEq
 
 @[simp]
 def DagFormula.boxes : List Program → DagFormula → DagFormula
-  | [], f => f
-  | (p :: ps), f => DagFormula.box p (DagFormula.boxes ps f)
+  | [], ψ => ψ
+  | (α :: rest), ψ => DagFormula.box α (DagFormula.boxes rest ψ)
 
 inductive NegDagFormula : Type
   | neg : DagFormula → NegDagFormula
   deriving Repr, DecidableEq
 
-local notation "⌈" a "†⌉" f => DagFormula.dag a f
-local notation "⌈" a "⌉" df => DagFormula.box a df
+local notation "⌈" α "†⌉" φ => DagFormula.dag α φ
+local notation "⌈" α "⌉" ψ => DagFormula.box α ψ
 local notation "⌈⌈" ps "⌉⌉" df => DagFormula.boxes ps df
 
-local notation "~" df => NegDagFormula.neg df
+local notation "~" ψ => NegDagFormula.neg ψ
 
 -- Borzechowski's function "f".
 class Undag (α : Type) where
@@ -35,21 +35,21 @@ open Undag
 
 @[simp]
 def undagDagFormula
-  | (⌈a†⌉f) => (Formula.box (∗a) f)
-  | (⌈p⌉df) => (Formula.box p (undagDagFormula df))
+  | (⌈α†⌉f) => (Formula.box (∗α) f)
+  | (⌈α⌉df) => (Formula.box α (undagDagFormula df))
 
 @[simp]
 instance UndagDagFormula : Undag DagFormula := Undag.mk undagDagFormula
 
 @[simp]
 def undagNegDagFormula : NegDagFormula → Formula
-  | (~ df) => ~ undag df
+  | (~ ψ) => ~ undag ψ
 @[simp]
 instance UndagNegDagFormula : Undag NegDagFormula := Undag.mk undagNegDagFormula
 
 @[simp]
 def inject : List Program → Program → Formula → DagFormula
-  | ps, a, f => (DagFormula.boxes ps (DagFormula.dag a f))
+  | ps, α, φ => (DagFormula.boxes ps (DagFormula.dag α φ))
 
 @[simp]
 theorem undag_boxes : undagDagFormula (⌈⌈ps⌉⌉df) = ⌈⌈ps⌉⌉(undag df) :=
@@ -60,7 +60,7 @@ theorem undag_boxes : undagDagFormula (⌈⌈ps⌉⌉df) = ⌈⌈ps⌉⌉(undag 
   apply undag_boxes
 
 @[simp]
-lemma undag_inject {f} : undag (inject ps a f) = (⌈⌈ps⌉⌉(⌈∗ a⌉f)) :=
+lemma undag_inject {φ} : undag (inject ps α φ) = (⌈⌈ps⌉⌉(⌈∗ α⌉φ)) :=
   by
   simp
 
@@ -68,28 +68,26 @@ lemma undag_inject {f} : undag (inject ps a f) = (⌈⌈ps⌉⌉(⌈∗ a⌉f)) 
 @[simp]
 def mOfDagFormula : DagFormula → Nat
   | ⌈_†⌉_ => 0 -- TO CHECK: is this correct?
-  | ⌈a⌉df => mOfProgram a + mOfDagFormula df
+  | ⌈α⌉ψ => mOfProgram α + mOfDagFormula ψ
 
-@[simp]
-def mOfNegDagFormula : NegDagFormula → Nat
-  | ~df => mOfDagFormula df
+instance : LT DagFormula := ⟨λ ψ1 ψ2 => mOfDagFormula ψ1 < mOfDagFormula ψ2⟩
 
 def mOfDagNode : Finset Formula × Option NegDagFormula → ℕ
   | ⟨_, none⟩ => 0
-  | ⟨_, some df⟩ => 1 + mOfNegDagFormula df
+  | ⟨_, some (~ψ)⟩ => 1 + mOfDagFormula ψ
 
 -- -- -- DIAMONDS -- -- --
 
 -- Immediate sucessors of a node in a Daggered Tableau, for diamonds.
 @[simp]
 def dagNext : (Finset Formula × Option NegDagFormula) → Finset (Finset Formula × Option NegDagFormula)
-  | (fs, some (~⌈·A⌉df)) => { (fs ∪ {undag (~⌈·A⌉df)}, none) }
-  | (fs, some (~⌈α⋓β⌉df)) => { (fs, some (~⌈α⌉df))
-                            , (fs, some (~⌈β⌉df)) }
-  | (fs, some (~⌈?'ψ⌉df)) => { (fs ∪ {ψ}, some (~df)) }
-  | (fs, some (~⌈α;'β⌉df)) => { (fs, some (~⌈α⌉⌈β⌉df)) }
-  | (fs, some (~⌈∗α⌉df)) => { (fs, some (~df))
-                            , (fs, some (~⌈α⌉⌈α†⌉(undag df))) } -- only keep top-most dagger
+  | (fs, some (~⌈·a⌉ψ)) => { (fs ∪ {undag (~⌈·a⌉ψ)}, none) }
+  | (fs, some (~⌈α⋓β⌉ψ)) => { (fs, some (~⌈α⌉ψ))
+                            , (fs, some (~⌈β⌉ψ)) }
+  | (fs, some (~⌈?'φ⌉ψ)) => { (fs ∪ {φ}, some (~ψ)) }
+  | (fs, some (~⌈α;'β⌉ψ)) => { (fs, some (~⌈α⌉⌈β⌉ψ)) }
+  | (fs, some (~⌈∗α⌉ψ)) => { (fs, some (~ψ))
+                            , (fs, some (~⌈α⌉⌈α†⌉(undag ψ))) } -- only keep top-most dagger
   | (_, some (~⌈_†⌉_)) => {  } -- delete branch
   | (_, none) => { } -- end node of dagger tableau
 
