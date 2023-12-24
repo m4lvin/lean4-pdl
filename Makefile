@@ -13,7 +13,7 @@ bml: .first-run-done
 	touch .first-run-done
 
 clean:
-	rm -rf .first-run-done lake-packages build lakefile.olean
+	rm -rf .first-run-done lake-packages .lake build lakefile.olean
 
 
 # From https://leanprover.zulipchat.com/#narrow/stream/270676-lean4/topic/Invalid.20lake.20configuration/near/405630149
