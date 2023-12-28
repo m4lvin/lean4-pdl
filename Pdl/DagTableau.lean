@@ -70,6 +70,7 @@ def mOfDagFormula : DagFormula → Nat
   | ⌈_†⌉_ => 0 -- TO CHECK: is this correct?
   | ⌈α⌉ψ => mOfProgram α + mOfDagFormula ψ
 
+@[simp]
 instance : LT DagFormula := ⟨λ ψ1 ψ2 => mOfDagFormula ψ1 < mOfDagFormula ψ2⟩
 
 def mOfDagNode : Finset Formula × Option NegDagFormula → ℕ
@@ -497,9 +498,48 @@ decreasing_by simp_wf; apply mOfDagNode.isDec; sorry -- PROBLEM! Why is "S" no l
 
 -- Here we need a List DagFormula, because of the ⋓ rule.
 
-def mOfBoxDagNode : (Finset Formula × List DagFormula) → ℕ
-  | ⟨_, []⟩ => 0
-  | ⟨_, dfs⟩ => 1 + (dfs.map mOfDagFormula).sum + (dfs.map mOfDagFormula).length
+-- Dershowitz-Manna ordering for Lists
+-- (It is usually defined on multisets, but works for lists too because
+-- count, i.e. number of occurrences, is invariant under permutation.)
+
+@[simp]
+def dm (α) := List α
+
+@[simp]
+def to_dm {α} (s : List α) : dm α := s
+
+-- This is the standard definition ...
+-- originally formalized in Lean 3 by Pedro Minicz
+-- https://gist.github.com/b-mehta/ee89376db987b749bd5120a2180ce3df
+--
+-- @[simp]
+-- instance {α : Type u} [DecidableEq α] [LT α] : LT (dm α) :=
+--   { lt := λ M N =>
+--     ∃ (X Y : List α),
+--       X ≠ ∅
+--       ∧ (X : List α) ≤ (N : List α)
+--       ∧ M = (N.diff X) ++ Y
+--       ∧ ∀ y ∈ Y, ∃ x ∈ X, y < x }
+--
+-- ... but we use the alternative by Huet and Oppen:
+@[simp]
+instance {α : Type u} [DecidableEq α] [LT α] : LT (dm α) :=
+  { lt := λ M N =>  -- M < N iff ...
+      M ≠ N
+    ∧ ∀ ψ_y, -- for all y
+      M.count ψ_y > N.count ψ_y → -- M(y) > N(y) implies there is an x > y
+        ∃ ψ_x, ψ_y < ψ_x ∧ M.count ψ_x < N.count ψ_x } -- M(x) < N(x)
+
+-- The standard result about the Dershowitz–Manna ordering.
+-- Someone should get this into Mathlib.
+theorem wf_dm {α : Type u} [DecidableEq α] [LT α]
+    (t :  WellFoundedLT α) :
+    WellFounded ((LT.lt) : dm α → dm α → Prop) := by
+  sorry
+
+instance [DecidableEq α] [LT α] (t : WellFoundedLT α) : IsWellFounded (dm α) (LT.lt) := by
+  constructor
+  exact wf_dm t
 
 -- Immediate sucessors of a node in a Daggered Tableau, for boxes.
 -- Note that this is still fully deterministic.
@@ -514,39 +554,91 @@ def boxDagNext : (Finset Formula × List DagFormula) → Finset (Finset Formula 
   | (fs, (⌈_†⌉_)::rest) => { (fs, rest) } -- delete formula, but keep branch!
   | (_, []) => { } -- end node of dagger tableau
 
-theorem mOfBoxDagNode.isDec {x y : Finset Formula × List DagFormula} (y_in : y ∈ boxDagNext x) :
-    mOfBoxDagNode y < mOfBoxDagNode x := by
-  rcases x with ⟨fs, _|⟨df,rest⟩⟩
+theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : Γ ∈ boxDagNext Δ) :
+    to_dm Γ.2 < to_dm Δ.2 := by
+  rcases Δ with ⟨fs, _|⟨df,rest⟩⟩
   case nil =>
-    simp at y_in
+    simp at Γ_in
   case cons =>
     cases df
-    case dag =>
-      simp at y_in
-      subst y_in
-      cases rest
-      · simp [mOfBoxDagNode]
-      · simp [mOfBoxDagNode] -- added "length" in "mOfBoxDagNode" to solve this.
-    case box a f =>
-          cases a
-          all_goals (simp [boxDagNext] at *)
-          case atom_prog A =>
-            subst y_in; simp [mOfBoxDagNode]; cases rest; all_goals simp
-            sorry -- needs mOfDagFormula > 1
-          case sequence =>
-            subst y_in; simp [mOfBoxDagNode]; linarith
-          case union a b =>
-            subst y_in; simp [mOfBoxDagNode]; sorry -- PROBLEM! linarith fails here, change mOfBoxDagNode above?
-          case star a =>
-            subst y_in; simp [mOfBoxDagNode]; sorry -- PROBLEM: linarith worked before, now broken with "length"
-          case test f =>
-            rcases y_in with l|r
-            subst l; simp [mOfBoxDagNode]; sorry -- same?
-            subst r; simp [mOfBoxDagNode]
+    case dag α φ =>
+      simp at Γ_in
+      subst Γ_in
+      simp
+      constructor
+      · apply Ne.symm
+        apply List.cons_ne_self
+      · intro ψ_y countclaim
+        simp [List.count_cons] at countclaim
+    case box a ψ =>
+      cases a
+      all_goals (simp at *; try subst Γ_in)
+      case atom_prog A =>
+        simp
+        constructor
+        · apply Ne.symm
+          apply List.cons_ne_self
+        · intro ψ_y countclaim
+          simp [List.count_cons] at countclaim
+      case sequence α β =>
+        simp
+        constructor
+        · intro α_def
+          sorry -- use that α (or ψ) cannot contain itself
+        · intro ψ_y countclaim
+          simp [List.count_cons] at countclaim
+          have : ψ_y = ⌈α⌉⌈β⌉ψ := by sorry -- use countclaim
+          subst this
+          use ⌈α;'β⌉ψ
+          simp [List.count_cons] at *
+          constructor
+          · linarith
+          · tauto
+      case union α β =>
+        simp
+        constructor
+        · intro α_def
+          sorry -- use that α (or ψ) cannot contain itself
+        · intro ψ_y countclaim
+          simp [List.count_cons] at countclaim
+          have : (ψ_y = ⌈α⌉ψ) ∨ (ψ_y = ⌈β⌉ψ)  := by sorry -- use countclaim
+          cases this
+          all_goals (rename_i h; subst h; use ⌈α ⋓ β⌉ψ; simp [List.count_cons] at *)
+          · constructor
+            · linarith
+            · sorry -- use non-self-containing and linarith
+          · constructor
+            · linarith
+            · sorry -- use non-self-containing and linarith
+      case star α =>
+        simp
+        constructor
+        · intro α_def
+          apply List.cons_ne_self
+        · intro ψ_y countclaim
+          simp [List.count_cons] at countclaim
+          have : (ψ_y = ψ) ∨ (ψ_y = ⌈α⌉⌈α†⌉(undag ψ)) := by sorry -- use countclaim
+          cases this
+          all_goals (rename_i h; use ⌈∗α⌉ψ; subst h; simp [List.count_cons] at *)
+          · sorry -- use non-self-containing and linarith
+          · constructor
+            · linarith
+            · sorry -- use non-self-containing and linarith
+      case test f =>
+        cases Γ_in
+        all_goals (rename_i h; subst h; simp [List.count_cons] at *)
+        · apply Ne.symm
+          apply List.cons_ne_self
+        · sorry  -- use non-self-containing and linarith
+
+-- idea: replace use of "ftr" below with a relation like this:
+-- def boxDagNextRel : (Finset Formula × List DagFormula) → (Finset Formula × List DagFormula) → Prop :=
+-- NICE: can then use more stuff from Mathlib?
+-- BAD: finset of successors no longer computable / easy to get?
 
 @[simp]
 def boxDagNextTransRefl : (Finset Formula × List DagFormula) → Finset (Finset Formula × List DagFormula) :=
-  ftr boxDagNext instDecidableEqProd mOfBoxDagNode @mOfBoxDagNode.isDec
+  ftr boxDagNext instDecidableEqProd sorry sorry -- TODO to_dm @mOfBoxDagNode.isDec
 
 instance modelCanSemImplyBoxDagTabNode {W : Type} : vDash (KripkeModel W × W) (Finset Formula × List DagFormula) :=
   vDash.mk (λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ∪ (mf.map undag).toFinset, evaluate M w φ)
@@ -555,11 +647,11 @@ def boxDagEndNodes : (Finset Formula × List DagFormula) → Finset (Finset Form
   | (fs, []) => { fs }
   | (fs, df::rest) => (boxDagNext (fs, df::rest)).attach.biUnion
       (fun ⟨gsdf, h⟩ =>
-        have : mOfBoxDagNode gsdf < mOfBoxDagNode (fs, df::rest) := mOfBoxDagNode.isDec h
+        -- have := boxDagNextDMisDec h
         boxDagEndNodes gsdf)
 termination_by
-  boxDagEndNodes fs => mOfBoxDagNode fs
-decreasing_by simp_wf; assumption
+   boxDagEndNodes fs => to_dm fs.2
+decreasing_by simp_wf; sorry -- assumption -- False, maybe not picking up the dm instance above?
 
 theorem boxDagEnd_subset_next
     (O_in : Ω ∈ boxDagNext Γ) : boxDagEndNodes Ω ⊆ boxDagEndNodes Γ := by
@@ -587,8 +679,9 @@ theorem boxDagEnd_subset_trf {Ω Γ} :
     have := boxDagEnd_subset_trf O_in
     tauto
 termination_by
-  boxDagEnd_subset_trf Ω Γ hyp  => mOfBoxDagNode Γ
-decreasing_by simp_wf; apply mOfBoxDagNode.isDec; assumption
+  boxDagEnd_subset_trf Ω Γ hyp => to_dm Γ.2
+decreasing_by simp_wf; sorry -- apply boxDagNextDMisDec; assumption
+
 
 -- A normal successor in a box dagger tableau is an end node.
 theorem boxDagNormal_is_dagEnd
