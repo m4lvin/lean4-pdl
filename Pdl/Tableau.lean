@@ -12,6 +12,8 @@ import Pdl.DagTableau -- replaces Pdl.Unravel
 
 open Undag
 
+open HasLength
+
 -- HELPER FUNCTIONS
 
 @[simp]
@@ -558,7 +560,7 @@ inductive LocalTableau : Finset Formula → Type
 
 open LocalTableau
 
-open HasLength
+-- LOCAL END NODES AND TERMINATION
 
 -- needed for endNodesOf
 instance localTableauHasSizeof : SizeOf (Σ X, LocalTableau X) :=
@@ -613,6 +615,39 @@ theorem projSet : projection A X = {ϕ | (⌈·A⌉ϕ) ∈ X} :=
   ext1
   simp
 
+-- LOADED FORMULAS
+-- Hopefully equivalent to the ^marking mechanism used by MB.
+
+-- Loaded formulas consist of a negation, a sequence of loading boxes and then a normal formula.
+-- For loading boxes we write ⌊α⌋ instead of ⌈α⌉.
+
+inductive LoadFormula : Type -- χ
+  | load : Program → Formula → LoadFormula -- ⌊α⌋φ
+  | box : Program → LoadFormula → LoadFormula -- ⌊α⌋χ
+  deriving Repr, DecidableEq
+
+inductive NegLoadFormula : Type
+  | neg : LoadFormula → NegLoadFormula
+
+notation "⌊" α "⌋" φ => LoadFormula.load α φ
+notation "⌊" α "⌋" χ => LoadFormula.box α χ
+notation "~" χ => NegLoadFormula.neg χ
+
+#check (~(⌊((·'a') ;' (·'b'))⌋⊤) : NegLoadFormula)
+
+def unload : LoadFormula → Formula
+| LoadFormula.load α φ => ⌈α⌉φ
+| LoadFormula.box α χ => ⌈α⌉(unload χ)
+
+-- A formula in a tableau is either a normal formula or a NegLoadFormula
+def TForm := Sum Formula NegLoadFormula
+
+-- But wait, only one formula can ever be loaded, right?
+-- Then we can use something likes this maybe?
+def TNode := Finset Formula × Option NegLoadFormula
+
+-- Formulas in a tableau are left or right
+
 -- TABLEAUX
 
 -- Definition 16, page 29
@@ -620,7 +655,7 @@ theorem projSet : projection A X = {ϕ | (⌈·A⌉ϕ) ∈ X} :=
 -- If more general, do we want an "open" constructor with(out) arguments/proofs?
 inductive ClosedTableau : List (Finset Formula) → Finset Formula → Type
   | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf ⟨X, lt⟩, ClosedTableau Hist Y) → ClosedTableau Hist X
-  | atm {A X ϕ} : (~⌈·A⌉ϕ) ∈ X → Simple X → ClosedTableau (X :: Hist) (projection A X ∪ {~ϕ}) → ClosedTableau Hist X
+  | atm {A X φ} : (~⌈·A⌉φ) ∈ X → Simple X → ClosedTableau (X :: Hist) (projection A X ∪ {~φ}) → ClosedTableau Hist X
   | repeat {X} : X ∈ Hist → ClosedTableau Hist X
 
 inductive Provable : Formula → Prop
