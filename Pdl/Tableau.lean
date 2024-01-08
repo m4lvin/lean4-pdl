@@ -8,17 +8,26 @@ import Pdl.Measures
 import Pdl.Setsimp
 import Pdl.Semantics
 import Pdl.Discon
-import Pdl.DagTableau -- replaces Pdl.Unravel
+import Pdl.DagTableau
 
 open Undag
 
 open HasLength
 
--- HELPER FUNCTIONS
+-- TABLEAU nodes
 
-@[simp]
-def listsToSets : List (List Formula) → Finset (Finset Formula)
-| LS => (LS.map List.toFinset).toFinset
+-- A tableau node has a set of formulas and one or no negated loaded formula.
+def TNode := Finset Formula × Option NegLoadFormula -- ⟨X,o⟩
+  deriving DecidableEq -- TODO Repr
+
+instance modelCanSemImplyTNode {W : Type} : vDash (KripkeModel W × W) TNode :=
+  vDash.mk (λ ⟨M,w⟩ ⟨X, o⟩ => ∀ f ∈ X ∪ (o.map negUnload).toFinset, @evaluate W M w f)
+
+-- Some thoughts about the TNode type:
+-- - one formula may be loaded
+-- - loading is not changed in local tableaux, but must be tracked through it.
+-- - each (loaded) formula is left/right/both --> annotation or actually have two sets X1 and X2 here?
+-- - also need to track loading and side "through" dagger tableau. (loading only for diamond dagger?)
 
 -- LOCAL TABLEAU
 
@@ -26,37 +35,59 @@ def listsToSets : List (List Formula) → Finset (Finset Formula)
 -- A set X is closed  iff  0 ∈ X or X contains a formula and its negation.
 def Closed : Finset Formula → Prop := fun X => ⊥ ∈ X ∨ ∃ f ∈ X, (~f) ∈ X
 
--- Local rules: given this set, we get these sets as child nodes
-inductive localRule : Finset Formula → Finset (Finset Formula) → Type
+-- Local rules: given this node, we get these child nodes
+-- (In Haskell this is "ruleFor" in Logic.PDL.Prove.Tree.)
+inductive localRule : TNode → Finset TNode → Type -- use List TNode ?!
   -- PROP LOGIC
   -- closing rules:
-  | bot {X    } (h : (⊥ : Formula) ∈ X) : localRule X ∅
-  | not {X φ  } (h : φ ∈ X ∧ (~φ) ∈ X) : localRule X ∅
+  | bot {X o  } (h : (⊥ : Formula) ∈ X) : localRule ⟨X,o⟩ ∅
+  | not {X o φ} (h : φ ∈ X ∧ (~φ) ∈ X) : localRule ⟨X,o⟩ ∅
   -- one-child rules:
-  | neg {X φ  } (h : (~~φ)      ∈ X) : localRule X { X \ {~~φ}    ∪ {φ}   }
-  | con {X φ ψ} (h : φ ⋀ ψ      ∈ X) : localRule X { X \ {φ⋀ψ}    ∪ {φ,ψ} }
+  | neg {X o φ} (h : (~~φ)   ∈ X) : localRule ⟨X,o⟩ { (X \ {~~φ} ∪ {φ},o) }
+  | con {X o φ ψ} (h : φ ⋀ ψ ∈ X) : localRule ⟨X,o⟩ { ⟨X \ {φ⋀ψ}    ∪ {φ,ψ},o⟩ }
   -- splitting rule:
-  | nCo {X φ ψ} (h : (~(φ ⋀ ψ)) ∈ X) : localRule X { X \ {~(φ⋀ψ)} ∪ {~φ}
-                                                   , X \ {~(φ⋀ψ)} ∪ {~ψ}  }
+  | nCo {X o φ ψ} (h : (~(φ ⋀ ψ)) ∈ X) : localRule ⟨X,o⟩ { (X \ {~(φ⋀ψ)} ∪ {~φ}, o)
+                                                         , (X \ {~(φ⋀ψ)} ∪ {~ψ}, o) }
   -- PROGRAMS
-  -- Single-branch rules:
-  | nTe {X φ ψ} (h : (~⌈?'φ⌉ψ) ∈ X) : localRule X { X \ {~⌈?'φ⌉ψ} ∪ {φ, ~ψ} } -- TODO should remove marking ?
-  | nSe {X a b f} (h : (~⌈a;'b⌉f) ∈ X) : localRule X { X \ {~⌈a;'b⌉f} ∪ {~⌈a⌉⌈b⌉f} }
-  | uni {X a b f} (h : (⌈a⋓b⌉f) ∈ X) : localRule X { X \ {⌈a⋓b⌉f} ∪ {⌈a⌉ f, ⌈b⌉ f} }
-  | seq {X a b f} (h : (⌈a;'b⌉f) ∈ X) : localRule X { X \ {⌈a;'b⌉f} ∪ {⌈a⌉⌈b⌉f} }
-  -- Splitting rules:
-  | tes {X f g} (h : (⌈?'f⌉g) ∈ X) : localRule X { X \ {⌈?'f⌉g} ∪ {~f}
-                                                 , X \ {⌈?'f⌉g} ∪ {g} }
-  | nUn {a b f} (h : (~⌈a⋓b⌉f) ∈ X) : localRule X { X \ {~⌈a ⋓ b⌉f} ∪ {~⌈a⌉f}
-                                                    , X \ {~⌈a ⋓ b⌉f} ∪ {~⌈b⌉f} }
+  -- one-child rules:
+  | nTe {X o φ ψ}   (h : (~⌈?'φ⌉ψ)  ∈ X) : localRule ⟨X,o⟩ { ⟨X \ {~⌈?'φ⌉ψ}  ∪ {φ, ~ψ}, o⟩ }
+  | nSe {X o a b f} (h : (~⌈a;'b⌉f) ∈ X) : localRule ⟨X,o⟩ { ⟨X \ {~⌈a;'b⌉f} ∪ {~⌈a⌉⌈b⌉f}, o⟩ }
+  | uni {X o a b f} (h : (⌈a⋓b⌉f)   ∈ X) : localRule ⟨X,o⟩ { ⟨X \ {⌈a⋓b⌉f}   ∪ {⌈a⌉f, ⌈b⌉f}, o⟩ }
+  | seq {X o a b f} (h : (⌈a;'b⌉f)  ∈ X) : localRule ⟨X,o⟩ { ⟨X \ {⌈a;'b⌉f}  ∪ {⌈a⌉⌈b⌉f}, o⟩ }
+  -- splitting rules:
+  | tes {X o f g} (h : (⌈?'f⌉g) ∈ X) : localRule ⟨X,o⟩ { ⟨ (X \ {⌈?'f⌉g} ∪ {~f}), o⟩
+                                                       , ⟨ (X \ {⌈?'f⌉g} ∪ { g}), o⟩ }
+  | nUn {X o a b f} (h : (~⌈a⋓b⌉f) ∈ X) : localRule ⟨X,o⟩ { ⟨X \ {~⌈a ⋓ b⌉f} ∪ {~⌈a⌉f}, o⟩
+                                                          , ⟨X \ {~⌈a ⋓ b⌉f} ∪ {~⌈b⌉f}, og⟩ }
   -- STAR
   -- NOTE: we "manually" already make the first unravel/dagger step here to satisfy the (Neg)DagFormula type.
-  | sta {X a f} (h : (⌈∗a⌉f) ∈ X) : localRule X (boxDagEndNodes (X \ {⌈∗a⌉f} ∪ {f}, [ inject [a] a f ]))
-  | nSt {a f}  (h : (~⌈∗a⌉f) ∈ X) : localRule X ( { X \ {~⌈∗a⌉f} ∪ {~f} }
-                                                ∪ dagEndNodes (X \ {~⌈∗a⌉f}, NegDagFormula.neg (inject [a] a f)))
+  -- For * and ¬* on non-loaded formulas we keep o in the context as it is, by adding it to results (box)dagEndNodes.
+  | sta {X o a f} (h :  (⌈∗a⌉f) ∈ X) : localRule ⟨X,o⟩
+                                       ((boxDagEndNodes (X \ {⌈∗a⌉f} ∪ {f}, [ inject [a] a f ])).image (λ X => ⟨X,o⟩))
+  | nSt {X o a f} (h : (~⌈∗a⌉f) ∈ X) : localRule ⟨X,o⟩
+                                       ( { ⟨X \ {~⌈∗a⌉f} ∪ {~f}, o⟩ }
+                                         ∪ (dagEndNodes (X \ {~⌈∗a⌉f}, NegDagFormula.neg (inject [a] a f))).image (λ X => ⟨X,o⟩) )
 
-  -- TODO which rules need and modify markings?
-  -- TODO only apply * if there is a marking.
+  -- LOADED rule applications
+  -- Only the local rules ¬u, ¬; ¬* and ¬? may be applied to loaded formulas (MB page 19).
+  -- It's annoying to need each rule twice here (due to the definition of LoadFormula).
+  | nUn' {X a b χ} : localRule ⟨X, some (~'⌊a⋓b⌋(χ : LoadFormula))⟩ { ⟨X, some (~'⌊α⌋χ)⟩
+                                                                    , ⟨X, some (~'⌊β⌋χ)⟩ }
+  | nUn'' {X a b φ} : localRule ⟨X, some (~'⌊a⋓b⌋(φ : Formula   ))⟩ { ⟨X, some (~'⌊α⌋φ)⟩
+                                                                    , ⟨X, some (~'⌊β⌋φ)⟩ }
+
+  | nSe'  {X a b χ} : localRule ⟨X, some (~'⌊a;'b⌋(χ : LoadFormula))⟩ { ⟨X, (~'⌊a⌋⌊b⌋χ)⟩ }
+  | nSe'' {X a b φ} : localRule ⟨X, some (~'⌊a;'b⌋(φ : Formula    ))⟩ { ⟨X, (~'⌊a⌋⌊b⌋φ)⟩ }
+
+  | nSt' {X a χ} : localRule ⟨X, some (~'⌊∗a⌋(χ : LoadFormula))⟩ ( { ⟨X, some (~'χ)⟩ }
+                                                 ∪ sorry )
+                                                 -- TODO: Need dagger diamond tableau for loaded formula.
+                                                 -- dagEndNodes (X, NegDagFormula.neg (inject [a] a f)))
+  | nSt'' {X a φ} : localRule ⟨X, some (~'⌊∗a⌋(φ : Formula))⟩ ( { ⟨X ∪ {~φ}, none⟩ }
+                                                 ∪ sorry )
+
+  | nTe'  {X φt χ} : localRule ⟨X, some (~'⌊?'φt⌋(χ : LoadFormula))⟩ { ⟨X ∪ {φt}    ,  ~'χ⟩ }
+  | nTe'' {X φt φ} : localRule ⟨X, some (~'⌊?'φt⌋(φ : Formula    ))⟩ { ⟨X ∪ {φt, ~φ}, none⟩ }
 
 -- Like Lemma 5 of MB
 lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
@@ -64,30 +95,20 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
   by
   intro locR
   cases locR
-  all_goals try simp only [Finset.mem_singleton, Finset.union_insert, Finset.mem_union, Finset.mem_sdiff, Finset.not_mem_empty]
+  all_goals simp at * -- only [Finset.mem_singleton, Finset.union_insert, Finset.mem_union, Finset.mem_sdiff, Finset.not_mem_empty]
   -- PROPOSITIONAL LOGIC
   case bot bot_in_a =>
-    constructor
-    · intro ⟨_, Y_in, _⟩; simp at Y_in
-    · intro w_sat_a
-      by_contra
-      let w_sat_bot := w_sat_a ⊥ bot_in_a
-      simp at w_sat_bot
+      intro w_sat_a
+      specialize w_sat_a ⊥
+      aesop
   case not f hyp =>
-    constructor
-    · intro ⟨_, fls, _⟩
-      exfalso
-      exact fls
-    · intro w_sat_a
-      by_contra
-      have w_sat_f : evaluate M w f := w_sat_a f hyp.left
-      have w_sat_not_f : evaluate M w (~f) :=  w_sat_a (~f) hyp.right
-      simp at w_sat_not_f
-      exact absurd w_sat_f w_sat_not_f
+      intro w_sat_a
+      have := w_sat_a f (by simp at *; tauto)
+      have := w_sat_a (~f) (by simp at *; tauto)
+      aesop
   case neg f hyp =>
     constructor
-    · simp
-      intro lhs g g_in
+    · intro lhs g g_in
       cases em (g = (~~f))
       case inl g_is_notnotf =>
         subst g_is_notnotf
@@ -98,28 +119,17 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         specialize lhs g
         simp at lhs
         apply lhs
-        left
-        exact ⟨g_in,g_is_not_notnotf⟩
+        aesop
     · intro w_sat_a
       have w_sat_f : evaluate M w f :=
         by
-        specialize w_sat_a (~~f) hyp
-        simp at w_sat_a
-        exact w_sat_a
-      use X \ {~~f} ∪ {f}
-      simp
-      intro g
-      simp
-      intro g_in
-      cases g_in
-      case inl hyp =>
-        apply w_sat_a
-        exact hyp.left
-      case inr g_is_f => subst g_is_f; exact w_sat_f
+        specialize w_sat_a (~~f)
+        aesop
+      intro g g_in
+      aesop
   case con f g hyp =>
     constructor
-    · simp
-      intro lhs h h_in
+    · intro lhs h h_in
       cases em (h = f⋀g)
       case inl h_is_fandg =>
         subst h_is_fandg
@@ -130,33 +140,30 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         specialize lhs h
         simp at lhs
         apply lhs
-        right
-        left
-        exact ⟨h_in, h_is_not_fandg⟩
+        aesop
     · intro w_sat_a
-      use X \ {f⋀g} ∪ {f, g}
-      simp
-      intro h
-      simp
-      intro h_in
+      intro h h_in
+      simp at h_in
       cases h_in
       case inl h_is_f =>
         rw [h_is_f]
-        specialize w_sat_a (f⋀g) hyp
-        simp at w_sat_a
-        exact w_sat_a.left
+        specialize w_sat_a (f⋀g)
+        aesop
       case inr whatever =>
         cases whatever
-        case inr h_is_g =>
-          rw [h_is_g]
-          specialize w_sat_a (f⋀g) hyp
-          simp at w_sat_a
-          exact w_sat_a.right
-        case inl h_in_X => exact w_sat_a h h_in_X.left
+        case inr hyp =>
+          cases hyp
+          case inl h_is_g =>
+            rw [h_is_g]
+            specialize w_sat_a (f⋀g)
+            aesop
+          case inr h_in_o =>
+            apply w_sat_a
+            aesop
+        case inl h_in_X => apply w_sat_a h; aesop
   case nCo f g notfandg_in_a =>
     constructor
-    · simp
-      intro lhs h h_in
+    · intro lhs h h_in
       cases em (h = (~(f⋀g)))
       case inl h_is_notforg =>
         subst h_is_notforg
@@ -178,37 +185,23 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         simp at this
         tauto
       case inr h_is_not_notforg =>
-        cases' lhs with hyp hyp
-        all_goals
-          apply hyp
-          simp
-          left
-          exact ⟨h_in,h_is_not_notforg⟩
+        aesop
     · intro w_sat_a
-      let w_sat_phi := w_sat_a (~(f⋀g)) notfandg_in_a
+      let w_sat_phi := w_sat_a (~(f⋀g)) (by aesop)
       simp at w_sat_phi
       rw [imp_iff_not_or] at w_sat_phi
       cases' w_sat_phi with not_w_f not_w_g
-      · use X \ {~(f⋀g)} ∪ {~f}
-        simp
+      · left
         intro h h_in
-        simp at *
-        cases h_in
-        case inl h_in_X => exact w_sat_a _ h_in_X.left
-        case inr h_is_notf => rw [h_is_notf]; simp; exact not_w_f
-      · use X \ {~(f⋀g)} ∪ {~g}
-        simp
+        aesop
+      · right
         intro h h_in
-        simp at h_in
-        cases h_in
-        case inl h_in_X => exact w_sat_a _ h_in_X.left
-        case inr h_is_notf => rw [h_is_notf]; simp; exact not_w_g
+        aesop
 
   -- STAR RULES
   case nSt a f naSf_in_X =>
     constructor
     · -- invertibility
-      simp
       intro branchSat
       cases branchSat
       case inl Mw_X  =>
@@ -226,10 +219,14 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         case inr hyp =>
           apply Mw_X
           simp
-          tauto
+          aesop
       case inr hyp =>
-        have := notStarInvert M w _ hyp
-        simp [vDash, modelCanSemImplyDagTabNode] at hyp
+        -- want to use notStarInvert, but that does not know/care about loading.
+        rename_i X o -- TODO why are X and o no longer in scope/named here?!
+        have : ∃ Γ ∈ dagEndNodes (X \ {~⌈∗a⌉f}, some (NegDagFormula.neg (DagFormula.box a (DagFormula.dag a f)))), (M, w)⊨Γ := by
+          sorry -- should be easy, use hyp?
+        have := notStarInvert M w _ this
+        simp [vDash, modelCanSemImplyDagTabNode] at this
         intro φ phi_in
         cases em (φ = (~⌈∗a⌉f))
         case inl phi_def =>
@@ -246,8 +243,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         case inr => aesop
     · -- soundness
       intro Mw_X
-      simp
-      have := Mw_X (~⌈∗a⌉f) naSf_in_X
+      have := Mw_X (~⌈∗a⌉f) (by aesop) -- naSf_in_X
       simp at this
       rcases this with ⟨y, x_rel_y, y_nf⟩
       cases starCases x_rel_y -- NOTE: Relation.ReflTransGen.cases_head without ≠ was not enough here ...
@@ -259,12 +255,13 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
         -- (... because we need to get the in-equality here to get the contradiction below.)
         rcases hyp with ⟨_, z, w_neq_z, w_a_z, z_aS_y⟩
         -- MB now distinguishes whether a is atomic, we don't care.
+        rename_i X o w_neq_y -- TODO avoid this
         have := notStarSoundnessAux a M w z (X \ {~⌈∗a⌉f}) (DagFormula.dag a f)
         specialize this _ w_a_z _
         · intro g g_in
           simp at g_in
           cases g_in
-          · apply Mw_X; tauto
+          · apply Mw_X; aesop
           case inr g_def =>
             subst g_def
             simp
@@ -277,10 +274,7 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
           constructor
           · exact dagNormal_is_dagEnd Γ_in Γ_normal
           · intro f f_in
-            apply w_Γ
-            simp
-            left
-            exact f_in
+            aesop
         · absurd caseTwo.2 -- contradiction!
           exact w_neq_z
 
@@ -288,7 +282,8 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
     constructor
     · -- invertibility
       intro hyp
-      have Mw_X := starInvert M w (X \ {⌈∗a⌉f} ∪ {f}, [inject [a] a f]) hyp
+      rename_i X o -- TODO: avoid this!
+      have Mw_X := starInvert M w (X \ {⌈∗a⌉f} ∪ {f}, [inject [a] a f]) sorry -- hyp
       intro φ phi_in
       cases em (φ = (⌈∗a⌉f))
       case inl phi_def =>
@@ -309,9 +304,10 @@ lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
       case inr hyp =>
         apply Mw_X
         simp
-        tauto
+        aesop -- sorry -- tauto
     · -- soundness
       intro Mw_X
+      rename_i X o -- TODO: avoid this!
       apply starSoundness M w (X \ {⌈∗a⌉f} ∪ {f}, [inject [a] a f])
       intro φ phi_in
       simp [vDash, undag, modelCanSemImplyDagTabNode, inject] at phi_in
@@ -551,24 +547,36 @@ def SimpleForm : Formula → Bool
 def Simple : Finset Formula → Bool
   | X => ∀ P ∈ X, SimpleForm P
 
+def nodeSimple : TNode → Bool
+  | (X, none) => ∀ P ∈ X, SimpleForm P
+  | (X, some (~'χ)) => SimpleForm (~ unload χ) ∧ ∀ P ∈ X, SimpleForm P
+
+
 -- Definition 8, page 14
--- mixed with Definition 11 (with all PDL stuff missing for now)
 -- a local tableau for X, must be maximal
-inductive LocalTableau : Finset Formula → Type
+inductive LocalTableau : TNode → Type
   | byLocalRule {X B} (_ : localRule X B) (next : ∀ Y ∈ B, LocalTableau Y) : LocalTableau X
-  | sim {X} : Simple X → LocalTableau X
+  | sim {X} : nodeSimple X → LocalTableau X
 
 open LocalTableau
 
 -- LOCAL END NODES AND TERMINATION
+
+@[simp]
+def lengthOfTNode : TNode -> ℕ
+  | (X, none) => lengthOf X
+  | (X, some (~'χ)) => lengthOf X + lengthOf (~ unload χ)
+
+@[simp]
+instance tnodeHasLength : HasLength TNode := ⟨lengthOfTNode⟩
 
 -- needed for endNodesOf
 instance localTableauHasSizeof : SizeOf (Σ X, LocalTableau X) :=
   ⟨fun ⟨X, _⟩ => lengthOf X⟩
 
 -- TODO: is this even going to be true for our new system?
--- Maybe use a different measure than lengthOf?
-theorem localRulesDecreaseLength {X : Finset Formula} {B : Finset (Finset Formula)}
+-- Maybe use a different measure than lengthOf? Also Dershowitz-Manna?
+theorem localRulesDecreaseLength {X : TNode} {B : Finset TNode}
     (r : localRule X B) : ∀ Y ∈ B, lengthOf Y < lengthOf X :=
   by
   cases r
@@ -578,7 +586,7 @@ theorem localRulesDecreaseLength {X : Finset Formula} {B : Finset (Finset Formul
 
 -- open end nodes of a given localTableau
 @[simp]
-def endNodesOf : (Σ X, LocalTableau X) → Finset (Finset Formula)
+def endNodesOf : (Σ X, LocalTableau X) → Finset TNode
   | ⟨X, @byLocalRule _ B lr next⟩ =>
     B.attach.biUnion fun ⟨Y, h⟩ =>
       have : lengthOf Y < lengthOf X := localRulesDecreaseLength lr Y h
@@ -615,55 +623,32 @@ theorem projSet : projection A X = {ϕ | (⌈·A⌉ϕ) ∈ X} :=
   ext1
   simp
 
--- LOADED FORMULAS
--- Hopefully equivalent to the ^marking mechanism used by MB.
 
--- Loaded formulas consist of a negation, a sequence of loading boxes and then a normal formula.
--- For loading boxes we write ⌊α⌋ instead of ⌈α⌉.
-
-inductive LoadFormula : Type -- χ
-  | load : Program → Formula → LoadFormula -- ⌊α⌋φ
-  | box : Program → LoadFormula → LoadFormula -- ⌊α⌋χ
-  deriving Repr, DecidableEq
-
-inductive NegLoadFormula : Type
-  | neg : LoadFormula → NegLoadFormula
-
-notation "⌊" α "⌋" φ => LoadFormula.load α φ
-notation "⌊" α "⌋" χ => LoadFormula.box α χ
-notation "~" χ => NegLoadFormula.neg χ
-
-#check (~(⌊((·'a') ;' (·'b'))⌋⊤) : NegLoadFormula)
-
-def unload : LoadFormula → Formula
-| LoadFormula.load α φ => ⌈α⌉φ
-| LoadFormula.box α χ => ⌈α⌉(unload χ)
-
--- A formula in a tableau is either a normal formula or a NegLoadFormula
-def TForm := Sum Formula NegLoadFormula
-
--- But wait, only one formula can ever be loaded, right?
--- Then we can use something likes this maybe?
-def TNode := Finset Formula × Option NegLoadFormula
-
--- Formulas in a tableau are left or right
 
 -- TABLEAUX
 
--- Definition 16, page 29
+-- (MB: Definition 16, page 29)
 -- TODO: do we want a ClosedTableau or more general Tableau type?
 -- If more general, do we want an "open" constructor with(out) arguments/proofs?
-inductive ClosedTableau : List (Finset Formula) → Finset Formula → Type
+
+-- A tableau for X is either of:
+-- - a local tableau for X followed by tableaux for all end nodes,
+-- - a (M+) loading rule application
+-- - a (At) modal rule application (two cases due to LoadFormula type)
+-- - a good repeat (MB condition six)
+
+inductive ClosedTableau : List TNode → TNode → Type
   | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf ⟨X, lt⟩, ClosedTableau Hist Y) → ClosedTableau Hist X
-  | atm {A X φ} : (~⌈·A⌉φ) ∈ X → Simple X → ClosedTableau (X :: Hist) (projection A X ∪ {~φ}) → ClosedTableau Hist X
+  | atm'  {A X χ} : Simple X → ClosedTableau (⟨X, ~'⌊·A⌋(χ : LoadFormula)⟩ :: Hist) (projection A X, some (~'χ)) → ClosedTableau Hist (X, ~'⌊·A⌋χ)
+  | atm'' {A X φ} : Simple X → ClosedTableau (⟨X, ~'⌊·A⌋(φ : Formula)⟩ :: Hist) (projection A X ∪ {~φ}, none) → ClosedTableau Hist (X, ~'⌊·A⌋φ)
   | repeat {X} : X ∈ Hist → ClosedTableau Hist X
 
 inductive Provable : Formula → Prop
-  | byTableau {φ : Formula} : ClosedTableau _ {~φ} → Provable φ
+  | byTableau {φ : Formula} : ClosedTableau [] ⟨{~φ}, none⟩ → Provable φ
 
--- Definition 17, page 30
+-- MB: Definition 17, page 30
 def Inconsistent : Finset Formula → Prop
-  | X => Nonempty (ClosedTableau [] X)
+  | X => Nonempty (ClosedTableau [] ⟨X, none⟩)
 
 def Consistent : Finset Formula → Prop
   | X => ¬Inconsistent X
