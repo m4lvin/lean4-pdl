@@ -68,3 +68,30 @@ theorem boxes_append : Formula.boxes (as ++ bs) P = Formula.boxes as (Formula.bo
   · simp
   · simp at *
     assumption
+
+-- LOADED FORMULAS
+
+-- Loaded formulas consist of a negation, a sequence of loading boxes and then a normal formula.
+-- For loading boxes we write ⌊α⌋ instead of ⌈α⌉.
+
+inductive LoadFormula : Type -- χ
+  | load : Program → Formula → LoadFormula -- ⌊α⌋φ
+  | box : Program → LoadFormula → LoadFormula -- ⌊α⌋χ
+  deriving Repr, DecidableEq
+
+def unload : LoadFormula → Formula
+| LoadFormula.load α φ => ⌈α⌉φ
+| LoadFormula.box α χ => ⌈α⌉(unload χ)
+
+inductive NegLoadFormula : Type -- ¬χ
+  | neg : LoadFormula → NegLoadFormula
+  deriving Repr, DecidableEq
+
+def negUnload : NegLoadFormula → Formula
+| NegLoadFormula.neg χ => ~(unload χ)
+
+notation "⌊" α "⌋" φ => LoadFormula.load α φ
+notation "⌊" α "⌋" χ => LoadFormula.box α χ
+notation "~'" χ => NegLoadFormula.neg χ
+
+example : NegLoadFormula := ~'(⌊((·'a') ;' (·'b'))⌋⊤)
