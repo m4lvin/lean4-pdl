@@ -202,7 +202,8 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
             rcases one with ⟨a, as, ⟨aasbs_in_, ⟨⟨y, a_v_y, y_as_u⟩, Γ_normal⟩⟩⟩
             use a, as ++ [∗β]
             constructor
-            · sorry -- should be easy
+            · rw [boxes_append]
+              exact aasbs_in_
             · constructor
               · use y
                 constructor
