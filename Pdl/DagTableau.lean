@@ -219,13 +219,28 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
   case sequence β γ =>
     simp at v_a_w
     rcases v_a_w with ⟨u, v_β_u, u_γ_w⟩
-    have u_nGphi : (M,u) ⊨ (~⌈γ⌉undag φ) := by sorry -- should be easy
+    have u_nGphi : (M,u) ⊨ (~⌈γ⌉undag φ) := by
+      simp [modelCanSemImplyForm]
+      use w
+      constructor
+      · exact u_γ_w
+      · simp [modelCanSemImplyForm] at w_nP
+        exact w_nP
     have := notStarSoundnessAux β M v u fs (⌈γ⌉φ)
     specialize this _ v_β_u u_nGphi
     · intro f
       simp
       intro f_in
-      sorry -- should be easy
+      cases f_in
+      case inl f_in =>
+        apply v_D
+        simp
+        exact Or.inl f_in
+      case inr f_eq =>
+        rw [f_eq]
+        simp
+        simp [modelCanSemImplyForm] at u_nGphi
+        use u
     rcases this with ⟨S, S_in, v_S, (⟨a,as,aasG_in_S,v_aas_u,Γ_normal⟩ | ⟨ngPhi_in_S, v_is_u⟩)⟩ -- Σ
     · use S -- "If (1), then we are done."
       constructor
@@ -253,7 +268,17 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
       have := notStarSoundnessAux γ M u w S.1 φ -- not use "fs" here!
       specialize this _ u_γ_w w_nP
       · intro f
-        sorry -- should be easy
+        simp
+        intro f_in
+        cases f_in
+        case inl f_in =>
+          rw [v_is_u] at v_S
+          apply v_S
+          simp
+          exact Or.inl f_in
+        case inr f_eq =>
+          rw [f_eq]
+          exact u_nGphi
       rcases this with ⟨Γ, Γ_in, v_Γ, split⟩
       have also_in_prev : Γ ∈ dagNextTransRefl (fs, some (~⌈β;'γ⌉φ)) := by
         -- Here we use transitivity of "being a successor" in a dagger tableau.
