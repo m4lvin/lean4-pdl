@@ -186,8 +186,24 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
       rcases claim with ⟨v_neq_w, ⟨u, v_neq_u, v_b_u, u_bS_w⟩⟩
       have := notStarSoundnessAux β M v u fs (⌈β†⌉(undag φ))
       specialize this _ v_b_u _
-      · sorry -- should be easy?
-      · sorry -- should be easy
+      · simp [modelCanSemImplyDagTabNode]
+        intro f f_in
+        simp [modelCanSemImplyForm] at *
+        cases f_in
+        case inl f_in =>
+          apply v_D
+          simp
+          left
+          assumption
+        case inr f_eq =>
+          subst f_eq
+          simp
+          use u
+          constructor
+          · exact v_b_u
+          · use w
+      · simp [modelCanSemImplyForm] at *
+        use w
       rcases this with ⟨Γ, Γ_in, v_Γ, split⟩
       use Γ
       cases split
