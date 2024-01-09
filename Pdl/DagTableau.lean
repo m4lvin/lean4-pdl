@@ -220,12 +220,8 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
     simp at v_a_w
     rcases v_a_w with ⟨u, v_β_u, u_γ_w⟩
     have u_nGphi : (M,u) ⊨ (~⌈γ⌉undag φ) := by
-      simp [modelCanSemImplyForm]
+      simp [modelCanSemImplyForm] at *
       use w
-      constructor
-      · exact u_γ_w
-      · simp [modelCanSemImplyForm] at w_nP
-        exact w_nP
     have := notStarSoundnessAux β M v u fs (⌈γ⌉φ)
     specialize this _ v_β_u u_nGphi
     · intro f
