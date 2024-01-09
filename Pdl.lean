@@ -11,3 +11,4 @@ import «Pdl».DagTableau
 import «Pdl».Tableau
 import «Pdl».Examples
 import «Pdl».Interpolation
+import «Pdl».Modelgraphs
