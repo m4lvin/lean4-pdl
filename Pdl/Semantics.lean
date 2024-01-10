@@ -50,17 +50,25 @@ def evaluatePoint {W : Type} : KripkeModel W × W → Formula → Prop
   | (M, w), ϕ => evaluate M w ϕ
 
 def tautology (φ : Formula) :=
-  ∀ (W : Type) (M : KripkeModel W) (w), evaluatePoint (M, w) φ
+  ∀ (W : Type) (M : KripkeModel W) w, evaluate M w φ
 
 def contradiction (φ : Formula) :=
-  ∀ (W : Type) (M : KripkeModel W) (w), ¬evaluatePoint (M, w) φ
+  ∀ (W : Type) (M : KripkeModel W) w, ¬evaluate M w φ
 
-def satisfiable (φ : Formula) :=
-  ∃ (W : Type) (M : KripkeModel W) (w : _), evaluatePoint (M, w) φ
+-- MB: Definition 5, page 9
+class HasSat (α : Type) where
+  satisfiable : α → Prop
+open HasSat
+@[simp]
+instance formHasSat : HasSat Formula :=
+  HasSat.mk fun ϕ => ∃ (W : _) (M : KripkeModel W) (w : _), evaluate M w ϕ
+@[simp]
+instance setHasSat : HasSat (Finset Formula) :=
+  HasSat.mk fun X => ∃ (W : _) (M : KripkeModel W) (w : _), ∀ φ ∈ X, evaluate M w φ
 
 def semImpliesSets (X : Finset Formula) (Y : Finset Formula) :=
   ∀ (W : Type) (M : KripkeModel W) (w),
-    (∀ φ ∈ X, evaluatePoint (M, w) φ) → ∀ ψ ∈ Y, evaluatePoint (M, w) ψ
+    (∀ φ ∈ X, evaluate M w φ) → ∀ ψ ∈ Y, evaluate M w ψ
 
 def semEquiv (φ : Formula) (ψ : Formula) :=
   ∀ (W : Type) (M : KripkeModel W) (w), evaluate M w φ ↔ evaluate M w ψ
@@ -104,6 +112,19 @@ theorem forms_to_sets {φ ψ : Formula} : φ⊨ψ → ({φ} : Finset Formula)⊨
   -- needed even though no ψ_1 in goal here?!
   apply impTaut
   exact lhs
+
+theorem notSat_iff_semImplies (X : Finset Formula) (χ : Formula):
+    ¬satisfiable (X ∪ {~χ}) ↔ X ⊨ ({χ} : Finset Formula) := by
+  simp only [satisfiable, Finset.mem_union, Finset.mem_singleton, not_exists, not_forall, exists_prop, setCanSemImplySet, semImpliesSets, forall_eq]
+  constructor
+  · intro nSat W M w satX
+    specialize nSat W M w
+    rcases nSat with ⟨φ, phi_in, not_phi⟩
+    aesop
+  · intro X_chi W M w
+    specialize X_chi W M w
+    -- cases em (evaluate M w χ)
+    sorry
 
 lemma relate_steps : ∀ x z, relate M (Program.steps (as ++ bs)) x z  ↔
   ∃ y, relate M (Program.steps as) x y ∧ relate M (Program.steps bs) y z :=
