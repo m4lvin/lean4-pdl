@@ -183,7 +183,7 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
           aesop
     case inr claim =>
       -- Here we follow the (fs, some (~⌈β⌉⌈β†⌉φ)) branch.
-      rcases claim with ⟨v_neq_w, ⟨u, v_neq_u, v_b_u, u_bS_w⟩⟩
+      rcases claim with ⟨_, ⟨u, v_neq_u, v_b_u, u_bS_w⟩⟩
       have := notStarSoundnessAux β M v u fs (⌈β†⌉(undag φ))
       specialize this _ v_b_u _
       · simp [modelCanSemImplyDagTabNode]
@@ -508,27 +508,32 @@ theorem notStarInvert (M : KripkeModel W) (v : W) S
     :
     (∃ Γ ∈ dagEndNodes S, (M, v) ⊨ Γ) → (M, v) ⊨ S := by
   rintro ⟨Γ, Γ_in, v_Γ⟩
-  rcases S with ⟨fs, mdf⟩
-  cases mdf
+  rcases S_eq : S with ⟨fs, mdf⟩ -- explicit hypotheses in rcases are needed to prove termination
+  subst S_eq
+  cases mdf_eq : mdf
   case none =>
+    subst mdf
     simp [dagEndNodes] at Γ_in
     subst Γ_in
     simp [modelCanSemImplyDagTabNode]
     exact v_Γ
   case some ndf =>
-    rcases ndf with ⟨df⟩
-    cases df
+    subst mdf
+    rcases ndf_eq : ndf with ⟨df⟩
+    subst ndf_eq
+    cases df_eq : df
     case dag =>
+      subst df_eq
       simp [dagEndNodes] at Γ_in
     case box a f =>
+      subst df_eq
       rw [dagEndOfSome_iff_step] at Γ_in
       rcases Γ_in with ⟨T, T_in, Γ_in⟩
       have v_T := notStarInvert M v T ⟨Γ, ⟨Γ_in, v_Γ⟩⟩ -- recursion!
       exact notStarInvertAux M v (fs , ~⌈a⌉f) ⟨_, ⟨T_in, v_T⟩⟩
 termination_by
   notStarInvert M v S claim => mOfDagNode S
-decreasing_by simp_wf; apply mOfDagNode.isDec; sorry -- PROBLEM! Why is "S" no longer defined?
--- Alternative idea for termination: use measure of Γ instead of S maybe?
+decreasing_by simp_wf; apply mOfDagNode.isDec; aesop
 
 
 -- -- -- BOXES -- -- --
