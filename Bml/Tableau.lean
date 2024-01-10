@@ -116,8 +116,8 @@ inductive LocalRule : Finset Formula → Finset (Finset Formula) → Type
 theorem notSimpleThenLocalRule {X} : ¬Simple X → ∃ B, Nonempty (LocalRule X B) :=
   by
   intro notSimple
-  unfold Simple at notSimple 
-  simp at notSimple 
+  unfold Simple at notSimple
+  simp at notSimple
   rcases notSimple with ⟨ϕ, ϕ_in_X, ϕ_not_simple⟩
   cases ϕ
   case bottom => tauto
@@ -425,3 +425,31 @@ def existsTableauFor α : Nonempty (Tableau α) :=
       exact ⟨Tableau.atm nBf_in_a is_simp (injectTab ct_notf)⟩
 termination_by
   existsTableauFor α => lengthOf α
+
+
+theorem isClosed_then_ClosedTab {X} {tX : Tableau X} : isClosed tX → ClosedTableau X := by
+  induction tX
+  case loc X tX next IH  =>
+  {
+    intro h₀
+    unfold isClosed at h₀
+    apply ClosedTableau.loc
+    intro Y h₁
+    exact IH Y h₁ (h₀ Y h₁)
+              }
+
+  case atm X α h₀ simpleX t_proj IH  =>
+  {
+    intro h₁
+    apply ClosedTableau.atm
+    assumption
+    assumption
+    apply IH
+    exact h₁
+            }
+
+  case opn =>
+  {
+    intro h₀
+    exact h₀.elim
+                  }
