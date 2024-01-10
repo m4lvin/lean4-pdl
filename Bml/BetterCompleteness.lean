@@ -19,7 +19,15 @@ theorem consThenOpenTab : Consistent X → ∃ (t : Tableau X), isOpen t :=
   by
   have ⟨tX⟩ := existsTableauFor X
   -- should be easy now
-  sorry
+  contrapose
+  simp[not_exists, Consistent, Inconsistent]
+  intro h
+  specialize h tX
+  refine Nonempty.intro ?val
+  have : isClosed tX := by
+    have h2 : ¬ isOpen tX ↔ ¬ ¬ isClosed tX := Iff.symm (Iff.not (Iff.symm open_iff_notClosed))
+    simp_all only [not_not, not_true_eq_false, not_false_eq_true, iff_true]
+  exact (isClosed_then_ClosedTab this)
 
 
 theorem modelExistence {X} : Consistent X →
@@ -28,4 +36,23 @@ theorem modelExistence {X} : Consistent X →
   intro consX
   have := consThenOpenTab consX
   -- now define the model in one go, using pathsOf
-  sorry
+  rcases this with ⟨tX, open_tX⟩
+  induction tX
+
+  case loc X tX next IH  =>
+  {
+    use pathsOf tX
+    sorry
+            }
+
+  case atm X α h₀ simpleX t_proj IH =>
+  {
+    use pathsOf (LocalTableau.sim simpleX)
+    sorry
+            }
+
+  case opn X simpleX notClosable  =>
+  {
+    use pathsOf (LocalTableau.sim simpleX)
+    sorry
+            }
