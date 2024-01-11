@@ -136,7 +136,7 @@ def LocalRuleToPrecondition (rule : LocalRule) : (Finset Formula → Finset Form
   | LocalRule.LRnegR ϕ => λL R => ~ϕ ∈ L ∧  ϕ ∈ R
 
 @[simp]
-def OneSidedLocalRuleToChildren  (orule : OneSidedLocalRule) : Finset Formula → Finset (Finset Formula) :=
+def OneSidedLocalRuleToChildren  (orule : OneSidedLocalRule) : Finset Formula → List (Finset Formula) :=
   match orule with
   | OneSidedLocalRule.bot      => λ_ => ∅
   | OneSidedLocalRule.not  _   => λ_ => ∅
@@ -145,10 +145,10 @@ def OneSidedLocalRuleToChildren  (orule : OneSidedLocalRule) : Finset Formula �
   | OneSidedLocalRule.ncon ϕ ψ => λX => {X \ {~(ϕ⋀ψ)} ∪ {~ϕ}, X \ {~(ϕ⋀ψ)} ∪ {~ψ}}
 
 @[simp]
-def LocalRuleToChildren (rule : LocalRule) (L R : Finset Formula) : Finset (Finset Formula × Finset Formula) :=
+def LocalRuleToChildren (rule : LocalRule) (L R : Finset Formula) : List (Finset Formula × Finset Formula) :=
   match rule with
-  | LocalRule.oneSidedL orule => (OneSidedLocalRuleToChildren orule L).image (λL₂ => (L₂,R))
-  | LocalRule.oneSidedR orule => (OneSidedLocalRuleToChildren orule R).image (λR₂ => (L,R₂))
+  | LocalRule.oneSidedL orule => (OneSidedLocalRuleToChildren orule L).map (λL₂ => (L₂,R))
+  | LocalRule.oneSidedR orule => (OneSidedLocalRuleToChildren orule R).map (λR₂ => (L,R₂))
   | LocalRule.LRnegL _ => ∅
   | LocalRule.LRnegR _ => ∅
 
@@ -163,7 +163,7 @@ def tabToRule : LocalTableau L R → LocalRule
   | LocalTableau.mk rule _ _ => rule
 
 def tabToChildrenTypes (tab : LocalTableau L R)
-  : Finset (Finset Formula × Finset Formula)
+  : List (Finset Formula × Finset Formula)
   := LocalRuleToChildren (tabToRule tab) L R
 
 def tabToChildrenTabs (tab : LocalTableau L R)
@@ -184,12 +184,11 @@ def localRuleToAggregationType : LocalRule -> AggregationType
   | LocalRule.LRnegL ϕ => Constant   ϕ
   | LocalRule.LRnegR ϕ => Constant (~ϕ)
 
-noncomputable def aggregationTypeToFunction (atype : AggregationType)
-  : Finset Formula → Formula := match atype with
+def aggregationTypeToFunction (atype : AggregationType)
+  : List Formula → Formula := match atype with
   | Constant ϕ  => λ_ => ϕ
   | Conjunction => BigConjunction
   | Disjunction => BigDisjunction
-
 
 --BEGIN move to proper files
 -- included to indicate types for parts of Partitions; Soundness; Completeness
@@ -209,29 +208,29 @@ theorem localRuleDecreasesVocab (rule : LocalRule) (L R : Finset Formula)
 theorem InterpolantInductionStep
   (L R : Finset Formula)
   (tab : LocalTableau L R)
-  (subInterpolants : tabToChildrenTypes tab → Formula)
-  (hsubInterpolants : Π cLRP ∈ (tabToChildrenTypes tab).attach, PartInterpolant cLRP.val.fst cLRP.val.snd (subInterpolants cLRP))
+  (subInterpolants : Π cLR ∈ tabToChildrenTypes tab, Formula)
+  (hsubInterpolants : Π cLRP ∈ (tabToChildrenTypes tab).attach, PartInterpolant cLRP.val.fst cLRP.val.snd (subInterpolants cLRP.val cLRP.property))
   : (∃θ : Formula, PartInterpolant L R θ) :=
   by
     let aggregationType := localRuleToAggregationType $ tabToRule tab
-    let interpolant     := aggregationTypeToFunction aggregationType ((tabToChildrenTypes tab).attach.image subInterpolants)
+    let interpolant     := aggregationTypeToFunction aggregationType $ (tabToChildrenTypes tab).attach.map $ λc => subInterpolants c.val c.property -- Feel like we should be able to η-reduce this but somehow it gives an error
     use interpolant
     constructor
-    --voc property
-    · cases aggregationType
+
+    case h.left => --voc property
+      cases aggregationType
       -- case constant ϕ: use that ϕ appears in both sides
-      · sorry
+      case Constant ϕ => sorry
       -- other cases: use that p ∈ ⋀θ_i → ∃θ_i, p ∈ θ_i → p ∈ L by localRuleDecreasesVocab , and ismilar
       · sorry
       · sorry
-    --implication property
-    · cases aggregationType
+    case h.right => --implication property
+      cases aggregationType
       -- case constant ϕ: use the tab preconditionProof
       · sorry
-      -- other cases: result follows directly from localRuleSoundness and IH's
+      -- other cases: result follows directly from localRuleSoundness&completness and IH's
       · sorry
       · sorry
-
 -- END move to proper files
 
 -- If X is not simple, then a local rule can be applied.

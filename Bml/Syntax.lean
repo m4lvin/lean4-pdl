@@ -26,6 +26,13 @@ prefix:77 "□" => Formula.box
 infixr:66 "⋀" => Formula.And
 
 @[simp]
+def Formula.or : Formula → Formula → Formula
+  | f, g => Formula.neg (Formula.And (Formula.neg f) (Formula.neg g))
+
+infixr:60 "⋁" => Formula.or
+
+
+@[simp]
 def impl (φ ψ : Formula) := ~(φ ⋀ ~ψ)
 
 infixr:55 "↣" => impl
@@ -40,11 +47,11 @@ instance : Top Formula :=
   ⟨Formula.neg Formula.bottom⟩
 
 -- Convienient constructors
-noncomputable def BigConjunction : Finset Formula → Formula := λX =>
-  List.foldl Formula.And (~Formula.bottom) (Finset.toList X)
+def BigConjunction : List Formula → Formula :=
+  List.foldl Formula.And (~Formula.bottom)
 
-noncomputable def BigDisjunction : Finset Formula → Formula := λX =>
-  List.foldl (λϕ ψ => ~(~ϕ⋀~ψ)) (Formula.bottom) (Finset.toList X)
+def BigDisjunction : List Formula → Formula :=
+  List.foldl (λϕ ψ => ~(~ϕ⋀~ψ)) (Formula.bottom)
 
 -- showing formulas as strings that are valid Lean code
 def formToString : Formula → ℕ → Lean.Format
