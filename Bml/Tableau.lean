@@ -10,6 +10,7 @@ import Mathlib.Tactic.Ring
 import Bml.Syntax
 import Bml.Semantics
 import Bml.Setsimp
+import Bml.Vocabulary -- TODO remove
 
 open Formula
 
@@ -100,24 +101,150 @@ theorem projection_set_length_leq : ∀ X, lengthOfSet (projection X) ≤ length
           simp only [add_le_add_iff_right, projection_length_leq]
         _ ≤ lengthOfFormula f + S.sum lengthOfFormula := by simp; apply IH
 
--- local rules: given this set, we get these sets as child nodes
-inductive LocalRule : Finset Formula → Finset (Finset Formula) → Type
-  -- closing rules:
-  | bot {X} (h : ⊥ ∈ X) : LocalRule X ∅
-  | Not {X ϕ} (h : ϕ ∈ X ∧ ~ϕ ∈ X) : LocalRule X ∅
-  -- one-child rules:
-  | neg {X ϕ} (h : ~~ϕ ∈ X) : LocalRule X {X \ {~~ϕ} ∪ {ϕ}}
-  | Con {X ϕ ψ} (h : ϕ⋀ψ ∈ X) : LocalRule X {X \ {ϕ⋀ψ} ∪ {ϕ, ψ}}
-  -- splitting rule:
-  | nCo {X ϕ ψ} (h : ~(ϕ⋀ψ) ∈ X) : LocalRule X {X \ {~(ϕ⋀ψ)} ∪ {~ϕ}, X \ {~(ϕ⋀ψ)} ∪ {~ψ}}
+inductive OneSidedLocalRule
+  | bot
+  | not  (ϕ   : Formula)
+  | neg  (ϕ   : Formula)
+  | con  (ϕ ψ : Formula)
+  | ncon (ϕ ψ : Formula)
+
+inductive LocalRule where
+  | oneSidedL (orule : OneSidedLocalRule) : LocalRule
+  | oneSidedR (orule : OneSidedLocalRule) : LocalRule
+  | LRnegL (ϕ : Formula) --  ϕ occurs on the left side, ~ϕ on the right
+  | LRnegR (ϕ : Formula) -- ~ϕ occurs on the left side,  ϕ on the right
+
+deriving instance DecidableEq for OneSidedLocalRule
+deriving instance DecidableEq for LocalRule
+
+
+@[simp]
+def OneSidedLocalRuleToPrecondition (orule : OneSidedLocalRule) : (Finset Formula → Prop) :=
+  match orule with
+  | OneSidedLocalRule.bot      => λX => ⊥ ∈ X
+  | OneSidedLocalRule.not  ϕ   => λX => ϕ ∈ X ∧ ¬ϕ ∈ X
+  | OneSidedLocalRule.neg  ϕ   => λX =>   ~~ϕ  ∈ X
+  | OneSidedLocalRule.con  ϕ ψ => λX =>   ϕ⋀ψ  ∈ X
+  | OneSidedLocalRule.ncon ϕ ψ => λX => ~(ϕ⋀ψ) ∈ X
+
+@[simp]
+def LocalRuleToPrecondition (rule : LocalRule) : (Finset Formula → Finset Formula → Prop) :=
+  match rule with
+  | LocalRule.oneSidedL orule => λL _ => OneSidedLocalRuleToPrecondition orule L
+  | LocalRule.oneSidedR orule => λ_ R => OneSidedLocalRuleToPrecondition orule R
+  | LocalRule.LRnegL ϕ => λL R =>  ϕ ∈ L ∧ ~ϕ ∈ R
+  | LocalRule.LRnegR ϕ => λL R => ~ϕ ∈ L ∧  ϕ ∈ R
+
+@[simp]
+def OneSidedLocalRuleToChildren  (orule : OneSidedLocalRule) : Finset Formula → Finset (Finset Formula) :=
+  match orule with
+  | OneSidedLocalRule.bot      => λ_ => ∅
+  | OneSidedLocalRule.not  _   => λ_ => ∅
+  | OneSidedLocalRule.neg  ϕ   => λX => {X \ {~~ϕ} ∪ {ϕ}}
+  | OneSidedLocalRule.con  ϕ ψ => λX => {X \ {ϕ⋀ψ} ∪ {ϕ, ψ}}
+  | OneSidedLocalRule.ncon ϕ ψ => λX => {X \ {~(ϕ⋀ψ)} ∪ {~ϕ}, X \ {~(ϕ⋀ψ)} ∪ {~ψ}}
+
+@[simp]
+def LocalRuleToChildren (rule : LocalRule) (L R : Finset Formula) : Finset (Finset Formula × Finset Formula) :=
+  match rule with
+  | LocalRule.oneSidedL orule => (OneSidedLocalRuleToChildren orule L).image (λL₂ => (L₂,R))
+  | LocalRule.oneSidedR orule => (OneSidedLocalRuleToChildren orule R).image (λR₂ => (L,R₂))
+  | LocalRule.LRnegL _ => ∅
+  | LocalRule.LRnegR _ => ∅
+
+inductive LocalTableau : Finset Formula → Finset Formula → Type
+  | mk {L R : Finset Formula}
+       (rule : LocalRule)
+       (preconditionProof : LocalRuleToPrecondition rule L R)
+       (children: (Π childLR ∈ LocalRuleToChildren rule L R, LocalTableau childLR.fst childLR.snd))
+       : LocalTableau L R
+
+def tabToRule : LocalTableau L R → LocalRule
+  | LocalTableau.mk rule _ _ => rule
+
+def tabToChildrenTypes (tab : LocalTableau L R)
+  : Finset (Finset Formula × Finset Formula)
+  := LocalRuleToChildren (tabToRule tab) L R
+
+def tabToChildrenTabs (tab : LocalTableau L R)
+  : (Π childLR ∈ tabToChildrenTypes tab, LocalTableau childLR.fst childLR.snd) :=
+  match tab with
+  | LocalTableau.mk _ _ children => children
+
+inductive AggregationType
+  | Constant (ϕ : Formula)
+  | Conjunction
+  | Disjunction
+
+open AggregationType
+
+def localRuleToAggregationType : LocalRule -> AggregationType
+  | LocalRule.oneSidedL _ => Disjunction
+  | LocalRule.oneSidedR _ => Conjunction
+  | LocalRule.LRnegL ϕ => Constant   ϕ
+  | LocalRule.LRnegR ϕ => Constant (~ϕ)
+
+noncomputable def aggregationTypeToFunction (atype : AggregationType)
+  : Finset Formula → Formula := match atype with
+  | Constant ϕ  => λ_ => ϕ
+  | Conjunction => BigConjunction
+  | Disjunction => BigDisjunction
+
+
+--BEGIN move to proper files
+-- included to indicate types for parts of Partitions; Soundness; Completeness
+-- and to enable typechecking for so long as Tableau does not compile yet
+-- should in the end be moved back to their respective files
+open HasVocabulary HasSat
+
+def PartInterpolant (X1 X2 : Finset Formula) (θ : Formula) :=
+  voc θ ⊆ voc X1 ∩ voc X2 ∧ ¬Satisfiable (X1 ∪ {~θ}) ∧ ¬Satisfiable (X2 ∪ {θ})
+
+theorem localRuleSoundness (rule : LocalRule) (L R : Finset Formula)
+  : Satisfiable (L ∪ R) → ∃LR ∈ LocalRuleToChildren rule L R, Satisfiable (LR.fst ∪ LR.snd) := sorry
+
+theorem localRuleCompleteness (rule : LocalRule) (L R : Finset Formula)
+  : ∃LR ∈ LocalRuleToChildren rule L R, Satisfiable (LR.fst ∪ LR.snd) → Satisfiable (L ∪ R) := sorry
+
+theorem localRuleDecreasesVocab (rule : LocalRule) (L R : Finset Formula)
+  : ∀LR ∈ LocalRuleToChildren rule L R, voc LR.fst ⊆ voc L ∧ voc LR.snd ⊆ voc R := sorry
+
+theorem InterpolantInductionStep
+  (L R : Finset Formula)
+  (tab : LocalTableau L R)
+  (subInterpolants : tabToChildrenTypes tab → Formula)
+  (hsubInterpolants : Π cLRP ∈ (tabToChildrenTypes tab).attach, PartInterpolant cLRP.val.fst cLRP.val.snd (subInterpolants cLRP))
+  : (∃θ : Formula, PartInterpolant L R θ) :=
+  by
+    let aggregationType := localRuleToAggregationType $ tabToRule tab
+    let interpolant     := aggregationTypeToFunction aggregationType ((tabToChildrenTypes tab).attach.image subInterpolants)
+    use interpolant
+    constructor
+    --voc property
+    · cases aggregationType
+      -- case constant ϕ: use that ϕ appears in both sides
+      · sorry
+      -- other cases: use that p ∈ ⋀θ_i → ∃θ_i, p ∈ θ_i → p ∈ L by localRuleDecreasesVocab , and ismilar
+      · sorry
+      · sorry
+    --implication property
+    · cases aggregationType
+      -- case constant ϕ: use the tab preconditionProof
+      · sorry
+      -- other cases: result follows directly from localRuleSoundness and IH's
+      · sorry
+      · sorry
+
+-- END move to proper files
+
 
 -- If X is not simple, then a local rule can be applied.
 -- (page 13)
 theorem notSimpleThenLocalRule {X} : ¬Simple X → ∃ B, Nonempty (LocalRule X B) :=
   by
   intro notSimple
-  unfold Simple at notSimple 
-  simp at notSimple 
+  unfold Simple at notSimple
+  simp at notSimple
   rcases notSimple with ⟨ϕ, ϕ_in_X, ϕ_not_simple⟩
   cases ϕ
   case bottom => tauto
@@ -205,9 +332,8 @@ theorem atmRuleDecreasesLength {X : Finset Formula} {ϕ} :
 -- Definition 8, page 14
 -- mixed with Definition 11 (with all PDL stuff missing for now)
 -- a local tableau for X, must be maximal
-inductive LocalTableau : Finset Formula → Type
-  | byLocalRule {X B} (_ : LocalRule X B) (next : ∀ Y ∈ B, LocalTableau Y) : LocalTableau X
-  | sim {X} : Simple X → LocalTableau X
+
+
 
 def existsLocalTableauFor α : Nonempty (LocalTableau α) :=
   by

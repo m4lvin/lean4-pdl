@@ -39,6 +39,13 @@ instance : Bot Formula :=
 instance : Top Formula :=
   ⟨Formula.neg Formula.bottom⟩
 
+-- Convienient constructors
+noncomputable def BigConjunction : Finset Formula → Formula := λX =>
+  List.foldl Formula.And (~Formula.bottom) (Finset.toList X)
+
+noncomputable def BigDisjunction : Finset Formula → Formula := λX =>
+  List.foldl (λϕ ψ => ~(~ϕ⋀~ψ)) (Formula.bottom) (Finset.toList X)
+
 -- showing formulas as strings that are valid Lean code
 def formToString : Formula → ℕ → Lean.Format
   | ⊥, _ => "⊥"
