@@ -26,6 +26,13 @@ prefix:77 "□" => Formula.box
 infixr:66 "⋀" => Formula.And
 
 @[simp]
+def Formula.or : Formula → Formula → Formula
+  | f, g => Formula.neg (Formula.And (Formula.neg f) (Formula.neg g))
+
+infixr:60 "⋁" => Formula.or
+
+
+@[simp]
 def impl (φ ψ : Formula) := ~(φ ⋀ ~ψ)
 
 infixr:55 "↣" => impl
