@@ -200,9 +200,6 @@ open HasVocabulary HasSat
 def PartInterpolant (X1 X2 : Finset Formula) (θ : Formula) :=
   voc θ ⊆ voc X1 ∩ voc X2 ∧ ¬Satisfiable (X1 ∪ {~θ}) ∧ ¬Satisfiable (X2 ∪ {θ})
 
-theorem localRuleSoundness (rule : LocalRule) (L R : Finset Formula)
-  : Satisfiable (L ∪ R) → ∃LR ∈ LocalRuleToChildren rule L R, Satisfiable (LR.fst ∪ LR.snd) := sorry
-
 theorem localRuleCompleteness (rule : LocalRule) (L R : Finset Formula)
   : ∃LR ∈ LocalRuleToChildren rule L R, Satisfiable (LR.fst ∪ LR.snd) → Satisfiable (L ∪ R) := sorry
 
@@ -236,7 +233,6 @@ theorem InterpolantInductionStep
       · sorry
 
 -- END move to proper files
-
 
 -- If X is not simple, then a local rule can be applied.
 -- (page 13)
@@ -332,7 +328,6 @@ theorem atmRuleDecreasesLength {X : Finset Formula} {ϕ} :
 -- Definition 8, page 14
 -- mixed with Definition 11 (with all PDL stuff missing for now)
 -- a local tableau for X, must be maximal
-
 
 
 def existsLocalTableauFor α : Nonempty (LocalTableau α) :=
