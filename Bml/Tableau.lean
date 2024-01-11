@@ -136,7 +136,7 @@ def LocalRuleToPrecondition (rule : LocalRule) : (Finset Formula → Finset Form
   | LocalRule.LRnegR ϕ => λL R => ~ϕ ∈ L ∧  ϕ ∈ R
 
 @[simp]
-def OneSidedLocalRuleToChildren  (orule : OneSidedLocalRule) : Finset Formula → List (Finset Formula) :=
+def OneSidedLocalRuleToChildren  (orule : OneSidedLocalRule) : Finset Formula → Finset (Finset Formula) :=
   match orule with
   | OneSidedLocalRule.bot      => λ_ => ∅
   | OneSidedLocalRule.not  _   => λ_ => ∅
@@ -145,10 +145,10 @@ def OneSidedLocalRuleToChildren  (orule : OneSidedLocalRule) : Finset Formula �
   | OneSidedLocalRule.ncon ϕ ψ => λX => {X \ {~(ϕ⋀ψ)} ∪ {~ϕ}, X \ {~(ϕ⋀ψ)} ∪ {~ψ}}
 
 @[simp]
-def LocalRuleToChildren (rule : LocalRule) (L R : Finset Formula) : List (Finset Formula × Finset Formula) :=
+def LocalRuleToChildren (rule : LocalRule) (L R : Finset Formula) : Finset (Finset Formula × Finset Formula) :=
   match rule with
-  | LocalRule.oneSidedL orule => (OneSidedLocalRuleToChildren orule L).map (λL₂ => (L₂,R))
-  | LocalRule.oneSidedR orule => (OneSidedLocalRuleToChildren orule R).map (λR₂ => (L,R₂))
+  | LocalRule.oneSidedL orule => (OneSidedLocalRuleToChildren orule L).image (λL₂ => (L₂,R))
+  | LocalRule.oneSidedR orule => (OneSidedLocalRuleToChildren orule R).image (λR₂ => (L,R₂))
   | LocalRule.LRnegL _ => ∅
   | LocalRule.LRnegR _ => ∅
 
@@ -163,7 +163,7 @@ def tabToRule : LocalTableau L R → LocalRule
   | LocalTableau.mk rule _ _ => rule
 
 def tabToChildrenTypes (tab : LocalTableau L R)
-  : List (Finset Formula × Finset Formula)
+  : Finset (Finset Formula × Finset Formula)
   := LocalRuleToChildren (tabToRule tab) L R
 
 def tabToChildrenTabs (tab : LocalTableau L R)
@@ -231,7 +231,7 @@ theorem InterpolantInductionStep
     · cases aggregationType
       -- case constant ϕ: use the tab preconditionProof
       · sorry
-      -- other cases: result follows directly from localRuleSoundness&completness and IH's
+      -- other cases: result follows directly from localRuleSoundness and IH's
       · sorry
       · sorry
 
