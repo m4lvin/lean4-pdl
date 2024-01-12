@@ -286,106 +286,39 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {X : Finset Formula} :
 -- Each rule is sound and preserves satisfiability "downwards"
 -- theorem localRuleSoundness {α : Finset Formula} {B : Finset (Finset Formula)} :
 --  LocalRule α B → Satisfiable α → ∃ β ∈ B, Satisfiable β :=
-
-theorem localRuleSoundness (rule : LocalRule (Lcond, Rcond) C)  :
+theorem localRuleSoundness (rule : LocalRule (Lcond, Rcond) C) :
   Satisfiable (Lcond ∪ Rcond) → ∃cLR ∈ C, Satisfiable (cLR.1 ∪ cLR.2) :=
   by
-  intro proof sat
+  intro sat
   unfold Satisfiable at sat
   rcases sat with ⟨W, M, w, w_sat_LR⟩
   cases rule
   case oneSidedL lr =>                       -- left side
     cases lr
-    case not φ =>
-      simp at *
-    case bot  =>
-      simp at *
-      have contradiction : Evaluate (M, w) ⊥ :=
-        w_sat_LR ⊥ (Or.inl proof)
-      exact contradiction
-    case neg φ =>
-      simp at *
-      use W; use M; use w
-      intro φ₁ hyp
-      cases hyp
-      case inl h =>
-        cases h
-        case inl h₁ =>
-          rw [h₁]
-          have eval_neg : Evaluate (M, w) (~~φ) :=
-            w_sat_LR (~~φ) (Or.inl proof)
-          simp [Evaluate] at eval_neg
-          exact eval_neg
-        case inr h₁ =>
-          aesop
-      case inr h =>
-        aesop
-    case con φ ψ =>
-      simp at *
-      use W; use M; use w
-      have eval_con : Evaluate (M, w) (φ⋀ψ) :=
-        w_sat_LR (φ⋀ψ) (Or.inl proof)
-      intro φ₁ hyp
-      cases hyp <;> aesop
+    all_goals simp at *
+    case neg φ => use W; use M; use w
+    case con φ ψ => use W; use M; use w
     case ncon φ ψ =>
-      simp at *
-      have eval_ncon : Evaluate (M, w) (~(φ⋀ψ)) :=
-        w_sat_LR (~(φ⋀ψ)) (Or.inl proof)
-      simp [Evaluate, imp_iff_not_or] at eval_ncon
-      cases eval_ncon <;> aesop
-  case oneSidedR lr =>                            -- right side (mostly copy paste, will try custom tactic later)
+      rw [imp_iff_not_or] at w_sat_LR
+      cases' w_sat_LR with case_phi case_psi
+      · apply Or.inl
+        use W; use M; use w
+      · apply Or.inr
+        use W; use M; use w
+  case oneSidedR lr =>                            -- right side (copy paste, will try custom tactic later)
     cases lr
-    case not φ =>
-      simp at *
-    case bot  =>
-      simp at *
-      have contradiction : Evaluate (M, w) ⊥ :=
-        w_sat_LR ⊥ (Or.inr proof)   -- changed Or.inl to Or.inr
-      exact contradiction
-    case neg φ =>
-      simp at *
-      use W; use M; use w
-      intro φ₁ hyp
-      cases hyp
-      case inl h =>
-        aesop
-      case inr h =>
-        cases h
-        case inl h₁ =>  -- inl switched with inr
-          rw [h₁]
-          have eval_neg : Evaluate (M, w) (~~φ) :=
-            w_sat_LR (~~φ) (Or.inr proof)
-          simp [Evaluate] at eval_neg
-          exact eval_neg
-        case inr h₁ =>
-          aesop
-    case con φ ψ =>
-      simp at *
-      use W; use M; use w
-      have eval_con : Evaluate (M, w) (φ⋀ψ) :=
-        w_sat_LR (φ⋀ψ) (Or.inr proof)   -- changed Or.inl to Or.inr
-      intro φ₁ hyp
-      cases hyp <;> aesop
+    all_goals simp at *
+    case neg φ => use W; use M; use w
+    case con φ ψ => use W; use M; use w
     case ncon φ ψ =>
-      simp at *
-      have eval_ncon : Evaluate (M, w) (~(φ⋀ψ)) :=
-        w_sat_LR (~(φ⋀ψ)) (Or.inr proof)     -- changed Or.inl to Or.inr
-      simp [Evaluate, imp_iff_not_or] at eval_ncon
-      cases eval_ncon <;> aesop
-  case LRnegL φ =>       -- LRnegL and LRnegR are almost equal
-    simp at *
-    have eval_phi : Evaluate (M, w) φ := by
-      exact w_sat_LR φ (Or.inl proof.left)
-    have eval_negphi : Evaluate (M, w) (~φ) := by
-      exact w_sat_LR (~φ) (Or.inr proof.right)
-    exact absurd eval_phi eval_negphi
-  case LRnegR φ =>
-    simp at *
-    have eval_phi : Evaluate (M, w) φ := by
-      exact w_sat_LR φ (Or.inr proof.right)
-    have eval_negphi : Evaluate (M, w) (~φ) := by
-      exact w_sat_LR (~φ) (Or.inl proof.left)
-    exact absurd eval_phi eval_negphi
+      rw [imp_iff_not_or] at w_sat_LR
+      cases' w_sat_LR with case_phi case_psi
+      · apply Or.inl
+        use W; use M; use w
+      · apply Or.inr
+        use W; use M; use w
+  case LRnegL φ => aesop
+  case LRnegR φ => aesop
 
 
 /-
