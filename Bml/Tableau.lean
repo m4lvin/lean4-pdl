@@ -235,7 +235,10 @@ theorem InterpolantInductionStep
 
 -- If X is not simple, then a local rule can be applied.
 -- (page 13)
-theorem notSimpleThenLocalRule {X} : ¬Simple X → ∃ B, Nonempty (LocalRule X B) :=
+
+
+theorem notSimpleThenLocalRule {L R} : ¬Simple (L ∪ R)
+  → ∃ Lcond Rcond C, ∃ _ : LocalRule (Lcond, Rcond) C, Lcond ⊆ L ∧ Rcond ⊆ R :=
   by
   intro notSimple
   unfold Simple at notSimple
@@ -249,24 +252,61 @@ theorem notSimpleThenLocalRule {X} : ¬Simple X → ∃ B, Nonempty (LocalRule X
     case bottom => tauto
     case atom_prop => tauto
     case neg ψ =>
-      use{X \ {~~ψ} ∪ {ψ}}
-      use LocalRule.neg ϕ_in_X
-    case And ψ1 ψ2 =>
-      use{X \ {~(ψ1⋀ψ2)} ∪ {~ψ1}, X \ {~(ψ1⋀ψ2)} ∪ {~ψ2}}
-      use LocalRule.nCo ϕ_in_X
+      cases ϕ_in_X
+      · use {~~ψ}; use ∅; use (List.map (fun res => (res, ∅)) [{ψ}])
+        use LocalRule.oneSidedL (OneSidedLocalRule.neg ψ)
+        aesop
+      · use ∅; use {~~ψ}; use (List.map (fun res => (∅, res)) [{ψ}])
+        use LocalRule.oneSidedR (OneSidedLocalRule.neg ψ)
+        aesop
+    case And ψ₁ ψ₂ =>
+      cases ϕ_in_X
+      · use {~(ψ₁⋀ψ₂)}; use ∅; use (List.map (fun res => (res, ∅)) [{~ψ₁}, {~ψ₂}])
+        use LocalRule.oneSidedL (OneSidedLocalRule.ncon ψ₁ ψ₂)
+        aesop
+      · use ∅; use {~(ψ₁⋀ψ₂)}; use (List.map (fun res => (∅, res)) [{~ψ₁}, {~ψ₂}])
+        use LocalRule.oneSidedR (OneSidedLocalRule.ncon ψ₁ ψ₂)
+        aesop
     case box => tauto
-  case And ψ1 ψ2 =>
-    use{X \ {ψ1⋀ψ2} ∪ {ψ1, ψ2}}
-    use LocalRule.Con ϕ_in_X
+  case And ψ₁ ψ₂ =>
+    cases ϕ_in_X
+    · use {ψ₁⋀ψ₂}; use ∅; use (List.map (fun res => (res, ∅)) [{ψ₁, ψ₂}])
+      use LocalRule.oneSidedL (OneSidedLocalRule.con ψ₁ ψ₂)
+      aesop
+    · use ∅; use {ψ₁⋀ψ₂}; use (List.map (fun res => (∅, res)) [{ψ₁, ψ₂}])
+      use LocalRule.oneSidedR (OneSidedLocalRule.con ψ₁ ψ₂)
+      aesop
   case box => tauto
 
-theorem localRulesDecreaseLength {X : Finset Formula} {B : Finset (Finset Formula)}
-    (r : LocalRule X B) : ∀ Y ∈ B, lengthOfSet Y < lengthOfSet X :=
+
+theorem localRulesDecreaseLength {L R : Finset Formula} (rule : LocalRule (Lcond, Rcond) C) :
+    Lcond ⊆ L ∧ Rcond ⊆ R → ∀cLR ∈ C,
+    lengthOfSet (cLR.fst ∪ cLR.snd) < lengthOfSet X :=
   by
-  cases r
-  all_goals intro β inB; simp at *
-  case neg ϕ notnot_in_X =>
-    subst inB
+  all_goals intro cond cLR is_child
+  cases rule
+  case oneSidedL lr =>
+    cases lr <;> simp at *
+    case neg ϕ =>
+      cases' is_child with L₁ hyp
+    case con => _
+    case ncon => _
+  case oneSidedR lr =>
+    cases lr
+    case bot => _
+    case not => _
+    case neg => _
+    case con => _
+    case ncon => _
+  case LRnegL lr => _
+  case LRnegR lr => _
+
+
+
+
+
+  case neg ϕ notnot_in_X => sorry
+    --subst inB
     · calc
         lengthOfSet (insert ϕ (X.erase (~~ϕ))) ≤ lengthOfSet (X.erase (~~ϕ)) + lengthOf ϕ := by
           apply lengthOf_insert_leq_plus
@@ -303,6 +343,8 @@ theorem localRulesDecreaseLength {X : Finset Formula} {B : Finset (Finset Formul
         _ ≤ lengthOfSet (X.erase (~(ϕ⋀ψ))) + 1 + lengthOf ϕ + (1 + lengthOf ψ) := by simp
         _ = lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~(ϕ⋀ψ)) := by simp; ring
         _ = lengthOfSet X := lengthRemove X (~(ϕ⋀ψ)) in_X
+  sorry
+
 
 theorem atmRuleDecreasesLength {X : Finset Formula} {ϕ} :
     ~(□ϕ) ∈ X → lengthOfSet (projection X ∪ {~ϕ}) < lengthOfSet X :=
@@ -323,6 +365,12 @@ theorem atmRuleDecreasesLength {X : Finset Formula} {ϕ} :
       _ = lengthOfSet (projection (X.erase (~(□ϕ)))) + lengthOf (~(□ϕ)) := by rw [otherClaim]
       _ ≤ lengthOfSet (X.erase (~(□ϕ))) + lengthOf (~(□ϕ)) := by simp; apply projection_set_length_leq
       _ = lengthOfSet X := lengthRemove X (~(□ϕ)) notBoxPhi_in_X
+
+-- Definition 8, page 14
+-- mixed with Definition 11 (with all PDL stuff missing for now)
+-- a local tableau for X, must be maximal
+
+
 
 -- Definition 8, page 14
 -- mixed with Definition 11 (with all PDL stuff missing for now)
