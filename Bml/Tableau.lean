@@ -101,75 +101,72 @@ theorem projection_set_length_leq : ∀ X, lengthOfSet (projection X) ≤ length
           simp only [add_le_add_iff_right, projection_length_leq]
         _ ≤ lengthOfFormula f + S.sum lengthOfFormula := by simp; apply IH
 
-inductive OneSidedLocalRule
-  | bot
-  | not  (ϕ   : Formula)
-  | neg  (ϕ   : Formula)
-  | con  (ϕ ψ : Formula)
-  | ncon (ϕ ψ : Formula)
+inductive OneSidedLocalRule : Finset Formula → List (Finset Formula) → Type
+  | bot                  : OneSidedLocalRule {⊥}      ∅
+  | not  (φ   : Formula) : OneSidedLocalRule {φ, ~φ}  ∅
+  | neg  (φ   : Formula) : OneSidedLocalRule {~~φ}    [{φ}]
+  | con  (φ ψ : Formula) : OneSidedLocalRule {φ ⋀ ψ}  [{φ,ψ}]
+  | ncon (φ ψ : Formula) : OneSidedLocalRule {~(φ⋀ψ)} [{~φ}, {~ψ}]
 
-inductive LocalRule where
-  | oneSidedL (orule : OneSidedLocalRule) : LocalRule
-  | oneSidedR (orule : OneSidedLocalRule) : LocalRule
-  | LRnegL (ϕ : Formula) --  ϕ occurs on the left side, ~ϕ on the right
-  | LRnegR (ϕ : Formula) -- ~ϕ occurs on the left side,  ϕ on the right
+-- We have equality when types match
+instance : DecidableEq (OneSidedLocalRule precond ress) := λ_ _ => Decidable.isTrue (sorry)
 
-deriving instance DecidableEq for OneSidedLocalRule
-deriving instance DecidableEq for LocalRule
+def SubPair := Finset Formula × Finset Formula
+deriving DecidableEq
 
 
-@[simp]
-def OneSidedLocalRuleToPrecondition (orule : OneSidedLocalRule) : (Finset Formula → Prop) :=
-  match orule with
-  | OneSidedLocalRule.bot      => λX => ⊥ ∈ X
-  | OneSidedLocalRule.not  ϕ   => λX => ϕ ∈ X ∧ ¬ϕ ∈ X
-  | OneSidedLocalRule.neg  ϕ   => λX =>   ~~ϕ  ∈ X
-  | OneSidedLocalRule.con  ϕ ψ => λX =>   ϕ⋀ψ  ∈ X
-  | OneSidedLocalRule.ncon ϕ ψ => λX => ~(ϕ⋀ψ) ∈ X
+inductive LocalRule : SubPair → List SubPair → Type
+  | oneSidedL (orule : OneSidedLocalRule precond ress) : LocalRule (precond,∅) $ ress.map $ λ res => (res,∅)
+  | oneSidedR (orule : OneSidedLocalRule precond ress) : LocalRule (∅,precond) $ ress.map $ λ res => (∅,res)
+  | LRnegL (ϕ : Formula) : LocalRule ({ϕ}, {~ϕ}) ∅ --  ϕ occurs on the left side, ~ϕ on the right
+  | LRnegR (ϕ : Formula) : LocalRule ({~ϕ}, {ϕ}) ∅ -- ~ϕ occurs on the left side,  ϕ on the right
 
-@[simp]
-def LocalRuleToPrecondition (rule : LocalRule) : (Finset Formula → Finset Formula → Prop) :=
-  match rule with
-  | LocalRule.oneSidedL orule => λL _ => OneSidedLocalRuleToPrecondition orule L
-  | LocalRule.oneSidedR orule => λ_ R => OneSidedLocalRuleToPrecondition orule R
-  | LocalRule.LRnegL ϕ => λL R =>  ϕ ∈ L ∧ ~ϕ ∈ R
-  | LocalRule.LRnegR ϕ => λL R => ~ϕ ∈ L ∧  ϕ ∈ R
+-- We have equality when types match
+instance : DecidableEq (LocalRule LRconds C) := λ_ _ => Decidable.isTrue (sorry)
+
+def TNode := Finset Formula × Finset Formula
+  deriving DecidableEq
+
+#eval ([({},{})] : List TNode) == ([({p},{})] : List TNode)
 
 @[simp]
-def OneSidedLocalRuleToChildren  (orule : OneSidedLocalRule) : Finset Formula → List (Finset Formula) :=
-  match orule with
-  | OneSidedLocalRule.bot      => λ_ => ∅
-  | OneSidedLocalRule.not  _   => λ_ => ∅
-  | OneSidedLocalRule.neg  ϕ   => λX => {X \ {~~ϕ} ∪ {ϕ}}
-  | OneSidedLocalRule.con  ϕ ψ => λX => {X \ {ϕ⋀ψ} ∪ {ϕ, ψ}}
-  | OneSidedLocalRule.ncon ϕ ψ => λX => {X \ {~(ϕ⋀ψ)} ∪ {~ϕ}, X \ {~(ϕ⋀ψ)} ∪ {~ψ}}
+def applyLocalRule (_ : LocalRule (Lcond, Rcond) C) : TNode → List TNode
+  | ⟨L,R⟩ => C.map $ λc => (L \ Lcond ∪ c.1, R \ Rcond ∪ c.2)
 
-@[simp]
-def LocalRuleToChildren (rule : LocalRule) (L R : Finset Formula) : List (Finset Formula × Finset Formula) :=
-  match rule with
-  | LocalRule.oneSidedL orule => (OneSidedLocalRuleToChildren orule L).map (λL₂ => (L₂,R))
-  | LocalRule.oneSidedR orule => (OneSidedLocalRuleToChildren orule R).map (λR₂ => (L,R₂))
-  | LocalRule.LRnegL _ => ∅
-  | LocalRule.LRnegR _ => ∅
-
-inductive LocalTableau : Finset Formula → Finset Formula → Type
+inductive LocalRuleApp : TNode → List TNode → Type
   | mk {L R : Finset Formula}
-       (rule : LocalRule)
-       (preconditionProof : LocalRuleToPrecondition rule L R)
-       (children: (Π childLR ∈ LocalRuleToChildren rule L R, LocalTableau childLR.fst childLR.snd))
-       : LocalTableau L R
+       {C : List SubPair}
+       (Lcond Rcond : Finset Formula)
+       (rule : LocalRule (Lcond,Rcond) C)
+       (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R)
+       : LocalRuleApp (L,R) $ applyLocalRule rule (L,R)
 
-def tabToRule : LocalTableau L R → LocalRule
-  | LocalTableau.mk rule _ _ => rule
+-- We have equality when types match
+instance : DecidableEq (LocalRuleApp LR C) := λ_ _ => Decidable.isTrue (sorry)
 
-def tabToChildrenTypes (tab : LocalTableau L R)
-  : List (Finset Formula × Finset Formula)
-  := LocalRuleToChildren (tabToRule tab) L R
+inductive LocalTableau : TNode → Type
+  | mk {L R : Finset Formula} {C : List TNode}
+       (ruleA : LocalRuleApp (L,R) C)
+       (subTabs: (Π c ∈ C, LocalTableau (c.1, c.2)))
+       : LocalTableau (L, R)
 
-def tabToChildrenTabs (tab : LocalTableau L R)
-  : (Π childLR ∈ tabToChildrenTypes tab, LocalTableau childLR.fst childLR.snd) :=
+def getTabRule : LocalTableau LR → Σ Lcond Rcond C, LocalRule (Lcond,Rcond) C
+  | LocalTableau.mk (ruleA : LocalRuleApp _ _) _ => match ruleA with
+    | @LocalRuleApp.mk _ _ B Lcond Rcond rule _ => ⟨Lcond, Rcond, B, rule⟩
+
+-- We have equality when types match
+instance : DecidableEq (LocalTableau LR) := λtab₁ tab₂ => match getTabRule tab₁ == getTabRule tab₂ with
+  | true  => Decidable.isTrue  (sorry)
+  | false => Decidable.isFalse (sorry)
+
+def getTabChildren : LocalTableau LR →  List TNode
+  | @LocalTableau.mk _ _ C _ _ => C
+
+@[simp]
+def getSubTabs (tab : LocalTableau LR)
+  : (Π child ∈ getTabChildren tab, LocalTableau (child.fst, child.snd)) :=
   match tab with
-  | LocalTableau.mk _ _ children => children
+  | LocalTableau.mk _ subTabs => subTabs
 
 inductive AggregationType
   | Constant (ϕ : Formula)
@@ -178,11 +175,11 @@ inductive AggregationType
 
 open AggregationType
 
-def localRuleToAggregationType : LocalRule -> AggregationType
+def localRuleToAggregationType : LocalRule LRconds C -> AggregationType
   | LocalRule.oneSidedL _ => Disjunction
   | LocalRule.oneSidedR _ => Conjunction
-  | LocalRule.LRnegL ϕ => Constant   ϕ
-  | LocalRule.LRnegR ϕ => Constant (~ϕ)
+  | LocalRule.LRnegL ϕ    => Constant   ϕ
+  | LocalRule.LRnegR ϕ    => Constant (~ϕ)
 
 def aggregationTypeToFunction (atype : AggregationType)
   : List Formula → Formula := match atype with
@@ -199,21 +196,24 @@ open HasVocabulary HasSat
 def PartInterpolant (X1 X2 : Finset Formula) (θ : Formula) :=
   voc θ ⊆ voc X1 ∩ voc X2 ∧ ¬Satisfiable (X1 ∪ {~θ}) ∧ ¬Satisfiable (X2 ∪ {θ})
 
-theorem localRuleCompleteness (rule : LocalRule) (L R : Finset Formula)
-  : ∃LR ∈ LocalRuleToChildren rule L R, Satisfiable (LR.fst ∪ LR.snd) → Satisfiable (L ∪ R) := sorry
+theorem localRuleCompleteness (rule : LocalRule LRconds C)
+  : ∃LR ∈ C, Satisfiable (LR.1 ∪ LR.2) → Satisfiable (LRconds.1 ∪ LRconds.2) := sorry
 
-theorem localRuleDecreasesVocab (rule : LocalRule) (L R : Finset Formula)
-  : ∀LR ∈ LocalRuleToChildren rule L R, voc LR.fst ⊆ voc L ∧ voc LR.snd ⊆ voc R := sorry
+theorem localRuleAppCompleteness (ruleA : LocalRuleApp LR C)
+  : ∃LR ∈ C, Satisfiable (LR.1 ∪ LR.2) → Satisfiable (LR.1 ∪ LR.2) := sorry
+
+theorem localRuleDecreasesVocab (ruleA : LocalRuleApp LR C)
+  : ∀cLR ∈ C, voc cLR.1 ⊆ voc LR.1 ∧ voc cLR.2 ⊆ voc LR.2 := sorry
 
 theorem InterpolantInductionStep
   (L R : Finset Formula)
-  (tab : LocalTableau L R)
-  (subInterpolants : Π cLR ∈ tabToChildrenTypes tab, Formula)
-  (hsubInterpolants : Π cLRP ∈ (tabToChildrenTypes tab).attach, PartInterpolant cLRP.val.fst cLRP.val.snd (subInterpolants cLRP.val cLRP.property))
+  (tab : LocalTableau (L, R))
+  (subInterpolants : Π cLR ∈ getTabChildren tab, Formula)
+  (hsubInterpolants : Π cLRP ∈ (getTabChildren tab).attach, PartInterpolant cLRP.val.1 cLRP.val.1 (subInterpolants cLRP.val cLRP.property))
   : (∃θ : Formula, PartInterpolant L R θ) :=
   by
-    let aggregationType := localRuleToAggregationType $ tabToRule tab
-    let interpolant     := aggregationTypeToFunction aggregationType $ (tabToChildrenTypes tab).attach.map $ λc => subInterpolants c.val c.property -- Feel like we should be able to η-reduce this but somehow it gives an error
+    let aggregationType := localRuleToAggregationType $ (getTabRule tab).2.2.2 --TODO this is ugle
+    let interpolant     := aggregationTypeToFunction aggregationType $ (getTabChildren tab).attach.map $ λc => subInterpolants c.val c.property -- Feel like we should be able to η-reduce this but somehow it gives an error
     use interpolant
     constructor
 

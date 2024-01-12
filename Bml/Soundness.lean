@@ -287,8 +287,8 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {X : Finset Formula} :
 -- theorem localRuleSoundness {α : Finset Formula} {B : Finset (Finset Formula)} :
 --  LocalRule α B → Satisfiable α → ∃ β ∈ B, Satisfiable β :=
 
-theorem localRuleSoundness (rule : LocalRule) (L R : Finset Formula) :
-  LocalRuleToPrecondition rule L R → Satisfiable (L ∪ R) → ∃LR ∈ LocalRuleToChildren rule L R, Satisfiable (LR.fst ∪ LR.snd) :=
+theorem localRuleSoundness (rule : LocalRule (Lcond, Rcond) C)  :
+  Satisfiable (Lcond ∪ Rcond) → ∃cLR ∈ C, Satisfiable (cLR.1 ∪ cLR.2) :=
   by
   intro proof sat
   unfold Satisfiable at sat
