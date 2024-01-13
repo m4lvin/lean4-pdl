@@ -14,15 +14,6 @@ open Undag
 
 open HasLength
 
--- TABLEAU nodes
-
--- A tableau node has a set of formulas and one or no negated loaded formula.
-def TNode := Finset Formula × Option NegLoadFormula -- ⟨X,o⟩
-  deriving DecidableEq -- TODO Repr
-
-instance modelCanSemImplyTNode {W : Type} : vDash (KripkeModel W × W) TNode :=
-  vDash.mk (λ ⟨M,w⟩ ⟨X, o⟩ => ∀ f ∈ X ∪ (o.map negUnload).toFinset, @evaluate W M w f)
-
 -- Some thoughts about the TNode type:
 -- - one formula may be loaded
 -- - loading is not changed in local tableaux, but must be tracked through it.
@@ -35,59 +26,86 @@ instance modelCanSemImplyTNode {W : Type} : vDash (KripkeModel W × W) TNode :=
 -- A set X is closed  iff  0 ∈ X or X contains a formula and its negation.
 def Closed : Finset Formula → Prop := fun X => ⊥ ∈ X ∨ ∃ f ∈ X, (~f) ∈ X
 
--- Local rules: given this node, we get these child nodes
+-- Local rules replace a given set of formulas by other sets, one for each branch.
 -- (In Haskell this is "ruleFor" in Logic.PDL.Prove.Tree.)
-inductive localRule : TNode → Finset TNode → Type -- use List TNode ?!
+inductive OneSidedLocalRule : Finset Formula → List (Finset Formula) → Type
   -- PROP LOGIC
   -- closing rules:
-  | bot {X o  } (h : (⊥ : Formula) ∈ X) : localRule ⟨X,o⟩ ∅
-  | not {X o φ} (h : φ ∈ X ∧ (~φ) ∈ X) : localRule ⟨X,o⟩ ∅
-  -- one-child rules:
-  | neg {X o φ} (h : (~~φ)   ∈ X) : localRule ⟨X,o⟩ { (X \ {~~φ} ∪ {φ},o) }
-  | con {X o φ ψ} (h : φ ⋀ ψ ∈ X) : localRule ⟨X,o⟩ { ⟨X \ {φ⋀ψ}    ∪ {φ,ψ},o⟩ }
-  -- splitting rule:
-  | nCo {X o φ ψ} (h : (~(φ ⋀ ψ)) ∈ X) : localRule ⟨X,o⟩ { (X \ {~(φ⋀ψ)} ∪ {~φ}, o)
-                                                         , (X \ {~(φ⋀ψ)} ∪ {~ψ}, o) }
+  | bot                  : OneSidedLocalRule {⊥}      ∅
+  | not (φ   : Formula) : OneSidedLocalRule {φ, ~φ}  ∅
+  | neg (φ   : Formula) : OneSidedLocalRule {~~φ}    [{φ}]
+  | con (φ ψ : Formula) : OneSidedLocalRule {φ ⋀ ψ}  [{φ,ψ}]
+  | nCo (φ ψ : Formula) : OneSidedLocalRule {~(φ⋀ψ)} [{~φ}, {~ψ}]
   -- PROGRAMS
   -- one-child rules:
-  | nTe {X o φ ψ}   (h : (~⌈?'φ⌉ψ)  ∈ X) : localRule ⟨X,o⟩ { ⟨X \ {~⌈?'φ⌉ψ}  ∪ {φ, ~ψ}, o⟩ }
-  | nSe {X o a b f} (h : (~⌈a;'b⌉f) ∈ X) : localRule ⟨X,o⟩ { ⟨X \ {~⌈a;'b⌉f} ∪ {~⌈a⌉⌈b⌉f}, o⟩ }
-  | uni {X o a b f} (h : (⌈a⋓b⌉f)   ∈ X) : localRule ⟨X,o⟩ { ⟨X \ {⌈a⋓b⌉f}   ∪ {⌈a⌉f, ⌈b⌉f}, o⟩ }
-  | seq {X o a b f} (h : (⌈a;'b⌉f)  ∈ X) : localRule ⟨X,o⟩ { ⟨X \ {⌈a;'b⌉f}  ∪ {⌈a⌉⌈b⌉f}, o⟩ }
+  | nTe (φ ψ)   : OneSidedLocalRule {~⌈?'φ⌉ψ}  [ {φ, ~ψ} ]
+  | nSe (a b f) : OneSidedLocalRule {~⌈a;'b⌉f} [ {~⌈a⌉⌈b⌉f} ]
+  | uni (a b f) : OneSidedLocalRule {⌈a⋓b⌉f}   [ {⌈a⌉f, ⌈b⌉f} ]
+  | seq (a b f) : OneSidedLocalRule {⌈a;'b⌉f}  [ {⌈a⌉⌈b⌉f} ]
   -- splitting rules:
-  | tes {X o f g} (h : (⌈?'f⌉g) ∈ X) : localRule ⟨X,o⟩ { ⟨ (X \ {⌈?'f⌉g} ∪ {~f}), o⟩
-                                                       , ⟨ (X \ {⌈?'f⌉g} ∪ { g}), o⟩ }
-  | nUn {X o a b f} (h : (~⌈a⋓b⌉f) ∈ X) : localRule ⟨X,o⟩ { ⟨X \ {~⌈a ⋓ b⌉f} ∪ {~⌈a⌉f}, o⟩
-                                                          , ⟨X \ {~⌈a ⋓ b⌉f} ∪ {~⌈b⌉f}, og⟩ }
+  | tes (f g)   : OneSidedLocalRule {⌈?'f⌉g}    [ {~f}, {g} ]
+  | nUn (a b f) : OneSidedLocalRule {~⌈a ⋓ b⌉f} [ {~⌈a⌉f}, {~⌈b⌉f} ]
   -- STAR
   -- NOTE: we "manually" already make the first unravel/dagger step here to satisfy the (Neg)DagFormula type.
-  -- For * and ¬* on non-loaded formulas we keep o in the context as it is, by adding it to results (box)dagEndNodes.
-  | sta {X o a f} (h :  (⌈∗a⌉f) ∈ X) : localRule ⟨X,o⟩
-                                       ((boxDagEndNodes (X \ {⌈∗a⌉f} ∪ {f}, [ inject [a] a f ])).image (λ X => ⟨X,o⟩))
-  | nSt {X o a f} (h : (~⌈∗a⌉f) ∈ X) : localRule ⟨X,o⟩
-                                       ( { ⟨X \ {~⌈∗a⌉f} ∪ {~f}, o⟩ }
-                                         ∪ (dagEndNodes (X \ {~⌈∗a⌉f}, NegDagFormula.neg (inject [a] a f))).image (λ X => ⟨X,o⟩) )
+  -- TODO: avoid "toList" - rewrite DagTableau to already use lists?
+  | sta (a f) : OneSidedLocalRule {⌈∗a⌉f} (boxDagEndNodes ({f}, [ inject [a] a f ])).toList
+  | nSt (a f) : OneSidedLocalRule {~⌈∗a⌉f} ([ {~f} ] ++ (dagEndNodes (X \ {~⌈∗a⌉f}, NegDagFormula.neg (inject [a] a f))).toList)
 
-  -- LOADED rule applications
-  -- Only the local rules ¬u, ¬; ¬* and ¬? may be applied to loaded formulas (MB page 19).
-  -- It's annoying to need each rule twice here (due to the definition of LoadFormula).
-  | nUn' {X a b χ} : localRule ⟨X, some (~'⌊a⋓b⌋(χ : LoadFormula))⟩ { ⟨X, some (~'⌊α⌋χ)⟩
-                                                                    , ⟨X, some (~'⌊β⌋χ)⟩ }
-  | nUn'' {X a b φ} : localRule ⟨X, some (~'⌊a⋓b⌋(φ : Formula   ))⟩ { ⟨X, some (~'⌊α⌋φ)⟩
-                                                                    , ⟨X, some (~'⌊β⌋φ)⟩ }
+-- LOADED rule applications
+-- Only the local rules ¬u, ¬; ¬* and ¬? may be applied to loaded formulas (MB page 19).
+-- Each rule replaces the loaded formula by:
+-- - either one other loaded formula,
+-- - or a list of normal formulas.
+-- It's annoying to need each rule twice here (due to the definition of LoadFormula).
+inductive LoadRule : NegLoadFormula → List (Finset Formula × Option NegLoadFormula) → Type
+  | nUn'  {a b χ} : LoadedRule (~'⌊a⋓b ⌋(χ : LoadFormula)) [ (∅, some (~'⌊α⌋χ)), (∅, some (~'⌊β⌋χ)) ]
+  | nUn'' {a b φ} : LoadedRule (~'⌊a⋓b ⌋(φ : Formula    )) [ (∅, some (~'⌊α⌋φ)), (∅, some (~'⌊β⌋φ)) ]
+  | nSe'  {a b χ} : LoadedRule (~'⌊a;'b⌋(χ : LoadFormula)) [ (∅, some (~'⌊a⌋⌊b⌋χ)) ]
+  | nSe'' {a b φ} : LoadedRule (~'⌊a;'b⌋(φ : Formula    )) [ (∅, some (~'⌊a⌋⌊b⌋φ)) ]
+  -- TODO: Need dagger diamond tableau for loaded formula below!
+  -- use this:  dagEndNodes (X, NegDagFormula.neg (inject [a] a f)))
+  | nSt'  {a χ}   : LoadedRule (~'⌊∗a  ⌋(χ : LoadFormula)) ( [ (∅, some (~'χ)) ] ++ sorry)
+  | nSt'' {a φ}   : LoadedRule (~'⌊∗a  ⌋(φ : Formula    )) ([ ({~φ}, none) ] ++ sorry)
+  | nTe'  {φt χ}  : LoadedRule (~'⌊?'φt⌋(χ : LoadFormula)) [ ({φt}, some (~'χ)) ]
+  | nTe'' {φt φ}  : LoadedRule (~'⌊?'φt⌋(φ : Formula    )) [ ({φt, ~φ}, none) ]
 
-  | nSe'  {X a b χ} : localRule ⟨X, some (~'⌊a;'b⌋(χ : LoadFormula))⟩ { ⟨X, (~'⌊a⌋⌊b⌋χ)⟩ }
-  | nSe'' {X a b φ} : localRule ⟨X, some (~'⌊a;'b⌋(φ : Formula    ))⟩ { ⟨X, (~'⌊a⌋⌊b⌋φ)⟩ }
 
-  | nSt' {X a χ} : localRule ⟨X, some (~'⌊∗a⌋(χ : LoadFormula))⟩ ( { ⟨X, some (~'χ)⟩ }
-                                                 ∪ sorry )
-                                                 -- TODO: Need dagger diamond tableau for loaded formula.
-                                                 -- dagEndNodes (X, NegDagFormula.neg (inject [a] a f)))
-  | nSt'' {X a φ} : localRule ⟨X, some (~'⌊∗a⌋(φ : Formula))⟩ ( { ⟨X ∪ {~φ}, none⟩ }
-                                                 ∪ sorry )
+def SubPair := Finset Formula × Finset Formula × Option (Sum NegLoadFormula NegLoadFormula)
+deriving DecidableEq
 
-  | nTe'  {X φt χ} : localRule ⟨X, some (~'⌊?'φt⌋(χ : LoadFormula))⟩ { ⟨X ∪ {φt}    ,  ~'χ⟩ }
-  | nTe'' {X φt φ} : localRule ⟨X, some (~'⌊?'φt⌋(φ : Formula    ))⟩ { ⟨X ∪ {φt, ~φ}, none⟩ }
+-- formulas can be in four places now: left, right, loaded left, loaded right
+
+inductive LocalRule : SubPair → List SubPair → Type
+  | oneSidedL (orule : OneSidedLocalRule precond ress) : LocalRule (precond,∅,none) $ ress.map $ λ res => (res,∅,none)
+  | oneSidedR (orule : OneSidedLocalRule precond ress) : LocalRule (∅,precond,none) $ ress.map $ λ res => (∅,res,none)
+  | LRnegL (ϕ : Formula) : LocalRule ({ϕ}, {~ϕ}, none) ∅ --  ϕ occurs on the left side, ~ϕ on the right
+  | LRnegR (ϕ : Formula) : LocalRule ({~ϕ}, {ϕ}, none) ∅ -- ~ϕ occurs on the left side,  ϕ on the right
+  -- NOTE: do we need neg rules for ({~ unload χ}, ∅, some (Sum.inl ~χ)) and (∅, {~ unload χ}, some (Sum.inr ~χ)), ..here???
+  | loadedL (χ : LoadFormula) (lrule : LoadRule (~'χ) ress) :
+      LocalRule (∅,∅, some (Sum.inl (~'χ))) $ ress.map $ λ res => (∅,res,none)
+
+inductive localRule : TNode → Finset TNode → Type -- use List TNode ?!
+
+-- TABLEAU nodes
+
+-- A tableau node has a set of formulas and one or no negated loaded formula.
+def TNode := Finset Formula × Finset Formula × Option (Sum NegLoadFormula NegLoadFormula) -- ⟨L, R, o⟩
+  deriving DecidableEq -- TODO Repr
+
+instance modelCanSemImplyTNode : vDash (KripkeModel W × W) TNode :=
+  vDash.mk (λ ⟨M,w⟩ ⟨L, R, o⟩ => ∀ f ∈ L ∪ R ∪ (o.map (Sum.elim negUnload negUnload)).toFinset, evaluate M w f)
+
+@[simp]
+def applyLocalRule (_ : LocalRule (Lcond, Rcond) C) : TNode → List TNode
+  | ⟨L, R, o⟩ => C.map $ λc => (L \ Lcond ∪ c.1, R \ Rcond ∪ c.2, o)
+
+inductive LocalRuleApp : TNode → List TNode → Type
+  | mk {L R : Finset Formula}
+       {C : List SubPair}
+       (Lcond Rcond : Finset Formula)
+       (rule : LocalRule (Lcond,Rcond) C)
+       (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R)
+       : LocalRuleApp (L,R,o) $ applyLocalRule rule (L,R,o)
 
 -- Like Lemma 5 of MB
 lemma localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
