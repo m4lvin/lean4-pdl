@@ -19,7 +19,7 @@ theorem consingle {f : Formula} : Con [f] = f := by rfl
 def dis : List Formula → Formula
   | [] => ⊥
   | [f] => f
-  | f :: rest => f⋁dis rest
+  | f :: rest => f ⋁ dis rest
 
 @[simp]
 theorem disempty : dis ∅ = (⊥ : Formula) := by rfl
@@ -63,7 +63,7 @@ theorem disconEvalHT {X} : ∀ XS, discon (X :: XS)≡Con X⋁discon XS :=
   · simp
   · simp
 
-theorem disconEval {W M} {w : W} :
+theorem disconEval' {W M} {w : W} :
     ∀ {N : Nat} XS,
       List.length XS = N → (evaluate M w (discon XS) ↔ ∃ Y ∈ XS, ∀ f ∈ Y, evaluate M w f) :=
   by
@@ -102,6 +102,12 @@ theorem disconEval {W M} {w : W} :
     · right
       use Y
 
+theorem disconEval {W M} {w : W} :
+    ∀ XS,
+      (evaluate M w (discon XS) ↔ ∃ Y ∈ XS, ∀ f ∈ Y, evaluate M w f) :=
+  by
+    intro XS
+    apply disconEval' XS rfl
 
 -- UPLUS
 
@@ -127,20 +133,20 @@ theorem disconAnd {XS YS} : discon (XS ⊎ YS) ≡ discon XS ⋀ discon YS :=
   by
   unfold semEquiv
   intro W M w
-  rw [disconEval (XS ⊎ YS) (by rfl)]
+  rw [disconEval (XS ⊎ YS)]
   simp
-  rw [disconEval XS (by rfl)]
-  rw [disconEval YS (by rfl)]
+  rw [disconEval XS]
+  rw [disconEval YS]
   aesop
 
 theorem disconOr {XS YS} : discon (XS ∪ YS) ≡ discon XS ⋁ discon YS :=
   by
   unfold semEquiv
   intro W M w
-  rw [disconEval (XS ∪ YS) (by rfl)]
+  rw [disconEval (XS ∪ YS)]
   simp
-  rw [disconEval XS (by rfl)]
-  rw [disconEval YS (by rfl)]
+  rw [disconEval XS]
+  rw [disconEval YS]
   constructor
   · -- →
     intro lhs

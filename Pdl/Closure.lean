@@ -15,23 +15,21 @@ import Mathlib.Algebra.BigOperators.Basic
 
 -- reflexive transitive closure of a decreasing function
 def ftr {α : Type}
-    (f : α → Finset α)
-    (h : DecidableEq α)
+    (f : α → List α)
     (m : α → ℕ)
     (isDec : ∀ (x : α), ∀ y ∈ (f x), m y < m x) :
-    α → Finset α
-  | x => {x} ∪ (f x).attach.biUnion (fun ⟨y, y_in⟩ => have := y_in; ftr f h m isDec y)
+    α → List α
+  | x => [x] ++ ((f x).attach.map (fun ⟨y,y_in⟩ => have := y_in; ftr f m isDec y)).join
 termination_by
-  ftr f h m isDec S => m S
+  ftr h m isDec S => m S
 decreasing_by simp_wf; apply isDec x _ (by assumption)
 -- have := ... to avoid false waring, see https://github.com/leanprover/lean4/issues/2920
 
 theorem ftr.iff (x y : α)
-    {f : α → Finset α}
-    {h : DecidableEq α}
+    {f : α → List α}
     {m : α → ℕ}
     {isDec : ∀ (x : α), ∀ y ∈ (f x), m y < m x} :
-    y ∈ ftr f h m isDec x  ↔  y = x ∨ ∃ z, z ∈ f x ∧ y ∈ ftr f h m isDec z := by
+    y ∈ ftr f m isDec x  ↔  y = x ∨ ∃ z, z ∈ f x ∧ y ∈ ftr f m isDec z := by
   constructor
   · intro y_in
     unfold ftr at y_in
@@ -43,11 +41,10 @@ theorem ftr.iff (x y : α)
     convert claim
 
 theorem ftr.iff' {x y : α}
-    {f : α → Finset α}
-    {h : DecidableEq α}
+    {f : α → List α}
     {m : α → ℕ}
     {isDec : ∀ (x : α), ∀ y ∈ (f x), m y < m x} :
-    y ∈ ftr f h m isDec x  ↔  y = x ∨ ∃ z, z ∈ ftr f h m isDec x ∧ y ∈ f z := by
+    y ∈ ftr f m isDec x  ↔  y = x ∨ ∃ z, z ∈ ftr f m isDec x ∧ y ∈ f z := by
   constructor
   · intro y_in
     unfold ftr at y_in
@@ -86,18 +83,18 @@ theorem ftr.iff' {x y : α}
         aesop
       case inr hyp =>
         rcases hyp with ⟨z, z_in_fx, a_in_ftr_z⟩
-        have y_in_ftr_z : y ∈ ftr f h m isDec z := by
+        have y_in_ftr_z : y ∈ ftr f m isDec z := by
           rw [ftr.iff']
           right
           use a
         unfold ftr
         aesop
 termination_by
-  ftr.iff' x y f h m isDec => m x -- ??
+  ftr.iff' x y f m isDec => m x -- ??
 decreasing_by simp_wf; apply isDec x _ (by assumption)
 
-theorem biUnion_subset (h : DecidableEq α) (f) : ∀ i, ∀ (X Y : Finset α),
-    X ⊆ Y → ((λ X => X.biUnion f)^[i]) X ⊆ ((λ X => X.biUnion f)^[i]) Y :=  by
+theorem biUnion_subset (f) : ∀ i, ∀ (X Y : List α),
+    X ⊆ Y → ((λ X => X.map f)^[i]) X ⊆ ((λ X => X.map f)^[i]) Y :=  by
   intro i
   induction i
   case zero =>
@@ -109,16 +106,15 @@ theorem biUnion_subset (h : DecidableEq α) (f) : ∀ i, ∀ (X Y : Finset α),
     intro X Y
     simp
     intro X_sub_Y
-    exact IH (X.biUnion f) (Y.biUnion f) (Finset.biUnion_subset_biUnion_of_subset_left f X_sub_Y)
+    apply IH (X.map f) (Y.map f) (List.map_subset f X_sub_Y)
 
 theorem ftr.fromNth {α : Type}
-    {f : α → Finset α}
-    {h : DecidableEq α}
+    {f : α → List α}
     {m : α → ℕ}
     {isDec : ∀ (x : α), ∀ y ∈ (f x), m y < m x}
     {i : ℕ}
     :
-    ∀ {x y : α}, (y ∈ ((λ X => Finset.biUnion X f)^[i]) {x}) → (y ∈ ftr f h m isDec x) := by
+    ∀ {x y : α}, (y ∈ ((λ X => (X.map f).join)^[i]) [x]) → (y ∈ ftr f m isDec x) := by
       induction i
       all_goals intro x y y_in
       case zero =>
@@ -140,8 +136,7 @@ theorem ftr.fromNth {α : Type}
         · assumption
 
 theorem ftr.toNth {α : Type}
-    {f : α → Finset α}
-    {h : DecidableEq α}
+    {f : α → List α}
     {m : α → ℕ}
     {isDec : ∀ (x : α), ∀ y ∈ (f x), m y < m x}
     (k : ℕ)
@@ -149,7 +144,7 @@ theorem ftr.toNth {α : Type}
     ∀ {x : α}
     {_ : k = m x}
     {y : α},
-    (y ∈ ftr f h m isDec x → (∃ i, y ∈ ((λ X => Finset.biUnion X f)^[i]) {x})) := by
+    (y ∈ ftr f m isDec x → (∃ i, y ∈ ((λ X => (X.map f).join)^[i]) [x])) := by
   induction k using Nat.strong_induction_on
   case h k IH =>
     intro x k_is y
@@ -167,30 +162,27 @@ theorem ftr.toNth {α : Type}
       rcases this with ⟨j,foo⟩
       use j + 1
       simp
-      rw [← @Finset.singleton_subset_iff] at z_in_fx
-      exact biUnion_subset h f j {z} (f x) z_in_fx foo
+      sorry -- exact biUnion_subset f j {z} (f x) z_in_fx foo
 
 theorem ftr.iff_Nth {α : Type}
-    (f : α → Finset α)
-    (h : DecidableEq α)
+    (f : α → List α)
     (m : α → ℕ)
     (isDec : ∀ (x : α), ∀ y ∈ (f x), m y < m x)
     (x : α)
     (y : α)
     :
-    (y ∈ ftr f h m isDec x ↔ (∃ i, y ∈ ((λ X => Finset.biUnion X f)^[i]) {x})) := by
+    (y ∈ ftr f m isDec x ↔ (∃ i, y ∈ ((λ X => (X.map f).join)^[i]) [x])) := by
    constructor
    · apply ftr.toNth (m x); rfl
    · rintro ⟨i,claim⟩; apply ftr.fromNth claim
 
 theorem ftr.Trans (s t u : α)
-    (f : α → Finset α)
-    (h : DecidableEq α)
+    (f : α → List α)
     (m : α → ℕ)
     (isDec : ∀ (x : α), ∀ y ∈ (f x), m y < m x)
-    (s_in_ftr_t : s ∈ ftr f h m isDec t)
-    (t_in_ftr_u : t ∈ ftr f h m isDec u) :
-    s ∈ ftr f h m isDec u
+    (s_in_ftr_t : s ∈ ftr f m isDec t)
+    (t_in_ftr_u : t ∈ ftr f m isDec u) :
+    s ∈ ftr f m isDec u
   := by
   rw [ftr.iff_Nth]
   rw [ftr.iff_Nth] at s_in_ftr_t
@@ -200,7 +192,8 @@ theorem ftr.Trans (s t u : α)
   use i + j
   rw [Function.iterate_add]
   simp at *
-  rw [← @Finset.singleton_subset_iff] at t_in
-  have := biUnion_subset h f i {t} ((fun X => Finset.biUnion X f)^[j] {u}) t_in
-  apply this
-  assumption
+  sorry
+  -- rw [← @Finset.singleton_subset_iff] at t_in
+  -- have := biUnion_subset h f i {t} ((fun X => Finset.biUnion X f)^[j] {u}) t_in
+  -- apply this
+  -- assumption
