@@ -72,7 +72,7 @@ def mOfDagFormula : DagFormula → Nat
 
 instance : LT DagFormula := ⟨λ ψ1 ψ2 => mOfDagFormula ψ1 < mOfDagFormula ψ2⟩
 
-def mOfDagNode : Finset Formula × Option NegDagFormula → ℕ
+def mOfDagNode : List Formula × Option NegDagFormula → ℕ
   | ⟨_, none⟩ => 0
   | ⟨_, some (~ψ)⟩ => 1 + mOfDagFormula ψ
 
@@ -80,18 +80,18 @@ def mOfDagNode : Finset Formula × Option NegDagFormula → ℕ
 
 -- Immediate sucessors of a node in a Daggered Tableau, for diamonds.
 @[simp]
-def dagNext : (Finset Formula × Option NegDagFormula) → Finset (Finset Formula × Option NegDagFormula)
-  | (fs, some (~⌈·a⌉ψ)) => { (fs ∪ {undag (~⌈·a⌉ψ)}, none) }
-  | (fs, some (~⌈α⋓β⌉ψ)) => { (fs, some (~⌈α⌉ψ))
-                            , (fs, some (~⌈β⌉ψ)) }
-  | (fs, some (~⌈?'φ⌉ψ)) => { (fs ∪ {φ}, some (~ψ)) }
-  | (fs, some (~⌈α;'β⌉ψ)) => { (fs, some (~⌈α⌉⌈β⌉ψ)) }
-  | (fs, some (~⌈∗α⌉ψ)) => { (fs, some (~ψ))
-                            , (fs, some (~⌈α⌉⌈α†⌉(undag ψ))) } -- only keep top-most dagger
-  | (_, some (~⌈_†⌉_)) => {  } -- delete branch
-  | (_, none) => { } -- end node of dagger tableau
+def dagNext : (List Formula × Option NegDagFormula) → List (List Formula × Option NegDagFormula)
+  | (fs, some (~⌈·a⌉ψ)) => [ (fs ++ [undag (~⌈·a⌉ψ)], none) ]
+  | (fs, some (~⌈α⋓β⌉ψ)) => [ (fs, some (~⌈α⌉ψ))
+                            , (fs, some (~⌈β⌉ψ)) ]
+  | (fs, some (~⌈?'φ⌉ψ)) => [ (fs ++ [φ], some (~ψ)) ]
+  | (fs, some (~⌈α;'β⌉ψ)) => [ (fs, some (~⌈α⌉⌈β⌉ψ)) ]
+  | (fs, some (~⌈∗α⌉ψ)) => [ (fs, some (~ψ))
+                            , (fs, some (~⌈α⌉⌈α†⌉(undag ψ))) ] -- only keep top-most dagger
+  | (_, some (~⌈_†⌉_)) => [  ] -- delete branch
+  | (_, none) => [ ] -- end node of dagger tableau
 
-theorem mOfDagNode.isDec {x y : Finset Formula × Option NegDagFormula} (y_in : y ∈ dagNext x) :
+theorem mOfDagNode.isDec {x y : List Formula × Option NegDagFormula} (y_in : y ∈ dagNext x) :
     mOfDagNode y < mOfDagNode x := by
   rcases x with ⟨_, _|dfx⟩
   case none =>
@@ -129,11 +129,11 @@ theorem mOfDagNode.isDec {x y : Finset Formula × Option NegDagFormula} (y_in : 
             simp
 
 @[simp]
-def dagNextTransRefl : (Finset Formula × Option NegDagFormula) → Finset (Finset Formula × Option NegDagFormula) :=
-  ftr dagNext instDecidableEqProd mOfDagNode @mOfDagNode.isDec
+def dagNextTransRefl : (List Formula × Option NegDagFormula) → List (List Formula × Option NegDagFormula) :=
+  ftr dagNext mOfDagNode @mOfDagNode.isDec
 
-instance modelCanSemImplyDagTabNode {W : Type} : vDash (KripkeModel W × W) (Finset Formula × Option NegDagFormula) :=
-  vDash.mk (λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ∪ (mf.map undag).toFinset, evaluate M w φ)
+instance modelCanSemImplyDagTabNode {W : Type} : vDash (KripkeModel W × W) (List Formula × Option NegDagFormula) :=
+  vDash.mk (λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ++ (mf.map undag).toList, evaluate M w φ)
 
 -- Similar to Borzechowski's Lemma 4
 theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
@@ -148,7 +148,7 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
                    ∨ ((~φ) ∈ Γ.2 ∧ v = w) ) := by
   cases a
   case atom_prog A =>
-    use (fs ∪ {undag (~⌈·A⌉φ)}, none) -- unique successor by the "undag" rule
+    use (fs ++ [undag (~⌈·A⌉φ)], none) -- unique successor by the "undag" rule
     constructor
     · unfold dagNextTransRefl; rw [ftr.iff]; right; simp; rw [ftr.iff]; simp
     · constructor
@@ -344,7 +344,7 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
       · exact ⟨v_Γ, split⟩
 
   case test ψ =>
-    use (fs ∪ {ψ}, some (~φ)) -- unique successor
+    use (fs ++ [ψ], some (~φ)) -- unique successor
     constructor
     · unfold dagNextTransRefl; rw [ftr.iff]; right; simp; rw [ftr.iff]; simp
     · constructor
@@ -362,12 +362,12 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
 termination_by
   notStarSoundnessAux α M v w fs φ v_D v_a_w w_nP => mOfProgram α
 
-def dagEndNodes : (Finset Formula × Option NegDagFormula) → Finset (Finset Formula)
-  | (fs, none) => { fs }
-  | (fs, some df) => (dagNext (fs, some df)).attach.biUnion
+def dagEndNodes : (List Formula × Option NegDagFormula) → List (List Formula)
+  | (fs, none) => [ fs ]
+  | (fs, some df) => ((dagNext (fs, some df)).attach.map
       (fun ⟨gsdf, h⟩ =>
         have : mOfDagNode gsdf < mOfDagNode (fs, some df) := mOfDagNode.isDec h
-        dagEndNodes gsdf)
+        dagEndNodes gsdf)).join
 termination_by
   dagEndNodes fs => mOfDagNode fs
 decreasing_by simp_wf; assumption
@@ -380,45 +380,16 @@ theorem dagEnd_subset_next
   · simp [dagNext] at O_in
   · intro e_in
     unfold dagEndNodes
-    simp
-    simp at O_in
-    use Ω.1
-    use Ω.2
+    sorry
+    -- simp
+    -- simp at O_in
+    -- use Ω.1
+    -- use Ω.2
 
 theorem dagEndOfSome_iff_step : Γ ∈ dagEndNodes (fs, some (~⌈a⌉f)) ↔
     ∃ S ∈ dagNext (fs, some (~⌈a⌉f)), Γ ∈ dagEndNodes S := by
   cases a
-  all_goals try (simp [dagEndNodes]; done)
-  case union a b =>
-    constructor
-    · intro lhs
-      simp [dagNext]
-      unfold dagEndNodes at lhs
-      simp at lhs
-      cases lhs
-      · left
-        tauto
-      case inr hyp =>
-        rcases hyp with ⟨fs, mdf, claim⟩
-        aesop
-    · intro rhs
-      rcases rhs with ⟨S, S_in, Γ_in⟩
-      exact dagEnd_subset_next S_in Γ_in
-  case star a => -- exact same as union case
-    constructor
-    · intro lhs
-      simp [dagNext]
-      unfold dagEndNodes at lhs
-      simp at lhs
-      cases lhs
-      · left
-        tauto
-      case inr hyp =>
-        rcases hyp with ⟨fs, mdf, claim⟩
-        aesop
-    · intro rhs
-      rcases rhs with ⟨S, S_in, Γ_in⟩
-      exact dagEnd_subset_next S_in Γ_in
+  all_goals (simp [dagEndNodes]; done)
 
 theorem dagEnd_subset_trf {Ω Γ} :
     Ω ∈ dagNextTransRefl Γ → dagEndNodes Ω ⊆ dagEndNodes Γ := by
@@ -540,24 +511,24 @@ decreasing_by simp_wf; apply mOfDagNode.isDec; aesop
 
 -- Here we need a List DagFormula, because of the ⋓ rule.
 
-def mOfBoxDagNode : (Finset Formula × List DagFormula) → ℕ
+def mOfBoxDagNode : (List Formula × List DagFormula) → ℕ
   | ⟨_, []⟩ => 0
   | ⟨_, dfs⟩ => 1 + (dfs.map mOfDagFormula).sum + (dfs.map mOfDagFormula).length
 
 -- Immediate sucessors of a node in a Daggered Tableau, for boxes.
 -- Note that this is still fully deterministic.
 @[simp]
-def boxDagNext : (Finset Formula × List DagFormula) → Finset (Finset Formula × List DagFormula)
-  | (fs, (⌈·A⌉φ)::rest) => { (fs ∪ {undag (⌈·A⌉φ)}, rest) }
-  | (fs, (⌈α⋓β⌉φ)::rest) => { (fs, (⌈α⌉φ)::(⌈β⌉φ)::rest ) }
-  | (fs, (⌈?'ψ⌉φ)::rest) => { (fs ∪ {~ψ}, rest)
-                            , (fs, φ::rest) }
-  | (fs, (⌈α;'β⌉φ)::rest) => { (fs, (⌈α⌉⌈β⌉φ)::rest) }
-  | (fs, (⌈∗α⌉φ)::rest) => { (fs, φ::(⌈α⌉⌈α†⌉(undag φ))::rest) } -- NOT splitting!
-  | (fs, (⌈_†⌉_)::rest) => { (fs, rest) } -- delete formula, but keep branch!
+def boxDagNext : (List Formula × List DagFormula) → List (List Formula × List DagFormula)
+  | (fs, (⌈·A⌉φ)::rest) => [ (fs ++ [undag (⌈·A⌉φ)], rest) ]
+  | (fs, (⌈α⋓β⌉φ)::rest) => [ (fs, (⌈α⌉φ)::(⌈β⌉φ)::rest ) ]
+  | (fs, (⌈?'ψ⌉φ)::rest) => [ (fs ++ [~ψ], rest)
+                            , (fs, φ::rest) ]
+  | (fs, (⌈α;'β⌉φ)::rest) => [ (fs, (⌈α⌉⌈β⌉φ)::rest) ]
+  | (fs, (⌈∗α⌉φ)::rest) => [ (fs, φ::(⌈α⌉⌈α†⌉(undag φ))::rest) ] -- NOT splitting!
+  | (fs, (⌈_†⌉_)::rest) => [ (fs, rest) ] -- delete formula, but keep branch!
   | (_, []) => { } -- end node of dagger tableau
 
-theorem mOfBoxDagNode.isDec {x y : Finset Formula × List DagFormula} (y_in : y ∈ boxDagNext x) :
+theorem mOfBoxDagNode.isDec {x y : List Formula × List DagFormula} (y_in : y ∈ boxDagNext x) :
     mOfBoxDagNode y < mOfBoxDagNode x := by
   rcases x with ⟨fs, _|⟨df,rest⟩⟩
   case nil =>
@@ -588,18 +559,18 @@ theorem mOfBoxDagNode.isDec {x y : Finset Formula × List DagFormula} (y_in : y 
             subst r; simp [mOfBoxDagNode]
 
 @[simp]
-def boxDagNextTransRefl : (Finset Formula × List DagFormula) → Finset (Finset Formula × List DagFormula) :=
-  ftr boxDagNext instDecidableEqProd mOfBoxDagNode @mOfBoxDagNode.isDec
+def boxDagNextTransRefl : (List Formula × List DagFormula) → List (List Formula × List DagFormula) :=
+  ftr boxDagNext mOfBoxDagNode @mOfBoxDagNode.isDec
 
-instance modelCanSemImplyBoxDagTabNode {W : Type} : vDash (KripkeModel W × W) (Finset Formula × List DagFormula) :=
-  vDash.mk (λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ∪ (mf.map undag).toFinset, evaluate M w φ)
+instance modelCanSemImplyBoxDagTabNode {W : Type} : vDash (KripkeModel W × W) (List Formula × List DagFormula) :=
+  vDash.mk (λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ++ (mf.map undag), evaluate M w φ)
 
-def boxDagEndNodes : (Finset Formula × List DagFormula) → Finset (Finset Formula)
-  | (fs, []) => { fs }
-  | (fs, df::rest) => (boxDagNext (fs, df::rest)).attach.biUnion
+def boxDagEndNodes : (List Formula × List DagFormula) → List (List Formula)
+  | (fs, []) => [ fs ]
+  | (fs, df::rest) => ((boxDagNext (fs, df::rest)).attach.map
       (fun ⟨gsdf, h⟩ =>
         have : mOfBoxDagNode gsdf < mOfBoxDagNode (fs, df::rest) := mOfBoxDagNode.isDec h
-        boxDagEndNodes gsdf)
+        boxDagEndNodes gsdf)).join
 termination_by
   boxDagEndNodes fs => mOfBoxDagNode fs
 decreasing_by simp_wf; assumption
@@ -612,10 +583,11 @@ theorem boxDagEnd_subset_next
   · simp [dagNext] at O_in
   · intro e_in
     unfold boxDagEndNodes
-    simp
-    simp at O_in
-    use Ω.1
-    use Ω.2
+    sorry
+    -- simp
+    -- simp at O_in
+    -- use Ω.1
+    -- use Ω.2
 
 theorem boxDagEnd_subset_trf {Ω Γ} :
     Ω ∈ boxDagNextTransRefl Γ → boxDagEndNodes Ω ⊆ boxDagEndNodes Γ := by

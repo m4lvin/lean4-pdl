@@ -79,6 +79,7 @@ inductive LoadFormula : Type -- χ
   | box : Program → LoadFormula → LoadFormula -- ⌊α⌋χ
   deriving Repr, DecidableEq
 
+@[simp]
 def unload : LoadFormula → Formula
 | LoadFormula.load α φ => ⌈α⌉φ
 | LoadFormula.box α χ => ⌈α⌉(unload χ)
@@ -87,6 +88,7 @@ inductive NegLoadFormula : Type -- ¬χ
   | neg : LoadFormula → NegLoadFormula
   deriving Repr, DecidableEq
 
+@[simp]
 def negUnload : NegLoadFormula → Formula
 | NegLoadFormula.neg χ => ~(unload χ)
 

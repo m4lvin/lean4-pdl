@@ -42,6 +42,8 @@ instance formulaHasLength : HasLength Formula := ⟨lengthOfFormula⟩
 @[simp]
 instance setFormulaHasLength : HasLength (Finset Formula) := ⟨fun X => X.sum lengthOfFormula⟩
 @[simp]
+instance listFormulaHasLength : HasLength (List Formula) := ⟨fun X => (X.map lengthOfFormula).sum⟩
+@[simp]
 instance programHasLength : HasLength Program := ⟨lengthOfProgram⟩
 @[simp]
 instance setProgramHasLength : HasLength (Finset Program) := ⟨fun X => X.sum lengthOfProgram⟩
