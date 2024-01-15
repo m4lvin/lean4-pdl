@@ -21,14 +21,14 @@ local notation "~" ψ => NegDag.neg ψ
 
 -- MEASURE
 @[simp]
-def mOfDagFormula : Dag Formula → Nat
+def mOfDagFormula : DagFormula → Nat
   | ⌈_†⌉_ => 0 -- TO CHECK: is this correct?
   | ⌈α⌉ψ => mOfProgram α + mOfDagFormula ψ
 
 @[simp]
 instance : LT DagFormula := ⟨λ ψ1 ψ2 => mOfDagFormula ψ1 < mOfDagFormula ψ2⟩
 
-def mOfDagNode : List Formula × Option (NegDag Formula) → ℕ
+def mOfDagNode : List Formula × Option NegDagFormula → ℕ
   | ⟨_, none⟩ => 0
   | ⟨_, some (~ψ)⟩ => 1 + mOfDagFormula ψ
 
@@ -36,8 +36,8 @@ def mOfDagNode : List Formula × Option (NegDag Formula) → ℕ
 
 -- Immediate sucessors of a node in a Daggered Tableau, for diamonds.
 @[simp]
-def dagNext : (List Formula × Option (NegDag Formula)) → List (List Formula × Option (NegDag Formula))
-  | (fs, some (~⌈·a⌉ψ)) => [ (fs ++ [~(undag (⌈·a⌉ψ))], none) ]
+def dagNext : (List Formula × Option NegDagFormula) → List (List Formula × Option NegDagFormula)
+  | (fs, some (~⌈·a⌉ψ)) => [ (fs ++ [undag (~⌈·a⌉ψ)], none) ]
   | (fs, some (~⌈α⋓β⌉ψ)) => [ (fs, some (~⌈α⌉ψ))
                             , (fs, some (~⌈β⌉ψ)) ]
   | (fs, some (~⌈?'φ⌉ψ)) => [ (fs ++ [φ], some (~ψ)) ]
@@ -47,7 +47,7 @@ def dagNext : (List Formula × Option (NegDag Formula)) → List (List Formula �
   | (_, some (~⌈_†⌉_)) => [  ] -- delete branch
   | (_, none) => [ ] -- end node of dagger tableau
 
-theorem mOfDagNode.isDec {x y : List Formula × Option (NegDag Formula)} (y_in : y ∈ dagNext x) :
+theorem mOfDagNode.isDec {x y : List Formula × Option NegDagFormula} (y_in : y ∈ dagNext x) :
     mOfDagNode y < mOfDagNode x := by
   rcases x with ⟨_, _|dfx⟩
   case none =>
@@ -85,15 +85,15 @@ theorem mOfDagNode.isDec {x y : List Formula × Option (NegDag Formula)} (y_in :
             simp
 
 @[simp]
-def dagNextTransRefl : (List Formula × Option (NegDag Formula)) → List (List Formula × Option (NegDag Formula)) :=
+def dagNextTransRefl : (List Formula × Option NegDagFormula) → List (List Formula × Option NegDagFormula) :=
   ftr dagNext mOfDagNode @mOfDagNode.isDec
 
-instance modelCanSemImplyDagTabNode {W : Type} : vDash (KripkeModel W × W) (List Formula × Option (NegDag Formula)) :=
+instance modelCanSemImplyDagTabNode {W : Type} : vDash (KripkeModel W × W) (List Formula × Option NegDagFormula) :=
   vDash.mk (λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ++ (mf.map undag).toList, evaluate M w φ)
 
 -- Similar to Borzechowski's Lemma 4
 theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
-    (φ : Dag Formula)
+    (φ : DagFormula)
     (v_D : (M, v) ⊨ (fs, some (~⌈a⌉φ)))
     (v_a_w : relate M a v w)
     (w_nP : (M, w) ⊨ (~undag φ)) :
@@ -318,7 +318,7 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
 termination_by
   notStarSoundnessAux α M v w fs φ v_D v_a_w w_nP => mOfProgram α
 
-def dagEndNodes : (List Formula × Option (NegDag Formula)) → List (List Formula)
+def dagEndNodes : (List Formula × Option NegDagFormula) → List (List Formula)
   | (fs, none) => [ fs ]
   | (fs, some df) => ((dagNext (fs, some df)).attach.map
       (fun ⟨gsdf, h⟩ =>
@@ -461,52 +461,66 @@ decreasing_by simp_wf; apply mOfDagNode.isDec; aesop
 
 -- -- LOADED DIAMONDS -- --
 
-local notation "⌊" α "†⌋" φ => Dag.dag α (φ : LoadFormula)
-local notation "⌊" α "⌋" ψ => Dag.box α (ψ : Dag LoadFormula)
-local notation "⌊⌊" ps "⌋⌋" ψ => Dag.boxes ps (ψ : Dag LoadFormula)
+inductive DagLoadFormula
+  | dag : Program → Formula → DagLoadFormula -- ⌊α†⌋φ
+  | ldg : Program → LoadFormula → DagLoadFormula -- ⌊α†⌋χ
+  | box : Program → DagLoadFormula → DagLoadFormula  -- ⌊α⌋γ
+  deriving Repr, DecidableEq
 
--- re-use ~' from above
+local notation "⌊" α "†⌋" φ => DagLoadFormula.dag α (φ : Formula)
+local notation "⌊" α "†⌋" χ => DagLoadFormula.ldg α (χ : LoadFormula)
+local notation "⌊" α "⌋" γ => DagLoadFormula.box α (γ : DagLoadFormula)
+local notation "⌊⌊" ps "⌋⌋" γ => DagLoadFormula.boxes ps (γ : DagLoadFormula)
+
+inductive NegDagLoadFormula
+  | neg : DagLoadFormula → NegDagLoadFormula
+
+open NegDagLoadFormula
+
+local notation "~" γ => NegDagLoadFormula.neg γ
 
 @[simp]
-def undagDagLoadFormula : (Dag LoadFormula) → LoadFormula
-  | (⌊α†⌋f) => (LoadFormula.box (∗α) f)
-  | (⌊α⌋df) => (LoadFormula.box α (undagDagLoadFormula df))
+def unloadAndUndag : DagLoadFormula → Formula
+  | (⌊α†⌋(φ : Formula)) => (Formula.box (∗α) φ)
+  | (⌊α†⌋(χ : LoadFormula)) => (Formula.box (∗α) (unload χ))
+  | (⌊α⌋γ) => (Formula.box α (unloadAndUndag γ))
 
-@[simp]
-instance UndagDagLoadFormula : Undag (Dag LoadFormula) LoadFormula := Undag.mk undagDagLoadFormula
+def undagOnly : DagLoadFormula → LoadFormula
+  | (⌊α†⌋(φ : Formula)) => (LoadFormula.load (∗α) φ)
+  | (⌊α†⌋(χ : LoadFormula)) => (LoadFormula.box (∗α) (χ))
+  | (⌊α⌋γ) => (LoadFormula.box α (undagOnly γ))
+
+def unloadOnly : DagLoadFormula → DagFormula -- probably never needed?
+  | (⌊α†⌋(φ : Formula)) => (DagFormula.dag (∗α) φ)
+  | (⌊α†⌋(χ : LoadFormula)) => (DagFormula.dag (∗α) (unload χ))
+  | (⌊α⌋γ) => (DagFormula.box α (unloadOnly γ))
 
 -- QUESTIONS
--- - Is "Dag LoadFormula" the correct type? Does it actually allow ⌊α†⌋φ ??
--- NO! Because this does not type check:
-
--- example : Dag LoadFormula := ⌊(·'a')†⌋(·'p') -- broken
-
-example : Dag LoadFormula := ⌊(·'a')†⌋⌊·'a'⌋(·'p')
-
--- The type at the moment wants at least one loaded box and then on top of that a dagger :-/
-
+-- - Now that we went from "Dag LoadFormula" to "Dag LoadFormula" we have:
+example : DagLoadFormula := ⌊(·'a')†⌋(·'p') -- was broken, now works!
+-- example : DagLoadFormula := ⌊(·'a')†⌋⌊·'a'⌋(·'p') -- now broken, but that's good.
+example : DagLoadFormula := ⌊·'a'⌋⌊(·'a')†⌋(·'p') -- works
 
 -- Immediate sucessors of a node in a Loaded Daggered Diamond Tableau (LDDT).
--- In an LDDT we have a list of normal formulas and optionally either a NegLoadFormula or a NegDag LoadFormula.
--- Question: can it be that ψ is unloaded but not yet undaggered?! Conjecture: No.
-
+-- In an LDDT we have a list of normal formulas and optionally either a NegLoadFormula or a NegDagLoadFormula.
+-- Question: can it be that ψ is unloaded but not yet undaggered?!
+-- Answer No. Note that we use "undagOnly" but never "unloadOnly".
 @[simp]
-def loadDagNext : (List Formula × Option (Sum NegLoadFormula (NegDag LoadFormula)))
-           → List (List Formula × Option (Sum NegLoadFormula (NegDag LoadFormula)))
-
-  | (fs, some (Sum.inr (~⌊·a⌋(ψ : Dag LoadFormula)))) => [ (fs, some (Sum.inl (~'(⌊·a⌋(undag ψ))))) ]
-
+def loadDagNext : (List Formula × Option (Sum NegLoadFormula (NegDagLoadFormula)))
+           → List (List Formula × Option (Sum NegLoadFormula (NegDagLoadFormula)))
+  | (fs, some (Sum.inr (~⌊·a⌋(ψ : DagLoadFormula)))) => [ (fs, some (Sum.inl (~'(⌊·a⌋(undagOnly ψ))))) ]
   | (fs, some (Sum.inr (~⌊α⋓β⌋ψ))) => [ (fs, some (Sum.inr (~⌊α⌋ψ)))
                                       , (fs, some (Sum.inr (~⌊β⌋ψ))) ]
-
   | (fs, some (Sum.inr (~⌊?'φ⌋ψ))) => [ (fs ++ [φ], some (Sum.inr (~ψ))) ]
   | (fs, some (Sum.inr (~⌊α;'β⌋ψ))) => [ (fs, some (Sum.inr (~⌊α⌋⌊β⌋ψ))) ]
   | (fs, some (Sum.inr (~⌊∗α⌋ψ))) => [ (fs, some (Sum.inr (~ψ)))
-                                     , (fs, some (Sum.inr (~⌊α⌋⌊α†⌋(undag ψ)))) ] -- only keep top-most dagger
-
-  | (_, some (Sum.inr (~⌊_†⌋_))) => [  ] -- delete branch
+                                     , (fs, some (Sum.inr (~⌊α⌋⌊α†⌋(undagOnly ψ)))) ] -- only keep top-most dagger
+  | (_, some (Sum.inr (~⌊_†⌋(_ : Formula)))) => [  ] -- delete branch
+  | (_, some (Sum.inr (~⌊_†⌋(_ : LoadFormula)))) => [  ] -- delete branch
   | (_, some (Sum.inl _)) => [ ] -- end node of dagger tableau
   | (_, none) => [ ] -- end node of dagger tableau
+
+-- TODO: loadedNotStarSoundness, loadedDagEndNodes etc.
 
 
 -- -- -- BOXES -- -- --
