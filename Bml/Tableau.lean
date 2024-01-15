@@ -138,6 +138,72 @@ theorem notSimpleThenLocalRule {X} : ¬Simple X → ∃ B, Nonempty (LocalRule X
     use LocalRule.Con ϕ_in_X
   case box => tauto
 
+
+-- If X is not simple, then *this* local rule can be applied.
+def notSimpleThisLocalRule {X} : ¬Simple X → Σ B, LocalRule X B :=
+  by
+  intro notSimp
+  apply dite (⊥ ∈ X)
+  case t =>
+    intro bot_in_X
+    exact ⟨∅, LocalRule.bot bot_in_X⟩
+  -- No "case e" so we avoid staircase indentation here ;-)
+  intro bot_not_inX
+  have : Decidable (∃ φ, ~~φ ∈ X) := sorry
+  apply dite (∃ φ, ~~φ ∈ X)
+  case t =>
+    intro nnPhi_in_X
+    sorry -- exact ⟨ {X \ {~~φ} ∪ {φ}}, LocalRule.neg nnPhi_in_X⟩
+  sorry
+
+-- LIST local rules: given this set, we get these sets as child nodes
+inductive LocalRuleL : List Formula → List (List Formula) → Type
+  -- closing rules:
+  | bot {X} (h : ⊥ ∈ X) : LocalRuleL X ∅
+  | Not {X ϕ} (h : ϕ ∈ X ∧ ~ϕ ∈ X) : LocalRuleL X ∅
+  -- one-child rules:
+  | neg {X ϕ} (h : ~~ϕ ∈ X) : LocalRuleL X {X \ {~~ϕ} ∪ {ϕ}}
+  | Con {X ϕ ψ} (h : ϕ⋀ψ ∈ X) : LocalRuleL X {X \ {ϕ⋀ψ} ∪ {ϕ, ψ}}
+  -- splitting rule:
+  | nCo {X ϕ ψ} (h : ~(ϕ⋀ψ) ∈ X) : LocalRuleL X {X \ {~(ϕ⋀ψ)} ∪ {~ϕ}, X \ {~(ϕ⋀ψ)} ∪ {~ψ}}
+
+def SimpleL : List Formula → Bool
+  | X => ∀ P ∈ X, SimpleForm P
+
+-- If X is not simple, then *this* local rule can be applied.
+def notSimpleThisLocalRuleL {X : List Formula} : ¬SimpleL X → Σ B, LocalRuleL X B :=
+  by
+  intro SimpX
+  cases X
+  · exfalso
+    tauto
+  case cons f rest =>
+    apply dite (SimpleForm f)
+    -- if f is not simple ...
+    case e =>
+      intro fNotSimp
+      simp [SimpleForm] at fNotSimp
+      cases f
+      all_goals simp at *
+      case neg g =>
+        cases g
+        all_goals simp at *
+        case neg h =>
+          -- apply neg rule to ~~h
+          sorry
+        case And h1 h2 =>
+          -- apply Con rule
+          sorry
+      case And h1 h2 =>
+        -- apply Con rule
+        sorry
+    -- if f is simple, then the rest must be not simple
+    case t =>
+      intro simpF
+      have : ¬SimpleL rest := sorry
+      have := notSimpleThisLocalRuleL this
+      sorry
+
 theorem localRulesDecreaseLength {X : Finset Formula} {B : Finset (Finset Formula)}
     (r : LocalRule X B) : ∀ Y ∈ B, lengthOfSet Y < lengthOfSet X :=
   by
@@ -208,6 +274,41 @@ theorem atmRuleDecreasesLength {X : Finset Formula} {ϕ} :
 inductive LocalTableau : Finset Formula → Type
   | byLocalRule {X B} (_ : LocalRule X B) (next : ∀ Y ∈ B, LocalTableau Y) : LocalTableau X
   | sim {X} : Simple X → LocalTableau X
+
+def aLocalTableauFor α : LocalTableau α :=
+  by
+  apply dite (Simple α)
+  case t =>
+    intro isSim
+    exact LocalTableau.sim isSim
+  case e =>
+    intro notSim
+    have := @notSimpleThisLocalRule α notSim
+    rcases this with ⟨B,r⟩
+    cases r
+    case bot h =>
+      use (LocalTableau.byLocalRule (LocalRule.bot h) ?_)
+      intro Y; intro Y_in_empty; tauto
+    case Not h =>
+      use (LocalTableau.byLocalRule (LocalRule.Not h) ?_)
+      intro Y; intro Y_in_empty; tauto
+    case neg f h =>
+      use (LocalTableau.byLocalRule (LocalRule.neg h) ?_)
+      intro Y Y_def
+      have := localRulesDecreaseLength (LocalRule.neg h) Y Y_def
+      apply (aLocalTableauFor Y)
+    case Con f g h =>
+      use (LocalTableau.byLocalRule (LocalRule.Con h) ?_)
+      intro Y Y_def
+      have := localRulesDecreaseLength (LocalRule.Con h) Y Y_def
+      apply (aLocalTableauFor Y)
+    case nCo f g h =>
+      use (LocalTableau.byLocalRule (LocalRule.nCo h) ?_)
+      intro Y Y_def
+      have := localRulesDecreaseLength (LocalRule.nCo h) Y Y_def
+      apply (aLocalTableauFor Y)
+termination_by
+  aLocalTableauFor α => lengthOf α
 
 def existsLocalTableauFor α : Nonempty (LocalTableau α) :=
   by
