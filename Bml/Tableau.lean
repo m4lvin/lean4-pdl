@@ -144,27 +144,31 @@ inductive LocalRuleApp : TNode → List TNode → Type
 -- We have equality when types match
 instance : DecidableEq (LocalRuleApp LR C) := λ_ _ => Decidable.isTrue (sorry)
 
-inductive LocalTableau : TNode → Type
+inductive AppLocalTableau : TNode → Type
   | mk {L R : Finset Formula} {C : List TNode}
        (ruleA : LocalRuleApp (L,R) C)
-       (subTabs: (Π c ∈ C, LocalTableau (c.1, c.2)))
-       : LocalTableau (L, R)
+       (subTabs: (Π c ∈ C, AppLocalTableau (c.1, c.2)))
+       : AppLocalTableau (L, R)
 
-def getTabRule : LocalTableau LR → Σ Lcond Rcond C, LocalRule (Lcond,Rcond) C
+inductive LocalTableau : TNode → Type
+  | fromRule (appTab : AppLocalTableau LR) : LocalTableau LR
+  | fromSimple (isSimple : Simple (L ∪ R)) : LocalTableau (L,R)
+
+def getTabRule : AppLocalTableau LR → Σ Lcond Rcond C, LocalRule (Lcond,Rcond) C
   | LocalTableau.mk (ruleA : LocalRuleApp _ _) _ => match ruleA with
     | @LocalRuleApp.mk _ _ B Lcond Rcond rule _ => ⟨Lcond, Rcond, B, rule⟩
 
 -- We have equality when types match
-instance : DecidableEq (LocalTableau LR) := λtab₁ tab₂ => match getTabRule tab₁ == getTabRule tab₂ with
+instance : DecidableEq (AppLocalTableau LR) := λtab₁ tab₂ => match getTabRule tab₁ == getTabRule tab₂ with
   | true  => Decidable.isTrue  (sorry)
   | false => Decidable.isFalse (sorry)
 
-def getTabChildren : LocalTableau LR →  List TNode
+def getTabChildren : AppLocalTableau LR →  List TNode
   | @LocalTableau.mk _ _ C _ _ => C
 
 @[simp]
-def getSubTabs (tab : LocalTableau LR)
-  : (Π child ∈ getTabChildren tab, LocalTableau (child.fst, child.snd)) :=
+def getSubTabs (tab : AppLocalTableau LR)
+  : (Π child ∈ getTabChildren tab, AppLocalTableau (child.fst, child.snd)) :=
   match tab with
   | LocalTableau.mk _ subTabs => subTabs
 
@@ -207,7 +211,7 @@ theorem localRuleDecreasesVocab (ruleA : LocalRuleApp LR C)
 
 theorem InterpolantInductionStep
   (L R : Finset Formula)
-  (tab : LocalTableau (L, R))
+  (tab : AppLocalTableau (L, R))
   (subInterpolants : Π cLR ∈ getTabChildren tab, Formula)
   (hsubInterpolants : Π cLRP ∈ (getTabChildren tab).attach, PartInterpolant cLRP.val.1 cLRP.val.1 (subInterpolants cLRP.val cLRP.property))
   : (∃θ : Formula, PartInterpolant L R θ) :=
@@ -561,7 +565,7 @@ theorem endNodesOfLocalRuleLT {X Z B next lr} :
 
 -- Definition 16, page 29
 inductive ClosedTableau : Finset Formula → Type
-  | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf ⟨X, lt⟩, ClosedTableau Y) → ClosedTableau X
+  | loc {X} (lt : AppLocalTableau X) : (∀ Y ∈ endNodesOf ⟨X, lt⟩, ClosedTableau Y) → ClosedTableau X
   | atm {X ϕ} : ~(□ϕ) ∈ X → Simple X → ClosedTableau (projection X ∪ {~ϕ}) → ClosedTableau X
 
 inductive Provable : Formula → Prop
