@@ -183,10 +183,11 @@ inductive LoadRule : NegLoadFormula → List (List Formula × Option NegLoadForm
   | nUn' {α β φ} : LoadRule (~'⌊α⋓β ⌋(φ : Formula    )) [ (∅, some (~'⌊α⌋φ)), (∅, some (~'⌊β⌋φ)) ]
   | nSe  {α β χ} : LoadRule (~'⌊α;'β⌋(χ : LoadFormula)) [ (∅, some (~'⌊α⌋⌊β⌋χ)) ]
   | nSe' {α β φ} : LoadRule (~'⌊α;'β⌋(φ : Formula    )) [ (∅, some (~'⌊α⌋⌊β⌋φ)) ]
-  -- TODO: Need dagger diamond tableau for loaded formula below!
-  -- use this:  dagEndNodes (X, NegDagFormula.neg (inject [a] a f)))
-  | nSt  {α χ}   : LoadRule (~'⌊∗α  ⌋(χ : LoadFormula)) ([ (∅, some (~'χ)) ] ++ sorry)
-  | nSt' {α φ}   : LoadRule (~'⌊∗α  ⌋(φ : Formula    )) ([ ([~φ], none) ] ++ sorry)
+  -- Now we use loaded dagger diamond tableau:
+  | nSt  {α χ}   : LoadRule (~'⌊∗α  ⌋(χ : LoadFormula)) ([ (∅, some (~'χ)) ] ++
+     loadDagEndNodes (X, some (Sum.inr (NegDagLoadFormula.neg (injectLoad a χ)))))
+  | nSt' {α φ}   : LoadRule (~'⌊∗α  ⌋(φ : Formula    )) ([ ([~φ], none) ] ++
+     loadDagEndNodes (X, some (Sum.inr (NegDagLoadFormula.neg (injectLoad' a φ)))))
   | nTe  {φt χ}  : LoadRule (~'⌊?'φt⌋(χ : LoadFormula)) [ ([φt], some (~'χ)) ]
   | nTe' {φt φ}  : LoadRule (~'⌊?'φt⌋(φ : Formula    )) [ ([φt, ~φ], none) ]
 
@@ -211,11 +212,13 @@ theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
   case nSt α χ =>
     have := oneSidedLocalRuleTruth (OneSidedLocalRule.nSt α (unload χ)) W M w
     simp at this
-    sorry -- exact this -- ??
+    -- First need to implement loadDagEndNodes
+    sorry
   case nSt' α φ =>
     have := oneSidedLocalRuleTruth (OneSidedLocalRule.nSt α φ) W M w
     simp at this
-    sorry -- exact this -- ??
+    -- First need to implement loadDagEndNodes
+    sorry
 
 -- A LocalRule is a OneSidedLocalRule or a LoadRule.
 -- Formulas can be in four places now: left, right, loaded left, loaded right.
@@ -281,11 +284,10 @@ def isSimpleSet : Finset Formula → Bool
 def isSimpleNode : TNode → Bool
   | (L, R, o) => ∀ f ∈ L ++ R ++ (o.map (Sum.elim negUnload negUnload)).toList, isSimpleForm f
 
-
 -- MB: Definition 8
 -- a local tableau for X, must be maximal
 inductive LocalTableau : TNode → Type
-  | byLocalRule {X B} (_ : LocalRule X B) (next : ∀ Y ∈ B, LocalTableau Y) : LocalTableau X
+  | byLocalRule {X B} (_ : LocalRuleApp X B) (next : ∀ Y ∈ B, LocalTableau Y) : LocalTableau X
   | sim {X} : isSimpleNode X → LocalTableau X
 
 open LocalTableau
@@ -305,10 +307,11 @@ instance tnodeHasLength : HasLength TNode := ⟨lengthOfTNode⟩
 instance localTableauHasSizeof : SizeOf (Σ X, LocalTableau X) :=
   ⟨fun ⟨X, _⟩ => lengthOf X⟩
 
+
 -- TODO: is this even going to be true for our new system?
 -- Maybe use a different measure than lengthOf? Also Dershowitz-Manna?
-theorem localRulesDecreaseLength {X : TNode} {B : List TNode}
-    (r : LocalRule X B) : ∀ Y ∈ B, lengthOf Y < lengthOf X :=
+theorem localRuleApp.decreaseLength {X : TNode} {B : List TNode}
+    (r : LocalRuleApp X B) : ∀ Y ∈ B, lengthOf Y < lengthOf X :=
   by
   cases r
   all_goals intro β inB; simp at *
@@ -320,7 +323,7 @@ theorem localRulesDecreaseLength {X : TNode} {B : List TNode}
 def endNodesOf : (Σ X, LocalTableau X) → List TNode
   | ⟨X, @byLocalRule _ B lr next⟩ =>
     (B.attach.map fun ⟨Y, h⟩ =>
-      have : lengthOf Y < lengthOf X := localRulesDecreaseLength lr Y h
+      have : lengthOf Y < lengthOf X := localRuleApp.decreaseLength lr Y h
       endNodesOf ⟨Y, next Y h⟩).join
   | ⟨X, sim _⟩ => [X]
 
@@ -386,7 +389,9 @@ inductive ClosedTableau : List TNode → TNode → Type
   | atmR'  {A X φ} : isSimpleNode X → ClosedTableau (⟨L, R, some (Sum.inr (~'⌊·A⌋(φ : Formula)))⟩ :: Hist) (projection A L, projection A R ++ [~φ], none)
                                     → ClosedTableau                                                  Hist  ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
 
-  -- End nodes by MB condition 6 -- TODO
+  -- End nodes by MB condition 6
+  -- TODO spell out the condition
+  -- TODO condition has to be eager! need its negation for all other rules above?
   | repeat {X} : X ∈ Hist → ClosedTableau Hist X
 
 

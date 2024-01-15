@@ -516,6 +516,16 @@ local notation "⌊" α "†⌋" χ => DagLoadFormula.ldg α (χ : LoadFormula)
 local notation "⌊" α "⌋" γ => DagLoadFormula.box α (γ : DagLoadFormula)
 local notation "⌊⌊" ps "⌋⌋" γ => DagLoadFormula.boxes ps (γ : DagLoadFormula)
 
+-- Given α and χ, define ⌊α⌋⌊α†⌋χ
+@[simp]
+def injectLoad : Program → LoadFormula → DagLoadFormula
+  | α, χ => (DagLoadFormula.box α (DagLoadFormula.ldg α χ))
+
+-- Given α and χ, define ⌊α⌋⌊α†⌋χ
+@[simp]
+def injectLoad' : Program → Formula → DagLoadFormula
+  | α, φ => (DagLoadFormula.box α (DagLoadFormula.dag α φ))
+
 inductive NegDagLoadFormula
   | neg : DagLoadFormula → NegDagLoadFormula
 
@@ -545,13 +555,15 @@ example : DagLoadFormula := ⌊(·'a')†⌋(·'p') -- was broken, now works!
 -- example : DagLoadFormula := ⌊(·'a')†⌋⌊·'a'⌋(·'p') -- now broken, but that's good.
 example : DagLoadFormula := ⌊·'a'⌋⌊(·'a')†⌋(·'p') -- works
 
--- Immediate sucessors of a node in a Loaded Daggered Diamond Tableau (LDDT).
 -- In an LDDT we have a list of normal formulas and optionally either a NegLoadFormula or a NegDagLoadFormula.
+
+def LDDTNode := List Formula × Option (Sum NegLoadFormula (NegDagLoadFormula))
+
+-- Immediate sucessors of a node in a Loaded Daggered Diamond Tableau (LDDT).
 -- Question: can it be that ψ is unloaded but not yet undaggered?!
 -- Answer No. Note that we use "undagOnly" but never "unloadOnly".
 @[simp]
-def loadDagNext : (List Formula × Option (Sum NegLoadFormula (NegDagLoadFormula)))
-           → List (List Formula × Option (Sum NegLoadFormula (NegDagLoadFormula)))
+def loadDagNext : LDDTNode → List LDDTNode
   | (fs, some (Sum.inr (~⌊·a⌋(ψ : DagLoadFormula)))) => [ (fs, some (Sum.inl (~'(⌊·a⌋(undagOnly ψ))))) ]
   | (fs, some (Sum.inr (~⌊α⋓β⌋ψ))) => [ (fs, some (Sum.inr (~⌊α⌋ψ)))
                                       , (fs, some (Sum.inr (~⌊β⌋ψ))) ]
@@ -564,7 +576,23 @@ def loadDagNext : (List Formula × Option (Sum NegLoadFormula (NegDagLoadFormula
   | (_, some (Sum.inl _)) => [ ] -- end node of dagger tableau
   | (_, none) => [ ] -- end node of dagger tableau
 
--- TODO: loadedNotStarSoundness, loadedDagEndNodes etc.
+-- TODO: loadNotStarSoundness etc.
+
+def mOfLoadDagNode : LDDTNode → ℕ := sorry
+
+theorem mOfLoadDagNode.isDec {x y : LDDTNode} (y_in : y ∈ loadDagNext x) :
+    mOfLoadDagNode y < mOfLoadDagNode x := sorry
+
+def loadDagEndNodes : LDDTNode → List (List Formula × Option NegLoadFormula)
+  | (fs, none) => [ (fs, none) ]
+  | (fs, some (Sum.inl φ)) => [ (fs, some φ) ]
+  | (fs, some (Sum.inr df)) => ((loadDagNext (fs, some (Sum.inr df))).attach.map
+      (fun ⟨gsdf, h⟩ =>
+        have : mOfLoadDagNode gsdf < mOfLoadDagNode (fs, some (Sum.inr df)) := mOfLoadDagNode.isDec h
+        loadDagEndNodes gsdf)).join
+termination_by
+  loadDagEndNodes fs => mOfLoadDagNode fs
+decreasing_by simp_wf; assumption
 
 
 -- -- -- BOXES -- -- --
