@@ -236,7 +236,7 @@ theorem InterpolantInductionStep
 -- If X is not simple, then a local rule can be applied.
 -- (page 13)
 
-
+-- write custom tactic later
 theorem notSimpleThenLocalRule {L R} : ¬Simple (L ∪ R)
   → ∃ Lcond Rcond C, ∃ _ : LocalRule (Lcond, Rcond) C, Lcond ⊆ L ∧ Rcond ⊆ R :=
   by
@@ -279,71 +279,124 @@ theorem notSimpleThenLocalRule {L R} : ¬Simple (L ∪ R)
   case box => tauto
 
 
-theorem localRulesDecreaseLength {L R : Finset Formula} (rule : LocalRule (Lcond, Rcond) C) :
-    Lcond ⊆ L ∧ Rcond ⊆ R → ∀cLR ∈ C,
-    lengthOfSet (cLR.fst ∪ cLR.snd) < lengthOfSet X :=
+/- Custom tactic for first two cases? (localruledecrlength)
+
+macro "onesideddecreaseslength" : tactic =>
+  `( tactic|
+      ( all_goals simp at *
+        <;> try rw [c_child]
+        case neg φ => simp [←Nat.add_assoc]
+        case con φ ψ =>
+          simp
+          calc
+            Finset.sum ({φ, ψ}) (fun x => lengthOfFormula x)
+            ≤ lengthOfFormula φ + lengthOfFormula ψ :=
+              by
+                cases' Classical.em (φ = ψ) with heq hneq
+                · simp [heq] at *
+                · simp [Finset.sum_pair hneq]
+            _ < 1 + lengthOfFormula φ + lengthOfFormula ψ :=
+              by aesop
+        case ncon φ ψ =>
+          cases' c_child with case_phi case_psi
+          <;> (first
+              | simp [case_psi]
+              | ( simp [case_phi];
+                  rw [Nat.add_comm 1 (lengthOfFormula φ), Nat.add_assoc];
+                  aesop))))
+
+macro "onesideddecreaseslength" : tactic =>
+  `( tactic|
+      ( all_goals simp at * <;>
+        ( repeat'
+            solve
+            | rw [c_child]
+            | simp [←Nat.add_assoc]
+            | ( simp
+                calc
+                  Finset.sum ({φ, ψ}) (fun x => lengthOfFormula x)
+                  ≤ lengthOfFormula φ + lengthOfFormula ψ :=
+                    by
+                      cases' Classical.em (φ = ψ) with heq hneq
+                      · simp [heq] at *
+                      · simp [Finset.sum_pair hneq]
+                  _ < 1 + lengthOfFormula φ + lengthOfFormula ψ :=
+                    by aesop)
+            | ( cases' c_child with case_phi case_psi
+                <;> (first
+                    | simp [case_psi]
+                    | ( simp [case_phi];
+                        rw [Nat.add_comm 1 (lengthOfFormula φ), Nat.add_assoc];
+                        aesop))))))
+
+-/
+
+theorem conDecreasesLength {φ ψ : Formula} :
+  (Finset.sum {φ, ψ} fun x => lengthOfFormula x) <
+    1 + lengthOfFormula φ + lengthOfFormula ψ :=
   by
-  all_goals intro cond cLR is_child
-  cases rule
-  case oneSidedL lr =>
-    cases lr <;> simp at *
-    case neg ϕ =>
-      cases' is_child with L₁ hyp
-    case con => _
-    case ncon => _
-  case oneSidedR lr =>
-    cases lr
-    case bot => _
-    case not => _
-    case neg => _
-    case con => _
-    case ncon => _
-  case LRnegL lr => _
-  case LRnegR lr => _
+    calc
+      Finset.sum ({φ, ψ}) (fun x => lengthOfFormula x)
+      ≤ lengthOfFormula φ + lengthOfFormula ψ :=
+        by
+          cases' Classical.em (φ = ψ) with heq hneq
+          · simp [heq] at *
+          · simp [Finset.sum_pair hneq]
+      _ < 1 + lengthOfFormula φ + lengthOfFormula ψ :=
+        by aesop
 
+theorem localRuleDecreasesLength (rule : LocalRule (Lcond, Rcond) C) :
+  ∀c ∈ C, lengthOfSet (c.1 ∪ c.2) < lengthOfSet (Lcond ∪ Rcond) :=
+  by
+    intro c c_child
+    cases rule
+    case oneSidedL ress lrule  =>    -- trying custom tactic
+      cases lrule
+      <;> simp at *
+      <;> try rw [c_child]
+      case neg φ => simp [←Nat.add_assoc]
+      case con φ ψ => simp; exact conDecreasesLength
+      case ncon φ ψ =>
+        cases' c_child with case_phi case_psi
+        <;> (first
+            | simp [case_psi]
+            | ( simp [case_phi];
+                rw [Nat.add_comm 1 (lengthOfFormula φ), Nat.add_assoc];
+                aesop))
+    case oneSidedR ress rrule  =>
+      cases rrule
+      <;> simp at *
+      <;> try rw [c_child]
+      case neg φ => simp [←Nat.add_assoc]
+      case con φ ψ => simp; exact conDecreasesLength
+      case ncon φ ψ =>
+        cases' c_child with case_phi case_psi
+        <;> (first
+            | simp [case_psi]
+            | ( simp [case_phi];
+                rw [Nat.add_comm 1 (lengthOfFormula φ), Nat.add_assoc];
+                aesop))
+    case LRnegL φ => aesop
+    case LRnegR φ => aesop
 
+#check Finset.mem_biUnion
 
-
-
-  case neg ϕ notnot_in_X => sorry
-    --subst inB
-    · calc
-        lengthOfSet (insert ϕ (X.erase (~~ϕ))) ≤ lengthOfSet (X.erase (~~ϕ)) + lengthOf ϕ := by
-          apply lengthOf_insert_leq_plus
-        _ < lengthOfSet (X.erase (~~ϕ)) + lengthOf ϕ + 2 := by simp
-        _ = lengthOfSet (X.erase (~~ϕ)) + lengthOf (~~ϕ) := by simp; ring
-        _ = lengthOfSet X := lengthRemove X (~~ϕ) notnot_in_X
-  case Con ϕ ψ in_X =>
-    subst inB
-    · calc
-        lengthOf (insert ϕ (insert ψ (X.erase (ϕ⋀ψ)))) ≤
-            lengthOf (insert ψ (X.erase (ϕ⋀ψ))) + lengthOf ϕ :=
-          by apply lengthOf_insert_leq_plus
-        _ ≤ lengthOf (X.erase (ϕ⋀ψ)) + lengthOf ψ + lengthOf ϕ := by simp; apply lengthOf_insert_leq_plus
-        _ = lengthOf (X.erase (ϕ⋀ψ)) + lengthOf ϕ + lengthOf ψ := by ring
-        _ < lengthOf (X.erase (ϕ⋀ψ)) + lengthOf ϕ + lengthOf ψ + 1 := by simp
-        _ = lengthOf (X.erase (ϕ⋀ψ)) + lengthOf (ϕ⋀ψ) := by simp; ring
-        _ = lengthOfSet X := lengthRemove X (ϕ⋀ψ) in_X
-  case nCo ϕ ψ in_X =>
-    cases inB
-    -- splitting rule!
-    case inl inB => -- f
-      subst inB
-      calc  lengthOfSet (insert (~ϕ) (X.erase (~(ϕ⋀ψ))))
-          ≤ lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~ϕ) := lengthOf_insert_leq_plus
-        _ < lengthOfSet (X.erase (~(ϕ⋀ψ))) + 1 + (1 + lengthOf ϕ) := by simp
-        _ ≤ lengthOfSet (X.erase (~(ϕ⋀ψ))) + 1 + (1 + lengthOf ϕ) + lengthOf ψ := by simp
-        _ = lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~(ϕ⋀ψ)) := by simp; ring
-        _ = lengthOfSet X := lengthRemove X (~(ϕ⋀ψ)) in_X
-    case inr inB => -- g
-      subst inB
-      calc  lengthOfSet (insert (~ψ) (X.erase (~(ϕ⋀ψ))))
-          ≤ lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~ψ) := lengthOf_insert_leq_plus
-        _ < lengthOfSet (X.erase (~(ϕ⋀ψ))) + 1 + (1 + lengthOf ψ) := by simp
-        _ ≤ lengthOfSet (X.erase (~(ϕ⋀ψ))) + 1 + lengthOf ϕ + (1 + lengthOf ψ) := by simp
-        _ = lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~(ϕ⋀ψ)) := by simp; ring
-        _ = lengthOfSet X := lengthRemove X (~(ϕ⋀ψ)) in_X
-  sorry
+theorem localRuleAppDecreasesLength {L R : Finset Formula} (rule : LocalRule (Lcond, Rcond) C) :
+    Lcond ⊆ L ∧ Rcond ⊆ R → ∀c ∈ C,
+    lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond) ∪ (c.1 ∪ c.2)) < lengthOfSet (L ∪ R) :=
+    by
+      intro hcond c c_child
+      have conds_in_LR : (Lcond ∪ Rcond) ⊆ (L ∪ R) :=
+        Finset.union_subset_union hcond.left hcond.right
+      have rule_decr_len : lengthOfSet (c.1 ∪ c.2) < lengthOfSet (Lcond ∪ Rcond) :=
+        (localRuleDecreasesLength rule) c c_child
+      calc lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond) ∪ (c.1 ∪ c.2))
+          ≤ lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (c.1 ∪ c.2) :=
+            by simp [sum_union_le]
+        _ < lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (Lcond ∪ Rcond) :=
+            by apply Nat.add_le_add_left rule_decr_len
+        _ = lengthOfSet (L ∪ R) :=
+            by apply lengthSetRemove (L ∪ R) (Lcond ∪ Rcond) conds_in_LR
 
 
 theorem atmRuleDecreasesLength {X : Finset Formula} {ϕ} :
@@ -375,7 +428,6 @@ theorem atmRuleDecreasesLength {X : Finset Formula} {ϕ} :
 -- Definition 8, page 14
 -- mixed with Definition 11 (with all PDL stuff missing for now)
 -- a local tableau for X, must be maximal
-
 
 def existsLocalTableauFor α : Nonempty (LocalTableau α) :=
   by
