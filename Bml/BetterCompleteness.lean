@@ -4,20 +4,22 @@ import Bml.Syntax
 import Bml.Semantics
 import Bml.Modelgraphs
 import Bml.Tableau
+import Bml.Soundness
 
 open LocalTableau
 open HasLength
+open HasSat
 open LocalRule
 
 inductive Path: Finset Formula →  Type
   | endNode {X} (consistentX : Consistent X) (simpleX : Simple X): Path X
-  | interNode {X Y} (consistentX : Consistent X) (_ : LocalRule X B) (Y_in : Y ∈ B) (tail : Path Y): Path X
+  | interNode {X Y} (_ : LocalRule X B) (Y_in : Y ∈ B) (tail : Path Y): Path X
 open Path
 
 @[simp]
 def toFinset: Path X → Finset Formula
   | endNode _ _ => X
-  | (interNode _ _ _ tail) => X ∪ (toFinset tail)
+  | (interNode _ _ tail) => X ∪ (toFinset tail)
 
 theorem X_in_PathX {X : Finset Formula} : (path : Path X) →  (f ∈ X) → f ∈ (toFinset path) := by
   intro path f_in
@@ -25,7 +27,7 @@ theorem X_in_PathX {X : Finset Formula} : (path : Path X) →  (f ∈ X) → f �
   case endNode => aesop
   case interNode => aesop
 
-theorem PathsAreSaturated : (path : Path X) → Saturated (toFinset path) := by
+theorem PathSaturated : (path : Path X) → Saturated (toFinset path) := by
   intro path
   intro P Q
   induction path
@@ -41,7 +43,7 @@ theorem PathsAreSaturated : (path : Path X) → Saturated (toFinset path) := by
         aesop
       · specialize simpleX (~(P ⋀ Q))
         aesop
-  case interNode B X Y _ locRule Y_in tail IH =>
+  case interNode B X Y locRule Y_in tail IH =>
     simp
     rcases IH with ⟨IH1, ⟨IH2, IH3⟩⟩
     constructor
@@ -50,7 +52,7 @@ theorem PathsAreSaturated : (path : Path X) → Saturated (toFinset path) := by
       apply Or.inr
       cases nnP_in
       · case inl nnP_in_X =>
-        have h : P ∈ Y ∨ ~~P ∈ Y := by sorry
+        have h : P ∈ Y ∨ ~~P ∈ Y := by sorry -- first refactor tableau
         cases h
         · case inl P_in_Y => exact (X_in_PathX tail P_in_Y)
         · case inr nnP_in_Y => exact (IH1 (X_in_PathX tail nnP_in_Y))
@@ -59,8 +61,63 @@ theorem PathsAreSaturated : (path : Path X) → Saturated (toFinset path) := by
       · sorry
       · sorry
 
-theorem PathsAreConsistent : (path : Path X) → Consistent (toFinset path) := by sorry
+theorem PathConsistent : (path : Path X) → ⊥ ∉ (toFinset path) ∧ ∀ P, P ∈ (toFinset path) → ~P ∉ (toFinset path) := by
+  intro path
+  constructor
+  · induction path
+    case endNode X consistentX _ =>
+      simp
+      sorry
+    case interNode => sorry
+  · sorry
 
+theorem consistentThenOpenTab : Consistent X → ∃ (t : Tableau X), isOpen t :=
+  by
+  have ⟨tX⟩ := existsTableauFor X
+  -- should be easy now
+  contrapose
+  simp[not_exists, Consistent, Inconsistent]
+  intro h
+  specialize h tX
+  refine Nonempty.intro ?val
+  have : isClosed tX := by
+    have h2 : ¬ isOpen tX ↔ ¬ ¬ isClosed tX := Iff.symm (Iff.not (Iff.symm open_iff_notClosed))
+    simp_all only [not_not, not_true_eq_false, not_false_eq_true, iff_true]
+  exact (isClosed_then_ClosedTab this)
+
+theorem ModelExistence : (X: Finset Formula) →  Consistent X →
+    ∃ (WS : Finset (Finset Formula)) (M : ModelGraph WS) (W : WS), X ⊆ W :=
+  by
+  intro X consX
+  have := consistentThenOpenTab consX
+  rcases this with ⟨tX, open_tX⟩
+  let WS : Finset (Finset Formula) := sorry
+  let M : KripkeModel WS := sorry
+  let pathX : Path X := sorry
+  have h : (toFinset pathX) ∈ WS := by sorry
+  use WS, ⟨M, sorry⟩
+  use ⟨toFinset pathX, h⟩
+  sorry
+
+-- Theorem 4, page 37
+theorem completeness : ∀ X, Consistent X ↔ Satisfiable X :=
+  by
+  intro X
+  constructor
+  · intro X_is_consistent
+    have ⟨WS, M, w, h⟩ := ModelExistence X X_is_consistent
+    use WS, M.val, w
+    have := truthLemma M w
+    aesop
+  -- use Theorem 2:
+  · exact correctness X
+
+theorem singletonCompleteness : ∀ φ, Consistent {φ} ↔ Satisfiable φ :=
+  by
+  intro f
+  have := completeness {f}
+  simp only [singletonSat_iff_sat] at *
+  tauto
 
 -- TODO Clean up
 
@@ -176,10 +233,6 @@ instance  : DecidableEq (List (Finset Formula × Option (Σ X B, LocalRule X B))
     exact instDecidableEqProd
   exact List.hasDecEq
 
-#reduce (List.get (["a", "b", "c"]) ((["a", "b", "c"].length-1) : Fin 3))
-#reduce (["a", "b", "c"][(["a", "b", "c"].length-1)] : String)
-#reduce (["a"][(["a"].length-1)] : String)
-
 
 def pathsOf {X} : LocalTableau X  →  Finset (List (Finset Formula × Option (Σ X B, LocalRule X B))) := λ tX => (List.toFinset (pathsOf_aux tX))
 
@@ -263,9 +316,6 @@ def pathsOf {X} : LocalTableau X  →  Finset (List (Finset Formula × Option (�
 
 instance : DecidableEq (LocalTableau X) := by sorry
 
-#check Function.Embedding
-#check Finset.map
-
 def EnnumerateLocTab : (X : Finset Formula) → Finset (LocalTableau X) := by
   intro X
   -- for each rule construct all tableaux that arrise when appling that rule first
@@ -344,27 +394,3 @@ def NotLocTab : Finset Formula → Finset (Σ Y, LocalTableau Y) := by
 --     |  simple X              :=    {tX}  ∪        ⋃{ LocalTab({proj(X) ; ~α})  :  ~□α ∈ X  }
 
 --     |  LocalRule X B lr next :=           Filter  [⋃{ M0(next Y) : Y ∈ B }]   [λ tZ,  tZ has a consistent endNode]
-
-theorem consThenOpenTab : Consistent X → ∃ (t : Tableau X), isOpen t :=
-  by
-  have ⟨tX⟩ := existsTableauFor X
-  -- should be easy now
-  contrapose
-  simp[not_exists, Consistent, Inconsistent]
-  intro h
-  specialize h tX
-  refine Nonempty.intro ?val
-  have : isClosed tX := by
-    have h2 : ¬ isOpen tX ↔ ¬ ¬ isClosed tX := Iff.symm (Iff.not (Iff.symm open_iff_notClosed))
-    simp_all only [not_not, not_true_eq_false, not_false_eq_true, iff_true]
-  exact (isClosed_then_ClosedTab this)
-
-
-theorem modelExistence {X} : Consistent X →
-    ∃ (WS : Finset (Finset Formula)) (M : ModelGraph WS) (w : WS), (M.val, w) ⊨ X :=
-  by
-  intro consX
-  have := consThenOpenTab consX
-  -- now define the model in one go, using pathsOf
-  rcases this with ⟨tX, open_tX⟩
-  sorry
