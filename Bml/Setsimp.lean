@@ -51,33 +51,45 @@ theorem lengthRemove (X : Finset Formula) :
   rw [anotherClaim] at claim
   aesop
 
-#check Finset.erase_biUnion
 
 @[simp]
-theorem SetRemove (X : Finset Formula) :
-    ∀ Y ⊆ X, (X \ Y) ∪ Y = X :=
+theorem setRemoveInsert (X : Finset Formula) :
+  ∀ Y ⊆ X, (X \ Y) ∪ Y = X :=
   by
     intro Y subs_X
+    exact Finset.sdiff_union_of_subset subs_X
+
+
+theorem lengthSetRemove (X Y : Finset Formula) (h: Y ⊆ X) :
+  lengthOfSet (X \ Y) + lengthOfSet Y  = lengthOfSet X :=
+  by
     induction Y using Finset.induction_on
     case empty => simp
     case insert ϕ S not_in_S ih =>
-      simp
+      have subs_X : S ⊆ X :=
+        by
+          have sub_insert : S ⊆ (insert ϕ S) := by aesop
+          exact subset_trans sub_insert h
+      have phi_in_X : ϕ ∈ X :=
+        by
+          rw [←Finset.singleton_subset_iff]
+          have in_insert : {ϕ} ⊆ (insert ϕ S) := by aesop
+          exact subset_trans in_insert h
       rw [Finset.sdiff_insert X S ϕ]
-      rw [←Finset.union_insert ϕ (Finset.erase (X \ S) ϕ)]
-      rw [←union_singleton_is_insert]
-      rw [Finset.union_comm S {ϕ}, ←Finset.union_assoc]
-      rw [union_singleton_is_insert]
-      rw [Finset.insert_erase]
-      · have S_sub_X : S ⊆ X :=
-          by
-            have sub_insert : S ⊆ (insert ϕ S) := by aesop
-            exact subset_trans sub_insert subs_X
-        exact ih S_sub_X
-      · have phi_sub_X : {ϕ} ⊆ X :=
-          by
-            have in_insert : {ϕ} ⊆ (insert ϕ S) := by aesop
-            exact subset_trans in_insert subs_X
-        aesop
+      rw [←lengthRemove X ϕ, lengthAdd]
+      rw [Nat.add_comm, Nat.add_assoc, Nat.add_comm (lengthOfFormula ϕ) (lengthOfSet (Finset.erase (X \ S) ϕ))]
+      rw [lengthRemove (X \ S) ϕ]
+      rw [Nat.add_comm]
+      rw [ih subs_X]
+      · rw [lengthRemove X]; assumption
+      · simp
+        exact And.intro phi_in_X not_in_S
+      · exact not_in_S
+      · exact phi_in_X
+
+theorem lengthOfEqualSets (X Y : Finset Formula) :
+  X = Y → lengthOfSet X = lengthOfSet Y :=
+  by intro hyp; aesop
 
 @[simp]
 theorem sum_union_le {T} [DecidableEq T] :

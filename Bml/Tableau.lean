@@ -383,8 +383,6 @@ theorem localRuleDecreasesLength (rule : LocalRule (Lcond, Rcond) C) :
     case LRnegL φ => aesop
     case LRnegR φ => aesop
 
-#check Finset.mem_biUnion
-
 theorem localRuleAppDecreasesLength {L R : Finset Formula} (rule : LocalRule (Lcond, Rcond) C) :
     Lcond ⊆ L ∧ Rcond ⊆ R → ∀c ∈ C,
     lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond) ∪ (c.1 ∪ c.2)) < lengthOfSet (L ∪ R) :=
@@ -394,34 +392,35 @@ theorem localRuleAppDecreasesLength {L R : Finset Formula} (rule : LocalRule (Lc
         Finset.union_subset_union hcond.left hcond.right
       have rule_decr_len : lengthOfSet (c.1 ∪ c.2) < lengthOfSet (Lcond ∪ Rcond) :=
         (localRuleDecreasesLength rule) c c_child
-      calc lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond) ∪ (c.1 ∪ c.2))
-          ≤ lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (c.1 ∪ c.2) :=
+      calc lengthOfSet (((L ∪ R) \ (Lcond ∪ Rcond)) ∪ (c.1 ∪ c.2))
+        ≤ lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (c.1 ∪ c.2) :=
             by simp [sum_union_le]
         _ < lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (Lcond ∪ Rcond) :=
             by apply Nat.add_le_add_left rule_decr_len
         _ = lengthOfSet (L ∪ R) :=
-            by apply lengthSetRemove (L ∪ R) (Lcond ∪ Rcond) conds_in_LR
+            lengthSetRemove (L ∪ R) (Lcond ∪ Rcond) conds_in_LR
 
 
-theorem atmRuleDecreasesLength {X : Finset Formula} {ϕ} :
-    ~(□ϕ) ∈ X → lengthOfSet (projection X ∪ {~ϕ}) < lengthOfSet X :=
+theorem atmRuleDecreasesLength {L R : Finset Formula} {ϕ} :
+    ~(□ϕ) ∈ (L ∪ R) → lengthOfSet (projection (L ∪ R) ∪ {~ϕ}) < lengthOfSet (L ∪ R) :=
   by
-  intro notBoxPhi_in_X
-  simp
-  have otherClaim : projection X = projection (X.erase (~(□ϕ))) :=
-    by
-    ext1 phi
-    rw [proj]; rw [proj]
+    let X := (L ∪ R)
+    intro notBoxPhi_in_X
     simp
-  · calc
-      lengthOfSet (insert (~ϕ) (projection X)) ≤ lengthOfSet (projection X) + lengthOf (~ϕ) :=
-        lengthOf_insert_leq_plus
-      _ = lengthOfSet (projection X) + 1 + lengthOf ϕ := by simp; ring
-      _ < lengthOfSet (projection X) + 1 + 1 + lengthOf ϕ := by simp
-      _ = lengthOfSet (projection X) + lengthOf (~(□ϕ)) := by simp; ring
-      _ = lengthOfSet (projection (X.erase (~(□ϕ)))) + lengthOf (~(□ϕ)) := by rw [otherClaim]
-      _ ≤ lengthOfSet (X.erase (~(□ϕ))) + lengthOf (~(□ϕ)) := by simp; apply projection_set_length_leq
-      _ = lengthOfSet X := lengthRemove X (~(□ϕ)) notBoxPhi_in_X
+    have otherClaim : projection X = projection (X.erase (~(□ϕ))) :=
+      by
+      ext1 phi
+      rw [proj]; rw [proj]
+      simp
+    · calc
+        lengthOfSet (insert (~ϕ) (projection X)) ≤ lengthOfSet (projection X) + lengthOf (~ϕ) :=
+          lengthOf_insert_leq_plus
+        _ = lengthOfSet (projection X) + 1 + lengthOf ϕ := by simp; ring
+        _ < lengthOfSet (projection X) + 1 + 1 + lengthOf ϕ := by simp
+        _ = lengthOfSet (projection X) + lengthOf (~(□ϕ)) := by simp; ring
+        _ = lengthOfSet (projection (X.erase (~(□ϕ)))) + lengthOf (~(□ϕ)) := by rw [otherClaim]
+        _ ≤ lengthOfSet (X.erase (~(□ϕ))) + lengthOf (~(□ϕ)) := by simp; apply projection_set_length_leq
+        _ = lengthOfSet X := lengthRemove X (~(□ϕ)) notBoxPhi_in_X
 
 -- Definition 8, page 14
 -- mixed with Definition 11 (with all PDL stuff missing for now)
