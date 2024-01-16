@@ -21,8 +21,8 @@ def toFinset: Path X → Finset Formula
   | endNode _ _ => X
   | (interNode _ _ tail) => X ∪ (toFinset tail)
 
-theorem X_in_PathX {X : Finset Formula} : (path : Path X) →  (f ∈ X) → f ∈ (toFinset path) := by
-  intro path f_in
+theorem X_in_PathX {X : Finset Formula} : (path : Path X) → X ⊆ (toFinset path) := by
+  intro path f
   cases path
   case endNode => aesop
   case interNode => aesop
@@ -85,18 +85,37 @@ theorem consistentThenOpenTab : Consistent X → ∃ (t : Tableau X), isOpen t :
     simp_all only [not_not, not_true_eq_false, not_false_eq_true, iff_true]
   exact (isClosed_then_ClosedTab this)
 
+theorem ConsistentImplies : Consistent X → ⊥ ∉ X ∧ ∀ P, P ∈ X → ~P ∉ X := by
+  intro consX
+  unfold Consistent Inconsistent at consX
+  simp at consX
+  constructor
+  · by_contra bot_in_X
+    let tab := byLocalRule (bot bot_in_X) (by aesop)
+    have closedTab := ClosedTableau.loc tab (by aesop)
+    exact IsEmpty.false closedTab
+  · intro P
+    by_contra h
+    simp at h
+    let tab := byLocalRule (Not h) (by aesop)
+    have closedTab := ClosedTableau.loc tab (by aesop)
+    exact IsEmpty.false closedTab
+
 theorem ModelExistence : (X: Finset Formula) →  Consistent X →
     ∃ (WS : Finset (Finset Formula)) (M : ModelGraph WS) (W : WS), X ⊆ W :=
   by
   intro X consX
   have := consistentThenOpenTab consX
   rcases this with ⟨tX, open_tX⟩
-  let WS : Finset (Finset Formula) := sorry
+  let paths : Finset (Σ X, Path X) := sorry
+  let WS : Finset (Finset Formula) := paths.map ⟨λ ⟨X, path⟩ => toFinset path , sorry⟩ -- not injective, use Lists?
   let M : KripkeModel WS := sorry
   let pathX : Path X := sorry
-  have h : (toFinset pathX) ∈ WS := by sorry
-  use WS, ⟨M, sorry⟩
-  use ⟨toFinset pathX, h⟩
+  use WS, ⟨M, ?_⟩, ⟨toFinset pathX, ?_⟩
+  · exact X_in_PathX pathX
+  · constructor
+    · sorry -- PathSaturated ConsistentImplies
+    · sorry
   sorry
 
 -- Theorem 4, page 37
@@ -198,10 +217,6 @@ def pathsOf_aux {X} : LocalTableau X  →  (List (List (Finset Formula × Option
       exact IH ++ IH2
 termination_by
   pathsOf_aux X tX => lengthOfSet X
-
-
-
-
 
 
 --eraseDups
