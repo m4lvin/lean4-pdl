@@ -1,5 +1,6 @@
 import Mathlib.Data.Finset.Basic
 import Mathlib.Tactic.Linarith
+import Mathlib.Data.Set.Finite
 
 import Pdl.Syntax
 import Pdl.Discon
@@ -508,18 +509,24 @@ def dm (α) := List α
 @[simp]
 def to_dm {α} (s : List α) : dm α := s
 
+@[simp]
+def dm' (α) := List α
+
+@[simp]
+def to_dm' {α} (s : List α) : dm' α := s
+
 -- This is the standard definition ...
 -- originally formalized in Lean 3 by Pedro Minicz
 -- https://gist.github.com/b-mehta/ee89376db987b749bd5120a2180ce3df
 --
--- @[simp]
--- instance {α : Type u} [DecidableEq α] [LT α] : LT (dm α) :=
---   { lt := λ M N =>
---     ∃ (X Y : List α),
---       X ≠ ∅
---       ∧ (X : List α) ≤ (N : List α)
---       ∧ M = (N.diff X) ++ Y
---       ∧ ∀ y ∈ Y, ∃ x ∈ X, y < x }
+@[simp]
+instance {α : Type u} [DecidableEq α] [LT α] : LT (dm' α) :=
+  { lt := λ M N =>
+    ∃ (X Y : List α),
+      X ≠ ∅
+      ∧ (X : List α) ≤ (N : List α)
+      ∧ M = (N.diff X) ++ Y
+      ∧ ∀ y ∈ Y, ∃ x ∈ X, y < x }
 --
 -- ... but we use the alternative by Huet and Oppen:
 @[simp]
@@ -535,7 +542,69 @@ instance {α : Type u} [DecidableEq α] [LT α] : LT (dm α) :=
 theorem wf_dm {α : Type u} [DecidableEq α] [LT α]
     (t :  WellFoundedLT α) :
     WellFounded ((LT.lt) : dm α → dm α → Prop) := by
+  apply WellFounded.intro
+  intro dma
+  apply Acc.intro dma
+  intro dmb h
+  cases h
   sorry
+-- The following sections in the WF.lean file might be useful:
+  -- Search for 'well-founded'
+  -- Empty relation is well-founded
+  -- Figure out what does Acc do
+theorem wf_dm'_only_if {α : Type u} [DecidableEq α] [LT α]
+    (t :  WellFounded ((LT.lt) : dm' α → dm' α → Prop)) :
+    WellFoundedLT α := by
+    sorry
+
+
+theorem wf_dm'induc {α : Type u} [DecidableEq α] [LT α]
+    (t :  WellFoundedLT α) :
+    WellFounded ((LT.lt) : dm' α → dm' α → Prop) := by
+
+  rw [WellFounded.wellFounded_iff_has_min]
+  intro X X_notEmpty
+  unfold WellFoundedLT at t
+  rcases t with ⟨ newt⟩
+
+  rw [WellFounded.wellFounded_iff_has_min] at newt -- not sure if good idea
+
+  unfold dm' at X
+
+  -- have := X.image List.finite_toSet
+
+  simp at *
+
+
+
+
+  -- apply WellFounded.induction _ _ (_ : α)
+
+
+
+  sorry
+
+
+theorem wf_dm' {α : Type u} [DecidableEq α] [LT α]
+    (t :  WellFoundedLT α) :
+    WellFounded ((LT.lt) : dm' α → dm' α → Prop) := by
+  apply WellFounded.intro
+  intro dma
+  apply Acc.intro
+  intro dmb h
+  cases' h with X h
+  rcases h with ⟨Y, XnotEmpty, X_lt_dma, dmbDef, Y_lt_X⟩
+  apply Acc.intro
+  intro y y_lt_dm
+
+  sorry
+  -- have := Y_lt_X y
+
+ #check WellFounded.wellFounded_iff_has_min
+
+
+
+
 
 instance [DecidableEq α] [LT α] (t : WellFoundedLT α) : IsWellFounded (dm α) (LT.lt) := by
   constructor
@@ -554,10 +623,23 @@ def boxDagNext : (Finset Formula × List DagFormula) → Finset (Finset Formula 
   | (fs, (⌈_†⌉_)::rest) => { (fs, rest) } -- delete formula, but keep branch!
   | (_, []) => { } -- end node of dagger tableau
 
+theorem Se : ∀ (p q: Program) (d: DagFormula), ¬ (⌈p;'q⌉d) = ⌈p⌉⌈q⌉d := by
+intro p q d
+simp
+sorry
+-- ψ: DagFormula
+-- αβ: Program
+-- ψ_y: DagFormula
+-- countclaim: (if ψ_y = ⌈α;'β⌉ψ then 1 else 0) < if ψ_y = ⌈α⌉⌈β⌉ψ then 1 else 0
+
+theorem ProgramSequenceNotSelfContaining : ∀ (p q: Program), ¬ (p = (p ;' q)) := λ.
+theorem ProgramUnionNotSelfContaining : ∀ (p q: Program), ¬ (p = (p⋓q)) := λ.
+
 theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : Γ ∈ boxDagNext Δ) :
     to_dm Γ.2 < to_dm Δ.2 := by
   rcases Δ with ⟨fs, _|⟨df,rest⟩⟩
   case nil =>
+    exfalso
     simp at Γ_in
   case cons =>
     cases df
@@ -569,7 +651,9 @@ theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : �
       · apply Ne.symm
         apply List.cons_ne_self
       · intro ψ_y countclaim
-        simp [List.count_cons] at countclaim
+        exfalso
+        rw [List.count_cons] at countclaim
+        simp at countclaim
     case box a ψ =>
       cases a
       all_goals (simp at *; try subst Γ_in)
@@ -584,10 +668,19 @@ theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : �
         simp
         constructor
         · intro α_def
-          sorry -- use that α (or ψ) cannot contain itself
+        -- Haitian's attempt
+        -- sorry -- use that α (or ψ) cannot contain itself (injection in lean3)
+          exfalso
+          exact ProgramSequenceNotSelfContaining α β α_def
         · intro ψ_y countclaim
           simp [List.count_cons] at countclaim
-          have : ψ_y = ⌈α⌉⌈β⌉ψ := by sorry -- use countclaim
+          have : ψ_y = ⌈α⌉⌈β⌉ψ := by
+            -- sorry -- use countclaim
+            by_contra ne
+            rw [← Ne.ite_eq_right_iff] at ne
+            rw [ne] at countclaim
+            aesop
+            aesop
           subst this
           use ⌈α;'β⌉ψ
           simp [List.count_cons] at *
@@ -598,7 +691,10 @@ theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : �
         simp
         constructor
         · intro α_def
-          sorry -- use that α (or ψ) cannot contain itself
+          -- Haitian's attempt
+          -- sorry -- use that α (or ψ) cannot contain itself
+          exfalso
+          exact ProgramUnionNotSelfContaining α β α_def
         · intro ψ_y countclaim
           simp [List.count_cons] at countclaim
           have : (ψ_y = ⌈α⌉ψ) ∨ (ψ_y = ⌈β⌉ψ)  := by sorry -- use countclaim
