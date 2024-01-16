@@ -1,3 +1,4 @@
+import Mathlib.Data.Finset.Basic
 
 import Bml.Syntax
 import Bml.Semantics
@@ -6,6 +7,62 @@ import Bml.Tableau
 
 open LocalTableau
 open HasLength
+open LocalRule
+
+inductive Path: Finset Formula →  Type
+  | endNode {X} (consistentX : Consistent X) (simpleX : Simple X): Path X
+  | interNode {X Y} (consistentX : Consistent X) (_ : LocalRule X B) (Y_in : Y ∈ B) (tail : Path Y): Path X
+open Path
+
+@[simp]
+def toFinset: Path X → Finset Formula
+  | endNode _ _ => X
+  | (interNode _ _ _ tail) => X ∪ (toFinset tail)
+
+theorem X_in_PathX {X : Finset Formula} : (path : Path X) →  (f ∈ X) → f ∈ (toFinset path) := by
+  intro path f_in
+  cases path
+  case endNode => aesop
+  case interNode => aesop
+
+theorem PathsAreSaturated : (path : Path X) → Saturated (toFinset path) := by
+  intro path
+  intro P Q
+  induction path
+  case endNode X _ simpleX =>
+    simp
+    unfold Simple at simpleX
+    simp at simpleX
+    constructor
+    · specialize simpleX (~~P)
+      aesop
+    · constructor
+      · specialize simpleX (P ⋀ Q)
+        aesop
+      · specialize simpleX (~(P ⋀ Q))
+        aesop
+  case interNode B X Y _ locRule Y_in tail IH =>
+    simp
+    rcases IH with ⟨IH1, ⟨IH2, IH3⟩⟩
+    constructor
+    -- ~~P ∈ U → P ∈ U
+    · intro nnP_in
+      apply Or.inr
+      cases nnP_in
+      · case inl nnP_in_X =>
+        have h : P ∈ Y ∨ ~~P ∈ Y := by sorry
+        cases h
+        · case inl P_in_Y => exact (X_in_PathX tail P_in_Y)
+        · case inr nnP_in_Y => exact (IH1 (X_in_PathX tail nnP_in_Y))
+      · case inr nnP_in_tail => aesop
+    · constructor
+      · sorry
+      · sorry
+
+theorem PathsAreConsistent : (path : Path X) → Consistent (toFinset path) := by sorry
+
+
+-- TODO Clean up
 
 -- Maximal paths in a local tableau, from root to end node, as sets of sets.
 -- pathsOf (X with children B) := { X ∪ rest | c <- B, rest <- pathsOf c }
@@ -28,9 +85,9 @@ deriving DecidableEq
 
 open RuleTag
 
-def Path := List (Finset Formula × Option (Σ X B, LocalRule X B))
+-- def Path := List (Finset Formula × Option (Σ X B, LocalRule X B))
 
-def pathsOf_aux {X} : LocalTableau X  →  (List Path) := by
+def pathsOf_aux {X} : LocalTableau X  →  (List (List (Finset Formula × Option (Σ X B, LocalRule X B)))) := by
   intro tX
   cases tX
   case sim simpleX  =>
@@ -95,7 +152,7 @@ termination_by
 
 #check Eq
 
-instance  : DecidableEq (Path) := by
+instance  : DecidableEq (List (Finset Formula × Option (Σ X B, LocalRule X B))) := by
   have : DecidableEq (Finset Formula × Option (Σ X B, LocalRule X B)) := by
     have : DecidableEq (Finset Formula) := Finset.decidableEq
     have : DecidableEq (Option (Σ X B, LocalRule X B)) := by
@@ -124,7 +181,7 @@ instance  : DecidableEq (Path) := by
 #reduce (["a"][(["a"].length-1)] : String)
 
 
-def pathsOf {X} : LocalTableau X  →  Finset (Path) := λ tX => (List.toFinset (pathsOf_aux tX))
+def pathsOf {X} : LocalTableau X  →  Finset (List (Finset Formula × Option (Σ X B, LocalRule X B))) := λ tX => (List.toFinset (pathsOf_aux tX))
 
 -- 0) Define last_node(path) := ite(path.length = 0)(∅)(path[path.length-1].fst : Finset Formula)
 -- 1) Define AllPaths(X)    :=
@@ -228,7 +285,7 @@ def EnnumerateLocTab : (X : Finset Formula) → Finset (LocalTableau X) := by
       exact {@LocalTableau.byLocalRule X ∅ (LocalRule.Not h) (by aesop)}
     exact S.attach.biUnion t
   let neg_tabs : Finset (LocalTableau X) := by
-    let S : Finset Formula := X.map (λf => match f) {α : Formula | ~~α ∈ X}
+    let S : Finset Formula := sorry -- {α : Formula | ~~α ∈ X}
     let t : S → Finset (LocalTableau X)  := by
       intro ⟨α, α_in_S⟩
       have h : ~~α ∈ X := sorry
@@ -301,9 +358,6 @@ theorem consThenOpenTab : Consistent X → ∃ (t : Tableau X), isOpen t :=
     have h2 : ¬ isOpen tX ↔ ¬ ¬ isClosed tX := Iff.symm (Iff.not (Iff.symm open_iff_notClosed))
     simp_all only [not_not, not_true_eq_false, not_false_eq_true, iff_true]
   exact (isClosed_then_ClosedTab this)
-
-
---theorem i_Saturated : Consistent X →
 
 
 theorem modelExistence {X} : Consistent X →
