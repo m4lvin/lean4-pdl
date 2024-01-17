@@ -633,7 +633,20 @@ sorry
 -- countclaim: (if ψ_y = ⌈α;'β⌉ψ then 1 else 0) < if ψ_y = ⌈α⌉⌈β⌉ψ then 1 else 0
 
 theorem ProgramSequenceNotSelfContaining : ∀ (p q: Program), ¬ (p = (p ;' q)) := λ.
-theorem ProgramUnionNotSelfContaining : ∀ (p q: Program), ¬ (p = (p⋓q)) := λ.
+theorem ProgramUnionNotSelfContainingLeft : ∀ (p q: Program), ¬ (p = (p⋓q)) := λ.
+theorem ProgramUnionNotSelfContainingLeft' : ∀ (p q: Program), ¬ ((p⋓q) = p) := λ.
+theorem ProgramUnionNotSelfContainingRight : ∀ (p q: Program), ¬ (q = (p⋓q)) := sorry
+theorem ProgramUnionNotSelfContainingRight' : ∀ (p q: Program), ¬ ((p⋓q) = q) := sorry
+theorem ProgramTestNotSelfContain (ψ : DagFormula) (φ : Formula) : (¬ψ = ⌈?'φ⌉ψ) := sorry
+theorem ProgramStarNotSelfContain (α : Program) : ¬ ((∗α) = α) := sorry
+theorem ProgramBoxStarNotSelfContain (α : Program) (ψ : DagFormula) : ¬ ((⌈∗α⌉ψ) = ψ) := sorry
+-- theorem notAorB : ∀ (p q: Prop), ¬ (p ∨ q) → False := by sorry
+
+-- Not needed! We have tauto now:-)
+-- theorem dne {p : Prop} (h : ¬¬p) : p :=
+--   Or.elim (em p)
+--     (fun hp : p => hp)
+--     (fun hnp : ¬p => absurd hnp h)
 
 theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : Γ ∈ boxDagNext Δ) :
     to_dm Γ.2 < to_dm Δ.2 := by
@@ -669,13 +682,13 @@ theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : �
         constructor
         · intro α_def
         -- Haitian's attempt
-        -- sorry -- use that α (or ψ) cannot contain itself (injection in lean3)
+        -- sorry (fixed)-- use that α (or ψ) cannot contain itself (injection in lean3)
           exfalso
           exact ProgramSequenceNotSelfContaining α β α_def
         · intro ψ_y countclaim
           simp [List.count_cons] at countclaim
           have : ψ_y = ⌈α⌉⌈β⌉ψ := by
-            -- sorry -- use countclaim
+            -- sorry (fixed)-- use countclaim
             by_contra ne
             rw [← Ne.ite_eq_right_iff] at ne
             rw [ne] at countclaim
@@ -692,20 +705,53 @@ theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : �
         constructor
         · intro α_def
           -- Haitian's attempt
-          -- sorry -- use that α (or ψ) cannot contain itself
+          -- sorry (fixed)-- use that α (or ψ) cannot contain itself
           exfalso
-          exact ProgramUnionNotSelfContaining α β α_def
+          exact ProgramUnionNotSelfContainingLeft α β α_def
         · intro ψ_y countclaim
           simp [List.count_cons] at countclaim
-          have : (ψ_y = ⌈α⌉ψ) ∨ (ψ_y = ⌈β⌉ψ)  := by sorry -- use countclaim
+          have : (ψ_y = ⌈α⌉ψ) ∨ (ψ_y = ⌈β⌉ψ)  := by
+            -- sorry (fixed)-- use countclaim (fixed)
+            by_contra ndis
+            -- rw [or_iff_not_and_not] at ndis
+            have left: ¬ψ_y = ⌈α⌉ψ := by tauto
+            have right: ¬ψ_y = ⌈β⌉ψ := by tauto
+            -- have this: ((¬ψ_y = ⌈α⌉ψ) ∧ ¬ψ_y = ⌈β⌉ψ) := by exact dne ndis
+            -- have left: (¬ψ_y = ⌈α⌉ψ) := by exact this.left
+            -- have right: ¬ψ_y = ⌈β⌉ψ := by exact this.right
+            rw [← Ne.ite_eq_right_iff] at left --It works, but I am still curious why this would produce several goals?
+            rw [left] at countclaim
+            rw [← Ne.ite_eq_right_iff] at right
+            rw [right] at countclaim
+            . aesop
+            . aesop
+            . aesop
           cases this
           all_goals (rename_i h; subst h; use ⌈α ⋓ β⌉ψ; simp [List.count_cons] at *)
           · constructor
             · linarith
-            · sorry -- use non-self-containing and linarith
+            · -- sorry (fixed) -- use non-self-containing and linarith
+              have this1: ¬(α⋓β) = α := by exact ProgramUnionNotSelfContainingLeft' α β
+              have this2: ¬(α⋓β) = β := by exact ProgramUnionNotSelfContainingRight' α β
+              rw [← Ne.ite_eq_right_iff] at this1
+              rw [this1]
+              . rw [← Ne.ite_eq_right_iff] at this2
+                rw [this2]
+                linarith
+                aesop -- It seems like in many cases linarith and aesop can both work
+              . linarith
           · constructor
             · linarith
-            · sorry -- use non-self-containing and linarith
+            · -- sorry (fixed) -- use non-self-containing and linarith
+              have this1: ¬(α⋓β) = α := by exact ProgramUnionNotSelfContainingLeft' α β
+              have this2: ¬(α⋓β) = β := by exact ProgramUnionNotSelfContainingRight' α β
+              rw [← Ne.ite_eq_right_iff] at this1
+              rw [this1]
+              . rw [← Ne.ite_eq_right_iff] at this2
+                rw [this2]
+                linarith
+                aesop
+              . linarith
       case star α =>
         simp
         constructor
@@ -713,19 +759,59 @@ theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : �
           apply List.cons_ne_self
         · intro ψ_y countclaim
           simp [List.count_cons] at countclaim
-          have : (ψ_y = ψ) ∨ (ψ_y = ⌈α⌉⌈α†⌉(undag ψ)) := by sorry -- use countclaim
+          have : (ψ_y = ψ) ∨ (ψ_y = ⌈α⌉⌈α†⌉(undag ψ)) := by
+            by_contra ndis
+            have left: ¬ (ψ_y = ψ) := by tauto
+            have right: ¬ (ψ_y = ⌈α⌉⌈α†⌉(undag ψ)) := by tauto
+            rw [← Ne.ite_eq_right_iff] at left --It works, but I am still curious why this would produce several goals?
+            rw [left] at countclaim
+            rw [← Ne.ite_eq_right_iff] at right
+            simp only [undag] at *
+            rw [right] at countclaim
+            absurd countclaim
+            simp
+            all_goals tauto
           cases this
           all_goals (rename_i h; use ⌈∗α⌉ψ; subst h; simp [List.count_cons] at *)
-          · sorry -- use non-self-containing and linarith
+          · have : ¬ ((∗α) = α) := ProgramStarNotSelfContain α
+            have : ¬ ((∗α) = α ∧ ψ_y = ⌈α†⌉undagDagFormula ψ_y) := by tauto
+            rw [← Ne.ite_eq_right_iff] at this --It works, but I am still curious why this would produce several goals?
+            rw [this]
+            have : ¬ ((⌈∗α⌉ψ_y) = ψ_y) := ProgramBoxStarNotSelfContain α ψ_y
+            rw [← Ne.ite_eq_right_iff] at this
+            rw [this]
+            all_goals tauto
+            aesop
+          -- sorry -- use non-self-containing and linarith
           · constructor
             · linarith
-            · sorry -- use non-self-containing and linarith
+            · have : ¬ ((∗α) = α) := ProgramStarNotSelfContain α
+              have : ¬ ((∗α) = α ∧ ψ = ⌈α†⌉undagDagFormula ψ) := by tauto
+              rw [← Ne.ite_eq_right_iff] at this
+              rw [this]
+              have : ¬ ((⌈∗α⌉ψ) = ψ) := ProgramBoxStarNotSelfContain α ψ
+              rw [← Ne.ite_eq_right_iff] at this
+              rw [this]
+              all_goals tauto
+              aesop
+              -- sorry -- use non-self-containing and linarith
       case test f =>
         cases Γ_in
         all_goals (rename_i h; subst h; simp [List.count_cons] at *)
         · apply Ne.symm
           apply List.cons_ne_self
-        · sorry  -- use non-self-containing and linarith
+        · constructor
+          · exact ProgramTestNotSelfContain ψ f
+          · intro ψ_y countclaim
+            have : ψ_y = ψ := by aesop
+            subst this
+            have : ¬ (ψ_y = ⌈?'f⌉ψ_y) := ProgramTestNotSelfContain ψ_y f
+            -- rw [← Ne.ite_eq_right_iff] at this
+            -- rw [this] at countclaim
+            use ⌈?'f⌉ψ_y
+            simp
+            all_goals tauto
+            -- sorry  -- use non-self-containing and linarith
 
 -- idea: replace use of "ftr" below with a relation like this:
 -- def boxDagNextRel : (Finset Formula × List DagFormula) → (Finset Formula × List DagFormula) → Prop :=
