@@ -156,15 +156,17 @@ inductive LocalRuleApp : TNode → List TNode → Type
 -- We have equality when types match
 instance : DecidableEq (LocalRuleApp LR C) := λ_ _ => Decidable.isTrue (sorry)
 
+mutual
 inductive AppLocalTableau : TNode → Type
   | mk {L R : Finset Formula} {C : List TNode}
        (ruleA : LocalRuleApp (L,R) C)
-       (subTabs: (Π c ∈ C, AppLocalTableau (c.1, c.2)))
+       (subTabs: (Π c ∈ C, LocalTableau c))
        : AppLocalTableau (L, R)
 
 inductive LocalTableau : TNode → Type
   | fromRule (appTab : AppLocalTableau LR) : LocalTableau LR
   | fromSimple (isSimple : Simple (L ∪ R)) : LocalTableau (L,R)
+end
 
 def getTabRule : AppLocalTableau LR → Σ Lcond Rcond C, LocalRule (Lcond,Rcond) C
   | AppLocalTableau.mk (ruleA : LocalRuleApp _ _) _ => match ruleA with
@@ -179,8 +181,8 @@ def getTabChildren : AppLocalTableau LR →  List TNode
   | @AppLocalTableau.mk _ _ C _ _ => C
 
 @[simp]
-def getSubTabs (tab : AppLocalTableau LR)
-  : (Π child ∈ getTabChildren tab, AppLocalTableau (child.fst, child.snd)) :=
+def getSubTabs {tab : AppLocalTableau LR}
+  : (Π child ∈ getTabChildren tab, LocalTableau child) :=
   match tab with
   | AppLocalTableau.mk _ subTabs => subTabs
 
@@ -414,6 +416,17 @@ theorem localRuleAppDecreasesLength
       _ = lengthOfSet (L ∪ R) :=
           lengthSetRemove (L ∪ R) (Lcond ∪ Rcond) conds_in_LR
 
+theorem AppLocalTableau.DecreasesLength {LR : TNode} {appTab : AppLocalTableau LR} {C : TNode}
+  (C_in : C ∈ getTabChildren appTab) :
+  lengthOfSet (C.1 ∪ C.2) < lengthOfSet (LR.1 ∪ LR.2) :=
+  by
+  rcases appTab with ⟨lrApp, next⟩
+  rcases lrApp with ⟨LCond, RCond, lr⟩
+  have := localRuleAppDecreasesLength lr (by assumption)
+  unfold applyLocalRule at * -- this actually gives the ... \ ... ∪ ... stuff.
+  simp at *
+  -- something is stuck or wrong here. Too many unnamed variables.
+  sorry
 
 theorem atmRuleDecreasesLength {L R : Finset Formula} {ϕ} :
     ~(□ϕ) ∈ (L ∪ R) → lengthOfSet (projection (L ∪ R) ∪ {~ϕ}) < lengthOfSet (L ∪ R) :=
@@ -492,29 +505,20 @@ open LocalTableau
 #check Finset.biUnion
 
 -- needed for endNodesOf
-instance localTableauHasSizeof : SizeOf (Σ LR, LocalTableau LR) :=
+instance localTableauHasLength : HasLength (Σ LR, LocalTableau LR) :=
   ⟨fun ⟨(L, R), _⟩ => lengthOfSet (L ∪ R)⟩
 
 -- open end nodes of a given localTableau
-@[simp]
-def endNodesOfOld : (Σ LR, LocalTableau LR) → Finset (Finset Formula)
-  | ⟨X, @byLocalRule _ B lr next⟩ =>
-    B.attach.biUnion fun ⟨Y, h⟩ =>
-      have : lengthOfSet Y < lengthOfSet X := localRulesDecreaseLength lr Y h
-      endNodesOfOld ⟨Y, next Y h⟩
-  | ⟨X, sim _⟩ => {X}
-
-@[simp]
-def endNodesOf : (Σ LR, LocalTableau LR) → List TNode :=
-  sorry
-  -- | ⟨LR, LocalTableau.fromRule (appTab : AppLocalTableau LR)⟩ =>
-  --   (getTabChildren appTab).attach.biUnion fun C =>
-  --     let (Lcond, Rcond, C_next, rule) := getTabRule apptab
-  --     have : ∀ Y ∈ C, lengthOfSet Y < lengthOfSet LR :=
-  --       sorry --localRuleAppDecreasesLength rule _ _ _ _
-  --     endNodesOf ⟨C, LocalTableau C⟩
-  -- | ⟨LR, LocalTableau.fromSimple _⟩ => {LR}
-
+def endNodesOf : (Σ LR, LocalTableau LR) → List TNode
+  | ⟨LR, LocalTableau.fromRule (appTab : AppLocalTableau LR)⟩ =>
+    ((getTabChildren appTab).attach.map fun ⟨C, C_in⟩ =>
+      have tC : LocalTableau C := getSubTabs C C_in
+      have : lengthOfSet (C.1 ∪ C.2) < lengthOfSet (LR.1 ∪ LR.2) := AppLocalTableau.DecreasesLength C_in
+      endNodesOf ⟨C, tC⟩
+      ).join
+  | ⟨LR, LocalTableau.fromSimple _⟩ => {LR}
+termination_by
+  endNodesOf pair => lengthOf pair
 
 @[simp]
 theorem botLNoEndNodes {LR C hC preconditionProof subtabs} :
