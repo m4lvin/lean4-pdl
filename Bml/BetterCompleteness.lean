@@ -27,7 +27,58 @@ theorem X_in_PathX {X : Finset Formula} : (path : Path X) → X ⊆ (toFinset pa
   case endNode => aesop
   case interNode => aesop
 
-theorem PathSaturated : (path : Path X) → Saturated (toFinset path) := by
+def pathsOf {X} : LocalTableau X  →  List (Path X) := by
+  intro tX
+  cases tX
+  case sim simpleX  => sorry
+
+  case byLocalRule B next lr =>
+    let mylr := lr
+    cases lr
+    case bot h₀ =>
+      exact []
+
+    case Not φ h₀ =>
+      exact []
+
+    case neg φ h₀ =>
+      specialize next (X \ {~~φ} ∪ {φ})
+      simp only [Finset.mem_singleton] at next
+      specialize next True.intro
+      have : Finset.sum (insert φ (Finset.erase X (~~φ))) lengthOfFormula < Finset.sum X lengthOfFormula := by
+        apply localRulesDecreaseLength (LocalRule.neg h₀)
+        simp
+      exact List.map (λ l => interNode (neg h₀) (by simp) l) (pathsOf next)
+
+
+    case Con α β h₀ =>
+      specialize next (X \ {α⋀β} ∪ {α,β})
+      simp at next
+      specialize next True.intro
+      have : Finset.sum (insert α (insert β (Finset.erase X (α⋀β)))) lengthOfFormula < Finset.sum X lengthOfFormula  := by
+        apply localRulesDecreaseLength (LocalRule.Con h₀)
+        simp
+      let IH := pathsOf next
+      exact List.map (interNode (Con h₀) (by simp)) IH
+
+    case nCo α β h₀ =>
+      have next1 := next (X \ {~(α⋀β)} ∪ {~α})
+      have next2 := next (X \ {~(α⋀β)} ∪ {~β})
+      simp at next1 next2
+      specialize next1 True.intro
+      specialize next2 True.intro
+      have : Finset.sum (insert (~α) (Finset.erase X (~(α⋀β)))) lengthOfFormula < Finset.sum X lengthOfFormula := by
+        apply localRulesDecreaseLength (LocalRule.nCo h₀)
+        simp
+      have : Finset.sum (insert (~β) (Finset.erase X (~(α⋀β)))) lengthOfFormula < Finset.sum X lengthOfFormula := by
+        apply localRulesDecreaseLength (LocalRule.nCo h₀)
+        simp
+      let IH1 := List.map (interNode (nCo h₀) (by simp)) (pathsOf next1)
+      let IH2 := List.map (interNode (nCo h₀) (by simp)) (pathsOf next2)
+      exact IH1 ++ IH2
+termination_by pathsOf X tX => lengthOf X
+
+theorem pathSaturated : (path : Path X) → Saturated (toFinset path) := by
   intro path
   intro P Q
   induction path
@@ -61,16 +112,6 @@ theorem PathSaturated : (path : Path X) → Saturated (toFinset path) := by
       · sorry
       · sorry
 
-theorem PathConsistent : (path : Path X) → ⊥ ∉ (toFinset path) ∧ ∀ P, P ∈ (toFinset path) → ~P ∉ (toFinset path) := by
-  intro path
-  constructor
-  · induction path
-    case endNode X consistentX _ =>
-      simp
-      sorry
-    case interNode => sorry
-  · sorry
-
 theorem consistentThenOpenTab : Consistent X → ∃ (t : Tableau X), isOpen t :=
   by
   have ⟨tX⟩ := existsTableauFor X
@@ -85,7 +126,7 @@ theorem consistentThenOpenTab : Consistent X → ∃ (t : Tableau X), isOpen t :
     simp_all only [not_not, not_true_eq_false, not_false_eq_true, iff_true]
   exact (isClosed_then_ClosedTab this)
 
-theorem ConsistentImplies : Consistent X → ⊥ ∉ X ∧ ∀ P, P ∈ X → ~P ∉ X := by
+theorem consistentImplies : Consistent X → ⊥ ∉ X ∧ ∀ P, P ∈ X → ~P ∉ X := by
   intro consX
   unfold Consistent Inconsistent at consX
   simp at consX
@@ -101,21 +142,46 @@ theorem ConsistentImplies : Consistent X → ⊥ ∉ X ∧ ∀ P, P ∈ X → ~P
     have closedTab := ClosedTableau.loc tab (by aesop)
     exact IsEmpty.false closedTab
 
-theorem ModelExistence : (X: Finset Formula) →  Consistent X →
+theorem pathConsistent : (path : Path X) → ⊥ ∉ (toFinset path) ∧ ∀ P, P ∈ (toFinset path) → ~P ∉ (toFinset path) := by
+  intro path
+  constructor
+  · induction path
+    case endNode X consistentX _ =>
+      simp
+      sorry
+    case interNode => sorry
+  · sorry
+
+theorem modelExistence : (X: Finset Formula) →  Consistent X →
     ∃ (WS : Finset (Finset Formula)) (M : ModelGraph WS) (W : WS), X ⊆ W :=
   by
   intro X consX
   have := consistentThenOpenTab consX
   rcases this with ⟨tX, open_tX⟩
-  let paths : Finset (Σ X, Path X) := sorry
-  let WS : Finset (Finset Formula) := paths.map ⟨λ ⟨X, path⟩ => toFinset path , sorry⟩ -- not injective, use Lists?
+  let paths : List (Σ X, Path X) := sorry
+  let WSlist : List (Finset Formula) := List.map (λ ⟨X, path⟩ => toFinset path) paths
+  let WS := WSlist.toFinset
   let M : KripkeModel WS := sorry
   let pathX : Path X := sorry
   use WS, ⟨M, ?_⟩, ⟨toFinset pathX, ?_⟩
   · exact X_in_PathX pathX
   · constructor
-    · sorry -- PathSaturated ConsistentImplies
-    · sorry
+    · intro ⟨W, W_in⟩
+      simp at W_in
+      choose W' pathW' h using W_in
+      rcases h with ⟨_, W_eq⟩
+      subst W_eq
+      exact ⟨pathSaturated pathW', pathConsistent pathW'⟩
+    · constructor
+      · intro ⟨W, W_in⟩ p
+        constructor
+        · intro h
+          simp at h
+          sorry
+        · sorry
+      · constructor
+        · sorry
+        · sorry
   sorry
 
 -- Theorem 4, page 37
@@ -124,7 +190,7 @@ theorem completeness : ∀ X, Consistent X ↔ Satisfiable X :=
   intro X
   constructor
   · intro X_is_consistent
-    have ⟨WS, M, w, h⟩ := ModelExistence X X_is_consistent
+    have ⟨WS, M, w, h⟩ := modelExistence X X_is_consistent
     use WS, M.val, w
     have := truthLemma M w
     aesop
@@ -139,117 +205,6 @@ theorem singletonCompleteness : ∀ φ, Consistent {φ} ↔ Satisfiable φ :=
   tauto
 
 -- TODO Clean up
-
--- Maximal paths in a local tableau, from root to end node, as sets of sets.
--- pathsOf (X with children B) := { X ∪ rest | c <- B, rest <- pathsOf c }
---def pathsOf {X} : LocalTableau X → Finset (Finset Formula)
---  | @byLocalRule _ B lr next => B.attach.biUnion
---      (λ ⟨Y,h⟩ => have : lengthOfSet Y < lengthOfSet X := localRulesDecreaseLength lr Y h
---                  (pathsOf (next Y h)).image (λ fs => fs ∪ X))
---  | sim _ => { X }
-
-
-inductive RuleTag : Type
-| None : RuleTag
-| bot : RuleTag
-| Not : RuleTag
-| neg : RuleTag
-| Con : RuleTag
-| nCoL : RuleTag
-| nCoR : RuleTag
-deriving DecidableEq
-
-open RuleTag
-
--- def Path := List (Finset Formula × Option (Σ X B, LocalRule X B))
-
-def pathsOf_aux {X} : LocalTableau X  →  (List (List (Finset Formula × Option (Σ X B, LocalRule X B)))) := by
-  intro tX
-  cases tX
-  case sim simpleX  =>
-    exact ([ [(X, none)] ])
-
-  case byLocalRule B next lr =>
-    let mylr := lr
-    cases lr
-    case bot h₀ =>
-      exact ([ [ (X, some ⟨X, ∅, mylr ⟩) ] ])
-
-    case Not φ h₀ =>
-      exact ([ [ (X, some ⟨X, ∅, mylr ⟩) ] ])
-
-    case neg φ h₀ =>
-      specialize next (X \ {~~φ} ∪ {φ})
-      simp at next
-      specialize next True.intro
-      have : Finset.sum (insert φ (Finset.erase X (~~φ))) lengthOfFormula < Finset.sum X lengthOfFormula := by
-        have := localRulesDecreaseLength (LocalRule.neg h₀) (X \ {~~φ} ∪ {φ}) (Finset.mem_singleton.mpr rfl)
-        simp_all [lengthOfSet, not_true_eq_false, sdiff_singleton_is_erase, union_singleton_is_insert]
-      let IH := pathsOf_aux next
-      exact (List.map (λ l => (X, some ⟨X, {X\ {~~φ} ∪ {φ}}, mylr⟩ ) :: l) IH )
-
-
-    case Con α β h₀ =>
-      specialize next (X \ {α⋀β} ∪ {α,β})
-      simp at next
-      specialize next True.intro
-      have : Finset.sum (insert α (insert β (Finset.erase X (α⋀β)))) lengthOfFormula < Finset.sum X lengthOfFormula  := by
-        have := localRulesDecreaseLength (LocalRule.Con h₀) (X \ {α⋀β} ∪ {α,β}) (Finset.mem_singleton.mpr rfl)
-        simp_all [lengthOfSet, not_true_eq_false, sdiff_singleton_is_erase, Finset.mem_singleton]
-      let IH := pathsOf_aux next
-      exact (List.map (λ l => (X, some ⟨X, {X \ {α⋀β} ∪ {α,β}}, mylr⟩) :: l) (IH) )
-
-    case nCo α β h₀ =>
-      let next2 := next
-      specialize next (X \ {~(α⋀β)} ∪ {~α})
-      specialize next2 (X \ {~(α⋀β)} ∪ {~β})
-      simp at next next2
-      specialize next True.intro
-      specialize next2 True.intro
-      have : Finset.sum (insert (~α) (Finset.erase X (~(α⋀β)))) lengthOfFormula < Finset.sum X lengthOfFormula := by
-        have := localRulesDecreaseLength (LocalRule.nCo h₀) (X \ {~(α⋀β)} ∪ {~α})
-        simp_all [not_true_eq_false, sdiff_singleton_is_erase, union_singleton_is_insert, Finset.mem_erase]
-      have : Finset.sum (insert (~β) (Finset.erase X (~(α⋀β)))) lengthOfFormula < Finset.sum X lengthOfFormula := by
-        have := localRulesDecreaseLength (LocalRule.nCo h₀) (X \ {~(α⋀β)} ∪ {~β})
-        simp_all [not_true_eq_false, sdiff_singleton_is_erase, union_singleton_is_insert, Finset.mem_erase]
-      let IH := List.map ((λ l => (X, some ⟨X, {X \ {~(α⋀β)} ∪ {~α}, X \ {~(α⋀β)} ∪ {~β}}, mylr⟩) :: l)) (pathsOf_aux next)
-      let IH2 := List.map ((λ l => (X, some ⟨X, {X \ {~(α⋀β)} ∪ {~α}, X \ {~(α⋀β)} ∪ {~β}}, mylr⟩) :: l)) (pathsOf_aux next2)
-      exact IH ++ IH2
-termination_by
-  pathsOf_aux X tX => lengthOfSet X
-
-
---eraseDups
---List.toFinset l
-
-#check Eq
-
-instance  : DecidableEq (List (Finset Formula × Option (Σ X B, LocalRule X B))) := by
-  have : DecidableEq (Finset Formula × Option (Σ X B, LocalRule X B)) := by
-    have : DecidableEq (Finset Formula) := Finset.decidableEq
-    have : DecidableEq (Option (Σ X B, LocalRule X B)) := by
-      have : DecidableEq (Σ X B, LocalRule X B) := by
-        intros a b
-        rcases a with ⟨a0, a1⟩
-        rcases a1 with ⟨a1, a2⟩
-        rcases b with ⟨b0, b1⟩
-        rcases b1 with ⟨b1, b2⟩
-        simp
-        have : Decidable (a0 = b0) := by exact this a0 b0
-        have : Decidable (HEq ({fst := a1, snd := a2} : (a1 : Finset (Finset Formula)) × (LocalRule a0 a1)  ) ({fst := b1, snd := b2} : (b1 : Finset (Finset Formula)) × (LocalRule b0 b1) )) := by
-          have : Decidable (((a1 : Finset (Finset Formula)) × (LocalRule a0 a1))  =   ((b1 : Finset (Finset Formula)) × (LocalRule b0 b1) )) := by
-            sorry
-          cases this ; apply Decidable.isFalse ; intro h₁ ; have h2 : (((a1 : Finset (Finset Formula)) × (LocalRule a0 a1))  =   ((b1 : Finset (Finset Formula)) × (LocalRule b0 b1) )) :=  type_eq_of_heq h₁ ; simp_all only [not_true_eq_false]
-          case isTrue this1 =>
-                                    -- won't let me do cases on 'this1'
-            apply Decidable.isTrue ; sorry
-        exact And.decidable
-      exact instDecidableEqOption
-    exact instDecidableEqProd
-  exact List.hasDecEq
-
-
-def pathsOf {X} : LocalTableau X  →  Finset (List (Finset Formula × Option (Σ X B, LocalRule X B))) := λ tX => (List.toFinset (pathsOf_aux tX))
 
 -- 0) Define last_node(path) := ite(path.length = 0)(∅)(path[path.length-1].fst : Finset Formula)
 -- 1) Define AllPaths(X)    :=

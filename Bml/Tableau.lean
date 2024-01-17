@@ -397,6 +397,8 @@ def injectTab : ClosedTableau X → Tableau X
   | (ClosedTableau.loc lt ends) => Tableau.loc lt (λ _ Y_in => injectTab (ends _ Y_in))
   | (ClosedTableau.atm nB_in_X simX ctProj) => Tableau.atm nB_in_X simX (injectTab ctProj)
 
+def aLocalTableauFor α : LocalTableau α := sorry
+
 def existsTableauFor α : Nonempty (Tableau α) :=
   by
   cases em (∃ B, Nonempty (LocalRule α B))
