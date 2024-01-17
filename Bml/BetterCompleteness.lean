@@ -170,9 +170,9 @@ theorem modelExistence : (X: Finset Formula) →  Consistent X →
     · constructor
       · aesop
       · constructor
-        · intro ⟨w, w_in⟩ ⟨v, v_in⟩ f wRv boxf_in_w
-          simp at *
-          sorry
+        · intro ⟨w, w_in⟩ ⟨v, v_in⟩ f wRv h
+          rewrite [← proj] at h
+          aesop
         · intro ⟨w, w_in⟩ f nboxf_in_w
           simp at nboxf_in_w
           sorry
