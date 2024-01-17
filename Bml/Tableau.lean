@@ -133,6 +133,7 @@ def TNode := Finset Formula × Finset Formula
 def applyLocalRule (_ : LocalRule (Lcond, Rcond) C) : TNode → List TNode
   | ⟨L,R⟩ => C.map $ λc => (L \ Lcond ∪ c.1, R \ Rcond ∪ c.2)
 
+/-  old LocalRuleApp
 inductive LocalRuleApp : TNode → List TNode → Type
   | mk {L R : Finset Formula}
        {C : List SubPair}
@@ -140,6 +141,17 @@ inductive LocalRuleApp : TNode → List TNode → Type
        (rule : LocalRule (Lcond,Rcond) C)
        (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R)
        : LocalRuleApp (L,R) $ applyLocalRule rule (L,R)
+-/
+
+inductive LocalRuleApp : TNode → List TNode → Type
+  | mk {L R : Finset Formula}
+       {C : List TNode}
+       {ress : List SubPair}
+       (Lcond Rcond : Finset Formula)
+       (rule : LocalRule (Lcond,Rcond) ress)
+       {hC : C = applyLocalRule rule (L,R)}
+       (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R)
+       : LocalRuleApp (L,R) C
 
 -- We have equality when types match
 instance : DecidableEq (LocalRuleApp LR C) := λ_ _ => Decidable.isTrue (sorry)
@@ -155,8 +167,8 @@ inductive LocalTableau : TNode → Type
   | fromSimple (isSimple : Simple (L ∪ R)) : LocalTableau (L,R)
 
 def getTabRule : AppLocalTableau LR → Σ Lcond Rcond C, LocalRule (Lcond,Rcond) C
-  | LocalTableau.mk (ruleA : LocalRuleApp _ _) _ => match ruleA with
-    | @LocalRuleApp.mk _ _ B Lcond Rcond rule _ => ⟨Lcond, Rcond, B, rule⟩
+  | AppLocalTableau.mk (ruleA : LocalRuleApp _ _) _ => match ruleA with
+    | @LocalRuleApp.mk _ _ _ B Lcond Rcond rule _ _ => ⟨Lcond, Rcond, B, rule⟩
 
 -- We have equality when types match
 instance : DecidableEq (AppLocalTableau LR) := λtab₁ tab₂ => match getTabRule tab₁ == getTabRule tab₂ with
@@ -164,13 +176,13 @@ instance : DecidableEq (AppLocalTableau LR) := λtab₁ tab₂ => match getTabRu
   | false => Decidable.isFalse (sorry)
 
 def getTabChildren : AppLocalTableau LR →  List TNode
-  | @LocalTableau.mk _ _ C _ _ => C
+  | @AppLocalTableau.mk _ _ C _ _ => C
 
 @[simp]
 def getSubTabs (tab : AppLocalTableau LR)
   : (Π child ∈ getTabChildren tab, AppLocalTableau (child.fst, child.snd)) :=
   match tab with
-  | LocalTableau.mk _ subTabs => subTabs
+  | AppLocalTableau.mk _ subTabs => subTabs
 
 inductive AggregationType
   | Constant (ϕ : Formula)
@@ -383,22 +395,24 @@ theorem localRuleDecreasesLength (rule : LocalRule (Lcond, Rcond) C) :
     case LRnegL φ => aesop
     case LRnegR φ => aesop
 
-theorem localRuleAppDecreasesLength {L R : Finset Formula} (rule : LocalRule (Lcond, Rcond) C) :
-    Lcond ⊆ L ∧ Rcond ⊆ R → ∀c ∈ C,
-    lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond) ∪ (c.1 ∪ c.2)) < lengthOfSet (L ∪ R) :=
-    by
-      intro hcond c c_child
-      have conds_in_LR : (Lcond ∪ Rcond) ⊆ (L ∪ R) :=
-        Finset.union_subset_union hcond.left hcond.right
-      have rule_decr_len : lengthOfSet (c.1 ∪ c.2) < lengthOfSet (Lcond ∪ Rcond) :=
-        (localRuleDecreasesLength rule) c c_child
-      calc lengthOfSet (((L ∪ R) \ (Lcond ∪ Rcond)) ∪ (c.1 ∪ c.2))
-        ≤ lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (c.1 ∪ c.2) :=
-            by simp [sum_union_le]
-        _ < lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (Lcond ∪ Rcond) :=
-            by apply Nat.add_le_add_left rule_decr_len
-        _ = lengthOfSet (L ∪ R) :=
-            lengthSetRemove (L ∪ R) (Lcond ∪ Rcond) conds_in_LR
+theorem localRuleAppDecreasesLength
+  {L R : Finset Formula}
+  (rule : LocalRule (Lcond, Rcond) C)
+  (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R) :
+  ∀c ∈ C, lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond) ∪ (c.1 ∪ c.2)) < lengthOfSet (L ∪ R) :=
+  by
+    intro c c_child
+    have conds_in_LR : (Lcond ∪ Rcond) ⊆ (L ∪ R) :=
+      Finset.union_subset_union preconditionProof.left preconditionProof.right
+    have rule_decr_len : lengthOfSet (c.1 ∪ c.2) < lengthOfSet (Lcond ∪ Rcond) :=
+      (localRuleDecreasesLength rule) c c_child
+    calc lengthOfSet (((L ∪ R) \ (Lcond ∪ Rcond)) ∪ (c.1 ∪ c.2))
+      ≤ lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (c.1 ∪ c.2) :=
+          by simp [sum_union_le]
+      _ < lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (Lcond ∪ Rcond) :=
+          by apply Nat.add_le_add_left rule_decr_len
+      _ = lengthOfSet (L ∪ R) :=
+          lengthSetRemove (L ∪ R) (Lcond ∪ Rcond) conds_in_LR
 
 
 theorem atmRuleDecreasesLength {L R : Finset Formula} {ϕ} :
@@ -432,77 +446,124 @@ theorem atmRuleDecreasesLength {L R : Finset Formula} {ϕ} :
 -- mixed with Definition 11 (with all PDL stuff missing for now)
 -- a local tableau for X, must be maximal
 
-def existsLocalTableauFor α : Nonempty (LocalTableau α) :=
+def existsLocalTableauFor LR : Nonempty (LocalTableau LR) :=
   by
-  cases em ¬∃ B, Nonempty (LocalRule α B)
-  case inl canApplyRule =>
-    constructor
-    apply LocalTableau.sim
-    by_contra hyp
-    have := notSimpleThenLocalRule hyp
-    tauto
-  case inr canApplyRule =>
-    simp at canApplyRule
-    cases' canApplyRule with B r_exists
-    cases' r_exists with r
-    cases r
-    case bot h =>
-      use (LocalTableau.byLocalRule (LocalRule.bot h) ?_)
-      intro Y; intro Y_in_empty; tauto
-    case Not h =>
-      use (LocalTableau.byLocalRule (LocalRule.Not h) ?_)
-      intro Y; intro Y_in_empty; tauto
-    case neg f h =>
-      use (LocalTableau.byLocalRule (LocalRule.neg h) ?_)
-      intro Y Y_def
-      have := localRulesDecreaseLength (LocalRule.neg h) Y Y_def
-      apply Classical.choice (existsLocalTableauFor Y)
-    case Con f g h =>
-      use (LocalTableau.byLocalRule (LocalRule.Con h) ?_)
-      intro Y Y_def
-      have := localRulesDecreaseLength (LocalRule.Con h) Y Y_def
-      apply Classical.choice (existsLocalTableauFor Y)
-    case nCo f g h =>
-      use (LocalTableau.byLocalRule (LocalRule.nCo h) ?_)
-      intro Y Y_def
-      have := localRulesDecreaseLength (LocalRule.nCo h) Y Y_def
-      apply Classical.choice (existsLocalTableauFor Y)
-termination_by
-  existsLocalTableauFor α => lengthOf α
+    cases em ¬(∃ Lcond Rcond C, Nonempty (LocalRule (Lcond, Rcond) C))
+    case inl canApplyRule =>
+      constructor
+      apply LocalTableau.fromSimple
+      by_contra hyp
+      have := notSimpleThenLocalRule hyp
+      aesop
+    case inr canApplyRule =>
+      simp at canApplyRule
+      cases' canApplyRule with B r_exists
+      cases' r_exists with r
+      cases r
+      sorry
+      -- case bot h =>
+      --   use (LocalTableau.byLocalRule (LocalRule.bot h) ?_)
+      --   intro Y; intro Y_in_empty; tauto
+      -- case Not h =>
+      --   use (LocalTableau.byLocalRule (LocalRule.Not h) ?_)
+      --   intro Y; intro Y_in_empty; tauto
+      -- case neg f h =>
+      --   use (LocalTableau.byLocalRule (LocalRule.neg h) ?_)
+      --   intro Y Y_def
+      --   have := localRulesDecreaseLength (LocalRule.neg h) Y Y_def
+      --   apply Classical.choice (existsLocalTableauFor Y)
+      -- case Con f g h =>
+      --   use (LocalTableau.byLocalRule (LocalRule.Con h) ?_)
+      --   intro Y Y_def
+      --   have := localRulesDecreaseLength (LocalRule.Con h) Y Y_def
+      --   apply Classical.choice (existsLocalTableauFor Y)
+      -- case nCo f g h =>
+      --   use (LocalTableau.byLocalRule (LocalRule.nCo h) ?_)
+      --   intro Y Y_def
+      --   have := localRulesDecreaseLength (LocalRule.nCo h) Y Y_def
+      --   apply Classical.choice (existsLocalTableauFor Y)
+
+    -- termination_by
+    --   existsLocalTableauFor α => lengthOf α
+
 
 open LocalTableau
 
+#check Finset.biUnion
+
 -- needed for endNodesOf
-instance localTableauHasSizeof : SizeOf (Σ X, LocalTableau X) :=
-  ⟨fun ⟨X, _⟩ => lengthOfSet X⟩
+instance localTableauHasSizeof : SizeOf (Σ LR, LocalTableau LR) :=
+  ⟨fun ⟨(L, R), _⟩ => lengthOfSet (L ∪ R)⟩
 
 -- open end nodes of a given localTableau
 @[simp]
-def endNodesOf : (Σ X, LocalTableau X) → Finset (Finset Formula)
+def endNodesOfOld : (Σ LR, LocalTableau LR) → Finset (Finset Formula)
   | ⟨X, @byLocalRule _ B lr next⟩ =>
     B.attach.biUnion fun ⟨Y, h⟩ =>
       have : lengthOfSet Y < lengthOfSet X := localRulesDecreaseLength lr Y h
-      endNodesOf ⟨Y, next Y h⟩
+      endNodesOfOld ⟨Y, next Y h⟩
   | ⟨X, sim _⟩ => {X}
 
 @[simp]
-theorem botNoEndNodes {X h n} :
-    endNodesOf ⟨X, LocalTableau.byLocalRule (@LocalRule.bot X h) n⟩ = ∅ := by unfold endNodesOf; simp
+def endNodesOf : (Σ LR, LocalTableau LR) → List TNode :=
+  sorry
+  -- | ⟨LR, LocalTableau.fromRule (appTab : AppLocalTableau LR)⟩ =>
+  --   (getTabChildren appTab).attach.biUnion fun C =>
+  --     let (Lcond, Rcond, C_next, rule) := getTabRule apptab
+  --     have : ∀ Y ∈ C, lengthOfSet Y < lengthOfSet LR :=
+  --       sorry --localRuleAppDecreasesLength rule _ _ _ _
+  --     endNodesOf ⟨C, LocalTableau C⟩
+  -- | ⟨LR, LocalTableau.fromSimple _⟩ => {LR}
+
 
 @[simp]
-theorem notNoEndNodes {X h ϕ n} :
-    endNodesOf ⟨X, LocalTableau.byLocalRule (@LocalRule.Not X h ϕ) n⟩ = ∅ := by unfold endNodesOf; simp
+theorem botLNoEndNodes {LR C hC preconditionProof subtabs} :
+    endNodesOf ⟨LR, LocalTableau.fromRule
+    (@AppLocalTableau.mk LR.1 LR.2 C (@LocalRuleApp.mk LR.1 LR.2 C _ _ _
+    (LocalRule.oneSidedL (OneSidedLocalRule.bot)) hC preconditionProof) subtabs)⟩ = ∅ :=
+  by sorry
+    --unfold endNodesOf; simp
 
-theorem negEndNodes {X ϕ h n} :
+@[simp]
+theorem botRNoEndNodes {LR C hC preconditionProof subtabs} :
+    endNodesOf ⟨LR, LocalTableau.fromRule
+    (@AppLocalTableau.mk LR.1 LR.2 C (@LocalRuleApp.mk LR.1 LR.2 C _ _ _
+    (LocalRule.oneSidedR (OneSidedLocalRule.bot)) hC preconditionProof) subtabs)⟩ = ∅ :=
+  by sorry
+    --unfold endNodesOf; simp
+
+@[simp]
+theorem notLNoEndNodes {LR ϕ C hC preconditionProof subtabs} :
+    endNodesOf ⟨LR, LocalTableau.fromRule
+    (@AppLocalTableau.mk LR.1 LR.2 C (@LocalRuleApp.mk LR.1 LR.2 C _ _ _
+    (LocalRule.oneSidedL (OneSidedLocalRule.not ϕ)) hC preconditionProof) subtabs)⟩ = ∅ :=
+    by sorry
+      -- unfold endNodesOf; simp
+
+@[simp]
+theorem notRNoEndNodes {LR ϕ C hC preconditionProof subtabs} :
+    endNodesOf ⟨LR, LocalTableau.fromRule
+    (@AppLocalTableau.mk LR.1 LR.2 C (@LocalRuleApp.mk LR.1 LR.2 C _ _ _
+    (LocalRule.oneSidedR (OneSidedLocalRule.not ϕ)) hC preconditionProof) subtabs)⟩ = ∅ :=
+    by sorry
+      -- unfold endNodesOf; simp
+
+theorem negEndNodesOld {X ϕ h n} :
     endNodesOf ⟨X, LocalTableau.byLocalRule (@LocalRule.neg X ϕ h) n⟩ =
-      endNodesOf ⟨X \ {~~ϕ} ∪ {ϕ}, n (X \ {~~ϕ} ∪ {ϕ}) (by simp)⟩ :=
-  by
-  ext1
-  simp only [endNodesOf, Finset.mem_singleton, Finset.mem_biUnion, Finset.mem_attach,
-    exists_true_left, Subtype.exists]
-  constructor
-  · intro lhs; rcases lhs with ⟨b, bDef, bIn⟩; subst bDef; simp at *; exact bIn
-  · intro rhs; use X \ {~~ϕ} ∪ {ϕ}; constructor; simp at *; exact rhs; rfl
+      endNodesOf ⟨X \ {~~ϕ} ∪ {ϕ}, n (X \ {~~ϕ} ∪ {ϕ}) (by simp)⟩ := sorry
+
+theorem negEndNodes {LR ϕ C hC preconditionProof subtabs} :
+    endNodesOf ⟨LR, LocalTableau.fromRule
+    (@AppLocalTableau.mk LR.1 LR.2 C (@LocalRuleApp.mk LR.1 LR.2 C _ _ _
+    (LocalRule.oneSidedR (OneSidedLocalRule.neg ϕ)) hC preconditionProof) subtabs)⟩
+    = endNodesOf ⟨X \ {~~ϕ} ∪ {ϕ}, n (X \ {~~ϕ} ∪ {ϕ}) (by simp)⟩ :=
+  by sorry
+  -- ext1
+  -- simp only [endNodesOf, Finset.mem_singleton, Finset.mem_biUnion, Finset.mem_attach,
+  --   exists_true_left, Subtype.exists]
+  -- constructor
+  -- · intro lhs; rcases lhs with ⟨b, bDef, bIn⟩; subst bDef; simp at *; exact bIn
+  -- · intro rhs; use X \ {~~ϕ} ∪ {ϕ}; constructor; simp at *; exact rhs; rfl
 
 theorem conEndNodes {X ϕ ψ h n} :
     endNodesOf ⟨X, LocalTableau.byLocalRule (@LocalRule.Con X ϕ ψ h) n⟩ =
