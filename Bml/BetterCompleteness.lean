@@ -21,6 +21,7 @@ def toFinset: Path X → Finset Formula
   | endNode _ _ => X
   | (interNode _ _ tail) => X ∪ (toFinset tail)
 
+-- mark as simp?
 theorem X_in_PathX {X : Finset Formula} : (path : Path X) → X ⊆ (toFinset path) := by
   intro path f
   cases path
@@ -112,56 +113,50 @@ theorem pathSaturated : (path : Path X) → Saturated (toFinset path) := by
       · sorry
       · sorry
 
-theorem consistentThenOpenTab : Consistent X → ∃ (t : Tableau X), isOpen t :=
-  by
-  have ⟨tX⟩ := existsTableauFor X
-  -- should be easy now
-  contrapose
-  simp[not_exists, Consistent, Inconsistent]
-  intro h
-  specialize h tX
-  refine Nonempty.intro ?val
-  have : isClosed tX := by
-    have h2 : ¬ isOpen tX ↔ ¬ ¬ isClosed tX := Iff.symm (Iff.not (Iff.symm open_iff_notClosed))
-    simp_all only [not_not, not_true_eq_false, not_false_eq_true, iff_true]
-  exact (isClosed_then_ClosedTab this)
-
-theorem consistentImplies : Consistent X → ⊥ ∉ X ∧ ∀ P, P ∈ X → ~P ∉ X := by
-  intro consX
-  unfold Consistent Inconsistent at consX
-  simp at consX
-  constructor
-  · by_contra bot_in_X
-    let tab := byLocalRule (bot bot_in_X) (by aesop)
-    have closedTab := ClosedTableau.loc tab (by aesop)
-    exact IsEmpty.false closedTab
-  · intro P
-    by_contra h
-    simp at h
-    let tab := byLocalRule (Not h) (by aesop)
-    have closedTab := ClosedTableau.loc tab (by aesop)
-    exact IsEmpty.false closedTab
-
 theorem pathConsistent : (path : Path X) → ⊥ ∉ (toFinset path) ∧ ∀ P, P ∈ (toFinset path) → ~P ∉ (toFinset path) := by
   intro path
-  constructor
-  · induction path
-    case endNode X consistentX _ =>
-      simp
+  induction path
+  case endNode X consistentX simpleX =>
+      unfold Consistent Inconsistent at consistentX
+      simp at consistentX
+      constructor
+      · by_contra h
+        simp at h
+        let tab := byLocalRule (bot h) (by aesop)
+        have closedTab := ClosedTableau.loc tab (by aesop)
+        exact IsEmpty.false closedTab
+      · simp
+        intro f f_in_X
+        by_contra nf_in_X
+        let tab := byLocalRule (Not ⟨f_in_X, nf_in_X⟩) (by aesop)
+        have closedTab := ClosedTableau.loc tab (by aesop)
+        exact IsEmpty.false closedTab
+  case interNode B X Y locRule Y_in pathY IH =>
+    simp
+    constructor
+    · by_contra h
+      rcases h
+      case inl h => sorry
+      case inr h => aesop
+    · intro f f_in
+      by_contra h
       sorry
-    case interNode => sorry
-  · sorry
 
 theorem modelExistence : (X: Finset Formula) →  Consistent X →
     ∃ (WS : Finset (Finset Formula)) (M : ModelGraph WS) (W : WS), X ⊆ W :=
   by
   intro X consX
-  have := consistentThenOpenTab consX
-  rcases this with ⟨tX, open_tX⟩
   let paths : List (Σ X, Path X) := sorry
   let WSlist : List (Finset Formula) := List.map (λ ⟨X, path⟩ => toFinset path) paths
   let WS := WSlist.toFinset
-  let M : KripkeModel WS := sorry
+  let M : KripkeModel WS := by
+    constructor
+    -- define valuation function
+    · intro ⟨w, w_in⟩ p
+      exact (·p) ∈ w
+    -- define relation
+    · intro ⟨w, w_in⟩ ⟨v, v_in⟩
+      exact projection w ⊆ v
   let pathX : Path X := sorry
   use WS, ⟨M, ?_⟩, ⟨toFinset pathX, ?_⟩
   · exact X_in_PathX pathX
@@ -173,16 +168,15 @@ theorem modelExistence : (X: Finset Formula) →  Consistent X →
       subst W_eq
       exact ⟨pathSaturated pathW', pathConsistent pathW'⟩
     · constructor
-      · intro ⟨W, W_in⟩ p
-        constructor
-        · intro h
-          simp at h
-          sorry
-        · sorry
+      · aesop
       · constructor
-        · sorry
-        · sorry
-  sorry
+        · intro ⟨w, w_in⟩ ⟨v, v_in⟩ f wRv boxf_in_w
+          simp at *
+          sorry
+        · intro ⟨w, w_in⟩ f nboxf_in_w
+          simp at nboxf_in_w
+          sorry
+  · sorry
 
 -- Theorem 4, page 37
 theorem completeness : ∀ X, Consistent X ↔ Satisfiable X :=
@@ -283,6 +277,35 @@ theorem singletonCompleteness : ∀ φ, Consistent {φ} ↔ Satisfiable φ :=
   -- For all ~(α⋀β) in X, for every L1 in LocTab_α, for every L2 in LocTab_β:
       -- add LocTab.byLocalRule (LocalRule.nCo ~(α⋀β) ~α) (L1, L2) to our ennumeration and keep ennumerating
 
+theorem consistentImplies : Consistent X → ⊥ ∉ X ∧ ∀ P, P ∈ X → ~P ∉ X := by
+  intro consX
+  unfold Consistent Inconsistent at consX
+  simp at consX
+  constructor
+  · by_contra bot_in_X
+    let tab := byLocalRule (bot bot_in_X) (by aesop)
+    have closedTab := ClosedTableau.loc tab (by aesop)
+    exact IsEmpty.false closedTab
+  · intro P
+    by_contra h
+    simp at h
+    let tab := byLocalRule (Not h) (by aesop)
+    have closedTab := ClosedTableau.loc tab (by aesop)
+    exact IsEmpty.false closedTab
+
+theorem consistentThenOpenTab : Consistent X → ∃ (t : Tableau X), isOpen t :=
+  by
+  have ⟨tX⟩ := existsTableauFor X
+  -- should be easy now
+  contrapose
+  simp[not_exists, Consistent, Inconsistent]
+  intro h
+  specialize h tX
+  refine Nonempty.intro ?val
+  have : isClosed tX := by
+    have h2 : ¬ isOpen tX ↔ ¬ ¬ isClosed tX := Iff.symm (Iff.not (Iff.symm open_iff_notClosed))
+    simp_all only [not_not, not_true_eq_false, not_false_eq_true, iff_true]
+  exact (isClosed_then_ClosedTab this)
 
 instance : DecidableEq (LocalTableau X) := by sorry
 
