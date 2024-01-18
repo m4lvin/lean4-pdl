@@ -320,6 +320,17 @@ theorem localRuleSoundness (rule : LocalRule (Lcond, Rcond) C) :
   case LRnegL φ => aesop
   case LRnegR φ => aesop
 
+lemma oneSidedRule_implies_child_sat_L
+  {ruleApp : LocalRuleApp (L, R) C}
+  (def_ruleA : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (res, ∅)) _) _ _ rule hC preproof))
+  (rule_is_left : rule = LocalRule.oneSidedL orule )
+  : Satisfiable (L ∪ X) → ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ X) := sorry
+
+lemma oneSidedRule_implies_child_sat_R
+  {ruleApp : LocalRuleApp (L, R) C}
+  (def_ruleA : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (∅, res)) _) _ _ rule hC preproof))
+  (rule_is_right : rule = LocalRule.oneSidedR orule )
+  : Satisfiable (R ∪ X) → ∃c ∈ C.attach, Satisfiable (c.1.2 ∪ X) := sorry
 
 /-
 -- The critical rule is sound and preserves satisfiability "downwards".
@@ -349,6 +360,7 @@ theorem atmSoundness {α : Finset Formula} {f} (not_box_f_in_a : ~(□f) ∈ α)
     exact w_sat_a v w_rel_v
 -/
 
+/-
 theorem localTableauAndEndNodesUnsatThenNotSat {L R} (ltLR : LocalTableau L R) :
     (∀ Y, Y ∈ endNodesOf ⟨Z, ltZ⟩ → ¬Satisfiable Y) → ¬Satisfiable Z :=
   by
@@ -416,3 +428,4 @@ theorem soundness : ∀ φ, Provable φ → Tautology φ :=
   rw [← singletonSat_iff_sat]
   apply soundTableau
   exact prov
+-/

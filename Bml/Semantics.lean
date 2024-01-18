@@ -109,3 +109,7 @@ theorem forms_to_sets {φ ψ : Formula} : φ⊨ψ → ({φ} : Finset Formula)⊨
   subst psi1_in_setpsi
   apply impTaut
   exact lhs
+
+lemma negation_not_cosatisfiable {X : Finset Formula} (φ : Formula) (h₁ : φ ∈ X) (h₂ : ~φ ∈ X) : ¬Satisfiable X := sorry
+
+lemma sat_double_neq_invariant {X : Finset Formula} (φ : Formula) : Satisfiable (X ∪ {~~φ}) ↔ Satisfiable (X ∪ {φ}) := sorry

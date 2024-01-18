@@ -10,7 +10,7 @@ import Mathlib.Tactic.Ring
 import Bml.Syntax
 import Bml.Semantics
 import Bml.Setsimp
-import Bml.Vocabulary -- TODO remove
+import Bml.Vocabulary
 
 open Formula
 
@@ -127,21 +127,13 @@ instance : DecidableEq (LocalRule LRconds C) := λ_ _ => Decidable.isTrue (sorry
 def TNode := Finset Formula × Finset Formula
   deriving DecidableEq
 
-#eval ([({},{})] : List TNode) == ([({p},{})] : List TNode)
+open HasVocabulary
+@[simp]
+def jvoc (LR: TNode) := voc LR.1 ∩ voc LR.2
 
 @[simp]
-def applyLocalRule (_ : LocalRule (Lcond, Rcond) C) : TNode → List TNode
-  | ⟨L,R⟩ => C.map $ λc => (L \ Lcond ∪ c.1, R \ Rcond ∪ c.2)
-
-/-  old LocalRuleApp
-inductive LocalRuleApp : TNode → List TNode → Type
-  | mk {L R : Finset Formula}
-       {C : List SubPair}
-       (Lcond Rcond : Finset Formula)
-       (rule : LocalRule (Lcond,Rcond) C)
-       (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R)
-       : LocalRuleApp (L,R) $ applyLocalRule rule (L,R)
--/
+def applyLocalRule (_ : LocalRule (Lcond, Rcond) ress) : TNode → List TNode
+  | ⟨L,R⟩ => ress.map $ λc => (L \ Lcond ∪ c.1, R \ Rcond ∪ c.2)
 
 inductive LocalRuleApp : TNode → List TNode → Type
   | mk {L R : Finset Formula}
@@ -156,100 +148,51 @@ inductive LocalRuleApp : TNode → List TNode → Type
 -- We have equality when types match
 instance : DecidableEq (LocalRuleApp LR C) := λ_ _ => Decidable.isTrue (sorry)
 
+lemma oneSidedRule_preserves_other_side_L
+  {ruleApp : LocalRuleApp (L, R) C}
+  (hmyrule : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (res, ∅)) _) _ _ rule hC preproof))
+  (rule_is_left : rule = LocalRule.oneSidedL orule )
+  : ∀c ∈ C, c.2 = R := by aesop
+
+lemma oneSidedRule_preserves_other_side_R
+  {ruleApp : LocalRuleApp (L, R) C}
+  (hmyrule : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (∅, res)) _) _ _ rule hC preproof))
+  (rule_is_right : rule = LocalRule.oneSidedR orule )
+  : ∀c ∈ C, c.1 = L := by aesop
+
+theorem localRuleAppDecreasesVocab (ruleA : LocalRuleApp LR C)
+  : ∀cLR ∈ C, jvoc cLR ⊆ jvoc LR  := sorry
+
+
 mutual
-inductive AppLocalTableau : TNode → Type
+inductive AppLocalTableau : TNode → List TNode → Type
   | mk {L R : Finset Formula} {C : List TNode}
        (ruleA : LocalRuleApp (L,R) C)
        (subTabs: (Π c ∈ C, LocalTableau c))
-       : AppLocalTableau (L, R)
+       : AppLocalTableau (L, R) C
 
 inductive LocalTableau : TNode → Type
-  | fromRule (appTab : AppLocalTableau LR) : LocalTableau LR
+  | fromRule {C : List TNode}  (appTab : AppLocalTableau LR C) : LocalTableau LR
   | fromSimple (isSimple : Simple (L ∪ R)) : LocalTableau (L,R)
 end
 
-def getTabRule : AppLocalTableau LR → Σ Lcond Rcond C, LocalRule (Lcond,Rcond) C
+def getTabRule : AppLocalTableau LR C → Σ Lcond Rcond C, LocalRule (Lcond,Rcond) C
   | AppLocalTableau.mk (ruleA : LocalRuleApp _ _) _ => match ruleA with
     | @LocalRuleApp.mk _ _ _ B Lcond Rcond rule _ _ => ⟨Lcond, Rcond, B, rule⟩
 
 -- We have equality when types match
-instance : DecidableEq (AppLocalTableau LR) := λtab₁ tab₂ => match getTabRule tab₁ == getTabRule tab₂ with
+instance : DecidableEq (AppLocalTableau LR C) := λtab₁ tab₂ => match getTabRule tab₁ == getTabRule tab₂ with
   | true  => Decidable.isTrue  (sorry)
   | false => Decidable.isFalse (sorry)
 
-def getTabChildren : AppLocalTableau LR →  List TNode
+def getTabChildren : AppLocalTableau LR C →  List TNode
   | @AppLocalTableau.mk _ _ C _ _ => C
 
 @[simp]
-def getSubTabs {tab : AppLocalTableau LR}
-  : (Π child ∈ getTabChildren tab, LocalTableau child) :=
+def getSubTabs (tab : AppLocalTableau LR C)
+  : (Π c ∈ C, LocalTableau c) :=
   match tab with
   | AppLocalTableau.mk _ subTabs => subTabs
-
-inductive AggregationType
-  | Constant (ϕ : Formula)
-  | Conjunction
-  | Disjunction
-
-open AggregationType
-
-def localRuleToAggregationType : LocalRule LRconds C -> AggregationType
-  | LocalRule.oneSidedL _ => Disjunction
-  | LocalRule.oneSidedR _ => Conjunction
-  | LocalRule.LRnegL ϕ    => Constant   ϕ
-  | LocalRule.LRnegR ϕ    => Constant (~ϕ)
-
-def aggregationTypeToFunction (atype : AggregationType)
-  : List Formula → Formula := match atype with
-  | Constant ϕ  => λ_ => ϕ
-  | Conjunction => BigConjunction
-  | Disjunction => BigDisjunction
-
---BEGIN move to proper files
--- included to indicate types for parts of Partitions; Soundness; Completeness
--- and to enable typechecking for so long as Tableau does not compile yet
--- should in the end be moved back to their respective files
-open HasVocabulary HasSat
-
-def PartInterpolant (X1 X2 : Finset Formula) (θ : Formula) :=
-  voc θ ⊆ voc X1 ∩ voc X2 ∧ ¬Satisfiable (X1 ∪ {~θ}) ∧ ¬Satisfiable (X2 ∪ {θ})
-
-theorem localRuleCompleteness (rule : LocalRule LRconds C)
-  : ∃LR ∈ C, Satisfiable (LR.1 ∪ LR.2) → Satisfiable (LRconds.1 ∪ LRconds.2) := sorry
-
-theorem localRuleAppCompleteness (ruleA : LocalRuleApp LR C)
-  : ∃LR ∈ C, Satisfiable (LR.1 ∪ LR.2) → Satisfiable (LR.1 ∪ LR.2) := sorry
-
-theorem localRuleDecreasesVocab (ruleA : LocalRuleApp LR C)
-  : ∀cLR ∈ C, voc cLR.1 ⊆ voc LR.1 ∧ voc cLR.2 ⊆ voc LR.2 := sorry
-
-theorem InterpolantInductionStep
-  (L R : Finset Formula)
-  (tab : AppLocalTableau (L, R))
-  (subInterpolants : Π cLR ∈ getTabChildren tab, Formula)
-  (hsubInterpolants : Π cLRP ∈ (getTabChildren tab).attach, PartInterpolant cLRP.val.1 cLRP.val.1 (subInterpolants cLRP.val cLRP.property))
-  : (∃θ : Formula, PartInterpolant L R θ) :=
-  by
-    let aggregationType := localRuleToAggregationType $ (getTabRule tab).2.2.2 --TODO this is ugle
-    let interpolant     := aggregationTypeToFunction aggregationType $ (getTabChildren tab).attach.map $ λc => subInterpolants c.val c.property -- Feel like we should be able to η-reduce this but somehow it gives an error
-    use interpolant
-    constructor
-
-    case h.left => --voc property
-      cases aggregationType
-      -- case constant ϕ: use that ϕ appears in both sides
-      case Constant ϕ => sorry
-      -- other cases: use that p ∈ ⋀θ_i → ∃θ_i, p ∈ θ_i → p ∈ L by localRuleDecreasesVocab , and ismilar
-      · sorry
-      · sorry
-    case h.right => --implication property
-      cases aggregationType
-      -- case constant ϕ: use the tab preconditionProof
-      · sorry
-      -- other cases: result follows directly from localRuleSoundness&completness and IH's
-      · sorry
-      · sorry
--- END move to proper files
 
 -- If X is not simple, then a local rule can be applied.
 -- (page 13)
@@ -416,9 +359,9 @@ theorem localRuleAppDecreasesLength
       _ = lengthOfSet (L ∪ R) :=
           lengthSetRemove (L ∪ R) (Lcond ∪ Rcond) conds_in_LR
 
-theorem AppLocalTableau.DecreasesLength {LR : TNode} {appTab : AppLocalTableau LR} {C : TNode}
-  (C_in : C ∈ getTabChildren appTab) :
-  lengthOfSet (C.1 ∪ C.2) < lengthOfSet (LR.1 ∪ LR.2) :=
+theorem AppLocalTableau.DecreasesLength {LR : TNode} {C : List TNode} (appTab : AppLocalTableau LR C) {c : TNode}
+  (c_in : c ∈ C) :
+  lengthOfSet (c.1 ∪ c.2) < lengthOfSet (LR.1 ∪ LR.2) :=
   by
   rcases appTab with ⟨lrApp, next⟩
   rcases lrApp with ⟨LCond, RCond, lr⟩
@@ -502,19 +445,17 @@ def existsLocalTableauFor LR : Nonempty (LocalTableau LR) :=
 
 open LocalTableau
 
-#check Finset.biUnion
-
 -- needed for endNodesOf
 instance localTableauHasLength : HasLength (Σ LR, LocalTableau LR) :=
   ⟨fun ⟨(L, R), _⟩ => lengthOfSet (L ∪ R)⟩
 
 -- open end nodes of a given localTableau
 def endNodesOf : (Σ LR, LocalTableau LR) → List TNode
-  | ⟨LR, LocalTableau.fromRule (appTab : AppLocalTableau LR)⟩ =>
-    ((getTabChildren appTab).attach.map fun ⟨C, C_in⟩ =>
-      have tC : LocalTableau C := getSubTabs C C_in
-      have : lengthOfSet (C.1 ∪ C.2) < lengthOfSet (LR.1 ∪ LR.2) := AppLocalTableau.DecreasesLength C_in
-      endNodesOf ⟨C, tC⟩
+  | ⟨LR, @LocalTableau.fromRule _ C (appTab : AppLocalTableau LR C)⟩ =>
+    (C.attach.map fun ⟨c, c_in⟩ =>
+      have tc : LocalTableau c := getSubTabs appTab c c_in
+      have : lengthOfSet (c.1 ∪ c.2) < lengthOfSet (LR.1 ∪ LR.2) := AppLocalTableau.DecreasesLength appTab c_in
+      endNodesOf ⟨c, tc⟩
       ).join
   | ⟨LR, LocalTableau.fromSimple _⟩ => {LR}
 termination_by
@@ -552,6 +493,7 @@ theorem notRNoEndNodes {LR ϕ C hC preconditionProof subtabs} :
     by sorry
       -- unfold endNodesOf; simp
 
+/-
 theorem negEndNodesOld {X ϕ h n} :
     endNodesOf ⟨X, LocalTableau.byLocalRule (@LocalRule.neg X ϕ h) n⟩ =
       endNodesOf ⟨X \ {~~ϕ} ∪ {ϕ}, n (X \ {~~ϕ} ∪ {ϕ}) (by simp)⟩ := sorry
@@ -713,3 +655,4 @@ def existsTableauFor α : Nonempty (Tableau α) :=
       exact ⟨Tableau.atm nBf_in_a is_simp (injectTab ct_notf)⟩
 termination_by
   existsTableauFor α => lengthOf α
+-/

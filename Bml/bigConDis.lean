@@ -5,6 +5,9 @@ import Mathlib.Init.Data.Nat.Lemmas
 
 import Bml.Syntax
 import Bml.Semantics
+import Bml.Vocabulary
+import Bml.Semantics
+open HasSat
 
 @[simp]
 def bigCon : List Formula → Formula
@@ -17,6 +20,10 @@ def bigDis : List Formula → Formula
   | []        => ⊥
   | [f]       => f
   | f :: rest => f ⋁ bigDis rest
+
+open HasVocabulary
+theorem vocOfBigDis {l : List Formula} : x ∈ voc (bigDis l) → ∃φ ∈ l, x ∈ voc φ := sorry
+theorem vocOfBigCon {l : List Formula} : x ∈ voc (bigCon l) → ∃φ ∈ l, x ∈ voc φ := sorry
 
 @[simp]
 theorem conempty : bigCon ∅ = (⊤ : Formula) := by rfl
@@ -182,3 +189,11 @@ theorem union_elem_uplus {XS YS : Finset (Finset Formula)} {X Y : Finset Formula
   intro X_in Y_in
   simp
   exact ⟨X, X_in, Y, Y_in, rfl⟩
+
+
+
+lemma bigDis_union_sat_down {X : Finset Formula} {l : List Formula} : Satisfiable (X ∪ {bigDis l}) → ∃φ ∈ l, Satisfiable (X ∪ {φ}) := sorry
+lemma bigCon_union_sat_down {X : Finset Formula} {l : List Formula} : Satisfiable (X ∪ {bigCon l}) → ∀φ ∈ l, Satisfiable (X ∪ {φ}) := sorry
+lemma bigConNeg_union_sat_down {X : Finset Formula} {l : List Formula} : Satisfiable (X ∪ {bigCon (l.map (~·))}) → ∀φ ∈ l, Satisfiable (X ∪ {~φ}) := sorry
+lemma negBigDis_eq_bigConNeg : ~(bigDis l) = ~~bigCon (l.map (~·)) := sorry
+lemma negBigCon_eq_bigDisNeg : ~(bigCon l) = bigDis (l.map (~·)) := sorry
