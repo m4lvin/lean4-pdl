@@ -28,7 +28,7 @@ theorem X_in_PathX {X : Finset Formula} (path : Path X) : X ⊆ (toFinset path) 
   case endNode => aesop
   case interNode => aesop
 
-def pathsOf {X} (tX : LocalTableau X) :  List (Path X) := by
+def pathsOf (tX : LocalTableau X) :  List (Path X) := by
   cases tX
   case sim simpleX  => sorry
 
@@ -77,6 +77,41 @@ def pathsOf {X} (tX : LocalTableau X) :  List (Path X) := by
       let IH2 := List.map (interNode (nCo h₀) (by simp)) (pathsOf next2)
       exact IH1 ++ IH2
 termination_by pathsOf X tX => lengthOf X
+
+def formulasInNegBox (X: Finset Formula): Finset Formula :=
+  X.biUnion λ α => (match α with | ~(□f) => {f} | _ => {})
+
+theorem formulasInNegBoxIff {X}: α ∈ formulasInNegBox X ↔  ~(□α) ∈ X := by
+  rw[formulasInNegBox]
+  aesop
+
+noncomputable def M₀ (X: Finset Formula): List (Σ Z, LocalTableau Z) := by
+  let tX := aLocalTableauFor X
+  cases tX
+  -- If X is not simple, add a tableau for X and process endnodes of that tableau
+  · case byLocalRule B next lr =>
+    let nextNodes := endNodesOf ⟨X, byLocalRule lr next⟩
+    let worlds': {x // x ∈ nextNodes} → List (Σ Z, LocalTableau Z) := by
+      intro ⟨Y, Y_in⟩
+      have _ : lengthOf Y < lengthOf X := by
+        exact endNodesOfLocalRuleLT Y_in
+      exact M₀ Y
+    exact ⟨X, tX⟩ :: (nextNodes.attach.toList.map worlds').join
+  -- If X is simple, add a tableau for X and process (projection X) ∪ {~α} for each formula ~□α ∈ X
+  · case sim simpleX =>
+    let next: { x // x ∈ formulasInNegBox X } → List (Σ Z, LocalTableau Z) := by
+      intro ⟨α, α_in⟩
+      have _ : lengthOf (projection X ∪ {~α}) < lengthOf X := by
+        sorry
+      exact ⟨X, tX⟩ :: M₀ (projection X ∪ {~α})
+    exact ((formulasInNegBox X).attach.toList.map next).join
+termination_by M₀ X => lengthOf X
+decreasing_by aesop
+
+theorem M₀closure1: tabY ∈ M₀ X → Z ∈ endNodesOf tabY → ⟨Z, aLocalTableauFor Z⟩ ∈ M₀ X := by sorry
+
+theorem M₀closure2: ⟨Y, sim simpleX⟩ ∈ M₀ X → ~(□α) ∈ X →
+        ⟨(projection Y ∪ {α}), aLocalTableauFor (projection Y ∪ {α})⟩ ∈ M₀ X := by sorry
 
 theorem pathSaturated (path : Path X): Saturated (toFinset path) := by
   intro P Q
@@ -143,7 +178,10 @@ theorem modelExistence (X: Finset Formula): Consistent X →
     ∃ (WS : Finset (Finset Formula)) (M : ModelGraph WS) (W : WS), X ⊆ W :=
   by
   intro consX
-  let paths : List (Σ Y, Path Y) := sorry
+  -- TO DO make this less ugly
+  let pathsOf': (Σ Y, LocalTableau Y) → List (Σ Y, Path Y) := by
+    exact λ ⟨Y, tabY⟩ => (pathsOf tabY).map (λ x => ⟨Y, x⟩)
+  let paths : List (Σ Y, Path Y) := ((M₀ X).map pathsOf').join
   let WSlist : List (Finset Formula) := List.map (λ ⟨X, path⟩ => toFinset path) paths
   let WS := WSlist.toFinset
   let M : KripkeModel WS := by
@@ -159,7 +197,7 @@ theorem modelExistence (X: Finset Formula): Consistent X →
   · simp
   · constructor
     · intro ⟨W, W_in⟩
-      simp at W_in
+      simp only [List.mem_toFinset, List.mem_join, List.mem_map, Function.comp_apply, Sigma.exists] at W_in
       choose W' pathW' h using W_in
       rcases h with ⟨_, W_eq⟩
       subst W_eq
