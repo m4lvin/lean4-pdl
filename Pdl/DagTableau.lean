@@ -7,63 +7,17 @@ import Pdl.Discon
 import Pdl.Semantics
 import Pdl.Star
 import Pdl.Closure
+import Pdl.DagSyntax
 
-inductive DagFormula : Type
-  | dag : Program → Formula → DagFormula -- ⌈α†⌉φ
-  | box : Program → DagFormula → DagFormula  -- ⌈α⌉ψ
-  deriving Repr, DecidableEq
+open Undag
 
-@[simp]
-def DagFormula.boxes : List Program → DagFormula → DagFormula
-  | [], ψ => ψ
-  | (α :: rest), ψ => DagFormula.box α (DagFormula.boxes rest ψ)
-
-inductive NegDagFormula : Type
-  | neg : DagFormula → NegDagFormula
-  deriving Repr, DecidableEq
-
+-- FIXME: How can we avoid repeating this from Pdl.Syntax here?
+-- (But not export it, so keep it "local" in two files!)
 local notation "⌈" α "†⌉" φ => DagFormula.dag α φ
 local notation "⌈" α "⌉" ψ => DagFormula.box α ψ
 local notation "⌈⌈" ps "⌉⌉" df => DagFormula.boxes ps df
 
 local notation "~" ψ => NegDagFormula.neg ψ
-
--- Borzechowski's function "f".
-class Undag (α : Type) where
-  undag : α → Formula
-
-open Undag
-
-@[simp]
-def undagDagFormula
-  | (⌈α†⌉f) => (Formula.box (∗α) f)
-  | (⌈α⌉df) => (Formula.box α (undagDagFormula df))
-
-@[simp]
-instance UndagDagFormula : Undag DagFormula := Undag.mk undagDagFormula
-
-@[simp]
-def undagNegDagFormula : NegDagFormula → Formula
-  | (~ ψ) => ~ undag ψ
-@[simp]
-instance UndagNegDagFormula : Undag NegDagFormula := Undag.mk undagNegDagFormula
-
-@[simp]
-def inject : List Program → Program → Formula → DagFormula
-  | ps, α, φ => (DagFormula.boxes ps (DagFormula.dag α φ))
-
-@[simp]
-theorem undag_boxes : undagDagFormula (⌈⌈ps⌉⌉df) = ⌈⌈ps⌉⌉(undag df) :=
-  by
-  cases ps
-  simp
-  simp
-  apply undag_boxes
-
-@[simp]
-lemma undag_inject {φ} : undag (inject ps α φ) = (⌈⌈ps⌉⌉(⌈∗ α⌉φ)) :=
-  by
-  simp
 
 -- MEASURE
 @[simp]
@@ -603,15 +557,6 @@ def boxDagNext : (Finset Formula × List DagFormula) → Finset (Finset Formula 
   | (fs, (⌈∗α⌉φ)::rest) => { (fs, φ::(⌈α⌉⌈α†⌉(undag φ))::rest) } -- NOT splitting!
   | (fs, (⌈_†⌉_)::rest) => { (fs, rest) } -- delete formula, but keep branch!
   | (_, []) => { } -- end node of dagger tableau
-
-theorem ProgramSequenceNotSelfContaining : ∀ (p q: Program), ¬ (p = (p ;' q)) := λ.
-theorem ProgramUnionNotSelfContainingLeft : ∀ (p q: Program), ¬ (p = (p⋓q)) := λ.
-theorem ProgramUnionNotSelfContainingLeft' : ∀ (p q: Program), ¬ ((p⋓q) = p) := λ.
-theorem ProgramUnionNotSelfContainingRight : ∀ (p q: Program), ¬ (q = (p⋓q)) := sorry
-theorem ProgramUnionNotSelfContainingRight' : ∀ (p q: Program), ¬ ((p⋓q) = q) := sorry
-theorem ProgramTestNotSelfContain (ψ : DagFormula) (φ : Formula) : (¬ψ = ⌈?'φ⌉ψ) := sorry
-theorem ProgramStarNotSelfContain (α : Program) : ¬ ((∗α) = α) := sorry
-theorem ProgramBoxStarNotSelfContain (α : Program) (ψ : DagFormula) : ¬ ((⌈∗α⌉ψ) = ψ) := sorry
 
 theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : Γ ∈ boxDagNext Δ) :
     to_dm Γ.2 < to_dm Δ.2 := by
