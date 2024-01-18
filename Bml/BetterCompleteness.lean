@@ -102,7 +102,8 @@ noncomputable def M₀ (X: Finset Formula): List (Σ Z, LocalTableau Z) := by
     let next: { x // x ∈ formulasInNegBox X } → List (Σ Z, LocalTableau Z) := by
       intro ⟨α, α_in⟩
       have _ : lengthOf (projection X ∪ {~α}) < lengthOf X := by
-        sorry
+        rw [formulasInNegBoxIff] at α_in
+        exact atmRuleDecreasesLength α_in
       exact ⟨X, tX⟩ :: M₀ (projection X ∪ {~α})
     exact ((formulasInNegBox X).attach.toList.map next).join
 termination_by M₀ X => lengthOf X
