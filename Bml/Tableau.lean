@@ -399,34 +399,39 @@ theorem localRuleDecreasesLength (rule : LocalRule (Lcond, Rcond) C) :
 
 theorem localRuleAppDecreasesLength
   {L R : Finset Formula}
-  (rule : LocalRule (Lcond, Rcond) C)
-  (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R) :
-  ∀c ∈ C, lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond) ∪ (c.1 ∪ c.2)) < lengthOfSet (L ∪ R) :=
+  (lrApp : @LocalRuleApp (L,R) C)
+  :
+  ∀c ∈ C, lengthOfSet (c.1 ∪ c.2) < lengthOfSet (L ∪ R) :=
   by
     intro c c_child
+    let ⟨Lcond, Rcond, rule, preconditionProof⟩ := lrApp
     have conds_in_LR : (Lcond ∪ Rcond) ⊆ (L ∪ R) :=
       Finset.union_subset_union preconditionProof.left preconditionProof.right
-    have rule_decr_len : lengthOfSet (c.1 ∪ c.2) < lengthOfSet (Lcond ∪ Rcond) :=
-      (localRuleDecreasesLength rule) c c_child
-    calc lengthOfSet (((L ∪ R) \ (Lcond ∪ Rcond)) ∪ (c.1 ∪ c.2))
+    have rule_decr_len : lengthOfSet (c.1 ∪ c.2) < lengthOfSet (Lcond ∪ Rcond) := by
+      apply localRuleDecreasesLength rule
+      sorry
+    sorry
+    /-
+    calc lengthOfSet ((c.1 ∪ c.2))
       ≤ lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (c.1 ∪ c.2) :=
           by simp [sum_union_le]
       _ < lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (Lcond ∪ Rcond) :=
           by apply Nat.add_le_add_left rule_decr_len
       _ = lengthOfSet (L ∪ R) :=
           lengthSetRemove (L ∪ R) (Lcond ∪ Rcond) conds_in_LR
+    -/
 
 theorem AppLocalTableau.DecreasesLength {LR : TNode} {appTab : AppLocalTableau LR} {C : TNode}
   (C_in : C ∈ getTabChildren appTab) :
   lengthOfSet (C.1 ∪ C.2) < lengthOfSet (LR.1 ∪ LR.2) :=
   by
   rcases appTab with ⟨lrApp, next⟩
-  rcases lrApp with ⟨LCond, RCond, lr⟩
-  have := localRuleAppDecreasesLength lr (by assumption)
+  have := localRuleAppDecreasesLength lrApp
   unfold applyLocalRule at * -- this actually gives the ... \ ... ∪ ... stuff.
   simp at *
   -- something is stuck or wrong here. Too many unnamed variables.
   sorry
+
 
 theorem atmRuleDecreasesLength {L R : Finset Formula} {ϕ} :
     ~(□ϕ) ∈ (L ∪ R) → lengthOfSet (projection (L ∪ R) ∪ {~ϕ}) < lengthOfSet (L ∪ R) :=
@@ -516,110 +521,55 @@ def endNodesOf : (Σ LR, LocalTableau LR) → List TNode
       have : lengthOfSet (C.1 ∪ C.2) < lengthOfSet (LR.1 ∪ LR.2) := AppLocalTableau.DecreasesLength C_in
       endNodesOf ⟨C, tC⟩
       ).join
-  | ⟨LR, LocalTableau.fromSimple _⟩ => {LR}
+  | ⟨LR, LocalTableau.fromSimple _⟩ => [LR]
 termination_by
   endNodesOf pair => lengthOf pair
 
 @[simp]
-theorem botLNoEndNodes {LR C hC preconditionProof subtabs} :
-    endNodesOf ⟨LR, LocalTableau.fromRule
-    (@AppLocalTableau.mk LR.1 LR.2 C (@LocalRuleApp.mk LR.1 LR.2 C _ _ _
-    (LocalRule.oneSidedL (OneSidedLocalRule.bot)) hC preconditionProof) subtabs)⟩ = ∅ :=
-  by sorry
-    --unfold endNodesOf; simp
+theorem endNodesOfSimple : endNodesOf ⟨ LR, LocalTableau.fromSimple hyp ⟩ = [LR] := by
+  sorry
+
+-- can't we just combine all these functions and say
+-- that the end nodes of a tableau = end nodes of all its children
+-- also I'm not sure we even use these
+
 
 @[simp]
-theorem botRNoEndNodes {LR C hC preconditionProof subtabs} :
+theorem lrEndNodes {LR C subtabs lrApp} :   -- fewer arguments = error
     endNodesOf ⟨LR, LocalTableau.fromRule
-    (@AppLocalTableau.mk LR.1 LR.2 C (@LocalRuleApp.mk LR.1 LR.2 C _ _ _
-    (LocalRule.oneSidedR (OneSidedLocalRule.bot)) hC preconditionProof) subtabs)⟩ = ∅ :=
-  by sorry
-    --unfold endNodesOf; simp
-
-@[simp]
-theorem notLNoEndNodes {LR ϕ C hC preconditionProof subtabs} :
-    endNodesOf ⟨LR, LocalTableau.fromRule
-    (@AppLocalTableau.mk LR.1 LR.2 C (@LocalRuleApp.mk LR.1 LR.2 C _ _ _
-    (LocalRule.oneSidedL (OneSidedLocalRule.not ϕ)) hC preconditionProof) subtabs)⟩ = ∅ :=
-    by sorry
-      -- unfold endNodesOf; simp
-
-@[simp]
-theorem notRNoEndNodes {LR ϕ C hC preconditionProof subtabs} :
-    endNodesOf ⟨LR, LocalTableau.fromRule
-    (@AppLocalTableau.mk LR.1 LR.2 C (@LocalRuleApp.mk LR.1 LR.2 C _ _ _
-    (LocalRule.oneSidedR (OneSidedLocalRule.not ϕ)) hC preconditionProof) subtabs)⟩ = ∅ :=
-    by sorry
-      -- unfold endNodesOf; simp
-
-theorem negEndNodesOld {X ϕ h n} :
-    endNodesOf ⟨X, LocalTableau.byLocalRule (@LocalRule.neg X ϕ h) n⟩ =
-      endNodesOf ⟨X \ {~~ϕ} ∪ {ϕ}, n (X \ {~~ϕ} ∪ {ϕ}) (by simp)⟩ := sorry
-
-theorem negEndNodes {LR ϕ C hC preconditionProof subtabs} :
-    endNodesOf ⟨LR, LocalTableau.fromRule
-    (@AppLocalTableau.mk LR.1 LR.2 C (@LocalRuleApp.mk LR.1 LR.2 C _ _ _
-    (LocalRule.oneSidedR (OneSidedLocalRule.neg ϕ)) hC preconditionProof) subtabs)⟩
-    = endNodesOf ⟨X \ {~~ϕ} ∪ {ϕ}, n (X \ {~~ϕ} ∪ {ϕ}) (by simp)⟩ :=
-  by sorry
-  -- ext1
-  -- simp only [endNodesOf, Finset.mem_singleton, Finset.mem_biUnion, Finset.mem_attach,
-  --   exists_true_left, Subtype.exists]
-  -- constructor
-  -- · intro lhs; rcases lhs with ⟨b, bDef, bIn⟩; subst bDef; simp at *; exact bIn
-  -- · intro rhs; use X \ {~~ϕ} ∪ {ϕ}; constructor; simp at *; exact rhs; rfl
-
-theorem conEndNodes {X ϕ ψ h n} :
-    endNodesOf ⟨X, LocalTableau.byLocalRule (@LocalRule.Con X ϕ ψ h) n⟩ =
-      endNodesOf ⟨X \ {ϕ⋀ψ} ∪ {ϕ, ψ}, n (X \ {ϕ⋀ψ} ∪ {ϕ, ψ}) (by simp)⟩ :=
+    (@AppLocalTableau.mk LR.1 LR.2 C lrApp subtabs)⟩ = (C.attach.map (fun ⟨c, c_in⟩  =>
+      endNodesOf ⟨c, subtabs c c_in⟩) ).join :=
   by
-  ext1
-  simp only [endNodesOf, Finset.mem_singleton, Finset.mem_biUnion, Finset.mem_attach,
-    exists_true_left, Subtype.exists]
-  constructor
-  · intro lhs; rcases lhs with ⟨b, bDef, bIn⟩; subst bDef; simp at *; exact bIn
-  · intro rhs; use X \ {ϕ⋀ψ} ∪ {ϕ, ψ}; constructor; simp at *; exact rhs; rfl
+  rcases lrApp with ⟨_, _, rule, _⟩
+  simp
+  sorry
 
-theorem nCoEndNodes {X ϕ ψ h n} :
-    endNodesOf ⟨X, LocalTableau.byLocalRule (@LocalRule.nCo X ϕ ψ h) n⟩ =
-      endNodesOf ⟨X \ {~(ϕ⋀ψ)} ∪ {~ϕ}, n (X \ {~(ϕ⋀ψ)} ∪ {~ϕ}) (by simp)⟩ ∪
-        endNodesOf ⟨X \ {~(ϕ⋀ψ)} ∪ {~ψ}, n (X \ {~(ϕ⋀ψ)} ∪ {~ψ}) (by simp)⟩ :=
+theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOf (Z.1 ∪ Z.2) ≤ lengthOf (LR.1 ∪ LR.2) :=
   by
-  ext1
-  simp only [endNodesOf, Finset.mem_singleton, Finset.mem_biUnion, Finset.mem_attach,
-    exists_true_left, Subtype.exists]
-  constructor
-  · intro lhs; rcases lhs with ⟨b, bDef, bIn⟩
-    simp only [Finset.mem_insert, Finset.mem_singleton] at bDef ; cases' bDef with bD1 bD2
-    · subst bD1; simp; left; simp at *; exact bIn
-    · subst bD2; simp; right; simp at *; exact bIn
-  · intro rhs; rw [Finset.mem_union] at rhs ; cases rhs
-    · use X \ {~(ϕ⋀ψ)} ∪ {~ϕ}; aesop
-    · use X \ {~(ϕ⋀ψ)} ∪ {~ψ}; aesop
-
-theorem endNodesOfLEQ {X Z ltX} : Z ∈ endNodesOf ⟨X, ltX⟩ → lengthOf Z ≤ lengthOf X :=
-  by
-  induction ltX
-  case byLocalRule Y B lr next IH =>
-    intro Z_endOf_Y
-    unfold endNodesOf at Z_endOf_Y
-    simp at Z_endOf_Y
-    rcases Z_endOf_Y with ⟨W, W_in_B, Z_endOf_W⟩
+  cases ltLR   -- mutually inductive type problem, I remember this from the chat?
+  case fromRule altLR =>
+    intro Z_endOf_LR
+    let ⟨lrApp, next⟩:= altLR
+    simp at Z_endOf_LR
+    rcases Z_endOf_LR with ⟨ZS, ⟨c, c_in_C, endNodes_c_eq_ZS⟩, Z_in_ZS⟩
+    subst endNodes_c_eq_ZS
     apply le_of_lt
-    ·
-      calc
-        lengthOf Z ≤ lengthOf W := IH W W_in_B Z_endOf_W
-        _ < lengthOf Y := localRulesDecreaseLength lr W W_in_B
-  case sim a b =>
+    have := localRuleAppDecreasesLength lrApp c c_in_C -- for termination and below!
+    · calc
+        lengthOf (Z.1 ∪ Z.2) ≤ lengthOf (c.1 ∪ c.2) := endNodesOfLEQ Z_in_ZS
+        _ < lengthOf (LR.1 ∪ LR.2) := this
+  case fromSimple LR_simp =>
     intro Z_endOf_Y
-    unfold endNodesOf at Z_endOf_Y
+    simp at Z_endOf_Y
     aesop
+termination_by
+  endNodesOfLEQ LT   => lengthOfSet (LR.1 ∪ LR.2)
 
-theorem endNodesOfLocalRuleLT {X Z B next lr} :
-    Z ∈ endNodesOf ⟨X, @LocalTableau.byLocalRule _ B lr next⟩ → lengthOf Z < lengthOf X :=
+theorem endNodesOfLocalRuleLT {LR Z appTab} :
+    Z ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩ → lengthOf (Z.1 ∪ Z.2) < lengthOf (LR.1 ∪ LR.2) :=
   by
   intro ZisEndNode
-  rw [endNodesOf] at ZisEndNode
+  rw [endNodesOf] at ZisEndNode     -- hopefully solved after fixing endNodesOf
   simp at ZisEndNode
   rcases ZisEndNode with ⟨a, a_in_WS, Z_endOf_a⟩
   change Z ∈ endNodesOf ⟨a, next a a_in_WS⟩ at Z_endOf_a
@@ -628,19 +578,25 @@ theorem endNodesOfLocalRuleLT {X Z B next lr} :
       _ < lengthOfSet X := localRulesDecreaseLength lr a a_in_WS
 
 -- Definition 16, page 29
-inductive ClosedTableau : Finset Formula → Type
-  | loc {X} (lt : AppLocalTableau X) : (∀ Y ∈ endNodesOf ⟨X, lt⟩, ClosedTableau Y) → ClosedTableau X
-  | atm {X ϕ} : ~(□ϕ) ∈ X → Simple X → ClosedTableau (projection X ∪ {~ϕ}) → ClosedTableau X
+-- prob need to change def of projection s.t. it goes TNode → TNode
+-- is the base case missing for simple tableaux?
+inductive ClosedTableau : TNode → Type
+  | loc {LR} {appTab : AppLocalTableau LR} (lt : LocalTableau.fromRule appTab) : (∀ Y ∈ endNodesOf ⟨LR, lt⟩, ClosedTableau Y) → ClosedTableau LR
+  | atm {LR ϕ} : ~(□ϕ) ∈ (L ∪ R) → Simple (L ∪ R) → ClosedTableau (projection (L ∪ R) ∪ {~ϕ}) → ClosedTableau X
 
-inductive Provable : Formula → Prop
+inductive Provable : Formula → Prop   -- this doesn't work anymore with TNodes
   | byTableau {φ : Formula} : ClosedTableau {~φ} → Provable φ
 
 -- Definition 17, page 30
-def Inconsistent : Finset Formula → Prop
-  | X => Nonempty (ClosedTableau X)
+def Inconsistent : TNode → Prop
+  | LR => Nonempty (ClosedTableau LR)
 
-def Consistent : Finset Formula → Prop
-  | X => ¬Inconsistent X
+def Consistent : TNode → Prop      -- invalid occurrence of universe level 'u_1' at 'Consistent'?
+  | LR => ¬Inconsistent LR
+
+
+
+/-   pretty sure this is all old stuff
 
 
 -- A tableau may be open.
@@ -713,3 +669,4 @@ def existsTableauFor α : Nonempty (Tableau α) :=
       exact ⟨Tableau.atm nBf_in_a is_simp (injectTab ct_notf)⟩
 termination_by
   existsTableauFor α => lengthOf α
+-/
