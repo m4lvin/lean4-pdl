@@ -394,8 +394,7 @@ theorem localRuleDecreasesLength (rule : LocalRule (Lcond, Rcond) C) :
             | ( simp [case_phi];
                 rw [Nat.add_comm 1 (lengthOfFormula φ), Nat.add_assoc];
                 aesop))
-    case LRnegL φ => aesop
-    case LRnegR φ => aesop
+    all_goals aesop
 
 theorem localRuleAppDecreasesLength
   {L R : Finset Formula}
@@ -532,8 +531,6 @@ theorem endNodesOfSimple : endNodesOf ⟨ LR, LocalTableau.fromSimple hyp ⟩ = 
 -- can't we just combine all these functions and say
 -- that the end nodes of a tableau = end nodes of all its children
 -- also I'm not sure we even use these
-
-
 @[simp]
 theorem lrEndNodes {LR C subtabs lrApp} :   -- fewer arguments = error
     endNodesOf ⟨LR, LocalTableau.fromRule
@@ -549,7 +546,7 @@ theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOf
   cases ltLR   -- mutually inductive type problem, I remember this from the chat?
   case fromRule altLR =>
     intro Z_endOf_LR
-    let ⟨lrApp, next⟩:= altLR
+    let ⟨lrApp, next⟩ := altLR
     simp at Z_endOf_LR
     rcases Z_endOf_LR with ⟨ZS, ⟨c, c_in_C, endNodes_c_eq_ZS⟩, Z_in_ZS⟩
     subst endNodes_c_eq_ZS
@@ -568,14 +565,16 @@ termination_by
 theorem endNodesOfLocalRuleLT {LR Z appTab} :
     Z ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩ → lengthOf (Z.1 ∪ Z.2) < lengthOf (LR.1 ∪ LR.2) :=
   by
-  intro ZisEndNode
-  rw [endNodesOf] at ZisEndNode     -- hopefully solved after fixing endNodesOf
-  simp at ZisEndNode
-  rcases ZisEndNode with ⟨a, a_in_WS, Z_endOf_a⟩
-  change Z ∈ endNodesOf ⟨a, next a a_in_WS⟩ at Z_endOf_a
+  intro Z_endOf_LR
+  cases' appTab with L R _ lrApp next
+  simp at Z_endOf_LR
+  rcases Z_endOf_LR with ⟨ZS, ⟨c, c_in_C, endNodes_c_eq_ZS⟩, Z_in_ZS⟩
+  subst endNodes_c_eq_ZS
+  have := localRuleAppDecreasesLength lrApp c c_in_C -- for termination and below!
   · calc
-      lengthOf Z ≤ lengthOf a := endNodesOfLEQ Z_endOf_a
-      _ < lengthOfSet X := localRulesDecreaseLength lr a a_in_WS
+      lengthOf (Z.1 ∪ Z.2) ≤ lengthOf (c.1 ∪ c.2) := endNodesOfLEQ Z_in_ZS
+      _ < lengthOf (L ∪ R) := this
+
 
 -- Definition 16, page 29
 -- prob need to change def of projection s.t. it goes TNode → TNode
