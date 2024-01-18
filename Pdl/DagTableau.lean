@@ -500,25 +500,16 @@ decreasing_by simp_wf; apply mOfDagNode.isDec; sorry -- PROBLEM! Why is "S" no l
 -- Here we need a List DagFormula, because of the ⋓ rule.
 
 -- Dershowitz-Manna ordering for Lists
--- (It is usually defined on multisets, but works for lists too because
--- count, i.e. number of occurrences, is invariant under permutation.)
-
-@[simp]
-def dm (α) := List α
-
-@[simp]
-def to_dm {α} (s : List α) : dm α := s
-
-@[simp]
-def dm' (α) := List α
-
-@[simp]
-def to_dm' {α} (s : List α) : dm' α := s
+-- It is usually defined on multisets, but works for lists too because
+-- count, i.e. number of occurrences, is invariant under permutation.
 
 -- This is the standard definition ...
 -- originally formalized in Lean 3 by Pedro Minicz
 -- https://gist.github.com/b-mehta/ee89376db987b749bd5120a2180ce3df
---
+@[simp]
+def dm' (α) := List α
+@[simp]
+def to_dm' {α} (s : List α) : dm' α := s
 @[simp]
 instance {α : Type u} [DecidableEq α] [LT α] : LT (dm' α) :=
   { lt := λ M N =>
@@ -529,6 +520,10 @@ instance {α : Type u} [DecidableEq α] [LT α] : LT (dm' α) :=
       ∧ ∀ y ∈ Y, ∃ x ∈ X, y < x }
 --
 -- ... but we use the alternative by Huet and Oppen:
+@[simp]
+def dm (α) := List α
+@[simp]
+def to_dm {α} (s : List α) : dm α := s
 @[simp]
 instance {α : Type u} [DecidableEq α] [LT α] : LT (dm α) :=
   { lt := λ M N =>  -- M < N iff ...
@@ -548,63 +543,6 @@ theorem wf_dm {α : Type u} [DecidableEq α] [LT α]
   intro dmb h
   cases h
   sorry
--- The following sections in the WF.lean file might be useful:
-  -- Search for 'well-founded'
-  -- Empty relation is well-founded
-  -- Figure out what does Acc do
-theorem wf_dm'_only_if {α : Type u} [DecidableEq α] [LT α]
-    (t :  WellFounded ((LT.lt) : dm' α → dm' α → Prop)) :
-    WellFoundedLT α := by
-    sorry
-
-
-theorem wf_dm'induc {α : Type u} [DecidableEq α] [LT α]
-    (t :  WellFoundedLT α) :
-    WellFounded ((LT.lt) : dm' α → dm' α → Prop) := by
-
-  rw [WellFounded.wellFounded_iff_has_min]
-  intro X X_notEmpty
-  unfold WellFoundedLT at t
-  rcases t with ⟨ newt⟩
-
-  rw [WellFounded.wellFounded_iff_has_min] at newt -- not sure if good idea
-
-  unfold dm' at X
-
-  -- have := X.image List.finite_toSet
-
-  simp at *
-
-
-
-
-  -- apply WellFounded.induction _ _ (_ : α)
-
-
-
-  sorry
-
-
-theorem wf_dm' {α : Type u} [DecidableEq α] [LT α]
-    (t :  WellFoundedLT α) :
-    WellFounded ((LT.lt) : dm' α → dm' α → Prop) := by
-  apply WellFounded.intro
-  intro dma
-  apply Acc.intro
-  intro dmb h
-  cases' h with X h
-  rcases h with ⟨Y, XnotEmpty, X_lt_dma, dmbDef, Y_lt_X⟩
-  apply Acc.intro
-  intro y y_lt_dm
-
-  sorry
-  -- have := Y_lt_X y
-
- #check WellFounded.wellFounded_iff_has_min
-
-
-
-
 
 instance [DecidableEq α] [LT α] (t : WellFoundedLT α) : IsWellFounded (dm α) (LT.lt) := by
   constructor
@@ -623,15 +561,6 @@ def boxDagNext : (Finset Formula × List DagFormula) → Finset (Finset Formula 
   | (fs, (⌈_†⌉_)::rest) => { (fs, rest) } -- delete formula, but keep branch!
   | (_, []) => { } -- end node of dagger tableau
 
-theorem Se : ∀ (p q: Program) (d: DagFormula), ¬ (⌈p;'q⌉d) = ⌈p⌉⌈q⌉d := by
-intro p q d
-simp
-sorry
--- ψ: DagFormula
--- αβ: Program
--- ψ_y: DagFormula
--- countclaim: (if ψ_y = ⌈α;'β⌉ψ then 1 else 0) < if ψ_y = ⌈α⌉⌈β⌉ψ then 1 else 0
-
 theorem ProgramSequenceNotSelfContaining : ∀ (p q: Program), ¬ (p = (p ;' q)) := λ.
 theorem ProgramUnionNotSelfContainingLeft : ∀ (p q: Program), ¬ (p = (p⋓q)) := λ.
 theorem ProgramUnionNotSelfContainingLeft' : ∀ (p q: Program), ¬ ((p⋓q) = p) := λ.
@@ -640,13 +569,6 @@ theorem ProgramUnionNotSelfContainingRight' : ∀ (p q: Program), ¬ ((p⋓q) = 
 theorem ProgramTestNotSelfContain (ψ : DagFormula) (φ : Formula) : (¬ψ = ⌈?'φ⌉ψ) := sorry
 theorem ProgramStarNotSelfContain (α : Program) : ¬ ((∗α) = α) := sorry
 theorem ProgramBoxStarNotSelfContain (α : Program) (ψ : DagFormula) : ¬ ((⌈∗α⌉ψ) = ψ) := sorry
--- theorem notAorB : ∀ (p q: Prop), ¬ (p ∨ q) → False := by sorry
-
--- Not needed! We have tauto now:-)
--- theorem dne {p : Prop} (h : ¬¬p) : p :=
---   Or.elim (em p)
---     (fun hp : p => hp)
---     (fun hnp : ¬p => absurd hnp h)
 
 theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : Γ ∈ boxDagNext Δ) :
     to_dm Γ.2 < to_dm Δ.2 := by
@@ -681,8 +603,7 @@ theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : �
         simp
         constructor
         · intro α_def
-        -- Haitian's attempt
-        -- sorry (fixed)-- use that α (or ψ) cannot contain itself (injection in lean3)
+        -- use that α (or ψ) cannot contain itself
           exfalso
           exact ProgramSequenceNotSelfContaining α β α_def
         · intro ψ_y countclaim
@@ -704,33 +625,27 @@ theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : �
         simp
         constructor
         · intro α_def
-          -- Haitian's attempt
-          -- sorry (fixed)-- use that α (or ψ) cannot contain itself
+          -- use that α (or ψ) cannot contain itself
           exfalso
           exact ProgramUnionNotSelfContainingLeft α β α_def
         · intro ψ_y countclaim
           simp [List.count_cons] at countclaim
           have : (ψ_y = ⌈α⌉ψ) ∨ (ψ_y = ⌈β⌉ψ)  := by
-            -- sorry (fixed)-- use countclaim (fixed)
             by_contra ndis
-            -- rw [or_iff_not_and_not] at ndis
             have left: ¬ψ_y = ⌈α⌉ψ := by tauto
             have right: ¬ψ_y = ⌈β⌉ψ := by tauto
-            -- have this: ((¬ψ_y = ⌈α⌉ψ) ∧ ¬ψ_y = ⌈β⌉ψ) := by exact dne ndis
-            -- have left: (¬ψ_y = ⌈α⌉ψ) := by exact this.left
-            -- have right: ¬ψ_y = ⌈β⌉ψ := by exact this.right
-            rw [← Ne.ite_eq_right_iff] at left --It works, but I am still curious why this would produce several goals?
+            rw [← Ne.ite_eq_right_iff] at left
             rw [left] at countclaim
             rw [← Ne.ite_eq_right_iff] at right
             rw [right] at countclaim
             . aesop
-            . aesop
+            . tauto
             . aesop
           cases this
           all_goals (rename_i h; subst h; use ⌈α ⋓ β⌉ψ; simp [List.count_cons] at *)
           · constructor
             · linarith
-            · -- sorry (fixed) -- use non-self-containing and linarith
+            · -- use non-self-containing and linarith
               have this1: ¬(α⋓β) = α := by exact ProgramUnionNotSelfContainingLeft' α β
               have this2: ¬(α⋓β) = β := by exact ProgramUnionNotSelfContainingRight' α β
               rw [← Ne.ite_eq_right_iff] at this1
@@ -738,11 +653,11 @@ theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : �
               . rw [← Ne.ite_eq_right_iff] at this2
                 rw [this2]
                 linarith
-                aesop -- It seems like in many cases linarith and aesop can both work
+                tauto
               . linarith
           · constructor
             · linarith
-            · -- sorry (fixed) -- use non-self-containing and linarith
+            · -- use non-self-containing and linarith
               have this1: ¬(α⋓β) = α := by exact ProgramUnionNotSelfContainingLeft' α β
               have this2: ¬(α⋓β) = β := by exact ProgramUnionNotSelfContainingRight' α β
               rw [← Ne.ite_eq_right_iff] at this1
@@ -750,12 +665,12 @@ theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : �
               . rw [← Ne.ite_eq_right_iff] at this2
                 rw [this2]
                 linarith
-                aesop
+                tauto
               . linarith
       case star α =>
         simp
         constructor
-        · intro α_def
+        · intro _
           apply List.cons_ne_self
         · intro ψ_y countclaim
           simp [List.count_cons] at countclaim
@@ -763,7 +678,7 @@ theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : �
             by_contra ndis
             have left: ¬ (ψ_y = ψ) := by tauto
             have right: ¬ (ψ_y = ⌈α⌉⌈α†⌉(undag ψ)) := by tauto
-            rw [← Ne.ite_eq_right_iff] at left --It works, but I am still curious why this would produce several goals?
+            rw [← Ne.ite_eq_right_iff] at left
             rw [left] at countclaim
             rw [← Ne.ite_eq_right_iff] at right
             simp only [undag] at *
@@ -775,14 +690,13 @@ theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : �
           all_goals (rename_i h; use ⌈∗α⌉ψ; subst h; simp [List.count_cons] at *)
           · have : ¬ ((∗α) = α) := ProgramStarNotSelfContain α
             have : ¬ ((∗α) = α ∧ ψ_y = ⌈α†⌉undagDagFormula ψ_y) := by tauto
-            rw [← Ne.ite_eq_right_iff] at this --It works, but I am still curious why this would produce several goals?
+            rw [← Ne.ite_eq_right_iff] at this
             rw [this]
             have : ¬ ((⌈∗α⌉ψ_y) = ψ_y) := ProgramBoxStarNotSelfContain α ψ_y
             rw [← Ne.ite_eq_right_iff] at this
             rw [this]
             all_goals tauto
             aesop
-          -- sorry -- use non-self-containing and linarith
           · constructor
             · linarith
             · have : ¬ ((∗α) = α) := ProgramStarNotSelfContain α
@@ -794,7 +708,6 @@ theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : �
               rw [this]
               all_goals tauto
               aesop
-              -- sorry -- use non-self-containing and linarith
       case test f =>
         cases Γ_in
         all_goals (rename_i h; subst h; simp [List.count_cons] at *)
@@ -806,12 +719,9 @@ theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : �
             have : ψ_y = ψ := by aesop
             subst this
             have : ¬ (ψ_y = ⌈?'f⌉ψ_y) := ProgramTestNotSelfContain ψ_y f
-            -- rw [← Ne.ite_eq_right_iff] at this
-            -- rw [this] at countclaim
             use ⌈?'f⌉ψ_y
             simp
             all_goals tauto
-            -- sorry  -- use non-self-containing and linarith
 
 -- idea: replace use of "ftr" below with a relation like this:
 -- def boxDagNextRel : (Finset Formula × List DagFormula) → (Finset Formula × List DagFormula) → Prop :=
@@ -829,11 +739,13 @@ def boxDagEndNodes : (Finset Formula × List DagFormula) → Finset (Finset Form
   | (fs, []) => { fs }
   | (fs, df::rest) => (boxDagNext (fs, df::rest)).attach.biUnion
       (fun ⟨gsdf, h⟩ =>
-        -- have := boxDagNextDMisDec h
+        have := boxDagNextDMisDec h
         boxDagEndNodes gsdf)
 termination_by
-   boxDagEndNodes fs => to_dm fs.2
-decreasing_by simp_wf; sorry -- assumption -- False, maybe not picking up the dm instance above?
+  boxDagEndNodes fs => to_dm fs.2
+decreasing_by
+  simp_wf;
+  sorry -- goal is now "False", it seems we are picking up a wrong instance and not dm from above.
 
 theorem boxDagEnd_subset_next
     (O_in : Ω ∈ boxDagNext Γ) : boxDagEndNodes Ω ⊆ boxDagEndNodes Γ := by
