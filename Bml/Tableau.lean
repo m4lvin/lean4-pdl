@@ -475,12 +475,30 @@ theorem endNodesOfSimple : endNodesOf ⟨ LR, LocalTableau.fromSimple hyp ⟩ = 
 @[simp]
 theorem lrEndNodes {LR C subtabs lrApp} :   -- fewer arguments = error
     endNodesOf ⟨LR, LocalTableau.fromRule
-    (@AppLocalTableau.mk LR.1 LR.2 C lrApp subtabs)⟩ = (C.attach.map (fun ⟨c, c_in⟩  =>
-      endNodesOf ⟨c, subtabs c c_in⟩) ).join :=
-  by
-  rcases lrApp with ⟨_, _, rule, _⟩
-  simp
-  sorry
+    (@AppLocalTableau.mk LR.1 LR.2 C (@LocalRuleApp.mk LR.1 LR.2 C _ _ _
+    (LocalRule.oneSidedR (OneSidedLocalRule.bot)) hC preconditionProof) subtabs)⟩ = ∅ :=
+  by sorry
+    --unfold endNodesOf; simp
+
+@[simp]
+theorem notLNoEndNodes {LR ϕ C hC preconditionProof subtabs} :
+    endNodesOf ⟨LR, LocalTableau.fromRule
+    (@AppLocalTableau.mk LR.1 LR.2 C (@LocalRuleApp.mk LR.1 LR.2 C _ _ _
+    (LocalRule.oneSidedL (OneSidedLocalRule.not ϕ)) hC preconditionProof) subtabs)⟩ = ∅ :=
+    by sorry
+      -- unfold endNodesOf; simp
+
+@[simp]
+theorem notRNoEndNodes {LR ϕ C hC preconditionProof subtabs} :
+    endNodesOf ⟨LR, LocalTableau.fromRule
+    (@AppLocalTableau.mk LR.1 LR.2 C (@LocalRuleApp.mk LR.1 LR.2 C _ _ _
+    (LocalRule.oneSidedR (OneSidedLocalRule.not ϕ)) hC preconditionProof) subtabs)⟩ = ∅ :=
+    by sorry
+      -- unfold endNodesOf; simp
+
+theorem negEndNodesOld {X ϕ h n} :
+    endNodesOf ⟨X, LocalTableau.byLocalRule (@LocalRule.neg X ϕ h) n⟩ =
+      endNodesOf ⟨X \ {~~ϕ} ∪ {ϕ}, n (X \ {~~ϕ} ∪ {ϕ}) (by simp)⟩ := sorry
 
 theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOf (Z.1 ∪ Z.2) ≤ lengthOf (LR.1 ∪ LR.2) :=
   by
@@ -516,12 +534,15 @@ theorem endNodesOfLocalRuleLT {LR Z appTab} :
       lengthOf (Z.1 ∪ Z.2) ≤ lengthOf (c.1 ∪ c.2) := endNodesOfLEQ Z_in_ZS
       _ < lengthOf (L ∪ R) := this
 
+-/
+
+/-
 
 -- Definition 16, page 29
 -- prob need to change def of projection s.t. it goes TNode → TNode
 -- is the base case missing for simple tableaux?
 inductive ClosedTableau : TNode → Type
-  | loc {LR} {appTab : AppLocalTableau LR} (lt : LocalTableau.fromRule appTab) : (∀ Y ∈ endNodesOf ⟨LR, lt⟩, ClosedTableau Y) → ClosedTableau LR
+  | loc {LR} {appTab : AppLocalTableau LR C} (lt : LocalTableau.fromRule appTab) : (∀ Y ∈ endNodesOf ⟨LR, lt⟩, ClosedTableau Y) → ClosedTableau LR
   | atm {LR ϕ} : ~(□ϕ) ∈ (L ∪ R) → Simple (L ∪ R) → ClosedTableau (projection (L ∪ R) ∪ {~ϕ}) → ClosedTableau X
 
 inductive Provable : Formula → Prop   -- this doesn't work anymore with TNodes
@@ -534,7 +555,7 @@ def Inconsistent : TNode → Prop
 def Consistent : TNode → Prop      -- invalid occurrence of universe level 'u_1' at 'Consistent'?
   | LR => ¬Inconsistent LR
 
-
+-/
 
 /-   pretty sure this is all old stuff
 
