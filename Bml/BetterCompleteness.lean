@@ -18,39 +18,41 @@ theorem formulasInNegBoxIff {X}: α ∈ formulasInNegBox X ↔  ~(□α) ∈ X :
   rw[formulasInNegBox]
   aesop
 
-noncomputable def M₀ (X: Finset Formula): List (Σ Z, LocalTableau Z) := by
-  let tX := aLocalTableauFor X
+noncomputable def M₀ (LR : TNode): List (Σ Z, LocalTableau Z) := by
+  let tX := aLocalTableauFor LR
   cases tX
   -- If X is not simple, add a tableau for X and process endnodes of that tableau
-  · case byLocalRule B next lr =>
-    let nextNodes := endNodesOf ⟨X, byLocalRule lr next⟩
+  · case fromRule C appTab =>
+    let nextNodes := endNodesOf ⟨LR, fromRule appTab⟩
     let worlds': {x // x ∈ nextNodes} → List (Σ Z, LocalTableau Z) := by
       intro ⟨Y, Y_in⟩
-      have _ : lengthOf Y < lengthOf X := by
+      have _ : lengthOf Y < lengthOf LR := by
         exact endNodesOfLocalRuleLT Y_in
       exact M₀ Y
-    exact ⟨X, tX⟩ :: (nextNodes.attach.toList.map worlds').join
+    exact ⟨LR, tX⟩ :: (nextNodes.attach.map worlds').join
   -- If X is simple, add a tableau for X and process (projection X) ∪ {~α} for each formula ~□α ∈ X
-  · case sim simpleX =>
-    let next: { x // x ∈ formulasInNegBox X } → List (Σ Z, LocalTableau Z) := by
+  · case fromSimple isSimple => sorry
+    /-let next: { x // x ∈ formulasInNegBox LR} → List (Σ Z, LocalTableau Z) := by
       intro ⟨α, α_in⟩
-      have _ : lengthOf (projection X ∪ {~α}) < lengthOf X := by
+      have _ : lengthOf (projection LR ∪ {~α}) < lengthOf LR := by
         rw [formulasInNegBoxIff] at α_in
-        exact atmRuleDecreasesLength α_in
-      exact ⟨X, tX⟩ :: M₀ (projection X ∪ {~α})
-    exact ((formulasInNegBox X).attach.toList.map next).join
+        sorry --exact atmRuleDecreasesLength α_in
+      exact ⟨LR, tX⟩ :: M₀ (projection X ∪ {~α})
+    exact ((formulasInNegBox LR).attach.toList.map next).join-/
 termination_by M₀ X => lengthOf X
 decreasing_by aesop
 
-inductive Path: Finset Formula →  Type
-  | endNode {X} (consistentX : Consistent X) (simpleX : Simple X): Path X
-  | interNode {X Y} (_ : LocalRule X B) (Y_in : Y ∈ B) (tail : Path Y): Path X
+inductive Path: TNode →  Type
+  | endNode {LR} (isConsistent : Consistent LR) (isSimple : Simple LR): Path LR
+  | interNode {LR Y} (_ : AppLocalTableau LR C) (Y_in : Y ∈ C) (tail : Path Y): Path LR
 open Path
 
 @[simp]
-def toFinset: Path X → Finset Formula
-  | endNode _ _ => X
-  | (interNode _ _ tail) => X ∪ (toFinset tail)
+def toTNode: Path (L, R) → TNode
+  | endNode _ _ => (L, R)
+  | (interNode _ _ tail) =>
+    let (Ltail, Rtail) := toTNode tail
+    (L ∪ Ltail, R ∪ Rtail)
 
 @[simp]
 theorem X_in_PathX {X : Finset Formula} (path : Path X) : X ⊆ (toFinset path) := by
