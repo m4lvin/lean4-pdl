@@ -21,7 +21,8 @@ def PartInterpolant (LR : TNode) (θ : Formula) :=
 -- use let x : t := mapImageProp X
 -- complains unless you specify all implicit arguments
 -- for now: use x := mapImageProp, provide t in a comment
-lemma choice_property_in_image {f : α → β }{l : List α} {p : β → Prop} (p_in_image: ∃y ∈ (List.map f l), p y) : ∃x ∈ l, p (f x) := sorry
+lemma choice_property_in_image {f : α → β }{l : List α} {p : β → Prop} (p_in_image: ∃y ∈ (List.map f l), p y) : ∃x ∈ l, p (f x) :=
+  by simp at p_in_image; assumption
 
 theorem InterpolantInductionStep
   (L R : Finset Formula)
@@ -57,8 +58,9 @@ theorem InterpolantInductionStep
           rw[negBigDis_eq_bigConNeg] at L_and_nθ_sat
           have L_and_nθi_sat : ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ {~~(bigCon <| interList.map (~·))}) :=
             oneSidedRule_implies_child_sat_L def_ruleA def_rule L_and_nθ_sat
-          --rw [sat_double_neq_invariant (bigCon <| interList.map (~·))] at L_and_nθi_sat
-          have L_and_nθi_sat : ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ {(bigCon <| interList.map (~·))}) := sorry
+          have L_and_nθi_sat : ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ {(bigCon <| interList.map (~·))}) :=
+            Exists.elim L_and_nθi_sat <| λ⟨c, cinC⟩ ⟨inCattach, csat⟩ =>
+              Exists.intro ⟨c, cinC⟩ ⟨inCattach, ((sat_double_neq_invariant (bigCon <| interList.map (~·))).mp csat)⟩
           exact Exists.elim L_and_nθi_sat <| λ⟨c, cinC⟩ ⟨inCattach, csat⟩ =>
             have csat2 : Satisfiable <| c.1 ∪ {~ subInterpolants c cinC} :=
               bigConNeg_union_sat_down csat (subInterpolants c cinC) (by simp; use c, cinC)
@@ -86,8 +88,9 @@ theorem InterpolantInductionStep
       · constructor
         · intro L_and_nθ_sat
           rw[negBigCon_eq_bigDisNeg] at L_and_nθ_sat
-          have L_and_θi_Sat : ∃θi ∈ interList, Satisfiable <| L ∪ {~θi} := sorry
-          have L_and_child's_inter_sat := choice_property_in_image L_and_θi_Sat
+          have L_and_θi_Sat₁ : ∃nθi ∈ interList.map (~·), Satisfiable <| L ∪ {nθi} := bigDis_union_sat_down L_and_nθ_sat
+          have L_and_θi_Sat₂ : ∃θi ∈ interList, Satisfiable <| L ∪ {~θi} := sorry
+          have L_and_child's_inter_sat := choice_property_in_image L_and_θi_Sat₂
           exact Exists.elim L_and_child's_inter_sat <| λ⟨c, cinC⟩ ⟨inCattach, csat ⟩ =>
             have L_inv_to_rightrule : c.1 = L := (oneSidedRule_preserves_other_side_R def_ruleA def_rule) c cinC
             have csat2 : Satisfiable <| c.1 ∪ {~subInterpolants c cinC} := by rw[←L_inv_to_rightrule] at csat; assumption
