@@ -102,7 +102,7 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
 
 -- The combined model for X satisfies X.
 theorem combMo_sat_X {X : Finset Formula} {β : Set Formula}
-    {beta_def : β = {R : Formula | ~R.box ∈ X}} (simple_X : Simple X) (not_closed_X : ¬Closed X)
+    {beta_def : β = {R : Formula | ~R.box ∈ X}} (simple_X : SimpleSetDepr X) (not_closed_X : ¬Closed X)
     (collection : β → Σ W : Type, KripkeModel W × W)
     (all_pro_sat :
       ∀ R : β,
@@ -158,17 +158,17 @@ theorem combMo_sat_X {X : Finset Formula} {β : Set Formula}
         simp
     case bottom => tauto
     case neg f =>
-      unfold Simple SimpleForm at simple_X
+      unfold SimpleSetDepr SimpleForm at simple_X
       simp at simple_X
       specialize simple_X (~~f) f_in_X
       simp at simple_X
     case And f g =>
-      unfold Simple SimpleForm at simple_X
+      unfold SimpleSetDepr SimpleForm at simple_X
       simp at simple_X
       specialize simple_X (~(f⋀g)) f_in_X
       simp at simple_X
   case And fa fb =>
-    unfold Simple at simple_X
+    unfold SimpleSetDepr at simple_X
     simp at simple_X
     specialize simple_X (fa⋀fb) f_in_X
     simp at simple_X
@@ -199,7 +199,7 @@ theorem combMo_sat_X {X : Finset Formula} {β : Set Formula}
 -- A simple set of formulas X is satisfiable if and only if
 -- it is not closed  and  for all ¬[A]R ∈ X also XA; ¬R is satisfiable.
 theorem Lemma1_simple_sat_iff_all_projections_sat {X : Finset Formula} :
-    Simple X → (Satisfiable X ↔ ¬Closed X ∧ ∀ R, ~(□R) ∈ X → Satisfiable (projection X ∪ {~R})) :=
+    SimpleSetDepr X → (Satisfiable X ↔ ¬Closed X ∧ ∀ R, ~(□R) ∈ X → Satisfiable (projection X ∪ {~R})) :=
   by
   intro X_is_simple
   constructor

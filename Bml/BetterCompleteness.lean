@@ -65,7 +65,7 @@ def endNodeOf: Path X → Finset Formula
   | endNode _ _ => X
   | interNode _ _ tail => endNodeOf tail
 
-theorem endNodeIsSimple (path : Path X): Simple (endNodeOf path) := by
+theorem endNodeIsSimple (path : Path X): SimpleSetDepr (endNodeOf path) := by
   induction path
   all_goals aesop
 
@@ -144,7 +144,7 @@ theorem pathSaturated (path : Path X): Saturated (toFinset path) := by
   induction path
   case endNode X _ simpleX =>
     simp
-    unfold Simple at simpleX
+    unfold SimpleSetDepr at simpleX
     simp at simpleX
     constructor
     · specialize simpleX (~~P)
