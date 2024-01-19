@@ -307,9 +307,19 @@ theorem conDecreasesLength {φ ψ : Formula} :
       _ < 1 + lengthOfFormula φ + lengthOfFormula ψ :=
         by aesop
 
-theorem localRuleDecreasesLength (rule : LocalRule (Lcond, Rcond) ress) :
-  ∀res ∈ ress, lengthOfSet (res.1 ∪ res.2) < lengthOfSet (Lcond ∪ Rcond) :=
-  by
+@[simp]
+def lengthOfTNode : TNode → Nat
+  | (L,R) => lengthOfSet L + lengthOfSet R
+
+-- needed for endNodesOf
+@[simp]
+instance TNodeHasLength : HasLength TNode := ⟨lengthOfTNode⟩
+
+theorem localRuleDecreasesLengthSide (rule : LocalRule (Lcond, Rcond) ress) :
+  ∀ res ∈ ress,
+      (lengthOf res.1 < lengthOf Lcond ∧ res.2 = ∅)
+    ∨ (lengthOf res.2 < lengthOf Rcond ∧ res.1 = ∅) :=
+    by
     intro res in_ress
     cases rule
     case oneSidedL _ lrule  =>    -- trying custom tactic
@@ -340,11 +350,10 @@ theorem localRuleDecreasesLength (rule : LocalRule (Lcond, Rcond) ress) :
                 aesop))
     all_goals aesop
 
-
 theorem localRuleAppDecreasesLength
   {L R : Finset Formula}
   (lrApp : @LocalRuleApp (L,R) C) :
-  ∀c ∈ C, lengthOfSet (c.1 ∪ c.2) < lengthOfSet (L ∪ R) :=
+  ∀c ∈ C, lengthOfTNode c < lengthOfTNode (L,R) :=
   by
     intro c c_child
     let ⟨ress, Lcond, Rcond, rule, precondProofL, precondProofR⟩ := lrApp
@@ -352,34 +361,35 @@ theorem localRuleAppDecreasesLength
     subst C_def
     simp only [applyLocalRule, List.mem_map] at c_child
     rcases c_child with ⟨res, res_in_ress, def_c⟩
-    have conds_in_LR : (Lcond ∪ Rcond) ⊆ (L ∪ R) :=
-      Finset.union_subset_union precondProofL precondProofR
-    have rule_decr_len : ∀ res ∈ ress, lengthOfSet (res.1 ∪ res.2) < lengthOfSet (Lcond ∪ Rcond) := by
-      apply localRuleDecreasesLength rule
-    calc lengthOfSet ((c.1 ∪ c.2))
-      = lengthOfSet ((L \ Lcond ∪ res.1) ∪ (R \ Rcond ∪ res.2)) :=
+    have := localRuleDecreasesLengthSide rule res res_in_ress
+    cases this
+    case inl hyp =>
+      calc lengthOfTNode c
+      = lengthOfSet (L \ Lcond ∪ res.1) + lengthOfSet (R \ Rcond ∪ res.2) :=
           by subst def_c; simp
-      _ ≤ lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond) ∪ (res.1 ∪ res.2)) :=
-          by apply Finset.sum_le_sum_of_subset; sorry -- Goal is actually false!
-      _ ≤ lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (res.1 ∪ res.2) :=
-          by apply sum_union_le
-      _ < lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (Lcond ∪ Rcond) :=
-          by apply Nat.add_le_add_left (rule_decr_len _ res_in_ress)
-      _ = lengthOfSet (L ∪ R) :=
-          lengthSetRemove (L ∪ R) (Lcond ∪ Rcond) conds_in_LR
+      _ ≤ lengthOfSet (L \ Lcond ∪ res.1) + lengthOfSet R :=
+          by rw [hyp.2]; simp [Finset.sum_le_sum_of_subset]
+      _ < lengthOfSet L + lengthOfSet R :=
+          by simp at hyp; simp; sorry -- should be easy, use hyp?
+      _ = lengthOfTNode (L, R) := by simp
+    case inr hyp =>
+      calc lengthOfTNode c
+      = lengthOfSet (L \ Lcond ∪ res.1) + lengthOfSet (R \ Rcond ∪ res.2) :=
+          by subst def_c; simp
+      _ ≤ lengthOfSet L + lengthOfSet (R \ Rcond ∪ res.2) :=
+          by rw [hyp.2]; simp [Finset.sum_le_sum_of_subset]
+      _ < lengthOfSet L + lengthOfSet R :=
+          by simp at hyp; simp; sorry -- should be easy, use hyp?
+      _ = lengthOfTNode (L, R) := by simp
 
-
-theorem AppLocalTableau.DecreasesLength {LR : TNode} {C : List TNode} (appTab : AppLocalTableau LR C) {c : TNode}
+theorem AppLocalTableau.DecreasesLength
+  (appTab : AppLocalTableau LR C)
   (c_in : c ∈ C) :
-  lengthOfSet (c.1 ∪ c.2) < lengthOfSet (LR.1 ∪ LR.2) :=
+  lengthOfTNode c < lengthOfTNode LR :=
   by
   rcases appTab with ⟨lrApp, next⟩
   have := localRuleAppDecreasesLength lrApp
-  unfold applyLocalRule at * -- this actually gives the ... \ ... ∪ ... stuff.
-  simp at *
-  -- something is stuck or wrong here. Too many unnamed variables.
-  sorry
-
+  aesop
 
 theorem atmRuleDecreasesLength {L R : Finset Formula} {ϕ} :
     ~(□ϕ) ∈ (L ∪ R) → lengthOfSet (projection (L ∪ R) ∪ {~ϕ}) < lengthOfSet (L ∪ R) :=
@@ -448,14 +458,14 @@ open LocalTableau
 
 -- needed for endNodesOf
 instance localTableauHasLength : HasLength (Σ LR, LocalTableau LR) :=
-  ⟨fun ⟨(L, R), _⟩ => lengthOfSet (L ∪ R)⟩
+  ⟨fun ⟨(L, R), _⟩ => lengthOfTNode (L, R)⟩
 
 -- open end nodes of a given localTableau
 def endNodesOf : (Σ LR, LocalTableau LR) → List TNode
   | ⟨LR, @LocalTableau.fromRule _ C (appTab : AppLocalTableau LR C)⟩ =>
     (C.attach.map fun ⟨c, c_in⟩ =>
       have tc : LocalTableau c := getSubTabs appTab c c_in
-      have : lengthOfSet (c.1 ∪ c.2) < lengthOfSet (LR.1 ∪ LR.2) := AppLocalTableau.DecreasesLength appTab c_in
+      have : lengthOfTNode c < lengthOfTNode LR := AppLocalTableau.DecreasesLength appTab c_in
       endNodesOf ⟨c, tc⟩
       ).join
   | ⟨LR, LocalTableau.fromSimple _⟩ => [LR]
@@ -473,7 +483,7 @@ theorem lrEndNodes {LR C subtabs lrApp} :
       endNodesOf ⟨c, subtabs c c_in⟩) ).join :=
     by sorry
 
-theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOf (Z.1 ∪ Z.2) ≤ lengthOf (LR.1 ∪ LR.2) :=
+theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOfTNode Z ≤ lengthOfTNode LR :=
   by
   cases ltLR   -- mutually inductive type problem, I remember this from the chat?
   case fromRule altLR =>
@@ -485,17 +495,17 @@ theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOf
     apply le_of_lt
     have := localRuleAppDecreasesLength lrApp c c_in_C -- for termination and below!
     · calc
-        lengthOf (Z.1 ∪ Z.2) ≤ lengthOf (c.1 ∪ c.2) := endNodesOfLEQ Z_in_ZS
-        _ < lengthOf (LR.1 ∪ LR.2) := this
+        lengthOfTNode Z ≤ lengthOfTNode c := endNodesOfLEQ Z_in_ZS
+        _ < lengthOfTNode LR := this
   case fromSimple LR_simp =>
     intro Z_endOf_Y
     simp at Z_endOf_Y
     aesop
 termination_by
-  endNodesOfLEQ LT   => lengthOfSet (LR.1 ∪ LR.2)
+  endNodesOfLEQ LT   => lengthOfTNode LR
 
 theorem endNodesOfLocalRuleLT {LR Z} {appTab : AppLocalTableau LR C} :
-    Z ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩ → lengthOf (Z.1 ∪ Z.2) < lengthOf (LR.1 ∪ LR.2) :=
+    Z ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩ → lengthOfTNode Z < lengthOfTNode LR :=
   by
   intro Z_endOf_LR
   cases' appTab with L R _ lrApp next
@@ -504,8 +514,8 @@ theorem endNodesOfLocalRuleLT {LR Z} {appTab : AppLocalTableau LR C} :
   subst endNodes_c_eq_ZS
   have := localRuleAppDecreasesLength lrApp c c_in_C -- for termination and below!
   · calc
-      lengthOf (Z.1 ∪ Z.2) ≤ lengthOf (c.1 ∪ c.2) := endNodesOfLEQ Z_in_ZS
-      _ < lengthOf (L ∪ R) := this
+      lengthOfTNode Z ≤ lengthOfTNode c := endNodesOfLEQ Z_in_ZS
+      _ < lengthOfTNode (L,R) := this
 
 -- Lift definition of projection to TNodes, including the diamond formula left or right.
 def diamondProjectTNode : Sum Formula Formula → TNode → TNode
