@@ -347,18 +347,26 @@ theorem localRuleAppDecreasesLength
   by
     intro c c_child
     let ⟨ress, Lcond, Rcond, rule, precondProofL, precondProofR⟩ := lrApp
+    rename_i C_def
+    subst C_def
+    simp only [applyLocalRule, List.mem_map] at c_child
+    rcases c_child with ⟨res, res_in_ress, def_c⟩
     have conds_in_LR : (Lcond ∪ Rcond) ⊆ (L ∪ R) :=
       Finset.union_subset_union precondProofL precondProofR
     have rule_decr_len : ∀ res ∈ ress, lengthOfSet (res.1 ∪ res.2) < lengthOfSet (Lcond ∪ Rcond) := by
       apply localRuleDecreasesLength rule
     calc lengthOfSet ((c.1 ∪ c.2))
-      = lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (res.1 ∪ res.2) :=
-          by simp [sum_union_le]
+      = lengthOfSet ((L \ Lcond ∪ res.1) ∪ (R \ Rcond ∪ res.2)) :=
+          by subst def_c; simp
+      _ ≤ lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond) ∪ (res.1 ∪ res.2)) :=
+          by simp; sorry
+      _ ≤ lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (res.1 ∪ res.2) :=
+          by apply sum_union_le
       _ < lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (Lcond ∪ Rcond) :=
-          by apply Nat.add_le_add_left rule_decr_len
+          by apply Nat.add_le_add_left (rule_decr_len _ res_in_ress)
       _ = lengthOfSet (L ∪ R) :=
           lengthSetRemove (L ∪ R) (Lcond ∪ Rcond) conds_in_LR
-    sorry
+
 
 theorem AppLocalTableau.DecreasesLength {LR : TNode} {C : List TNode} (appTab : AppLocalTableau LR C) {c : TNode}
   (c_in : c ∈ C) :
@@ -393,15 +401,6 @@ theorem atmRuleDecreasesLength {L R : Finset Formula} {ϕ} :
         _ ≤ lengthOfSet (X.erase (~(□ϕ))) + lengthOf (~(□ϕ)) := by simp; apply projection_set_length_leq
         _ = lengthOfSet X := lengthRemove X (~(□ϕ)) notBoxPhi_in_X
 
--- Definition 8, page 14
--- mixed with Definition 11 (with all PDL stuff missing for now)
--- a local tableau for X, must be maximal
-
-
-
--- Definition 8, page 14
--- mixed with Definition 11 (with all PDL stuff missing for now)
--- a local tableau for X, must be maximal
 
 def existsLocalTableauFor LR : Nonempty (LocalTableau LR) :=
   by
@@ -466,16 +465,12 @@ termination_by
 theorem endNodesOfSimple : endNodesOf ⟨ LR, LocalTableau.fromSimple hyp ⟩ = [LR] := by
   sorry
 
--- can't we just combine all these functions and say
--- that the end nodes of a tableau = end nodes of all its children
--- also I'm not sure we even use these
 @[simp]
-theorem lrEndNodes {LR C subtabs lrApp} :   -- fewer arguments = error
+theorem lrEndNodes {LR C subtabs lrApp} :
     endNodesOf ⟨LR, LocalTableau.fromRule
-    (@AppLocalTableau.mk LR.1 LR.2 C (@LocalRuleApp.mk LR.1 LR.2 C _ _ _
-    (LocalRule.oneSidedR (OneSidedLocalRule.bot)) hC preconditionProof) subtabs)⟩ = ∅ :=
-  by sorry
-    --unfold endNodesOf; simp
+    (@AppLocalTableau.mk LR.1 LR.2 C lrApp subtabs)⟩ = (C.attach.map (fun ⟨c, c_in⟩  =>
+      endNodesOf ⟨c, subtabs c c_in⟩) ).join :=
+    by sorry
 
 theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOf (Z.1 ∪ Z.2) ≤ lengthOf (LR.1 ∪ LR.2) :=
   by
@@ -498,7 +493,7 @@ theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOf
 termination_by
   endNodesOfLEQ LT   => lengthOfSet (LR.1 ∪ LR.2)
 
-theorem endNodesOfLocalRuleLT {LR Z appTab} :
+theorem endNodesOfLocalRuleLT {LR Z} {appTab : AppLocalTableau LR C} :
     Z ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩ → lengthOf (Z.1 ∪ Z.2) < lengthOf (LR.1 ∪ LR.2) :=
   by
   intro Z_endOf_LR
@@ -511,15 +506,24 @@ theorem endNodesOfLocalRuleLT {LR Z appTab} :
       lengthOf (Z.1 ∪ Z.2) ≤ lengthOf (c.1 ∪ c.2) := endNodesOfLEQ Z_in_ZS
       _ < lengthOf (L ∪ R) := this
 
--- Definition 16, page 29
--- prob need to change def of projection s.t. it goes TNode → TNode
--- is the base case missing for simple tableaux?
-inductive ClosedTableau : TNode → Type
-  | loc {LR} {appTab : AppLocalTableau LR C} (lt : LocalTableau.fromRule appTab) : (∀ Y ∈ endNodesOf ⟨LR, lt⟩, ClosedTableau Y) → ClosedTableau LR
-  | atm {LR ϕ} : ~(□ϕ) ∈ (L ∪ R) → Simple (L ∪ R) → ClosedTableau (projection (L ∪ R) ∪ {~ϕ}) → ClosedTableau X
+-- Lift definition of projection to TNodes, including the diamond formula left or right.
+def diamondProjectTNode : Sum Formula Formula → TNode → TNode
+| (Sum.inl φ), (L, R) => (projection L ∪ {φ}, projection R)
+| (Sum.inr φ), (L, R) => (projection L, projection R ∪ {φ})
 
-inductive Provable : Formula → Prop   -- this doesn't work anymore with TNodes
-  | byTableau {φ : Formula} : ClosedTableau {~φ} → Provable φ
+-- Definition 16, page 29
+-- Note that the base case for simple tableaux is part of the
+-- atomic rule "atm" which can be applied to L or to R.
+inductive ClosedTableau : TNode → Type
+  | loc {LR} {appTab : AppLocalTableau LR C} (lt : LocalTableau LR) : (∀ Y ∈ endNodesOf ⟨LR, lt⟩, ClosedTableau Y) → ClosedTableau LR
+  | atmL {LR ϕ} : ~(□ϕ) ∈ L → Simple (L ∪ R) → ClosedTableau (diamondProjectTNode (Sum.inl (~ϕ)) LR) → ClosedTableau LR
+  | atmR {LR ϕ} : ~(□ϕ) ∈ R → Simple (L ∪ R) → ClosedTableau (diamondProjectTNode (Sum.inr (~ϕ)) LR) → ClosedTableau LR
+
+inductive Provable : Formula → Prop
+  | byTableau {φ : Formula} : ClosedTableau ({~φ},{}) → Provable φ
+
+inductive ProvableImplication : Formula → Formula → Prop
+  | byTableau : ClosedTableau ({φ},{~ψ}) → ProvableImplication φ ψ
 
 -- Definition 17, page 30
 def Inconsistent : TNode → Prop
@@ -529,7 +533,7 @@ def Consistent : TNode → Prop      -- invalid occurrence of universe level 'u_
   | LR => ¬Inconsistent LR
 
 
-/-   pretty sure this is all old stuff
+/- TODO: old stuff about open tableaux, will be needed for BetterCompleteness
 
 
 -- A tableau may be open.
