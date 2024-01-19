@@ -43,7 +43,7 @@ termination_by M₀ X => lengthOf X
 decreasing_by aesop
 
 inductive Path: Finset Formula →  Type
-  | endNode {X} (consistentX : Consistent X) (simpleX : Simple X): Path X
+  | endNode {X} (consistentX : Consistent X) (simpleX : SimpleSetDepr X): Path X
   | interNode {X Y} (_ : LocalRule X B) (Y_in : Y ∈ B) (tail : Path Y): Path X
 open Path
 
@@ -63,7 +63,7 @@ def endNodeOf: Path X → Finset Formula
   | endNode _ _ => X
   | interNode _ _ tail => endNodeOf tail
 
-theorem endNodeIsSimple (path : Path X): Simple (endNodeOf path) := by
+theorem endNodeIsSimple (path : Path X): SimpleSetDepr (endNodeOf path) := by
   induction path
   all_goals aesop
 
@@ -142,7 +142,7 @@ theorem pathSaturated (path : Path X): Saturated (toFinset path) := by
   induction path
   case endNode X _ simpleX =>
     simp
-    unfold Simple at simpleX
+    unfold SimpleSetDepr at simpleX
     simp at simpleX
     constructor
     · specialize simpleX (~~P)
