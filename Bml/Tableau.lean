@@ -144,10 +144,7 @@ inductive LocalRuleApp : TNode → List TNode → Type
        {hC : C = applyLocalRule rule (L,R)}
        (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R)
        : LocalRuleApp (L,R) C
-  -- deriving DecidableEq -- also works, delete the instance below?
-
--- We have equality when types match
-instance : DecidableEq (LocalRuleApp LR C) := λ_ _ => Decidable.isTrue (sorry)
+  deriving DecidableEq -- also works, delete the instance below?
 
 lemma oneSidedRule_preserves_other_side_L
   {ruleApp : LocalRuleApp (L, R) C}
