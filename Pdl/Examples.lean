@@ -8,7 +8,7 @@ import Pdl.Syntax
 import Pdl.Semantics
 import Pdl.Star
 
-open Vector
+open Vector HasSat
 
 -- some simple silly stuff
 theorem mytaut1 (p : Char) : tautology ((·p) ↣ (·p)) :=
@@ -21,7 +21,7 @@ open Classical
 
 theorem mytaut2 (p : Char) : tautology ((~~·p)↣·p) :=
   by
-  unfold tautology evaluatePoint evaluate
+  unfold tautology evaluate
   intro W M w
   simp
 
@@ -29,7 +29,7 @@ def myModel : KripkeModel ℕ where
   val _ _ := True
   Rel _ _ v := HEq v 1
 
-theorem mysat (p : Char) : satisfiable (·p) :=
+theorem mysat (p : Char) : satisfiable (·p : Formula) :=
   by
   use ℕ, myModel, 1
   unfold myModel
@@ -59,14 +59,14 @@ theorem A3 : tautology ((⌈a⌉(X⋀Y)) ↣ (⌈a⌉X) ⋀ (⌈a⌉Y)) :=
 
 theorem A4 : tautology ((⌈a;'b⌉(·p)) ⟷ (⌈a⌉(⌈b⌉(·p)))) :=
   by
-  unfold tautology evaluatePoint evaluate
+  unfold tautology evaluate
   intro W M w
   simp
   tauto
 
 theorem A5 : tautology ((⌈a ⋓ b⌉X) ⟷ ((⌈a⌉X) ⋀ (⌈b⌉X))) :=
   by
-  unfold tautology evaluatePoint evaluate
+  unfold tautology evaluate
   intro W M w
   constructor
   · -- left to right
@@ -95,7 +95,7 @@ theorem A5 : tautology ((⌈a ⋓ b⌉X) ⟷ ((⌈a⌉X) ⋀ (⌈b⌉X))) :=
 
 theorem A6 (a : Program) (X : Formula) : tautology ((⌈∗a⌉X) ⟷ (X ⋀ (⌈a⌉(⌈∗a⌉X)))) :=
   by
-  unfold tautology evaluatePoint evaluate
+  unfold tautology evaluate
   intro W M w
   constructor
   · -- left to right

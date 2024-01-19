@@ -2,7 +2,6 @@ import Pdl.Syntax
 
 import Mathlib.Data.Finset.Basic
 
--- VOCAB
 mutual
   def vocabOfProgram : Program → Finset Char
     | ·c => {c}
@@ -17,9 +16,6 @@ mutual
     | φ⋀ψ => vocabOfFormula φ ∪ vocabOfFormula ψ
     | ⌈α⌉ φ => vocabOfProgram α ∪ vocabOfFormula φ
 end
-termination_by -- silly but needed?!
-  vocabOfProgram p => sizeOf p
-  vocabOfFormula f => sizeOf f
 
 def vocabOfSetFormula : Finset Formula → Finset Char
   | X => X.biUnion vocabOfFormula

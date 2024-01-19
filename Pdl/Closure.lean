@@ -3,6 +3,16 @@ import Mathlib.Data.Finset.Image
 import Mathlib.Logic.Function.Iterate
 import Mathlib.Algebra.BigOperators.Basic
 
+-- NOTES:
+
+-- This currently works for the diamond cases in DagTableau.
+-- For boxes we need something different, namely replacing the
+-- measure m : (m : α → ℕ)
+-- with a well-founded < : α → α → Prop
+
+-- In general, some of these things should already be in Mathlib.
+-- But maybe not computable / decidable?
+
 -- reflexive transitive closure of a decreasing function
 def ftr {α : Type}
     (f : α → Finset α)

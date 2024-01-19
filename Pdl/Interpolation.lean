@@ -4,35 +4,31 @@ import Pdl.Syntax
 import Pdl.Vocab
 import Pdl.Semantics
 
-open HasVocabulary vDash
+open HasVocabulary vDash HasSat
 
 def Interpolant (φ : Formula) (ψ : Formula) (θ : Formula) :=
-  φ⊨θ ∧ θ⊨ψ ∧ voc θ ⊆ voc φ ∩ voc ψ
+  voc θ ⊆ voc φ ∩ voc ψ  ∧  φ ⊨ θ  ∧  θ ⊨ ψ
 
--- TODO: should set interpolation be defined using ⊨ or ⊢ or do we need both?
--- NOTE: this notion here is NOT (yet) equivalent to the one used by Borzechowski.
-def SetInterpolant (X : Finset Formula) (Y : Finset Formula) (θ : Formula) :=
-  X⊨θ ∧ θ⊨Y ∧ voc θ ⊆ voc X ∩ voc Y
+def PartInterpolant (X1 X2 : Finset Formula) (θ : Formula) :=
+  voc θ ⊆ voc X1 ∩ voc X2  ∧  ¬ satisfiable (X1 ∪ {~θ})  ∧  ¬ satisfiable ({θ} ∪ X2)
 
-theorem setInterpolation :
-    ∀ (X : Finset Formula) (Y : Finset Formula), X⊨Y → ∃ θ : Formula, SetInterpolant X Y θ := by
+theorem partInterpolation :
+    ∀ (X1 X2 : Finset Formula), ¬satisfiable (X1 ∪ X2) → ∃ θ : Formula, PartInterpolant X1 X2 θ := by
   sorry
 
 theorem interpolation : ∀ (φ : Formula) (ψ : Formula), φ⊨ψ → ∃ θ : Formula, Interpolant φ ψ θ :=
   by
   intro φ ψ hyp
-  have haveInt := setInterpolation {φ} {ψ} (forms_to_sets hyp)
-  cases' haveInt with θ haveInt_hyp
+  let X1 : Finset Formula := {φ}
+  let X2 : Finset Formula := {~ψ}
+  have : ¬satisfiable (X1 ∪ X2) := by
+    rw [notSat_iff_semImplies]
+    exact forms_to_sets hyp
+  have haveInt := partInterpolation X1 X2 this
+  rcases haveInt with ⟨θ, ⟨vocSubs, φ_θ, θ_ψ⟩⟩
   use θ
-  unfold SetInterpolant at haveInt_hyp 
-  cases' haveInt_hyp with φ_θ haveInt_hyp
-  cases' haveInt_hyp with θ_ψ vocSubs
+  rw [notSat_iff_semImplies] at φ_θ
+  rw [notSat_iff_semImplies] at θ_ψ
   unfold Interpolant
-  constructor
-  · use φ_θ
-  constructor
-  · use θ_ψ
-  · unfold voc at *
-    unfold formulaHasVocabulary finsetFormulaHasVocabulary vocabOfSetFormula at *
-    simp at *
-    tauto
+  simp [voc, vocabOfFormula, vocabOfSetFormula] at vocSubs
+  tauto
