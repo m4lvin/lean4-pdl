@@ -46,7 +46,8 @@ def formProjection : Formula → Option Formula
 def projection : Finset Formula → Finset Formula
   | X => X.biUnion fun x => (formProjection x).toFinset
 
-l
+def projectTNode : TNode → TNode
+  | (L, R) => (projection L, projection R)
 
 -- TODO @[simp]
 theorem proj {g : Formula} {X : Finset Formula} : g ∈ projection X ↔ □g ∈ X :=
