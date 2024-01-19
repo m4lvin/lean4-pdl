@@ -31,11 +31,11 @@ def SimpleForm : Formula → Bool
   | ~(□_) => True
   | _ => False
 
-def Simple : Finset Formula → Bool
-  | X => ∀ P ∈ X, SimpleForm P
-
 def TNode := Finset Formula × Finset Formula
   deriving DecidableEq
+
+def Simple : TNode → Bool
+  | ⟨L,R⟩ => ∀ P ∈ L ∪ R, SimpleForm P
 
 -- Let X_A := { R | [A]R ∈ X }.
 @[simp]
@@ -48,6 +48,9 @@ def projection : Finset Formula → Finset Formula
 
 def projectTNode : TNode → TNode
   | (L, R) => (projection L, projection R)
+
+@[simp]
+def f_in_TNode (f : Formula) (LR : TNode) := f ∈ (LR.1 ∪ LR.2)
 
 -- TODO @[simp]
 theorem proj {g : Formula} {X : Finset Formula} : g ∈ projection X ↔ □g ∈ X :=
@@ -67,6 +70,7 @@ theorem projSet {X : Finset Formula} : ↑(projection X) = {ϕ | □ϕ ∈ X} :=
   ext1
   simp
   exact proj
+
 
 theorem projection_length_leq : ∀ f, (projection {f}).sum lengthOfFormula ≤ lengthOfFormula f :=
   by
@@ -174,7 +178,7 @@ inductive AppLocalTableau : TNode → List TNode → Type
 
 inductive LocalTableau : TNode → Type
   | fromRule {C : List TNode}  (appTab : AppLocalTableau LR C) : LocalTableau LR
-  | fromSimple (isSimple : Simple (L ∪ R)) : LocalTableau (L,R)
+  | fromSimple (isSimple : Simple (L, R)) : LocalTableau (L,R)
 end
 
 def getTabRule : AppLocalTableau LR C → Σ Lcond Rcond C, LocalRule (Lcond,Rcond) C
@@ -199,7 +203,7 @@ def getSubTabs (tab : AppLocalTableau LR C)
 -- (page 13)
 
 -- write custom tactic later
-theorem notSimpleThenLocalRule {L R} : ¬Simple (L ∪ R)
+theorem notSimpleThenLocalRule {L R} : ¬Simple (L, R)
   → ∃ Lcond Rcond C, ∃ _ : LocalRule (Lcond, Rcond) C, Lcond ⊆ L ∧ Rcond ⊆ R :=
   by
   intro notSimple
@@ -555,8 +559,8 @@ theorem endNodesOfLocalRuleLT {LR Z} {appTab : AppLocalTableau LR C} :
 -- atomic rule "atm" which can be applied to L or to R.
 inductive ClosedTableau : TNode → Type
   | loc {LR} {appTab : AppLocalTableau LR C} (lt : LocalTableau LR) : (∀ Y ∈ endNodesOf ⟨LR, lt⟩, ClosedTableau Y) → ClosedTableau LR
-  | atmL {LR ϕ} : ~(□ϕ) ∈ L → Simple (L ∪ R) → ClosedTableau (diamondProjectTNode (Sum.inl (~ϕ)) LR) → ClosedTableau LR
-  | atmR {LR ϕ} : ~(□ϕ) ∈ R → Simple (L ∪ R) → ClosedTableau (diamondProjectTNode (Sum.inr (~ϕ)) LR) → ClosedTableau LR
+  | atmL {LR ϕ} : ~(□ϕ) ∈ L → Simple (L, R) → ClosedTableau (diamondProjectTNode (Sum.inl (~ϕ)) LR) → ClosedTableau LR
+  | atmR {LR ϕ} : ~(□ϕ) ∈ R → Simple (L, R) → ClosedTableau (diamondProjectTNode (Sum.inr (~ϕ)) LR) → ClosedTableau LR
 
 inductive Provable : Formula → Prop
   | byTableau {φ : Formula} : ClosedTableau ({~φ},{}) → Provable φ
