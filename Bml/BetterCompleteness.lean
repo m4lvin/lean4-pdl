@@ -55,27 +55,27 @@ def toTNode: Path (L, R) → TNode
     (L ∪ Ltail, R ∪ Rtail)
 
 @[simp]
-theorem X_in_PathX {X : Finset Formula} (path : Path X) : X ⊆ (toFinset path) := by
+theorem X_in_PathX (path : Path LR) : X ⊆ (toTNode path) := by
   intro f
   cases path
   case endNode => aesop
   case interNode => aesop
 
-def endNodeOf: Path X → Finset Formula
-  | endNode _ _ => X
+def endNodeOf: Path LR → TNode
+  | endNode _ _ => LR
   | interNode _ _ tail => endNodeOf tail
 
-theorem endNodeIsSimple (path : Path X): SimpleSetDepr (endNodeOf path) := by
+theorem endNodeIsSimple (path : Path X): Simple (endNodeOf path) := by
   induction path
   all_goals aesop
 
-theorem endNodeProjection (path : Path X): projection (toFinset path) = projection (endNodeOf path) := by
+theorem endNodeProjection (path : Path X): projection (toTNode path) = projection (endNodeOf path) := by
   induction path
   case endNode cosX simX => aesop
   case interNode lr Y_in tail IH =>
     rename_i B X Y
     unfold projection
-    simp only [toFinset]
+    simp only [toTNode]
     sorry
 
 theorem endNodeSubsetEndNodes (path: Path X) (tX: LocalTableau X): endNodeOf path ∈ endNodesOf ⟨X, tX⟩ := by
@@ -136,10 +136,10 @@ def aPathOf (tX : LocalTableau X) (conX : Consistent X) : Path X := by
 
 theorem M₀closure1: tabY ∈ M₀ X → Z ∈ endNodesOf tabY → ⟨Z, aLocalTableauFor Z⟩ ∈ M₀ X := by sorry
 
-theorem M₀closure2: ⟨Y, sim simpleX⟩ ∈ M₀ X → ~(□α) ∈ X →
+theorem M₀closure2: ⟨Y, fromSimple isSimple⟩ ∈ M₀ (L, R) → ~(□α) ∈ X →
         ⟨(projection Y ∪ {α}), aLocalTableauFor (projection Y ∪ {α})⟩ ∈ M₀ X := by sorry
 
-theorem pathSaturated (path : Path X): Saturated (toFinset path) := by
+theorem pathSaturated (path : Path X) (eq:(L,R) = toTNode path): Saturated (toTNode path) := by
   intro P Q
   induction path
   case endNode X _ simpleX =>
