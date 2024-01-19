@@ -88,9 +88,8 @@ theorem InterpolantInductionStep
       · constructor
         · intro L_and_nθ_sat
           rw[negBigCon_eq_bigDisNeg] at L_and_nθ_sat
-          have L_and_θi_Sat₁ : ∃nθi ∈ interList.map (~·), Satisfiable <| L ∪ {nθi} := bigDis_union_sat_down L_and_nθ_sat
-          have L_and_θi_Sat₂ : ∃θi ∈ interList, Satisfiable <| L ∪ {~θi} := sorry
-          have L_and_child's_inter_sat := choice_property_in_image L_and_θi_Sat₂
+          have L_and_θi_Sat : ∃nθi ∈ interList.map (~·), Satisfiable <| L ∪ {nθi} := bigDis_union_sat_down L_and_nθ_sat
+          have L_and_child's_inter_sat := choice_property_in_image <| choice_property_in_image L_and_θi_Sat
           exact Exists.elim L_and_child's_inter_sat <| λ⟨c, cinC⟩ ⟨inCattach, csat ⟩ =>
             have L_inv_to_rightrule : c.1 = L := (oneSidedRule_preserves_other_side_R def_ruleA def_rule) c cinC
             have csat2 : Satisfiable <| c.1 ∪ {~subInterpolants c cinC} := by rw[←L_inv_to_rightrule] at csat; assumption
