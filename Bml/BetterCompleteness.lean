@@ -11,6 +11,37 @@ open HasLength
 open HasSat
 open LocalRule
 
+def formulasInNegBox (X: Finset Formula): Finset Formula :=
+  X.biUnion λ α => (match α with | ~(□f) => {f} | _ => {})
+
+theorem formulasInNegBoxIff {X}: α ∈ formulasInNegBox X ↔  ~(□α) ∈ X := by
+  rw[formulasInNegBox]
+  aesop
+
+noncomputable def M₀ (X: Finset Formula): List (Σ Z, LocalTableau Z) := by
+  let tX := aLocalTableauFor X
+  cases tX
+  -- If X is not simple, add a tableau for X and process endnodes of that tableau
+  · case byLocalRule B next lr =>
+    let nextNodes := endNodesOf ⟨X, byLocalRule lr next⟩
+    let worlds': {x // x ∈ nextNodes} → List (Σ Z, LocalTableau Z) := by
+      intro ⟨Y, Y_in⟩
+      have _ : lengthOf Y < lengthOf X := by
+        exact endNodesOfLocalRuleLT Y_in
+      exact M₀ Y
+    exact ⟨X, tX⟩ :: (nextNodes.attach.toList.map worlds').join
+  -- If X is simple, add a tableau for X and process (projection X) ∪ {~α} for each formula ~□α ∈ X
+  · case sim simpleX =>
+    let next: { x // x ∈ formulasInNegBox X } → List (Σ Z, LocalTableau Z) := by
+      intro ⟨α, α_in⟩
+      have _ : lengthOf (projection X ∪ {~α}) < lengthOf X := by
+        rw [formulasInNegBoxIff] at α_in
+        exact atmRuleDecreasesLength α_in
+      exact ⟨X, tX⟩ :: M₀ (projection X ∪ {~α})
+    exact ((formulasInNegBox X).attach.toList.map next).join
+termination_by M₀ X => lengthOf X
+decreasing_by aesop
+
 inductive Path: Finset Formula →  Type
   | endNode {X} (consistentX : Consistent X) (simpleX : Simple X): Path X
   | interNode {X Y} (_ : LocalRule X B) (Y_in : Y ∈ B) (tail : Path Y): Path X
@@ -27,6 +58,26 @@ theorem X_in_PathX {X : Finset Formula} (path : Path X) : X ⊆ (toFinset path) 
   cases path
   case endNode => aesop
   case interNode => aesop
+
+def endNodeOf: Path X → Finset Formula
+  | endNode _ _ => X
+  | interNode _ _ tail => endNodeOf tail
+
+theorem endNodeIsSimple (path : Path X): Simple (endNodeOf path) := by
+  induction path
+  all_goals aesop
+
+theorem endNodeProjection (path : Path X): projection (toFinset path) = projection (endNodeOf path) := by
+  induction path
+  case endNode cosX simX => aesop
+  case interNode lr Y_in tail IH =>
+    rename_i B X Y
+    unfold projection
+    simp only [toFinset]
+    sorry
+
+theorem endNodeSubsetEndNodes (path: Path X) (tX: LocalTableau X): endNodeOf path ∈ endNodesOf ⟨X, tX⟩ := by
+  sorry
 
 def pathsOf (tX : LocalTableau X) :  List (Path X) := by
   cases tX
@@ -78,36 +129,8 @@ def pathsOf (tX : LocalTableau X) :  List (Path X) := by
       exact IH1 ++ IH2
 termination_by pathsOf X tX => lengthOf X
 
-def formulasInNegBox (X: Finset Formula): Finset Formula :=
-  X.biUnion λ α => (match α with | ~(□f) => {f} | _ => {})
-
-theorem formulasInNegBoxIff {X}: α ∈ formulasInNegBox X ↔  ~(□α) ∈ X := by
-  rw[formulasInNegBox]
-  aesop
-
-noncomputable def M₀ (X: Finset Formula): List (Σ Z, LocalTableau Z) := by
-  let tX := aLocalTableauFor X
-  cases tX
-  -- If X is not simple, add a tableau for X and process endnodes of that tableau
-  · case byLocalRule B next lr =>
-    let nextNodes := endNodesOf ⟨X, byLocalRule lr next⟩
-    let worlds': {x // x ∈ nextNodes} → List (Σ Z, LocalTableau Z) := by
-      intro ⟨Y, Y_in⟩
-      have _ : lengthOf Y < lengthOf X := by
-        exact endNodesOfLocalRuleLT Y_in
-      exact M₀ Y
-    exact ⟨X, tX⟩ :: (nextNodes.attach.toList.map worlds').join
-  -- If X is simple, add a tableau for X and process (projection X) ∪ {~α} for each formula ~□α ∈ X
-  · case sim simpleX =>
-    let next: { x // x ∈ formulasInNegBox X } → List (Σ Z, LocalTableau Z) := by
-      intro ⟨α, α_in⟩
-      have _ : lengthOf (projection X ∪ {~α}) < lengthOf X := by
-        rw [formulasInNegBoxIff] at α_in
-        exact atmRuleDecreasesLength α_in
-      exact ⟨X, tX⟩ :: M₀ (projection X ∪ {~α})
-    exact ((formulasInNegBox X).attach.toList.map next).join
-termination_by M₀ X => lengthOf X
-decreasing_by aesop
+def aPathOf (tX : LocalTableau X) (conX : Consistent X) : Path X := by
+  sorry -- using pathsOf or replace pathsOf with this
 
 theorem M₀closure1: tabY ∈ M₀ X → Z ∈ endNodesOf tabY → ⟨Z, aLocalTableauFor Z⟩ ∈ M₀ X := by sorry
 
@@ -405,7 +428,7 @@ theorem modelExistence (X: Finset Formula): Consistent X →
   let pathsOf': (Σ Y, LocalTableau Y) → List (Σ Y, Path Y) := by
     exact λ ⟨Y, tabY⟩ => (pathsOf tabY).map (λ x => ⟨Y, x⟩)
   let paths : List (Σ Y, Path Y) := ((M₀ X).map pathsOf').join
-  let WSlist : List (Finset Formula) := List.map (λ ⟨X, path⟩ => toFinset path) paths
+  let WSlist : List (Finset Formula) := paths.map (λ ⟨X, path⟩ => toFinset path)
   let WS := WSlist.toFinset
   let M : KripkeModel WS := by
     constructor
@@ -415,7 +438,7 @@ theorem modelExistence (X: Finset Formula): Consistent X →
     -- define relation
     · intro ⟨w, w_in⟩ ⟨v, v_in⟩
       exact projection w ⊆ v
-  let pathX : Path X := sorry
+  let pathX : Path X := aPathOf (aLocalTableauFor X) consX
   use WS, ⟨M, ?_⟩, ⟨toFinset pathX, ?_⟩
   · simp
   · constructor
@@ -433,6 +456,15 @@ theorem modelExistence (X: Finset Formula): Consistent X →
           aesop
         · intro ⟨w, w_in⟩ f nboxf_in_w
           simp at nboxf_in_w
+          simp at w_in
+          choose w' h w_in_w' using w_in
+          choose Y tY YtY_in w'_eq using h
+          subst w'_eq
+          simp at w_in_w'
+          choose wPath wPath_in w_eq using w_in_w'
+          subst w_eq
+          simp
+          let Y' := endNodeOf wPath
           sorry
   · sorry
 
