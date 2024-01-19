@@ -144,6 +144,7 @@ inductive LocalRuleApp : TNode → List TNode → Type
        {hC : C = applyLocalRule rule (L,R)}
        (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R)
        : LocalRuleApp (L,R) C
+  -- deriving DecidableEq -- also works, delete the instance below?
 
 -- We have equality when types match
 instance : DecidableEq (LocalRuleApp LR C) := λ_ _ => Decidable.isTrue (sorry)
@@ -359,7 +360,7 @@ theorem localRuleAppDecreasesLength
       = lengthOfSet ((L \ Lcond ∪ res.1) ∪ (R \ Rcond ∪ res.2)) :=
           by subst def_c; simp
       _ ≤ lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond) ∪ (res.1 ∪ res.2)) :=
-          by simp; sorry
+          by apply Finset.sum_le_sum_of_subset; sorry -- Goal is actually false!
       _ ≤ lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (res.1 ∪ res.2) :=
           by apply sum_union_le
       _ < lengthOfSet ((L ∪ R) \ (Lcond ∪ Rcond)) + lengthOfSet (Lcond ∪ Rcond) :=
