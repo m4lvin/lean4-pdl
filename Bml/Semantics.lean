@@ -21,6 +21,12 @@ def Evaluate {W : Type} : KripkeModel W × W → Formula → Prop
   | (M, w), φ⋀ψ => Evaluate (M, w) φ ∧ Evaluate (M, w) ψ
   | (M, w), □φ => ∀ v : W, M.Rel w v → Evaluate (M, v) φ
 
+@[simp]
+theorem evalDis {W M f g} {w : W} : Evaluate (M, w) (f⋁g) ↔ Evaluate (M, w) f ∨ Evaluate (M, w) g :=
+  by
+  simp
+  tauto
+
 def Tautology (φ : Formula) :=
   ∀ (W) (M : KripkeModel W) (w), Evaluate (M, w) φ
 
@@ -61,6 +67,18 @@ theorem tautImp_iff_comboNotUnsat {ϕ ψ} :
 def SemImpliesSets (X : Finset Formula) (Y : Finset Formula) :=
   ∀ (W : Type) (M : KripkeModel W) (w), (∀ φ ∈ X, Evaluate (M, w) φ) → ∀ ψ ∈ Y, Evaluate (M, w) ψ
 
+def semEquiv (φ : Formula) (ψ : Formula) :=
+  ∀ (W : Type) (M : KripkeModel W) (w), Evaluate (M, w) φ ↔ Evaluate (M, w) ψ
+
+theorem semEquiv.transitive : Transitive semEquiv :=
+  by
+  unfold Transitive
+  unfold semEquiv
+  intro f g h f_is_g g_is_h W M w
+  specialize f_is_g W M w
+  specialize g_is_h W M w
+  tauto
+
 -- Definition 5, page 9
 class VDash (α β : Type) where
   SemImplies : α → β → Prop
@@ -78,6 +96,8 @@ instance formCanSemImplyForm : VDash (Formula) (Formula):= ⟨fun φ ψ => SemIm
 
 infixl:40 "⊨" => SemImplies
 
+infixl:40 "≡" => semEquiv
+
 infixl:40 "⊭" => fun a b => ¬a⊨b
 
 theorem forms_to_sets {φ ψ : Formula} : φ⊨ψ → ({φ} : Finset Formula)⊨({ψ} : Finset Formula) :=
@@ -89,3 +109,7 @@ theorem forms_to_sets {φ ψ : Formula} : φ⊨ψ → ({φ} : Finset Formula)⊨
   subst psi1_in_setpsi
   apply impTaut
   exact lhs
+
+lemma negation_not_cosatisfiable {X : Finset Formula} (φ : Formula) (h₁ : φ ∈ X) (h₂ : ~φ ∈ X) : ¬Satisfiable X := sorry
+
+lemma sat_double_neq_invariant {X : Finset Formula} (φ : Formula) : Satisfiable (X ∪ {~~φ}) ↔ Satisfiable (X ∪ {φ}) := sorry
