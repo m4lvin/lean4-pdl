@@ -138,14 +138,236 @@ theorem pathSaturated (path : Path X): Saturated (toFinset path) := by
       apply Or.inr
       cases nnP_in
       · case inl nnP_in_X =>
-        have h : P ∈ Y ∨ ~~P ∈ Y := by sorry -- first refactor tableau
-        cases h
-        · case inl P_in_Y => exact (X_in_PathX tail P_in_Y)
-        · case inr nnP_in_Y => exact (IH1 (X_in_PathX tail nnP_in_Y))
+        rename_i Z; clear Z
+        cases locRule
+        · case bot bot_in_X =>
+          refine False.elim ?_
+          exact (List.mem_nil_iff Y).mp Y_in
+        · case Not α α_nα_in_X =>
+          refine False.elim ?_
+          exact (List.mem_nil_iff Y).mp Y_in
+        · case neg α nnα_in_X =>
+          have : Y = (X \ {~~α} ∪ {α}) := by
+            simp at *; exact Y_in
+          clear Y_in; subst Y
+          by_cases P = α
+          · case pos P_eq_α =>
+            subst P
+            apply X_in_PathX; refine Finset.mem_union_right (X \ {~~α}) ?_; exact Finset.mem_singleton.mpr rfl
+          · case neg P_neq_α =>
+            apply IH1;
+            apply X_in_PathX; refine Finset.mem_union_left {α} ?_; refine Finset.mem_sdiff.mpr ?_
+            refine (and_iff_right nnP_in_X).mpr ?_; aesop
+        · case Con α β α_β_in_X =>
+          have : Y = (X \ {α⋀β} ∪ {α,β}) := by
+            simp_all only [not_true_eq_false, sdiff_singleton_is_erase, Finset.mem_singleton, Finset.union_insert]
+          clear Y_in; subst Y
+          apply IH1
+          apply X_in_PathX
+          refine Finset.mem_union_left {α, β} ?_
+          refine Finset.mem_sdiff.mpr ?_
+          aesop
+        · case nCo α β nα_β_in_X =>
+          have : Y = (X \ {~(α⋀β)} ∪ {~α}) ∨ Y = (X \ {~(α⋀β)} ∪ {~β}) := by
+            simp at *; exact Y_in
+          clear Y_in; rename Y = X \ {~(α⋀β)} ∪ {~α} ∨ Y = X \ {~(α⋀β)} ∪ {~β} => Y_in
+          cases Y_in; all_goals subst Y
+          apply IH1
+          apply X_in_PathX
+          refine Finset.mem_union_left {~α} ?inl.a.h
+          refine Finset.mem_sdiff.mpr ?inl.a.h.a
+          aesop
+          apply IH1
+          apply X_in_PathX
+          refine Finset.mem_union_left {~β} ?inr.a.h
+          refine Finset.mem_sdiff.mpr ?inr.a.h.a
+          aesop
       · case inr nnP_in_tail => aesop
     · constructor
-      · sorry
-      · sorry
+    -- P⋀Q ∈ U  → P ∈ U  and Q ∈ U
+      · case intro.intro.right.left Z =>
+        clear Z
+        intro P_Q_in_X
+        refine { left := ?left, right := ?right }
+        · case left =>
+          cases locRule
+          · case bot bot_in_X =>
+            refine False.elim ?_
+            exact (List.mem_nil_iff Y).mp Y_in
+          · case Not α α_nα_in_X =>
+            refine False.elim ?_
+            exact (List.mem_nil_iff Y).mp Y_in
+          · case neg α nnα_in_X =>
+            apply Or.inr; refine (IH2 ?_).left
+            have : Y = (X \ {~~α} ∪ {α}) := by
+              simp at *; exact Y_in
+            clear Y_in; subst Y
+            have : (P⋀Q ∈ X) → (P⋀Q ∈ toFinset tail) := by
+              intro h₀
+              have : (P⋀Q ∈ X \ {~~α} ∪ {α}) := by
+                refine Finset.mem_union_left {α} ?_
+                refine Finset.mem_sdiff.mpr ?_
+                aesop
+              clear h₀; rename ((P⋀Q ∈ X \ {~~α} ∪ {α})) => h₀
+              refine X_in_PathX ?_ ?_
+              exact h₀
+            aesop
+          · case Con β γ β_γ_in_X =>
+            by_cases (P⋀Q) = (β⋀γ)
+            · case pos eq =>
+              simp at eq; cases eq; subst P; subst Q
+              apply Or.inr
+              have : Y = (X \ {β⋀γ} ∪ {β,γ}) := by
+                simp at *; exact Y_in
+              clear Y_in; subst Y
+              apply X_in_PathX
+              refine Finset.mem_union_right (X \ {β⋀γ}) ?intro.h.a.h
+              exact Finset.mem_insert_self β {γ}
+            · case neg neq =>
+              apply Or.inr
+              have : Y = (X \ {β⋀γ} ∪ {β,γ}) := by
+                simp at *; exact Y_in
+              clear Y_in; subst Y
+              refine (IH2 ?_).left
+              have : (P⋀Q ∈ X) → (P⋀Q ∈ toFinset tail) := by
+                intro h₀
+                apply X_in_PathX
+                aesop
+              aesop
+          · case nCo β γ nβ_γ_in_X =>
+            have eq : Y = X \ {~(β⋀γ)} ∪ {~β} ∨ Y = X \ {~(β⋀γ)} ∪ {~γ} := by
+              simp at *; exact Y_in
+            cases eq
+            all_goals
+              clear Y_in; subst Y
+              apply Or.inr
+              refine (IH2 ?_).left
+              have : (P⋀Q ∈ X) → (P⋀Q ∈ toFinset tail) := by
+                intro h₀
+                apply X_in_PathX
+                aesop
+              aesop
+        · case right =>
+          cases locRule
+          · case bot bot_in_X =>
+            refine False.elim ?_
+            exact (List.mem_nil_iff Y).mp Y_in
+          · case Not α α_nα_in_X =>
+            refine False.elim ?_
+            exact (List.mem_nil_iff Y).mp Y_in
+          · case neg α nnα_in_X =>
+            apply Or.inr; refine (IH2 ?_).right
+            have : Y = (X \ {~~α} ∪ {α}) := by
+              simp at *; exact Y_in
+            clear Y_in; subst Y
+            have : (P⋀Q ∈ X) → (P⋀Q ∈ toFinset tail) := by
+              intro h₀
+              have : (P⋀Q ∈ X \ {~~α} ∪ {α}) := by
+                refine Finset.mem_union_left {α} ?_
+                refine Finset.mem_sdiff.mpr ?_
+                aesop
+              clear h₀; rename ((P⋀Q ∈ X \ {~~α} ∪ {α})) => h₀
+              refine X_in_PathX ?_ ?_
+              exact h₀
+            aesop
+          · case Con β γ β_γ_in_X =>
+            by_cases (P⋀Q) = (β⋀γ)
+            · case pos eq =>
+              simp at eq; cases eq; subst P; subst Q
+              apply Or.inr
+              have : Y = (X \ {β⋀γ} ∪ {β,γ}) := by
+                simp at *; exact Y_in
+              clear Y_in; subst Y
+              apply X_in_PathX
+              aesop
+            · case neg neq =>
+              apply Or.inr
+              have : Y = (X \ {β⋀γ} ∪ {β,γ}) := by
+                simp at *; exact Y_in
+              clear Y_in; subst Y
+              refine (IH2 ?_).right
+              have : (P⋀Q ∈ X) → (P⋀Q ∈ toFinset tail) := by
+                intro h₀
+                apply X_in_PathX
+                aesop
+              aesop
+          · case nCo β γ nβ_γ_in_X =>
+            have eq : Y = X \ {~(β⋀γ)} ∪ {~β} ∨ Y = X \ {~(β⋀γ)} ∪ {~γ} := by
+              simp at *; exact Y_in
+            cases eq
+            all_goals
+              clear Y_in; subst Y
+              apply Or.inr
+              refine (IH2 ?_).right
+              have : (P⋀Q ∈ X) → (P⋀Q ∈ toFinset tail) := by
+                intro h₀
+                apply X_in_PathX
+                aesop
+              aesop
+      -- ~(P⋀Q) ∈ U   → ~P ∈ U  or  ~Q ∈ U
+      · case intro.intro.right.right Z =>
+        intro nP_Q_in_path
+        cases locRule
+        · case bot bot_in_X =>
+            refine False.elim ?_
+            exact (List.mem_nil_iff Y).mp Y_in
+        · case Not α α_nα_in_X =>
+          refine False.elim ?_
+          exact (List.mem_nil_iff Y).mp Y_in
+        · case neg α nnα_in_X =>
+          have : Y = (X \ {~~α} ∪ {α}) := by
+            simp at *; exact Y_in
+          clear Y_in; subst Y
+          have nP_Q_in_tail : ~(P⋀Q) ∈ toFinset tail := by
+            cases nP_Q_in_path
+            apply X_in_PathX; refine Finset.mem_union_left {α} ?_; aesop
+            aesop
+          clear nP_Q_in_path
+          aesop
+        · case Con β γ β_γ_in_X =>
+          have : Y = X \ {β⋀γ} ∪ {β,γ} := by
+            simp at *; exact Y_in
+          clear Y_in; subst Y
+          have nP_Q_in_tail : ~(P⋀Q) ∈ toFinset tail := by
+            cases nP_Q_in_path
+            apply X_in_PathX; refine Finset.mem_union_left {β, γ} ?_; aesop
+            aesop
+          clear nP_Q_in_path
+          aesop
+        · case nCo β γ nβ_γ_in_X =>
+          have eq : Y = X \ {~(β⋀γ)} ∪ {~β} ∨ Y = X \ {~(β⋀γ)} ∪ {~γ} := by
+            simp at *; exact Y_in
+          cases eq
+          · case inl =>
+            clear Y_in; subst Y
+            by_cases ~(P⋀Q) = ~(β⋀γ)
+            · case pos eq =>
+                simp at eq; cases eq; subst P; subst Q
+                have : ~β ∈ toFinset tail := by
+                  apply X_in_PathX
+                  aesop
+                aesop
+            · case neg neq =>
+                have : ~(P⋀Q) ∈ toFinset tail := by
+                  cases nP_Q_in_path
+                  apply X_in_PathX; refine Finset.mem_union_left {~β} ?_; refine Finset.mem_sdiff.mpr ?_; aesop
+                  aesop
+                aesop
+          · case inr =>
+            clear Y_in; subst Y
+            by_cases ~(P⋀Q) = ~(β⋀γ)
+            · case pos eq =>
+                simp at eq; cases eq; subst P; subst Q
+                have : ~γ ∈ toFinset tail := by
+                  apply X_in_PathX
+                  aesop
+                aesop
+            · case neg neq =>
+                have : ~(P⋀Q) ∈ toFinset tail := by
+                  cases nP_Q_in_path
+                  apply X_in_PathX; refine Finset.mem_union_left {~γ} ?_; refine Finset.mem_sdiff.mpr ?_; aesop
+                  aesop
+                aesop
 
 theorem pathConsistent (path : Path X): ⊥ ∉ (toFinset path) ∧ ∀ P, P ∈ (toFinset path) → ~P ∉ (toFinset path) := by
   induction path
