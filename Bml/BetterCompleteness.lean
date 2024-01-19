@@ -11,6 +11,10 @@ open HasLength
 open HasSat
 open LocalRule
 
+-- TEMPORARILY
+def projectTNode : TNode → TNode
+  | (L, R) => (projection L, projection R)
+
 def formulasInNegBox (X: Finset Formula): Finset Formula :=
   X.biUnion λ α => (match α with | ~(□f) => {f} | _ => {})
 
@@ -55,11 +59,13 @@ def toTNode: Path (L, R) → TNode
     (L ∪ Ltail, R ∪ Rtail)
 
 @[simp]
-theorem X_in_PathX (path : Path LR) : X ⊆ (toTNode path) := by
-  intro f
+theorem X_in_PathX (path : Path (L, R)) : (L, R) ⊆ (toTNode path) := by
   cases path
   case endNode => aesop
-  case interNode => aesop
+  case interNode Y C C_in tail appTab =>
+    simp_all only [instHasSubsetProdFinsetFormula, toTNode._eq_2]
+    split
+    simp_all only [Finset.subset_union_left, and_self]
 
 def endNodeOf: Path LR → TNode
   | endNode _ _ => LR
@@ -69,20 +75,20 @@ theorem endNodeIsSimple (path : Path X): Simple (endNodeOf path) := by
   induction path
   all_goals aesop
 
-theorem endNodeProjection (path : Path X): projection (toTNode path) = projection (endNodeOf path) := by
+theorem endNodeProjection (path : Path X): projectTNode (toTNode path) = projectTNode (endNodeOf path) := by
   induction path
   case endNode cosX simX => aesop
   case interNode lr Y_in tail IH =>
     rename_i B X Y
-    unfold projection
+    unfold projectTNode
     simp only [toTNode]
     sorry
 
 theorem endNodeSubsetEndNodes (path: Path X) (tX: LocalTableau X): endNodeOf path ∈ endNodesOf ⟨X, tX⟩ := by
   sorry
 
-def pathsOf (tX : LocalTableau X) :  List (Path X) := by
-  cases tX
+def pathsOf (tX : LocalTableau X) :  List (Path X) := by sorry
+  /-cases tX
   case sim simpleX  => sorry
 
   case byLocalRule B next lr =>
@@ -129,18 +135,22 @@ def pathsOf (tX : LocalTableau X) :  List (Path X) := by
       let IH1 := List.map (interNode (nCo h₀) (by simp)) (pathsOf next1)
       let IH2 := List.map (interNode (nCo h₀) (by simp)) (pathsOf next2)
       exact IH1 ++ IH2
-termination_by pathsOf X tX => lengthOf X
+termination_by pathsOf X tX => lengthOf X-/
 
 def aPathOf (tX : LocalTableau X) (conX : Consistent X) : Path X := by
   sorry -- using pathsOf or replace pathsOf with this
 
 theorem M₀closure1: tabY ∈ M₀ X → Z ∈ endNodesOf tabY → ⟨Z, aLocalTableauFor Z⟩ ∈ M₀ X := by sorry
 
-theorem M₀closure2: ⟨Y, fromSimple isSimple⟩ ∈ M₀ (L, R) → ~(□α) ∈ X →
-        ⟨(projection Y ∪ {α}), aLocalTableauFor (projection Y ∪ {α})⟩ ∈ M₀ X := by sorry
+-- do we need two versions?
+theorem M₀closure2: ⟨Y, fromSimple isSimple⟩ ∈ M₀ (L, R) → ~(□α) ∈ L →
+        ⟨diamondProjectTNode (Sum.inl φ) (L, R), aLocalTableauFor (diamondProjectTNode (Sum.inl φ) (L, R))⟩ ∈ M₀ X := by sorry
 
-theorem pathSaturated (path : Path X) (eq:(L,R) = toTNode path): Saturated (toTNode path) := by
-  intro P Q
+theorem M₀closure3: ⟨Y, fromSimple isSimple⟩ ∈ M₀ (L, R) → ~(□α) ∈ R →
+        ⟨diamondProjectTNode (Sum.inr φ) (L, R), aLocalTableauFor (diamondProjectTNode (Sum.inr φ) (L, R))⟩ ∈ M₀ X := by sorry
+
+theorem pathSaturated (path : Path LR): Saturated (toTNode path) := by
+  /-intro P Q
   induction path
   case endNode X _ simpleX =>
     simp
@@ -392,19 +402,26 @@ theorem pathSaturated (path : Path X) (eq:(L,R) = toTNode path): Saturated (toTN
                   cases nP_Q_in_path
                   apply X_in_PathX; refine Finset.mem_union_left {~γ} ?_; refine Finset.mem_sdiff.mpr ?_; aesop
                   aesop
-                aesop
+                aesop-/
+    sorry
 
-theorem pathConsistent (path : Path X): ⊥ ∉ (toFinset path) ∧ ∀ P, P ∈ (toFinset path) → ~P ∉ (toFinset path) := by
+theorem pathConsistent (path : Path TN) {h : (L, R) = toTNode path}: ⊥ ∉ L ∪ R ∧ ∀ P, P ∈ L ∪ R → ~P ∉ L ∪ R := by
   induction path
-  case endNode X consistentX simpleX =>
+  case endNode (L, R) consistentX simpleX =>
       unfold Consistent Inconsistent at consistentX
       simp at consistentX
       constructor
-      · by_contra h
-        simp at h
-        let tab := byLocalRule (bot h) (by aesop)
-        have closedTab := ClosedTableau.loc tab (by aesop)
-        exact IsEmpty.false closedTab
+      · by_contra bot_in
+        simp at bot_in
+        cases bot_in
+        · case inl bot_in =>
+          have rule := LocalRule.oneSidedL OneSidedLocalRule.bot
+          have h : ∅ = applyLocalRule rule (L,R) := by aesop
+          have appTab := @LocalRuleApp.mk L R ∅ _ _ _ rule h (by aesop)
+          have tab := fromRule (AppLocalTableau.mk appTab (by aesop))
+          have closedTab : ClosedTableau (L, R) := sorry -- ClosedTableau.loc tab (by aesop)
+          exact IsEmpty.false closedTab
+        · sorry
       · simp
         intro f f_in_X
         by_contra nf_in_X

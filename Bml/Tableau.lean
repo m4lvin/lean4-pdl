@@ -121,11 +121,19 @@ inductive LocalRule : SubPair → List SubPair → Type
 -- We have equality when types match
 instance : DecidableEq (LocalRule LRconds C) := λ_ _ => Decidable.isTrue (sorry)
 
+@[simp]
+instance : HasSubset (Finset Formula × Finset Formula) :=
+  HasSubset.mk λ (L1, R1) (L2, R2) => L1 ⊆ L2 ∧ R1 ⊆ R2
+
 def TNode := Finset Formula × Finset Formula
-  deriving DecidableEq
+  deriving DecidableEq, HasSubset
 
 def Simple : TNode → Bool
   | ⟨L,R⟩ => ∀ P ∈ L ∪ R, SimpleForm P
+
+-- TEMPORARILY
+def SimpleSetDepr : Finset Formula → Bool
+  | X => ∀ P ∈ X, SimpleForm P
 
 open HasVocabulary
 @[simp]
