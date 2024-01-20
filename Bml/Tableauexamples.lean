@@ -8,61 +8,64 @@ import Bml.Tableau
 theorem noBot : Provable (~⊥) := by
   apply Provable.byTableau
   apply ClosedTableau.loc
-  swap
-  · apply LocalTableau.byLocalRule (LocalRule.neg (Finset.mem_singleton.mpr (refl (~~⊥))))
-    intro β inB
-    rw [Finset.sdiff_self] at inB 
-    rw [Finset.empty_union] at inB 
-    rw [Finset.mem_singleton] at inB 
-    rw [inB]
-    apply LocalTableau.byLocalRule (LocalRule.bot (Finset.mem_singleton.mpr (refl ⊥)))
-    intro Y YinEmpty
-    aesop
-  · -- show that endNodesOf is empty
-    intro Y
-    intro YisEndNode
-    unfold endNodesOf at *
-    simp at *
-    exfalso
-    rcases YisEndNode with ⟨a, h, hyp⟩
-    subst h
-    simp at *
+  case a.appTab =>
+    apply AppLocalTableau.mk
+    apply LocalRuleApp.mk _ {~~⊥} {} (LocalRule.oneSidedL (OneSidedLocalRule.neg ⊥))
+    simp
+    use applyLocalRule (LocalRule.oneSidedL (OneSidedLocalRule.neg ⊥)) ({~~⊥}, ∅)
+    rfl
+    · -- build one child tableau
+      intro c c_in
+      simp  at c_in
+      subst c_in
+      let ltBot : LocalTableau ({⊥},∅) := by
+        apply LocalTableau.fromRule
+        apply AppLocalTableau.mk
+        apply LocalRuleApp.mk _ {⊥} {} (LocalRule.oneSidedL (OneSidedLocalRule.bot))
+        simp
+        use []
+        simp
+        aesop
+      exact ltBot
+  case a.next =>
+    -- show that endNodesOf is empty
+    intro Y Y_in
+    simp [endNodesOf] at *
 
-def emptyTableau : ∀ β : Finset Formula, β ∈ (∅ : Finset (Finset Formula)) → LocalTableau β :=
-  by
-  intro beta b_in_empty
-  exact absurd b_in_empty (Finset.not_mem_empty beta)
-
--- an example:
 theorem noContradiction : Provable (~(p⋀~p)) :=
   by
   apply Provable.byTableau
   apply ClosedTableau.loc
-  swap
-  · apply LocalTableau.byLocalRule (@LocalRule.neg _ (p⋀~p) _)
-    -- neg:
-    intro β β_prop
-    simp at β_prop
-    subst β_prop
-    -- con:
-    apply LocalTableau.byLocalRule (@LocalRule.Con _ p (~p) _)
-    intro β2 β2_prop
-    simp at β2_prop 
-    subst β2_prop
-    -- closed:
-    apply LocalTableau.byLocalRule (@LocalRule.Not _ p _) emptyTableau
-    all_goals aesop
-  · -- show that endNodesOf is empty
-    intro Y
-    intro YisEndNode
-    simp at *
-    exfalso
-    rcases YisEndNode with ⟨a, h, hyp⟩
-    subst h
-    simp at *
-    rcases hyp with ⟨Y, Ydef, YinEndNodes⟩
-    subst Ydef
-    aesop
+  case a.appTab =>
+    apply AppLocalTableau.mk
+    apply LocalRuleApp.mk _ {~~(p⋀~p)} {} (LocalRule.oneSidedL (OneSidedLocalRule.neg (p⋀~p)))
+    all_goals (try simp; try rfl) -- easier than guessing "use applyLocalRule ..."
+    · intro c c_in
+      simp at c_in
+      subst c_in -- unique child node
+      let ltB : LocalTableau ({p⋀~p},∅) := by
+        apply LocalTableau.fromRule
+        apply AppLocalTableau.mk
+        apply LocalRuleApp.mk _ {p⋀~p} {} (LocalRule.oneSidedL (OneSidedLocalRule.con p (~p)))
+        simp
+        all_goals (try rfl)
+        intro c c_in
+        simp at c_in
+        subst c_in -- unique child node
+        let ltC : LocalTableau ({p, ~p}, ∅) := by
+          apply LocalTableau.fromRule
+          apply AppLocalTableau.mk
+          apply LocalRuleApp.mk _ {p, ~p} {} (LocalRule.oneSidedL (OneSidedLocalRule.not p))
+          simp
+          use [] -- claim that there are no more children
+          simp
+          aesop
+        exact ltC
+      exact ltB
+  case a.next =>
+    -- show that endNodesOf is empty
+    intro Y Y_in
+    simp [endNodesOf] at *
 
 -- preparing example 2
 def subTabForEx2 : ClosedTableau {r, ~(□p), □(p⋀q)} :=
