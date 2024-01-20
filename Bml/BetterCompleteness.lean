@@ -11,20 +11,13 @@ open HasLength
 open HasSat
 open LocalRule
 
--- TEMPORARILY
-def projectTNode : TNode → TNode
-  | (L, R) => (projection L, projection R)
-
-def formulasInNegBoxSet (X: Finset Formula): Finset Formula :=
+def formulasInNegBox (X: Finset Formula): Finset Formula :=
   X.biUnion λ α => (match α with | ~(□f) => {f} | _ => {})
 
-@[simp]
-def formulasInNegBox: TNode → TNode :=
-  λ (L,R) => (formulasInNegBoxSet L, formulasInNegBoxSet R)
 
 @[simp]
-theorem formulasInNegBoxIff: α ∈ formulasInNegBoxSet X ↔  ~(□α) ∈ X := by
-  rw[formulasInNegBoxSet]
+theorem formulasInNegBoxIff: α ∈ formulasInNegBox X ↔  ~(□α) ∈ X := by
+  rw[formulasInNegBox]
   aesop
 
 noncomputable def M₀ (LR : TNode): List (Σ Z, LocalTableau Z) := by
@@ -43,25 +36,20 @@ noncomputable def M₀ (LR : TNode): List (Σ Z, LocalTableau Z) := by
   · case fromSimple isSimple =>
     rcases eq : LR with ⟨L,R⟩
     subst eq
-    let nextL: { x // x ∈ formulasInNegBoxSet L} → List (Σ Z, LocalTableau Z) := by
+    let nextL: { x // x ∈ formulasInNegBox L} → List (Σ Z, LocalTableau Z) := by
       intro ⟨α, α_in⟩
-      /-have _ : lengthOf (diamondProjectTNode (Sum.inl α), (L, R)) < lengthOf (L,R) := by
+      have : lengthOfTNode (diamondProjectTNode (Sum.inl (~α)) (L, R)) < lengthOfTNode (L,R) := by
         rw [formulasInNegBoxIff] at α_in
-        sorry --exact atmRuleDecreasesLength α_in-/
-      have : lengthOfTNode (diamondProjectTNode (Sum.inl α) (L, R)) < lengthOfTNode (L,R) := by
-        simp
+        apply atmRuleLDecreasesLength α_in
+      exact ⟨(L, R), tX⟩ :: M₀ (diamondProjectTNode (Sum.inl (~α)) (L, R))
+    let nextR: { x // x ∈ formulasInNegBox R} → List (Σ Z, LocalTableau Z) := by
+      intro ⟨α, α_in⟩
+      have : lengthOfTNode (diamondProjectTNode (Sum.inr (~α)) (L, R)) < lengthOfTNode (L,R) := by
         rw [formulasInNegBoxIff] at α_in
-        -- apply atmRuleDecreasesLength
-        sorry
-      exact ⟨(L, R), tX⟩ :: M₀ (diamondProjectTNode (Sum.inl α) (L, R))
-    let nextR: { x // x ∈ formulasInNegBoxSet R} → List (Σ Z, LocalTableau Z) := by sorry
-      /-intro ⟨α, α_in⟩
-      have _ : lengthOf (projection LR ∪ {~α}) < lengthOf LR := by
-        rw [formulasInNegBoxIff] at α_in
-        sorry --exact atmRuleDecreasesLength α_in
-      exact ⟨LR, tX⟩ :: M₀ (projectTNode X ∪ {~α})-/
-    let resL := ((formulasInNegBoxSet L).attach.toList.map nextL).join
-    let resR := ((formulasInNegBoxSet R).attach.toList.map nextR).join
+        apply atmRuleRDecreasesLength α_in
+      exact ⟨(L, R), tX⟩ :: M₀ (diamondProjectTNode (Sum.inr (~α)) (L, R))
+    let resL := ((formulasInNegBox L).attach.toList.map nextL).join
+    let resR := ((formulasInNegBox R).attach.toList.map nextR).join
     exact resL ++ resR
 termination_by M₀ X => lengthOf X
 decreasing_by aesop
@@ -93,13 +81,13 @@ theorem endNodeIsSimple (path : Path X): Simple (endNodeOf path) := by
   induction path
   all_goals aesop
 
-theorem endNodeProjection (path : Path X): projectTNode (toTNode path) = projectTNode (endNodeOf path) := by
-  induction path
+theorem endNodeProjection (path : Path (L,R)): projectTNode (toTNode path) = projectTNode (endNodeOf path) := by
+  cases path
   case endNode cosX simX => aesop
-  case interNode lr Y_in tail IH =>
-    rename_i B X Y
+  case interNode lr Y_in tail appTab =>
+    simp only [endNodeOf]
+    rw[← endNodeProjection tail]
     unfold projectTNode
-    simp only [toTNode]
     sorry
 
 theorem endNodeSubsetEndNodes (path: Path X) (tX: LocalTableau X): endNodeOf path ∈ endNodesOf ⟨X, tX⟩ := by

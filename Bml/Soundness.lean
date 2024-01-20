@@ -47,6 +47,8 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W ×
     left
     exact ()
 
+
+
 -- The combined model preserves all truths at the old worlds.
 theorem combMo_preserves_truth_at_oldWOrld {β : Type}
     (collection : β → Σ W : Type, KripkeModel W × W) (newVal : Char → Prop) :
@@ -100,30 +102,34 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
         simp at *
         exact rel_in_new_model
 
+
 -- The combined model for X satisfies X.
-theorem combMo_sat_X {X : Finset Formula} {β : Set Formula}
-    {beta_def : β = {R : Formula | ~R.box ∈ X}} (simple_X : SimpleSetDepr X) (not_closed_X : ¬Closed X)
+theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
+    {beta_def : β = {F : Formula | f_in_TNode (~F.box) (L, R)}} (simple_LR : Simple (L, R)) (not_closed_LR : ¬Closed (L ∪ R))
     (collection : β → Σ W : Type, KripkeModel W × W)
     (all_pro_sat :
-      ∀ R : β,
-        ∀ f ∈ projection X ∪ {~R}, Evaluate ((collection R).snd.fst, (collection R).snd.snd) f) :
-    ∀ f ∈ X,
-      Evaluate
-        ((combinedModel collection fun c => Formula.atom_prop c ∈ X).fst,
-          (combinedModel collection fun c => Formula.atom_prop c ∈ X).snd)
+      ∀ F : β,
+        ∀ f, (f ∈ (projection (L ∪ R) ∪ {~F})) → Evaluate ((collection F).snd.fst, (collection F).snd.snd) f) :
+    ∀ f, f_in_TNode f (L, R)
+      → Evaluate
+        ((combinedModel collection fun c => Formula.atom_prop c ∈ (L ∪ R)).fst,
+          (combinedModel collection fun c => Formula.atom_prop c ∈ (L ∪ R)).snd)
         f :=
   by
-  intro f f_in_X
+  intro f f_in_LR
+  unfold Simple SimpleForm at simple_LR
+  simp at simple_LR
+  simp at f_in_LR
+  rw [←Finset.mem_union] at f_in_LR
   cases f
   -- no induction because X is simple
   case bottom =>
-    unfold Closed at not_closed_X
-    tauto
+    unfold Closed at not_closed_LR
+    aesop
   case atom_prop =>
     unfold combinedModel
     unfold Evaluate
-    simp
-    exact f_in_X
+    aesop
   case
     neg f =>
     -- subcases :-/
@@ -131,22 +137,21 @@ theorem combMo_sat_X {X : Finset Formula} {β : Set Formula}
     case atom_prop =>
       unfold combinedModel
       unfold Evaluate
-      unfold Closed at not_closed_X
-      rw [not_or] at not_closed_X
-      simp at *
-      tauto
+      unfold Closed at not_closed_LR
+      rw [not_or] at not_closed_LR
+      aesop
     case box f =>
       -- set coMo := ,
       simp only [Evaluate, not_forall]
       -- need reachable world with ~f, use the β-witness
-      let h : f ∈ β := by rw [beta_def]; use f_in_X
+      let h : f ∈ β := by rw [beta_def]; use f_in_LR
       let oldWorld : Sum Unit (Σ k : β, (collection k).fst) :=
         Sum.inr ⟨⟨f, h⟩, (collection ⟨f, h⟩).snd.snd⟩
       use oldWorld
       constructor
       · -- show that f is false at old world
         have coMoLemma :=
-          combMo_preserves_truth_at_oldWOrld collection (fun c : Char => (·c) ∈ X) f ⟨f, h⟩
+          combMo_preserves_truth_at_oldWOrld collection (fun c : Char => (·c) ∈ (L ∪ R)) f ⟨f, h⟩
             (collection ⟨f, h⟩).snd.snd
         rw [coMoLemma]
         specialize all_pro_sat ⟨f, h⟩ (~f)
@@ -158,20 +163,17 @@ theorem combMo_sat_X {X : Finset Formula} {β : Set Formula}
         simp
     case bottom => tauto
     case neg f =>
-      unfold SimpleSetDepr SimpleForm at simple_X
-      simp at simple_X
-      specialize simple_X (~~f) f_in_X
-      simp at simple_X
+      rw [Finset.mem_union] at f_in_LR
+      specialize simple_LR (~~f) f_in_LR
+      simp at simple_LR
     case And f g =>
-      unfold SimpleSetDepr SimpleForm at simple_X
-      simp at simple_X
-      specialize simple_X (~(f⋀g)) f_in_X
-      simp at simple_X
+      rw [Finset.mem_union] at f_in_LR
+      specialize simple_LR (~(f⋀g)) f_in_LR
+      simp at simple_LR
   case And fa fb =>
-    unfold SimpleSetDepr at simple_X
-    simp at simple_X
-    specialize simple_X (fa⋀fb) f_in_X
-    simp at simple_X
+    rw [Finset.mem_union] at f_in_LR
+    specialize simple_LR (fa⋀fb) f_in_LR
+    simp at simple_LR
   case box f =>
     unfold Evaluate
     intro otherWorld is_rel
@@ -179,16 +181,16 @@ theorem combMo_sat_X {X : Finset Formula} {β : Set Formula}
     · cases is_rel
     case inr otherWorld => -- otherWorld cannot be the (unreachable) new world
       have coMoLemma :=
-        combMo_preserves_truth_at_oldWOrld collection (fun c => (·c) ∈ X) f otherWorld.fst
+        combMo_preserves_truth_at_oldWOrld collection (fun c => (·c) ∈ (L ∪ R)) f otherWorld.fst
           otherWorld.snd
-      simp at coMoLemma
       rw [coMoLemma]
       specialize all_pro_sat otherWorld.fst f
       simp at all_pro_sat
       rw [or_imp] at all_pro_sat
-      cases' all_pro_sat with _ all_pro_sat_right
-      rw [← proj] at f_in_X
-      specialize all_pro_sat_right f_in_X
+      cases' all_pro_sat with all_pro_sat_left all_pro_sat_right
+      rw [←proj] at f_in_LR
+      simp at *
+      specialize all_pro_sat_right f_in_LR
       have sameWorld : otherWorld.snd = (collection otherWorld.fst).snd.snd := by
         rw [heq_iff_eq.mp (HEq.symm is_rel)]
       rw [sameWorld]
@@ -198,28 +200,28 @@ theorem combMo_sat_X {X : Finset Formula} {β : Set Formula}
 -- Lemma 1 (page 16)
 -- A simple set of formulas X is satisfiable if and only if
 -- it is not closed  and  for all ¬[A]R ∈ X also XA; ¬R is satisfiable.
-theorem Lemma1_simple_sat_iff_all_projections_sat {X : Finset Formula} :
-    SimpleSetDepr X → (Satisfiable X ↔ ¬Closed X ∧ ∀ R, ~(□R) ∈ X → Satisfiable (projection X ∪ {~R})) :=
+theorem Lemma1_simple_sat_iff_all_projections_sat {L R : Finset Formula} :
+    Simple (L, R) → (Satisfiable (L ∪ R) ↔ ¬Closed (L ∪ R) ∧ ∀ F, f_in_TNode (~(□F)) (L, R) → Satisfiable (projection (L ∪ R) ∪ {~F})) :=
   by
-  intro X_is_simple
+  intro LR_is_simple
   constructor
   · -- left to right
-    intro sat_X
+    intro sat_LR
     unfold Satisfiable at *
-    rcases sat_X with ⟨W, M, w, w_sat_X⟩
+    rcases sat_LR with ⟨W, M, w, w_sat_LR⟩
     constructor
     · -- show that X is not closed:
       by_contra hyp
       unfold Closed at hyp
-      cases' hyp with bot_in_X f_and_notf_in_X
-      · exact w_sat_X ⊥ bot_in_X
-      · rcases f_and_notf_in_X with ⟨f, f_in_X, notf_in_X⟩
-        let w_sat_f := w_sat_X f f_in_X
-        let w_sat_notf := w_sat_X (~f) notf_in_X
+      cases' hyp with bot_in_LR f_and_notf_in_LR
+      · exact w_sat_LR ⊥ bot_in_LR
+      · rcases f_and_notf_in_LR with ⟨f, f_in_LR, notf_in_LR⟩
+        let w_sat_f := w_sat_LR f f_in_LR
+        let w_sat_notf := w_sat_LR (~f) notf_in_LR
         exact absurd w_sat_f w_sat_notf
     · -- show that for each ~[]R ∈ X the projection with ~R is satisfiable:
-      intro R notboxr_in_X
-      let w_sat_notboxr := w_sat_X (~(□R)) notboxr_in_X
+      intro R notboxr_in_LR
+      let w_sat_notboxr := w_sat_LR (~(□R)) notboxr_in_LR
       unfold Evaluate at w_sat_notboxr
       simp at w_sat_notboxr
       rcases w_sat_notboxr with ⟨v, w_rel_v, v_sat_notr⟩
@@ -231,17 +233,18 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {X : Finset Formula} :
       · intro g_is_notR
         rw [g_is_notR]
         exact v_sat_notr
-      · intro boxg_in_X
-        rw [proj] at boxg_in_X
-        specialize w_sat_X (□g) boxg_in_X
-        unfold Evaluate at w_sat_X
-        exact w_sat_X v w_rel_v
+      · intro boxg_in_LR
+        rw [proj] at boxg_in_LR
+        rw [Finset.mem_union]at boxg_in_LR
+        specialize w_sat_LR (□g) boxg_in_LR
+        unfold Evaluate at w_sat_LR
+        exact w_sat_LR v w_rel_v
   · -- right to left
     intro rhs
-    cases' rhs with not_closed_X all_pro_sat
+    cases' rhs with not_closed_LR all_pro_sat
     unfold Satisfiable at *
     -- Let's build a new Kripke model!
-    let β := {R : Formula | ~(□R) ∈ X}
+    let β := {F : Formula | f_in_TNode (~(□F)) (L, R)}
     -- beware, using Axioms of Choice here!
     choose typeFor this_pro_sat using all_pro_sat
     choose modelFor this_pro_sat using this_pro_sat
@@ -250,22 +253,21 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {X : Finset Formula} :
     let collection : β → Σ W : Type, KripkeModel W × W :=
       by
       intro k
-      cases' k with R notboxr_in_X
-      simp at notboxr_in_X
-      use typeFor R notboxr_in_X, modelFor R notboxr_in_X, worldFor R notboxr_in_X
-    let newVal c := Formula.atom_prop c ∈ X
+      cases' k with R notboxr_in_LR
+      use typeFor R notboxr_in_LR, modelFor R notboxr_in_LR, worldFor R notboxr_in_LR
+    let newVal c := f_in_TNode (Formula.atom_prop c) (L, R)
     let BigM := combinedModel collection newVal
     use Sum Unit (Σ k : β, (collection k).fst)
     use BigM.fst, BigM.snd
     -- apply Lemma, missing last argument "all_pro_sat"
     -- we need to use that X_is_simple (to restrict cases what phi can be)
     -- and that X is not closed (to ensure that it is locally consistent)
-    apply combMo_sat_X X_is_simple not_closed_X collection
+    apply combMo_sat_LR LR_is_simple not_closed_LR collection
     -- it remains to show that the new big model satisfies X
     intro R f f_inpro_or_notr
-    cases' R with R notrbox_in_X
+    cases' R with R notrbox_in_LR
     simp only [Finset.mem_union, Finset.mem_insert, Finset.mem_singleton, Subtype.coe_mk] at *
-    specialize this_pro_sat R notrbox_in_X
+    specialize this_pro_sat R notrbox_in_LR
     cases' f_inpro_or_notr with f_inpro f_is_notboxR
     · -- if f is in the projection
       specialize this_pro_sat f
@@ -289,36 +291,33 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {X : Finset Formula} :
 theorem localRuleSoundness (rule : LocalRule (Lcond, Rcond) C) :
   Satisfiable (Lcond ∪ Rcond) → ∃cLR ∈ C, Satisfiable (cLR.1 ∪ cLR.2) :=
   by
-  intro sat
-  unfold Satisfiable at sat
-  rcases sat with ⟨W, M, w, w_sat_LR⟩
-  cases rule
-  case oneSidedL lr =>                       -- left side
-    cases lr
-    all_goals simp at *
-    case neg φ => use W; use M; use w
-    case con φ ψ => use W; use M; use w
-    case ncon φ ψ =>
-      rw [imp_iff_not_or] at w_sat_LR
-      cases' w_sat_LR with case_phi case_psi
-      · apply Or.inl
-        use W; use M; use w
-      · apply Or.inr
-        use W; use M; use w
-  case oneSidedR lr =>                            -- right side (copy paste, will try custom tactic later)
-    cases lr
-    all_goals simp at *
-    case neg φ => use W; use M; use w
-    case con φ ψ => use W; use M; use w
-    case ncon φ ψ =>
-      rw [imp_iff_not_or] at w_sat_LR
-      cases' w_sat_LR with case_phi case_psi
-      · apply Or.inl
-        use W; use M; use w
-      · apply Or.inr
-        use W; use M; use w
-  case LRnegL φ => aesop
-  case LRnegR φ => aesop
+    intro sat
+    unfold Satisfiable at sat
+    rcases sat with ⟨W, M, w, w_sat_LR⟩
+    cases rule
+    case oneSidedL lr =>                       -- left side
+      cases lr
+      <;> simp at *
+      <;> try (use W; use M; use w)
+      case ncon φ ψ =>
+        rw [imp_iff_not_or] at w_sat_LR
+        cases' w_sat_LR with case_phi case_psi
+        · apply Or.inl
+          use W; use M; use w
+        · apply Or.inr
+          use W; use M; use w
+    case oneSidedR lr =>                            -- right side (copy paste, will try custom tactic later)
+      cases lr
+      <;> simp at *
+      <;> try (use W; use M; use w)
+      case ncon φ ψ =>
+        rw [imp_iff_not_or] at w_sat_LR
+        cases' w_sat_LR with case_phi case_psi
+        · apply Or.inl
+          use W; use M; use w
+        · apply Or.inr
+          use W; use M; use w
+    all_goals aesop
 
 lemma oneSidedRule_implies_child_sat_L
   {ruleApp : LocalRuleApp (L, R) C}
@@ -361,7 +360,7 @@ theorem atmSoundness {α : Finset Formula} {f} (not_box_f_in_a : ~(□f) ∈ α)
 -/
 
 /-
-theorem localTableauAndEndNodesUnsatThenNotSat {L R} (ltLR : LocalTableau L R) :
+theorem localTableauAndEndNodesUnsatThenNotSat {L R} (ltLR : LocalTableau (L, R)) :
     (∀ Y, Y ∈ endNodesOf ⟨Z, ltZ⟩ → ¬Satisfiable Y) → ¬Satisfiable Z :=
   by
   intro endsOfXnotSat
