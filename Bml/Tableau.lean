@@ -362,6 +362,51 @@ theorem localRuleDecreasesLengthSide (rule : LocalRule (Lcond, Rcond) ress) :
                 aesop))
     all_goals aesop
 
+-- These are used by aesop in `localRuleNoOverlap`.
+@[simp]
+theorem notnot_notSelfContain : ~~φ ≠ φ := fun.
+@[simp]
+theorem conNotSelfContainL : φ1 ⋀ φ2 ≠ φ1 := fun.
+@[simp]
+theorem conNotSelfContainR : φ1 ⋀ φ2 ≠ φ2 := sorry -- too much Mathlib imported.
+-- see https://leanprover.zulipchat.com/#narrow/stream/113489-new-members/topic/.E2.9C.94.20well-foundedness.20of.20my.20own.20inductive.3F/near/416990596
+
+-- Rules never re-insert the same formula(s).
+theorem localRuleNoOverlap
+  (rule : LocalRule (Lcond, Rcond) ress) :
+  ∀ res ∈ ress, (Lcond ∩ res.1 = ∅) ∧ (Rcond ∩ res.2 = ∅) :=
+  by
+    intro res in_ress
+    cases rule
+    case oneSidedL ress orule =>
+      cases orule
+      all_goals aesop
+    case oneSidedR ress orule =>
+      cases orule
+      all_goals aesop
+    all_goals (cases in_ress)
+
+theorem localRuleAppDecreasesLengthSide
+  (X Cond Res : Finset Formula)
+  (hyp : lengthOf Res < lengthOf Cond)
+  (precondProof : Cond ⊆ X) :
+  lengthOf (X \ Cond ∪ Res) < lengthOf X :=
+  by
+    have : lengthOf Cond ≠ 0 := ne_zero_of_lt hyp
+    -- should be true, but seems quite tricky
+    -- Note that we are working in ℕ here where "-" is annoying.
+    -- maybe use something like Nat.add_sub_of_le here?
+    calc  lengthOf (X \ Cond ∪ Res)
+        ≤ lengthOf (X \ Cond) + lengthOf Res := by simp
+      _ = lengthOf X - lengthOf Cond + lengthOf Res := by
+            simp
+            -- Wanted to use the following, but it does not apply to ℕ because it's not a group.
+            have := @Finset.sum_sdiff_eq_sub _ _ Cond X lengthOfFormula (by sorry) _ precondProof
+            sorry
+      _ = (lengthOf X - lengthOf Cond) + lengthOf Res := rfl
+      _ = lengthOf X + lengthOf Res - lengthOf Cond := by sorry
+      _ < lengthOf X := by simp at *; sorry
+
 theorem localRuleAppDecreasesLength
   {L R : Finset Formula}
   (lrApp : @LocalRuleApp (L,R) C) :
@@ -373,8 +418,9 @@ theorem localRuleAppDecreasesLength
     subst C_def
     simp only [applyLocalRule, List.mem_map] at c_child
     rcases c_child with ⟨res, res_in_ress, def_c⟩
-    have := localRuleDecreasesLengthSide rule res res_in_ress
-    cases this
+    have lS := localRuleDecreasesLengthSide rule res res_in_ress
+    have := localRuleNoOverlap rule res res_in_ress
+    cases lS
     case inl hyp =>
       calc lengthOfTNode c
       = lengthOfSet (L \ Lcond ∪ res.1) + lengthOfSet (R \ Rcond ∪ res.2) :=
@@ -382,7 +428,7 @@ theorem localRuleAppDecreasesLength
       _ ≤ lengthOfSet (L \ Lcond ∪ res.1) + lengthOfSet R :=
           by rw [hyp.2]; simp [Finset.sum_le_sum_of_subset]
       _ < lengthOfSet L + lengthOfSet R :=
-          by simp at hyp; simp; sorry -- should be easy, use hyp?
+          by have := localRuleAppDecreasesLengthSide L Lcond res.1 hyp.1 precondProofL; aesop
       _ = lengthOfTNode (L, R) := by simp
     case inr hyp =>
       calc lengthOfTNode c
@@ -391,7 +437,7 @@ theorem localRuleAppDecreasesLength
       _ ≤ lengthOfSet L + lengthOfSet (R \ Rcond ∪ res.2) :=
           by rw [hyp.2]; simp [Finset.sum_le_sum_of_subset]
       _ < lengthOfSet L + lengthOfSet R :=
-          by simp at hyp; simp; sorry -- should be easy, use hyp?
+          by have := localRuleAppDecreasesLengthSide R Rcond res.2 hyp.1 precondProofR; aesop
       _ = lengthOfTNode (L, R) := by simp
 
 theorem AppLocalTableau.DecreasesLength
@@ -563,10 +609,11 @@ theorem endNodesOfLocalRuleLT {LR Z} {appTab : AppLocalTableau LR C} :
       _ < lengthOfTNode (L,R) := this
 
 -- Definition 16, page 29
--- Note that the base case for simple tableaux is part of the
--- atomic rule "atm" which can be applied to L or to R.
+-- Notes:
+-- - "loc" uses AppLocalTableau, not "LocalTableau" to avoid infinite use of "LocalTableau.fromSimple".
+-- - base case for simple tableaux is part of "atm" which can be applied to L or to R.
 inductive ClosedTableau : TNode → Type
-  | loc {LR} {appTab : AppLocalTableau LR C} (lt : LocalTableau LR) : (∀ Y ∈ endNodesOf ⟨LR, lt⟩, ClosedTableau Y) → ClosedTableau LR
+  | loc {LR} (appTab : AppLocalTableau LR C) : (next : ∀ Y ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩, ClosedTableau Y) → ClosedTableau LR
   | atmL {LR ϕ} : ~(□ϕ) ∈ L → Simple (L, R) → ClosedTableau (diamondProjectTNode (Sum.inl (~ϕ)) LR) → ClosedTableau LR
   | atmR {LR ϕ} : ~(□ϕ) ∈ R → Simple (L, R) → ClosedTableau (diamondProjectTNode (Sum.inr (~ϕ)) LR) → ClosedTableau LR
 
