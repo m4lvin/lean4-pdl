@@ -21,9 +21,9 @@ theorem formulasInNegBoxIff: α ∈ formulasInNegBox X ↔  ~(□α) ∈ X := by
   aesop
 
 noncomputable def M₀ (LR : TNode): List (Σ Z, LocalTableau Z) := by
-  let tX := aLocalTableauFor LR
-  cases tX
-  -- If X is not simple, add a tableau for X and process endnodes of that tableau
+  let tLR := aLocalTableauFor LR
+  cases tLR
+  -- If LR is not simple, add a tableau for LR and process endnodes of that tableau
   · case fromRule C appTab =>
     let nextNodes := endNodesOf ⟨LR, fromRule appTab⟩
     let worlds': {x // x ∈ nextNodes} → List (Σ Z, LocalTableau Z) := by
@@ -31,8 +31,8 @@ noncomputable def M₀ (LR : TNode): List (Σ Z, LocalTableau Z) := by
       have _ : lengthOf Y < lengthOf LR := by
         exact endNodesOfLocalRuleLT Y_in
       exact M₀ Y
-    exact ⟨LR, tX⟩ :: (nextNodes.attach.map worlds').join
-  -- If X is simple, add a tableau for X and process (projection X) ∪ {~α} for each formula ~□α ∈ X
+    exact ⟨LR, tLR⟩ :: (nextNodes.attach.map worlds').join
+  -- If LR is simple, add a tableau for LR and process diamondProjectTNode for each diamond in LR
   · case fromSimple isSimple =>
     rcases eq : LR with ⟨L,R⟩
     subst eq
@@ -41,17 +41,17 @@ noncomputable def M₀ (LR : TNode): List (Σ Z, LocalTableau Z) := by
       have : lengthOfTNode (diamondProjectTNode (Sum.inl (~α)) (L, R)) < lengthOfTNode (L,R) := by
         rw [formulasInNegBoxIff] at α_in
         apply atmRuleLDecreasesLength α_in
-      exact ⟨(L, R), tX⟩ :: M₀ (diamondProjectTNode (Sum.inl (~α)) (L, R))
+      exact ⟨(L, R), tLR⟩ :: M₀ (diamondProjectTNode (Sum.inl (~α)) (L, R))
     let nextR: { x // x ∈ formulasInNegBox R} → List (Σ Z, LocalTableau Z) := by
       intro ⟨α, α_in⟩
       have : lengthOfTNode (diamondProjectTNode (Sum.inr (~α)) (L, R)) < lengthOfTNode (L,R) := by
         rw [formulasInNegBoxIff] at α_in
         apply atmRuleRDecreasesLength α_in
-      exact ⟨(L, R), tX⟩ :: M₀ (diamondProjectTNode (Sum.inr (~α)) (L, R))
+      exact ⟨(L, R), tLR⟩ :: M₀ (diamondProjectTNode (Sum.inr (~α)) (L, R))
     let resL := ((formulasInNegBox L).attach.toList.map nextL).join
     let resR := ((formulasInNegBox R).attach.toList.map nextR).join
     exact resL ++ resR
-termination_by M₀ X => lengthOf X
+termination_by M₀ LR => lengthOf LR
 decreasing_by aesop
 
 inductive Path: TNode →  Type
@@ -84,7 +84,7 @@ theorem endNodeIsSimple (path : Path X): Simple (endNodeOf path) := by
 theorem endNodeProjection (path : Path (L,R)): projectTNode (toTNode path) = projectTNode (endNodeOf path) := by
   cases path
   case endNode cosX simX => aesop
-  case interNode lr Y_in tail appTab =>
+  case interNode LR Y_in tail appTab =>
     simp only [endNodeOf]
     rw[← endNodeProjection tail]
     unfold projectTNode
@@ -93,55 +93,18 @@ theorem endNodeProjection (path : Path (L,R)): projectTNode (toTNode path) = pro
 theorem endNodeSubsetEndNodes (path: Path X) (tX: LocalTableau X): endNodeOf path ∈ endNodesOf ⟨X, tX⟩ := by
   sorry
 
-def pathsOf (tX : LocalTableau X) :  List (Path X) := by sorry
-  /-cases tX
-  case sim simpleX  => sorry
-
-  case byLocalRule B next lr =>
-    let mylr := lr
-    cases lr
-    case bot h₀ =>
-      exact []
-
-    case Not φ h₀ =>
-      exact []
-
-    case neg φ h₀ =>
-      specialize next (X \ {~~φ} ∪ {φ})
-      simp only [Finset.mem_singleton] at next
-      specialize next True.intro
-      have : Finset.sum (insert φ (Finset.erase X (~~φ))) lengthOfFormula < Finset.sum X lengthOfFormula := by
-        apply localRulesDecreaseLength (LocalRule.neg h₀)
-        simp
-      exact List.map (λ l => interNode (neg h₀) (by simp) l) (pathsOf next)
-
-
-    case Con α β h₀ =>
-      specialize next (X \ {α⋀β} ∪ {α,β})
-      simp at next
-      specialize next True.intro
-      have : Finset.sum (insert α (insert β (Finset.erase X (α⋀β)))) lengthOfFormula < Finset.sum X lengthOfFormula  := by
-        apply localRulesDecreaseLength (LocalRule.Con h₀)
-        simp
-      let IH := pathsOf next
-      exact List.map (interNode (Con h₀) (by simp)) IH
-
-    case nCo α β h₀ =>
-      have next1 := next (X \ {~(α⋀β)} ∪ {~α})
-      have next2 := next (X \ {~(α⋀β)} ∪ {~β})
-      simp at next1 next2
-      specialize next1 True.intro
-      specialize next2 True.intro
-      have : Finset.sum (insert (~α) (Finset.erase X (~(α⋀β)))) lengthOfFormula < Finset.sum X lengthOfFormula := by
-        apply localRulesDecreaseLength (LocalRule.nCo h₀)
-        simp
-      have : Finset.sum (insert (~β) (Finset.erase X (~(α⋀β)))) lengthOfFormula < Finset.sum X lengthOfFormula := by
-        apply localRulesDecreaseLength (LocalRule.nCo h₀)
-        simp
-      let IH1 := List.map (interNode (nCo h₀) (by simp)) (pathsOf next1)
-      let IH2 := List.map (interNode (nCo h₀) (by simp)) (pathsOf next2)
-      exact IH1 ++ IH2
-termination_by pathsOf X tX => lengthOf X-/
+def pathsOf (tab : LocalTableau LR) :  List (Path LR) := by
+  cases tab
+  case fromSimple isSimple  => sorry
+  case fromRule C appTab  =>
+    let nextPaths : {c // c ∈ C} → List (Path LR) := by
+      intro ⟨c, c_in⟩
+      have : lengthOf c < lengthOf LR :=
+        AppLocalTableau.DecreasesLength appTab c_in
+      let cPaths := pathsOf (getSubTabs appTab c c_in)
+      exact cPaths.map (λ path  => interNode appTab c_in path)
+    exact (C.attach.map nextPaths).join
+termination_by pathsOf tab => lengthOf LR
 
 def aPathOf (tX : LocalTableau X) (conX : Consistent X) : Path X := by
   sorry -- using pathsOf or replace pathsOf with this
