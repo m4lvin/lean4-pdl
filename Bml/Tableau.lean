@@ -125,8 +125,12 @@ instance : DecidableEq (LocalRule LRconds C) := λ_ _ => Decidable.isTrue (sorry
 instance : HasSubset (Finset Formula × Finset Formula) :=
   HasSubset.mk λ (L1, R1) (L2, R2) => L1 ⊆ L2 ∧ R1 ⊆ R2
 
+@[simp]
+instance : Union (Finset Formula × Finset Formula) :=
+  ⟨λ (L1, R1) (L2, R2) => (L1 ∪ L2, R1 ∪ R2)⟩
+
 def TNode := Finset Formula × Finset Formula
-  deriving DecidableEq, HasSubset
+  deriving DecidableEq, HasSubset, Union
 
 def Simple : TNode → Bool
   | ⟨L,R⟩ => ∀ P ∈ L ∪ R, SimpleForm P

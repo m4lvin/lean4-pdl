@@ -15,11 +15,16 @@ open LocalRule
 def projectTNode : TNode → TNode
   | (L, R) => (projection L, projection R)
 
-def formulasInNegBox (X: Finset Formula): Finset Formula :=
+def formulasInNegBoxSet (X: Finset Formula): Finset Formula :=
   X.biUnion λ α => (match α with | ~(□f) => {f} | _ => {})
 
-theorem formulasInNegBoxIff {X}: α ∈ formulasInNegBox X ↔  ~(□α) ∈ X := by
-  rw[formulasInNegBox]
+@[simp]
+def formulasInNegBox: TNode → TNode :=
+  λ (L,R) => (formulasInNegBoxSet L, formulasInNegBoxSet R)
+
+@[simp]
+theorem formulasInNegBoxIff: α ∈ formulasInNegBoxSet X ↔  ~(□α) ∈ X := by
+  rw[formulasInNegBoxSet]
   aesop
 
 noncomputable def M₀ (LR : TNode): List (Σ Z, LocalTableau Z) := by
@@ -35,14 +40,29 @@ noncomputable def M₀ (LR : TNode): List (Σ Z, LocalTableau Z) := by
       exact M₀ Y
     exact ⟨LR, tX⟩ :: (nextNodes.attach.map worlds').join
   -- If X is simple, add a tableau for X and process (projection X) ∪ {~α} for each formula ~□α ∈ X
-  · case fromSimple isSimple => sorry
-    /-let next: { x // x ∈ formulasInNegBox LR} → List (Σ Z, LocalTableau Z) := by
+  · case fromSimple isSimple =>
+    rcases eq : LR with ⟨L,R⟩
+    subst eq
+    let nextL: { x // x ∈ formulasInNegBoxSet L} → List (Σ Z, LocalTableau Z) := by
       intro ⟨α, α_in⟩
+      /-have _ : lengthOf (diamondProjectTNode (Sum.inl α), (L, R)) < lengthOf (L,R) := by
+        rw [formulasInNegBoxIff] at α_in
+        sorry --exact atmRuleDecreasesLength α_in-/
+      have : lengthOfTNode (diamondProjectTNode (Sum.inl α) (L, R)) < lengthOfTNode (L,R) := by
+        simp
+        rw [formulasInNegBoxIff] at α_in
+        -- apply atmRuleDecreasesLength
+        sorry
+      exact ⟨(L, R), tX⟩ :: M₀ (diamondProjectTNode (Sum.inl α) (L, R))
+    let nextR: { x // x ∈ formulasInNegBoxSet R} → List (Σ Z, LocalTableau Z) := by sorry
+      /-intro ⟨α, α_in⟩
       have _ : lengthOf (projection LR ∪ {~α}) < lengthOf LR := by
         rw [formulasInNegBoxIff] at α_in
         sorry --exact atmRuleDecreasesLength α_in
-      exact ⟨LR, tX⟩ :: M₀ (projection X ∪ {~α})
-    exact ((formulasInNegBox LR).attach.toList.map next).join-/
+      exact ⟨LR, tX⟩ :: M₀ (projectTNode X ∪ {~α})-/
+    let resL := ((formulasInNegBoxSet L).attach.toList.map nextL).join
+    let resR := ((formulasInNegBoxSet R).attach.toList.map nextR).join
+    exact resL ++ resR
 termination_by M₀ X => lengthOf X
 decreasing_by aesop
 
@@ -52,20 +72,18 @@ inductive Path: TNode →  Type
 open Path
 
 @[simp]
-def toTNode: Path (L, R) → TNode
-  | endNode _ _ => (L, R)
-  | (interNode _ _ tail) =>
-    let (Ltail, Rtail) := toTNode tail
-    (L ∪ Ltail, R ∪ Rtail)
+def toTNode: Path LR → TNode
+  | endNode _ _ => LR
+  | (interNode _ _ tail) => LR ∪ toTNode tail
 
 @[simp]
-theorem X_in_PathX (path : Path (L, R)) : (L, R) ⊆ (toTNode path) := by
+theorem X_in_PathX (path : Path LR) : LR ⊆ (toTNode path) := by
+  rcases LR with ⟨L, R⟩
   cases path
-  case endNode => aesop
+  case endNode => simp [instTNodeHasSubset]
   case interNode Y C C_in tail appTab =>
-    simp_all only [instHasSubsetProdFinsetFormula, toTNode._eq_2]
-    split
-    simp_all only [Finset.subset_union_left, and_self]
+    simp_all only [instTNodeHasSubset,instHasSubsetProdFinsetFormula, toTNode, instTNodeUnion,
+      instUnionProdFinsetFormula, Finset.subset_union_left, and_self]
 
 def endNodeOf: Path LR → TNode
   | endNode _ _ => LR
@@ -439,26 +457,26 @@ theorem pathConsistent (path : Path TN) {h : (L, R) = toTNode path}: ⊥ ∉ L �
       by_contra h
       sorry
 
-theorem modelExistence (X: Finset Formula): Consistent X →
-    ∃ (WS : Finset (Finset Formula)) (M : ModelGraph WS) (W : WS), X ⊆ W :=
+theorem modelExistence (LR: TNode): Consistent X →
+    ∃ (WS : Finset TNode) (M : ModelGraph WS) (W : WS), X ⊆ W :=
   by
   intro consX
   -- TO DO make this less ugly
   let pathsOf': (Σ Y, LocalTableau Y) → List (Σ Y, Path Y) := by
     exact λ ⟨Y, tabY⟩ => (pathsOf tabY).map (λ x => ⟨Y, x⟩)
   let paths : List (Σ Y, Path Y) := ((M₀ X).map pathsOf').join
-  let WSlist : List (Finset Formula) := paths.map (λ ⟨X, path⟩ => toFinset path)
+  let WSlist : List TNode := paths.map (λ ⟨LR, path⟩ => toTNode path)
   let WS := WSlist.toFinset
   let M : KripkeModel WS := by
     constructor
     -- define valuation function
-    · intro ⟨w, w_in⟩ p
-      exact (·p) ∈ w
+    · intro ⟨(L,R), LR_in⟩ p
+      exact (·p) ∈ L ∪ R
     -- define relation
     · intro ⟨w, w_in⟩ ⟨v, v_in⟩
-      exact projection w ⊆ v
-  let pathX : Path X := aPathOf (aLocalTableauFor X) consX
-  use WS, ⟨M, ?_⟩, ⟨toFinset pathX, ?_⟩
+      exact projectTNode w ⊆ v
+  let pathX : Path X := sorry --aPathOf (aLocalTableauFor X) consX
+  use WS, ⟨M, ?_⟩, ⟨toTNode pathX, ?_⟩
   · simp
   · constructor
     · intro ⟨W, W_in⟩
