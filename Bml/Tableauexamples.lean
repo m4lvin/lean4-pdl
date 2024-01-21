@@ -80,8 +80,8 @@ def subTabForEx2 : ClosedTableau ({·'r', ~(□p), □(p⋀q)}, {}) :=
         apply LocalTableau.fromRule; apply AppLocalTableau.mk
         apply LocalRuleApp.mk _ {p, ~p} {} (LocalRule.oneSidedL (OneSidedLocalRule.not p))
         · simp
-          -- {p, ~p} ⊆ {p, q, ~p} -- come on, Lean, you can do it!?
-          sorry
+          intro f
+          aesop
         use [] -- claim there are no children
         simp
         aesop
@@ -136,7 +136,10 @@ example : ClosedTableau ({r⋀~(□p), r↣□(p⋀q)}, {}) :=
             simp [Simple]
       exact ltB
   case next =>
-      intro Y Yin
+      intro Y Y_in
       simp (config := {decide := true}) at *
-      · sorry
-        -- use subTabForEx2 here?
+      · subst Y_in
+        -- rewrite the Finset in the goal to that of subTabForEx2
+        have : insert (□(p⋀q)) (Finset.erase {·Char.ofNat 114, ~(□p), ~~(□(p⋀q))} (~~(□(p⋀q)))) = {·'r', ~(□p), □(p⋀q)} := by decide
+        rw [this]
+        exact subTabForEx2
