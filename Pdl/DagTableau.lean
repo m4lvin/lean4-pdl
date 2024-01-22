@@ -841,17 +841,20 @@ theorem boxDagNormal_is_dagEnd
   simp [boxDagEndNodes]
 
 
+-- IDEA: prove that boxDagEndNodesOf is independent under permutation of the list of dag formula!
+
 theorem starInvertAux
     (M : KripkeModel W)
     (v : W)
     (αs : List Program)
     (β : Program)
-    (φ : Formula) -- or dag?
+    (φ : Formula) -- normal, not a dag!
     -- now we define a path in deterministic boxDagNext:
     (k : ℕ)
     (Γs : Vector BDNode (k.succ.succ))
     (_ : ∀ i : Fin n, (Γs.get i.castSucc) ∈ boxDagNext (Γs.get i.succ))
     (φ_in : φ ∈ (Γs.head.1)) -- what if it is the dagger form?
+    -- still need to say [β†]φ is in Γ_k
     : (M, v) ⊨ DagFormula.boxes αs (⌈β†⌉ φ) :=
   by
   sorry

@@ -369,29 +369,33 @@ def toNegLoad (α : Program) (φ : Formula) : NegLoadFormula :=
     | ([],f) => ~'⌊α⌋f
     | (bs,f) => sorry
 
--- TODO: Can we do the history tracking differently to avoid writing the parent node twice?
+-- The "Step" notation has two jobs:
+-- - flip the order in the definition below to be more natural.
+-- - avoid having to repeat "parent" to build the history.
+notation "Step" Ct:arg Hist:arg parent:arg child:arg => Ct (parent::Hist) child → Ct Hist parent
+
 inductive ClosedTableau : List TNode → TNode → Type
   -- Do a local tableau:
   | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf ⟨X, lt⟩, ClosedTableau Hist Y) → ClosedTableau Hist X
   -- The (M+) rule:
-  | mrkL : (~⌈α⌉φ) ∈ L → ClosedTableau ((L, R, none) :: Hist) (L.remove ((~⌈α⌉φ)), R, some (Sum.inl (toNegLoad α φ)))
-                       → ClosedTableau                  Hist  (L, R, none)
-  | mrkR : (~⌈α⌉φ) ∈ R → ClosedTableau ((L, R, none) :: Hist) (L, R.remove ((~⌈α⌉φ)), some (Sum.inr (toNegLoad α φ)))
-                       → ClosedTableau                  Hist  (L, R, none)
+  | mrkL : (~⌈α⌉φ) ∈ L → Step ClosedTableau Hist (L.remove ((~⌈α⌉φ)), R, some (Sum.inl (toNegLoad α φ)))
+                                                 (L, R, none)
+  | mrkR : (~⌈α⌉φ) ∈ R → Step ClosedTableau Hist (L, R.remove ((~⌈α⌉φ)), some (Sum.inr (toNegLoad α φ)))
+                                                 (L, R, none)
   -- The (At) rule:
   -- TODO: can we avoid the four cases?
-  | atmL   {A X χ} : isSimpleNode X → ClosedTableau (⟨L, R, some (Sum.inl (~'⌊·A⌋(χ : LoadFormula)))⟩ :: Hist) (projection A L, projection A R, some (Sum.inl (~'χ)))
-                                    → ClosedTableau                                                      Hist  ⟨L, R, some (Sum.inl (~'⌊·A⌋(χ : LoadFormula)))⟩
-  | atmL'  {A X φ} : isSimpleNode X → ClosedTableau (⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩ :: Hist) (projection A L ++ [~φ], projection A R, none)
-                                    → ClosedTableau                                                  Hist  ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
-  | atmR   {A X χ} : isSimpleNode X → ClosedTableau (⟨L, R, some (Sum.inr (~'⌊·A⌋(χ : LoadFormula)))⟩ :: Hist) (projection A L, projection A R, some (Sum.inr (~'χ)))
-                                    → ClosedTableau                                                      Hist  ⟨L, R, some (Sum.inr (~'⌊·A⌋(χ : LoadFormula)))⟩
-  | atmR'  {A X φ} : isSimpleNode X → ClosedTableau (⟨L, R, some (Sum.inr (~'⌊·A⌋(φ : Formula)))⟩ :: Hist) (projection A L, projection A R ++ [~φ], none)
-                                    → ClosedTableau                                                  Hist  ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
+  | atmL   {A X χ} : isSimpleNode X → Step ClosedTableau Hist ⟨L, R, some (Sum.inl (~'⌊·A⌋(χ : LoadFormula)))⟩
+                                                              (projection A L, projection A R, some (Sum.inl (~'χ)))
+  | atmL'  {A X φ} : isSimpleNode X → Step ClosedTableau Hist ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
+                                                              (projection A L ++ [~φ], projection A R, none)
+  | atmR   {A X χ} : isSimpleNode X → Step ClosedTableau Hist ⟨L, R, some (Sum.inr (~'⌊·A⌋(χ : LoadFormula)))⟩
+                                                              (projection A L, projection A R, some (Sum.inr (~'χ)))
+  | atmR'  {A X φ} : isSimpleNode X → Step ClosedTableau Hist ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
+                                                              (projection A L, projection A R ++ [~φ], none)
 
   -- End nodes by MB condition 6
   -- TODO spell out the condition
-  -- TODO condition has to be eager! need its negation for all other rules above?
+  -- TODO if we want only finite tableau then condition has to be eager! need its negation for all other rules above?
   | repeat {X} : X ∈ Hist → ClosedTableau Hist X
 
 
