@@ -60,3 +60,8 @@ theorem consThenConProjEndNode : Consistent X → ∀ tX : LocalTableau X, ∃ E
   use E; refine And.intro EEndnode ?_;
   have simpleE : Simple E := endNodeSimple EEndnode
   intro α negBoxα; exact consisImpliesProj consisE simpleE α negBoxα
+
+
+-- Subset of Consistent set is Consistent
+theorem conSubcon : X ⊆ Y → Consistent Y → Consistent X := by
+  sorry

@@ -320,6 +320,180 @@ lemma pathSat1 {α} {X} {tX : LocalTableau X} : ∀ path ∈ (pathsOf tX), ~~α 
     exact path'InPaths
   aesop
 
+lemma pathSat2 {tX : LocalTableau X} : ∀ path ∈ (pathsOf tX), α⋀β ∈ path → α ∈ path ∧ β ∈ path := by
+  induction tX
+  swap
+  clear X; rename_i X simpleX; intro path pathInPaths nnαInPath;
+  unfold pathsOf at pathInPaths; simp at pathInPaths
+  subst path; by_contra h₀ ; clear h₀
+  unfold Simple at *; simp at *; specialize simpleX  (α⋀β) nnαInPath; simp at *
+
+  clear X; rename_i X B lr next IH; intro path pathInPaths nnαInPath;
+  unfold pathsOf at pathInPaths ; simp at pathInPaths ; rcases pathInPaths with ⟨Y, YInB, path', path'InPaths, path'UX⟩ ; dsimp at path'InPaths; subst path
+  by_cases nnαInX : α⋀β ∈ X; swap
+  specialize IH Y YInB path' path'InPaths; simp_all only [Finset.mem_union, or_false, forall_true_left, true_or, and_self]
+  cases lr
+-- bot rule
+  by_contra h₀; clear h₀; exact (List.mem_nil_iff Y).mp YInB
+
+-- Not rule
+  by_contra h₀; clear h₀; exact (List.mem_nil_iff Y).mp YInB
+
+-- neg rule
+  rename_i γ nnγInX;
+  have : Y = X \ {~~γ} ∪ {γ} := by
+    simp at YInB; simp; exact YInB
+  subst Y;
+  have : α⋀β ∈ path' := by
+    have : α⋀β ∈ (X \ {~~γ} ∪ {γ}) := by
+      refine Finset.mem_union_left {γ} ?h; refine Finset.mem_sdiff.mpr ?h.a; aesop
+    have : (X \ {~~γ} ∪ {γ}) ⊆ path' := by exact X_in_PathX (X \ {~~γ} ∪ {γ}) path' path'InPaths
+    aesop
+  specialize IH (X \ {~~γ} ∪ {γ}); simp at IH; specialize IH path' path'InPaths this; aesop
+
+-- Con rule
+  rename_i θ γ θγInX;
+  have : Y = X \ {θ⋀γ} ∪ {θ,γ} := by
+    simp at YInB; simp; exact YInB
+  subst Y;
+  by_cases eq : α⋀β = θ⋀γ; swap
+  -- α⋀β ≠ θ⋀γ
+  have : α⋀β ∈ path' := by
+    have : α⋀β ∈ (X \ {θ⋀γ} ∪ {θ,γ}) := by
+      refine Finset.mem_union_left {θ, γ} ?_; refine Finset.mem_sdiff.mpr ?_; aesop
+    have : (X \ {θ⋀γ} ∪ {θ,γ}) ⊆ path' := by exact X_in_PathX (X \ {θ⋀γ} ∪ {θ,γ}) path' path'InPaths
+    aesop
+  specialize IH (X \ {θ⋀γ} ∪ {θ,γ}); simp at IH; specialize IH path' path'InPaths this; aesop
+  -- α⋀β = θ⋀γ
+  simp at eq; cases eq; subst α; subst β
+  have : θ ∈ path' := by
+    have : θ ∈ (X \ {θ⋀γ} ∪ {θ,γ}) := by
+      simp_all only [Finset.mem_union, or_true, not_true_eq_false, sdiff_singleton_is_erase, Finset.mem_singleton]; aesop
+    have : (X \ {θ⋀γ} ∪ {θ,γ}) ⊆ path' := X_in_PathX (X \ {θ⋀γ} ∪ {θ, γ}) path' path'InPaths
+    aesop
+  have : γ ∈ path' := by
+    have : γ ∈ (X \ {θ⋀γ} ∪ {θ,γ}) := by
+      simp_all only [Finset.mem_union, or_true, not_true_eq_false, sdiff_singleton_is_erase, Finset.mem_singleton]; aesop
+    have : (X \ {θ⋀γ} ∪ {θ,γ}) ⊆ path' := X_in_PathX (X \ {θ⋀γ} ∪ {θ, γ}) path' path'InPaths
+    aesop
+  aesop
+
+--nCo rule
+  rename_i θ γ nθγInX;
+  have : Y = X \ {~(θ⋀γ)} ∪ {~θ} ∨ Y = X \ {~(θ⋀γ)} ∪ {~γ} := by
+    simp at YInB; simp; exact YInB
+  cases this
+
+  -- Y = X - {~(θ⋀γ)} + {~θ}
+  subst Y
+  have : α⋀β ∈ path' := by
+    have : α⋀β ∈ X \ {~(θ⋀γ)} ∪ {~θ} := by
+      refine Finset.mem_union_left {~θ} ?_; refine Finset.mem_sdiff.mpr ?_; aesop
+    have : X \ {~(θ⋀γ)} ∪ {~θ} ⊆ path' := X_in_PathX (X \ {~(θ⋀γ)} ∪ {~θ}) path' path'InPaths
+    aesop
+  specialize IH (X \ {~(θ⋀γ)} ∪ {~θ}); simp at IH; specialize IH path' path'InPaths this; aesop
+
+  -- Y = X - {~(β⋀γ)} + {~γ}
+  subst Y
+  have : α⋀β ∈ path' := by
+    have : α⋀β ∈ X \ {~(θ⋀γ)} ∪ {~γ} := by
+      refine Finset.mem_union_left {~γ} ?_; refine Finset.mem_sdiff.mpr ?_; aesop
+    have : X \ {~(θ⋀γ)} ∪ {~γ} ⊆ path' := X_in_PathX (X \ {~(θ⋀γ)} ∪ {~γ}) path' path'InPaths
+    aesop
+  specialize IH (X \ {~(θ⋀γ)} ∪ {~γ}); simp at IH; specialize IH path' path'InPaths this; aesop
+
+lemma pathSat3 {tX : LocalTableau X} : ∀ path ∈ (pathsOf tX), ~(α⋀β) ∈ path → ~α ∈ path ∨ ~β ∈ path := by
+  induction tX
+  swap
+  clear X; rename_i X simpleX; intro path pathInPaths nnαInPath;
+  unfold pathsOf at pathInPaths; simp at pathInPaths
+  subst path; by_contra h₀ ; clear h₀
+  unfold Simple at *; simp at *; specialize simpleX  (~(α⋀β)) nnαInPath; simp at *
+
+  clear X; rename_i X B lr next IH; intro path pathInPaths nαβInPath;
+  unfold pathsOf at pathInPaths ; simp at pathInPaths ; rcases pathInPaths with ⟨Y, YInB, path', path'InPaths, path'UX⟩ ; dsimp at path'InPaths; subst path
+  by_cases nnαInX : ~(α⋀β) ∈ X; swap
+  specialize IH Y YInB path' path'InPaths; simp_all only [Finset.mem_union, or_false, forall_true_left, true_or, and_self]; aesop
+  cases lr
+-- bot rule
+  by_contra h₀; clear h₀; exact (List.mem_nil_iff Y).mp YInB
+
+-- Not rule
+  by_contra h₀; clear h₀; exact (List.mem_nil_iff Y).mp YInB
+
+-- neg rule
+  rename_i γ nnγInX;
+  have : Y = X \ {~~γ} ∪ {γ} := by
+    simp at YInB; simp; exact YInB
+  subst Y;
+  have : ~(α⋀β) ∈ path' := by
+    have : ~(α⋀β) ∈ (X \ {~~γ} ∪ {γ}) := by
+      refine Finset.mem_union_left {γ} ?h; refine Finset.mem_sdiff.mpr ?h.a; aesop
+    have : (X \ {~~γ} ∪ {γ}) ⊆ path' := by exact X_in_PathX (X \ {~~γ} ∪ {γ}) path' path'InPaths
+    aesop
+  specialize IH (X \ {~~γ} ∪ {γ}); simp at IH; specialize IH path' path'InPaths this; aesop
+
+-- Con rule
+  rename_i θ γ θγInX;
+  have : Y = X \ {θ⋀γ} ∪ {θ,γ} := by
+    simp at YInB; simp; exact YInB
+  subst Y;
+  have : ~(α⋀β) ∈ path' := by
+    have : ~(α⋀β) ∈ (X \ {θ⋀γ} ∪ {θ,γ}) := by
+      refine Finset.mem_union_left {θ, γ} ?_; refine Finset.mem_sdiff.mpr ?_; aesop
+    have : (X \ {θ⋀γ} ∪ {θ,γ}) ⊆ path' := by exact X_in_PathX (X \ {θ⋀γ} ∪ {θ,γ}) path' path'InPaths
+    aesop
+  specialize IH (X \ {θ⋀γ} ∪ {θ,γ}); simp at IH; specialize IH path' path'InPaths this; aesop
+
+--nCo rule
+  rename_i θ γ nθγInX;
+  have : Y = X \ {~(θ⋀γ)} ∪ {~θ} ∨ Y = X \ {~(θ⋀γ)} ∪ {~γ} := by
+    simp at YInB; simp; exact YInB
+  cases this
+
+  -- Y = X - {~(θ⋀γ)} + {~θ}
+  subst Y
+  by_cases eq : ~(α⋀β) = ~(θ⋀γ); swap
+  -- ~(α⋀β) ≠  ~(θ⋀γ)
+  have : ~(α⋀β) ∈ path' := by
+    have : ~(α⋀β) ∈ (X \ {~(θ⋀γ)} ∪ {~θ}) := by
+      refine Finset.mem_union_left {~θ} ?_; refine Finset.mem_sdiff.mpr ?_; aesop
+    have : (X \ {~(θ⋀γ)} ∪ {~θ}) ⊆ path' := by exact X_in_PathX (X \ {~(θ⋀γ)} ∪ {~θ}) path' path'InPaths
+    aesop
+  specialize IH (X \ {~(θ⋀γ)} ∪ {~θ}); simp at IH; specialize IH path' path'InPaths this; aesop
+  -- ~(α⋀β) = ~(θ⋀γ)
+  simp at eq; cases eq; subst α; subst β
+  have : ~θ ∈ path' := by
+    have : ~θ ∈ (X \ {~(θ⋀γ)} ∪ {~θ}) := by
+      aesop
+    have : (X \ {~(θ⋀γ)} ∪ {~θ}) ⊆ path' := by exact X_in_PathX (X \ {~(θ⋀γ)} ∪ {~θ}) path' path'InPaths
+    aesop
+  aesop
+
+  -- Y = X - {~(β⋀γ)} + {~γ}
+  subst Y
+  by_cases eq : ~(α⋀β) = ~(θ⋀γ); swap
+  -- ~(α⋀β) ≠  ~(θ⋀γ)
+  have : ~(α⋀β) ∈ path' := by
+    have : ~(α⋀β) ∈ (X \ {~(θ⋀γ)} ∪ {~γ}) := by
+      refine Finset.mem_union_left {~γ} ?_; refine Finset.mem_sdiff.mpr ?_; aesop
+    have : (X \ {~(θ⋀γ)} ∪ {~γ}) ⊆ path' := by exact X_in_PathX (X \ {~(θ⋀γ)} ∪ {~γ}) path' path'InPaths
+    aesop
+  specialize IH (X \ {~(θ⋀γ)} ∪ {~γ}); simp at IH; specialize IH path' path'InPaths this; aesop
+  -- ~(α⋀β) = ~(θ⋀γ)
+  simp at eq; cases eq; subst α; subst β
+  have : ~γ ∈ path' := by
+    have : ~γ ∈ (X \ {~(θ⋀γ)} ∪ {~γ}) := by
+      aesop
+    have : (X \ {~(θ⋀γ)} ∪ {~γ}) ⊆ path' := X_in_PathX (X \ {~(θ⋀γ)} ∪ {~γ}) path' path'InPaths
+    aesop
+  aesop
+
+lemma pathSat {tX : LocalTableau X} : ∀ path ∈ (pathsOf tX), Saturated path := by
+  intro path pathPath
+  unfold Saturated; simp; intro α β
+  refine And.intro ?_ ?_; exact fun a => pathSat1 path pathPath a
+  refine And.intro ?_ ?_; exact fun a => pathSat2 path pathPath a; exact fun a => pathSat3 path pathPath a
 
 
 inductive M0 (T0 : Σ Z0, LocalTableau Z0) : (Σ root, LocalTableau root) → Prop
@@ -334,7 +508,7 @@ inductive M0 (T0 : Σ Z0, LocalTableau Z0) : (Σ root, LocalTableau root) → Pr
 
 
 
--- Need to Finish Saturated lemma here:
+
 theorem modelExistence {X} : Consistent X →
     ∃ (WS : Set (Finset Formula)) (M : ModelGraph WS) (w : WS), (M.val, w) ⊨ X :=
   by
@@ -375,8 +549,7 @@ theorem modelExistence {X} : Consistent X →
   --Proving property i of ModelGraphs:
   intro path; rcases path with ⟨path, RTab, RTab_reachable, pathPath, consispath⟩
   dsimp
-  -- Need to Finish Saturated lemma here:
-  have : Saturated path := by sorry
+  have : Saturated path := pathSat path pathPath
   have : Formula.bottom ∉ path ∧ ∀ P ∈ path, ~P ∉ path := consistentImplies consispath
   aesop
 
