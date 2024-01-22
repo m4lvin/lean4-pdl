@@ -200,8 +200,8 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
 -- Lemma 1 (page 16)
 -- A simple set of formulas X is satisfiable if and only if
 -- it is not closed  and  for all ¬[A]R ∈ X also XA; ¬R is satisfiable.
-theorem Lemma1_simple_sat_iff_all_projections_sat {L R : Finset Formula} :
-    Simple (L, R) → (Satisfiable (L ∪ R) ↔ ¬Closed (L ∪ R) ∧ ∀ F, f_in_TNode (~(□F)) (L, R) → Satisfiable (projection (L ∪ R) ∪ {~F})) :=
+theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
+    Simple LR → (Satisfiable LR ↔ ¬Closed (LR.1 ∪ LR.2) ∧ ∀ F, f_in_TNode (~(□F)) LR → Satisfiable (projection (LR.1 ∪ LR.2) ∪ {~F})) :=
   by
   intro LR_is_simple
   constructor
@@ -244,6 +244,7 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {L R : Finset Formula} :
     cases' rhs with not_closed_LR all_pro_sat
     unfold Satisfiable at *
     -- Let's build a new Kripke model!
+    let (L, R) := LR
     let β := {F : Formula | f_in_TNode (~(□F)) (L, R)}
     -- beware, using Axioms of Choice here!
     choose typeFor this_pro_sat using all_pro_sat
@@ -410,58 +411,66 @@ theorem localTableauAndEndNodesUnsatThenNotSat {LR : TNode} (ltLR : LocalTableau
         use endNodesOf ⟨c, ltc⟩
         tauto
     have endsOfcnotSat : ∀Z1, Z1 ∈ endNodesOf ⟨c, ltc⟩ → ¬Satisfiable Z1 :=
-      by
-        intro Z1 Z1_is_endOf_c
-        apply endsOfLRnotSat Z1 (endNodesInclusion Z1 Z1_is_endOf_c)
+      by intro Z1 Z1_is_endOf_c; apply endsOfLRnotSat Z1 (endNodesInclusion Z1 Z1_is_endOf_c)
     have : (∀Z, Z ∈ endNodesOf ⟨c , ltc⟩ → ¬Satisfiable Z) → ¬Satisfiable c :=
-      localTableauAndEndNodesUnsatThenNotSat ltc
+      by
+        have := localRuleAppDecreasesLength (@LocalRuleApp.mk L R C ress Lcond Rcond rule hC prepf) c hc.left -- for termination
+        apply localTableauAndEndNodesUnsatThenNotSat ltc
     have cNotSat : ¬Satisfiable c := this endsOfcnotSat
-    have cSat : Satisfiable c :=  sorry  -- here we need the lemmas above that node sat -> child sat
+    have cSat : Satisfiable c :=
+      sorry  -- here we need the lemmas above that node sat -> child sat
+    exact cNotSat cSat
   case fromSimple hSimple =>
     apply endsOfLRnotSat
     simp
+termination_by
+  localTableauAndEndNodesUnsatThenNotSat ltLR  => lengthOfTNode LR
 
-
-
-/-
-
-theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
+-- uses slightly different syntax in ClosedTableau def
+theorem tableauThenNotSat : ∀LR, ClosedTableau LR → ¬Satisfiable LR :=
   by
-  intro X t
-  induction t
-  case loc Y ltY _ IH =>
-    apply localTableauAndEndNodesUnsatThenNotSat ltY
+  intro LR ct
+  let ⟨L, R⟩ := LR
+  cases ct
+  case loc Y apptab IH =>
+    apply localTableauAndEndNodesUnsatThenNotSat (LocalTableau.fromRule apptab)
     intro Z ZisEndOfY
-    exact IH Z ZisEndOfY
-  case atm φ notBoxPhiInY Y_is_simple ltProYnPhi notSatProj =>
-    rw [Lemma1_simple_sat_iff_all_projections_sat Y_is_simple]
+    have ZClosed : ClosedTableau Z := IH Z ZisEndOfY
     simp
-    aesop
+    sorry
+  case atmL φ notBoxPhiInY Y_is_simple ltProYnPhi =>
+    rw [Lemma1_simple_sat_iff_all_projections_sat Y_is_simple]
+    intro notClosedLR
+    cases' notClosedLR with notClosed boxInTNodeThenSatProj
+    specialize boxInTNodeThenSatProj φ
+    have satProj : Satisfiable (projection ((L, R).1 ∪ (L, R).2) ∪ {~φ}) :=
+      boxInTNodeThenSatProj (by aesop)
+    simp [diamondProjectTNode] at ltProYnPhi
+    sorry
+  case atmR φ notBoxPhiInY Y_is_simple ltProYnPhi => sorry
+
 
 -- Theorem 2, page 30
-theorem correctness : ∀ X, Satisfiable X → Consistent X :=
+theorem correctness : ∀LR : TNode, Satisfiable LR → Consistent LR :=
   by
-  intro X
-  contrapose
-  unfold Consistent
-  unfold Inconsistent
-  simp only [not_nonempty_iff, not_isEmpty_iff, not_exists, not_forall, exists_prop, Nonempty.forall]
-  intro hyp
-  apply tableauThenNotSat X hyp
+    intro LR
+    contrapose
+    unfold Consistent
+    unfold Inconsistent
+    simp only [not_nonempty_iff, not_isEmpty_iff, not_exists, not_forall, exists_prop, Nonempty.forall]
+    intro hyp
+    apply tableauThenNotSat LR hyp
 
-theorem soundTableau : ∀ φ, Provable φ → ¬Satisfiable ({~φ} : Finset Formula) :=
+theorem soundTableau : ∀φ, Provable φ → ¬Satisfiable ({~φ} : Finset Formula) :=
   by
-  intro phi
-  intro prov
-  cases' prov with _ tabl
-  apply tableauThenNotSat
-  assumption
+    intro phi prov
+    cases' prov with tabl
+    exact tableauThenNotSat ({~phi}, ∅) tabl
 
-theorem soundness : ∀ φ, Provable φ → Tautology φ :=
+theorem soundness : ∀φ, Provable φ → Tautology φ :=
   by
-  intro φ prov
-  apply notsatisfnotThenTaut
-  rw [← singletonSat_iff_sat]
-  apply soundTableau
-  exact prov
--/
+    intro φ prov
+    apply notsatisfnotThenTaut
+    rw [← singletonSat_iff_sat]
+    apply soundTableau
+    exact prov
