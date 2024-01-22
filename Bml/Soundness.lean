@@ -295,29 +295,19 @@ theorem localRuleSoundness (rule : LocalRule (Lcond, Rcond) ress) :
     intro sat
     unfold Satisfiable at sat
     rcases sat with ⟨W, M, w, w_sat_LR⟩
-    cases rule
-    case oneSidedL lr =>                       -- left side
-      cases lr
-      <;> simp at *
-      <;> try (use W; use M; use w)
-      case ncon φ ψ =>
-        rw [imp_iff_not_or] at w_sat_LR
-        cases' w_sat_LR with case_phi case_psi
-        · apply Or.inl
-          use W; use M; use w
-        · apply Or.inr
-          use W; use M; use w
-    case oneSidedR lr =>                            -- right side (copy paste, will try custom tactic later)
-      cases lr
-      <;> simp at *
-      <;> try (use W; use M; use w)
-      case ncon φ ψ =>
-        rw [imp_iff_not_or] at w_sat_LR
-        cases' w_sat_LR with case_phi case_psi
-        · apply Or.inl
-          use W; use M; use w
-        · apply Or.inr
-          use W; use M; use w
+    cases rule <;>
+    ( try
+      ( rename_i lr
+        cases lr
+        <;> simp at *
+        <;> try (use W; use M; use w)
+        case ncon φ ψ =>
+          rw [imp_iff_not_or] at w_sat_LR
+          cases' w_sat_LR with case_phi case_psi
+          · apply Or.inl
+            use W; use M; use w
+          · apply Or.inr
+            use W; use M; use w))
     all_goals aesop
 
 
