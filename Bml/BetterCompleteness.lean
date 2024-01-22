@@ -14,7 +14,6 @@ open LocalRule
 def formulasInNegBox (X: Finset Formula): Finset Formula :=
   X.biUnion λ α => (match α with | ~(□f) => {f} | _ => {})
 
-
 @[simp]
 theorem formulasInNegBoxIff: α ∈ formulasInNegBox X ↔  ~(□α) ∈ X := by
   rw[formulasInNegBox]
@@ -60,17 +59,16 @@ inductive Path: TNode →  Type
 open Path
 
 @[simp]
-def toTNode: Path LR → TNode
-  | endNode _ _ => LR
-  | (interNode _ _ tail) => LR ∪ toTNode tail
+def toFinset: Path (L,R) → Finset Formula
+  | endNode _ _ => L ∪ R
+  | (interNode _ _ tail) => L ∪ R ∪ toFinset tail
 
 @[simp]
-theorem X_in_PathX (path : Path LR) : LR ⊆ (toTNode path) := by
-  rcases LR with ⟨L, R⟩
+theorem X_in_PathX (path : Path (L,R)) : L ∪ R ⊆ (toFinset path) := by
   cases path
   case endNode => simp [instTNodeHasSubset]
   case interNode Y C C_in tail appTab =>
-    simp_all only [instTNodeHasSubset,instHasSubsetProdFinsetFormula, toTNode, instTNodeUnion,
+    simp_all only [instTNodeHasSubset,instHasSubsetProdFinsetFormula, toFinset, instTNodeUnion,
       instUnionProdFinsetFormula, Finset.subset_union_left, and_self]
 
 def endNodeOf: Path LR → TNode
@@ -81,7 +79,11 @@ theorem endNodeIsSimple (path : Path X): Simple (endNodeOf path) := by
   induction path
   all_goals aesop
 
-theorem endNodeProjection (path : Path (L,R)): projectTNode (toTNode path) = projectTNode (endNodeOf path) := by
+theorem endNodeIsConsistent (path : Path X): Consistent (endNodeOf path) := by
+  induction path
+  all_goals aesop
+
+theorem endNodeProjection (path : Path (L,R)): projection (toFinset path) = projectTNode (endNodeOf path) := by
   cases path
   case endNode cosX simX => aesop
   case interNode LR Y_in tail appTab =>
@@ -89,13 +91,18 @@ theorem endNodeProjection (path : Path (L,R)): projectTNode (toTNode path) = pro
     rw[← endNodeProjection tail]
     unfold projectTNode
     sorry
+termination_by endNodeProjection path => lengthOfTNode (L,R)
+decreasing_by sorry
 
 theorem endNodeSubsetEndNodes (path: Path X) (tX: LocalTableau X): endNodeOf path ∈ endNodesOf ⟨X, tX⟩ := by
   sorry
 
-def pathsOf (tab : LocalTableau LR) :  List (Path LR) := by
+noncomputable def pathsOf (tab : LocalTableau LR) :  List (Path LR) := by
   cases tab
-  case fromSimple isSimple  => sorry
+  case fromSimple isSimple  =>
+    if isConsistent : Consistent LR
+    then exact [endNode isConsistent isSimple]
+    else exact []
   case fromRule C appTab  =>
     let nextPaths : {c // c ∈ C} → List (Path LR) := by
       intro ⟨c, c_in⟩
@@ -118,7 +125,7 @@ theorem M₀closure2: ⟨Y, fromSimple isSimple⟩ ∈ M₀ (L, R) → ~(□α) 
 theorem M₀closure3: ⟨Y, fromSimple isSimple⟩ ∈ M₀ (L, R) → ~(□α) ∈ R →
         ⟨diamondProjectTNode (Sum.inr φ) (L, R), aLocalTableauFor (diamondProjectTNode (Sum.inr φ) (L, R))⟩ ∈ M₀ X := by sorry
 
-theorem pathSaturated (path : Path LR): Saturated (toTNode path) := by
+theorem pathSaturated (path : Path LR): Saturated (toFinset path) := by
   /-intro P Q
   induction path
   case endNode X _ simpleX =>
@@ -374,9 +381,9 @@ theorem pathSaturated (path : Path LR): Saturated (toTNode path) := by
                 aesop-/
     sorry
 
-theorem pathConsistent (path : Path TN) {h : (L, R) = toTNode path}: ⊥ ∉ L ∪ R ∧ ∀ P, P ∈ L ∪ R → ~P ∉ L ∪ R := by
+theorem pathConsistent (path : Path TN): ⊥ ∉ toFinset path ∧ ∀ P, P ∈ toFinset path → ~P ∉ toFinset path := by
   induction path
-  case endNode (L, R) consistentX simpleX =>
+  case endNode LR consistentX simpleX =>
       unfold Consistent Inconsistent at consistentX
       simp at consistentX
       constructor
@@ -385,49 +392,50 @@ theorem pathConsistent (path : Path TN) {h : (L, R) = toTNode path}: ⊥ ∉ L �
         cases bot_in
         · case inl bot_in =>
           have rule := LocalRule.oneSidedL OneSidedLocalRule.bot
-          have h : ∅ = applyLocalRule rule (L,R) := by aesop
-          have appTab := @LocalRuleApp.mk L R ∅ _ _ _ rule h (by aesop)
-          have tab := fromRule (AppLocalTableau.mk appTab (by aesop))
-          have closedTab : ClosedTableau (L, R) := sorry -- ClosedTableau.loc tab (by aesop)
+          have h1 : ∅ = applyLocalRule rule LR := by aesop
+          have h2 : {⊥} ⊆ LR.1 ∧ ∅ ⊆ LR.2 := by aesop
+          have appTab := @LocalRuleApp.mk _ _ ∅ _ _ _ rule h1 h2
+          have tab := fromRule (AppLocalTableau.mk appTab sorry)
+          have closedTab : ClosedTableau LR := sorry -- ClosedTableau.loc tab (by aesop)
           exact IsEmpty.false closedTab
         · sorry
       · simp
         intro f f_in_X
         by_contra nf_in_X
-        let tab := byLocalRule (Not ⟨f_in_X, nf_in_X⟩) (by aesop)
-        have closedTab := ClosedTableau.loc tab (by aesop)
+        let tab: AppLocalTableau LR ∅ := sorry -- byLocalRule (Not ⟨f_in_X, nf_in_X⟩) (by aesop)
+        have closedTab := ClosedTableau.loc tab (by sorry)
         exact IsEmpty.false closedTab
   case interNode B X Y locRule Y_in pathY IH =>
     simp
     constructor
-    · by_contra h
-      rcases h
-      case inl h => sorry
-      case inr h => aesop
+    · by_contra h1
+      rcases h1
+      case inl bot_in => sorry
+      case inr bot_in => sorry
     · intro f f_in
       by_contra h
       sorry
 
-theorem modelExistence (LR: TNode): Consistent X →
-    ∃ (WS : Finset TNode) (M : ModelGraph WS) (W : WS), X ⊆ W :=
+theorem modelExistence: Consistent (L,R) →
+    ∃ (WS : Finset (Finset Formula)) (M : ModelGraph WS) (W : WS), (L ∪ R) ⊆ W :=
   by
   intro consX
   -- TO DO make this less ugly
   let pathsOf': (Σ Y, LocalTableau Y) → List (Σ Y, Path Y) := by
     exact λ ⟨Y, tabY⟩ => (pathsOf tabY).map (λ x => ⟨Y, x⟩)
-  let paths : List (Σ Y, Path Y) := ((M₀ X).map pathsOf').join
-  let WSlist : List TNode := paths.map (λ ⟨LR, path⟩ => toTNode path)
+  let paths : List (Σ Y, Path Y) := ((M₀ (L,R)).map pathsOf').join
+  let WSlist : List (Finset Formula) := paths.map (λ ⟨LR, path⟩ => toFinset path)
   let WS := WSlist.toFinset
   let M : KripkeModel WS := by
     constructor
     -- define valuation function
-    · intro ⟨(L,R), LR_in⟩ p
-      exact (·p) ∈ L ∪ R
+    · intro ⟨w, w_in⟩ p
+      exact (·p) ∈ w
     -- define relation
     · intro ⟨w, w_in⟩ ⟨v, v_in⟩
-      exact projectTNode w ⊆ v
-  let pathX : Path X := sorry --aPathOf (aLocalTableauFor X) consX
-  use WS, ⟨M, ?_⟩, ⟨toTNode pathX, ?_⟩
+      exact projection w ⊆ v
+  let pathX : Path (L,R) := sorry --aPathOf (aLocalTableauFor X) consX
+  use WS, ⟨M, ?_⟩, ⟨toFinset pathX, ?_⟩
   · simp
   · constructor
     · intro ⟨W, W_in⟩
@@ -453,9 +461,16 @@ theorem modelExistence (LR: TNode): Consistent X →
           subst w_eq
           simp
           let Y' := endNodeOf wPath
+          let Y'_in : Y' ∈ endNodesOf ⟨Y, tY⟩ := by apply endNodeSubsetEndNodes
+          have tY'_in_M₀ := M₀closure1 YtY_in Y'_in
+          let Y'path := aPathOf (aLocalTableauFor Y') (endNodeIsConsistent wPath)
+          have nboxf_in_Y' : ~(□f) ∈ toFinset Y'path := by sorry
+          simp at nboxf_in_Y'
+          unfold toFinset at nboxf_in_Y'
+          simp at nboxf_in_Y'
           sorry
   · sorry
-
+/-
 -- Theorem 4, page 37
 theorem completeness : ∀ X, Consistent X ↔ Satisfiable X :=
   by
@@ -504,3 +519,4 @@ theorem consistentThenOpenTab : Consistent X → ∃ (t : Tableau X), isOpen t :
     have h2 : ¬ isOpen tX ↔ ¬ ¬ isClosed tX := Iff.symm (Iff.not (Iff.symm open_iff_notClosed))
     simp_all only [not_not, not_true_eq_false, not_false_eq_true, iff_true]
   exact (isClosed_then_ClosedTab this)
+-/
