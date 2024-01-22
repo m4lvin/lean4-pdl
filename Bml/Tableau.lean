@@ -688,8 +688,8 @@ theorem endNodesOfLocalRuleLT {LR Z} {appTab : AppLocalTableau LR C} :
 -- - base case for simple tableaux is part of "atm" which can be applied to L or to R.
 inductive ClosedTableau : TNode → Type
   | loc {LR} (appTab : AppLocalTableau LR C) : (next : ∀ Y ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩, ClosedTableau Y) → ClosedTableau LR
-  | atmL {LR ϕ} : ~(□ϕ) ∈ L → Simple (L, R) → ClosedTableau (diamondProjectTNode (Sum.inl (~ϕ)) LR) → ClosedTableau LR
-  | atmR {LR ϕ} : ~(□ϕ) ∈ R → Simple (L, R) → ClosedTableau (diamondProjectTNode (Sum.inr (~ϕ)) LR) → ClosedTableau LR
+  | atmL {LR ϕ} : ~(□ϕ) ∈ LR.1 → Simple LR → ClosedTableau (diamondProjectTNode (Sum.inl (~ϕ)) LR) → ClosedTableau LR
+  | atmR {LR ϕ} : ~(□ϕ) ∈ LR.2 → Simple LR → ClosedTableau (diamondProjectTNode (Sum.inr (~ϕ)) LR) → ClosedTableau LR
 
 inductive Provable : Formula → Prop
   | byTableau {φ : Formula} : ClosedTableau ({~φ},{}) → Provable φ
