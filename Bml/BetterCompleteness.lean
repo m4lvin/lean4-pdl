@@ -83,7 +83,7 @@ theorem endNodeIsConsistent (path : Path X): Consistent (endNodeOf path) := by
   induction path
   all_goals aesop
 
-theorem endNodeProjection (path : Path (L,R)): projection (toFinset path) = projectTNode (endNodeOf path) := by
+/-theorem endNodeProjection (path : Path (L,R)): projection (toFinset path) = projectTNode (endNodeOf path) := by
   cases path
   case endNode cosX simX => aesop
   case interNode LR Y_in tail appTab =>
@@ -92,12 +92,12 @@ theorem endNodeProjection (path : Path (L,R)): projection (toFinset path) = proj
     unfold projectTNode
     sorry
 termination_by endNodeProjection path => lengthOfTNode (L,R)
-decreasing_by sorry
+decreasing_by sorry-/
 
 theorem endNodeSubsetEndNodes (path: Path X) (tX: LocalTableau X): endNodeOf path ∈ endNodesOf ⟨X, tX⟩ := by
   sorry
 
-noncomputable def pathsOf (tab : LocalTableau LR) :  List (Path LR) := by
+noncomputable def pathsOf (tab : LocalTableau LR): List (Path LR) := by
   cases tab
   case fromSimple isSimple  =>
     if isConsistent : Consistent LR
@@ -113,8 +113,20 @@ noncomputable def pathsOf (tab : LocalTableau LR) :  List (Path LR) := by
     exact (C.attach.map nextPaths).join
 termination_by pathsOf tab => lengthOf LR
 
-def aPathOf (tX : LocalTableau X) (conX : Consistent X) : Path X := by
-  sorry -- using pathsOf or replace pathsOf with this
+theorem consistentThenConsistentChild
+    (isConsistent: Consistent LR) (appTab : AppLocalTableau LR C): ∃ c ∈ C, Consistent c := by
+  sorry
+
+noncomputable def pathOf (tab : LocalTableau LR) (isConsistent : Consistent LR) : Path LR := by
+  cases tab
+  case fromSimple isSimple  => exact endNode isConsistent isSimple
+  case fromRule C appTab  =>
+    choose c c_in c_consistent using consistentThenConsistentChild isConsistent appTab
+    have : lengthOf c < lengthOf LR := by
+      apply AppLocalTableau.DecreasesLength appTab c_in
+    let pathOf_c := pathOf (getSubTabs appTab c c_in) c_consistent
+    exact interNode appTab c_in pathOf_c
+termination_by pathOf tab isConsistent => lengthOf LR
 
 theorem M₀closure1: tabY ∈ M₀ X → Z ∈ endNodesOf tabY → ⟨Z, aLocalTableauFor Z⟩ ∈ M₀ X := by sorry
 
@@ -419,7 +431,13 @@ theorem pathConsistent (path : Path TN): ⊥ ∉ toFinset path ∧ ∀ P, P ∈ 
 theorem modelExistence: Consistent (L,R) →
     ∃ (WS : Finset (Finset Formula)) (M : ModelGraph WS) (W : WS), (L ∪ R) ⊆ W :=
   by
-  intro consX
+  intro consLR
+
+  -- one path per tableau?
+  let toWorld {Y} (tabY: LocalTableau Y) (consistentY: Consistent Y): Finset Formula := by
+    exact pathOf tabY consistentY |> toFinset
+  let WSList': List (Finset Formula) := sorry
+
   -- TO DO make this less ugly
   let pathsOf': (Σ Y, LocalTableau Y) → List (Σ Y, Path Y) := by
     exact λ ⟨Y, tabY⟩ => (pathsOf tabY).map (λ x => ⟨Y, x⟩)
@@ -434,7 +452,7 @@ theorem modelExistence: Consistent (L,R) →
     -- define relation
     · intro ⟨w, w_in⟩ ⟨v, v_in⟩
       exact projection w ⊆ v
-  let pathX : Path (L,R) := sorry --aPathOf (aLocalTableauFor X) consX
+  let pathX : Path (L,R) := pathOf (aLocalTableauFor (L,R)) consLR
   use WS, ⟨M, ?_⟩, ⟨toFinset pathX, ?_⟩
   · simp
   · constructor
@@ -463,12 +481,11 @@ theorem modelExistence: Consistent (L,R) →
           let Y' := endNodeOf wPath
           let Y'_in : Y' ∈ endNodesOf ⟨Y, tY⟩ := by apply endNodeSubsetEndNodes
           have tY'_in_M₀ := M₀closure1 YtY_in Y'_in
-          let Y'path := aPathOf (aLocalTableauFor Y') (endNodeIsConsistent wPath)
-          have nboxf_in_Y' : ~(□f) ∈ toFinset Y'path := by sorry
-          simp at nboxf_in_Y'
-          unfold toFinset at nboxf_in_Y'
-          simp at nboxf_in_Y'
-          sorry
+          let vPath := pathOf (aLocalTableauFor Y') (endNodeIsConsistent wPath)
+          have nboxf_in_Y' : ~(□f) ∈ Y'.1 ∨ ~(□f) ∈ Y'.2 := by sorry
+          cases nboxf_in_Y'
+          case inl nboxf_in => sorry
+          case inr nboxf_in => sorry
   · sorry
 /-
 -- Theorem 4, page 37
