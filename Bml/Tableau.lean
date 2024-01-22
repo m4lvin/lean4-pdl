@@ -23,6 +23,7 @@ def Closed : Finset Formula → Prop := fun X => ⊥ ∈ X ∨ ∃ f ∈ X, ~f �
 -- A set X is simple  iff  all P ∈ X are (negated) atoms or [A]_ or ¬[A]_.
 @[simp]
 def SimpleForm : Formula → Bool
+def SimpleForm : Formula → Prop
   | ⊥ => True  -- TODO remove / change to False? (covered by bot rule)
   | ~⊥ => True
   | ·_ => True
@@ -30,6 +31,35 @@ def SimpleForm : Formula → Bool
   | □_ => True
   | ~(□_) => True
   | _ => False
+
+instance : Decidable (SimpleForm φ) :=
+  match h : φ with
+  | ⊥
+  | ·_
+  | □_  => Decidable.isTrue <| by aesop
+  | _⋀_ => Decidable.isFalse <| by aesop
+  | ~ψ  => match ψ with
+    | ⊥
+    | ·_
+    | □_ => Decidable.isTrue <| by aesop
+    | _⋀_
+    | ~_ => Decidable.isFalse <| by aesop
+
+def SimpleSet : Finset Formula → Prop
+  | X => ∀ P ∈ X.attach, SimpleForm P.val
+
+instance : Decidable (SimpleSet X) := Finset.decidableDforallFinset
+
+structure notSimpleFormOf (X : Finset Formula) where
+  φ : Formula
+  φinX : φ ∈ X
+  not_simple : ¬SimpleForm φ
+
+noncomputable def notSimpleSetToForm {X : Finset Formula}: ¬SimpleSet X →
+  notSimpleFormOf X := λnot_simple =>
+  have h : ∃φ ∈ X, ¬ SimpleForm φ := by rw [SimpleSet] at not_simple; aesop
+  let w := Classical.choose h
+  notSimpleFormOf.mk w (Classical.choose_spec h).1 (Classical.choose_spec h).2
 
 -- Let X_A := { R | [A]R ∈ X }.
 @[simp]
@@ -111,7 +141,6 @@ instance : DecidableEq (OneSidedLocalRule precond ress) := λ_ _ => Decidable.is
 def SubPair := Finset Formula × Finset Formula
 deriving DecidableEq
 
-
 inductive LocalRule : SubPair → List SubPair → Type
   | oneSidedL (orule : OneSidedLocalRule precond ress) : LocalRule (precond,∅) $ ress.map $ λ res => (res,∅)
   | oneSidedR (orule : OneSidedLocalRule precond ress) : LocalRule (∅,precond) $ ress.map $ λ res => (∅,res)
@@ -124,8 +153,14 @@ instance : DecidableEq (LocalRule LRconds C) := λ_ _ => Decidable.isTrue (sorry
 def TNode := Finset Formula × Finset Formula
   deriving DecidableEq
 
-def Simple : TNode → Bool
-  | ⟨L,R⟩ => ∀ P ∈ L ∪ R, SimpleForm P
+def Simple (LR : TNode) : Prop := SimpleSet LR.1 ∧ SimpleSet LR.2
+
+instance : Decidable (Simple LR) :=
+  if L_simple : SimpleSet LR.1
+  then if R_simple : SimpleSet LR.2
+       then Decidable.isTrue  <| by simp[Simple]; aesop
+       else Decidable.isFalse <| by simp[Simple]; aesop
+  else Decidable.isFalse      <| by simp[Simple]; aesop
 
 open HasVocabulary
 @[simp]
@@ -144,7 +179,7 @@ inductive LocalRuleApp : TNode → List TNode → Type
        {hC : C = applyLocalRule rule (L,R)}
        (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R)
        : LocalRuleApp (L,R) C
-  deriving DecidableEq -- also works, delete the instance below?
+  deriving DecidableEq
 
 lemma oneSidedRule_preserves_other_side_L
   {ruleApp : LocalRuleApp (L, R) C}
@@ -195,48 +230,89 @@ def getSubTabs (tab : AppLocalTableau LR C)
 -- If X is not simple, then a local rule can be applied.
 -- (page 13)
 
--- write custom tactic later
-theorem notSimpleThenLocalRule {L R} : ¬Simple (L,R)
-  → ∃ Lcond Rcond C, ∃ _ : LocalRule (Lcond, Rcond) C, Lcond ⊆ L ∧ Rcond ⊆ R :=
-  by
-  intro notSimple
-  unfold Simple at notSimple
-  simp at notSimple
-  rcases notSimple with ⟨ϕ, ϕ_in_X, ϕ_not_simple⟩
-  cases ϕ
-  case bottom => tauto
-  case atom_prop => tauto
-  case neg ψ =>
-    cases ψ
-    case bottom => tauto
-    case atom_prop => tauto
-    case neg ψ =>
-      cases ϕ_in_X
-      · use {~~ψ}; use ∅; use (List.map (fun res => (res, ∅)) [{ψ}])
-        use LocalRule.oneSidedL (OneSidedLocalRule.neg ψ)
-        aesop
-      · use ∅; use {~~ψ}; use (List.map (fun res => (∅, res)) [{ψ}])
-        use LocalRule.oneSidedR (OneSidedLocalRule.neg ψ)
-        aesop
-    case And ψ₁ ψ₂ =>
-      cases ϕ_in_X
-      · use {~(ψ₁⋀ψ₂)}; use ∅; use (List.map (fun res => (res, ∅)) [{~ψ₁}, {~ψ₂}])
-        use LocalRule.oneSidedL (OneSidedLocalRule.ncon ψ₁ ψ₂)
-        aesop
-      · use ∅; use {~(ψ₁⋀ψ₂)}; use (List.map (fun res => (∅, res)) [{~ψ₁}, {~ψ₂}])
-        use LocalRule.oneSidedR (OneSidedLocalRule.ncon ψ₁ ψ₂)
-        aesop
-    case box => tauto
-  case And ψ₁ ψ₂ =>
-    cases ϕ_in_X
-    · use {ψ₁⋀ψ₂}; use ∅; use (List.map (fun res => (res, ∅)) [{ψ₁, ψ₂}])
-      use LocalRule.oneSidedL (OneSidedLocalRule.con ψ₁ ψ₂)
-      aesop
-    · use ∅; use {ψ₁⋀ψ₂}; use (List.map (fun res => (∅, res)) [{ψ₁, ψ₂}])
-      use LocalRule.oneSidedR (OneSidedLocalRule.con ψ₁ ψ₂)
-      aesop
-  case box => tauto
+-- TODO custom tactic
+noncomputable def notSimpleToRuleApp {L R : Finset Formula}: ¬Simple (L,R) →
+  ΣC, LocalRuleApp (L,R) C := λnot_simple =>
+  if simple_L : SimpleSet L
+  then if simple_R : SimpleSet R
+    then by exfalso; exact not_simple <| And.intro simple_L simple_R
+    else by -- R not simple
+      let vvv := notSimpleSetToForm simple_R
+      match φdef : vvv.φ with
+      | ⊥
+      | ·_
+      | □_  => exfalso; apply vvv.not_simple; aesop
+      | ψ⋀χ => -- TODO: encapsulate in tactic
+        let rule := LocalRule.oneSidedR (OneSidedLocalRule.con ψ χ)
+        let C := applyLocalRule rule (L,R)
+        exact ⟨C,(@LocalRuleApp.mk L R C
+          (List.map (fun res => (∅, res)) [{ψ, χ}]) -- since DecidableEq cannot simplify this apparently
+          ∅ {ψ⋀χ} rule (rfl)
+          ⟨(Finset.empty_subset L), (by aesop; rw[← φdef]; apply vvv.φinX)⟩
+        )⟩
 
+      | ~ψ  => match ψ with
+        | ⊥
+        | ·_
+        | □_ => exfalso; apply vvv.not_simple; aesop
+        | ψ⋀χ =>
+          let rule := LocalRule.oneSidedR (OneSidedLocalRule.ncon ψ χ)
+          let C := applyLocalRule rule (L,R)
+          exact ⟨C,(@LocalRuleApp.mk L R C
+            (List.map (fun res => (∅, res)) [{~ψ}, {~χ}]) -- since DecidableEq cannot simplify this apparently
+            ∅ {~(ψ⋀χ)} rule (rfl)
+            ⟨(Finset.empty_subset L), (by aesop; rw[← φdef]; apply vvv.φinX)⟩
+          )⟩
+        | ~ψ =>
+          let rule := LocalRule.oneSidedR (OneSidedLocalRule.neg ψ)
+          let C := applyLocalRule rule (L,R)
+          exact ⟨C,(@LocalRuleApp.mk L R C
+            (List.map (fun res => (∅, res)) [{ψ}]) -- since DecidableEq cannot simplify this apparently
+            ∅ {~~ψ} rule (rfl)
+            ⟨(Finset.empty_subset L), (by aesop; rw[← φdef]; apply vvv.φinX)⟩
+          )⟩
+  else by -- L not simple, dual
+      let vvv := notSimpleSetToForm simple_L
+      match φdef : vvv.φ with
+      | ⊥
+      | ·_
+      | □_  => exfalso; apply vvv.not_simple; aesop
+      | ψ⋀χ => -- TODO: encapsulate in tactic
+        let rule := LocalRule.oneSidedL (OneSidedLocalRule.con ψ χ)
+        let C := applyLocalRule rule (L,R)
+        exact ⟨C,(@LocalRuleApp.mk L R C
+          (List.map (fun res => (res,∅)) [{ψ, χ}]) -- since DecidableEq cannot simplify this apparently
+          {ψ⋀χ} ∅ rule (rfl)
+          ⟨(by aesop; rw[← φdef]; apply vvv.φinX), (Finset.empty_subset R)⟩
+        )⟩
+
+      | ~ψ  => match ψ with
+        | ⊥
+        | ·_
+        | □_ => exfalso; apply vvv.not_simple; aesop
+        | ψ⋀χ =>
+          let rule := LocalRule.oneSidedL (OneSidedLocalRule.ncon ψ χ)
+          let C := applyLocalRule rule (L,R)
+          exact ⟨C,(@LocalRuleApp.mk L R C
+            (List.map  (fun res => (res,∅)) [{~ψ}, {~χ}]) -- since DecidableEq cannot simplify this apparently
+            {~(ψ⋀χ)} ∅  rule (rfl)
+          ⟨(by aesop; rw[← φdef]; apply vvv.φinX), (Finset.empty_subset R)⟩
+          )⟩
+        | ~ψ =>
+          let rule := LocalRule.oneSidedL (OneSidedLocalRule.neg ψ)
+          let C := applyLocalRule rule (L,R)
+          exact ⟨C,(@LocalRuleApp.mk L R C
+            (List.map (fun res => (res,∅)) [{ψ}]) -- since DecidableEq cannot simplify this apparently
+            {~~ψ} ∅  rule (rfl)
+          ⟨(by aesop; rw[← φdef]; apply vvv.φinX), (Finset.empty_subset R)⟩
+          )⟩
+
+theorem notSimpleThenLocalRule {L R} : ¬Simple (L,R)
+  → ∃ Lcond Rcond ress, ∃ _ : LocalRule (Lcond, Rcond) ress, Lcond ⊆ L ∧ Rcond ⊆ R := by
+    intro not_simple
+    let ⟨C, ruleA⟩ := notSimpleToRuleApp not_simple
+    match ruleA with
+    | @LocalRuleApp.mk _ _ _ ress Lcond Rcond rule _ pp => exact ⟨Lcond, Rcond, ress, rule, pp⟩
 
 /- Custom tactic for first two cases? (localruledecrlength)
 
@@ -540,4 +616,15 @@ def Inconsistent : TNode → Prop
 def Consistent : TNode → Prop
   | LR => ¬Inconsistent LR
 
-def aLocalTableauFor α : LocalTableau α := sorry
+noncomputable def aLocalTableauFor (LR: TNode) : LocalTableau LR :=
+  if h_simple : (Simple LR)
+  then LocalTableau.fromSimple h_simple
+  else
+    let ⟨C, ruleA⟩ := notSimpleToRuleApp h_simple
+    LocalTableau.fromRule <| AppLocalTableau.mk ruleA <| (λc _ => aLocalTableauFor c)
+  termination_by
+    aLocalTableauFor LR => lengthOf LR
+  decreasing_by -- TODO localRuleAppDecreasesLength
+    sorry
+
+instance : Nonempty (LocalTableau LR) := Nonempty.intro (aLocalTableauFor LR)
