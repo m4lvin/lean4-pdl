@@ -288,8 +288,8 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {L R : Finset Formula} :
 -- Each rule is sound and preserves satisfiability "downwards"
 -- theorem localRuleSoundness {α : Finset Formula} {B : Finset (Finset Formula)} :
 --  LocalRule α B → Satisfiable α → ∃ β ∈ B, Satisfiable β :=
-theorem localRuleSoundness (rule : LocalRule (Lcond, Rcond) C) :
-  Satisfiable (Lcond ∪ Rcond) → ∃cLR ∈ C, Satisfiable (cLR.1 ∪ cLR.2) :=
+theorem localRuleSoundness (rule : LocalRule (Lcond, Rcond) ress) :
+  Satisfiable (Lcond ∪ Rcond) → ∃res ∈ ress, Satisfiable (res.1 ∪ res.2) :=
   by
     intro sat
     unfold Satisfiable at sat
@@ -319,11 +319,32 @@ theorem localRuleSoundness (rule : LocalRule (Lcond, Rcond) C) :
           use W; use M; use w
     all_goals aesop
 
-lemma oneSidedRule_implies_child_sat_L
+
+lemma rule_implies_child_sat
+  {ruleApp : LocalRuleApp (L, R) C}
+  {rule : LocalRule (Lcond, Rcond) ress} :
+  Satisfiable (L ∪ R) → ∃res ∈ ress, Satisfiable ((L \ Lcond ∪ res.1) ∪ (R \ Rcond ∪ res.2)) :=
+  by
+    intro satLR
+    let ⟨ress, Lcond, Rcond, rule, prepf⟩ := ruleApp
+    have satCond : Satisfiable (Lcond ∪ Rcond) :=
+      subsetSat satLR (Finset.union_subset_union prepf.left prepf.right)
+    have satRes : ∃res ∈ ress, Satisfiable (res.1 ∪ res.2) :=
+      localRuleSoundness rule satCond
+    sorry
+
+
+lemma oneSidedRule_implies_child_sat_L_old
   {ruleApp : LocalRuleApp (L, R) C}
   (def_ruleA : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (res, ∅)) _) _ _ rule hC preproof))
   (rule_is_left : rule = LocalRule.oneSidedL orule )
-  : Satisfiable (L ∪ X) → ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ X) := sorry
+  : Satisfiable (L ∪ X) → ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ X) :=
+  by
+    intro LX_sat
+    cases rule_is_left
+    cases hC
+    sorry
+
 
 lemma oneSidedRule_implies_child_sat_R
   {ruleApp : LocalRuleApp (L, R) C}
@@ -331,19 +352,19 @@ lemma oneSidedRule_implies_child_sat_R
   (rule_is_right : rule = LocalRule.oneSidedR orule )
   : Satisfiable (R ∪ X) → ∃c ∈ C.attach, Satisfiable (c.1.2 ∪ X) := sorry
 
-/-
+
 -- The critical rule is sound and preserves satisfiability "downwards".
 -- NOTE: This is stronger than Lemma 1, but we do not need.
-theorem atmSoundness {α : Finset Formula} {f} (not_box_f_in_a : ~(□f) ∈ α) :
-    Satisfiable α → Satisfiable (projection α ∪ {~f}) :=
+theorem atmSoundness {LR : TNode} {f} (not_box_f_in_LR : f_in_TNode (~(□f)) LR) :
+    Satisfiable LR → Satisfiable (projection (LR.1 ∪ LR.2) ∪ {~f}) :=
   by
-  intro aSat
-  unfold Satisfiable at aSat
-  rcases aSat with ⟨W, M, w, w_sat_a⟩
+  intro satLR
+  unfold Satisfiable at satLR
+  rcases satLR with ⟨W, M, w, w_sat_LR⟩
   constructor
   simp
   -- get the other reachable world:
-  let w_sat_not_box_f := w_sat_a (~f.box) not_box_f_in_a
+  let w_sat_not_box_f := w_sat_LR (~f.box) not_box_f_in_LR
   unfold Evaluate at w_sat_not_box_f
   simp at w_sat_not_box_f
   rcases w_sat_not_box_f with ⟨v, w_rel_v, v_not_sat_f⟩
@@ -353,40 +374,56 @@ theorem atmSoundness {α : Finset Formula} {f} (not_box_f_in_a : ~(□f) ∈ α)
   · exact v_not_sat_f
   intro phi phi_in_proj
   rw [proj] at phi_in_proj
-  · specialize w_sat_a phi.box _
+  · specialize w_sat_LR phi.box _
     exact phi_in_proj
-    unfold Evaluate at w_sat_a
-    exact w_sat_a v w_rel_v
--/
+    unfold Evaluate at w_sat_LR
+    exact w_sat_LR v w_rel_v
+
+
+theorem localTableauAndEndNodesUnsatThenNotSat {LR : TNode} (ltLR : LocalTableau LR) :
+    (∀Y, Y ∈ endNodesOf ⟨LR, ltLR⟩ → ¬Satisfiable Y) → ¬Satisfiable LR :=
+  by
+  intro endsOfLRnotSat
+  rcases ltLR with ⟨lrApp, next⟩
+  rename_i R; rename_i L
+  case fromRule C =>
+    by_contra satLR
+    rcases lrApp with ⟨ress, Lcond, Rcond, rule, preproofL, preproofR⟩
+    have prepf : Lcond ⊆ L ∧ Rcond ⊆ R := And.intro preproofL preproofR
+    rename_i hC
+    have satCond : Satisfiable (Lcond ∪ Rcond) :=
+      subsetSat satLR (Finset.union_subset_union preproofL preproofR)
+    rcases localRuleSoundness rule satCond with ⟨res, res_in_ress, satRes⟩
+    have c_child : ∃c ∈ C, (L \ Lcond ∪ res.1, R \ Rcond ∪ res.2) = c :=
+      by aesop
+    cases' c_child with c hc
+    set ltc := next c (hc.left)
+    set LR : TNode := (L, R)
+    set ltLR := LocalTableau LR
+    have endNodesInclusion :
+      ∀ Z, Z ∈ endNodesOf ⟨c, ltc⟩
+      → Z ∈ endNodesOf ⟨LR, LocalTableau.fromRule
+            (AppLocalTableau.mk (@LocalRuleApp.mk L R C ress Lcond Rcond rule hC prepf) next)⟩ :=
+      by
+        simp
+        intro Z Z_endOF_c
+        use endNodesOf ⟨c, ltc⟩
+        tauto
+    have endsOfcnotSat : ∀Z1, Z1 ∈ endNodesOf ⟨c, ltc⟩ → ¬Satisfiable Z1 :=
+      by
+        intro Z1 Z1_is_endOf_c
+        apply endsOfLRnotSat Z1 (endNodesInclusion Z1 Z1_is_endOf_c)
+    have : (∀Z, Z ∈ endNodesOf ⟨c , ltc⟩ → ¬Satisfiable Z) → ¬Satisfiable c :=
+      localTableauAndEndNodesUnsatThenNotSat ltc
+    have cNotSat : ¬Satisfiable c := this endsOfcnotSat
+    have cSat : Satisfiable c :=  sorry  -- here we need the lemmas above that node sat -> child sat
+  case fromSimple hSimple =>
+    apply endsOfLRnotSat
+    simp
+
+
 
 /-
-theorem localTableauAndEndNodesUnsatThenNotSat {L R} (ltLR : LocalTableau (L, R)) :
-    (∀ Y, Y ∈ endNodesOf ⟨Z, ltZ⟩ → ¬Satisfiable Y) → ¬Satisfiable Z :=
-  by
-  intro endsOfXnotSat
-  induction ltZ
-  case byLocalRule X YS lr next IH =>
-    by_contra satX
-    rcases localRuleSoundness lr satX with ⟨Y, Y_in_YS, satY⟩
-    specialize IH Y Y_in_YS
-    set ltY := next Y Y_in_YS
-    have endNodesInclusion :
-      ∀ W, W ∈ endNodesOf ⟨Y, ltY⟩ → W ∈ endNodesOf ⟨X, LocalTableau.byLocalRule lr next⟩ :=
-      by
-      rw [endNodesOf]
-      intro W W_endOF_Y
-      simp only [endNodesOf, Finset.mem_biUnion, Finset.mem_attach, exists_true_left,
-        Subtype.exists]
-      use Y, Y_in_YS
-    have endsOfYnotSat : ∀ Y_1 : Finset Formula, Y_1 ∈ endNodesOf ⟨Y, ltY⟩ → ¬Satisfiable Y_1 :=
-      by
-      intro W W_is_endOf_Y
-      apply endsOfXnotSat W (endNodesInclusion W W_is_endOf_Y)
-    aesop
-  case sim X X_is_simple =>
-    apply endsOfXnotSat
-    unfold endNodesOf
-    simp
 
 theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
   by

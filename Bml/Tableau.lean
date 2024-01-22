@@ -52,6 +52,10 @@ def projectTNode : TNode → TNode
 @[simp]
 def f_in_TNode (f : Formula) (LR : TNode) := f ∈ (LR.1 ∪ LR.2)
 
+@[simp]
+instance TNodeHasSat : HasSat TNode :=
+  HasSat.mk fun LR => ∃ (W : _) (M : KripkeModel W) (w : _), ∀ φ, f_in_TNode φ (LR) → Evaluate (M, w) φ
+
 -- TODO @[simp]
 theorem proj {g : Formula} {X : Finset Formula} : g ∈ projection X ↔ □g ∈ X :=
   by
@@ -522,7 +526,7 @@ theorem lrEndNodes {LR C subtabs lrApp} :
 
 theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOfTNode Z ≤ lengthOfTNode LR :=
   by
-  cases ltLR   -- mutually inductive type problem, I remember this from the chat?
+  cases ltLR
   case fromRule altLR =>
     intro Z_endOf_LR
     let ⟨lrApp, next⟩ := altLR
