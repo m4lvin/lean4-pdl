@@ -324,21 +324,20 @@ theorem localRuleSoundness (rule : LocalRule (Lcond, Rcond) C) :
           use W; use M; use w
     all_goals aesop
 
-lemma oneSidedRule_implies_child_sat_L
+theorem oneSidedRule_implies_child_sat_L
   {ruleApp : LocalRuleApp (L, R) C}
   (def_ruleA : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (res, ∅)) _) _ _ rule hC preproof))
   (rule_is_left : rule = LocalRule.oneSidedL orule )
   : Satisfiable (L ∪ X) → ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ X) := sorry
 
-lemma oneSidedRule_implies_child_sat_R
+theorem oneSidedRule_implies_child_sat_R
   {ruleApp : LocalRuleApp (L, R) C}
   (def_ruleA : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (∅, res)) _) _ _ rule hC preproof))
   (rule_is_right : rule = LocalRule.oneSidedR orule )
   : Satisfiable (R ∪ X) → ∃c ∈ C.attach, Satisfiable (c.1.2 ∪ X) := sorry
 
-/-
 -- The critical rule is sound and preserves satisfiability "downwards".
--- NOTE: This is stronger than Lemma 1, but we do not need.
+-- NOTE: This is stronger than Lemma 1, but we do not need actually.
 theorem atmSoundness {α : Finset Formula} {f} (not_box_f_in_a : ~(□f) ∈ α) :
     Satisfiable α → Satisfiable (projection α ∪ {~f}) :=
   by
@@ -362,13 +361,17 @@ theorem atmSoundness {α : Finset Formula} {f} (not_box_f_in_a : ~(□f) ∈ α)
     exact phi_in_proj
     unfold Evaluate at w_sat_a
     exact w_sat_a v w_rel_v
--/
 
-/-
-theorem localTableauAndEndNodesUnsatThenNotSat {L R} (ltLR : LocalTableau (L, R)) :
-    (∀ Y, Y ∈ endNodesOf ⟨Z, ltZ⟩ → ¬Satisfiable Y) → ¬Satisfiable Z :=
+@[simp]
+instance TNodeHasSat : HasSat TNode :=
+  HasSat.mk fun (L,R) => Satisfiable (L ∪ R)
+
+theorem localTableauAndEndNodesUnsatThenNotSat X (ltX : LocalTableau X) :
+    (∀ Y, Y ∈ endNodesOf ⟨X, ltX⟩ → ¬Satisfiable Y) → ¬Satisfiable X :=
   by
   intro endsOfXnotSat
+  sorry -- Maybe Djanira has this already?
+  /-
   induction ltZ
   case byLocalRule X YS lr next IH =>
     by_contra satX
@@ -392,19 +395,67 @@ theorem localTableauAndEndNodesUnsatThenNotSat {L R} (ltLR : LocalTableau (L, R)
     apply endsOfXnotSat
     unfold endNodesOf
     simp
+  -/
+
+@[simp]
+theorem projection_union : projection (L ∪ R) = projection L ∪ projection R :=
+  by
+  simp [projection]
+  aesop
 
 theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
   by
   intro X t
   induction t
-  case loc Y ltY _ IH =>
-    apply localTableauAndEndNodesUnsatThenNotSat ltY
+  case loc LR appTab next IH =>
+    apply localTableauAndEndNodesUnsatThenNotSat LR (LocalTableau.fromRule appTab)
     intro Z ZisEndOfY
     exact IH Z ZisEndOfY
-  case atm φ notBoxPhiInY Y_is_simple ltProYnPhi notSatProj =>
+  case atmL LR φ notBoxPhiInY Y_is_simple ltProYnPhi notSatProj =>
+    let (L,R) := LR
+    simp only [TNodeHasSat, Finset.mem_union, not_exists, not_forall, exists_prop]
     rw [Lemma1_simple_sat_iff_all_projections_sat Y_is_simple]
-    simp
-    aesop
+    simp only [f_in_TNode, Finset.mem_union, union_singleton_is_insert, not_and, not_forall, exists_prop]
+    intro nClo
+    use φ
+    constructor
+    · tauto
+    · convert notSatProj
+      have : diamondProjectTNode (Sum.inl (~φ)) (L, R) = (projection L ∪ {~φ}, projection R) := by unfold diamondProjectTNode; simp
+      rw [this]
+      simp only [setHasSat, projection_union, Finset.mem_union, Finset.mem_insert, forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
+      constructor
+      · rintro ⟨W,M,w,claim⟩
+        use W, M, w
+        intro f f_in
+        aesop
+      · rintro ⟨W,M,w,claim⟩
+        use W, M, w
+        have := claim (~φ)
+        aesop
+  case atmR LR φ notBoxPhiInY Y_is_simple ltProYnPhi notSatProj =>
+    let (L,R) := LR
+    simp only [TNodeHasSat, Finset.mem_union, not_exists, not_forall, exists_prop]
+    rw [Lemma1_simple_sat_iff_all_projections_sat Y_is_simple]
+    simp only [f_in_TNode, Finset.mem_union, union_singleton_is_insert, not_and, not_forall, exists_prop]
+    intro nClo
+    use φ
+    constructor
+    · tauto
+    · convert notSatProj
+      have : diamondProjectTNode (Sum.inr (~φ)) (L, R) = (projection L, projection R ∪ {~φ}) := by unfold diamondProjectTNode; simp
+      rw [this]
+      simp only [setHasSat, projection_union, Finset.mem_union, Finset.mem_insert, forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
+      constructor
+      · rintro ⟨W,M,w,claim⟩
+        use W, M, w
+        intro f f_in
+        have := claim.2 (~φ)
+        aesop
+      · rintro ⟨W,M,w,claim⟩
+        use W, M, w
+        have := claim (~φ)
+        aesop
 
 -- Theorem 2, page 30
 theorem correctness : ∀ X, Satisfiable X → Consistent X :=
@@ -421,8 +472,8 @@ theorem soundTableau : ∀ φ, Provable φ → ¬Satisfiable ({~φ} : Finset For
   by
   intro phi
   intro prov
-  cases' prov with _ tabl
-  apply tableauThenNotSat
+  cases' prov with ct
+  have := tableauThenNotSat _ ct
   assumption
 
 theorem soundness : ∀ φ, Provable φ → Tautology φ :=
@@ -432,4 +483,3 @@ theorem soundness : ∀ φ, Provable φ → Tautology φ :=
   rw [← singletonSat_iff_sat]
   apply soundTableau
   exact prov
--/
