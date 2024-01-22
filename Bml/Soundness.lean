@@ -117,8 +117,10 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
         f :=
   by
   intro f f_in_LR
-  unfold Simple SimpleForm at simple_LR
+  unfold Simple SimpleSet SimpleForm at simple_LR
   simp at simple_LR
+  have simple_L := simple_LR.left
+  have simple_R := simple_LR.right
   simp at f_in_LR
   rw [←Finset.mem_union] at f_in_LR
   cases f
@@ -164,16 +166,19 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
     case bottom => tauto
     case neg f =>
       rw [Finset.mem_union] at f_in_LR
-      specialize simple_LR (~~f) f_in_LR
-      simp at simple_LR
+      apply f_in_LR.elim
+      · intro f_in_L; specialize simple_L (~~f) f_in_L; simp at simple_L
+      · intro f_in_R; specialize simple_R (~~f) f_in_R; simp at simple_R
     case And f g =>
       rw [Finset.mem_union] at f_in_LR
-      specialize simple_LR (~(f⋀g)) f_in_LR
-      simp at simple_LR
+      apply f_in_LR.elim
+      · intro f_in_L; specialize simple_L (~(f⋀g)) f_in_L; simp at simple_L
+      · intro f_in_R; specialize simple_R (~(f⋀g)) f_in_R; simp at simple_R
   case And fa fb =>
     rw [Finset.mem_union] at f_in_LR
-    specialize simple_LR (fa⋀fb) f_in_LR
-    simp at simple_LR
+    apply f_in_LR.elim
+    · intro f_in_L; specialize simple_L ((fa⋀fb)) f_in_L; simp at simple_L
+    · intro f_in_R; specialize simple_R ((fa⋀fb)) f_in_R; simp at simple_R
   case box f =>
     unfold Evaluate
     intro otherWorld is_rel

@@ -11,7 +11,7 @@ theorem noBot : Provable (~⊥) := by
   case a.appTab =>
     apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {~~⊥} {} (LocalRule.oneSidedL (OneSidedLocalRule.neg ⊥))
-    simp
+    · simp
     use applyLocalRule (LocalRule.oneSidedL (OneSidedLocalRule.neg ⊥)) ({~~⊥}, ∅)
     rfl
     · -- build one child tableau
@@ -19,10 +19,9 @@ theorem noBot : Provable (~⊥) := by
       simp  at c_in
       subst c_in
       let ltBot : LocalTableau ({⊥},∅) := by
-        apply LocalTableau.fromRule
-        apply AppLocalTableau.mk
+        apply LocalTableau.fromRule; apply AppLocalTableau.mk
         apply LocalRuleApp.mk _ {⊥} {} (LocalRule.oneSidedL (OneSidedLocalRule.bot))
-        simp
+        · simp
         use []
         simp
         aesop
@@ -44,14 +43,11 @@ theorem noContradiction : Provable (~(p⋀~p)) :=
       simp at c_in
       subst c_in -- unique child node
       let ltB : LocalTableau ({p⋀~p},∅) := by
-        apply LocalTableau.fromRule
-        apply AppLocalTableau.mk
+        apply LocalTableau.fromRule; apply AppLocalTableau.mk
         apply LocalRuleApp.mk _ {p⋀~p} {} (LocalRule.oneSidedL (OneSidedLocalRule.con p (~p)))
-        simp
+        · simp
         all_goals (try rfl)
-        intro c c_in
-        simp at c_in
-        subst c_in -- unique child node
+        intro c c_in; simp at c_in; subst c_in -- unique child node
         let ltC : LocalTableau ({p, ~p}, ∅) := by
           apply LocalTableau.fromRule
           apply AppLocalTableau.mk
@@ -68,92 +64,82 @@ theorem noContradiction : Provable (~(p⋀~p)) :=
     simp [endNodesOf] at *
 
 -- preparing example 2
-def subTabForEx2 : ClosedTableau {r, ~(□p), □(p⋀q)} :=
+def subTabForEx2 : ClosedTableau ({·'r', ~(□p), □(p⋀q)}, {}) :=
   by
-  apply @ClosedTableau.atm {r, ~(□p), □(p⋀q)} p (by simp) (by simp (config := {decide := true}))
+  have : Simple ({·'r', ~(□p), □(p⋀q)}, {}) := by simp [Simple]
+  apply ClosedTableau.atmL (by simp : ~(□p) ∈ _) this
+  simp [diamondProjectTNode, projection]
+  change ClosedTableau ({~p, p⋀q},{})
   apply ClosedTableau.loc
-  rotate_left
-  -- con:
-  apply LocalTableau.byLocalRule (@LocalRule.Con {p⋀q, ~p} p q (by simp))
-  intro child childDef
-  rw [Finset.mem_singleton] at childDef 
-  -- not:
-  apply LocalTableau.byLocalRule (@LocalRule.Not _ p _) emptyTableau
-  · subst childDef; exact by decide
-  · -- show that endNodesOf is empty
-    intro Y
-    intro YisEndNode
-    simp at *
+  case appTab =>
+    apply AppLocalTableau.mk
+    apply LocalRuleApp.mk _ {p⋀q} {} (LocalRule.oneSidedL (OneSidedLocalRule.con p q))
+    all_goals (try simp; try rfl)
+    · intro c c_in; simp at c_in; subst c_in -- unique child node
+      let ltB : LocalTableau ({p, q, ~p}, ∅) := by
+        apply LocalTableau.fromRule; apply AppLocalTableau.mk
+        apply LocalRuleApp.mk _ {p, ~p} {} (LocalRule.oneSidedL (OneSidedLocalRule.not p))
+        · simp
+          intro f
+          aesop
+        use [] -- claim there are no children
+        simp
+        aesop
+      exact ltB
+  case next =>
+    intro Y Y_in
+    simp [endNodesOf] at *
+
+
+-- needed to ensure simple-ness in next example.
+notation "r" => (·'r')
 
 -- Example 2
-example : ClosedTableau {r⋀~(□p), r↣□(p⋀q)} :=
+example : ClosedTableau ({r⋀~(□p), r↣□(p⋀q)}, {}) :=
   by
   apply ClosedTableau.loc
-  rotate_left
-  · -- con
-    apply LocalTableau.byLocalRule
-    apply LocalRule.Con
-    simp only [impl, Finset.mem_insert, Finset.mem_singleton, or_false_iff]
-    constructor
-    intro branch branch_def
-    rw [Finset.mem_singleton] at branch_def 
-    rw [Finset.union_insert] at branch_def 
-    -- nCo
-    apply LocalTableau.byLocalRule
-    apply @LocalRule.nCo _ r (~(□(p⋀q)))
-    · rw [branch_def]; simp
-    intro b b_in
-    simp only [Finset.mem_insert, Finset.mem_singleton] at b_in 
-    refine' if h1 : b = branch \ {~(r⋀~(□(p⋀q)))} ∪ {~r} then _ else _
-    · -- right branch
-      -- not:
-      apply LocalTableau.byLocalRule (@LocalRule.Not _ r _) emptyTableau
-      subst h1
-      subst branch_def
-      simp
-      right
-      by_contra hyp
-      contradiction
-    · --left branch
-      have h2 : b = branch \ {~(r⋀~(□(p⋀q)))} ∪ {~~(□(p⋀q))} := by tauto
-      -- neg:
-      apply LocalTableau.byLocalRule (@LocalRule.neg _ (□(p⋀q)) _)
-      rotate_left; · rw [h2]; simp
-      intro child childDef
-      -- ending local tableau with a simple node:
-      apply LocalTableau.sim
-      rw [Finset.mem_singleton] at childDef 
-      rw [childDef]
-      unfold Simple; simp at *
-      intro f f_notDef1 f_in_branch
-      cases b_in
-      · tauto
-      case inr b_in =>
-        rw [b_in] at f_in_branch
-        simp at f_in_branch
-        cases f_in_branch
-        · tauto
-        case inr f_in_branch =>
-          rw [branch_def] at f_in_branch
-          cases' f_in_branch with l r
-          aesop
-  · -- tableau for the simple end nodes:
-    rw [conEndNodes]
-    rw [nCoEndNodes]
-    intro Y Yin
-    simp (config := {decide := true}) at *
-    · -- notnotbranch
-      have Yis : Y = {r, ~(□p), □(p⋀q)} := by
-        subst Yin
-        ext1
-        constructor <;> intro hyp
-        aesop
-        simp (config := {decide := true}) at *
-        rcases hyp with hyp|(hyp|hyp)
-        all_goals (subst hyp ; simp at *)
-        right
-        by_contra
-        contradiction
-      subst Yis
-      exact subTabForEx2
-
+  case appTab =>
+    apply AppLocalTableau.mk
+    apply LocalRuleApp.mk _ {r⋀~(□p)} {} (LocalRule.oneSidedL (OneSidedLocalRule.con r (~(□p))))
+    all_goals (try simp; try rfl)
+    · intro c c_in; simp at c_in; subst c_in -- unique child node
+      let ltB : LocalTableau ({r, ~(□p), ~(r⋀~(□(p⋀q)))}, ∅) := by
+        apply LocalTableau.fromRule; apply AppLocalTableau.mk
+        apply LocalRuleApp.mk _ {~(r⋀~(□(p⋀q)))} {} (LocalRule.oneSidedL (OneSidedLocalRule.ncon r (~(□(p⋀q)))))
+        · simp
+        · exact [ ({r, ~(□p), ~(r)},{}), ({r, ~(□p), ~~(□(p⋀q))},{}) ]
+        · rfl
+        · intro c c_in
+          simp at c_in
+          -- now branching!
+          if c = ({r, ~(□p), ~(r)},{}) then _ else _
+          case pos c_def =>
+            subst c_def
+            -- first branch, apply "not"
+            apply LocalTableau.fromRule; apply AppLocalTableau.mk
+            apply LocalRuleApp.mk _ {r, ~r} {} (LocalRule.oneSidedL (OneSidedLocalRule.not r))
+            · simp
+            · exact [] -- claim there are no children
+            · rfl
+            · aesop
+          case neg hyp =>
+            have c_def : c = ({r, ~(□p), ~~(□(p⋀q))},{}) := by aesop
+            subst c_def
+            -- second branch, apply "neg" and then modal step!
+            apply LocalTableau.fromRule; apply AppLocalTableau.mk
+            apply LocalRuleApp.mk _ {~~(□(p⋀q))} {} (LocalRule.oneSidedL (OneSidedLocalRule.neg (□(p⋀q))))
+            all_goals (try simp; try rfl)
+            intro c c_in; simp at c_in; subst c_in -- unique child node
+            -- ending local tableau with a simple node:
+            apply LocalTableau.fromSimple
+            change Simple ({r, ~(□p), (□(p⋀q))},{}) = true
+            simp [Simple]
+      exact ltB
+  case next =>
+      intro Y Y_in
+      simp (config := {decide := true}) at *
+      · subst Y_in
+        -- rewrite the Finset in the goal to that of subTabForEx2
+        have : insert (□(p⋀q)) (Finset.erase {·Char.ofNat 114, ~(□p), ~~(□(p⋀q))} (~~(□(p⋀q)))) = {·'r', ~(□p), □(p⋀q)} := by decide
+        rw [this]
+        exact subTabForEx2
