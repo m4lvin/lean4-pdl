@@ -11,7 +11,7 @@ def Saturated : Finset Formula → Prop
 
 -- Definition 19, page 31
 @[simp]
-def ModelGraph (Worlds : Finset (Finset Formula)) :=
+def ModelGraph (Worlds : Set (Finset Formula)) :=
   let W := Subtype fun x => x ∈ Worlds
   let i := ∀ X : W, Saturated X.val ∧ ⊥ ∉ X.val ∧ ∀ P, P ∈ X.val → ~P ∉ X.val
   let ii := fun M : KripkeModel W => ∀ (X : W) (pp), (·pp) ∈ X.val ↔ M.val X pp
@@ -21,7 +21,7 @@ def ModelGraph (Worlds : Finset (Finset Formula)) :=
   Subtype fun M : KripkeModel W => i ∧ ii M ∧ iii M ∧ iv M
 
 -- Lemma 9, page 32
-theorem truthLemma {Worlds : Finset (Finset Formula)} (MG : ModelGraph Worlds) :
+theorem truthLemma {Worlds : Set (Finset Formula)} (MG : ModelGraph Worlds) :
     ∀ X : Worlds, ∀ P, P ∈ X.val → Evaluate (MG.val, X) P :=
   by
   intro X P
@@ -66,7 +66,7 @@ theorem truthLemma {Worlds : Finset (Finset Formula)} (MG : ModelGraph Worlds) :
       rcases IH_P X with ⟨plus_IH_P, minus_IH_P, _⟩
       rcases IH_Q X with ⟨plus_IH_Q, minus_IH_Q, _⟩
       rcases i X with ⟨X_saturated, _, _⟩
-      unfold Saturated at X_saturated 
+      unfold Saturated at X_saturated
       rcases X_saturated P Q with ⟨_, andSplit, notAndSplit⟩
       repeat' constructor
       · intro PandQ_in_X

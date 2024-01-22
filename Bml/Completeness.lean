@@ -38,7 +38,7 @@ theorem localRuleTruth {W : Type} {M : KripkeModel W} {w : W} {X : Finset Formul
     intro hyp
     rcases hyp with ⟨b, b_in_B, w_sat_b⟩
     intro phi phi_in_a
-    simp at b_in_B 
+    simp at b_in_B
     have b_is_fga : b = insert f (insert g (X \ {f⋀g})) := by subst b_in_B; ext1; simp
     have phi_in_b_or_is_fandg : phi ∈ b ∨ phi = f⋀g :=
       by
@@ -68,7 +68,7 @@ theorem localRuleTruth {W : Type} {M : KripkeModel W} {w : W} {X : Finset Formul
       · exact w_sat_b phi phi_in_b
       · rw [phi_def]
         unfold Evaluate
-        rw [b_in_B] at w_sat_b 
+        rw [b_in_B] at w_sat_b
         specialize w_sat_b (~f)
         aesop
     case inr b_in_B => -- b contains ~g
@@ -76,7 +76,7 @@ theorem localRuleTruth {W : Type} {M : KripkeModel W} {w : W} {X : Finset Formul
       · exact w_sat_b phi phi_in_b
       · rw [phi_def]
         unfold Evaluate
-        rw [b_in_B] at w_sat_b 
+        rw [b_in_B] at w_sat_b
         specialize w_sat_b (~g)
         aesop
 
@@ -111,7 +111,7 @@ theorem consToEndNodes {X} {ltX : LocalTableau X} :
   intro consX
   unfold Consistent at *
   have claim := Not.imp consX (@inconsUpwards X ltX)
-  simp at claim 
+  simp at claim
   tauto
 
 def projOfConsSimpIsCons :
@@ -150,7 +150,7 @@ theorem locTabEndSatThenSat {X Y} (ltX : LocalTableau X) (Y_endOf_X : Y ∈ endN
     case Con ϕ ψ _ =>
       simp at *
       specialize IH (insert ϕ (insert ψ (X.erase (ϕ⋀ψ))))
-      simp at IH 
+      simp at IH
       apply IH
       rcases Y_endOf_X with ⟨W, W_def, Y_endOf_W⟩
       subst W_def
@@ -183,12 +183,12 @@ theorem almostCompleteness : (X : Finset Formula) → Consistent X → Satisfiab
   constructor
   · -- show that X is not closed
     by_contra h
-    unfold Consistent at consX 
-    unfold Inconsistent at consX 
-    simp at consX 
+    unfold Consistent at consX
+    unfold Inconsistent at consX
+    simp at consX
     cases' consX with myfalse
     apply myfalse
-    unfold Closed at h 
+    unfold Closed at h
     refine' if botInX : ⊥ ∈ X then _ else _
     · apply ClosedTableau.loc; rotate_left; apply LocalTableau.byLocalRule
       exact LocalRule.bot botInX

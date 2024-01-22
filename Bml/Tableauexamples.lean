@@ -11,9 +11,9 @@ theorem noBot : Provable (~⊥) := by
   swap
   · apply LocalTableau.byLocalRule (LocalRule.neg (Finset.mem_singleton.mpr (refl (~~⊥))))
     intro β inB
-    rw [Finset.sdiff_self] at inB 
-    rw [Finset.empty_union] at inB 
-    rw [Finset.mem_singleton] at inB 
+    rw [Finset.sdiff_self] at inB
+    rw [Finset.empty_union] at inB
+    rw [Finset.mem_singleton] at inB
     rw [inB]
     apply LocalTableau.byLocalRule (LocalRule.bot (Finset.mem_singleton.mpr (refl ⊥)))
     intro Y YinEmpty
@@ -47,7 +47,7 @@ theorem noContradiction : Provable (~(p⋀~p)) :=
     -- con:
     apply LocalTableau.byLocalRule (@LocalRule.Con _ p (~p) _)
     intro β2 β2_prop
-    simp at β2_prop 
+    simp at β2_prop
     subst β2_prop
     -- closed:
     apply LocalTableau.byLocalRule (@LocalRule.Not _ p _) emptyTableau
@@ -73,7 +73,7 @@ def subTabForEx2 : ClosedTableau {r, ~(□p), □(p⋀q)} :=
   -- con:
   apply LocalTableau.byLocalRule (@LocalRule.Con {p⋀q, ~p} p q (by simp))
   intro child childDef
-  rw [Finset.mem_singleton] at childDef 
+  rw [Finset.mem_singleton] at childDef
   -- not:
   apply LocalTableau.byLocalRule (@LocalRule.Not _ p _) emptyTableau
   · subst childDef; exact by decide
@@ -93,14 +93,14 @@ example : ClosedTableau {r⋀~(□p), r↣□(p⋀q)} :=
     simp only [impl, Finset.mem_insert, Finset.mem_singleton, or_false_iff]
     constructor
     intro branch branch_def
-    rw [Finset.mem_singleton] at branch_def 
-    rw [Finset.union_insert] at branch_def 
+    rw [Finset.mem_singleton] at branch_def
+    rw [Finset.union_insert] at branch_def
     -- nCo
     apply LocalTableau.byLocalRule
     apply @LocalRule.nCo _ r (~(□(p⋀q)))
     · rw [branch_def]; simp
     intro b b_in
-    simp only [Finset.mem_insert, Finset.mem_singleton] at b_in 
+    simp only [Finset.mem_insert, Finset.mem_singleton] at b_in
     refine' if h1 : b = branch \ {~(r⋀~(□(p⋀q)))} ∪ {~r} then _ else _
     · -- right branch
       -- not:
@@ -119,7 +119,7 @@ example : ClosedTableau {r⋀~(□p), r↣□(p⋀q)} :=
       intro child childDef
       -- ending local tableau with a simple node:
       apply LocalTableau.sim
-      rw [Finset.mem_singleton] at childDef 
+      rw [Finset.mem_singleton] at childDef
       rw [childDef]
       unfold Simple; simp at *
       intro f f_notDef1 f_in_branch
@@ -154,3 +154,68 @@ example : ClosedTableau {r⋀~(□p), r↣□(p⋀q)} :=
       subst Yis
       exact subTabForEx2
 
+
+
+def LocTab3 : LocalTableau {(p↣p) ↣ (p⋀p)} := by
+  simp
+  apply @LocalTableau.byLocalRule {~(~(p⋀~p) ⋀ ~(p⋀p))} _ _ _
+  exact {{~~(p⋀~p)}, {~~(p⋀p)}}
+  apply @LocalRule.nCo {~(~(p⋀~p) ⋀ ~(p⋀p))} (~(p⋀~p)) (~(p ⋀ p)) (Finset.mem_singleton.mpr rfl)
+  intro Y h₀
+  simp at h₀
+  by_cases h₁ :Y = {~~(p⋀~p)}
+  subst h₁ ; clear h₀
+  apply @LocalTableau.byLocalRule {~~(p⋀~p)} {{p⋀~p}}
+  apply @LocalRule.neg {~~(p⋀~p)} (p⋀~p) (Finset.mem_singleton.mpr rfl)
+  intro Y h₀ ; simp at h₀ ; subst h₀
+  apply @LocalTableau.byLocalRule {p⋀~p} {{p,~p}}
+  apply @LocalRule.Con {p⋀~p} (p) (~p) (Finset.mem_singleton.mpr rfl)
+  intro Y h₀ ; simp at h₀ ; subst h₀
+  apply @LocalTableau.sim; exact rfl
+
+  have h₂ : Y = {~~(p⋀p)} := by
+    simp_all only [Finset.singleton_inj, Formula.neg.injEq, Formula.And.injEq, true_and, true_or, h₁]
+    simp at h₀ ; exact h₀
+  subst h₂ ; clear h₀ h₁
+  apply @LocalTableau.byLocalRule {~~(p⋀p)} {{p⋀p}}
+  apply @LocalRule.neg {~~(p⋀p)} (p⋀p) (Finset.mem_singleton.mpr rfl)
+  intro Y h₀ ; simp at h₀ ; subst h₀
+  apply @LocalTableau.byLocalRule {p⋀p} {{p}}
+  apply @LocalRule.Con {p⋀p} (p) (p) (Finset.mem_singleton.mpr rfl)
+  intro Y h₀ ; simp at h₀ ; subst h₀
+  apply @LocalTableau.sim; exact rfl
+
+
+def LocTab4 : LocalTableau {p↣p} := by
+  simp
+  apply @LocalTableau.byLocalRule {~(p⋀~p)} {{~p}, {~~p}}
+  apply @LocalRule.nCo {~(p⋀~p)} (p) (~p) (Finset.mem_singleton.mpr rfl)
+  intro Y h₀ ; simp at h₀
+  by_cases h₁ :Y = {~p}
+  subst h₁
+  apply @LocalTableau.sim ; exact rfl
+
+  have h₂ : Y = {~~p} := by
+    simp_all only [Finset.singleton_inj, Formula.neg.injEq, Formula.And.injEq, true_and, true_or, h₁]
+    simp at h₀ ; exact h₀
+  subst h₂ ; clear h₀ h₁
+  apply @LocalTableau.byLocalRule {~~p} {{p}}
+  apply @LocalRule.neg {~~p} (p) (Finset.mem_singleton.mpr rfl)
+  intro Y h₀ ; simp at h₀ ; subst h₀
+  apply @LocalTableau.sim ; exact rfl
+
+
+def LocTab5 : LocalTableau {~p} := by
+  apply LocalTableau.sim ; exact rfl
+
+def LocTab6 : LocalTableau {~~p} := by
+  apply @LocalTableau.byLocalRule {~~p} {{p}}
+  apply @LocalRule.neg {~~p} p  (Finset.mem_singleton.mpr rfl)
+  intro Y h₀ ; simp at h₀ ; subst h₀
+  apply LocalTableau.sim ; exact rfl
+
+def LocTab7 : LocalTableau {p ⋀ q} := by
+  apply @LocalTableau.byLocalRule {p ⋀ q} {{p,q}}
+  apply @LocalRule.Con {p⋀q} p q (Finset.mem_singleton.mpr rfl)
+  intro Y h₀ ; simp at h₀ ; subst h₀
+  apply @LocalTableau.sim ; exact rfl

@@ -33,6 +33,12 @@ def SimpleForm : Formula → Bool
 def Simple : Finset Formula → Bool
   | X => ∀ P ∈ X, SimpleForm P
 
+
+
+#reduce (SimpleForm (□ (~ (~ ⊥))))
+#reduce (SimpleForm  (~ (~ ⊥)))
+
+
 -- Let X_A := { R | [A]R ∈ X }.
 @[simp]
 def formProjection : Formula → Option Formula
@@ -182,6 +188,10 @@ theorem localRulesDecreaseLength {X : Finset Formula} {B : Finset (Finset Formul
         _ = lengthOfSet (X.erase (~(ϕ⋀ψ))) + lengthOf (~(ϕ⋀ψ)) := by simp; ring
         _ = lengthOfSet X := lengthRemove X (~(ϕ⋀ψ)) in_X
 
+
+
+
+
 theorem atmRuleDecreasesLength {X : Finset Formula} {ϕ} :
     ~(□ϕ) ∈ X → lengthOfSet (projection X ∪ {~ϕ}) < lengthOfSet X :=
   by
@@ -208,6 +218,10 @@ theorem atmRuleDecreasesLength {X : Finset Formula} {ϕ} :
 inductive LocalTableau : Finset Formula → Type
   | byLocalRule {X B} (_ : LocalRule X B) (next : ∀ Y ∈ B, LocalTableau Y) : LocalTableau X
   | sim {X} : Simple X → LocalTableau X
+
+
+def aLocalTableauFor α : LocalTableau α := sorry
+
 
 def existsLocalTableauFor α : Nonempty (LocalTableau α) :=
   by
@@ -253,6 +267,11 @@ open LocalTableau
 instance localTableauHasSizeof : SizeOf (Σ X, LocalTableau X) :=
   ⟨fun ⟨X, _⟩ => lengthOfSet X⟩
 
+
+
+
+
+
 -- open end nodes of a given localTableau
 @[simp]
 def endNodesOf : (Σ X, LocalTableau X) → Finset (Finset Formula)
@@ -261,6 +280,15 @@ def endNodesOf : (Σ X, LocalTableau X) → Finset (Finset Formula)
       have : lengthOfSet Y < lengthOfSet X := localRulesDecreaseLength lr Y h
       endNodesOf ⟨Y, next Y h⟩
   | ⟨X, sim _⟩ => {X}
+
+-- All endNodes are simple
+theorem endNodeSimple : E ∈ endNodesOf ⟨X, tX⟩ → Simple E := by
+  intro EEndnode
+  induction tX; swap; unfold endNodesOf at *; simp_all only [Finset.mem_singleton]
+
+  clear X; rename_i X B locRule next IH; unfold endNodesOf at EEndnode; simp at EEndnode; rcases EEndnode with ⟨Y, YInB, EEndnode⟩
+  exact IH Y YInB EEndnode
+
 
 @[simp]
 theorem botNoEndNodes {X h n} :
@@ -430,26 +458,20 @@ termination_by
 theorem isClosed_then_ClosedTab {X} {tX : Tableau X} : isClosed tX → ClosedTableau X := by
   induction tX
   case loc X tX next IH  =>
-  {
     intro h₀
     unfold isClosed at h₀
     apply ClosedTableau.loc
     intro Y h₁
     exact IH Y h₁ (h₀ Y h₁)
-              }
 
   case atm X α h₀ simpleX t_proj IH  =>
-  {
     intro h₁
     apply ClosedTableau.atm
     assumption
     assumption
     apply IH
     exact h₁
-            }
 
   case opn =>
-  {
     intro h₀
     exact h₀.elim
-                  }
