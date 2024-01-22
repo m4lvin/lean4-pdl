@@ -22,7 +22,6 @@ def Closed : Finset Formula → Prop := fun X => ⊥ ∈ X ∨ ∃ f ∈ X, ~f �
 
 -- A set X is simple  iff  all P ∈ X are (negated) atoms or [A]_ or ¬[A]_.
 @[simp]
-def SimpleForm : Formula → Bool
 def SimpleForm : Formula → Prop
   | ⊥ => True  -- TODO remove / change to False? (covered by bot rule)
   | ~⊥ => True
@@ -60,6 +59,25 @@ noncomputable def notSimpleSetToForm {X : Finset Formula}: ¬SimpleSet X →
   have h : ∃φ ∈ X, ¬ SimpleForm φ := by rw [SimpleSet] at not_simple; aesop
   let w := Classical.choose h
   notSimpleFormOf.mk w (Classical.choose_spec h).1 (Classical.choose_spec h).2
+@[simp]
+instance : HasSubset (Finset Formula × Finset Formula) :=
+  HasSubset.mk λ (L1, R1) (L2, R2) => L1 ⊆ L2 ∧ R1 ⊆ R2
+
+@[simp]
+instance : Union (Finset Formula × Finset Formula) :=
+  ⟨λ (L1, R1) (L2, R2) => (L1 ∪ L2, R1 ∪ R2)⟩
+
+def TNode := Finset Formula × Finset Formula
+  deriving DecidableEq, HasSubset, Union
+
+def Simple (LR : TNode) : Prop := SimpleSet LR.1 ∧ SimpleSet LR.2
+
+instance : Decidable (Simple LR) :=
+  if L_simple : SimpleSet LR.1
+  then if R_simple : SimpleSet LR.2
+       then Decidable.isTrue  <| by simp[Simple]; aesop
+       else Decidable.isFalse <| by simp[Simple]; aesop
+  else Decidable.isFalse      <| by simp[Simple]; aesop
 
 -- Let X_A := { R | [A]R ∈ X }.
 @[simp]
@@ -69,6 +87,12 @@ def formProjection : Formula → Option Formula
 
 def projection : Finset Formula → Finset Formula
   | X => X.biUnion fun x => (formProjection x).toFinset
+
+def projectTNode : TNode → TNode
+  | (L, R) => (projection L, projection R)
+
+@[simp]
+def f_in_TNode (f : Formula) (LR : TNode) := f ∈ (LR.1 ∪ LR.2)
 
 -- TODO @[simp]
 theorem proj {g : Formula} {X : Finset Formula} : g ∈ projection X ↔ □g ∈ X :=
@@ -88,6 +112,7 @@ theorem projSet {X : Finset Formula} : ↑(projection X) = {ϕ | □ϕ ∈ X} :=
   ext1
   simp
   exact proj
+
 
 theorem projection_length_leq : ∀ f, (projection {f}).sum lengthOfFormula ≤ lengthOfFormula f :=
   by
@@ -149,18 +174,6 @@ inductive LocalRule : SubPair → List SubPair → Type
 
 -- We have equality when types match
 instance : DecidableEq (LocalRule LRconds C) := λ_ _ => Decidable.isTrue (sorry)
-
-def TNode := Finset Formula × Finset Formula
-  deriving DecidableEq
-
-def Simple (LR : TNode) : Prop := SimpleSet LR.1 ∧ SimpleSet LR.2
-
-instance : Decidable (Simple LR) :=
-  if L_simple : SimpleSet LR.1
-  then if R_simple : SimpleSet LR.2
-       then Decidable.isTrue  <| by simp[Simple]; aesop
-       else Decidable.isFalse <| by simp[Simple]; aesop
-  else Decidable.isFalse      <| by simp[Simple]; aesop
 
 open HasVocabulary
 @[simp]
@@ -423,6 +436,51 @@ theorem localRuleDecreasesLengthSide (rule : LocalRule (Lcond, Rcond) ress) :
                 aesop))
     all_goals aesop
 
+-- These are used by aesop in `localRuleNoOverlap`.
+@[simp]
+theorem notnot_notSelfContain : ~~φ ≠ φ := fun.
+@[simp]
+theorem conNotSelfContainL : φ1 ⋀ φ2 ≠ φ1 := fun.
+@[simp]
+theorem conNotSelfContainR : φ1 ⋀ φ2 ≠ φ2 := sorry -- too much Mathlib imported.
+-- see https://leanprover.zulipchat.com/#narrow/stream/113489-new-members/topic/.E2.9C.94.20well-foundedness.20of.20my.20own.20inductive.3F/near/416990596
+
+-- Rules never re-insert the same formula(s).
+theorem localRuleNoOverlap
+  (rule : LocalRule (Lcond, Rcond) ress) :
+  ∀ res ∈ ress, (Lcond ∩ res.1 = ∅) ∧ (Rcond ∩ res.2 = ∅) :=
+  by
+    intro res in_ress
+    cases rule
+    case oneSidedL ress orule =>
+      cases orule
+      all_goals aesop
+    case oneSidedR ress orule =>
+      cases orule
+      all_goals aesop
+    all_goals (cases in_ress)
+
+theorem localRuleAppDecreasesLengthSide
+  (X Cond Res : Finset Formula)
+  (hyp : lengthOf Res < lengthOf Cond)
+  (precondProof : Cond ⊆ X) :
+  lengthOf (X \ Cond ∪ Res) < lengthOf X :=
+  by
+    have : lengthOf Cond ≠ 0 := ne_zero_of_lt hyp
+    -- should be true, but seems quite tricky
+    -- Note that we are working in ℕ here where "-" is annoying.
+    -- maybe use something like Nat.add_sub_of_le here?
+    calc  lengthOf (X \ Cond ∪ Res)
+        ≤ lengthOf (X \ Cond) + lengthOf Res := by simp
+      _ = lengthOf X - lengthOf Cond + lengthOf Res := by
+            simp
+            -- Wanted to use the following, but it does not apply to ℕ because it's not a group.
+            have := @Finset.sum_sdiff_eq_sub _ _ Cond X lengthOfFormula (by sorry) _ precondProof
+            sorry
+      _ = (lengthOf X - lengthOf Cond) + lengthOf Res := rfl
+      _ = lengthOf X + lengthOf Res - lengthOf Cond := by sorry
+      _ < lengthOf X := by simp at *; sorry
+
 theorem localRuleAppDecreasesLength
   {L R : Finset Formula}
   (lrApp : @LocalRuleApp (L,R) C) :
@@ -434,8 +492,9 @@ theorem localRuleAppDecreasesLength
     subst C_def
     simp only [applyLocalRule, List.mem_map] at c_child
     rcases c_child with ⟨res, res_in_ress, def_c⟩
-    have := localRuleDecreasesLengthSide rule res res_in_ress
-    cases this
+    have lS := localRuleDecreasesLengthSide rule res res_in_ress
+    have := localRuleNoOverlap rule res res_in_ress
+    cases lS
     case inl hyp =>
       calc lengthOfTNode c
       = lengthOfSet (L \ Lcond ∪ res.1) + lengthOfSet (R \ Rcond ∪ res.2) :=
@@ -443,7 +502,7 @@ theorem localRuleAppDecreasesLength
       _ ≤ lengthOfSet (L \ Lcond ∪ res.1) + lengthOfSet R :=
           by rw [hyp.2]; simp [Finset.sum_le_sum_of_subset]
       _ < lengthOfSet L + lengthOfSet R :=
-          by simp at hyp; simp; sorry -- should be easy, use hyp?
+          by have := localRuleAppDecreasesLengthSide L Lcond res.1 hyp.1 precondProofL; aesop
       _ = lengthOfTNode (L, R) := by simp
     case inr hyp =>
       calc lengthOfTNode c
@@ -452,7 +511,7 @@ theorem localRuleAppDecreasesLength
       _ ≤ lengthOfSet L + lengthOfSet (R \ Rcond ∪ res.2) :=
           by rw [hyp.2]; simp [Finset.sum_le_sum_of_subset]
       _ < lengthOfSet L + lengthOfSet R :=
-          by simp at hyp; simp; sorry -- should be easy, use hyp?
+          by have := localRuleAppDecreasesLengthSide R Rcond res.2 hyp.1 precondProofR; aesop
       _ = lengthOfTNode (L, R) := by simp
 
 theorem AppLocalTableau.DecreasesLength
@@ -464,26 +523,59 @@ theorem AppLocalTableau.DecreasesLength
   have := localRuleAppDecreasesLength lrApp
   aesop
 
-theorem atmRuleDecreasesLength {L R : Finset Formula} {ϕ} :
-    ~(□ϕ) ∈ (L ∪ R) → lengthOfSet (projection (L ∪ R) ∪ {~ϕ}) < lengthOfSet (L ∪ R) :=
+-- Lift definition of projection to TNodes, including the diamond formula left or right.
+def diamondProjectTNode : Sum Formula Formula → TNode → TNode
+| (Sum.inl φ), (L, R) => (projection L ∪ {φ}, projection R)
+| (Sum.inr φ), (L, R) => (projection L, projection R ∪ {φ})
+
+theorem projDecreasesLength {X : Finset Formula} {φ} :
+  ~(□φ) ∈ X → lengthOfSet (projection X ∪ {~φ}) < lengthOfSet X :=
   by
-    let X := (L ∪ R)
     intro notBoxPhi_in_X
-    simp
-    have otherClaim : projection X = projection (X.erase (~(□ϕ))) :=
+    have otherClaim : projection X = projection (X.erase (~(□φ))) :=
       by
       ext1 phi
-      rw [proj]; rw [proj]
+      repeat rw [proj]
       simp
     · calc
-        lengthOfSet (insert (~ϕ) (projection X)) ≤ lengthOfSet (projection X) + lengthOf (~ϕ) :=
-          lengthOf_insert_leq_plus
-        _ = lengthOfSet (projection X) + 1 + lengthOf ϕ := by simp; ring
-        _ < lengthOfSet (projection X) + 1 + 1 + lengthOf ϕ := by simp
-        _ = lengthOfSet (projection X) + lengthOf (~(□ϕ)) := by simp; ring
-        _ = lengthOfSet (projection (X.erase (~(□ϕ)))) + lengthOf (~(□ϕ)) := by rw [otherClaim]
-        _ ≤ lengthOfSet (X.erase (~(□ϕ))) + lengthOf (~(□ϕ)) := by simp; apply projection_set_length_leq
-        _ = lengthOfSet X := lengthRemove X (~(□ϕ)) notBoxPhi_in_X
+        lengthOfSet (projection X ∪ {~φ}) ≤ lengthOfSet (projection X) + lengthOf (~φ) :=
+            by rw [union_singleton_is_insert]; exact lengthOf_insert_leq_plus
+          _ = lengthOfSet (projection X) + 1 + lengthOf φ := by simp; ring
+          _ < lengthOfSet (projection X) + 1 + 1 + lengthOf φ := by simp
+          _ = lengthOfSet (projection X) + lengthOf (~(□φ)) := by simp; ring
+          _ = lengthOfSet (projection (X.erase (~(□φ)))) + lengthOf (~(□φ)) := by rw [otherClaim]
+          _ ≤ lengthOfSet (X.erase (~(□φ))) + lengthOf (~(□φ)) := by simp; apply projection_set_length_leq
+          _ = lengthOfSet X := lengthRemove X (~(□φ)) notBoxPhi_in_X
+
+theorem atmRuleLDecreasesLength {L R : Finset Formula} {φ} :
+    ~(□φ) ∈ L → lengthOfTNode (diamondProjectTNode (Sum.inl (~φ)) (L, R)) < lengthOfTNode (L, R) :=
+  by
+    intro notBoxPhi_in_L
+    have lengthL : lengthOfSet (projection L ∪ {~φ}) < lengthOfSet L := projDecreasesLength notBoxPhi_in_L
+    · calc
+        lengthOfTNode (diamondProjectTNode (Sum.inl (~φ)) (L, R))
+          = lengthOfSet (projection L ∪ {~φ}) + lengthOfSet (projection R) := by tauto
+          _ ≤ lengthOfSet (projection L ∪ {~φ}) + lengthOfSet R := by
+            have lengthR : lengthOfSet (projection R) ≤ lengthOfSet R :=
+              by apply projection_set_length_leq
+            apply Nat.add_le_add_left lengthR
+          _ < lengthOfSet L + lengthOfSet R := by apply Nat.add_lt_add_right lengthL
+          _ = lengthOfTNode (L, R) := by rw [lengthOfTNode]
+
+theorem atmRuleRDecreasesLength {L R : Finset Formula} {φ} :
+    ~(□φ) ∈ R → lengthOfTNode (diamondProjectTNode (Sum.inr (~φ)) (L, R)) < lengthOfTNode (L, R) :=
+  by
+    intro notBoxPhi_in_R
+    have lengthR : lengthOfSet (projection R ∪ {~φ}) < lengthOfSet R := projDecreasesLength notBoxPhi_in_R
+    · calc
+        lengthOfTNode (diamondProjectTNode (Sum.inr (~φ)) (L, R))
+          = lengthOfSet (projection L) + lengthOfSet (projection R ∪ {~φ}) := by tauto
+          _ ≤ lengthOfSet L + lengthOfSet (projection R ∪ {~φ}) := by
+            have lengthL : lengthOfSet (projection L) ≤ lengthOfSet L :=
+              by apply projection_set_length_leq
+            apply Nat.add_le_add_right lengthL
+          _ < lengthOfSet L + lengthOfSet R := by apply Nat.add_lt_add_left lengthR
+          _ = lengthOfTNode (L, R) := by rw [lengthOfTNode]
 
 
 def existsLocalTableauFor LR : Nonempty (LocalTableau LR) :=
@@ -590,18 +682,14 @@ theorem endNodesOfLocalRuleLT {LR Z} {appTab : AppLocalTableau LR C} :
       lengthOfTNode Z ≤ lengthOfTNode c := endNodesOfLEQ Z_in_ZS
       _ < lengthOfTNode (L,R) := this
 
--- Lift definition of projection to TNodes, including the diamond formula left or right.
-def diamondProjectTNode : Sum Formula Formula → TNode → TNode
-| (Sum.inl φ), (L, R) => (projection L ∪ {φ}, projection R)
-| (Sum.inr φ), (L, R) => (projection L, projection R ∪ {φ})
-
 -- Definition 16, page 29
--- Note that the base case for simple tableaux is part of the
--- atomic rule "atm" which can be applied to L or to R.
+-- Notes:
+-- - "loc" uses AppLocalTableau, not "LocalTableau" to avoid infinite use of "LocalTableau.fromSimple".
+-- - base case for simple tableaux is part of "atm" which can be applied to L or to R.
 inductive ClosedTableau : TNode → Type
-  | loc {LR} {appTab : AppLocalTableau LR C} (lt : LocalTableau LR) : (∀ Y ∈ endNodesOf ⟨LR, lt⟩, ClosedTableau Y) → ClosedTableau LR
-  | atmL {L R ϕ} : ~(□ϕ) ∈ L → Simple (L,R) → ClosedTableau (diamondProjectTNode (Sum.inl (~ϕ)) (L,R) ) → ClosedTableau (L,R)
-  | atmR {L R ϕ} : ~(□ϕ) ∈ R → Simple (L,R) → ClosedTableau (diamondProjectTNode (Sum.inr (~ϕ)) (L,R) ) → ClosedTableau (L,R)
+  | loc {LR} (appTab : AppLocalTableau LR C) : (next : ∀ Y ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩, ClosedTableau Y) → ClosedTableau LR
+  | atmL {LR ϕ} : ~(□ϕ) ∈ L → Simple (L, R) → ClosedTableau (diamondProjectTNode (Sum.inl (~ϕ)) LR) → ClosedTableau LR
+  | atmR {LR ϕ} : ~(□ϕ) ∈ R → Simple (L, R) → ClosedTableau (diamondProjectTNode (Sum.inr (~ϕ)) LR) → ClosedTableau LR
 
 inductive Provable : Formula → Prop
   | byTableau {φ : Formula} : ClosedTableau ({~φ},{}) → Provable φ

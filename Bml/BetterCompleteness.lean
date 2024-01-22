@@ -14,131 +14,112 @@ open LocalRule
 def formulasInNegBox (X: Finset Formula): Finset Formula :=
   X.biUnion λ α => (match α with | ~(□f) => {f} | _ => {})
 
-theorem formulasInNegBoxIff {X}: α ∈ formulasInNegBox X ↔  ~(□α) ∈ X := by
+
+@[simp]
+theorem formulasInNegBoxIff: α ∈ formulasInNegBox X ↔  ~(□α) ∈ X := by
   rw[formulasInNegBox]
   aesop
 
-noncomputable def M₀ (X: Finset Formula): List (Σ Z, LocalTableau Z) := by
-  let tX := aLocalTableauFor X
-  cases tX
-  -- If X is not simple, add a tableau for X and process endnodes of that tableau
-  · case byLocalRule B next lr =>
-    let nextNodes := endNodesOf ⟨X, byLocalRule lr next⟩
+noncomputable def M₀ (LR : TNode): List (Σ Z, LocalTableau Z) := by
+  let tLR := aLocalTableauFor LR
+  cases tLR
+  -- If LR is not simple, add a tableau for LR and process endnodes of that tableau
+  · case fromRule C appTab =>
+    let nextNodes := endNodesOf ⟨LR, fromRule appTab⟩
     let worlds': {x // x ∈ nextNodes} → List (Σ Z, LocalTableau Z) := by
       intro ⟨Y, Y_in⟩
-      have _ : lengthOf Y < lengthOf X := by
+      have _ : lengthOf Y < lengthOf LR := by
         exact endNodesOfLocalRuleLT Y_in
       exact M₀ Y
-    exact ⟨X, tX⟩ :: (nextNodes.attach.toList.map worlds').join
-  -- If X is simple, add a tableau for X and process (projection X) ∪ {~α} for each formula ~□α ∈ X
-  · case sim simpleX =>
-    let next: { x // x ∈ formulasInNegBox X } → List (Σ Z, LocalTableau Z) := by
+    exact ⟨LR, tLR⟩ :: (nextNodes.attach.map worlds').join
+  -- If LR is simple, add a tableau for LR and process diamondProjectTNode for each diamond in LR
+  · case fromSimple isSimple =>
+    rcases eq : LR with ⟨L,R⟩
+    subst eq
+    let nextL: { x // x ∈ formulasInNegBox L} → List (Σ Z, LocalTableau Z) := by
       intro ⟨α, α_in⟩
-      have _ : lengthOf (projection X ∪ {~α}) < lengthOf X := by
+      have : lengthOfTNode (diamondProjectTNode (Sum.inl (~α)) (L, R)) < lengthOfTNode (L,R) := by
         rw [formulasInNegBoxIff] at α_in
-        exact atmRuleDecreasesLength α_in
-      exact ⟨X, tX⟩ :: M₀ (projection X ∪ {~α})
-    exact ((formulasInNegBox X).attach.toList.map next).join
-termination_by M₀ X => lengthOf X
+        apply atmRuleLDecreasesLength α_in
+      exact ⟨(L, R), tLR⟩ :: M₀ (diamondProjectTNode (Sum.inl (~α)) (L, R))
+    let nextR: { x // x ∈ formulasInNegBox R} → List (Σ Z, LocalTableau Z) := by
+      intro ⟨α, α_in⟩
+      have : lengthOfTNode (diamondProjectTNode (Sum.inr (~α)) (L, R)) < lengthOfTNode (L,R) := by
+        rw [formulasInNegBoxIff] at α_in
+        apply atmRuleRDecreasesLength α_in
+      exact ⟨(L, R), tLR⟩ :: M₀ (diamondProjectTNode (Sum.inr (~α)) (L, R))
+    let resL := ((formulasInNegBox L).attach.toList.map nextL).join
+    let resR := ((formulasInNegBox R).attach.toList.map nextR).join
+    exact resL ++ resR
+termination_by M₀ LR => lengthOf LR
 decreasing_by aesop
 
-inductive Path: Finset Formula →  Type
-  | endNode {X} (consistentX : Consistent X) (simpleX : SimpleSetDepr X): Path X
-  | interNode {X Y} (_ : LocalRule X B) (Y_in : Y ∈ B) (tail : Path Y): Path X
+inductive Path: TNode →  Type
+  | endNode {LR} (isConsistent : Consistent LR) (isSimple : Simple LR): Path LR
+  | interNode {LR Y} (_ : AppLocalTableau LR C) (Y_in : Y ∈ C) (tail : Path Y): Path LR
 open Path
 
 @[simp]
-def toFinset: Path X → Finset Formula
-  | endNode _ _ => X
-  | (interNode _ _ tail) => X ∪ (toFinset tail)
+def toTNode: Path LR → TNode
+  | endNode _ _ => LR
+  | (interNode _ _ tail) => LR ∪ toTNode tail
 
 @[simp]
-theorem X_in_PathX {X : Finset Formula} (path : Path X) : X ⊆ (toFinset path) := by
-  intro f
+theorem X_in_PathX (path : Path LR) : LR ⊆ (toTNode path) := by
+  rcases LR with ⟨L, R⟩
   cases path
-  case endNode => aesop
-  case interNode => aesop
+  case endNode => simp [instTNodeHasSubset]
+  case interNode Y C C_in tail appTab =>
+    simp_all only [instTNodeHasSubset,instHasSubsetProdFinsetFormula, toTNode, instTNodeUnion,
+      instUnionProdFinsetFormula, Finset.subset_union_left, and_self]
 
-def endNodeOf: Path X → Finset Formula
-  | endNode _ _ => X
+def endNodeOf: Path LR → TNode
+  | endNode _ _ => LR
   | interNode _ _ tail => endNodeOf tail
 
-theorem endNodeIsSimple (path : Path X): SimpleSetDepr (endNodeOf path) := by
+theorem endNodeIsSimple (path : Path X): Simple (endNodeOf path) := by
   induction path
   all_goals aesop
 
-theorem endNodeProjection (path : Path X): projection (toFinset path) = projection (endNodeOf path) := by
-  induction path
+theorem endNodeProjection (path : Path (L,R)): projectTNode (toTNode path) = projectTNode (endNodeOf path) := by
+  cases path
   case endNode cosX simX => aesop
-  case interNode lr Y_in tail IH =>
-    rename_i B X Y
-    unfold projection
-    simp only [toFinset]
+  case interNode LR Y_in tail appTab =>
+    simp only [endNodeOf]
+    rw[← endNodeProjection tail]
+    unfold projectTNode
     sorry
 
 theorem endNodeSubsetEndNodes (path: Path X) (tX: LocalTableau X): endNodeOf path ∈ endNodesOf ⟨X, tX⟩ := by
   sorry
 
-def pathsOf (tX : LocalTableau X) :  List (Path X) := by
-  cases tX
-  case sim simpleX  => sorry
-
-  case byLocalRule B next lr =>
-    let mylr := lr
-    cases lr
-    case bot h₀ =>
-      exact []
-
-    case Not φ h₀ =>
-      exact []
-
-    case neg φ h₀ =>
-      specialize next (X \ {~~φ} ∪ {φ})
-      simp only [Finset.mem_singleton] at next
-      specialize next True.intro
-      have : Finset.sum (insert φ (Finset.erase X (~~φ))) lengthOfFormula < Finset.sum X lengthOfFormula := by
-        apply localRulesDecreaseLength (LocalRule.neg h₀)
-        simp
-      exact List.map (λ l => interNode (neg h₀) (by simp) l) (pathsOf next)
-
-
-    case Con α β h₀ =>
-      specialize next (X \ {α⋀β} ∪ {α,β})
-      simp at next
-      specialize next True.intro
-      have : Finset.sum (insert α (insert β (Finset.erase X (α⋀β)))) lengthOfFormula < Finset.sum X lengthOfFormula  := by
-        apply localRulesDecreaseLength (LocalRule.Con h₀)
-        simp
-      let IH := pathsOf next
-      exact List.map (interNode (Con h₀) (by simp)) IH
-
-    case nCo α β h₀ =>
-      have next1 := next (X \ {~(α⋀β)} ∪ {~α})
-      have next2 := next (X \ {~(α⋀β)} ∪ {~β})
-      simp at next1 next2
-      specialize next1 True.intro
-      specialize next2 True.intro
-      have : Finset.sum (insert (~α) (Finset.erase X (~(α⋀β)))) lengthOfFormula < Finset.sum X lengthOfFormula := by
-        apply localRulesDecreaseLength (LocalRule.nCo h₀)
-        simp
-      have : Finset.sum (insert (~β) (Finset.erase X (~(α⋀β)))) lengthOfFormula < Finset.sum X lengthOfFormula := by
-        apply localRulesDecreaseLength (LocalRule.nCo h₀)
-        simp
-      let IH1 := List.map (interNode (nCo h₀) (by simp)) (pathsOf next1)
-      let IH2 := List.map (interNode (nCo h₀) (by simp)) (pathsOf next2)
-      exact IH1 ++ IH2
-termination_by pathsOf X tX => lengthOf X
+def pathsOf (tab : LocalTableau LR) :  List (Path LR) := by
+  cases tab
+  case fromSimple isSimple  => sorry
+  case fromRule C appTab  =>
+    let nextPaths : {c // c ∈ C} → List (Path LR) := by
+      intro ⟨c, c_in⟩
+      have : lengthOf c < lengthOf LR :=
+        AppLocalTableau.DecreasesLength appTab c_in
+      let cPaths := pathsOf (getSubTabs appTab c c_in)
+      exact cPaths.map (λ path  => interNode appTab c_in path)
+    exact (C.attach.map nextPaths).join
+termination_by pathsOf tab => lengthOf LR
 
 def aPathOf (tX : LocalTableau X) (conX : Consistent X) : Path X := by
   sorry -- using pathsOf or replace pathsOf with this
 
 theorem M₀closure1: tabY ∈ M₀ X → Z ∈ endNodesOf tabY → ⟨Z, aLocalTableauFor Z⟩ ∈ M₀ X := by sorry
 
-theorem M₀closure2: ⟨Y, sim simpleX⟩ ∈ M₀ X → ~(□α) ∈ X →
-        ⟨(projection Y ∪ {α}), aLocalTableauFor (projection Y ∪ {α})⟩ ∈ M₀ X := by sorry
+-- do we need two versions?
+theorem M₀closure2: ⟨Y, fromSimple isSimple⟩ ∈ M₀ (L, R) → ~(□α) ∈ L →
+        ⟨diamondProjectTNode (Sum.inl φ) (L, R), aLocalTableauFor (diamondProjectTNode (Sum.inl φ) (L, R))⟩ ∈ M₀ X := by sorry
 
-theorem pathSaturated (path : Path X): Saturated (toFinset path) := by
-  intro P Q
+theorem M₀closure3: ⟨Y, fromSimple isSimple⟩ ∈ M₀ (L, R) → ~(□α) ∈ R →
+        ⟨diamondProjectTNode (Sum.inr φ) (L, R), aLocalTableauFor (diamondProjectTNode (Sum.inr φ) (L, R))⟩ ∈ M₀ X := by sorry
+
+theorem pathSaturated (path : Path LR): Saturated (toTNode path) := by
+  /-intro P Q
   induction path
   case endNode X _ simpleX =>
     simp
@@ -390,19 +371,26 @@ theorem pathSaturated (path : Path X): Saturated (toFinset path) := by
                   cases nP_Q_in_path
                   apply X_in_PathX; refine Finset.mem_union_left {~γ} ?_; refine Finset.mem_sdiff.mpr ?_; aesop
                   aesop
-                aesop
+                aesop-/
+    sorry
 
-theorem pathConsistent (path : Path X): ⊥ ∉ (toFinset path) ∧ ∀ P, P ∈ (toFinset path) → ~P ∉ (toFinset path) := by
+theorem pathConsistent (path : Path TN) {h : (L, R) = toTNode path}: ⊥ ∉ L ∪ R ∧ ∀ P, P ∈ L ∪ R → ~P ∉ L ∪ R := by
   induction path
-  case endNode X consistentX simpleX =>
+  case endNode (L, R) consistentX simpleX =>
       unfold Consistent Inconsistent at consistentX
       simp at consistentX
       constructor
-      · by_contra h
-        simp at h
-        let tab := byLocalRule (bot h) (by aesop)
-        have closedTab := ClosedTableau.loc tab (by aesop)
-        exact IsEmpty.false closedTab
+      · by_contra bot_in
+        simp at bot_in
+        cases bot_in
+        · case inl bot_in =>
+          have rule := LocalRule.oneSidedL OneSidedLocalRule.bot
+          have h : ∅ = applyLocalRule rule (L,R) := by aesop
+          have appTab := @LocalRuleApp.mk L R ∅ _ _ _ rule h (by aesop)
+          have tab := fromRule (AppLocalTableau.mk appTab (by aesop))
+          have closedTab : ClosedTableau (L, R) := sorry -- ClosedTableau.loc tab (by aesop)
+          exact IsEmpty.false closedTab
+        · sorry
       · simp
         intro f f_in_X
         by_contra nf_in_X
@@ -420,26 +408,26 @@ theorem pathConsistent (path : Path X): ⊥ ∉ (toFinset path) ∧ ∀ P, P ∈
       by_contra h
       sorry
 
-theorem modelExistence (X: Finset Formula): Consistent X →
-    ∃ (WS : Finset (Finset Formula)) (M : ModelGraph WS) (W : WS), X ⊆ W :=
+theorem modelExistence (LR: TNode): Consistent X →
+    ∃ (WS : Finset TNode) (M : ModelGraph WS) (W : WS), X ⊆ W :=
   by
   intro consX
   -- TO DO make this less ugly
   let pathsOf': (Σ Y, LocalTableau Y) → List (Σ Y, Path Y) := by
     exact λ ⟨Y, tabY⟩ => (pathsOf tabY).map (λ x => ⟨Y, x⟩)
   let paths : List (Σ Y, Path Y) := ((M₀ X).map pathsOf').join
-  let WSlist : List (Finset Formula) := paths.map (λ ⟨X, path⟩ => toFinset path)
+  let WSlist : List TNode := paths.map (λ ⟨LR, path⟩ => toTNode path)
   let WS := WSlist.toFinset
   let M : KripkeModel WS := by
     constructor
     -- define valuation function
-    · intro ⟨w, w_in⟩ p
-      exact (·p) ∈ w
+    · intro ⟨(L,R), LR_in⟩ p
+      exact (·p) ∈ L ∪ R
     -- define relation
     · intro ⟨w, w_in⟩ ⟨v, v_in⟩
-      exact projection w ⊆ v
-  let pathX : Path X := aPathOf (aLocalTableauFor X) consX
-  use WS, ⟨M, ?_⟩, ⟨toFinset pathX, ?_⟩
+      exact projectTNode w ⊆ v
+  let pathX : Path X := sorry --aPathOf (aLocalTableauFor X) consX
+  use WS, ⟨M, ?_⟩, ⟨toTNode pathX, ?_⟩
   · simp
   · constructor
     · intro ⟨W, W_in⟩
