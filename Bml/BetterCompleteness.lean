@@ -53,6 +53,44 @@ noncomputable def M₀ (LR : TNode): List (Σ Z, LocalTableau Z) := by
 termination_by M₀ LR => lengthOf LR
 decreasing_by aesop
 
+def isConsLocTab : (Σ Y, LocalTableau Y) → Prop := λ ⟨Y,_⟩ => Consistent Y
+
+def ConsLocalTab := Subtype isConsLocTab
+
+noncomputable def M₀' (LR : TNode) (consistentLR: Consistent LR): List ConsLocalTab := by
+  let tLR := aLocalTableauFor LR
+  cases tLR
+  -- If LR is not simple, add a tableau for LR and process endnodes of that tableau
+  · case fromRule C appTab =>
+    let nextNodes := endNodesOf ⟨LR, fromRule appTab⟩
+    let worlds': {x // x ∈ nextNodes} → List ConsLocalTab := by
+      intro ⟨Y, Y_in⟩
+      have _ : lengthOf Y < lengthOf LR := by
+        exact endNodesOfLocalRuleLT Y_in
+      exact M₀' Y sorry -- filter Y to be consistent
+    exact ⟨⟨LR, tLR⟩, consistentLR⟩  :: (nextNodes.attach.map worlds').join
+  -- If LR is simple, add a tableau for LR and process diamondProjectTNode for each diamond in LR
+  · case fromSimple isSimple =>
+    rcases eq : LR with ⟨L,R⟩
+    subst eq
+    let nextL: { x // x ∈ formulasInNegBox L} → List ConsLocalTab := by
+      intro ⟨α, α_in⟩
+      have : lengthOfTNode (diamondProjectTNode (Sum.inl (~α)) (L, R)) < lengthOfTNode (L,R) := by
+        rw [formulasInNegBoxIff] at α_in
+        apply atmRuleLDecreasesLength α_in
+      exact ⟨⟨(L, R), tLR⟩, consistentLR⟩  :: M₀' (diamondProjectTNode (Sum.inl (~α)) (L, R)) sorry
+    let nextR: { x // x ∈ formulasInNegBox R} → List ConsLocalTab := by
+      intro ⟨α, α_in⟩
+      have : lengthOfTNode (diamondProjectTNode (Sum.inr (~α)) (L, R)) < lengthOfTNode (L,R) := by
+        rw [formulasInNegBoxIff] at α_in
+        apply atmRuleRDecreasesLength α_in
+      exact ⟨⟨(L, R), tLR⟩, consistentLR⟩ :: M₀' (diamondProjectTNode (Sum.inr (~α)) (L, R)) sorry
+    let resL := ((formulasInNegBox L).attach.toList.map nextL).join
+    let resR := ((formulasInNegBox R).attach.toList.map nextR).join
+    exact resL ++ resR
+termination_by M₀' LR _ => lengthOf LR
+decreasing_by aesop
+
 inductive Path: TNode →  Type
   | endNode {LR} (isConsistent : Consistent LR) (isSimple : Simple LR): Path LR
   | interNode {LR Y} (_ : AppLocalTableau LR C) (Y_in : Y ∈ C) (tail : Path Y): Path LR
@@ -434,9 +472,10 @@ theorem modelExistence: Consistent (L,R) →
   intro consLR
 
   -- one path per tableau?
-  let toWorld {Y} (tabY: LocalTableau Y) (consistentY: Consistent Y): Finset Formula := by
-    exact pathOf tabY consistentY |> toFinset
-  let WSList': List (Finset Formula) := sorry
+  let toWorld: ConsLocalTab →  Finset Formula := by
+    intro ⟨⟨LR, tabLR⟩, consistentLR⟩
+    exact pathOf tabLR consistentLR |> toFinset
+  let WS' := ((M₀' (L,R) consLR).map toWorld).toFinset
 
   -- TO DO make this less ugly
   let pathsOf': (Σ Y, LocalTableau Y) → List (Σ Y, Path Y) := by
