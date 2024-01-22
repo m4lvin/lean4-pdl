@@ -17,7 +17,7 @@ local notation "⌈" α "†⌉" φ => DagFormula.dag α φ
 local notation "⌈" α "⌉" ψ => DagFormula.box α ψ
 local notation "⌈⌈" ps "⌉⌉" df => DagFormula.boxes ps df
 
-local notation "~" ψ => NegDag.neg ψ
+local notation "~" ψ => NegDagFormula.neg ψ
 
 -- MEASURE
 @[simp]
@@ -554,6 +554,8 @@ decreasing_by simp_wf; assumption
 -- -- -- BOXES -- -- --
 
 -- Here we need a List DagFormula, because of the ⋓ rule.
+@[simp]
+def BDNode := List Formula × List DagFormula
 
 -- Dershowitz-Manna ordering for Lists
 -- It is usually defined on multisets, but works for lists too because
@@ -604,14 +606,14 @@ instance [DecidableEq α] [LT α] (t : WellFoundedLT α) : IsWellFounded (dm α)
   constructor
   exact wf_dm t
 
-def mOfBoxDagNode : (List Formula × List DagFormula) → ℕ
+def mOfBoxDagNode : BDNode → ℕ
   | ⟨_, []⟩ => 0
   | ⟨_, dfs⟩ => 1 + (dfs.map mOfDagFormula).sum + (dfs.map mOfDagFormula).length
 
 -- Immediate sucessors of a node in a Daggered Tableau, for boxes.
 -- Note that this is still fully deterministic.
 @[simp]
-def boxDagNext : (List Formula × List DagFormula) → List (List Formula × List DagFormula)
+def boxDagNext : BDNode → List BDNode
   | (fs, (⌈·A⌉φ)::rest) => [ (fs ++ [undag (⌈·A⌉φ)], rest) ]
   | (fs, (⌈α⋓β⌉φ)::rest) => [ (fs, (⌈α⌉φ)::(⌈β⌉φ)::rest ) ]
   | (fs, (⌈?'ψ⌉φ)::rest) => [ (fs ++ [~ψ], rest)
@@ -621,11 +623,7 @@ def boxDagNext : (List Formula × List DagFormula) → List (List Formula × Lis
   | (fs, (⌈_†⌉_)::rest) => [ (fs, rest) ] -- delete formula, but keep branch!
   | (_, []) => { } -- end node of dagger tableau
 
-theorem boxDagNextDMisDec {Δ Γ : Finset Formula × List DagFormula} (Γ_in : Γ ∈ boxDagNext Δ) :
-    to_dm Γ.2 < to_dm Δ.2 := by
-  rcases Δ with ⟨fs, _|⟨df,rest⟩⟩
-
-theorem mOfBoxDagNode.isDec {x y : List Formula × List DagFormula} (y_in : y ∈ boxDagNext x) :
+theorem mOfBoxDagNode.isDec {x y : BDNode} (y_in : y ∈ boxDagNext x) :
     mOfBoxDagNode y < mOfBoxDagNode x := by
   rcases x with ⟨fs, _|⟨df,rest⟩⟩
   case nil =>
@@ -788,10 +786,10 @@ def boxDagNextTransRefl : (List Formula × List DagFormula) → List (List Formu
   ftr boxDagNext instDecidableEqProd sorry sorry -- TODO to_dm @mOfBoxDagNode.isDec
   -- ftr boxDagNext mOfBoxDagNode @mOfBoxDagNode.isDec
 
-instance modelCanSemImplyBoxDagTabNode {W : Type} : vDash (KripkeModel W × W) (List Formula × List DagFormula) :=
+instance modelCanSemImplyBDNode {W : Type} : vDash (KripkeModel W × W) BDNode :=
   vDash.mk (λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ++ (mf.map undag), evaluate M w φ)
 
-def boxDagEndNodes : (List Formula × List DagFormula) → List (List Formula)
+def boxDagEndNodes : BDNode → List (List Formula)
   | (fs, []) => [ fs ]
   | (fs, df::rest) => ((boxDagNext (fs, df::rest)).attach.map
       (fun ⟨gsdf, h⟩ =>
@@ -843,18 +841,79 @@ theorem boxDagNormal_is_dagEnd
   simp [boxDagEndNodes]
 
 
--- TODO starInvertAux ?
-
-
--- Invertibility for th box star rule.
-theorem starInvert (M : KripkeModel W) (v : W) S
-    :
-    (∃ Γ ∈ boxDagEndNodes S, (M, v) ⊨ Γ) → (M, v) ⊨ S := by
-  rintro ⟨Γ, Γ_in, v_Γ⟩
-  -- TODO: use starInvertAux and recursive calls here?!
+theorem starInvertAux
+    (M : KripkeModel W)
+    (v : W)
+    (αs : List Program)
+    (β : Program)
+    (φ : Formula) -- or dag?
+    -- now we define a path in deterministic boxDagNext:
+    (k : ℕ)
+    (Γs : Vector BDNode (k.succ.succ))
+    (_ : ∀ i : Fin n, (Γs.get i.castSucc) ∈ boxDagNext (Γs.get i.succ))
+    (φ_in : φ ∈ (Γs.head.1)) -- what if it is the dagger form?
+    : (M, v) ⊨ DagFormula.boxes αs (⌈β†⌉ φ) :=
+  by
   sorry
 
--- Soundness for the the box star rule.
+
+theorem boxDagEndOfSome_iff_step :
+    Γ ∈ boxDagEndNodes (fs, (ψ : DagFormula) :: rest)
+    ↔
+    ∃ S ∈ boxDagNext (fs, (ψ : DagFormula) :: rest), Γ ∈ boxDagEndNodes S :=
+  by
+  sorry
+  -- cases a
+  -- all_goals (simp [boxDagEndNodes]; done)
+
+
+-- Invertibility for nSt
+theorem starInvert
+     (M : KripkeModel W) (v : W) S
+     : (∃ Γ ∈ boxDagEndNodes S, (M, v) ⊨ Γ) → (M, v) ⊨ S :=
+  by
+  rintro ⟨Γ, Γ_in, v_Γ⟩
+  rcases S_eq : S with ⟨fs, dfs⟩ -- explicit hypotheses in rcases for termination, as in notStarInvert
+  subst S_eq
+  cases dfs -- : mdf
+  case nil =>
+    simp [boxDagEndNodes] at Γ_in
+    subst Γ_in
+    simp [modelCanSemImplyBDNode]
+    exact v_Γ
+  case cons ψ rest =>
+    -- rcases ndf_eq : ndf with ⟨df⟩
+    -- subst ndf_eq
+    cases df_eq : ψ
+    case dag α φ =>
+      subst df_eq
+      simp [boxDagEndNodes] at Γ_in -- this applies the dag rule!
+      have v_fs_rest := starInvert M v (fs, rest) ⟨Γ, ⟨Γ_in, v_Γ⟩⟩ -- recursion!
+      intro f f_in
+      simp at f_in
+      -- three cases
+      cases f_in
+      · apply v_fs_rest; simp; tauto
+      case inr hyp =>
+        cases hyp
+        case inl f_def =>
+          subst f_def
+          -- now apply starInvertAux here
+          sorry
+        · apply v_fs_rest; simp; tauto
+    case box α ψ =>
+      subst df_eq
+      -- rw [boxDagEndOfSome_iff_step] at Γ_in
+      intro f f_in
+      simp at *
+      -- three cases again? or recursion for all?
+      sorry
+termination_by
+  starInvert M v S claim => mOfBoxDagNode S
+decreasing_by simp_wf; apply mOfBoxDagNode.isDec; aesop
+
+
+-- Soundness for the box star rule.
 -- This Lemma was missing in Borzechowski.
 theorem starSoundness (M : KripkeModel W) (v : W) S :
     (M, v) ⊨ S → ∃ Γ ∈ boxDagEndNodes S, (M, v) ⊨ Γ := by
