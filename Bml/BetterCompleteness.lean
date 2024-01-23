@@ -19,54 +19,7 @@ theorem formulasInNegBoxIff: α ∈ formulasInNegBox X ↔  ~(□α) ∈ X := by
   rw[formulasInNegBox]
   aesop
 
-def isConsLocTab : (Σ Y, LocalTableau Y) → Prop := λ ⟨Y,_⟩ => Consistent Y
-
-def ConsLocalTab := Subtype isConsLocTab
-
-/-noncomputable def M₀ (LR : TNode) (consistentLR: Consistent LR): List ConsLocalTab := by
-  let tLR := aLocalTableauFor LR
-  cases tLR
-  -- If LR is not simple, add a tableau for LR and process endnodes of that tableau
-  · case fromRule C appTab =>
-    let nextNodes := endNodesOf ⟨LR, fromRule appTab⟩
-    let worlds': {x // x ∈ nextNodes} → List ConsLocalTab := by
-      intro ⟨Y, Y_in⟩
-      have _ : lengthOf Y < lengthOf LR := by
-        exact endNodesOfLocalRuleLT Y_in
-      exact M₀ Y sorry -- filter Y to be consistent
-    exact ⟨⟨LR, tLR⟩, consistentLR⟩  :: (nextNodes.attach.map worlds').join
-  -- If LR is simple, add a tableau for LR and process diamondProjectTNode for each diamond in LR
-  · case fromSimple isSimple =>
-    rcases eq : LR with ⟨L,R⟩
-    subst eq
-    let nextL: { x // x ∈ formulasInNegBox L} → List ConsLocalTab := by
-      intro ⟨α, α_in⟩
-      have : lengthOfTNode (diamondProjectTNode (Sum.inl (~α)) (L, R)) < lengthOfTNode (L,R) := by
-        rw [formulasInNegBoxIff] at α_in
-        apply atmRuleLDecreasesLength α_in
-      exact ⟨⟨(L, R), tLR⟩, consistentLR⟩  :: M₀ (diamondProjectTNode (Sum.inl (~α)) (L, R)) sorry
-    let nextR: { x // x ∈ formulasInNegBox R} → List ConsLocalTab := by
-      intro ⟨α, α_in⟩
-      have : lengthOfTNode (diamondProjectTNode (Sum.inr (~α)) (L, R)) < lengthOfTNode (L,R) := by
-        rw [formulasInNegBoxIff] at α_in
-        apply atmRuleRDecreasesLength α_in
-      exact ⟨⟨(L, R), tLR⟩, consistentLR⟩ :: M₀ (diamondProjectTNode (Sum.inr (~α)) (L, R)) sorry
-    let resL := ((formulasInNegBox L).attach.toList.map nextL).join
-    let resR := ((formulasInNegBox R).attach.toList.map nextR).join
-    exact resL ++ resR
-termination_by M₀ LR _ => lengthOf LR
-decreasing_by aesop
-
-theorem M₀closure1: ⟨tabY, consY⟩ ∈ M₀ X consX → Z ∈ endNodesOf tabY → (consZ: Consistent Z)
-    → ⟨⟨Z, aLocalTableauFor Z⟩, conZ⟩  ∈ M₀ X conX := by sorry
-
--- do we need two versions?
-theorem M₀closure2: ⟨tabY, consY⟩ ∈ M₀ (L, R) consLR → ~(□α) ∈ L →
-        ⟨diamondProjectTNode (Sum.inl φ) (L, R), aLocalTableauFor (diamondProjectTNode (Sum.inl φ) (L, R))⟩ ∈ M₀ X consX := by sorry
-
-theorem M₀closure3: ⟨Y, fromSimple isSimple⟩ ∈ M₀ (L, R) → ~(□α) ∈ R →
-        ⟨diamondProjectTNode (Sum.inr φ) (L, R), aLocalTableauFor (diamondProjectTNode (Sum.inr φ) (L, R))⟩ ∈ M₀ X := by sorry
--/
+def ConsTNode := Subtype fun Y => Consistent Y
 
 theorem consThenProjectLCons: (Consistent (L,R)) → (~(□α) ∈ L) →
   Consistent (diamondProjectTNode (Sum.inl (~α)) (L,R)) := by sorry
@@ -75,19 +28,14 @@ theorem consThenProjectRCons: (Consistent (L,R)) → (~(□α)∈ R) →
   Consistent (diamondProjectTNode (Sum.inr (~α)) (L,R)) := by sorry
 
 -- TO DO better names
-inductive M₀ (T0 : ConsLocalTab) : ConsLocalTab → Prop
+-- Construct the set of roots for tableaus/paths used to make the worlds of the ModelGraph
+inductive M₀ (T0 : ConsTNode) : ConsTNode → Prop
 | a : M₀ T0 T0
-| b (T : ConsLocalTab) : (M₀ T0 T) → ∀ Y ∈ endNodesOf T.1, (consY: Consistent Y) →
-   M₀ T0 ⟨⟨Y, aLocalTableauFor Y⟩, consY⟩
-| cL (T : ConsLocalTab) : (M₀ T0 T) → ∀ LR ∈ endNodesOf T.1, (consLR: Consistent LR) → ∀ α, (h: ~(□α) ∈ LR.1) →
-  M₀ T0 ⟨⟨diamondProjectTNode (Sum.inl (~α)) LR,
-        aLocalTableauFor (diamondProjectTNode (Sum.inl (~α)) LR)⟩,
-        consThenProjectLCons consLR h⟩
-| cR (T : ConsLocalTab) : (M₀ T0 T) → ∀ LR ∈ endNodesOf T.1, (consLR: Consistent LR) → ∀ α, (h: ~(□α) ∈ LR.2) →
-  M₀ T0 ⟨⟨diamondProjectTNode (Sum.inr (~α)) LR,
-        aLocalTableauFor (diamondProjectTNode (Sum.inr (~α)) LR)⟩,
-        consThenProjectRCons consLR h⟩
-
+| b (T : ConsTNode) : (M₀ T0 T) → ∀ Y ∈ endNodesOf ⟨T.1, aLocalTableauFor T.1⟩, (consY: Consistent Y) → M₀ T0 ⟨Y, consY⟩
+| cL (T : ConsTNode) : (M₀ T0 T) → ∀ LR ∈ endNodesOf ⟨T.1, aLocalTableauFor T.1⟩, (consLR: Consistent LR) → ∀ α, (h: ~(□α) ∈ LR.1) →
+  M₀ T0 ⟨diamondProjectTNode (Sum.inl (~α)) LR, consThenProjectLCons consLR h⟩
+| cR (T : ConsTNode) : (M₀ T0 T) → ∀ LR ∈ endNodesOf ⟨T.1, aLocalTableauFor T.1⟩, (consLR: Consistent LR) → ∀ α, (h: ~(□α) ∈ LR.2) →
+  M₀ T0 ⟨diamondProjectTNode (Sum.inr (~α)) LR, consThenProjectRCons consLR h⟩
 
 inductive Path: TNode →  Type
   | endNode {LR} (isConsistent : Consistent LR) (isSimple : Simple LR): Path LR
@@ -119,16 +67,19 @@ theorem endNodeIsConsistent (path : Path X): Consistent (endNodeOf path) := by
   induction path
   all_goals aesop
 
-/-theorem endNodeProjection (path : Path (L,R)): projection (toFinset path) = projectTNode (endNodeOf path) := by
-  cases path
-  case endNode cosX simX => aesop
+theorem endNodeProjection (path : Path X) {h: (L, R) = projectTNode (endNodeOf path)}: projection (toFinset path) = L ∪ R := by
+  /-cases path
+  case endNode cosX simX =>
+    aesop
   case interNode LR Y_in tail appTab =>
     simp only [endNodeOf]
     rw[← endNodeProjection tail]
-    unfold projectTNode
+    unfold projectTNode-/
     sorry
-termination_by endNodeProjection path => lengthOfTNode (L,R)
-decreasing_by sorry-/
+--termination_by endNodeProjection path => lengthOfTNode (L,R)
+--decreasing_by sorry
+
+theorem endNodeInPath {path : Path X} {h : (L,R) = endNodeOf path}: L ∪ R ⊆ (toFinset path) := by sorry
 
 theorem endNodeSubsetEndNodes (path: Path X) (tX: LocalTableau X): endNodeOf path ∈ endNodesOf ⟨X, tX⟩ := by
   sorry
@@ -137,16 +88,16 @@ theorem consistentThenConsistentChild
     (isConsistent: Consistent LR) (appTab : AppLocalTableau LR C): ∃ c ∈ C, Consistent c := by
   sorry
 
-noncomputable def aPathOf (tab : LocalTableau LR) (isConsistent : Consistent LR) : Path LR := by
-  cases tab
-  case fromSimple isSimple  => exact endNode isConsistent isSimple
+-- given a consistent TNode LR, gives a (consistent) path in aLocalTableauFor LR
+noncomputable def aPathOf (conLR : ConsTNode) : Path conLR.1 := by
+  cases (aLocalTableauFor conLR.1)
+  case fromSimple isSimple  => exact endNode conLR.2 isSimple
   case fromRule C appTab  =>
-    choose c c_in c_consistent using consistentThenConsistentChild isConsistent appTab
-    have : lengthOf c < lengthOf LR := by
+    choose c c_in c_consistent using consistentThenConsistentChild conLR.2 appTab
+    have : lengthOf c < lengthOf conLR.1 := by
       apply AppLocalTableau.DecreasesLength appTab c_in
-    let pathOf_c := aPathOf (getSubTabs appTab c c_in) c_consistent
-    exact interNode appTab c_in pathOf_c
-termination_by aPathOf tab isConsistent => lengthOf LR
+    exact interNode appTab c_in (aPathOf ⟨c, c_consistent⟩)
+termination_by aPathOf conLR => lengthOf conLR.1
 
 theorem pathSaturated (path : Path LR): Saturated (toFinset path) := by
   /-intro P Q
@@ -439,19 +390,24 @@ theorem pathConsistent (path : Path TN): ⊥ ∉ toFinset path ∧ ∀ P, P ∈ 
       by_contra h
       sorry
 
-noncomputable def toWorld: ConsLocalTab →  Finset Formula
-  | ⟨⟨_, tabLR⟩, consistentLR⟩ => aPathOf tabLR consistentLR |> toFinset
+noncomputable def toWorld: ConsTNode →  Finset Formula
+  | ⟨LR, consistentLR⟩ => aPathOf ⟨LR, consistentLR⟩ |> toFinset
 
-theorem worldSaturated (conLT: ConsLocalTab): Saturated (toWorld conLT) := by
+@[simp]
+theorem LR_in_toWorldLR: L ∪ R ⊆ toWorld ⟨(L,R), LR_cons⟩  := by apply X_in_PathX
+
+theorem worldSaturated (conLT: ConsTNode): Saturated (toWorld conLT) := by
   sorry
 
-theorem worldConsistent (conLT: ConsLocalTab): ⊥ ∉ toWorld conLT ∧ ∀ P, P ∈ toWorld conLT → ~P ∉ toWorld conLT := by sorry
+theorem worldConsistent (conLT: ConsTNode): ⊥ ∉ toWorld conLT ∧ ∀ P, P ∈ toWorld conLT → ~P ∉ toWorld conLT := by sorry
+
+theorem worldEndNode (conLT: ConsTNode) {h: (L,R) = endNodeOf (aPathOf conLT)} : L ∪ R ⊆ toWorld conLT := by sorry
 
 theorem modelExistence: Consistent (L,R) →
     ∃ (WS : Set (Finset Formula)) (M : ModelGraph WS) (W : WS), (L ∪ R) ⊆ W :=
   by
-  intro consLR
-  let tabs := {consLT | (M₀ ⟨⟨(L,R), aLocalTableauFor (L,R)⟩, consLR⟩) consLT}
+  intro LR_cons
+  let tabs := {consTNode | (M₀ ⟨(L,R), LR_cons⟩) consTNode}
   let WS := {toWorld consLT | consLT ∈ tabs}
   let M : KripkeModel WS := by
     constructor
@@ -461,7 +417,7 @@ theorem modelExistence: Consistent (L,R) →
     -- define relation
     · intro ⟨w, w_in⟩ ⟨v, v_in⟩
       exact projection w ⊆ v
-  let pathLR : Path (L,R) := aPathOf (aLocalTableauFor (L,R)) consLR
+  let pathLR : Path (L,R) := aPathOf ⟨(L,R), LR_cons⟩
   use WS, ⟨M, ?_⟩, ⟨toFinset pathLR, ?_⟩
   · simp
   · constructor
@@ -479,11 +435,10 @@ theorem modelExistence: Consistent (L,R) →
         · intro ⟨w, w_in⟩ f nboxf_in_w
           simp_all
           choose w' w'_in w_eq using w_in
-          subst w_eq
-          let v_node := endNodeOf (aPathOf w'.1.2 w'.2)
-          let v'_in : v_node ∈ endNodesOf w'.1 := by apply endNodeSubsetEndNodes
+          let v_node := endNodeOf (aPathOf w')
+          let v'_in : v_node ∈ endNodesOf ⟨w'.1, aLocalTableauFor w'.1⟩ := by apply endNodeSubsetEndNodes
           have cons_v : Consistent v_node := by apply endNodeIsConsistent
-          let v': ConsLocalTab := ⟨⟨v_node, aLocalTableauFor v_node⟩, cons_v⟩
+          let v': ConsTNode := ⟨v_node, cons_v⟩
           have nboxf_in_v' : ~(□f) ∈ v_node.1 ∨ ~(□f) ∈ v_node.2 := by sorry
           cases nboxf_in_v'
           simp at w'_in
@@ -491,14 +446,24 @@ theorem modelExistence: Consistent (L,R) →
             have h := M₀.cL w' w'_in
             specialize h v_node v'_in cons_v f nboxf_in
             let u := diamondProjectTNode (Sum.inl (~f)) v_node
-            let u' : ConsLocalTab := ⟨⟨u, aLocalTableauFor u⟩, sorry⟩ -- a bit weird, since h already implies this
-            have : u' ∈ tabs := by aesop
+            let u' : ConsTNode := ⟨u, sorry⟩ -- a bit weird, since h already implies this
+            --have u'_in : u' ∈ tabs := by aesop
+            have u_sub: u.1 ∪ u.2 ⊆ toWorld u' := by apply LR_in_toWorldLR
             use toWorld u'
-            --simp
-            sorry
-          case inr nboxf_in => sorry
-  · simp
-    use ⟨⟨(L,R), aLocalTableauFor (L,R)⟩, consLR⟩
+            constructor
+            · have : v_node.1 ∪ v_node.2 ⊆ u.1 ∪ u.2 := by simp; sorry
+              have proj_w_sub: projection w ⊆ u.1 ∪ u.2 := by simp; sorry
+              exact Finset.Subset.trans proj_w_sub u_sub
+            constructor
+            · use u'
+            · have nf_in : ~f ∈ u.1 ∪ u.2 := by
+                simp
+                unfold diamondProjectTNode
+                split
+                all_goals simp_all
+              apply u_sub nf_in
+          case inr nboxf_in => sorry -- same as previous one
+  · use ⟨(L,R), LR_cons⟩
     unfold toWorld
     simp
     exact M₀.a
