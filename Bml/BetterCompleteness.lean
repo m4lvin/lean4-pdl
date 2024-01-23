@@ -403,6 +403,10 @@ theorem worldConsistent (conLT: ConsTNode): ⊥ ∉ toWorld conLT ∧ ∀ P, P �
 
 theorem worldEndNode (conLT: ConsTNode) {h: (L,R) = endNodeOf (aPathOf conLT)} : L ∪ R ⊆ toWorld conLT := by sorry
 
+theorem worldProjection (conLT: ConsTNode) {h: (L,R) = endNodeOf (aPathOf conLT)}: projection (toWorld conLT) = projection (L ∪ R) := by sorry
+
+theorem worldDiamond (conLT: ConsTNode) {h: (L,R) = endNodeOf (aPathOf conLT)}: ~α ∈ toWorld conLT → ~α ∈ L ∪ R := by sorry
+
 theorem modelExistence: Consistent (L,R) →
     ∃ (WS : Set (Finset Formula)) (M : ModelGraph WS) (W : WS), (L ∪ R) ⊆ W :=
   by
@@ -435,25 +439,32 @@ theorem modelExistence: Consistent (L,R) →
         · intro ⟨w, w_in⟩ f nboxf_in_w
           simp_all
           choose w' w'_in w_eq using w_in
+          subst w_eq
           let v_node := endNodeOf (aPathOf w')
           let v'_in : v_node ∈ endNodesOf ⟨w'.1, aLocalTableauFor w'.1⟩ := by apply endNodeSubsetEndNodes
           have cons_v : Consistent v_node := by apply endNodeIsConsistent
           let v': ConsTNode := ⟨v_node, cons_v⟩
-          have nboxf_in_v' : ~(□f) ∈ v_node.1 ∨ ~(□f) ∈ v_node.2 := by sorry
+          have nboxf_in_v' : ~(□f) ∈ v_node.1 ∪ v_node.2 := by
+            apply worldDiamond w' nboxf_in_w
+            simp
+          simp at nboxf_in_v'
           cases nboxf_in_v'
-          simp at w'_in
           case inl nboxf_in =>
             have h := M₀.cL w' w'_in
             specialize h v_node v'_in cons_v f nboxf_in
             let u := diamondProjectTNode (Sum.inl (~f)) v_node
             let u' : ConsTNode := ⟨u, sorry⟩ -- a bit weird, since h already implies this
-            --have u'_in : u' ∈ tabs := by aesop
+            have u_eq: u = (projection v_node.1 ∪ {~f}, projection v_node.2) := by
+              simp only
+              unfold diamondProjectTNode
+              aesop
             have u_sub: u.1 ∪ u.2 ⊆ toWorld u' := by apply LR_in_toWorldLR
             use toWorld u'
             constructor
-            · have : v_node.1 ∪ v_node.2 ⊆ u.1 ∪ u.2 := by simp; sorry
-              have proj_w_sub: projection w ⊆ u.1 ∪ u.2 := by simp; sorry
-              exact Finset.Subset.trans proj_w_sub u_sub
+            · calc
+                projection (toWorld w') = projection (v_node.1 ∪ v_node.2) := by rw [worldProjection w']; simp
+                _ ⊆ u.1 ∪ u.2 := by rw[u_eq, projectionUnion]; simp
+                _ ⊆ toWorld u' := by exact u_sub
             constructor
             · use u'
             · have nf_in : ~f ∈ u.1 ∪ u.2 := by
@@ -462,7 +473,7 @@ theorem modelExistence: Consistent (L,R) →
                 split
                 all_goals simp_all
               apply u_sub nf_in
-          case inr nboxf_in => sorry -- same as previous one
+          case inr nboxf_in => sorry -- analogous to previous one, maybe first optimize previous one
   · use ⟨(L,R), LR_cons⟩
     unfold toWorld
     simp

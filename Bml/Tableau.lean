@@ -94,6 +94,10 @@ def projectTNode : TNode → TNode
 @[simp]
 def f_in_TNode (f : Formula) (LR : TNode) := f ∈ (LR.1 ∪ LR.2)
 
+theorem projectionUnion : projection (X ∪ Y) = projection X ∪ projection Y := by
+  unfold projection
+  aesop
+
 -- TODO @[simp]
 theorem proj {g : Formula} {X : Finset Formula} : g ∈ projection X ↔ □g ∈ X :=
   by
