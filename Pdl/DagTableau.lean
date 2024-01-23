@@ -609,9 +609,20 @@ decreasing_by simp_wf; assumption
 @[simp]
 def BDNode := List Formula × List DagFormula
 
-def mOfBoxDagNode : BDNode → ℕ
-  | ⟨_, []⟩ => 0
-  | ⟨_, dfs⟩ => 1 + (dfs.map mOfDagFormula).sum + (dfs.map mOfDagFormula).length
+-- Old defi
+-- def mOfBoxDagNode : BDNode → ℕ
+--   | ⟨_, []⟩ => 0
+--   | ⟨_, dfs⟩ => 1 + (dfs.map mOfDagFormula).sum + (dfs.map mOfDagFormula).length
+
+def sumofpower : ℕ -> List ℕ → ℕ
+| _, []        => 0
+| m, (n :: ns) => m ^ n + sumofpower m ns
+
+-- New defi
+-- Here n is the parameter of the measure.
+def mOfBoxDagNode : BDNode → ℕ →  ℕ
+  | ⟨_, []⟩, _ => 0
+  | ⟨_, dfs⟩, n => sumofpower (n + 1) (dfs.map mOfDagFormula)
 
 -- Immediate sucessors of a node in a Daggered Tableau, for boxes.
 -- Note that this is still fully deterministic.
