@@ -220,7 +220,6 @@ inductive LocalTableau : Finset Formula → Type
   | sim {X} : Simple X → LocalTableau X
 
 
-def aLocalTableauFor α : LocalTableau α := sorry
 
 
 def existsLocalTableauFor α : Nonempty (LocalTableau α) :=

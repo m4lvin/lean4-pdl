@@ -9,6 +9,19 @@ open HasSat
 open LocalRule
 
 
+-- NEED FOLLOWING REMAINING LEMMAS TO COMPLETE EVERYTHING:
+  -- Need Lemma here:  X ⊆ Y and Consistent Y  ⇒ Consistent X
+  -- Need Lemma here:  Consistext X and LocalRule X B  ⇒ ∃ Y,  Y ∈ B ∧ Consistent Y
+  -- Need Lemma here:  Consistent (A ∪ (B - ~~α  + α))   ⇒  Consistent (A ∪ B)
+  -- Need Lemma here:  Consistent (A ∪ (B - α⋀β  + α + β))   ⇒  Consistent (A ∪ B)
+  -- Need Lemma here:  Consistent (A ∪ (B - ~(α⋀β) + ~α))   ⇒  Consistent (A ∪ B)
+  -- Need Lemma here:  Consistent (A ∪ (B - ~(α⋀β) + ~β))   ⇒  Consistent (A ∪ B)
+
+
+
+
+
+
 
 -- Obvious consequence of Consistency
 theorem consistentImplies : Consistent X → ⊥ ∉ X ∧ ∀ P, P ∈ X → ~P ∉ X := by
@@ -60,8 +73,3 @@ theorem consThenConProjEndNode : Consistent X → ∀ tX : LocalTableau X, ∃ E
   use E; refine And.intro EEndnode ?_;
   have simpleE : Simple E := endNodeSimple EEndnode
   intro α negBoxα; exact consisImpliesProj consisE simpleE α negBoxα
-
-
--- Subset of Consistent set is Consistent
-theorem conSubcon : X ⊆ Y → Consistent Y → Consistent X := by
-  sorry

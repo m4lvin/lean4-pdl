@@ -111,7 +111,7 @@ lemma boxInPath2 {tR : LocalTableau R} : ∀ E ∈ endNodesOf ⟨R, tR⟩, ∀ �
         refine Finset.mem_sdiff.mpr ?_; aesop
 
 
--- Need Lemma here: X ⊆ Y and Consistent Y  ⇒ COnsistent X
+-- Need Lemma here: X ⊆ Y and Consistent Y  ⇒ Consistent X
 lemma boxInPath {tR : LocalTableau R} : ∀ path ∈ pathsOf tR, (Consistent path) → ∃ E ∈ endNodesOf ⟨R, tR⟩, Consistent E ∧ (∀ α, □ α ∈ path → □ α ∈ E) ∧ (∀ α, ~(□ α) ∈ path → ~(□ α) ∈ E)  := by
   let tR' := tR
   induction tR; all_goals clear R
