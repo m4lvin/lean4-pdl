@@ -46,6 +46,7 @@ def formProjection : Formula → Option Formula
 def projection : Finset Formula → Finset Formula
   | X => X.biUnion fun x => (formProjection x).toFinset
 
+@[simp]
 def projectTNode : TNode → TNode
   | (L, R) => (projection L, projection R)
 
@@ -54,7 +55,8 @@ def f_in_TNode (f : Formula) (LR : TNode) := f ∈ (LR.1 ∪ LR.2)
 
 @[simp]
 instance TNodeHasSat : HasSat TNode :=
-  HasSat.mk fun LR => ∃ (W : _) (M : KripkeModel W) (w : _), ∀ φ, f_in_TNode φ (LR) → Evaluate (M, w) φ
+  -- HasSat.mk fun LR => ∃ (W : _) (M : KripkeModel W) (w : _), ∀ φ, f_in_TNode φ (LR) → Evaluate (M, w) φ
+  HasSat.mk fun LR => HasSat.Satisfiable (LR.1 ∪ LR.2)
 
 -- TODO @[simp]
 theorem proj {g : Formula} {X : Finset Formula} : g ∈ projection X ↔ □g ∈ X :=
