@@ -52,7 +52,7 @@ theorem InterpolantInductionStep
         have ℓ_in_child : ∃c ∈ C, ℓ ∈ jvoc c :=
           Exists.elim ℓ_in_child's_inter <| λ⟨c, cinC⟩ ⟨inCattach, linvocInter ⟩ =>
             Exists.intro c ⟨cinC, hsubInterpolants ⟨c, cinC⟩ inCattach |> And.left <| linvocInter⟩
-        exact Exists.elim ℓ_in_child <| λcLR ⟨inC, injvoc⟩ => localRuleAppDecreasesVocab ruleA cLR inC <| injvoc
+        exact Exists.elim ℓ_in_child <| λcLR ⟨inC, injvoc⟩ => localRuleApp_does_not_increase_vocab ruleA cLR inC <| injvoc
       · constructor
         · intro L_and_nθ_sat
           rw[negBigDis_eq_bigConNeg] at L_and_nθ_sat
@@ -84,7 +84,7 @@ theorem InterpolantInductionStep
         have ℓ_in_child : ∃c ∈ C, ℓ ∈ jvoc c :=
           Exists.elim ℓ_in_child's_inter <| λ⟨c, cinC⟩ ⟨inCattach, linvocInter ⟩ =>
             Exists.intro c ⟨cinC, hsubInterpolants ⟨c, cinC⟩ inCattach |> And.left <| linvocInter⟩
-        exact Exists.elim ℓ_in_child <| λcLR ⟨inC, injvoc⟩ => localRuleAppDecreasesVocab ruleA cLR inC <| injvoc
+        exact Exists.elim ℓ_in_child <| λcLR ⟨inC, injvoc⟩ => localRuleApp_does_not_increase_vocab ruleA cLR inC <| injvoc
       · constructor
         · intro L_and_nθ_sat
           rw[negBigCon_eq_bigDisNeg] at L_and_nθ_sat

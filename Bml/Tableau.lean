@@ -206,8 +206,59 @@ lemma oneSidedRule_preserves_other_side_R
   (rule_is_right : rule = LocalRule.oneSidedR orule )
   : ∀c ∈ C, c.1 = L := by aesop
 
-theorem localRuleAppDecreasesVocab (ruleA : LocalRuleApp LR C)
-  : ∀cLR ∈ C, jvoc cLR ⊆ jvoc LR  := sorry
+lemma localRule_does_not_increase_vocab_L (rule : LocalRule (Lcond, Rcond) ress)
+  : ∀res ∈ ress, voc res.1 ⊆ voc Lcond := by
+  intro res ress_in_ress ℓ ℓ_in_res
+  cases rule
+  case oneSidedL ress orule => cases orule <;> aesop
+  -- other cases are trivial
+  all_goals aesop
+-- dual
+lemma localRule_does_not_increase_vocab_R (rule : LocalRule (Lcond, Rcond) ress)
+  : ∀res ∈ ress, voc res.2 ⊆ voc Rcond := by
+  intro res ress_in_ress ℓ ℓ_in_res
+  cases rule
+  case oneSidedR ress orule => cases orule <;> aesop
+  -- other cases are trivial
+  all_goals aesop
+
+theorem localRuleApp_does_not_increase_vocab {L R : Finset Formula} (ruleA : LocalRuleApp (L,R) C)
+  : ∀cLR ∈ C, jvoc cLR ⊆ jvoc (L,R) := by -- decidableMem
+  match ruleA with
+  | @LocalRuleApp.mk _ _ _ ress Lcond Rcond rule hC preproof =>
+  intro c cinC ℓ ℓ_in_c
+  simp at ℓ_in_c
+  simp
+  constructor
+  · have ⟨Lφ,Lφ_in_cL, ℓ_in_Lφ⟩ := ℓ_in_c.left
+    apply Or.elim (Classical.em (Lφ ∈ L))
+    · intro Lφ_in_L; use Lφ
+    · intro not_Lφ_in_L
+      have Lφ_in_res : ∃res ∈ ress, Lφ ∈ res.1 := by aesop
+      let ⟨res, res_in_ress, Lφ_in_res_L⟩ := Lφ_in_res
+      have ℓ_in_ψ_in_Lcond : ∃ψ ∈ Lcond, ℓ ∈ voc ψ := by
+        let voc_res_ss_Lcond := localRule_does_not_increase_vocab_L rule res res_in_ress
+        simp at voc_res_ss_Lcond
+        let ℓ_in_voc_Lcond := voc_res_ss_Lcond Lφ Lφ_in_res_L ℓ_in_Lφ
+        simp at ℓ_in_voc_Lcond
+        exact ℓ_in_voc_Lcond
+      let ⟨ψ, ψ_in_Lcond, ℓ_in_ψ⟩ := ℓ_in_ψ_in_Lcond
+      use ψ, (by aesop), ℓ_in_ψ
+  -- dual
+  · have ⟨Rφ,Rφ_in_cR, ℓ_in_Rφ⟩ := ℓ_in_c.right
+    apply Or.elim (Classical.em (Rφ ∈ R))
+    · intro Rφ_in_R; use Rφ
+    · intro not_Rφ_in_R
+      have Rφ_in_res : ∃res ∈ ress, Rφ ∈ res.2 := by aesop
+      let ⟨res, res_in_ress, Rφ_in_res_R⟩ := Rφ_in_res
+      have ℓ_in_ψ_in_Rcond : ∃ψ ∈ Rcond, ℓ ∈ voc ψ := by
+        let voc_res_ss_Rcond := localRule_does_not_increase_vocab_R rule res res_in_ress
+        simp at voc_res_ss_Rcond
+        let ℓ_in_voc_Rcond := voc_res_ss_Rcond Rφ Rφ_in_res_R ℓ_in_Rφ
+        simp at ℓ_in_voc_Rcond
+        exact ℓ_in_voc_Rcond
+      let ⟨ψ, ψ_in_Rcond, ℓ_in_ψ⟩ := ℓ_in_ψ_in_Rcond
+      use ψ, (by aesop), ℓ_in_ψ
 
 
 mutual
