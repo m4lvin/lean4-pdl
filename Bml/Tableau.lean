@@ -760,10 +760,12 @@ noncomputable def aLocalTableauFor (LR: TNode) : LocalTableau LR :=
   then LocalTableau.fromSimple h_simple
   else
     let ⟨C, ruleA⟩ := notSimpleToRuleApp h_simple
-    LocalTableau.fromRule <| AppLocalTableau.mk ruleA <| (λc _ => aLocalTableauFor c)
+    LocalTableau.fromRule <| AppLocalTableau.mk ruleA <| (λc c_in_C =>
+      have := localRuleAppDecreasesLength ruleA c c_in_C -- for termination
+      aLocalTableauFor c)
   termination_by
     aLocalTableauFor LR => lengthOf LR
-  decreasing_by -- TODO localRuleAppDecreasesLength
-    sorry
+  decreasing_by
+    simp_wf; assumption
 
 instance : Nonempty (LocalTableau LR) := Nonempty.intro (aLocalTableauFor LR)
