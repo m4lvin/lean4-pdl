@@ -73,7 +73,7 @@ theorem InterpolantInductionStep
             have csat2 : Satisfiable <| c.2 ∪ {subInterpolants c cinC} := by rw[←R_inv_to_leftrule] at csat; assumption
             hsubInterpolants ⟨c, cinC⟩ inCattach |> And.right |> And.right <| csat2
 
-    -- ONESIDED R: perfectly dual to the onesided L case
+    -- ONESIDED R: dual to the onesided L case except for dealing with ~'s in L_and_θi_Sat
     | oneSidedR orule =>
       let interList :=  (C.attach).map $ λcInC => subInterpolants cInC.1 cInC.2
       use bigCon interList
@@ -88,9 +88,8 @@ theorem InterpolantInductionStep
       · constructor
         · intro L_and_nθ_sat
           rw[negBigCon_eq_bigDisNeg] at L_and_nθ_sat
-          have L_and_θi_Sat₁ : ∃nθi ∈ interList.map (~·), Satisfiable <| L ∪ {nθi} := bigDis_union_sat_down L_and_nθ_sat
-          have L_and_θi_Sat₂ : ∃θi ∈ interList, Satisfiable <| L ∪ {~θi} := sorry
-          have L_and_child's_inter_sat := choice_property_in_image L_and_θi_Sat₂
+          have L_and_θi_Sat : ∃nθi ∈ interList.map (~·), Satisfiable <| L ∪ {nθi} := bigDis_union_sat_down L_and_nθ_sat
+          have L_and_child's_inter_sat := choice_property_in_image <| choice_property_in_image L_and_θi_Sat
           exact Exists.elim L_and_child's_inter_sat <| λ⟨c, cinC⟩ ⟨inCattach, csat ⟩ =>
             have L_inv_to_rightrule : c.1 = L := (oneSidedRule_preserves_other_side_R def_ruleA def_rule) c cinC
             have csat2 : Satisfiable <| c.1 ∪ {~subInterpolants c cinC} := by rw[←L_inv_to_rightrule] at csat; assumption
