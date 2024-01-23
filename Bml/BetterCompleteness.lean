@@ -23,7 +23,7 @@ def isConsLocTab : (Σ Y, LocalTableau Y) → Prop := λ ⟨Y,_⟩ => Consistent
 
 def ConsLocalTab := Subtype isConsLocTab
 
-noncomputable def M₀ (LR : TNode) (consistentLR: Consistent LR): List ConsLocalTab := by
+/-noncomputable def M₀ (LR : TNode) (consistentLR: Consistent LR): List ConsLocalTab := by
   let tLR := aLocalTableauFor LR
   cases tLR
   -- If LR is not simple, add a tableau for LR and process endnodes of that tableau
@@ -57,10 +57,9 @@ noncomputable def M₀ (LR : TNode) (consistentLR: Consistent LR): List ConsLoca
 termination_by M₀ LR _ => lengthOf LR
 decreasing_by aesop
 
---theorem consThenProjectionCons (conLT: ConsLocalTab LR):
 theorem M₀closure1: ⟨tabY, consY⟩ ∈ M₀ X consX → Z ∈ endNodesOf tabY → (consZ: Consistent Z)
     → ⟨⟨Z, aLocalTableauFor Z⟩, conZ⟩  ∈ M₀ X conX := by sorry
-/-
+
 -- do we need two versions?
 theorem M₀closure2: ⟨tabY, consY⟩ ∈ M₀ (L, R) consLR → ~(□α) ∈ L →
         ⟨diamondProjectTNode (Sum.inl φ) (L, R), aLocalTableauFor (diamondProjectTNode (Sum.inl φ) (L, R))⟩ ∈ M₀ X consX := by sorry
@@ -68,12 +67,26 @@ theorem M₀closure2: ⟨tabY, consY⟩ ∈ M₀ (L, R) consLR → ~(□α) ∈ 
 theorem M₀closure3: ⟨Y, fromSimple isSimple⟩ ∈ M₀ (L, R) → ~(□α) ∈ R →
         ⟨diamondProjectTNode (Sum.inr φ) (L, R), aLocalTableauFor (diamondProjectTNode (Sum.inr φ) (L, R))⟩ ∈ M₀ X := by sorry
 -/
-inductive M0 (T0 : ConsLocalTab) : ConsLocalTab → Prop
-| a : M0 T0 T0
-| b (T : ConsLocalTab) : (M0 T0 T) → ∀ Y ∈ endNodesOf T.1, (consY: Consistent Y) →
-  ∀ local_tab_Y, M0 T0 ⟨⟨Y, local_tab_Y⟩, consY⟩
-| c (T : ConsLocalTab) : (M0 T0 T) → ∀ Y ∈ endNodesOf T.1, (consY: Consistent Y) →
-  ∀ α, ~(□α) ∈ Y.1 → ∀ local_tab_proj,  M0 T0 ⟨⟨diamondProjectTNode (Sum.inl (~α)) Y, local_tab_proj⟩, sorry⟩
+
+theorem consThenProjectLCons: (Consistent (L,R)) → (~(□α) ∈ L) →
+  Consistent (diamondProjectTNode (Sum.inl (~α)) (L,R)) := by sorry
+
+theorem consThenProjectRCons: (Consistent (L,R)) → (~(□α)∈ R) →
+  Consistent (diamondProjectTNode (Sum.inr (~α)) (L,R)) := by sorry
+
+-- TO DO better names
+inductive M₀ (T0 : ConsLocalTab) : ConsLocalTab → Prop
+| a : M₀ T0 T0
+| b (T : ConsLocalTab) : (M₀ T0 T) → ∀ Y ∈ endNodesOf T.1, (consY: Consistent Y) →
+   M₀ T0 ⟨⟨Y, aLocalTableauFor Y⟩, consY⟩
+| cL (T : ConsLocalTab) : (M₀ T0 T) → ∀ LR ∈ endNodesOf T.1, (consLR: Consistent LR) → ∀ α, (h: ~(□α) ∈ LR.1) →
+  M₀ T0 ⟨⟨diamondProjectTNode (Sum.inl (~α)) LR,
+        aLocalTableauFor (diamondProjectTNode (Sum.inl (~α)) LR)⟩,
+        consThenProjectLCons consLR h⟩
+| cR (T : ConsLocalTab) : (M₀ T0 T) → ∀ LR ∈ endNodesOf T.1, (consLR: Consistent LR) → ∀ α, (h: ~(□α) ∈ LR.2) →
+  M₀ T0 ⟨⟨diamondProjectTNode (Sum.inr (~α)) LR,
+        aLocalTableauFor (diamondProjectTNode (Sum.inr (~α)) LR)⟩,
+        consThenProjectRCons consLR h⟩
 
 
 inductive Path: TNode →  Type
@@ -435,10 +448,11 @@ theorem worldSaturated (conLT: ConsLocalTab): Saturated (toWorld conLT) := by
 theorem worldConsistent (conLT: ConsLocalTab): ⊥ ∉ toWorld conLT ∧ ∀ P, P ∈ toWorld conLT → ~P ∉ toWorld conLT := by sorry
 
 theorem modelExistence: Consistent (L,R) →
-    ∃ (WS : Finset (Finset Formula)) (M : ModelGraph WS) (W : WS), (L ∪ R) ⊆ W :=
+    ∃ (WS : Set (Finset Formula)) (M : ModelGraph WS) (W : WS), (L ∪ R) ⊆ W :=
   by
   intro consLR
-  let WS := ((M₀ (L,R) consLR).map toWorld).toFinset
+  let tabs := {consLT | (M₀ ⟨⟨(L,R), aLocalTableauFor (L,R)⟩, consLR⟩) consLT}
+  let WS := {toWorld consLT | consLT ∈ tabs}
   let M : KripkeModel WS := by
     constructor
     -- define valuation function
@@ -452,7 +466,7 @@ theorem modelExistence: Consistent (L,R) →
   · simp
   · constructor
     · intro ⟨W, W_in⟩
-      simp at W_in
+      simp_all
       choose W' pathW' h using W_in
       subst h
       exact ⟨worldSaturated W', worldConsistent W'⟩
@@ -463,25 +477,31 @@ theorem modelExistence: Consistent (L,R) →
           rewrite [← proj] at h
           aesop
         · intro ⟨w, w_in⟩ f nboxf_in_w
-          simp at nboxf_in_w
-          simp at w_in
+          simp_all
           choose w' w'_in w_eq using w_in
           subst w_eq
-          simp at *
           let v_node := endNodeOf (aPathOf w'.1.2 w'.2)
           let v'_in : v_node ∈ endNodesOf w'.1 := by apply endNodeSubsetEndNodes
-          have cons_v : Consistent v_node := sorry
+          have cons_v : Consistent v_node := by apply endNodeIsConsistent
           let v': ConsLocalTab := ⟨⟨v_node, aLocalTableauFor v_node⟩, cons_v⟩
-          have v_in : v' ∈ M₀ (L,R) consLR := M₀closure1 w'_in v'_in cons_v
           have nboxf_in_v' : ~(□f) ∈ v_node.1 ∨ ~(□f) ∈ v_node.2 := by sorry
           cases nboxf_in_v'
-          case inl nboxf_in => sorry
+          simp at w'_in
+          case inl nboxf_in =>
+            have h := M₀.cL w' w'_in
+            specialize h v_node v'_in cons_v f nboxf_in
+            let u := diamondProjectTNode (Sum.inl (~f)) v_node
+            let u' : ConsLocalTab := ⟨⟨u, aLocalTableauFor u⟩, sorry⟩ -- a bit weird, since h already implies this
+            have : u' ∈ tabs := by aesop
+            use toWorld u'
+            --simp
+            sorry
           case inr nboxf_in => sorry
   · simp
     use ⟨⟨(L,R), aLocalTableauFor (L,R)⟩, consLR⟩
     unfold toWorld
     simp
-    sorry
+    exact M₀.a
 /-
 -- Theorem 4, page 37
 theorem completeness : ∀ X, Consistent X ↔ Satisfiable X :=
