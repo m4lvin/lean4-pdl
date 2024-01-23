@@ -360,12 +360,39 @@ def toNegLoad (α : Program) (φ : Formula) : NegLoadFormula :=
     | ([],f) => ~'⌊α⌋f
     | (bs,f) => sorry
 
+-- NOTES about the History type:
+-- - The newest/lowest TNode should be the head of the list.
+-- - we also need the rule that is applied to check isCritical.
+--   Add "× LocalRuleApp" to History type? Need Σ.
+-- - currently we only track "big" steps, do we need local steps?
+--
+def History : Type := List TNode -- This may not be enough!
+
+-- A history is loaded iff it always contains a loaded formula.
+def isLoaded : History → Bool
+  | [] => True
+  | ((_,_,some _)::rest) => isLoaded rest
+  | ((_,_,none  )::_) => False
+
+def isCriticalTo : TNode → (Hist : History) → Bool
+  | X, [] => False
+  | X, (Y::rest) =>
+      if X == Y then sorry else sorry -- need to know the rules that were applied!
+
+-- MB Condition 6, simplified to only represent closed tableau:
+--
+-- A node t repeating s can be treated as a closed end node if
+-- the path from s to t is critical and loaded.
+def isCondSixRepeat : TNode → History → Bool :=
+  by sorry
+
 -- The "Step" notation has two jobs:
 -- - flip the order in the definition below to be more natural.
 -- - avoid having to repeat "parent" to build the history.
 notation "Step" Ct:arg Hist:arg parent:arg child:arg => Ct (parent::Hist) child → Ct Hist parent
 
-inductive ClosedTableau : List TNode → TNode → Type
+-- ClosedTableau [parent, grandparent, ...] child
+inductive ClosedTableau : History → TNode → Type
   -- Do a local tableau:
   | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf ⟨X, lt⟩, ClosedTableau Hist Y) → ClosedTableau Hist X
   -- The (M+) rule:
@@ -383,21 +410,17 @@ inductive ClosedTableau : List TNode → TNode → Type
                                                               (projection A L, projection A R, some (Sum.inr (~'χ)))
   | atmR'  {A X φ} : isSimpleNode X → Step ClosedTableau Hist ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
                                                               (projection A L, projection A R ++ [~φ], none)
-
-  -- End nodes by MB condition 6
-  -- TODO spell out the condition
-  -- TODO if we want only finite tableau then condition has to be eager! need its negation for all other rules above?
-  | repeat {X} : X ∈ Hist → ClosedTableau Hist X
-
-
--- TODO: allow (any) partitioning in the definitions below!
+  | repeat {X Hist} (rep : isCondSixRepeat X Hist) : ClosedTableau Hist X
+  --
+  -- If we want only finite tableaux then 6 has to be eager! Add its negation in all other rules?
 
 inductive Provable : Formula → Prop
-  | byTableau {φ : Formula} : ClosedTableau [] ⟨[~φ], [], none⟩ → Provable φ
+  | byTableauL {φ : Formula} : ClosedTableau [] ⟨[~φ], [], none⟩ → Provable φ
+  | byTableauR {φ : Formula} : ClosedTableau [] ⟨[], [~φ], none⟩ → Provable φ
 
 -- MB: Definition 17, page 30
 def Inconsistent : List Formula → Prop
-  | X => Nonempty (ClosedTableau [] ⟨X, [], none⟩)
+  | X => ∃ L R, L ++ R = X ∧ Nonempty (ClosedTableau [] ⟨L, R, none⟩)
 
 def Consistent : List Formula → Prop
   | X => ¬Inconsistent X
