@@ -505,11 +505,9 @@ def unloadOnly : DagLoadFormula → DagFormula -- probably never needed?
   | (⌊α†⌋(χ : LoadFormula)) => (DagFormula.dag (∗α) (unload χ))
   | (⌊α⌋γ) => (DagFormula.box α (unloadOnly γ))
 
--- QUESTIONS
--- - Now that we went from "Dag LoadFormula" to "Dag LoadFormula" we have:
-example : DagLoadFormula := ⌊(·'a')†⌋(·'p') -- was broken, now works!
--- example : DagLoadFormula := ⌊(·'a')†⌋⌊·'a'⌋(·'p') -- now broken, but that's good.
-example : DagLoadFormula := ⌊·'a'⌋⌊(·'a')†⌋(·'p') -- works
+example : DagLoadFormula := ⌊(·'a')†⌋(·'p')
+example : DagLoadFormula := ⌊(·'a')†⌋⌊·'a'⌋(·'p') -- should this be allowed?!
+example : DagLoadFormula := ⌊·'a'⌋⌊(·'a')†⌋(·'p')
 
 -- In an LDDT we have a list of normal formulas and optionally either a NegLoadFormula or a NegDagLoadFormula.
 

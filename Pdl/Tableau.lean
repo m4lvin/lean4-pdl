@@ -234,15 +234,6 @@ inductive LocalRule : TNode → List TNode → Type
   | loadedR (χ : LoadFormula) (lrule : LoadRule (~'χ) ress) :
       LocalRule (∅, ∅, some (Sum.inr (~'χ))) $ ress.map $ λ (X, o) => (∅, X, o.map Sum.inr)
 
-
--- -- Like Lemma 5 of MB
--- theorem localRuleTruth {W} {M : KripkeModel W} {w : W} {X B} :
---   LocalRule X B → ((∃ Y ∈ B, (M,w) ⊨ Y) ↔ (M,w) ⊨ X) :=
---   by
---   intro locR
-
-
-
 @[simp]
 def applyLocalRule (_ : LocalRule (Lcond, Rcond, Ocond) C) : TNode → List TNode
   | ⟨L, R, o⟩ => C.map $ λ (Lnew, Rnew, Onew) => match Onew with

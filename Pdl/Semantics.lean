@@ -126,7 +126,7 @@ theorem notSat_iff_semImplies (X : Finset Formula) (χ : Formula):
     -- cases em (evaluate M w χ)
     sorry
 
-lemma relate_steps : ∀ x z, relate M (Program.steps (as ++ bs)) x z  ↔
+theorem relate_steps : ∀ x z, relate M (Program.steps (as ++ bs)) x z  ↔
   ∃ y, relate M (Program.steps as) x y ∧ relate M (Program.steps bs) y z :=
   by
   induction as
@@ -171,3 +171,11 @@ theorem rel_steps_last {as} : ∀ v w,
       use y
       rw [IH]
       tauto
+
+theorem truthImply_then_satImply (X Y : Finset Formula) : X ⊨ Y → satisfiable X → satisfiable Y :=
+  by
+  intro X_Y
+  intro satX
+  rcases satX with ⟨W,M,w,v_X⟩
+  specialize X_Y W M w v_X
+  use W, M, w
