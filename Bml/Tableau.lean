@@ -51,6 +51,26 @@ def projectTNode : TNode → TNode
   | (L, R) => (projection L, projection R)
 
 @[simp]
+theorem project_insert {X φ} : projection (X ∪ {φ}) = projection X ∪ projection {φ} :=
+  by simp [projection] at *; aesop
+
+@[simp]
+theorem project_union {X Y} : projection (X ∪ Y) = projection X ∪ projection Y :=
+  by
+    ext1 f
+    apply Iff.intro <;>
+    ( induction Y using Finset.induction_on
+      · intro hyp
+        simp [project_insert] at *
+        ( first
+          | apply Or.inl; exact hyp
+          | (have : projection ∅ = ∅ := by tauto); aesop)
+      · simp at *
+        intro hyp
+        rw [←union_singleton_is_insert, project_insert] at *
+        aesop)
+
+@[simp]
 def f_in_TNode (f : Formula) (LR : TNode) := f ∈ (LR.1 ∪ LR.2)
 
 @[simp]

@@ -235,10 +235,11 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
           exact v_sat_notr
         · intro boxg_in_LR
           rw [proj] at boxg_in_LR
-          rw [Finset.mem_union]at boxg_in_LR
-          specialize w_sat_LR (□g) boxg_in_LR
+          rw [proj] at boxg_in_LR
+          rw [←Finset.mem_union]at boxg_in_LR
+          specialize w_sat_LR (□g)
           unfold Evaluate at w_sat_LR
-          exact w_sat_LR v w_rel_v
+          aesop
     · -- right to left
       intro rhs
       cases' rhs with not_closed_LR all_pro_sat
@@ -355,8 +356,10 @@ theorem atmSoundness {LR : TNode} {f} (not_box_f_in_LR : f_in_TNode (~(□f)) LR
   · exact v_not_sat_f
   intro phi phi_in_proj
   rw [proj] at phi_in_proj
+  rw [proj] at phi_in_proj
   · specialize w_sat_LR phi.box _
-    exact phi_in_proj
+    simp
+    assumption
     unfold Evaluate at w_sat_LR
     exact w_sat_LR v w_rel_v
 
@@ -428,14 +431,11 @@ theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
       · rintro ⟨W,M,w,claim⟩
         use W, M, w
         intro f f_in
-        -- unfold f_in_TNode at f_in
-        sorry
-        -- aesop
+        aesop
       · rintro ⟨W,M,w,claim⟩
         use W, M, w
         have := claim (~φ)
-        sorry
-        -- aesop
+        aesop
   case atmR LR φ notBoxPhiInY Y_is_simple ltProYnPhi notSatProj =>
     let (L,R) := LR
     rw [Lemma1_simple_sat_iff_all_projections_sat Y_is_simple]
@@ -454,13 +454,11 @@ theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
         use W, M, w
         intro f f_in
         have := claim.2 (~φ)
-        sorry
-        -- aesop
+        aesop
       · rintro ⟨W,M,w,claim⟩
         use W, M, w
         have := claim (~φ)
-        sorry
-        -- aesop
+        aesop
 
 -- Theorem 2, page 30
 theorem correctness : ∀LR : TNode, Satisfiable LR → Consistent LR :=
