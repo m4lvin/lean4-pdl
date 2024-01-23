@@ -34,9 +34,8 @@ theorem InterpolantInductionStep
     -- UNPACKING TERMS
     match v : tab with
     | @AppLocalTableau.mk _ _ C ruleA subTabs =>
-    match ruleA with
+    match def_ruleA : ruleA with
     | @LocalRuleApp.mk _ _ _ ress Lcond Rcond rule hC preproof =>
-    have def_ruleA : ruleA = (@LocalRuleApp.mk L R C ress Lcond Rcond rule hC preproof) := sorry
 
     -- DISTINCTION ON LOCALRULE USED
     cases def_rule : rule with
