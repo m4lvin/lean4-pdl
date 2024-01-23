@@ -27,16 +27,6 @@ theorem consThenProjectLCons: (Consistent (L,R)) → (~(□α) ∈ L) →
 theorem consThenProjectRCons: (Consistent (L,R)) → (~(□α)∈ R) →
   Consistent (diamondProjectTNode (Sum.inr (~α)) (L,R)) := by sorry
 
--- TO DO better names
--- Construct the set of roots for tableaus/paths used to make the worlds of the ModelGraph
-inductive M₀ (T0 : ConsTNode) : ConsTNode → Prop
-| a : M₀ T0 T0
-| b (T : ConsTNode) : (M₀ T0 T) → ∀ Y ∈ endNodesOf ⟨T.1, aLocalTableauFor T.1⟩, (consY: Consistent Y) → M₀ T0 ⟨Y, consY⟩
-| cL (T : ConsTNode) : (M₀ T0 T) → ∀ LR ∈ endNodesOf ⟨T.1, aLocalTableauFor T.1⟩, (consLR: Consistent LR) → ∀ α, (h: ~(□α) ∈ LR.1) →
-  M₀ T0 ⟨diamondProjectTNode (Sum.inl (~α)) LR, consThenProjectLCons consLR h⟩
-| cR (T : ConsTNode) : (M₀ T0 T) → ∀ LR ∈ endNodesOf ⟨T.1, aLocalTableauFor T.1⟩, (consLR: Consistent LR) → ∀ α, (h: ~(□α) ∈ LR.2) →
-  M₀ T0 ⟨diamondProjectTNode (Sum.inr (~α)) LR, consThenProjectRCons consLR h⟩
-
 inductive Path: TNode →  Type
   | endNode {LR} (isConsistent : Consistent LR) (isSimple : Simple LR): Path LR
   | interNode {LR Y} (_ : AppLocalTableau LR C) (Y_in : Y ∈ C) (tail : Path Y): Path LR
@@ -407,6 +397,15 @@ theorem worldProjection (conLT: ConsTNode) {h: (L,R) = endNodeOf (aPathOf conLT)
 
 theorem worldDiamond (conLT: ConsTNode) {h: (L,R) = endNodeOf (aPathOf conLT)}: ~α ∈ toWorld conLT → ~α ∈ L ∪ R := by sorry
 
+-- TO DO better names
+inductive M₀ (T0 : ConsTNode) : ConsTNode → Prop
+| a : M₀ T0 T0
+| b (T : ConsTNode) : (M₀ T0 T) → M₀ T0 ⟨endNodeOf (aPathOf T), (by apply endNodeIsConsistent)⟩ -- do we even need this case?
+| cL (T : ConsTNode) : (M₀ T0 T) → ∀ α, (h: ~(□α) ∈ (endNodeOf (aPathOf T)).1) →
+  M₀ T0 ⟨diamondProjectTNode (Sum.inl (~α)) (endNodeOf (aPathOf T)), consThenProjectLCons (by apply endNodeIsConsistent) h⟩
+| cR (T : ConsTNode) : (M₀ T0 T) →  ∀ α, (h: ~(□α) ∈ (endNodeOf (aPathOf T)).2) →
+  M₀ T0 ⟨diamondProjectTNode (Sum.inr (~α)) (endNodeOf (aPathOf T)), consThenProjectRCons (by apply endNodeIsConsistent) h⟩
+
 theorem modelExistence: Consistent (L,R) →
     ∃ (WS : Set (Finset Formula)) (M : ModelGraph WS) (W : WS), (L ∪ R) ⊆ W :=
   by
@@ -451,7 +450,8 @@ theorem modelExistence: Consistent (L,R) →
           cases nboxf_in_v'
           case inl nboxf_in =>
             have h := M₀.cL w' w'_in
-            specialize h v_node v'_in cons_v f nboxf_in
+            --specialize h v_node v'_in cons_v f nboxf_in
+            specialize h f nboxf_in
             let u := diamondProjectTNode (Sum.inl (~f)) v_node
             let u' : ConsTNode := ⟨u, sorry⟩ -- a bit weird, since h already implies this
             have u_eq: u = (projection v_node.1 ∪ {~f}, projection v_node.2) := by
