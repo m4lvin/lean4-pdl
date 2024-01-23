@@ -407,7 +407,7 @@ inductive M₀ (T0 : ConsTNode) : ConsTNode → Prop
   M₀ T0 ⟨diamondProjectTNode (Sum.inr (~α)) (endNodeOf (aPathOf T)), consThenProjectRCons (by apply endNodeIsConsistent) h⟩
 
 theorem modelExistence: Consistent (L,R) →
-    ∃ (WS : Set (Finset Formula)) (M : ModelGraph WS) (W : WS), (L ∪ R) ⊆ W :=
+    ∃ (WS : Set (Finset Formula)) (_ : ModelGraph WS) (W : WS), (L ∪ R) ⊆ W :=
   by
   intro LR_cons
   let tabs := {consTNode | (M₀ ⟨(L,R), LR_cons⟩) consTNode}
@@ -415,10 +415,10 @@ theorem modelExistence: Consistent (L,R) →
   let M : KripkeModel WS := by
     constructor
     -- define valuation function
-    · intro ⟨w, w_in⟩ p
+    · intro ⟨w, _⟩ p
       exact (·p) ∈ w
     -- define relation
-    · intro ⟨w, w_in⟩ ⟨v, v_in⟩
+    · intro ⟨w, _⟩ ⟨v, _⟩
       exact projection w ⊆ v
   let pathLR : Path (L,R) := aPathOf ⟨(L,R), LR_cons⟩
   use WS, ⟨M, ?_⟩, ⟨toFinset pathLR, ?_⟩
@@ -426,7 +426,7 @@ theorem modelExistence: Consistent (L,R) →
   · constructor
     · intro ⟨W, W_in⟩
       simp_all
-      choose W' pathW' h using W_in
+      choose W' _ h using W_in
       subst h
       exact ⟨worldSaturated W', worldConsistent W'⟩
     · constructor
@@ -439,22 +439,18 @@ theorem modelExistence: Consistent (L,R) →
           simp_all
           choose w' w'_in w_eq using w_in
           subst w_eq
-          let v_node := endNodeOf (aPathOf w')
-          let v'_in : v_node ∈ endNodesOf ⟨w'.1, aLocalTableauFor w'.1⟩ := by apply endNodeSubsetEndNodes
-          have cons_v : Consistent v_node := by apply endNodeIsConsistent
-          let v': ConsTNode := ⟨v_node, cons_v⟩
-          have nboxf_in_v' : ~(□f) ∈ v_node.1 ∪ v_node.2 := by
+          let v := endNodeOf (aPathOf w')
+          have cons_v : Consistent v := by apply endNodeIsConsistent
+          --let v': ConsTNode := ⟨v_node, cons_v⟩
+          have nboxf_in_v : ~(□f) ∈ v.1 ∪ v.2 := by
             apply worldDiamond w' nboxf_in_w
             simp
-          simp at nboxf_in_v'
-          cases nboxf_in_v'
+          simp at nboxf_in_v
+          cases nboxf_in_v
           case inl nboxf_in =>
-            have h := M₀.cL w' w'_in
-            --specialize h v_node v'_in cons_v f nboxf_in
-            specialize h f nboxf_in
-            let u := diamondProjectTNode (Sum.inl (~f)) v_node
-            let u' : ConsTNode := ⟨u, sorry⟩ -- a bit weird, since h already implies this
-            have u_eq: u = (projection v_node.1 ∪ {~f}, projection v_node.2) := by
+            let u := diamondProjectTNode (Sum.inl (~f)) v
+            let u' : ConsTNode := ⟨u, (by apply consThenProjectLCons cons_v nboxf_in)⟩
+            have u_eq: u = (projection v.1 ∪ {~f}, projection v.2) := by
               simp only
               unfold diamondProjectTNode
               aesop
@@ -462,18 +458,43 @@ theorem modelExistence: Consistent (L,R) →
             use toWorld u'
             constructor
             · calc
-                projection (toWorld w') = projection (v_node.1 ∪ v_node.2) := by rw [worldProjection w']; simp
+                projection (toWorld w') = projection (v.1 ∪ v.2) := by rw [worldProjection w']; simp
                 _ ⊆ u.1 ∪ u.2 := by rw[u_eq, projectionUnion]; simp
                 _ ⊆ toWorld u' := by exact u_sub
             constructor
-            · use u'
+            · have h := M₀.cL w' w'_in
+              specialize h f nboxf_in
+              use u'
             · have nf_in : ~f ∈ u.1 ∪ u.2 := by
                 simp
                 unfold diamondProjectTNode
                 split
                 all_goals simp_all
               apply u_sub nf_in
-          case inr nboxf_in => sorry -- analogous to previous one, maybe first optimize previous one
+          case inr nboxf_in =>
+            let u := diamondProjectTNode (Sum.inr (~f)) v
+            let u' : ConsTNode := ⟨u, (by apply consThenProjectRCons cons_v nboxf_in)⟩
+            have u_eq: u = (projection v.1, projection v.2 ∪ {~f}) := by
+              simp only
+              unfold diamondProjectTNode
+              aesop
+            have u_sub: u.1 ∪ u.2 ⊆ toWorld u' := by apply LR_in_toWorldLR
+            use toWorld u'
+            constructor
+            · calc
+                projection (toWorld w') = projection (v.1 ∪ v.2) := by rw [worldProjection w']; simp
+                _ ⊆ u.1 ∪ u.2 := by rw[u_eq, projectionUnion]; simp
+                _ ⊆ toWorld u' := by exact u_sub
+            constructor
+            · have h := M₀.cR w' w'_in
+              specialize h f nboxf_in
+              use u'
+            · have nf_in : ~f ∈ u.1 ∪ u.2 := by
+                simp
+                unfold diamondProjectTNode
+                split
+                all_goals simp_all
+              apply u_sub nf_in
   · use ⟨(L,R), LR_cons⟩
     unfold toWorld
     simp
