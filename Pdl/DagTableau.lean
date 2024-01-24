@@ -75,8 +75,12 @@ lemma undag_inject {φ} : undag (inject ps α φ) = (⌈⌈ps⌉⌉(⌈∗ α⌉
 -- MEASURE
 @[simp]
 def mOfDagFormula : DagFormula → Nat
-  | ⌈_†⌉_ => 0 -- TO CHECK: is this correct?
+  | ⌈_†⌉ψ => mOfFormula ψ
   | ⌈α⌉ψ => mOfProgram α + mOfDagFormula ψ
+-- how about negation?
+
+--  | ~⌈_†⌉ψ => mOfFormula (~ψ)
+
 
 instance : LT DagFormula := ⟨λ ψ1 ψ2 => mOfDagFormula ψ1 < mOfDagFormula ψ2⟩
 
@@ -614,15 +618,24 @@ def BDNode := List Formula × List DagFormula
 --   | ⟨_, []⟩ => 0
 --   | ⟨_, dfs⟩ => 1 + (dfs.map mOfDagFormula).sum + (dfs.map mOfDagFormula).length
 
-def sumofpower : ℕ -> List ℕ → ℕ
-| _, []        => 0
-| m, (n :: ns) => m ^ n + sumofpower m ns
+-- def sumofpower : ℕ -> List ℕ → ℕ
+-- | _, []        => 0
+-- | m, (n :: ns) => m ^ n + sumofpower m ns
+
+-- helper function
+def sumofpower :List ℕ → ℕ
+| []        => 0
+| n :: ns => 3 ^ n + sumofpower ns
 
 -- New defi
 -- Here n is the parameter of the measure.
-def mOfBoxDagNode : BDNode → ℕ →  ℕ
-  | ⟨_, []⟩, _ => 0
-  | ⟨_, dfs⟩, n => sumofpower (n + 1) (dfs.map mOfDagFormula)
+-- def mOfBoxDagNode : BDNode → ℕ →  ℕ
+--   | ⟨_, []⟩, _ => 0
+--   | ⟨_, dfs⟩, n => sumofpower (n + 1) (dfs.map mOfDagFormula)
+
+-- big measure
+def mOfBoxDagNode : BDNode →  ℕ
+  | ⟨fs, dfs⟩ => sumofpower (fs.map mOfFormula) + sumofpower (dfs.map mOfDagFormula)
 
 -- Immediate sucessors of a node in a Daggered Tableau, for boxes.
 -- Note that this is still fully deterministic.
@@ -637,6 +650,8 @@ def boxDagNext : BDNode → List BDNode
   | (fs, (⌈_†⌉_)::rest) => [ (fs, rest) ] -- delete formula, but keep branch!
   | (_, []) => { } -- end node of dagger tableau
 
+
+-- Lemma 10
 theorem mOfBoxDagNode.isDec {x y : BDNode} (y_in : y ∈ boxDagNext x) :
     mOfBoxDagNode y < mOfBoxDagNode x := by
   rcases x with ⟨fs, _|⟨df,rest⟩⟩

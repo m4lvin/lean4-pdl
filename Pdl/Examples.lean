@@ -129,7 +129,12 @@ example (a b : Program) (X : Formula) :
       · intro v w_a_v u
         intro v_aSubS_w
         apply lhs
-        sorry
+        have := starCases v_aSubS_w
+        cases this
+        case inl hyp =>
+          subst hyp
+          sorry
+        · sorry
       · intro v w_b_v u v_aSubS_u
         apply lhs
         sorry
@@ -165,10 +170,10 @@ theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a
       intro sat_phi
       sorry
   specialize claim n.succ
-  simp at claim 
+  simp at claim
   have x_is_ys_nsucc : x = ys.get (n + 1) :=
     by
-    simp [Vector.last_def] at x_is_last 
+    simp [Vector.last_def] at x_is_last
     sorry
   rw [x_is_ys_nsucc]
   sorry -- was: exact claim
