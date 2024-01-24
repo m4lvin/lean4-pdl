@@ -20,8 +20,12 @@ local notation "~" ψ => NegDagFormula.neg ψ
 -- MEASURE
 @[simp]
 def mOfDagFormula : DagFormula → Nat
-  | ⌈_†⌉_ => 0 -- TO CHECK: is this correct?
+  | ⌈_†⌉ψ => mOfFormula ψ
   | ⌈α⌉ψ => mOfProgram α + mOfDagFormula ψ
+-- how about negation?
+
+--  | ~⌈_†⌉ψ => mOfFormula (~ψ)
+
 
 @[simp]
 instance : LT DagFormula := ⟨λ ψ1 ψ2 => mOfDagFormula ψ1 < mOfDagFormula ψ2⟩
@@ -1135,15 +1139,24 @@ instance [DecidableEq α] [LT α] (t : WellFoundedLT α) : IsWellFounded (dm α)
 --   | ⟨_, []⟩ => 0
 --   | ⟨_, dfs⟩ => 1 + (dfs.map mOfDagFormula).sum + (dfs.map mOfDagFormula).length
 
-def sumofpower : ℕ -> List ℕ → ℕ
-| _, []        => 0
-| m, (n :: ns) => m ^ n + sumofpower m ns
+-- def sumofpower : ℕ -> List ℕ → ℕ
+-- | _, []        => 0
+-- | m, (n :: ns) => m ^ n + sumofpower m ns
+
+-- helper function
+def sumofpower :List ℕ → ℕ
+| []        => 0
+| n :: ns => 3 ^ n + sumofpower ns
 
 -- New defi
 -- Here n is the parameter of the measure.
-def mOfBoxDagNode : BDNode → ℕ →  ℕ
-  | ⟨_, []⟩, _ => 0
-  | ⟨_, dfs⟩, n => sumofpower (n + 1) (dfs.map mOfDagFormula)
+-- def mOfBoxDagNode : BDNode → ℕ →  ℕ
+--   | ⟨_, []⟩, _ => 0
+--   | ⟨_, dfs⟩, n => sumofpower (n + 1) (dfs.map mOfDagFormula)
+
+-- big measure
+def mOfBoxDagNode : BDNode →  ℕ
+  | ⟨fs, dfs⟩ => sumofpower (fs.map mOfFormula) + sumofpower (dfs.map mOfDagFormula)
 
 -- Immediate sucessors of a node in a Daggered Tableau, for boxes.
 -- Note that this is still fully deterministic.

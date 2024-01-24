@@ -129,7 +129,12 @@ example (a b : Program) (X : Formula) :
       · intro v w_a_v u
         intro v_aSubS_w
         apply lhs
-        sorry
+        have := starCases v_aSubS_w
+        cases this
+        case inl hyp =>
+          subst hyp
+          sorry
+        · sorry
       · intro v w_b_v u v_aSubS_u
         apply lhs
         sorry
