@@ -34,9 +34,9 @@ theorem consThenProjectRCons: (Consistent (L,R)) → (~(□α)∈ R) →
   Consistent (diamondProjectTNode (Sum.inr (~α)) (L,R)) := by sorry
 
 inductive Path: ConsTNode →  Type
-  | endNode {LR LR_cons} (isSimple : Simple LR): Path ⟨LR, LR_cons⟩
-  | interNode {LR LR_cons Y Y_cons} (_ : AppLocalTableau LR C) (Y_in : Y ∈ C)
-    (tail : Path ⟨Y, Y_cons⟩): Path ⟨LR, LR_cons⟩
+  | endNode (isSimple : Simple LR): Path ⟨LR, LR_cons⟩
+  | interNode (_ : AppLocalTableau LR C) (c_in : c ∈ C)
+    (tail : Path ⟨c, c_cons⟩): Path ⟨LR, LR_cons⟩
 open Path
 
 @[simp]
@@ -52,8 +52,9 @@ theorem X_in_PathX (path : Path ⟨(L,R),LR_cons⟩) : L ∪ R ⊆ (pathToFinset
     simp_all only [instTNodeHasSubset,instHasSubsetProdFinsetFormula, pathToFinset, instTNodeUnion,
       instUnionProdFinsetFormula, Finset.subset_union_left, and_self]
 
-def endNodeOf: Path consLR → ConsTNode
-  | endNode _ => consLR
+@[simp]
+def endNodeOf: Path ⟨LR,LR_cons⟩ → ConsTNode
+  | endNode _ => ⟨LR, LR_cons⟩
   | interNode _ _ tail => endNodeOf tail
 
 theorem endNodeIsSimple (path : Path consLR): Simple (endNodeOf path).1 := by
@@ -79,17 +80,6 @@ theorem endNodeProjection (path : Path X) {h: (L, R) = projectTNode (endNodeOf p
 theorem consistentThenConsistentChild
     (isConsistent: Consistent LR) (appTab : AppLocalTableau LR C): ∃ c ∈ C, Consistent c := by
   sorry
-
--- given a consistent TNode LR, gives a (consistent) path in aLocalTableauFor LR
-noncomputable def aPathOf (conLR : ConsTNode) : Path conLR := by
-  cases (aLocalTableauFor conLR.1)
-  case fromSimple isSimple  => exact endNode isSimple
-  case fromRule C appTab  =>
-    choose c c_in c_cons using consistentThenConsistentChild conLR.2 appTab
-    have : lengthOf c < lengthOf conLR.1 := by
-      apply AppLocalTableau.DecreasesLength appTab c_in
-    exact interNode appTab c_in (aPathOf ⟨c, c_cons⟩)
-termination_by aPathOf conLR => lengthOf conLR
 
 theorem pathSaturated (path : Path LR): Saturated (pathToFinset path) := by
   /-intro P Q
@@ -382,37 +372,57 @@ theorem pathConsistent (path : Path TN): ⊥ ∉ pathToFinset path ∧ ∀ P, P 
       by_contra h
       sorry
 
-noncomputable def toWorld: ConsTNode →  Finset Formula
-  | ⟨LR, consistentLR⟩ => aPathOf ⟨LR, consistentLR⟩ |> pathToFinset
+theorem pathProjection (path: Path consLR): projection (pathToFinset path) = projection (toFinset (endNodeOf path)) := by sorry
 
-@[simp]
-theorem LR_in_toWorldLR: L ∪ R ⊆ toWorld ⟨(L,R), LR_cons⟩  := by apply X_in_PathX
+theorem pathDiamond (path: Path consLR) (α_in: ~(□α) ∈ pathToFinset path): ~(□α) ∈ toFinset (endNodeOf path) := by sorry
+  /-induction aPathOf ⟨LR, LR_cons⟩
+  case endNode LR LR_cons LR_simple =>
+    rcases h : conLR with ⟨LR', LR_cons'⟩
+    have: LR = LR':= by simp
+    simp_all!
+    sorry
+  case interNode => sorry
 
-theorem worldSaturated (conTN: ConsTNode): Saturated (toWorld conTN) := by
-  sorry
-
-theorem worldConsistent (conTN: ConsTNode): ⊥ ∉ toWorld conTN ∧ ∀ P, P ∈ toWorld conTN → ~P ∉ toWorld conTN := by sorry
-
-theorem worldEndNode (conTN: ConsTNode) : toWorld (endNodeOf (aPathOf conTN)) ⊆ toWorld conTN := by sorry
-
-theorem worldProjection (conTN: ConsTNode): projection (toWorld conTN) = projection (toFinset (endNodeOf (aPathOf conTN))) := by sorry
-
-theorem worldDiamond (conTN: ConsTNode) (α_in: ~(□α) ∈ toWorld conLR): ~(□α) ∈ toFinset (endNodeOf (aPathOf conTN)) := by
-  unfold toWorld at α_in
-  rcases conLR with ⟨LR, cons_LR⟩
-  cases path_eq: aPathOf ⟨LR, cons_LR⟩
-  case endNode isSimple => sorry
-  case interNode C c c_in tail _ appTab =>
+  cases path_eq: aPathOf ⟨LR, LR_cons⟩
+  case endNode isSimple => aesop
+  case interNode C c c_cons c_in tail _ appTab =>
     simp_all
-    cases α_in
+    have : endNodeOf (aPathOf ⟨c, c_cons⟩) = endNodeOf (aPathOf ⟨LR, LR_cons⟩) := by sorry
+    have := AppLocalTableau.DecreasesLength appTab c_in
+    rcases α_in
     case inl α_in =>
-      --unfold aPathOf at path_eq
-      --simp_all
-      have α_in_c := AppLocalTableau.PreservesDiamondL appTab α_in c_in
-
-      sorry
+      have := AppLocalTableau.PreservesDiamondL appTab α_in c_in
+      have α_in_c': ~(□α) ∈ toWorld ⟨c, c_cons⟩ := by
+        apply Finset.mem_of_subset LR_in_toWorldLR
+        aesop
+      have := worldDiamond ⟨c, c_cons⟩ α_in_c'
+      simp_all
     case inr α_in =>
-      sorry -- cases α_in' ;case inl => sorry ; case inr => sorry
+      cases α_in
+      case inl α_in =>
+        have := AppLocalTableau.PreservesDiamondR appTab α_in c_in
+        have α_in_c': ~(□α) ∈ toWorld ⟨c, c_cons⟩ := by
+          apply Finset.mem_of_subset LR_in_toWorldLR
+          aesop
+        have := worldDiamond ⟨c, c_cons⟩ α_in_c'
+        simp_all
+      case inr α_in => exact worldDiamond ⟨c, c_cons⟩ α_in
+termination_by worldDiamond conTN α_in => lengthOf conTN
+decreasing_by simp_wf; sorry-/
+
+-- given a consistent TNode LR, gives a (consistent) path in aLocalTableauFor LR
+noncomputable def aPathOf (conLR : ConsTNode) : Path conLR := by
+  cases (aLocalTableauFor conLR.1)
+  case fromSimple isSimple  => exact endNode isSimple
+  case fromRule C appTab  =>
+    choose c c_in c_cons using consistentThenConsistentChild conLR.2 appTab
+    have : lengthOf c < lengthOf conLR.1 := by
+      apply AppLocalTableau.DecreasesLength appTab c_in
+    exact interNode appTab c_in (aPathOf ⟨c, c_cons⟩)
+termination_by aPathOf conLR => lengthOf conLR
+
+noncomputable def toWorld (consLR: ConsTNode): Finset Formula :=
+  pathToFinset (aPathOf consLR)
 
 inductive M₀ (T0 : ConsTNode) : ConsTNode → Prop
 | base : M₀ T0 T0
@@ -426,8 +436,8 @@ theorem modelExistence: Consistent (L,R) →
     ∃ (WS : Set (Finset Formula)) (_ : ModelGraph WS) (W : WS), (L ∪ R) ⊆ W :=
   by
   intro LR_cons
-  let tabs := {consTNode | (M₀ ⟨(L,R), LR_cons⟩) consTNode}
-  let WS := {toWorld consLT | consLT ∈ tabs}
+  let roots := {consTNode | (M₀ ⟨(L,R), LR_cons⟩) consTNode}
+  let WS := {toWorld consLT | consLT ∈ roots}
   let M : KripkeModel WS := by
     constructor
     -- define valuation function
@@ -444,7 +454,7 @@ theorem modelExistence: Consistent (L,R) →
       simp_all
       choose W' _ h using W_in
       subst h
-      exact ⟨worldSaturated W', worldConsistent W'⟩
+      exact ⟨pathSaturated (aPathOf W'), pathConsistent (aPathOf W')⟩
     · constructor
       · aesop
       · constructor
@@ -463,7 +473,7 @@ theorem modelExistence: Consistent (L,R) →
             rw[v'_eq]
             simp_all
           have nboxf_in_v : ~(□f) ∈ v'L ∪ v'R := by
-            have := worldDiamond w' nboxf_in_w
+            have := pathDiamond (aPathOf w') nboxf_in_w
             rw[←v_eq]
             aesop
           simp at nboxf_in_v
@@ -475,11 +485,12 @@ theorem modelExistence: Consistent (L,R) →
               simp only
               unfold diamondProjectTNode
               aesop
-            have u_sub: u_root.1 ∪ u_root.2 ⊆ toWorld u' := by apply LR_in_toWorldLR
+            have u_sub: u_root.1 ∪ u_root.2 ⊆ toWorld u' := by apply X_in_PathX
             use toWorld u'
             constructor
             · calc
-                projection (toWorld w') = projection v := by rw [worldProjection w']
+                projection (toWorld w') = projection (pathToFinset (aPathOf w')) := by aesop
+                _ = projection v := by rw [pathProjection (aPathOf w')]
                 _ ⊆ u_root.1 ∪ u_root.2 := by rw[u_eq, v_eq, projectionUnion]; simp
                 _ ⊆ toWorld u' := by exact u_sub
             constructor
@@ -500,11 +511,12 @@ theorem modelExistence: Consistent (L,R) →
               simp only
               unfold diamondProjectTNode
               aesop
-            have u_sub: u_root.1 ∪ u_root.2 ⊆ toWorld u' := by apply LR_in_toWorldLR
+            have u_sub: u_root.1 ∪ u_root.2 ⊆ toWorld u' := by apply X_in_PathX
             use toWorld u'
             constructor
             · calc
-                projection (toWorld w') = projection v := by rw [worldProjection w']
+                projection (toWorld w') = projection (pathToFinset (aPathOf w')) := by aesop
+                _ = projection v := by rw [pathProjection (aPathOf w')]
                 _ ⊆ u_root.1 ∪ u_root.2 := by rw[u_eq, v_eq, projectionUnion]; simp
                 _ ⊆ toWorld u' := by exact u_sub
             constructor
