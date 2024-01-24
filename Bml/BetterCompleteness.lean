@@ -27,12 +27,6 @@ instance : HasLength ConsTNode := ⟨λ ⟨LR,_⟩ => lengthOf LR⟩
 @[simp]
 def toFinset : ConsTNode → Finset Formula := λ ⟨⟨L,R⟩,_⟩ => L ∪ R
 
-theorem consThenProjectLCons: (Consistent (L,R)) → (~(□α) ∈ L) →
-  Consistent (diamondProjectTNode (Sum.inl (~α)) (L,R)) := by sorry
-
-theorem consThenProjectRCons: (Consistent (L,R)) → (~(□α)∈ R) →
-  Consistent (diamondProjectTNode (Sum.inr (~α)) (L,R)) := by sorry
-
 inductive Path: ConsTNode →  Type
   | endNode (isSimple : Simple LR): Path ⟨LR, LR_cons⟩
   | interNode (_ : AppLocalTableau LR C) (c_in : c ∈ C)
@@ -61,6 +55,7 @@ theorem endNodeIsSimple (path : Path consLR): Simple (endNodeOf path).1 := by
   induction path
   all_goals aesop
 
+-- Not sure if needed
 theorem endNodeProjection (path : Path X) {h: (L, R) = projectTNode (endNodeOf path).1}: projection (pathToFinset path) = L ∪ R := by
   /-cases path
   case endNode cosX simX =>
@@ -77,9 +72,16 @@ theorem endNodeProjection (path : Path X) {h: (L, R) = projectTNode (endNodeOf p
 
 --theorem endNodeSubsetEndNodes (path: Path X) (tX: LocalTableau X): endNodeOf path ∈ endNodesOf ⟨X, tX⟩ := by
 
+
 theorem consistentThenConsistentChild
     (isConsistent: Consistent LR) (appTab : AppLocalTableau LR C): ∃ c ∈ C, Consistent c := by
   sorry
+
+theorem consThenProjectLCons: (Consistent (L,R)) → (~(□α) ∈ L) →
+  Consistent (diamondProjectTNode (Sum.inl (~α)) (L,R)) := by sorry
+
+theorem consThenProjectRCons: (Consistent (L,R)) → (~(□α)∈ R) →
+  Consistent (diamondProjectTNode (Sum.inr (~α)) (L,R)) := by sorry
 
 theorem pathSaturated (path : Path LR): Saturated (pathToFinset path) := by
   /-intro P Q
