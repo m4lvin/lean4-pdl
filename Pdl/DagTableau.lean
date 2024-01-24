@@ -627,12 +627,6 @@ def sumofpower :List ℕ → ℕ
 | []        => 0
 | n :: ns => 3 ^ n + sumofpower ns
 
--- New defi
--- Here n is the parameter of the measure.
--- def mOfBoxDagNode : BDNode → ℕ →  ℕ
---   | ⟨_, []⟩, _ => 0
---   | ⟨_, dfs⟩, n => sumofpower (n + 1) (dfs.map mOfDagFormula)
-
 -- big measure
 def mOfBoxDagNode : BDNode →  ℕ
   | ⟨fs, dfs⟩ => sumofpower (fs.map mOfFormula) + sumofpower (dfs.map mOfDagFormula)
@@ -663,14 +657,24 @@ theorem mOfBoxDagNode.isDec {x y : BDNode} (y_in : y ∈ boxDagNext x) :
       simp at y_in
       subst y_in
       cases rest
-      · simp [mOfBoxDagNode]
-      · simp [mOfBoxDagNode] -- added "length" in "mOfBoxDagNode" to solve this.
+      case nil =>
+        simp [mOfBoxDagNode]
+        simp [sumofpower]
+      case cons =>
+        simp [mOfBoxDagNode]
+        simp [sumofpower] -- added "length" in "mOfBoxDagNode" to solve this.
     case box a f =>
           cases a
           all_goals (simp [boxDagNext] at *)
           case atom_prog A =>
-            subst y_in; simp [mOfBoxDagNode]; cases rest; all_goals simp
-            sorry -- needs mOfDagFormula > 1
+            subst y_in
+            simp [mOfBoxDagNode]
+            simp [sumofpower]
+            cases f
+            case dag =>
+              simp [undagDagFormula]
+              sorry
+            sorry
           case sequence =>
             subst y_in; simp [mOfBoxDagNode]; linarith
           case union a b =>
