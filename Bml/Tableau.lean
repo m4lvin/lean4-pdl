@@ -527,6 +527,10 @@ theorem AppLocalTableau.DecreasesLength
   have := localRuleAppDecreasesLength lrApp
   aesop
 
+theorem AppLocalTableau.PreservesDiamondL (appTab : AppLocalTableau (L,R) C)
+   (nBox_in : ~(□α) ∈ L) (LR'_in: (L',R') ∈ C):  ~(□α) ∈ L' := by sorry
+
+
 -- Lift definition of projection to TNodes, including the diamond formula left or right.
 def diamondProjectTNode : Sum Formula Formula → TNode → TNode
 | (Sum.inl φ), (L, R) => (projection L ∪ {φ}, projection R)

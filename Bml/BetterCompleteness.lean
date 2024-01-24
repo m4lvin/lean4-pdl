@@ -21,43 +21,46 @@ theorem formulasInNegBoxIff: α ∈ formulasInNegBox X ↔  ~(□α) ∈ X := by
 
 def ConsTNode := Subtype fun Y => Consistent Y
 
+@[simp]
+instance : HasLength ConsTNode := ⟨λ ⟨LR,_⟩ => lengthOf LR⟩
+
+@[simp]
+def toFinset : ConsTNode → Finset Formula := λ ⟨⟨L,R⟩,_⟩ => L ∪ R
+
 theorem consThenProjectLCons: (Consistent (L,R)) → (~(□α) ∈ L) →
   Consistent (diamondProjectTNode (Sum.inl (~α)) (L,R)) := by sorry
 
 theorem consThenProjectRCons: (Consistent (L,R)) → (~(□α)∈ R) →
   Consistent (diamondProjectTNode (Sum.inr (~α)) (L,R)) := by sorry
 
-inductive Path: TNode →  Type
-  | endNode {LR} (isConsistent : Consistent LR) (isSimple : Simple LR): Path LR
-  | interNode {LR Y} (_ : AppLocalTableau LR C) (Y_in : Y ∈ C) (tail : Path Y): Path LR
+inductive Path: ConsTNode →  Type
+  | endNode {LR LR_cons} (isSimple : Simple LR): Path ⟨LR, LR_cons⟩
+  | interNode {LR LR_cons Y Y_cons} (_ : AppLocalTableau LR C) (Y_in : Y ∈ C)
+    (tail : Path ⟨Y, Y_cons⟩): Path ⟨LR, LR_cons⟩
 open Path
 
 @[simp]
-def toFinset: Path (L,R) → Finset Formula
-  | endNode _ _ => L ∪ R
-  | (interNode _ _ tail) => L ∪ R ∪ toFinset tail
+def pathToFinset: Path ⟨(L,R), cons⟩  → Finset Formula
+  | endNode _ => L ∪ R
+  | (interNode _ _ tail) => L ∪ R ∪ pathToFinset tail
 
 @[simp]
-theorem X_in_PathX (path : Path (L,R)) : L ∪ R ⊆ (toFinset path) := by
+theorem X_in_PathX (path : Path ⟨(L,R),LR_cons⟩) : L ∪ R ⊆ (pathToFinset path) := by
   cases path
   case endNode => simp [instTNodeHasSubset]
   case interNode Y C C_in tail appTab =>
-    simp_all only [instTNodeHasSubset,instHasSubsetProdFinsetFormula, toFinset, instTNodeUnion,
+    simp_all only [instTNodeHasSubset,instHasSubsetProdFinsetFormula, pathToFinset, instTNodeUnion,
       instUnionProdFinsetFormula, Finset.subset_union_left, and_self]
 
-def endNodeOf: Path LR → TNode
-  | endNode _ _ => LR
+def endNodeOf: Path consLR → ConsTNode
+  | endNode _ => consLR
   | interNode _ _ tail => endNodeOf tail
 
-theorem endNodeIsSimple (path : Path X): Simple (endNodeOf path) := by
+theorem endNodeIsSimple (path : Path consLR): Simple (endNodeOf path).1 := by
   induction path
   all_goals aesop
 
-theorem endNodeIsConsistent (path : Path X): Consistent (endNodeOf path) := by
-  induction path
-  all_goals aesop
-
-theorem endNodeProjection (path : Path X) {h: (L, R) = projectTNode (endNodeOf path)}: projection (toFinset path) = L ∪ R := by
+theorem endNodeProjection (path : Path X) {h: (L, R) = projectTNode (endNodeOf path).1}: projection (pathToFinset path) = L ∪ R := by
   /-cases path
   case endNode cosX simX =>
     aesop
@@ -69,27 +72,26 @@ theorem endNodeProjection (path : Path X) {h: (L, R) = projectTNode (endNodeOf p
 --termination_by endNodeProjection path => lengthOfTNode (L,R)
 --decreasing_by sorry
 
-theorem endNodeInPath {path : Path X} {h : (L,R) = endNodeOf path}: L ∪ R ⊆ (toFinset path) := by sorry
+--theorem endNodeInPath {path : Path X} {h : (L,R) = endNodeOf path}: L ∪ R ⊆ (pathToFinset path) := by sorry
 
-theorem endNodeSubsetEndNodes (path: Path X) (tX: LocalTableau X): endNodeOf path ∈ endNodesOf ⟨X, tX⟩ := by
-  sorry
+--theorem endNodeSubsetEndNodes (path: Path X) (tX: LocalTableau X): endNodeOf path ∈ endNodesOf ⟨X, tX⟩ := by
 
 theorem consistentThenConsistentChild
     (isConsistent: Consistent LR) (appTab : AppLocalTableau LR C): ∃ c ∈ C, Consistent c := by
   sorry
 
 -- given a consistent TNode LR, gives a (consistent) path in aLocalTableauFor LR
-noncomputable def aPathOf (conLR : ConsTNode) : Path conLR.1 := by
+noncomputable def aPathOf (conLR : ConsTNode) : Path conLR := by
   cases (aLocalTableauFor conLR.1)
-  case fromSimple isSimple  => exact endNode conLR.2 isSimple
+  case fromSimple isSimple  => exact endNode isSimple
   case fromRule C appTab  =>
-    choose c c_in c_consistent using consistentThenConsistentChild conLR.2 appTab
+    choose c c_in c_cons using consistentThenConsistentChild conLR.2 appTab
     have : lengthOf c < lengthOf conLR.1 := by
       apply AppLocalTableau.DecreasesLength appTab c_in
-    exact interNode appTab c_in (aPathOf ⟨c, c_consistent⟩)
-termination_by aPathOf conLR => lengthOf conLR.1
+    exact interNode appTab c_in (aPathOf ⟨c, c_cons⟩)
+termination_by aPathOf conLR => lengthOf conLR
 
-theorem pathSaturated (path : Path LR): Saturated (toFinset path) := by
+theorem pathSaturated (path : Path LR): Saturated (pathToFinset path) := by
   /-intro P Q
   induction path
   case endNode X _ simpleX =>
@@ -177,7 +179,7 @@ theorem pathSaturated (path : Path LR): Saturated (toFinset path) := by
             have : Y = (X \ {~~α} ∪ {α}) := by
               simp at *; exact Y_in
             clear Y_in; subst Y
-            have : (P⋀Q ∈ X) → (P⋀Q ∈ toFinset tail) := by
+            have : (P⋀Q ∈ X) → (P⋀Q ∈ pathToFinset tail) := by
               intro h₀
               have : (P⋀Q ∈ X \ {~~α} ∪ {α}) := by
                 refine Finset.mem_union_left {α} ?_
@@ -204,7 +206,7 @@ theorem pathSaturated (path : Path LR): Saturated (toFinset path) := by
                 simp at *; exact Y_in
               clear Y_in; subst Y
               refine (IH2 ?_).left
-              have : (P⋀Q ∈ X) → (P⋀Q ∈ toFinset tail) := by
+              have : (P⋀Q ∈ X) → (P⋀Q ∈ pathToFinset tail) := by
                 intro h₀
                 apply X_in_PathX
                 aesop
@@ -217,7 +219,7 @@ theorem pathSaturated (path : Path LR): Saturated (toFinset path) := by
               clear Y_in; subst Y
               apply Or.inr
               refine (IH2 ?_).left
-              have : (P⋀Q ∈ X) → (P⋀Q ∈ toFinset tail) := by
+              have : (P⋀Q ∈ X) → (P⋀Q ∈ pathToFinset tail) := by
                 intro h₀
                 apply X_in_PathX
                 aesop
@@ -235,7 +237,7 @@ theorem pathSaturated (path : Path LR): Saturated (toFinset path) := by
             have : Y = (X \ {~~α} ∪ {α}) := by
               simp at *; exact Y_in
             clear Y_in; subst Y
-            have : (P⋀Q ∈ X) → (P⋀Q ∈ toFinset tail) := by
+            have : (P⋀Q ∈ X) → (P⋀Q ∈ pathToFinset tail) := by
               intro h₀
               have : (P⋀Q ∈ X \ {~~α} ∪ {α}) := by
                 refine Finset.mem_union_left {α} ?_
@@ -261,7 +263,7 @@ theorem pathSaturated (path : Path LR): Saturated (toFinset path) := by
                 simp at *; exact Y_in
               clear Y_in; subst Y
               refine (IH2 ?_).right
-              have : (P⋀Q ∈ X) → (P⋀Q ∈ toFinset tail) := by
+              have : (P⋀Q ∈ X) → (P⋀Q ∈ pathToFinset tail) := by
                 intro h₀
                 apply X_in_PathX
                 aesop
@@ -274,7 +276,7 @@ theorem pathSaturated (path : Path LR): Saturated (toFinset path) := by
               clear Y_in; subst Y
               apply Or.inr
               refine (IH2 ?_).right
-              have : (P⋀Q ∈ X) → (P⋀Q ∈ toFinset tail) := by
+              have : (P⋀Q ∈ X) → (P⋀Q ∈ pathToFinset tail) := by
                 intro h₀
                 apply X_in_PathX
                 aesop
@@ -293,7 +295,7 @@ theorem pathSaturated (path : Path LR): Saturated (toFinset path) := by
           have : Y = (X \ {~~α} ∪ {α}) := by
             simp at *; exact Y_in
           clear Y_in; subst Y
-          have nP_Q_in_tail : ~(P⋀Q) ∈ toFinset tail := by
+          have nP_Q_in_tail : ~(P⋀Q) ∈ pathToFinset tail := by
             cases nP_Q_in_path
             apply X_in_PathX; refine Finset.mem_union_left {α} ?_; aesop
             aesop
@@ -303,7 +305,7 @@ theorem pathSaturated (path : Path LR): Saturated (toFinset path) := by
           have : Y = X \ {β⋀γ} ∪ {β,γ} := by
             simp at *; exact Y_in
           clear Y_in; subst Y
-          have nP_Q_in_tail : ~(P⋀Q) ∈ toFinset tail := by
+          have nP_Q_in_tail : ~(P⋀Q) ∈ pathToFinset tail := by
             cases nP_Q_in_path
             apply X_in_PathX; refine Finset.mem_union_left {β, γ} ?_; aesop
             aesop
@@ -318,12 +320,12 @@ theorem pathSaturated (path : Path LR): Saturated (toFinset path) := by
             by_cases ~(P⋀Q) = ~(β⋀γ)
             · case pos eq =>
                 simp at eq; cases eq; subst P; subst Q
-                have : ~β ∈ toFinset tail := by
+                have : ~β ∈ pathToFinset tail := by
                   apply X_in_PathX
                   aesop
                 aesop
             · case neg neq =>
-                have : ~(P⋀Q) ∈ toFinset tail := by
+                have : ~(P⋀Q) ∈ pathToFinset tail := by
                   cases nP_Q_in_path
                   apply X_in_PathX; refine Finset.mem_union_left {~β} ?_; refine Finset.mem_sdiff.mpr ?_; aesop
                   aesop
@@ -333,19 +335,19 @@ theorem pathSaturated (path : Path LR): Saturated (toFinset path) := by
             by_cases ~(P⋀Q) = ~(β⋀γ)
             · case pos eq =>
                 simp at eq; cases eq; subst P; subst Q
-                have : ~γ ∈ toFinset tail := by
+                have : ~γ ∈ pathToFinset tail := by
                   apply X_in_PathX
                   aesop
                 aesop
             · case neg neq =>
-                have : ~(P⋀Q) ∈ toFinset tail := by
+                have : ~(P⋀Q) ∈ pathToFinset tail := by
                   cases nP_Q_in_path
                   apply X_in_PathX; refine Finset.mem_union_left {~γ} ?_; refine Finset.mem_sdiff.mpr ?_; aesop
                   aesop
                 aesop-/
     sorry
 
-theorem pathConsistent (path : Path TN): ⊥ ∉ toFinset path ∧ ∀ P, P ∈ toFinset path → ~P ∉ toFinset path := by
+theorem pathConsistent (path : Path TN): ⊥ ∉ pathToFinset path ∧ ∀ P, P ∈ pathToFinset path → ~P ∉ pathToFinset path := by
   induction path
   case endNode LR consistentX simpleX =>
       unfold Consistent Inconsistent at consistentX
@@ -381,30 +383,44 @@ theorem pathConsistent (path : Path TN): ⊥ ∉ toFinset path ∧ ∀ P, P ∈ 
       sorry
 
 noncomputable def toWorld: ConsTNode →  Finset Formula
-  | ⟨LR, consistentLR⟩ => aPathOf ⟨LR, consistentLR⟩ |> toFinset
+  | ⟨LR, consistentLR⟩ => aPathOf ⟨LR, consistentLR⟩ |> pathToFinset
 
 @[simp]
 theorem LR_in_toWorldLR: L ∪ R ⊆ toWorld ⟨(L,R), LR_cons⟩  := by apply X_in_PathX
 
-theorem worldSaturated (conLT: ConsTNode): Saturated (toWorld conLT) := by
+theorem worldSaturated (conTN: ConsTNode): Saturated (toWorld conTN) := by
   sorry
 
-theorem worldConsistent (conLT: ConsTNode): ⊥ ∉ toWorld conLT ∧ ∀ P, P ∈ toWorld conLT → ~P ∉ toWorld conLT := by sorry
+theorem worldConsistent (conTN: ConsTNode): ⊥ ∉ toWorld conTN ∧ ∀ P, P ∈ toWorld conTN → ~P ∉ toWorld conTN := by sorry
 
-theorem worldEndNode (conLT: ConsTNode) {h: (L,R) = endNodeOf (aPathOf conLT)} : L ∪ R ⊆ toWorld conLT := by sorry
+theorem worldEndNode (conTN: ConsTNode) : toWorld (endNodeOf (aPathOf conTN)) ⊆ toWorld conTN := by sorry
 
-theorem worldProjection (conLT: ConsTNode) {h: (L,R) = endNodeOf (aPathOf conLT)}: projection (toWorld conLT) = projection (L ∪ R) := by sorry
+theorem worldProjection (conTN: ConsTNode): projection (toWorld conTN) = projection (toFinset (endNodeOf (aPathOf conTN))) := by sorry
 
-theorem worldDiamond (conLT: ConsTNode) {h: (L,R) = endNodeOf (aPathOf conLT)}: ~α ∈ toWorld conLT → ~α ∈ L ∪ R := by sorry
+theorem worldDiamond (conTN: ConsTNode) (α_in: ~(□α) ∈ toWorld conLR): ~(□α) ∈ toFinset (endNodeOf (aPathOf conTN)) := by
+  unfold toWorld at α_in
+  rcases conLR with ⟨LR, cons_LR⟩
+  cases path_eq: aPathOf ⟨LR, cons_LR⟩
+  case endNode isSimple => sorry
+  case interNode C c c_in tail _ appTab =>
+    simp_all
+    cases α_in
+    case inl α_in =>
+      --unfold aPathOf at path_eq
+      --simp_all
+      have α_in_c := AppLocalTableau.PreservesDiamondL appTab α_in c_in
 
--- TO DO better names
+      sorry
+    case inr α_in =>
+      sorry -- cases α_in' ;case inl => sorry ; case inr => sorry
+
 inductive M₀ (T0 : ConsTNode) : ConsTNode → Prop
-| a : M₀ T0 T0
-| b (T : ConsTNode) : (M₀ T0 T) → M₀ T0 ⟨endNodeOf (aPathOf T), (by apply endNodeIsConsistent)⟩ -- do we even need this case?
-| cL (T : ConsTNode) : (M₀ T0 T) → ∀ α, (h: ~(□α) ∈ (endNodeOf (aPathOf T)).1) →
-  M₀ T0 ⟨diamondProjectTNode (Sum.inl (~α)) (endNodeOf (aPathOf T)), consThenProjectLCons (by apply endNodeIsConsistent) h⟩
-| cR (T : ConsTNode) : (M₀ T0 T) →  ∀ α, (h: ~(□α) ∈ (endNodeOf (aPathOf T)).2) →
-  M₀ T0 ⟨diamondProjectTNode (Sum.inr (~α)) (endNodeOf (aPathOf T)), consThenProjectRCons (by apply endNodeIsConsistent) h⟩
+| base : M₀ T0 T0
+| inductiveL (T : ConsTNode) : (M₀ T0 T) → ⟨⟨L,R⟩, LR_cons⟩ = (endNodeOf (aPathOf T)) → ∀ α, (h: ~(□α) ∈ L) →
+  M₀ T0 ⟨diamondProjectTNode (Sum.inl (~α)) ⟨L,R⟩, by apply consThenProjectLCons LR_cons h⟩
+
+| inductiveR (T : ConsTNode) : (M₀ T0 T) →  ⟨⟨L,R⟩, LR_cons⟩ = (endNodeOf (aPathOf T)) → ∀ α, (h: ~(□α) ∈ R) →
+  M₀ T0 ⟨diamondProjectTNode (Sum.inr (~α)) ⟨L,R⟩, by apply consThenProjectRCons LR_cons h⟩
 
 theorem modelExistence: Consistent (L,R) →
     ∃ (WS : Set (Finset Formula)) (_ : ModelGraph WS) (W : WS), (L ∪ R) ⊆ W :=
@@ -420,8 +436,8 @@ theorem modelExistence: Consistent (L,R) →
     -- define relation
     · intro ⟨w, _⟩ ⟨v, _⟩
       exact projection w ⊆ v
-  let pathLR : Path (L,R) := aPathOf ⟨(L,R), LR_cons⟩
-  use WS, ⟨M, ?_⟩, ⟨toFinset pathLR, ?_⟩
+  let pathLR := aPathOf ⟨(L,R), LR_cons⟩
+  use WS, ⟨M, ?_⟩, ⟨pathToFinset pathLR, ?_⟩
   · simp
   · constructor
     · intro ⟨W, W_in⟩
@@ -439,57 +455,63 @@ theorem modelExistence: Consistent (L,R) →
           simp_all
           choose w' w'_in w_eq using w_in
           subst w_eq
-          let v := endNodeOf (aPathOf w')
-          have cons_v : Consistent v := by apply endNodeIsConsistent
-          --let v': ConsTNode := ⟨v_node, cons_v⟩
-          have nboxf_in_v : ~(□f) ∈ v.1 ∪ v.2 := by
-            apply worldDiamond w' nboxf_in_w
-            simp
+          let v' := endNodeOf (aPathOf w')
+          rcases v'_eq : v' with ⟨⟨v'L, v'R⟩, v_cons⟩
+          let v := toFinset v'
+          have v_eq : v = v'L ∪ v'R := by
+            change toFinset v' = v'L ∪ v'R
+            rw[v'_eq]
+            simp_all
+          have nboxf_in_v : ~(□f) ∈ v'L ∪ v'R := by
+            have := worldDiamond w' nboxf_in_w
+            rw[←v_eq]
+            aesop
           simp at nboxf_in_v
           cases nboxf_in_v
           case inl nboxf_in =>
-            let u := diamondProjectTNode (Sum.inl (~f)) v
-            let u' : ConsTNode := ⟨u, (by apply consThenProjectLCons cons_v nboxf_in)⟩
-            have u_eq: u = (projection v.1 ∪ {~f}, projection v.2) := by
+            let u_root := diamondProjectTNode (Sum.inl (~f)) ⟨v'L, v'R⟩
+            let u' : ConsTNode := ⟨u_root, (by apply consThenProjectLCons v_cons nboxf_in)⟩
+            have u_eq: u_root = (projection v'L ∪ {~f}, projection v'R) := by
               simp only
               unfold diamondProjectTNode
               aesop
-            have u_sub: u.1 ∪ u.2 ⊆ toWorld u' := by apply LR_in_toWorldLR
+            have u_sub: u_root.1 ∪ u_root.2 ⊆ toWorld u' := by apply LR_in_toWorldLR
             use toWorld u'
             constructor
             · calc
-                projection (toWorld w') = projection (v.1 ∪ v.2) := by rw [worldProjection w']; simp
-                _ ⊆ u.1 ∪ u.2 := by rw[u_eq, projectionUnion]; simp
+                projection (toWorld w') = projection v := by rw [worldProjection w']
+                _ ⊆ u_root.1 ∪ u_root.2 := by rw[u_eq, v_eq, projectionUnion]; simp
                 _ ⊆ toWorld u' := by exact u_sub
             constructor
-            · have h := M₀.cL w' w'_in
+            · have h := M₀.inductiveL w' w'_in (Eq.symm v'_eq)
+              simp at h
               specialize h f nboxf_in
               use u'
-            · have nf_in : ~f ∈ u.1 ∪ u.2 := by
+            · have nf_in : ~f ∈ u_root.1 ∪ u_root.2 := by
                 simp
                 unfold diamondProjectTNode
                 split
                 all_goals simp_all
               apply u_sub nf_in
           case inr nboxf_in =>
-            let u := diamondProjectTNode (Sum.inr (~f)) v
-            let u' : ConsTNode := ⟨u, (by apply consThenProjectRCons cons_v nboxf_in)⟩
-            have u_eq: u = (projection v.1, projection v.2 ∪ {~f}) := by
+            let u_root := diamondProjectTNode (Sum.inr (~f)) ⟨v'L, v'R⟩
+            let u' : ConsTNode := ⟨u_root, (by apply consThenProjectRCons v_cons nboxf_in)⟩
+            have u_eq: u_root = (projection v'L, projection v'R ∪ {~f}) := by
               simp only
               unfold diamondProjectTNode
               aesop
-            have u_sub: u.1 ∪ u.2 ⊆ toWorld u' := by apply LR_in_toWorldLR
+            have u_sub: u_root.1 ∪ u_root.2 ⊆ toWorld u' := by apply LR_in_toWorldLR
             use toWorld u'
             constructor
             · calc
-                projection (toWorld w') = projection (v.1 ∪ v.2) := by rw [worldProjection w']; simp
-                _ ⊆ u.1 ∪ u.2 := by rw[u_eq, projectionUnion]; simp
+                projection (toWorld w') = projection v := by rw [worldProjection w']
+                _ ⊆ u_root.1 ∪ u_root.2 := by rw[u_eq, v_eq, projectionUnion]; simp
                 _ ⊆ toWorld u' := by exact u_sub
             constructor
-            · have h := M₀.cR w' w'_in
+            · have h := M₀.inductiveR w' w'_in (Eq.symm v'_eq)
               specialize h f nboxf_in
               use u'
-            · have nf_in : ~f ∈ u.1 ∪ u.2 := by
+            · have nf_in : ~f ∈ u_root.1 ∪ u_root.2 := by
                 simp
                 unfold diamondProjectTNode
                 split
@@ -498,7 +520,7 @@ theorem modelExistence: Consistent (L,R) →
   · use ⟨(L,R), LR_cons⟩
     unfold toWorld
     simp
-    exact M₀.a
+    exact M₀.base
 /-
 -- Theorem 4, page 37
 theorem completeness : ∀ X, Consistent X ↔ Satisfiable X :=
@@ -535,17 +557,4 @@ theorem consistentImplies : Consistent X → ⊥ ∉ X ∧ ∀ P, P ∈ X → ~P
     let tab := byLocalRule (Not h) (by aesop)
     have closedTab := ClosedTableau.loc tab (by aesop)
     exact IsEmpty.false closedTab
-
-theorem consistentThenOpenTab : Consistent X → ∃ (t : Tableau X), isOpen t :=
-  by
-  have ⟨tX⟩ := existsTableauFor X
-  contrapose
-  simp[not_exists, Consistent, Inconsistent]
-  intro h
-  specialize h tX
-  refine Nonempty.intro ?val
-  have : isClosed tX := by
-    have h2 : ¬ isOpen tX ↔ ¬ ¬ isClosed tX := Iff.symm (Iff.not (Iff.symm open_iff_notClosed))
-    simp_all only [not_not, not_true_eq_false, not_false_eq_true, iff_true]
-  exact (isClosed_then_ClosedTab this)
 -/
