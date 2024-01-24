@@ -376,7 +376,6 @@ theorem localTableauAndEndNodesUnsatThenNotSat (LR : TNode) {ltLR : LocalTableau
       @ruleImpliesChildSat C LR ruleA satLR
     rcases ruleA with ⟨ress, Lcond, Rcond, lrule, preproofL, preproofR⟩
     have prepf : Lcond ⊆ LR.1 ∧ Rcond ⊆ LR.2 := And.intro preproofL preproofR
-    have satCond : Satisfiable (Lcond ∪ Rcond) := by aesop
     cases' someChildSat with c c_sat
     set ltc := next c c_sat.left
     rename_i hC
@@ -394,23 +393,22 @@ theorem localTableauAndEndNodesUnsatThenNotSat (LR : TNode) {ltLR : LocalTableau
     have : (∀Z, Z ∈ endNodesOf ⟨c , ltc⟩ → ¬Satisfiable Z) → ¬Satisfiable c :=
       by
         have := localRuleAppDecreasesLength (@LocalRuleApp.mk LR.1 LR.2 C ress Lcond Rcond lrule hC prepf) c c_sat.left -- for termination
-        -- apply localTableauAndEndNodesUnsatThenNotSat c     -- fails to show termination
-        sorry
+        apply localTableauAndEndNodesUnsatThenNotSat c
     have cNotSat : ¬Satisfiable c := this endsOfcnotSat
     have cSat : Satisfiable c := c_sat.right
     exact cNotSat cSat
   case fromSimple hSimple =>
     apply endsOfLRnotSat
     simp
--- termination_by
---   localTableauAndEndNodesUnsatThenNotSat LR  => lengthOfTNode LR
+termination_by
+  localTableauAndEndNodesUnsatThenNotSat LR _ _  => lengthOfTNode LR
 
 
 theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
   by
   intro X t
   induction t
-  case loc LR appTab next IH =>
+  case loc LR appTab _ IH =>
     apply localTableauAndEndNodesUnsatThenNotSat LR
     intro Z ZisEndOfY
     exact IH Z ZisEndOfY
@@ -441,7 +439,7 @@ theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
     rw [Lemma1_simple_sat_iff_all_projections_sat Y_is_simple]
     simp only [TNodeHasSat, Finset.mem_union, not_exists, not_forall, exists_prop]
     simp only [f_in_TNode, Finset.mem_union, union_singleton_is_insert, not_and, not_forall, exists_prop]
-    intro nClo
+    intro _
     use φ
     constructor
     · tauto
