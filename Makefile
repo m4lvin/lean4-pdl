@@ -1,6 +1,8 @@
 
 all: pdl bml
 
+.PHONY: all pdl bml
+
 pdl: .first-run-done
 	lake build Pdl
 
