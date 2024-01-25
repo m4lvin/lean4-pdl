@@ -621,9 +621,9 @@ def boxDagNext : BDNode → List BDNode
   | (fs, (⌈_†⌉_)::rest) => [ (fs, rest) ] -- delete formula, but keep branch!
   | (_, []) => { } -- end node of dagger tableau
 
-theorem mOfBoxDagNode.isDec {x y : BDNode} (y_in : y ∈ boxDagNext x) :
-    mOfBoxDagNode y < mOfBoxDagNode x := by
-  rcases x with ⟨fs, _|⟨df,rest⟩⟩
+theorem boxDagNextDMisDec {Δ Γ : BDNode} (Γ_in : Γ ∈ boxDagNext Δ) :
+    to_dm Γ.2 < to_dm Δ.2 := by
+  rcases Δ with ⟨fs, _|⟨df,rest⟩⟩
   case nil =>
     exfalso
     simp at Γ_in
@@ -781,7 +781,7 @@ theorem mOfBoxDagNode.isDec {x y : BDNode} (y_in : y ∈ boxDagNext x) :
 
 @[simp]
 def boxDagNextTransRefl : (List Formula × List DagFormula) → List (List Formula × List DagFormula) :=
-  ftr boxDagNext instDecidableEqProd sorry sorry -- TODO to_dm @mOfBoxDagNode.isDec
+  ftr boxDagNext sorry sorry -- TODO to_dm @mOfBoxDagNode.isDec
   -- ftr boxDagNext mOfBoxDagNode @mOfBoxDagNode.isDec
 
 instance modelCanSemImplyBDNode {W : Type} : vDash (KripkeModel W × W) BDNode :=
@@ -792,7 +792,7 @@ def boxDagEndNodes : BDNode → List (List Formula)
   | (fs, df::rest) => ((boxDagNext (fs, df::rest)).attach.map
       (fun ⟨gsdf, h⟩ =>
         have := boxDagNextDMisDec h
-        boxDagEndNodes gsdf)
+        boxDagEndNodes gsdf)).join
 termination_by
   boxDagEndNodes fs => to_dm fs.2
 decreasing_by
@@ -853,7 +853,7 @@ theorem starInvertAux
     (_ : ∀ i : Fin n, (Γs.get i.castSucc) ∈ boxDagNext (Γs.get i.succ))
     (φ_in : φ ∈ (Γs.head.1)) -- what if it is the dagger form?
     -- still need to say [β†]φ is in Γ_k
-    : (M, v) ⊨ DagFormula.boxes αs (⌈β†⌉ φ) :=
+    : (M, v) ⊨ undag (DagFormula.boxes αs (⌈β†⌉ φ)) :=
   by
   sorry
 
@@ -868,7 +868,6 @@ theorem boxDagEndOfSome_iff_step :
   -- all_goals (simp [boxDagEndNodes]; done)
 
 
--- Invertibility for nSt
 theorem starInvert
      (M : KripkeModel W) (v : W) S
      : (∃ Γ ∈ boxDagEndNodes S, (M, v) ⊨ Γ) → (M, v) ⊨ S :=
@@ -911,7 +910,7 @@ theorem starInvert
       sorry
 termination_by
   starInvert M v S claim => mOfBoxDagNode S
-decreasing_by simp_wf; apply mOfBoxDagNode.isDec; aesop
+decreasing_by simp_wf; sorry -- apply mOfBoxDagNode.isDec; aesop
 
 
 -- Soundness for the box star rule.
