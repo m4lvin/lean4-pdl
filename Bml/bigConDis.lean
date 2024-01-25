@@ -281,8 +281,10 @@ lemma bigConNeg_union_sat_down {X : Finset Formula} {l : List Formula} :
     use W; use M; use w
     apply And.intro (lNotSat φ inl) (XSat)
 
--- Changed def!! only works if l is nonempty
-lemma negBigDis_eq_bigConNeg : l ≠ [] → ~(bigDis l) = ~~bigCon (l.map (~·)) := sorry
+-- Changed def!! Evaluate fmla1 iff Evaluate fmla2 instead of fmla1 = fmla2
+lemma negBigDis_eq_bigConNeg {l : List Formula} {M : KripkeModel W} {w : W}:
+    Evaluate (M, w) (~(bigDis l)) ↔ Evaluate (M, w) (~~bigCon (l.map (~·))) := by aesop
 
-
-lemma negBigCon_eq_bigDisNeg : ~(bigCon l) = bigDis (l.map (~·)) := sorry
+-- Same here
+lemma negBigCon_eq_bigDisNeg {l : List Formula} {M : KripkeModel W} {w : W}:
+    Evaluate (M, w) (~(bigCon l)) ↔ Evaluate (M, w) (bigDis (l.map (~·))) := by aesop
