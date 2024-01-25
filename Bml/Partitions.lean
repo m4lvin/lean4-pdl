@@ -54,9 +54,15 @@ theorem InterpolantInductionStep
         exact Exists.elim ℓ_in_child <| λcLR ⟨inC, injvoc⟩ => localRuleApp_does_not_increase_vocab ruleA cLR inC <| injvoc
       · constructor
         · intro L_and_nθ_sat
-          rw[negBigDis_eq_bigConNeg] at L_and_nθ_sat
+          have L_and_bigC_sat : Satisfiable ((L, R).1 ∪ {(~~bigCon (List.map (fun x => ~x) interList))}) :=
+            by
+              rcases L_and_nθ_sat with ⟨W, M, w, sat⟩
+              have evalDis : Evaluate (M, w) (~bigDis interList) := by aesop
+              rw [eval_neg_BigDis_iff_eval_bigConNeg] at evalDis
+              aesop
           have L_and_nθi_sat : ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ {~~(bigCon <| interList.map (~·))}) :=
-            oneSidedRule_implies_child_sat_L def_ruleA def_rule L_and_nθ_sat
+            --oneSidedRule_implies_child_sat_L def_ruleA def_rule L_and_bigC_sat
+            sorry
           have L_and_nθi_sat : ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ {(bigCon <| interList.map (~·))}) :=
             Exists.elim L_and_nθi_sat <| λ⟨c, cinC⟩ ⟨inCattach, csat⟩ =>
               Exists.intro ⟨c, cinC⟩ ⟨inCattach, ((sat_double_neq_invariant (bigCon <| interList.map (~·))).mp csat)⟩
@@ -86,8 +92,20 @@ theorem InterpolantInductionStep
         exact Exists.elim ℓ_in_child <| λcLR ⟨inC, injvoc⟩ => localRuleApp_does_not_increase_vocab ruleA cLR inC <| injvoc
       · constructor
         · intro L_and_nθ_sat
-          rw[negBigCon_eq_bigDisNeg] at L_and_nθ_sat
-          have L_and_θi_Sat : ∃nθi ∈ interList.map (~·), Satisfiable <| L ∪ {nθi} := bigDis_union_sat_down L_and_nθ_sat
+          have L_and_bigD_sat : Satisfiable ((L, R).1 ∪ {(bigDis (List.map (fun x => ~x) interList))}) :=
+            by
+              rcases L_and_nθ_sat with ⟨W, M, w, sat⟩
+              have evalCon : Evaluate (M, w) (~(bigCon interList)) := by aesop
+              rw [eval_negBigCon_iff_eval_bigDisNeg] at evalCon
+              use W; use M; use w
+              intro φ hyp
+              rw [Finset.mem_union] at hyp
+              cases' hyp with left right
+              · apply sat; aesop
+              · rw [Finset.mem_singleton] at right
+                rw [right]
+                assumption
+          have L_and_θi_Sat : ∃nθi ∈ interList.map (~·), Satisfiable <| L ∪ {nθi} := bigDis_union_sat_down L_and_bigD_sat
           have L_and_child's_inter_sat := choice_property_in_image <| choice_property_in_image L_and_θi_Sat
           exact Exists.elim L_and_child's_inter_sat <| λ⟨c, cinC⟩ ⟨inCattach, csat ⟩ =>
             have L_inv_to_rightrule : c.1 = L := (oneSidedRule_preserves_other_side_R def_ruleA def_rule) c cinC
@@ -95,7 +113,8 @@ theorem InterpolantInductionStep
             hsubInterpolants ⟨c, cinC⟩ inCattach |> And.right |> And.left <| csat2
         · intro R_and_θ_sat
           have R_and_θi_sat : ∃c ∈ C.attach, Satisfiable (c.1.2 ∪ {bigCon interList}) :=
-            oneSidedRule_implies_child_sat_R def_ruleA def_rule R_and_θ_sat
+            -- oneSidedRule_implies_child_sat_R def_ruleA def_rule R_and_θ_sat
+            sorry
           exact Exists.elim R_and_θi_sat <| λ⟨c, cinC⟩ ⟨inCattach, csat⟩ =>
             have csat2 : Satisfiable <| c.2 ∪ {subInterpolants c cinC} :=
               bigCon_union_sat_down csat (subInterpolants c cinC) (by simp; use c, cinC)

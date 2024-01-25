@@ -337,7 +337,7 @@ theorem localRuleSoundness
         | aesop)
 
 theorem ruleImpliesChildSat
-    {C : List TNode}
+    {C : List TNode}    -- added this
     {LR : TNode}
     {ruleApp : LocalRuleApp LR C} :
     Satisfiable LR → ∃c ∈ C, Satisfiable c :=
