@@ -98,33 +98,51 @@ theorem consThenProjectLCons: (Consistent (L,R)) → (~(□α) ∈ L) →
 theorem consThenProjectRCons: (Consistent (L,R)) → (~(□α)∈ R) →
   Consistent (diamondProjectTNode (Sum.inr (~α)) (L,R)) := by sorry
 
-theorem pathSaturated (path : Path LR): Saturated (pathToFinset path) := by
-  /-intro P Q
+theorem pathSaturated (path : Path consLR): Saturated (pathToFinset path) := by
+  intro P Q
   induction path
-  case endNode X _ simpleX =>
-    simp
-    unfold SimpleSetDepr at simpleX
-    simp at simpleX
+  case endNode LR LR_cons LR_simple =>
+    unfold Simple SimpleSet at LR_simple
+    rcases LR_simple with ⟨L_simple, R_simple⟩
+    simp_all
     constructor
-    · specialize simpleX (~~P)
-      aesop
+    · intro nnP_in
+      cases nnP_in
+      · case inl nnP_in_L =>
+        specialize L_simple ⟨~~P, nnP_in_L⟩;
+        simp at L_simple
+      · case inr nnP_in_R =>
+        specialize R_simple ⟨~~P, nnP_in_R⟩;
+        simp at R_simple
     · constructor
-      · specialize simpleX (P ⋀ Q)
-        aesop
-      · specialize simpleX (~(P ⋀ Q))
-        aesop
-  case interNode B X Y locRule Y_in tail IH =>
-    simp
+      · intro PQ_in
+        cases PQ_in
+        · case inl PQ_in_L =>
+          specialize L_simple ⟨P ⋀ Q, PQ_in_L⟩
+          simp at L_simple
+        · case inr PQ_in_R =>
+          specialize R_simple ⟨P ⋀ Q, PQ_in_R⟩;
+          simp at R_simple
+      · intro PQ_in
+        cases PQ_in
+        · case inl PQ_in_L =>
+          specialize L_simple ⟨~(P ⋀ Q), PQ_in_L⟩
+          simp at L_simple
+        · case inr PQ_in_R =>
+          specialize R_simple ⟨~(P ⋀ Q), PQ_in_R⟩;
+          simp at R_simple
+  case interNode LR C LR' LR'_cons LR_cons locRule LR'_in tail IH =>
+    simp_all!
     rcases IH with ⟨IH1, ⟨IH2, IH3⟩⟩
     constructor
     -- ~~P ∈ U → P ∈ U
     · intro nnP_in
       apply Or.inr
       cases nnP_in
-      · case inl nnP_in_X =>
-        rename_i Z; clear Z
-        cases locRule
-        · case bot bot_in_X =>
+      · case inl nnP_in_LR =>
+        sorry
+        /-cases locRule
+        · case bot bot_in_LR =>
           refine False.elim ?_
           exact (List.mem_nil_iff Y).mp Y_in
         · case Not α α_nα_in_X =>
@@ -165,9 +183,9 @@ theorem pathSaturated (path : Path LR): Saturated (pathToFinset path) := by
           apply X_in_PathX
           refine Finset.mem_union_left {~β} ?inr.a.h
           refine Finset.mem_sdiff.mpr ?inr.a.h.a
-          aesop
-      · case inr nnP_in_tail => aesop
-    · constructor
+          aesop-/
+      · case inr nnP_in_tail => sorry --aesop
+    · sorry /-constructor
     -- P⋀Q ∈ U  → P ∈ U  and Q ∈ U
       · case intro.intro.right.left Z =>
         clear Z
@@ -352,7 +370,6 @@ theorem pathSaturated (path : Path LR): Saturated (pathToFinset path) := by
                   apply X_in_PathX; refine Finset.mem_union_left {~γ} ?_; refine Finset.mem_sdiff.mpr ?_; aesop
                   aesop
                 aesop-/
-    sorry
 
 theorem pathConsistent (path : Path TN): ⊥ ∉ pathToFinset path ∧ ∀ P, P ∈ pathToFinset path → ~P ∉ pathToFinset path := by
   induction path
@@ -564,14 +581,14 @@ theorem completeness : ∀ X, Consistent X ↔ Satisfiable X :=
     have := truthLemma M w
     aesop
   -- use Theorem 2:
-  · sorry -- exact correctness X
+  · exact correctness X
 
 theorem singletonCompleteness : ∀ φ, Consistent ({φ},{}) ↔ Satisfiable φ :=
   by
   intro f
   have := completeness ({f},{})
   simp only [singletonSat_iff_sat] at *
-  sorry -- tauto
+  aesop
 
 /-
 theorem consistentImplies : Consistent X → ⊥ ∉ X ∧ ∀ P, P ∈ X → ~P ∉ X := by
