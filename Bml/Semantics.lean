@@ -52,6 +52,9 @@ theorem notsatisfnotThenTaut : ∀ φ, ¬Satisfiable (~φ) → Tautology φ :=
   unfold Tautology
   simp
 
+theorem subsetSat {X Y : Finset Formula} : Satisfiable X → Y ⊆ X → Satisfiable Y :=
+  by aesop
+
 @[simp]
 theorem singletonSat_iff_sat : ∀ φ, Satisfiable ({φ} : Finset Formula) ↔ Satisfiable φ :=
   by

@@ -90,8 +90,29 @@ def formProjection : Formula → Option Formula
 def projection : Finset Formula → Finset Formula
   | X => X.biUnion fun x => (formProjection x).toFinset
 
+@[simp]
 def projectTNode : TNode → TNode
   | (L, R) => (projection L, projection R)
+
+@[simp]
+theorem project_insert {X φ} : projection (X ∪ {φ}) = projection X ∪ projection {φ} :=
+  by simp [projection] at *; aesop
+
+@[simp]
+theorem project_union {X Y} : projection (X ∪ Y) = projection X ∪ projection Y :=
+  by
+    ext1 f
+    apply Iff.intro <;>
+    ( induction Y using Finset.induction_on
+      · intro hyp
+        simp [project_insert] at *
+        ( first
+          | apply Or.inl; exact hyp
+          | (have : projection ∅ = ∅ := by tauto); aesop)
+      · simp at *
+        intro hyp
+        rw [←union_singleton_is_insert, project_insert] at *
+        aesop)
 
 @[simp]
 def f_in_TNode (f : Formula) (LR : TNode) := f ∈ (LR.1 ∪ LR.2)
@@ -99,6 +120,11 @@ def f_in_TNode (f : Formula) (LR : TNode) := f ∈ (LR.1 ∪ LR.2)
 theorem projectionUnion : projection (X ∪ Y) = projection X ∪ projection Y := by
   unfold projection
   aesop
+
+@[simp]
+instance TNodeHasSat : HasSat TNode :=
+  -- HasSat.mk fun LR => ∃ (W : _) (M : KripkeModel W) (w : _), ∀ φ, f_in_TNode φ (LR) → Evaluate (M, w) φ
+  HasSat.mk fun LR => HasSat.Satisfiable (LR.1 ∪ LR.2)
 
 -- TODO @[simp]
 theorem proj {g : Formula} {X : Finset Formula} : g ∈ projection X ↔ □g ∈ X :=
@@ -714,7 +740,7 @@ theorem lrEndNodes {LR C subtabs lrApp} :
 
 theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOfTNode Z ≤ lengthOfTNode LR :=
   by
-  cases ltLR   -- mutually inductive type problem, I remember this from the chat?
+  cases ltLR
   case fromRule altLR =>
     intro Z_endOf_LR
     let ⟨lrApp, next⟩ := altLR
