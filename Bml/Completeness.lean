@@ -1,5 +1,8 @@
 -- COMPLETENESS
 
+-- NOTE: This file is broken and obsolete.
+-- See instead "BetterCompleteness.lean".
+
 import Bml.Syntax
 import Bml.Tableau
 import Bml.Soundness
@@ -115,7 +118,7 @@ theorem consToEndNodes {X} {ltX : LocalTableau X} :
   tauto
 
 def projOfConsSimpIsCons :
-    ∀ {X ϕ}, Consistent X → Simple X → ~(□ϕ) ∈ X → Consistent (projection X ∪ {~ϕ}) :=
+    ∀ {X ϕ}, Consistent X → SimpleSetDepr X → ~(□ϕ) ∈ X → Consistent (projection X ∪ {~ϕ}) :=
   by
   intro X ϕ consX simpX notBoxPhi_in_X
   unfold Consistent at *
@@ -177,7 +180,7 @@ theorem locTabEndSatThenSat {X Y} (ltX : LocalTableau X) (Y_endOf_X : Y ∈ endN
 theorem almostCompleteness : (X : Finset Formula) → Consistent X → Satisfiable X :=
   by
   intro X consX
-  refine' if simpX : Simple X then _ else _
+  refine' if simpX : SimpleSetDepr X then _ else _
   -- CASE 1: X is simple
   rw [Lemma1_simple_sat_iff_all_projections_sat simpX]
   constructor

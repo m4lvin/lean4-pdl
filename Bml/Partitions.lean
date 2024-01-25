@@ -150,28 +150,26 @@ open HasLength
 
 -- tableau interpolation -- IDEA: similar to almostCompleteness
 -- part of this is part of Lemma 15
-theorem almostTabToInt {X} (ctX : ClosedTableau X) :
-    ∀ X1 X2, X = X1 ∪ X2 → ∃ θ, PartInterpolant X1 X2 θ :=
+theorem tabToInt {X} (ctX : ClosedTableau X) : ∃ θ, PartInterpolant X θ :=
   by
   induction ctX
-  case loc X ltX next IH =>
-    intro X1 X2 defX
+  case loc C LR ltX next IH =>
     have nextLtAndInter :
       ∃ ltX : LocalTableau X,
-        ∀ Y1 Y2, Y1 ∪ Y2 ∈ endNodesOf ⟨X, ltX⟩ → ∃ θ, PartInterpolant Y1 Y2 θ :=
+        ∀ Y ∈ endNodesOf ⟨X, ltX⟩, ∃ θ, PartInterpolant Y θ :=
       by
+      sorry
+      /-
       use ltX
       intro Y1 Y2 y_is_endOfX
       specialize next (Y1 ∪ Y2) y_is_endOfX
       exact IH (Y1 ∪ Y2) y_is_endOfX Y1 Y2 (refl _)
-    exact localTabToInt _ X (refl _) defX nextLtAndInter
-  case atm X ϕ notBoxPhi_in_X simpleX ctProjNotPhi
-    IH =>
-    intro X1 X2 defX
-    subst defX
-    simp at *
-    cases notBoxPhi_in_X
-    · -- case ~□ϕ ∈ X1
+      -/
+    sorry -- exact localTabToInt _ X (refl _) defX nextLtAndInter
+  case atmL X ϕ notBoxPhi_in_X simpleX ctProjNotPhi IH =>
+      simp at *
+      sorry
+      /-
       let newX1 := projection X1 ∪ {~ϕ}
       let newX2 := projection X2
       have yclaim : newX1 ∪ newX2 = projection (X1 ∪ X2) ∪ {~ϕ} := by rw [projUnion]; ext1; simp
@@ -240,7 +238,11 @@ theorem almostTabToInt {X} (ctX : ClosedTableau X) :
         cases' psi_in_newX2 with psi_is_theta psi_in_projX2
         · subst psi_is_theta; assumption
         · rw [proj] at psi_in_projX2 ; specialize sat (□ψ); apply sat; simp; assumption; assumption
-    · -- case ~□ϕ ∈ X2
+        -/
+  case atmR X ϕ notBoxPhi_in_X simpleX ctProjNotPhi IH =>
+      sorry
+      /-
+      -- case ~□ϕ ∈ X2
       let newX1 := projection X1
       let newX2 := projection X2 ∪ {~ϕ}
       ---- what follows is *based* on copying the previous case ----
@@ -306,6 +308,4 @@ theorem almostTabToInt {X} (ctX : ClosedTableau X) :
         case inr psi_in_newX2 =>
           rw [proj] at psi_in_newX2 ; specialize sat (□ψ); simp at sat
           apply sat; right; assumption; assumption
-
-theorem tabToInt {X1 X2} : ClosedTableau (X1 ∪ X2) → ∃ θ, PartInterpolant X1 X2 θ
-  | ctX => almostTabToInt ctX X1 X2 (refl _)
+      -/
