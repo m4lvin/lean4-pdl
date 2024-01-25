@@ -432,6 +432,11 @@ theorem localTableauAndEndNodesUnsatThenNotSat (LR : TNode) {ltLR : LocalTableau
 termination_by
   localTableauAndEndNodesUnsatThenNotSat LR _ _  => lengthOfTNode LR
 
+-- TODO: proper preconditions (e.g. nBox phi in L etc)
+lemma projection_preserves_reflects_unsat_L : ¬Satisfiable (LR.1 ∪ {~~(□~θ)}) ↔ ¬Satisfiable ((diamondProjectTNode X LR).1 ∪ {~θ}) := sorry
+lemma projection_preserves_reflects_unsat_R : ¬Satisfiable (LR.2 ∪ {~(□~θ)})  ↔ ¬Satisfiable ((diamondProjectTNode X LR).2 ∪ {θ})  := sorry
+
+
 theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
   by
   intro X t
