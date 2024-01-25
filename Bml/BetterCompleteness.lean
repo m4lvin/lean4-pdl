@@ -33,6 +33,21 @@ inductive Path: ConsTNode →  Type
     (tail : Path ⟨c, c_cons⟩): Path ⟨LR, LR_cons⟩
 open Path
 
+/-
+-- simp does not work here
+def lengthOfPath: Path consLR → ℕ
+  | endNode _ => 1
+  | interNode _ _ tail => 1 + lengthOfPath tail
+
+@[simp]
+theorem lengthOfPathDecreasing {h: path = interNode appTab c_in tail}: lengthOfPath path < lengthOfPath tail := by
+  subst h
+  --unfold lengthOfPath
+  sorry
+
+@[simp]
+instance : HasLength (Path ⟨LR, consLR⟩) := ⟨lengthOf LR⟩
+-/
 @[simp]
 def pathToFinset: Path ⟨(L,R), cons⟩  → Finset Formula
   | endNode _ => L ∪ R
@@ -376,41 +391,24 @@ theorem pathConsistent (path : Path TN): ⊥ ∉ pathToFinset path ∧ ∀ P, P 
 
 theorem pathProjection (path: Path consLR): projection (pathToFinset path) = projection (toFinset (endNodeOf path)) := by sorry
 
-theorem pathDiamond (path: Path consLR) (α_in: ~(□α) ∈ pathToFinset path): ~(□α) ∈ toFinset (endNodeOf path) := by sorry
-  /-induction aPathOf ⟨LR, LR_cons⟩
-  case endNode LR LR_cons LR_simple =>
-    rcases h : conLR with ⟨LR', LR_cons'⟩
-    have: LR = LR':= by simp
-    simp_all!
-    sorry
-  case interNode => sorry
-
-  cases path_eq: aPathOf ⟨LR, LR_cons⟩
-  case endNode isSimple => aesop
-  case interNode C c c_cons c_in tail _ appTab =>
+theorem pathDiamond (path: Path consLR) (α_in: ~(□α) ∈ pathToFinset path): ~(□α) ∈ toFinset (endNodeOf path) := by
+  induction path
+  case endNode LR LR_cons LR_simple => aesop
+  case interNode LR C c c_cons LR_cons appTab c_in tail IH =>
     simp_all
-    have : endNodeOf (aPathOf ⟨c, c_cons⟩) = endNodeOf (aPathOf ⟨LR, LR_cons⟩) := by sorry
-    have := AppLocalTableau.DecreasesLength appTab c_in
-    rcases α_in
+    apply IH
+    cases α_in
     case inl α_in =>
+      apply Finset.mem_of_subset (X_in_PathX tail)
       have := AppLocalTableau.PreservesDiamondL appTab α_in c_in
-      have α_in_c': ~(□α) ∈ toWorld ⟨c, c_cons⟩ := by
-        apply Finset.mem_of_subset LR_in_toWorldLR
-        aesop
-      have := worldDiamond ⟨c, c_cons⟩ α_in_c'
       simp_all
     case inr α_in =>
       cases α_in
       case inl α_in =>
+        apply Finset.mem_of_subset (X_in_PathX tail)
         have := AppLocalTableau.PreservesDiamondR appTab α_in c_in
-        have α_in_c': ~(□α) ∈ toWorld ⟨c, c_cons⟩ := by
-          apply Finset.mem_of_subset LR_in_toWorldLR
-          aesop
-        have := worldDiamond ⟨c, c_cons⟩ α_in_c'
         simp_all
-      case inr α_in => exact worldDiamond ⟨c, c_cons⟩ α_in
-termination_by worldDiamond conTN α_in => lengthOf conTN
-decreasing_by simp_wf; sorry-/
+      case inr α_in => assumption
 
 -- given a consistent TNode LR, gives a (consistent) path in aLocalTableauFor LR
 noncomputable def aPathOf (conLR : ConsTNode) : Path conLR := by
