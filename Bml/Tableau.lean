@@ -344,7 +344,7 @@ noncomputable def notSimpleToRuleApp {L R : Finset Formula}: ¬Simple (L,R) →
         exact ⟨C,(@LocalRuleApp.mk L R C
           (List.map (fun res => (∅, res)) [{ψ, χ}]) -- since DecidableEq cannot simplify this apparently
           ∅ {ψ⋀χ} rule (rfl)
-          ⟨(Finset.empty_subset L), (by aesop; rw[← φdef]; apply vvv.φinX)⟩
+          ⟨(Finset.empty_subset L), (by rw[← φdef]; simp [vvv.φinX])⟩
         )⟩
 
       | ~ψ  => match ψ with
@@ -357,7 +357,7 @@ noncomputable def notSimpleToRuleApp {L R : Finset Formula}: ¬Simple (L,R) →
           exact ⟨C,(@LocalRuleApp.mk L R C
             (List.map (fun res => (∅, res)) [{~ψ}, {~χ}]) -- since DecidableEq cannot simplify this apparently
             ∅ {~(ψ⋀χ)} rule (rfl)
-            ⟨(Finset.empty_subset L), (by aesop; rw[← φdef]; apply vvv.φinX)⟩
+            ⟨(Finset.empty_subset L), (by rw[← φdef]; simp [vvv.φinX])⟩
           )⟩
         | ~ψ =>
           let rule := LocalRule.oneSidedR (OneSidedLocalRule.neg ψ)
@@ -365,7 +365,7 @@ noncomputable def notSimpleToRuleApp {L R : Finset Formula}: ¬Simple (L,R) →
           exact ⟨C,(@LocalRuleApp.mk L R C
             (List.map (fun res => (∅, res)) [{ψ}]) -- since DecidableEq cannot simplify this apparently
             ∅ {~~ψ} rule (rfl)
-            ⟨(Finset.empty_subset L), (by aesop; rw[← φdef]; apply vvv.φinX)⟩
+            ⟨(Finset.empty_subset L), (by rw[← φdef]; simp [vvv.φinX])⟩
           )⟩
   else by -- L not simple, dual
       let vvv := notSimpleSetToForm simple_L
@@ -379,7 +379,7 @@ noncomputable def notSimpleToRuleApp {L R : Finset Formula}: ¬Simple (L,R) →
         exact ⟨C,(@LocalRuleApp.mk L R C
           (List.map (fun res => (res,∅)) [{ψ, χ}]) -- since DecidableEq cannot simplify this apparently
           {ψ⋀χ} ∅ rule (rfl)
-          ⟨(by aesop; rw[← φdef]; apply vvv.φinX), (Finset.empty_subset R)⟩
+          ⟨(by rw[← φdef]; simp [vvv.φinX]), (Finset.empty_subset R)⟩
         )⟩
 
       | ~ψ  => match ψ with
@@ -392,7 +392,7 @@ noncomputable def notSimpleToRuleApp {L R : Finset Formula}: ¬Simple (L,R) →
           exact ⟨C,(@LocalRuleApp.mk L R C
             (List.map  (fun res => (res,∅)) [{~ψ}, {~χ}]) -- since DecidableEq cannot simplify this apparently
             {~(ψ⋀χ)} ∅  rule (rfl)
-          ⟨(by aesop; rw[← φdef]; apply vvv.φinX), (Finset.empty_subset R)⟩
+          ⟨(by rw[← φdef]; simp [vvv.φinX]), (Finset.empty_subset R)⟩
           )⟩
         | ~ψ =>
           let rule := LocalRule.oneSidedL (OneSidedLocalRule.neg ψ)
@@ -400,7 +400,7 @@ noncomputable def notSimpleToRuleApp {L R : Finset Formula}: ¬Simple (L,R) →
           exact ⟨C,(@LocalRuleApp.mk L R C
             (List.map (fun res => (res,∅)) [{ψ}]) -- since DecidableEq cannot simplify this apparently
             {~~ψ} ∅  rule (rfl)
-          ⟨(by aesop; rw[← φdef]; apply vvv.φinX), (Finset.empty_subset R)⟩
+          ⟨(by rw[← φdef]; simp [vvv.φinX]), (Finset.empty_subset R)⟩
           )⟩
 
 theorem notSimpleThenLocalRule {L R} : ¬Simple (L,R)
