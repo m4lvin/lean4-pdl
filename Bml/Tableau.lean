@@ -70,6 +70,8 @@ instance : Union (Finset Formula × Finset Formula) :=
 def TNode := Finset Formula × Finset Formula
   deriving DecidableEq, HasSubset, Union
 
+instance : HasSat TNode := ⟨fun X => HasSat.Satisfiable (X.1 ∪ X.2)⟩
+
 def Simple (LR : TNode) : Prop := SimpleSet LR.1 ∧ SimpleSet LR.2
 
 instance : Decidable (Simple LR) :=
@@ -714,6 +716,8 @@ def Inconsistent : TNode → Prop
 
 def Consistent : TNode → Prop
   | LR => ¬Inconsistent LR
+
+-- TODO: class Consistent to also allow sets instead fo TNodes
 
 noncomputable def aLocalTableauFor (LR: TNode) : LocalTableau LR :=
   if h_simple : (Simple LR)

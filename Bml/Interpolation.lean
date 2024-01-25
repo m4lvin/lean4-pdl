@@ -12,9 +12,8 @@ def Interpolant (φ : Formula) (ψ : Formula) (θ : Formula) :=
 theorem interpolation {ϕ ψ} : Tautology (ϕ↣ψ) → ∃ θ, Interpolant ϕ ψ θ :=
   by
   intro hyp
-  let X1 : Finset Formula := {ϕ}
-  let X2 : Finset Formula := {~ψ}
-  have ctX : ClosedTableau (X1 ∪ X2) :=
+  let X : TNode := ({ϕ}, {~ψ})
+  have ctX : ClosedTableau X :=
     by
     rw [tautImp_iff_comboNotUnsat] at hyp 
     rw [← completeness] at hyp 

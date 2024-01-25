@@ -535,27 +535,28 @@ theorem modelExistence: Consistent (L,R) →
     unfold toWorld
     simp
     exact M₀.base
-/-
+
 -- Theorem 4, page 37
 theorem completeness : ∀ X, Consistent X ↔ Satisfiable X :=
   by
   intro X
   constructor
   · intro X_is_consistent
-    have ⟨WS, M, w, h⟩ := modelExistence X X_is_consistent
+    have ⟨WS, M, w, h⟩ := modelExistence X_is_consistent
     use WS, M.val, w
     have := truthLemma M w
     aesop
   -- use Theorem 2:
-  · exact correctness X
+  · sorry -- exact correctness X
 
-theorem singletonCompleteness : ∀ φ, Consistent {φ} ↔ Satisfiable φ :=
+theorem singletonCompleteness : ∀ φ, Consistent ({φ},{}) ↔ Satisfiable φ :=
   by
   intro f
-  have := completeness {f}
+  have := completeness ({f},{})
   simp only [singletonSat_iff_sat] at *
-  tauto
+  sorry -- tauto
 
+/-
 theorem consistentImplies : Consistent X → ⊥ ∉ X ∧ ∀ P, P ∈ X → ~P ∉ X := by
   intro consX
   unfold Consistent Inconsistent at consX
