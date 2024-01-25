@@ -389,7 +389,26 @@ theorem pathConsistent (path : Path TN): ⊥ ∉ pathToFinset path ∧ ∀ P, P 
       by_contra h
       sorry
 
-theorem pathProjection (path: Path consLR): projection (pathToFinset path) = projection (toFinset (endNodeOf path)) := by sorry
+theorem pathProjection (path: Path consLR): projection (pathToFinset path) ⊆ projection (toFinset (endNodeOf path)) := by
+  intro α α_in
+  rewrite [proj] at *
+  induction path
+  case endNode LR LR_cons LR_simple => aesop
+  case interNode LR C c c_cons LR_cons appTab c_in tail IH =>
+    simp_all
+    apply IH
+    cases α_in
+    case inl α_in =>
+      apply Finset.mem_of_subset (X_in_PathX tail)
+      have := AppLocalTableau.PreservesBoxL appTab α_in c_in
+      simp_all
+    case inr α_in =>
+      cases α_in
+      case inl α_in =>
+        apply Finset.mem_of_subset (X_in_PathX tail)
+        have := AppLocalTableau.PreservesBoxR appTab α_in c_in
+        simp_all
+      case inr α_in => assumption
 
 theorem pathDiamond (path: Path consLR) (α_in: ~(□α) ∈ pathToFinset path): ~(□α) ∈ toFinset (endNodeOf path) := by
   induction path
@@ -490,7 +509,7 @@ theorem modelExistence: Consistent (L,R) →
             constructor
             · calc
                 projection (toWorld w') = projection (pathToFinset (aPathOf w')) := by aesop
-                _ = projection v := by rw [pathProjection (aPathOf w')]
+                _ ⊆ projection v := by apply pathProjection (aPathOf w')
                 _ ⊆ u_root.1 ∪ u_root.2 := by rw[u_eq, v_eq, projectionUnion]; simp
                 _ ⊆ toWorld u' := by exact u_sub
             constructor
@@ -516,7 +535,7 @@ theorem modelExistence: Consistent (L,R) →
             constructor
             · calc
                 projection (toWorld w') = projection (pathToFinset (aPathOf w')) := by aesop
-                _ = projection v := by rw [pathProjection (aPathOf w')]
+                _ ⊆ projection v := by apply pathProjection (aPathOf w')
                 _ ⊆ u_root.1 ∪ u_root.2 := by rw[u_eq, v_eq, projectionUnion]; simp
                 _ ⊆ toWorld u' := by exact u_sub
             constructor

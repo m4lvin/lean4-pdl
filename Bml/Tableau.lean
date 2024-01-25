@@ -99,27 +99,12 @@ theorem project_insert {X φ} : projection (X ∪ {φ}) = projection X ∪ proje
   by simp [projection] at *; aesop
 
 @[simp]
-theorem project_union {X Y} : projection (X ∪ Y) = projection X ∪ projection Y :=
-  by
-    ext1 f
-    apply Iff.intro <;>
-    ( induction Y using Finset.induction_on
-      · intro hyp
-        simp [project_insert] at *
-        ( first
-          | apply Or.inl; exact hyp
-          | (have : projection ∅ = ∅ := by tauto); aesop)
-      · simp at *
-        intro hyp
-        rw [←union_singleton_is_insert, project_insert] at *
-        aesop)
+theorem projectionUnion: projection (X ∪ Y) = projection X ∪ projection Y := by
+  unfold projection
+  aesop
 
 @[simp]
 def f_in_TNode (f : Formula) (LR : TNode) := f ∈ (LR.1 ∪ LR.2)
-
-theorem projectionUnion : projection (X ∪ Y) = projection X ∪ projection Y := by
-  unfold projection
-  aesop
 
 @[simp]
 instance TNodeHasSat : HasSat TNode :=
@@ -605,6 +590,12 @@ theorem AppLocalTableau.DecreasesLength
   rcases appTab with ⟨lrApp, next⟩
   have := localRuleAppDecreasesLength lrApp
   aesop
+
+theorem AppLocalTableau.PreservesBoxL (appTab : AppLocalTableau (L,R) C)
+   (nBox_in : □α ∈ L) (LR'_in: (L',R') ∈ C):  □α ∈ L' := by sorry
+
+theorem AppLocalTableau.PreservesBoxR (appTab : AppLocalTableau (L,R) C)
+   (nBox_in : □α ∈ R) (LR'_in: (L',R') ∈ C):  □α ∈ R' := by sorry
 
 theorem AppLocalTableau.PreservesDiamondL (appTab : AppLocalTableau (L,R) C)
    (nBox_in : ~(□α) ∈ L) (LR'_in: (L',R') ∈ C):  ~(□α) ∈ L' := by sorry
