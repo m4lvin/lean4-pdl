@@ -173,24 +173,26 @@ theorem tabToInt {LR : TNode} (tab : ClosedTableau LR)
     · -- voc property
       have h_pθ_voc : voc (~(□~pθ.val)) = voc (pθ.val) := by aesop
       intro ℓ ℓ_in_θ
-      apply diamondproj_does_not_increase_vocab
-      apply pθ.property.left
-      rw [←h_pθ_voc]
-      exact ℓ_in_θ
+      apply diamondproj_does_not_increase_vocab_L nBoxφ_in_L
+      simp; constructor
+      · let ℓ_in_proj := pθ.property.left ℓ_in_θ
+        simp at ℓ_in_proj
+        exact ℓ_in_proj.left
     · constructor -- implication property
-      · exact projectionL_preserves_reflects_unsat_L.mpr pθ.2.2.1
-      · exact projectionL_preserves_reflects_unsat_R.mpr pθ.2.2.2
+      · exact projection_preserves_reflects_unsat_L.mpr pθ.2.2.1
+      · exact projection_preserves_reflects_unsat_R.mpr pθ.2.2.2
   -- dual to atmL
-  case atmR LR φ nBoxφ_in_LR simple_LR cTabProj pθ =>
+  case atmR LR φ nBoxφ_in_R simple_LR cTabProj pθ =>
     use ~(□~pθ.val)
     constructor
     · -- voc property
       have h_pθ_voc : voc (~(□~pθ.val)) = voc (pθ.val) := by aesop
       intro ℓ ℓ_in_θ
-      apply diamondproj_does_not_increase_vocab
-      apply pθ.property.left
-      rw [←h_pθ_voc]
-      exact ℓ_in_θ
+      apply diamondproj_does_not_increase_vocab_R nBoxφ_in_R
+      simp; constructor
+      · let ℓ_in_proj := pθ.property.left ℓ_in_θ
+        simp at ℓ_in_proj
+        exact ℓ_in_proj.left
     · constructor -- implication property
-      · exact projectionR_preserves_reflects_unsat_L.mpr pθ.2.2.1
-      · exact projectionR_preserves_reflects_unsat_R.mpr pθ.2.2.2
+      · exact projection_preserves_reflects_unsat_L.mpr pθ.2.2.1
+      · exact projection_preserves_reflects_unsat_R.mpr pθ.2.2.2
