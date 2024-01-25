@@ -66,10 +66,9 @@ theorem noContradiction : Provable (~(p⋀~p)) :=
 -- preparing example 2
 def subTabForEx2 : ClosedTableau ({·'r', ~(□p), □(p⋀q)}, {}) :=
   by
-  have : Simple ({·'r', ~(□p), □(p⋀q)}, {}) := by simp [Simple]
+  have : Simple ({·'r', ~(□p), □(p⋀q)}, {}) := by simp [SimpleSet, Simple]
   apply ClosedTableau.atmL (by simp : ~(□p) ∈ _) this
   simp [diamondProjectTNode, projection]
-  change ClosedTableau ({~p, p⋀q},{})
   apply ClosedTableau.loc
   case appTab =>
     apply AppLocalTableau.mk
@@ -132,8 +131,8 @@ example : ClosedTableau ({r⋀~(□p), r↣□(p⋀q)}, {}) :=
             intro c c_in; simp at c_in; subst c_in -- unique child node
             -- ending local tableau with a simple node:
             apply LocalTableau.fromSimple
-            change Simple ({r, ~(□p), (□(p⋀q))},{}) = true
-            simp [Simple]
+            simp [SimpleSet, Simple]
+            aesop
       exact ltB
   case next =>
       intro Y Y_in

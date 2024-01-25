@@ -34,9 +34,8 @@ theorem InterpolantInductionStep
     -- UNPACKING TERMS
     match v : tab with
     | @AppLocalTableau.mk _ _ C ruleA subTabs =>
-    match ruleA with
+    match def_ruleA : ruleA with
     | @LocalRuleApp.mk _ _ _ ress Lcond Rcond rule hC preproof =>
-    have def_ruleA : ruleA = (@LocalRuleApp.mk L R C ress Lcond Rcond rule hC preproof) := sorry
 
     -- DISTINCTION ON LOCALRULE USED
     cases def_rule : rule with
@@ -52,7 +51,7 @@ theorem InterpolantInductionStep
         have ℓ_in_child : ∃c ∈ C, ℓ ∈ jvoc c :=
           Exists.elim ℓ_in_child's_inter <| λ⟨c, cinC⟩ ⟨inCattach, linvocInter ⟩ =>
             Exists.intro c ⟨cinC, hsubInterpolants ⟨c, cinC⟩ inCattach |> And.left <| linvocInter⟩
-        exact Exists.elim ℓ_in_child <| λcLR ⟨inC, injvoc⟩ => localRuleAppDecreasesVocab ruleA cLR inC <| injvoc
+        exact Exists.elim ℓ_in_child <| λcLR ⟨inC, injvoc⟩ => localRuleApp_does_not_increase_vocab ruleA cLR inC <| injvoc
       · constructor
         · intro L_and_nθ_sat
           rw[negBigDis_eq_bigConNeg] at L_and_nθ_sat
@@ -73,7 +72,7 @@ theorem InterpolantInductionStep
             have csat2 : Satisfiable <| c.2 ∪ {subInterpolants c cinC} := by rw[←R_inv_to_leftrule] at csat; assumption
             hsubInterpolants ⟨c, cinC⟩ inCattach |> And.right |> And.right <| csat2
 
-    -- ONESIDED R: perfectly dual to the onesided L case
+    -- ONESIDED R: dual to the onesided L case except for dealing with ~'s in L_and_θi_Sat
     | oneSidedR orule =>
       let interList :=  (C.attach).map $ λcInC => subInterpolants cInC.1 cInC.2
       use bigCon interList
@@ -84,7 +83,7 @@ theorem InterpolantInductionStep
         have ℓ_in_child : ∃c ∈ C, ℓ ∈ jvoc c :=
           Exists.elim ℓ_in_child's_inter <| λ⟨c, cinC⟩ ⟨inCattach, linvocInter ⟩ =>
             Exists.intro c ⟨cinC, hsubInterpolants ⟨c, cinC⟩ inCattach |> And.left <| linvocInter⟩
-        exact Exists.elim ℓ_in_child <| λcLR ⟨inC, injvoc⟩ => localRuleAppDecreasesVocab ruleA cLR inC <| injvoc
+        exact Exists.elim ℓ_in_child <| λcLR ⟨inC, injvoc⟩ => localRuleApp_does_not_increase_vocab ruleA cLR inC <| injvoc
       · constructor
         · intro L_and_nθ_sat
           rw[negBigCon_eq_bigDisNeg] at L_and_nθ_sat
