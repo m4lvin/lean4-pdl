@@ -126,26 +126,6 @@ theorem InterpolantInductionStep
         · apply negation_not_cosatisfiable (~φ) <;> aesop
         . apply negation_not_cosatisfiable (φ)  <;> aesop
 
-
-
-
-theorem vocProj (X) : voc (projection X) ⊆ voc X :=
-  by
-  simp
-  intro ϕ phi_in_proj
-  rw [proj] at phi_in_proj
-  intro a aInVocPhi
-  simp
-  tauto
-
-theorem projUnion {X Y} : projection (X ∪ Y) = projection X ∪ projection Y :=
-  by
-  ext1
-  rw [proj]
-  simp
-  rw [proj]
-  rw [proj]
-
 theorem tabToInt {LR : TNode} (tab : ClosedTableau LR)
 : PartInterpolant LR := by
   induction tab
@@ -171,28 +151,18 @@ theorem tabToInt {LR : TNode} (tab : ClosedTableau LR)
     use ~(□~pθ.val)
     constructor
     · -- voc property
-      have h_pθ_voc : voc (~(□~pθ.val)) = voc (pθ.val) := by aesop
       intro ℓ ℓ_in_θ
-      apply diamondproj_does_not_increase_vocab_L nBoxφ_in_L
-      simp; constructor
-      · let ℓ_in_proj := pθ.property.left ℓ_in_θ
-        simp at ℓ_in_proj
-        exact ℓ_in_proj.left
+      exact diamondproj_does_not_increase_vocab_L nBoxφ_in_L (pθ.property.left ℓ_in_θ)
     · constructor -- implication property
-      · exact projection_preserves_reflects_unsat_L.mpr pθ.2.2.1
-      · exact projection_preserves_reflects_unsat_R.mpr pθ.2.2.2
+      · exact projection_reflects_unsat_L pθ.2.2.1
+      · exact projection_reflects_unsat_R pθ.2.2.2
   -- dual to atmL
   case atmR LR φ nBoxφ_in_R simple_LR cTabProj pθ =>
     use ~(□~pθ.val)
     constructor
     · -- voc property
-      have h_pθ_voc : voc (~(□~pθ.val)) = voc (pθ.val) := by aesop
       intro ℓ ℓ_in_θ
-      apply diamondproj_does_not_increase_vocab_R nBoxφ_in_R
-      simp; constructor
-      · let ℓ_in_proj := pθ.property.left ℓ_in_θ
-        simp at ℓ_in_proj
-        exact ℓ_in_proj.left
+      exact diamondproj_does_not_increase_vocab_R nBoxφ_in_R (pθ.property.left ℓ_in_θ)
     · constructor -- implication property
-      · exact projection_preserves_reflects_unsat_L.mpr pθ.2.2.1
-      · exact projection_preserves_reflects_unsat_R.mpr pθ.2.2.2
+      · exact projection_reflects_unsat_L pθ.2.2.1
+      · exact projection_reflects_unsat_R pθ.2.2.2

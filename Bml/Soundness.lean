@@ -433,8 +433,9 @@ termination_by
   localTableauAndEndNodesUnsatThenNotSat LR _ _  => lengthOfTNode LR
 
 -- TODO: proper preconditions (e.g. nBox phi in L etc)
-lemma projection_preserves_reflects_unsat_L : ¬Satisfiable (LR.1 ∪ {~~(□~θ)}) ↔ ¬Satisfiable ((diamondProjectTNode X LR).1 ∪ {~θ}) := sorry
-lemma projection_preserves_reflects_unsat_R : ¬Satisfiable (LR.2 ∪ {~(□~θ)})  ↔ ¬Satisfiable ((diamondProjectTNode X LR).2 ∪ {θ})  := sorry
+-- add what is needed, and modify their use in Partitions accordingly
+lemma projection_reflects_unsat_L : ¬Satisfiable ((diamondProjectTNode X LR).1 ∪ {~θ}) → ¬Satisfiable (LR.1 ∪ {~~(□~θ)}) := sorry
+lemma projection_reflects_unsat_R : ¬Satisfiable ((diamondProjectTNode X LR).2 ∪ { θ}) → ¬Satisfiable (LR.2 ∪ { ~(□~θ)}) := sorry
 
 
 theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
