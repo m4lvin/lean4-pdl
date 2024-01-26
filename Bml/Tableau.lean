@@ -106,16 +106,30 @@ theorem projection_set_length_leq : ∀ X, lengthOfSet (projection X) ≤ length
           simp only [add_le_add_iff_right, projection_length_leq]
         _ ≤ lengthOfFormula f + S.sum lengthOfFormula := by simp; apply IH
 
--- local rules: given this set, we get these sets as child nodes
-inductive LocalRule : Finset Formula → Finset (Finset Formula) → Type
-  -- closing rules:
-  | bot {X} (h : ⊥ ∈ X) : LocalRule X ∅
-  | Not {X ϕ} (h : ϕ ∈ X ∧ ~ϕ ∈ X) : LocalRule X ∅
-  -- one-child rules:
-  | neg {X ϕ} (h : ~~ϕ ∈ X) : LocalRule X {X \ {~~ϕ} ∪ {ϕ}}
-  | Con {X ϕ ψ} (h : ϕ⋀ψ ∈ X) : LocalRule X {X \ {ϕ⋀ψ} ∪ {ϕ, ψ}}
-  -- splitting rule:
-  | nCo {X ϕ ψ} (h : ~(ϕ⋀ψ) ∈ X) : LocalRule X {X \ {~(ϕ⋀ψ)} ∪ {~ϕ}, X \ {~(ϕ⋀ψ)} ∪ {~ψ}}
+-- local rules: given this pair, we get these pairs as child nodes
+inductive LocalRule : Finset Formula × Finset Formula → Finset (Finset Formula) × Finset (Finset Formula) → Type
+  -- bot rules:
+  | botL {X Y} (h : ⊥ ∈ X) : LocalRule ⟨X,Y⟩ ⟨∅,∅⟩
+  | botR {X Y} (h : ⊥ ∈ Y) : LocalRule ⟨X,Y⟩ ⟨∅,∅⟩
+
+  -- Not rules
+  | NotL {X Y ϕ} (h : ϕ ∈ X ∧ ~ϕ ∈ X) : LocalRule ⟨X,Y⟩ ⟨∅,∅⟩
+  | NotR {X Y ϕ} (h : ϕ ∈ Y ∧ ~ϕ ∈ Y) : LocalRule ⟨X,Y⟩ ⟨∅,∅⟩
+  | NotXY {X Y ϕ} (h : ϕ ∈ X ∧ ~ϕ ∈ Y) : LocalRule ⟨X,Y⟩ ⟨∅,∅⟩
+  | NotYX {X Y ϕ} (h : ϕ ∈ Y ∧ ~ϕ ∈ X) : LocalRule ⟨X,Y⟩ ⟨∅,∅⟩
+
+  -- neg rules:
+  | negL {X ϕ} (h : ~~ϕ ∈ X) : LocalRule ⟨X,Y⟩ ⟨{X \ {~~ϕ} ∪ {ϕ}}, {Y}⟩
+  | negR {X ϕ} (h : ~~ϕ ∈ Y) : LocalRule ⟨X,Y⟩ ⟨{X}, {Y \ {~~ϕ} ∪ {ϕ}}⟩
+
+  -- Con rules:
+  | ConL {X Y ϕ ψ} (h : ϕ⋀ψ ∈ X) : LocalRule ⟨X, Y⟩ ⟨{X \ {ϕ⋀ψ} ∪ {ϕ, ψ}}, {Y}⟩
+  | ConR {X Y ϕ ψ} (h : ϕ⋀ψ ∈ Y) : LocalRule ⟨X, Y⟩ ⟨{X}, {Y \ {ϕ⋀ψ} ∪ {ϕ, ψ}}⟩
+
+  -- nCo rules:
+  | nCoL {X Y ϕ ψ} (h : ~(ϕ⋀ψ) ∈ X) : LocalRule ⟨X, Y⟩ ⟨{X \ {~(ϕ⋀ψ)} ∪ {~ϕ}, X \ {~(ϕ⋀ψ)} ∪ {~ψ}}, {Y}⟩
+  | nCoR {X Y ϕ ψ} (h : ~(ϕ⋀ψ) ∈ Y) : LocalRule ⟨X, Y⟩ ⟨{X}, {Y \ {~(ϕ⋀ψ)} ∪ {~ϕ}, Y \ {~(ϕ⋀ψ)} ∪ {~ψ}}⟩
+
 
 -- If X is not simple, then a local rule can be applied.
 -- (page 13)
@@ -215,9 +229,9 @@ theorem atmRuleDecreasesLength {X : Finset Formula} {ϕ} :
 -- Definition 8, page 14
 -- mixed with Definition 11 (with all PDL stuff missing for now)
 -- a local tableau for X, must be maximal
-inductive LocalTableau : Finset Formula → Type
-  | byLocalRule {X B} (_ : LocalRule X B) (next : ∀ Y ∈ B, LocalTableau Y) : LocalTableau X
-  | sim {X} : Simple X → LocalTableau X
+inductive LocalTableau : Finset Formula × Finset Formula → Type
+  | byLocalRule {X1 X2 B1 B2} (_ : LocalRule ⟨X1, X2⟩ ⟨B1, B2⟩) (next : ∀ Y1 ∈ B1, ∀ Y2 ∈ B2, LocalTableau ⟨Y1, Y2⟩) : LocalTableau ⟨X1, X2⟩
+  | simL {X1 X2} : Simple (X1) → Simple (X2) → LocalTableau ⟨X1, X2⟩
 
 
 
