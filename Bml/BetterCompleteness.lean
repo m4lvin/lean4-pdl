@@ -147,202 +147,113 @@ theorem pathSaturated (path : Path consLR): Saturated (pathToFinset path) := by
         have h := LocalRuleUniqueL nnP_in_L lrApp (neg P) rfl
         specialize h LR' LR'_in
         cases h
-        case inl nnP_in_L' =>
+        · case inl nnP_in_L' =>
           apply IH1
           apply LR_in_PathLR
           simp_all
-        case inr P_in_L' =>
+        · case inr P_in_L' =>
           apply LR_in_PathLR
           simp_all
       · case inr nnP_in =>
         cases nnP_in
-        case inl nnP_in_R => sorry
-        case inr nnP_in_tail => simp_all
-    · sorry /-constructor
+        · case inl nnP_in_R =>
+          have h := LocalRuleUniqueR nnP_in_R lrApp (neg P) rfl
+          specialize h LR' LR'_in
+          cases h
+          · case inl nnP_in_R' =>
+            apply IH1
+            apply LR_in_PathLR
+            simp_all
+          · case inr P_in_R' =>
+            apply LR_in_PathLR
+            simp_all
+        · case inr nnP_in_tail => simp_all
+    · constructor
     -- P⋀Q ∈ U  → P ∈ U  and Q ∈ U
-      · case intro.intro.right.left Z =>
-        clear Z
-        intro P_Q_in_X
-        refine { left := ?left, right := ?right }
-        · case left =>
-          cases locRule
-          · case bot bot_in_X =>
-            refine False.elim ?_
-            exact (List.mem_nil_iff Y).mp Y_in
-          · case Not α α_nα_in_X =>
-            refine False.elim ?_
-            exact (List.mem_nil_iff Y).mp Y_in
-          · case neg α nnα_in_X =>
-            apply Or.inr; refine (IH2 ?_).left
-            have : Y = (X \ {~~α} ∪ {α}) := by
-              simp at *; exact Y_in
-            clear Y_in; subst Y
-            have : (P⋀Q ∈ X) → (P⋀Q ∈ pathToFinset tail) := by
-              intro h₀
-              have : (P⋀Q ∈ X \ {~~α} ∪ {α}) := by
-                refine Finset.mem_union_left {α} ?_
-                refine Finset.mem_sdiff.mpr ?_
-                aesop
-              clear h₀; rename ((P⋀Q ∈ X \ {~~α} ∪ {α})) => h₀
-              refine X_in_PathX ?_ ?_
-              exact h₀
+      · intro PQ_in
+        cases PQ_in
+        · case inl PQ_in_L =>
+          have h := LocalRuleUniqueL PQ_in_L lrApp (con P Q) rfl
+          specialize h LR' LR'_in
+          cases h
+          · case inl PQ_in_L' =>
+            have : P⋀Q ∈ pathToFinset tail := by
+              apply LR_in_PathLR
+              simp_all
             aesop
-          · case Con β γ β_γ_in_X =>
-            by_cases (P⋀Q) = (β⋀γ)
-            · case pos eq =>
-              simp at eq; cases eq; subst P; subst Q
-              apply Or.inr
-              have : Y = (X \ {β⋀γ} ∪ {β,γ}) := by
-                simp at *; exact Y_in
-              clear Y_in; subst Y
-              apply X_in_PathX
-              refine Finset.mem_union_right (X \ {β⋀γ}) ?intro.h.a.h
-              exact Finset.mem_insert_self β {γ}
-            · case neg neq =>
-              apply Or.inr
-              have : Y = (X \ {β⋀γ} ∪ {β,γ}) := by
-                simp at *; exact Y_in
-              clear Y_in; subst Y
-              refine (IH2 ?_).left
-              have : (P⋀Q ∈ X) → (P⋀Q ∈ pathToFinset tail) := by
-                intro h₀
-                apply X_in_PathX
-                aesop
-              aesop
-          · case nCo β γ nβ_γ_in_X =>
-            have eq : Y = X \ {~(β⋀γ)} ∪ {~β} ∨ Y = X \ {~(β⋀γ)} ∪ {~γ} := by
-              simp at *; exact Y_in
-            cases eq
+          · case inr P_Q_in_L' =>
+            constructor
             all_goals
-              clear Y_in; subst Y
               apply Or.inr
-              refine (IH2 ?_).left
-              have : (P⋀Q ∈ X) → (P⋀Q ∈ pathToFinset tail) := by
-                intro h₀
-                apply X_in_PathX
-                aesop
-              aesop
-        · case right =>
-          cases locRule
-          · case bot bot_in_X =>
-            refine False.elim ?_
-            exact (List.mem_nil_iff Y).mp Y_in
-          · case Not α α_nα_in_X =>
-            refine False.elim ?_
-            exact (List.mem_nil_iff Y).mp Y_in
-          · case neg α nnα_in_X =>
-            apply Or.inr; refine (IH2 ?_).right
-            have : Y = (X \ {~~α} ∪ {α}) := by
-              simp at *; exact Y_in
-            clear Y_in; subst Y
-            have : (P⋀Q ∈ X) → (P⋀Q ∈ pathToFinset tail) := by
-              intro h₀
-              have : (P⋀Q ∈ X \ {~~α} ∪ {α}) := by
-                refine Finset.mem_union_left {α} ?_
-                refine Finset.mem_sdiff.mpr ?_
-                aesop
-              clear h₀; rename ((P⋀Q ∈ X \ {~~α} ∪ {α})) => h₀
-              refine X_in_PathX ?_ ?_
-              exact h₀
-            aesop
-          · case Con β γ β_γ_in_X =>
-            by_cases (P⋀Q) = (β⋀γ)
-            · case pos eq =>
-              simp at eq; cases eq; subst P; subst Q
               apply Or.inr
-              have : Y = (X \ {β⋀γ} ∪ {β,γ}) := by
-                simp at *; exact Y_in
-              clear Y_in; subst Y
-              apply X_in_PathX
+              apply LR_in_PathLR
               aesop
-            · case neg neq =>
-              apply Or.inr
-              have : Y = (X \ {β⋀γ} ∪ {β,γ}) := by
-                simp at *; exact Y_in
-              clear Y_in; subst Y
-              refine (IH2 ?_).right
-              have : (P⋀Q ∈ X) → (P⋀Q ∈ pathToFinset tail) := by
-                intro h₀
-                apply X_in_PathX
+        · case inr PQ_in =>
+          cases PQ_in
+          · case inl PQ_in_R =>
+            have h := LocalRuleUniqueR PQ_in_R lrApp (con P Q) rfl
+            specialize h LR' LR'_in
+            cases h
+            · case inl PQ_in_R' =>
+              have : P⋀Q ∈ pathToFinset tail := by
+                apply LR_in_PathLR
+                simp_all
+              aesop
+            · case inr P_Q_in_R' =>
+              constructor
+              all_goals
+                apply Or.inr
+                apply Or.inr
+                apply LR_in_PathLR
                 aesop
-              aesop
-          · case nCo β γ nβ_γ_in_X =>
-            have eq : Y = X \ {~(β⋀γ)} ∪ {~β} ∨ Y = X \ {~(β⋀γ)} ∪ {~γ} := by
-              simp at *; exact Y_in
-            cases eq
-            all_goals
-              clear Y_in; subst Y
-              apply Or.inr
-              refine (IH2 ?_).right
-              have : (P⋀Q ∈ X) → (P⋀Q ∈ pathToFinset tail) := by
-                intro h₀
-                apply X_in_PathX
-                aesop
-              aesop
+          case inr PQ_in_tail => simp_all
       -- ~(P⋀Q) ∈ U   → ~P ∈ U  or  ~Q ∈ U
-      · case intro.intro.right.right Z =>
-        intro nP_Q_in_path
-        cases locRule
-        · case bot bot_in_X =>
-            refine False.elim ?_
-            exact (List.mem_nil_iff Y).mp Y_in
-        · case Not α α_nα_in_X =>
-          refine False.elim ?_
-          exact (List.mem_nil_iff Y).mp Y_in
-        · case neg α nnα_in_X =>
-          have : Y = (X \ {~~α} ∪ {α}) := by
-            simp at *; exact Y_in
-          clear Y_in; subst Y
-          have nP_Q_in_tail : ~(P⋀Q) ∈ pathToFinset tail := by
-            cases nP_Q_in_path
-            apply X_in_PathX; refine Finset.mem_union_left {α} ?_; aesop
+      · intro nPQ_in
+        cases nPQ_in
+        · case inl nPQ_in_L =>
+          have h := LocalRuleUniqueL nPQ_in_L lrApp (ncon P Q) rfl
+          specialize h LR' LR'_in
+          cases h
+          · case inl nPQ_in_L' =>
+            have : ~(P⋀Q) ∈ pathToFinset tail := by
+              apply LR_in_PathLR
+              simp_all
             aesop
-          clear nP_Q_in_path
-          aesop
-        · case Con β γ β_γ_in_X =>
-          have : Y = X \ {β⋀γ} ∪ {β,γ} := by
-            simp at *; exact Y_in
-          clear Y_in; subst Y
-          have nP_Q_in_tail : ~(P⋀Q) ∈ pathToFinset tail := by
-            cases nP_Q_in_path
-            apply X_in_PathX; refine Finset.mem_union_left {β, γ} ?_; aesop
-            aesop
-          clear nP_Q_in_path
-          aesop
-        · case nCo β γ nβ_γ_in_X =>
-          have eq : Y = X \ {~(β⋀γ)} ∪ {~β} ∨ Y = X \ {~(β⋀γ)} ∪ {~γ} := by
-            simp at *; exact Y_in
-          cases eq
-          · case inl =>
-            clear Y_in; subst Y
-            by_cases ~(P⋀Q) = ~(β⋀γ)
-            · case pos eq =>
-                simp at eq; cases eq; subst P; subst Q
-                have : ~β ∈ pathToFinset tail := by
-                  apply X_in_PathX
-                  aesop
-                aesop
-            · case neg neq =>
-                have : ~(P⋀Q) ∈ pathToFinset tail := by
-                  cases nP_Q_in_path
-                  apply X_in_PathX; refine Finset.mem_union_left {~β} ?_; refine Finset.mem_sdiff.mpr ?_; aesop
-                  aesop
-                aesop
-          · case inr =>
-            clear Y_in; subst Y
-            by_cases ~(P⋀Q) = ~(β⋀γ)
-            · case pos eq =>
-                simp at eq; cases eq; subst P; subst Q
-                have : ~γ ∈ pathToFinset tail := by
-                  apply X_in_PathX
-                  aesop
-                aesop
-            · case neg neq =>
-                have : ~(P⋀Q) ∈ pathToFinset tail := by
-                  cases nP_Q_in_path
-                  apply X_in_PathX; refine Finset.mem_union_left {~γ} ?_; refine Finset.mem_sdiff.mpr ?_; aesop
-                  aesop
-                aesop-/
+          · case inr nP_nQ_in_L' =>
+            simp_all
+            cases nP_nQ_in_L'
+            case inl nP_in_L'=>
+              apply Or.inl
+              apply_rules [Or.inr, LR_in_PathLR]
+              simp_all
+            case inr nQ_in_L' =>
+              apply_rules [Or.inr, LR_in_PathLR]
+              simp_all
+        · case inr PQ_in =>
+          cases PQ_in
+          case inl nPQ_in_R =>
+            have h := LocalRuleUniqueR nPQ_in_R lrApp (ncon P Q) rfl
+            specialize h LR' LR'_in
+            cases h
+            · case inl nPQ_in_R' =>
+              have : ~(P⋀Q) ∈ pathToFinset tail := by
+                apply LR_in_PathLR
+                simp_all
+              aesop
+            · case inr nP_nQ_in_R' =>
+              simp_all
+              cases nP_nQ_in_R'
+              case inl nP_in_R'=>
+                apply Or.inl
+                apply_rules [Or.inr, LR_in_PathLR]
+                simp_all
+              case inr nQ_in_R' =>
+                apply_rules [Or.inr, LR_in_PathLR]
+                simp_all
+          case inr nPQ_in_tail =>
+            simp_all
+            cases IH3
+            all_goals simp_all
 
 theorem pathConsistent (path : Path TN): ⊥ ∉ pathToFinset path ∧ ∀ P, P ∈ pathToFinset path → ~P ∉ pathToFinset path := by
   induction path
