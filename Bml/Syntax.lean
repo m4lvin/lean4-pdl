@@ -64,6 +64,10 @@ def lengthOfFormula : Formula → ℕ
 def lengthOfSet : Finset Formula → ℕ
   | X => X.sum lengthOfFormula
 
+@[simp]
+def lengthOfPair : Finset Formula × Finset Formula → ℕ
+  | ⟨X1, X2⟩ => (X1 ∪ X2).sum lengthOfFormula
+
 class HasLength (α : Type) where
   lengthOf : α → ℕ
 
@@ -72,6 +76,8 @@ open HasLength
 instance formulaHasLength : HasLength Formula := ⟨lengthOfFormula⟩
 @[simp]
 instance setFormulaHasLength : HasLength (Finset Formula) := ⟨lengthOfSet⟩
+@[simp]
+instance PairHasLength : HasLength (Finset Formula × Finset Formula) := ⟨lengthOfPair⟩
 
 @[simp]
 def complexityOfFormula : Formula → ℕ

@@ -119,8 +119,8 @@ inductive LocalRule : Finset Formula × Finset Formula → Finset (Finset Formul
   | NotYX {X Y ϕ} (h : ϕ ∈ Y ∧ ~ϕ ∈ X) : LocalRule ⟨X,Y⟩ ⟨∅,∅⟩
 
   -- neg rules:
-  | negL {X ϕ} (h : ~~ϕ ∈ X) : LocalRule ⟨X,Y⟩ ⟨{X \ {~~ϕ} ∪ {ϕ}}, {Y}⟩
-  | negR {X ϕ} (h : ~~ϕ ∈ Y) : LocalRule ⟨X,Y⟩ ⟨{X}, {Y \ {~~ϕ} ∪ {ϕ}}⟩
+  | negL {X Y ϕ} (h : ~~ϕ ∈ X) : LocalRule ⟨X,Y⟩ ⟨{X \ {~~ϕ} ∪ {ϕ}}, {Y}⟩
+  | negR {X Y ϕ} (h : ~~ϕ ∈ Y) : LocalRule ⟨X,Y⟩ ⟨{X}, {Y \ {~~ϕ} ∪ {ϕ}}⟩
 
   -- Con rules:
   | ConL {X Y ϕ ψ} (h : ϕ⋀ψ ∈ X) : LocalRule ⟨X, Y⟩ ⟨{X \ {ϕ⋀ψ} ∪ {ϕ, ψ}}, {Y}⟩
@@ -131,14 +131,11 @@ inductive LocalRule : Finset Formula × Finset Formula → Finset (Finset Formul
   | nCoR {X Y ϕ ψ} (h : ~(ϕ⋀ψ) ∈ Y) : LocalRule ⟨X, Y⟩ ⟨{X}, {Y \ {~(ϕ⋀ψ)} ∪ {~ϕ}, Y \ {~(ϕ⋀ψ)} ∪ {~ψ}}⟩
 
 
--- If X is not simple, then a local rule can be applied.
+-- If X1 is not simple, then a local rule can be applied.
 -- (page 13)
-theorem notSimpleThenLocalRule {X} : ¬Simple X → ∃ B, Nonempty (LocalRule X B) :=
+theorem notSimpleThenLocalRuleL {X1 X2} : ¬Simple X1 → ∃ B1 B2, Nonempty (LocalRule ⟨X1, X2⟩ ⟨B1, B2⟩) :=
   by
-  intro notSimple
-  unfold Simple at notSimple
-  simp at notSimple
-  rcases notSimple with ⟨ϕ, ϕ_in_X, ϕ_not_simple⟩
+  intro notSimple; unfold Simple at notSimple ; simp at notSimple; rcases notSimple with ⟨ϕ, ϕ_in_X1, ϕ_not_simple⟩
   cases ϕ
   case bottom => tauto
   case atom_prop => tauto
@@ -147,19 +144,45 @@ theorem notSimpleThenLocalRule {X} : ¬Simple X → ∃ B, Nonempty (LocalRule X
     case bottom => tauto
     case atom_prop => tauto
     case neg ψ =>
-      use{X \ {~~ψ} ∪ {ψ}}
-      use LocalRule.neg ϕ_in_X
+      use{X1 \ {~~ψ} ∪ {ψ}}; use {X2}
+      use LocalRule.negL ϕ_in_X1
     case And ψ1 ψ2 =>
-      use{X \ {~(ψ1⋀ψ2)} ∪ {~ψ1}, X \ {~(ψ1⋀ψ2)} ∪ {~ψ2}}
-      use LocalRule.nCo ϕ_in_X
+      use{X1 \ {~(ψ1⋀ψ2)} ∪ {~ψ1}, X1 \ {~(ψ1⋀ψ2)} ∪ {~ψ2}}; use {X2}
+      use LocalRule.nCoL ϕ_in_X1
     case box => tauto
   case And ψ1 ψ2 =>
-    use{X \ {ψ1⋀ψ2} ∪ {ψ1, ψ2}}
-    use LocalRule.Con ϕ_in_X
+    use{X1 \ {ψ1⋀ψ2} ∪ {ψ1, ψ2}}; use {X2}
+    use LocalRule.ConL ϕ_in_X1
   case box => tauto
 
-theorem localRulesDecreaseLength {X : Finset Formula} {B : Finset (Finset Formula)}
-    (r : LocalRule X B) : ∀ Y ∈ B, lengthOfSet Y < lengthOfSet X :=
+-- If X2 is not simple, then a local rule can be applied.
+-- (page 13)
+theorem notSimpleThenLocalRuleR {X1 X2} : ¬Simple X2 → ∃ B1 B2, Nonempty (LocalRule ⟨X1, X2⟩ ⟨B1, B2⟩) :=
+  by
+  intro notSimple; unfold Simple at notSimple ; simp at notSimple; rcases notSimple with ⟨ϕ, ϕ_in_X2, ϕ_not_simple⟩
+  cases ϕ
+  case bottom => tauto
+  case atom_prop => tauto
+  case neg ψ =>
+    cases ψ
+    case bottom => tauto
+    case atom_prop => tauto
+    case neg ψ =>
+      use {X1}; use{X2 \ {~~ψ} ∪ {ψ}};
+      use LocalRule.negR ϕ_in_X2
+    case And ψ1 ψ2 =>
+      use {X1}; use{X2 \ {~(ψ1⋀ψ2)} ∪ {~ψ1}, X2 \ {~(ψ1⋀ψ2)} ∪ {~ψ2}};
+      use LocalRule.nCoR ϕ_in_X2
+    case box => tauto
+  case And ψ1 ψ2 =>
+    use {X1}; use{X2 \ {ψ1⋀ψ2} ∪ {ψ1, ψ2}};
+    use LocalRule.ConR ϕ_in_X2
+  case box => tauto
+
+
+
+
+theorem localRulesDecreaseLengthL (r : LocalRule ⟨X1, X2⟩ ⟨B1, B2⟩) : ∀ Y1 ∈ B1, lengthOfSet Y1 < lengthOfSet X1 ∨ ∀ Y2 ∈ B2, lengthOfSet Y2 < lengthOfSet X2 :=
   by
   cases r
   all_goals intro β inB; simp at *
@@ -231,7 +254,7 @@ theorem atmRuleDecreasesLength {X : Finset Formula} {ϕ} :
 -- a local tableau for X, must be maximal
 inductive LocalTableau : Finset Formula × Finset Formula → Type
   | byLocalRule {X1 X2 B1 B2} (_ : LocalRule ⟨X1, X2⟩ ⟨B1, B2⟩) (next : ∀ Y1 ∈ B1, ∀ Y2 ∈ B2, LocalTableau ⟨Y1, Y2⟩) : LocalTableau ⟨X1, X2⟩
-  | simL {X1 X2} : Simple (X1) → Simple (X2) → LocalTableau ⟨X1, X2⟩
+  | sim {X1 X2} : Simple (X1) → Simple (X2) → LocalTableau ⟨X1, X2⟩
 
 
 
