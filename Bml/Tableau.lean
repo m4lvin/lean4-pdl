@@ -99,27 +99,12 @@ theorem project_insert {X φ} : projection (X ∪ {φ}) = projection X ∪ proje
   by simp [projection] at *; aesop
 
 @[simp]
-theorem project_union {X Y} : projection (X ∪ Y) = projection X ∪ projection Y :=
-  by
-    ext1 f
-    apply Iff.intro <;>
-    ( induction Y using Finset.induction_on
-      · intro hyp
-        simp [project_insert] at *
-        ( first
-          | apply Or.inl; exact hyp
-          | (have : projection ∅ = ∅ := by tauto); aesop)
-      · simp at *
-        intro hyp
-        rw [←union_singleton_is_insert, project_insert] at *
-        aesop)
+theorem projectionUnion: projection (X ∪ Y) = projection X ∪ projection Y := by
+  unfold projection
+  aesop
 
 @[simp]
 def f_in_TNode (f : Formula) (LR : TNode) := f ∈ (LR.1 ∪ LR.2)
-
-theorem projectionUnion : projection (X ∪ Y) = projection X ∪ projection Y := by
-  unfold projection
-  aesop
 
 @[simp]
 instance TNodeHasSat : HasSat TNode :=
@@ -292,6 +277,80 @@ theorem localRuleApp_does_not_increase_vocab {L R : Finset Formula} (ruleA : Loc
       let ⟨ψ, ψ_in_Rcond, ℓ_in_ψ⟩ := ℓ_in_ψ_in_Rcond
       use ψ, (by aesop), ℓ_in_ψ
 
+-- used in LocalRule_uniqueL
+@[simp]
+theorem not_notSelfContain : ~φ ≠ φ := fun.
+
+-- If one local rule substituting some formula α by some set res applies to some node LR,
+-- then all children of LR in any local tableau contain α or res
+-- used to prove that paths are saturated
+lemma LocalRuleUniqueL
+  (α_in_L: α ∈ L)
+  (lrApp: LocalRuleApp (L,R) C)
+  (orule: OneSidedLocalRule precond ress)
+  (precond_eq: precond = {α})
+  : ∀ c ∈ C, α ∈ c.1 ∨ (∃ res ∈ ress, res ⊆ c.1) := by
+  intro c c_in
+  rcases lrApp with ⟨ress', Lcond', Rcond', lr', L_cond_in, R_cond_in⟩
+  rename_i C_eq
+  subst C_eq
+  cases lr'
+  case oneSidedL ress orule' =>
+    cases orule
+    case bot =>
+      cases orule'
+      all_goals aesop
+    case not φ =>
+      apply Finset.subset_of_eq at precond_eq
+      rw [Finset.subset_singleton_iff'] at precond_eq
+      simp_all
+      aesop
+    case neg φ =>
+      cases orule'
+      case neg φ' =>
+        simp_all
+        subst c_in
+        subst precond_eq
+        if φ = φ'
+        then simp_all
+        else simp_all
+      all_goals aesop
+    case con φ ψ =>
+      cases orule'
+      case con φ' ψ' =>
+        simp_all
+        subst c_in
+        subst precond_eq
+        if φ = φ' ∧ ψ = ψ'
+        then
+          apply Or.inr
+          refine Finset.insert_subset_iff.mpr ?_
+          aesop
+        else aesop
+      all_goals aesop
+    case ncon φ ψ =>
+      simp_all
+      cases orule'
+      case ncon φ' ψ' =>
+        simp at c_in
+        subst precond_eq
+        cases c_in
+        case inl c_eq =>
+          subst c_eq
+          if φ = φ'
+          then simp_all
+          else aesop
+        case inr c_eq =>
+          subst c_eq
+          if ψ = ψ'
+          then simp_all
+          else aesop
+      all_goals aesop
+  case oneSidedR orule' =>
+    apply Or.inl
+    aesop
+  -- in other cases C is empty
+  all_goals simp_all
 
 mutual
 inductive AppLocalTableau : TNode → List TNode → Type
@@ -605,6 +664,12 @@ theorem AppLocalTableau.DecreasesLength
   rcases appTab with ⟨lrApp, next⟩
   have := localRuleAppDecreasesLength lrApp
   aesop
+
+theorem AppLocalTableau.PreservesBoxL (appTab : AppLocalTableau (L,R) C)
+   (nBox_in : □α ∈ L) (LR'_in: (L',R') ∈ C):  □α ∈ L' := by sorry
+
+theorem AppLocalTableau.PreservesBoxR (appTab : AppLocalTableau (L,R) C)
+   (nBox_in : □α ∈ R) (LR'_in: (L',R') ∈ C):  □α ∈ R' := by sorry
 
 theorem AppLocalTableau.PreservesDiamondL (appTab : AppLocalTableau (L,R) C)
    (nBox_in : ~(□α) ∈ L) (LR'_in: (L',R') ∈ C):  ~(□α) ∈ L' := by sorry
