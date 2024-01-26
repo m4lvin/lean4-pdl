@@ -22,8 +22,34 @@ def bigDis : List Formula → Formula
   | f :: rest => f ⋁ bigDis rest
 
 open HasVocabulary
-theorem vocOfBigDis {l : List Formula} : x ∈ voc (bigDis l) → ∃φ ∈ l, x ∈ voc φ := sorry
-theorem vocOfBigCon {l : List Formula} : x ∈ voc (bigCon l) → ∃φ ∈ l, x ∈ voc φ := sorry
+
+theorem vocOfBigDis {l : List Formula} : x ∈ voc (bigDis l) → ∃φ ∈ l, x ∈ voc φ :=
+  by
+    intro hyp
+    induction l
+    case nil  => aesop
+    case cons head tail ih =>
+      simp at *
+      cases' Classical.em (x ∈ vocabOfFormula head) with hhead htail
+      · tauto
+      · simp [htail]
+        apply ih
+        unfold bigDis at hyp
+        aesop
+
+theorem vocOfBigCon {l : List Formula} : x ∈ voc (bigCon l) → ∃φ ∈ l, x ∈ voc φ :=
+  by
+    intro hyp
+    induction l
+    case nil  => aesop
+    case cons head tail ih =>
+      simp at *
+      cases' Classical.em (x ∈ vocabOfFormula head) with hhead htail
+      · tauto
+      · simp [htail]
+        apply ih
+        unfold bigCon at hyp
+        aesop
 
 @[simp]
 theorem conempty : bigCon ∅ = (⊤ : Formula) := by rfl
@@ -190,10 +216,81 @@ theorem union_elem_uplus {XS YS : Finset (Finset Formula)} {X Y : Finset Formula
   simp
   exact ⟨X, X_in, Y, Y_in, rfl⟩
 
+@[simp]
+lemma bigDis_sat {l : List Formula} {M : KripkeModel W} {w : W} :
+    Evaluate (M, w) (bigDis l) ↔ ∃φ ∈ l, Evaluate (M, w) φ :=
+  by
+    constructor
+    · intro satDis
+      induction l
+      case nil => tauto
+      case cons head tail ih =>
+        cases' Classical.em (Evaluate (M, w) head) with hhead htail
+        · use head; aesop
+        · have : Evaluate (M, w) (bigDis (head :: tail)) ↔
+            ((Evaluate (M, w) head) ∨ Evaluate (M, w) (bigDis tail)) :=
+            by unfold bigDis; aesop
+          aesop
+    · intro satOne
+      induction l
+      case nil => tauto
+      case cons head tail ih =>
+        have : Evaluate (M, w) (bigDis (head :: tail)) ↔
+          ((Evaluate (M, w) head) ∨ Evaluate (M, w) (bigDis tail)) :=
+          by unfold bigDis; aesop
+        aesop
+
+@[simp]
+lemma bigCon_sat {l : List Formula} {M : KripkeModel W} {w : W} :
+    Evaluate (M, w) (bigCon l) ↔ ∀φ ∈ l, Evaluate (M, w) φ :=
+  by
+    constructor
+    · intro satCon
+      induction l
+      case nil => tauto
+      case cons head tail ih =>
+        have : Evaluate (M, w) (bigCon (head :: tail)) ↔
+          ((Evaluate (M, w) head) ∧ Evaluate (M, w) (bigCon tail)) :=
+          by unfold bigCon; aesop
+        aesop
+    · intro satAll
+      induction l
+      case nil => tauto
+      case cons head tail ih =>
+        have : Evaluate (M, w) (bigCon (head :: tail)) ↔
+          ((Evaluate (M, w) head) ∧ Evaluate (M, w) (bigCon tail)) :=
+          by unfold bigCon; aesop
+        aesop
+
+lemma bigDis_union_sat_down {X : Finset Formula} {l : List Formula} :
+    Satisfiable (X ∪ {bigDis l}) → ∃φ ∈ l, Satisfiable (X ∪ {φ}) :=
+  by simp at *; tauto
+
+lemma bigCon_union_sat_down {X : Finset Formula} {l : List Formula} :
+    Satisfiable (X ∪ {bigCon l}) → ∀φ ∈ l, Satisfiable (X ∪ {φ}) :=
+  by simp at *; tauto
+
+lemma bigConNeg_union_sat_down {X : Finset Formula} {l : List Formula} :
+    Satisfiable (X ∪ {bigCon (l.map (~·))}) → ∀φ ∈ l, Satisfiable (X ∪ {~φ}) :=
+  by
+    intro hyp
+    rcases hyp with ⟨W, M, w, sat⟩
+    simp at *
+    cases' sat with lNotSat XSat
+    intro φ inl
+    use W; use M; use w
+    apply And.intro (lNotSat φ inl) (XSat)
 
 
-lemma bigDis_union_sat_down {X : Finset Formula} {l : List Formula} : Satisfiable (X ∪ {bigDis l}) → ∃φ ∈ l, Satisfiable (X ∪ {φ}) := sorry
-lemma bigCon_union_sat_down {X : Finset Formula} {l : List Formula} : Satisfiable (X ∪ {bigCon l}) → ∀φ ∈ l, Satisfiable (X ∪ {φ}) := sorry
-lemma bigConNeg_union_sat_down {X : Finset Formula} {l : List Formula} : Satisfiable (X ∪ {bigCon (l.map (~·))}) → ∀φ ∈ l, Satisfiable (X ∪ {~φ}) := sorry
-lemma negBigDis_eq_bigConNeg : ~(bigDis l) = ~~bigCon (l.map (~·)) := sorry
-lemma negBigCon_eq_bigDisNeg : ~(bigCon l) = bigDis (l.map (~·)) := sorry
+-- Probably redundant but leaving these here for now
+lemma eval_neg_BigDis_iff_eval_bigConNeg {l : List Formula} {M : KripkeModel W} {w : W} :
+    Evaluate (M, w) (~(bigDis l)) ↔ Evaluate (M, w) (~~bigCon (l.map (~·))) := by aesop
+
+lemma eval_negBigCon_iff_eval_bigDisNeg {l : List Formula} {M : KripkeModel W} {w : W} :
+    Evaluate (M, w) (~(bigCon l)) ↔ Evaluate (M, w) (bigDis (l.map (~·))) := by aesop
+
+lemma sat_negBigDis_iff_sat_bigConNeg {l : List Formula} :
+    Satisfiable (~(bigDis l)) ↔ Satisfiable (~~bigCon (l.map (~·))) := by aesop
+
+lemma sat_negBigCon_iff_sat_bigDisNeg {l : List Formula}:
+    Satisfiable (~(bigCon l)) ↔ Satisfiable (bigDis (l.map (~·))) := by aesop

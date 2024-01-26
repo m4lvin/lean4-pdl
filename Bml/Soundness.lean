@@ -336,19 +336,8 @@ theorem localRuleSoundness
               <;> aesop)
         | aesop)
 
-theorem oneSidedRule_implies_child_sat_L
-  {ruleApp : LocalRuleApp (L, R) C}
-  (def_ruleA : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (res, ∅)) _) _ _ rule hC preproof))
-  (rule_is_left : rule = LocalRule.oneSidedL orule )
-  : Satisfiable (L ∪ X) → ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ X) := sorry
-
-theorem oneSidedRule_implies_child_sat_R
-  {ruleApp : LocalRuleApp (L, R) C}
-  (def_ruleA : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (∅, res)) _) _ _ rule hC preproof))
-  (rule_is_right : rule = LocalRule.oneSidedR orule )
-  : Satisfiable (R ∪ X) → ∃c ∈ C.attach, Satisfiable (c.1.2 ∪ X) := sorry
-
 theorem ruleImpliesChildSat
+    {C : List TNode}    -- added this
     {LR : TNode}
     {ruleApp : LocalRuleApp LR C} :
     Satisfiable LR → ∃c ∈ C, Satisfiable c :=
@@ -361,6 +350,32 @@ theorem ruleImpliesChildSat
     have : ∃res ∈ ress, (M, w) ⊨ (Δ ∪ res.1 ∪ res.2) :=
       localRuleSoundness M w lrule Δ (by aesop)
     aesop
+
+
+theorem oneSidedRule_implies_child_sat_L
+  {ruleApp : LocalRuleApp (L, R) C}
+  (def_ruleA : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (res, ∅)) _) _ _ rule hC preproof))
+  (rule_is_left : rule = LocalRule.oneSidedL orule )
+  : Satisfiable (L ∪ R) → ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ R) :=
+  by
+    intro hyp
+    let LR : TNode := (L, R)
+    have satLR : Satisfiable LR := by simp at *; apply hyp
+    have some_child_sat : ∃c ∈ C, Satisfiable c := @ruleImpliesChildSat C LR ruleApp satLR
+    aesop
+
+
+theorem oneSidedRule_implies_child_sat_R
+  {ruleApp : LocalRuleApp (L, R) C}
+  (def_ruleA : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (∅, res)) _) _ _ rule hC preproof))
+  (rule_is_right : rule = LocalRule.oneSidedR orule )
+  : Satisfiable (R ∪ L) → ∃c ∈ C.attach, Satisfiable (c.1.2 ∪ L) :=
+    by
+      intro hyp
+      let LR : TNode := (L, R)
+      have satLR : Satisfiable LR := by simp at *; aesop
+      have some_child_sat : ∃c ∈ C, Satisfiable c := @ruleImpliesChildSat C LR ruleApp satLR
+      aesop
 
 
 -- The critical rule is sound and preserves satisfiability "downwards".
