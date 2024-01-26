@@ -89,8 +89,11 @@ theorem endNodeProjection (path : Path X) {h: (L, R) = projectTNode (endNodeOf p
 --theorem endNodeSubsetEndNodes (path: Path X) (tX: LocalTableau X): endNodeOf path ∈ endNodesOf ⟨X, tX⟩ := by
 
 
-theorem consistentThenConsistentChild
-    (isConsistent: Consistent LR) (appTab : AppLocalTableau LR C): ∃ c ∈ C, Consistent c := by
+theorem consistentThenConsistentChild (appTab : AppLocalTableau LR C):
+  Consistent LR → ∃ c ∈ C, Consistent c := by
+  contrapose
+  unfold Consistent Inconsistent
+  simp_all
   sorry
 
 theorem consThenProjectLCons: (Consistent (L,R)) → (~(□α) ∈ L) →
@@ -298,17 +301,27 @@ theorem pathProjection (path: Path consLR): projection (pathToFinset path) ⊆ p
   case interNode LR C c c_cons LR_cons appTab c_in tail IH =>
     simp_all
     apply IH
+    rcases appTab with ⟨ruleA, subTabs⟩
+    rcases ruleA with ⟨ress, Lcond, Rcond, lr, Lcond_in, Rcond_in⟩
+    rename_i L R C_eq
+    subst C_eq
     cases α_in
     case inl α_in =>
       apply Finset.mem_of_subset (LR_in_PathLR tail)
-      have := AppLocalTableau.PreservesBoxL appTab α_in c_in
-      simp_all
+      cases lr
+      case oneSidedL ress orule =>
+        cases orule
+        all_goals aesop
+      all_goals aesop
     case inr α_in =>
       cases α_in
       case inl α_in =>
         apply Finset.mem_of_subset (LR_in_PathLR tail)
-        have := AppLocalTableau.PreservesBoxR appTab α_in c_in
-        simp_all
+        cases lr
+        case oneSidedR ress orule =>
+          cases orule
+          all_goals aesop
+        all_goals aesop
       case inr α_in => assumption
 
 theorem pathDiamond (path: Path consLR) (α_in: ~(□α) ∈ pathToFinset path): ~(□α) ∈ toFinset (endNodeOf path) := by
@@ -317,17 +330,27 @@ theorem pathDiamond (path: Path consLR) (α_in: ~(□α) ∈ pathToFinset path):
   case interNode LR C c c_cons LR_cons appTab c_in tail IH =>
     simp_all
     apply IH
+    rcases appTab with ⟨ruleA, subTabs⟩
+    rcases ruleA with ⟨ress, Lcond, Rcond, lr, Lcond_in, Rcond_in⟩
+    rename_i L R C_eq
+    subst C_eq
     cases α_in
     case inl α_in =>
       apply Finset.mem_of_subset (LR_in_PathLR tail)
-      have := AppLocalTableau.PreservesDiamondL appTab α_in c_in
-      simp_all
+      cases lr
+      case oneSidedL ress orule =>
+        cases orule
+        all_goals aesop
+      all_goals aesop
     case inr α_in =>
       cases α_in
       case inl α_in =>
         apply Finset.mem_of_subset (LR_in_PathLR tail)
-        have := AppLocalTableau.PreservesDiamondR appTab α_in c_in
-        simp_all
+        cases lr
+        case oneSidedR ress orule =>
+          cases orule
+          all_goals aesop
+        all_goals aesop
       case inr α_in => assumption
 
 -- given a consistent TNode LR, gives a (consistent) path in aLocalTableauFor LR
@@ -335,7 +358,7 @@ noncomputable def aPathOf (conLR : ConsTNode) : Path conLR := by
   cases (aLocalTableauFor conLR.1)
   case fromSimple isSimple  => exact endNode isSimple
   case fromRule C appTab  =>
-    choose c c_in c_cons using consistentThenConsistentChild conLR.2 appTab
+    choose c c_in c_cons using consistentThenConsistentChild appTab conLR.2
     have : lengthOf c < lengthOf conLR.1 := by
       apply AppLocalTableau.DecreasesLength appTab c_in
     exact interNode appTab c_in (aPathOf ⟨c, c_cons⟩)
@@ -346,10 +369,10 @@ noncomputable def toWorld (consLR: ConsTNode): Finset Formula :=
 
 inductive M₀ (T0 : ConsTNode) : ConsTNode → Prop
 | base : M₀ T0 T0
-| inductiveL (T : ConsTNode) : (M₀ T0 T) → ⟨⟨L,R⟩, LR_cons⟩ = (endNodeOf (aPathOf T)) → ∀ α, (h: ~(□α) ∈ L) →
+| inductiveL (T : ConsTNode) : (M₀ T0 T) → ⟨⟨L,R⟩, LR_cons⟩ = endNodeOf (aPathOf T) → ∀ α, (h: ~(□α) ∈ L) →
   M₀ T0 ⟨diamondProjectTNode (Sum.inl α) ⟨L,R⟩, by apply consThenProjectLCons LR_cons h⟩
 
-| inductiveR (T : ConsTNode) : (M₀ T0 T) →  ⟨⟨L,R⟩, LR_cons⟩ = (endNodeOf (aPathOf T)) → ∀ α, (h: ~(□α) ∈ R) →
+| inductiveR (T : ConsTNode) : (M₀ T0 T) →  ⟨⟨L,R⟩, LR_cons⟩ = endNodeOf (aPathOf T) → ∀ α, (h: ~(□α) ∈ R) →
   M₀ T0 ⟨diamondProjectTNode (Sum.inr α) ⟨L,R⟩, by apply consThenProjectRCons LR_cons h⟩
 
 theorem modelExistence: Consistent (L,R) →
