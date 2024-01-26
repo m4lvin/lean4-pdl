@@ -132,19 +132,7 @@ theorem conThenConSucc : Consistent X → LocalRule X B →  ∃ Y ∈ B, Consis
     rcases InconSucc with ⟨tXα, endNodeincon⟩
     suffices : Inconsistent X; exact InconsisIffNotConsis.mp this
     suffices : (∃ tX : LocalTableau X, ∀ E ∈ endNodesOf ⟨X, tX⟩, Inconsistent E); exact InconsIffInconsEndnode.mpr this
-    by_contra h₀; simp at h₀
-    have : ∀ Z, ∀ eq : (X \ {~~α} ∪ {α} = Z), ∀ E ∈ endNodesOf ⟨Z, Eq.rec tXα eq⟩, Inconsistent E := by
-      intro Z eq; subst Z; exact fun E a => endNodeincon E a
-    clear endNodeincon; rename (∀ Z, ∀ eq : (X \ {~~α} ∪ {α} = Z), ∀ E ∈ endNodesOf ⟨Z, Eq.rec tXα eq⟩, Inconsistent E) => endNodeincon
-    let LocTabX : LocalTableau X := by
-      refine @LocalTableau.byLocalRule X {X \ {~~α} ∪ {α}} ?_ ?_
-      exact LocalRule.neg nnα
-      intro Y Yeq;
-      have eq : X \ {~~α} ∪ {α} = Y := by
-        simp at *; exact id Yeq.symm
-      exact Eq.rec tXα eq
-    specialize h₀ LocTabX; rcases h₀ with ⟨E, EEnode, consisE⟩
-    unfold endNodesOf at EEnode; simp at EEnode; dsimp at EEnode
+    use (@byLocalRule X {X \ {~~α} ∪ {α} } (neg nnα) (λ Y => λ YIn => Classical.choice (@Eq.subst (Finset Formula) (λ Z => Nonempty (LocalTableau Z)) (X \ {~~α} ∪ {α}) (Y) (Eq.symm (Finset.mem_singleton.mp YIn)) (Nonempty.intro tXα))))
     sorry
 
   · case Con α β α_β =>
