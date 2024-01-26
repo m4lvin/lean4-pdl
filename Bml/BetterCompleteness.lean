@@ -553,6 +553,7 @@ theorem modelExistence {X} : Consistent X →
   have : Formula.bottom ∉ path ∧ ∀ P ∈ path, ~P ∉ path := consistentImplies consispath
   aesop
 
+
   refine And.intro ?_ ?_
   -- Proving property ii of ModelGraphs
   tauto
