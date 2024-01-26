@@ -447,6 +447,12 @@ theorem localTableauAndEndNodesUnsatThenNotSat (LR : TNode) {ltLR : LocalTableau
 termination_by
   localTableauAndEndNodesUnsatThenNotSat LR _ _  => lengthOfTNode LR
 
+-- TODO: proper preconditions (e.g. nBox phi in L etc)
+-- add what is needed, and modify their use in Partitions accordingly
+lemma projection_reflects_unsat_L : ¬Satisfiable ((diamondProjectTNode X LR).1 ∪ {~θ}) → ¬Satisfiable (LR.1 ∪ {~~(□~θ)}) := sorry
+lemma projection_reflects_unsat_R : ¬Satisfiable ((diamondProjectTNode X LR).2 ∪ { θ}) → ¬Satisfiable (LR.2 ∪ { ~(□~θ)}) := sorry
+
+
 theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
   by
   intro X t
@@ -465,7 +471,7 @@ theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
     constructor
     · tauto
     · convert notSatProj
-      have : diamondProjectTNode (Sum.inl (~φ)) (L, R) = (projection L ∪ {~φ}, projection R) := by unfold diamondProjectTNode; simp
+      have : diamondProjectTNode (Sum.inl (φ)) (L, R) = (projection L ∪ {~φ}, projection R) := by unfold diamondProjectTNode; simp
       rw [this]
       simp only [setHasSat, projectTNode, Finset.mem_union, Finset.mem_insert, forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
       constructor
@@ -487,7 +493,7 @@ theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
     constructor
     · tauto
     · convert notSatProj
-      have : diamondProjectTNode (Sum.inr (~φ)) (L, R) = (projection L, projection R ∪ {~φ}) := by unfold diamondProjectTNode; simp
+      have : diamondProjectTNode (Sum.inr (φ)) (L, R) = (projection L, projection R ∪ {~φ}) := by unfold diamondProjectTNode; simp
       rw [this]
       simp only [setHasSat, projectTNode, Finset.mem_union, Finset.mem_insert, forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
       constructor

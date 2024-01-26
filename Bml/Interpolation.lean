@@ -37,14 +37,14 @@ theorem interpolation {ϕ ψ} : Tautology (ϕ↣ψ) → ∃ θ, Interpolant ϕ �
     rw [← completeness] at hyp
     -- using completeness!
     unfold Consistent at hyp
-    simp at hyp 
-    unfold Inconsistent at hyp 
+    simp at hyp
+    unfold Inconsistent at hyp
     change ClosedTableau ({ϕ}, {~ψ})
     exact Classical.choice hyp
   have partInt := tabToInt ctX
   -- using tableau interpolation!
   rcases partInt with ⟨θ, pI_prop⟩
-  unfold PartInterpolant at pI_prop 
+  unfold isPartInterpolant at pI_prop
   use θ
   constructor
   · rw [tautImp_iff_comboNotUnsat]; tauto

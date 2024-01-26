@@ -615,8 +615,58 @@ theorem AppLocalTableau.PreservesDiamondR (appTab : AppLocalTableau (L,R) C)
 
 -- Lift definition of projection to TNodes, including the diamond formula left or right.
 def diamondProjectTNode : Sum Formula Formula → TNode → TNode
-| (Sum.inl φ), (L, R) => (projection L ∪ {φ}, projection R)
-| (Sum.inr φ), (L, R) => (projection L, projection R ∪ {φ})
+| (Sum.inl φ), (L, R) => (projection L ∪ {~φ}, projection R)
+| (Sum.inr φ), (L, R) => (projection L, projection R ∪ {~φ})
+
+lemma proj_does_not_increase_vocab : voc (projection X) ⊆ voc X := by
+  simp
+  intro φ φ_in_proj ℓ ℓ_in_φ
+  rw [proj] at φ_in_proj
+  simp
+  tauto
+
+theorem vocProj (X) : voc (projection X) ⊆ voc X :=
+  by
+  simp
+  intro ϕ phi_in_proj
+  rw [proj] at phi_in_proj
+  intro a aInVocPhi
+  simp
+  tauto
+
+theorem diamondproj_does_not_increase_vocab_L (valid_proj : ~(□φ) ∈ L) : jvoc ((diamondProjectTNode (Sum.inl φ) (L,R))) ⊆ jvoc (L,R) := by
+  intro ℓ ℓ_in_proj
+  unfold jvoc at *
+  apply Finset.mem_inter_of_mem
+  · have ℓ_left := (Finset.mem_inter.mp ℓ_in_proj).left
+    simp [diamondProjectTNode ] at ℓ_left;
+    apply Or.elim ℓ_left
+    · intro ℓ_in_φ; simp;
+      use ~(□φ); constructor; exact valid_proj; aesop
+    · intro ⟨ψ, ψ_in_proj, ℓ_in_ψ⟩
+      apply proj_does_not_increase_vocab
+      simp; use ψ
+  · have ℓ_right := (Finset.mem_inter.mp ℓ_in_proj).right
+    simp [diamondProjectTNode ] at ℓ_right;
+    apply proj_does_not_increase_vocab
+    simp; exact ℓ_right
+
+theorem diamondproj_does_not_increase_vocab_R (valid_proj : ~(□φ) ∈ R) : jvoc ((diamondProjectTNode (Sum.inr φ) (L,R))) ⊆ jvoc (L,R) := by
+  intro ℓ ℓ_in_proj
+  unfold jvoc at *
+  apply Finset.mem_inter_of_mem
+  · have ℓ_left := (Finset.mem_inter.mp ℓ_in_proj).left
+    simp [diamondProjectTNode ] at ℓ_left;
+    apply proj_does_not_increase_vocab
+    simp; exact ℓ_left
+  · have ℓ_right := (Finset.mem_inter.mp ℓ_in_proj).right
+    simp [diamondProjectTNode ] at ℓ_right;
+    apply Or.elim ℓ_right
+    · intro ℓ_in_φ; simp;
+      use ~(□φ); constructor; exact valid_proj; aesop
+    · intro ⟨ψ, ψ_in_proj, ℓ_in_ψ⟩
+      apply proj_does_not_increase_vocab
+      simp; use ψ
 
 theorem projDecreasesLength {X : Finset Formula} {φ} :
   ~(□φ) ∈ X → lengthOfSet (projection X ∪ {~φ}) < lengthOfSet X :=
@@ -628,22 +678,22 @@ theorem projDecreasesLength {X : Finset Formula} {φ} :
       repeat rw [proj]
       simp
     · calc
-        lengthOfSet (projection X ∪ {~φ}) ≤ lengthOfSet (projection X) + lengthOf (~φ) :=
+        lengthOfSet (projection X ∪ {~φ}) ≤ lengthOfSet (projection X) + lengthOf (~φ)  :=
             by rw [union_singleton_is_insert]; exact lengthOf_insert_leq_plus
-          _ = lengthOfSet (projection X) + 1 + lengthOf φ := by simp; ring
-          _ < lengthOfSet (projection X) + 1 + 1 + lengthOf φ := by simp
+          _ = lengthOfSet (projection X) + lengthOf φ + 1   := by simp; ring
+          _ < lengthOfSet (projection X) + lengthOf φ + 2   := by simp
           _ = lengthOfSet (projection X) + lengthOf (~(□φ)) := by simp; ring
           _ = lengthOfSet (projection (X.erase (~(□φ)))) + lengthOf (~(□φ)) := by rw [otherClaim]
           _ ≤ lengthOfSet (X.erase (~(□φ))) + lengthOf (~(□φ)) := by simp; apply projection_set_length_leq
           _ = lengthOfSet X := lengthRemove X (~(□φ)) notBoxPhi_in_X
 
 theorem atmRuleLDecreasesLength {L R : Finset Formula} {φ} :
-    ~(□φ) ∈ L → lengthOfTNode (diamondProjectTNode (Sum.inl (~φ)) (L, R)) < lengthOfTNode (L, R) :=
+    ~(□φ) ∈ L → lengthOfTNode (diamondProjectTNode (Sum.inl φ) (L, R)) < lengthOfTNode (L, R) :=
   by
     intro notBoxPhi_in_L
     have lengthL : lengthOfSet (projection L ∪ {~φ}) < lengthOfSet L := projDecreasesLength notBoxPhi_in_L
     · calc
-        lengthOfTNode (diamondProjectTNode (Sum.inl (~φ)) (L, R))
+        lengthOfTNode (diamondProjectTNode (Sum.inl φ) (L, R))
           = lengthOfSet (projection L ∪ {~φ}) + lengthOfSet (projection R) := by tauto
           _ ≤ lengthOfSet (projection L ∪ {~φ}) + lengthOfSet R := by
             have lengthR : lengthOfSet (projection R) ≤ lengthOfSet R :=
@@ -653,12 +703,12 @@ theorem atmRuleLDecreasesLength {L R : Finset Formula} {φ} :
           _ = lengthOfTNode (L, R) := by rw [lengthOfTNode]
 
 theorem atmRuleRDecreasesLength {L R : Finset Formula} {φ} :
-    ~(□φ) ∈ R → lengthOfTNode (diamondProjectTNode (Sum.inr (~φ)) (L, R)) < lengthOfTNode (L, R) :=
+    ~(□φ) ∈ R → lengthOfTNode (diamondProjectTNode (Sum.inr φ) (L, R)) < lengthOfTNode (L, R) :=
   by
     intro notBoxPhi_in_R
     have lengthR : lengthOfSet (projection R ∪ {~φ}) < lengthOfSet R := projDecreasesLength notBoxPhi_in_R
     · calc
-        lengthOfTNode (diamondProjectTNode (Sum.inr (~φ)) (L, R))
+        lengthOfTNode (diamondProjectTNode (Sum.inr φ) (L, R))
           = lengthOfSet (projection L) + lengthOfSet (projection R ∪ {~φ}) := by tauto
           _ ≤ lengthOfSet L + lengthOfSet (projection R ∪ {~φ}) := by
             have lengthL : lengthOfSet (projection L) ≤ lengthOfSet L :=
@@ -778,8 +828,8 @@ theorem endNodesOfLocalRuleLT {LR Z} {appTab : AppLocalTableau LR C} :
 -- - base case for simple tableaux is part of "atm" which can be applied to L or to R.
 inductive ClosedTableau : TNode → Type
   | loc {LR} (appTab : AppLocalTableau LR C) : (next : ∀ Y ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩, ClosedTableau Y) → ClosedTableau LR
-  | atmL {LR ϕ} : ~(□ϕ) ∈ LR.1 → Simple LR → ClosedTableau (diamondProjectTNode (Sum.inl (~ϕ)) LR) → ClosedTableau LR
-  | atmR {LR ϕ} : ~(□ϕ) ∈ LR.2 → Simple LR → ClosedTableau (diamondProjectTNode (Sum.inr (~ϕ)) LR) → ClosedTableau LR
+  | atmL {LR ϕ} : ~(□ϕ) ∈ LR.1 → Simple LR → ClosedTableau (diamondProjectTNode (Sum.inl ϕ) LR) → ClosedTableau LR
+  | atmR {LR ϕ} : ~(□ϕ) ∈ LR.2 → Simple LR → ClosedTableau (diamondProjectTNode (Sum.inr ϕ) LR) → ClosedTableau LR
 
 inductive Provable : Formula → Prop
   | byTableau {φ : Formula} : ClosedTableau ({~φ},{}) → Provable φ

@@ -78,10 +78,10 @@ theorem consistentThenConsistentChild
   sorry
 
 theorem consThenProjectLCons: (Consistent (L,R)) → (~(□α) ∈ L) →
-  Consistent (diamondProjectTNode (Sum.inl (~α)) (L,R)) := by sorry
+  Consistent (diamondProjectTNode (Sum.inl α) (L,R)) := by sorry
 
 theorem consThenProjectRCons: (Consistent (L,R)) → (~(□α)∈ R) →
-  Consistent (diamondProjectTNode (Sum.inr (~α)) (L,R)) := by sorry
+  Consistent (diamondProjectTNode (Sum.inr α) (L,R)) := by sorry
 
 theorem pathSaturated (path : Path LR): Saturated (pathToFinset path) := by
   /-intro P Q
@@ -429,10 +429,10 @@ noncomputable def toWorld (consLR: ConsTNode): Finset Formula :=
 inductive M₀ (T0 : ConsTNode) : ConsTNode → Prop
 | base : M₀ T0 T0
 | inductiveL (T : ConsTNode) : (M₀ T0 T) → ⟨⟨L,R⟩, LR_cons⟩ = (endNodeOf (aPathOf T)) → ∀ α, (h: ~(□α) ∈ L) →
-  M₀ T0 ⟨diamondProjectTNode (Sum.inl (~α)) ⟨L,R⟩, by apply consThenProjectLCons LR_cons h⟩
+  M₀ T0 ⟨diamondProjectTNode (Sum.inl α) ⟨L,R⟩, by apply consThenProjectLCons LR_cons h⟩
 
 | inductiveR (T : ConsTNode) : (M₀ T0 T) →  ⟨⟨L,R⟩, LR_cons⟩ = (endNodeOf (aPathOf T)) → ∀ α, (h: ~(□α) ∈ R) →
-  M₀ T0 ⟨diamondProjectTNode (Sum.inr (~α)) ⟨L,R⟩, by apply consThenProjectRCons LR_cons h⟩
+  M₀ T0 ⟨diamondProjectTNode (Sum.inr α) ⟨L,R⟩, by apply consThenProjectRCons LR_cons h⟩
 
 theorem modelExistence: Consistent (L,R) →
     ∃ (WS : Set (Finset Formula)) (_ : ModelGraph WS) (W : WS), (L ∪ R) ⊆ W :=
@@ -481,7 +481,7 @@ theorem modelExistence: Consistent (L,R) →
           simp at nboxf_in_v
           cases nboxf_in_v
           case inl nboxf_in =>
-            let u_root := diamondProjectTNode (Sum.inl (~f)) ⟨v'L, v'R⟩
+            let u_root := diamondProjectTNode (Sum.inl f) ⟨v'L, v'R⟩
             let u' : ConsTNode := ⟨u_root, (by apply consThenProjectLCons v_cons nboxf_in)⟩
             have u_eq: u_root = (projection v'L ∪ {~f}, projection v'R) := by
               simp only
@@ -507,7 +507,7 @@ theorem modelExistence: Consistent (L,R) →
                 all_goals simp_all
               apply u_sub nf_in
           case inr nboxf_in =>
-            let u_root := diamondProjectTNode (Sum.inr (~f)) ⟨v'L, v'R⟩
+            let u_root := diamondProjectTNode (Sum.inr f) ⟨v'L, v'R⟩
             let u' : ConsTNode := ⟨u_root, (by apply consThenProjectRCons v_cons nboxf_in)⟩
             have u_eq: u_root = (projection v'L, projection v'R ∪ {~f}) := by
               simp only
