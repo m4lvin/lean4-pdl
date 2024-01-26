@@ -336,8 +336,9 @@ theorem localRuleSoundness
               <;> aesop)
         | aesop)
 
+-- I think this function is redundant now
 theorem ruleImpliesChildSat
-    {C : List TNode}    -- added this
+    {C : List TNode}
     {LR : TNode}
     {ruleApp : LocalRuleApp LR C} :
     Satisfiable LR → ∃c ∈ C, Satisfiable c :=
@@ -351,32 +352,33 @@ theorem ruleImpliesChildSat
       localRuleSoundness M w lrule Δ (by aesop)
     aesop
 
-
 theorem oneSidedRule_implies_child_sat_L
   {ruleApp : LocalRuleApp (L, R) C}
   (def_ruleA : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (res, ∅)) _) _ _ rule hC preproof))
-  (rule_is_left : rule = LocalRule.oneSidedL orule )
-  : Satisfiable (L ∪ R) → ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ R) :=
+  (rule_is_left : rule = LocalRule.oneSidedL orule)
+  : Satisfiable (L ∪ X) → ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ X) :=
   by
     intro hyp
-    let LR : TNode := (L, R)
-    have satLR : Satisfiable LR := by simp at *; apply hyp
-    have some_child_sat : ∃c ∈ C, Satisfiable c := @ruleImpliesChildSat C LR ruleApp satLR
+    rcases hyp with ⟨W, M, w, satM⟩
+    rcases ruleApp with ⟨ress, Lcond, Rcond, lrule, preproofL, preproofR⟩
+    have : (M, w) ⊨ (X ∪ Lcond ∪ Rcond) → ∃res ∈ ress, (M, w) ⊨ (X ∪ res.1 ∪ res.2) :=
+      localRuleSoundness M w lrule X
+    have : (M, w) ⊨ (X ∪ Lcond ∪ Rcond) := by aesop
     aesop
-
 
 theorem oneSidedRule_implies_child_sat_R
   {ruleApp : LocalRuleApp (L, R) C}
   (def_ruleA : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (∅, res)) _) _ _ rule hC preproof))
-  (rule_is_right : rule = LocalRule.oneSidedR orule )
-  : Satisfiable (R ∪ L) → ∃c ∈ C.attach, Satisfiable (c.1.2 ∪ L) :=
+  (rule_is_right : rule = LocalRule.oneSidedR orule)
+  : Satisfiable (R ∪ X) → ∃c ∈ C.attach, Satisfiable (c.1.2 ∪ X) :=
     by
       intro hyp
-      let LR : TNode := (L, R)
-      have satLR : Satisfiable LR := by simp at *; aesop
-      have some_child_sat : ∃c ∈ C, Satisfiable c := @ruleImpliesChildSat C LR ruleApp satLR
+      rcases hyp with ⟨W, M, w, satM⟩
+      rcases ruleApp with ⟨ress, Lcond, Rcond, lrule, preproofL, preproofR⟩
+      have : (M, w) ⊨ (X ∪ Lcond ∪ Rcond) → ∃res ∈ ress, (M, w) ⊨ (X ∪ res.1 ∪ res.2) :=
+        localRuleSoundness M w lrule X
+      have : (M, w) ⊨ (X ∪ Lcond ∪ Rcond) := by aesop
       aesop
-
 
 -- The critical rule is sound and preserves satisfiability "downwards".
 -- NOTE: This is stronger than Lemma 1, but we do not need.

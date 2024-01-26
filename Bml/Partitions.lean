@@ -50,7 +50,7 @@ theorem InterpolantInductionStep
         have ℓ_in_subinter :  ∃θ ∈ interList, ℓ ∈ voc θ := vocOfBigDis ℓ_in_inter
         have ℓ_in_child's_inter := choice_property_in_image ℓ_in_subinter
         have ℓ_in_child : ∃c ∈ C, ℓ ∈ jvoc c :=
-          Exists.elim ℓ_in_child's_inter <| λ⟨c, cinC⟩ ⟨inCattach, linvocInter ⟩ =>
+          Exists.elim ℓ_in_child's_inter <| λ⟨c, cinC⟩ ⟨_, linvocInter ⟩ =>
             Exists.intro c ⟨cinC, (subθs c cinC).2 |> And.left <| linvocInter⟩
         exact Exists.elim ℓ_in_child <| λcLR ⟨inC, injvoc⟩ => localRuleApp_does_not_increase_vocab ruleA cLR inC <| injvoc
       · constructor
@@ -62,19 +62,18 @@ theorem InterpolantInductionStep
               rw [eval_neg_BigDis_iff_eval_bigConNeg] at evalDis
               aesop
           have L_and_nθi_sat : ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ {~~(bigCon <| interList.map (~·))}) :=
-            --oneSidedRule_implies_child_sat_L def_ruleA def_rule L_and_bigC_sat
-            sorry
+            oneSidedRule_implies_child_sat_L def_ruleA def_rule L_and_bigC_sat
           have L_and_nθi_sat : ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ {(bigCon <| interList.map (~·))}) :=
             Exists.elim L_and_nθi_sat <| λ⟨c, cinC⟩ ⟨inCattach, csat⟩ =>
               Exists.intro ⟨c, cinC⟩ ⟨inCattach, ((sat_double_neq_invariant (bigCon <| interList.map (~·))).mp csat)⟩
-          exact Exists.elim L_and_nθi_sat <| λ⟨c, cinC⟩ ⟨inCattach, csat⟩ =>
+          exact Exists.elim L_and_nθi_sat <| λ⟨c, cinC⟩ ⟨_, csat⟩ =>
             have csat2 : Satisfiable <| c.1 ∪ {~ (subθs c cinC).1} :=
               bigConNeg_union_sat_down csat (subθs c cinC).1 (by simp; use c, cinC)
            (subθs c cinC).2 |> And.right |> And.left <| csat2
         . intro R_and_θ_sat
           have R_and_θi_sat : ∃θi ∈ interList, Satisfiable <| R ∪ {θi} := bigDis_union_sat_down R_and_θ_sat
           have R_and_child's_inter_sat := choice_property_in_image R_and_θi_sat
-          exact Exists.elim R_and_child's_inter_sat <| λ⟨c, cinC⟩ ⟨inCattach, csat ⟩ =>
+          exact Exists.elim R_and_child's_inter_sat <| λ⟨c, cinC⟩ ⟨_, csat ⟩ =>
             have R_inv_to_leftrule : c.2 = R := (oneSidedRule_preserves_other_side_L def_ruleA def_rule) c cinC
             have csat2 : Satisfiable <| c.2 ∪ {(subθs c cinC).1} := by rw[←R_inv_to_leftrule] at csat; assumption
             (subθs c cinC).2 |> And.right |> And.right <| csat2
@@ -88,7 +87,7 @@ theorem InterpolantInductionStep
         have ℓ_in_subinter :  ∃θ ∈ interList, ℓ ∈ voc θ := vocOfBigCon ℓ_in_inter
         have ℓ_in_child's_inter := choice_property_in_image ℓ_in_subinter
         have ℓ_in_child : ∃c ∈ C, ℓ ∈ jvoc c :=
-          Exists.elim ℓ_in_child's_inter <| λ⟨c, cinC⟩ ⟨inCattach, linvocInter ⟩ =>
+          Exists.elim ℓ_in_child's_inter <| λ⟨c, cinC⟩ ⟨_, linvocInter ⟩ =>
             Exists.intro c ⟨cinC, (subθs c cinC).2 |> And.left <| linvocInter⟩
         exact Exists.elim ℓ_in_child <| λcLR ⟨inC, injvoc⟩ => localRuleApp_does_not_increase_vocab ruleA cLR inC <| injvoc
       · constructor
@@ -108,15 +107,14 @@ theorem InterpolantInductionStep
                 assumption
           have L_and_θi_Sat : ∃nθi ∈ interList.map (~·), Satisfiable <| L ∪ {nθi} := bigDis_union_sat_down L_and_bigD_sat
           have L_and_child's_inter_sat := choice_property_in_image <| choice_property_in_image L_and_θi_Sat
-          exact Exists.elim L_and_child's_inter_sat <| λ⟨c, cinC⟩ ⟨inCattach, csat ⟩ =>
+          exact Exists.elim L_and_child's_inter_sat <| λ⟨c, cinC⟩ ⟨_, csat ⟩ =>
             have L_inv_to_rightrule : c.1 = L := (oneSidedRule_preserves_other_side_R def_ruleA def_rule) c cinC
             have csat2 : Satisfiable <| c.1 ∪ {~(subθs c cinC).1} := by rw[←L_inv_to_rightrule] at csat; assumption
             (subθs c cinC).2 |> And.right |> And.left <| csat2
         · intro R_and_θ_sat
           have R_and_θi_sat : ∃c ∈ C.attach, Satisfiable (c.1.2 ∪ {bigCon interList}) :=
-            -- oneSidedRule_implies_child_sat_R def_ruleA def_rule R_and_θ_sat
-            sorry
-          exact Exists.elim R_and_θi_sat <| λ⟨c, cinC⟩ ⟨inCattach, csat⟩ =>
+            oneSidedRule_implies_child_sat_R def_ruleA def_rule R_and_θ_sat
+          exact Exists.elim R_and_θi_sat <| λ⟨c, cinC⟩ ⟨_, csat⟩ =>
             have csat2 : Satisfiable <| c.2 ∪ {(subθs c cinC).1} :=
               bigCon_union_sat_down csat ((subθs c cinC).1) (by simp; use c, cinC)
             (subθs c cinC).2 |> And.right |> And.right <| csat2
@@ -148,7 +146,7 @@ theorem InterpolantInductionStep
 theorem tabToInt {LR : TNode} (tab : ClosedTableau LR)
 : PartInterpolant LR := by
   induction tab
-  case loc C LR appTab endTabs endθs => exact (
+  case loc C LR appTab _ endθs => exact (
     @AppLocalTableau.recOn
     (λLR C appTab => (∀E ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩, PartInterpolant E) → PartInterpolant LR)
     (λLR locTab   => (∀E ∈ endNodesOf ⟨LR, locTab⟩                      , PartInterpolant E) → PartInterpolant LR)
