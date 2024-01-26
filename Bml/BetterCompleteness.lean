@@ -10,6 +10,7 @@ open LocalTableau
 open HasLength
 open HasSat
 open LocalRule
+open OneSidedLocalRule
 
 def formulasInNegBox (X: Finset Formula): Finset Formula :=
   X.biUnion λ α => (match α with | ~(□f) => {f} | _ => {})
@@ -54,7 +55,7 @@ def pathToFinset: Path ⟨(L,R), cons⟩  → Finset Formula
   | (interNode _ _ tail) => L ∪ R ∪ pathToFinset tail
 
 @[simp]
-theorem X_in_PathX (path : Path ⟨(L,R),LR_cons⟩) : L ∪ R ⊆ (pathToFinset path) := by
+theorem LR_in_PathLR (path : Path ⟨(L,R),LR_cons⟩) : L ∪ R ⊆ (pathToFinset path) := by
   cases path
   case endNode => simp [instTNodeHasSubset]
   case interNode Y C C_in tail appTab =>
@@ -131,60 +132,32 @@ theorem pathSaturated (path : Path consLR): Saturated (pathToFinset path) := by
         · case inr PQ_in_R =>
           specialize R_simple ⟨~(P ⋀ Q), PQ_in_R⟩;
           simp at R_simple
-  case interNode LR C LR' LR'_cons LR_cons locRule LR'_in tail IH =>
+  case interNode LR C LR' LR'_cons LR_cons appTab LR'_in tail IH =>
     simp_all!
     rcases IH with ⟨IH1, ⟨IH2, IH3⟩⟩
+    rcases appTab with ⟨lrApp, next⟩
+    rename_i L R
     constructor
     -- ~~P ∈ U → P ∈ U
     · intro nnP_in
       apply Or.inr
+      apply Or.inr
       cases nnP_in
-      · case inl nnP_in_LR =>
-        sorry
-        /-cases locRule
-        · case bot bot_in_LR =>
-          refine False.elim ?_
-          exact (List.mem_nil_iff Y).mp Y_in
-        · case Not α α_nα_in_X =>
-          refine False.elim ?_
-          exact (List.mem_nil_iff Y).mp Y_in
-        · case neg α nnα_in_X =>
-          have : Y = (X \ {~~α} ∪ {α}) := by
-            simp at *; exact Y_in
-          clear Y_in; subst Y
-          by_cases P = α
-          · case pos P_eq_α =>
-            subst P
-            apply X_in_PathX; refine Finset.mem_union_right (X \ {~~α}) ?_; exact Finset.mem_singleton.mpr rfl
-          · case neg P_neq_α =>
-            apply IH1;
-            apply X_in_PathX; refine Finset.mem_union_left {α} ?_; refine Finset.mem_sdiff.mpr ?_
-            refine (and_iff_right nnP_in_X).mpr ?_; aesop
-        · case Con α β α_β_in_X =>
-          have : Y = (X \ {α⋀β} ∪ {α,β}) := by
-            simp_all only [not_true_eq_false, sdiff_singleton_is_erase, Finset.mem_singleton, Finset.union_insert]
-          clear Y_in; subst Y
+      · case inl nnP_in_L =>
+        have h := LocalRuleUniqueL nnP_in_L lrApp (neg P) rfl
+        specialize h LR' LR'_in
+        cases h
+        case inl nnP_in_L' =>
           apply IH1
-          apply X_in_PathX
-          refine Finset.mem_union_left {α, β} ?_
-          refine Finset.mem_sdiff.mpr ?_
-          aesop
-        · case nCo α β nα_β_in_X =>
-          have : Y = (X \ {~(α⋀β)} ∪ {~α}) ∨ Y = (X \ {~(α⋀β)} ∪ {~β}) := by
-            simp at *; exact Y_in
-          clear Y_in; rename Y = X \ {~(α⋀β)} ∪ {~α} ∨ Y = X \ {~(α⋀β)} ∪ {~β} => Y_in
-          cases Y_in; all_goals subst Y
-          apply IH1
-          apply X_in_PathX
-          refine Finset.mem_union_left {~α} ?inl.a.h
-          refine Finset.mem_sdiff.mpr ?inl.a.h.a
-          aesop
-          apply IH1
-          apply X_in_PathX
-          refine Finset.mem_union_left {~β} ?inr.a.h
-          refine Finset.mem_sdiff.mpr ?inr.a.h.a
-          aesop-/
-      · case inr nnP_in_tail => sorry --aesop
+          apply LR_in_PathLR
+          simp_all
+        case inr P_in_L' =>
+          apply LR_in_PathLR
+          simp_all
+      · case inr nnP_in =>
+        cases nnP_in
+        case inl nnP_in_R => sorry
+        case inr nnP_in_tail => simp_all
     · sorry /-constructor
     -- P⋀Q ∈ U  → P ∈ U  and Q ∈ U
       · case intro.intro.right.left Z =>
@@ -416,13 +389,13 @@ theorem pathProjection (path: Path consLR): projection (pathToFinset path) ⊆ p
     apply IH
     cases α_in
     case inl α_in =>
-      apply Finset.mem_of_subset (X_in_PathX tail)
+      apply Finset.mem_of_subset (LR_in_PathLR tail)
       have := AppLocalTableau.PreservesBoxL appTab α_in c_in
       simp_all
     case inr α_in =>
       cases α_in
       case inl α_in =>
-        apply Finset.mem_of_subset (X_in_PathX tail)
+        apply Finset.mem_of_subset (LR_in_PathLR tail)
         have := AppLocalTableau.PreservesBoxR appTab α_in c_in
         simp_all
       case inr α_in => assumption
@@ -435,13 +408,13 @@ theorem pathDiamond (path: Path consLR) (α_in: ~(□α) ∈ pathToFinset path):
     apply IH
     cases α_in
     case inl α_in =>
-      apply Finset.mem_of_subset (X_in_PathX tail)
+      apply Finset.mem_of_subset (LR_in_PathLR tail)
       have := AppLocalTableau.PreservesDiamondL appTab α_in c_in
       simp_all
     case inr α_in =>
       cases α_in
       case inl α_in =>
-        apply Finset.mem_of_subset (X_in_PathX tail)
+        apply Finset.mem_of_subset (LR_in_PathLR tail)
         have := AppLocalTableau.PreservesDiamondR appTab α_in c_in
         simp_all
       case inr α_in => assumption
@@ -521,7 +494,7 @@ theorem modelExistence: Consistent (L,R) →
               simp only
               unfold diamondProjectTNode
               aesop
-            have u_sub: u_root.1 ∪ u_root.2 ⊆ toWorld u' := by apply X_in_PathX
+            have u_sub: u_root.1 ∪ u_root.2 ⊆ toWorld u' := by apply LR_in_PathLR
             use toWorld u'
             constructor
             · calc
@@ -547,7 +520,7 @@ theorem modelExistence: Consistent (L,R) →
               simp only
               unfold diamondProjectTNode
               aesop
-            have u_sub: u_root.1 ∪ u_root.2 ⊆ toWorld u' := by apply X_in_PathX
+            have u_sub: u_root.1 ∪ u_root.2 ⊆ toWorld u' := by apply LR_in_PathLR
             use toWorld u'
             constructor
             · calc

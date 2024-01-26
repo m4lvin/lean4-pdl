@@ -281,14 +281,14 @@ theorem localRuleApp_does_not_increase_vocab {L R : Finset Formula} (ruleA : Loc
 @[simp]
 theorem not_notSelfContain : ~φ ≠ φ := fun.
 
--- If one local rule substituting some set containing α by some set res applies to some node LR,
--- then all children of LR in any local tableau contain α or res, or they contain a formula and its negation
+-- If one local rule substituting some formula α by some set res applies to some node LR,
+-- then all children of LR in any local tableau contain α or res
 -- used to prove that paths are saturated
-lemma LocalRule_uniqueL
+lemma LocalRuleUniqueL
   (α_in_L: α ∈ L)
   (lrApp: LocalRuleApp (L,R) C)
   (orule: OneSidedLocalRule precond ress)
-  {precond_eq: precond = {α}}
+  (precond_eq: precond = {α})
   : ∀ c ∈ C, α ∈ c.1 ∨ (∃ res ∈ ress, res ⊆ c.1) := by
   intro c c_in
   rcases lrApp with ⟨ress', Lcond', Rcond', lr', L_cond_in, R_cond_in⟩
