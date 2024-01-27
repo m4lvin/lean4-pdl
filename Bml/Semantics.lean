@@ -113,6 +113,39 @@ theorem forms_to_sets {φ ψ : Formula} : φ⊨ψ → ({φ} : Finset Formula)⊨
   apply impTaut
   exact lhs
 
-lemma negation_not_cosatisfiable {X : Finset Formula} (φ : Formula) (h₁ : φ ∈ X) (h₂ : ~φ ∈ X) : ¬Satisfiable X := sorry
+theorem negation_not_cosatisfiable
+    {X : Finset Formula}
+    (φ : Formula)
+    (phi_in : φ ∈ X)
+    (notPhi_in : ~φ ∈ X)
+    : ¬Satisfiable X :=
+  by
+  rintro ⟨W,M,w,satX⟩
+  have := satX φ phi_in
+  have := satX (~φ) notPhi_in
+  tauto
 
-lemma sat_double_neq_invariant {X : Finset Formula} (φ : Formula) : Satisfiable (X ∪ {~~φ}) ↔ Satisfiable (X ∪ {φ}) := sorry
+theorem sat_double_neq_invariant
+    {X : Finset Formula}
+    (φ : Formula)
+    : Satisfiable (X ∪ {~~φ}) ↔ Satisfiable (X ∪ {φ}) :=
+  by
+  constructor
+  all_goals rintro ⟨W,M,w,satX⟩
+  all_goals use W, M, w
+  · intro φ' is_in
+    simp at is_in
+    cases is_in
+    · specialize satX φ'
+      apply satX
+      aesop
+    · specialize satX (~~φ)
+      aesop
+  · intro φ' is_in
+    simp at is_in
+    cases is_in
+    · specialize satX φ'
+      apply satX
+      aesop
+    · specialize satX φ
+      aesop

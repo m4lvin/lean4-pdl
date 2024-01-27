@@ -17,10 +17,10 @@ open Formula
 open HasLength
 
 -- Definition 9, page 15
--- A set X is closed  iff  0 ∈ X or X contains a formula and its negation.
+-- A set X is closed  iff  it contains □ or contains a formula and its negation.
 def Closed : Finset Formula → Prop := fun X => ⊥ ∈ X ∨ ∃ f ∈ X, ~f ∈ X
 
--- A set X is simple  iff  all P ∈ X are (negated) atoms or [A]_ or ¬[A]_.
+-- A set X is simple  iff  all P ∈ X are (negated) atoms or □φ or ¬□φ.
 @[simp]
 def SimpleForm : Formula → Prop
   | ⊥ => True  -- TODO remove / change to False? (covered by bot rule)
@@ -177,9 +177,6 @@ inductive OneSidedLocalRule : Finset Formula → List (Finset Formula) → Type
   | con  (φ ψ : Formula) : OneSidedLocalRule {φ ⋀ ψ}  [{φ,ψ}]
   | ncon (φ ψ : Formula) : OneSidedLocalRule {~(φ⋀ψ)} [{~φ}, {~ψ}]
 
--- We have equality when types match
-instance : DecidableEq (OneSidedLocalRule precond ress) := λ_ _ => Decidable.isTrue (sorry)
-
 def SubPair := Finset Formula × Finset Formula
 deriving DecidableEq
 
@@ -188,9 +185,6 @@ inductive LocalRule : SubPair → List SubPair → Type
   | oneSidedR (orule : OneSidedLocalRule precond ress) : LocalRule (∅,precond) $ ress.map $ λ res => (∅,res)
   | LRnegL (ϕ : Formula) : LocalRule ({ϕ}, {~ϕ}) ∅ --  ϕ occurs on the left side, ~ϕ on the right
   | LRnegR (ϕ : Formula) : LocalRule ({~ϕ}, {ϕ}) ∅ -- ~ϕ occurs on the left side,  ϕ on the right
-
--- We have equality when types match
-instance : DecidableEq (LocalRule LRconds C) := λ_ _ => Decidable.isTrue (sorry)
 
 open HasVocabulary
 @[simp]
@@ -209,7 +203,6 @@ inductive LocalRuleApp : TNode → List TNode → Type
        {hC : C = applyLocalRule rule (L,R)}
        (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R)
        : LocalRuleApp (L,R) C
-  deriving DecidableEq
 
 lemma oneSidedRule_preserves_other_side_L
   {ruleApp : LocalRuleApp (L, R) C}
@@ -284,7 +277,7 @@ theorem not_notSelfContain : ~φ ≠ φ := fun.
 -- If one local rule substituting some formula α by some set res applies to some node LR,
 -- then all children of LR in any local tableau contain α or res
 -- used to prove that paths are saturated
-lemma LocalRuleUniqueL
+theorem LocalRuleUniqueL
   (α_in_L: α ∈ L)
   (lrApp: LocalRuleApp (L,R) C)
   (orule: OneSidedLocalRule precond ress)
@@ -304,6 +297,8 @@ lemma LocalRuleUniqueL
       apply Finset.subset_of_eq at precond_eq
       rw [Finset.subset_singleton_iff'] at precond_eq
       simp_all
+      rcases precond_eq with ⟨l,r⟩
+      subst l
       aesop
     case neg φ =>
       cases orule'
@@ -373,6 +368,8 @@ lemma LocalRuleUniqueR
       apply Finset.subset_of_eq at precond_eq
       rw [Finset.subset_singleton_iff'] at precond_eq
       simp_all
+      rcases precond_eq with ⟨l,r⟩
+      subst l
       aesop
     case neg φ =>
       cases orule'
@@ -436,11 +433,6 @@ end
 def getTabRule : AppLocalTableau LR C → Σ Lcond Rcond C, LocalRule (Lcond,Rcond) C
   | AppLocalTableau.mk (ruleA : LocalRuleApp _ _) _ => match ruleA with
     | @LocalRuleApp.mk _ _ _ B Lcond Rcond rule _ _ => ⟨Lcond, Rcond, B, rule⟩
-
--- We have equality when types match
-instance : DecidableEq (AppLocalTableau LR C) := λtab₁ tab₂ => match getTabRule tab₁ == getTabRule tab₂ with
-  | true  => Decidable.isTrue  (sorry)
-  | false => Decidable.isFalse (sorry)
 
 def getTabChildren : AppLocalTableau LR C →  List TNode
   | @AppLocalTableau.mk _ _ C _ _ => C
