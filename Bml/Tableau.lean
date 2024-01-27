@@ -6,6 +6,7 @@ import Mathlib.Data.Finset.PImage
 import Mathlib.Logic.IsEmpty
 import Mathlib.Order.WellFoundedSet
 import Mathlib.Tactic.Ring
+import Mathlib.Tactic.Linarith
 
 import Bml.Syntax
 import Bml.Semantics
@@ -663,26 +664,55 @@ theorem localRuleNoOverlap
       all_goals aesop
     all_goals (cases in_ress)
 
+-- Some helper definitions for localRuleAppDecreasesLengthSide.
+-- We switch from ℕ to ℤ here to have a reasonable "-" and use
+-- theorems that only hold in rings.
+
+@[simp]
+def zlengthOf : Formula → Int := fun f => Coe.coe (lengthOfFormula f)
+
+theorem zlengthOf.pos : 0 ≤ zlengthOf φ := Int.ofNat_nonneg (lengthOfFormula φ)
+
+@[simp]
+def zlengthOfSet : Finset Formula → Int := fun X => X.sum zlengthOf
+
+theorem z_iff : zlengthOfSet X = lengthOfSet X := by simp; rfl
+
+theorem zlen_iff { X Y : Finset Formula }
+    : lengthOf X < lengthOf Y ↔ zlengthOfSet X < zlengthOfSet Y :=
+  by
+  rw [z_iff, z_iff]
+  simp
+  sorry -- only coercions left?!
+
+theorem zlengthOfSet.pos : zlengthOfSet X ≥ 0 := by
+  simp
+  apply Finset.sum_induction
+  · intro a b a_ge b_ge; linarith
+  · simp
+  · intro f _; exact zlengthOf.pos
+
 theorem localRuleAppDecreasesLengthSide
   (X Cond Res : Finset Formula)
   (hyp : lengthOf Res < lengthOf Cond)
   (precondProof : Cond ⊆ X) :
   lengthOf (X \ Cond ∪ Res) < lengthOf X :=
   by
-    have : lengthOf Cond ≠ 0 := ne_zero_of_lt hyp
-    -- should be true, but seems quite tricky
-    -- Note that we are working in ℕ here where "-" is annoying.
-    -- maybe use something like Nat.add_sub_of_le here?
-    calc  lengthOf (X \ Cond ∪ Res)
-        ≤ lengthOf (X \ Cond) + lengthOf Res := by simp
-      _ = lengthOf X - lengthOf Cond + lengthOf Res := by
-            simp
-            -- Wanted to use the following, but it does not apply to ℕ because it's not a group.
-            have := @Finset.sum_sdiff_eq_sub _ _ Cond X lengthOfFormula (by sorry) _ precondProof
-            sorry
-      _ = (lengthOf X - lengthOf Cond) + lengthOf Res := rfl
-      _ = lengthOf X + lengthOf Res - lengthOf Cond := by sorry
-      _ < lengthOf X := by simp at *; sorry
+    rw [zlen_iff]
+    calc zlengthOfSet (X \ Cond ∪ Res)
+        ≤ zlengthOfSet (X \ Cond) + zlengthOfSet Res := by
+            have := @Finset.sum_union_inter _ _ (X \ Cond) Res zlengthOf _ _
+            have : zlengthOfSet (X \ Cond ∩ Res) ≥ 0 := zlengthOfSet.pos
+            simp_all
+            linarith -- mwah
+      _ = zlengthOfSet X - zlengthOfSet Cond + zlengthOfSet Res := by
+            simp only [zlengthOfSet]
+            rw [Finset.sum_sdiff_eq_sub precondProof]
+      _ < zlengthOfSet X := by
+            have : zlengthOfSet Res < zlengthOfSet Cond := by
+              rw [← zlen_iff]
+              exact hyp
+            linarith
 
 theorem localRuleAppDecreasesLength
   {L R : Finset Formula}
