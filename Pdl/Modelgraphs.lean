@@ -27,7 +27,7 @@ def Saturated : Finset Formula → Prop
 
 -- Definition 19, page 31
 def ModelGraph (W : Finset (Finset Formula)) :=
-  let i := ∀ X : W, Saturated X.val ∧ ⊥ ∉ X.val ∧ ∀ P, P ∈ X.val → (~P) ∉ X.val
+  let i := ∀ X : W, Saturated X.val ∧ ⊥ ∉ X.val ∧ ∀ (pp : Char), (·pp : Formula) ∈ X.val → (~(·pp)) ∉ X.val
   let ii M := ∀ X p, (·p : Formula) ∈ X.val ↔ M.val X p
   -- Note: Borzechowski only has → in ii. We follow BRV, Def 4.18 and 4.84.
   let iii M := ∀ X Y A P, M.Rel A X Y → (⌈·A⌉P) ∈ X.val → P ∈ Y.val
@@ -64,7 +64,7 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
       simp
       rw [← ii X pp]
       rcases i X with ⟨_, _, P_in_then_notP_not_in⟩
-      specialize P_in_then_notP_not_in (·pp)
+      specialize P_in_then_notP_not_in pp
       tauto
   case neg Q =>
     have ⟨plus,minus⟩ := loadedTruthLemma MG X Q

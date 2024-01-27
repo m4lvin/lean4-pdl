@@ -15,8 +15,8 @@ def ModelGraph (Worlds : Set (Finset Formula)) :=
   let W := Subtype fun x => x ∈ Worlds
   let i := ∀ X : W, Saturated X.val ∧ ⊥ ∉ X.val ∧ ∀ (pp : Char), (·pp) ∈ X.val → ~(·pp) ∉ X.val
   let ii := fun M : KripkeModel W => ∀ (X : W) (pp), (·pp) ∈ X.val ↔ M.val X pp
-  let iii :=-- Note: Borzechowski only has → in ii. We follow BRV, Def 4.18 and 4.84.
-  fun M : KripkeModel W => ∀ (X Y : W) (P), M.Rel X Y → □P ∈ X.val → P ∈ Y.val
+  -- Note: Borzechowski only has → in ii. We follow BRV, Def 4.18 and 4.84.
+  let iii := fun M : KripkeModel W => ∀ (X Y : W) (P), M.Rel X Y → □P ∈ X.val → P ∈ Y.val
   let iv := fun M : KripkeModel W => ∀ (X : W) (P), ~(□P) ∈ X.val → ∃ Y, M.Rel X Y ∧ ~P ∈ Y.val
   Subtype fun M : KripkeModel W => i ∧ ii M ∧ iii M ∧ iv M
 
