@@ -67,27 +67,9 @@ def endNodeOf: Path ⟨LR,LR_cons⟩ → ConsTNode
   | endNode _ => ⟨LR, LR_cons⟩
   | interNode _ _ tail => endNodeOf tail
 
-theorem endNodeIsSimple (path : Path consLR): Simple (endNodeOf path).1 := by
+theorem endNodeIsSimple (path : Path consLR) (eq: consLR' = endNodeOf (path)): Simple consLR'.1 := by
   induction path
   all_goals aesop
-
--- Not sure if needed
-theorem endNodeProjection (path : Path X) {h: (L, R) = projectTNode (endNodeOf path).1}: projection (pathToFinset path) = L ∪ R := by
-  /-cases path
-  case endNode cosX simX =>
-    aesop
-  case interNode LR Y_in tail appTab =>
-    simp only [endNodeOf]
-    rw[← endNodeProjection tail]
-    unfold projectTNode-/
-    sorry
---termination_by endNodeProjection path => lengthOfTNode (L,R)
---decreasing_by sorry
-
---theorem endNodeInPath {path : Path X} {h : (L,R) = endNodeOf path}: L ∪ R ⊆ (pathToFinset path) := by sorry
-
---theorem endNodeSubsetEndNodes (path: Path X) (tX: LocalTableau X): endNodeOf path ∈ endNodesOf ⟨X, tX⟩ := by
-
 
 theorem consistentThenConsistentChild (appTab : AppLocalTableau LR C):
   Consistent LR → ∃ c ∈ C, Consistent c := by
@@ -96,11 +78,21 @@ theorem consistentThenConsistentChild (appTab : AppLocalTableau LR C):
   simp_all
   sorry
 
-theorem consThenProjectLCons: (Consistent (L,R)) → (~(□α) ∈ L) →
-  Consistent (diamondProjectTNode (Sum.inl α) (L,R)) := by sorry
+theorem consThenProjectLCons (α_in: ~(□α) ∈ L) (LR_simple: Simple (L,R)): (Consistent (L,R)) →
+  Consistent (diamondProjectTNode (Sum.inl α) (L,R)) := by
+  contrapose
+  unfold Consistent Inconsistent
+  simp_all
+  intro cTab
+  exact ⟨ClosedTableau.atmL α_in LR_simple cTab⟩
 
-theorem consThenProjectRCons: (Consistent (L,R)) → (~(□α)∈ R) →
-  Consistent (diamondProjectTNode (Sum.inr α) (L,R)) := by sorry
+theorem consThenProjectRCons (α_in: ~(□α) ∈ R) (LR_simple: Simple (L,R)): (Consistent (L,R)) →
+  Consistent (diamondProjectTNode (Sum.inr α) (L,R)) := by
+  contrapose
+  unfold Consistent Inconsistent
+  simp_all
+  intro cTab
+  exact ⟨ClosedTableau.atmR α_in LR_simple cTab⟩
 
 theorem pathSaturated (path : Path consLR): Saturated (pathToFinset path) := by
   intro P Q
@@ -477,11 +469,14 @@ noncomputable def toWorld (consLR: ConsTNode): Finset Formula :=
 
 inductive M₀ (T0 : ConsTNode) : ConsTNode → Prop
 | base : M₀ T0 T0
-| inductiveL (T : ConsTNode) : (M₀ T0 T) → ⟨⟨L,R⟩, LR_cons⟩ = endNodeOf (aPathOf T) → ∀ α, (h: ~(□α) ∈ L) →
-  M₀ T0 ⟨diamondProjectTNode (Sum.inl α) ⟨L,R⟩, by apply consThenProjectLCons LR_cons h⟩
 
-| inductiveR (T : ConsTNode) : (M₀ T0 T) →  ⟨⟨L,R⟩, LR_cons⟩ = endNodeOf (aPathOf T) → ∀ α, (h: ~(□α) ∈ R) →
-  M₀ T0 ⟨diamondProjectTNode (Sum.inr α) ⟨L,R⟩, by apply consThenProjectRCons LR_cons h⟩
+| inductiveL (T : ConsTNode) : (M₀ T0 T) → (eq: ⟨⟨L,R⟩, LR_cons⟩ = endNodeOf (aPathOf T)) → ∀ α, (h: ~(□α) ∈ L) →
+  M₀ T0 ⟨diamondProjectTNode (Sum.inl α) ⟨L,R⟩, by
+    apply consThenProjectLCons h (endNodeIsSimple (aPathOf T) eq) LR_cons⟩
+
+| inductiveR (T : ConsTNode) : (M₀ T0 T) →  (eq: ⟨⟨L,R⟩, LR_cons⟩ = endNodeOf (aPathOf T)) → ∀ α, (h: ~(□α) ∈ R) →
+  M₀ T0 ⟨diamondProjectTNode (Sum.inr α) ⟨L,R⟩, by
+    apply consThenProjectRCons h (endNodeIsSimple (aPathOf T) eq) LR_cons⟩
 
 theorem modelExistence: Consistent (L,R) →
     ∃ (WS : Set (Finset Formula)) (_ : ModelGraph WS) (W : WS), (L ∪ R) ⊆ W :=
@@ -512,69 +507,70 @@ theorem modelExistence: Consistent (L,R) →
         · intro ⟨w, w_in⟩ ⟨v, v_in⟩ f wRv h
           rewrite [← proj] at h
           aesop
-        · intro ⟨w, w_in⟩ f nboxf_in_w
+        · -- notation: w_world for world, w for TNode, w' for ConsTNode
+          intro ⟨w_world, w_world_in⟩ f nboxf_in_w
           simp_all
-          choose w' w'_in w_eq using w_in
-          subst w_eq
+          choose w' w'_in w_world_eq using w_world_in
+          subst w_world_eq
           let v' := endNodeOf (aPathOf w')
-          rcases v'_eq : v' with ⟨⟨v'L, v'R⟩, v_cons⟩
-          let v := toFinset v'
-          have v_eq : v = v'L ∪ v'R := by
-            change toFinset v' = v'L ∪ v'R
-            rw[v'_eq]
-            simp_all
-          have nboxf_in_v : ~(□f) ∈ v'L ∪ v'R := by
+          have v'_def : v' = endNodeOf (aPathOf w') := by simp
+          rcases v' with ⟨⟨vL, vR⟩, v_cons⟩
+          have nboxf_in_v : ~(□f) ∈ vL ∪ vR := by
             have := pathDiamond (aPathOf w') nboxf_in_w
-            rw[←v_eq]
-            aesop
+            rw[←v'_def] at this
+            simp_all
+          have v_simp: Simple (vL,vR) := by
+            apply endNodeIsSimple (aPathOf w') v'_def
           simp at nboxf_in_v
           cases nboxf_in_v
           case inl nboxf_in =>
-            let u_root := diamondProjectTNode (Sum.inl f) ⟨v'L, v'R⟩
-            let u' : ConsTNode := ⟨u_root, (by apply consThenProjectLCons v_cons nboxf_in)⟩
-            have u_eq: u_root = (projection v'L ∪ {~f}, projection v'R) := by
+            let u := diamondProjectTNode (Sum.inl f) ⟨vL, vR⟩
+            have u_cons := consThenProjectLCons nboxf_in v_simp v_cons
+            let u' : ConsTNode := ⟨u, u_cons⟩
+            have u_eq: u = (projection vL ∪ {~f}, projection vR) := by
               simp only
               unfold diamondProjectTNode
               aesop
-            have u_sub: u_root.1 ∪ u_root.2 ⊆ toWorld u' := by apply LR_in_PathLR
             use toWorld u'
             constructor
             · calc
                 projection (toWorld w') = projection (pathToFinset (aPathOf w')) := by aesop
-                _ ⊆ projection v := by apply pathProjection (aPathOf w')
-                _ ⊆ u_root.1 ∪ u_root.2 := by rw[u_eq, v_eq, projectionUnion]; simp
-                _ ⊆ toWorld u' := by exact u_sub
+                _ ⊆ projection (toFinset (endNodeOf (aPathOf w'))) := by apply pathProjection (aPathOf w')
+                _ ⊆ projection (vL ∪ vR) := by rw[← v'_def]; simp
+                _ ⊆ u.1 ∪ u.2 := by rw[u_eq, projectionUnion]; simp
+                _ ⊆ toWorld u' := by apply LR_in_PathLR
             constructor
-            · have h := M₀.inductiveL w' w'_in (Eq.symm v'_eq)
+            · have h := M₀.inductiveL w' w'_in v'_def
               simp at h
               specialize h f nboxf_in
               use u'
-            · have nf_in : ~f ∈ u_root.1 ∪ u_root.2 := by
+            · have nf_in : ~f ∈ u.1 ∪ u.2 := by
                 simp
                 unfold diamondProjectTNode
                 split
                 all_goals simp_all
-              apply u_sub nf_in
+              apply (LR_in_PathLR _) nf_in
           case inr nboxf_in =>
-            let u_root := diamondProjectTNode (Sum.inr f) ⟨v'L, v'R⟩
-            let u' : ConsTNode := ⟨u_root, (by apply consThenProjectRCons v_cons nboxf_in)⟩
-            have u_eq: u_root = (projection v'L, projection v'R ∪ {~f}) := by
+            let u := diamondProjectTNode (Sum.inr f) ⟨vL, vR⟩
+            let u' : ConsTNode := ⟨u, (by apply consThenProjectRCons nboxf_in v_simp v_cons)⟩
+            have u_eq: u = (projection vL, projection vR ∪ {~f}) := by
               simp only
               unfold diamondProjectTNode
               aesop
-            have u_sub: u_root.1 ∪ u_root.2 ⊆ toWorld u' := by apply LR_in_PathLR
+            have u_sub: u.1 ∪ u.2 ⊆ toWorld u' := by apply LR_in_PathLR
             use toWorld u'
             constructor
             · calc
                 projection (toWorld w') = projection (pathToFinset (aPathOf w')) := by aesop
-                _ ⊆ projection v := by apply pathProjection (aPathOf w')
-                _ ⊆ u_root.1 ∪ u_root.2 := by rw[u_eq, v_eq, projectionUnion]; simp
-                _ ⊆ toWorld u' := by exact u_sub
+                _ ⊆ projection (toFinset (endNodeOf (aPathOf w'))) := by apply pathProjection (aPathOf w')
+                _ ⊆ projection (vL ∪ vR) := by rw[← v'_def]; simp
+                _ ⊆ u.1 ∪ u.2 := by rw[u_eq, projectionUnion]; simp
+                _ ⊆ toWorld u' := by apply LR_in_PathLR
             constructor
-            · have h := M₀.inductiveR w' w'_in (Eq.symm v'_eq)
+            · have h := M₀.inductiveR w' w'_in v'_def
               specialize h f nboxf_in
               use u'
-            · have nf_in : ~f ∈ u_root.1 ∪ u_root.2 := by
+            · have nf_in : ~f ∈ u.1 ∪ u.2 := by
                 simp
                 unfold diamondProjectTNode
                 split
