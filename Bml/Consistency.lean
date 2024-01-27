@@ -133,6 +133,7 @@ theorem conThenConSucc : Consistent X → LocalRule X B →  ∃ Y ∈ B, Consis
     suffices : Inconsistent X; exact InconsisIffNotConsis.mp this
     suffices : (∃ tX : LocalTableau X, ∀ E ∈ endNodesOf ⟨X, tX⟩, Inconsistent E); exact InconsIffInconsEndnode.mpr this
     use (@byLocalRule X {X \ {~~α} ∪ {α} } (neg nnα) (λ Y => λ YIn => Classical.choice (@Eq.subst (Finset Formula) (λ Z => Nonempty (LocalTableau Z)) (X \ {~~α} ∪ {α}) (Y) (Eq.symm (Finset.mem_singleton.mp YIn)) (Nonempty.intro tXα))))
+    unfold endNodesOf; simp; intro E Z eq; subst Z
     sorry
 
   · case Con α β α_β =>
