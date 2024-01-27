@@ -432,8 +432,7 @@ inductive LocalTableau : TNode → Type
 end
 
 def getTabRule : AppLocalTableau LR C → Σ Lcond Rcond C, LocalRule (Lcond,Rcond) C
-  | AppLocalTableau.mk (ruleA : LocalRuleApp _ _) _ => match ruleA with
-    | @LocalRuleApp.mk _ _ _ B Lcond Rcond rule _ _ => ⟨Lcond, Rcond, B, rule⟩
+  | AppLocalTableau.mk (LocalRuleApp.mk B Lcond Rcond rule _) _ => ⟨Lcond, Rcond, B, rule⟩
 
 def getTabChildren : AppLocalTableau LR C →  List TNode
   | @AppLocalTableau.mk _ _ C _ _ => C
@@ -879,15 +878,17 @@ termination_by
   endNodesOf pair => lengthOf pair
 
 @[simp]
-theorem endNodesOfSimple : endNodesOf ⟨ LR, LocalTableau.fromSimple hyp ⟩ = [LR] := by
-  sorry
+theorem endNodesOfSimple : endNodesOf ⟨ LR, LocalTableau.fromSimple hyp ⟩ = [LR] :=
+  by
+  simp only [endNodesOf]
 
 @[simp]
 theorem lrEndNodes {LR C subtabs lrApp} :
     endNodesOf ⟨LR, LocalTableau.fromRule
     (@AppLocalTableau.mk LR.1 LR.2 C lrApp subtabs)⟩ = (C.attach.map (fun ⟨c, c_in⟩  =>
       endNodesOf ⟨c, subtabs c c_in⟩) ).join :=
-    by sorry
+  by
+  simp only [endNodesOf, getSubTabs]
 
 theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOfTNode Z ≤ lengthOfTNode LR :=
   by
