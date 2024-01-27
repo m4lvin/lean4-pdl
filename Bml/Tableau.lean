@@ -830,48 +830,6 @@ theorem atmRuleRDecreasesLength {L R : Finset Formula} {φ} :
           _ < lengthOfSet L + lengthOfSet R := by apply Nat.add_lt_add_left lengthR
           _ = lengthOfTNode (L, R) := by rw [lengthOfTNode]
 
-
-def existsLocalTableauFor LR : Nonempty (LocalTableau LR) :=
-  by
-    cases em ¬(∃ Lcond Rcond C, Nonempty (LocalRule (Lcond, Rcond) C))
-    case inl canApplyRule =>
-      constructor
-      apply LocalTableau.fromSimple
-      by_contra hyp
-      have := notSimpleThenLocalRule hyp
-      aesop
-    case inr canApplyRule =>
-      simp at canApplyRule
-      cases' canApplyRule with B r_exists
-      cases' r_exists with r
-      cases r
-      sorry
-      -- case bot h =>
-      --   use (LocalTableau.byLocalRule (LocalRule.bot h) ?_)
-      --   intro Y; intro Y_in_empty; tauto
-      -- case Not h =>
-      --   use (LocalTableau.byLocalRule (LocalRule.Not h) ?_)
-      --   intro Y; intro Y_in_empty; tauto
-      -- case neg f h =>
-      --   use (LocalTableau.byLocalRule (LocalRule.neg h) ?_)
-      --   intro Y Y_def
-      --   have := localRulesDecreaseLength (LocalRule.neg h) Y Y_def
-      --   apply Classical.choice (existsLocalTableauFor Y)
-      -- case Con f g h =>
-      --   use (LocalTableau.byLocalRule (LocalRule.Con h) ?_)
-      --   intro Y Y_def
-      --   have := localRulesDecreaseLength (LocalRule.Con h) Y Y_def
-      --   apply Classical.choice (existsLocalTableauFor Y)
-      -- case nCo f g h =>
-      --   use (LocalTableau.byLocalRule (LocalRule.nCo h) ?_)
-      --   intro Y Y_def
-      --   have := localRulesDecreaseLength (LocalRule.nCo h) Y Y_def
-      --   apply Classical.choice (existsLocalTableauFor Y)
-
-    -- termination_by
-    --   existsLocalTableauFor α => lengthOf α
-
-
 open LocalTableau
 
 -- needed for endNodesOf
@@ -937,7 +895,7 @@ theorem endNodesOfLocalRuleLT {LR Z} {appTab : AppLocalTableau LR C} :
 
 -- Definition 16, page 29
 -- Notes:
--- - "loc" uses AppLocalTableau, not "LocalTableau" to avoid infinite use of "LocalTableau.fromSimple".
+-- - "loc" uses AppLocalTableau, not "LocalTableau", to avoid infinite use of "LocalTableau.fromSimple".
 -- - base case for simple tableaux is part of "atm" which can be applied to L or to R.
 inductive ClosedTableau : TNode → Type
   | loc {LR} (appTab : AppLocalTableau LR C) : (next : ∀ Y ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩, ClosedTableau Y) → ClosedTableau LR
@@ -973,3 +931,30 @@ noncomputable def aLocalTableauFor (LR: TNode) : LocalTableau LR :=
     simp_wf; assumption
 
 instance : Nonempty (LocalTableau LR) := Nonempty.intro (aLocalTableauFor LR)
+
+-- This is not used, because `aLocalTableauFor` already does the job.
+theorem existsLocalTableauFor LR : Nonempty (LocalTableau LR) :=
+  by
+    cases em ¬(∃ Lcond Rcond C, Nonempty (LocalRule (Lcond, Rcond) C) ∧ Lcond ⊆ LR.1 ∧ Rcond ⊆ LR.2)
+    case inl canApplyRule =>
+      constructor
+      apply LocalTableau.fromSimple
+      by_contra hyp
+      have := notSimpleThenLocalRule hyp
+      aesop
+    case inr canApplyRule =>
+      rw [not_not] at canApplyRule
+      rcases canApplyRule with ⟨LCond, RCond, C, lr_exists, preconL, preconR⟩
+      cases' lr_exists with lr
+      constructor
+      apply LocalTableau.fromRule
+      apply AppLocalTableau.mk
+      apply LocalRuleApp.mk C LCond RCond lr ⟨preconL, preconR⟩
+      use applyLocalRule lr (LR.1, LR.2)
+      rfl
+      intro c c_in
+      let ruleA := @LocalRuleApp.mk LR.1 LR.2 (applyLocalRule lr (LR.1, LR.2)) _ LCond RCond lr rfl ⟨preconL, preconR⟩
+      have := localRuleAppDecreasesLength ruleA c c_in
+      apply Classical.choice (existsLocalTableauFor c)
+termination_by
+  existsLocalTableauFor LR => lengthOf LR
