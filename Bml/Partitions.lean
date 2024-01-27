@@ -143,6 +143,102 @@ theorem InterpolantInductionStep
         · apply negation_not_cosatisfiable (~φ) <;> aesop
         . apply negation_not_cosatisfiable (φ)  <;> aesop
 
+-- Four (annoyingly similar) helper theorems for the modal cases in tabToInt.
+
+theorem projection_reflects_unsat_L_L
+    {LR : TNode} {φ : Formula}
+    (nBoxφ_in_L : ~(□φ) ∈ LR.1)
+    (notSatNotTheta : ¬Satisfiable ((diamondProjectTNode (Sum.inl φ) LR).1 ∪ {~θ}))
+    : ¬Satisfiable (LR.1 ∪ {□~θ}) :=
+  by
+  rintro ⟨W,M,w,sat⟩
+  have := sat (~(□φ)) (by simp; tauto)
+  simp at this
+  rcases this with ⟨v,w_v,v_nPhi⟩
+  absurd notSatNotTheta
+  use W, M, v
+  intro f f_in
+  simp at f_in
+  cases f_in
+  case inl => aesop
+  case inr f_in =>
+    have := sat (□f)
+    let (L, R) := LR
+    simp [diamondProjectTNode] at f_in
+    cases f_in
+    case inl => aesop
+    case inr hyp => rw [proj] at hyp; aesop
+
+theorem projection_reflects_unsat_L_R
+    {LR : TNode} {φ : Formula}
+    (nBoxφ_in_L : ~(□φ) ∈ LR.1)
+    (notSatNotTheta : ¬Satisfiable ((diamondProjectTNode (Sum.inl φ) LR).2 ∪ {θ}))
+    : ¬Satisfiable (LR.2 ∪ {~(□~θ)}) :=
+  by
+  rintro ⟨W,M,w,sat⟩
+  have := sat (~(□~θ)) (by simp)
+  simp at this
+  rcases this with ⟨v,w_v,v_nPhi⟩
+  absurd notSatNotTheta
+  use W, M, v
+  intro f f_in
+  simp at f_in
+  cases f_in
+  case inl => aesop
+  case inr f_in =>
+    have := sat (□f)
+    let (L, R) := LR
+    simp [diamondProjectTNode] at f_in
+    rw [proj] at f_in; aesop
+
+theorem projection_reflects_unsat_R_L
+    {LR : TNode} {φ : Formula}
+    (nBoxφ_in_R : ~(□φ) ∈ LR.2)
+    (notSatNotTheta : ¬Satisfiable ((diamondProjectTNode (Sum.inr φ) LR).1 ∪ {~θ}))
+    : ¬Satisfiable (LR.1 ∪ {~(□θ)}) :=
+  by
+  rintro ⟨W,M,w,sat⟩
+  have := sat (~(□θ)) (by simp)
+  simp at this
+  rcases this with ⟨v,w_v,v_nPhi⟩
+  absurd notSatNotTheta
+  use W, M, v
+  intro f f_in
+  simp at f_in
+  cases f_in
+  case inl => aesop
+  case inr f_in =>
+    have := sat (□f)
+    let (L, R) := LR
+    simp [diamondProjectTNode] at f_in
+    rw [proj] at f_in
+    aesop
+
+theorem projection_reflects_unsat_R_R
+    {LR : TNode} {φ : Formula}
+    (nBoxφ_in_R : ~(□φ) ∈ LR.2)
+    (notSatNotTheta : ¬Satisfiable ((diamondProjectTNode (Sum.inr φ) LR).2 ∪ {θ}))
+    : ¬Satisfiable (LR.2 ∪ {□θ}) :=
+  by
+  rintro ⟨W,M,w,sat⟩
+  have := sat (~(□φ)) (by simp; tauto)
+  simp at this
+  rcases this with ⟨v,w_v,v_nPhi⟩
+  absurd notSatNotTheta
+  use W, M, v
+  intro f f_in
+  simp at f_in
+  cases f_in
+  case inl => aesop
+  case inr f_in =>
+    have := sat (□f)
+    let (L, R) := LR
+    simp [diamondProjectTNode] at f_in
+    rw [proj] at f_in
+    cases f_in
+    case inl hyp => subst hyp; simp; exact v_nPhi
+    case inr => simp at this; apply this (by right; assumption) v w_v
+
 theorem tabToInt {LR : TNode} (tab : ClosedTableau LR)
 : PartInterpolant LR := by
   induction tab
@@ -165,21 +261,22 @@ theorem tabToInt {LR : TNode} (tab : ClosedTableau LR)
     <| endθs
     )
   case atmL LR φ nBoxφ_in_L simple_LR cTabProj pθ =>
-    use ~(□~pθ.val)
+    use ~(□~pθ.val) -- modal rule on the right: use diamond of interpolant!
     constructor
     · -- voc property
       intro ℓ ℓ_in_θ
       exact diamondproj_does_not_increase_vocab_L nBoxφ_in_L (pθ.property.left ℓ_in_θ)
     · constructor -- implication property
-      · exact projection_reflects_unsat_L pθ.2.2.1
-      · exact projection_reflects_unsat_R pθ.2.2.2
+      · rw [sat_double_neq_invariant]
+        exact projection_reflects_unsat_L_L nBoxφ_in_L pθ.2.2.1
+      · exact projection_reflects_unsat_L_R nBoxφ_in_L pθ.2.2.2
   -- dual to atmL
   case atmR LR φ nBoxφ_in_R simple_LR cTabProj pθ =>
-    use ~(□~pθ.val)
+    use (□pθ.val) -- modal rule on the right: use box of interpolant!
     constructor
     · -- voc property
       intro ℓ ℓ_in_θ
       exact diamondproj_does_not_increase_vocab_R nBoxφ_in_R (pθ.property.left ℓ_in_θ)
     · constructor -- implication property
-      · exact projection_reflects_unsat_L pθ.2.2.1
-      · exact projection_reflects_unsat_R pθ.2.2.2
+      · exact projection_reflects_unsat_R_L nBoxφ_in_R pθ.2.2.1
+      · exact projection_reflects_unsat_R_R nBoxφ_in_R pθ.2.2.2

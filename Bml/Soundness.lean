@@ -5,8 +5,6 @@ import Bml.Tableau
 
 open Classical
 
--- attribute [local instance 10] prop_decidable -- delete me?
-
 open HasSat
 
 -- Combine a collection of pointed models with one new world using the given valuation.
@@ -46,8 +44,6 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W ×
   · -- point at the new world:
     left
     exact ()
-
-
 
 -- The combined model preserves all truths at the old worlds.
 theorem combMo_preserves_truth_at_oldWOrld {β : Type}
@@ -301,7 +297,6 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
           tauto
       simp
 
-
 theorem localRuleSoundness
     (M : KripkeModel W)
     (w : W)
@@ -336,7 +331,6 @@ theorem localRuleSoundness
               <;> aesop)
         | aesop)
 
--- I think this function is redundant now
 theorem ruleImpliesChildSat
     {C : List TNode}
     {LR : TNode}
@@ -448,12 +442,6 @@ theorem localTableauAndEndNodesUnsatThenNotSat (LR : TNode) {ltLR : LocalTableau
     simp
 termination_by
   localTableauAndEndNodesUnsatThenNotSat LR _ _  => lengthOfTNode LR
-
--- TODO: proper preconditions (e.g. nBox phi in L etc)
--- add what is needed, and modify their use in Partitions accordingly
-lemma projection_reflects_unsat_L : ¬Satisfiable ((diamondProjectTNode X LR).1 ∪ {~θ}) → ¬Satisfiable (LR.1 ∪ {~~(□~θ)}) := sorry
-lemma projection_reflects_unsat_R : ¬Satisfiable ((diamondProjectTNode X LR).2 ∪ { θ}) → ¬Satisfiable (LR.2 ∪ { ~(□~θ)}) := sorry
-
 
 theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
   by
