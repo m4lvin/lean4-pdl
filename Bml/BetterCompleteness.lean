@@ -258,39 +258,171 @@ theorem pathSaturated (path : Path consLR): Saturated (pathToFinset path) := by
             cases IH3
             all_goals simp_all
 
-theorem pathConsistent (path : Path TN): ⊥ ∉ pathToFinset path ∧ ∀ P, P ∈ pathToFinset path → ~P ∉ pathToFinset path := by
+theorem consistentImplies : Consistent (L,R) → ⊥ ∉ L ∪ R ∧ ∀ P, (P ∈ L → ~P ∉ L) ∧ (P ∈ R → ~P ∈ R)  := by sorry
+  /-intro consX
+  unfold Consistent Inconsistent at consX
+  simp at consX
+  constructor
+  · by_contra bot_in_X
+    let tab := byLocalRule (bot bot_in_X) (by aesop)
+    have closedTab := ClosedTableau.loc tab (by aesop)
+    exact IsEmpty.false closedTab
+  · intro P
+    by_contra h
+    simp at h
+    let tab := byLocalRule (Not h) (by aesop)
+    have closedTab := ClosedTableau.loc tab (by aesop)
+    exact IsEmpty.false closedTab-/
+
+/-theorem unionWithConsistentChildConsistent
+  (LR_cons : Consistent (L,R))
+  (LR'_cons: Consistent LR')
+  (appTab: AppLocalTableau (L,R) C)
+  (LR'_in: (L',R') ∈ C)
+  : Consistent ((L, R) ∪ (L',R')) := by
+  unfold Consistent Inconsistent instTNodeUnion at *
+  rcases appTab with ⟨lrApp, next⟩
+  rcases lrApp with ⟨ress,Lcond, Rcond, lr, Lcond_in, R_cond_in⟩
+  rename_i C_eq
+  subst C_eq
+  simp
+  by_contra h
+  simp at h
+  have unionCTab := Classical.choice h
+  cases unionCTab
+  case loc =>
+    cases lr
+    case oneSidedL => sorry
+    case oneSidedR => sorry
+    all_goals simp_all
+  case atmL simpUnion _ =>
+    unfold Simple SimpleSet at simpUnion
+    simp_all!
+    rcases simpUnion with ⟨simpUnionL, simpUnionR⟩
+    cases lr
+    case oneSidedL orule =>
+      cases orule
+      case neg φ =>
+        specialize simpUnionL (~~φ)
+        simp_all
+      case con φ ψ =>
+        specialize simpUnionL (φ ⋀ ψ)
+        simp_all
+      case ncon => sorry
+      all_goals simp_all
+    case oneSidedR => sorry
+    all_goals simp_all
+  case atmR => sorry-/
+
+theorem botTableauL (bot_in: ⊥ ∈ LR.1): ClosedTableau LR := by
+  apply ClosedTableau.loc
+  case appTab =>
+    apply AppLocalTableau.mk
+    apply LocalRuleApp.mk _ {⊥} {} (LocalRule.oneSidedL OneSidedLocalRule.bot)
+    simp_all
+    use []
+    simp
+    aesop
+  case next => aesop
+
+theorem botTableauR (bot_in: ⊥ ∈ LR.2): ClosedTableau LR := by
+  apply ClosedTableau.loc
+  case appTab =>
+    apply AppLocalTableau.mk
+    apply LocalRuleApp.mk _ {} {⊥} (LocalRule.oneSidedR OneSidedLocalRule.bot)
+    simp_all
+    use []
+    simp
+    aesop
+  case next => aesop
+
+theorem notTableauLL (pp_in: (·pp) ∈ LR.1) (npp_in: (~·pp) ∈ LR.1): ClosedTableau LR := by
+  apply ClosedTableau.loc
+  case appTab =>
+    apply AppLocalTableau.mk
+    apply LocalRuleApp.mk _ {·pp,~·pp} {} (LocalRule.oneSidedL (OneSidedLocalRule.not (·pp)))
+    simp_all [Finset.subset_iff]
+    use []
+    simp
+    aesop
+  case next => aesop
+
+theorem notTableauLR (pp_in: (·pp) ∈ LR.1) (npp_in: (~·pp) ∈ LR.2): ClosedTableau LR := by
+  apply ClosedTableau.loc
+  case appTab =>
+    apply AppLocalTableau.mk
+    apply LocalRuleApp.mk _ {·pp} {~·pp} (LocalRule.LRnegL (·pp))
+    simp_all [Finset.subset_iff]
+    use []
+    simp
+    aesop
+  case next => aesop
+
+theorem notTableauRL (pp_in: (·pp) ∈ LR.2) (npp_in: (~·pp) ∈ LR.1): ClosedTableau LR := by
+  apply ClosedTableau.loc
+  case appTab =>
+    apply AppLocalTableau.mk
+    apply LocalRuleApp.mk _ {~·pp} {·pp} (LocalRule.LRnegR (·pp))
+    simp_all [Finset.subset_iff]
+    use []
+    simp
+    aesop
+  case next => aesop
+
+theorem notTableauRR (pp_in: (·pp) ∈ LR.2) (npp_in: (~·pp) ∈ LR.2): ClosedTableau LR := by
+  apply ClosedTableau.loc
+  case appTab =>
+    apply AppLocalTableau.mk
+    apply LocalRuleApp.mk _ {} {·pp,~·pp} (LocalRule.oneSidedR (OneSidedLocalRule.not (·pp)))
+    simp_all [Finset.subset_iff]
+    use []
+    simp
+    aesop
+  case next => aesop
+
+theorem pathConsistent (path : Path TN): ⊥ ∉ pathToFinset path ∧ ∀ (pp: Char), (·pp)  ∈ pathToFinset path → ~(·pp) ∉ pathToFinset path := by
   induction path
-  case endNode LR consistentX simpleX =>
-      unfold Consistent Inconsistent at consistentX
-      simp at consistentX
+  case endNode LR consistentLR simpleLR =>
+      unfold Consistent Inconsistent at consistentLR
+      simp at consistentLR
       constructor
       · by_contra bot_in
         simp at bot_in
         cases bot_in
-        · case inl bot_in =>
-          have rule := LocalRule.oneSidedL OneSidedLocalRule.bot
-          have h1 : ∅ = applyLocalRule rule LR := by aesop
-          have h2 : {⊥} ⊆ LR.1 ∧ ∅ ⊆ LR.2 := by aesop
-          have appTab := @LocalRuleApp.mk _ _ ∅ _ _ _ rule h1 h2
-          have tab := fromRule (AppLocalTableau.mk appTab sorry)
-          have closedTab : ClosedTableau LR := sorry -- ClosedTableau.loc tab (by aesop)
-          exact IsEmpty.false closedTab
-        · sorry
-      · simp
-        intro f f_in_X
-        by_contra nf_in_X
-        let tab: AppLocalTableau LR ∅ := sorry -- byLocalRule (Not ⟨f_in_X, nf_in_X⟩) (by aesop)
-        have closedTab := ClosedTableau.loc tab (by sorry)
-        exact IsEmpty.false closedTab
-  case interNode B X Y locRule Y_in pathY IH =>
-    simp
+        case inl bot_in =>
+          exact IsEmpty.false (botTableauL bot_in)
+        case inr bot_in =>
+          exact IsEmpty.false (botTableauR bot_in)
+      · intro pp pp_in
+        by_contra npp_in
+        simp_all
+        cases pp_in
+        case inl pp_in =>
+          cases npp_in
+          case inl npp_in =>
+            exact IsEmpty.false (notTableauLL pp_in npp_in)
+          case inr npp_in =>
+            exact IsEmpty.false (notTableauLR pp_in npp_in)
+        case inr pp_in =>
+          cases npp_in
+          case inl npp_in =>
+            exact IsEmpty.false (notTableauRL pp_in npp_in)
+          case inr npp_in =>
+            exact IsEmpty.false (notTableauRR pp_in npp_in)
+  case interNode LR C LR' LR'_cons LR_cons appTab LR'_in tail IH =>
+    unfold Consistent Inconsistent at *
+    simp at LR'_cons LR_cons
     constructor
-    · by_contra h1
-      rcases h1
-      case inl bot_in => sorry
-      case inr bot_in => sorry
-    · intro f f_in
+    · by_contra h
+      simp_all
+      cases h
+      case inl bot_in =>
+        exact IsEmpty.false (botTableauL bot_in)
+      case inr bot_in =>
+        exact IsEmpty.false (botTableauR bot_in)
+    · intro pp pp_in
       by_contra h
+      simp_all
       sorry
 
 theorem pathProjection (path: Path consLR): projection (pathToFinset path) ⊆ projection (toFinset (endNodeOf path)) := by
@@ -496,21 +628,3 @@ theorem singletonCompleteness : ∀ φ, Consistent ({φ},{}) ↔ Satisfiable φ 
   have := completeness ({f},{})
   simp only [singletonSat_iff_sat] at *
   aesop
-
-/-
-theorem consistentImplies : Consistent X → ⊥ ∉ X ∧ ∀ P, P ∈ X → ~P ∉ X := by
-  intro consX
-  unfold Consistent Inconsistent at consX
-  simp at consX
-  constructor
-  · by_contra bot_in_X
-    let tab := byLocalRule (bot bot_in_X) (by aesop)
-    have closedTab := ClosedTableau.loc tab (by aesop)
-    exact IsEmpty.false closedTab
-  · intro P
-    by_contra h
-    simp at h
-    let tab := byLocalRule (Not h) (by aesop)
-    have closedTab := ClosedTableau.loc tab (by aesop)
-    exact IsEmpty.false closedTab
--/

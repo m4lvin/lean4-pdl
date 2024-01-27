@@ -13,7 +13,7 @@ def Saturated : Finset Formula → Prop
 @[simp]
 def ModelGraph (Worlds : Set (Finset Formula)) :=
   let W := Subtype fun x => x ∈ Worlds
-  let i := ∀ X : W, Saturated X.val ∧ ⊥ ∉ X.val ∧ ∀ P, P ∈ X.val → ~P ∉ X.val
+  let i := ∀ X : W, Saturated X.val ∧ ⊥ ∉ X.val ∧ ∀ (pp : Char), (·pp) ∈ X.val → ~(·pp) ∉ X.val
   let ii := fun M : KripkeModel W => ∀ (X : W) (pp), (·pp) ∈ X.val ↔ M.val X pp
   let iii :=-- Note: Borzechowski only has → in ii. We follow BRV, Def 4.18 and 4.84.
   fun M : KripkeModel W => ∀ (X Y : W) (P), M.Rel X Y → □P ∈ X.val → P ∈ Y.val
@@ -47,7 +47,7 @@ theorem truthLemma {Worlds : Set (Finset Formula)} (MG : ModelGraph Worlds) :
       · intro P_in_X; unfold Evaluate; rw [ii X pp] at P_in_X ; exact P_in_X
       · intro notP_in_X; unfold Evaluate; rw [← ii X pp]
         rcases i X with ⟨_, _, P_in_then_notP_not_in⟩
-        specialize P_in_then_notP_not_in (·pp); tauto
+        specialize P_in_then_notP_not_in pp; tauto
       · intro boxPp_in_X Y X_rel_Y; exact iii X Y (·pp) X_rel_Y boxPp_in_X
     case neg P IH =>
       rcases IH X with ⟨plus_IH, minus_IH, _⟩
