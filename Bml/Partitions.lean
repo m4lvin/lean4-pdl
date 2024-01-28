@@ -58,9 +58,13 @@ theorem InterpolantInductionStep
           have L_and_bigC_sat : Satisfiable ((L, R).1 ∪ {(~~bigCon (List.map (fun x => ~x) interList))}) :=
             by
               rcases L_and_nθ_sat with ⟨W, M, w, sat⟩
-              have evalDis : Evaluate (M, w) (~bigDis interList) := by aesop
+              have evalDis : Evaluate (M, w) (~bigDis interList) := sat (~bigDis interList) (by simp)
               rw [eval_neg_BigDis_iff_eval_bigConNeg] at evalDis
-              aesop
+              simp
+              use W, M, w
+              constructor
+              · simp at evalDis; apply evalDis
+              · intro φ φ_in_L; apply sat; simp[φ_in_L]
           have L_and_nθi_sat : ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ {~~(bigCon <| interList.map (~·))}) :=
             oneSidedRule_implies_child_sat_L def_ruleA def_rule L_and_bigC_sat
           have L_and_nθi_sat : ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ {(bigCon <| interList.map (~·))}) :=
@@ -95,13 +99,13 @@ theorem InterpolantInductionStep
           have L_and_bigD_sat : Satisfiable ((L, R).1 ∪ {(bigDis (List.map (fun x => ~x) interList))}) :=
             by
               rcases L_and_nθ_sat with ⟨W, M, w, sat⟩
-              have evalCon : Evaluate (M, w) (~(bigCon interList)) := by aesop
+              have evalCon : Evaluate (M, w) (~(bigCon interList)) := sat (~bigCon interList) (by simp)
               rw [eval_negBigCon_iff_eval_bigDisNeg] at evalCon
               use W; use M; use w
               intro φ hyp
               rw [Finset.mem_union] at hyp
               cases' hyp with left right
-              · apply sat; aesop
+              · apply sat; apply Finset.mem_union_left; exact left
               · rw [Finset.mem_singleton] at right
                 rw [right]
                 assumption
@@ -126,9 +130,15 @@ theorem InterpolantInductionStep
       · intro ℓ ℓinφ
         simp at ℓinφ; simp
         constructor
-        · use  φ; constructor <;> aesop
-        · use ~φ; constructor <;> aesop
-      · constructor <;> apply negation_not_cosatisfiable φ <;> aesop
+        · use  φ; constructor
+          · exact preproof.left <| Finset.mem_singleton.mpr rfl
+          . exact ℓinφ
+        · use ~φ; constructor
+          · exact preproof.right <| Finset.mem_singleton.mpr rfl
+          . exact ℓinφ
+      · constructor <;> apply negation_not_cosatisfiable φ <;> simp
+        · apply Or.intro_right; exact preproof.left <| Finset.mem_singleton.mpr rfl
+        · exact preproof.right <| Finset.mem_singleton.mpr rfl
 
     -- LRNEG R: perfectly dual to LRNEG l
     | LRnegR φ =>
@@ -137,11 +147,17 @@ theorem InterpolantInductionStep
       · intro ℓ ℓinφ
         simp at ℓinφ; simp
         constructor
-        · use ~φ; constructor <;> aesop
-        · use  φ; constructor <;> aesop
+        · use  ~φ; constructor
+          · exact preproof.left <| Finset.mem_singleton.mpr rfl
+          . exact ℓinφ
+        · use φ; constructor
+          · exact preproof.right <| Finset.mem_singleton.mpr rfl
+          . exact ℓinφ
       · constructor
-        · apply negation_not_cosatisfiable (~φ) <;> aesop
-        . apply negation_not_cosatisfiable (φ)  <;> aesop
+        · apply negation_not_cosatisfiable (~φ) <;> simp
+          apply Or.intro_right; exact preproof.left <| Finset.mem_singleton.mpr rfl
+        · apply negation_not_cosatisfiable φ <;> simp
+          apply Or.intro_right; exact preproof.right <| Finset.mem_singleton.mpr rfl
 
 -- Four (annoyingly similar) helper theorems for the modal cases in tabToInt.
 
