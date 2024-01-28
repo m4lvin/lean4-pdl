@@ -10,7 +10,6 @@ theorem noBot : Provable (~⊥) := by
   apply ClosedTableau.loc
   case a.lt =>
     apply LocalTableau.fromRule
-    apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {~~⊥} {} (LocalRule.oneSidedL (OneSidedLocalRule.neg ⊥))
     · simp
     use applyLocalRule (LocalRule.oneSidedL (OneSidedLocalRule.neg ⊥)) ({~~⊥}, ∅)
@@ -20,7 +19,7 @@ theorem noBot : Provable (~⊥) := by
       simp  at c_in
       subst c_in
       let ltBot : LocalTableau ({⊥},∅) := by
-        apply LocalTableau.fromRule; apply AppLocalTableau.mk
+        apply LocalTableau.fromRule
         apply LocalRuleApp.mk _ {⊥} {} (LocalRule.oneSidedL (OneSidedLocalRule.bot))
         · simp
         use []
@@ -38,21 +37,19 @@ theorem noContradiction : Provable (~(p⋀~p)) :=
   apply ClosedTableau.loc
   case a.lt =>
     apply LocalTableau.fromRule
-    apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {~~(p⋀~p)} {} (LocalRule.oneSidedL (OneSidedLocalRule.neg (p⋀~p)))
     all_goals (try simp; try rfl) -- easier than guessing "use applyLocalRule ..."
     · intro c c_in
       simp at c_in
       subst c_in -- unique child node
       let ltB : LocalTableau ({p⋀~p},∅) := by
-        apply LocalTableau.fromRule; apply AppLocalTableau.mk
+        apply LocalTableau.fromRule
         apply LocalRuleApp.mk _ {p⋀~p} {} (LocalRule.oneSidedL (OneSidedLocalRule.con p (~p)))
         · simp
         all_goals (try rfl)
         intro c c_in; simp at c_in; subst c_in -- unique child node
         let ltC : LocalTableau ({p, ~p}, ∅) := by
           apply LocalTableau.fromRule
-          apply AppLocalTableau.mk
           apply LocalRuleApp.mk _ {p, ~p} {} (LocalRule.oneSidedL (OneSidedLocalRule.not p))
           simp
           use [] -- claim that there are no more children
@@ -74,12 +71,11 @@ def subTabForEx2 : ClosedTableau ({·'r', ~(□p), □(p⋀q)}, {}) :=
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
-    apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {p⋀q} {} (LocalRule.oneSidedL (OneSidedLocalRule.con p q))
     all_goals (try simp; try rfl)
     · intro c c_in; simp at c_in; subst c_in -- unique child node
       let ltB : LocalTableau ({p, q, ~p}, ∅) := by
-        apply LocalTableau.fromRule; apply AppLocalTableau.mk
+        apply LocalTableau.fromRule
         apply LocalRuleApp.mk _ {p, ~p} {} (LocalRule.oneSidedL (OneSidedLocalRule.not p))
         · simp
           intro f
@@ -102,12 +98,11 @@ example : ClosedTableau ({r⋀~(□p), r↣□(p⋀q)}, {}) :=
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
-    apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {r⋀~(□p)} {} (LocalRule.oneSidedL (OneSidedLocalRule.con r (~(□p))))
     all_goals (try simp; try rfl)
     · intro c c_in; simp at c_in; subst c_in -- unique child node
       let ltB : LocalTableau ({r, ~(□p), ~(r⋀~(□(p⋀q)))}, ∅) := by
-        apply LocalTableau.fromRule; apply AppLocalTableau.mk
+        apply LocalTableau.fromRule
         apply LocalRuleApp.mk _ {~(r⋀~(□(p⋀q)))} {} (LocalRule.oneSidedL (OneSidedLocalRule.ncon r (~(□(p⋀q)))))
         · simp
         · exact [ ({r, ~(□p), ~(r)},{}), ({r, ~(□p), ~~(□(p⋀q))},{}) ]
@@ -119,7 +114,7 @@ example : ClosedTableau ({r⋀~(□p), r↣□(p⋀q)}, {}) :=
           case pos c_def =>
             subst c_def
             -- first branch, apply "not"
-            apply LocalTableau.fromRule; apply AppLocalTableau.mk
+            apply LocalTableau.fromRule
             apply LocalRuleApp.mk _ {r, ~r} {} (LocalRule.oneSidedL (OneSidedLocalRule.not r))
             · simp
             · exact [] -- claim there are no children
@@ -129,7 +124,7 @@ example : ClosedTableau ({r⋀~(□p), r↣□(p⋀q)}, {}) :=
             have c_def : c = ({r, ~(□p), ~~(□(p⋀q))},{}) := by aesop
             subst c_def
             -- second branch, apply "neg" and then modal step!
-            apply LocalTableau.fromRule; apply AppLocalTableau.mk
+            apply LocalTableau.fromRule
             apply LocalRuleApp.mk _ {~~(□(p⋀q))} {} (LocalRule.oneSidedL (OneSidedLocalRule.neg (□(p⋀q))))
             all_goals (try simp; try rfl)
             intro c c_in; simp at c_in; subst c_in -- unique child node

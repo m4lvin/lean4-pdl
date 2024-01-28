@@ -420,26 +420,16 @@ lemma LocalRuleUniqueR
   all_goals simp_all
 
 mutual
-inductive AppLocalTableau : TNode → List TNode → Type
-  | mk {L R : Finset Formula} {C : List TNode}
-       (ruleA : LocalRuleApp (L,R) C)
-       (subTabs: (Π c ∈ C, LocalTableau c))
-       : AppLocalTableau (L, R) C
 
 inductive LocalTableau : TNode → Type
-  | fromRule {C : List TNode}  (appTab : AppLocalTableau LR C) : LocalTableau LR
+  | fromRule
+      {LR : TNode}
+      {C : List TNode}
+      (ruleA : LocalRuleApp LR C)
+      (subTabs: (Π c ∈ C, LocalTableau c))
+      : LocalTableau LR
   | fromSimple (isSimple : Simple LR) : LocalTableau LR
 end
-
-def getTabRule : AppLocalTableau LR C → Σ Lcond Rcond C, LocalRule (Lcond,Rcond) C
-  | AppLocalTableau.mk (LocalRuleApp.mk B Lcond Rcond rule _) _ => ⟨Lcond, Rcond, B, rule⟩
-
-def getTabChildren : AppLocalTableau LR C →  List TNode
-  | @AppLocalTableau.mk _ _ C _ _ => C
-
-@[simp]
-def getSubTabs : (AppLocalTableau LR C) → (Π c ∈ C, LocalTableau c) :=
-  λ ⟨_, subTabs⟩ => subTabs
 
 -- If X is not simple, then a local rule can be applied.
 -- (page 13)
@@ -750,14 +740,14 @@ theorem localRuleAppDecreasesLength
           by have := localRuleAppDecreasesLengthSide R Rcond res.2 hyp.1 precondProofR; aesop
       _ = lengthOfTNode (L, R) := by simp
 
-theorem AppLocalTableau.DecreasesLength
-  (appTab : AppLocalTableau LR C)
-  (c_in : c ∈ C) :
-  lengthOfTNode c < lengthOfTNode LR :=
-  by
-  rcases appTab with ⟨lrApp, next⟩
-  have := localRuleAppDecreasesLength lrApp
-  aesop
+-- theorem AppLocalTableau.DecreasesLength
+--   (appTab : AppLocalTableau LR C)
+--   (c_in : c ∈ C) :
+--   lengthOfTNode c < lengthOfTNode LR :=
+--   by
+--   rcases appTab with ⟨lrApp, next⟩
+--   have := localRuleAppDecreasesLength lrApp
+--   aesop
 
 -- Lift definition of projection to TNodes, including the diamond formula left or right.
 def diamondProjectTNode : Sum Formula Formula → TNode → TNode
@@ -871,10 +861,10 @@ instance localTableauHasLength : HasLength (Σ LR, LocalTableau LR) :=
 
 -- open end nodes of a given localTableau
 def endNodesOf : (Σ LR, LocalTableau LR) → List TNode
-  | ⟨LR, @LocalTableau.fromRule _ C (appTab : AppLocalTableau LR C)⟩ =>
+  | ⟨LR, @LocalTableau.fromRule _ C ruleA subTabs⟩ =>
     (C.attach.map fun ⟨c, c_in⟩ =>
-      have tc : LocalTableau c := getSubTabs appTab c c_in
-      have : lengthOfTNode c < lengthOfTNode LR := AppLocalTableau.DecreasesLength appTab c_in
+      have tc : LocalTableau c := subTabs c c_in
+      have : lengthOfTNode c < lengthOfTNode LR := localRuleAppDecreasesLength ruleA c c_in
       endNodesOf ⟨c, tc⟩
       ).join
   | ⟨LR, LocalTableau.fromSimple _⟩ => [LR]
@@ -887,19 +877,17 @@ theorem endNodesOfSimple : endNodesOf ⟨ LR, LocalTableau.fromSimple hyp ⟩ = 
   simp only [endNodesOf]
 
 @[simp]
-theorem lrEndNodes {LR C subtabs lrApp} :
-    endNodesOf ⟨LR, LocalTableau.fromRule
-    (@AppLocalTableau.mk LR.1 LR.2 C lrApp subtabs)⟩ = (C.attach.map (fun ⟨c, c_in⟩  =>
-      endNodesOf ⟨c, subtabs c c_in⟩) ).join :=
+theorem lrEndNodes {LR : TNode} {C : List TNode} {ruleA} {subTabs} :
+    endNodesOf ⟨LR, LocalTableau.fromRule ruleA subTabs⟩
+    = (C.attach.map (fun ⟨c, c_in⟩ => endNodesOf ⟨c, subTabs c c_in⟩)).join :=
   by
-  simp only [endNodesOf, getSubTabs]
+  simp only [endNodesOf]
 
 theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOfTNode Z ≤ lengthOfTNode LR :=
   by
   cases ltLR
-  case fromRule altLR =>
+  case fromRule altLR subTabs lrApp =>
     intro Z_endOf_LR
-    let ⟨lrApp, next⟩ := altLR
     simp at Z_endOf_LR
     rcases Z_endOf_LR with ⟨ZS, ⟨c, c_in_C, endNodes_c_eq_ZS⟩, Z_in_ZS⟩
     subst endNodes_c_eq_ZS
@@ -915,18 +903,17 @@ theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOf
 termination_by
   endNodesOfLEQ LT   => lengthOfTNode LR
 
-theorem endNodesOfLocalRuleLT {LR Z} {appTab : AppLocalTableau LR C} :
-    Z ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩ → lengthOfTNode Z < lengthOfTNode LR :=
+theorem endNodesOfLocalRuleLT :
+    Z ∈ endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩ → lengthOfTNode Z < lengthOfTNode LR :=
   by
   intro Z_endOf_LR
-  cases' appTab with L R _ lrApp next
   simp at Z_endOf_LR
   rcases Z_endOf_LR with ⟨ZS, ⟨c, c_in_C, endNodes_c_eq_ZS⟩, Z_in_ZS⟩
   subst endNodes_c_eq_ZS
   have := localRuleAppDecreasesLength lrApp c c_in_C -- for termination and below!
   · calc
       lengthOfTNode Z ≤ lengthOfTNode c := endNodesOfLEQ Z_in_ZS
-      _ < lengthOfTNode (L,R) := this
+      _ < lengthOfTNode LR := this
 
 -- Definition 16, page 29
 -- Notes:
@@ -957,7 +944,7 @@ noncomputable def aLocalTableauFor (LR: TNode) : LocalTableau LR :=
   then LocalTableau.fromSimple h_simple
   else
     let ⟨C, ruleA⟩ := notSimpleToRuleApp h_simple
-    LocalTableau.fromRule <| AppLocalTableau.mk ruleA <| (λc c_in_C =>
+    LocalTableau.fromRule ruleA <| (λc c_in_C =>
       have := localRuleAppDecreasesLength ruleA c c_in_C -- for termination
       aLocalTableauFor c)
   termination_by
@@ -983,7 +970,6 @@ theorem existsLocalTableauFor LR : Nonempty (LocalTableau LR) :=
       cases' lr_exists with lr
       constructor
       apply LocalTableau.fromRule
-      apply AppLocalTableau.mk
       apply LocalRuleApp.mk C LCond RCond lr ⟨preconL, preconR⟩
       use applyLocalRule lr (LR.1, LR.2)
       rfl

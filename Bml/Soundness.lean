@@ -409,20 +409,18 @@ theorem localTableauAndEndNodesUnsatThenNotSat (LR : TNode) {ltLR : LocalTableau
   by
   intro endsOfLRnotSat
   cases ltLR
-  case fromRule C apptab =>
+  case fromRule C next ruleA =>
     by_contra satLR
-    let ⟨ruleA, next⟩ := apptab
     have someChildSat : ∃c ∈ C, Satisfiable c :=
       @ruleImpliesChildSat C LR ruleA satLR
     rcases ruleA with ⟨ress, Lcond, Rcond, lrule, preproofL, preproofR⟩
-    have prepf : Lcond ⊆ LR.1 ∧ Rcond ⊆ LR.2 := And.intro preproofL preproofR
+    have prepf : Lcond ⊆ _ ∧ Rcond ⊆ _ := And.intro preproofL preproofR
     cases' someChildSat with c c_sat
     set ltc := next c c_sat.left
     rename_i hC
     have endNodesInclusion :
       ∀ Z, Z ∈ endNodesOf ⟨c, ltc⟩
-      → Z ∈ endNodesOf ⟨LR, LocalTableau.fromRule
-        (AppLocalTableau.mk (@LocalRuleApp.mk LR.1 LR.2 C ress Lcond Rcond lrule hC prepf) next)⟩ :=
+      → Z ∈ endNodesOf ⟨_, LocalTableau.fromRule (@LocalRuleApp.mk _ _ C ress Lcond Rcond lrule hC prepf) next⟩ :=
       by
         simp
         intro Z Z_endOF_c
@@ -432,7 +430,7 @@ theorem localTableauAndEndNodesUnsatThenNotSat (LR : TNode) {ltLR : LocalTableau
       by intro Z1 Z1_is_endOf_c; apply endsOfLRnotSat Z1 (endNodesInclusion Z1 Z1_is_endOf_c)
     have : (∀Z, Z ∈ endNodesOf ⟨c , ltc⟩ → ¬Satisfiable Z) → ¬Satisfiable c :=
       by
-        have := localRuleAppDecreasesLength (@LocalRuleApp.mk LR.1 LR.2 C ress Lcond Rcond lrule hC prepf) c c_sat.left -- for termination
+        have := localRuleAppDecreasesLength (@LocalRuleApp.mk _ _ C ress Lcond Rcond lrule hC prepf) c c_sat.left -- for termination
         apply localTableauAndEndNodesUnsatThenNotSat c
     have cNotSat : ¬Satisfiable c := this endsOfcnotSat
     have cSat : Satisfiable c := c_sat.right

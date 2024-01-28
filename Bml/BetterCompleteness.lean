@@ -30,25 +30,10 @@ def toFinset : ConsTNode → Finset Formula := λ ⟨⟨L,R⟩,_⟩ => L ∪ R
 
 inductive Path: ConsTNode →  Type
   | endNode (isSimple : Simple LR): Path ⟨LR, LR_cons⟩
-  | interNode (_ : AppLocalTableau LR C) (c_in : c ∈ C)
+  | interNode (_ : LocalRuleApp LR C) (c_in : c ∈ C)
     (tail : Path ⟨c, c_cons⟩): Path ⟨LR, LR_cons⟩
 open Path
 
-/-
--- simp does not work here
-def lengthOfPath: Path consLR → ℕ
-  | endNode _ => 1
-  | interNode _ _ tail => 1 + lengthOfPath tail
-
-@[simp]
-theorem lengthOfPathDecreasing {h: path = interNode appTab c_in tail}: lengthOfPath path < lengthOfPath tail := by
-  subst h
-  --unfold lengthOfPath
-  sorry
-
-@[simp]
-instance : HasLength (Path ⟨LR, consLR⟩) := ⟨lengthOf LR⟩
--/
 @[simp]
 def pathToFinset: Path ⟨(L,R), cons⟩  → Finset Formula
   | endNode _ => L ∪ R
@@ -71,12 +56,60 @@ theorem endNodeIsSimple (path : Path consLR) (eq: consLR' = endNodeOf (path)): S
   induction path
   all_goals aesop
 
-theorem consistentThenConsistentChild (appTab : AppLocalTableau LR C):
-  Consistent LR → ∃ c ∈ C, Consistent c := by
+noncomputable def endNodeIsEndNodeOfChild (ruleA)
+  (E_in: E ∈ endNodesOf ⟨LR, @LocalTableau.fromRule LR C ruleA subTabs⟩) :
+  @Subtype TNode (fun x => ∃ h, E ∈ endNodesOf ⟨x, subTabs x h⟩) := by
+  unfold endNodesOf at E_in
+  simp_all!
+  choose l h E_in using E_in
+  choose c c_in l_eq using h
+  subst l_eq
+  use c
+  use c_in
+
+def closedToLocal : ClosedTableau X → LocalTableau X
+  | (ClosedTableau.loc lt _) => lt
+  | (ClosedTableau.atmL _ SimpX _) => fromSimple SimpX
+  | (ClosedTableau.atmR _ SimpX _) => fromSimple SimpX
+
+theorem consistentThenConsistentChild
+  (lrApp : LocalRuleApp (L,R) C):
+  Consistent (L,R) → ∃ c ∈ C, Consistent c := by
   contrapose
   unfold Consistent Inconsistent
-  simp_all
-  sorry
+  simp
+  intro h
+  -- choose closed tableaux for your children
+  have c_to_cTab {c: TNode} (c_in: c ∈ C): ClosedTableau c := by
+    specialize h c c_in
+    exact Classical.choice h
+  -- build the local tableau for LR containing these tableau
+  apply Nonempty.intro
+  apply ClosedTableau.loc
+  case lt =>
+    apply LocalTableau.fromRule lrApp
+    intro c c_in
+    let fooo := c_to_cTab c_in
+    apply closedToLocal fooo
+  case next =>
+    intro LR' LR'_in
+    have := endNodeIsEndNodeOfChild lrApp LR'_in
+    clear LR'_in
+    rcases this with ⟨c, LR'_in⟩
+    choose c_in_C LR'_in2 using LR'_in
+    simp [closedToLocal] at *
+    cases def_c : c_to_cTab c_in_C
+    case loc lt_c next =>
+      rw [def_c] at LR'_in2
+      simp at LR'_in2
+      apply next
+      exact LR'_in2
+    case atmL =>
+      rw [def_c] at LR'_in2
+      aesop
+    case atmR =>
+      rw [def_c] at LR'_in2
+      aesop
 
 theorem consThenProjectLCons (α_in: ~(□α) ∈ L) (LR_simple: Simple (L,R)): (Consistent (L,R)) →
   Consistent (diamondProjectTNode (Sum.inl α) (L,R)) := by
@@ -127,11 +160,9 @@ theorem pathSaturated (path : Path consLR): Saturated (pathToFinset path) := by
         · case inr PQ_in_R =>
           specialize R_simple ⟨~(P ⋀ Q), PQ_in_R⟩;
           simp at R_simple
-  case interNode LR C LR' LR'_cons LR_cons appTab LR'_in tail IH =>
+  case interNode LR C LR' LR'_cons LR_cons lrApp LR'_in tail IH =>
     simp_all!
     rcases IH with ⟨IH1, ⟨IH2, IH3⟩⟩
-    rcases appTab with ⟨lrApp, next⟩
-    rename_i L R
     constructor
     -- ~~P ∈ U → P ∈ U
     · intro nnP_in
@@ -254,7 +285,6 @@ theorem botTableauL (bot_in: ⊥ ∈ LR.1): ClosedTableau LR := by
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
-    apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {⊥} {} (LocalRule.oneSidedL OneSidedLocalRule.bot)
     simp_all
     use []
@@ -266,7 +296,6 @@ theorem botTableauR (bot_in: ⊥ ∈ LR.2): ClosedTableau LR := by
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
-    apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {} {⊥} (LocalRule.oneSidedR OneSidedLocalRule.bot)
     simp_all
     use []
@@ -278,7 +307,6 @@ theorem notTableauLL (pp_in: (·pp) ∈ LR.1) (npp_in: (~·pp) ∈ LR.1): Closed
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
-    apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {·pp,~·pp} {} (LocalRule.oneSidedL (OneSidedLocalRule.not (·pp)))
     simp_all [Finset.subset_iff]
     use []
@@ -290,7 +318,6 @@ theorem notTableauLR (pp_in: (·pp) ∈ LR.1) (npp_in: (~·pp) ∈ LR.2): Closed
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
-    apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {·pp} {~·pp} (LocalRule.LRnegL (·pp))
     simp_all [Finset.subset_iff]
     use []
@@ -302,7 +329,6 @@ theorem notTableauRL (pp_in: (·pp) ∈ LR.2) (npp_in: (~·pp) ∈ LR.1): Closed
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
-    apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {~·pp} {·pp} (LocalRule.LRnegR (·pp))
     simp_all [Finset.subset_iff]
     use []
@@ -314,7 +340,6 @@ theorem notTableauRR (pp_in: (·pp) ∈ LR.2) (npp_in: (~·pp) ∈ LR.2): Closed
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
-    apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {} {·pp,~·pp} (LocalRule.oneSidedR (OneSidedLocalRule.not (·pp)))
     simp_all [Finset.subset_iff]
     use []
@@ -351,7 +376,7 @@ theorem pathConsistent (path : Path TN): ⊥ ∉ pathToFinset path ∧ ∀ (pp: 
             exact IsEmpty.false (notTableauRL pp_in npp_in)
           case inr npp_in =>
             exact IsEmpty.false (notTableauRR pp_in npp_in)
-  case interNode LR C LR' LR'_cons LR_cons appTab LR'_in tail IH =>
+  case interNode LR C LR' LR'_cons LR_cons lrApp LR'_in tail IH =>
     constructor
     · by_contra h
       unfold Consistent Inconsistent at *
@@ -367,7 +392,6 @@ theorem pathConsistent (path : Path TN): ⊥ ∉ pathToFinset path ∧ ∀ (pp: 
       rcases IH with ⟨IH1, IH2⟩
       specialize IH2 pp
       have : (·pp) ∈ pathToFinset tail ∧  (~·pp) ∈ pathToFinset tail:= by
-        rcases appTab with ⟨lrApp, next⟩
         rcases lrApp with ⟨ress, Lcond,Rcond, lr, Lcond_in, Rcond_in⟩
         rename_i L R C_eq
         subst C_eq
@@ -404,11 +428,10 @@ theorem pathProjection (path: Path consLR): projection (pathToFinset path) ⊆ p
   rewrite [proj] at *
   induction path
   case endNode LR LR_cons LR_simple => aesop
-  case interNode LR C c c_cons LR_cons appTab c_in tail IH =>
+  case interNode LR C c c_cons LR_cons lrApp c_in tail IH =>
     simp_all
     apply IH
-    rcases appTab with ⟨ruleA, subTabs⟩
-    rcases ruleA with ⟨ress, Lcond, Rcond, lr, Lcond_in, Rcond_in⟩
+    rcases lrApp with ⟨ress, Lcond, Rcond, lr, Lcond_in, Rcond_in⟩
     rename_i L R C_eq
     subst C_eq
     cases α_in
@@ -433,11 +456,10 @@ theorem pathProjection (path: Path consLR): projection (pathToFinset path) ⊆ p
 theorem pathDiamond (path: Path consLR) (α_in: ~(□α) ∈ pathToFinset path): ~(□α) ∈ toFinset (endNodeOf path) := by
   induction path
   case endNode LR LR_cons LR_simple => aesop
-  case interNode LR C c c_cons LR_cons appTab c_in tail IH =>
+  case interNode LR C c c_cons LR_cons lrApp c_in tail IH =>
     simp_all
     apply IH
-    rcases appTab with ⟨ruleA, subTabs⟩
-    rcases ruleA with ⟨ress, Lcond, Rcond, lr, Lcond_in, Rcond_in⟩
+    rcases lrApp with ⟨ress, Lcond, Rcond, lr, Lcond_in, Rcond_in⟩
     rename_i L R C_eq
     subst C_eq
     cases α_in
@@ -463,11 +485,11 @@ theorem pathDiamond (path: Path consLR) (α_in: ~(□α) ∈ pathToFinset path):
 noncomputable def aPathOf (conLR : ConsTNode) : Path conLR := by
   cases (aLocalTableauFor conLR.1)
   case fromSimple isSimple  => exact endNode isSimple
-  case fromRule C appTab  =>
-    choose c c_in c_cons using consistentThenConsistentChild appTab conLR.2
+  case fromRule C lrApp =>
+    choose c c_in c_cons using consistentThenConsistentChild lrApp conLR.2
     have : lengthOf c < lengthOf conLR.1 := by
-      apply AppLocalTableau.DecreasesLength appTab c_in
-    exact interNode appTab c_in (aPathOf ⟨c, c_cons⟩)
+      apply localRuleAppDecreasesLength lrApp c c_in
+    exact interNode lrApp c_in (aPathOf ⟨c, c_cons⟩)
 termination_by aPathOf conLR => lengthOf conLR
 
 noncomputable def toWorld (consLR: ConsTNode): Finset Formula :=
