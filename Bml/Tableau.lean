@@ -438,10 +438,8 @@ def getTabChildren : AppLocalTableau LR C →  List TNode
   | @AppLocalTableau.mk _ _ C _ _ => C
 
 @[simp]
-def getSubTabs (tab : AppLocalTableau LR C)
-  : (Π c ∈ C, LocalTableau c) :=
-  match tab with
-  | AppLocalTableau.mk _ subTabs => subTabs
+def getSubTabs : (AppLocalTableau LR C) → (Π c ∈ C, LocalTableau c) :=
+  λ ⟨_, subTabs⟩ => subTabs
 
 -- If X is not simple, then a local rule can be applied.
 -- (page 13)
@@ -932,10 +930,10 @@ theorem endNodesOfLocalRuleLT {LR Z} {appTab : AppLocalTableau LR C} :
 
 -- Definition 16, page 29
 -- Notes:
--- - "loc" uses AppLocalTableau, not "LocalTableau", to avoid infinite use of "LocalTableau.fromSimple".
+-- - "loc" may actually make no progress (by using "LocalTableau.fromSimple"), but that seems okay.
 -- - base case for simple tableaux is part of "atm" which can be applied to L or to R.
 inductive ClosedTableau : TNode → Type
-  | loc {LR} (appTab : AppLocalTableau LR C) : (next : ∀ Y ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩, ClosedTableau Y) → ClosedTableau LR
+  | loc {LR} (lt : LocalTableau LR) : (next : ∀ Y ∈ endNodesOf ⟨LR, lt⟩, ClosedTableau Y) → ClosedTableau LR
   | atmL {LR ϕ} : ~(□ϕ) ∈ LR.1 → Simple LR → ClosedTableau (diamondProjectTNode (Sum.inl ϕ) LR) → ClosedTableau LR
   | atmR {LR ϕ} : ~(□ϕ) ∈ LR.2 → Simple LR → ClosedTableau (diamondProjectTNode (Sum.inr ϕ) LR) → ClosedTableau LR
 

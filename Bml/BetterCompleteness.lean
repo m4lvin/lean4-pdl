@@ -252,7 +252,8 @@ theorem pathSaturated (path : Path consLR): Saturated (pathToFinset path) := by
 
 theorem botTableauL (bot_in: ⊥ ∈ LR.1): ClosedTableau LR := by
   apply ClosedTableau.loc
-  case appTab =>
+  case lt =>
+    apply LocalTableau.fromRule
     apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {⊥} {} (LocalRule.oneSidedL OneSidedLocalRule.bot)
     simp_all
@@ -263,7 +264,8 @@ theorem botTableauL (bot_in: ⊥ ∈ LR.1): ClosedTableau LR := by
 
 theorem botTableauR (bot_in: ⊥ ∈ LR.2): ClosedTableau LR := by
   apply ClosedTableau.loc
-  case appTab =>
+  case lt =>
+    apply LocalTableau.fromRule
     apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {} {⊥} (LocalRule.oneSidedR OneSidedLocalRule.bot)
     simp_all
@@ -274,7 +276,8 @@ theorem botTableauR (bot_in: ⊥ ∈ LR.2): ClosedTableau LR := by
 
 theorem notTableauLL (pp_in: (·pp) ∈ LR.1) (npp_in: (~·pp) ∈ LR.1): ClosedTableau LR := by
   apply ClosedTableau.loc
-  case appTab =>
+  case lt =>
+    apply LocalTableau.fromRule
     apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {·pp,~·pp} {} (LocalRule.oneSidedL (OneSidedLocalRule.not (·pp)))
     simp_all [Finset.subset_iff]
@@ -285,7 +288,8 @@ theorem notTableauLL (pp_in: (·pp) ∈ LR.1) (npp_in: (~·pp) ∈ LR.1): Closed
 
 theorem notTableauLR (pp_in: (·pp) ∈ LR.1) (npp_in: (~·pp) ∈ LR.2): ClosedTableau LR := by
   apply ClosedTableau.loc
-  case appTab =>
+  case lt =>
+    apply LocalTableau.fromRule
     apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {·pp} {~·pp} (LocalRule.LRnegL (·pp))
     simp_all [Finset.subset_iff]
@@ -296,7 +300,8 @@ theorem notTableauLR (pp_in: (·pp) ∈ LR.1) (npp_in: (~·pp) ∈ LR.2): Closed
 
 theorem notTableauRL (pp_in: (·pp) ∈ LR.2) (npp_in: (~·pp) ∈ LR.1): ClosedTableau LR := by
   apply ClosedTableau.loc
-  case appTab =>
+  case lt =>
+    apply LocalTableau.fromRule
     apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {~·pp} {·pp} (LocalRule.LRnegR (·pp))
     simp_all [Finset.subset_iff]
@@ -307,7 +312,8 @@ theorem notTableauRL (pp_in: (·pp) ∈ LR.2) (npp_in: (~·pp) ∈ LR.1): Closed
 
 theorem notTableauRR (pp_in: (·pp) ∈ LR.2) (npp_in: (~·pp) ∈ LR.2): ClosedTableau LR := by
   apply ClosedTableau.loc
-  case appTab =>
+  case lt =>
+    apply LocalTableau.fromRule
     apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {} {·pp,~·pp} (LocalRule.oneSidedR (OneSidedLocalRule.not (·pp)))
     simp_all [Finset.subset_iff]

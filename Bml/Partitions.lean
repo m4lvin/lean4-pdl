@@ -242,23 +242,23 @@ theorem projection_reflects_unsat_R_R
 theorem tabToInt {LR : TNode} (tab : ClosedTableau LR)
 : PartInterpolant LR := by
   induction tab
-  case loc C LR appTab _ endθs => exact (
-    @AppLocalTableau.recOn
+  case loc LR lt _ nextθs => exact (
+    @LocalTableau.recOn
     (λLR C appTab => (∀E ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩, PartInterpolant E) → PartInterpolant LR)
     (λLR locTab   => (∀E ∈ endNodesOf ⟨LR, locTab⟩                      , PartInterpolant E) → PartInterpolant LR)
-    LR C appTab
+    LR lt
     (by --mk (can be done by aesop but then it complains about metavariables)
-      intro L R C ruleA subTabs ih endθs
+      intro L R C ruleA subTabs ih nextθs
       apply InterpolantInductionStep L R (AppLocalTableau.mk ruleA subTabs)
       intro cLR c_in_C
       apply ih cLR c_in_C
       intro eLR e_in_end
-      apply endθs
+      apply nextθs
       aesop
     )
     (by aesop) --fromRule
     (by aesop) --fromSimple
-    <| endθs
+    <| nextθs
     )
   case atmL LR φ nBoxφ_in_L simple_LR cTabProj pθ =>
     use ~(□~pθ.val) -- modal rule on the right: use diamond of interpolant!

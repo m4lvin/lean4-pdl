@@ -8,7 +8,8 @@ import Bml.Tableau
 theorem noBot : Provable (~⊥) := by
   apply Provable.byTableau
   apply ClosedTableau.loc
-  case a.appTab =>
+  case a.lt =>
+    apply LocalTableau.fromRule
     apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {~~⊥} {} (LocalRule.oneSidedL (OneSidedLocalRule.neg ⊥))
     · simp
@@ -35,7 +36,8 @@ theorem noContradiction : Provable (~(p⋀~p)) :=
   by
   apply Provable.byTableau
   apply ClosedTableau.loc
-  case a.appTab =>
+  case a.lt =>
+    apply LocalTableau.fromRule
     apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {~~(p⋀~p)} {} (LocalRule.oneSidedL (OneSidedLocalRule.neg (p⋀~p)))
     all_goals (try simp; try rfl) -- easier than guessing "use applyLocalRule ..."
@@ -70,7 +72,8 @@ def subTabForEx2 : ClosedTableau ({·'r', ~(□p), □(p⋀q)}, {}) :=
   apply ClosedTableau.atmL (by simp : ~(□p) ∈ _) this
   simp [diamondProjectTNode, projection]
   apply ClosedTableau.loc
-  case appTab =>
+  case lt =>
+    apply LocalTableau.fromRule
     apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {p⋀q} {} (LocalRule.oneSidedL (OneSidedLocalRule.con p q))
     all_goals (try simp; try rfl)
@@ -97,7 +100,8 @@ notation "r" => (·'r')
 example : ClosedTableau ({r⋀~(□p), r↣□(p⋀q)}, {}) :=
   by
   apply ClosedTableau.loc
-  case appTab =>
+  case lt =>
+    apply LocalTableau.fromRule
     apply AppLocalTableau.mk
     apply LocalRuleApp.mk _ {r⋀~(□p)} {} (LocalRule.oneSidedL (OneSidedLocalRule.con r (~(□p))))
     all_goals (try simp; try rfl)
