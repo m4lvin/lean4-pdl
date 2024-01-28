@@ -7,92 +7,55 @@ import Bml.Soundness
 
 open HasSat
 
+instance modelCanSemImplyTNode {W : Type} : VDash (KripkeModel W × W) TNode := ⟨fun Mw X => ∀ f ∈ X.1 ∪ X.2, @Evaluate W Mw f⟩
+
 -- Each local rule preserves truth "upwards"
-theorem localRuleTruth {W : Type} {M : KripkeModel W} {w : W} {X : Finset Formula}
-    {B : Finset (Finset Formula)} : LocalRule X B → (∃ Y ∈ B, (M, w)⊨Y) → (M, w)⊨X :=
+theorem localRuleInvert
+    (rule : LocalRule (Lcond, Rcond) ress)
+    (M : KripkeModel W)
+    (w : W)
+    (Δ : Finset Formula) :
+    (∃res ∈ ress, (M, w) ⊨ (Δ ∪ res.1 ∪ res.2)) → (M, w) ⊨ (Δ ∪ Lcond ∪ Rcond) :=
   by
-  intro r
-  cases r
-  case bot => simp
-  case Not => simp
-  case neg f notnotf_in_a =>
-    intro hyp
-    rcases hyp with ⟨b, b_in_B, w_sat_b⟩
-    intro phi phi_in_a
-    have b_is_af : b = insert f (X \ {~~f}) := by simp at *; subst b_in_B; tauto
-    have phi_in_b_or_is_f : phi ∈ b ∨ phi = ~~f :=
-      by
-      rw [b_is_af]
-      simp
-      tauto
-    cases' phi_in_b_or_is_f with phi_in_b phi_is_notnotf
-    · apply w_sat_b
-      exact phi_in_b
-    · rw [phi_is_notnotf]
-      unfold Evaluate at *
-      simp
-      -- this removes double negation
-      apply w_sat_b
-      rw [b_is_af]
+    intro satLR
+    cases rule
+    all_goals
       simp at *
-  case Con f g fandg_in_a =>
-    intro hyp
-    rcases hyp with ⟨b, b_in_B, w_sat_b⟩
-    intro phi phi_in_a
-    simp at b_in_B 
-    have b_is_fga : b = insert f (insert g (X \ {f⋀g})) := by subst b_in_B; ext1; simp
-    have phi_in_b_or_is_fandg : phi ∈ b ∨ phi = f⋀g :=
-      by
-      rw [b_is_fga]
-      simp
-      tauto
-    cases' phi_in_b_or_is_fandg with phi_in_b phi_is_fandg
-    · apply w_sat_b
-      exact phi_in_b
-    · rw [phi_is_fandg]
-      unfold Evaluate at *
-      constructor
-      · apply w_sat_b; rw [b_is_fga]; simp
-      · apply w_sat_b; rw [b_is_fga]; simp
-  case nCo f g not_fandg_in_a =>
-    intro hyp
-    rcases hyp with ⟨b, b_in_B, w_sat_b⟩
-    intro phi phi_in_a
-    simp at *
-    have phi_in_b_or_is_notfandg : phi ∈ b ∨ phi = ~(f⋀g) := by
-      cases b_in_B
-      case inl b_in_B => rw [b_in_B]; simp; tauto
-      case inr b_in_B => rw [b_in_B]; simp; tauto
-    cases b_in_B
-    case inl b_in_B => -- b contains ~f
-      cases' phi_in_b_or_is_notfandg with phi_in_b phi_def
-      · exact w_sat_b phi phi_in_b
-      · rw [phi_def]
-        unfold Evaluate
-        rw [b_in_B] at w_sat_b 
-        specialize w_sat_b (~f)
+    all_goals
+      rename_i siderule
+      cases siderule
+      all_goals simp at *
+      case neg φ =>
         aesop
-    case inr b_in_B => -- b contains ~g
-      cases' phi_in_b_or_is_notfandg with phi_in_b phi_def
-      · exact w_sat_b phi phi_in_b
-      · rw [phi_def]
-        unfold Evaluate
-        rw [b_in_B] at w_sat_b 
-        specialize w_sat_b (~g)
+      case con φ ψ =>
         aesop
+      case ncon φ ψ =>
+        intro f f_in
+        cases f_in
+        · aesop
+        case inr f_def =>
+          subst f_def
+          cases satLR
+          case inl hyp =>
+            specialize hyp (~φ)
+            aesop
+          case inr hyp =>
+            specialize hyp (~ψ)
+            aesop
 
 -- Each local rule is "complete", i.e. preserves satisfiability "upwards"
-theorem localRuleCompleteness {X : Finset Formula} {B : Finset (Finset Formula)} :
-    LocalRule X B → (∃ Y ∈ B, Satisfiable Y) → Satisfiable X :=
+theorem localRuleCompleteness {X : TNode} {B : List TNode} :
+    LocalRuleApp X B → (∃ Y ∈ B, Satisfiable Y) → Satisfiable X :=
   by
-  intro lr
+  intro lrApp
   intro sat_B
   rcases sat_B with ⟨Y, Y_in_B, sat_Y⟩
-  unfold Satisfiable at *
+  unfold Satisfiable at sat_Y
   rcases sat_Y with ⟨W, M, w, w_sat_Y⟩
   use W, M, w
-  apply localRuleTruth lr
-  tauto
+  let ⟨ress, Lcond, Rcond, rule, preconProof⟩ := lrApp
+  have := localRuleInvert rule M w
+  sorry
 
 -- Lemma 11 (but rephrased to be about local tableau!?)
 theorem inconsUpwards {X} {ltX : LocalTableau X} :
@@ -103,7 +66,10 @@ theorem inconsUpwards {X} {ltX : LocalTableau X} :
   let leafTableaus : ∀ en ∈ endNodesOf ⟨X, ltX⟩, ClosedTableau en := fun Y YinEnds =>
     (lhs Y YinEnds).some
   constructor
-  exact ClosedTableau.loc ltX leafTableaus
+  apply ClosedTableau.loc _
+  · intro Y Y_in
+    apply leafTableaus Y
+    convert Y_in
 
 -- Converse of Lemma 11
 theorem consToEndNodes {X} {ltX : LocalTableau X} :
@@ -115,8 +81,9 @@ theorem consToEndNodes {X} {ltX : LocalTableau X} :
   simp at claim 
   tauto
 
+-- maybe too atmL-specific?
 def projOfConsSimpIsCons :
-    ∀ {X ϕ}, Consistent X → SimpleSetDepr X → ~(□ϕ) ∈ X → Consistent (projection X ∪ {~ϕ}) :=
+    ∀ {X ϕ}, Consistent X → Simple X → ~(□ϕ) ∈ X.1 ∪ X.2 → Consistent (diamondProjectTNode (Sum.inl ϕ) X) :=
   by
   intro X ϕ consX simpX notBoxPhi_in_X
   unfold Consistent at *
@@ -125,17 +92,22 @@ def projOfConsSimpIsCons :
   simp at *
   cases' consX with ctProj
   constructor
-  apply ClosedTableau.atm notBoxPhi_in_X simpX
-  simp
-  exact ctProj
+  sorry
+  -- apply ClosedTableau.atm notBoxPhi_in_X simpX
+  -- simp
+  -- exact ctProj
 
 theorem locTabEndSatThenSat {X Y} (ltX : LocalTableau X) (Y_endOf_X : Y ∈ endNodesOf ⟨X, ltX⟩) :
     Satisfiable Y → Satisfiable X := by
   intro satY
   induction ltX
-  case byLocalRule X B lr next IH =>
-    apply localRuleCompleteness lr
+  case fromRule X B lrApp next IH =>
+    apply localRuleCompleteness lrApp
+
+    rcases lrApp with ⟨ress,Lcond,Rcond,lr,Lsub,Rsub⟩
     cases lr
+    all_goals sorry
+    /-
     case bot W bot_in_W =>
       simp at *
     case Not ϕ h =>
@@ -173,12 +145,15 @@ theorem locTabEndSatThenSat {X Y} (ltX : LocalTableau X) (Y_endOf_X : Y ∈ endN
         · simp
         · apply IH
           convert Y_endOf_X;
-  case sim X simpX => aesop
+     -/
+  case fromSimple X simpX => aesop
 
-theorem almostCompleteness : (X : Finset Formula) → Consistent X → Satisfiable X :=
+theorem almostCompleteness : (X : TNode) → Consistent X → Satisfiable X :=
   by
   intro X consX
-  refine' if simpX : SimpleSetDepr X then _ else _
+  sorry
+  /-
+  refine' if simpX : Simple X then _ else _
   -- CASE 1: X is simple
   rw [Lemma1_simple_sat_iff_all_projections_sat simpX]
   constructor
@@ -226,6 +201,7 @@ theorem almostCompleteness : (X : Finset Formula) → Consistent X → Satisfiab
   exact locTabEndSatThenSat (LocalTableau.byLocalRule lr rest) E_endOf_X satE
 termination_by
   almostCompleteness X _ => lengthOfSet X
+  -/
 
 -- Theorem 4, page 37
 theorem completeness : ∀ X, Consistent X ↔ Satisfiable X :=
@@ -237,9 +213,10 @@ theorem completeness : ∀ X, Consistent X ↔ Satisfiable X :=
   -- use Theorem 2:
   exact correctness X
 
-theorem singletonCompleteness : ∀ φ, Consistent {φ} ↔ Satisfiable φ :=
+theorem singletonCompleteness : ∀ φ, Consistent ({φ},{}) ↔ Satisfiable φ :=
   by
   intro f
-  have := completeness {f}
+  have := completeness ({f},{})
   simp only [singletonSat_iff_sat] at *
+  simp [Satisfiable] at *
   tauto
