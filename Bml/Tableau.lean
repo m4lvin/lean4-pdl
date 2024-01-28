@@ -645,8 +645,15 @@ theorem notnot_notSelfContain : ~~φ ≠ φ := fun.
 @[simp]
 theorem conNotSelfContainL : φ1 ⋀ φ2 ≠ φ1 := fun.
 @[simp]
-theorem conNotSelfContainR : φ1 ⋀ φ2 ≠ φ2 := sorry -- too much Mathlib imported.
--- see https://leanprover.zulipchat.com/#narrow/stream/113489-new-members/topic/.E2.9C.94.20well-foundedness.20of.20my.20own.20inductive.3F/near/416990596
+theorem conNotSelfContainR : φ1 ⋀ φ2 ≠ φ2 :=
+  -- This should also just be "fun." but we have too much Mathlib imported.
+  -- see https://leanprover.zulipchat.com/#narrow/stream/113489-new-members/topic/.E2.9C.94.20well-foundedness.20of.20my.20own.20inductive.3F/near/416990596
+  by
+  induction φ2
+  all_goals simp
+  intro hyp
+  subst hyp
+  tauto
 
 -- Rules never re-insert the same formula(s).
 theorem localRuleNoOverlap
@@ -675,18 +682,17 @@ theorem zlengthOf.pos : 0 ≤ zlengthOf φ := Int.ofNat_nonneg (lengthOfFormula 
 @[simp]
 def zlengthOfSet : Finset Formula → Int := fun X => X.sum zlengthOf
 
-theorem z_iff : zlengthOfSet X = lengthOfSet X := by simp; rfl
-
 theorem zlen_iff { X Y : Finset Formula }
     : lengthOf X < lengthOf Y ↔ zlengthOfSet X < zlengthOfSet Y :=
   by
-  rw [z_iff, z_iff]
+  have : ∀ W, zlengthOfSet W = lengthOfSet W := by intro W; simp; rfl
+  rw [this, this]
+  zify
   simp
-  sorry -- only coercions left?!
 
 theorem zlengthOfSet.pos : zlengthOfSet X ≥ 0 := by
   simp
-  apply Finset.sum_induction
+  apply Finset.sum_induction zlengthOf
   · intro a b a_ge b_ge; linarith
   · simp
   · intro f _; exact zlengthOf.pos
@@ -703,7 +709,7 @@ theorem localRuleAppDecreasesLengthSide
             have := @Finset.sum_union_inter _ _ (X \ Cond) Res zlengthOf _ _
             have : zlengthOfSet (X \ Cond ∩ Res) ≥ 0 := zlengthOfSet.pos
             simp_all
-            linarith -- mwah
+            linarith
       _ = zlengthOfSet X - zlengthOfSet Cond + zlengthOfSet Res := by
             simp only [zlengthOfSet]
             rw [Finset.sum_sdiff_eq_sub precondProof]
