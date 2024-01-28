@@ -47,81 +47,65 @@ theorem InterpolantInductionStep
       use bigDis interList
       constructor
       · intro ℓ ℓ_in_inter
-        have ℓ_in_subinter :  ∃θ ∈ interList, ℓ ∈ voc θ := vocOfBigDis ℓ_in_inter
-        have ℓ_in_child's_inter := choice_property_in_image ℓ_in_subinter
-        have ℓ_in_child : ∃c ∈ C, ℓ ∈ jvoc c :=
-          Exists.elim ℓ_in_child's_inter <| λ⟨c, cinC⟩ ⟨_, linvocInter ⟩ =>
-            Exists.intro c ⟨cinC, (subθs c cinC).2 |> And.left <| linvocInter⟩
-        exact Exists.elim ℓ_in_child <| λcLR ⟨inC, injvoc⟩ => localRuleApp_does_not_increase_vocab ruleA cLR inC <| injvoc
+        let ⟨⟨c,c_in_C⟩, _, ℓ_in_c'θ⟩ := choice_property_in_image <| vocOfBigDis ℓ_in_inter
+        have ℓ_in_c : ℓ ∈ jvoc c := (subθs c c_in_C).2 |> And.left <| ℓ_in_c'θ
+        exact localRuleApp_does_not_increase_vocab ruleA c c_in_C <| ℓ_in_c
+
       · constructor
         · intro L_and_nθ_sat
-          have L_and_bigC_sat : Satisfiable ((L, R).1 ∪ {(~~bigCon (List.map (fun x => ~x) interList))}) :=
-            by
-              rcases L_and_nθ_sat with ⟨W, M, w, sat⟩
-              have evalDis : Evaluate (M, w) (~bigDis interList) := sat (~bigDis interList) (by simp)
-              rw [eval_neg_BigDis_iff_eval_bigConNeg] at evalDis
-              simp
-              use W, M, w
-              constructor
-              · simp at evalDis; apply evalDis
-              · intro φ φ_in_L; apply sat; simp[φ_in_L]
-          have L_and_nθi_sat : ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ {~~(bigCon <| interList.map (~·))}) :=
-            oneSidedRule_implies_child_sat_L def_ruleA def_rule L_and_bigC_sat
-          have L_and_nθi_sat : ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ {(bigCon <| interList.map (~·))}) :=
-            Exists.elim L_and_nθi_sat <| λ⟨c, cinC⟩ ⟨inCattach, csat⟩ =>
-              Exists.intro ⟨c, cinC⟩ ⟨inCattach, ((sat_double_neq_invariant (bigCon <| interList.map (~·))).mp csat)⟩
-          exact Exists.elim L_and_nθi_sat <| λ⟨c, cinC⟩ ⟨_, csat⟩ =>
-            have csat2 : Satisfiable <| c.1 ∪ {~ (subθs c cinC).1} :=
-              bigConNeg_union_sat_down csat (subθs c cinC).1 (by simp; use c, cinC)
-           (subθs c cinC).2 |> And.right |> And.left <| csat2
-        . intro R_and_θ_sat
-          have R_and_θi_sat : ∃θi ∈ interList, Satisfiable <| R ∪ {θi} := bigDis_union_sat_down R_and_θ_sat
-          have R_and_child's_inter_sat := choice_property_in_image R_and_θi_sat
-          exact Exists.elim R_and_child's_inter_sat <| λ⟨c, cinC⟩ ⟨_, csat ⟩ =>
-            have R_inv_to_leftrule : c.2 = R := (oneSidedRule_preserves_other_side_L def_ruleA def_rule) c cinC
-            have csat2 : Satisfiable <| c.2 ∪ {(subθs c cinC).1} := by rw[←R_inv_to_leftrule] at csat; assumption
-            (subθs c cinC).2 |> And.right |> And.right <| csat2
+          have L_and_bigC_sat : Satisfiable ((L, R).1 ∪ {(~~bigCon (List.map (fun x => ~x) interList))}) := by
+            rcases L_and_nθ_sat with ⟨W, M, w, MWsat⟩
+            have evalDis : Evaluate (M, w) (~bigDis interList) := MWsat (~bigDis interList) (by simp)
+            rw [eval_neg_BigDis_iff_eval_bigConNeg] at evalDis
+            use W, M, w
+            simp
+            constructor
+            · simp at evalDis; apply evalDis
+            · intro φ φ_in_L; apply MWsat; simp[φ_in_L]
+          let ⟨⟨c,c_in_C⟩, _, sat_c_nnθ⟩ := oneSidedRule_implies_child_sat_L def_ruleA def_rule L_and_bigC_sat
+          have sat_c_θ : Satisfiable (c.1 ∪ {(bigCon <| interList.map (~·))}) :=
+             (sat_double_neq_invariant (bigCon <| interList.map (~·))).mp sat_c_nnθ
+          have sat_c_c'sθ : Satisfiable <| c.1 ∪ {~ (subθs c c_in_C).1} :=
+            bigConNeg_union_sat_down sat_c_θ (subθs c c_in_C).1 (by simp; use c, c_in_C)
+          exact (subθs c c_in_C).2 |> And.right |> And.left <| sat_c_c'sθ
 
-    -- ONESIDED R: dual to the onesided L case except for dealing with ~'s in L_and_θi_Sat
+        . intro R_and_θ_sat
+          have ⟨⟨c,c_in_C⟩, _, sat_cθ⟩ := choice_property_in_image <| bigDis_union_sat_down R_and_θ_sat
+          have cR_eq_R : c.2 = R := (oneSidedRule_preserves_other_side_L def_ruleA def_rule) c c_in_C
+          rw[←cR_eq_R] at sat_cθ
+          exact (subθs c c_in_C).2 |> And.right |> And.right <| sat_cθ
+
+    -- ONESIDED R: dual to ONESIDED L
     | oneSidedR orule =>
       let interList :=  (C.attach).map $ λ⟨c, cinC⟩ => (subθs c cinC).1
       use bigCon interList
       constructor
       · intro ℓ ℓ_in_inter
-        have ℓ_in_subinter :  ∃θ ∈ interList, ℓ ∈ voc θ := vocOfBigCon ℓ_in_inter
-        have ℓ_in_child's_inter := choice_property_in_image ℓ_in_subinter
-        have ℓ_in_child : ∃c ∈ C, ℓ ∈ jvoc c :=
-          Exists.elim ℓ_in_child's_inter <| λ⟨c, cinC⟩ ⟨_, linvocInter ⟩ =>
-            Exists.intro c ⟨cinC, (subθs c cinC).2 |> And.left <| linvocInter⟩
-        exact Exists.elim ℓ_in_child <| λcLR ⟨inC, injvoc⟩ => localRuleApp_does_not_increase_vocab ruleA cLR inC <| injvoc
+        let ⟨⟨c,c_in_C⟩, _, ℓ_in_c'θ⟩ := choice_property_in_image <| vocOfBigCon ℓ_in_inter
+        have ℓ_in_c : ℓ ∈ jvoc c := (subθs c c_in_C).2 |> And.left <| ℓ_in_c'θ
+        exact localRuleApp_does_not_increase_vocab ruleA c c_in_C <| ℓ_in_c
+
       · constructor
         · intro L_and_nθ_sat
-          have L_and_bigD_sat : Satisfiable ((L, R).1 ∪ {(bigDis (List.map (fun x => ~x) interList))}) :=
-            by
-              rcases L_and_nθ_sat with ⟨W, M, w, sat⟩
-              have evalCon : Evaluate (M, w) (~(bigCon interList)) := sat (~bigCon interList) (by simp)
-              rw [eval_negBigCon_iff_eval_bigDisNeg] at evalCon
-              use W; use M; use w
-              intro φ hyp
-              rw [Finset.mem_union] at hyp
-              cases' hyp with left right
-              · apply sat; apply Finset.mem_union_left; exact left
-              · rw [Finset.mem_singleton] at right
-                rw [right]
-                assumption
-          have L_and_θi_Sat : ∃nθi ∈ interList.map (~·), Satisfiable <| L ∪ {nθi} := bigDis_union_sat_down L_and_bigD_sat
-          have L_and_child's_inter_sat := choice_property_in_image <| choice_property_in_image L_and_θi_Sat
-          exact Exists.elim L_and_child's_inter_sat <| λ⟨c, cinC⟩ ⟨_, csat ⟩ =>
-            have L_inv_to_rightrule : c.1 = L := (oneSidedRule_preserves_other_side_R def_ruleA def_rule) c cinC
-            have csat2 : Satisfiable <| c.1 ∪ {~(subθs c cinC).1} := by rw[←L_inv_to_rightrule] at csat; assumption
-            (subθs c cinC).2 |> And.right |> And.left <| csat2
+          have L_and_bigD_sat : Satisfiable ((L, R).1 ∪ {(bigDis (List.map (fun x => ~x) interList))}) := by
+            rcases L_and_nθ_sat with ⟨W, M, w, MWsat⟩
+            have evalCon : Evaluate (M, w) (~(bigCon interList)) := MWsat (~bigCon interList) (by simp)
+            rw [eval_negBigCon_iff_eval_bigDisNeg] at evalCon
+            use W, M, w
+            simp
+            constructor
+            · simp at evalCon; apply evalCon
+            · intro φ φ_in_L; apply MWsat; simp[φ_in_L]
+          let ⟨⟨c,c_in_C⟩,_,sat_c'sθ⟩ := choice_property_in_image <| choice_property_in_image <| bigDis_union_sat_down L_and_bigD_sat
+          have L_inv_to_rightrule : c.1 = L := (oneSidedRule_preserves_other_side_R def_ruleA def_rule) c c_in_C
+          rw[←L_inv_to_rightrule] at sat_c'sθ
+          exact (subθs c c_in_C).2 |> And.right |> And.left <| sat_c'sθ
+
         · intro R_and_θ_sat
-          have R_and_θi_sat : ∃c ∈ C.attach, Satisfiable (c.1.2 ∪ {bigCon interList}) :=
-            oneSidedRule_implies_child_sat_R def_ruleA def_rule R_and_θ_sat
-          exact Exists.elim R_and_θi_sat <| λ⟨c, cinC⟩ ⟨_, csat⟩ =>
-            have csat2 : Satisfiable <| c.2 ∪ {(subθs c cinC).1} :=
-              bigCon_union_sat_down csat ((subθs c cinC).1) (by simp; use c, cinC)
-            (subθs c cinC).2 |> And.right |> And.right <| csat2
+          let ⟨⟨c,c_in_C⟩,_,sat_c_θ⟩ := oneSidedRule_implies_child_sat_R def_ruleA def_rule R_and_θ_sat
+          have sat_c'sθ : Satisfiable <| c.2 ∪ {(subθs c c_in_C).1} :=
+              bigCon_union_sat_down sat_c_θ ((subθs c c_in_C).1) (by simp; use c, c_in_C)
+          exact (subθs c c_in_C).2 |> And.right |> And.right <| sat_c'sθ
 
     -- LRNEG L
     | LRnegL φ =>
@@ -140,7 +124,7 @@ theorem InterpolantInductionStep
         · apply Or.intro_right; exact preproof.left <| Finset.mem_singleton.mpr rfl
         · exact preproof.right <| Finset.mem_singleton.mpr rfl
 
-    -- LRNEG R: perfectly dual to LRNEG l
+    -- LRNEG R: dual to LRNEG l
     | LRnegR φ =>
       use ~φ
       constructor
