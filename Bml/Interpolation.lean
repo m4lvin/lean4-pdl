@@ -1,7 +1,7 @@
 -- INTERPOLATION
 
 import Bml.Syntax
-import Bml.BetterCompleteness
+import Bml.CompletenessViaPaths
 import Bml.Partitions
 
 open HasVocabulary
