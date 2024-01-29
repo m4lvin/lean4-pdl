@@ -153,18 +153,14 @@ theorem projection_set_length_leq : ∀ X, lengthOfSet (projection X) ≤ length
   case insert f S f_not_in_S IH =>
     unfold lengthOfSet
     rw [Finset.sum_insert f_not_in_S]
-    simp
     have insert_comm_proj : ∀ X f, projection (insert f X) = projection {f} ∪ projection X :=
       by
       intro X f
       unfold projection
-      ext1 g
       simp
     · calc
-        (projection (insert f S)).sum lengthOfFormula =
-            (projection (insert f S)).sum lengthOfFormula :=
-          refl _
-        _ = (projection {f} ∪ projection S).sum lengthOfFormula := by rw [insert_comm_proj S f]
+        (projection (insert f S)).sum lengthOfFormula
+          = (projection {f} ∪ projection S).sum lengthOfFormula := by rw [insert_comm_proj S f]
         _ ≤ (projection {f}).sum lengthOfFormula + (projection S).sum lengthOfFormula := by
           apply sum_union_le
         _ ≤ lengthOfFormula f + (projection S).sum lengthOfFormula := by
@@ -242,7 +238,7 @@ theorem localRuleApp_does_not_increase_vocab {L R : Finset Formula} (ruleA : Loc
   simp
   constructor
   · have ⟨Lφ,Lφ_in_cL, ℓ_in_Lφ⟩ := ℓ_in_c.left
-    apply Or.elim (Classical.em (Lφ ∈ L))
+    apply Or.elim (em (Lφ ∈ L))
     · intro Lφ_in_L; use Lφ
     · intro not_Lφ_in_L
       have Lφ_in_res : ∃res ∈ ress, Lφ ∈ res.1 := by aesop
@@ -257,7 +253,7 @@ theorem localRuleApp_does_not_increase_vocab {L R : Finset Formula} (ruleA : Loc
       use ψ, (by aesop), ℓ_in_ψ
   -- dual
   · have ⟨Rφ,Rφ_in_cR, ℓ_in_Rφ⟩ := ℓ_in_c.right
-    apply Or.elim (Classical.em (Rφ ∈ R))
+    apply Or.elim (em (Rφ ∈ R))
     · intro Rφ_in_R; use Rφ
     · intro not_Rφ_in_R
       have Rφ_in_res : ∃res ∈ ress, Rφ ∈ res.2 := by aesop
@@ -518,71 +514,14 @@ theorem notSimpleThenLocalRule {L R} : ¬Simple (L,R)
     match ruleA with
     | @LocalRuleApp.mk _ _ _ ress Lcond Rcond rule _ pp => exact ⟨Lcond, Rcond, ress, rule, pp⟩
 
-/- Custom tactic for first two cases? (localruledecrlength)
-
-macro "onesideddecreaseslength" : tactic =>
-  `( tactic|
-      ( all_goals simp at *
-        <;> try rw [c_child]
-        case neg φ => simp [←Nat.add_assoc]
-        case con φ ψ =>
-          simp
-          calc
-            Finset.sum ({φ, ψ}) (fun x => lengthOfFormula x)
-            ≤ lengthOfFormula φ + lengthOfFormula ψ :=
-              by
-                cases' Classical.em (φ = ψ) with heq hneq
-                · simp [heq] at *
-                · simp [Finset.sum_pair hneq]
-            _ < 1 + lengthOfFormula φ + lengthOfFormula ψ :=
-              by aesop
-        case ncon φ ψ =>
-          cases' c_child with case_phi case_psi
-          <;> (first
-              | simp [case_psi]
-              | ( simp [case_phi];
-                  rw [Nat.add_comm 1 (lengthOfFormula φ), Nat.add_assoc];
-                  aesop))))
-
-macro "onesideddecreaseslength" : tactic =>
-  `( tactic|
-      ( all_goals simp at * <;>
-        ( repeat'
-            solve
-            | rw [c_child]
-            | simp [←Nat.add_assoc]
-            | ( simp
-                calc
-                  Finset.sum ({φ, ψ}) (fun x => lengthOfFormula x)
-                  ≤ lengthOfFormula φ + lengthOfFormula ψ :=
-                    by
-                      cases' Classical.em (φ = ψ) with heq hneq
-                      · simp [heq] at *
-                      · simp [Finset.sum_pair hneq]
-                  _ < 1 + lengthOfFormula φ + lengthOfFormula ψ :=
-                    by aesop)
-            | ( cases' c_child with case_phi case_psi
-                <;> (first
-                    | simp [case_psi]
-                    | ( simp [case_phi];
-                        rw [Nat.add_comm 1 (lengthOfFormula φ), Nat.add_assoc];
-                        aesop))))))
-
--/
 
 theorem conDecreasesLength {φ ψ : Formula} :
   (Finset.sum {φ, ψ} fun x => lengthOfFormula x) <
-    1 + lengthOfFormula φ + lengthOfFormula ψ :=
+  1 + lengthOfFormula φ + lengthOfFormula ψ :=
   by
-    calc
-      Finset.sum ({φ, ψ}) (fun x => lengthOfFormula x)
-      ≤ lengthOfFormula φ + lengthOfFormula ψ :=
-        by
-          cases' Classical.em (φ = ψ) with heq hneq
-          · simp [heq] at *
-          · simp [Finset.sum_pair hneq]
-      _ < 1 + lengthOfFormula φ + lengthOfFormula ψ :=
-        by aesop
+    cases' em (φ = ψ) with heq hneq
+    · simp [heq] at *
+    · simp [Finset.sum_pair hneq]
 
 @[simp]
 def lengthOfTNode : TNode → Nat
@@ -598,34 +537,22 @@ theorem localRuleDecreasesLengthSide (rule : LocalRule (Lcond, Rcond) ress) :
     ∨ (lengthOf res.2 < lengthOf Rcond ∧ res.1 = ∅) :=
     by
     intro res in_ress
-    cases rule
-    case oneSidedL _ lrule  =>    -- trying custom tactic
-      cases lrule
-      <;> simp at *
-      <;> try rw [in_ress]
-      case neg φ => simp [←Nat.add_assoc]
-      case con φ ψ => simp; exact conDecreasesLength
-      case ncon φ ψ =>
-        cases' in_ress with case_phi case_psi
-        <;> (first
-            | simp [case_psi]
-            | ( simp [case_phi];
-                rw [Nat.add_comm 1 (lengthOfFormula φ), Nat.add_assoc];
-                aesop))
-    case oneSidedR _ rrule  =>
-      cases rrule
-      <;> simp at *
-      <;> try rw [in_ress]
-      case neg φ => simp [←Nat.add_assoc]
-      case con φ ψ => simp; exact conDecreasesLength
-      case ncon φ ψ =>
-        cases' in_ress with case_phi case_psi
-        <;> (first
-            | simp [case_psi]
-            | ( simp [case_phi];
-                rw [Nat.add_comm 1 (lengthOfFormula φ), Nat.add_assoc];
-                aesop))
-    all_goals aesop
+    cases rule <;>
+    ( first
+      | ( rename_i rule
+          cases rule
+          <;> (simp at *; try rw [in_ress])
+          case neg φ => simp [←Nat.add_assoc]
+          case con φ ψ => simp; exact conDecreasesLength
+          case ncon φ ψ =>
+            cases' in_ress with case_phi case_psi
+            <;> ( first
+                | simp [case_psi]
+                | ( simp [case_phi]
+                    rw [Nat.add_comm 1 (lengthOfFormula φ), Nat.add_assoc]
+                    aesop)))
+      | all_goals aesop)
+
 
 -- These are used by aesop in `localRuleNoOverlap`.
 @[simp]
@@ -649,14 +576,11 @@ theorem localRuleNoOverlap
   ∀ res ∈ ress, (Lcond ∩ res.1 = ∅) ∧ (Rcond ∩ res.2 = ∅) :=
   by
     intro res in_ress
-    cases rule
-    case oneSidedL ress orule =>
-      cases orule
-      all_goals aesop
-    case oneSidedR ress orule =>
-      cases orule
-      all_goals aesop
-    all_goals (cases in_ress)
+    cases rule <;>
+    ( rename_i rule
+      cases rule
+      all_goals aesop)
+
 
 -- Some helper definitions for localRuleAppDecreasesLengthSide.
 -- We switch from ℕ to ℤ here to have a reasonable "-" and use
@@ -679,7 +603,6 @@ theorem zlen_iff { X Y : Finset Formula }
   simp
 
 theorem zlengthOfSet.pos : zlengthOfSet X ≥ 0 := by
-  simp
   apply Finset.sum_induction zlengthOf
   · intro a b a_ge b_ge; linarith
   · simp
@@ -827,7 +750,7 @@ theorem atmRuleLDecreasesLength {L R : Finset Formula} {φ} :
     ~(□φ) ∈ L → lengthOfTNode (diamondProjectTNode (Sum.inl φ) (L, R)) < lengthOfTNode (L, R) :=
   by
     intro notBoxPhi_in_L
-    have lengthL : lengthOfSet (projection L ∪ {~φ}) < lengthOfSet L := projDecreasesLength notBoxPhi_in_L
+    have lengthL := projDecreasesLength notBoxPhi_in_L
     · calc
         lengthOfTNode (diamondProjectTNode (Sum.inl φ) (L, R))
           = lengthOfSet (projection L ∪ {~φ}) + lengthOfSet (projection R) := by tauto
@@ -842,7 +765,7 @@ theorem atmRuleRDecreasesLength {L R : Finset Formula} {φ} :
     ~(□φ) ∈ R → lengthOfTNode (diamondProjectTNode (Sum.inr φ) (L, R)) < lengthOfTNode (L, R) :=
   by
     intro notBoxPhi_in_R
-    have lengthR : lengthOfSet (projection R ∪ {~φ}) < lengthOfSet R := projDecreasesLength notBoxPhi_in_R
+    have lengthR := projDecreasesLength notBoxPhi_in_R
     · calc
         lengthOfTNode (diamondProjectTNode (Sum.inr φ) (L, R))
           = lengthOfSet (projection L) + lengthOfSet (projection R ∪ {~φ}) := by tauto
@@ -896,10 +819,7 @@ theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOf
     · calc
         lengthOfTNode Z ≤ lengthOfTNode c := endNodesOfLEQ Z_in_ZS
         _ < lengthOfTNode LR := this
-  case fromSimple LR_simp =>
-    intro Z_endOf_Y
-    simp at Z_endOf_Y
-    aesop
+  case fromSimple LR_simp => intro Z_endOf_Y; aesop
 termination_by
   endNodesOfLEQ LT   => lengthOfTNode LR
 

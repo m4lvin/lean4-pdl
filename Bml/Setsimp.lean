@@ -51,39 +51,22 @@ theorem lengthRemove (X : Finset Formula) :
   rw [anotherClaim] at claim
   aesop
 
-
-@[simp]
-theorem setRemoveInsert (X : Finset Formula) :
-  ∀ Y ⊆ X, (X \ Y) ∪ Y = X :=
-  by
-    intro Y subs_X
-    exact Finset.sdiff_union_of_subset subs_X
-
-
 theorem lengthSetRemove (X Y : Finset Formula) (h: Y ⊆ X) :
   lengthOfSet (X \ Y) + lengthOfSet Y  = lengthOfSet X :=
   by
     induction Y using Finset.induction_on
     case empty => simp
     case insert ϕ S not_in_S ih =>
-      have subs_X : S ⊆ X :=
-        by
-          have sub_insert : S ⊆ (insert ϕ S) := by aesop
-          exact subset_trans sub_insert h
+      have subs_X : S ⊆ X := subset_trans (by aesop) h
       have phi_in_X : ϕ ∈ X :=
         by
           rw [←Finset.singleton_subset_iff]
-          have in_insert : {ϕ} ⊆ (insert ϕ S) := by aesop
-          exact subset_trans in_insert h
-      rw [Finset.sdiff_insert X S ϕ]
-      rw [←lengthRemove X ϕ, lengthAdd]
+          exact subset_trans (by aesop) h
+      rw [Finset.sdiff_insert X S ϕ, ←lengthRemove X ϕ, lengthAdd]
       rw [Nat.add_comm, Nat.add_assoc, Nat.add_comm (lengthOfFormula ϕ) (lengthOfSet (Finset.erase (X \ S) ϕ))]
-      rw [lengthRemove (X \ S) ϕ]
-      rw [Nat.add_comm]
-      rw [ih subs_X]
+      rw [lengthRemove (X \ S) ϕ, Nat.add_comm, ih subs_X]
       · rw [lengthRemove X]; assumption
-      · simp
-        exact And.intro phi_in_X not_in_S
+      · simp; exact And.intro phi_in_X not_in_S
       · exact not_in_S
       · exact phi_in_X
 
@@ -96,7 +79,6 @@ theorem sum_union_le {T} [DecidableEq T] :
     ∀ {X Y : Finset T} {F : T → ℕ}, (X ∪ Y).sum F ≤ X.sum F + Y.sum F :=
   by
   intro X Y F
-  ·
-    calc
+  · calc
       (X ∪ Y).sum F ≤ (X ∪ Y).sum F + (X ∩ Y).sum F := by simp
       _ = X.sum F + Y.sum F := Finset.sum_union_inter

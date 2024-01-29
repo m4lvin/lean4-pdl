@@ -29,13 +29,9 @@ theorem vocOfBigDis {l : List Formula} : x ∈ voc (bigDis l) → ∃φ ∈ l, x
     induction l
     case nil  => aesop
     case cons head tail ih =>
-      simp at *
-      cases' Classical.em (x ∈ vocabOfFormula head) with hhead htail
-      · tauto
-      · simp [htail]
-        apply ih
-        unfold bigDis at hyp
-        aesop
+      cases em (x ∈ vocabOfFormula head)
+      · simp; tauto
+      · unfold bigDis at hyp; aesop
 
 theorem vocOfBigCon {l : List Formula} : x ∈ voc (bigCon l) → ∃φ ∈ l, x ∈ voc φ :=
   by
@@ -43,13 +39,9 @@ theorem vocOfBigCon {l : List Formula} : x ∈ voc (bigCon l) → ∃φ ∈ l, x
     induction l
     case nil  => aesop
     case cons head tail ih =>
-      simp at *
-      cases' Classical.em (x ∈ vocabOfFormula head) with hhead htail
-      · tauto
-      · simp [htail]
-        apply ih
-        unfold bigCon at hyp
-        aesop
+      cases em (x ∈ vocabOfFormula head)
+      · simp; tauto
+      · unfold bigCon at hyp; aesop
 
 @[simp]
 theorem conempty : bigCon ∅ = (⊤ : Formula) := by rfl
@@ -84,9 +76,8 @@ theorem disconsingle {f : Formula} : discon [[f]] = f := by rfl
 theorem conEvalHT {X f W M} {w : W} :
     Evaluate (M, w) (bigCon (f :: X)) ↔ Evaluate (M, w) f ∧ Evaluate (M, w) (bigCon X) :=
   by
-  induction' X with g X _
-  · simp
-  · simp
+  cases X
+  <;> simp
 
 theorem conEval {W M X} {w : W} : Evaluate (M, w) (bigCon X) ↔ ∀ f ∈ X, Evaluate (M, w) f :=
   by
@@ -101,9 +92,8 @@ theorem disconEvalHT {X} : ∀ XS, discon (X :: XS) ≡ bigCon X ⋁ discon XS :
   by
   unfold semEquiv
   intro XS W M w
-  cases' XS with Y YS
-  · simp
-  · simp
+  cases XS
+  <;> simp
 
 theorem disconEval {W M} {w : W} :
     ∀ {N : Nat} XS,
@@ -111,15 +101,12 @@ theorem disconEval {W M} {w : W} :
   by
   intro N
   refine Nat.strong_induction_on N ?_ -- should be induction N using Nat.strong_induction_on or something similar?
-  intro n IH
-  intro XS nDef
+  intro n IH XS nDef
   subst nDef
   cases' XS with X XS
   · simp
   specialize IH XS.length (by simp) XS (by rfl)
-  rw [disconEvalHT]
-  rw [evalDis]
-  rw [IH]
+  rw [disconEvalHT, evalDis, IH]
   constructor
   · -- →
     intro lhs
@@ -198,7 +185,7 @@ theorem disconOr {XS YS} : discon (XS ∪ YS) ≡ discon XS ⋁ discon YS :=
     use Z
   · -- ←
     intro rhs
-    cases (Classical.em (∃ Y, Y ∈ XS ∧ ∀ (f : Formula), f ∈ Y → Evaluate (M, w) f))
+    cases em (∃ Y, Y ∈ XS ∧ ∀ (f : Formula), f ∈ Y → Evaluate (M, w) f)
     case inl hyp =>
       rcases hyp with ⟨X, X_in, satX⟩
       use X
@@ -225,10 +212,9 @@ lemma bigDis_sat {l : List Formula} {M : KripkeModel W} {w : W} :
       induction l
       case nil => tauto
       case cons head tail ih =>
-        cases' Classical.em (Evaluate (M, w) head) with hhead htail
+        cases em (Evaluate (M, w) head)
         · use head; aesop
-        · have : Evaluate (M, w) (bigDis (head :: tail)) ↔
-            ((Evaluate (M, w) head) ∨ Evaluate (M, w) (bigDis tail)) :=
+        · have : ((Evaluate (M, w) head) ∨ Evaluate (M, w) (bigDis tail)) :=
             by unfold bigDis; aesop
           aesop
     · intro satOne
@@ -249,8 +235,7 @@ lemma bigCon_sat {l : List Formula} {M : KripkeModel W} {w : W} :
       induction l
       case nil => tauto
       case cons head tail ih =>
-        have : Evaluate (M, w) (bigCon (head :: tail)) ↔
-          ((Evaluate (M, w) head) ∧ Evaluate (M, w) (bigCon tail)) :=
+        have : ((Evaluate (M, w) head) ∧ Evaluate (M, w) (bigCon tail)) :=
           by unfold bigCon; aesop
         aesop
     · intro satAll
@@ -278,7 +263,7 @@ lemma bigConNeg_union_sat_down {X : Finset Formula} {l : List Formula} :
     simp at *
     cases' sat with lNotSat XSat
     intro φ inl
-    use W; use M; use w
+    use W, M, w
     apply And.intro (lNotSat φ inl) (XSat)
 
 

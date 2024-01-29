@@ -88,9 +88,7 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
           intro rel_in_new_model
           specialize f_IH otherR otherWorld
           unfold combinedModel at rel_in_new_model
-          have sameR : R = otherR := by
-            by_contra
-            aesop
+          have sameR : R = otherR := by aesop
           subst sameR
           rw [f_IH]
           apply true_in_old
@@ -118,7 +116,7 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
     simp at f_in_LR
     rw [←Finset.mem_union] at f_in_LR
     cases f
-    -- no induction because X is simple
+    -- no induction because (L, R) is simple
     case bottom =>
       unfold Closed at not_closed_LR
       aesop
@@ -155,11 +153,10 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
           simp at *
           exact all_pro_sat
         ·-- show that worlds are related in combined model (def above, case 2)
-          unfold combinedModel;
+          unfold combinedModel
           simp
       case bottom => tauto
       case neg f =>
-        simp
         rw [Finset.mem_union] at f_in_LR
         cases f_in_LR
         case inl hyp =>
@@ -199,14 +196,13 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
         specialize all_pro_sat otherWorld.fst f
         simp at all_pro_sat
         rw [or_imp] at all_pro_sat
-        cases' all_pro_sat with all_pro_sat_left all_pro_sat_right
+        cases' all_pro_sat with _ all_pro_sat_right
         rw [←proj] at f_in_LR
         simp at *
         specialize all_pro_sat_right f_in_LR
         have sameWorld : otherWorld.snd = (collection otherWorld.fst).snd.snd := by
           rw [heq_iff_eq.mp (HEq.symm is_rel)]
         rw [sameWorld]
-        simp
         exact all_pro_sat_right
 
 -- Lemma 1 (page 16)
@@ -246,11 +242,9 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
           rw [g_is_notR]
           exact v_sat_notr
         · intro boxg_in_LR
-          rw [proj] at boxg_in_LR
-          rw [proj] at boxg_in_LR
+          repeat rw [proj] at boxg_in_LR
           rw [←Finset.mem_union]at boxg_in_LR
           specialize w_sat_LR (□g)
-          unfold Evaluate at w_sat_LR
           aesop
     · -- right to left
       intro rhs
@@ -355,9 +349,8 @@ theorem oneSidedRule_implies_child_sat_L
     intro hyp
     rcases hyp with ⟨W, M, w, satM⟩
     rcases ruleApp with ⟨ress, Lcond, Rcond, lrule, preproofL, preproofR⟩
-    have : (M, w) ⊨ (X ∪ Lcond ∪ Rcond) → ∃res ∈ ress, (M, w) ⊨ (X ∪ res.1 ∪ res.2) :=
-      localRuleSoundness M w lrule X
-    have : (M, w) ⊨ (X ∪ Lcond ∪ Rcond) := by aesop
+    have : ∃res ∈ ress, (M, w) ⊨ (X ∪ res.1 ∪ res.2) :=
+      localRuleSoundness M w lrule X (by aesop)
     aesop
 
 theorem oneSidedRule_implies_child_sat_R
@@ -369,9 +362,8 @@ theorem oneSidedRule_implies_child_sat_R
       intro hyp
       rcases hyp with ⟨W, M, w, satM⟩
       rcases ruleApp with ⟨ress, Lcond, Rcond, lrule, preproofL, preproofR⟩
-      have : (M, w) ⊨ (X ∪ Lcond ∪ Rcond) → ∃res ∈ ress, (M, w) ⊨ (X ∪ res.1 ∪ res.2) :=
-        localRuleSoundness M w lrule X
-      have : (M, w) ⊨ (X ∪ Lcond ∪ Rcond) := by aesop
+      have : ∃res ∈ ress, (M, w) ⊨ (X ∪ res.1 ∪ res.2) :=
+        localRuleSoundness M w lrule X (by aesop)
       aesop
 
 -- The critical rule is sound and preserves satisfiability "downwards".
@@ -432,9 +424,7 @@ theorem localTableauAndEndNodesUnsatThenNotSat (LR : TNode) {ltLR : LocalTableau
       by
         have := localRuleAppDecreasesLength (@LocalRuleApp.mk _ _ C ress Lcond Rcond lrule hC prepf) c c_sat.left -- for termination
         apply localTableauAndEndNodesUnsatThenNotSat c
-    have cNotSat : ¬Satisfiable c := this endsOfcnotSat
-    have cSat : Satisfiable c := c_sat.right
-    exact cNotSat cSat
+    exact (this endsOfcnotSat) (c_sat.right)
   case fromSimple hSimple =>
     apply endsOfLRnotSat
     simp
@@ -459,9 +449,7 @@ theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
     constructor
     · tauto
     · convert notSatProj
-      have : diamondProjectTNode (Sum.inl (φ)) (L, R) = (projection L ∪ {~φ}, projection R) := by unfold diamondProjectTNode; simp
-      rw [this]
-      simp only [setHasSat, projectTNode, Finset.mem_union, Finset.mem_insert, forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
+      simp only [diamondProjectTNode, setHasSat, projectTNode, Finset.mem_union, Finset.mem_insert, forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
       constructor
       · rintro ⟨W,M,w,claim⟩
         use W, M, w
@@ -481,18 +469,14 @@ theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
     constructor
     · tauto
     · convert notSatProj
-      have : diamondProjectTNode (Sum.inr (φ)) (L, R) = (projection L, projection R ∪ {~φ}) := by unfold diamondProjectTNode; simp
-      rw [this]
-      simp only [setHasSat, projectTNode, Finset.mem_union, Finset.mem_insert, forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
-      constructor
-      · rintro ⟨W,M,w,claim⟩
-        use W, M, w
-        intro f f_in
+      simp only [diamondProjectTNode, setHasSat, projectTNode, Finset.mem_union, Finset.mem_insert, forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
+      constructor <;>
+      ( rintro ⟨W,M,w,claim⟩
+        use W, M, w)
+      · intro f f_in
         have := claim.2 (~φ)
         aesop
-      · rintro ⟨W,M,w,claim⟩
-        use W, M, w
-        have := claim (~φ)
+      · have := claim (~φ)
         aesop
 
 -- Theorem 2, page 30
