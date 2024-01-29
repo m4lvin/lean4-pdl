@@ -165,7 +165,8 @@ theorem conThenConSucc : Consistent X → LocalRule X B →  ∃ Y ∈ B, Consis
     rcases InconSuccβ with ⟨tXβ, endNodeinconβ⟩
     let LocTabX : LocalTableau X := by
       refine @byLocalRule X {insert (~α) (Finset.erase X (~(α⋀β))), insert (~β) (Finset.erase X (~(α⋀β)))} (?_) ?_
-      sorry
+      convert_to (LocalRule X {X \ {~(α⋀β)} ∪ {~α}, X \ {~(α⋀β)} ∪ {~β}})
+      simp; exact nCo nα_β
       intro Y Yin
       have Yis : Y = insert (~α) (Finset.erase X (~(α⋀β))) ∨ Y = insert (~β) (Finset.erase X (~(α⋀β))) := by
         simp at *; exact Yin
@@ -179,5 +180,9 @@ theorem conThenConSucc : Consistent X → LocalRule X B →  ∃ Y ∈ B, Consis
     use LocTabX;
     intro E EEndNodeX
     simp at EEndNodeX; cases EEndNodeX
-    rename_i EEndNodeα; simp at EEndNodeα; exact endNodeinconα E EEndNodeα
+    rename_i EEndNodeα; exact endNodeinconα E EEndNodeα
+    rename_i EEndnodeβ
+    dsimp at *
+    by_cases β_eq_α : (insert (~β) (Finset.erase X (~(α⋀β)))) = (insert (~α) (Finset.erase X (~(α⋀β))))
+    sorry
     sorry
