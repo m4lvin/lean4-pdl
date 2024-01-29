@@ -382,6 +382,11 @@ def Consistent : Finset Formula → Prop
   | X => ¬Inconsistent X
 
 
+def injectLocalTab : ClosedTableau X → LocalTableau X
+  | (ClosedTableau.loc lt _) => lt
+  | (ClosedTableau.atm _ simX _) => sim simX
+
+
 -- A tableau may be open.
 -- But if it's open, then it comes with proofs that it cannot be closed.
 inductive Tableau : Finset Formula → Type

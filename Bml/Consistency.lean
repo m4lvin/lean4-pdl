@@ -107,6 +107,35 @@ theorem consThenConProjEndNode : Consistent X → ∀ tX : LocalTableau X, ∃ E
 
 
 -- Consistext X and LocalRule X B  ⇒ ∃ Y,  Y ∈ B ∧ Consistent Y
+theorem consistentThenConsistentChild
+  (lrApp : LocalRule X C):
+  Consistent X → ∃ c ∈ C, Consistent c := by
+  contrapose
+  unfold Consistent Inconsistent
+  simp
+  intro h
+  -- choose closed tableaux for your children
+  have c_to_cTab {c: Finset Formula} (c_in: c ∈ C): ClosedTableau c := by
+    specialize h c c_in
+    exact Classical.choice h
+  -- build the local tableau for LR containing these tableau
+  apply Nonempty.intro
+  apply ClosedTableau.loc
+  case lt =>
+    apply LocalTableau.byLocalRule lrApp
+    intro c c_in
+    let fooo := c_to_cTab c_in
+    apply (injectLocalTab fooo)
+  case a =>
+    intro LR' LR'_in
+    simp at LR'_in;
+    refine Classical.choice ?_
+    rcases LR'_in with ⟨c, c_in, EndNode⟩
+    refine Nonempty.intro ?_
+    dsimp at EndNode
+
+
+
 theorem conThenConSucc : Consistent X → LocalRule X B →  ∃ Y ∈ B, Consistent Y := by
   intro consX locRule; revert consX; contrapose; simp
   intro InconSucc; cases locRule
