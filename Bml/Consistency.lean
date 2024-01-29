@@ -11,7 +11,6 @@ open LocalRule
 
 -- NEED FOLLOWING REMAINING LEMMAS TO COMPLETE EVERYTHING:
   -- Need Lemma here:  X ⊆ Y and Consistent Y  ⇒ Consistent X
-  -- Need Lemma here:  Consistext X and LocalRule X B  ⇒ ∃ Y,  Y ∈ B ∧ Consistent Y
   -- Need Lemma here:  Consistent (A ∪ (B - ~~α  + α))   ⇒  Consistent (A ∪ B)
   -- Need Lemma here:  Consistent (A ∪ (B - α⋀β  + α + β))   ⇒  Consistent (A ∪ B)
   -- Need Lemma here:  Consistent (A ∪ (B - ~(α⋀β) + ~α))   ⇒  Consistent (A ∪ B)
@@ -82,7 +81,7 @@ theorem InconsEndnodeThenIncons : Inconsistent X → (∃ tX : LocalTableau X, �
   induction inconsisX; all_goals clear X;
   swap
   -- Simple case
-  rename_i X α nBoxα simpleX closTabproj IH
+  rename_i X α nBoxα simpleX closTabproj _
   use sim simpleX; unfold endNodesOf; simp; unfold Inconsistent; simp; exact Nonempty.intro inconsisX'
 
   -- Local-Rule case
@@ -130,7 +129,6 @@ theorem consistentThenConsistentChild
     intro LR' LR'_in
     refine Classical.choice ?_
     simp at LR'_in; dsimp at LR'_in
-    change (∃ a, ∃ (h : a ∈ C), LR' ∈ endNodesOf { fst := a, snd := let fooo := c_to_cTab h; injectLocalTab (fooo) }) at LR'_in
     rcases LR'_in with ⟨c, c_in, EndNode⟩
     simp [injectLocalTab] at *
     cases def_c : c_to_cTab c_in

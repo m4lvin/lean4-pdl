@@ -140,7 +140,6 @@ lemma boxInPath {tR : LocalTableau R} : ∀ path ∈ pathsOf tR, (Consistent pat
 
 
 
--- Need Lemma here:  Consistext X and LocalRule X B  ⇒ ∃ Y,  Y ∈ B ∧ Consistent Y
 -- Need Lemma here:  Consistent (A ∪ (B - ~~α  + α))   ⇒  Consistent (A ∪ B)
 -- Need Lemma here:  Consistent (A ∪ (B - α⋀β  + α + β))   ⇒  Consistent (A ∪ B)
 -- Need Lemma here:  Consistent (A ∪ (B - ~(α⋀β) + ~α))   ⇒  Consistent (A ∪ B)
@@ -153,8 +152,7 @@ lemma existsConPath (consisX : Consistent X) (LocTabX : LocalTableau X) : ∃ pa
 
   rename_i X B locRule next IH; simp at IH
   unfold pathsOf; simp; dsimp
-  -- Need Lemma here:  Consistext X and LocalRule X B  ⇒ ∃ Y,  Y ∈ B ∧ Consistent Y
-  have BNonempty : ∃ Y,  Y ∈ B ∧ Consistent Y := by sorry
+  have BNonempty : ∃ Y,  Y ∈ B ∧ Consistent Y := consistentThenConsistentChild locRule consisX
   rcases BNonempty with ⟨Y, YInB, consisY⟩
   specialize IH Y YInB consisY
   rcases IH with ⟨path', path'Path, consispath'⟩
@@ -571,7 +569,7 @@ theorem modelExistence {X} : Consistent X →
 
   have consisprojE : Consistent (projection E ∪ {~α}) := by
     have simpleE : Simple E := by exact endNodeSimple EEndnode
-    have  h₀ : ~(□ α) ∈ E := by exact nboxpath1 α nBoxα
+    have  : ~(□ α) ∈ E := by exact nboxpath1 α nBoxα
     exact consisImpliesProj consisE simpleE α (nboxpath1 α nBoxα)
 
   -- Have LocalTableau for proj E + ~ α:
