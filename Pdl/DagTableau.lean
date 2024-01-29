@@ -513,6 +513,23 @@ example : DagLoadFormula := ⌊·'a'⌋⌊(·'a')†⌋(·'p')
 
 def LDDTNode := List Formula × Option (Sum NegLoadFormula (NegDagLoadFormula))
 
+-- TODO: All things we had for normal (= unloaded) diamonds
+-- we now need also for loaded here, i.e. anaologons of:
+--
+-- [X] dagNext --> loadDagNext
+-- [ ] mOfDagNode --> mOfLoadDagNode
+-- [ ] mOfDagNode.isDec --> mOfLoadDagNode.isDec
+-- [ ] dagNextTransRefl -->
+-- [ ] modelCanSemImplyDagTabNode -->
+-- [ ] notStarSoundnessAux -->
+-- [X] dagEndNodes --> loadDagEndNodes
+-- [ ] dagEnd_subset_next -->
+-- [ ] dagEndOfSome_iff_step -->
+-- [ ] dagEnd_subset_trf -->
+-- [ ] dagNormal_is_dagEnd -->
+-- [ ] notStarInvertAux -->
+-- [ ] notStarInvert -->
+
 -- Immediate sucessors of a node in a Loaded Daggered Diamond Tableau (LDDT).
 -- Question: can it be that ψ is unloaded but not yet undaggered?!
 -- Answer No. Note that we use "undagOnly" but never "unloadOnly".
@@ -529,8 +546,6 @@ def loadDagNext : LDDTNode → List LDDTNode
   | (_, some (Sum.inr (~⌊_†⌋(_ : LoadFormula)))) => [  ] -- delete branch
   | (_, some (Sum.inl _)) => [ ] -- end node of dagger tableau
   | (_, none) => [ ] -- end node of dagger tableau
-
--- TODO: loadNotStarSoundness etc.
 
 def mOfLoadDagNode : LDDTNode → ℕ := sorry
 
