@@ -14,11 +14,39 @@ import Bml.Setsimp
 import Bml.Vocabulary
 
 open Formula
-
 open HasLength
+open HasVocabulary
+
+-- TNodes
+@[simp]
+instance : HasSubset (Finset Formula × Finset Formula) :=
+  HasSubset.mk λ (L1, R1) (L2, R2) => L1 ⊆ L2 ∧ R1 ⊆ R2
+
+@[simp]
+instance : Union (Finset Formula × Finset Formula) :=
+  ⟨λ (L1, R1) (L2, R2) => (L1 ∪ L2, R1 ∪ R2)⟩
+
+def TNode := Finset Formula × Finset Formula
+  deriving DecidableEq, HasSubset, Union
+
+@[simp]
+def lengthOfTNode : TNode → Nat
+  | (L,R) => lengthOfSet L + lengthOfSet R
+
+@[simp]
+instance TNodeHasLength : HasLength TNode := ⟨lengthOfTNode⟩
+
+@[simp]
+instance TNodeHasSat: HasSat TNode := ⟨fun (L,R) => HasSat.Satisfiable (L ∪ R)⟩
+
+@[simp]
+def f_in_TNode (f : Formula) (LR : TNode) := f ∈ (LR.1 ∪ LR.2)
+
+
+
 
 -- Definition 9, page 15
--- A set X is closed  iff  it contains □ or contains a formula and its negation.
+-- A set X is closed  iff  it contains ⊥ or contains a formula and its negation.
 def Closed : Finset Formula → Prop := fun X => ⊥ ∈ X ∨ ∃ f ∈ X, ~f ∈ X
 
 -- A set X is simple  iff  all P ∈ X are (negated) atoms or □φ or ¬□φ.
@@ -60,18 +88,6 @@ noncomputable def notSimpleSetToForm {X : Finset Formula}: ¬SimpleSet X →
   have h : ∃φ ∈ X, ¬ SimpleForm φ := by rw [SimpleSet] at not_simple; aesop
   let w := Classical.choose h
   notSimpleFormOf.mk w (Classical.choose_spec h).1 (Classical.choose_spec h).2
-@[simp]
-instance : HasSubset (Finset Formula × Finset Formula) :=
-  HasSubset.mk λ (L1, R1) (L2, R2) => L1 ⊆ L2 ∧ R1 ⊆ R2
-
-@[simp]
-instance : Union (Finset Formula × Finset Formula) :=
-  ⟨λ (L1, R1) (L2, R2) => (L1 ∪ L2, R1 ∪ R2)⟩
-
-def TNode := Finset Formula × Finset Formula
-  deriving DecidableEq, HasSubset, Union
-
-instance : HasSat TNode := ⟨fun X => HasSat.Satisfiable (X.1 ∪ X.2)⟩
 
 def Simple (LR : TNode) : Prop := SimpleSet LR.1 ∧ SimpleSet LR.2
 
@@ -96,21 +112,9 @@ def projectTNode : TNode → TNode
   | (L, R) => (projection L, projection R)
 
 @[simp]
-theorem project_insert {X φ} : projection (X ∪ {φ}) = projection X ∪ projection {φ} :=
-  by simp [projection] at *; aesop
-
-@[simp]
 theorem projectionUnion: projection (X ∪ Y) = projection X ∪ projection Y := by
   unfold projection
   aesop
-
-@[simp]
-def f_in_TNode (f : Formula) (LR : TNode) := f ∈ (LR.1 ∪ LR.2)
-
-@[simp]
-instance TNodeHasSat : HasSat TNode :=
-  -- HasSat.mk fun LR => ∃ (W : _) (M : KripkeModel W) (w : _), ∀ φ, f_in_TNode φ (LR) → Evaluate (M, w) φ
-  HasSat.mk fun LR => HasSat.Satisfiable (LR.1 ∪ LR.2)
 
 -- TODO @[simp]
 theorem proj {g : Formula} {X : Finset Formula} : g ∈ projection X ↔ □g ∈ X :=
@@ -183,7 +187,6 @@ inductive LocalRule : SubPair → List SubPair → Type
   | LRnegL (ϕ : Formula) : LocalRule ({ϕ}, {~ϕ}) ∅ --  ϕ occurs on the left side, ~ϕ on the right
   | LRnegR (ϕ : Formula) : LocalRule ({~ϕ}, {ϕ}) ∅ -- ~ϕ occurs on the left side,  ϕ on the right
 
-open HasVocabulary
 @[simp]
 def jvoc (LR: TNode) := voc LR.1 ∩ voc LR.2
 
@@ -344,7 +347,7 @@ theorem LocalRuleUniqueL
   -- in other cases C is empty
   all_goals simp_all
 
--- almost exactly the same as the previous one
+-- almost exactly the same as LocalRuleUniqueL
 lemma LocalRuleUniqueR
   (α_in_R: α ∈ R)
   (lrApp: LocalRuleApp (L,R) C)
@@ -415,8 +418,6 @@ lemma LocalRuleUniqueR
   -- in other cases C is empty
   all_goals simp_all
 
-mutual
-
 inductive LocalTableau : TNode → Type
   | fromRule
       {LR : TNode}
@@ -425,7 +426,6 @@ inductive LocalTableau : TNode → Type
       (subTabs: (Π c ∈ C, LocalTableau c))
       : LocalTableau LR
   | fromSimple (isSimple : Simple LR) : LocalTableau LR
-end
 
 -- If X is not simple, then a local rule can be applied.
 -- (page 13)
@@ -522,14 +522,6 @@ theorem conDecreasesLength {φ ψ : Formula} :
     cases' em (φ = ψ) with heq hneq
     · simp [heq] at *
     · simp [Finset.sum_pair hneq]
-
-@[simp]
-def lengthOfTNode : TNode → Nat
-  | (L,R) => lengthOfSet L + lengthOfSet R
-
--- needed for endNodesOf
-@[simp]
-instance TNodeHasLength : HasLength TNode := ⟨lengthOfTNode⟩
 
 theorem localRuleDecreasesLengthSide (rule : LocalRule (Lcond, Rcond) ress) :
   ∀ res ∈ ress,
@@ -799,6 +791,17 @@ theorem endNodesOfSimple : endNodesOf ⟨ LR, LocalTableau.fromSimple hyp ⟩ = 
   by
   simp only [endNodesOf]
 
+noncomputable def endNodeIsEndNodeOfChild (ruleA)
+  (E_in: E ∈ endNodesOf ⟨LR, @LocalTableau.fromRule LR C ruleA subTabs⟩) :
+  @Subtype TNode (fun x => ∃ h, E ∈ endNodesOf ⟨x, subTabs x h⟩) := by
+  unfold endNodesOf at E_in
+  simp_all!
+  choose l h E_in using E_in
+  choose c c_in l_eq using h
+  subst l_eq
+  use c
+  use c_in
+
 @[simp]
 theorem lrEndNodes {LR : TNode} {C : List TNode} {ruleA} {subTabs} :
     endNodesOf ⟨LR, LocalTableau.fromRule ruleA subTabs⟩
@@ -843,6 +846,11 @@ inductive ClosedTableau : TNode → Type
   | loc {LR} (lt : LocalTableau LR) : (next : ∀ Y ∈ endNodesOf ⟨LR, lt⟩, ClosedTableau Y) → ClosedTableau LR
   | atmL {LR ϕ} : ~(□ϕ) ∈ LR.1 → Simple LR → ClosedTableau (diamondProjectTNode (Sum.inl ϕ) LR) → ClosedTableau LR
   | atmR {LR ϕ} : ~(□ϕ) ∈ LR.2 → Simple LR → ClosedTableau (diamondProjectTNode (Sum.inr ϕ) LR) → ClosedTableau LR
+
+def closedToLocal : ClosedTableau X → LocalTableau X
+  | (ClosedTableau.loc lt _) => lt
+  | (ClosedTableau.atmL _ SimpX _) => fromSimple SimpX
+  | (ClosedTableau.atmR _ SimpX _) => fromSimple SimpX
 
 inductive Provable : Formula → Prop
   | byTableau {φ : Formula} : ClosedTableau ({~φ},{}) → Provable φ

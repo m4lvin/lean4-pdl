@@ -56,22 +56,6 @@ theorem endNodeIsSimple (path : Path consLR) (eq: consLR' = endNodeOf (path)): S
   induction path
   all_goals aesop
 
-noncomputable def endNodeIsEndNodeOfChild (ruleA)
-  (E_in: E ∈ endNodesOf ⟨LR, @LocalTableau.fromRule LR C ruleA subTabs⟩) :
-  @Subtype TNode (fun x => ∃ h, E ∈ endNodesOf ⟨x, subTabs x h⟩) := by
-  unfold endNodesOf at E_in
-  simp_all!
-  choose l h E_in using E_in
-  choose c c_in l_eq using h
-  subst l_eq
-  use c
-  use c_in
-
-def closedToLocal : ClosedTableau X → LocalTableau X
-  | (ClosedTableau.loc lt _) => lt
-  | (ClosedTableau.atmL _ SimpX _) => fromSimple SimpX
-  | (ClosedTableau.atmR _ SimpX _) => fromSimple SimpX
-
 theorem consistentThenConsistentChild
   (lrApp : LocalRuleApp (L,R) C):
   Consistent (L,R) → ∃ c ∈ C, Consistent c := by
