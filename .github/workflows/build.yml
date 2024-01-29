@@ -8,7 +8,7 @@ name: CI
 jobs:
 
   build:
-    name: Build
+    name: Build PDL
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +26,7 @@ jobs:
         run: make pdl
 
   bml:
-    name: Build Bml
+    name: Build BML
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,18 +52,18 @@ jobs:
       - name: install ripgrep
         run: sudo apt install -y ripgrep
 
-      - name: count lines in src
+      - name: PDL count lines in src
         run: |
           shopt -s globstar
           wc -l Pdl/**/*.lean
-      - name: count sorries
+      - name: PDL count sorries
         run: |
           rg --count-matches sorry Pdl | awk -F ':' 'BEGIN {sum = 0} {sum += $2} {print $2 " " $1} END {print sum " sorries in total"}'
 
-      - name: Bml count lines in src
+      - name: BML count lines in src
         run: |
           shopt -s globstar
           wc -l Bml/**/*.lean
-      - name: Bml count sorries
+      - name: BML count sorries
         run: |
           rg --count-matches sorry Bml | awk -F ':' 'BEGIN {sum = 0} {sum += $2} {print $2 " " $1} END {print sum " sorries in total"}'
