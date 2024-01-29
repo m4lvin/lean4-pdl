@@ -128,90 +128,18 @@ theorem consistentThenConsistentChild
     apply (injectLocalTab fooo)
   case a =>
     intro LR' LR'_in
-    simp at LR'_in;
     refine Classical.choice ?_
+    simp at LR'_in; dsimp at LR'_in
+    change (∃ a, ∃ (h : a ∈ C), LR' ∈ endNodesOf { fst := a, snd := let fooo := c_to_cTab h; injectLocalTab (fooo) }) at LR'_in
     rcases LR'_in with ⟨c, c_in, EndNode⟩
-    refine Nonempty.intro ?_
-    dsimp at EndNode
-
-
-
-theorem conThenConSucc : Consistent X → LocalRule X B →  ∃ Y ∈ B, Consistent Y := by
-  intro consX locRule; revert consX; contrapose; simp
-  intro InconSucc; cases locRule
-  · case bot bot_in_X =>
-    unfold Consistent Inconsistent; simp; refine Nonempty.intro ?_
-    refine ClosedTableau.loc ?_ ?_; refine @LocalTableau.byLocalRule X ∅ (LocalRule.bot bot_in_X) ?_;
-    intro Y; intro YInEmpty; refine False.elim ?_; aesop
-    intro Y YEndNode; simp at YEndNode
-
-  · case Not α nα =>
-    unfold Consistent Inconsistent; simp; refine Nonempty.intro ?_
-    refine ClosedTableau.loc ?_ ?_; refine @LocalTableau.byLocalRule X ∅ (@LocalRule.Not X α nα) ?_;
-    intro Y YInEmpty; simp at YInEmpty
-
-    intro Y; intro YEndNode; simp at YEndNode
-
-  · case neg α nnα =>
-    have : Inconsistent (X \ {~~α} ∪ {α}) := by
-      unfold Inconsistent; simp; unfold Consistent Inconsistent at InconSucc; simp at InconSucc; exact InconSucc
-    clear InconSucc; rename (Inconsistent (X \ {~~α} ∪ {α})) => InconSucc
-    have :  (∃ tXα : LocalTableau (X \ {~~α} ∪ {α}), ∀ E ∈ endNodesOf ⟨(X \ {~~α} ∪ {α}), tXα⟩, Inconsistent E) := InconsIffInconsEndnode.mp InconSucc
-    clear InconSucc; rename (∃ tXα : LocalTableau (X \ {~~α} ∪ {α}), ∀ E ∈ endNodesOf ⟨(X \ {~~α} ∪ {α}), tXα⟩, Inconsistent E) => InconSucc
-    rcases InconSucc with ⟨tXα, endNodeincon⟩
-    suffices : Inconsistent X; exact InconsisIffNotConsis.mp this
-    suffices : (∃ tX : LocalTableau X, ∀ E ∈ endNodesOf ⟨X, tX⟩, Inconsistent E); exact InconsIffInconsEndnode.mpr this
-
-    let LocTabX : LocalTableau X := by
-      refine @byLocalRule X {X \ {~~α} ∪ {α} } (neg nnα) ?_
-      intro Y Yin
-      have Yis : Y = X \ {~~α} ∪ {α} := by
-        simp at *; exact Yin
-      subst Yis
-      exact tXα
-    use LocTabX; dsimp; unfold endNodesOf; simp;
-    intro E Z Zis1
-    have Zis : Z = X \ {~~α} ∪ {α} := by
-      simp at *; exact Zis1
-    subst Zis; simp
-    intro EEndnode; exact endNodeincon E EEndnode
-
-  · case Con α β α_β =>
-    sorry
-
-  · case nCo α β nα_β =>
-    have InconSuccα : Inconsistent (insert (~α) (Finset.erase X (~(α⋀β)))) := by
-      unfold Consistent at *; simp at *; simp_all only [not_true_eq_false, Finset.mem_erase, ne_eq, Formula.neg.injEq, nα_β]
-    have InconSuccβ : Inconsistent (insert (~β) (Finset.erase X (~(α⋀β)))) := by
-      unfold Consistent at *; simp at *; simp_all only [not_true_eq_false, Finset.mem_erase, ne_eq, Formula.neg.injEq, nα_β]
-    clear InconSucc
-    suffices : Inconsistent X; exact InconsisIffNotConsis.mp this
-    suffices : (∃ tX : LocalTableau X, ∀ E ∈ endNodesOf ⟨X, tX⟩, Inconsistent E); exact InconsIffInconsEndnode.mpr this
-    have :  (∃ tXα : LocalTableau (insert (~α) (Finset.erase X (~(α⋀β)))), ∀ E ∈ endNodesOf ⟨(insert (~α) (Finset.erase X (~(α⋀β)))), tXα⟩, Inconsistent E) := InconsIffInconsEndnode.mp InconSuccα
-    have :  (∃ tXβ : LocalTableau (insert (~β) (Finset.erase X (~(α⋀β)))), ∀ E ∈ endNodesOf ⟨(insert (~β) (Finset.erase X (~(α⋀β)))), tXβ⟩, Inconsistent E) := InconsIffInconsEndnode.mp InconSuccβ
-    clear InconSuccα InconSuccβ; rename (∃ tXα : LocalTableau (insert (~α) (Finset.erase X (~(α⋀β)))), ∀ E ∈ endNodesOf ⟨(insert (~α) (Finset.erase X (~(α⋀β)))), tXα⟩, Inconsistent E) => InconSuccα; rename (∃ tXβ : LocalTableau (insert (~β) (Finset.erase X (~(α⋀β)))), ∀ E ∈ endNodesOf ⟨(insert (~β) (Finset.erase X (~(α⋀β)))), tXβ⟩, Inconsistent E) => InconSuccβ
-    rcases InconSuccα with ⟨tXα, endNodeinconα⟩
-    rcases InconSuccβ with ⟨tXβ, endNodeinconβ⟩
-    let LocTabX : LocalTableau X := by
-      refine @byLocalRule X {insert (~α) (Finset.erase X (~(α⋀β))), insert (~β) (Finset.erase X (~(α⋀β)))} (?_) ?_
-      convert_to (LocalRule X {X \ {~(α⋀β)} ∪ {~α}, X \ {~(α⋀β)} ∪ {~β}})
-      simp; exact nCo nα_β
-      intro Y Yin
-      have Yis : Y = insert (~α) (Finset.erase X (~(α⋀β))) ∨ Y = insert (~β) (Finset.erase X (~(α⋀β))) := by
-        simp at *; exact Yin
-      refine (if Yeqα : Y = insert (~α) (Finset.erase X (~(α⋀β))) then ?_ else ?_)
-      -- Y = X \ {~(α⋀β)} ∪ {~α}
-      subst Yeqα; exact tXα
-      -- Y = X \ {~(α⋀β)} ∪ {~β}
-      have Yeqβ : Y = insert (~β) (Finset.erase X (~(α⋀β))) := by
-        simp at *; simp_all only [not_true_eq_false, Finset.mem_erase, ne_eq, Formula.neg.injEq, false_or, or_true, nα_β]
-      subst Yeqβ; exact tXβ
-    use LocTabX;
-    intro E EEndNodeX
-    simp at EEndNodeX; cases EEndNodeX
-    rename_i EEndNodeα; exact endNodeinconα E EEndNodeα
-    rename_i EEndnodeβ
-    dsimp at *
-    by_cases β_eq_α : (insert (~β) (Finset.erase X (~(α⋀β)))) = (insert (~α) (Finset.erase X (~(α⋀β))))
-    sorry
-    sorry
+    simp [injectLocalTab] at *
+    cases def_c : c_to_cTab c_in
+    case loc lt_c next =>
+      rw [def_c] at EndNode
+      simp at EndNode
+      refine Nonempty.intro ?_
+      apply next
+      exact EndNode
+    case atm =>
+      rw [def_c] at EndNode
+      aesop
