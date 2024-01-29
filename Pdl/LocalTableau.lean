@@ -76,41 +76,13 @@ theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B
   case nSt a φ =>
     constructor
     · -- soundness
-      intro w_naSf
-      simp at w_naSf
-      simp [discon]
+      intro w_naSphi
+      have := notStarSoundness M w a φ w_naSphi
+      rcases this with ⟨Γ, Γ_in, w_Γ⟩
       rw [disconEval]
-      rcases w_naSf with ⟨y, x_rel_y, y_nf⟩
-      cases starCases x_rel_y -- NOTE: Relation.ReflTransGen.cases_head without ≠ is not enough here ...
-      case inl w_is_y =>
-        subst w_is_y
-        use [~φ]
-        simp
-        exact y_nf
-      case inr hyp =>
-        -- (... because we need to get the in-equality here to get the contradiction below.)
-        rcases hyp with ⟨_, z, w_neq_z, w_a_z, z_aS_y⟩
-        -- MB now distinguishes whether a is atomic, we don't care.
-        have := notStarSoundnessAux a M w z ([]) (DagFormula.dag a φ)
-        specialize this _ w_a_z _
-        · intro g g_in
-          simp at g_in
-          subst g_in
-          simp
-          exact ⟨z, ⟨w_a_z, ⟨y, ⟨z_aS_y, y_nf⟩⟩⟩⟩
-        · simp [vDash,modelCanSemImplyForm]
-          use y
-        rcases this with ⟨Γ, Γ_in, w_Γ, caseOne | caseTwo⟩
-        · rcases caseOne with ⟨A, as, _, _, Γ_normal⟩
-          use Γ.1
-          constructor
-          · have := dagNormal_is_dagEnd Γ_in Γ_normal
-            aesop
-          · intro f f_in
-            aesop
-        · absurd caseTwo.2 -- contradiction!
-          exact w_neq_z
-    · -- want to use notStarInvert, but that does not know/care about loading (but here should be okay.)
+      simp [evaluatePoint,modelCanSemImplyList] at *
+      aesop
+    · -- invertibility
       intro w_X
       simp at w_X
       rw [disconEval] at w_X
@@ -254,6 +226,9 @@ inductive LocalRuleApp : TNode → List TNode → Type
        (rule : LocalRule (Lcond, Rcond, Ocond) C)
        (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R ∧ Ocond ⊆ O)
        : LocalRuleApp (L,R,o) $ applyLocalRule rule (L,R,o)
+
+theorem localRuleTruth : ReplaceThis := sorry
+  -- show that any LocalRuleApp preserves truth in a model.
 
 -- A set X is simple  iff  all P ∈ X are (negated) atoms or [A]_ or ¬[A]_.
 @[simp]

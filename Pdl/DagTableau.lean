@@ -371,6 +371,45 @@ theorem dagNormal_is_dagEnd
   subst Γ_normal
   simp [dagEndNodes]
 
+theorem notStarSoundness
+    (M : KripkeModel W) (w : W) (a : Program) (φ : Formula)
+    :
+    evaluate M w (~⌈∗a⌉φ) →
+      ∃ Γ ∈ [[~φ]] ++ dagEndNodes (∅, some (~⌈a⌉⌈a†⌉φ)), (M,w) ⊨ Γ :=
+  by
+      intro w_naSf
+      simp at w_naSf
+      rcases w_naSf with ⟨y, x_rel_y, y_nf⟩
+      cases starCases x_rel_y -- NOTE: Relation.ReflTransGen.cases_head without ≠ is not enough here ...
+      case inl w_is_y =>
+        subst w_is_y
+        use [~φ]
+        simp [modelCanSemImplyForm, modelCanSemImplyList]
+        exact y_nf
+      case inr hyp =>
+        -- (... because we need to get the in-equality here to get the contradiction below.)
+        rcases hyp with ⟨_, z, w_neq_z, w_a_z, z_aS_y⟩
+        -- MB now distinguishes whether a is atomic, we don't care.
+        have := notStarSoundnessAux a M w z ([]) (DagFormula.dag a φ)
+        specialize this _ w_a_z _
+        · intro g g_in
+          simp at g_in
+          subst g_in
+          simp
+          exact ⟨z, ⟨w_a_z, ⟨y, ⟨z_aS_y, y_nf⟩⟩⟩⟩
+        · simp [vDash,modelCanSemImplyForm]
+          use y
+        rcases this with ⟨Γ, Γ_in, w_Γ, caseOne | caseTwo⟩
+        · rcases caseOne with ⟨A, as, _, _, Γ_normal⟩
+          use Γ.1
+          constructor
+          · have := dagNormal_is_dagEnd Γ_in Γ_normal
+            aesop
+          · intro f f_in
+            aesop
+        · absurd caseTwo.2 -- contradiction!
+          exact w_neq_z
+
 theorem notStarInvertAux (M : KripkeModel W) (v : W) S :
     (∃ Γ ∈ dagNext S, (M, v) ⊨ Γ) → (M, v) ⊨ S := by
   intro hyp
