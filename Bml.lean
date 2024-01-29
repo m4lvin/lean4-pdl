@@ -7,6 +7,6 @@ import «Bml».Examples
 import «Bml».Vocabulary
 import «Bml».Soundness
 import «Bml».Tableauexamples
-import «Bml».BetterCompleteness
+import «Bml».CompletenessViaPaths
 import «Bml».Partitions
 import «Bml».Interpolation
