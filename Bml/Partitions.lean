@@ -29,7 +29,6 @@ theorem choice_property_in_image {f : α → β }{l : List α} {p : β → Prop}
 theorem InterpolantInductionStep
   (L R : Finset Formula)
   (ruleA : LocalRuleApp (L,R) C)
-  (subTabs: Π c ∈ C, LocalTableau c)
   (subθs : Π c ∈ C, PartInterpolant c)
   : PartInterpolant (L,R) :=
   by
@@ -119,6 +118,7 @@ theorem InterpolantInductionStep
         · use ~φ; constructor
           · exact preproof.right <| Finset.mem_singleton.mpr rfl
           . exact ℓinφ
+
       · constructor <;> apply negation_not_cosatisfiable φ <;> simp
         · apply Or.intro_right; exact preproof.left <| Finset.mem_singleton.mpr rfl
         · exact preproof.right <| Finset.mem_singleton.mpr rfl
@@ -136,6 +136,7 @@ theorem InterpolantInductionStep
         · use φ; constructor
           · exact preproof.right <| Finset.mem_singleton.mpr rfl
           . exact ℓinφ
+
       · constructor
         · apply negation_not_cosatisfiable (~φ) <;> simp
           apply Or.intro_right; exact preproof.left <| Finset.mem_singleton.mpr rfl
@@ -245,7 +246,7 @@ theorem tabToInt {LR : TNode} (tab : ClosedTableau LR)
     -- Term-mode version below was broken after removal of AppLocalTableau.
     induction lt
     case fromRule WhatIsThis LR C lrApp subTabs IH =>
-      apply InterpolantInductionStep LR.1 LR.2 lrApp subTabs
+      apply InterpolantInductionStep LR.1 LR.2 lrApp
       intro cLR c_in_C
       apply IH cLR c_in_C
       · intro eLR e_in_end
@@ -256,26 +257,7 @@ theorem tabToInt {LR : TNode} (tab : ClosedTableau LR)
         aesop
     case fromSimple =>
       aesop
-    /-
-    exact (
-    @LocalTableau.recOn
-    (λLR C appTab => (∀E ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩, PartInterpolant E) → PartInterpolant LR)
-    (λLR locTab   => (∀E ∈ endNodesOf ⟨LR, locTab⟩                      , PartInterpolant E) → PartInterpolant LR)
-    LR lt
-    (by --mk (can be done by aesop but then it complains about metavariables)
-      intro L R C ruleA subTabs ih nextθs
-      apply InterpolantInductionStep L R (AppLocalTableau.mk ruleA subTabs)
-      intro cLR c_in_C
-      apply ih cLR c_in_C
-      intro eLR e_in_end
-      apply nextθs
-      aesop
-    )
-    (by aesop) --fromRule
-    (by aesop) --fromSimple
-    <| nextθs
-    )
-    -/
+
   case atmL LR φ nBoxφ_in_L simple_LR cTabProj pθ =>
     use ~(□~pθ.val) -- modal rule on the right: use diamond of interpolant!
     constructor
@@ -286,6 +268,7 @@ theorem tabToInt {LR : TNode} (tab : ClosedTableau LR)
       · rw [sat_double_neq_invariant]
         exact projection_reflects_unsat_L_L nBoxφ_in_L pθ.2.2.1
       · exact projection_reflects_unsat_L_R nBoxφ_in_L pθ.2.2.2
+
   -- dual to atmL
   case atmR LR φ nBoxφ_in_R simple_LR cTabProj pθ =>
     use (□pθ.val) -- modal rule on the right: use box of interpolant!
