@@ -23,18 +23,17 @@ def PartInterpolant (LR : TNode) := Subtype <| isPartInterpolant LR
 -- use let x : t := mapImageProp X
 -- complains unless you specify all implicit arguments
 -- for now: use x := mapImageProp, provide t in a comment
-lemma choice_property_in_image {f : α → β }{l : List α} {p : β → Prop} (p_in_image: ∃y ∈ (List.map f l), p y) : ∃x ∈ l, p (f x) :=
+theorem choice_property_in_image {f : α → β }{l : List α} {p : β → Prop} (p_in_image: ∃y ∈ (List.map f l), p y) : ∃x ∈ l, p (f x) :=
   by simp at p_in_image; assumption
 
 theorem InterpolantInductionStep
   (L R : Finset Formula)
-  (tab : AppLocalTableau (L,R) C)
-  (subθs : ΠcLR ∈ C, PartInterpolant cLR)
+  (ruleA : LocalRuleApp (L,R) C)
+  (subTabs: Π c ∈ C, LocalTableau c)
+  (subθs : Π c ∈ C, PartInterpolant c)
   : PartInterpolant (L,R) :=
   by
     -- UNPACKING TERMS
-    match v : tab with
-    | @AppLocalTableau.mk _ _ C ruleA subTabs =>
     match def_ruleA : ruleA with
     | @LocalRuleApp.mk _ _ _ ress Lcond Rcond rule hC preproof =>
 
@@ -242,24 +241,41 @@ theorem projection_reflects_unsat_R_R
 theorem tabToInt {LR : TNode} (tab : ClosedTableau LR)
 : PartInterpolant LR := by
   induction tab
-  case loc C LR appTab _ endθs => exact (
-    @AppLocalTableau.recOn
+  case loc LR lt next nextθs =>
+    -- Term-mode version below was broken after removal of AppLocalTableau.
+    induction lt
+    case fromRule WhatIsThis LR C lrApp subTabs IH =>
+      apply InterpolantInductionStep LR.1 LR.2 lrApp subTabs
+      intro cLR c_in_C
+      apply IH cLR c_in_C
+      · intro eLR e_in_end
+        apply next
+        aesop
+      · intro Y Y_in
+        apply nextθs
+        aesop
+    case fromSimple =>
+      aesop
+    /-
+    exact (
+    @LocalTableau.recOn
     (λLR C appTab => (∀E ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩, PartInterpolant E) → PartInterpolant LR)
     (λLR locTab   => (∀E ∈ endNodesOf ⟨LR, locTab⟩                      , PartInterpolant E) → PartInterpolant LR)
-    LR C appTab
+    LR lt
     (by --mk (can be done by aesop but then it complains about metavariables)
-      intro L R C ruleA subTabs ih endθs
+      intro L R C ruleA subTabs ih nextθs
       apply InterpolantInductionStep L R (AppLocalTableau.mk ruleA subTabs)
       intro cLR c_in_C
       apply ih cLR c_in_C
       intro eLR e_in_end
-      apply endθs
+      apply nextθs
       aesop
     )
     (by aesop) --fromRule
     (by aesop) --fromSimple
-    <| endθs
+    <| nextθs
     )
+    -/
   case atmL LR φ nBoxφ_in_L simple_LR cTabProj pθ =>
     use ~(□~pθ.val) -- modal rule on the right: use diamond of interpolant!
     constructor

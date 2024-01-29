@@ -420,28 +420,16 @@ lemma LocalRuleUniqueR
   all_goals simp_all
 
 mutual
-inductive AppLocalTableau : TNode → List TNode → Type
-  | mk {L R : Finset Formula} {C : List TNode}
-       (ruleA : LocalRuleApp (L,R) C)
-       (subTabs: (Π c ∈ C, LocalTableau c))
-       : AppLocalTableau (L, R) C
 
 inductive LocalTableau : TNode → Type
-  | fromRule {C : List TNode}  (appTab : AppLocalTableau LR C) : LocalTableau LR
+  | fromRule
+      {LR : TNode}
+      {C : List TNode}
+      (ruleA : LocalRuleApp LR C)
+      (subTabs: (Π c ∈ C, LocalTableau c))
+      : LocalTableau LR
   | fromSimple (isSimple : Simple LR) : LocalTableau LR
 end
-
-def getTabRule : AppLocalTableau LR C → Σ Lcond Rcond C, LocalRule (Lcond,Rcond) C
-  | AppLocalTableau.mk (LocalRuleApp.mk B Lcond Rcond rule _) _ => ⟨Lcond, Rcond, B, rule⟩
-
-def getTabChildren : AppLocalTableau LR C →  List TNode
-  | @AppLocalTableau.mk _ _ C _ _ => C
-
-@[simp]
-def getSubTabs (tab : AppLocalTableau LR C)
-  : (Π c ∈ C, LocalTableau c) :=
-  match tab with
-  | AppLocalTableau.mk _ subTabs => subTabs
 
 -- If X is not simple, then a local rule can be applied.
 -- (page 13)
@@ -645,8 +633,15 @@ theorem notnot_notSelfContain : ~~φ ≠ φ := fun.
 @[simp]
 theorem conNotSelfContainL : φ1 ⋀ φ2 ≠ φ1 := fun.
 @[simp]
-theorem conNotSelfContainR : φ1 ⋀ φ2 ≠ φ2 := sorry -- too much Mathlib imported.
--- see https://leanprover.zulipchat.com/#narrow/stream/113489-new-members/topic/.E2.9C.94.20well-foundedness.20of.20my.20own.20inductive.3F/near/416990596
+theorem conNotSelfContainR : φ1 ⋀ φ2 ≠ φ2 :=
+  -- This should also just be "fun." but we have too much Mathlib imported.
+  -- see https://leanprover.zulipchat.com/#narrow/stream/113489-new-members/topic/.E2.9C.94.20well-foundedness.20of.20my.20own.20inductive.3F/near/416990596
+  by
+  induction φ2
+  all_goals simp
+  intro hyp
+  subst hyp
+  tauto
 
 -- Rules never re-insert the same formula(s).
 theorem localRuleNoOverlap
@@ -675,18 +670,17 @@ theorem zlengthOf.pos : 0 ≤ zlengthOf φ := Int.ofNat_nonneg (lengthOfFormula 
 @[simp]
 def zlengthOfSet : Finset Formula → Int := fun X => X.sum zlengthOf
 
-theorem z_iff : zlengthOfSet X = lengthOfSet X := by simp; rfl
-
 theorem zlen_iff { X Y : Finset Formula }
     : lengthOf X < lengthOf Y ↔ zlengthOfSet X < zlengthOfSet Y :=
   by
-  rw [z_iff, z_iff]
+  have : ∀ W, zlengthOfSet W = lengthOfSet W := by intro W; simp; rfl
+  rw [this, this]
+  zify
   simp
-  sorry -- only coercions left?!
 
 theorem zlengthOfSet.pos : zlengthOfSet X ≥ 0 := by
   simp
-  apply Finset.sum_induction
+  apply Finset.sum_induction zlengthOf
   · intro a b a_ge b_ge; linarith
   · simp
   · intro f _; exact zlengthOf.pos
@@ -703,7 +697,7 @@ theorem localRuleAppDecreasesLengthSide
             have := @Finset.sum_union_inter _ _ (X \ Cond) Res zlengthOf _ _
             have : zlengthOfSet (X \ Cond ∩ Res) ≥ 0 := zlengthOfSet.pos
             simp_all
-            linarith -- mwah
+            linarith
       _ = zlengthOfSet X - zlengthOfSet Cond + zlengthOfSet Res := by
             simp only [zlengthOfSet]
             rw [Finset.sum_sdiff_eq_sub precondProof]
@@ -746,14 +740,14 @@ theorem localRuleAppDecreasesLength
           by have := localRuleAppDecreasesLengthSide R Rcond res.2 hyp.1 precondProofR; aesop
       _ = lengthOfTNode (L, R) := by simp
 
-theorem AppLocalTableau.DecreasesLength
-  (appTab : AppLocalTableau LR C)
-  (c_in : c ∈ C) :
-  lengthOfTNode c < lengthOfTNode LR :=
-  by
-  rcases appTab with ⟨lrApp, next⟩
-  have := localRuleAppDecreasesLength lrApp
-  aesop
+-- theorem AppLocalTableau.DecreasesLength
+--   (appTab : AppLocalTableau LR C)
+--   (c_in : c ∈ C) :
+--   lengthOfTNode c < lengthOfTNode LR :=
+--   by
+--   rcases appTab with ⟨lrApp, next⟩
+--   have := localRuleAppDecreasesLength lrApp
+--   aesop
 
 -- Lift definition of projection to TNodes, including the diamond formula left or right.
 def diamondProjectTNode : Sum Formula Formula → TNode → TNode
@@ -867,10 +861,10 @@ instance localTableauHasLength : HasLength (Σ LR, LocalTableau LR) :=
 
 -- open end nodes of a given localTableau
 def endNodesOf : (Σ LR, LocalTableau LR) → List TNode
-  | ⟨LR, @LocalTableau.fromRule _ C (appTab : AppLocalTableau LR C)⟩ =>
+  | ⟨LR, @LocalTableau.fromRule _ C ruleA subTabs⟩ =>
     (C.attach.map fun ⟨c, c_in⟩ =>
-      have tc : LocalTableau c := getSubTabs appTab c c_in
-      have : lengthOfTNode c < lengthOfTNode LR := AppLocalTableau.DecreasesLength appTab c_in
+      have tc : LocalTableau c := subTabs c c_in
+      have : lengthOfTNode c < lengthOfTNode LR := localRuleAppDecreasesLength ruleA c c_in
       endNodesOf ⟨c, tc⟩
       ).join
   | ⟨LR, LocalTableau.fromSimple _⟩ => [LR]
@@ -883,19 +877,17 @@ theorem endNodesOfSimple : endNodesOf ⟨ LR, LocalTableau.fromSimple hyp ⟩ = 
   simp only [endNodesOf]
 
 @[simp]
-theorem lrEndNodes {LR C subtabs lrApp} :
-    endNodesOf ⟨LR, LocalTableau.fromRule
-    (@AppLocalTableau.mk LR.1 LR.2 C lrApp subtabs)⟩ = (C.attach.map (fun ⟨c, c_in⟩  =>
-      endNodesOf ⟨c, subtabs c c_in⟩) ).join :=
+theorem lrEndNodes {LR : TNode} {C : List TNode} {ruleA} {subTabs} :
+    endNodesOf ⟨LR, LocalTableau.fromRule ruleA subTabs⟩
+    = (C.attach.map (fun ⟨c, c_in⟩ => endNodesOf ⟨c, subTabs c c_in⟩)).join :=
   by
-  simp only [endNodesOf, getSubTabs]
+  simp only [endNodesOf]
 
 theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOfTNode Z ≤ lengthOfTNode LR :=
   by
   cases ltLR
-  case fromRule altLR =>
+  case fromRule altLR subTabs lrApp =>
     intro Z_endOf_LR
-    let ⟨lrApp, next⟩ := altLR
     simp at Z_endOf_LR
     rcases Z_endOf_LR with ⟨ZS, ⟨c, c_in_C, endNodes_c_eq_ZS⟩, Z_in_ZS⟩
     subst endNodes_c_eq_ZS
@@ -911,25 +903,24 @@ theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOf
 termination_by
   endNodesOfLEQ LT   => lengthOfTNode LR
 
-theorem endNodesOfLocalRuleLT {LR Z} {appTab : AppLocalTableau LR C} :
-    Z ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩ → lengthOfTNode Z < lengthOfTNode LR :=
+theorem endNodesOfLocalRuleLT :
+    Z ∈ endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩ → lengthOfTNode Z < lengthOfTNode LR :=
   by
   intro Z_endOf_LR
-  cases' appTab with L R _ lrApp next
   simp at Z_endOf_LR
   rcases Z_endOf_LR with ⟨ZS, ⟨c, c_in_C, endNodes_c_eq_ZS⟩, Z_in_ZS⟩
   subst endNodes_c_eq_ZS
   have := localRuleAppDecreasesLength lrApp c c_in_C -- for termination and below!
   · calc
       lengthOfTNode Z ≤ lengthOfTNode c := endNodesOfLEQ Z_in_ZS
-      _ < lengthOfTNode (L,R) := this
+      _ < lengthOfTNode LR := this
 
 -- Definition 16, page 29
 -- Notes:
--- - "loc" uses AppLocalTableau, not "LocalTableau", to avoid infinite use of "LocalTableau.fromSimple".
+-- - "loc" may actually make no progress (by using "LocalTableau.fromSimple"), but that seems okay.
 -- - base case for simple tableaux is part of "atm" which can be applied to L or to R.
 inductive ClosedTableau : TNode → Type
-  | loc {LR} (appTab : AppLocalTableau LR C) : (next : ∀ Y ∈ endNodesOf ⟨LR, LocalTableau.fromRule appTab⟩, ClosedTableau Y) → ClosedTableau LR
+  | loc {LR} (lt : LocalTableau LR) : (next : ∀ Y ∈ endNodesOf ⟨LR, lt⟩, ClosedTableau Y) → ClosedTableau LR
   | atmL {LR ϕ} : ~(□ϕ) ∈ LR.1 → Simple LR → ClosedTableau (diamondProjectTNode (Sum.inl ϕ) LR) → ClosedTableau LR
   | atmR {LR ϕ} : ~(□ϕ) ∈ LR.2 → Simple LR → ClosedTableau (diamondProjectTNode (Sum.inr ϕ) LR) → ClosedTableau LR
 
@@ -953,7 +944,7 @@ noncomputable def aLocalTableauFor (LR: TNode) : LocalTableau LR :=
   then LocalTableau.fromSimple h_simple
   else
     let ⟨C, ruleA⟩ := notSimpleToRuleApp h_simple
-    LocalTableau.fromRule <| AppLocalTableau.mk ruleA <| (λc c_in_C =>
+    LocalTableau.fromRule ruleA <| (λc c_in_C =>
       have := localRuleAppDecreasesLength ruleA c c_in_C -- for termination
       aLocalTableauFor c)
   termination_by
@@ -979,7 +970,6 @@ theorem existsLocalTableauFor LR : Nonempty (LocalTableau LR) :=
       cases' lr_exists with lr
       constructor
       apply LocalTableau.fromRule
-      apply AppLocalTableau.mk
       apply LocalRuleApp.mk C LCond RCond lr ⟨preconL, preconR⟩
       use applyLocalRule lr (LR.1, LR.2)
       rfl
