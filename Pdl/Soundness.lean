@@ -110,7 +110,7 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
               -- this sorry should be easy since no rel to new world??
             · sorry -- new world
             · rcases old_world with ⟨otherR, otherWorld⟩ -- old world
-              have sameR : R = otherR := by sorry -- same problem as earlier
+              have sameR : R = otherR := by sorry -- same problem as earlier, why no aesop?
               subst sameR
               aesop
           · intro old_rel
@@ -139,18 +139,8 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
 
 
 
-      -- induction old_rel
-          -- case refl => apply Relation.ReflTransGen.refl
-          -- case tail r s IH rel_rs rel_to_refltransgen =>
-
-          --   apply rel_to_refltransgen
-          --   constructor
-          --   · intro new_rel_oW_r   -- getting confused here
-          --     sorry
-          --   · sorry
-
 /-
-theorem combMo_preserves_truth_at_oldWOrld {β : Type}
+theorem combMo_preserves_truth_at_oldWOrld_old {β : Type}
     (collection : β → Σ W : Type, KripkeModel W × W) (newVal : Char → Prop) :
     ∀ (f : Formula) (R : β) (oldWorld : (collection R).fst),
       evaluate (combinedModel collection newVal).fst (Sum.inr ⟨R, oldWorld⟩) f ↔
