@@ -104,3 +104,17 @@ notation "~'" χ => NegLoadFormula.neg χ
 
 example : NegLoadFormula := ~'(⌊((·'a') ;' (·'b'))⌋⊤)
 example : NegLoadFormula := ~'(⌊⌊[·'a', ·'b']⌋⌋⌊·'a'⌋ ⊤)
+
+theorem loadBoxes_last : (~'⌊a⌋LoadFormula.boxes (as ++ [c]) P) = (~'⌊a⌋LoadFormula.boxes as (⌊c⌋P)) :=
+  by
+  induction as
+  · simp
+  · simp at *
+    assumption
+
+theorem loadBoxes_append : LoadFormula.boxes (as ++ bs) P = LoadFormula.boxes as (LoadFormula.boxes bs P) :=
+  by
+  induction as
+  · simp
+  · simp at *
+    assumption
