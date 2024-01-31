@@ -10,7 +10,7 @@ open HasSat
 
 -- Combine a collection of pointed models with one new world using the given valuation.
 -- TODO: rewrite to term mode?
-def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W × W)
+def combinedModel {β : Type} (collection : β → Σ W : Type, Char × KripkeModel W × W)
     (newVal : Char → Prop) :
     KripkeModel (Sum Unit (Σ k : β, (collection k).fst)) × Sum Unit (Σ k : β, (collection k).fst) :=
   by
@@ -24,14 +24,14 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W ×
       exact newVal -- use new given valuation here!!
     case inr oldWorld => -- world in one of the given models:
       cases' oldWorld with R w
-      exact (collection R).snd.fst.val w
+      exact (collection R).snd.snd.fst.val w
   · -- defining relations:
     intro prog worldOne worldTwo
     cases worldOne <;> cases worldTwo -- four cases about two new or old worlds
     case inl.inl =>
       exact False -- no reflexive loop at the new world.
     case inl.inr newWorld oldWorld =>
-      exact HEq oldWorld.snd (collection oldWorld.fst).snd.snd -- conect new world to given points.
+      exact (HEq oldWorld.snd (collection oldWorld.fst).snd.snd) ∧ (HEq prog (collection oldWorld.fst).snd.fst)  -- connect new world to given points.
     case inr.inl => exact False -- no connection from models to new world
     case inr.inr oldWorldOne oldWorldTwo =>
       -- connect two old worlds iff they are from the same model and were connected there already:
@@ -41,7 +41,7 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W ×
         intro same
         have sameCol : collection kOne = collection kTwo := by rw [← same]
         rw [← sameCol] at wTwo
-        exact (collection kOne).snd.fst.Rel prog wOne wTwo
+        exact (collection kOne).snd.snd.fst.Rel prog wOne wTwo
       exact dite (kOne = kTwo) (fun same => help same) fun _ => False
   · -- point at the new world:
     left
@@ -462,28 +462,23 @@ theorem localRuleSoundnessNoneLoaded
           specialize satLR (⌈a;'b⌉f); tauto
         aesop
       case tes f g =>
-        have : evaluate M w (⌈?'f⌉g) := by
+        have eval_test : evaluate M w (⌈?'f⌉g) := by
           specialize satLR (⌈?'f⌉g); tauto
-        unfold evaluate at this
-        unfold relate at this
+        unfold evaluate at eval_test
+        unfold relate at eval_test
         simp at *
         apply Or.inl
         intro f₁ hf₁
         specialize satLR f₁
         cases' hf₁ with in_delta neg_f
         · aesop
-        · rw [neg_f]
-          simp [evaluate]
-          sorry
-          -- intro f₂ hf₂
-          -- cases' hf₂ with in_delta is_g
-          -- · aesop
-          -- · sorry
+        · rw [neg_f, evaluate]
+          intro eval_f
+          have not_eval_neg_f : ¬(evaluate M w (~f)) := by aesop
+          rw [neg_f] at *
 
-          -- simp [is_g] at *
-          -- apply this
-          -- specialize satLR f
-          -- apply satLR
+
+
       case nUn a b f =>
         have : evaluate M w (~⌈a⋓b⌉f) := by
           specialize satLR (~⌈a⋓b⌉f); tauto
