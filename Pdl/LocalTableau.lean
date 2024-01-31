@@ -7,6 +7,7 @@ import Pdl.Setsimp
 import Pdl.Semantics
 import Pdl.Discon
 import Pdl.DagTableau
+import Pdl.Vocab
 
 open Undag
 
@@ -17,6 +18,14 @@ open HasLength
 -- A tableau node has a set of formulas and one or no negated loaded formula.
 def TNode := List Formula × List Formula × Option (Sum NegLoadFormula NegLoadFormula) -- ⟨L, R, o⟩
   deriving DecidableEq -- TODO Repr
+
+def TNode.L : TNode → List Formula := λ⟨L,_,_⟩ => L
+def TNode.R : TNode → List Formula := λ⟨_,R,_⟩ => R
+def TNode.O : TNode → Option (Sum NegLoadFormula NegLoadFormula) := λ⟨_,_,O⟩ => O
+
+open HasVocabulary
+def sharedVoc : TNode → Finset Char := λN => voc N.L ∩ voc N.R
+instance tNodeHasVocabulary : HasVocabulary (TNode) := ⟨sharedVoc⟩
 
 instance modelCanSemImplyTNode : vDash (KripkeModel W × W) TNode :=
   vDash.mk (λ ⟨M,w⟩ ⟨L, R, o⟩ => ∀ f ∈ L ∪ R ∪ (o.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
@@ -204,9 +213,9 @@ inductive LocalRule : TNode → List TNode → Type
       LocalRule (∅, ∅, some (Sum.inr (~'χ))) $ ress.map $ λ (X, o) => (∅, X, o.map Sum.inr)
 
 @[simp]
-def applyLocalRule (_ : LocalRule (Lcond, Rcond, Ocond) C) : TNode → List TNode
-  | ⟨L, R, o⟩ => C.map $ λ (Lnew, Rnew, Onew) => match Onew with
-      | none => (L \ Lcond ∪ Lnew, R \ Rcond ∪ Rnew, o)
+def applyLocalRule (_ : LocalRule (Lcond, Rcond, Ocond) ress) : TNode → List TNode
+  | ⟨L, R, O⟩ => ress.map $ λ (Lnew, Rnew, Onew) => match Onew with
+      | none                 => (L \ Lcond ∪ Lnew, R \ Rcond ∪ Rnew, O)
       | some (Sum.inl (~'χ)) => (L \ Lcond ∪ Lnew, R \ Rcond ∪ Rnew, some (Sum.inl (~'χ)))
       | some (Sum.inr (~'χ)) => (L \ Lcond ∪ Lnew, R \ Rcond ∪ Rnew, some (Sum.inr (~'χ)))
 
@@ -223,9 +232,10 @@ inductive LocalRuleApp : TNode → List TNode → Type
        (O : Option (Sum NegLoadFormula NegLoadFormula))
        (Lcond Rcond : List Formula)
        (Ocond : Option (Sum NegLoadFormula NegLoadFormula))
-       (rule : LocalRule (Lcond, Rcond, Ocond) C)
+       (rule : LocalRule (Lcond, Rcond, Ocond) ress)
+       {hC : C = applyLocalRule rule (L,R,O)}
        (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R ∧ Ocond ⊆ O)
-       : LocalRuleApp (L,R,o) $ applyLocalRule rule (L,R,o)
+       : LocalRuleApp (L,R,O) C
 
 theorem localRuleTruth : ReplaceThis := sorry
   -- show that any LocalRuleApp preserves truth in a model.

@@ -29,7 +29,7 @@ def myModel : KripkeModel ℕ where
   val _ _ := True
   Rel _ _ v := HEq v 1
 
-theorem mysat (p : Char) : satisfiable (·p : Formula) :=
+theorem mysat (p : Char) : Satisfiable (·p : Formula) :=
   by
   use ℕ, myModel, 1
   unfold myModel
@@ -165,10 +165,10 @@ theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a
       intro sat_phi
       sorry
   specialize claim n.succ
-  simp at claim 
+  simp at claim
   have x_is_ys_nsucc : x = ys.get (n + 1) :=
     by
-    simp [Vector.last_def] at x_is_last 
+    simp [Vector.last_def] at x_is_last
     sorry
   rw [x_is_ys_nsucc]
   sorry -- was: exact claim

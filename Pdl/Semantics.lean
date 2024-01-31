@@ -57,7 +57,7 @@ def contradiction (φ : Formula) :=
 
 -- MB: Definition 5, page 9
 class HasSat (α : Type) where
-  satisfiable : α → Prop
+  Satisfiable : α → Prop
 open HasSat
 @[simp]
 instance formHasSat : HasSat Formula :=
@@ -65,6 +65,8 @@ instance formHasSat : HasSat Formula :=
 @[simp]
 instance setHasSat : HasSat (Finset Formula) :=
   HasSat.mk fun X => ∃ (W : _) (M : KripkeModel W) (w : _), ∀ φ ∈ X, evaluate M w φ
+instance listHasSat : HasSat (List Formula) :=
+  HasSat.mk fun L => Satisfiable L.toFinset
 
 def semImpliesSets (X : Finset Formula) (Y : Finset Formula) :=
   ∀ (W : Type) (M : KripkeModel W) (w),
@@ -114,8 +116,8 @@ theorem forms_to_sets {φ ψ : Formula} : φ⊨ψ → ({φ} : Finset Formula)⊨
   exact lhs
 
 theorem notSat_iff_semImplies (X : Finset Formula) (χ : Formula):
-    ¬satisfiable (X ∪ {~χ}) ↔ X ⊨ ({χ} : Finset Formula) := by
-  simp only [satisfiable, Finset.mem_union, Finset.mem_singleton, not_exists, not_forall, exists_prop, setCanSemImplySet, semImpliesSets, forall_eq]
+    ¬Satisfiable (X ∪ {~χ}) ↔ X ⊨ ({χ} : Finset Formula) := by
+  simp only [Satisfiable, Finset.mem_union, Finset.mem_singleton, not_exists, not_forall, exists_prop, setCanSemImplySet, semImpliesSets, forall_eq]
   constructor
   · intro nSat W M w satX
     specialize nSat W M w
@@ -172,7 +174,7 @@ theorem rel_steps_last {as} : ∀ v w,
       rw [IH]
       tauto
 
-theorem truthImply_then_satImply (X Y : Finset Formula) : X ⊨ Y → satisfiable X → satisfiable Y :=
+theorem truthImply_then_satImply (X Y : Finset Formula) : X ⊨ Y → Satisfiable X → Satisfiable Y :=
   by
   intro X_Y
   intro satX
