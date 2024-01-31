@@ -59,7 +59,6 @@ theorem mOfDagNode.isDec {x y : List Formula × Option NegDagFormula} (y_in : y 
     all_goals simp
     case some =>
       cases dfx
-      all_goals (try cases y_in)
       case neg g =>
         cases g
         all_goals (try cases y_in)
@@ -516,7 +515,7 @@ local notation "⌊⌊" ps "⌋⌋" γ => DagLoadFormula.boxes ps (γ : DagLoadF
 def injectLoad : Program → LoadFormula → DagLoadFormula
   | α, χ => (DagLoadFormula.box α (DagLoadFormula.ldg α χ))
 
--- Given α and χ, define ⌊α⌋⌊α†⌋χ
+-- Given α and φ, define ⌊α⌋⌊α†⌋φ
 @[simp]
 def injectLoad' : Program → Formula → DagLoadFormula
   | α, φ => (DagLoadFormula.box α (DagLoadFormula.dag α φ))
@@ -550,14 +549,14 @@ example : DagLoadFormula := ⌊·'a'⌋⌊(·'a')†⌋(·'p')
 
 -- In an LDDT we have a list of normal formulas and optionally either a NegLoadFormula or a NegDagLoadFormula.
 
-def LDDTNode := List Formula × Option (Sum NegLoadFormula (NegDagLoadFormula))
+def LDDTNode := List Formula × Option (Sum NegLoadFormula NegDagLoadFormula)
 
 -- TODO: All things we had for normal (= unloaded) diamonds
 -- we now need also for loaded here, i.e. anaologons of:
 --
 -- [X] dagNext --> loadDagNext
--- [ ] mOfDagNode --> mOfLoadDagNode
--- [ ] mOfDagNode.isDec --> mOfLoadDagNode.isDec
+-- [?] mOfDagNode --> mOfLoadDagNode
+-- [X] mOfDagNode.isDec --> mOfLoadDagNode.isDec
 -- [ ] dagNextTransRefl -->
 -- [ ] modelCanSemImplyDagTabNode -->
 -- [ ] notStarSoundnessAux -->
@@ -586,10 +585,47 @@ def loadDagNext : LDDTNode → List LDDTNode
   | (_, some (Sum.inl _)) => [ ] -- end node of dagger tableau
   | (_, none) => [ ] -- end node of dagger tableau
 
-def mOfLoadDagNode : LDDTNode → ℕ := sorry
+def mOfLoadDagNode : LDDTNode → ℕ
+  | ⟨_, none⟩ => 0
+  | ⟨_, some (Sum.inl _)⟩ => 0
+  | ⟨_, some (Sum.inr (~ψ))⟩ => 1 + mOfDagFormula (unloadOnly ψ)
 
 theorem mOfLoadDagNode.isDec {x y : LDDTNode} (y_in : y ∈ loadDagNext x) :
-    mOfLoadDagNode y < mOfLoadDagNode x := sorry
+    mOfLoadDagNode y < mOfLoadDagNode x := by
+    rcases x with ⟨_, _|lfx|dlfx⟩
+    case none =>
+      simp [mOfLoadDagNode]
+      cases y_in
+    case inl =>
+      simp [mOfLoadDagNode]
+      cases y_in
+    case inr =>
+      simp [mOfLoadDagNode]
+      rcases y with ⟨_, _|lfy|dlfy⟩
+      all_goals simp
+      case inr =>
+        cases dlfx
+        case neg g =>
+        cases g
+        all_goals (try cases y_in)
+        case box a f =>
+          cases a
+          all_goals (simp [dagNext,unloadOnly] at *)
+          case atom_prog =>
+            rcases y_in with ⟨l,r⟩
+          case sequence =>
+            rcases y_in with ⟨l,r⟩
+            simp
+            linarith
+          case union a b =>
+            rcases y_in with ⟨l,r⟩|⟨l,r⟩
+            all_goals (simp; linarith)
+          case star a =>
+            rcases y_in with ⟨l,r⟩|⟨l,r⟩
+            all_goals (simp <;> linarith)
+          case test f =>
+            rcases y_in with ⟨l,r⟩
+            simp
 
 def loadDagEndNodes : LDDTNode → List (List Formula × Option NegLoadFormula)
   | (fs, none) => [ (fs, none) ]
