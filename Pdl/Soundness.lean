@@ -47,13 +47,40 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W ×
     left
     exact ()
 
--- The combined model preserves all truths at the old worlds.
 theorem combMo_preserves_truth_at_oldWOrld {β : Type}
     (collection : β → Σ W : Type, KripkeModel W × W) (newVal : Char → Prop) :
     ∀ (f : Formula) (R : β) (oldWorld : (collection R).fst),
       evaluate (combinedModel collection newVal).fst (Sum.inr ⟨R, oldWorld⟩) f ↔
         evaluate (collection R).snd.fst oldWorld f :=
-  by
+    by
+    intro mF mR moW
+    apply @Formula.rec
+      (λφ => ∀ (R : β) (oldWorld : (collection R).fst),
+      evaluate (combinedModel collection newVal).fst (Sum.inr ⟨R, oldWorld⟩) φ ↔
+        evaluate (collection R).snd.fst oldWorld φ)
+       (λπ => True)
+       (by -- Case Bottom
+          intro R oW
+          aesop
+        )
+       (sorry)
+       (sorry)
+       (sorry)
+       (sorry)
+       (sorry)
+       (sorry)
+       (sorry)
+       (sorry)
+       (sorry)
+       (mF)
+
+/-
+theorem combMo_preserves_truth_at_oldWOrld {β : Type}
+    (collection : β → Σ W : Type, KripkeModel W × W) (newVal : Char → Prop) :
+    ∀ (f : Formula) (R : β) (oldWorld : (collection R).fst),
+      evaluate (combinedModel collection newVal).fst (Sum.inr ⟨R, oldWorld⟩) f ↔
+        evaluate (collection R).snd.fst oldWorld f :=
+    by
     intro f
     cases f <;>
     intro R oldWorld
@@ -123,6 +150,7 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
           simp_all
           sorry
           -- exact rel_in_new_model
+-/
 
 /-
 -- The combined model for X satisfies X.
