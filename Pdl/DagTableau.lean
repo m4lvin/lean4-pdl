@@ -543,6 +543,11 @@ def unloadOnly : DagLoadFormula → DagFormula -- probably never needed?
   | (⌊α†⌋(χ : LoadFormula)) => (DagFormula.dag (∗α) (unload χ))
   | (⌊α⌋γ) => (DagFormula.box α (unloadOnly γ))
 
+@[simp]
+theorem unloadUndagOnly: unload (undagOnly γ) = unloadAndUndag γ := by
+  induction γ
+  all_goals simp_all
+
 example : DagLoadFormula := ⌊(·'a')†⌋(·'p')
 example : DagLoadFormula := ⌊(·'a')†⌋⌊·'a'⌋(·'p') -- should this be allowed?!
 example : DagLoadFormula := ⌊·'a'⌋⌊(·'a')†⌋(·'p')
@@ -557,8 +562,8 @@ def LDDTNode := List Formula × Option (Sum NegLoadFormula NegDagLoadFormula)
 -- [X] dagNext --> loadDagNext
 -- [?] mOfDagNode --> mOfLoadDagNode
 -- [X] mOfDagNode.isDec --> mOfLoadDagNode.isDec
--- [ ] dagNextTransRefl -->
--- [ ] modelCanSemImplyDagTabNode -->
+-- [X] dagNextTransRefl -->
+-- [?] modelCanSemImplyDagTabNode -->
 -- [ ] notStarSoundnessAux -->
 -- [X] dagEndNodes --> loadDagEndNodes
 -- [ ] dagEnd_subset_next -->
@@ -626,6 +631,248 @@ theorem mOfLoadDagNode.isDec {x y : LDDTNode} (y_in : y ∈ loadDagNext x) :
           case test f =>
             rcases y_in with ⟨l,r⟩
             simp
+
+@[simp]
+def loadDagNextTransRefl : LDDTNode → List LDDTNode :=
+  ftr loadDagNext mOfLoadDagNode @mOfLoadDagNode.isDec
+
+def toFormula : NegLoadFormula ⊕ NegDagLoadFormula → Formula
+  | Sum.inl (~'f) => ~unload f
+  | Sum.inr (~(f: DagLoadFormula)) => ~unloadAndUndag f
+
+def evaluateLDDTNode: KripkeModel W × W → LDDTNode → Prop :=
+  λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ++ (mf.map toFormula).toList, evaluate M w φ
+
+instance {W : Type} : vDash (KripkeModel W × W)
+  (List Formula × Option (Sum NegLoadFormula NegDagLoadFormula)) :=
+  vDash.mk evaluateLDDTNode
+
+instance modelCanSemImplyLoadDagTabNode {W : Type} : vDash (KripkeModel W × W) LDDTNode :=
+  vDash.mk evaluateLDDTNode
+
+-- Similar to Borzechowski's Lemma 4
+theorem notStarLoadSoundnessAux (a : Program) M (v w : W) (fs)
+    (φ : DagLoadFormula)
+    (v_D : (M, v) ⊨ ((fs, some (Sum.inr (~⌊a⌋φ))): LDDTNode))
+    (v_a_w : relate M a v w)
+    (w_nP : (M, w) ⊨ (~unloadAndUndag φ)):
+    ∃ Γ ∈ loadDagNextTransRefl (fs, some (Sum.inr (~⌊a⌋φ))),
+      (M, v) ⊨ Γ ∧ ( ( ∃ (a : Char) (as : List Program), Sum.inl (~' ⌊·a⌋⌊⌊as⌋⌋(undagOnly φ)) ∈ Γ.2
+                       ∧ relate M (Program.steps ([Program.atom_prog a] ++ as)) v w)
+                   ∨ (Sum.inr (~φ) ∈ Γ.2 ∧ v = w) ) := by
+  cases a
+  case atom_prog A =>
+    use (fs, some (Sum.inl (~' ⌊·A⌋(undagOnly φ)))) -- unique successor by the "undag" rule
+    constructor
+    · unfold loadDagNextTransRefl; rw [ftr.iff]; right; simp; rw [ftr.iff]; simp
+    · constructor
+      · intro f
+        specialize v_D f
+        simp_all [toFormula]
+      · left
+        use A, []
+        simp at *
+        exact v_a_w
+  case star β => sorry
+    /-simp at v_a_w
+    have := starCases v_a_w
+    cases this
+    case inl v_is_w =>
+      subst v_is_w
+      use (fs, some (~φ))
+      constructor
+      · unfold dagNextTransRefl; rw [ftr.iff]; right; simp; rw [ftr.iff]; simp
+      · constructor
+        · intro f
+          specialize v_D f
+          intro f_in
+          simp at f_in
+          cases f_in
+          · aesop
+          case inr f_def =>
+            subst f_def
+            apply w_nP
+        · right
+          aesop
+    case inr claim =>
+      -- Here we follow the (fs, some (~⌈β⌉⌈β†⌉φ)) branch.
+      rcases claim with ⟨_, ⟨u, v_neq_u, v_b_u, u_bS_w⟩⟩
+      have := notStarSoundnessAux β M v u fs (⌈β†⌉(undag φ))
+      specialize this _ v_b_u _
+      · simp [modelCanSemImplyDagTabNode]
+        intro f f_in
+        simp [modelCanSemImplyForm] at *
+        cases f_in
+        case inl f_in =>
+          apply v_D
+          simp
+          left
+          assumption
+        case inr f_eq =>
+          subst f_eq
+          simp
+          use u
+          constructor
+          · exact v_b_u
+          · use w
+      · simp [modelCanSemImplyForm] at *
+        use w
+      rcases this with ⟨Γ, Γ_in, v_Γ, split⟩
+      use Γ
+      cases split
+      case inl one =>
+        constructor
+        · unfold dagNextTransRefl; rw [ftr.iff]; simp; tauto
+        · constructor
+          · exact v_Γ
+          · simp
+            left
+            simp [undag] at one
+            rcases one with ⟨a, as, ⟨aasbs_in_, ⟨⟨y, a_v_y, y_as_u⟩, Γ_normal⟩⟩⟩
+            use a, as ++ [∗β]
+            constructor
+            · rw [boxes_append]
+              exact aasbs_in_
+            · constructor
+              · use y
+                constructor
+                · assumption
+                · simp [relate_steps]
+                  use u
+              · assumption
+      case inr two =>
+        absurd two.right
+        simp at v_neq_u
+        exact v_neq_u-/
+
+  case sequence β γ => sorry
+    /-simp at v_a_w
+    rcases v_a_w with ⟨u, v_β_u, u_γ_w⟩
+    have u_nGphi : (M,u) ⊨ (~⌈γ⌉undag φ) := by
+      simp [modelCanSemImplyForm] at *
+      use w
+    have := notStarSoundnessAux β M v u fs (⌈γ⌉φ)
+    specialize this _ v_β_u u_nGphi
+    · intro f
+      simp
+      intro f_in
+      cases f_in
+      case inl f_in =>
+        apply v_D
+        simp
+        exact Or.inl f_in
+      case inr f_eq =>
+        rw [f_eq]
+        simp
+        simp [modelCanSemImplyForm] at u_nGphi
+        use u
+    rcases this with ⟨S, S_in, v_S, (⟨a,as,aasG_in_S,v_aas_u,Γ_normal⟩ | ⟨ngPhi_in_S, v_is_u⟩)⟩ -- Σ
+    · use S -- "If (1), then we are done."
+      constructor
+      · unfold dagNextTransRefl; rw [ftr.iff]; simp; tauto
+      · constructor
+        · exact v_S
+        · left
+          simp
+          use a, as ++ [γ]
+          constructor
+          · simp [undag] at  aasG_in_S
+            rw [boxes_last]
+            exact aasG_in_S
+          · simp at v_aas_u
+            rcases v_aas_u with ⟨y, v_a_y, y_asg_w⟩
+            constructor
+            · use y
+              rw [relate_steps]
+              constructor
+              · exact v_a_y
+              · use u
+                aesop
+            · assumption
+    · -- "If (2) ..."
+      have := notStarSoundnessAux γ M u w S.1 φ -- not use "fs" here!
+      specialize this _ u_γ_w w_nP
+      · intro f
+        simp
+        intro f_in
+        cases f_in
+        case inl f_in =>
+          rw [v_is_u] at v_S
+          apply v_S
+          simp
+          exact Or.inl f_in
+        case inr f_eq =>
+          rw [f_eq]
+          exact u_nGphi
+      rcases this with ⟨Γ, Γ_in, v_Γ, split⟩
+      have also_in_prev : Γ ∈ dagNextTransRefl (fs, some (~⌈β;'γ⌉φ)) := by
+        -- Here we use transitivity of "being a successor" in a dagger tableau.
+        apply ftr.Trans Γ S (fs, some (~⌈β;'γ⌉φ))
+        · convert Γ_in
+        · rw [ftr.iff]; simp; right; exact S_in
+      use Γ
+      subst v_is_u
+      constructor
+      · exact also_in_prev
+      · constructor
+        · exact v_Γ
+        · tauto --
+-/
+  case union α β => sorry
+    /-simp at v_a_w
+    cases v_a_w
+    case inl v_a_w =>
+      have := notStarSoundnessAux α M v w fs φ
+      specialize this _ v_a_w w_nP
+      · intro f
+        simp
+        rintro (f_in_fs | fDef)
+        · exact v_D f (by aesop)
+        · subst fDef
+          simp only [evaluate, not_forall, exists_prop, undag]
+          use w
+          simp [modelCanSemImplyForm,vDash] at w_nP
+          tauto
+      rcases this with ⟨Γ, Γ_in, v_Γ, split⟩
+      use Γ
+      constructor
+      · unfold dagNextTransRefl; rw [ftr.iff]; simp; tauto
+      · exact ⟨v_Γ, split⟩
+    case inr v_b_w => -- completely analogous
+      have := notStarSoundnessAux β M v w fs φ
+      specialize this _ v_b_w w_nP
+      · intro f
+        simp
+        rintro (f_in_fs | fDef)
+        · exact v_D f (by aesop)
+        · subst fDef
+          simp only [evaluate, not_forall, exists_prop, undag]
+          use w
+          simp [modelCanSemImplyForm,vDash] at w_nP
+          tauto
+      rcases this with ⟨Γ, Γ_in, v_Γ, split⟩
+      use Γ
+      constructor
+      · unfold dagNextTransRefl; rw [ftr.iff]; simp; tauto
+      · exact ⟨v_Γ, split⟩-/
+
+  case test ψ => sorry
+    /-use (fs ++ [ψ], some (~φ)) -- unique successor
+    constructor
+    · unfold dagNextTransRefl; rw [ftr.iff]; right; simp; rw [ftr.iff]; simp
+    · constructor
+      · intro f f_in
+        simp at *
+        cases f_in
+        · apply v_D
+          simp
+          tauto
+        · specialize v_D (~⌈?'ψ⌉undagDagFormula φ)
+          simp at v_D
+          aesop
+      · right; aesop-/
+termination_by
+  notStarSoundnessAux α M v w fs φ v_D v_a_w w_nP => mOfProgram α
 
 def loadDagEndNodes : LDDTNode → List (List Formula × Option NegLoadFormula)
   | (fs, none) => [ (fs, none) ]
