@@ -93,8 +93,8 @@ termination_by
   ftr.iff' x y f m isDec => m x -- ??
 decreasing_by simp_wf; apply isDec x _ (by assumption)
 
-theorem biUnion_subset (f) : ∀ i, ∀ (X Y : List α),
-    X ⊆ Y → ((λ X => X.map f)^[i]) X ⊆ ((λ X => X.map f)^[i]) Y :=  by
+theorem biUnion_subset (f : α → List α) : ∀ i, ∀ (X Y : List α),
+    X ⊆ Y → ((λ X => (X.map f).join)^[i]) X ⊆ ((λ X => (X.map f).join)^[i]) Y :=  by
   intro i
   induction i
   case zero =>
@@ -106,7 +106,10 @@ theorem biUnion_subset (f) : ∀ i, ∀ (X Y : List α),
     intro X Y
     simp
     intro X_sub_Y
-    apply IH (X.map f) (Y.map f) (List.map_subset f X_sub_Y)
+    apply IH
+    have := List.map_subset f X_sub_Y
+    intro a a_in
+    aesop
 
 theorem ftr.fromNth {α : Type}
     {f : α → List α}
@@ -159,10 +162,10 @@ theorem ftr.toNth {α : Type}
     case inr y_in =>
       rcases y_in with ⟨z, z_in_fx, y_in_ftr_z⟩
       have := (@IH (m z) (by rw [k_is]; exact isDec x z z_in_fx) z rfl y) y_in_ftr_z
-      rcases this with ⟨j,foo⟩
+      rcases this with ⟨j,y_in⟩
       use j + 1
       simp
-      sorry -- exact biUnion_subset f j {z} (f x) z_in_fx foo
+      exact biUnion_subset f j [z] (f x) (by simp; assumption) y_in
 
 theorem ftr.iff_Nth {α : Type}
     (f : α → List α)
@@ -192,8 +195,5 @@ theorem ftr.Trans (s t u : α)
   use i + j
   rw [Function.iterate_add]
   simp at *
-  sorry
-  -- rw [← @Finset.singleton_subset_iff] at t_in
-  -- have := biUnion_subset h f i {t} ((fun X => Finset.biUnion X f)^[j] {u}) t_in
-  -- apply this
-  -- assumption
+  apply biUnion_subset f i [t] ((fun X => (X.map f).join)^[j] [u]) (by simp; aesop)
+  assumption
