@@ -47,6 +47,7 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W ×
     left
     exact ()
 
+
 theorem combMo_preserves_truth_at_oldWOrld {β : Type}
     (collection : β → Σ W : Type, KripkeModel W × W) (newVal : Char → Prop) :
     ∀ (f : Formula) (R : β) (oldWorld : (collection R).fst),
@@ -56,23 +57,97 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
     intro mF mR moW
     apply @Formula.rec
       (λφ => ∀ (R : β) (oldWorld : (collection R).fst),
-      evaluate (combinedModel collection newVal).fst (Sum.inr ⟨R, oldWorld⟩) φ ↔
-        evaluate (collection R).snd.fst oldWorld φ)
-       (λπ => True)
-       (by -- Case Bottom
-          intro R oW
+        evaluate (combinedModel collection newVal).fst (Sum.inr ⟨R, oldWorld⟩) φ ↔
+          evaluate (collection R).snd.fst oldWorld φ)
+      (λπ => (∀ (R : β) (oldWorld world : (collection R).fst),
+        relate (combinedModel collection newVal).fst π (Sum.inr ⟨R, oldWorld⟩) (Sum.inr ⟨R, world⟩) ↔
+          relate (collection R).snd.fst π oldWorld world))
+      (by tauto)      -- case bottom
+      (by aesop)      -- case atom_prop
+      (by aesop)      -- case neg
+      (by aesop)      -- case and
+      ( by            -- case box
+          intro a f IH_a IH_f R oW
+          constructor
+          · aesop
+          · intro true_in_old
+            unfold evaluate at true_in_old
+            simp
+            constructor
+            · intro newWorld  -- new world
+              unfold combinedModel
+              unfold evaluate
+              unfold relate
+              -- sorry should be easy since no rel to new world??
+              -- "the new world is never reachable, trivial case" ~OG proof
+              sorry
+            · intro otherR otherWorld  -- old world
+              intro rel_in_new_model
+              specialize IH_f otherR otherWorld
+              have sameR : R = otherR := by sorry -- aesop worked in the OG proof
+              subst sameR
+              rw [IH_f]
+              apply true_in_old
+              -- remains to show that related in old model
+              exact Iff.mp (IH_a R oW otherWorld) rel_in_new_model
+      )
+      ( by          -- case atom_prog
+          intro a R oW v
+          constructor <;>
+          ( intro rel
+            unfold KripkeModel.Rel at *
+            unfold combinedModel at *
+            aesop
+          )
+      )
+      ( by          -- case sequence
+          intro a b IH_a IH_b R oW v
+          constructor
+          · intro new_rel
+            unfold relate at new_rel
+            rcases new_rel with ⟨u, u_rel_a, u_rel_b⟩
+            cases' u with new_world old_world
+              -- this sorry should be easy since no rel to new world??
+            · sorry -- new world
+            · rcases old_world with ⟨otherR, otherWorld⟩ -- old world
+              have sameR : R = otherR := by sorry -- same problem as earlier
+              subst sameR
+              aesop
+          · intro old_rel
+            unfold relate at old_rel
+            unfold relate
+            rcases old_rel with ⟨u, u_rel_a, u_rel_b⟩
+            use (Sum.inr ⟨R, u⟩)
+            aesop
+      )
+      (by aesop)       -- case union
+      (by              -- case star
+        intro a IH_a R oW v
+        have star_preserved : ∀ (w v : (collection R).fst), Relation.ReflTransGen (relate (combinedModel collection newVal).1 a)
+              (Sum.inr ⟨R, w⟩) (Sum.inr ⟨R, v⟩) ↔ Relation.ReflTransGen (relate (collection R).snd.1 a) w v :=
+            by sorry -- something with @Relation.ReflTransGen.head_induction_on ?
+        constructor <;>
+        ( intro rel
+          specialize IH_a R oW v
+          unfold relate at rel
+          unfold relate
           aesop
         )
-       (sorry)
-       (sorry)
-       (sorry)
-       (sorry)
-       (sorry)
-       (sorry)
-       (sorry)
-       (sorry)
-       (sorry)
-       (mF)
+      )
+      (by aesop)       -- case test
+      (mF)
+
+
+
+      -- induction old_rel
+          -- case refl => apply Relation.ReflTransGen.refl
+          -- case tail r s IH rel_rs rel_to_refltransgen =>
+
+          --   apply rel_to_refltransgen
+          --   constructor
+          --   · intro new_rel_oW_r   -- getting confused here
+          --     sorry
+          --   · sorry
 
 /-
 theorem combMo_preserves_truth_at_oldWOrld {β : Type}
