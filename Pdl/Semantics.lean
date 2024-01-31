@@ -65,13 +65,26 @@ instance formHasSat : HasSat Formula :=
 @[simp]
 instance setHasSat : HasSat (Finset Formula) :=
   HasSat.mk fun X => ∃ (W : _) (M : KripkeModel W) (w : _), ∀ φ ∈ X, evaluate M w φ
+@[simp]
+instance listHasSat : HasSat (List Formula) :=
+  HasSat.mk fun X => ∃ (W : _) (M : KripkeModel W) (w : _), ∀ φ ∈ X, evaluate M w φ
 
 def semImpliesSets (X : Finset Formula) (Y : Finset Formula) :=
   ∀ (W : Type) (M : KripkeModel W) (w),
     (∀ φ ∈ X, evaluate M w φ) → ∀ ψ ∈ Y, evaluate M w ψ
 
+def semImpliesLists (X : List Formula) (Y : List Formula) :=
+  ∀ (W : Type) (M : KripkeModel W) (w),
+    (∀ φ ∈ X, evaluate M w φ) → ∀ ψ ∈ Y, evaluate M w ψ
+
 def semEquiv (φ : Formula) (ψ : Formula) :=
   ∀ (W : Type) (M : KripkeModel W) (w), evaluate M w φ ↔ evaluate M w ψ
+
+@[simp]
+theorem singletonSat_iff_sat : ∀ φ, satisfiable ([φ] : List Formula) ↔ satisfiable φ :=
+  by
+  intro phi
+  simp
 
 theorem semEquiv.transitive : Transitive semEquiv :=
   by
@@ -89,6 +102,7 @@ open vDash
 
 instance modelCanSemImplyForm {W : Type} : vDash (KripkeModel W × W) Formula := vDash.mk (@evaluatePoint W)
 instance modelCanSemImplySet {W : Type} : vDash (KripkeModel W × W) (Finset Formula) := vDash.mk (λ ⟨M,w⟩ fs => ∀ f ∈ fs, @evaluate W M w f)
+@[simp]
 instance modelCanSemImplyList {W : Type} : vDash (KripkeModel W × W) (List Formula) := vDash.mk (λ ⟨M,w⟩ fs => ∀ f ∈ fs, @evaluate W M w f)
 instance setCanSemImplySet : vDash (Finset Formula) (Finset Formula) := vDash.mk semImpliesSets
 instance setCanSemImplyForm : vDash (Finset Formula) Formula:= vDash.mk fun X ψ => semImpliesSets X {ψ}

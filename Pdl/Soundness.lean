@@ -1,11 +1,12 @@
--- SOUNDNESS
-
-import Bml.Syntax
-import Bml.Tableau
+import Pdl.Syntax
+import Pdl.Tableau
+import Pdl.LocalTableau
+import Pdl.Semantics
 
 open Classical
 
 open HasSat
+
 
 -- Combine a collection of pointed models with one new world using the given valuation.
 -- TODO: rewrite to term mode?
@@ -25,9 +26,10 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W ×
       cases' oldWorld with R w
       exact (collection R).snd.fst.val w
   · -- defining relations:
-    intro worldOne worldTwo
+    intro prog worldOne worldTwo
     cases worldOne <;> cases worldTwo -- four cases about two new or old worlds
-    case inl.inl => exact False -- no reflexive loop at the new world.
+    case inl.inl =>
+      exact False -- no reflexive loop at the new world.
     case inl.inr newWorld oldWorld =>
       exact HEq oldWorld.snd (collection oldWorld.fst).snd.snd -- conect new world to given points.
     case inr.inl => exact False -- no connection from models to new world
@@ -39,7 +41,7 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W ×
         intro same
         have sameCol : collection kOne = collection kTwo := by rw [← same]
         rw [← sameCol] at wTwo
-        exact (collection kOne).snd.fst.Rel wOne wTwo
+        exact (collection kOne).snd.fst.Rel prog wOne wTwo
       exact dite (kOne = kTwo) (fun same => help same) fun _ => False
   · -- point at the new world:
     left
@@ -49,54 +51,80 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W ×
 theorem combMo_preserves_truth_at_oldWOrld {β : Type}
     (collection : β → Σ W : Type, KripkeModel W × W) (newVal : Char → Prop) :
     ∀ (f : Formula) (R : β) (oldWorld : (collection R).fst),
-      Evaluate ((combinedModel collection newVal).fst, Sum.inr ⟨R, oldWorld⟩) f ↔
-        Evaluate ((collection R).snd.fst, oldWorld) f :=
+      evaluate (combinedModel collection newVal).fst (Sum.inr ⟨R, oldWorld⟩) f ↔
+        evaluate (collection R).snd.fst oldWorld f :=
   by
     intro f
-    induction f <;> intro R oldWorld
+    cases f <;>
+    intro R oldWorld
     case bottom => aesop
     case atom_prop c =>
       unfold combinedModel
       simp
-    case neg f f_IH =>
-      unfold Evaluate
-      rw [f_IH R oldWorld]
-    case And f g f_IH g_IH =>
-      unfold Evaluate
-      rw [f_IH R oldWorld]
-      rw [g_IH R oldWorld]
-    case box f f_IH =>
-      unfold Evaluate
+    case neg f =>
+      unfold evaluate
+      have IH := combMo_preserves_truth_at_oldWOrld collection newVal f R oldWorld
+      tauto
+    case and f g =>
+      unfold evaluate
+      have IH_f := combMo_preserves_truth_at_oldWOrld collection newVal f R oldWorld
+      have IH_g := combMo_preserves_truth_at_oldWOrld collection newVal g R oldWorld
+      tauto
+    case box f =>
+      unfold evaluate
       constructor
       · intro true_in_combo
         intro otherWorld rel_in_old_model
-        specialize f_IH R otherWorld
-        rw [← f_IH]
+        have IH_f := combMo_preserves_truth_at_oldWOrld collection newVal f
+        specialize IH_f R otherWorld
+        rw [←IH_f]
         specialize true_in_combo (Sum.inr ⟨R, otherWorld⟩)
         apply true_in_combo
         unfold combinedModel
-        simp
-        exact rel_in_old_model
+        rename_i a
+        cases a <;> simp at *     -- maybe try to prove separate relate / program thms?
+        case atom_prog a => aesop
+        case sequence a₁ a₂ =>
+          rcases rel_in_old_model with ⟨w, hw⟩
+          -- use w
+          sorry
+        case union a₁ a₂ =>
+          cases' rel_in_old_model with rela₁ rela₂
+          · simp [rela₁] at *
+            sorry
+          · sorry
+        case star a₁ =>
+          sorry
+        case test p =>
+          cases' rel_in_old_model with left right
+          simp [left] at *
+          unfold evaluate at *
+          sorry
       · intro true_in_old
         simp
         constructor
         · intro newWorld
           unfold combinedModel
-          tauto
+          intro hyp
+          unfold evaluate at *
+          unfold relate at *
+          sorry
         -- the new world is never reachable, trivial case
         · intro otherR otherWorld
           intro rel_in_new_model
-          specialize f_IH otherR otherWorld
+          have IH_f := combMo_preserves_truth_at_oldWOrld collection newVal f
+          specialize IH_f otherR otherWorld
           unfold combinedModel at rel_in_new_model
-          have sameR : R = otherR := by aesop
+          have sameR : R = otherR := by sorry -- aesop
           subst sameR
-          rw [f_IH]
+          rw [IH_f]
           apply true_in_old
           -- remains to show that related in old model
-          simp at *
-          exact rel_in_new_model
+          simp_all
+          sorry
+          -- exact rel_in_new_model
 
-
+/-
 -- The combined model for X satisfies X.
 theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
     {beta_def : β = {F : Formula | f_in_TNode (~F.box) (L, R)}} (simple_LR : Simple (L, R)) (not_closed_LR : ¬Closed (L ∪ R))
@@ -126,7 +154,7 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
       aesop
     case
       neg f =>
-      -- subcases :-/
+      -- subcases :
       cases f
       case atom_prop =>
         unfold combinedModel
@@ -204,6 +232,7 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
           rw [heq_iff_eq.mp (HEq.symm is_rel)]
         rw [sameWorld]
         exact all_pro_sat_right
+
 
 -- Lemma 1 (page 16)
 -- A simple set of formulas X is satisfiable if and only if
@@ -291,215 +320,86 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
           tauto
       simp
 
-theorem localRuleSoundness
+-/
+
+theorem localRuleSoundnessNoneLoaded
     (M : KripkeModel W)
     (w : W)
-    (rule : LocalRule (Lcond, Rcond) ress)
-    (Δ : Finset Formula) :
-    (M, w) ⊨ (Δ ∪ Lcond ∪ Rcond) → ∃res ∈ ress, (M, w) ⊨ (Δ ∪ res.1 ∪ res.2) :=
+    (rule : LocalRule (Lcond, Rcond, Option.none) ress)
+    (Δ : List Formula) :
+    (M, w) ⊨ (Δ ∪ Lcond ∪ Rcond) → ∃res ∈ ress, (M, w) ⊨ (Δ ∪ res.1 ∪ res.2.1) :=
   by
     intro satLR
     cases rule
     <;> simp at *
-    <;> ( first
-        | ( rename_i siderule
-            cases siderule
-            <;> simp at *
-            case bot => specialize satLR ⊥; tauto
-            case not φ =>
-              have : Evaluate (M, w) (~φ) := by
-                specialize satLR (~φ); tauto
-              aesop
-            case neg φ =>
-              have : Evaluate (M, w) (~~φ) := by
-                specialize satLR (~~φ); tauto
-              aesop
-            case con φ ψ =>
-              have : Evaluate (M, w) (φ⋀ψ) := by
-                specialize satLR (φ⋀ψ); tauto
-              aesop
-            case ncon φ ψ =>
-              have : Evaluate (M, w) (~(φ⋀ψ)) := by
-                specialize satLR (~(φ⋀ψ)); tauto
-              cases Classical.em (Evaluate (M, w) φ)
-              <;> aesop)
-        | aesop)
-
-theorem ruleImpliesChildSat
-    {C : List TNode}
-    {LR : TNode}
-    {ruleApp : LocalRuleApp LR C} :
-    Satisfiable LR → ∃c ∈ C, Satisfiable c :=
-  by
-    intro satLR
-    let (L, R) := LR
-    rcases satLR with ⟨W, M, w, satM⟩
-    rcases ruleApp with ⟨ress, Lcond, Rcond, lrule, preproofL, preproofR⟩
-    let Δ := (L ∪ R) \ (Lcond ∪ Rcond)
-    have : ∃res ∈ ress, (M, w) ⊨ (Δ ∪ res.1 ∪ res.2) :=
-      localRuleSoundness M w lrule Δ (by aesop)
-    aesop
-
-theorem oneSidedRule_implies_child_sat_L
-  {ruleApp : LocalRuleApp (L, R) C}
-  (def_ruleA : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (res, ∅)) _) _ _ rule hC preproof))
-  (rule_is_left : rule = LocalRule.oneSidedL orule)
-  : Satisfiable (L ∪ X) → ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ X) :=
-  by
-    intro hyp
-    rcases hyp with ⟨W, M, w, satM⟩
-    rcases ruleApp with ⟨ress, Lcond, Rcond, lrule, preproofL, preproofR⟩
-    have : ∃res ∈ ress, (M, w) ⊨ (X ∪ res.1 ∪ res.2) :=
-      localRuleSoundness M w lrule X (by aesop)
-    aesop
-
-theorem oneSidedRule_implies_child_sat_R
-  {ruleApp : LocalRuleApp (L, R) C}
-  (def_ruleA : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (∅, res)) _) _ _ rule hC preproof))
-  (rule_is_right : rule = LocalRule.oneSidedR orule)
-  : Satisfiable (R ∪ X) → ∃c ∈ C.attach, Satisfiable (c.1.2 ∪ X) :=
-    by
-      intro hyp
-      rcases hyp with ⟨W, M, w, satM⟩
-      rcases ruleApp with ⟨ress, Lcond, Rcond, lrule, preproofL, preproofR⟩
-      have : ∃res ∈ ress, (M, w) ⊨ (X ∪ res.1 ∪ res.2) :=
-        localRuleSoundness M w lrule X (by aesop)
-      aesop
-
--- The critical rule is sound and preserves satisfiability "downwards".
--- NOTE: This is stronger than Lemma 1, but we do not need.
-theorem atmSoundness {LR : TNode} {f} (not_box_f_in_LR : f_in_TNode (~(□f)) LR) :
-    Satisfiable LR → Satisfiable (projection (LR.1 ∪ LR.2) ∪ {~f}) :=
-  by
-  intro satLR
-  unfold Satisfiable at satLR
-  rcases satLR with ⟨W, M, w, w_sat_LR⟩
-  constructor
-  simp
-  -- get the other reachable world:
-  let w_sat_not_box_f := w_sat_LR (~f.box) not_box_f_in_LR
-  unfold Evaluate at w_sat_not_box_f
-  simp at w_sat_not_box_f
-  rcases w_sat_not_box_f with ⟨v, w_rel_v, v_not_sat_f⟩
-  -- show that the projection is satisfiable:
-  use M, v
-  constructor
-  · exact v_not_sat_f
-  intro phi phi_in_proj
-  rw [proj] at phi_in_proj
-  cases phi_in_proj
-  · specialize w_sat_LR phi.box (by simp; left; assumption)
-    simp [Evaluate] at w_sat_LR
-    exact w_sat_LR v w_rel_v
-  case inr hyp =>
-    rw [proj] at hyp
-    specialize w_sat_LR phi.box (by simp; right; assumption)
-    exact w_sat_LR v w_rel_v
-
-theorem localTableauAndEndNodesUnsatThenNotSat (LR : TNode) {ltLR : LocalTableau LR} :
-    (∀Y, Y ∈ endNodesOf ⟨LR, ltLR⟩ → ¬Satisfiable Y) → ¬Satisfiable LR :=
-  by
-  intro endsOfLRnotSat
-  cases ltLR
-  case fromRule C next ruleA =>
-    by_contra satLR
-    have someChildSat : ∃c ∈ C, Satisfiable c :=
-      @ruleImpliesChildSat C LR ruleA satLR
-    rcases ruleA with ⟨ress, Lcond, Rcond, lrule, preproofL, preproofR⟩
-    have prepf : Lcond ⊆ _ ∧ Rcond ⊆ _ := And.intro preproofL preproofR
-    cases' someChildSat with c c_sat
-    set ltc := next c c_sat.left
-    rename_i hC
-    have endNodesInclusion :
-      ∀ Z, Z ∈ endNodesOf ⟨c, ltc⟩
-      → Z ∈ endNodesOf ⟨_, LocalTableau.fromRule (@LocalRuleApp.mk _ _ C ress Lcond Rcond lrule hC prepf) next⟩ :=
-      by
-        simp
-        intro Z Z_endOF_c
-        use endNodesOf ⟨c, ltc⟩
-        use ⟨c, (by tauto)⟩
-    have endsOfcnotSat : ∀Z1, Z1 ∈ endNodesOf ⟨c, ltc⟩ → ¬Satisfiable Z1 :=
-      by intro Z1 Z1_is_endOf_c; apply endsOfLRnotSat Z1 (endNodesInclusion Z1 Z1_is_endOf_c)
-    have : (∀Z, Z ∈ endNodesOf ⟨c , ltc⟩ → ¬Satisfiable Z) → ¬Satisfiable c :=
-      by
-        have := localRuleAppDecreasesLength (@LocalRuleApp.mk _ _ C ress Lcond Rcond lrule hC prepf) c c_sat.left -- for termination
-        apply localTableauAndEndNodesUnsatThenNotSat c
-    exact (this endsOfcnotSat) (c_sat.right)
-  case fromSimple hSimple =>
-    apply endsOfLRnotSat
-    simp
-termination_by
-  localTableauAndEndNodesUnsatThenNotSat LR _ _  => lengthOfTNode LR
-
-theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
-  by
-  intro X t
-  induction t
-  case loc LR appTab _ IH =>
-    apply localTableauAndEndNodesUnsatThenNotSat LR
-    intro Z ZisEndOfY
-    exact IH Z ZisEndOfY
-  case atmL LR φ notBoxPhiInY Y_is_simple ltProYnPhi notSatProj =>
-    let (L,R) := LR
-    rw [Lemma1_simple_sat_iff_all_projections_sat Y_is_simple]
-    simp only [TNodeHasSat, Finset.mem_union, not_exists, not_forall, exists_prop]
-    simp only [f_in_TNode, Finset.mem_union, union_singleton_is_insert, not_and, not_forall, exists_prop]
-    intro nClo
-    use φ
-    constructor
-    · tauto
-    · convert notSatProj
-      simp only [diamondProjectTNode, setHasSat, projectTNode, Finset.mem_union, Finset.mem_insert, forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
-      constructor
-      · rintro ⟨W,M,w,claim⟩
-        use W, M, w
-        intro f f_in
+    case oneSidedL _ rule =>
+      cases rule
+      <;> simp at *
+      case bot => specialize satLR ⊥; tauto
+      case not φ =>
+        have : evaluate M w (~φ) := by
+          specialize satLR (~φ); tauto
         aesop
-      · rintro ⟨W,M,w,claim⟩
-        use W, M, w
-        have := claim (~φ)
+      case neg φ =>
+        have : evaluate M w (~~φ) := by
+          specialize satLR (~~φ); tauto
         aesop
-  case atmR LR φ notBoxPhiInY Y_is_simple ltProYnPhi notSatProj =>
-    let (L,R) := LR
-    rw [Lemma1_simple_sat_iff_all_projections_sat Y_is_simple]
-    simp only [TNodeHasSat, Finset.mem_union, not_exists, not_forall, exists_prop]
-    simp only [f_in_TNode, Finset.mem_union, union_singleton_is_insert, not_and, not_forall, exists_prop]
-    intro _
-    use φ
-    constructor
-    · tauto
-    · convert notSatProj
-      simp only [diamondProjectTNode, setHasSat, projectTNode, Finset.mem_union, Finset.mem_insert, forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
-      constructor <;>
-      ( rintro ⟨W,M,w,claim⟩
-        use W, M, w)
-      · intro f f_in
-        have := claim.2 (~φ)
+      case con φ ψ =>
+        have : evaluate M w (φ⋀ψ) := by
+          specialize satLR (φ⋀ψ); tauto
         aesop
-      · have := claim (~φ)
+      case nCo φ ψ =>
+        have : evaluate M w (~(φ⋀ψ)) := by
+          specialize satLR (~(φ⋀ψ)); tauto
+        cases Classical.em (evaluate M w φ) <;> aesop
+      case nTe φ ψ =>
+        have : evaluate M w (~⌈?'φ⌉ψ) := by
+          specialize satLR (~⌈?'φ⌉ψ); tauto
         aesop
+      case nSe a b f =>
+        have : evaluate M w (~⌈a;'b⌉f) := by
+          specialize satLR (~⌈a;'b⌉f); tauto
+        aesop
+      case uni a b f =>
+        have : evaluate M w (⌈a⋓b⌉f) := by
+          specialize satLR (⌈a⋓b⌉f); tauto
+        aesop
+      case seq a b f =>
+        have : evaluate M w (⌈a;'b⌉f) := by
+          specialize satLR (⌈a;'b⌉f); tauto
+        aesop
+      case tes f g =>
+        have : evaluate M w (⌈?'f⌉g) := by
+          specialize satLR (⌈?'f⌉g); tauto
+        unfold evaluate at this
+        unfold relate at this
+        simp at *
+        apply Or.inl
+        intro f₁ hf₁
+        specialize satLR f₁
+        cases' hf₁ with in_delta neg_f
+        · aesop
+        · rw [neg_f]
+          simp [evaluate]
+          sorry
+          -- intro f₂ hf₂
+          -- cases' hf₂ with in_delta is_g
+          -- · aesop
+          -- · sorry
 
--- Theorem 2, page 30
-theorem correctness : ∀LR : TNode, Satisfiable LR → Consistent LR :=
-  by
-    intro LR
-    contrapose
-    unfold Consistent
-    unfold Inconsistent
-    simp only [not_nonempty_iff, not_isEmpty_iff, not_exists, not_forall, exists_prop, Nonempty.forall]
-    intro hyp
-    apply tableauThenNotSat LR hyp
-
-theorem soundTableau : ∀φ, Provable φ → ¬Satisfiable ({~φ} : Finset Formula) :=
-  by
-    intro phi prov
-    cases' prov with tabl
-    exact tableauThenNotSat ({~phi}, ∅) tabl
-
-theorem soundness : ∀φ, Provable φ → Tautology φ :=
-  by
-    intro φ prov
-    apply notsatisfnotThenTaut
-    rw [← singletonSat_iff_sat]
-    apply soundTableau
-    exact prov
+          -- simp [is_g] at *
+          -- apply this
+          -- specialize satLR f
+          -- apply satLR
+      case nUn a b f =>
+        have : evaluate M w (~⌈a⋓b⌉f) := by
+          specialize satLR (~⌈a⋓b⌉f); tauto
+        aesop
+      case sta a f =>
+        have : evaluate M w (⌈∗a⌉f) := by
+          specialize satLR (⌈∗a⌉f); tauto
+        sorry
+      case nSt a f => sorry
+    case oneSidedR => sorry
+    case LRnegL => sorry
+    case LRnegR => sorry
