@@ -162,85 +162,6 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
       (mF)
 
 
-
-/-
-theorem combMo_preserves_truth_at_oldWOrld_old {β : Type}
-    (collection : β → Σ W : Type, KripkeModel W × W) (newVal : Char → Prop) :
-    ∀ (f : Formula) (R : β) (oldWorld : (collection R).fst),
-      evaluate (combinedModel collection newVal).fst (Sum.inr ⟨R, oldWorld⟩) f ↔
-        evaluate (collection R).snd.fst oldWorld f :=
-    by
-    intro f
-    cases f <;>
-    intro R oldWorld
-    case bottom => aesop
-    case atom_prop c =>
-      unfold combinedModel
-      simp
-    case neg f =>
-      unfold evaluate
-      have IH := combMo_preserves_truth_at_oldWOrld collection newVal f R oldWorld
-      tauto
-    case and f g =>
-      unfold evaluate
-      have IH_f := combMo_preserves_truth_at_oldWOrld collection newVal f R oldWorld
-      have IH_g := combMo_preserves_truth_at_oldWOrld collection newVal g R oldWorld
-      tauto
-    case box f =>
-      unfold evaluate
-      constructor
-      · intro true_in_combo
-        intro otherWorld rel_in_old_model
-        have IH_f := combMo_preserves_truth_at_oldWOrld collection newVal f
-        specialize IH_f R otherWorld
-        rw [←IH_f]
-        specialize true_in_combo (Sum.inr ⟨R, otherWorld⟩)
-        apply true_in_combo
-        unfold combinedModel
-        rename_i a
-        cases a <;> simp at *     -- maybe try to prove separate relate / program thms?
-        case atom_prog a => aesop
-        case sequence a₁ a₂ =>
-          rcases rel_in_old_model with ⟨w, hw⟩
-          -- use w
-          sorry
-        case union a₁ a₂ =>
-          cases' rel_in_old_model with rela₁ rela₂
-          · simp [rela₁] at *
-            sorry
-          · sorry
-        case star a₁ =>
-          sorry
-        case test p =>
-          cases' rel_in_old_model with left right
-          simp [left] at *
-          unfold evaluate at *
-          sorry
-      · intro true_in_old
-        simp
-        constructor
-        · intro newWorld
-          unfold combinedModel
-          intro hyp
-          unfold evaluate at *
-          unfold relate at *
-          sorry
-        -- the new world is never reachable, trivial case
-        · intro otherR otherWorld
-          intro rel_in_new_model
-          have IH_f := combMo_preserves_truth_at_oldWOrld collection newVal f
-          specialize IH_f otherR otherWorld
-          unfold combinedModel at rel_in_new_model
-          have sameR : R = otherR := by sorry -- aesop
-          subst sameR
-          rw [IH_f]
-          apply true_in_old
-          -- remains to show that related in old model
-          simp_all
-          sorry
-          -- exact rel_in_new_model
--/
-
 /-
 -- The combined model for X satisfies X.
 theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
@@ -439,6 +360,10 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
 
 -/
 
+-- Issue: deterministic timeout when I run everything together / use tactic combinators
+-- like I did in the bml file
+-- (oneSidedL and oneSidedR are completely copy-pasted, so are LRnegL and LRnegR)
+-- even though every case by itself doesn't cause any problems
 theorem localRuleSoundnessNoneLoaded
     (M : KripkeModel W)
     (w : W)
@@ -449,7 +374,8 @@ theorem localRuleSoundnessNoneLoaded
     intro satLR
     cases rule
     <;> simp at *
-    case oneSidedL _ rule =>
+    case oneSidedL _ rule => sorry
+      /-
       cases rule
       <;> simp at *
       case bot => specialize satLR ⊥; tauto
@@ -488,19 +414,7 @@ theorem localRuleSoundnessNoneLoaded
       case tes f g =>
         have eval_test : evaluate M w (⌈?'f⌉g) := by
           specialize satLR (⌈?'f⌉g); tauto
-        unfold evaluate at eval_test
-        unfold relate at eval_test
-        simp at *
-        apply Or.inl
-        intro f₁ hf₁
-        specialize satLR f₁
-        cases' hf₁ with in_delta neg_f
-        · aesop
-        · rw [neg_f, evaluate]
-          intro eval_f
-          have not_eval_neg_f : ¬(evaluate M w (~f)) := by aesop
-          rw [neg_f] at *
-          sorry
+        cases Classical.em (evaluate M w f) <;> aesop
       case nUn a b f =>
         have : evaluate M w (~⌈a⋓b⌉f) := by
           specialize satLR (~⌈a⋓b⌉f); tauto
@@ -508,8 +422,91 @@ theorem localRuleSoundnessNoneLoaded
       case sta a f =>
         have : evaluate M w (⌈∗a⌉f) := by
           specialize satLR (⌈∗a⌉f); tauto
+        simp at this
+        -- dagtableau stuff which I don't understand
         sorry
-      case nSt a f => sorry
-    case oneSidedR => sorry
-    case LRnegL => sorry
-    case LRnegR => sorry
+      case nSt a f =>
+        have : evaluate M w (~⌈∗a⌉f) := by
+          specialize satLR (~⌈∗a⌉f); tauto
+        simp_all
+        rcases this with ⟨v, hv⟩
+        cases' Classical.em (evaluate M w f) with evalf nevalf
+        · apply Or.inr
+          simp [dagEndNodes]
+          -- dagtableau stuff which I don't understand
+          sorry
+        · tauto
+      -/
+    case oneSidedR _ rule =>
+      cases rule
+      <;> simp at *
+      case bot => specialize satLR ⊥; tauto
+      case not φ =>
+        have : evaluate M w (~φ) := by
+          specialize satLR (~φ); tauto
+        aesop
+      case neg φ =>
+        have : evaluate M w (~~φ) := by
+          specialize satLR (~~φ); tauto
+        aesop
+      case con φ ψ =>
+        have : evaluate M w (φ⋀ψ) := by
+          specialize satLR (φ⋀ψ); tauto
+        aesop
+      case nCo φ ψ =>
+        have : evaluate M w (~(φ⋀ψ)) := by
+          specialize satLR (~(φ⋀ψ)); tauto
+        cases Classical.em (evaluate M w φ) <;> aesop
+      case nTe φ ψ =>
+        have : evaluate M w (~⌈?'φ⌉ψ) := by
+          specialize satLR (~⌈?'φ⌉ψ); tauto
+        aesop
+      case nSe a b f =>
+        have : evaluate M w (~⌈a;'b⌉f) := by
+          specialize satLR (~⌈a;'b⌉f); tauto
+        aesop
+      case uni a b f =>
+        have : evaluate M w (⌈a⋓b⌉f) := by
+          specialize satLR (⌈a⋓b⌉f); tauto
+        aesop
+      case seq a b f =>
+        have : evaluate M w (⌈a;'b⌉f) := by
+          specialize satLR (⌈a;'b⌉f); tauto
+        aesop
+      case tes f g =>
+        have eval_test : evaluate M w (⌈?'f⌉g) := by
+          specialize satLR (⌈?'f⌉g); tauto
+        cases Classical.em (evaluate M w f) <;> aesop
+      case nUn a b f =>
+        have : evaluate M w (~⌈a⋓b⌉f) := by
+          specialize satLR (~⌈a⋓b⌉f); tauto
+        aesop
+      case sta a f =>
+        have : evaluate M w (⌈∗a⌉f) := by
+          specialize satLR (⌈∗a⌉f); tauto
+        simp at this
+        -- dagtableau stuff which I don't understand
+        sorry
+      case nSt a f =>
+        have : evaluate M w (~⌈∗a⌉f) := by
+          specialize satLR (~⌈∗a⌉f); tauto
+        simp_all
+        rcases this with ⟨v, hv⟩
+        cases' Classical.em (evaluate M w f) with evalf nevalf
+        · apply Or.inr
+          simp [dagEndNodes]
+          -- dagtableau stuff which I don't understand
+          sorry
+        · aesop
+    case LRnegL φ =>
+      have : evaluate M w φ ∧ evaluate M w (~φ) := by
+        constructor
+        · specialize satLR φ; aesop
+        · specialize satLR (~φ); aesop
+      aesop
+    case LRnegR φ =>
+      have : evaluate M w φ ∧ evaluate M w (~φ) := by
+        constructor
+        · specialize satLR φ; aesop
+        · specialize satLR (~φ); aesop
+      aesop
