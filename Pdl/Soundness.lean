@@ -30,8 +30,8 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, Char × KripkeMo
     cases worldOne <;> cases worldTwo -- four cases about two new or old worlds
     case inl.inl =>
       exact False -- no reflexive loop at the new world.
-    case inl.inr newWorld oldWorld =>
-      exact (HEq oldWorld.snd (collection oldWorld.fst).snd.snd) ∧ (HEq prog (collection oldWorld.fst).snd.fst)  -- connect new world to given points.
+    case inl.inr newWorld oldWorld => -- connect new world to given points.
+      exact (HEq oldWorld.snd (collection oldWorld.fst).snd.snd) ∧ (HEq prog (collection oldWorld.fst).snd.fst)
     case inr.inl => exact False -- no connection from models to new world
     case inr.inr oldWorldOne oldWorldTwo =>
       -- connect two old worlds iff they are from the same model and were connected there already:
@@ -49,25 +49,29 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, Char × KripkeMo
 
 
 theorem combMo_preserves_truth_at_oldWOrld {β : Type}
-    (collection : β → Σ W : Type, KripkeModel W × W) (newVal : Char → Prop) :
+    (collection : β → Σ W : Type, Char × KripkeModel W × W) (newVal : Char → Prop) :
     ∀ (f : Formula) (R : β) (oldWorld : (collection R).fst),
       evaluate (combinedModel collection newVal).fst (Sum.inr ⟨R, oldWorld⟩) f ↔
-        evaluate (collection R).snd.fst oldWorld f :=
+        evaluate (collection R).snd.snd.fst oldWorld f :=
     by
     intro mF mR moW
     apply @Formula.rec
-      (λφ => ∀ (R : β) (oldWorld : (collection R).fst),
+      (λφ => ∀ (R : β) (oldWorld : (collection R).fst),  -- Formula IH
         evaluate (combinedModel collection newVal).fst (Sum.inr ⟨R, oldWorld⟩) φ ↔
-          evaluate (collection R).snd.fst oldWorld φ)
-      (λπ => (∀ (R : β) (oldWorld world : (collection R).fst),
-        relate (combinedModel collection newVal).fst π (Sum.inr ⟨R, oldWorld⟩) (Sum.inr ⟨R, world⟩) ↔
-          relate (collection R).snd.fst π oldWorld world))
+          evaluate (collection R).snd.snd.fst oldWorld φ)
+      -- Program IH 1: relations within models are preserved
+      (λπ => (∀ (R : β) (oldWorld₁ oldWorld₂ : (collection R).fst),
+        relate (combinedModel collection newVal).fst π (Sum.inr ⟨R, oldWorld₁⟩) (Sum.inr ⟨R, oldWorld₂⟩) ↔
+          relate (collection R).snd.snd.fst π oldWorld₁ oldWorld₂)
+            -- Program IH 2: if old worlds are from different models they are not related
+            ∧ (∀ (R₁ R₂ : β) (oldWorld₁ : (collection R₁).fst) (oldWorld₂ : (collection R₂).fst),
+              R₁ ≠ R₂ → ¬(relate (combinedModel collection newVal).fst π (Sum.inr ⟨R₁, oldWorld₁⟩) (Sum.inr ⟨R₂, oldWorld₂⟩))))
       (by tauto)      -- case bottom
       (by aesop)      -- case atom_prop
       (by aesop)      -- case neg
       (by aesop)      -- case and
       ( by            -- case box
-          intro a f IH_a IH_f R oW
+          intro a f IH_a IH_f R oldWorld
           constructor
           · aesop
           · intro true_in_old
@@ -84,55 +88,75 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
             · intro otherR otherWorld  -- old world
               intro rel_in_new_model
               specialize IH_f otherR otherWorld
-              have sameR : R = otherR := by sorry -- aesop worked in the OG proof
-              subst sameR
-              rw [IH_f]
-              apply true_in_old
-              -- remains to show that related in old model
-              exact Iff.mp (IH_a R oW otherWorld) rel_in_new_model
-      )
-      ( by          -- case atom_prog
-          intro a R oW v
-          constructor <;>
-          ( intro rel
-            unfold KripkeModel.Rel at *
-            unfold combinedModel at *
-            aesop
-          )
-      )
-      ( by          -- case sequence
-          intro a b IH_a IH_b R oW v
-          constructor
-          · intro new_rel
-            unfold relate at new_rel
-            rcases new_rel with ⟨u, u_rel_a, u_rel_b⟩
-            cases' u with new_world old_world
-              -- this sorry should be easy since no rel to new world??
-            · sorry -- new world
-            · rcases old_world with ⟨otherR, otherWorld⟩ -- old world
-              have sameR : R = otherR := by sorry -- same problem as earlier, why no aesop?
+              simp_all
+              rcases IH_a with ⟨IH_rel, sameR⟩
+              specialize sameR R otherR oldWorld otherWorld
+              simp_all
               subst sameR
               aesop
-          · intro old_rel
-            unfold relate at old_rel
-            unfold relate
-            rcases old_rel with ⟨u, u_rel_a, u_rel_b⟩
-            use (Sum.inr ⟨R, u⟩)
-            aesop
+      )
+      ( by          -- case atom_prog
+          intro a
+          constructor
+          · intro R oldWorld₁ oldWorld₂    -- first half of Program IH
+            constructor <;>
+            ( intro new_rel
+              unfold relate at *
+              unfold KripkeModel.Rel at *
+              unfold combinedModel at *
+              aesop
+            )
+          · unfold combinedModel at *; aesop   -- second half of Program IH
+      )
+      ( by          -- case sequence
+          intro a b IH_a IH_b
+          constructor
+          · intro R oldWorld₁ oldWorld₂          -- first half of Program IH
+            constructor
+            · intro new_rel
+              unfold relate at new_rel
+              rcases new_rel with ⟨u, u_rel_a, u_rel_b⟩
+              cases' u with u_new u_old
+                -- this sorry should be easy since no rel to new world??
+              · sorry -- new world
+              · rcases u_old with ⟨otherR, otherWorld⟩ -- old world
+                rcases IH_a with ⟨IH_rel, sameR⟩
+                specialize sameR R otherR oldWorld₁ otherWorld
+                simp_all
+                subst sameR
+                aesop
+            · intro old_rel
+              unfold relate at old_rel
+              unfold relate
+              rcases old_rel with ⟨u, u_rel_a, u_rel_b⟩
+              use (Sum.inr ⟨R, u⟩)
+              aesop
+          · intro R₁ R₂ oldWorld₁ oldWorld₂ hneq hrel     -- second half of Program IH
+            unfold relate at hrel
+            rcases hrel with ⟨u, u_rel_a, u_rel_b⟩
+            rcases IH_a with ⟨IH_rel, sameR⟩
+            cases' u with u_new u_old
+              -- this sorry should be easy since no rel to new world??
+            · sorry -- new world
+            · rcases u_old with ⟨otherR, otherWorld⟩ -- old world
+              specialize sameR R₁ otherR oldWorld₁ otherWorld
+              simp_all
       )
       (by aesop)       -- case union
       (by              -- case star
-        intro a IH_a R oW v
-        have star_preserved : ∀ (w v : (collection R).fst), Relation.ReflTransGen (relate (combinedModel collection newVal).1 a)
-              (Sum.inr ⟨R, w⟩) (Sum.inr ⟨R, v⟩) ↔ Relation.ReflTransGen (relate (collection R).snd.1 a) w v :=
+        intro a IH_a
+        constructor
+        · intro R oldWorld₁ oldWorld₂                  -- first half of Program IH
+          have star_preserved : ∀ (w v : (collection R).fst),
+            Relation.ReflTransGen (relate (combinedModel collection newVal).fst a)
+              (Sum.inr ⟨R, w⟩) (Sum.inr ⟨R, v⟩) ↔ Relation.ReflTransGen (relate (collection R).snd.snd.fst a) w v :=
             by sorry -- something with @Relation.ReflTransGen.head_induction_on ?
-        constructor <;>
-        ( intro rel
-          specialize IH_a R oW v
-          unfold relate at rel
+          constructor <;> aesop
+        · intro R₁ R₂ oldWorld₁ oldWorld₂ hneq        -- second half of Program IH
           unfold relate
-          aesop
-        )
+          rcases IH_a with ⟨IH_rel, sameR⟩
+          specialize sameR R₁ R₂ oldWorld₁ oldWorld₂ hneq
+          sorry -- again @Relation.ReflTransGen.head_induction_on
       )
       (by aesop)       -- case test
       (mF)
@@ -476,9 +500,7 @@ theorem localRuleSoundnessNoneLoaded
           intro eval_f
           have not_eval_neg_f : ¬(evaluate M w (~f)) := by aesop
           rw [neg_f] at *
-
-
-
+          sorry
       case nUn a b f =>
         have : evaluate M w (~⌈a⋓b⌉f) := by
           specialize satLR (~⌈a⋓b⌉f); tauto
