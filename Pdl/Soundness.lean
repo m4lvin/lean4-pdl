@@ -642,40 +642,71 @@ instance : Membership AnyNegFormula TNode := ⟨AnyNegFormula_in_TNode⟩
 -- - MaximalTableau × Proof for all paths
 --
 -- In general, how to do induction on it?
+--
+-- We use a "List Nat" to say "go to the ..-th child, then to the ..th child".
+-- Note that these "paths" here can go through/across multiple LocalTableau
 
-def nodeInLocalAt : (Σ X, LocalTableau X) → List Nat → Option TNode
-| ⟨X, tab⟩, [] => some X
-| ⟨X, tab⟩, (k::rest) => sorry
+def nodeInLocalAt : (Σ X, LocalTableau X) → List Nat → (Option (Σ Y, LocalTableau Y)) × List Nat
+| ⟨X, tab⟩, [] => (some ⟨X, tab⟩, [])
+| ⟨X, tab⟩, (k::rest) => by
+    cases tab_def : tab
+    case byLocalRule B next lrApp =>
+      -- TODO: if k ≤ B.length then recurse, else return none
+      -- have := B.get k
+      sorry
+    case sim =>
+      exact (some ⟨X, tab⟩,(k::rest))
+    all_goals sorry
 
-def nodeInAt : (Σ X, ClosedTableau Hist X) → List Nat → Option TNode
-| ⟨X, tab⟩, [] => some X
-| ⟨X, tab⟩, (k::rest) => sorry
+def tabInAt : (Σ X, ClosedTableau Hist X) → List Nat → Option (Σ Y HistY, ClosedTableau HistY Y)
+| ⟨X, tab⟩, [] => some ⟨_, _, tab⟩
+| ⟨X, tab⟩, (k::rest) => by
+      cases tab
+      case loc ltX next =>
+        rcases nodeInLocalAt ⟨_, ltX⟩ (k::rest) with ⟨none|⟨Y,ltY⟩,remainder⟩
+        case none => exact none
+        case some.mk =>
+          cases remainder
+          case nil => -- we have reached the destination
+            cases ltY_def : ltY
+            case byLocalRule B next lrApp =>
+              sorry -- refine some ⟨Y, _, ClosedTableau.loc ltY _⟩
+            sorry
+          case cons => -- keep on traveling!
+            sorry
+      case mrkL =>
+        -- apply tabInAt ?
+        sorry
+
+      all_goals sorry
 
 -- MB: Lemma 7
 theorem loadedDiamondPaths
   {Root Δ : TNode}
   (tab : ClosedTableau [] Root) -- ensure History = [] here to prevent repeats from "above".
   (path_to_Δ : List Nat)
-  (h : some Δ = nodeInAt ⟨Root,tab⟩ path_to_Δ)
+  (h : some tabΔ = tabInAt ⟨Root,tab⟩ path_to_Δ)
   {M : KripkeModel W} {v : W}
   (φ : AnyFormula)
-  (negLoad_in : NegLoadFormula_in_TNode (~'⌊α⌋φ) Δ) -- FIXME: ∈ not working here
+  (negLoad_in : NegLoadFormula_in_TNode (~'⌊α⌋φ) Δ) -- FIXME: ∈ not working here?
   (v_X : (M,v) ⊨ Δ)
   (v_α_w : relate M α v w)
   (w_φ : (M,w) ⊨ ~''φ)
-  : ∃ onwards : List Nat, ∃ Γ ∈ nodeInAt ⟨Root,tab⟩ (path_to_X ++ onwards),
-
-    (AnyNegFormula_in_TNode (~''φ) Γ) -- FIXME: ∈ not working here
+  : ∃ path_Δ_to_Γ : List Nat, ∃ Γ ∈ tabInAt ⟨Root,tab⟩ (path_to_Δ ++ path_Δ_to_Γ),
+    (AnyNegFormula_in_TNode (~''φ) Γ.1) -- FIXME: ∈ not working here?
     ∧
-    (M,w) ⊨ Γ :=
+    (M,w) ⊨ Γ.1 :=
   by
   let ⟨L,R,O⟩ := Δ
-  clear Δ
-  cases tab -- No, we want to distinguish by cases what is happening at Δ
+  let ⟨ΔNode, ΔHist, ΔTab⟩ := tabΔ
+  -- cases tab -- No, we want to distinguish by cases what is happening at Δ
+  cases ΔTab
   case mrkL =>
     -- it should be impossible to apply (M+)
     -- because we already have a loaded formula in Δ
     simp at negLoad_in
-    sorry
+    cases negLoad_in
+    case inl hyp => subst hyp; sorry
+    all_goals sorry
 
   all_goals sorry
