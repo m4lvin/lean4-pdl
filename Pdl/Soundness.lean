@@ -524,69 +524,9 @@ theorem localRuleSoundnessNoneLoaded
           simp [dagEndNodes]
           -- dagtableau stuff which I don't understand
           sorry
-        · tauto
-      -/
-    case oneSidedR _ rule =>
-      cases rule
-      <;> simp at *
-      case bot => specialize satLR ⊥; tauto
-      case not φ =>
-        have : evaluate M w (~φ) := by
-          specialize satLR (~φ); tauto
-        aesop
-      case neg φ =>
-        have : evaluate M w (~~φ) := by
-          specialize satLR (~~φ); tauto
-        aesop
-      case con φ ψ =>
-        have : evaluate M w (φ⋀ψ) := by
-          specialize satLR (φ⋀ψ); tauto
-        aesop
-      case nCo φ ψ =>
-        have : evaluate M w (~(φ⋀ψ)) := by
-          specialize satLR (~(φ⋀ψ)); tauto
-        cases Classical.em (evaluate M w φ) <;> aesop
-      case nTe φ ψ =>
-        have : evaluate M w (~⌈?'φ⌉ψ) := by
-          specialize satLR (~⌈?'φ⌉ψ); tauto
-        aesop
-      case nSe a b f =>
-        have : evaluate M w (~⌈a;'b⌉f) := by
-          specialize satLR (~⌈a;'b⌉f); tauto
-        aesop
-      case uni a b f =>
-        have : evaluate M w (⌈a⋓b⌉f) := by
-          specialize satLR (⌈a⋓b⌉f); tauto
-        aesop
-      case seq a b f =>
-        have : evaluate M w (⌈a;'b⌉f) := by
-          specialize satLR (⌈a;'b⌉f); tauto
-        aesop
-      case tes f g =>
-        have eval_test : evaluate M w (⌈?'f⌉g) := by
-          specialize satLR (⌈?'f⌉g); tauto
-        cases Classical.em (evaluate M w f) <;> aesop
-      case nUn a b f =>
-        have : evaluate M w (~⌈a⋓b⌉f) := by
-          specialize satLR (~⌈a⋓b⌉f); tauto
-        aesop
-      case sta a f =>
-        have : evaluate M w (⌈∗a⌉f) := by
-          specialize satLR (⌈∗a⌉f); tauto
-        simp at this
-        -- dagtableau stuff which I don't understand
-        sorry
-      case nSt a f =>
-        have : evaluate M w (~⌈∗a⌉f) := by
-          specialize satLR (~⌈∗a⌉f); tauto
-        simp_all
-        rcases this with ⟨v, hv⟩
-        cases' Classical.em (evaluate M w f) with evalf nevalf
-        · apply Or.inr
-          simp [dagEndNodes]
-          -- dagtableau stuff which I don't understand
-          sorry
         · aesop
+      -/
+    case oneSidedR => sorry
     case LRnegL φ =>
       have : evaluate M w φ ∧ evaluate M w (~φ) := by
         constructor
@@ -600,9 +540,7 @@ theorem localRuleSoundnessNoneLoaded
         · specialize satLR (~φ); aesop
       aesop
 
-
 -- this is all redundant if you can use loadRuleTruth from LocalTableau
-/-
 theorem localRuleSoundnessLoadedL
     (M : KripkeModel W)
     (w : W)
@@ -620,16 +558,13 @@ theorem localRuleSoundnessLoadedL
         specialize satLR unl_χ
         simp at *
         sorry
-      case nUn' a b χ =>
-
-
+      case nUn' => sorry
       case nSe => sorry
       case nSe' => sorry
       case nSt => sorry
       case nSt' => sorry
       case nTe => sorry
       case nTe' => sorry
-
 
 
 theorem localRuleSoundnessLoadedR
@@ -655,4 +590,64 @@ theorem localRuleSoundnessLoadedR
       case nSt' => sorry
       case nTe => sorry
       case nTe' => sorry
--/
+
+-- The current representation of condition 6a maybe will not allow us to prove MB Lemma 7.
+--
+-- Alternative ideas for a type to represent a repeat-path in a Tableau:
+--
+-- - MaximalTableau × Pointer/Path (Lens) × Proof that repeat is good
+-- - MaximalTableau × Proof for all paths
+--
+-- In general, how to do induction on it?
+
+@[simp]
+instance : Membership Formula TNode :=
+  ⟨fun φ X => φ ∈ X.L ∨ φ ∈ X.R⟩
+
+def NegLoadFormula_in_TNode := fun nlf (X : TNode) => X.O = some (Sum.inl nlf) ∨ X.O = some (Sum.inr nlf)
+
+@[simp]
+instance : Membership NegLoadFormula TNode :=
+  ⟨NegLoadFormula_in_TNode⟩
+
+def AnyFormula := Sum Formula LoadFormula
+
+inductive AnyNegFormula
+| neg : AnyFormula → AnyNegFormula
+
+local notation "~''" φ:arg => AnyNegFormula.neg φ
+
+instance modelCanSemImplyAnyNegFormula {W : Type} : vDash (KripkeModel W × W) AnyNegFormula :=
+  vDash.mk (λ ⟨M,w⟩ af => match af with
+   | ⟨Sum.inl f⟩ => evaluate M w f
+   | ⟨Sum.inr f⟩ => evaluate M w (unload f)
+   )
+
+def anyNegLoad : Program → AnyFormula → NegLoadFormula
+| α, Sum.inl φ => ~'⌊α⌋φ
+| α, Sum.inr χ => ~'⌊α⌋χ
+
+local notation "~'⌊" α "⌋" χ => anyNegLoad α χ
+
+def AnyNegFormula_in_TNode := fun (anf : AnyNegFormula) (X : TNode) => match anf with
+| ⟨Sum.inl φ⟩ => (~φ) ∈ X
+| ⟨Sum.inr χ⟩ => X.O = some (Sum.inl (~'χ)) ∨ X.O = some (Sum.inr (~'χ)) -- why does  (~'χ) ∈ X  not work here?
+
+instance : Membership AnyNegFormula TNode :=
+  ⟨AnyNegFormula_in_TNode⟩
+
+-- MB: Lemma 7
+theorem loadedDiamondPaths
+  {X : TNode} {M : KripkeModel W} {v : W}
+  (φ : AnyFormula)
+  (negLoad_in : NegLoadFormula_in_TNode (~'⌊α⌋φ) X) -- FIXME: ∈ not working here
+  (v_X : (M,v) ⊨ X)
+  (v_α_w : relate M α v w)
+  (w_φ : (M,w) ⊨ ~''φ)
+  : ∃ n, ∃ (path : Vector TNode (Nat.succ n)),
+    --TODO:
+    (AnyNegFormula_in_TNode (~''φ) path.last) -- FIXME: ∈ not working here
+    ∧
+    (M,w) ⊨ path.last :=
+  by
+  sorry
