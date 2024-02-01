@@ -591,6 +591,49 @@ theorem localRuleSoundnessLoadedR
       case nTe => sorry
       case nTe' => sorry
 
+-- * Tools for saying that different kinds of formulas are in a TNode
+
+@[simp]
+instance : Membership Formula TNode :=
+  ⟨fun φ X => φ ∈ X.L ∨ φ ∈ X.R⟩
+
+@[simp]
+def NegLoadFormula_in_TNode := fun nlf (X : TNode) => X.O = some (Sum.inl nlf) ∨ X.O = some (Sum.inr nlf)
+
+@[simp]
+instance : Membership NegLoadFormula TNode := ⟨NegLoadFormula_in_TNode⟩
+
+def AnyFormula := Sum Formula LoadFormula
+
+inductive AnyNegFormula
+| neg : AnyFormula → AnyNegFormula
+
+local notation "~''" φ:arg => AnyNegFormula.neg φ
+
+@[simp]
+instance modelCanSemImplyAnyNegFormula {W : Type} : vDash (KripkeModel W × W) AnyNegFormula :=
+  vDash.mk (λ ⟨M,w⟩ af => match af with
+   | ⟨Sum.inl f⟩ => evaluate M w f
+   | ⟨Sum.inr f⟩ => evaluate M w (unload f)
+   )
+
+@[simp]
+def anyNegLoad : Program → AnyFormula → NegLoadFormula
+| α, Sum.inl φ => ~'⌊α⌋φ
+| α, Sum.inr χ => ~'⌊α⌋χ
+
+local notation "~'⌊" α "⌋" χ => anyNegLoad α χ
+
+@[simp]
+def AnyNegFormula_in_TNode := fun (anf : AnyNegFormula) (X : TNode) => match anf with
+| ⟨Sum.inl φ⟩ => (~φ) ∈ X
+| ⟨Sum.inr χ⟩ => NegLoadFormula_in_TNode (~'χ) X -- FIXME: ∈ not working here
+
+@[simp]
+instance : Membership AnyNegFormula TNode := ⟨AnyNegFormula_in_TNode⟩
+
+-- * Navigating through tableaux
+
 -- The current representation of condition 6a maybe will not allow us to prove MB Lemma 7.
 --
 -- Alternative ideas for a type to represent a repeat-path in a Tableau:
@@ -600,54 +643,39 @@ theorem localRuleSoundnessLoadedR
 --
 -- In general, how to do induction on it?
 
-@[simp]
-instance : Membership Formula TNode :=
-  ⟨fun φ X => φ ∈ X.L ∨ φ ∈ X.R⟩
+def nodeInLocalAt : (Σ X, LocalTableau X) → List Nat → Option TNode
+| ⟨X, tab⟩, [] => some X
+| ⟨X, tab⟩, (k::rest) => sorry
 
-def NegLoadFormula_in_TNode := fun nlf (X : TNode) => X.O = some (Sum.inl nlf) ∨ X.O = some (Sum.inr nlf)
-
-@[simp]
-instance : Membership NegLoadFormula TNode :=
-  ⟨NegLoadFormula_in_TNode⟩
-
-def AnyFormula := Sum Formula LoadFormula
-
-inductive AnyNegFormula
-| neg : AnyFormula → AnyNegFormula
-
-local notation "~''" φ:arg => AnyNegFormula.neg φ
-
-instance modelCanSemImplyAnyNegFormula {W : Type} : vDash (KripkeModel W × W) AnyNegFormula :=
-  vDash.mk (λ ⟨M,w⟩ af => match af with
-   | ⟨Sum.inl f⟩ => evaluate M w f
-   | ⟨Sum.inr f⟩ => evaluate M w (unload f)
-   )
-
-def anyNegLoad : Program → AnyFormula → NegLoadFormula
-| α, Sum.inl φ => ~'⌊α⌋φ
-| α, Sum.inr χ => ~'⌊α⌋χ
-
-local notation "~'⌊" α "⌋" χ => anyNegLoad α χ
-
-def AnyNegFormula_in_TNode := fun (anf : AnyNegFormula) (X : TNode) => match anf with
-| ⟨Sum.inl φ⟩ => (~φ) ∈ X
-| ⟨Sum.inr χ⟩ => X.O = some (Sum.inl (~'χ)) ∨ X.O = some (Sum.inr (~'χ)) -- why does  (~'χ) ∈ X  not work here?
-
-instance : Membership AnyNegFormula TNode :=
-  ⟨AnyNegFormula_in_TNode⟩
+def nodeInAt : (Σ X, ClosedTableau Hist X) → List Nat → Option TNode
+| ⟨X, tab⟩, [] => some X
+| ⟨X, tab⟩, (k::rest) => sorry
 
 -- MB: Lemma 7
 theorem loadedDiamondPaths
-  {X : TNode} {M : KripkeModel W} {v : W}
+  {Root Δ : TNode}
+  (tab : ClosedTableau [] Root) -- ensure History = [] here to prevent repeats from "above".
+  (path_to_Δ : List Nat)
+  (h : some Δ = nodeInAt ⟨Root,tab⟩ path_to_Δ)
+  {M : KripkeModel W} {v : W}
   (φ : AnyFormula)
-  (negLoad_in : NegLoadFormula_in_TNode (~'⌊α⌋φ) X) -- FIXME: ∈ not working here
-  (v_X : (M,v) ⊨ X)
+  (negLoad_in : NegLoadFormula_in_TNode (~'⌊α⌋φ) Δ) -- FIXME: ∈ not working here
+  (v_X : (M,v) ⊨ Δ)
   (v_α_w : relate M α v w)
   (w_φ : (M,w) ⊨ ~''φ)
-  : ∃ n, ∃ (path : Vector TNode (Nat.succ n)),
-    --TODO:
-    (AnyNegFormula_in_TNode (~''φ) path.last) -- FIXME: ∈ not working here
+  : ∃ onwards : List Nat, ∃ Γ ∈ nodeInAt ⟨Root,tab⟩ (path_to_X ++ onwards),
+
+    (AnyNegFormula_in_TNode (~''φ) Γ) -- FIXME: ∈ not working here
     ∧
-    (M,w) ⊨ path.last :=
+    (M,w) ⊨ Γ :=
   by
-  sorry
+  let ⟨L,R,O⟩ := Δ
+  clear Δ
+  cases tab -- No, we want to distinguish by cases what is happening at Δ
+  case mrkL =>
+    -- it should be impossible to apply (M+)
+    -- because we already have a loaded formula in Δ
+    simp at negLoad_in
+    sorry
+
+  all_goals sorry
