@@ -646,34 +646,28 @@ instance : Membership AnyNegFormula TNode := ⟨AnyNegFormula_in_TNode⟩
 -- We use a "List Nat" to say "go to the ..-th child, then to the ..th child".
 -- Note that these "paths" here can go through/across multiple LocalTableau
 
-def nodeInLocalAt : (Σ X, LocalTableau X) → List Nat → (Option (Σ Y, LocalTableau Y)) × List Nat
-| ⟨X, tab⟩, [] => (some ⟨X, tab⟩, [])
-| ⟨X, tab⟩, (k::rest) => by
-    cases tab_def : tab
-    case byLocalRule B next lrApp =>
-      -- TODO: if k ≤ B.length then recurse, else return none
-      -- have := B.get k
-      sorry
-    case sim =>
-      exact (some ⟨X, tab⟩,(k::rest))
-    all_goals sorry
-
-def tabInAt : (Σ X, ClosedTableau Hist X) → List Nat → Option (Σ Y HistY, ClosedTableau HistY Y)
-| ⟨X, tab⟩, [] => some ⟨_, _, tab⟩
-| ⟨X, tab⟩, (k::rest) => by
+def tabInAt : (Σ X HistX, ClosedTableau HistX X) → List Nat → Option (Σ Y HistY, ClosedTableau HistY Y)
+| ⟨X, hX, tab⟩, [] => some ⟨_, _, tab⟩ -- we have reached the destination
+| ⟨X, hX, tab⟩, (k::rest) => by
       cases tab
       case loc ltX next =>
-        rcases nodeInLocalAt ⟨_, ltX⟩ (k::rest) with ⟨none|⟨Y,ltY⟩,remainder⟩
-        case none => exact none
-        case some.mk =>
-          cases remainder
-          case nil => -- we have reached the destination
-            cases ltY_def : ltY
-            case byLocalRule B next lrApp =>
-              sorry -- refine some ⟨Y, _, ClosedTableau.loc ltY _⟩
+        cases ltX
+        case byLocalRule B lnext lrApp =>
+          cases B.attach.get? k
+          case none => exact none
+          case some bB =>
+            rcases bB with ⟨b,b_in⟩
+            have := lnext b b_in
+            -- now how to recurse on LocalTableau when tabInAt wants a Closed?
+            -- probably need "endsOf me are endsOf my children" for byLocalRule here
             sorry
-          case cons => -- keep on traveling!
-            sorry
+        case sim X_simp =>
+          -- apply tabInAt -- want to do this, but will it break termination?
+          apply some
+          refine ⟨X, ?_, ?_⟩
+          · exact (X :: hX)
+          · apply next
+            simp
       case mrkL =>
         -- apply tabInAt ?
         sorry
