@@ -19,8 +19,11 @@ open HasLength
 def TNode := List Formula × List Formula × Option (Sum NegLoadFormula NegLoadFormula) -- ⟨L, R, o⟩
   deriving DecidableEq -- TODO Repr
 
+@[simp]
 def TNode.L : TNode → List Formula := λ⟨L,_,_⟩ => L
+@[simp]
 def TNode.R : TNode → List Formula := λ⟨_,R,_⟩ => R
+@[simp]
 def TNode.O : TNode → Option (Sum NegLoadFormula NegLoadFormula) := λ⟨_,_,O⟩ => O
 
 open HasVocabulary

@@ -90,10 +90,10 @@ inductive ClosedTableau : History → TNode → Type
   | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf ⟨X, lt⟩, ClosedTableau (X::Hist) Y) → ClosedTableau Hist X
   -- TODO: should the history also track what happens "within" loc?
   -- The (M+) rule:
-  | mrkL : (~⌈α⌉φ) ∈ L → Step ClosedTableau Hist (L.remove ((~⌈α⌉φ)), R, some (Sum.inl (toNegLoad α φ)))
-                                                 (L, R, none)
-  | mrkR : (~⌈α⌉φ) ∈ R → Step ClosedTableau Hist (L, R.remove ((~⌈α⌉φ)), some (Sum.inr (toNegLoad α φ)))
-                                                 (L, R, none)
+  | mrkL : (~⌈α⌉φ) ∈ L → Step ClosedTableau Hist (L, R, none)
+                                                 (L.remove (~⌈α⌉φ), R, some (Sum.inl (toNegLoad α φ)))
+  | mrkR : (~⌈α⌉φ) ∈ R → Step ClosedTableau Hist (L, R, none)
+                                                 (L, R.remove (~⌈α⌉φ), some (Sum.inr (toNegLoad α φ)))
   -- The (At) rule:
   -- TODO: can we avoid the four cases?
   | atmL   {A X χ} : isSimpleNode X → Step ClosedTableau Hist ⟨L, R, some (Sum.inl (~'⌊·A⌋(χ : LoadFormula)))⟩
