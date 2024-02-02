@@ -579,7 +579,7 @@ def LDDTNode := List Formula × Option (Sum NegLoadFormula NegDagLoadFormula)
 -- [X] dagEndOfSome_iff_step -->
 -- [X] dagEnd_subset_trf -->
 -- [ ] dagNormal_is_dagEnd -->
--- [ ] notStarInvertAux -->
+-- [X] notStarInvertAux -->
 -- [ ] notStarInvert -->
 
 -- Immediate sucessors of a node in a Loaded Daggered Diamond Tableau (LDDT).
@@ -699,6 +699,7 @@ def loadDagNextTransRefl : LDDTNode → List LDDTNode :=
     all_goals simp_all!
     sorry-/
 
+@[simp]
 def toFormula : NegLoadFormula ⊕ NegDagLoadFormula → Formula
   | Sum.inl (~'f) => ~unload f
   | Sum.inr (~(f: DagLoadFormula)) => ~unloadAndUndag f
@@ -731,7 +732,7 @@ theorem notStarLoadSoundnessAux (a : Program) M (v w : W) (fs)
     · constructor
       · intro f
         specialize v_D f
-        simp_all [toFormula]
+        simp_all
       · left
         use A, []
         simp at *
@@ -773,7 +774,7 @@ theorem notStarLoadSoundnessAux (a : Program) M (v w : W) (fs)
           assumption
         case inr f_eq =>
           subst f_eq
-          simp [toFormula]
+          simp
           use u
           constructor
           · exact v_b_u
@@ -824,7 +825,7 @@ theorem notStarLoadSoundnessAux (a : Program) M (v w : W) (fs)
         exact Or.inl f_in
       case inr f_eq =>
         rw [f_eq]
-        simp [toFormula]
+        simp
         simp [modelCanSemImplyForm] at u_nGphi
         use u
     rcases this with ⟨S, S_in, v_S, (⟨a,as,aasG_in_S,v_aas_u⟩ | ⟨ngPhi_in_S, v_is_u⟩)⟩ -- Σ
@@ -994,11 +995,11 @@ theorem loadNotStarInvertAux (M : KripkeModel W) (v : W) S :
     (∃ Γ ∈ loadDagNext S, (M, v) ⊨ Γ) → (M, v) ⊨ S := by
   intro hyp
   rcases hyp with ⟨Γ, Γ_in, v_Γ⟩
-  rcases S with ⟨fs, none | ⟨⟨df⟩⟩⟩
+  rcases S with ⟨fs, none | ⟨⟨⟨lf⟩⟩ | ⟨⟨dlf⟩⟩⟩⟩
   · simp [loadDagNext] at Γ_in
-  · sorry
-  · sorry /-cases df
-    case box a df =>
+  · simp_all
+  · cases dlf
+    case box a dlf =>
       cases a
       all_goals (simp at Γ_in; try cases Γ_in; all_goals try subst Γ_in)
       all_goals (intro f f_in; simp at f_in)
@@ -1009,27 +1010,27 @@ theorem loadNotStarInvertAux (M : KripkeModel W) (v : W) S :
       case sequence a b =>
         cases f_in
         · apply v_Γ; simp at *; tauto
-        case inr hyp => subst hyp; specialize v_Γ (~⌈a⌉⌈b⌉(undag df)); aesop
+        case inr hyp => subst hyp; specialize v_Γ (~⌈a⌉⌈b⌉(unloadAndUndag dlf)); aesop
       case union.inl a b Γ_is =>
         cases f_in
         · apply v_Γ; simp at *; aesop
-        case inr hyp => subst hyp; specialize v_Γ (~⌈a⌉(undag df)); aesop
+        case inr hyp => subst hyp; specialize v_Γ (~⌈a⌉(unloadAndUndag dlf)); aesop
       case union.inr a b Γ_is =>
         cases f_in
         · apply v_Γ; simp at *; aesop
-        case inr hyp => subst hyp; specialize v_Γ (~⌈b⌉(undag df)); aesop
+        case inr hyp => subst hyp; specialize v_Γ (~⌈b⌉(unloadAndUndag dlf)); aesop
       case star.inl a Γ_is =>
         cases f_in
         · apply v_Γ; simp at *; aesop
         case inr hyp =>
-          subst hyp; subst Γ_is; specialize v_Γ (undag (~df)); simp at *
+          subst hyp; subst Γ_is; specialize v_Γ (~unloadAndUndag dlf); simp at *
           use v
       case star.inr a Γ_is =>
         cases f_in
         · apply v_Γ; subst Γ_is; simp at *; aesop
         case inr hyp =>
           subst hyp; subst Γ_is;
-          specialize v_Γ (~⌈a⌉⌈∗a⌉(undag df))
+          specialize v_Γ (~⌈a⌉⌈∗a⌉(unloadAndUndag dlf))
           simp at *
           rcases v_Γ with ⟨x, v_a_x, y, x_aS_y, y_nf⟩
           use y
@@ -1042,9 +1043,9 @@ theorem loadNotStarInvertAux (M : KripkeModel W) (v : W) S :
           simp
           constructor
           · specialize v_Γ g; aesop
-          · specialize v_Γ (~(undag df)); simp at v_Γ; aesop
-    case dag =>
-      simp [dagNext] at Γ_in-/
+          · specialize v_Γ (~(unloadAndUndag dlf)); simp at v_Γ; aesop
+    case dag => simp at Γ_in
+    case ldg => simp at Γ_in
 
 -- -- -- BOXES -- -- --
 
