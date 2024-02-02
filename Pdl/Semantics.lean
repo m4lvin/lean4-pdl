@@ -80,11 +80,8 @@ def semImpliesLists (X : List Formula) (Y : List Formula) :=
 def semEquiv (φ : Formula) (ψ : Formula) :=
   ∀ (W : Type) (M : KripkeModel W) (w), evaluate M w φ ↔ evaluate M w ψ
 
-@[simp]
-theorem singletonSat_iff_sat : ∀ φ, Satisfiable ([φ] : List Formula) ↔ Satisfiable φ :=
-  by
-  intro phi
-  simp
+theorem subsetSat {M : KripkeModel W} {w : W} {X Y : List Formula} : (∀ φ ∈ X, evaluate M w φ) → Y ⊆ X → ∀ φ ∈ Y, evaluate M w φ :=
+  by aesop
 
 theorem semEquiv.transitive : Transitive semEquiv :=
   by
@@ -101,13 +98,13 @@ class vDash (α : Type) (β : Type) where
 open vDash
 
 instance modelCanSemImplyForm {W : Type} : vDash (KripkeModel W × W) Formula := vDash.mk (@evaluatePoint W)
-instance modelCanSemImplySet {W : Type} : vDash (KripkeModel W × W) (Finset Formula) := vDash.mk (λ ⟨M,w⟩ fs => ∀ f ∈ fs, @evaluate W M w f)
+instance modelCanSemImplySet {W : Type} : vDash (KripkeModel W × W) (List Formula) := vDash.mk (λ ⟨M,w⟩ fs => ∀ f ∈ fs, @evaluate W M w f)
 @[simp]
 instance modelCanSemImplyList {W : Type} : vDash (KripkeModel W × W) (List Formula) := vDash.mk (λ ⟨M,w⟩ fs => ∀ f ∈ fs, @evaluate W M w f)
-instance setCanSemImplySet : vDash (Finset Formula) (Finset Formula) := vDash.mk semImpliesSets
-instance setCanSemImplyForm : vDash (Finset Formula) Formula:= vDash.mk fun X ψ => semImpliesSets X {ψ}
-instance formCanSemImplySet : vDash Formula (Finset Formula) := vDash.mk fun φ X => semImpliesSets {φ} X
-instance formCanSemImplyForm : vDash Formula Formula := vDash.mk fun φ ψ => semImpliesSets {φ} {ψ}
+instance setCanSemImplySet : vDash (List Formula) (List Formula) := vDash.mk semImpliesLists
+instance setCanSemImplyForm : vDash (List Formula) Formula:= vDash.mk fun X ψ => semImpliesLists X [ψ]
+instance formCanSemImplySet : vDash Formula (List Formula) := vDash.mk fun φ X => semImpliesLists [φ] X
+instance formCanSemImplyForm : vDash Formula Formula := vDash.mk fun φ ψ => semImpliesLists [φ] [ψ]
 
 infixl:40 "⊨" => SemImplies
 
@@ -115,21 +112,30 @@ infixl:40 "≡" => semEquiv
 
 infixl:40 "⊭" => fun a b => ¬a⊨b
 
+@[simp]
+theorem singletonSat_iff_sat {M : KripkeModel W} {w : W} : ∀ φ, (M, w) ⊨ ([φ] : List Formula) ↔ evaluate M w φ :=
+  by
+  intro phi
+  simp [modelCanSemImplyList]
+
 -- useful lemmas to connect different ⊨ cases
-theorem forms_to_sets {φ ψ : Formula} : φ⊨ψ → ({φ} : Finset Formula)⊨({ψ} : Finset Formula) :=
+theorem forms_to_lists {φ ψ : Formula} : φ⊨ψ → ([φ] : List Formula)⊨([ψ] : List Formula) :=
   by
   intro impTaut
   intro W M w lhs ψ psi_in_psi
   specialize impTaut W M w
-  simp at psi_in_psi lhs impTaut
+  simp at psi_in_psi lhs
   rw [psi_in_psi]
   -- needed even though no ψ_1 in goal here?!
   apply impTaut
-  exact lhs
+  rw [←singletonSat_iff_sat φ] at lhs
+  · tauto
+  · aesop
 
-theorem notSat_iff_semImplies (X : Finset Formula) (χ : Formula):
-    ¬Satisfiable (X ∪ {~χ}) ↔ X ⊨ ({χ} : Finset Formula) := by
-  simp only [Satisfiable, Finset.mem_union, Finset.mem_singleton, not_exists, not_forall, exists_prop, setCanSemImplySet, semImpliesSets, forall_eq]
+
+theorem notSat_iff_semImplies (X : List Formula) (χ : Formula):
+    ¬Satisfiable (X ∪ [~χ]) ↔ X ⊨ ([χ] : List Formula) := by
+  simp only [Satisfiable, not_exists, not_forall, exists_prop, setCanSemImplySet, semImpliesSets, forall_eq]
   constructor
   · intro nSat W M w satX
     specialize nSat W M w
@@ -186,7 +192,7 @@ theorem rel_steps_last {as} : ∀ v w,
       rw [IH]
       tauto
 
-theorem truthImply_then_satImply (X Y : Finset Formula) : X ⊨ Y → Satisfiable X → Satisfiable Y :=
+theorem truthImply_then_satImply (X Y : List Formula) : X ⊨ Y → Satisfiable X → Satisfiable Y :=
   by
   intro X_Y
   intro satX
