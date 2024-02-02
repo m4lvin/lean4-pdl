@@ -580,7 +580,7 @@ def LDDTNode := List Formula × Option (Sum NegLoadFormula NegDagLoadFormula)
 -- [X] dagEnd_subset_trf -->
 -- [ ] dagNormal_is_dagEnd -->
 -- [X] notStarInvertAux -->
--- [ ] notStarInvert -->
+-- [X] notStarInvert -->
 
 -- Immediate sucessors of a node in a Loaded Daggered Diamond Tableau (LDDT).
 -- Question: can it be that ψ is unloaded but not yet undaggered?!
@@ -715,7 +715,7 @@ instance modelCanSemImplyLoadDagTabNode {W : Type} : vDash (KripkeModel W × W) 
   vDash.mk evaluateLDDTNode
 
 -- Similar to Borzechowski's Lemma 4
-theorem notStarLoadSoundnessAux (a : Program) M (v w : W) (fs)
+theorem loadNotStarSoundnessAux (a : Program) M (v w : W) (fs)
     (φ : DagLoadFormula)
     (v_D : (M, v) ⊨ ((fs, some (Sum.inr (~⌊a⌋φ))): LDDTNode))
     (v_a_w : relate M a v w)
@@ -761,7 +761,7 @@ theorem notStarLoadSoundnessAux (a : Program) M (v w : W) (fs)
     case inr claim =>
       -- Here we follow the (fs, some (~⌈β⌉⌈β†⌉φ)) branch.
       rcases claim with ⟨_, ⟨u, v_neq_u, v_b_u, u_bS_w⟩⟩
-      have := notStarLoadSoundnessAux β M v u fs (⌊β†⌋(undagOnly φ))
+      have := loadNotStarSoundnessAux β M v u fs (⌊β†⌋(undagOnly φ))
       specialize this _ v_b_u _
       · simp [modelCanSemImplyLoadDagTabNode']
         intro f f_in
@@ -813,7 +813,7 @@ theorem notStarLoadSoundnessAux (a : Program) M (v w : W) (fs)
     have u_nGphi : (M,u) ⊨ (~⌈γ⌉unloadAndUndag φ) := by
       simp [modelCanSemImplyForm] at *
       use w
-    have := notStarLoadSoundnessAux β M v u fs (⌊γ⌋φ)
+    have := loadNotStarSoundnessAux β M v u fs (⌊γ⌋φ)
     specialize this _ v_β_u u_nGphi
     · intro f
       simp
@@ -850,7 +850,7 @@ theorem notStarLoadSoundnessAux (a : Program) M (v w : W) (fs)
               · use u
                 aesop
     · -- "If (2) ..."
-      have := notStarLoadSoundnessAux γ M u w S.1 φ -- not use "fs" here!
+      have := loadNotStarSoundnessAux γ M u w S.1 φ -- not use "fs" here!
       specialize this _ u_γ_w w_nP
       · intro f
         simp
@@ -884,7 +884,7 @@ theorem notStarLoadSoundnessAux (a : Program) M (v w : W) (fs)
     simp at v_a_w
     cases v_a_w
     case inl v_a_w =>
-      have := notStarLoadSoundnessAux α M v w fs φ
+      have := loadNotStarSoundnessAux α M v w fs φ
       specialize this _ v_a_w w_nP
       · intro f
         simp
@@ -901,7 +901,7 @@ theorem notStarLoadSoundnessAux (a : Program) M (v w : W) (fs)
       · unfold loadDagNextTransRefl; rw [ftr.iff]; simp; tauto
       · exact ⟨v_Γ, split⟩
     case inr v_b_w => -- completely analogous
-      have := notStarLoadSoundnessAux β M v w fs φ
+      have := loadNotStarSoundnessAux β M v w fs φ
       specialize this _ v_b_w w_nP
       · intro f
         simp
@@ -934,7 +934,7 @@ theorem notStarLoadSoundnessAux (a : Program) M (v w : W) (fs)
           aesop
       · right; aesop
 termination_by
-  notStarLoadSoundnessAux α M v w fs φ v_D v_a_w w_nP => mOfProgram α
+  loadNotStarSoundnessAux α M v w fs φ v_D v_a_w w_nP => mOfProgram α
 
 def loadDagEndNodes : LDDTNode → List (List Formula × Option NegLoadFormula)
   | (fs, none) => [ (fs, none) ]
@@ -946,6 +946,9 @@ def loadDagEndNodes : LDDTNode → List (List Formula × Option NegLoadFormula)
 termination_by
   loadDagEndNodes fs => mOfLoadDagNode fs
 decreasing_by simp_wf; assumption
+
+instance {W : Type} : vDash (KripkeModel W × W) (List Formula × Option NegLoadFormula) :=
+  vDash.mk λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ++ (mf.map (λ (~'lf) => ~unload lf)).toList, evaluate M w φ
 
 theorem loadDagEnd_subset_next
     (O_in : Ω ∈ loadDagNext Γ) : loadDagEndNodes Ω ⊆ loadDagEndNodes Γ := by
@@ -979,7 +982,6 @@ termination_by
   loadDagEnd_subset_trf Ω Γ hyp  => mOfLoadDagNode Γ
 decreasing_by simp_wf; apply mOfLoadDagNode.isDec; assumption
 
--- A normal successor in a diamond dagger tableau is an end node.
 /-theorem loadDagNormal_is_loadDagEnd
     (Γ_in : Γ ∈ loadDagNextTransRefl S)
     (Γ_normal : Γ.2 = none)
@@ -1047,6 +1049,36 @@ theorem loadNotStarInvertAux (M : KripkeModel W) (v : W) S :
     case dag => simp at Γ_in
     case ldg => simp at Γ_in
 
+theorem loadNotStarInvert (M : KripkeModel W) (v : W) S
+    :
+    (∃ Γ ∈ loadDagEndNodes S, (M, v) ⊨ Γ) → (M, v) ⊨ S := by
+  rintro ⟨Γ, Γ_in, v_Γ⟩
+  rcases S_eq : S with ⟨fs, none | ⟨⟨⟨lf⟩⟩ | ⟨⟨dlf⟩⟩⟩⟩
+  · subst S_eq
+    simp [loadDagEndNodes] at Γ_in
+    subst Γ_in
+    exact v_Γ
+  · subst S_eq
+    simp [loadDagEndNodes] at Γ_in
+    subst Γ_in
+    exact v_Γ
+  · subst S_eq
+    cases df_eq : dlf
+    case dag =>
+      subst df_eq
+      simp [loadDagEndNodes] at Γ_in
+    case ldg =>
+      subst df_eq
+      simp [loadDagEndNodes] at Γ_in
+    case box a f =>
+      subst df_eq
+      rw [loadDagEndOfSome_iff_step] at Γ_in
+      rcases Γ_in with ⟨T, T_in, Γ_in⟩
+      have v_T := loadNotStarInvert M v T ⟨Γ, ⟨Γ_in, v_Γ⟩⟩ -- recursion!
+      exact loadNotStarInvertAux M v (fs , some (Sum.inr (~⌊a⌋f))) ⟨_, ⟨T_in, v_T⟩⟩
+termination_by
+  loadNotStarInvert M v S claim => mOfLoadDagNode S
+decreasing_by simp_wf; apply mOfLoadDagNode.isDec; aesop
 -- -- -- BOXES -- -- --
 
 -- Here we need a List DagFormula, because of the ⋓ rule.
