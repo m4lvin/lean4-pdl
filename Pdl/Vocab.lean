@@ -3,12 +3,14 @@ import Pdl.Syntax
 import Mathlib.Data.Finset.Basic
 
 mutual
+  @[simp]
   def vocabOfProgram : Program → Finset Char
     | ·c => {c}
     | α;'β => vocabOfProgram α ∪ vocabOfProgram β
     | Program.union α β => vocabOfProgram α ∪ vocabOfProgram β
     | ∗α => vocabOfProgram α
     | ?' φ => vocabOfFormula φ
+  @[simp]
   def vocabOfFormula : Formula → Finset Char
     | ⊥ => ∅
     | ·c => {c}
@@ -22,7 +24,7 @@ def vocabOfSetFormula : Finset Formula → Finset Char
 
 def vocabOfListFormula : List Formula → Finset Char := λX =>
   X.foldl (λV φ => V ∪ vocabOfFormula φ ) ∅
-
+@[simp]
 theorem inVocList : ℓ ∈ vocabOfListFormula L ↔ ∃φ ∈ L, ℓ ∈ vocabOfFormula φ := by sorry
 
 class HasVocabulary (α : Type) where

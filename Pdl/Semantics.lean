@@ -21,39 +21,39 @@ def complexityOfQuery {W : Type} :
 
 mutual
   @[simp]
-  def evaluate {W : Type} : KripkeModel W → W → Formula → Prop
+  def Evaluates {W : Type} : KripkeModel W → W → Formula → Prop
     | _, _, ⊥ => False
     | M, w, ·c => M.val w c
-    | M, w, ~φ => Not (evaluate M w φ)
-    | M, w, φ⋀ψ => evaluate M w φ ∧ evaluate M w ψ
-    | M, w, ⌈α⌉ φ => ∀ v : W, relate M α w v → evaluate M v φ
+    | M, w, ~φ => Not (Evaluates M w φ)
+    | M, w, φ⋀ψ => Evaluates M w φ ∧ Evaluates M w ψ
+    | M, w, ⌈α⌉ φ => ∀ v : W, Relates M α w v → Evaluates M v φ
   @[simp]
-  def relate {W : Type} : KripkeModel W → Program → W → W → Prop
+  def Relates {W : Type} : KripkeModel W → Program → W → W → Prop
     | M, ·c, w, v => M.Rel c w v
-    | M, α;'β, w, v => ∃ y, relate M α w y ∧ relate M β y v
-    | M, α⋓β, w, v => relate M α w v ∨ relate M β w v
-    | M, ∗α, w, v => Relation.ReflTransGen (relate M α) w v
-    | M, ?'φ, w, v => w = v ∧ evaluate M w φ
+    | M, α;'β, w, v => ∃ y, Relates M α w y ∧ Relates M β y v
+    | M, α⋓β, w, v => Relates M α w v ∨ Relates M β w v
+    | M, ∗α, w, v => Relation.ReflTransGen (Relates M α) w v
+    | M, ?'φ, w, v => w = v ∧ Evaluates M w φ
 end
 termination_by
-  evaluate _ _ f => sizeOf f
-  relate _ p _ _ => sizeOf p
+  Evaluates _ _ f => sizeOf f
+  Relates _ p _ _ => sizeOf p
 
 @[simp]
-theorem evalDis {W M f g} {w : W} : evaluate M w (f⋁g) ↔ evaluate M w f ∨ evaluate M w g :=
+theorem evalDis {W M f g} {w : W} : Evaluates M w (f⋁g) ↔ Evaluates M w f ∨ Evaluates M w g :=
   by
   simp
   tauto
 
 @[simp]
 def evaluatePoint {W : Type} : KripkeModel W × W → Formula → Prop
-  | (M, w), ϕ => evaluate M w ϕ
+  | (M, w), ϕ => Evaluates M w ϕ
 
 def tautology (φ : Formula) :=
-  ∀ (W : Type) (M : KripkeModel W) w, evaluate M w φ
+  ∀ (W : Type) (M : KripkeModel W) w, Evaluates M w φ
 
 def contradiction (φ : Formula) :=
-  ∀ (W : Type) (M : KripkeModel W) w, ¬evaluate M w φ
+  ∀ (W : Type) (M : KripkeModel W) w, ¬Evaluates M w φ
 
 -- MB: Definition 5, page 9
 class HasSat (α : Type) where
@@ -61,24 +61,24 @@ class HasSat (α : Type) where
 open HasSat
 @[simp]
 instance formHasSat : HasSat Formula :=
-  HasSat.mk fun ϕ => ∃ (W : _) (M : KripkeModel W) (w : _), evaluate M w ϕ
+  HasSat.mk fun ϕ => ∃ (W : _) (M : KripkeModel W) (w : _), Evaluates M w ϕ
 @[simp]
 instance setHasSat : HasSat (Finset Formula) :=
-  HasSat.mk fun X => ∃ (W : _) (M : KripkeModel W) (w : _), ∀ φ ∈ X, evaluate M w φ
+  HasSat.mk fun X => ∃ (W : _) (M : KripkeModel W) (w : _), ∀ φ ∈ X, Evaluates M w φ
 @[simp]
 instance listHasSat : HasSat (List Formula) :=
-  HasSat.mk fun X => ∃ (W : _) (M : KripkeModel W) (w : _), ∀ φ ∈ X, evaluate M w φ
+  HasSat.mk fun X => ∃ (W : _) (M : KripkeModel W) (w : _), ∀ φ ∈ X, Evaluates M w φ
 
 def semImpliesSets (X : Finset Formula) (Y : Finset Formula) :=
   ∀ (W : Type) (M : KripkeModel W) (w),
-    (∀ φ ∈ X, evaluate M w φ) → ∀ ψ ∈ Y, evaluate M w ψ
+    (∀ φ ∈ X, Evaluates M w φ) → ∀ ψ ∈ Y, Evaluates M w ψ
 
 def semImpliesLists (X : List Formula) (Y : List Formula) :=
   ∀ (W : Type) (M : KripkeModel W) (w),
-    (∀ φ ∈ X, evaluate M w φ) → ∀ ψ ∈ Y, evaluate M w ψ
+    (∀ φ ∈ X, Evaluates M w φ) → ∀ ψ ∈ Y, Evaluates M w ψ
 
 def semEquiv (φ : Formula) (ψ : Formula) :=
-  ∀ (W : Type) (M : KripkeModel W) (w), evaluate M w φ ↔ evaluate M w ψ
+  ∀ (W : Type) (M : KripkeModel W) (w), Evaluates M w φ ↔ Evaluates M w ψ
 
 @[simp]
 theorem singletonSat_iff_sat : ∀ φ, Satisfiable ([φ] : List Formula) ↔ Satisfiable φ :=
@@ -101,9 +101,9 @@ class vDash (α : Type) (β : Type) where
 open vDash
 
 instance modelCanSemImplyForm {W : Type} : vDash (KripkeModel W × W) Formula := vDash.mk (@evaluatePoint W)
-instance modelCanSemImplySet {W : Type} : vDash (KripkeModel W × W) (Finset Formula) := vDash.mk (λ ⟨M,w⟩ fs => ∀ f ∈ fs, @evaluate W M w f)
+instance modelCanSemImplySet {W : Type} : vDash (KripkeModel W × W) (Finset Formula) := vDash.mk (λ ⟨M,w⟩ fs => ∀ f ∈ fs, @Evaluates W M w f)
 @[simp]
-instance modelCanSemImplyList {W : Type} : vDash (KripkeModel W × W) (List Formula) := vDash.mk (λ ⟨M,w⟩ fs => ∀ f ∈ fs, @evaluate W M w f)
+instance modelCanSemImplyList {W : Type} : vDash (KripkeModel W × W) (List Formula) := vDash.mk (λ ⟨M,w⟩ fs => ∀ f ∈ fs, @Evaluates W M w f)
 instance setCanSemImplySet : vDash (Finset Formula) (Finset Formula) := vDash.mk semImpliesSets
 instance setCanSemImplyForm : vDash (Finset Formula) Formula:= vDash.mk fun X ψ => semImpliesSets X {ψ}
 instance formCanSemImplySet : vDash Formula (Finset Formula) := vDash.mk fun φ X => semImpliesSets {φ} X
@@ -140,8 +140,8 @@ theorem notSat_iff_semImplies (X : Finset Formula) (χ : Formula):
     -- cases em (evaluate M w χ)
     sorry
 
-theorem relate_steps : ∀ x z, relate M (Program.steps (as ++ bs)) x z  ↔
-  ∃ y, relate M (Program.steps as) x y ∧ relate M (Program.steps bs) y z :=
+theorem relate_steps : ∀ x z, Relates M (Program.steps (as ++ bs)) x z  ↔
+  ∃ y, Relates M (Program.steps as) x y ∧ Relates M (Program.steps bs) y z :=
   by
   induction as
   · simp
@@ -166,8 +166,8 @@ theorem relate_steps : ∀ x z, relate M (Program.steps (as ++ bs)) x z  ↔
 
 -- TODO: remove this, special instance of previous?
 theorem rel_steps_last {as} : ∀ v w,
-  relate M (Program.steps (as ++ [a])) v w ↔
-    ∃ mid, relate M (Program.steps as) v mid ∧ relate M a mid w :=
+  Relates M (Program.steps (as ++ [a])) v w ↔
+    ∃ mid, Relates M (Program.steps as) v mid ∧ Relates M a mid w :=
   by
   induction as
   case nil =>

@@ -50,14 +50,14 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W ×
 theorem combMo_preserves_truth_at_oldWOrld {β : Type}
     (collection : β → Σ W : Type, KripkeModel W × W) (newVal : Char → Prop) :
     ∀ (f : Formula) (R : β) (oldWorld : (collection R).fst),
-      evaluate (combinedModel collection newVal).fst (Sum.inr ⟨R, oldWorld⟩) f ↔
-        evaluate (collection R).snd.fst oldWorld f :=
+      Evaluates (combinedModel collection newVal).fst (Sum.inr ⟨R, oldWorld⟩) f ↔
+        Evaluates (collection R).snd.fst oldWorld f :=
     by
     intro mF mR moW
     apply @Formula.rec
       (λφ => ∀ (R : β) (oldWorld : (collection R).fst),
-      evaluate (combinedModel collection newVal).fst (Sum.inr ⟨R, oldWorld⟩) φ ↔
-        evaluate (collection R).snd.fst oldWorld φ)
+      Evaluates (combinedModel collection newVal).fst (Sum.inr ⟨R, oldWorld⟩) φ ↔
+        Evaluates (collection R).snd.fst oldWorld φ)
        (λπ => True)
        (by -- Case Bottom
           intro R oW
@@ -365,42 +365,42 @@ theorem localRuleSoundnessNoneLoaded
       <;> simp at *
       case bot => specialize satLR ⊥; tauto
       case not φ =>
-        have : evaluate M w (~φ) := by
+        have : Evaluates M w (~φ) := by
           specialize satLR (~φ); tauto
         aesop
       case neg φ =>
-        have : evaluate M w (~~φ) := by
+        have : Evaluates M w (~~φ) := by
           specialize satLR (~~φ); tauto
         aesop
       case con φ ψ =>
-        have : evaluate M w (φ⋀ψ) := by
+        have : Evaluates M w (φ⋀ψ) := by
           specialize satLR (φ⋀ψ); tauto
         aesop
       case nCo φ ψ =>
-        have : evaluate M w (~(φ⋀ψ)) := by
+        have : Evaluates M w (~(φ⋀ψ)) := by
           specialize satLR (~(φ⋀ψ)); tauto
-        cases Classical.em (evaluate M w φ) <;> aesop
+        cases Classical.em (Evaluates M w φ) <;> aesop
       case nTe φ ψ =>
-        have : evaluate M w (~⌈?'φ⌉ψ) := by
+        have : Evaluates M w (~⌈?'φ⌉ψ) := by
           specialize satLR (~⌈?'φ⌉ψ); tauto
         aesop
       case nSe a b f =>
-        have : evaluate M w (~⌈a;'b⌉f) := by
+        have : Evaluates M w (~⌈a;'b⌉f) := by
           specialize satLR (~⌈a;'b⌉f); tauto
         aesop
       case uni a b f =>
-        have : evaluate M w (⌈a⋓b⌉f) := by
+        have : Evaluates M w (⌈a⋓b⌉f) := by
           specialize satLR (⌈a⋓b⌉f); tauto
         aesop
       case seq a b f =>
-        have : evaluate M w (⌈a;'b⌉f) := by
+        have : Evaluates M w (⌈a;'b⌉f) := by
           specialize satLR (⌈a;'b⌉f); tauto
         aesop
       case tes f g =>
-        have : evaluate M w (⌈?'f⌉g) := by
+        have : Evaluates M w (⌈?'f⌉g) := by
           specialize satLR (⌈?'f⌉g); tauto
-        unfold evaluate at this
-        unfold relate at this
+        unfold Evaluates at this
+        unfold Relates at this
         simp at *
         apply Or.inl
         intro f₁ hf₁
@@ -408,7 +408,7 @@ theorem localRuleSoundnessNoneLoaded
         cases' hf₁ with in_delta neg_f
         · aesop
         · rw [neg_f]
-          simp [evaluate]
+          simp [Evaluates]
           sorry
           -- intro f₂ hf₂
           -- cases' hf₂ with in_delta is_g
@@ -420,11 +420,11 @@ theorem localRuleSoundnessNoneLoaded
           -- specialize satLR f
           -- apply satLR
       case nUn a b f =>
-        have : evaluate M w (~⌈a⋓b⌉f) := by
+        have : Evaluates M w (~⌈a⋓b⌉f) := by
           specialize satLR (~⌈a⋓b⌉f); tauto
         aesop
       case sta a f =>
-        have : evaluate M w (⌈∗a⌉f) := by
+        have : Evaluates M w (⌈∗a⌉f) := by
           specialize satLR (⌈∗a⌉f); tauto
         sorry
       case nSt a f => sorry

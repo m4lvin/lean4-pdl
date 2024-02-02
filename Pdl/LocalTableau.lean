@@ -5,7 +5,7 @@ import Pdl.Syntax
 import Pdl.Measures
 import Pdl.Setsimp
 import Pdl.Semantics
-import Pdl.Discon
+import Pdl.BigConDis
 import Pdl.DagTableau
 import Pdl.Vocab
 
@@ -19,16 +19,54 @@ open HasLength
 def TNode := List Formula × List Formula × Option (Sum NegLoadFormula NegLoadFormula) -- ⟨L, R, o⟩
   deriving DecidableEq -- TODO Repr
 
-def TNode.L : TNode → List Formula := λ⟨L,_,_⟩ => L
-def TNode.R : TNode → List Formula := λ⟨_,R,_⟩ => R
-def TNode.O : TNode → Option (Sum NegLoadFormula NegLoadFormula) := λ⟨_,_,O⟩ => O
+
+def TNode.L : TNode → List Formula
+  | ⟨L,_,_⟩ => L
+def TNode.R : TNode → List Formula
+  | ⟨_,R,_⟩ => R
+def TNode.O : TNode → Option (Sum NegLoadFormula NegLoadFormula)
+  | ⟨_,_,O⟩ => O
+@[simp]
+def negLoadToListForm : Option (Sum NegLoadFormula NegLoadFormula) → List Formula
+  | none => []
+  | some <| Sum.inl φ => [negUnload φ]
+  | some <| Sum.inr φ => [negUnload φ]
+@[simp]
+def negLoadToListFormL : Option (Sum NegLoadFormula NegLoadFormula) → List Formula
+  | none => []
+  | some <| Sum.inl φ => [negUnload φ]
+  | some <| Sum.inr _ => []
+@[simp]
+def negLoadToListFormR : Option (Sum NegLoadFormula NegLoadFormula) → List Formula
+  | none => []
+  | some <| Sum.inl _ => []
+  | some <| Sum.inr φ => [negUnload φ]
+def TNode.Olist : TNode → List Formula := negLoadToListForm ∘ TNode.O
+def TNode.OL : TNode → List Formula := negLoadToListFormL ∘ TNode.O
+def TNode.OR : TNode → List Formula := negLoadToListFormR ∘ TNode.O
+def TNode.LO : TNode → List Formula := λN => N.L ∪ N.OL
+def TNode.RO : TNode → List Formula := λN => N.R ∪ N.OR
+
+def myN : TNode := ([⊥],[],none)
+
+lemma five : Nat := by
+  let N : TNode :=  ([⊥],[],none)
+  let L := N.L
+  unfold TNode.L at L
+  exact 5
 
 open HasVocabulary
+@[simp]
 def sharedVoc : TNode → Finset Char := λN => voc N.L ∩ voc N.R
-instance tNodeHasVocabulary : HasVocabulary (TNode) := ⟨sharedVoc⟩
+instance tNodeHasVocabulary : HasVocabulary TNode := ⟨sharedVoc⟩
+
+open HasSat
+@[simp]
+def jointSat : TNode → Prop := λN => Satisfiable N.L ∧ Satisfiable N.R
+instance tNodeHasSat : HasSat TNode := ⟨jointSat⟩
 
 instance modelCanSemImplyTNode : vDash (KripkeModel W × W) TNode :=
-  vDash.mk (λ ⟨M,w⟩ ⟨L, R, o⟩ => ∀ f ∈ L ∪ R ∪ (o.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
+  vDash.mk (λ ⟨M,w⟩ ⟨L, R, o⟩ => ∀ f ∈ L ∪ R ∪ (o.map (Sum.elim negUnload negUnload)).toList, Evaluates M w f)
 
 -- Some thoughts about the TNode type:
 -- - one formula may be loaded
@@ -66,7 +104,7 @@ inductive OneSidedLocalRule : List Formula → List (List Formula) → Type
   | sta (a f) : OneSidedLocalRule [⌈∗a⌉f] (boxDagEndNodes ({f}, [ inject [a] a f ]))
   | nSt (a f) : OneSidedLocalRule [~⌈∗a⌉f] ([ [~f] ] ++ (dagEndNodes (∅, NegDagFormula.neg (inject [a] a f))))
 
-theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B :=
+theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : bigCon X ≡ discon B :=
   by
   intro W M w
   cases lr
@@ -77,7 +115,7 @@ theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B
     constructor
     · aesop
     · intro w_X
-      simp only [discon, Con, evaluate, Formula.or, ← or_iff_not_and_not] at w_X
+      simp only [discon, bigCon, Evaluates, Formula.or, ← or_iff_not_and_not] at w_X
       cases w_X
       all_goals aesop
 
@@ -170,7 +208,7 @@ inductive LoadRule : NegLoadFormula → List (List Formula × Option NegLoadForm
   | nTe' {φt φ}  : LoadRule (~'⌊?'φt⌋(φ : Formula    )) [ ([φt, ~φ], none) ]
 
 theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
-    (~(unload χ)) ≡ dis (B.map (λ (fs, o) => Con (fs ++ (o.map negUnload).toList))) :=
+    (~(unload χ)) ≡ bigDis (B.map (λ (fs, o) => bigCon (fs ++ (o.map negUnload).toList))) :=
   by
   intro W M w
   cases lr
@@ -208,9 +246,9 @@ inductive LocalRule : TNode → List TNode → Type
   -- NOTE: do we need neg rules for ({unload χ}, ∅, some (Sum.inl ~χ)) and (∅, {unload χ}, some (Sum.inr ~χ)), ..here?
   -- Probably not, because then we could also have closed before/without loading!
   | loadedL (χ : LoadFormula) (lrule : LoadRule (~'χ) ress) :
-      LocalRule (∅, ∅, some (Sum.inl (~'χ))) $ ress.map $ λ (X, o) => (X, ∅, o.map Sum.inl)
+      LocalRule (∅, ∅, some (Sum.inl (~'χ))) <| ress.map λ(X, o) => (X, ∅, o.map Sum.inl)
   | loadedR (χ : LoadFormula) (lrule : LoadRule (~'χ) ress) :
-      LocalRule (∅, ∅, some (Sum.inr (~'χ))) $ ress.map $ λ (X, o) => (∅, X, o.map Sum.inr)
+      LocalRule (∅, ∅, some (Sum.inr (~'χ))) <| ress.map λ(X, o) => (∅, X, o.map Sum.inr)
 
 @[simp]
 def applyLocalRule (_ : LocalRule (Lcond, Rcond, Ocond) ress) : TNode → List TNode
@@ -227,15 +265,14 @@ instance : HasSubset (Option (NegLoadFormula ⊕ NegLoadFormula)) := HasSubset.m
   | some f, some g => f == g
 
 inductive LocalRuleApp : TNode → List TNode → Type
-  | mk {L R : List Formula}
+  | mk {N : TNode}
        {C : List TNode}
-       (O : Option (Sum NegLoadFormula NegLoadFormula))
-       (Lcond Rcond : List Formula)
-       (Ocond : Option (Sum NegLoadFormula NegLoadFormula))
-       (rule : LocalRule (Lcond, Rcond, Ocond) ress)
-       {hC : C = applyLocalRule rule (L,R,O)}
-       (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R ∧ Ocond ⊆ O)
-       : LocalRuleApp (L,R,O) C
+       {conds : TNode}
+       {ress : List TNode}
+       (rule : LocalRule conds ress)
+       {hC : C = applyLocalRule rule N}
+       (preconditionProof : conds.L ⊆ N.L ∧ conds.R ⊆ N.R ∧ conds.O ⊆ N.O)
+       : LocalRuleApp N C
 
 theorem localRuleTruth : ReplaceThis := sorry
   -- show that any LocalRuleApp preserves truth in a model.

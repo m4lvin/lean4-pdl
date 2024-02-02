@@ -2,51 +2,74 @@ import Mathlib.Init.Data.Nat.Lemmas
 
 import Pdl.Syntax
 import Pdl.Semantics
+import Pdl.Vocab
+import Pdl.Semantics
 
 @[simp]
-def Con : List Formula → Formula
+def bigCon : List Formula → Formula
   | [] => ⊤
   | [f] => f
-  | f :: rest => f⋀Con rest
+  | f :: rest => f⋀bigCon rest
+
+open HasVocabulary
+
+
+theorem vocOfBigCon {l : List Formula} : x ∈ voc (bigCon l) → ∃φ ∈ l, x ∈ voc φ :=
+  by sorry
 
 @[simp]
-theorem conempty : Con ∅ = (⊤ : Formula) := by rfl
+theorem conempty : bigCon ∅ = (⊤ : Formula) := by rfl
 
 @[simp]
-theorem consingle {f : Formula} : Con [f] = f := by rfl
+theorem consingle {f : Formula} : bigCon [f] = f := by rfl
 
 @[simp]
-def dis : List Formula → Formula
+def bigDis : List Formula → Formula
   | [] => ⊥
   | [f] => f
-  | f :: rest => f ⋁ dis rest
+  | f :: rest => f ⋁ bigDis rest
 
 @[simp]
-theorem disempty : dis ∅ = (⊥ : Formula) := by rfl
+theorem disempty : bigDis [] = (⊥ : Formula) := by rfl
 
 @[simp]
-theorem dissingle {f : Formula} : dis [f] = f := by rfl
+theorem dissingle {f : Formula} : bigDis [f] = f := by rfl
 
 @[simp]
 def discon : List (List Formula) → Formula
   | [] => ⊥
-  | [X] => Con X
-  | X :: rest => Con X⋁discon rest
+  | [X] => bigCon X
+  | X :: rest => bigCon X⋁discon rest
 
 @[simp]
 theorem disconempty : discon {∅} = (⊤ : Formula) := by rfl
+
+theorem vocOfBigDis {l : List Formula} : x ∈ voc (bigDis l) ↔ ∃φ ∈ l, x ∈ voc φ := by
+  constructor
+  · intro hyp
+    induction l
+    case nil  => exfalso; exact (List.mem_nil_iff x).mp hyp
+    case cons head tail ih =>
+      cases em (x ∈ vocabOfFormula head)
+      next h => use head; simp; exact h
+      next h =>
+        unfold bigDis at hyp
+        have in_tail : x ∈ voc (bigDis tail) := by sorry
+        aesop
+  · sorry
+
 
 @[simp]
 theorem disconsingle {f : Formula} : discon [[f]] = f := by rfl
 
 theorem conEvalHT {X f W M} {w : W} :
-    evaluate M w (Con (f :: X)) ↔ evaluate M w f ∧ evaluate M w (Con X) :=
+    Evaluates M w (bigCon (f :: X)) ↔ Evaluates M w f ∧ Evaluates M w (bigCon X) :=
   by
   induction' X with g X _
   · simp
   · simp
 
-theorem conEval {W M X} {w : W} : evaluate M w (Con X) ↔ ∀ f ∈ X, evaluate M w f :=
+theorem conEval {W M X} {w : W} : Evaluates M w (bigCon X) ↔ ∀ f ∈ X, Evaluates M w f :=
   by
   induction' X with f X IH
   · simp
@@ -55,7 +78,7 @@ theorem conEval {W M X} {w : W} : evaluate M w (Con X) ↔ ∀ f ∈ X, evaluate
     intro _
     assumption
 
-theorem disconEvalHT {X} : ∀ XS, discon (X :: XS)≡Con X⋁discon XS :=
+theorem disconEvalHT {X} : ∀ XS, discon (X :: XS)≡bigCon X⋁discon XS :=
   by
   unfold semEquiv
   intro XS W M w
@@ -65,7 +88,7 @@ theorem disconEvalHT {X} : ∀ XS, discon (X :: XS)≡Con X⋁discon XS :=
 
 theorem disconEval' {W M} {w : W} :
     ∀ {N : Nat} XS,
-      List.length XS = N → (evaluate M w (discon XS) ↔ ∃ Y ∈ XS, ∀ f ∈ Y, evaluate M w f) :=
+      List.length XS = N → (Evaluates M w (discon XS) ↔ ∃ Y ∈ XS, ∀ f ∈ Y, Evaluates M w f) :=
   by
   intro N
   refine Nat.strong_induction_on N ?_ -- should be induction N using Nat.strong_induction_on or something similar?
@@ -94,7 +117,7 @@ theorem disconEval' {W M} {w : W} :
     intro rhs
     cases' rhs with Y rhs
     cases' rhs with Y_in Ysat
-    simp at Y_in 
+    simp at Y_in
     cases' Y_in with Y_in
     · left
       subst Y_in
@@ -104,7 +127,7 @@ theorem disconEval' {W M} {w : W} :
 
 theorem disconEval {W M} {w : W} :
     ∀ XS,
-      (evaluate M w (discon XS) ↔ ∃ Y ∈ XS, ∀ f ∈ Y, evaluate M w f) :=
+      (Evaluates M w (discon XS) ↔ ∃ Y ∈ XS, ∀ f ∈ Y, Evaluates M w f) :=
   by
     intro XS
     apply disconEval' XS rfl
@@ -163,7 +186,7 @@ theorem disconOr {XS YS} : discon (XS ∪ YS) ≡ discon XS ⋁ discon YS :=
     use Z
   · -- ←
     intro rhs
-    cases (Classical.em (∃ Y, Y ∈ XS ∧ ∀ (f : Formula), f ∈ Y → evaluate M w f))
+    cases (Classical.em (∃ Y, Y ∈ XS ∧ ∀ (f : Formula), f ∈ Y → Evaluates M w f))
     case inl hyp =>
       rcases hyp with ⟨X, X_in, satX⟩
       use X
@@ -180,3 +203,19 @@ theorem union_elem_uplus {XS YS : Finset (Finset Formula)} {X Y : Finset Formula
   intro X_in Y_in
   simp
   exact ⟨X, X_in, Y, Y_in, rfl⟩
+
+
+open HasSat
+
+-- Probably redundant but leaving these here for now
+lemma eval_neg_BigDis_iff_eval_bigConNeg {l : List Formula} {M : KripkeModel W} {w : W} :
+    Evaluates M w (~(bigDis l)) ↔ Evaluates M w (~~bigCon (l.map (~·))) := by sorry
+
+lemma eval_negBigCon_iff_eval_bigDisNeg {l : List Formula} {M : KripkeModel W} {w : W} :
+    Evaluates M w (~(bigCon l)) ↔ Evaluates M w (bigDis (l.map (~·))) := by sorry
+
+lemma sat_negBigDis_iff_sat_bigConNeg {l : List Formula} :
+    Satisfiable (~(bigDis l)) ↔ Satisfiable (~~bigCon (l.map (~·))) := by sorry
+
+lemma sat_negBigCon_iff_sat_bigDisNeg {l : List Formula}:
+    Satisfiable (~(bigCon l)) ↔ Satisfiable (bigDis (l.map (~·))) := by sorry

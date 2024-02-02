@@ -3,7 +3,7 @@ import Mathlib.Tactic.Linarith
 import Mathlib.Data.Set.Finite
 
 import Pdl.Syntax
-import Pdl.Discon
+import Pdl.BigConDis
 import Pdl.Semantics
 import Pdl.Star
 import Pdl.Closure
@@ -88,17 +88,17 @@ def dagNextTransRefl : (List Formula × Option NegDagFormula) → List (List For
   ftr dagNext mOfDagNode @mOfDagNode.isDec
 
 instance modelCanSemImplyDagTabNode {W : Type} : vDash (KripkeModel W × W) (List Formula × Option NegDagFormula) :=
-  vDash.mk (λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ++ (mf.map undag).toList, evaluate M w φ)
+  vDash.mk (λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ++ (mf.map undag).toList, Evaluates M w φ)
 
 -- Similar to Borzechowski's Lemma 4
 theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
     (φ : DagFormula)
     (v_D : (M, v) ⊨ (fs, some (~⌈a⌉φ)))
-    (v_a_w : relate M a v w)
+    (v_a_w : Relates M a v w)
     (w_nP : (M, w) ⊨ (~undag φ)) :
     ∃ Γ ∈ dagNextTransRefl (fs, ~⌈a⌉φ),
       (M, v) ⊨ Γ ∧ ( ( ∃ (a : Char) (as : List Program), (~ ⌈·a⌉⌈⌈as⌉⌉(undag φ)) ∈ Γ.1
-                       ∧ relate M (Program.steps ([Program.atom_prog a] ++ as)) v w
+                       ∧ Relates M (Program.steps ([Program.atom_prog a] ++ as)) v w
                        ∧ Γ.2 = none )
                    ∨ ((~φ) ∈ Γ.2 ∧ v = w) ) := by
   cases a
@@ -271,7 +271,7 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
         rintro (f_in_fs | fDef)
         · exact v_D f (by aesop)
         · subst fDef
-          simp only [evaluate, not_forall, exists_prop, undag]
+          simp only [Evaluates, not_forall, exists_prop, undag]
           use w
           simp [modelCanSemImplyForm,vDash] at w_nP
           tauto
@@ -288,7 +288,7 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
         rintro (f_in_fs | fDef)
         · exact v_D f (by aesop)
         · subst fDef
-          simp only [evaluate, not_forall, exists_prop, undag]
+          simp only [Evaluates, not_forall, exists_prop, undag]
           use w
           simp [modelCanSemImplyForm,vDash] at w_nP
           tauto
@@ -373,7 +373,7 @@ theorem dagNormal_is_dagEnd
 theorem notStarSoundness
     (M : KripkeModel W) (w : W) (a : Program) (φ : Formula)
     :
-    evaluate M w (~⌈∗a⌉φ) →
+    Evaluates M w (~⌈∗a⌉φ) →
       ∃ Γ ∈ [[~φ]] ++ dagEndNodes (∅, some (~⌈a⌉⌈a†⌉φ)), (M,w) ⊨ Γ :=
   by
       intro w_naSf
@@ -875,7 +875,7 @@ def boxDagNextTransRefl : (List Formula × List DagFormula) → List (List Formu
   -- ftr boxDagNext mOfBoxDagNode @mOfBoxDagNode.isDec
 
 instance modelCanSemImplyBDNode {W : Type} : vDash (KripkeModel W × W) BDNode :=
-  vDash.mk (λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ++ (mf.map undag), evaluate M w φ)
+  vDash.mk (λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ++ (mf.map undag), Evaluates M w φ)
 
 def boxDagEndNodes : BDNode → List (List Formula)
   | (fs, []) => [ fs ]
