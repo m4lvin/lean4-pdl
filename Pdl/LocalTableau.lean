@@ -19,12 +19,20 @@ open HasLength
 def TNode := List Formula × List Formula × Option (Sum NegLoadFormula NegLoadFormula) -- ⟨L, R, o⟩
   deriving DecidableEq -- TODO Repr
 
+-- Hint: use List.toFinset.ext_iff with this.
+def TNode.setEqTo : TNode → TNode → Bool
+| (L,R,O), (L',R',O') => L.toFinset == L'.toFinset ∧ R.toFinset == R'.toFinset ∧ O == O'
+
 @[simp]
 def TNode.L : TNode → List Formula := λ⟨L,_,_⟩ => L
 @[simp]
 def TNode.R : TNode → List Formula := λ⟨_,R,_⟩ => R
 @[simp]
 def TNode.O : TNode → Option (Sum NegLoadFormula NegLoadFormula) := λ⟨_,_,O⟩ => O
+
+def TNode.isLoaded : TNode → Bool
+| ⟨_, _, none  ⟩ => False
+| ⟨_, _, some _⟩ => True
 
 open HasVocabulary
 def sharedVoc : TNode → Finset Char := λN => voc N.L ∩ voc N.R

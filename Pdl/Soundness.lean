@@ -665,7 +665,7 @@ def tabInAt : (Σ X HistX, ClosedTableau HistX X) → List Nat → Option (Σ Y 
           -- apply tabInAt -- want to do this, but will it break termination?
           apply some
           refine ⟨X, ?_, ?_⟩
-          · exact (X :: hX)
+          · exact (record hX X) -- or recordAtm ?!
           · apply next
             simp
       case mrkL =>
@@ -677,16 +677,16 @@ def tabInAt : (Σ X HistX, ClosedTableau HistX X) → List Nat → Option (Σ Y 
 -- MB: Lemma 7
 theorem loadedDiamondPaths
   {Root Δ : TNode}
-  (tab : ClosedTableau [] Root) -- ensure History = [] here to prevent repeats from "above".
+  (tab : ClosedTableau ([],[]) Root) -- ensure History = [] here to prevent repeats from "above".
   (path_to_Δ : List Nat)
-  (h : some tabΔ = tabInAt ⟨Root,tab⟩ path_to_Δ)
+  (h : some tabΔ = tabInAt ⟨Root,_,tab⟩ path_to_Δ)
   {M : KripkeModel W} {v : W}
   (φ : AnyFormula)
   (negLoad_in : NegLoadFormula_in_TNode (~'⌊α⌋φ) Δ) -- FIXME: ∈ not working here?
   (v_X : (M,v) ⊨ Δ)
   (v_α_w : relate M α v w)
   (w_φ : (M,w) ⊨ ~''φ)
-  : ∃ path_Δ_to_Γ : List Nat, ∃ Γ ∈ tabInAt ⟨Root,tab⟩ (path_to_Δ ++ path_Δ_to_Γ),
+  : ∃ path_Δ_to_Γ : List Nat, ∃ Γ ∈ tabInAt ⟨Root,_,tab⟩ (path_to_Δ ++ path_Δ_to_Γ),
     (AnyNegFormula_in_TNode (~''φ) Γ.1) -- FIXME: ∈ not working here?
     ∧
     (M,w) ⊨ Γ.1 :=
