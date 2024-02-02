@@ -543,6 +543,15 @@ def unloadOnly : DagLoadFormula → DagFormula -- probably never needed?
   | (⌊α†⌋(χ : LoadFormula)) => (DagFormula.dag (∗α) (unload χ))
   | (⌊α⌋γ) => (DagFormula.box α (unloadOnly γ))
 
+/-theorem unloadOnlyEqSequence (h: unloadOnly γ' = ⌈β⌉unloadOnly γ): γ'= ⌊β⌋γ := by
+  unfold unloadOnly at h
+  cases γ'
+  case box β' γ' =>
+    simp!
+    aesop?
+    sorry
+  all_goals simp_all-/
+
 @[simp]
 theorem unloadUndagOnly: unload (undagOnly γ) = unloadAndUndag γ := by
   induction γ
@@ -566,9 +575,9 @@ def LDDTNode := List Formula × Option (Sum NegLoadFormula NegDagLoadFormula)
 -- [X] modelCanSemImplyDagTabNode -->
 -- [X] notStarSoundnessAux -->
 -- [X] dagEndNodes --> loadDagEndNodes
--- [ ] dagEnd_subset_next -->
--- [ ] dagEndOfSome_iff_step -->
--- [ ] dagEnd_subset_trf -->
+-- [X] dagEnd_subset_next -->
+-- [X] dagEndOfSome_iff_step -->
+-- [X] dagEnd_subset_trf -->
 -- [ ] dagNormal_is_dagEnd -->
 -- [ ] notStarInvertAux -->
 -- [ ] notStarInvert -->
@@ -635,6 +644,60 @@ theorem mOfLoadDagNode.isDec {x y : LDDTNode} (y_in : y ∈ loadDagNext x) :
 @[simp]
 def loadDagNextTransRefl : LDDTNode → List LDDTNode :=
   ftr loadDagNext mOfLoadDagNode @mOfLoadDagNode.isDec
+
+/-theorem loadDagNextIffDagNext:
+  ⟨fs', some (Sum.inr (~dlf'))⟩  ∈ loadDagNext ⟨fs, some (Sum.inr (~dlf))⟩
+  ↔ ⟨fs', ~unloadOnly dlf'⟩ ∈ dagNext ⟨fs, ~unloadOnly dlf⟩ := by
+  cases dlf'
+  case box α' γ' =>
+    cases dlf
+    case box α γ =>
+      cases α
+      case atom_prog =>
+        simp!
+        by_contra h
+        apply_fun (λ x => x.snd) at h
+        simp at h
+      case sequence α β =>
+        simp! only [loadDagNext, List.mem_singleton]-- dagNext, UndagNegDagFormula,undagNegDagFormula, UndagDagFormula, undagDagFormula]
+        cases α'
+        all_goals
+          constructor
+          · simp_all
+            sorry
+          · simp
+            intro fs_eq α_eq h
+            /-have : γ'= ⌊β⌋γ := by
+              cases γ'
+              all_goals simp_all
+              all_goals sorry-/
+            subst fs_eq α_eq
+            simp_all
+            congr
+            sorry
+        all_goals sorry
+
+        constructor
+        · cases α'
+          all_goals simp!
+          all_goals sorry
+        ·
+        simp_all
+          intro ⟨fs_eq, α_eq, h⟩
+          aesop
+      all_goals simp_all!
+      all_goals cases α'
+      all_goals simp_all!
+      all_goals sorry
+    all_goals simp_all!
+  case dag α' f' =>
+    cases dlf
+    all_goals simp_all!
+    sorry
+  case ldg α' lf' =>
+    cases dlf
+    all_goals simp_all!
+    sorry-/
 
 def toFormula : NegLoadFormula ⊕ NegDagLoadFormula → Formula
   | Sum.inl (~'f) => ~unload f
@@ -883,6 +946,105 @@ termination_by
   loadDagEndNodes fs => mOfLoadDagNode fs
 decreasing_by simp_wf; assumption
 
+theorem loadDagEnd_subset_next
+    (O_in : Ω ∈ loadDagNext Γ) : loadDagEndNodes Ω ⊆ loadDagEndNodes Γ := by
+  intro e
+  rcases Γ with ⟨fs, mdf⟩
+  rcases mdf with none | ⟨df⟩
+  · simp [dagNext] at O_in
+  · intro e_in
+    unfold loadDagEndNodes loadDagNext
+    aesop
+
+theorem loadDagEndOfSome_iff_step : Γ ∈ loadDagEndNodes (fs, some (Sum.inr (~⌊a⌋f))) ↔
+    ∃ S ∈ loadDagNext (fs, some (Sum.inr (~⌊a⌋f))), Γ ∈ loadDagEndNodes S := by
+  cases a
+  all_goals (simp [loadDagEndNodes]; done)
+
+
+theorem loadDagEnd_subset_trf {Ω Γ} :
+    Ω ∈ loadDagNextTransRefl Γ → loadDagEndNodes Ω ⊆ loadDagEndNodes Γ := by
+  intro O_in
+  unfold loadDagNextTransRefl at O_in
+  rw [ftr.iff] at O_in
+  cases O_in
+  · aesop
+  case inr hyp =>
+    rcases hyp with ⟨S, S_in, O_in⟩
+    have := loadDagEnd_subset_next S_in
+    have := loadDagEnd_subset_trf O_in
+    tauto
+termination_by
+  loadDagEnd_subset_trf Ω Γ hyp  => mOfLoadDagNode Γ
+decreasing_by simp_wf; apply mOfLoadDagNode.isDec; assumption
+
+-- A normal successor in a diamond dagger tableau is an end node.
+/-theorem loadDagNormal_is_loadDagEnd
+    (Γ_in : Γ ∈ loadDagNextTransRefl S)
+    (Γ_normal : Γ.2 = none)
+    :
+    (Γ.1 ∈ loadDagEndNodes S) := by
+  have := loadDagEnd_subset_trf Γ_in
+  apply this
+  rcases Γ with ⟨fs,odf⟩
+  subst Γ_normal
+  simp [dagEndNodes]-/
+
+theorem loadNotStarInvertAux (M : KripkeModel W) (v : W) S :
+    (∃ Γ ∈ loadDagNext S, (M, v) ⊨ Γ) → (M, v) ⊨ S := by
+  intro hyp
+  rcases hyp with ⟨Γ, Γ_in, v_Γ⟩
+  rcases S with ⟨fs, none | ⟨⟨df⟩⟩⟩
+  · simp [loadDagNext] at Γ_in
+  · sorry
+  · sorry /-cases df
+    case box a df =>
+      cases a
+      all_goals (simp at Γ_in; try cases Γ_in; all_goals try subst Γ_in)
+      all_goals (intro f f_in; simp at f_in)
+      case atom_prog =>
+        cases f_in
+        · apply v_Γ; simp at *; tauto
+        case inr hyp => subst hyp; apply v_Γ; simp
+      case sequence a b =>
+        cases f_in
+        · apply v_Γ; simp at *; tauto
+        case inr hyp => subst hyp; specialize v_Γ (~⌈a⌉⌈b⌉(undag df)); aesop
+      case union.inl a b Γ_is =>
+        cases f_in
+        · apply v_Γ; simp at *; aesop
+        case inr hyp => subst hyp; specialize v_Γ (~⌈a⌉(undag df)); aesop
+      case union.inr a b Γ_is =>
+        cases f_in
+        · apply v_Γ; simp at *; aesop
+        case inr hyp => subst hyp; specialize v_Γ (~⌈b⌉(undag df)); aesop
+      case star.inl a Γ_is =>
+        cases f_in
+        · apply v_Γ; simp at *; aesop
+        case inr hyp =>
+          subst hyp; subst Γ_is; specialize v_Γ (undag (~df)); simp at *
+          use v
+      case star.inr a Γ_is =>
+        cases f_in
+        · apply v_Γ; subst Γ_is; simp at *; aesop
+        case inr hyp =>
+          subst hyp; subst Γ_is;
+          specialize v_Γ (~⌈a⌉⌈∗a⌉(undag df))
+          simp at *
+          rcases v_Γ with ⟨x, v_a_x, y, x_aS_y, y_nf⟩
+          use y
+          exact ⟨Relation.ReflTransGen.head v_a_x x_aS_y, y_nf⟩
+      case test.refl g =>
+        cases f_in
+        · apply v_Γ; simp at *; aesop
+        case inr hyp =>
+          subst hyp
+          simp
+          constructor
+          · specialize v_Γ g; aesop
+          · specialize v_Γ (~(undag df)); simp at v_Γ; aesop
+    case dag =>
+      simp [dagNext] at Γ_in-/
 
 -- -- -- BOXES -- -- --
 
