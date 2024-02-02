@@ -362,7 +362,7 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
 
 -- Issue: deterministic timeout when I run everything together / use tactic combinators
 -- like I did in the bml file
--- (oneSidedL and oneSidedR are completely copy-pasted, so are LRnegL and LRnegR)
+-- (oneSidedL/oneSidedR are completely copy-pasted, so are LRnegL/LRnegR)
 -- even though every case by itself doesn't cause any problems
 theorem localRuleSoundnessNoneLoaded
     (M : KripkeModel W)
@@ -510,3 +510,54 @@ theorem localRuleSoundnessNoneLoaded
         · specialize satLR φ; aesop
         · specialize satLR (~φ); aesop
       aesop
+
+-- χ also true in res?
+theorem localRuleSoundnessLoadedL
+    (M : KripkeModel W)
+    (w : W)
+    (rule : LocalRule (Lcond, Rcond, some (Sum.inl (~'χ))) ress)
+    (Δ : List Formula) :
+    (M, w) ⊨ (Δ ∪ Lcond ∪ Rcond ∪ [~ unload χ]) → ∃res ∈ ress, (M, w) ⊨ (Δ ∪ res.1 ∪ res.2.1) :=
+  by
+    intro satLR
+    cases rule
+    simp at *
+    case loadedL ress lrule =>
+      let unl_χ := ~ unload χ
+      specialize satLR unl_χ
+      simp at *
+      cases lrule
+      case nUn => sorry
+      case nUn' => sorry
+      case nSe => sorry
+      case nSe' => sorry
+      case nSt => sorry
+      case nSt' => sorry
+      case nTe => sorry
+      case nTe' => sorry
+
+
+
+theorem localRuleSoundnessLoadedR
+    (M : KripkeModel W)
+    (w : W)
+    (rule : LocalRule (Lcond, Rcond, some (Sum.inr (~'χ))) ress)
+    (Δ : List Formula) :
+    (M, w) ⊨ (Δ ∪ Lcond ∪ Rcond ∪ [~ unload χ]) → ∃res ∈ ress, (M, w) ⊨ (Δ ∪ res.1 ∪ res.2.1) :=
+  by
+    intro satLR
+    cases rule
+    simp at *
+    case loadedR ress lrule =>
+      let unl_χ := ~ unload χ
+      specialize satLR unl_χ
+      simp at *
+      cases lrule
+      case nUn => sorry
+      case nUn' => sorry
+      case nSe => sorry
+      case nSe' => sorry
+      case nSt => sorry
+      case nSt' => sorry
+      case nTe => sorry
+      case nTe' => sorry
