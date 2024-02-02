@@ -2,6 +2,7 @@ import Pdl.Syntax
 import Pdl.Tableau
 import Pdl.LocalTableau
 import Pdl.Semantics
+import Pdl.Discon
 
 open Classical
 
@@ -360,6 +361,63 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
 
 -/
 
+
+-- I wanted to do a variation of the bml localRuleSoundness using the
+-- soundness rules in Pdl.LocalTableau
+-- But only just found out that LocalRule is now defined on TNodes
+-- whereas it was defined on Subpairs in the bml version
+-- so either needs a rewrite or types maybe need to be changed back
+theorem localRuleSoundness
+    (M : KripkeModel W)
+    (w : W)
+    (rule : LocalRule (L, R, O) ress) -- used to be Lcond, Rcond (, Ocond)
+    (Δ : List Formula) :
+    (M, w) ⊨ (Δ ∪ Lcond ∪ Rcond) → ∃res ∈ ress, (M, w) ⊨ res := -- used to be (M, w) ⊨ Δ ∪ res.1 ∪ res.2
+  by sorry
+
+-- alternative ruleImpliesChildSat using localRuleTruth from Semantics
+theorem ruleImpliesChildSat
+    {C : List TNode}
+    {LR : TNode}
+    (M : KripkeModel W)
+    (w : W)
+    (ruleApp : LocalRuleApp (LR.L, LR.R, LR.O) C) :
+    (M, w) ⊨ LR → ∃c ∈ C, (M, w) ⊨ c :=
+  by
+    intro satLR
+    let (L, R, O) := LR
+    rcases ruleApp with ⟨O, Lcond, Rcond, Ocond, rule, preproofL, preproofR⟩
+    cases rule
+    case oneSidedL ress rule hC =>    -- the most of this should be moved to localRuleSoundness above
+      have condiscon : Con Lcond ≡ discon ress := oneSidedLocalRuleTruth rule
+      have satCon: (M, w) ⊨ Con Lcond := by
+        have satLcond : ∀ f ∈ Lcond, evaluate M w f := subsetSat (by aesop) preproofL
+        rw [←conEval] at satLcond
+        tauto
+      have satDis : (M, w) ⊨ discon ress :=
+        equivSat (Con Lcond) (discon ress) condiscon satCon
+      have evalDis : evaluate M w (discon ress) := by tauto
+      have : ∃ res ∈ ress, ∀ f ∈ res, evaluate M w f := by
+        rw [disconEval ress] at evalDis
+        assumption
+      rcases this with ⟨res, in_ress, eval_res⟩
+      -- in bml aesop could solve this :(
+      have some_child : ∃ c ∈ C, c = (L \ Lcond ∪ res, R, O) := by sorry
+      rcases some_child with ⟨c, hc⟩
+      use c
+      constructor
+      · exact hc.left
+      · rw [hc.right]
+        sorry -- should be easy
+    case oneSidedR ress rule hC => sorry  -- the exact same pf as above (most of it should be done in localRuleSoundness)
+    case LRnegL => sorry
+    case LRnegR => sorry
+    case loadedL => sorry -- here use loadedRuleTruth from Semantics
+    case loadedR => sorry
+
+
+
+
 -- Issue: deterministic timeout when I run everything together / use tactic combinators
 -- like I did in the bml file
 -- (oneSidedL/oneSidedR are completely copy-pasted, so are LRnegL/LRnegR)
@@ -511,7 +569,9 @@ theorem localRuleSoundnessNoneLoaded
         · specialize satLR (~φ); aesop
       aesop
 
--- χ also true in res?
+
+-- this is all redundant if you can use loadRuleTruth from LocalTableau
+/-
 theorem localRuleSoundnessLoadedL
     (M : KripkeModel W)
     (w : W)
@@ -521,14 +581,17 @@ theorem localRuleSoundnessLoadedL
   by
     intro satLR
     cases rule
-    simp at *
+    simp [loadRuleTruth] at *
     case loadedL ress lrule =>
-      let unl_χ := ~ unload χ
-      specialize satLR unl_χ
-      simp at *
       cases lrule
-      case nUn => sorry
-      case nUn' => sorry
+      case nUn a b χ =>
+        let unl_χ := ~ unload χ
+        specialize satLR unl_χ
+        simp at *
+        sorry
+      case nUn' a b χ =>
+
+
       case nSe => sorry
       case nSe' => sorry
       case nSt => sorry
@@ -561,3 +624,4 @@ theorem localRuleSoundnessLoadedR
       case nSt' => sorry
       case nTe => sorry
       case nTe' => sorry
+-/

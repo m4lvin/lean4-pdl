@@ -146,6 +146,13 @@ theorem notSat_iff_semImplies (X : List Formula) (χ : Formula):
     -- cases em (evaluate M w χ)
     sorry
 
+theorem equivSat {M : KripkeModel W} {w : W} (φ ψ : Formula): φ ≡ ψ → (M, w) ⊨ φ → (M, w) ⊨ ψ :=
+  by
+    intro φ_eq_ψ evalφ
+    have : evaluate M w φ := by tauto
+    rw [φ_eq_ψ] at this
+    tauto
+
 theorem relate_steps : ∀ x z, relate M (Program.steps (as ++ bs)) x z  ↔
   ∃ y, relate M (Program.steps as) x y ∧ relate M (Program.steps bs) y z :=
   by
