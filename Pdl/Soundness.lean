@@ -3,6 +3,8 @@ import Pdl.LocalTableau
 import Pdl.Semantics
 import Pdl.Discon
 
+import Mathlib.Tactic.Ring
+
 open Classical
 
 open HasSat
@@ -635,34 +637,30 @@ instance : Membership AnyNegFormula TNode := ⟨AnyNegFormula_in_TNode⟩
 
 -- * Navigating through tableaux
 
--- The current representation of condition 6a maybe will not allow us to prove MB Lemma 7.
+-- Given our representation of condition 6a, now we want to prove MB Lemma 7.
 --
--- Alternative ideas for a type to represent a repeat-path in a Tableau:
---
--- - MaximalTableau × Pointer/Path (Lens) × Proof that repeat is good
--- - MaximalTableau × Proof for all paths
---
--- In general, how to do induction on it?
---
--- We use a "List Nat" to say "go to the ..-th child, then to the ..th child".
--- Note that these "paths" here can go through/across multiple LocalTableau
+-- To represent both the whole Tableau and a specific node in it we use
+-- a "List TNode" path to say "go to this child, then to this child, etc."
+-- These paths:
+-- - can go through/across multiple LocalTableau, like LHistories
+--   and unlike the Paths used in the Complteness Proof
+-- - are over the relation that includes back-loops.
 
--- List Nat should be List TNode
-def tabInAt : (Σ X HistX, ClosedTableau HistX X) → List Nat → Option (Σ Y HistY, ClosedTableau HistY Y)
-| ⟨X, hX, tab⟩, [] => some ⟨_, _, tab⟩ -- we have reached the destination
-| ⟨X, hX, tab⟩, (k::rest) => by
-      cases tab
+-- maybe restrict this to HistX = ([],[])
+-- first List TNode is the "already walked argument" - needed to go back up to companion?!
+def tabInAt : (Σ X HistX, ClosedTableau HistX X) → List TNode → List TNode → Option (Σ Y HistY, ClosedTableau HistY Y)
+| ⟨X, hX, tab⟩, _, [] => some ⟨_, _, tab⟩ -- we have reached the destination
+| ⟨X, hX, tab⟩, done, (Y::rest) => by
+      cases tab_def : tab
       case loc ltX next =>
         cases ltX
         case byLocalRule B lnext lrApp =>
-          cases B.attach.get? k
-          case none => exact none
-          case some bB =>
-            rcases bB with ⟨b,b_in⟩
-            have := lnext b b_in
+          refine if Y_in : (Y ∈ B) then ?_ else ?_
+          · have := lnext Y Y_in
             -- now how to recurse on LocalTableau when tabInAt wants a Closed?
             -- probably need "endsOf me are endsOf my children" for byLocalRule here
             sorry
+          · exact none
         case sim X_simp =>
           -- apply tabInAt -- want to do this, but will it break termination?
           apply some
@@ -673,24 +671,37 @@ def tabInAt : (Σ X HistX, ClosedTableau HistX X) → List Nat → Option (Σ Y 
       case mrkL =>
         -- apply tabInAt ?
         sorry
-      case rep =>
+      case rep isRep =>
+        let (bef, aft) := hX
+        simp only [condSixRepeat, List.any_eq_true] at isRep
+        rcases isRep with ⟨⟨k,Y⟩, getk, X_is_Y⟩ -- is k the index now? start with 0 or 1?
         -- now go back to the companion (and thus allow the path to be longer than the actual tableau)
-        sorry
+        let newDone : List TNode := done.drop (k+1) -- undo the steps since companion
+        have : newDone.length + (Y::rest).length < done.length + (Y::rest).length := by
+          simp_all
+          zify
+          -- ring -- why not working?
+          sorry
+        exact tabInAt ⟨X, (bef, aft), tab⟩ newDone (Y::rest)
       all_goals sorry
+termination_by
+  tabInAt Xhtab done todo => done.length + todo.length
+decreasing_by simp_wf; simp_all
 
 -- MB: Lemma 7
 theorem loadedDiamondPaths
   {Root Δ : TNode}
   (tab : ClosedTableau ([],[]) Root) -- ensure History = [] here to prevent repeats from "above".
-  (path_to_Δ : List Nat)
-  (h : some tabΔ = tabInAt ⟨Root,_,tab⟩ path_to_Δ)
+  (path_to_Δ : List TNode)
+  (h : some tabΔ = tabInAt ⟨Root,_,tab⟩ [] path_to_Δ)
   {M : KripkeModel W} {v : W}
   (φ : AnyFormula)
   (negLoad_in : NegLoadFormula_in_TNode (~'⌊α⌋φ) Δ) -- FIXME: ∈ not working here?
   (v_X : (M,v) ⊨ Δ)
   (v_α_w : relate M α v w)
   (w_φ : (M,w) ⊨ ~''φ)
-  : ∃ path_Δ_to_Γ : List Nat, ∃ Γ ∈ tabInAt ⟨Root,_,tab⟩ (path_to_Δ ++ path_Δ_to_Γ),
+  : ∃ path_Δ_to_Γ : List TNode,
+    ∃ Γ ∈ tabInAt ⟨Root,_,tab⟩ [] (path_to_Δ ++ path_Δ_to_Γ),
     (AnyNegFormula_in_TNode (~''φ) Γ.1) -- FIXME: ∈ not working here?
     ∧
     (M,w) ⊨ Γ.1 :=

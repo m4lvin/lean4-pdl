@@ -44,9 +44,7 @@ def toNegLoad (α : Program) (φ : Formula) : NegLoadFormula :=
 
 -- NOTES about the History type:
 -- - The newest/lowest TNode should be the head of the list.
--- - we also need the rule that is applied to check isCritical.
---   Add "× LocalRuleApp" to History type? Need Σ.
--- - currently we only track "big" steps, do we need local steps?
+-- - We only track "big" steps, hoping we do not need steps within local tableaux.
 
 -- TNodes  before × since  last (At) application (and only recording loaded nodes)
 def LoadHistory : Type := List TNode × List TNode -- This may not be enough!
@@ -55,16 +53,19 @@ def LoadHistory : Type := List TNode × List TNode -- This may not be enough!
 --
 -- A node t repeating s can be treated as a closed end node if
 -- the path from s to t is critical and loaded.
-def isCondSixRepeat : TNode → (Hist : LoadHistory) → Bool
-  | X, (before, _) => before.any X.setEqTo
+def condSixRepeat (X : TNode) (Hist : LoadHistory) :=
+  Subtype (fun (k, Y) => Hist.1.get? k = some Y ∧ X.setEqTo Y)
 
 -- TABLEAUX
 
 -- The "Step" notation has two jobs:
 -- - flip the order in the definition below to be more natural.
 -- - avoid having to repeat "parent" to build the history.
+
+-- Step to an unloaded node, resetting history.
 notation "Step" Ct:arg Hist:arg parent:arg child:arg => Ct ([],[]) child → Ct Hist parent
 
+-- Lstep to a loaded node, contnuing the history.
 notation "LStep" Ct:arg Hist:arg recf:arg parent:arg child:arg => Ct (recf Hist parent) child → Ct Hist parent
 
 def record : LoadHistory → TNode → LoadHistory
@@ -88,7 +89,6 @@ def recordAtm : LoadHistory → TNode → LoadHistory
 inductive ClosedTableau : LoadHistory → TNode → Type
   -- Do a local tableau:
   | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf ⟨X, lt⟩, ClosedTableau (record Hist X) Y) → ClosedTableau Hist X
-  -- TODO: should the history also track what happens "within" loc?
   -- The (M+) rule:
   | mrkL : (~⌈α⌉φ) ∈ L → Step ClosedTableau Hist (L, R, none)
                                                  (L.remove (~⌈α⌉φ), R, some (Sum.inl (toNegLoad α φ)))
@@ -104,7 +104,7 @@ inductive ClosedTableau : LoadHistory → TNode → Type
                                                               (projection A L, projection A R, some (Sum.inr (~'χ)))
   | atmR'  {A X φ} : isSimpleNode X → LStep ClosedTableau Hist record ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
                                                               (projection A L, projection A R ++ [~φ], none)
-  | rep {X Hist} (rep : isCondSixRepeat X Hist) : ClosedTableau Hist X
+  | rep {X Hist} (rep : condSixRepeat X Hist) : ClosedTableau Hist X
   --
   -- NOTE: If we want only finite tableaux then "repeat" may have to be eager?
   -- Would we need to add its negation in all other rules? For now, leave it.
