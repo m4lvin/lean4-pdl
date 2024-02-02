@@ -624,6 +624,7 @@ def anyNegLoad : Program → AnyFormula → NegLoadFormula
 
 local notation "~'⌊" α "⌋" χ => anyNegLoad α χ
 
+-- set_option trace.Meta.synthInstance true -- turn this on to debug ∈ below.
 @[simp]
 def AnyNegFormula_in_TNode := fun (anf : AnyNegFormula) (X : TNode) => match anf with
 | ⟨Sum.inl φ⟩ => (~φ) ∈ X
@@ -646,6 +647,7 @@ instance : Membership AnyNegFormula TNode := ⟨AnyNegFormula_in_TNode⟩
 -- We use a "List Nat" to say "go to the ..-th child, then to the ..th child".
 -- Note that these "paths" here can go through/across multiple LocalTableau
 
+-- List Nat should be List TNode
 def tabInAt : (Σ X HistX, ClosedTableau HistX X) → List Nat → Option (Σ Y HistY, ClosedTableau HistY Y)
 | ⟨X, hX, tab⟩, [] => some ⟨_, _, tab⟩ -- we have reached the destination
 | ⟨X, hX, tab⟩, (k::rest) => by
@@ -671,7 +673,9 @@ def tabInAt : (Σ X HistX, ClosedTableau HistX X) → List Nat → Option (Σ Y 
       case mrkL =>
         -- apply tabInAt ?
         sorry
-
+      case rep =>
+        -- now go back to the companion (and thus allow the path to be longer than the actual tableau)
+        sorry
       all_goals sorry
 
 -- MB: Lemma 7
