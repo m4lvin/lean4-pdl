@@ -80,9 +80,13 @@ inductive LoadFormula : Type -- χ
   deriving Repr, DecidableEq
 
 @[simp]
+def loadMulti : List Program → Program → Formula → LoadFormula
+| bs, α, φ => List.foldl (flip LoadFormula.box) (LoadFormula.load α φ) bs
+
+@[simp]
 def LoadFormula.boxes : List Program → LoadFormula → LoadFormula
-  | [], f => f
-  | (p :: ps), f => LoadFormula.box p (LoadFormula.boxes ps f)
+| [], χ => χ
+| (b::bs), χ => (χ.boxes bs).box b
 
 @[simp]
 def unload : LoadFormula → Formula

@@ -35,11 +35,12 @@ def boxesOf : Formula → List Program × Formula
 | (Formula.box prog nextf) => let (rest,endf) := boxesOf nextf; ⟨prog::rest, endf⟩
 | f => ([], f)
 
--- From ~⌈α⌉φ to ~'⌊α⌋χ
+-- From ~⌈α⌉φ to ~'⌊α⌋χ with maximal loading
 def toNegLoad (α : Program) (φ : Formula) : NegLoadFormula :=
-  match boxesOf φ with
-    | ([],f) => ~'⌊α⌋f
-    | (bs,f) => sorry
+  let (bs, f) := boxesOf φ
+  match (bs.reverse, f) with -- reverse so we get bs.last for LoadFormula.load.
+    | ([], f) => ~'⌊α⌋f
+    | (b::bs, f) => ~'⌊α⌋(List.foldl (flip LoadFormula.box) (LoadFormula.load b f) bs)
 
 -- NOTES about the History type:
 -- - The newest/lowest TNode should be the head of the list.
