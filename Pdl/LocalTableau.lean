@@ -348,3 +348,5 @@ def endNodesOf : (Σ X, LocalTableau X) → List TNode
       have : lengthOf Y < lengthOf X := localRuleApp.decreaseLength lr Y h
       endNodesOf ⟨Y, next Y h⟩).join
   | ⟨X, sim _⟩ => [X]
+-- termination_by  -- Why is this not needed, even though "this" above is needed?
+--   endNodesOf p => lengthOf p.1
