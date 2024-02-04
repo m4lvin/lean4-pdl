@@ -33,7 +33,7 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, Char × KripkeMo
       exact False -- no reflexive loop at the new world.
     case inl.inr newWorld oldWorld => -- connect new world to given points.
       exact (HEq oldWorld.snd (collection oldWorld.fst).snd.snd) ∧ (HEq prog (collection oldWorld.fst).snd.fst)
-    case inr.inl => exact False -- no connection from models to new world
+    case inr.inl => exact False -- no connection from old worlds to new world
     case inr.inr oldWorldOne oldWorldTwo =>
       -- connect two old worlds iff they are from the same model and were connected there already:
       cases' oldWorldOne with kOne wOne
@@ -66,13 +66,16 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
           relate (collection R).snd.snd.fst π oldWorld₁ oldWorld₂)
             -- Program IH 2: if old worlds are from different models they are not related
             ∧ (∀ (R₁ R₂ : β) (oldWorld₁ : (collection R₁).fst) (oldWorld₂ : (collection R₂).fst),
-              R₁ ≠ R₂ → ¬(relate (combinedModel collection newVal).fst π (Sum.inr ⟨R₁, oldWorld₁⟩) (Sum.inr ⟨R₂, oldWorld₂⟩))))
+              R₁ ≠ R₂ → ¬(relate (combinedModel collection newVal).fst π (Sum.inr ⟨R₁, oldWorld₁⟩) (Sum.inr ⟨R₂, oldWorld₂⟩)))
+              -- Program IH 3: no old world can see the new world
+              ∧ (∀ (R : β) (oldWorld : (collection R).fst),
+                ¬(relate (combinedModel collection newVal).fst π (Sum.inr ⟨R, oldWorld⟩) (Sum.inl Unit.unit))))
       (by tauto)      -- case bottom
       (by aesop)      -- case atom_prop
       (by aesop)      -- case neg
       (by aesop)      -- case and
       ( by            -- case box
-          intro a f IH_a IH_f R oldWorld
+          intro α f IH_a IH_f R oldWorld
           constructor
           · aesop
           · intro true_in_old
@@ -80,17 +83,15 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
             simp
             constructor
             · intro newWorld  -- new world
-              unfold combinedModel
-              unfold evaluate
-              unfold relate
-              -- sorry should be easy since no rel to new world??
-              -- "the new world is never reachable, trivial case" ~OG proof
-              sorry
+              intro old_rel_new
+              absurd old_rel_new
+              rcases IH_a with ⟨IH_rel, sameR, noNewL⟩
+              apply noNewL
             · intro otherR otherWorld  -- old world
               intro rel_in_new_model
               specialize IH_f otherR otherWorld
               simp_all
-              rcases IH_a with ⟨IH_rel, sameR⟩
+              rcases IH_a with ⟨IH_rel, sameR, noNewL⟩
               specialize sameR R otherR oldWorld otherWorld
               simp_all
               subst sameR
@@ -116,12 +117,12 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
             constructor
             · intro new_rel
               unfold relate at new_rel
-              rcases new_rel with ⟨u, u_rel_a, u_rel_b⟩
+              rcases new_rel with ⟨u, a_rel_u, u_rel_b⟩
+              rcases IH_a with ⟨IH_rel, sameR, noNewL⟩
               cases' u with u_new u_old
-                -- this sorry should be easy since no rel to new world??
-              · sorry -- new world
+              · absurd a_rel_u
+                apply noNewL
               · rcases u_old with ⟨otherR, otherWorld⟩ -- old world
-                rcases IH_a with ⟨IH_rel, sameR⟩
                 specialize sameR R otherR oldWorld₁ otherWorld
                 simp_all
                 subst sameR
@@ -129,19 +130,30 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
             · intro old_rel
               unfold relate at old_rel
               unfold relate
-              rcases old_rel with ⟨u, u_rel_a, u_rel_b⟩
+              rcases old_rel with ⟨u, a_rel_u, u_rel_b⟩
               use (Sum.inr ⟨R, u⟩)
               aesop
+          constructor
           · intro R₁ R₂ oldWorld₁ oldWorld₂ hneq hrel     -- second half of Program IH
             unfold relate at hrel
-            rcases hrel with ⟨u, u_rel_a, u_rel_b⟩
-            rcases IH_a with ⟨IH_rel, sameR⟩
+            rcases hrel with ⟨u, a_rel_u, _⟩
+            rcases IH_a with ⟨IH_rel, sameR, noNewL⟩
             cases' u with u_new u_old
-              -- this sorry should be easy since no rel to new world??
-            · sorry -- new world
+            · absurd a_rel_u
+              apply noNewL
             · rcases u_old with ⟨otherR, otherWorld⟩ -- old world
               specialize sameR R₁ otherR oldWorld₁ otherWorld
               simp_all
+          · intro R oldWorld
+            unfold relate
+            rintro ⟨u, a_rel_to_u, b_rel_u_to⟩
+            cases u
+            · absurd a_rel_to_u
+              rcases IH_a with ⟨IH_rel, sameR, noNewL⟩
+              apply noNewL
+            · absurd b_rel_u_to
+              rcases IH_b with ⟨IH_rel, sameR, noNewL⟩
+              apply noNewL
       )
       (by aesop)       -- case union
       (by              -- case star
@@ -151,13 +163,33 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
           have star_preserved : ∀ (w v : (collection R).fst),
             Relation.ReflTransGen (relate (combinedModel collection newVal).fst a)
               (Sum.inr ⟨R, w⟩) (Sum.inr ⟨R, v⟩) ↔ Relation.ReflTransGen (relate (collection R).snd.snd.fst a) w v :=
-            by sorry -- something with @Relation.ReflTransGen.head_induction_on ?
+            by
+            intro w v
+            rw [starIffFinitelyManySteps]
+            rw [starIffFinitelyManySteps]
+            -- alternatively, use @Relation.ReflTransGen.head_induction_on here?
+            sorry
           constructor <;> aesop
+        constructor
         · intro R₁ R₂ oldWorld₁ oldWorld₂ hneq        -- second half of Program IH
           unfold relate
-          rcases IH_a with ⟨IH_rel, sameR⟩
+          rcases IH_a with ⟨IH_rel, sameR, noNewL⟩
           specialize sameR R₁ R₂ oldWorld₁ oldWorld₂ hneq
           sorry -- again @Relation.ReflTransGen.head_induction_on
+        · intro R oldWorld
+          unfold relate
+          intro star_rel
+          cases starCases star_rel
+          case inl hyp => simp at hyp
+          case inr hyp =>
+            rcases hyp.2 with ⟨u, _neq_u, a_rel_to_u, b_rel_u_to⟩
+            cases u
+            · absurd a_rel_to_u
+              rcases IH_a with ⟨IH_rel, sameR, noNewL⟩
+              apply noNewL
+            · absurd b_rel_u_to
+              rcases IH_a with ⟨IH_rel, sameR, noNewL⟩
+              sorry -- apply noNewL -- not working, need induction?
       )
       (by aesop)       -- case test
       (mF)
