@@ -87,8 +87,8 @@ def recordAtm : LoadHistory → TNode → LoadHistory
 --   (left or right, and loaded or unloaded)
 -- - a good repeat (MB condition six)
 inductive ClosedTableau : LoadHistory → TNode → Type
-  -- Do a local tableau:
-  | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf ⟨X, lt⟩, ClosedTableau (record Hist X) Y) → ClosedTableau Hist X
+  -- Do a local tableau: (not recording any history!)
+  | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf ⟨X, lt⟩, ClosedTableau Hist Y) → ClosedTableau Hist X
   -- The (M+) rule:
   | mrkL : (~⌈α⌉φ) ∈ L → Step ClosedTableau Hist (L, R, none)
                                                  (L.remove (~⌈α⌉φ), R, some (Sum.inl (toNegLoad α φ)))

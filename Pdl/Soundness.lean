@@ -637,7 +637,7 @@ instance : Membership AnyNegFormula TNode := ⟨AnyNegFormula_in_TNode⟩
 
 -- * Helper functions, to be moved to (Local)Tableau.lean
 
--- TODO delete this, if computable version works
+-- TODO delete this, if computable version is possible
 noncomputable def endNodeIsEndNodeOfChildNonComp (lrA)
   (E_in: E ∈ endNodesOf ⟨X, LocalTableau.byLocalRule lrA subTabs⟩) :
   @Subtype TNode (fun x => ∃ h, E ∈ endNodesOf ⟨x, subTabs x h⟩) := by
@@ -648,18 +648,23 @@ noncomputable def endNodeIsEndNodeOfChildNonComp (lrA)
   use c
   use c_in
 
--- TODO: move this to LocalTableau?
+-- TODO: move this to LocalTableau
+-- TODO: Ist this even doable without choice?
 def endNode_to_endNodeOfChild
     {E X : TNode}
     {lTab}
     (E_in: E ∈ endNodesOf ⟨X, lTab⟩)
     (lrA : LocalRuleApp X C)
-    (h := lTab = LocalTableau.byLocalRule lrA subTabs)
-    : @Subtype TNode (fun x => ∃ h, E ∈ endNodesOf ⟨x, subTabs x h⟩) :=
+    (h : lTab = LocalTableau.byLocalRule lrA subTabs)
+    : @Subtype TNode (fun Y => ∃ h, E ∈ endNodesOf ⟨Y, subTabs Y h⟩) :=
   by
   cases lTab
-
-  all_goals sorry
+  case byLocalRule C' subTabs' lrA' =>
+    cases h
+    simp at *
+    sorry
+  case sim =>
+    simp at h
 
 -- TODO: move this to LocalTableau.
 theorem endNodeOfChild_to_endNode
@@ -708,8 +713,68 @@ theorem endNodeOfChild_to_endNode
 -- - a path to be walked
 -- return if succeeds: the TNode at the end of the path or a local end node and the remaining path
 -- TOOD: rewrite with more match cases in term mode without "by"?
-def tabInLocalAt (ltX : LocalTableau X) : List TNode → Option (TNode ⊕ (Subtype (fun Y => Y ∈ endNodesOf ⟨X, ltX⟩) × List TNode))
+def nodeInLocalAt (ltX : LocalTableau X) : List TNode → Option (TNode ⊕ (Subtype (fun Y => Y ∈ endNodesOf ⟨X, ltX⟩) × List TNode))
 | [] => some (Sum.inl X) -- we have reached the destination
+| (Y::rest) => by
+    cases ltX
+    case byLocalRule B lnext lrApp =>
+      refine if Y_in : Y ∈ B then ?_ else ?_
+      · cases nodeInLocalAt (lnext Y Y_in) rest -- make a recursive call!
+        case none => exact none -- not found.
+        case some foo =>
+          cases foo
+          case inl Z =>
+            exact some (Sum.inl Z) -- found it!
+          case inr Z_ =>
+            rcases Z_ with ⟨⟨Z,Z_in⟩, remainder⟩
+            apply some
+            apply Sum.inr
+            refine ⟨⟨Z, ?_⟩, ?_⟩
+            · apply endNodeOfChild_to_endNode lrApp lnext rfl Y_in Z_in
+            · exact remainder
+      · exact none -- cannot follow path
+    case sim X_simp =>
+      apply some
+      apply Sum.inr
+      constructor
+      · use X
+        rw [endNodesOf, List.mem_singleton]
+      · exact Y::rest -- Problem: This case means "reminder" may be of same length still.
+
+-- Given:
+-- - a tableau (not necessarily a root)
+-- - a path to be walked
+-- return if succeeds: the TNode at the end of the path
+def nodeInAt : (Σ X HistX, ClosedTableau HistX X) → List TNode → Option TNode
+| ⟨X, hX, tab⟩, [] => some X -- we have reached the destination
+| ⟨X, hX, tab⟩, (Y::rest) => by
+      cases tab
+      case loc ltX next =>
+        cases nodeInLocalAt ltX (Y::rest)
+        case none => exact none
+        case some lt_res =>
+          cases lt_res
+          case inl Z => exact some Z -- reached end of path inside the local tableau.
+          case inr Y_end_remainder =>
+            rcases Y_end_remainder with ⟨⟨Y, Y_in⟩, remainder⟩
+            have : remainder.length < (Y::rest).length := sorry -- needed for termination, may need to add this in tabInLocalAt
+            exact nodeInAt ⟨Y, hX, next Y Y_in⟩ remainder
+      case mrkL =>
+        -- apply nodeInAt ?
+        sorry
+      case rep isRep =>
+        exact none -- fail, we cannot go to Y (and should be using Loopy from below!)
+      all_goals sorry
+termination_by
+   nodeInAt Xhtab toWalk => toWalk.length
+
+-- Given:
+-- - a local tableau (not necessarily a root)
+-- - a path to be walked
+-- return if succeeds: the local tableau at the end of the path or a local end node and the remaining path
+-- TOOD: rewrite with more match cases in term mode without "by"?
+def tabInLocalAt (ltX : LocalTableau X) : List TNode → Option ((Σ Z, LocalTableau Z) ⊕ (Subtype (fun Y => Y ∈ endNodesOf ⟨X, ltX⟩) × List TNode))
+| [] => some (Sum.inl ⟨X, ltX⟩) -- we have reached the destination
 | (Y::rest) => by
     cases ltX
     case byLocalRule B lnext lrApp =>
@@ -739,9 +804,9 @@ def tabInLocalAt (ltX : LocalTableau X) : List TNode → Option (TNode ⊕ (Subt
 -- Given:
 -- - a tableau (not necessarily a root)
 -- - a path to be walked
--- return if succeeds: the TNode at the end of the path
-def tabInAt : (Σ X HistX, ClosedTableau HistX X) → List TNode → Option TNode
-| ⟨X, hX, tab⟩, [] => some X -- we have reached the destination
+-- return if succeeds: the closed tableau at the end of the path
+def tabInAt : (Σ X HistX, ClosedTableau HistX X) → List TNode → Option (Σ Y HistY, ClosedTableau HistY Y)
+| ⟨X, hX, tab⟩, [] => some ⟨X, hX, tab⟩ -- we have reached the destination
 | ⟨X, hX, tab⟩, (Y::rest) => by
       cases tab
       case loc ltX next =>
@@ -749,11 +814,17 @@ def tabInAt : (Σ X HistX, ClosedTableau HistX X) → List TNode → Option TNod
         case none => exact none
         case some lt_res =>
           cases lt_res
-          case inl Z => exact some Z -- reached end of path inside the local tableau.
+          case inl Z_ltZ =>
+            -- reached end of path inside the local tableau.
+            rcases Z_ltZ with ⟨Z, ltZ⟩
+            let ctZnext : (W : TNode) → W ∈ endNodesOf ⟨Z, ltZ⟩ → ClosedTableau hX W :=
+              fun W W_in => next _ sorry -- Need: endNnodesOf ltZ ⊆ endNnodesOf ltX
+            let ctZ : ClosedTableau _ Z := ClosedTableau.loc ltZ ctZnext
+            exact some ⟨Z, _, ctZ⟩
           case inr Y_end_remainder =>
             rcases Y_end_remainder with ⟨⟨Y, Y_in⟩, remainder⟩
             have : remainder.length < (Y::rest).length := sorry -- needed for termination, may need to add this in tabInLocalAt
-            exact tabInAt ⟨Y, record hX X, next Y Y_in⟩ remainder
+            exact tabInAt ⟨Y, hX, next Y Y_in⟩ remainder
       case mrkL =>
         -- apply tabInAt ?
         sorry
@@ -763,65 +834,66 @@ def tabInAt : (Σ X HistX, ClosedTableau HistX X) → List TNode → Option TNod
 termination_by
    tabInAt Xhtab toWalk => toWalk.length
 
-/-
-
-PROBLEM: returning only TNodes instead of ClosedTableau is not enough to implement the loopy version!
-
+-- Go one step, to Y, but possibly via a loop
 -- Given:
 -- - the root of a tableau
--- - a path already walked - needed to go back up to companion?!
+-- - a path already walked - needed to go back up to companion
 -- - a path still to be walked
 -- return: the tableau at the end of the path, possibly by looping via condition 6 repeats
-def tabInAtLoopy : (Σ X, ClosedTableau ([],[]) X) → List TNode → List TNode → Option TNode
-| ⟨X, tab⟩, _, [] => some X -- we have reached the destination
-| ⟨X, tab⟩, done, (Y::rest) => by
-      cases tab_def : tabInAt ⟨X, ([],[]), tab⟩ done
+--
+-- IDEA: instead of using "tabInAt", add the Closed (or Local?!) tableau at "done" as another input?
+def goTo : (Σ R, ClosedTableau ([],[]) R) → List TNode → TNode → Option (Σ Y HistY, ClosedTableau HistY Y)
+| ⟨R, tab⟩, done, Y => by
+      cases tab_def : tabInAt ⟨R, ([],[]), tab⟩ done
       case none =>
         exact none -- this should never happen :-(
-      case some Y_ =>
-        rcases Y_ with ⟨Y, HistY, ctY⟩
-        cases ctY
-        case loc ltY next =>
-          cases ltY
+      case some X_ =>
+        rcases X_ with ⟨X, HistX, ctX⟩
+        cases ctX
+        case loc ltX next =>
+          cases ltX
           case byLocalRule B lnext lrApp =>
             refine if Y_in : Y ∈ B then ?_ else ?_
-            · exact tabInAtLoopy ⟨X, tab⟩ (done ++ [Y]) rest -- move down a real step
+            -- move down a real step:
+            · let ltY := lnext Y Y_in
+              -- now need to turn ltY into a closed tableau. or change the return type?
+              let ctYnext : (Z : TNode) → Z ∈ endNodesOf ⟨Y, ltY⟩ → ClosedTableau HistX Z :=
+                fun Z Z_in => next _ (endNodeOfChild_to_endNode lrApp lnext rfl Y_in Z_in)
+              let ctY : ClosedTableau _ Y := ClosedTableau.loc ltY ctYnext
+              exact some ⟨Y, _, ctY⟩
+            -- not found:
             · exact none
-          case sim Y_simp =>
-            have ctY := next Y
-            simp [endNodesOf, List.mem_singleton] at ctY
-
-            cases ctY _
-
+          case sim X_simp =>
+            have ctXnew := next X (by simp)
+            simp [endNodesOf, List.mem_singleton] at ctXnew
+            -- Now check that Y is among the successors given by non-local rules?
+            -- Or could we make a recursive call here?
+            -- Instead of `tabInAt ⟨R, ([],[]), tab⟩ done` above, now we want to consider ctXnew ?!
+            cases ctXnew
             all_goals sorry
-
         case mrkL =>
           -- apply tabInAt ?
           sorry
-        case rep isRep =>
-          let (bef, aft) := hX
-          simp only [condSixRepeat, List.any_eq_true] at isRep
-          rcases isRep with ⟨⟨k,Y⟩, getk, X_is_Y⟩ -- is k the index now? start with 0 or 1?
+        case rep theRep =>
+          simp only [condSixRepeat, List.any_eq_true] at theRep
+          rcases theRep with ⟨⟨k,Y⟩, getk, X_is_Y⟩ -- is k the index now? start with 0 or 1?
+          let (bef, aft) := HistX
           -- now go back to the companion (and thus allow the path to be longer than the actual tableau)
-          let newDone : List TNode := done.drop (k+1) -- undo the steps since companion
-          have : newDone.length + (Y::rest).length < done.length + (Y::rest).length := by
+          let pathToCompanion : List TNode := done.drop (k+1) -- undo the steps since companion
+          have : pathToCompanion.length + 1 < done.length := by -- no more "rest" here as we only do one step
             zify
             simp_all
             -- ring -- why not working?
             sorry
-          exact tabInAt ⟨X, (bef, aft), tab⟩ newDone (Y::rest)
+          exact (tabInAt ⟨R, ([],[]), tab⟩ pathToCompanion)
         all_goals sorry
-termination_by
-  tabInAt Xhtab done todo => done.length + todo.length
-decreasing_by simp_wf; simp_all
-
 
 -- MB: Lemma 7
 theorem loadedDiamondPaths
   {Root Δ : TNode}
   (tab : ClosedTableau ([],[]) Root) -- ensure History = [] here to prevent repeats from "above".
   (path_to_Δ : List TNode)
-  (h : some tabΔ = tabInAt ⟨Root,_,tab⟩ [] path_to_Δ)
+  (h : some tabΔ = tabInAt ⟨Root,_,tab⟩ path_to_Δ)
   {M : KripkeModel W} {v : W}
   (φ : AnyFormula)
   (negLoad_in : NegLoadFormula_in_TNode (~'⌊α⌋φ) Δ) -- FIXME: ∈ not working here?
@@ -829,7 +901,7 @@ theorem loadedDiamondPaths
   (v_α_w : relate M α v w)
   (w_φ : (M,w) ⊨ ~''φ)
   : ∃ path_Δ_to_Γ : List TNode,
-    ∃ Γ ∈ tabInAt ⟨Root,_,tab⟩ [] (path_to_Δ ++ path_Δ_to_Γ),
+    ∃ Γ ∈ tabInAt ⟨Root,_,tab⟩ (path_to_Δ ++ path_Δ_to_Γ),
     (AnyNegFormula_in_TNode (~''φ) Γ.1) -- FIXME: ∈ not working here?
     ∧
     (M,w) ⊨ Γ.1 :=
@@ -847,4 +919,3 @@ theorem loadedDiamondPaths
     all_goals sorry
 
   all_goals sorry
--/
