@@ -1,6 +1,5 @@
 -- INTERPOLATION
 
-import Bml.Syntax
 import Bml.CompletenessViaPaths
 import Bml.Partitions
 

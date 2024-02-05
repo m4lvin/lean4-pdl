@@ -2,7 +2,6 @@
 
 import Mathlib.Data.Finset.Basic
 
-import Bml.Syntax
 import Bml.Tableau
 
 theorem noBot : Provable (~⊥) := by

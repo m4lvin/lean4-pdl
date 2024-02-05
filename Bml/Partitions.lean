@@ -1,10 +1,7 @@
 -- PARTITIONS
 
-import Bml.Syntax
 import Bml.Tableau
-import Bml.Semantics
 import Bml.Soundness
-import Bml.Vocabulary
 import Bml.bigConDis
 
 open HasVocabulary HasSat

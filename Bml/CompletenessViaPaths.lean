@@ -1,9 +1,6 @@
 import Mathlib.Data.Finset.Basic
 
-import Bml.Syntax
-import Bml.Semantics
 import Bml.Modelgraphs
-import Bml.Tableau
 import Bml.Soundness
 
 open LocalTableau

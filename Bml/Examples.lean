@@ -1,5 +1,5 @@
 -- EXAMPLES
-import Bml.Syntax
+
 import Bml.Semantics
 
 open HasSat

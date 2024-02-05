@@ -3,10 +3,9 @@
 
 import Mathlib.Init.Data.Nat.Lemmas
 
-import Bml.Syntax
-import Bml.Semantics
 import Bml.Vocabulary
 import Bml.Semantics
+
 open HasSat
 
 @[simp]

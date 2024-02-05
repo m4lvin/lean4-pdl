@@ -1,6 +1,20 @@
 # Tableau for Basic Modal Logic in LEAN
 
-NOTE: This folder contains a Lean 4 port of the original Lean 3 project
+This folder is based on project linked and described below, but changed as follows:
+
+- ported from Lean 3 to Lean 4,
+
+- using paths and modelgraphs for the completeness proof
+
+- directly using partitioned tableaux, to simplify the interpolation proof.
+
+## Module dependency overview
+
+![Dependency graph](./dependencies.svg)
+
+## Original project 
+
+This folder contains a Lean 4 port of the original Lean 3 project
 from <https://github.com/m4lvin/tablean>
 
 That project was presented as:
@@ -18,12 +32,6 @@ and [Craig Interpolation](https://en.wikipedia.org/wiki/Craig_interpolation).
 In this folder we only consider basic modal logic K, but the (very) long term goal is [Propositional Dynamic Logic](https://plato.stanford.edu/entries/logic-dynamic/) (PDL).
 Therefore we try to follow the definitions and ideas from
 [Borzechowski (1988/2020)](https://malv.in/2020/borzechowski-pdl/).
-
-
-## Module dependency overview
-
-![Dependency graph](./dependencies.svg)
-
 
 ## Inspiration / References / Related Work
 

@@ -1,6 +1,5 @@
 -- SOUNDNESS
 
-import Bml.Syntax
 import Bml.Tableau
 
 open Classical

@@ -8,7 +8,6 @@ import Mathlib.Order.WellFoundedSet
 import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Linarith
 
-import Bml.Syntax
 import Bml.Semantics
 import Bml.Setsimp
 import Bml.Vocabulary

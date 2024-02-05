@@ -3,8 +3,6 @@
 -- NOTE: This file is broken and obsolete.
 -- See instead "BetterCompleteness.lean".
 
-import Bml.Syntax
-import Bml.Tableau
 import Bml.Soundness
 
 open HasSat
