@@ -709,7 +709,7 @@ def boxDagNext : BDNode → List BDNode
   | (fs, (⌈α;'β⌉φ)::rest) => [ (fs, (⌈α⌉⌈β⌉φ)::rest) ]
   | (fs, (⌈∗α⌉φ)::rest) => [ (fs, φ::(⌈α⌉⌈α†⌉(undag φ))::rest) ] -- NOT splitting!
   | (fs, (⌈_†⌉_)::rest) => [ (fs, rest) ] -- delete formula, but keep branch!
-  | (_, []) => { } -- end node of dagger tableau
+  | (_, []) => [ ] -- end node of dagger tableau
 
 theorem boxDagNextDMisDec {Δ Γ : BDNode} (Γ_in : Γ ∈ boxDagNext Δ) :
     to_dm Γ.2 < to_dm Δ.2 := by
@@ -1002,6 +1002,48 @@ termination_by
   starInvert M v S claim => mOfBoxDagNode S
 decreasing_by simp_wf; sorry -- apply mOfBoxDagNode.isDec; aesop
 
+theorem starSoundnessAux (M : KripkeModel W) (v : W) fs ψ dfs :
+    S = ⟨fs,ψ::dfs⟩ →
+    (M, v) ⊨ S → (∃ Γ ∈ boxDagNext S, (M, v) ⊨ Γ) := by
+  intro S_def v_S
+  subst S_def
+  simp at *
+  cases ψ
+  case dag =>
+    use fs, dfs
+    simp only [List.mem_singleton, true_and]
+    intro f f_in
+    apply v_S
+    aesop
+  case box α ψ =>
+    cases α
+    all_goals (simp; refine ⟨_,_,⟨⟨rfl,rfl⟩,?_⟩⟩)
+    case atom_prog => intro f f_in; apply v_S; aesop
+    case sequence β γ => intro f f_in; have := v_S (undag (⌈β;'γ⌉ψ)); aesop
+    case union β γ => intro f f_in; have := v_S (undag (⌈β⋓γ⌉ψ)); aesop
+    case star β =>
+      intro f f_in
+      have := v_S (undag (⌈∗β⌉ψ))
+      simp at this
+      simp at f_in
+      rcases f_in with f_in_fs | f_is_ψ | f_is_bbψ | ⟨g, f_in_dfs⟩
+      · apply v_S; simp; tauto
+      · subst f_is_ψ; apply this v Relation.ReflTransGen.refl
+      · subst f_is_bbψ; simp; sorry
+      · sorry
+    case test φ =>
+      simp at *
+      have := v_S (undag (⌈?'φ⌉ψ))
+      simp at this
+      cases em (evaluate M v φ)
+      · use fs, ψ::dfs
+        simp at *
+        intro f f_in
+        aesop
+      · use fs ++ [~φ], dfs
+        simp at *
+        intro f f_in
+        aesop
 
 -- Soundness for the box star rule.
 -- This Lemma was missing in Borzechowski.
