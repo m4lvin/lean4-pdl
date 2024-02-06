@@ -864,9 +864,9 @@ theorem boxDagNextDMisDec {Δ Γ : BDNode} (Γ_in : Γ ∈ boxDagNext Δ) :
             all_goals tauto
 
 -- idea: replace use of "ftr" below with a relation like this:
--- def boxDagNextRel : (Finset Formula × List DagFormula) → (Finset Formula × List DagFormula) → Prop :=
+-- def boxDagNextRel : (List Formula × List DagFormula) → (List Formula × List DagFormula) → Prop :=
 -- NICE: can then use more stuff from Mathlib?
--- BAD: finset of successors no longer computable / easy to get?
+-- BAD: List of successors no longer computable / easy to get?
 
 @[simp]
 def boxDagNextTransRefl : (List Formula × List DagFormula) → List (List Formula × List DagFormula) :=
@@ -1001,9 +1001,8 @@ termination_by
   starInvert M v S claim => mOfBoxDagNode S
 decreasing_by simp_wf; sorry -- apply mOfBoxDagNode.isDec; aesop
 
-theorem starSoundnessAux (M : KripkeModel W) (v : W) fs ψ dfs :
-    S = ⟨fs,ψ::dfs⟩ →
-    (M, v) ⊨ S → (∃ Γ ∈ boxDagNext S, (M, v) ⊨ Γ) := by
+theorem starSoundnessAux {M : KripkeModel W} {v : W} {fs ψ dfs} :
+    S = ⟨fs, ψ::dfs⟩ → (M, v) ⊨ S → (∃ Γ ∈ boxDagNext S, (M, v) ⊨ Γ) := by
   intro S_def v_S
   subst S_def
   simp at *
@@ -1028,19 +1027,22 @@ theorem starSoundnessAux (M : KripkeModel W) (v : W) fs ψ dfs :
       rcases f_in with f_in_fs | f_is_ψ | f_is_bbψ | ⟨g, f_in_dfs⟩
       · apply v_S; simp; tauto
       · subst f_is_ψ; apply this v Relation.ReflTransGen.refl
-      · subst f_is_bbψ; simp; sorry
-      · sorry
+      · subst f_is_bbψ
+        simp only [evaluate, relate]
+        intro w v_β_w u w_βS_u
+        exact this u (Relation.ReflTransGen.head v_β_w w_βS_u)
+      · specialize v_S f; aesop
     case test φ =>
       simp at *
       have := v_S (undag (⌈?'φ⌉ψ))
       simp at this
       cases em (evaluate M v φ)
       · use fs, ψ::dfs
-        simp at *
+        simp only [and_self, or_true, true_and]
         intro f f_in
         aesop
       · use fs ++ [~φ], dfs
-        simp at *
+        simp only [and_self, true_or, true_and]
         intro f f_in
         aesop
 
@@ -1048,5 +1050,22 @@ theorem starSoundnessAux (M : KripkeModel W) (v : W) fs ψ dfs :
 -- This Lemma was missing in Borzechowski.
 theorem starSoundness (M : KripkeModel W) (v : W) S :
     (M, v) ⊨ S → ∃ Γ ∈ boxDagEndNodes S, (M, v) ⊨ Γ := by
-
-  sorry
+  intro v_S
+  rcases def_S : S with ⟨fs, nil | ⟨df,rest⟩⟩
+  · simp [boxDagEndNodes]; aesop
+  · cases df
+    case dag α φ =>
+      simp [boxDagEndNodes]
+      have : mOfBoxDagNode (fs, rest) < mOfBoxDagNode S := by sorry -- apply mOfBoxDagNode.isDec; aesop
+      apply starSoundness
+      intro f
+      aesop
+    case box α ψ =>
+      rcases starSoundnessAux def_S v_S with ⟨T, T_in, v_T⟩
+      have : mOfBoxDagNode T < mOfBoxDagNode S := by sorry -- apply mOfBoxDagNode.isDec; aesop
+      rcases starSoundness M v T v_T with ⟨Γ, Γ_in, v_Γ⟩
+      refine ⟨Γ, ?_, v_Γ⟩
+      subst def_S
+      exact boxDagEnd_subset_next T_in Γ_in
+termination_by
+  starSoundness _ _ _ S _ => mOfBoxDagNode S
