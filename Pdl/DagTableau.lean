@@ -542,15 +542,6 @@ def unloadOnly : DagLoadFormula → DagFormula -- probably never needed?
   | (⌊α†⌋(χ : LoadFormula)) => (DagFormula.dag (∗α) (unload χ))
   | (⌊α⌋γ) => (DagFormula.box α (unloadOnly γ))
 
-/-theorem unloadOnlyEqSequence (h: unloadOnly γ' = ⌈β⌉unloadOnly γ): γ'= ⌊β⌋γ := by
-  unfold unloadOnly at h
-  cases γ'
-  case box β' γ' =>
-    simp!
-    aesop?
-    sorry
-  all_goals simp_all-/
-
 @[simp]
 theorem unloadUndagOnly: unload (undagOnly γ) = unloadAndUndag γ := by
   induction γ
@@ -570,16 +561,17 @@ def LDDTNode := List Formula × Option (Sum NegLoadFormula NegDagLoadFormula)
 -- [X] dagNext --> loadDagNext
 -- [X] mOfDagNode --> mOfLoadDagNode
 -- [X] mOfDagNode.isDec --> mOfLoadDagNode.isDec
--- [X] dagNextTransRefl -->
--- [X] modelCanSemImplyDagTabNode -->
--- [X] notStarSoundnessAux -->
+-- [X] dagNextTransRefl --> loadDagNextTransRefl
+-- [X] modelCanSemImplyDagTabNode --> modelCanSemImplyLoadDagTabNode(')
+-- [X] notStarSoundnessAux --> loadNotStarSoundnessAux
+-- [ ] notStarSoundness -->
 -- [X] dagEndNodes --> loadDagEndNodes
--- [X] dagEnd_subset_next -->
--- [X] dagEndOfSome_iff_step -->
--- [X] dagEnd_subset_trf -->
--- [ ] dagNormal_is_dagEnd -->
--- [X] notStarInvertAux -->
--- [X] notStarInvert -->
+-- [X] dagEnd_subset_next --> loadDagEnd_subset_next
+-- [X] dagEndOfSome_iff_step --> loadDagEndOfSome_iff_step
+-- [X] dagEnd_subset_trf --> loadDagEnd_subset_trf
+-- [ ] dagNormal_is_dagEnd --> not needed?
+-- [X] notStarInvertAux --> loadNotStarInvertAux
+-- [X] notStarInvert --> loadNotStarInvert
 
 -- Immediate sucessors of a node in a Loaded Daggered Diamond Tableau (LDDT).
 -- Question: can it be that ψ is unloaded but not yet undaggered?!
@@ -644,60 +636,6 @@ theorem mOfLoadDagNode.isDec {x y : LDDTNode} (y_in : y ∈ loadDagNext x) :
 def loadDagNextTransRefl : LDDTNode → List LDDTNode :=
   ftr loadDagNext mOfLoadDagNode @mOfLoadDagNode.isDec
 
-/-theorem loadDagNextIffDagNext:
-  ⟨fs', some (Sum.inr (~dlf'))⟩  ∈ loadDagNext ⟨fs, some (Sum.inr (~dlf))⟩
-  ↔ ⟨fs', ~unloadOnly dlf'⟩ ∈ dagNext ⟨fs, ~unloadOnly dlf⟩ := by
-  cases dlf'
-  case box α' γ' =>
-    cases dlf
-    case box α γ =>
-      cases α
-      case atom_prog =>
-        simp!
-        by_contra h
-        apply_fun (λ x => x.snd) at h
-        simp at h
-      case sequence α β =>
-        simp! only [loadDagNext, List.mem_singleton]-- dagNext, UndagNegDagFormula,undagNegDagFormula, UndagDagFormula, undagDagFormula]
-        cases α'
-        all_goals
-          constructor
-          · simp_all
-            sorry
-          · simp
-            intro fs_eq α_eq h
-            /-have : γ'= ⌊β⌋γ := by
-              cases γ'
-              all_goals simp_all
-              all_goals sorry-/
-            subst fs_eq α_eq
-            simp_all
-            congr
-            sorry
-        all_goals sorry
-
-        constructor
-        · cases α'
-          all_goals simp!
-          all_goals sorry
-        ·
-        simp_all
-          intro ⟨fs_eq, α_eq, h⟩
-          aesop
-      all_goals simp_all!
-      all_goals cases α'
-      all_goals simp_all!
-      all_goals sorry
-    all_goals simp_all!
-  case dag α' f' =>
-    cases dlf
-    all_goals simp_all!
-    sorry
-  case ldg α' lf' =>
-    cases dlf
-    all_goals simp_all!
-    sorry-/
-
 @[simp]
 def toFormula : NegLoadFormula ⊕ NegDagLoadFormula → Formula
   | Sum.inl (~'f) => ~unload f
@@ -706,6 +644,7 @@ def toFormula : NegLoadFormula ⊕ NegDagLoadFormula → Formula
 def evaluateLDDTNode: KripkeModel W × W → LDDTNode → Prop :=
   λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ++ (mf.map toFormula).toList, evaluate M w φ
 
+-- FIXME: this should not be needed / covered by the non-' instance.
 instance modelCanSemImplyLoadDagTabNode' {W : Type} : vDash (KripkeModel W × W)
   (List Formula × Option (Sum NegLoadFormula NegDagLoadFormula)) :=
   vDash.mk evaluateLDDTNode
@@ -1078,6 +1017,7 @@ theorem loadNotStarInvert (M : KripkeModel W) (v : W) S
 termination_by
   loadNotStarInvert M v S claim => mOfLoadDagNode S
 decreasing_by simp_wf; apply mOfLoadDagNode.isDec; aesop
+
 -- -- -- BOXES -- -- --
 
 -- Here we need a List DagFormula, because of the ⋓ rule.
