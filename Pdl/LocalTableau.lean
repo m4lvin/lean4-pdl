@@ -176,26 +176,50 @@ theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
   cases lr
   all_goals try (simp; done)
   all_goals try (aesop; done)
-  all_goals simp
 
   case nUn α β χ =>
     have := oneSidedLocalRuleTruth (OneSidedLocalRule.nUn α β (unload χ)) W M w
-    simp at this
+    simp at *
     exact this
   case nUn' α β φ =>
     have := oneSidedLocalRuleTruth (OneSidedLocalRule.nUn α β φ) W M w
-    simp at this
+    simp at *
     exact this
 
   case nSt α χ =>
-    have := oneSidedLocalRuleTruth (OneSidedLocalRule.nSt α (unload χ)) W M w
-    simp at this
-    -- First need to implement loadDagEndNodes
-    sorry
+    constructor
+    · -- soundness
+      intro w_naSchi
+      have := loadNotStarSoundness M w α χ w_naSchi
+      rcases this with ⟨Γ, Γ_in, w_Γ⟩
+      simp [evaluatePoint,modelCanSemImplyList] at *
+      -- rw [disconEval]
+      sorry -- aesop
+    · -- invertibility
+      intro w_X
+      simp at w_X
+      -- rw [disconEval] at w_X
+      simp
+      sorry
+      /-
+      rcases w_X with ⟨Y,⟨Y_in, sat_Y⟩⟩
+      cases Y_in
+      · use w
+        constructor
+        · apply Relation.ReflTransGen.refl
+        · simp at sat_Y; assumption
+      · have := loadNotStarInvert M w _ (by aesop) (~⌈a⌉⌈∗a⌉φ)
+        simp [vDash, modelCanSemImplyDagTabNode] at this
+        rcases this with ⟨z, w_a_z, y, z_aS_x, y_nf⟩
+        use y
+        constructor
+        · apply Relation.ReflTransGen.head
+          all_goals aesop
+        · assumption
+      -/
+
   case nSt' α φ =>
-    have := oneSidedLocalRuleTruth (OneSidedLocalRule.nSt α φ) W M w
-    simp at this
-    -- First need to implement loadDagEndNodes
+    -- analogous to nSt, but maybe need loadNotStarSoundness' with a φ instead of χ ??
     sorry
 
 -- A LocalRule is a OneSidedLocalRule or a LoadRule.

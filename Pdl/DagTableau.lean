@@ -555,6 +555,12 @@ example : DagLoadFormula := ⌊·'a'⌋⌊(·'a')†⌋(·'p')
 
 def LDDTNode := List Formula × Option (Sum NegLoadFormula NegDagLoadFormula)
 
+@[simp]
+def LDDTNode.isDagFree : LDDTNode → Bool
+| ⟨_, none⟩ => True
+| ⟨_, some (Sum.inl _)⟩ => True
+| ⟨_, some (Sum.inr _)⟩ => False
+
 -- TODO: All things we had for normal (= unloaded) diamonds
 -- we now need also for loaded here, i.e. anaologons of:
 --
@@ -564,12 +570,12 @@ def LDDTNode := List Formula × Option (Sum NegLoadFormula NegDagLoadFormula)
 -- [X] dagNextTransRefl --> loadDagNextTransRefl
 -- [X] modelCanSemImplyDagTabNode --> modelCanSemImplyLoadDagTabNode(')
 -- [X] notStarSoundnessAux --> loadNotStarSoundnessAux
--- [ ] notStarSoundness -->
 -- [X] dagEndNodes --> loadDagEndNodes
 -- [X] dagEnd_subset_next --> loadDagEnd_subset_next
 -- [X] dagEndOfSome_iff_step --> loadDagEndOfSome_iff_step
 -- [X] dagEnd_subset_trf --> loadDagEnd_subset_trf
--- [ ] dagNormal_is_dagEnd --> not needed?
+-- [X] dagNormal_is_dagEnd --> loadDagNormal_is_loadDagEnd
+-- [X] notStarSoundness --> loadNotStarSoundness
 -- [X] notStarInvertAux --> loadNotStarInvertAux
 -- [X] notStarInvert --> loadNotStarInvert
 
@@ -660,7 +666,8 @@ theorem loadNotStarSoundnessAux (a : Program) M (v w : W) (fs)
     (w_nP : (M, w) ⊨ (~unloadAndUndag φ)):
     ∃ Γ ∈ loadDagNextTransRefl (fs, some (Sum.inr (~⌊a⌋φ))),
       (M, v) ⊨ Γ ∧ ( ( ∃ (a : Char) (as : List Program), Sum.inl (~' ⌊·a⌋⌊⌊as⌋⌋(undagOnly φ)) ∈ Γ.2
-                       ∧ relate M (Program.steps ([Program.atom_prog a] ++ as)) v w)
+                       ∧ relate M (Program.steps ([Program.atom_prog a] ++ as)) v w
+                       ∧ Γ.isDagFree )
                    ∨ (Sum.inr (~φ) ∈ Γ.2 ∧ v = w) ) := by
   cases a
   case atom_prog A =>
@@ -730,16 +737,18 @@ theorem loadNotStarSoundnessAux (a : Program) M (v w : W) (fs)
           · simp
             left
             simp [undag] at one
-            rcases one with ⟨a, as, ⟨aasbs_in_, ⟨y, a_v_y, y_as_u⟩⟩⟩
+            rcases one with ⟨a, as, ⟨aasbs_in_, ⟨⟨y, a_v_y, y_as_u⟩, Γ_normal⟩⟩⟩
             use a, as ++ [∗β]
             constructor
             · rw [loadBoxes_append]
               exact aasbs_in_
             · constructor
-              · constructor
+              · use y
+                constructor
                 · assumption
                 · simp [relate_steps]
                   use u
+              · assumption
       case inr two =>
         absurd two.right
         simp at v_neq_u
@@ -766,7 +775,7 @@ theorem loadNotStarSoundnessAux (a : Program) M (v w : W) (fs)
         simp
         simp [modelCanSemImplyForm] at u_nGphi
         use u
-    rcases this with ⟨S, S_in, v_S, (⟨a,as,aasG_in_S,v_aas_u⟩ | ⟨ngPhi_in_S, v_is_u⟩)⟩ -- Σ
+    rcases this with ⟨S, S_in, v_S, (⟨a,as,aasG_in_S,v_aas_u,Γ_normal⟩ | ⟨ngPhi_in_S, v_is_u⟩)⟩ -- Σ
     · use S -- "If (1), then we are done."
       constructor
       · unfold loadDagNextTransRefl; rw [ftr.iff]; simp; tauto
@@ -782,11 +791,13 @@ theorem loadNotStarSoundnessAux (a : Program) M (v w : W) (fs)
           · simp at v_aas_u
             rcases v_aas_u with ⟨y, v_a_y, y_asg_w⟩
             constructor
-            · rw [relate_steps]
+            · use y
+              rw [relate_steps]
               constructor
               · exact v_a_y
               · use u
                 aesop
+            · assumption
     · -- "If (2) ..."
       have := loadNotStarSoundnessAux γ M u w S.1 φ -- not use "fs" here!
       specialize this _ u_γ_w w_nP
@@ -920,16 +931,83 @@ termination_by
   loadDagEnd_subset_trf Ω Γ hyp  => mOfLoadDagNode Γ
 decreasing_by simp_wf; apply mOfLoadDagNode.isDec; assumption
 
-/-theorem loadDagNormal_is_loadDagEnd
+theorem loadDagNormal_is_loadDagEnd {Γ S : LDDTNode}
     (Γ_in : Γ ∈ loadDagNextTransRefl S)
-    (Γ_normal : Γ.2 = none)
     :
-    (Γ.1 ∈ loadDagEndNodes S) := by
-  have := loadDagEnd_subset_trf Γ_in
-  apply this
-  rcases Γ with ⟨fs,odf⟩
-  subst Γ_normal
-  simp [dagEndNodes]-/
+    ((Γ_normal : Γ.2 = none) → (⟨Γ.1, none⟩ ∈ loadDagEndNodes S))
+    ∧
+    (∀ χ, (Γ_normal : Γ.2 = some (Sum.inl (~'χ))) → (⟨Γ.1, some (~'χ)⟩ ∈ loadDagEndNodes S))
+    := by
+  constructor
+  · intro Γ_normal
+    have := loadDagEnd_subset_trf Γ_in
+    apply this
+    rcases Γ with ⟨fs,odf⟩
+    subst Γ_normal
+    simp [loadDagEndNodes]
+  · intro χ Γ_normal
+    rcases Γ with ⟨fs,odf⟩
+    have := loadDagEnd_subset_trf Γ_in
+    apply this
+    simp only [loadDagNextTransRefl] at *
+    rw [Γ_normal]
+    simp [loadDagEndNodes]
+
+theorem loadNotStarSoundness
+    (M : KripkeModel W) (w : W) (a : Program) (χ : LoadFormula)
+    :
+    (M, w) ⊨ negUnload (~'(⌊∗a⌋χ)) →
+      ∃ Γ ∈ [(∅, some (~'χ))] ++ loadDagEndNodes (∅, some (Sum.inr (NegDagLoadFormula.neg (injectLoad a χ)))),
+        (M,w) ⊨ Γ :=
+  by
+  intro w_naSf
+  simp [modelCanSemImplyForm] at w_naSf
+  rcases w_naSf with ⟨y, x_rel_y, y_nf⟩
+  cases starCases x_rel_y -- NOTE: Relation.ReflTransGen.cases_head without ≠ is not enough here ...
+  case inl w_is_y =>
+    subst w_is_y
+    use (∅, some (~'χ))
+    simp
+    intro f f_in
+    simp at *
+    subst f_in
+    simp only [evaluate]
+    exact y_nf
+  case inr hyp =>
+    -- (... because we need to get the in-equality here to get the contradiction below.)
+    rcases hyp with ⟨_, z, w_neq_z, w_a_z, z_aS_y⟩
+    -- MB now distinguishes whether a is atomic, we don't care.
+    have := loadNotStarSoundnessAux a M w z [] (DagLoadFormula.ldg a χ)
+    specialize this _ w_a_z _
+    · intro g g_in
+      simp at g_in
+      subst g_in
+      simp
+      exact ⟨z, ⟨w_a_z, ⟨y, ⟨z_aS_y, y_nf⟩⟩⟩⟩
+    · simp [vDash,modelCanSemImplyForm]
+      use y
+    rcases this with ⟨Γ, Γ_in, w_Γ, caseOne | caseTwo⟩
+    · rcases caseOne with ⟨A, as, Γ2def, _, Γ_normal⟩
+      simp
+      right
+      use Γ.1, some (~'⌊·A⌋⌊⌊as⌋⌋undagOnly (DagLoadFormula.ldg a χ))
+      simp at Γ2def
+      constructor
+      · have := (loadDagNormal_is_loadDagEnd Γ_in).2 _ Γ2def
+        aesop
+      · intro f f_in
+        simp at f_in
+        cases f_in
+        · aesop
+        case inr f_def =>
+          subst f_def
+          rcases Γ with ⟨Γ1,Γ2⟩
+          simp at Γ2def
+          subst Γ2def
+          apply w_Γ
+          simp
+    · absurd caseTwo.2 -- contradiction!
+      exact w_neq_z
 
 theorem loadNotStarInvertAux (M : KripkeModel W) (v : W) S :
     (∃ Γ ∈ loadDagNext S, (M, v) ⊨ Γ) → (M, v) ⊨ S := by
