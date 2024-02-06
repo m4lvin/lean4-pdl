@@ -1,4 +1,3 @@
-import Pdl.Syntax
 import Pdl.Tableau
 import Pdl.LocalTableau
 import Pdl.Semantics

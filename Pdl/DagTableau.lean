@@ -2,7 +2,6 @@ import Mathlib.Data.Finset.Basic
 import Mathlib.Tactic.Linarith
 import Mathlib.Data.Set.Finite
 
-import Pdl.Syntax
 import Pdl.Discon
 import Pdl.Semantics
 import Pdl.Star

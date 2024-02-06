@@ -17,6 +17,8 @@ bml: .first-run-done
 clean:
 	rm -rf .first-run-done lake-packages .lake build lakefile.olean
 
+dependencies.svg: Pdl/*.lean
+	(echo "digraph {"; (grep -nr "import Pdl" Pdl/*.lean | awk -F[./] '{print $$4 " -> " $$2}'); echo "}") | dot -Tsvg > dependencies.svg
 
 # From https://leanprover.zulipchat.com/#narrow/stream/270676-lean4/topic/Invalid.20lake.20configuration/near/405630149
 update-fix:

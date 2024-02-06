@@ -1,6 +1,5 @@
 import Mathlib.Data.Finset.Basic
 
-import Pdl.Syntax
 import Pdl.Vocab
 import Pdl.Semantics
 import Pdl.LocalTableau
