@@ -1,6 +1,6 @@
 import Mathlib.Data.Finset.Basic
 import Mathlib.Tactic.Linarith
-
+import Mathlib.Tactic.Ring
 import Pdl.Syntax
 import Pdl.Discon
 import Pdl.Semantics
@@ -77,10 +77,6 @@ lemma undag_inject {φ} : undag (inject ps α φ) = (⌈⌈ps⌉⌉(⌈∗ α⌉
 def mOfDagFormula : DagFormula → Nat
   | ⌈_†⌉ψ => mOfFormula ψ
   | ⌈α⌉ψ => mOfProgram α + mOfDagFormula ψ
--- how about negation?
-
---  | ~⌈_†⌉ψ => mOfFormula (~ψ)
-
 
 instance : LT DagFormula := ⟨λ ψ1 ψ2 => mOfDagFormula ψ1 < mOfDagFormula ψ2⟩
 
@@ -618,18 +614,14 @@ def BDNode := List Formula × List DagFormula
 --   | ⟨_, []⟩ => 0
 --   | ⟨_, dfs⟩ => 1 + (dfs.map mOfDagFormula).sum + (dfs.map mOfDagFormula).length
 
--- def sumofpower : ℕ -> List ℕ → ℕ
--- | _, []        => 0
--- | m, (n :: ns) => m ^ n + sumofpower m ns
-
--- helper function
-def sumofpower :List ℕ → ℕ
-| []        => 0
-| n :: ns => 3 ^ n + sumofpower ns
+@[simp]
+def three_pow : ℕ → ℕ
+| x => 3^x
 
 -- big measure
+@[simp]
 def mOfBoxDagNode : BDNode →  ℕ
-  | ⟨fs, dfs⟩ => sumofpower (fs.map mOfFormula) + sumofpower (dfs.map mOfDagFormula)
+  | ⟨_, dfs⟩ => ((dfs.map mOfDagFormula).map three_pow).sum
 
 -- Immediate sucessors of a node in a Daggered Tableau, for boxes.
 -- Note that this is still fully deterministic.
@@ -644,8 +636,45 @@ def boxDagNext : BDNode → List BDNode
   | (fs, (⌈_†⌉_)::rest) => [ (fs, rest) ] -- delete formula, but keep branch!
   | (_, []) => { } -- end node of dagger tableau
 
+-- @[simp]
+-- theorem mOfUndag_eq_mOfDagplus1 -- about undag rule to be solved
+--     {f : DagFormula}
+--     : mOfFormula (undagDagFormula f) = mOfDagFormula f :=
+--   by
+--   cases f
+--   case dag =>
+--     simp
+--     sorry
+--   case box a g =>
+--     simp
+--     sorry
 
--- Lemma 10
+-- for union and star
+@[simp]
+theorem measure_theorem (fs: List Formula) (rest: List DagFormula) {ψ ψ1 ψ2 : DagFormula}
+  (h1 : mOfDagFormula ψ > mOfDagFormula ψ1)
+  (h2 : mOfDagFormula ψ > mOfDagFormula ψ2):
+  mOfBoxDagNode (fs, ψ :: rest) > mOfBoxDagNode (fs, ψ1 :: ψ2 :: rest) := by
+  simp
+  have h : 3 ^ mOfDagFormula ψ > 3 ^ mOfDagFormula ψ1 + 3 ^ mOfDagFormula ψ2 := by
+    simp
+    let b := max (mOfDagFormula ψ1) (mOfDagFormula ψ2)
+    calc 3 ^ mOfDagFormula ψ1 + 3 ^ mOfDagFormula ψ2
+       ≤ 3 ^ b + 3 ^ b := by sorry
+     _ = 2 * 3 ^ b := by linarith
+     _ < 3 * 3 ^ b := by sorry
+     _ = 3 ^ (1 + b) := by ring
+     _ ≤ 3 ^ mOfDagFormula ψ := by sorry
+    --have h5 : 3 ^ (1 + b) > 2 * (3 ^ b) := by sorry
+    --have h6 : 2 * (3 ^ b) >= 3 ^ mOfDagFormula ψ1 + 3 ^ mOfDagFormula ψ2 := by sorry
+    --linarith
+    -- {calc
+    --   mOfDagFormula ψ >= 1 + b : sorry
+    --   3 ^  mOfDagFormula ψ >= 3 ^ (1 + b) = 3 * (3 ^ ) > 2 * (3 ^ b) >= 3 ^ mOfDagFormula ψ1 + 3 ^ mOfDagFormula ψ2
+    -- sorry
+    -- }
+  linarith
+
 theorem mOfBoxDagNode.isDec {x y : BDNode} (y_in : y ∈ boxDagNext x) :
     mOfBoxDagNode y < mOfBoxDagNode x := by
   rcases x with ⟨fs, _|⟨df,rest⟩⟩
@@ -657,34 +686,41 @@ theorem mOfBoxDagNode.isDec {x y : BDNode} (y_in : y ∈ boxDagNext x) :
       simp at y_in
       subst y_in
       cases rest
-      case nil =>
-        simp [mOfBoxDagNode]
-        simp [sumofpower]
-      case cons =>
-        simp [mOfBoxDagNode]
-        simp [sumofpower] -- added "length" in "mOfBoxDagNode" to solve this.
+      case nil => simp
+      case cons => simp
     case box a f =>
           cases a
           all_goals (simp [boxDagNext] at *)
-          case atom_prog A =>
+          case atom_prog A => --undag rule find the right lemma
             subst y_in
-            simp [mOfBoxDagNode]
-            simp [sumofpower]
-            cases f
-            case dag =>
-              simp [undagDagFormula]
-              sorry
-            sorry
-          case sequence =>
-            subst y_in; simp [mOfBoxDagNode]; linarith
-          case union a b =>
-            subst y_in; simp [mOfBoxDagNode]; sorry -- PROBLEM! linarith fails here, change mOfBoxDagNode above?
-          case star a =>
-            subst y_in; simp [mOfBoxDagNode]; sorry -- PROBLEM: linarith worked before, now broken with "length"
+            simp -- it correct?
+          case sequence β γ =>
+            subst y_in
+            simp
+            zify
+            ring_nf
+            have := mul_lt_mul_of_pos_left (by linarith : 1 < 9) (by aesop : 0 < 3 ^ mOfProgram β * 3 ^ mOfProgram γ * 3 ^ mOfDagFormula f)
+            linarith
+          case union a b => --thm
+            subst y_in
+            have h1 : mOfDagFormula (⌈a⋓b⌉f) > mOfDagFormula (⌈a⌉f) := by simp ; linarith
+            have h2 : mOfDagFormula (⌈a⋓b⌉f) > mOfDagFormula (⌈b⌉f) := by simp ; linarith
+            have := measure_theorem fs rest h1 h2
+            aesop
+          case star a => -- thm
+            subst y_in
+            simp
+            have h3 : mOfDagFormula (⌈∗a⌉f) > mOfDagFormula f := by simp
+            have h3 : mOfDagFormula (⌈∗a⌉f) > mOfDagFormula (⌈a⌉⌈a†⌉(undag f)) := by sorry
+            sorry -- apply measure_thm?
           case test f =>
             rcases y_in with l|r
-            subst l; simp [mOfBoxDagNode]; sorry -- same?
-            subst r; simp [mOfBoxDagNode]
+            subst l
+            simp
+            ring_nf
+            subst r
+            simp
+            sorry -- should be obvious
 
 @[simp]
 def boxDagNextTransRefl : BDNode → List BDNode :=
@@ -701,7 +737,7 @@ def boxDagEndNodes : BDNode → List (List Formula)
         boxDagEndNodes gsdf)).join
 termination_by
   boxDagEndNodes fs => mOfBoxDagNode fs
-decreasing_by simp_wf; assumption
+decreasing_by simp_wf; simp at *; assumption
 
 theorem boxDagEnd_subset_next
     (O_in : Ω ∈ boxDagNext Γ) : boxDagEndNodes Ω ⊆ boxDagEndNodes Γ := by
@@ -727,7 +763,7 @@ theorem boxDagEnd_subset_trf {Ω Γ} :
     tauto
 termination_by
   boxDagEnd_subset_trf Ω Γ hyp  => mOfBoxDagNode Γ
-decreasing_by simp_wf; apply mOfBoxDagNode.isDec; assumption
+decreasing_by simp_wf; sorry -- apply mOfBoxDagNode.isDec; assumption
 
 -- A normal successor in a box dagger tableau is an end node.
 theorem boxDagNormal_is_dagEnd
@@ -814,7 +850,7 @@ theorem starInvert
       sorry
 termination_by
   starInvert M v S claim => mOfBoxDagNode S
-decreasing_by simp_wf; apply mOfBoxDagNode.isDec; aesop
+decreasing_by simp_wf; sorry -- apply mOfBoxDagNode.isDec; aesop
 
 
 -- Soundness for the box star rule.
