@@ -163,9 +163,9 @@ inductive LoadRule : NegLoadFormula → List (List Formula × Option NegLoadForm
   | nSe' {α β φ} : LoadRule (~'⌊α;'β⌋(φ : Formula    )) [ (∅, some (~'⌊α⌋⌊β⌋φ)) ]
   -- Now we use loaded dagger diamond tableau:
   | nSt  {α χ}   : LoadRule (~'⌊∗α  ⌋(χ : LoadFormula)) ([ (∅, some (~'χ)) ] ++
-     loadDagEndNodes (∅, some (Sum.inr (NegDagLoadFormula.neg (injectLoad α χ)))))
+     loadDagEndNodes (∅, (Sum.inr (NegDagLoadFormula.neg (injectLoad α χ)))))
   | nSt' {α φ}   : LoadRule (~'⌊∗α  ⌋(φ : Formula    )) ([ ([~φ], none) ] ++
-     loadDagEndNodes (∅, some (Sum.inr (NegDagLoadFormula.neg (injectLoad' α φ)))))
+     loadDagEndNodes (∅, (Sum.inr (NegDagLoadFormula.neg (injectLoad' α φ)))))
   | nTe  {φt χ}  : LoadRule (~'⌊?'φt⌋(χ : LoadFormula)) [ ([φt], some (~'χ)) ]
   | nTe' {φt φ}  : LoadRule (~'⌊?'φt⌋(φ : Formula    )) [ ([φt, ~φ], none) ]
 
@@ -221,7 +221,7 @@ theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
         simp at hyp
         rcases hyp with ⟨f, ⟨Γ1, Γ2, ⟨Γ_in_ends, def_f⟩⟩, w_Γ⟩
         let thelf := NegDagLoadFormula.neg (DagLoadFormula.box α (DagLoadFormula.ldg α χ))
-        have := loadNotStarInvert M w ([], some (Sum.inr thelf)) ⟨⟨Γ1,Γ2⟩, ⟨Γ_in_ends, ?_⟩⟩
+        have := loadNotStarInvert M w ([], Sum.inr thelf) ⟨⟨Γ1,Γ2⟩, ⟨Γ_in_ends, ?_⟩⟩
         · simp [vDash, modelCanSemImplyLoadDagTabNode, evaluateLDDTNode] at *
           rcases this with ⟨z, w_a_z, y, z_aS_x, y_nf⟩
           use y

@@ -552,13 +552,12 @@ example : DagLoadFormula := ⌊·'a'⌋⌊(·'a')†⌋(·'p')
 
 -- In an LDDT we have a list of normal formulas and optionally either a NegLoadFormula or a NegDagLoadFormula.
 
-def LDDTNode := List Formula × Option (Sum NegLoadFormula NegDagLoadFormula)
+def LDDTNode := List Formula × Sum NegLoadFormula NegDagLoadFormula
 
 @[simp]
 def LDDTNode.isDagFree : LDDTNode → Bool
-| ⟨_, none⟩ => True
-| ⟨_, some (Sum.inl _)⟩ => True
-| ⟨_, some (Sum.inr _)⟩ => False
+| ⟨_, Sum.inl _⟩ => True
+| ⟨_, Sum.inr _⟩ => False
 
 -- TODO: All things we had for normal (= unloaded) diamonds
 -- we now need also for loaded here, i.e. anaologons of:
@@ -583,35 +582,30 @@ def LDDTNode.isDagFree : LDDTNode → Bool
 -- Answer No. Note that we use "undagOnly" but never "unloadOnly".
 @[simp]
 def loadDagNext : LDDTNode → List LDDTNode
-  | (fs, some (Sum.inr (~⌊·a⌋(ψ : DagLoadFormula)))) => [ (fs, some (Sum.inl (~'(⌊·a⌋(undagOnly ψ))))) ]
-  | (fs, some (Sum.inr (~⌊α⋓β⌋ψ))) => [ (fs, some (Sum.inr (~⌊α⌋ψ)))
-                                      , (fs, some (Sum.inr (~⌊β⌋ψ))) ]
-  | (fs, some (Sum.inr (~⌊?'φ⌋ψ))) => [ (fs ++ [φ], some (Sum.inr (~ψ))) ]
-  | (fs, some (Sum.inr (~⌊α;'β⌋ψ))) => [ (fs, some (Sum.inr (~⌊α⌋⌊β⌋ψ))) ]
-  | (fs, some (Sum.inr (~⌊∗α⌋ψ))) => [ (fs, some (Sum.inr (~ψ)))
-                                     , (fs, some (Sum.inr (~⌊α⌋⌊α†⌋(undagOnly ψ)))) ] -- only keep top-most dagger
-  | (_, some (Sum.inr (~⌊_†⌋(_ : Formula)))) => [  ] -- delete branch
-  | (_, some (Sum.inr (~⌊_†⌋(_ : LoadFormula)))) => [  ] -- delete branch
-  | (_, some (Sum.inl _)) => [ ] -- end node of dagger tableau
-  | (_, none) => [ ] -- end node of dagger tableau
+  | (fs, Sum.inr (~⌊·a⌋(ψ : DagLoadFormula))) => [ (fs, (Sum.inl (~'(⌊·a⌋(undagOnly ψ))))) ]
+  | (fs, Sum.inr (~⌊α⋓β⌋ψ)) => [ (fs, (Sum.inr (~⌊α⌋ψ)))
+                                 , (fs, (Sum.inr (~⌊β⌋ψ))) ]
+  | (fs, Sum.inr (~⌊?'φ⌋ψ)) => [ (fs ++ [φ], (Sum.inr (~ψ))) ]
+  | (fs, Sum.inr (~⌊α;'β⌋ψ)) => [ (fs, (Sum.inr (~⌊α⌋⌊β⌋ψ))) ]
+  | (fs, Sum.inr (~⌊∗α⌋ψ)) => [ (fs, (Sum.inr (~ψ)))
+                                , (fs, (Sum.inr (~⌊α⌋⌊α†⌋(undagOnly ψ)))) ] -- only keep top-most dagger
+  | (_, Sum.inr (~⌊_†⌋(_ : Formula))) => [  ] -- delete branch
+  | (_, Sum.inr (~⌊_†⌋(_ : LoadFormula))) => [  ] -- delete branch
+  | (_, Sum.inl _) => [ ] -- end node of dagger tableau
 
 def mOfLoadDagNode : LDDTNode → ℕ
-  | ⟨_, none⟩ => 0
-  | ⟨_, some (Sum.inl _)⟩ => 0
-  | ⟨_, some (Sum.inr (~ψ))⟩ => 1 + mOfDagFormula (unloadOnly ψ)
+  | ⟨_, Sum.inl _⟩ => 0
+  | ⟨_, Sum.inr (~ψ)⟩ => 1 + mOfDagFormula (unloadOnly ψ)
 
 theorem mOfLoadDagNode.isDec {x y : LDDTNode} (y_in : y ∈ loadDagNext x) :
     mOfLoadDagNode y < mOfLoadDagNode x := by
-    rcases x with ⟨_, _|lfx|dlfx⟩
-    case none =>
-      simp [mOfLoadDagNode]
-      cases y_in
+    rcases x with ⟨_, lfx|dlfx⟩
     case inl =>
       simp [mOfLoadDagNode]
       cases y_in
     case inr =>
       simp [mOfLoadDagNode]
-      rcases y with ⟨_, _|lfy|dlfy⟩
+      rcases y with ⟨_, lfy|dlfy⟩
       all_goals simp
       case inr =>
         cases dlfx
@@ -647,11 +641,11 @@ def toFormula : NegLoadFormula ⊕ NegDagLoadFormula → Formula
   | Sum.inr (~(f: DagLoadFormula)) => ~unloadAndUndag f
 
 def evaluateLDDTNode: KripkeModel W × W → LDDTNode → Prop :=
-  λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ++ (mf.map toFormula).toList, evaluate M w φ
+  λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ++ [toFormula mf], evaluate M w φ
 
 -- FIXME: this should not be needed / covered by the non-' instance.
 instance modelCanSemImplyLoadDagTabNode' {W : Type} : vDash (KripkeModel W × W)
-  (List Formula × Option (Sum NegLoadFormula NegDagLoadFormula)) :=
+  (List Formula × Sum NegLoadFormula NegDagLoadFormula) :=
   vDash.mk evaluateLDDTNode
 
 instance modelCanSemImplyLoadDagTabNode {W : Type} : vDash (KripkeModel W × W) LDDTNode :=
@@ -660,17 +654,17 @@ instance modelCanSemImplyLoadDagTabNode {W : Type} : vDash (KripkeModel W × W) 
 -- Similar to Borzechowski's Lemma 4
 theorem loadNotStarSoundnessAux (a : Program) M (v w : W) (fs)
     (φ : DagLoadFormula)
-    (v_D : (M, v) ⊨ ((fs, some (Sum.inr (~⌊a⌋φ))): LDDTNode))
+    (v_D : (M, v) ⊨ ((fs, Sum.inr (~⌊a⌋φ)) : LDDTNode))
     (v_a_w : relate M a v w)
     (w_nP : (M, w) ⊨ (~unloadAndUndag φ)):
-    ∃ Γ ∈ loadDagNextTransRefl (fs, some (Sum.inr (~⌊a⌋φ))),
-      (M, v) ⊨ Γ ∧ ( ( ∃ (a : Char) (as : List Program), Sum.inl (~' ⌊·a⌋⌊⌊as⌋⌋(undagOnly φ)) ∈ Γ.2
+    ∃ Γ ∈ loadDagNextTransRefl (fs, Sum.inr (~⌊a⌋φ)),
+      (M, v) ⊨ Γ ∧ ( ( ∃ (a : Char) (as : List Program), Sum.inl (~' ⌊·a⌋⌊⌊as⌋⌋(undagOnly φ)) = Γ.2
                        ∧ relate M (Program.steps ([Program.atom_prog a] ++ as)) v w
                        ∧ Γ.isDagFree )
-                   ∨ (Sum.inr (~φ) ∈ Γ.2 ∧ v = w) ) := by
+                   ∨ (Sum.inr (~φ) = Γ.2 ∧ v = w) ) := by
   cases a
   case atom_prog A =>
-    use (fs, some (Sum.inl (~' ⌊·A⌋(undagOnly φ)))) -- unique successor by the "undag" rule
+    use (fs, Sum.inl (~' ⌊·A⌋(undagOnly φ))) -- unique successor by the "undag" rule
     constructor
     · unfold loadDagNextTransRefl; rw [ftr.iff]; right; simp; rw [ftr.iff]; simp
     · constructor
@@ -687,7 +681,7 @@ theorem loadNotStarSoundnessAux (a : Program) M (v w : W) (fs)
     cases this
     case inl v_is_w =>
       subst v_is_w
-      use (fs, some (Sum.inr (~φ)))
+      use (fs, Sum.inr (~φ))
       constructor
       · unfold loadDagNextTransRefl; rw [ftr.iff]; right; simp; rw [ftr.iff]; simp
       · constructor
@@ -703,7 +697,7 @@ theorem loadNotStarSoundnessAux (a : Program) M (v w : W) (fs)
         · right
           aesop
     case inr claim =>
-      -- Here we follow the (fs, some (~⌈β⌉⌈β†⌉φ)) branch.
+      -- Here we follow the (fs, ~⌈β⌉⌈β†⌉φ) branch.
       rcases claim with ⟨_, ⟨u, v_neq_u, v_b_u, u_bS_w⟩⟩
       have := loadNotStarSoundnessAux β M v u fs (⌊β†⌋(undagOnly φ))
       specialize this _ v_b_u _
@@ -784,9 +778,8 @@ theorem loadNotStarSoundnessAux (a : Program) M (v w : W) (fs)
           simp
           use a, as ++ [γ]
           constructor
-          · simp [undag] at  aasG_in_S
-            rw [loadBoxes_last]
-            exact aasG_in_S
+          · rw [loadBoxes_last]
+            convert aasG_in_S
           · simp at v_aas_u
             rcases v_aas_u with ⟨y, v_a_y, y_asg_w⟩
             constructor
@@ -813,9 +806,9 @@ theorem loadNotStarSoundnessAux (a : Program) M (v w : W) (fs)
           rw [f_eq]
           exact u_nGphi
       rcases this with ⟨Γ, Γ_in, v_Γ, split⟩
-      have also_in_prev : Γ ∈ loadDagNextTransRefl (fs, some (Sum.inr (~⌊β;'γ⌋φ))) := by
+      have also_in_prev : Γ ∈ loadDagNextTransRefl (fs, Sum.inr (~⌊β;'γ⌋φ)) := by
         -- Here we use transitivity of "being a successor" in a dagger tableau.
-        apply ftr.Trans Γ S (fs, some (Sum.inr (~⌊β;'γ⌋φ)))
+        apply ftr.Trans Γ S (fs, Sum.inr (~⌊β;'γ⌋φ))
         · convert Γ_in
           rcases S with ⟨S1,S2⟩
           simp_all
@@ -867,7 +860,7 @@ theorem loadNotStarSoundnessAux (a : Program) M (v w : W) (fs)
       · exact ⟨v_Γ, split⟩
 
   case test ψ =>
-    use (fs ++ [ψ], some (Sum.inr (~φ))) -- unique successor
+    use (fs ++ [ψ], Sum.inr (~φ)) -- unique successor
     constructor
     · unfold loadDagNextTransRefl; rw [ftr.iff]; right; simp; rw [ftr.iff]; simp
     · constructor
@@ -884,12 +877,13 @@ theorem loadNotStarSoundnessAux (a : Program) M (v w : W) (fs)
 termination_by
   loadNotStarSoundnessAux α M v w fs φ v_D v_a_w w_nP => mOfProgram α
 
+-- Note that the "Option" here is always "some", but we keep it for
+-- compatibility with `inductive LoadRule` in LocalTableau.lean.
 def loadDagEndNodes : LDDTNode → List (List Formula × Option NegLoadFormula)
-  | (fs, none) => [ (fs, none) ]
-  | (fs, some (Sum.inl φ)) => [ (fs, some φ) ]
-  | (fs, some (Sum.inr df)) => ((loadDagNext (fs, some (Sum.inr df))).attach.map
+  | (fs, (Sum.inl φ)) => [ (fs, some φ) ]
+  | (fs, (Sum.inr df)) => ((loadDagNext (fs, Sum.inr df)).attach.map
       (fun ⟨gsdf, h⟩ =>
-        have : mOfLoadDagNode gsdf < mOfLoadDagNode (fs, some (Sum.inr df)) := mOfLoadDagNode.isDec h
+        have : mOfLoadDagNode gsdf < mOfLoadDagNode (fs, Sum.inr df) := mOfLoadDagNode.isDec h
         loadDagEndNodes gsdf)).join
 termination_by
   loadDagEndNodes fs => mOfLoadDagNode fs
@@ -908,8 +902,8 @@ theorem loadDagEnd_subset_next
     unfold loadDagEndNodes loadDagNext
     aesop
 
-theorem loadDagEndOfSome_iff_step : Γ ∈ loadDagEndNodes (fs, some (Sum.inr (~⌊a⌋f))) ↔
-    ∃ S ∈ loadDagNext (fs, some (Sum.inr (~⌊a⌋f))), Γ ∈ loadDagEndNodes S := by
+theorem loadDagEndOfSome_iff_step : Γ ∈ loadDagEndNodes (fs, (Sum.inr (~⌊a⌋f))) ↔
+    ∃ S ∈ loadDagNext (fs, Sum.inr (~⌊a⌋f)), Γ ∈ loadDagEndNodes S := by
   cases a
   all_goals (simp [loadDagEndNodes]; done)
 
@@ -933,18 +927,9 @@ decreasing_by simp_wf; apply mOfLoadDagNode.isDec; assumption
 theorem loadDagNormal_is_loadDagEnd {Γ S : LDDTNode}
     (Γ_in : Γ ∈ loadDagNextTransRefl S)
     :
-    ((Γ_normal : Γ.2 = none) → (⟨Γ.1, none⟩ ∈ loadDagEndNodes S))
-    ∧
-    (∀ χ, (Γ_normal : Γ.2 = some (Sum.inl (~'χ))) → (⟨Γ.1, some (~'χ)⟩ ∈ loadDagEndNodes S))
+    (∀ χ, (Γ_normal : Γ.2 = (Sum.inl (~'χ))) → (⟨Γ.1, some (~'χ)⟩ ∈ loadDagEndNodes S))
     := by
-  constructor
-  · intro Γ_normal
-    have := loadDagEnd_subset_trf Γ_in
-    apply this
-    rcases Γ with ⟨fs,odf⟩
-    subst Γ_normal
-    simp [loadDagEndNodes]
-  · intro χ Γ_normal
+    intro χ Γ_normal
     rcases Γ with ⟨fs,odf⟩
     have := loadDagEnd_subset_trf Γ_in
     apply this
@@ -956,7 +941,7 @@ theorem loadNotStarSoundness
     (M : KripkeModel W) (w : W) (a : Program) (χ : LoadFormula)
     :
     (M, w) ⊨ negUnload (~'(⌊∗a⌋χ)) →
-      ∃ Γ ∈ [(∅, some (~'χ))] ++ loadDagEndNodes (∅, some (Sum.inr (NegDagLoadFormula.neg (injectLoad a χ)))),
+      ∃ Γ ∈ [(∅, some (~'χ))] ++ loadDagEndNodes (∅, Sum.inr (NegDagLoadFormula.neg (injectLoad a χ))),
         (M,w) ⊨ Γ :=
   by
   intro w_naSf
@@ -990,9 +975,8 @@ theorem loadNotStarSoundness
       simp
       right
       use Γ.1, some (~'⌊·A⌋⌊⌊as⌋⌋undagOnly (DagLoadFormula.ldg a χ))
-      simp at Γ2def
       constructor
-      · have := (loadDagNormal_is_loadDagEnd Γ_in).2 _ Γ2def
+      · have := loadDagNormal_is_loadDagEnd Γ_in _ (by tauto)
         aesop
       · intro f f_in
         simp at f_in
@@ -1012,9 +996,9 @@ theorem loadNotStarInvertAux (M : KripkeModel W) (v : W) S :
     (∃ Γ ∈ loadDagNext S, (M, v) ⊨ Γ) → (M, v) ⊨ S := by
   intro hyp
   rcases hyp with ⟨Γ, Γ_in, v_Γ⟩
-  rcases S with ⟨fs, none | ⟨⟨⟨lf⟩⟩ | ⟨⟨dlf⟩⟩⟩⟩
+  unfold LDDTNode at S
+  rcases S with ⟨fs, ⟨⟨lf⟩⟩ | ⟨⟨dlf⟩⟩⟩
   · simp only [loadDagNext, List.find?_nil, List.not_mem_nil] at Γ_in
-  · simp_all only [loadDagNext, List.find?_nil, List.not_mem_nil]
   · cases dlf
     case box a dlf =>
       cases a
@@ -1068,11 +1052,7 @@ theorem loadNotStarInvert (M : KripkeModel W) (v : W) S
     :
     (∃ Γ ∈ loadDagEndNodes S, (M, v) ⊨ Γ) → (M, v) ⊨ S := by
   rintro ⟨Γ, Γ_in, v_Γ⟩
-  rcases S_eq : S with ⟨fs, none | ⟨⟨⟨lf⟩⟩ | ⟨⟨dlf⟩⟩⟩⟩
-  · subst S_eq
-    simp [loadDagEndNodes] at Γ_in
-    subst Γ_in
-    exact v_Γ
+  rcases S_eq : S with ⟨fs, ⟨⟨lf⟩⟩ | ⟨⟨dlf⟩⟩⟩
   · subst S_eq
     simp [loadDagEndNodes] at Γ_in
     subst Γ_in
@@ -1090,7 +1070,7 @@ theorem loadNotStarInvert (M : KripkeModel W) (v : W) S
       rw [loadDagEndOfSome_iff_step] at Γ_in
       rcases Γ_in with ⟨T, T_in, Γ_in⟩
       have v_T := loadNotStarInvert M v T ⟨Γ, ⟨Γ_in, v_Γ⟩⟩ -- recursion!
-      exact loadNotStarInvertAux M v (fs , some (Sum.inr (~⌊a⌋f))) ⟨_, ⟨T_in, v_T⟩⟩
+      exact loadNotStarInvertAux M v (fs , Sum.inr (~⌊a⌋f)) ⟨_, ⟨T_in, v_T⟩⟩
 termination_by
   loadNotStarInvert M v S claim => mOfLoadDagNode S
 decreasing_by simp_wf; apply mOfLoadDagNode.isDec; aesop
