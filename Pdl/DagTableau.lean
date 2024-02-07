@@ -2,7 +2,6 @@ import Mathlib.Data.Finset.Basic
 import Mathlib.Tactic.Linarith
 import Mathlib.Data.Set.Finite
 
-import Pdl.Discon
 import Pdl.Semantics
 import Pdl.Star
 import Pdl.Closure
@@ -1014,8 +1013,8 @@ theorem loadNotStarInvertAux (M : KripkeModel W) (v : W) S :
   intro hyp
   rcases hyp with ⟨Γ, Γ_in, v_Γ⟩
   rcases S with ⟨fs, none | ⟨⟨⟨lf⟩⟩ | ⟨⟨dlf⟩⟩⟩⟩
-  · simp [loadDagNext] at Γ_in
-  · simp_all
+  · simp only [loadDagNext, List.find?_nil, List.not_mem_nil] at Γ_in
+  · simp_all only [loadDagNext, List.find?_nil, List.not_mem_nil]
   · cases dlf
     case box a dlf =>
       cases a

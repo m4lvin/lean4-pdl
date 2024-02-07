@@ -55,6 +55,21 @@ theorem conEval {W M X} {w : W} : evaluate M w (Con X) ↔ ∀ f ∈ X, evaluate
     intro _
     assumption
 
+theorem disEvalHT {X f W M} {w : W} :
+    evaluate M w (dis (f :: X)) ↔ evaluate M w f ∨ evaluate M w (dis X) :=
+  by
+  induction' X with g X IH
+  · simp
+  · simp
+    tauto
+
+theorem disEval {W M X} {w : W} : evaluate M w (dis X) ↔ ∃ f ∈ X, evaluate M w f :=
+  by
+  induction' X with f X IH
+  · simp
+  · rw [disEvalHT]
+    simp [IH]
+
 theorem disconEvalHT {X} : ∀ XS, discon (X :: XS)≡Con X⋁discon XS :=
   by
   unfold semEquiv

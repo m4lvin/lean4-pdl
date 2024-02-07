@@ -163,9 +163,9 @@ inductive LoadRule : NegLoadFormula → List (List Formula × Option NegLoadForm
   | nSe' {α β φ} : LoadRule (~'⌊α;'β⌋(φ : Formula    )) [ (∅, some (~'⌊α⌋⌊β⌋φ)) ]
   -- Now we use loaded dagger diamond tableau:
   | nSt  {α χ}   : LoadRule (~'⌊∗α  ⌋(χ : LoadFormula)) ([ (∅, some (~'χ)) ] ++
-     loadDagEndNodes (X, some (Sum.inr (NegDagLoadFormula.neg (injectLoad a χ)))))
+     loadDagEndNodes (∅, some (Sum.inr (NegDagLoadFormula.neg (injectLoad α χ)))))
   | nSt' {α φ}   : LoadRule (~'⌊∗α  ⌋(φ : Formula    )) ([ ([~φ], none) ] ++
-     loadDagEndNodes (X, some (Sum.inr (NegDagLoadFormula.neg (injectLoad' a φ)))))
+     loadDagEndNodes (∅, some (Sum.inr (NegDagLoadFormula.neg (injectLoad' α φ)))))
   | nTe  {φt χ}  : LoadRule (~'⌊?'φt⌋(χ : LoadFormula)) [ ([φt], some (~'χ)) ]
   | nTe' {φt φ}  : LoadRule (~'⌊?'φt⌋(φ : Formula    )) [ ([φt, ~φ], none) ]
 
@@ -174,8 +174,12 @@ theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
   by
   intro W M w
   cases lr
-  all_goals try (simp; done)
-  all_goals try (aesop; done)
+
+  case nTe => simp
+  case nTe' => simp
+
+  case nSe => aesop
+  case nSe' => aesop
 
   case nUn α β χ =>
     have := oneSidedLocalRuleTruth (OneSidedLocalRule.nUn α β (unload χ)) W M w
@@ -192,32 +196,42 @@ theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
       intro w_naSchi
       have := loadNotStarSoundness M w α χ w_naSchi
       rcases this with ⟨Γ, Γ_in, w_Γ⟩
-      simp [evaluatePoint,modelCanSemImplyList] at *
-      -- rw [disconEval]
-      sorry -- aesop
+      simp at Γ_in
+      simp
+      rw [disEvalHT, disEval]
+      cases Γ_in
+      case inl Γ_def =>
+        subst Γ_def
+        left
+        apply w_Γ
+        simp
+      case inr Γ_in =>
+        right
+        simp only [List.mem_map, Prod.exists]
+        refine ⟨?_, ⟨Γ.1, Γ.2, ?_⟩, ?_⟩
+        · exact Con (Γ.1 ++ Option.toList (Option.map negUnload Γ.2))
+        · simp; assumption
+        · rw [conEval]; apply w_Γ
     · -- invertibility
       intro w_X
-      simp at w_X
-      -- rw [disconEval] at w_X
-      simp
-      sorry
-      /-
-      rcases w_X with ⟨Y,⟨Y_in, sat_Y⟩⟩
-      cases Y_in
-      · use w
-        constructor
-        · apply Relation.ReflTransGen.refl
-        · simp at sat_Y; assumption
-      · have := loadNotStarInvert M w _ (by aesop) (~⌈a⌉⌈∗a⌉φ)
-        simp [vDash, modelCanSemImplyDagTabNode] at this
-        rcases this with ⟨z, w_a_z, y, z_aS_x, y_nf⟩
-        use y
-        constructor
-        · apply Relation.ReflTransGen.head
-          all_goals aesop
-        · assumption
-      -/
-
+      simp [disEvalHT, disEval] at w_X
+      cases w_X
+      · simp; use w
+      case inr hyp =>
+        simp at hyp
+        rcases hyp with ⟨f, ⟨Γ1, Γ2, ⟨Γ_in_ends, def_f⟩⟩, w_Γ⟩
+        let thelf := NegDagLoadFormula.neg (DagLoadFormula.box α (DagLoadFormula.ldg α χ))
+        have := loadNotStarInvert M w ([], some (Sum.inr thelf)) ⟨⟨Γ1,Γ2⟩, ⟨Γ_in_ends, ?_⟩⟩
+        · simp [vDash, modelCanSemImplyLoadDagTabNode, evaluateLDDTNode] at *
+          rcases this with ⟨z, w_a_z, y, z_aS_x, y_nf⟩
+          use y
+          constructor
+          · exact Relation.ReflTransGen.head w_a_z z_aS_x
+          · assumption
+        · intro g g_in -- for the ?_ above
+          subst def_f
+          rw [conEval] at w_Γ
+          aesop
   case nSt' α φ =>
     -- analogous to nSt, but maybe need loadNotStarSoundness' with a φ instead of χ ??
     sorry
