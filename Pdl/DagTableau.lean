@@ -22,7 +22,7 @@ local notation "~" ψ => NegDagFormula.neg ψ
 -- MEASURE
 @[simp]
 def mOfDagFormula : DagFormula → Nat
-  | ⌈_†⌉ψ => mOfFormula ψ
+  | ⌈_†⌉_ => 0
   | ⌈α⌉ψ => mOfProgram α + mOfDagFormula ψ
 
 @[simp]
@@ -1083,60 +1083,6 @@ decreasing_by simp_wf; apply mOfLoadDagNode.isDec; aesop
 @[simp]
 def BDNode := List Formula × List DagFormula
 
--- Dershowitz-Manna ordering for Lists
--- It is usually defined on multisets, but works for lists too because
--- count, i.e. number of occurrences, is invariant under permutation.
-
--- This is the standard definition ...
--- originally formalized in Lean 3 by Pedro Minicz
--- https://gist.github.com/b-mehta/ee89376db987b749bd5120a2180ce3df
-@[simp]
-def dm' (α) := List α
-@[simp]
-def to_dm' {α} (s : List α) : dm' α := s
-@[simp]
-instance {α : Type u} [DecidableEq α] [LT α] : LT (dm' α) :=
-  { lt := λ M N =>
-    ∃ (X Y : List α),
-      X ≠ ∅
-      ∧ (X : List α) ≤ (N : List α)
-      ∧ M = (N.diff X) ++ Y
-      ∧ ∀ y ∈ Y, ∃ x ∈ X, y < x }
---
--- ... but we use the alternative by Huet and Oppen:
-@[simp]
-def dm (α) := List α
-@[simp]
-def to_dm {α} (s : List α) : dm α := s
-@[simp]
-instance {α : Type u} [DecidableEq α] [LT α] : LT (dm α) :=
-  { lt := λ M N =>  -- M < N iff ...
-      M ≠ N
-    ∧ ∀ ψ_y, -- for all y
-      M.count ψ_y > N.count ψ_y → -- M(y) > N(y) implies there is an x > y
-        ∃ ψ_x, ψ_y < ψ_x ∧ M.count ψ_x < N.count ψ_x } -- M(x) < N(x)
-
--- The standard result about the Dershowitz–Manna ordering.
--- Someone should get this into Mathlib.
-theorem wf_dm {α : Type u} [DecidableEq α] [LT α]
-    (t :  WellFoundedLT α) :
-    WellFounded ((LT.lt) : dm α → dm α → Prop) := by
-  apply WellFounded.intro
-  intro dma
-  apply Acc.intro dma
-  intro dmb h
-  cases h
-  sorry
-
-instance [DecidableEq α] [LT α] (t : WellFoundedLT α) : IsWellFounded (dm α) (LT.lt) := by
-  constructor
-  exact wf_dm t
-
--- Old defi
--- def mOfBoxDagNode : BDNode → ℕ
---   | ⟨_, []⟩ => 0
---   | ⟨_, dfs⟩ => 1 + (dfs.map mOfDagFormula).sum + (dfs.map mOfDagFormula).length
-
 @[simp]
 def three_pow : ℕ → ℕ
 | x => 3^x
@@ -1158,41 +1104,28 @@ def boxDagNext : BDNode → List BDNode
   | (fs, (⌈_†⌉_)::rest) => [ (fs, rest) ] -- delete formula, but keep branch!
   | (_, []) => [ ] -- end node of dagger tableau
 
--- @[simp]
--- theorem mOfUndag_eq_mOfDagplus1 -- about undag rule to be solved
---     {f : DagFormula}
---     : mOfFormula (undagDagFormula f) = mOfDagFormula f :=
---   by
---   cases f
---   case dag =>
---     simp
---     sorry
---   case box a g =>
---     simp
---     sorry
-
 @[simp]
 theorem measure_theorem (fs: List Formula) (rest: List DagFormula) {ψ ψ1 ψ2 : DagFormula}
-  (h1 : mOfDagFormula ψ > mOfDagFormula ψ1)
-  (h2 : mOfDagFormula ψ > mOfDagFormula ψ2):
+  (h0 : mOfDagFormula ψ1 < mOfDagFormula ψ)(h1 : mOfDagFormula ψ2 < mOfDagFormula ψ):
   mOfBoxDagNode (fs, ψ :: rest) > mOfBoxDagNode (fs, ψ1 :: ψ2 :: rest) := by
   simp
-  have h : 3 ^ mOfDagFormula ψ > 3 ^ mOfDagFormula ψ1 + 3 ^ mOfDagFormula ψ2 := by
+  have h2 : 3 ^ mOfDagFormula ψ > 3 ^ mOfDagFormula ψ1 + 3 ^ mOfDagFormula ψ2 := by
     simp
     let b := max (mOfDagFormula ψ1) (mOfDagFormula ψ2)
-    have h' : 3 ^ mOfDagFormula ψ1 ≤ 3 ^ b := by
+    have h3 : 3 ^ mOfDagFormula ψ1 ≤ 3 ^ b := by
       apply pow_le_pow_right (by linarith : 1 ≤ 3) (by aesop : mOfDagFormula ψ1 ≤ b)
-    have h'' : 3 ^ mOfDagFormula ψ2 ≤ 3 ^ b := by
+    have h4 : 3 ^ mOfDagFormula ψ2 ≤ 3 ^ b := by
       apply pow_le_pow_right (by linarith : 1 ≤ 3) (by aesop : mOfDagFormula ψ2 ≤ b)
-    have h''' : 1 + b ≤ mOfDagFormula ψ := by
+    have h5 : 1 + b ≤ mOfDagFormula ψ := by
       have := Nat.succ_le_of_lt (by aesop : b < mOfDagFormula ψ)
       linarith
     calc 3 ^ mOfDagFormula ψ1 + 3 ^ mOfDagFormula ψ2
-       ≤ 3 ^ b + 3 ^ b := by have := add_le_add h' h''; linarith
+       ≤ 3 ^ b + 3 ^ b := by have := add_le_add h3 h4; linarith
      _ = 2 * 3 ^ b := by linarith
-     _ < 3 * 3 ^ b := by have := mul_lt_mul_of_pos_right (by linarith : 2 < 3) (by aesop : 0 < 3 ^ b); aesop
+     _ < 3 * 3 ^ b := by have := mul_lt_mul_of_pos_right (by linarith : 2 < 3)
+                                (by aesop : 0 < 3 ^ b); aesop
      _ = 3 ^ (1 + b) := by ring
-     _ ≤ 3 ^ mOfDagFormula ψ := by have := pow_le_pow_right (by linarith : 1 ≤ 3) h'''; aesop
+     _ ≤ 3 ^ mOfDagFormula ψ := by have := pow_le_pow_right (by linarith : 1 ≤ 3) h5; aesop
   linarith
 
 theorem mOfBoxDagNode.isDec {x y : BDNode} (y_in : y ∈ boxDagNext x) :
@@ -1200,7 +1133,7 @@ theorem mOfBoxDagNode.isDec {x y : BDNode} (y_in : y ∈ boxDagNext x) :
   rcases x with ⟨fs, _|⟨df,rest⟩⟩
   case nil =>
     exfalso
-    simp at Γ_in
+    simp at y_in
   case cons =>
     cases df
     case dag =>
@@ -1213,28 +1146,24 @@ theorem mOfBoxDagNode.isDec {x y : BDNode} (y_in : y ∈ boxDagNext x) :
           cases a
           all_goals (simp [boxDagNext] at *)
           case atom_prog A =>
-            subst y_in
-            simp
+            subst y_in; simp
           case sequence β γ =>
-            subst y_in
-            simp
-            zify
-            ring_nf
-            have := mul_lt_mul_of_pos_left (by linarith : 1 < 9) (by aesop : 0 < 3 ^ mOfProgram β * 3 ^ mOfProgram γ * 3 ^ mOfDagFormula f)
+            subst y_in; simp; zify; ring_nf
+            have := mul_lt_mul_of_pos_left (by linarith : 1 < 9)
+              (by aesop : 0 < 3 ^ mOfProgram β * 3 ^ mOfProgram γ * 3 ^ mOfDagFormula f)
             linarith
           case union a b =>
             subst y_in
-            have h1 : mOfDagFormula (⌈a⋓b⌉f) > mOfDagFormula (⌈a⌉f) := by simp ; linarith
-            have h2 : mOfDagFormula (⌈a⋓b⌉f) > mOfDagFormula (⌈b⌉f) := by simp ; linarith
-            have := measure_theorem fs rest h1 h2
+            have h0 : mOfDagFormula (⌈a⋓b⌉f) > mOfDagFormula (⌈a⌉f) := by simp ; linarith
+            have h1 : mOfDagFormula (⌈a⋓b⌉f) > mOfDagFormula (⌈b⌉f) := by simp ; linarith
+            have := measure_theorem fs rest h0 h1
             aesop
           case star a =>
             subst y_in
             simp
-            have h3 : mOfDagFormula (⌈∗a⌉f) > mOfDagFormula f := by simp
-            have h4 : mOfDagFormula (⌈∗a⌉f) > mOfDagFormula (⌈a⌉⌈a†⌉(undag f)) := by simp; sorry
--- nts: mOfFormula (undagDagFormula f) < 1 + mOfDagFormula f, which is false
-            have := measure_theorem fs rest h3 h4
+            have h2 : mOfDagFormula (⌈∗a⌉f) > mOfDagFormula f := by simp
+            have h3 : mOfDagFormula (⌈∗a⌉f) > mOfDagFormula (⌈a⌉⌈a†⌉(undag f)) := by simp; linarith
+            have := measure_theorem fs rest h2 h3
             aesop
           case test g =>
             rcases y_in with l|r
@@ -1243,16 +1172,17 @@ theorem mOfBoxDagNode.isDec {x y : BDNode} (y_in : y ∈ boxDagNext x) :
             ring_nf
             subst r
             simp
-            have h : 3 ^ mOfDagFormula f < 3 ^ mOfFormula g * 3 ^ mOfDagFormula f * 3 := by
+            have h4 : 3 ^ mOfDagFormula f < 3 ^ mOfFormula g * 3 ^ mOfDagFormula f * 3 := by
               rw [mul_comm (3 ^ mOfFormula g) (3 ^ mOfDagFormula f)]
-              have h' : 3 ^ mOfDagFormula f = 3 ^ mOfDagFormula f * 1 := by linarith
-              nth_rw 1 [h']
-              have h'' : 1 < 3 ^ mOfFormula g * 3 := by
+              have h5 : 3 ^ mOfDagFormula f = 3 ^ mOfDagFormula f * 1 := by linarith
+              nth_rw 1 [h5]
+              have h6 : 1 < 3 ^ mOfFormula g * 3 := by
                 calc 1
-                    ≤ 3 ^ mOfFormula g := by have := Nat.one_le_pow (mOfFormula g) 3 (by linarith : 0 < 3);linarith
-                  _ = 3 ^ mOfFormula g * 1 := by linarith
-                  _ < 3 ^ mOfFormula g * 3 := by have := mul_lt_mul_of_pos_left (by linarith: 1 < 3) (by aesop : 0 < 3 ^ mOfFormula g);linarith
-              have := mul_lt_mul_of_pos_left h''  (by aesop : 0 < 3 ^ mOfDagFormula f)
+                   ≤ 3 ^ mOfFormula g := by have := Nat.one_le_pow (mOfFormula g) 3 (by linarith : 0 < 3);linarith
+                 _ = 3 ^ mOfFormula g * 1 := by linarith
+                 _ < 3 ^ mOfFormula g * 3 := by have := mul_lt_mul_of_pos_left (by linarith: 1 < 3)
+                                                        (by aesop : 0 < 3 ^ mOfFormula g);linarith
+              have := mul_lt_mul_of_pos_left h6  (by aesop : 0 < 3 ^ mOfDagFormula f)
               linarith
             linarith
 
@@ -1263,8 +1193,7 @@ theorem mOfBoxDagNode.isDec {x y : BDNode} (y_in : y ∈ boxDagNext x) :
 
 @[simp]
 def boxDagNextTransRefl : (List Formula × List DagFormula) → List (List Formula × List DagFormula) :=
-  ftr boxDagNext sorry sorry -- TODO to_dm @mOfBoxDagNode.isDec
-  -- ftr boxDagNext mOfBoxDagNode @mOfBoxDagNode.isDec
+  ftr boxDagNext mOfBoxDagNode @mOfBoxDagNode.isDec
 
 instance modelCanSemImplyBDNode {W : Type} : vDash (KripkeModel W × W) BDNode :=
   vDash.mk (λ ⟨M,w⟩ (fs, mf) => ∀ φ ∈ fs ++ (mf.map undag), evaluate M w φ)
@@ -1273,7 +1202,7 @@ def boxDagEndNodes : BDNode → List (List Formula)
   | (fs, []) => [ fs ]
   | (fs, df::rest) => ((boxDagNext (fs, df::rest)).attach.map
       (fun ⟨gsdf, h⟩ =>
-        have := boxDagNextDMisDec h
+        have := mOfBoxDagNode.isDec h
         boxDagEndNodes gsdf)).join
 termination_by
   boxDagEndNodes fs => mOfBoxDagNode fs
@@ -1446,16 +1375,17 @@ theorem starSoundness (M : KripkeModel W) (v : W) S :
   · cases df
     case dag α φ =>
       simp [boxDagEndNodes]
-      have : mOfBoxDagNode (fs, rest) < mOfBoxDagNode S := by sorry -- apply mOfBoxDagNode.isDec; aesop
+      have : mOfBoxDagNode (fs, rest) < mOfBoxDagNode S := by apply mOfBoxDagNode.isDec; aesop
       apply starSoundness
       intro f
       aesop
     case box α ψ =>
       rcases starSoundnessAux def_S v_S with ⟨T, T_in, v_T⟩
-      have : mOfBoxDagNode T < mOfBoxDagNode S := by sorry -- apply mOfBoxDagNode.isDec; aesop
+      have : mOfBoxDagNode T < mOfBoxDagNode S := by apply mOfBoxDagNode.isDec; aesop
       rcases starSoundness M v T v_T with ⟨Γ, Γ_in, v_Γ⟩
       refine ⟨Γ, ?_, v_Γ⟩
       subst def_S
       exact boxDagEnd_subset_next T_in Γ_in
 termination_by
-  starSoundness _ _ _ S _ => mOfBoxDagNode S
+  starSoundness _ _ _ S _ => mOfBoxDagNode
+decreasing_by simp_wf; sorry -- apply mOfBoxDagNode.isDec; assumptionS
