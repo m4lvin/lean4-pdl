@@ -6,6 +6,8 @@ import Pdl.Discon
 import Pdl.Semantics
 import Pdl.Star
 import Pdl.Closure
+import Mathlib.Algebra.GroupPower.Order
+
 
 inductive DagFormula : Type
   | dag : Program → Formula → DagFormula -- ⌈α†⌉φ
@@ -618,7 +620,6 @@ def BDNode := List Formula × List DagFormula
 def three_pow : ℕ → ℕ
 | x => 3^x
 
--- big measure
 @[simp]
 def mOfBoxDagNode : BDNode →  ℕ
   | ⟨_, dfs⟩ => ((dfs.map mOfDagFormula).map three_pow).sum
@@ -649,7 +650,6 @@ def boxDagNext : BDNode → List BDNode
 --     simp
 --     sorry
 
--- for union and star
 @[simp]
 theorem measure_theorem (fs: List Formula) (rest: List DagFormula) {ψ ψ1 ψ2 : DagFormula}
   (h1 : mOfDagFormula ψ > mOfDagFormula ψ1)
@@ -659,20 +659,19 @@ theorem measure_theorem (fs: List Formula) (rest: List DagFormula) {ψ ψ1 ψ2 :
   have h : 3 ^ mOfDagFormula ψ > 3 ^ mOfDagFormula ψ1 + 3 ^ mOfDagFormula ψ2 := by
     simp
     let b := max (mOfDagFormula ψ1) (mOfDagFormula ψ2)
+    have h' : 3 ^ mOfDagFormula ψ1 ≤ 3 ^ b := by
+      apply pow_le_pow_right (by linarith : 1 ≤ 3) (by aesop : mOfDagFormula ψ1 ≤ b)
+    have h'' : 3 ^ mOfDagFormula ψ2 ≤ 3 ^ b := by
+      apply pow_le_pow_right (by linarith : 1 ≤ 3) (by aesop : mOfDagFormula ψ2 ≤ b)
+    have h''' : 1 + b ≤ mOfDagFormula ψ := by
+      have := Nat.succ_le_of_lt (by aesop : b < mOfDagFormula ψ)
+      linarith
     calc 3 ^ mOfDagFormula ψ1 + 3 ^ mOfDagFormula ψ2
-       ≤ 3 ^ b + 3 ^ b := by sorry
+       ≤ 3 ^ b + 3 ^ b := by have := add_le_add h' h''; linarith
      _ = 2 * 3 ^ b := by linarith
-     _ < 3 * 3 ^ b := by sorry
+     _ < 3 * 3 ^ b := by have := mul_lt_mul_of_pos_right (by linarith : 2 < 3) (by aesop : 0 < 3 ^ b); aesop
      _ = 3 ^ (1 + b) := by ring
-     _ ≤ 3 ^ mOfDagFormula ψ := by sorry
-    --have h5 : 3 ^ (1 + b) > 2 * (3 ^ b) := by sorry
-    --have h6 : 2 * (3 ^ b) >= 3 ^ mOfDagFormula ψ1 + 3 ^ mOfDagFormula ψ2 := by sorry
-    --linarith
-    -- {calc
-    --   mOfDagFormula ψ >= 1 + b : sorry
-    --   3 ^  mOfDagFormula ψ >= 3 ^ (1 + b) = 3 * (3 ^ ) > 2 * (3 ^ b) >= 3 ^ mOfDagFormula ψ1 + 3 ^ mOfDagFormula ψ2
-    -- sorry
-    -- }
+     _ ≤ 3 ^ mOfDagFormula ψ := by have := pow_le_pow_right (by linarith : 1 ≤ 3) h'''; aesop
   linarith
 
 theorem mOfBoxDagNode.isDec {x y : BDNode} (y_in : y ∈ boxDagNext x) :
@@ -691,9 +690,9 @@ theorem mOfBoxDagNode.isDec {x y : BDNode} (y_in : y ∈ boxDagNext x) :
     case box a f =>
           cases a
           all_goals (simp [boxDagNext] at *)
-          case atom_prog A => --undag rule find the right lemma
+          case atom_prog A =>
             subst y_in
-            simp -- it correct?
+            simp
           case sequence β γ =>
             subst y_in
             simp
@@ -701,26 +700,39 @@ theorem mOfBoxDagNode.isDec {x y : BDNode} (y_in : y ∈ boxDagNext x) :
             ring_nf
             have := mul_lt_mul_of_pos_left (by linarith : 1 < 9) (by aesop : 0 < 3 ^ mOfProgram β * 3 ^ mOfProgram γ * 3 ^ mOfDagFormula f)
             linarith
-          case union a b => --thm
+          case union a b =>
             subst y_in
             have h1 : mOfDagFormula (⌈a⋓b⌉f) > mOfDagFormula (⌈a⌉f) := by simp ; linarith
             have h2 : mOfDagFormula (⌈a⋓b⌉f) > mOfDagFormula (⌈b⌉f) := by simp ; linarith
             have := measure_theorem fs rest h1 h2
             aesop
-          case star a => -- thm
+          case star a =>
             subst y_in
             simp
             have h3 : mOfDagFormula (⌈∗a⌉f) > mOfDagFormula f := by simp
-            have h3 : mOfDagFormula (⌈∗a⌉f) > mOfDagFormula (⌈a⌉⌈a†⌉(undag f)) := by sorry
-            sorry -- apply measure_thm?
-          case test f =>
+            have h4 : mOfDagFormula (⌈∗a⌉f) > mOfDagFormula (⌈a⌉⌈a†⌉(undag f)) := by simp; sorry
+-- nts: mOfFormula (undagDagFormula f) < 1 + mOfDagFormula f, which is false
+            have := measure_theorem fs rest h3 h4
+            aesop
+          case test g =>
             rcases y_in with l|r
             subst l
             simp
             ring_nf
             subst r
             simp
-            sorry -- should be obvious
+            have h : 3 ^ mOfDagFormula f < 3 ^ mOfFormula g * 3 ^ mOfDagFormula f * 3 := by
+              rw [mul_comm (3 ^ mOfFormula g) (3 ^ mOfDagFormula f)]
+              have h' : 3 ^ mOfDagFormula f = 3 ^ mOfDagFormula f * 1 := by linarith
+              nth_rw 1 [h']
+              have h'' : 1 < 3 ^ mOfFormula g * 3 := by
+                calc 1
+                    ≤ 3 ^ mOfFormula g := by have := Nat.one_le_pow (mOfFormula g) 3 (by linarith : 0 < 3);linarith
+                  _ = 3 ^ mOfFormula g * 1 := by linarith
+                  _ < 3 ^ mOfFormula g * 3 := by have := mul_lt_mul_of_pos_left (by linarith: 1 < 3) (by aesop : 0 < 3 ^ mOfFormula g);linarith
+              have := mul_lt_mul_of_pos_left h''  (by aesop : 0 < 3 ^ mOfDagFormula f)
+              linarith
+            linarith
 
 @[simp]
 def boxDagNextTransRefl : BDNode → List BDNode :=
