@@ -1228,11 +1228,12 @@ theorem boxDagEnd_subset_trf {Ω Γ} :
   case inr hyp =>
     rcases hyp with ⟨S, S_in, O_in⟩
     have := boxDagEnd_subset_next S_in
+    have := mOfBoxDagNode.isDec S_in -- for termination
     have := boxDagEnd_subset_trf O_in
     tauto
 termination_by
   boxDagEnd_subset_trf Ω Γ hyp  => mOfBoxDagNode Γ
-decreasing_by simp_wf; sorry -- apply mOfBoxDagNode.isDec; assumption
+decreasing_by simp_wf; simp at *; assumption
 
 -- A normal successor in a box dagger tableau is an end node.
 theorem boxDagNormal_is_dagEnd
@@ -1318,7 +1319,7 @@ theorem starInvert
       sorry
 termination_by
   starInvert M v S claim => mOfBoxDagNode S
-decreasing_by simp_wf; sorry -- apply mOfBoxDagNode.isDec; aesop
+decreasing_by simp_wf; aesop
 
 theorem starSoundnessAux {M : KripkeModel W} {v : W} {fs ψ dfs} :
     S = ⟨fs, ψ::dfs⟩ → (M, v) ⊨ S → (∃ Γ ∈ boxDagNext S, (M, v) ⊨ Γ) := by
@@ -1387,5 +1388,5 @@ theorem starSoundness (M : KripkeModel W) (v : W) S :
       subst def_S
       exact boxDagEnd_subset_next T_in Γ_in
 termination_by
-  starSoundness _ _ _ S _ => mOfBoxDagNode
-decreasing_by simp_wf; sorry -- apply mOfBoxDagNode.isDec; assumptionS
+  starSoundness _ _ _ S _ => mOfBoxDagNode S
+decreasing_by simp_wf; simp at *; aesop
