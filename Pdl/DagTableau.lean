@@ -1,6 +1,8 @@
 import Mathlib.Data.Finset.Basic
 import Mathlib.Tactic.Linarith
 import Mathlib.Data.Set.Finite
+import Mathlib.Data.Multiset.Basic
+import Mathlib.Logic.Relation
 
 import Pdl.Syntax
 import Pdl.Discon
@@ -678,8 +680,41 @@ instance {α : Type u} [DecidableEq α] [LT α] : LT (dm α) :=
       M.count ψ_y > N.count ψ_y → -- M(y) > N(y) implies there is an x > y
         ∃ ψ_x, ψ_y < ψ_x ∧ M.count ψ_x < N.count ψ_x } -- M(x) < N(x)
 
+-- Yet another definition of multiset ordering. This is the one used by coq CoLoR library.
+@[simp]
+def mul (α) := List α
+@[simp]
+def to_mul {α} (s : List α) : mul α := s
+@[simp]
+instance {α : Type u} [DecidableEq α] [Membership α (mul α)]: Membership α (mul α) :=
+{ mem := λ a s => a ∈ to_mul s }
+
+@[simp]
+instance {α : Type u} [DecidableEq α] [LT α] : LT (mul α) :=
+  { lt := λ M N =>  -- M < N iff ...
+    ∃ (X Y Z: List α),
+      X ≠ ∅
+      ∧ M = Z ++ Y
+      ∧ N = Z ++ X
+      ∧ ∀ y ∈ Y, ∃ x ∈ X, y < x } -- For the different part, each of X's element is smaller than some Y's element.
+
+-- TODO: Prove the equivalence of the definitions.
+
 -- The standard result about the Dershowitz–Manna ordering.
 -- Someone should get this into Mathlib.
+
+theorem wf_mul {α : Type u} [DecidableEq α] [LT α]
+    (t :  WellFoundedLT α) :
+    WellFounded ((LT.lt) : Multiset α → Multiset α → Prop) := by
+  apply WellFounded.intro
+  intro dma
+  apply Acc.intro dma
+  intro dmb h
+  sorry
+
+-- theorem mOrd_acc {α : Type u} : ∀ M : mul (α), (∀ x : α, Membership.mem x (mul α)) -> Acc ltA _) -> Acc _ _ := by
+--   sorry
+
 theorem wf_dm {α : Type u} [DecidableEq α] [LT α]
     (t :  WellFoundedLT α) :
     WellFounded ((LT.lt) : dm α → dm α → Prop) := by
@@ -687,12 +722,331 @@ theorem wf_dm {α : Type u} [DecidableEq α] [LT α]
   intro dma
   apply Acc.intro dma
   intro dmb h
-  cases h
+  apply _
+  intros
   sorry
 
 instance [DecidableEq α] [LT α] (t : WellFoundedLT α) : IsWellFounded (dm α) (LT.lt) := by
   constructor
   exact wf_dm t
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- Haitian's translation of the proof from coq
+-- inductive MultisetRedGt : multiset α → multiset α → Prop
+-- | MSetRed : ∀ (X : multiset α) (a : α) (Y : multiset α),
+--     ∀ {A B : multiset α},
+--     A = X + {a} →
+--     B = X + Y →
+--     (∀ y, y ∈ Y → a > y) →
+--     MultisetRedGt A B
+
+-- inductive MultisetRedGt (A B : multiset α) : Prop
+-- | MSetRed : ∀ X a Y,
+--     A = X + {a} →
+--     B = X + Y →
+--     (∀ y, y ∈ Y → a > y) →
+--     MultisetRedGt A B
+
+inductive MultisetRedLt [DecidableEq α][LT α] (M N: Multiset α) : Prop :=
+| RedLt : ∀ (X Y:Multiset α) (a : α) ,
+       (M = X + Y) →
+       (N = X + {a}) →
+       (∀ y, y ∈ Y → y < a) → MultisetRedLt M N
+
+theorem not_MultisetRedLt_0 [DecidableEq α][LT α] (M: Multiset α) : ¬ (MultisetRedLt M 0) := by
+  intro h
+  cases h with
+  | RedLt X Y a M nonsense _ =>
+    have contra : a ∈ (0 : Multiset α):= by
+      rw [nonsense]
+      aesop
+    contradiction
+  -- unfold MultisetRedLt at m0
+  -- but this would mean 0 = X + {a}, which is impossible.
+
+def MultisetLt [DecidableEq α][LT α] : Multiset α → Multiset α → Prop :=
+TC MultisetRedLt
+
+def MultisetLt' [DecidableEq α][LT α] : Multiset α → Multiset α → Prop :=
+Relation.TransGen MultisetRedLt
+
+inductive MultisetLT {α} [DecidableEq α] [LT α] : (M : Multiset α) → (N : Multiset α) → Prop :=
+  | MLT : ∀ (X Y Z: Multiset α),
+        Y ≠ ∅ →
+        M = Z + X →
+        N = Z + Y →
+        (∀ x ∈ X, ∃ y ∈ Y, x < y) → MultisetLT M N
+
+-- variable {A : Type u} [DecidableEq A] [LT A] (ltA : A → A → Prop)
+-- def ltA {A : Type u} [DecidableEq A] [LT A]  : A → A → Prop := let
+-- def AccA : (A → Prop) := Acc ltA
+
+#check Acc
+-- #check AccA
+-- instance [DecidableEq A] : DecidableEq A := by
+--   apply inst
+def ACC_M [DecidableEq α][LT α] : Multiset α → Prop := Acc MultisetLT
+def AccM [DecidableEq α][LT α] : Multiset α → Prop := Acc MultisetLt
+def AccM_1 [DecidableEq α][LT α] : Multiset α → Prop := Acc MultisetRedLt
+
+
+#check MultisetLT
+#check ACC_M
+
+theorem nonsense {α : Type u} : ∀ x : α, ∀ M : Multiset (α), x ∈ M := by sorry
+
+
+def X_mul : (Multiset ℕ) := {1,1,2}
+def Y_mul : (Multiset ℕ) := {1,2,1}
+def Z_mul : (Multiset ℕ) := {1,2}
+def W_mul : (Multiset ℕ) := {1}
+def A_mul : (Multiset ℕ) := {1,3}
+
+#eval X_mul = Y_mul
+#eval X_mul = Z_mul
+#eval X_mul = Z_mul + W_mul
+#eval 1 ∈ X_mul
+-- The first one gives true: permutation invariant
+-- The second one gives false: duplicates do matter
+-- The third one gives true: `+` operation is working for Multisets
+-- The fourth one gives true: `∈` operation is working for Multisets
+
+
+
+-- def MultisetLT {α : Type u} [DecidableEq α][LT α](M : Multiset α) (N : Multiset α) : Prop :=
+--   ∃ (X Y Z: Multiset α),
+--         X ≠ ∅
+--         ∧ M = Z + Y
+--         ∧ N = Z + X
+--         ∧ ∀ y ∈ Y, ∃ x ∈ X, y < x
+
+
+-- This is the crucial lemma. The rest just showing different definitions of relations are equivalent.
+-- And the real crucial part seems to be an existing lemma in coq (Transitive_Closure.Acc_clos_trans) which says that the transitive closure of a well-founded relation is also well-founded.
+-- The corresponding lemma in Lean is:
+#check TC.wf
+
+
+
+lemma mord_acc' [DecidableEq α] [LT α] : ∀ M : Multiset α, (∀ x, x ∈ M -> Acc LT.lt x) → AccM M := by
+  sorry
+
+
+lemma mord_acc [DecidableEq α] [LT α] : ∀ M : Multiset α, (∀ x, x ∈ M -> Acc LT.lt x) → AccM M := by
+  intros
+  unfold AccM
+  unfold MultisetLt
+  sorry
+
+
+lemma mord_acc_mOrd_acc [DecidableEq α] [LT α] : ∀ X:Multiset α, AccM X → ACC_M X := by sorry
+
+
+lemma mOrd_acc  [DecidableEq α] [LT α]: ∀ (M: Multiset α), (∀ x:α, (x ∈ M) →  (Acc LT.lt x)) → (ACC_M M) := by
+  intros
+  apply mord_acc_mOrd_acc
+  apply mord_acc
+  assumption
+
+  -- Proof.
+  --   intros.
+  --   apply mord_acc_mOrd_acc.
+  --   apply mord_acc; trivial.
+  -- Qed.
+
+-- theorem helper {α : Type u} [DecidableEq α] [LT α]
+-- (wf_lt :  WellFoundedLT α) (x : α) : Acc LT.lt x := by
+--   apply wf_lt.induction x
+--   intro y h
+--   exact Acc.intro y h
+
+theorem mord_wf {α : Type u} [DecidableEq α] [LT α]
+    (wf_lt :  WellFoundedLT α) :
+    WellFounded (MultisetLT : Multiset α → Multiset α → Prop) := by
+    apply WellFounded.intro
+    intro dma
+    apply Acc.intro dma
+    intro dmb _
+    apply mOrd_acc
+    intro x _
+    apply wf_lt.induction x
+    intro y h
+    apply Acc.intro y
+    exact h
+    -- apply helper
+    -- assumption
+
+
+
+
+-- Assuming the necessary context
+variables {A B : Type} {R : A → A → Prop} {T : B → B → Prop}
+variables {morphism : A → B → Prop}
+
+theorem acc_homo (h : ∀ (x y : B) (x' : A), morphism x' x → T y x → ∃ (y' : A), R y' x' ∧ morphism y' y) :
+  ∀ (x : A), Acc R x → ∀ (x' : B), morphism x x' → Acc T x' := by sorry
+  -- intros x h_acc_x
+  -- induction h_acc_x with x acc_x ih
+  -- intros x' h_morphism,
+
+  -- apply acc.intro x',
+  -- intros y h_T_y_x',
+  -- cases h x' h_morphism with y' h_R_y'_x' h_morphism_y'_y,
+  -- exact ih y' h_R_y'_x' _ h_T_y_x' h_morphism_y'_y,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- Haitian's own attempt
+
+
+#eval 1 ::ₘ {1,2} = {2} + {1,1}
+
+
+lemma mord_wf_3 {α : Type u} {M : Multiset α} [DecidableEq α] [LT α] :
+  ∀ (a:α), Acc LT.lt a → ∀ (M : Multiset α), AccM_1 M → AccM_1 (a ::ₘ M) := by
+  sorry
+
+#check Multiset.induction_on
+
+-- TODO1:
+-- If all elements of a multiset M is accessible given the underlying relation `LT.lt`, then the multiset M is accessible given the `MultisetRedLt` relation.
+-- It uses `not_MultisetRedLt_0` and `mord_wf_3`, which still need to be proved.
+lemma mred_acc {α : Type u} [DecidableEq α] [LT α] :
+      ∀ (M : Multiset α), (∀x, x ∈ M → Acc LT.lt x) → AccM_1 M  := by
+      intros M wf_el
+      induction M using Multiset.induction_on with -- In Coq: mset_ind : forall P : Multiset -> Prop, P empty -> (forall (M : Multiset) (a : A), P M -> P (M + {{a}})) -> forall M : Multiset, P M
+      | empty =>
+        constructor
+        intro y y_lt
+        absurd y_lt
+        apply not_MultisetRedLt_0
+      | cons ih =>
+        apply mord_wf_3
+        . assumption
+        . apply wf_el
+          aesop
+        . apply ih
+          intros
+          apply wf_el
+          aesop
+
+-- If `LT.lt` is well-founded, then `MultisetRedLt` is well-founded.
+-- lemma `mred_acc` needed.
+lemma RedLt_wf {α : Type u} [DecidableEq α] [LT α]
+      (wf_lt : WellFoundedLT α) : WellFounded (MultisetRedLt : Multiset α → Multiset α → Prop) := by
+      constructor
+      intros a
+      apply mred_acc
+      intros x _
+      apply wf_lt.induction x
+      intros y h
+      apply Acc.intro y
+      assumption
+
+-- If `MultisetRedLt` is well-founded, then its transitive closure, namely `MultisetLt` is also well-founded.
+lemma Lt_wf [DecidableEq α] [LT α]
+      (h : WellFounded (MultisetRedLt : Multiset α → Multiset α → Prop)) :
+      WellFounded (MultisetLt : Multiset α → Multiset α → Prop) := by
+      unfold MultisetLt
+      apply TC.wf
+      assumption
+
+
+
+
+
+-- TODO2:
+-- The relation `MultisetLt` is equivalent to `MultisetLT`.
+-- This one is a bit tricky to prove at the moment. Maybe stick to Coq's proof to prove `mord_acc_mOrd_acc` first? But that also requires similar proofs. I think we could just prove this straight.
+-- I didn't expect this part to be hard.
+
+#print MultisetLt
+#print MultisetRedLt
+#print MultisetLT
+
+lemma LT_trans {α} [dec : DecidableEq α] [lt : LT α]:
+      Transitive (@MultisetLT α dec lt) := by
+      intros LTAB LTBC
+      sorry
+
+-- It uses `LT_trans`, which still needs to be proved.
+-- Is this gonna be hard to prove? Why does the coq proof use some other ways to prove:  mord_acc_mOrd_acc (Acc_homo), mOrd_acc.
+lemma Lt_LT [DecidableEq α] [LT α] :
+      (MultisetLt : Multiset α → Multiset α → Prop) = (MultisetLT : Multiset α → Multiset α → Prop) := by
+      funext X Y
+      apply propext
+      constructor
+      · -- Lt → LT:
+        intros hLt
+        -- unfold MultisetLT
+        -- rw [MultisetLt] at hLt
+        induction hLt with
+        | base a b hLt => --should be easy: use `use`
+          rcases hLt with ⟨Z, X, y, a_def, b_def, X_lt_y⟩  -- This used to work
+          -- constructor
+          use X
+          simp
+          simp
+          assumption
+
+        | trans Z W A hLtZW hLtWA aih bih => -- it suffices to show MultisetLT is transitive
+          exact LT_trans aih bih
+
+      · -- LT → Lt:
+        intros LTXY
+        induction LTXY with
+        | _ W h =>
+        unfold MultisetLt
+        sorry
+
+
+-- If two relations are equivalent and one of them is well-founded, then the other one is also well-founded.
+lemma equiv_r_wf [DecidableEq α] [LT α] (h1 : WellFounded (r1 :  Multiset α → Multiset α → Prop)) (h2: r1 = r2): WellFounded r2 := by
+  aesop
+
+-- The desired theorem. If `LT.lt` is well-founded, then `MultisetLT` is well-founded.
+theorem dm_wf [DecidableEq α] [LT α] (wf_lt :  WellFoundedLT α) :
+      WellFounded (MultisetLT : Multiset α → Multiset α → Prop) := by
+      apply (equiv_r_wf (Lt_wf (RedLt_wf wf_lt)) Lt_LT)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def mOfBoxDagNode : BDNode → ℕ
   | ⟨_, []⟩ => 0
