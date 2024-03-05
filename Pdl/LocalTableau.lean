@@ -299,15 +299,6 @@ inductive LocalRuleApp : TNode → List TNode → Type
        (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R ∧ Ocond ⊆ O)
        : LocalRuleApp (L,R,O) C
 
-theorem loadRuleTruthSem (lr : LoadRule (~'χ) B) {W} (M : KripkeModel W) (w : W) :
-    (M,w) ⊨ (~(unload χ))
-    ↔
-    (∃ fs o, (fs,o) ∈ B ∧ (M,w) ⊨ (fs ++ (o.map negUnload).toList)) :=
-  by
-  have := loadRuleTruth lr W M w
-  simp at *
-  sorry
-
 theorem localRuleTruth
     {L R : List Formula}
     {C : List TNode}
@@ -351,11 +342,70 @@ theorem localRuleTruth
     simp [applyLocalRule] at *
     subst preconditionProof
     simp [modelCanSemImplyForm,modelCanSemImplyLLO] at *
-    sorry -- should be doable
+    constructor
+    -- TODO: shorten/simplify this?
+    · intro hyp
+      have hyp' := hyp (~unload χ)
+      simp at hyp'
+      rw [this] at hyp'
+      rcases hyp' with ⟨f, ⟨X , O, in_ress, def_f⟩, w_f⟩
+      cases O
+      · use (L ++ X, R, some (Sum.inl (~'χ)))
+        constructor
+        · use X, none
+          simp only [Option.map_none', and_true]
+          exact in_ress
+        · intro g
+          subst def_f
+          rw [conEval] at w_f
+          specialize hyp g
+          aesop
+      case some val =>
+        use (L ++ X, R, some (Sum.inl val))
+        constructor
+        · use X, some val
+          simp only [Option.map_some', and_true]
+          exact in_ress
+        · intro g g_in
+          subst def_f
+          rw [conEval] at w_f
+          simp at *
+          rcases g_in with ((g_in|g_in)|g_in)|g_in
+          · simp_all only [true_or]
+          · simp_all only [true_or]
+          · simp_all only [or_true, true_or]
+          · subst g_in
+            apply w_f
+            tauto
+    · intro hyp
+      rcases hyp with ⟨Ci, ⟨⟨X, O, ⟨in_ress, def_Ci⟩⟩, w_Ci⟩⟩
+      intro f f_in
+      subst def_Ci
+      cases O
+      all_goals simp at *
+      · have := w_Ci f
+        simp at this
+        aesop
+      case some val =>
+        rcases f_in with (f_in|f_in)|f_in
+        · apply w_Ci; simp_all
+        · apply w_Ci; simp_all
+        · subst f_in
+          simp only [evaluate]
+          rw [this]
+          use Con (X ++ Option.toList (Option.map negUnload (some val)))
+          constructor
+          · use X, some val
+          · rw [conEval]
+            simp
+            intro g g_in
+            rcases g_in with (_|g_def)
+            · apply w_Ci; simp_all
+            · subst g_def; apply w_Ci; simp_all
 
   case loadedR ress χ lrule hC =>
     have := loadRuleTruth lrule W M w
-    -- analogous to loadedL
+    -- analogous to loadedL, but better shorten that first
     sorry
 
 -- A set X is simple  iff  all P ∈ X are (negated) atoms or [A]_ or ¬[A]_.
