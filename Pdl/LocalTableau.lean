@@ -41,6 +41,10 @@ instance tNodeHasVocabulary : HasVocabulary (TNode) := ⟨sharedVoc⟩
 instance modelCanSemImplyTNode : vDash (KripkeModel W × W) TNode :=
   vDash.mk (λ ⟨M,w⟩ ⟨L, R, o⟩ => ∀ f ∈ L ∪ R ∪ (o.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
 
+-- silly but useful:
+instance modelCanSemImplyLLO : vDash (KripkeModel W × W) (List Formula × List Formula × Option (Sum NegLoadFormula NegLoadFormula)) :=
+  vDash.mk (λ ⟨M,w⟩ ⟨L, R, o⟩ => ∀ f ∈ L ∪ R ∪ (o.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
+
 -- Some thoughts about the TNode type:
 -- - one formula may be loaded
 -- - loading is not changed in local tableaux, but must be tracked through it.
@@ -264,21 +268,30 @@ inductive LocalRule : TNode → List TNode → Type
 @[simp]
 def applyLocalRule (_ : LocalRule (Lcond, Rcond, Ocond) ress) : TNode → List TNode
   | ⟨L, R, O⟩ => ress.map $ λ (Lnew, Rnew, Onew) => match Onew with
-      | none                 => (L \ Lcond ∪ Lnew, R \ Rcond ∪ Rnew, O)
-      | some (Sum.inl (~'χ)) => (L \ Lcond ∪ Lnew, R \ Rcond ∪ Rnew, some (Sum.inl (~'χ)))
-      | some (Sum.inr (~'χ)) => (L \ Lcond ∪ Lnew, R \ Rcond ∪ Rnew, some (Sum.inr (~'χ)))
+      | none                 => (L.diff Lcond ++ Lnew, R.diff Rcond ++ Rnew, O)
+      | some (Sum.inl (~'χ)) => (L.diff Lcond ++ Lnew, R.diff Rcond ++ Rnew, some (Sum.inl (~'χ)))
+      | some (Sum.inr (~'χ)) => (L.diff Lcond ++ Lnew, R.diff Rcond ++ Rnew, some (Sum.inr (~'χ)))
 
-instance : HasSubset (Option (NegLoadFormula ⊕ NegLoadFormula)) := HasSubset.mk
+-- mathlib this?
+@[simp]
+instance Option.instHasSubsetOption : HasSubset (Option α) := HasSubset.mk
   λ o1 o2 =>
   match o1, o2 with
   | none, _ => True
   | some _, none => False
-  | some f, some g => f == g
+  | some f, some g => f = g
+
+-- mathlib this?
+@[simp]
+theorem Option.some_subseteq {O : Option α} : (some x ⊆ O) ↔ some x = O := by
+  cases O
+  all_goals simp
 
 inductive LocalRuleApp : TNode → List TNode → Type
   | mk {L R : List Formula}
        {C : List TNode}
-       (O : Option (Sum NegLoadFormula NegLoadFormula))
+       {ress : List TNode}
+       (O : Option (Sum NegLoadFormula NegLoadFormula)) -- FIXME make implicit?
        (Lcond Rcond : List Formula)
        (Ocond : Option (Sum NegLoadFormula NegLoadFormula))
        (rule : LocalRule (Lcond, Rcond, Ocond) ress)
@@ -286,8 +299,64 @@ inductive LocalRuleApp : TNode → List TNode → Type
        (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R ∧ Ocond ⊆ O)
        : LocalRuleApp (L,R,O) C
 
-theorem localRuleTruth : ReplaceThis := sorry
-  -- show that any LocalRuleApp preserves truth in a model.
+theorem loadRuleTruthSem (lr : LoadRule (~'χ) B) {W} (M : KripkeModel W) (w : W) :
+    (M,w) ⊨ (~(unload χ))
+    ↔
+    (∃ fs o, (fs,o) ∈ B ∧ (M,w) ⊨ (fs ++ (o.map negUnload).toList)) :=
+  by
+  have := loadRuleTruth lr W M w
+  simp at *
+  sorry
+
+theorem localRuleTruth
+    {L R : List Formula}
+    {C : List TNode}
+    (O : Option (Sum NegLoadFormula NegLoadFormula))
+    (lrA : LocalRuleApp (L,R,O) C) (M : KripkeModel W) (w : W)
+  : (M,w) ⊨ (L,R,O) ↔ ∃ Ci ∈ C, (M,w) ⊨ Ci
+  := by
+  rcases lrA with ⟨_, Lcond, Rcond, Ocond, rule, preconditionProof⟩
+  cases rule
+
+  case oneSidedL ress orule hC =>
+    have := oneSidedLocalRuleTruth orule W M w
+    subst hC
+    simp [applyLocalRule] at *
+    sorry
+  case oneSidedR ress orule hC =>
+    have := oneSidedLocalRuleTruth orule W M w
+    subst hC
+    simp [applyLocalRule] at *
+    sorry
+
+  case LRnegL φ hC =>
+    subst hC
+    simp [applyLocalRule] at *
+    intro hyp
+    have := hyp φ
+    have := hyp (~φ)
+    aesop
+  case LRnegR φ hC =>
+    subst hC
+    simp [applyLocalRule] at *
+    intro hyp
+    have := hyp φ
+    have := hyp (~φ)
+    aesop
+
+  case loadedL ress χ lrule hC  =>
+    have := loadRuleTruth lrule W M w
+    rw [disEval] at this
+    subst hC
+    simp [applyLocalRule] at *
+    subst preconditionProof
+    simp [modelCanSemImplyForm,modelCanSemImplyLLO] at *
+    sorry -- should be doable
+
+  case loadedR ress χ lrule hC =>
+    have := loadRuleTruth lrule W M w
+    -- analogous to loadedL
+    sorry
 
 -- A set X is simple  iff  all P ∈ X are (negated) atoms or [A]_ or ¬[A]_.
 @[simp]
