@@ -23,75 +23,64 @@ inductive Tree
 inductive Step : Nat → List Nat → Type
 | up    : Step k     [k+1]
 | down  : Step (k+2) [k]
-| split : Step (j+k) [j,k]
+| split j k : Step (j+k) [j,k]
 
 inductive HisTree : (List Nat) → Nat → Type
 | leaf : HisTree H 0
-| step : Step n ms → (∀ m ∈ ms, HisTree (n :: H) m) → HisTree H n
+| step : Step n ms → (∀ {m}, m ∈ ms → HisTree (n :: H) m) → HisTree H n
 | rep : m ∈ H → HisTree H m
 
 open Step HisTree
 
-def helper : HisTree H j → ((m : Nat) → m ∈ [j] → HisTree H m) := by
-  intro t m m_def
-  simp at *
-  subst m_def
-  exact t
+def helper (t : HisTree H j) (m_def : m ∈ [j]) : HisTree H m :=
+  (List.mem_singleton.1 m_def) ▸ t
 
 -- * EXAMPLES
 
-/-
-   4
-   2
-   0 -/
-example : HisTree [] 4 := by
-  apply step down
-  apply helper
-  apply step down
-  apply helper
-  apply leaf
-
-/-
-    4
-   2 2
-   0 0 -/
-example : HisTree [] 4 := by
-  apply step (@split 2 2)
-  intro m m_def; simp at *; subst m_def -- same goal because same sub-tree!!
-  apply step down
-  apply helper
-  apply leaf
+example : HisTree [] 4 :=
+  -- 4
+  step down $ helper $
+  -- 2
+  step down $ helper
+  -- 0
+  leaf
 
 
-def helperSplit j1 j2 : HisTree H j1 → HisTree H j2 → (∀ m ∈ [j1, j2], HisTree H m) := by
-  intro t1 t2 m m_def
-  simp at m_def
-  -- Here "cases m_def" does not work, but is there a more elegant way?
-  if h : m = j1 then
-    subst h; exact t1
+def helperSplit (m_def : m ∈ [j1, j2]) (t1 : HisTree H j1) (t2 : HisTree H j2) : (HisTree H m) :=
+  if h1 : m = j1 then
+    h1 ▸ t1
+  else if h2 : m = j2 then
+    h2 ▸ t2
   else
-    if h : m = j2 then
-     subst h; exact t2
-   else
-     exfalso; aesop
+    by exfalso; aesop
 
-/-
-    4
-   1 3
-   2 4*
-   0    -/
-example : HisTree [] 4 := by
-  apply step (@split 1 3)
-  apply helperSplit
-  · apply step up
-    apply helper
-    apply step down
-    apply helper
-    apply leaf
-  · apply step up
-    apply helper
-    apply rep -- Tadaa!
-    aesop
+example : HisTree [] 4 :=
+  --   4
+  step (split 2 2) $
+  -- 2   2
+  (fun m_in =>
+    let two_to_zero := (step down $ helper $ leaf)
+  -- 0   0
+    helperSplit m_in
+    two_to_zero
+    two_to_zero)
+
+example : HisTree [] 4 :=
+  --      4
+  step (split 1 3) $
+  --    1   3
+  (fun m_in =>
+    helperSplit m_in
+    (step up $ helper $
+     -- 2
+     step down $ helper $
+     -- 0
+     leaf)
+           (step up $
+           -- 4 ( repeat)
+           helper $ rep $
+           by aesop)
+  )
 
 -- * CLAIMS
 
