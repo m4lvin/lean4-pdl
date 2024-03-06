@@ -35,9 +35,6 @@ mutual
     | M, ∗α, w, v => Relation.ReflTransGen (relate M α) w v
     | M, ?'φ, w, v => w = v ∧ evaluate M w φ
 end
-termination_by
-  evaluate _ _ f => sizeOf f
-  relate _ p _ _ => sizeOf p
 
 @[simp]
 theorem evalDis {W M f g} {w : W} : evaluate M w (f⋁g) ↔ evaluate M w f ∨ evaluate M w g :=

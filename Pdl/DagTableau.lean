@@ -1,6 +1,7 @@
 import Mathlib.Data.Finset.Basic
 import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.Ring
+import Mathlib.Data.Nat.Pow
 
 import Pdl.Semantics
 import Pdl.Star
@@ -315,7 +316,7 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
       · right; aesop
 
 termination_by
-  notStarSoundnessAux α M v w fs φ v_D v_a_w w_nP => mOfProgram α
+  mOfProgram a
 
 def dagEndNodes : (List Formula × Option NegDagFormula) → List (List Formula)
   | (fs, none) => [ fs ]
@@ -324,7 +325,7 @@ def dagEndNodes : (List Formula × Option NegDagFormula) → List (List Formula)
         have : mOfDagNode gsdf < mOfDagNode (fs, some df) := mOfDagNode.isDec h
         dagEndNodes gsdf)).join
 termination_by
-  dagEndNodes fs => mOfDagNode fs
+  fs => mOfDagNode fs
 decreasing_by simp_wf; assumption
 
 theorem dagEnd_subset_next
@@ -355,7 +356,7 @@ theorem dagEnd_subset_trf {Ω Γ} :
     have := dagEnd_subset_trf O_in
     tauto
 termination_by
-  dagEnd_subset_trf Ω Γ hyp  => mOfDagNode Γ
+  _ => mOfDagNode Γ
 decreasing_by simp_wf; apply mOfDagNode.isDec; assumption
 
 -- A normal successor in a diamond dagger tableau is an end node.
@@ -493,7 +494,7 @@ theorem notStarInvert (M : KripkeModel W) (v : W) S
       have v_T := notStarInvert M v T ⟨Γ, ⟨Γ_in, v_Γ⟩⟩ -- recursion!
       exact notStarInvertAux M v (fs , ~⌈a⌉f) ⟨_, ⟨T_in, v_T⟩⟩
 termination_by
-  notStarInvert M v S claim => mOfDagNode S
+  _ => mOfDagNode S
 decreasing_by simp_wf; apply mOfDagNode.isDec; aesop
 
 
@@ -561,8 +562,8 @@ def LDDTNode.isDagFree : LDDTNode → Bool
 | ⟨_, Sum.inl _⟩ => True
 | ⟨_, Sum.inr _⟩ => False
 
--- TODO: All things we had for normal (= unloaded) diamonds
--- we now need also for loaded here, i.e. anaologons of:
+-- All things we had for normal (= unloaded) diamonds
+-- we now repeat for loaded diamonds:
 --
 -- [X] dagNext --> loadDagNext
 -- [X] mOfDagNode --> mOfLoadDagNode
@@ -877,7 +878,7 @@ theorem loadNotStarSoundnessAux (a : Program) M (v w : W) (fs)
           aesop
       · right; aesop
 termination_by
-  loadNotStarSoundnessAux α M v w fs φ v_D v_a_w w_nP => mOfProgram α
+  mOfProgram a
 
 -- Note that the "Option" here is always "some", but we keep it for
 -- compatibility with `inductive LoadRule` in LocalTableau.lean.
@@ -888,7 +889,7 @@ def loadDagEndNodes : LDDTNode → List (List Formula × Option NegLoadFormula)
         have : mOfLoadDagNode gsdf < mOfLoadDagNode (fs, Sum.inr df) := mOfLoadDagNode.isDec h
         loadDagEndNodes gsdf)).join
 termination_by
-  loadDagEndNodes fs => mOfLoadDagNode fs
+  fs => mOfLoadDagNode fs
 decreasing_by simp_wf; assumption
 
 instance {W : Type} : vDash (KripkeModel W × W) (List Formula × Option NegLoadFormula) :=
@@ -923,7 +924,7 @@ theorem loadDagEnd_subset_trf {Ω Γ} :
     have := loadDagEnd_subset_trf O_in
     tauto
 termination_by
-  loadDagEnd_subset_trf Ω Γ hyp  => mOfLoadDagNode Γ
+  hyp => mOfLoadDagNode Γ
 decreasing_by simp_wf; apply mOfLoadDagNode.isDec; assumption
 
 theorem loadDagNormal_is_loadDagEnd {Γ S : LDDTNode}
@@ -1074,7 +1075,7 @@ theorem loadNotStarInvert (M : KripkeModel W) (v : W) S
       have v_T := loadNotStarInvert M v T ⟨Γ, ⟨Γ_in, v_Γ⟩⟩ -- recursion!
       exact loadNotStarInvertAux M v (fs , Sum.inr (~⌊a⌋f)) ⟨_, ⟨T_in, v_T⟩⟩
 termination_by
-  loadNotStarInvert M v S claim => mOfLoadDagNode S
+  claim => mOfLoadDagNode S
 decreasing_by simp_wf; apply mOfLoadDagNode.isDec; aesop
 
 -- -- -- BOXES -- -- --
@@ -1113,11 +1114,11 @@ theorem measure_theorem (fs: List Formula) (rest: List DagFormula) {ψ ψ1 ψ2 :
     simp
     let b := max (mOfDagFormula ψ1) (mOfDagFormula ψ2)
     have h3 : 3 ^ mOfDagFormula ψ1 ≤ 3 ^ b := by
-      apply pow_le_pow_right (by linarith : 1 ≤ 3) (by aesop : mOfDagFormula ψ1 ≤ b)
+      apply pow_le_pow_right (by linarith : 1 ≤ 3) (by simp [b] : mOfDagFormula ψ1 ≤ b)
     have h4 : 3 ^ mOfDagFormula ψ2 ≤ 3 ^ b := by
-      apply pow_le_pow_right (by linarith : 1 ≤ 3) (by aesop : mOfDagFormula ψ2 ≤ b)
+      apply pow_le_pow_right (by linarith : 1 ≤ 3) (by simp [b] : mOfDagFormula ψ2 ≤ b)
     have h5 : 1 + b ≤ mOfDagFormula ψ := by
-      have := Nat.succ_le_of_lt (by aesop : b < mOfDagFormula ψ)
+      have := Nat.succ_le_of_lt (by simp [b]; aesop : b < mOfDagFormula ψ)
       linarith
     calc 3 ^ mOfDagFormula ψ1 + 3 ^ mOfDagFormula ψ2
        ≤ 3 ^ b + 3 ^ b := by have := add_le_add h3 h4; linarith
@@ -1205,7 +1206,7 @@ def boxDagEndNodes : BDNode → List (List Formula)
         have := mOfBoxDagNode.isDec h
         boxDagEndNodes gsdf)).join
 termination_by
-  boxDagEndNodes fs => mOfBoxDagNode fs
+  fs => mOfBoxDagNode fs
 decreasing_by simp_wf; simp at *; assumption
 
 theorem boxDagEnd_subset_next
@@ -1232,7 +1233,7 @@ theorem boxDagEnd_subset_trf {Ω Γ} :
     have := boxDagEnd_subset_trf O_in
     tauto
 termination_by
-  boxDagEnd_subset_trf Ω Γ hyp  => mOfBoxDagNode Γ
+  hyp => mOfBoxDagNode Γ
 decreasing_by simp_wf; simp at *; assumption
 
 -- A normal successor in a box dagger tableau is an end node.
@@ -1318,7 +1319,7 @@ theorem starInvert
       -- three cases again? or recursion for all?
       sorry
 termination_by
-  starInvert M v S claim => mOfBoxDagNode S
+  _ => mOfBoxDagNode S
 decreasing_by simp_wf; aesop
 
 theorem starSoundnessAux {M : KripkeModel W} {v : W} {fs ψ dfs} :
@@ -1388,5 +1389,5 @@ theorem starSoundness (M : KripkeModel W) (v : W) S :
       subst def_S
       exact boxDagEnd_subset_next T_in Γ_in
 termination_by
-  starSoundness _ _ _ S _ => mOfBoxDagNode S
-decreasing_by simp_wf; simp at *; aesop
+  _ => mOfBoxDagNode S
+decreasing_by all_goals (simp_wf; simp at *; aesop)

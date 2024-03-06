@@ -61,7 +61,7 @@ theorem InterpolantInductionStep
           have sat_c_θ : Satisfiable (c.1 ∪ {(bigCon <| interList.map (~·))}) :=
              (sat_double_neq_invariant (bigCon <| interList.map (~·))).mp sat_c_nnθ
           have sat_c_c'sθ : Satisfiable <| c.1 ∪ {~ (subθs c c_in_C).1} :=
-            bigConNeg_union_sat_down sat_c_θ (subθs c c_in_C).1 (by simp; use c, c_in_C)
+            bigConNeg_union_sat_down sat_c_θ (subθs c c_in_C).1 (by simp (config := {zetaDelta := true}); use c, c_in_C)
           exact (subθs c c_in_C).2 |> And.right |> And.left <| sat_c_c'sθ
 
         . intro R_and_θ_sat
@@ -99,7 +99,7 @@ theorem InterpolantInductionStep
         · intro R_and_θ_sat
           let ⟨⟨c,c_in_C⟩,_,sat_c_θ⟩ := oneSidedRule_implies_child_sat_R def_ruleA def_rule R_and_θ_sat
           have sat_c'sθ : Satisfiable <| c.2 ∪ {(subθs c c_in_C).1} :=
-              bigCon_union_sat_down sat_c_θ ((subθs c c_in_C).1) (by simp; use c, c_in_C)
+              bigCon_union_sat_down sat_c_θ ((subθs c c_in_C).1) (by simp (config := {zetaDelta := true}); use c, c_in_C)
           exact (subθs c c_in_C).2 |> And.right |> And.right <| sat_c'sθ
 
     -- LRNEG L

@@ -271,7 +271,7 @@ theorem localRuleApp_does_not_increase_vocab {L R : Finset Formula} (ruleA : Loc
 
 -- used in LocalRule_uniqueL
 @[simp]
-theorem not_notSelfContain : ~φ ≠ φ := fun.
+theorem not_notSelfContain : ~φ ≠ φ := by intro hyp; cases hyp
 
 -- If one local rule substituting some formula α by some set res applies to some node LR,
 -- then all children of LR in any local tableau contain α or res
@@ -547,19 +547,11 @@ theorem localRuleDecreasesLengthSide (rule : LocalRule (Lcond, Rcond) ress) :
 
 -- These are used by aesop in `localRuleNoOverlap`.
 @[simp]
-theorem notnot_notSelfContain : ~~φ ≠ φ := fun.
+theorem notnot_notSelfContain : ~~φ ≠ φ := by intro hyp; cases hyp
 @[simp]
-theorem conNotSelfContainL : φ1 ⋀ φ2 ≠ φ1 := fun.
+theorem conNotSelfContainL : φ1 ⋀ φ2 ≠ φ1 := by intro hyp; cases hyp
 @[simp]
-theorem conNotSelfContainR : φ1 ⋀ φ2 ≠ φ2 :=
-  -- This should also just be "fun." but we have too much Mathlib imported.
-  -- see https://leanprover.zulipchat.com/#narrow/stream/113489-new-members/topic/.E2.9C.94.20well-foundedness.20of.20my.20own.20inductive.3F/near/416990596
-  by
-  induction φ2
-  all_goals simp
-  intro hyp
-  subst hyp
-  tauto
+theorem conNotSelfContainR : φ1 ⋀ φ2 ≠ φ2 := by intro hyp; cases hyp
 
 -- Rules never re-insert the same formula(s).
 theorem localRuleNoOverlap
@@ -578,7 +570,7 @@ theorem localRuleNoOverlap
 -- theorems that only hold in rings.
 
 @[simp]
-def zlengthOf : Formula → Int := fun f => Coe.coe (lengthOfFormula f)
+def zlengthOf : Formula → Int := fun f => ((lengthOfFormula f : Nat) : Int)
 
 theorem zlengthOf.pos : 0 ≤ zlengthOf φ := Int.ofNat_nonneg (lengthOfFormula φ)
 
@@ -588,7 +580,7 @@ def zlengthOfSet : Finset Formula → Int := fun X => X.sum zlengthOf
 theorem zlen_iff { X Y : Finset Formula }
     : lengthOf X < lengthOf Y ↔ zlengthOfSet X < zlengthOfSet Y :=
   by
-  have : ∀ W, zlengthOfSet W = lengthOfSet W := by intro W; simp; rfl
+  have : ∀ W, zlengthOfSet W = lengthOfSet W := by intro W; simp
   rw [this, this]
   zify
   simp
@@ -783,7 +775,7 @@ def endNodesOf : (Σ LR, LocalTableau LR) → List TNode
       ).join
   | ⟨LR, LocalTableau.fromSimple _⟩ => [LR]
 termination_by
-  endNodesOf pair => lengthOf pair
+  pair => lengthOf pair
 
 @[simp]
 theorem endNodesOfSimple : endNodesOf ⟨ LR, LocalTableau.fromSimple hyp ⟩ = [LR] :=
@@ -823,7 +815,7 @@ theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOf
         _ < lengthOfTNode LR := this
   case fromSimple LR_simp => intro Z_endOf_Y; aesop
 termination_by
-  endNodesOfLEQ LT   => lengthOfTNode LR
+  lengthOfTNode LR
 
 theorem endNodesOfLocalRuleLT :
     Z ∈ endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩ → lengthOfTNode Z < lengthOfTNode LR :=
@@ -875,7 +867,7 @@ noncomputable def aLocalTableauFor (LR: TNode) : LocalTableau LR :=
       have := localRuleAppDecreasesLength ruleA c c_in_C -- for termination
       aLocalTableauFor c)
   termination_by
-    aLocalTableauFor LR => lengthOf LR
+    lengthOf LR
   decreasing_by
     simp_wf; assumption
 
@@ -905,4 +897,4 @@ theorem existsLocalTableauFor LR : Nonempty (LocalTableau LR) :=
       have := localRuleAppDecreasesLength ruleA c c_in
       apply Classical.choice (existsLocalTableauFor c)
 termination_by
-  existsLocalTableauFor LR => lengthOf LR
+  lengthOf LR

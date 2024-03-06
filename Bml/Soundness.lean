@@ -288,7 +288,7 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
           rw [or_imp] at this_pro_sat
           cases' this_pro_sat with this_pro_sat_l this_pro_sat_r
           tauto
-      simp
+      simp (config := {zetaDelta := true}) -- need to unfold "let"s
 
 theorem localRuleSoundness
     (M : KripkeModel W)
@@ -336,7 +336,7 @@ theorem ruleImpliesChildSat
     rcases ruleApp with ⟨ress, Lcond, Rcond, lrule, preproofL, preproofR⟩
     let Δ := (L ∪ R) \ (Lcond ∪ Rcond)
     have : ∃res ∈ ress, (M, w) ⊨ (Δ ∪ res.1 ∪ res.2) :=
-      localRuleSoundness M w lrule Δ (by aesop)
+      localRuleSoundness M w lrule Δ (by simp (config := {zetaDelta := true}); aesop)
     aesop
 
 theorem oneSidedRule_implies_child_sat_L
@@ -428,7 +428,7 @@ theorem localTableauAndEndNodesUnsatThenNotSat (LR : TNode) {ltLR : LocalTableau
     apply endsOfLRnotSat
     simp
 termination_by
-  localTableauAndEndNodesUnsatThenNotSat LR _ _  => lengthOfTNode LR
+  _ => lengthOfTNode LR
 
 theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
   by

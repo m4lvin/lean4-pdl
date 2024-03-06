@@ -118,6 +118,8 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
         simp at minus_Y
         specialize minus_Y nP_in_Y
         convert minus_Y
+termination_by
+  f => lengthOf f
 
 theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
     ∀ X P, ((⌈a⌉P) ∈ X.val → (∀ (Y : Worlds), relate MG.val a X Y → P ∈ Y.val)) -- (0)
@@ -153,11 +155,6 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
       exact (loadedTruthLemmaProg MG c X) P bP_and_cP_in_X.right Y X_c_Y
   case star a =>
     -- We now follow MB and do another level of induction over n.
-    have P_and_aSaP_in_X : P ∈ X.val ∧ (⌈a⌉⌈∗a⌉P) ∈ X.val := by
-      have ⟨_,⟨i,_,_,_⟩⟩ := MG
-      have := (i X).left
-      simp [Saturated] at this
-      exact (this P P a a).right.right.right.right.right.right.left boxP_in_X
     have claim : ∀ n (ys : Vector Worlds n.succ),
       (⌈∗a⌉P) ∈ ys.head.val → (∀ i : Fin n, relate MG.val a (ys.get i.castSucc) (ys.get (i.succ))) → P ∈ ys.last.val
       := by
@@ -193,11 +190,11 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
         rw [this]
         apply IH ys.tail
         · convert boxP_in_Z
-          simp
           cases ys using Vector.inductionOn
           case h_cons _ rest _ _ =>
             cases rest using Vector.inductionOn
-            · aesop
+            · simp only [Vector.tail_cons, Vector.head_cons]
+              rfl
         · intro i
           specialize steprel (i.succ).castSucc
           simp
@@ -227,11 +224,10 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
       exact X_R
     case inr P_in_X =>
       exact P_in_X
+termination_by
+  _ _ _ => lengthOf a
 
 end
-termination_by
-  loadedTruthLemma Worlds MG X f => lengthOf f
-  loadedTruthLemmaProg Worlds MG a X f _ => lengthOf a
 
 
 -- Lemma 9, page 32

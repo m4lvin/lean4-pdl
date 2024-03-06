@@ -59,11 +59,11 @@ lemma undag_inject {φ} : undag (inject ps α φ) = (⌈⌈ps⌉⌉(⌈∗ α⌉
   by
   simp
 
-theorem ProgramSequenceNotSelfContaining : ∀ (p q: Program), ¬ (p = (p ;' q)) := fun.
-theorem ProgramUnionNotSelfContainingLeft : ∀ (p q: Program), ¬ (p = (p⋓q)) := fun.
-theorem ProgramUnionNotSelfContainingLeft' : ∀ (p q: Program), ¬ ((p⋓q) = p) := fun.
-theorem ProgramUnionNotSelfContainingRight : ∀ (p q: Program), ¬ (q = (p⋓q)) := fun.
-theorem ProgramUnionNotSelfContainingRight' : ∀ (p q: Program), ¬ ((p⋓q) = q) := fun.
-theorem ProgramTestNotSelfContain (ψ : DagFormula) (φ : Formula) : (¬ψ = ⌈?'φ⌉ψ) := fun.
-theorem ProgramStarNotSelfContain (α : Program) : ¬ ((∗α) = α) := fun.
-theorem ProgramBoxStarNotSelfContain (α : Program) (ψ : DagFormula) : ¬ ((⌈∗α⌉ψ) = ψ) := fun.
+theorem ProgramSequenceNotSelfContaining : ∀ (p q: Program), ¬ (p = (p ;' q)) := by intro p q hyp; cases hyp
+theorem ProgramUnionNotSelfContainingLeft : ∀ (p q: Program), ¬ (p = (p⋓q)) := by intro p q hyp; cases hyp
+theorem ProgramUnionNotSelfContainingLeft' : ∀ (p q: Program), ¬ ((p⋓q) = p) := by intro p q hyp; cases hyp
+theorem ProgramUnionNotSelfContainingRight : ∀ (p q: Program), ¬ (q = (p⋓q)) := by intro p q hyp; cases hyp
+theorem ProgramUnionNotSelfContainingRight' : ∀ (p q: Program), ¬ ((p⋓q) = q) := by intro p q hyp; cases hyp
+theorem ProgramTestNotSelfContain (ψ : DagFormula) (φ : Formula) : ¬(ψ = ⌈?'φ⌉ψ) := by intro hyp; cases hyp
+theorem ProgramStarNotSelfContain (α : Program) : ¬ ((∗α) = α) := by intro hyp; cases hyp
+theorem ProgramBoxStarNotSelfContain (α : Program) (ψ : DagFormula) : ¬ ((⌈∗α⌉ψ) = ψ) := by intro hyp; cases hyp

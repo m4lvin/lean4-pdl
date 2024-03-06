@@ -23,9 +23,6 @@ mutual
     | φ⋀ψ => 1 + lengthOfFormula φ + lengthOfFormula ψ
     | ⌈α⌉φ => 1 + lengthOfProgram α + lengthOfFormula φ
 end
-termination_by -- silly but needed?!
-  lengthOfProgram p => sizeOf p
-  lengthOfFormula f => sizeOf f
 
 -- mwah
 @[simp]
@@ -69,6 +66,3 @@ mutual
     | ⌈α⌉ φ => mOfProgram α + mOfFormula φ
     | ~⌈α⌉ φ => mOfProgram α + mOfFormula (~φ)
 end
-termination_by -- silly but needed?!
-  mOfProgram p => sizeOf p
-  mOfFormula f => sizeOf f

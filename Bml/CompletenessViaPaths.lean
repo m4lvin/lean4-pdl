@@ -471,7 +471,8 @@ noncomputable def aPathOf (conLR : ConsTNode) : Path conLR := by
     have : lengthOf c < lengthOf conLR.1 := by
       apply localRuleAppDecreasesLength lrApp c c_in
     exact interNode lrApp c_in (aPathOf ⟨c, c_cons⟩)
-termination_by aPathOf conLR => lengthOf conLR
+termination_by
+  lengthOf conLR
 
 noncomputable def toWorld (consLR: ConsTNode): Finset Formula :=
   pathToFinset (aPathOf consLR)
@@ -537,7 +538,7 @@ theorem modelExistence: Consistent (L,R) →
             have u_cons := consThenProjectLCons nboxf_in v_simp v_cons
             let u' : ConsTNode := ⟨u, u_cons⟩
             have u_eq: u = (projection vL ∪ {~f}, projection vR) := by
-              simp only
+              simp (config := {zetaDelta := true}) only
               unfold diamondProjectTNode
               aesop
             use toWorld u'
@@ -553,8 +554,10 @@ theorem modelExistence: Consistent (L,R) →
               simp at h
               specialize h f nboxf_in
               use u'
+              simp_all only [union_singleton_is_insert, and_true]
+              exact h
             · have nf_in : ~f ∈ u.1 ∪ u.2 := by
-                simp
+                simp (config := {zetaDelta := true})
                 unfold diamondProjectTNode
                 split
                 all_goals simp_all
@@ -563,7 +566,7 @@ theorem modelExistence: Consistent (L,R) →
             let u := diamondProjectTNode (Sum.inr f) ⟨vL, vR⟩
             let u' : ConsTNode := ⟨u, (by apply consThenProjectRCons nboxf_in v_simp v_cons)⟩
             have u_eq: u = (projection vL, projection vR ∪ {~f}) := by
-              simp only
+              simp (config := {zetaDelta := true}) only
               unfold diamondProjectTNode
               aesop
             have u_sub: u.1 ∪ u.2 ⊆ toWorld u' := by apply LR_in_PathLR
@@ -579,8 +582,10 @@ theorem modelExistence: Consistent (L,R) →
             · have h := M₀.inductiveR w' w'_in v'_def
               specialize h f nboxf_in
               use u'
+              simp_all only [union_singleton_is_insert, and_true]
+              exact h
             · have nf_in : ~f ∈ u.1 ∪ u.2 := by
-                simp
+                simp (config := {zetaDelta := true})
                 unfold diamondProjectTNode
                 split
                 all_goals simp_all

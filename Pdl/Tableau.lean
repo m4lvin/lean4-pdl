@@ -104,10 +104,8 @@ inductive ClosedTableau : LoadHistory → TNode → Type
                                                               (projection A L, projection A R, some (Sum.inr (~'χ)))
   | atmR'  {A X φ} : isSimpleNode X → LStep ClosedTableau Hist record ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
                                                               (projection A L, projection A R ++ [~φ], none)
+  -- Condition 6a repeats are end nodes:
   | rep {X Hist} (rep : condSixRepeat X Hist) : ClosedTableau Hist X
-  --
-  -- NOTE: If we want only finite tableaux then "repeat" may have to be eager?
-  -- Would we need to add its negation in all other rules? For now, leave it.
 
 inductive Provable : Formula → Prop
   | byTableauL {φ : Formula} : ClosedTableau ([],[]) ⟨[~φ], [], none⟩ → Provable φ

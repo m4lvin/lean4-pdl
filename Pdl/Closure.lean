@@ -21,7 +21,7 @@ def ftr {α : Type}
     α → List α
   | x => [x] ++ ((f x).attach.map (fun ⟨y,y_in⟩ => have := y_in; ftr f m isDec y)).join
 termination_by
-  ftr h m isDec S => m S
+  S => m S
 decreasing_by simp_wf; apply isDec x _ (by assumption)
 -- have := ... to avoid false waring, see https://github.com/leanprover/lean4/issues/2920
 
@@ -89,9 +89,9 @@ theorem ftr.iff' {x y : α}
           use a
         unfold ftr
         aesop
-termination_by
-  ftr.iff' x y f m isDec => m x -- ??
-decreasing_by simp_wf; apply isDec x _ (by assumption)
+termination_by m x
+decreasing_by
+  all_goals (simp_wf; apply isDec; tauto)
 
 theorem biUnion_subset (f : α → List α) : ∀ i, ∀ (X Y : List α),
     X ⊆ Y → ((λ X => (X.map f).join)^[i]) X ⊆ ((λ X => (X.map f).join)^[i]) Y :=  by

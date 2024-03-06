@@ -7,7 +7,7 @@ import Bml.Setsimp
 
 @[simp]
 def vocabOfFormula : Formula → Finset Char
-  | ⊥ => Set.toFinset { }
+  | ⊥ => { }
   | ·c => {c}
   | ~φ => vocabOfFormula φ
   | φ⋀ψ => vocabOfFormula φ ∪ vocabOfFormula ψ
@@ -94,7 +94,7 @@ theorem vocPreservedTwo {X : Finset Formula} (ψ ϕ1 ϕ2) :
   all_goals intro a_in; norm_num at *
   · rcases a_in with ⟨θ, theta_in_X, a_in_vocTheta⟩
     by_cases h : θ = ψ
-    · right; subst h; unfold vocabOfSetFormula vocabOfFormula at *; simp at *;
+    · right; subst h; unfold vocabOfSetFormula vocabOfFormula at *
       rw [← eq_voc] at a_in_vocTheta ; simp at a_in_vocTheta ; tauto
     · constructor
       · use θ
