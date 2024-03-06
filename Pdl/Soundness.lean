@@ -395,18 +395,7 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
 -/
 
 
--- I wanted to do a variation of the bml localRuleSoundness using the
--- soundness rules in Pdl.LocalTableau
--- But only just found out that LocalRule is now defined on TNodes
--- whereas it was defined on Subpairs in the bml version
--- so either needs a rewrite or types maybe need to be changed back
-theorem localRuleSoundness
-    (M : KripkeModel W)
-    (w : W)
-    (rule : LocalRule (L, R, O) ress) -- used to be Lcond, Rcond (, Ocond)
-    (Δ : List Formula) :
-    (M, w) ⊨ (Δ ∪ Lcond ∪ Rcond) → ∃res ∈ ress, (M, w) ⊨ res := -- used to be (M, w) ⊨ Δ ∪ res.1 ∪ res.2
-  by sorry
+-- theorem localRuleSoundness -- removed, see localRuleTruth in LocalTableau.lean
 
 -- alternative ruleImpliesChildSat using localRuleTruth from Semantics
 theorem ruleImpliesChildSat

@@ -995,6 +995,61 @@ theorem loadNotStarSoundness
     · absurd caseTwo.2 -- contradiction!
       exact w_neq_z
 
+theorem loadNotStarSoundness'
+    (M : KripkeModel W) (w : W) (a : Program) (φ : Formula)
+    :
+    (M, w) ⊨ negUnload (~'(⌊∗a⌋φ)) →
+      ∃ Γ ∈ [([~φ], none)] ++ loadDagEndNodes (∅, Sum.inr (NegDagLoadFormula.neg (injectLoad' a φ))),
+        (M,w) ⊨ Γ :=
+  by
+  intro w_naSf
+  simp [modelCanSemImplyForm] at w_naSf
+  rcases w_naSf with ⟨y, x_rel_y, y_nf⟩
+  cases starCases x_rel_y -- NOTE: Relation.ReflTransGen.cases_head without ≠ is not enough here ...
+  case inl w_is_y =>
+    subst w_is_y
+    use ([~φ], none)
+    simp
+    intro f f_in
+    simp at *
+    subst f_in
+    simp only [evaluate]
+    exact y_nf
+  case inr hyp =>
+    -- (... because we need to get the in-equality here to get the contradiction below.)
+    rcases hyp with ⟨_, z, w_neq_z, w_a_z, z_aS_y⟩
+    -- MB now distinguishes whether a is atomic, we don't care.
+    have := loadNotStarSoundnessAux a M w z [] (DagLoadFormula.dag a φ)
+    specialize this _ w_a_z _
+    · intro g g_in
+      simp at g_in
+      subst g_in
+      simp
+      exact ⟨z, ⟨w_a_z, ⟨y, ⟨z_aS_y, y_nf⟩⟩⟩⟩
+    · simp [vDash,modelCanSemImplyForm]
+      use y
+    rcases this with ⟨Γ, Γ_in, w_Γ, caseOne | caseTwo⟩
+    · rcases caseOne with ⟨A, as, Γ2def, _, Γ_normal⟩
+      simp
+      right
+      use Γ.1, some (~'⌊·A⌋⌊⌊as⌋⌋undagOnly (DagLoadFormula.dag a φ))
+      constructor
+      · have := loadDagNormal_is_loadDagEnd Γ_in _ (by tauto)
+        aesop
+      · intro f f_in
+        simp at f_in
+        cases f_in
+        · aesop
+        case inr f_def =>
+          subst f_def
+          rcases Γ with ⟨Γ1,Γ2⟩
+          simp at Γ2def
+          subst Γ2def
+          apply w_Γ
+          simp
+    · absurd caseTwo.2 -- contradiction!
+      exact w_neq_z
+
 theorem loadNotStarInvertAux (M : KripkeModel W) (v : W) S :
     (∃ Γ ∈ loadDagNext S, (M, v) ⊨ Γ) → (M, v) ⊨ S := by
   intro hyp

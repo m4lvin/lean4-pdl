@@ -248,8 +248,48 @@ theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
           rw [conEval] at w_Γ
           aesop
   case nSt' α φ =>
-    -- analogous to nSt, but maybe need loadNotStarSoundness' with a φ instead of χ ??
-    sorry
+    -- analogous to nSt, but using loadNotStarSoundness' with a φ instead of χ.
+    constructor
+    · -- soundness
+      intro w_naSchi
+      have := loadNotStarSoundness' M w α φ w_naSchi
+      rcases this with ⟨Γ, Γ_in, w_Γ⟩
+      simp at Γ_in
+      simp
+      rw [disEvalHT, disEval]
+      cases Γ_in
+      case inl Γ_def =>
+        subst Γ_def
+        left
+        apply w_Γ
+        simp
+      case inr Γ_in =>
+        right
+        simp only [List.mem_map, Prod.exists]
+        refine ⟨?_, ⟨Γ.1, Γ.2, ?_⟩, ?_⟩
+        · exact Con (Γ.1 ++ Option.toList (Option.map negUnload Γ.2))
+        · simp; assumption
+        · rw [conEval]; apply w_Γ
+    · -- invertibility
+      intro w_X
+      simp [disEvalHT, disEval] at w_X
+      cases w_X
+      · simp; use w
+      case inr hyp =>
+        simp at hyp
+        rcases hyp with ⟨f, ⟨Γ1, Γ2, ⟨Γ_in_ends, def_f⟩⟩, w_Γ⟩
+        let thelf := NegDagLoadFormula.neg (DagLoadFormula.box α (DagLoadFormula.dag α φ))
+        have := loadNotStarInvert M w ([], Sum.inr thelf) ⟨⟨Γ1,Γ2⟩, ⟨Γ_in_ends, ?_⟩⟩
+        · simp [vDash, modelCanSemImplyLoadDagTabNode, evaluateLDDTNode] at *
+          rcases this with ⟨z, w_a_z, y, z_aS_x, y_nf⟩
+          use y
+          constructor
+          · exact Relation.ReflTransGen.head w_a_z z_aS_x
+          · assumption
+        · intro g g_in -- for the ?_ above
+          subst def_f
+          rw [conEval] at w_Γ
+          aesop
 
 -- A LocalRule is a OneSidedLocalRule or a LoadRule.
 -- Formulas can be in four places now: left, right, loaded left, loaded right.
