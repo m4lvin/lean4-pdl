@@ -1,6 +1,7 @@
 import Mathlib.Data.Vector.Basic
 import Mathlib.Logic.Relation
 
+-- Mathlib this?
 theorem starCases {r : α → α → Prop} {x z : α} :
   Relation.ReflTransGen r x z → (x = z ∨ (x ≠ z ∧ ∃ y, x ≠ y ∧ r x y ∧ Relation.ReflTransGen r y z)) :=
   by
