@@ -839,8 +839,7 @@ def A_mul : (Multiset ℕ) := {1,3}
 
 
 
-lemma mord_acc' [DecidableEq α] [LT α] : ∀ M : Multiset α, (∀ x, x ∈ M -> Acc LT.lt x) → AccM M := by
-  sorry
+
 
 
 lemma mord_acc [DecidableEq α] [LT α] : ∀ M : Multiset α, (∀ x, x ∈ M -> Acc LT.lt x) → AccM M := by
@@ -853,6 +852,7 @@ lemma mord_acc [DecidableEq α] [LT α] : ∀ M : Multiset α, (∀ x, x ∈ M -
 lemma mord_acc_mOrd_acc [DecidableEq α] [LT α] : ∀ X:Multiset α, AccM X → ACC_M X := by sorry
 
 
+-- It uses `mord_acc_mOrd_acc` and `mord_acc`, which still need to be proved.
 lemma mOrd_acc  [DecidableEq α] [LT α]: ∀ (M: Multiset α), (∀ x:α, (x ∈ M) →  (Acc LT.lt x)) → (ACC_M M) := by
   intros
   apply mord_acc_mOrd_acc
@@ -871,6 +871,8 @@ lemma mOrd_acc  [DecidableEq α] [LT α]: ∀ (M: Multiset α), (∀ x:α, (x �
 --   intro y h
 --   exact Acc.intro y h
 
+-- This is the desired theorem
+-- It uses `mOrd_acc`, which still needs to be proved.
 theorem mord_wf {α : Type u} [DecidableEq α] [LT α]
     (wf_lt :  WellFoundedLT α) :
     WellFounded (MultisetLT : Multiset α → Multiset α → Prop) := by
@@ -925,17 +927,256 @@ theorem acc_homo (h : ∀ (x y : B) (x' : A), morphism x' x → T y x → ∃ (y
 
 
 #eval 1 ::ₘ {1,2} = {2} + {1,1}
+#eval Multiset.erase {1,2} 1 = {1,2} - {1}
+
+-- the conjunction operator takes precedence over the disjunction operator, so that p ∧ q ∨ r means (p ∧ q) ∨ r rather than p ∧ (q ∨ r)
+
+lemma meq_union_meq : ∀ {α : Type u} [DecidableEq α] [LT α] {M N P : Multiset α},
+      M + P = N + P →
+            M = N := by aesop
+
+lemma meq_union_meq_reverse : ∀ {α : Type u} [DecidableEq α] [LT α] {M N P : Multiset α},
+      M = N →
+            M + P = N + P := by aesop
+
+@[simp]
+lemma mul_cons_trivial : ∀ {α : Type u} [DecidableEq α] [LT α] {a : α} {M : Multiset α},
+       M + {a} = a ::ₘ M := by
+      intros
+      ext
+      simp [Multiset.count_cons, Multiset.count_singleton, Multiset.count_add]
+
+@[simp]
+lemma mul_erase_trivial : ∀ {α : Type u} [DecidableEq α] [LT α] {a : α} {M : Multiset α},
+       M - {a} = Multiset.erase M a := by
+       intros
+       ext
+       simp [Multiset.erase_singleton]
+       simp [Multiset.count_cons, Multiset.count_singleton, Multiset.count_add]
+       aesop
+      --  simp [mset_sub, Multiset.erase]
+
+lemma mul_mem_not_erase : ∀ {α : Type u} [DecidableEq α] [LT α] {a a0: α} {M X : Multiset α},
+      M = Multiset.erase (a0 ::ₘ X) a → ¬ a = a0 → a0 ∈ M := by
+      intros _ _ _ a a0 M X H hyp
+      rw [H]
+      have : a0 ∈ Multiset.erase (a0 ::ₘ X) a ↔ a0 ∈ (a0 ::ₘ X) := by
+        apply Multiset.mem_erase_of_ne
+        aesop
+      rw [this]
+      aesop
+
+lemma mem_erase_cons : ∀ {α : Type u} [DecidableEq α] [LT α] {a0: α} {M : Multiset α},
+      a0 ∈ M → M = M - {a0} + {a0} := by
+      aesop
+
+lemma neq_negeq1 : ¬ a0 = a → a0 ≠ a := by aesop
+
+lemma neq_negeq2 : ¬ a = a0 → a0 ≠ a := by aesop
+
+lemma neq_erase : ∀ {α : Type u} [DecidableEq α] [LT α] {a a0: α} (M : Multiset α)(h: a0 ≠ a), Multiset.count a0 (Multiset.erase M a) = Multiset.count a0 M := by
+  intros _ _ _ a a0 M h
+  have : Multiset.count a0 (a ::ₘ (Multiset.erase M a)) = Multiset.count a0 (a ::ₘ M) := by aesop
+  aesop
+
+lemma cons_erase : ∀ {α : Type u} [DecidableEq α] [LT α] {a a0: α} {M X : Multiset α},
+      a ::ₘ M = X + {a0} → M = X + {a0} - {a} := by
+      intros α _ _ a a0 M X H
+      if hyp : a = a0 then
+        aesop
+      else
+        have a0_a: a0 ≠ a := by apply neq_negeq2 hyp
+        ext b
+        simp [Multiset.count_cons, Multiset.count_singleton, Multiset.count_add]
+        have H : Multiset.count b (a ::ₘ M) = Multiset.count b (X + {a0}) := by aesop
+        if ba : b = a then
+
+          rw [ba]
+          rw [ba] at H
+          have : a ∈ X + {a0} := by
+            by_contra h
+            have absurd3 : Multiset.count a (a ::ₘ M) > 0 := by simp
+            aesop
+          have : Multiset.count a (a ::ₘ M) = Multiset.count a M + 1 := by simp
+          have : Multiset.count a (a0 ::ₘ X) = Multiset.count a (Multiset.erase (a0 ::ₘ X) a) + 1 := by simp ; aesop
+          aesop
+        else if ba0 : b = a0 then
+          rw [ba0]
+          rw [ba0] at H
+          -- have this1: Multiset.count a0 (Multiset.erase (a ::ₘ M) a) = Multiset.count a0 (Multiset.erase (a0 ::ₘ X) a) := by
+          --   have : M = Multiset.erase (a ::ₘ M) a := by
+          --     simp
+          --   simp
+          --   have this1: Multiset.count a0 M = Multiset.count a0 (a ::ₘ M) := by
+          --     rw [Multiset.count_cons_of_ne a0_a M]
+          --   have this2: Multiset.count a0 (Multiset.erase (a0 ::ₘ X) a) = Multiset.count a0 (X + {a0}) := by
+          --     --rw [Multiset.count_cons_of_ne this M]
+          --     have this3: Multiset.count a0 (Multiset.erase (a0 ::ₘ X) a) = Multiset.count a0 (a0 ::ₘ X) := by
+          --       -- simp
+
+          --       rw [neq_erase (a0 ::ₘ X) a0_a]
+          --     rw [this3]
+          --     simp
+          --   rw [this1]
+          --   rw [this2]
+          --   -- aesop (maximum recursion depth) Ask Malvin about this.
+          --   exact H
+          have : Multiset.count a0 (Multiset.erase (a ::ₘ M) a) = Multiset.count a0 (Multiset.erase (a ::ₘ M) a) := by
+            simp
+          have : Multiset.count a0 (a ::ₘ M) = Multiset.count a0 X + 1 := by aesop
+          have : Multiset.count a0 M = Multiset.count a0 (a ::ₘ M) := by
+            have : a0 ≠ a := by aesop
+            rw [Multiset.count_cons_of_ne this M]
+          aesop
+          -- have : Multiset.count a0 (a ::ₘ M) = Multiset.count a0 M := by aesop
+          else
+          have : Multiset.count b M = Multiset.count b (a ::ₘ M) := by
+            have : b ≠ a := by aesop
+            -- have : ∀s, Multiset.count a s = Multiset.count a (b ::ₘ s) := by
+            rw [Multiset.count_cons_of_ne this M]
+          rw [this ]
+          have : Multiset.count b (X + {a0}) = Multiset.count b (Multiset.erase (a0 ::ₘ X) a) := by
+            simp
+            aesop
+          aesop
+
+#check Multiset.count_cons_of_ne
+       -- may need case distinction here on whether a = a0
+
+lemma red_insert : ∀ {α : Type u} [DecidableEq α] [LT α] {a : α} {M N : Multiset α},
+      MultisetRedLt N (a ::ₘ M) →
+      ∃ (M' : Multiset α),
+          N = (a ::ₘ M') ∧ MultisetRedLt M' M
+        ∨ N = M + M' ∧ (∀ x : α, x ∈ M' → x < a) := by
+        intros _ _ _ a M N H
+        rcases H with ⟨X, Y, a0, H1, H0, H2⟩
+        -- cases h : (decide (a = a0))
+        if hyp : a = a0 then
+          --subst hyp  (this would remove hyp)
+           exists Y; right; apply And.intro
+           . rw [H1]
+             rw [add_left_inj]
+             rw [mul_cons_trivial] at H0
+             aesop
+           . aesop
+        else
+          exists (Y + (M - {a0}))
+          left
+          constructor --; apply And.intro
+          . rw [H1]
+            have : X = (M - {a0} + {a}) := by
+              simp at *
+              ext b
+              rw [Multiset.count_cons]
+              simp [Multiset.ext, Multiset.count_cons] at H0
+              if h : b = a then
+                rw [h]
+                have := H0 b
+                aesop
+              else
+                have := H0 b
+                aesop
+            subst this
+            rw [add_comm]
+            aesop
+          . constructor
+            · change Y + (M - {a0}) = (M - {a0}) + Y
+              rw [add_comm]
+            · change M = M - {a0} + {a0}
+              have this0: M = X + {a0} - {a} := by apply cons_erase ; exact H0
+              have a0M: a0 ∈ M := by
+                apply mul_mem_not_erase
+                . change M = Multiset.erase (a0 ::ₘ X) a
+                  rw [mul_erase_trivial] at this0
+                  rw [mul_cons_trivial] at this0
+                  exact this0
+                . exact hyp
+              apply mem_erase_cons
+              . exact a0M
+            exact H2
+
+lemma mord_wf_1 {α : Type u} {_ : Multiset α} [DecidableEq α] [LT α] :
+    ∀ (a : α) (M0 : Multiset α),
+    (∀ b (M : Multiset α), LT.lt b a → AccM_1 M → AccM_1 (b ::ₘ M)) →
+    AccM_1 M0 →
+    (∀ M, MultisetRedLt M M0 → AccM_1 (a ::ₘ M)) →
+    AccM_1 (a ::ₘ M0) := by
+       intros a M0 H1 H2 H3
+       constructor
+       intros N N_lt
+       change AccM_1 N
+       rcases (red_insert N_lt) with ⟨x, H, H0⟩
+       case h.intro.inr h =>
+        rcases h with ⟨H, H0⟩
+        rw [H]
+        clear H --It is weired that removing this line cause aesop to not be able to prove it. Even though it reports after `exhaustive` search?
+        induction x using Multiset.induction with
+        | empty =>
+          aesop
+        | cons h =>
+          rename_i _ _ a0 M
+          have trivial: M0 + a0 ::ₘ M= a0 ::ₘ (M0 + M) := by aesop
+          rw [trivial]
+          aesop
+       case h.intro.inl.intro =>
+        aesop
 
 
-lemma mord_wf_3 {α : Type u} {M : Multiset α} [DecidableEq α] [LT α] :
+lemma mord_wf_2 {α : Type u} {M : Multiset α} [DecidableEq α] [LT α] :
+  ∀ (a : α),
+  (∀ (b : α), ∀ (M : Multiset α), LT.lt b a → AccM_1 M → AccM_1 (b ::ₘ M)) →
+  ∀ M, AccM_1 M → AccM_1 (a ::ₘ M) := by
+    unfold AccM_1
+    intros _ H M H0
+    induction H0 with
+    | intro x wfH wfH2 =>
+      apply mord_wf_1
+      . aesop
+      . intros b x a
+        unfold AccM_1
+        apply H
+        assumption
+      . constructor
+        aesop
+      . aesop
+
+
+lemma mord_wf_3 {α : Type u} {_ : Multiset α} [DecidableEq α] [LT α] :
   ∀ (a:α), Acc LT.lt a → ∀ (M : Multiset α), AccM_1 M → AccM_1 (a ::ₘ M) := by
-  sorry
+  intro w w_a
+  induction w_a with
+  | intro x _ ih =>
+      intro M accM1
+      apply @mord_wf_2 α M _ _ _ _ _ accM1
+      simp_all
+
+-- Acc_ind =
+-- fun (A : Type) (R : A -> A -> Prop) (P : A -> Prop)
+--   (f : forall x : A, (forall y : A, R y x -> Acc R y) -> (forall y : A, R y x -> P y) -> P x) =>
+-- fix F (x : A) (a : Acc R x) {struct a} : P x :=
+--   match a with
+--   | Acc_intro _ a0 => f x a0 (fun (y : A) (r : R y x) => F y (a0 y r))
+--   end
+--      : forall (A : Type) (R : A -> A -> Prop) (P : A -> Prop),
+--        (forall x : A, (forall y : A, R y x -> Acc R y) -> (forall y : A, R y x -> P y) -> P x) -> forall x : A, Acc R x -> P x
+
+-- Arguments Acc_ind [A]%type_scope [R]%function_scope (P f)%function_scope [x] a
+
+def Acc_ind {A : Type u} {R : A → A → Prop} {P : A → Prop} (f : ∀ (x : A), (∀ (y : A), R y x → Acc R y) → (∀ (y : A), R y x → P y) → P x) (x : A) (h : Acc R x) : P x := by
+  induction h with
+  | intro =>
+  apply f
+  . assumption
+  . assumption
+
+
 
 #check Multiset.induction_on
 
 -- TODO1:
+-- The `lt_wf` to `Lt_wf` turns out to be unnecessary.
 -- If all elements of a multiset M is accessible given the underlying relation `LT.lt`, then the multiset M is accessible given the `MultisetRedLt` relation.
--- It uses `not_MultisetRedLt_0` and `mord_wf_3`, which still need to be proved.
+-- It uses `not_MultisetRedLt_0` (proved) and `mord_wf_3` (not proved yet).
 lemma mred_acc {α : Type u} [DecidableEq α] [LT α] :
       ∀ (M : Multiset α), (∀x, x ∈ M → Acc LT.lt x) → AccM_1 M  := by
       intros M wf_el
@@ -980,23 +1221,112 @@ lemma Lt_wf [DecidableEq α] [LT α]
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 -- TODO2:
 -- The relation `MultisetLt` is equivalent to `MultisetLT`.
 -- This one is a bit tricky to prove at the moment. Maybe stick to Coq's proof to prove `mord_acc_mOrd_acc` first? But that also requires similar proofs. I think we could just prove this straight.
 -- I didn't expect this part to be hard.
 
+-- def X_mul : (Multiset ℕ) := {1,1,2}
+-- def Y_mul : (Multiset ℕ) := {1,2,1}
+-- def Z_mul : (Multiset ℕ) := {1,2}
+-- def W_mul : (Multiset ℕ) := {1}
+-- def A_mul : (Multiset ℕ) := {1,3}
+
 #print MultisetLt
 #print MultisetRedLt
 #print MultisetLT
+#eval Multiset.inter {0,1} {1} = {1}
+#eval Z_mul - A_mul = {2}
+
+lemma mul_geq_zero [DecidableEq α] [LT α] : ∀ (M : Multiset α), M ≥ 0 := by
+  intro M
+  rcases M
+  aesop?
+
+notation M:arg " <_DM " N:arg => MultisetLT M N
+notation M:arg " ≥_DM " N:arg => MultisetLT N M ∨ N = M
+
+lemma mul_not_lower_zero [DecidableEq α] [LT α] : ∀ (M : Multiset α), ¬ M <_DM 0 := by
+      intro M
+      have M_geq_0: M ≥ 0 := Multiset.zero_le M
+      by_contra M_le_0
+      rw [ge_iff_le] at *
+
+      sorry
+
+
+
+
 
 lemma LT_trans {α} [dec : DecidableEq α] [lt : LT α]:
       Transitive (@MultisetLT α dec lt) := by
-      intros LTAB LTBC
+      intros M N P LTMN LTNP
+      rcases LTMN with ⟨X, Y, Z, Y_not_empty, MZX, NZY, h⟩
+      rcases LTNP with ⟨X', Y', Z', Y'_not_empty,NZX',PZY', h' ⟩
+      apply MultisetLT.MLT ((Z+X) - (Multiset.inter Z Z')) ((Z'+Y')-(Multiset.inter Z Z')) (Multiset.inter Z Z')
+      . have : Y' <_DM (Z' + Y' - Multiset.inter Z Z') := by
+          sorry
+        cases this
+
+
+        sorry
+      . rw [MZX]
+        sorry
+      . rw [PZY']
+        sorry
+      . sorry
+
+
+
+
+ lemma direct_subset_red [DecidableEq α] [LT α] : ∀ (M N : Multiset α), MultisetLT M N →  MultisetLt M N := by
+      intros M N LTXY
+      induction LTXY with
+      | _ W h =>
+      unfold MultisetLt
       sorry
+
+
 
 -- It uses `LT_trans`, which still needs to be proved.
 -- Is this gonna be hard to prove? Why does the coq proof use some other ways to prove:  mord_acc_mOrd_acc (Acc_homo), mOrd_acc.
-lemma Lt_LT [DecidableEq α] [LT α] :
+lemma Lt_LT_equiv [DecidableEq α] [LT α] :
       (MultisetLt : Multiset α → Multiset α → Prop) = (MultisetLT : Multiset α → Multiset α → Prop) := by
       funext X Y
       apply propext
@@ -1014,15 +1344,11 @@ lemma Lt_LT [DecidableEq α] [LT α] :
           simp
           assumption
 
-        | trans Z W A hLtZW hLtWA aih bih => -- it suffices to show MultisetLT is transitive
+        | trans Z W A _ _ aih bih => -- it suffices to show MultisetLT is transitive
           exact LT_trans aih bih
 
       · -- LT → Lt:
-        intros LTXY
-        induction LTXY with
-        | _ W h =>
-        unfold MultisetLt
-        sorry
+        apply direct_subset_red
 
 
 -- If two relations are equivalent and one of them is well-founded, then the other one is also well-founded.
@@ -1030,9 +1356,9 @@ lemma equiv_r_wf [DecidableEq α] [LT α] (h1 : WellFounded (r1 :  Multiset α �
   aesop
 
 -- The desired theorem. If `LT.lt` is well-founded, then `MultisetLT` is well-founded.
-theorem dm_wf [DecidableEq α] [LT α] (wf_lt :  WellFoundedLT α) :
+theorem dm_wf' [DecidableEq α] [LT α] (wf_lt :  WellFoundedLT α) :
       WellFounded (MultisetLT : Multiset α → Multiset α → Prop) := by
-      apply (equiv_r_wf (Lt_wf (RedLt_wf wf_lt)) Lt_LT)
+      apply (equiv_r_wf (Lt_wf (RedLt_wf wf_lt)) Lt_LT_equiv)
 
 
 
