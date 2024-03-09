@@ -2,22 +2,23 @@ import Std.Data.List.Lemmas
 import Aesop
 import Mathlib.Tactic.Tauto
 import Mathlib.Tactic.Convert
+import Mathlib.Tactic.Use
 
 -- This file is not part of PDL, but just a playground for
 -- representing trees with repeats / back-pointers.
 
 -- Instead of formulas, here we use Nat.
--- This type allows arbitrary trees with Nat entries.
-inductive Tree
-| Node : Nat → List Tree → Tree
+-- The following type would allows arbitrary trees with Nat entries.
+-- inductive Tree
+-- | Node : Nat → List Tree → Tree
 
--- But suppose only want trees formed using three rules
+-- But suppose we only want trees formed using these three rules:
 --
 --  k        k          j+k
 -- ---(up)  ---(down)  -----(split)
 -- k+1      k-2        j   k
 --
--- and such that leafs must be either 0 or *repeats*.
+-- and such that leafs must be either 1 or *repeats*.
 
 -- * DEFINITIONS
 
@@ -60,31 +61,91 @@ def bla : HisTree [] 4 :=
 
 inductive PathIn : (Σ H n, HisTree H n) → Type
 | nil : PathIn ht
-| cons m (m_in : m ∈ ms) (rest : PathIn ⟨n :: H, m, next m_in⟩) : PathIn ⟨H, n, step s next⟩
+| cons m (m_in : m ∈ ms) (s : Step n ms) (rest : PathIn ⟨n :: H, m, next m_in⟩) : PathIn ⟨H, n, step s next⟩
 
+def PathIn.length : PathIn ⟨H, m, ht⟩ → Nat
+| nil => 0
+| cons _ _ _ rest => 1 + rest.length
+
+-- Convert a path to a list, where the last path element will be the head.
 def PathIn.toList : PathIn ⟨H, m, ht⟩ → List Nat
 | nil => []
-| cons m _ rest => m :: toList rest
+| cons _ _ _ rest => toList rest ++ [m]
+
+theorem PathIn.length_eq_toListLength (p : PathIn ⟨H, m, ht⟩): p.length = p.toList.length := by
+  cases p_def : p
+  · simp [PathIn.toList, PathIn.length]
+  case cons _ _ _ _ _ rest =>
+    simp [PathIn.toList, PathIn.length]
+    have : rest.length < p.length := by subst p_def; simp [PathIn.length]; omega
+    rw [PathIn.length_eq_toListLength rest]
+    omega
+termination_by
+  p.length
+decreasing_by
+  simp_wf; simp at *; convert this; sorry -- where is the other "p" coming from?!
 
 def treeAt : PathIn ⟨H, n, ht⟩ → (Σ H n, HisTree H n)
 | PathIn.nil => ⟨H, n, ht⟩
-| PathIn.cons _ _ rest => treeAt rest -- wow, that is much simpler than treeAt' :-)
+| PathIn.cons _ _ _ rest => treeAt rest -- wow, that is much simpler than treeAt' :-)
+
+-- A better version to also give us the determined history:
+def treeAtP : (p : PathIn ⟨H, n, ht⟩) → (Σ n, HisTree (p.toList ++ H) n)
+| PathIn.nil =>
+    have : H = (PathIn.nil.toList ++ H) := by simp [PathIn.toList]
+    ⟨n, this ▸ ht⟩
+| PathIn.cons m m_in s rest =>
+    have : rest.toList ++ n :: H = (PathIn.cons m m_in s rest).toList ++ H := by
+      simp [PathIn.toList]
+    this ▸ treeAtP rest
+
+-- Or, as a proof above treeAt:
+theorem treeAtH_is (p : PathIn ⟨H, n, ht⟩) : (treeAt p).1 = (p.toList ++ H) := by
+  cases p
+  · simp [PathIn.toList, treeAt]
+  case cons ms m m_in s next rest =>
+    simp [PathIn.toList, treeAt]
+    have : rest.length < (PathIn.cons m m_in s rest).length := by simp [PathIn.length]; omega
+    exact treeAtH_is rest
+termination_by
+  p.length
+decreasing_by
+  simp_wf; simp at *; sorry -- assumption -- where is the other "p" coming from?!
+
+-- def goUp : PathIn ⟨H, m, ht⟩ → Option PathIn ⟨H, _, ht⟩ -- TODO??
+
+def isRep : (Σ H n, HisTree H n) → Prop
+| ⟨_, _, rep _⟩ => True
+| _ => False
+
+def isSplit : (Σ H n, HisTree H n) → Prop
+| ⟨_, _, step split _⟩ => True
+| _ => False
 
 def isPrefixOf : PathIn ⟨H, n, ht⟩ → PathIn ⟨H, n, ht⟩ → Prop
 | PathIn.nil, _ => true
-| PathIn.cons m _ rest, PathIn.cons m' _ rest' => (meq : m = m') → isPrefixOf rest (meq.symm ▸ rest')
-| PathIn.cons _ _ _, PathIn.nil => false
+| PathIn.cons m _ _ rest, PathIn.cons m' _ _ rest' => (meq : m = m') → isPrefixOf rest (meq.symm ▸ rest')
+| PathIn.cons _ _ _ _, PathIn.nil => false
 
 -- Example of a statement about repeats that should be tricky to prove now:
 -- Any path to a repeat must have a prefix to a split.
 -- (This may or may not be similar enough to condition 6a for PDL.)
 theorem rep_needs_split_above
     (p : PathIn ⟨[], m, ht⟩)
-    (p_is_rep : treeAt p = ⟨Hp, mp, rep k_in⟩)
-  : ∃ (k : Nat) (Hp' : List Nat) (next : _) (p' : PathIn ⟨[], m, ht⟩),
-      isPrefixOf p' p ∧ (treeAt p' = ⟨Hp', k+1, step (@split k) next⟩) :=
+    (p_is_rep : isRep (treeAt p))
+  : ∃ p', isPrefixOf p' p ∧ isSplit (treeAt p') :=
   by
-  sorry
+  unfold isRep at *
+  rcases treeAt p with ⟨H,m,ht⟩
+  cases m
+  case zero =>
+    -- This should be impossible, a 0 cannot be repeated.
+    by_contra hyp
+    simp at hyp
+    sorry
+  case succ mp_pred =>
+    -- TODO: should "rep" contain the information how long ago the repeat is?
+    sorry
 
 
 -- TODO: define loopy-paths succ relation including steps via back-loops
