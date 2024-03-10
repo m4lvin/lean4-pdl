@@ -2,9 +2,6 @@
 
 import Mathlib.Data.List.Card
 
-import Pdl.Syntax
-import Pdl.Measures
-import Pdl.Semantics
 import Pdl.LocalTableau
 
 open HasLength
@@ -48,6 +45,8 @@ def toNegLoad (α : Program) (φ : Formula) : NegLoadFormula :=
 
 -- TNodes  before × since  last (At) application (and only recording loaded nodes)
 def LoadHistory : Type := List TNode × List TNode -- This may not be enough!
+
+def LoadHistory.nil : LoadHistory := ([], [])
 
 -- MB Condition 6, simplified to only represent closed tableau:
 --
@@ -111,9 +110,9 @@ inductive Provable : Formula → Prop
   | byTableauL {φ : Formula} : ClosedTableau ([],[]) ⟨[~φ], [], none⟩ → Provable φ
   | byTableauR {φ : Formula} : ClosedTableau ([],[]) ⟨[], [~φ], none⟩ → Provable φ
 
--- MB: Definition 17, page 30
-def Inconsistent : List Formula → Prop
-  | X => ∃ L R, L ++ R = X ∧ Nonempty (ClosedTableau ([],[]) ⟨L, R, none⟩)
+-- Definition 17, page 30
+def Inconsistent : TNode → Prop
+  | LR => Nonempty (ClosedTableau .nil LR)
 
-def Consistent : List Formula → Prop
-  | X => ¬Inconsistent X
+def Consistent : TNode → Prop
+  | LR => ¬Inconsistent LR

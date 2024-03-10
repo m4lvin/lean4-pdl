@@ -77,6 +77,13 @@ def semImpliesLists (X : List Formula) (Y : List Formula) :=
 def semEquiv (φ : Formula) (ψ : Formula) :=
   ∀ (W : Type) (M : KripkeModel W) (w), evaluate M w φ ↔ evaluate M w ψ
 
+theorem notsatisfnotThenTaut : ∀ φ, ¬Satisfiable (~φ) → tautology φ :=
+  by
+  intro phi
+  unfold Satisfiable
+  unfold tautology
+  simp
+
 theorem subsetSat {M : KripkeModel W} {w : W} {X Y : List Formula} : (∀ φ ∈ X, evaluate M w φ) → Y ⊆ X → ∀ φ ∈ Y, evaluate M w φ :=
   by aesop
 
@@ -110,7 +117,13 @@ infixl:40 "≡" => semEquiv
 infixl:40 "⊭" => fun a b => ¬a⊨b
 
 @[simp]
-theorem singletonSat_iff_sat {M : KripkeModel W} {w : W} : ∀ φ, (M, w) ⊨ ([φ] : List Formula) ↔ evaluate M w φ :=
+theorem singletonSat_iff_sat : ∀ φ, Satisfiable ({φ} : Finset Formula) ↔ Satisfiable φ :=
+  by
+  intro phi
+  simp
+
+@[simp]
+theorem vDashSingleton_iff_vDash_formula {M : KripkeModel W} {w : W} : ∀ φ, (M, w) ⊨ ([φ] : List Formula) ↔ evaluate M w φ :=
   by
   intro phi
   simp [modelCanSemImplyList]
@@ -125,7 +138,7 @@ theorem forms_to_lists {φ ψ : Formula} : φ⊨ψ → ([φ] : List Formula)⊨(
   rw [psi_in_psi]
   -- needed even though no ψ_1 in goal here?!
   apply impTaut
-  rw [←singletonSat_iff_sat φ] at lhs
+  rw [←vDashSingleton_iff_vDash_formula φ] at lhs
   · tauto
   · aesop
 

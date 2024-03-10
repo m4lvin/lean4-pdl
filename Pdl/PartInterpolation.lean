@@ -1,8 +1,7 @@
 import Mathlib.Data.Finset.Basic
 
 import Pdl.Vocab
-import Pdl.Semantics
-import Pdl.LocalTableau
+import Pdl.Completeness
 
 open HasVocabulary HasSat
 

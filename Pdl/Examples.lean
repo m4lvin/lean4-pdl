@@ -4,7 +4,6 @@ import Mathlib.Data.Fin.Basic
 import Mathlib.Logic.Relation
 import Mathlib.Data.Vector.Snoc
 
-import Pdl.Syntax
 import Pdl.Semantics
 import Pdl.Star
 

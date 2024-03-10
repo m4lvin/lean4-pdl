@@ -1,7 +1,6 @@
 -- MODELGRAPHS
-import Pdl.Syntax
+
 import Pdl.Semantics
-import Pdl.Measures
 import Pdl.Star
 
 open Formula

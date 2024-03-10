@@ -1,27 +1,32 @@
 -- LOCAL TABLEAU
 
-
-import Pdl.Syntax
-import Pdl.Measures
 import Pdl.Setsimp
-import Pdl.Semantics
 import Pdl.Discon
 import Pdl.DagTableau
 import Pdl.Vocab
 
-open Undag
+open Undag HasLength
 
-open HasLength
+-- TABLEAU NODES
 
--- TABLEAU nodes
-
--- A tableau node has a set of formulas and one or no negated loaded formula.
+-- A tableau node has two lists of formulas and one or no negated loaded formula.
 def TNode := List Formula × List Formula × Option (Sum NegLoadFormula NegLoadFormula) -- ⟨L, R, o⟩
-  deriving DecidableEq -- TODO Repr
+  deriving DecidableEq, Repr
 
+-- Some thoughts about the TNode type:
+-- - one formula may be loaded
+-- - loading is not changed in local tableaux, but must be tracked through it.
+-- - each (loaded) formula can be on the left/right/both
+-- - we also need to track loading and the side "through" dagger tableau.
+
+-- We do not care about the order of the lists.
+-- TNodes should be considered equal when their Finset versions are equal.
 -- Hint: use List.toFinset.ext_iff with this.
 def TNode.setEqTo : TNode → TNode → Bool
 | (L,R,O), (L',R',O') => L.toFinset == L'.toFinset ∧ R.toFinset == R'.toFinset ∧ O == O'
+
+def TNode.toFinset : TNode → Finset Formula
+| (L,R,O) => (L.toFinset ∪ R.toFinset) ∪ (O.map (Sum.elim negUnload negUnload)).toFinset
 
 @[simp]
 def TNode.L : TNode → List Formula := λ⟨L,_,_⟩ => L
@@ -45,11 +50,8 @@ instance modelCanSemImplyTNode : vDash (KripkeModel W × W) TNode :=
 instance modelCanSemImplyLLO : vDash (KripkeModel W × W) (List Formula × List Formula × Option (Sum NegLoadFormula NegLoadFormula)) :=
   vDash.mk (λ ⟨M,w⟩ ⟨L, R, o⟩ => ∀ f ∈ L ∪ R ∪ (o.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
 
--- Some thoughts about the TNode type:
--- - one formula may be loaded
--- - loading is not changed in local tableaux, but must be tracked through it.
--- - each (loaded) formula is left/right/both --> annotation or actually have two sets X1 and X2 here?
--- - also need to track loading and side "through" dagger tableau. (loading only for diamond dagger?)
+instance tNodeHasSat : HasSat TNode :=
+  HasSat.mk fun Δ => ∃ (W : Type) (M : KripkeModel W) (w : W), (M,w) ⊨ Δ
 
 -- LOCAL TABLEAU
 
@@ -613,5 +615,3 @@ def endNodesOf : (Σ X, LocalTableau X) → List TNode
       have : lengthOf Y < lengthOf X := localRuleApp.decreaseLength lr Y h
       endNodesOf ⟨Y, next Y h⟩).join
   | ⟨X, sim _⟩ => [X]
--- termination_by  -- Why is this not needed, even though "this" above is needed?
---   endNodesOf p => lengthOf p.1

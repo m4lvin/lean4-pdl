@@ -1,6 +1,5 @@
 import Mathlib.Init.Data.Nat.Lemmas
 
-import Pdl.Syntax
 import Pdl.Semantics
 
 @[simp]

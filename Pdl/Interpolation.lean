@@ -1,7 +1,5 @@
 import Mathlib.Data.Finset.Basic
 
-import Pdl.Vocab
-import Pdl.Semantics
 import Pdl.PartInterpolation
 
 open HasVocabulary vDash HasSat

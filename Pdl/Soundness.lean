@@ -1,14 +1,12 @@
+-- SOUNDNESS
+
 import Pdl.Tableau
-import Pdl.LocalTableau
-import Pdl.Semantics
-import Pdl.Discon
 
 import Mathlib.Tactic.Ring
 
 open Classical
 
 open HasSat
-
 
 -- Combine a collection of pointed models with one new world using the given valuation.
 -- TODO: rewrite to term mode?
@@ -523,13 +521,13 @@ theorem localRuleSoundnessNoneLoaded
         constructor
         · specialize satLR φ; aesop
         · specialize satLR (~φ); aesop
-      aesop
+      simp at this
     case LRnegR φ =>
       have : evaluate M w φ ∧ evaluate M w (~φ) := by
         constructor
         · specialize satLR φ; aesop
         · specialize satLR (~φ); aesop
-      aesop
+      simp at this
 
 -- this is all redundant if you can use loadRuleTruth from LocalTableau
 theorem localRuleSoundnessLoadedL
@@ -755,7 +753,7 @@ def nodeInAt : (Σ X HistX, ClosedTableau HistX X) → List TNode → Option TNo
         exact none -- fail, we cannot go to Y (and should be using Loopy from below!)
       all_goals sorry
 termination_by
-   nodeInAt Xhtab toWalk => toWalk.length
+   Xhtab toWalk => toWalk.length
 
 -- Given:
 -- - a local tableau (not necessarily a root)
@@ -821,7 +819,7 @@ def tabInAt : (Σ X HistX, ClosedTableau HistX X) → List TNode → Option (Σ 
         exact none -- fail, we cannot go to Y (and should be using Loopy from below!)
       all_goals sorry
 termination_by
-   tabInAt Xhtab toWalk => toWalk.length
+   Xhtab toWalk => toWalk.length
 
 -- Go one step, to Y, but possibly via a loop
 -- Given:
@@ -871,7 +869,6 @@ def goTo : (Σ R, ClosedTableau ([],[]) R) → List TNode → TNode → Option (
           let pathToCompanion : List TNode := done.drop (k+1) -- undo the steps since companion
           have : pathToCompanion.length + 1 < done.length := by -- no more "rest" here as we only do one step
             zify
-            simp_all
             -- ring -- why not working?
             sorry
           exact (tabInAt ⟨R, ([],[]), tab⟩ pathToCompanion)
@@ -908,3 +905,34 @@ theorem loadedDiamondPaths
     all_goals sorry
 
   all_goals sorry
+
+theorem tableauThenNotSat : ∀ X, ClosedTableau LoadHistory.nil X → ¬Satisfiable X :=
+  by
+  intro X t
+  sorry
+
+-- Theorem 2, page 30
+theorem correctness : ∀LR : TNode, Satisfiable LR → Consistent LR :=
+  by
+    intro LR
+    contrapose
+    unfold Consistent
+    unfold Inconsistent
+    simp only [not_nonempty_iff, not_isEmpty_iff, not_exists, not_forall, exists_prop, Nonempty.forall]
+    intro hyp
+    apply tableauThenNotSat LR hyp
+
+theorem soundTableau : ∀φ, Provable φ → ¬Satisfiable ({~φ} : Finset Formula) :=
+  by
+    intro φ prov
+    rcases prov with ⟨tabl⟩|⟨tabl⟩
+    exact tableauThenNotSat ([~φ], [], none) tabl
+    exact tableauThenNotSat ([], [~φ], none) tabl
+
+theorem soundness : ∀φ, Provable φ → tautology φ :=
+  by
+    intro φ prov
+    apply notsatisfnotThenTaut
+    rw [← singletonSat_iff_sat]
+    apply soundTableau
+    exact prov
