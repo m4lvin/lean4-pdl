@@ -350,15 +350,93 @@ theorem localRuleTruth
   cases rule
 
   case oneSidedL ress orule hC =>
-    have := oneSidedLocalRuleTruth orule W M w
+    have osTruth := oneSidedLocalRuleTruth orule W M w
     subst hC
     simp [applyLocalRule] at *
-    sorry
+    constructor
+    · intro w_LRO
+      have : evaluate M w (discon ress) := by
+        rw [← osTruth, conEval]
+        intro f f_in; apply w_LRO
+        simp only [List.mem_union_iff, List.mem_append]
+        exact Or.inl $ Or.inl $ preconditionProof f_in
+      rw [disconEval] at this
+      rcases this with ⟨Y, Y_in, claim⟩
+      use Y
+      constructor
+      · exact Y_in
+      · intro f f_in
+        simp only [List.mem_union_iff, List.mem_append] at f_in
+        rcases f_in with (((f_in_L | f_in_Y) | f_in_R) | f_in_O)
+        · apply w_LRO f; simp only [List.mem_union_iff, List.mem_append]
+          exact Or.inl $ Or.inl $ List.diff_subset L Lcond f_in_L
+        · exact claim f f_in_Y
+        · apply w_LRO f; simp only [List.mem_union_iff, List.mem_append]
+          tauto
+        · apply w_LRO f; simp only [List.mem_union_iff, List.mem_append]
+          exact Or.inr f_in_O
+    · rintro ⟨Y, Y_in, w_LYRO⟩
+      intro f f_in
+      simp only [List.mem_union_iff, List.mem_append] at f_in
+      rcases f_in with ((f_in_L | f_in_R) | f_in_O)
+      · rcases em (f ∈ Lcond) with f_in_cond | f_notin_cond
+        · have : ∀ f ∈ Lcond, evaluate M w f := by
+            rw [← conEval, osTruth, disconEval]
+            use Y
+            constructor
+            · exact Y_in
+            · intro f f_in; apply w_LYRO; simp_all
+          exact this f f_in_cond
+        · apply w_LYRO
+          simp only [List.mem_union_iff, List.mem_append]
+          exact Or.inl $ Or.inl $ Or.inl $ List.mem_diff_of_mem f_in_L f_notin_cond
+      · apply w_LYRO; simp_all
+      · apply w_LYRO; simp_all
   case oneSidedR ress orule hC =>
+    -- based on oneSidedL case
     have := oneSidedLocalRuleTruth orule W M w
+    have osTruth := oneSidedLocalRuleTruth orule W M w
     subst hC
     simp [applyLocalRule] at *
-    sorry
+    constructor
+    · intro w_LRO
+      have : evaluate M w (discon ress) := by
+        rw [← osTruth, conEval]
+        intro f f_in; apply w_LRO
+        simp only [List.mem_union_iff, List.mem_append]
+        exact Or.inl $ Or.inr $ preconditionProof f_in
+      rw [disconEval] at this
+      rcases this with ⟨Y, Y_in, claim⟩
+      use Y
+      constructor
+      · exact Y_in
+      · intro f f_in
+        simp only [List.mem_union_iff, List.mem_append] at f_in
+        rcases f_in with ((f_in_L | (f_in_R | f_in_Y)) | f_in_O)
+        · apply w_LRO f; simp only [List.mem_union_iff, List.mem_append]
+          exact Or.inl $ Or.inl f_in_L
+        · apply w_LRO f; simp only [List.mem_union_iff, List.mem_append]
+          exact Or.inl $ Or.inr $ List.diff_subset R Rcond f_in_R
+        · exact claim f f_in_Y
+        · apply w_LRO f; simp only [List.mem_union_iff, List.mem_append]
+          exact Or.inr f_in_O
+    · rintro ⟨Y, Y_in, w_LYRO⟩
+      intro f f_in
+      simp only [List.mem_union_iff, List.mem_append] at f_in
+      rcases f_in with ((f_in_L | f_in_R) | f_in_O)
+      · apply w_LYRO; simp_all
+      · rcases em (f ∈ Rcond) with f_in_cond | f_notin_cond
+        · have : ∀ f ∈ Rcond, evaluate M w f := by
+            rw [← conEval, osTruth, disconEval]
+            use Y
+            constructor
+            · exact Y_in
+            · intro f f_in; apply w_LYRO; simp_all
+          exact this f f_in_cond
+        · apply w_LYRO
+          simp only [List.mem_union_iff, List.mem_append]
+          exact Or.inl $ Or.inr $ Or.inl $ List.mem_diff_of_mem f_in_R f_notin_cond
+      · apply w_LYRO; simp_all
 
   case LRnegL φ hC =>
     subst hC
