@@ -457,11 +457,10 @@ theorem localRuleTruth
     have := loadRuleTruth lrule W M w
     rw [disEval] at this
     subst hC
-    simp [applyLocalRule] at *
+    simp at preconditionProof
     subst preconditionProof
     simp [modelCanSemImplyForm,modelCanSemImplyLLO] at *
     constructor
-    -- TODO: shorten/simplify this?
     · intro hyp
       have hyp' := hyp (~unload χ)
       simp at hyp'
@@ -470,39 +469,22 @@ theorem localRuleTruth
       cases O
       · use (L ++ X, R, some (Sum.inl (~'χ)))
         constructor
-        · use X, none
-          simp only [Option.map_none', and_true]
-          exact in_ress
-        · intro g
-          subst def_f
-          rw [conEval] at w_f
-          specialize hyp g
-          aesop
+        · use X, none; simp only [Option.map_none', and_true]; exact in_ress
+        · intro g; subst def_f; rw [conEval] at w_f; specialize hyp g; aesop
       case some val =>
         use (L ++ X, R, some (Sum.inl val))
         constructor
-        · use X, some val
-          simp only [Option.map_some', and_true]
-          exact in_ress
-        · intro g g_in
-          subst def_f
-          rw [conEval] at w_f
-          simp at *
+        · use X, some val; simp only [Option.map_some', and_true]; exact in_ress
+        · intro g g_in; subst def_f; rw [conEval] at w_f
+          simp only [List.mem_union_iff, List.mem_append, List.mem_singleton] at g_in
           rcases g_in with ((g_in|g_in)|g_in)|g_in
-          · simp_all only [true_or]
-          · simp_all only [true_or]
-          · simp_all only [or_true, true_or]
-          · subst g_in
-            apply w_f
-            tauto
-    · intro hyp
-      rcases hyp with ⟨Ci, ⟨⟨X, O, ⟨in_ress, def_Ci⟩⟩, w_Ci⟩⟩
+          all_goals aesop
+    · rintro ⟨Ci, ⟨⟨X, O, ⟨in_ress, def_Ci⟩⟩, w_Ci⟩⟩
       intro f f_in
       subst def_Ci
       cases O
       all_goals simp at *
       · have := w_Ci f
-        simp at this
         aesop
       case some val =>
         rcases f_in with (f_in|f_in)|f_in
@@ -515,16 +497,62 @@ theorem localRuleTruth
           constructor
           · use X, some val
           · rw [conEval]
-            simp
+            simp only [Option.map_some', negUnload, Option.toList_some, List.mem_append, List.mem_singleton]
             intro g g_in
             rcases g_in with (_|g_def)
             · apply w_Ci; simp_all
             · subst g_def; apply w_Ci; simp_all
 
   case loadedR ress χ lrule hC =>
+    -- based on loadedL case
     have := loadRuleTruth lrule W M w
-    -- analogous to loadedL, but better shorten that first
-    sorry
+    rw [disEval] at this
+    subst hC
+    simp at preconditionProof
+    subst preconditionProof
+    simp [modelCanSemImplyForm,modelCanSemImplyLLO] at *
+    constructor
+    · intro hyp
+      have hyp' := hyp (~unload χ)
+      simp at hyp'
+      rw [this] at hyp'
+      rcases hyp' with ⟨f, ⟨X , O, in_ress, def_f⟩, w_f⟩
+      cases O
+      · use (L, R ++ X, some (Sum.inr (~'χ)))
+        constructor
+        · use X, none; simp only [Option.map_none', and_true]; exact in_ress
+        · intro g; subst def_f; rw [conEval] at w_f; specialize hyp g; aesop
+      case some val =>
+        use (L, R ++ X, some (Sum.inr val))
+        constructor
+        · use X, some val; simp only [Option.map_some', and_true]; exact in_ress
+        · intro g g_in; subst def_f; rw [conEval] at w_f
+          simp only [List.mem_union_iff, List.mem_append, List.mem_singleton] at g_in
+          rcases g_in with (g_in|(g_in|g_in))|g_in
+          all_goals aesop
+    · rintro ⟨Ci, ⟨⟨X, O, ⟨in_ress, def_Ci⟩⟩, w_Ci⟩⟩
+      intro f f_in
+      subst def_Ci
+      cases O
+      all_goals simp at *
+      · have := w_Ci f
+        aesop
+      case some val =>
+        rcases f_in with (f_in|f_in)|f_in
+        · apply w_Ci; simp_all
+        · apply w_Ci; simp_all
+        · subst f_in
+          simp only [evaluate]
+          rw [this]
+          use Con (X ++ Option.toList (Option.map negUnload (some val)))
+          constructor
+          · use X, some val
+          · rw [conEval]
+            simp only [Option.map_some', negUnload, Option.toList_some, List.mem_append, List.mem_singleton]
+            intro g g_in
+            rcases g_in with (_|g_def)
+            · apply w_Ci; simp_all
+            · subst g_def; apply w_Ci; simp_all
 
 -- A set X is simple  iff  all P ∈ X are (negated) atoms or [A]_ or ¬[A]_.
 @[simp]
