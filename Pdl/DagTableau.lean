@@ -1301,6 +1301,7 @@ lemma LT_trans {α} [dec : DecidableEq α] [lt : LT α]:
       rcases LTNP with ⟨X', Y', Z', Y'_not_empty,NZX',PZY', h' ⟩
       apply MultisetLT.MLT ((Z+X) - (Multiset.inter Z Z')) ((Z'+Y')-(Multiset.inter Z Z')) (Multiset.inter Z Z')
       . have : Y' <_DM (Z' + Y' - Multiset.inter Z Z') := by
+
           sorry
         cases this
 
