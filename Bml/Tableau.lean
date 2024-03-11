@@ -41,14 +41,13 @@ instance TNodeHasSat: HasSat TNode := ⟨fun (L,R) => HasSat.Satisfiable (L ∪ 
 @[simp]
 def f_in_TNode (f : Formula) (LR : TNode) := f ∈ (LR.1 ∪ LR.2)
 
-
-
-
--- Definition 9, page 15
--- A set X is closed  iff  it contains ⊥ or contains a formula and its negation.
+/--
+Definition 9, page 15.
+A set X is closed  iff  it contains `⊥` or contains a formula and its negation.
+-/
 def Closed : Finset Formula → Prop := fun X => ⊥ ∈ X ∨ ∃ f ∈ X, ~f ∈ X
 
--- A set X is simple  iff  all P ∈ X are (negated) atoms or □φ or ¬□φ.
+/-- A set X is simple  iff  all P ∈ X are (negated) atoms or □φ or ¬□φ. -/
 @[simp]
 def SimpleForm : Formula → Prop
   | ⊥ => True  -- TODO remove / change to False? (covered by bot rule)
@@ -97,7 +96,7 @@ instance : Decidable (Simple LR) :=
        else Decidable.isFalse <| by simp[Simple]; aesop
   else Decidable.isFalse      <| by simp[Simple]; aesop
 
--- Let X_A := { R | [A]R ∈ X }.
+/-- Let X_A := { R | [A]R ∈ X }. -/
 @[simp]
 def formProjection : Formula → Option Formula
   | □f => some f
@@ -203,28 +202,28 @@ inductive LocalRuleApp : TNode → List TNode → Type
        (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R)
        : LocalRuleApp (L,R) C
 
-lemma oneSidedRule_preserves_other_side_L
+theorem oneSidedRule_preserves_other_side_L
   {ruleApp : LocalRuleApp (L, R) C}
   (hmyrule : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (res, ∅)) _) _ _ rule hC preproof))
   (rule_is_left : rule = LocalRule.oneSidedL orule )
-  : ∀c ∈ C, c.2 = R := by aesop
+  : ∀ c ∈ C, c.2 = R := by aesop
 
-lemma oneSidedRule_preserves_other_side_R
+theorem oneSidedRule_preserves_other_side_R
   {ruleApp : LocalRuleApp (L, R) C}
   (hmyrule : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (∅, res)) _) _ _ rule hC preproof))
   (rule_is_right : rule = LocalRule.oneSidedR orule )
-  : ∀c ∈ C, c.1 = L := by aesop
+  : ∀ c ∈ C, c.1 = L := by aesop
 
-lemma localRule_does_not_increase_vocab_L (rule : LocalRule (Lcond, Rcond) ress)
-  : ∀res ∈ ress, voc res.1 ⊆ voc Lcond := by
+theorem localRule_does_not_increase_vocab_L (rule : LocalRule (Lcond, Rcond) ress)
+  : ∀ res ∈ ress, voc res.1 ⊆ voc Lcond := by
   intro res ress_in_ress ℓ ℓ_in_res
   cases rule
   case oneSidedL ress orule => cases orule <;> aesop
   -- other cases are trivial
   all_goals aesop
 -- dual
-lemma localRule_does_not_increase_vocab_R (rule : LocalRule (Lcond, Rcond) ress)
-  : ∀res ∈ ress, voc res.2 ⊆ voc Rcond := by
+theorem localRule_does_not_increase_vocab_R (rule : LocalRule (Lcond, Rcond) ress)
+  : ∀ res ∈ ress, voc res.2 ⊆ voc Rcond := by
   intro res ress_in_ress ℓ ℓ_in_res
   cases rule
   case oneSidedR ress orule => cases orule <;> aesop
@@ -232,7 +231,7 @@ lemma localRule_does_not_increase_vocab_R (rule : LocalRule (Lcond, Rcond) ress)
   all_goals aesop
 
 theorem localRuleApp_does_not_increase_vocab {L R : Finset Formula} (ruleA : LocalRuleApp (L,R) C)
-  : ∀cLR ∈ C, jvoc cLR ⊆ jvoc (L,R) := by -- decidableMem
+  : ∀ cLR ∈ C, jvoc cLR ⊆ jvoc (L,R) := by -- decidableMem
   match ruleA with
   | @LocalRuleApp.mk _ _ _ ress Lcond Rcond rule hC preproof =>
   intro c cinC ℓ ℓ_in_c
@@ -269,13 +268,11 @@ theorem localRuleApp_does_not_increase_vocab {L R : Finset Formula} (ruleA : Loc
       let ⟨ψ, ψ_in_Rcond, ℓ_in_ψ⟩ := ℓ_in_ψ_in_Rcond
       use ψ, (by aesop), ℓ_in_ψ
 
--- used in LocalRule_uniqueL
-@[simp]
-theorem not_notSelfContain : ~φ ≠ φ := by intro hyp; cases hyp
-
--- If one local rule substituting some formula α by some set res applies to some node LR,
--- then all children of LR in any local tableau contain α or res
--- used to prove that paths are saturated
+/--
+If a local rule replaces formula α by some set `res` when applied to some
+node LR, then all children of LR in any `LocalTableau` contain α or res.
+This is used to prove that all paths are saturated.
+-/
 theorem LocalRuleUniqueL
   (α_in_L: α ∈ L)
   (lrApp: LocalRuleApp (L,R) C)
@@ -298,7 +295,7 @@ theorem LocalRuleUniqueL
       simp_all
       rcases precond_eq with ⟨l,r⟩
       subst l
-      aesop
+      cases r
     case neg φ =>
       cases orule'
       case neg φ' =>
@@ -346,8 +343,8 @@ theorem LocalRuleUniqueL
   -- in other cases C is empty
   all_goals simp_all
 
--- almost exactly the same as LocalRuleUniqueL
-lemma LocalRuleUniqueR
+/-- Almost exactly the same as `LocalRuleUniqueL`. -/
+theorem LocalRuleUniqueR
   (α_in_R: α ∈ R)
   (lrApp: LocalRuleApp (L,R) C)
   (orule: OneSidedLocalRule precond ress)
@@ -369,7 +366,7 @@ lemma LocalRuleUniqueR
       simp_all
       rcases precond_eq with ⟨l,r⟩
       subst l
-      aesop
+      cases r
     case neg φ =>
       cases orule'
       case neg φ' =>
@@ -426,9 +423,7 @@ inductive LocalTableau : TNode → Type
       : LocalTableau LR
   | fromSimple (isSimple : Simple LR) : LocalTableau LR
 
--- If X is not simple, then a local rule can be applied.
--- (page 13)
-
+/-- If X is not simple, then a local rule can be applied (page 13). -/
 -- TODO custom tactic
 noncomputable def notSimpleToRuleApp {L R : Finset Formula}: ¬Simple (L,R) →
   ΣC, LocalRuleApp (L,R) C := λnot_simple =>
@@ -553,7 +548,7 @@ theorem conNotSelfContainL : φ1 ⋀ φ2 ≠ φ1 := by intro hyp; cases hyp
 @[simp]
 theorem conNotSelfContainR : φ1 ⋀ φ2 ≠ φ2 := by intro hyp; cases hyp
 
--- Rules never re-insert the same formula(s).
+/-- Rules never re-insert the same formula(s). -/
 theorem localRuleNoOverlap
   (rule : LocalRule (Lcond, Rcond) ress) :
   ∀ res ∈ ress, (Lcond ∩ res.1 = ∅) ∧ (Rcond ∩ res.2 = ∅) :=
@@ -646,21 +641,12 @@ theorem localRuleAppDecreasesLength
           by have := localRuleAppDecreasesLengthSide R Rcond res.2 hyp.1 precondProofR; aesop
       _ = lengthOfTNode (L, R) := by simp
 
--- theorem AppLocalTableau.DecreasesLength
---   (appTab : AppLocalTableau LR C)
---   (c_in : c ∈ C) :
---   lengthOfTNode c < lengthOfTNode LR :=
---   by
---   rcases appTab with ⟨lrApp, next⟩
---   have := localRuleAppDecreasesLength lrApp
---   aesop
-
--- Lift definition of projection to TNodes, including the diamond formula left or right.
+/-- Lift definition of projection to TNodes, including the diamond formula left or right. -/
 def diamondProjectTNode : Sum Formula Formula → TNode → TNode
 | (Sum.inl φ), (L, R) => (projection L ∪ {~φ}, projection R)
 | (Sum.inr φ), (L, R) => (projection L, projection R ∪ {~φ})
 
-lemma proj_does_not_increase_vocab : voc (projection X) ⊆ voc X := by
+theorem proj_does_not_increase_vocab : voc (projection X) ⊆ voc X := by
   simp
   intro φ φ_in_proj ℓ ℓ_in_φ
   rw [proj] at φ_in_proj
@@ -765,7 +751,7 @@ open LocalTableau
 instance localTableauHasLength : HasLength (Σ LR, LocalTableau LR) :=
   ⟨fun ⟨(L, R), _⟩ => lengthOfTNode (L, R)⟩
 
--- open end nodes of a given localTableau
+/-- Open end nodes of a given `LocalTableau`. -/
 def endNodesOf : (Σ LR, LocalTableau LR) → List TNode
   | ⟨LR, @LocalTableau.fromRule _ C ruleA subTabs⟩ =>
     (C.attach.map fun ⟨c, c_in⟩ =>
@@ -829,10 +815,11 @@ theorem endNodesOfLocalRuleLT :
       lengthOfTNode Z ≤ lengthOfTNode c := endNodesOfLEQ Z_in_ZS
       _ < lengthOfTNode LR := this
 
--- Definition 16, page 29
--- Notes:
--- - "loc" may actually make no progress (by using "LocalTableau.fromSimple"), but that seems okay.
--- - base case for simple tableaux is part of "atm" which can be applied to L or to R.
+/-- Definition 16, page 29.
+Notes:
+- "loc" may actually make no progress (by using "LocalTableau.fromSimple"), but that seems okay.
+- base case for simple tableaux is part of "atm" which can be applied to L or to R.
+-/
 inductive ClosedTableau : TNode → Type
   | loc {LR} (lt : LocalTableau LR) : (next : ∀ Y ∈ endNodesOf ⟨LR, lt⟩, ClosedTableau Y) → ClosedTableau LR
   | atmL {LR ϕ} : ~(□ϕ) ∈ LR.1 → Simple LR → ClosedTableau (diamondProjectTNode (Sum.inl ϕ) LR) → ClosedTableau LR
@@ -849,7 +836,7 @@ inductive Provable : Formula → Prop
 inductive ProvableImplication : Formula → Formula → Prop
   | byTableau : ClosedTableau ({φ},{~ψ}) → ProvableImplication φ ψ
 
--- Definition 17, page 30
+/-- Definition 17, page 30 -/
 def Inconsistent : TNode → Prop
   | LR => Nonempty (ClosedTableau LR)
 

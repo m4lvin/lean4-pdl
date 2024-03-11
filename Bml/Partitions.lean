@@ -116,9 +116,9 @@ theorem InterpolantInductionStep
           · exact preproof.right <| Finset.mem_singleton.mpr rfl
           . exact ℓinφ
 
-      · constructor <;> apply negation_not_cosatisfiable φ <;> simp
+      · constructor <;> apply negation_not_cosatisfiable φ <;> simp only [union_singleton_is_insert, Finset.mem_insert, true_or]
         · apply Or.intro_right; exact preproof.left <| Finset.mem_singleton.mpr rfl
-        · exact preproof.right <| Finset.mem_singleton.mpr rfl
+        · apply Or.intro_right; exact preproof.right <| Finset.mem_singleton.mpr rfl
 
     -- LRNEG R: dual to LRNEG l
     | LRnegR φ =>

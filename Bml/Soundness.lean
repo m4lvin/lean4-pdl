@@ -6,7 +6,7 @@ open Classical
 
 open HasSat
 
--- Combine a collection of pointed models with one new world using the given valuation.
+/-- Combine a collection of pointed models with one new world using the given valuation. -/
 -- TODO: rewrite to term mode?
 def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W × W)
     (newVal : Char → Prop) :
@@ -44,7 +44,7 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W ×
     left
     exact ()
 
--- The combined model preserves all truths at the old worlds.
+/-- The combined model preserves all truths at the old worlds. -/
 theorem combMo_preserves_truth_at_oldWOrld {β : Type}
     (collection : β → Σ W : Type, KripkeModel W × W) (newVal : Char → Prop) :
     ∀ (f : Formula) (R : β) (oldWorld : (collection R).fst),
@@ -96,7 +96,7 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
           exact rel_in_new_model
 
 
--- The combined model for X satisfies X.
+/-- The combined model for X satisfies X. -/
 theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
     {beta_def : β = {F : Formula | f_in_TNode (~F.box) (L, R)}} (simple_LR : Simple (L, R)) (not_closed_LR : ¬Closed (L ∪ R))
     (collection : β → Σ W : Type, KripkeModel W × W)
@@ -204,9 +204,11 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
         rw [sameWorld]
         exact all_pro_sat_right
 
--- Lemma 1 (page 16)
--- A simple set of formulas X is satisfiable if and only if
--- it is not closed  and  for all ¬[A]R ∈ X also XA; ¬R is satisfiable.
+/--
+Lemma 1 (page 16)
+A simple set of formulas X is satisfiable if and only if
+it is not closed  and  for all ¬[A]R ∈ X also XA; ¬R is satisfiable.
+-/
 theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
     Simple LR → (Satisfiable LR ↔ ¬Closed (LR.1 ∪ LR.2) ∧ ∀ F, f_in_TNode (~(□F)) LR → Satisfiable (projection (LR.1 ∪ LR.2) ∪ {~F})) :=
   by
@@ -365,8 +367,10 @@ theorem oneSidedRule_implies_child_sat_R
         localRuleSoundness M w lrule X (by aesop)
       aesop
 
--- The critical rule is sound and preserves satisfiability "downwards".
--- NOTE: This is stronger than Lemma 1, but we do not need.
+/--
+The critical rule is sound and preserves satisfiability "downwards".
+NOTE: This is stronger than Lemma 1, but we do not need.
+-/
 theorem atmSoundness {LR : TNode} {f} (not_box_f_in_LR : f_in_TNode (~(□f)) LR) :
     Satisfiable LR → Satisfiable (projection (LR.1 ∪ LR.2) ∪ {~f}) :=
   by
@@ -478,7 +482,7 @@ theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
       · have := claim (~φ)
         aesop
 
--- Theorem 2, page 30
+/-- Theorem 2, page 30 -/
 theorem correctness : ∀LR : TNode, Satisfiable LR → Consistent LR :=
   by
     intro LR

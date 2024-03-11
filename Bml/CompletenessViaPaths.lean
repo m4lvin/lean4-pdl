@@ -25,6 +25,10 @@ instance : HasLength ConsTNode := ⟨λ ⟨LR,_⟩ => lengthOf LR⟩
 @[simp]
 def toFinset : ConsTNode → Finset Formula := λ ⟨⟨L,R⟩,_⟩ => L ∪ R
 
+/--
+A `Path ctn` is a maximal path of consistent TNodes starting with `ctn` and connected by `LocalRuleApp`s.
+This does *not* have to be a path in any particular `LocalTableau`.
+-/
 inductive Path: ConsTNode →  Type
   | endNode (isSimple : Simple LR): Path ⟨LR, LR_cons⟩
   | interNode (_ : LocalRuleApp LR C) (c_in : c ∈ C)
