@@ -6,6 +6,8 @@ import Pdl.Completeness
 open HasVocabulary HasSat
 
 
+def canonProg : sorry := sorry
+
 def IsPartInterpolant (N : TNode) (θ : Formula) :=
   voc θ ⊆ voc N ∧ (¬Satisfiable (N.L ∪ {~θ}) ∧ ¬Satisfiable (N.R ∪ {θ}))
 
