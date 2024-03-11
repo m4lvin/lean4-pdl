@@ -393,193 +393,6 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
 -/
 
 
--- theorem localRuleSoundness -- removed, see localRuleTruth in LocalTableau.lean
-
--- alternative ruleImpliesChildSat using localRuleTruth from Semantics
-theorem ruleImpliesChildSat
-    {C : List TNode}
-    {LR : TNode}
-    (M : KripkeModel W)
-    (w : W)
-    (ruleApp : LocalRuleApp (LR.L, LR.R, LR.O) C) :
-    (M, w) ⊨ LR → ∃c ∈ C, (M, w) ⊨ c :=
-  by
-    intro satLR
-    let (L, R, O) := LR
-    rcases ruleApp with ⟨O, Lcond, Rcond, Ocond, rule, preproofL, preproofR⟩
-    cases rule
-    case oneSidedL ress rule hC =>    -- the most of this should be moved to localRuleSoundness above
-      have condiscon : Con Lcond ≡ discon ress := oneSidedLocalRuleTruth rule
-      have satCon: (M, w) ⊨ Con Lcond := by
-        have satLcond : ∀ f ∈ Lcond, evaluate M w f := subsetSat (by aesop) preproofL
-        rw [←conEval] at satLcond
-        tauto
-      have satDis : (M, w) ⊨ discon ress :=
-        equivSat (Con Lcond) (discon ress) condiscon satCon
-      have evalDis : evaluate M w (discon ress) := by tauto
-      have : ∃ res ∈ ress, ∀ f ∈ res, evaluate M w f := by
-        rw [disconEval ress] at evalDis
-        assumption
-      rcases this with ⟨res, in_ress, eval_res⟩
-      -- in bml aesop could solve this :(
-      have some_child : ∃ c ∈ C, c = (L \ Lcond ∪ res, R, O) := by sorry
-      rcases some_child with ⟨c, hc⟩
-      use c
-      constructor
-      · exact hc.left
-      · rw [hc.right]
-        sorry -- should be easy
-    case oneSidedR ress rule hC => sorry  -- the exact same pf as above (most of it should be done in localRuleSoundness)
-    case LRnegL => sorry
-    case LRnegR => sorry
-    case loadedL => sorry -- here use loadedRuleTruth from Semantics
-    case loadedR => sorry
-
-
-
-
--- Issue: deterministic timeout when I run everything together / use tactic combinators
--- like I did in the bml file
--- (oneSidedL/oneSidedR are completely copy-pasted, so are LRnegL/LRnegR)
--- even though every case by itself doesn't cause any problems
-theorem localRuleSoundnessNoneLoaded
-    (M : KripkeModel W)
-    (w : W)
-    (rule : LocalRule (Lcond, Rcond, Option.none) ress)
-    (Δ : List Formula) :
-    (M, w) ⊨ (Δ ∪ Lcond ∪ Rcond) → ∃res ∈ ress, (M, w) ⊨ (Δ ∪ res.1 ∪ res.2.1) :=
-  by
-    intro satLR
-    cases rule
-    <;> simp at *
-    case oneSidedL _ rule => sorry
-      /-
-      cases rule
-      <;> simp at *
-      case bot => specialize satLR ⊥; tauto
-      case not φ =>
-        have : evaluate M w (~φ) := by
-          specialize satLR (~φ); tauto
-        aesop
-      case neg φ =>
-        have : evaluate M w (~~φ) := by
-          specialize satLR (~~φ); tauto
-        aesop
-      case con φ ψ =>
-        have : evaluate M w (φ⋀ψ) := by
-          specialize satLR (φ⋀ψ); tauto
-        aesop
-      case nCo φ ψ =>
-        have : evaluate M w (~(φ⋀ψ)) := by
-          specialize satLR (~(φ⋀ψ)); tauto
-        cases Classical.em (evaluate M w φ) <;> aesop
-      case nTe φ ψ =>
-        have : evaluate M w (~⌈?'φ⌉ψ) := by
-          specialize satLR (~⌈?'φ⌉ψ); tauto
-        aesop
-      case nSe a b f =>
-        have : evaluate M w (~⌈a;'b⌉f) := by
-          specialize satLR (~⌈a;'b⌉f); tauto
-        aesop
-      case uni a b f =>
-        have : evaluate M w (⌈a⋓b⌉f) := by
-          specialize satLR (⌈a⋓b⌉f); tauto
-        aesop
-      case seq a b f =>
-        have : evaluate M w (⌈a;'b⌉f) := by
-          specialize satLR (⌈a;'b⌉f); tauto
-        aesop
-      case tes f g =>
-        have eval_test : evaluate M w (⌈?'f⌉g) := by
-          specialize satLR (⌈?'f⌉g); tauto
-        cases Classical.em (evaluate M w f) <;> aesop
-      case nUn a b f =>
-        have : evaluate M w (~⌈a⋓b⌉f) := by
-          specialize satLR (~⌈a⋓b⌉f); tauto
-        aesop
-      case sta a f =>
-        have : evaluate M w (⌈∗a⌉f) := by
-          specialize satLR (⌈∗a⌉f); tauto
-        simp at this
-        -- dagtableau stuff which I don't understand
-        sorry
-      case nSt a f =>
-        have : evaluate M w (~⌈∗a⌉f) := by
-          specialize satLR (~⌈∗a⌉f); tauto
-        simp_all
-        rcases this with ⟨v, hv⟩
-        cases' Classical.em (evaluate M w f) with evalf nevalf
-        · apply Or.inr
-          simp [dagEndNodes]
-          -- dagtableau stuff which I don't understand
-          sorry
-        · aesop
-      -/
-    case oneSidedR => sorry
-    case LRnegL φ =>
-      have : evaluate M w φ ∧ evaluate M w (~φ) := by
-        constructor
-        · specialize satLR φ; aesop
-        · specialize satLR (~φ); aesop
-      simp at this
-    case LRnegR φ =>
-      have : evaluate M w φ ∧ evaluate M w (~φ) := by
-        constructor
-        · specialize satLR φ; aesop
-        · specialize satLR (~φ); aesop
-      simp at this
-
--- this is all redundant if you can use loadRuleTruth from LocalTableau
-theorem localRuleSoundnessLoadedL
-    (M : KripkeModel W)
-    (w : W)
-    (rule : LocalRule (Lcond, Rcond, some (Sum.inl (~'χ))) ress)
-    (Δ : List Formula) :
-    (M, w) ⊨ (Δ ∪ Lcond ∪ Rcond ∪ [~ unload χ]) → ∃res ∈ ress, (M, w) ⊨ (Δ ∪ res.1 ∪ res.2.1) :=
-  by
-    intro satLR
-    cases rule
-    simp [loadRuleTruth] at *
-    case loadedL ress lrule =>
-      cases lrule
-      case nUn a b χ =>
-        let unl_χ := ~ unload χ
-        specialize satLR unl_χ
-        simp at *
-        sorry
-      case nUn' => sorry
-      case nSe => sorry
-      case nSe' => sorry
-      case nSt => sorry
-      case nSt' => sorry
-      case nTe => sorry
-      case nTe' => sorry
-
-
-theorem localRuleSoundnessLoadedR
-    (M : KripkeModel W)
-    (w : W)
-    (rule : LocalRule (Lcond, Rcond, some (Sum.inr (~'χ))) ress)
-    (Δ : List Formula) :
-    (M, w) ⊨ (Δ ∪ Lcond ∪ Rcond ∪ [~ unload χ]) → ∃res ∈ ress, (M, w) ⊨ (Δ ∪ res.1 ∪ res.2.1) :=
-  by
-    intro satLR
-    cases rule
-    simp at *
-    case loadedR ress lrule =>
-      let unl_χ := ~ unload χ
-      specialize satLR unl_χ
-      simp at *
-      cases lrule
-      case nUn => sorry
-      case nUn' => sorry
-      case nSe => sorry
-      case nSe' => sorry
-      case nSt => sorry
-      case nSt' => sorry
-      case nTe => sorry
-      case nTe' => sorry
-
 -- * Tools for saying that different kinds of formulas are in a TNode
 
 @[simp]
@@ -590,7 +403,7 @@ instance : Membership Formula TNode :=
 def NegLoadFormula_in_TNode := fun nlf (X : TNode) => X.O = some (Sum.inl nlf) ∨ X.O = some (Sum.inr nlf)
 
 @[simp]
-instance : Membership NegLoadFormula TNode := ⟨NegLoadFormula_in_TNode⟩
+instance NegLoadFormula.HasMem_TNode : Membership NegLoadFormula TNode := ⟨NegLoadFormula_in_TNode⟩
 
 def AnyFormula := Sum Formula LoadFormula
 
@@ -624,8 +437,8 @@ instance : Membership AnyNegFormula TNode := ⟨AnyNegFormula_in_TNode⟩
 
 -- * Helper functions, to be moved to (Local)Tableau.lean
 
--- TODO delete this, if computable version is possible
-noncomputable def endNodeIsEndNodeOfChildNonComp (lrA)
+-- TODO Computable version possible?
+noncomputable def endNode_to_endNodeOfChildNonComp (lrA)
   (E_in: E ∈ endNodesOf ⟨X, LocalTableau.byLocalRule lrA subTabs⟩) :
   @Subtype TNode (fun x => ∃ h, E ∈ endNodesOf ⟨x, subTabs x h⟩) := by
   simp [endNodesOf] at E_in
@@ -635,25 +448,13 @@ noncomputable def endNodeIsEndNodeOfChildNonComp (lrA)
   use c
   use c_in
 
--- TODO: move this to LocalTableau
--- TODO: Ist this even doable without choice?
-def endNode_to_endNodeOfChild
-    {E X : TNode}
-    {lTab}
-    (E_in: E ∈ endNodesOf ⟨X, lTab⟩)
-    (lrA : LocalRuleApp X C)
-    (h : lTab = LocalTableau.byLocalRule lrA subTabs)
-    : @Subtype TNode (fun Y => ∃ h, E ∈ endNodesOf ⟨Y, subTabs Y h⟩) :=
-  by
-  cases lTab
-  case byLocalRule C' subTabs' lrA' =>
-    cases h
-    simp at *
-    sorry
-  case sim =>
-    simp at h
+theorem endNodeIsEndNodeOfChild (lrA)
+  (E_in: E ∈ endNodesOf ⟨X, LocalTableau.byLocalRule lrA subTabs⟩) :
+  ∃ Y h, E ∈ endNodesOf ⟨Y, subTabs Y h⟩ := by
+  have := endNode_to_endNodeOfChildNonComp lrA E_in
+  use this
+  aesop
 
--- TODO: move this to LocalTableau.
 theorem endNodeOfChild_to_endNode
     {X Y: TNode}
     {ltX}
@@ -694,6 +495,24 @@ theorem endNodeOfChild_to_endNode
 -- - can go through/across multiple LocalTableau, like LHistories
 --   and unlike the Paths used in the Complteness Proof
 -- - are over the relation that includes back-loops.
+
+-- TODO: Replace the "unsafe" list paths with inductive types
+--       See the toy examples and experiments in "Repeat.lean".
+
+inductive PathInLocal {X} : LocalTableau X → Type
+-- TODO
+
+inductive PathIn {H X} : ClosedTableau H X → Type
+-- TODO
+
+-- Definition of ◃' in a tableu, successor + back loops
+-- MB: page 26
+def edgesBack {H X} {ctX : ClosedTableau H X} : PathIn ctX → PathIn ctX → Prop := sorry -- TODO
+
+notation pa:arg "◃'" pb:arg => edgesBack pa pb
+
+-- TODO: ≤' should be the refl-tran closure of ◃'
+
 
 -- Given:
 -- - a local tableau (not necessarily a root)
@@ -905,6 +724,12 @@ theorem loadedDiamondPaths
     all_goals sorry
 
   all_goals sorry
+
+-- MB: Lemma 8
+theorem freeSatDown : sorry := sorry
+-- have := localRuleTruth
+-- have := loadedDiamondPaths
+
 
 theorem tableauThenNotSat : ∀ X, ClosedTableau LoadHistory.nil X → ¬Satisfiable X :=
   by
