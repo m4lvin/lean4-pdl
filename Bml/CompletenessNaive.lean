@@ -1,7 +1,7 @@
 -- COMPLETENESS
 
 -- NOTE: This file is broken and obsolete.
--- See instead "BetterCompleteness.lean".
+-- See instead "CompletenessViaPaths.lean".
 
 import Bml.Soundness
 
