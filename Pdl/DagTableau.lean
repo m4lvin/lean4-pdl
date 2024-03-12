@@ -21,10 +21,19 @@ local notation "⌈⌈" ps "⌉⌉" df => DagFormula.boxes ps df
 local notation "~" ψ => NegDagFormula.neg ψ
 
 -- MEASURE
+
+@[simp]
+def mOfDagProgram : Program → Nat
+| ·_ => 0
+| ?'_ => 1
+| α;'β => 1 + mOfDagProgram α + mOfDagProgram β + 1
+| α⋓β => 1 + mOfDagProgram α + mOfDagProgram β + 1
+| ∗α => 1 + mOfDagProgram α
+
 @[simp]
 def mOfDagFormula : DagFormula → Nat
   | ⌈_†⌉_ => 0
-  | ⌈α⌉ψ => mOfProgram α + mOfDagFormula ψ
+  | ⌈α⌉ψ => mOfDagProgram α + mOfDagFormula ψ
 
 @[simp]
 instance : LT DagFormula := ⟨λ ψ1 ψ2 => mOfDagFormula ψ1 < mOfDagFormula ψ2⟩
@@ -311,12 +320,11 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
           simp
           tauto
         · specialize v_D (~⌈?'ψ⌉undag φ)
-          simp at v_D
           aesop
       · right; aesop
 
 termination_by
-  mOfProgram a
+  lengthOfProgram a
 
 def dagEndNodes : (List Formula × Option NegDagFormula) → List (List Formula)
   | (fs, none) => [ fs ]
@@ -359,7 +367,7 @@ termination_by
   _ => mOfDagNode Γ
 decreasing_by simp_wf; apply mOfDagNode.isDec; assumption
 
--- A normal successor in a diamond dagger tableau is an end node.
+/-- A normal successor in a diamond dagger tableau is an end node. -/
 theorem dagNormal_is_dagEnd
     (Γ_in : Γ ∈ dagNextTransRefl S)
     (Γ_normal : Γ.2 = none)
@@ -877,8 +885,9 @@ theorem loadNotStarSoundnessAux (a : Program) M (v w : W) (fs)
           simp at v_D
           aesop
       · right; aesop
+
 termination_by
-  mOfProgram a
+  lengthOfProgram a
 
 -- Note that the "Option" here is always "some", but we keep it for
 -- compatibility with `inductive LoadRule` in LocalTableau.lean.
@@ -1199,48 +1208,37 @@ theorem mOfBoxDagNode.isDec {x y : BDNode} (y_in : y ∈ boxDagNext x) :
       case nil => simp
       case cons => simp
     case box a f =>
-          cases a
-          all_goals (simp [boxDagNext] at *)
-          case atom_prog A =>
-            subst y_in; simp
-          case sequence β γ =>
-            subst y_in; simp; zify; ring_nf
-            have := mul_lt_mul_of_pos_left (by linarith : 1 < 9)
-              (by aesop : 0 < 3 ^ mOfProgram β * 3 ^ mOfProgram γ * 3 ^ mOfDagFormula f)
-            linarith
-          case union a b =>
-            subst y_in
-            have h0 : mOfDagFormula (⌈a⋓b⌉f) > mOfDagFormula (⌈a⌉f) := by simp ; linarith
-            have h1 : mOfDagFormula (⌈a⋓b⌉f) > mOfDagFormula (⌈b⌉f) := by simp ; linarith
-            have := measure_theorem fs rest h0 h1
-            aesop
-          case star a =>
-            subst y_in
-            simp
-            have h2 : mOfDagFormula (⌈∗a⌉f) > mOfDagFormula f := by simp
-            have h3 : mOfDagFormula (⌈∗a⌉f) > mOfDagFormula (⌈a⌉⌈a†⌉(undag f)) := by simp; linarith
-            have := measure_theorem fs rest h2 h3
-            aesop
-          case test g =>
-            rcases y_in with l|r
-            subst l
-            simp
-            ring_nf
-            subst r
-            simp
-            have h4 : 3 ^ mOfDagFormula f < 3 ^ mOfFormula g * 3 ^ mOfDagFormula f * 3 := by
-              rw [mul_comm (3 ^ mOfFormula g) (3 ^ mOfDagFormula f)]
-              have h5 : 3 ^ mOfDagFormula f = 3 ^ mOfDagFormula f * 1 := by linarith
-              nth_rw 1 [h5]
-              have h6 : 1 < 3 ^ mOfFormula g * 3 := by
-                calc 1
-                   ≤ 3 ^ mOfFormula g := by have := Nat.one_le_pow (mOfFormula g) 3 (by linarith : 0 < 3);linarith
-                 _ = 3 ^ mOfFormula g * 1 := by linarith
-                 _ < 3 ^ mOfFormula g * 3 := by have := mul_lt_mul_of_pos_left (by linarith: 1 < 3)
-                                                        (by aesop : 0 < 3 ^ mOfFormula g);linarith
-              have := mul_lt_mul_of_pos_left h6  (by aesop : 0 < 3 ^ mOfDagFormula f)
-              linarith
-            linarith
+      cases a
+      all_goals (simp [boxDagNext] at *)
+      case atom_prog A =>
+        subst y_in; simp
+      case sequence β γ =>
+        subst y_in; simp; zify; ring_nf
+        have := mul_lt_mul_of_pos_left
+          (by linarith : 1 < 9)
+          (by aesop : 0 < 3 ^ mOfDagProgram β * 3 ^ mOfDagProgram γ * 3 ^ mOfDagFormula f)
+        linarith
+      case union a b =>
+        subst y_in
+        have h0 : mOfDagFormula (⌈a⋓b⌉f) > mOfDagFormula (⌈a⌉f) := by simp; linarith
+        have h1 : mOfDagFormula (⌈a⋓b⌉f) > mOfDagFormula (⌈b⌉f) := by simp; linarith
+        have := measure_theorem fs rest h0 h1
+        simp_all
+      case star a =>
+        subst y_in
+        have h2 : mOfDagFormula (⌈∗a⌉f) > mOfDagFormula f := by simp
+        have h3 : mOfDagFormula (⌈∗a⌉f) > mOfDagFormula (⌈a⌉⌈a†⌉(undag f)) := by simp; linarith
+        have := measure_theorem fs rest h2 h3
+        simp_all
+      case test g =>
+        rcases y_in with l|r
+        subst l
+        simp only [lt_add_iff_pos_left, gt_iff_lt, Nat.ofNat_pos, pow_pos]
+        ring_nf
+        subst r
+        simp only [List.map_cons, Function.comp_apply, three_pow, List.sum_cons]
+        have h4 : 3 ^ mOfDagFormula f < 3 ^ mOfDagFormula f * 3 := by simp_all
+        linarith
 
 -- idea: replace use of "ftr" below with a relation like this:
 -- def boxDagNextRel : (List Formula × List DagFormula) → (List Formula × List DagFormula) → Prop :=

@@ -5,7 +5,7 @@ import Mathlib.Data.Finset.Basic
 
 import Pdl.Syntax
 
--- COMPLEXITY
+-- LENGTH
 
 mutual
   @[simp]
@@ -45,13 +45,14 @@ instance programHasLength : HasLength Program := ⟨lengthOfProgram⟩
 @[simp]
 instance setProgramHasLength : HasLength (Finset Program) := ⟨fun X => X.sum lengthOfProgram⟩
 
+/-
 -- MEASURE
 mutual
   @[simp]
   def mOfProgram : Program → Nat
     | ·_ => 0
     | ?'φ => 1 + mOfFormula φ
-    | α;'β => 1 + mOfProgram α + mOfProgram β + 1 -- TODO: max (mOfFormula φ) (mOfFormula (~φ))
+    | α;'β => 1 + mOfProgram α + mOfProgram β + 1
     | α⋓β => 1 + mOfProgram α + mOfProgram β + 1
     | ∗α => 1 + mOfProgram α
   @[simp]
@@ -66,3 +67,4 @@ mutual
     | ⌈α⌉ φ => mOfProgram α + mOfFormula φ
     | ~⌈α⌉ φ => mOfProgram α + mOfFormula (~φ)
 end
+-/

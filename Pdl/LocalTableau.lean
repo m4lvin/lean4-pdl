@@ -333,7 +333,7 @@ inductive LocalRuleApp : TNode → List TNode → Type
   | mk {L R : List Formula}
        {C : List TNode}
        {ress : List TNode}
-       (O : Option (Sum NegLoadFormula NegLoadFormula)) -- FIXME make implicit?
+       {O : Option (Sum NegLoadFormula NegLoadFormula)}
        (Lcond Rcond : List Formula)
        (Ocond : Option (Sum NegLoadFormula NegLoadFormula))
        (rule : LocalRule (Lcond, Rcond, Ocond) ress)
@@ -348,7 +348,7 @@ theorem localRuleTruth
     (lrA : LocalRuleApp (L,R,O) C) (M : KripkeModel W) (w : W)
   : (M,w) ⊨ (L,R,O) ↔ ∃ Ci ∈ C, (M,w) ⊨ Ci
   := by
-  rcases lrA with ⟨_, Lcond, Rcond, Ocond, rule, preconditionProof⟩
+  rcases lrA with ⟨Lcond, Rcond, Ocond, rule, preconditionProof⟩
   cases rule
 
   case oneSidedL ress orule hC =>
@@ -592,20 +592,57 @@ def lengthOfTNode : TNode -> ℕ
 @[simp]
 instance tnodeHasLength : HasLength TNode := ⟨lengthOfTNode⟩
 
--- needed for endNodesOf
-instance localTableauHasSizeof : SizeOf (Σ X, LocalTableau X) :=
-  ⟨fun ⟨X, _⟩ => lengthOf X⟩
-
+theorem localRuleDecreasesLengthSide (rule : LocalRule condit ress) :
+  ∀ r ∈ ress, lengthOf r < lengthOf condit :=
+    by
+    intro r r_in_ress
+    cases rule
+    case LRnegL => simp at *
+    case LRnegR => simp at *
+    case oneSidedL orule =>
+      cases orule
+      all_goals
+        simp at *
+      all_goals
+        sorry -- should be analogous to oneSidedR
+    case oneSidedR orule =>
+      cases orule
+      all_goals
+        simp at *
+      all_goals
+        try subst_eqs
+        try simp
+        try linarith
+      all_goals
+        sorry -- some of the goals here are wrong due to using lengthOf, need a local measure!
+    case loadedL lrule =>
+      cases lrule
+      all_goals
+        simp at *
+        cases r_in_ress
+      all_goals
+        try subst_eqs
+        simp at *
+      all_goals
+        try linarith
+      all_goals
+        sorry
+    case loadedR =>
+      sorry -- should be analogous to loadedL
 
 -- TODO: is this even going to be true for our new system?
 -- Maybe use a different measure than lengthOf? Also Dershowitz-Manna?
 theorem localRuleApp.decreaseLength {X : TNode} {B : List TNode}
-    (r : LocalRuleApp X B) : ∀ Y ∈ B, lengthOf Y < lengthOf X :=
+    (lrA : LocalRuleApp X B) : ∀ Y ∈ B, lengthOf Y < lengthOf X :=
   by
-  cases r
-  all_goals intro β inB; simp at *
-  -- TODO: see Bml, first enable additional simps in Pdl.Setsimp
-  all_goals sorry
+  rcases lrA with ⟨Lcond,Rcond,OCond,rule,preconP⟩
+  rename_i L R ress O B_def
+  subst B_def
+  intro Y Y_in
+  simp [applyLocalRule] at Y_in
+  rcases Y_in with ⟨⟨Lnew,Rnew,Onew⟩, Y_in_ress, claim⟩
+  have := localRuleDecreasesLengthSide rule Y
+  sorry
 
 -- open end nodes of a given localTableau
 @[simp]
@@ -615,3 +652,7 @@ def endNodesOf : (Σ X, LocalTableau X) → List TNode
       have : lengthOf Y < lengthOf X := localRuleApp.decreaseLength lr Y h
       endNodesOf ⟨Y, next Y h⟩).join
   | ⟨X, sim _⟩ => [X]
+termination_by
+  X => lengthOf X.1
+decreasing_by
+  convert this
