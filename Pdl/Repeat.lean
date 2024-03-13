@@ -59,38 +59,50 @@ def bla : HisTree [] 4 :=
 
 -- * NEW: PATHS, inductively and hopefully better than the unsafe verson below
 
-inductive PathIn : (Σ H n, HisTree H n) → Type
+inductive PathIn : HisTree H n → Type
 | nil : PathIn ht
-| cons m (m_in : m ∈ ms) (s : Step n ms) (rest : PathIn ⟨n :: H, m, next m_in⟩) : PathIn ⟨H, n, step s next⟩
+| cons m (m_in : m ∈ ms) (s : Step n ms) (rest : PathIn (next m_in)) : PathIn (step s next)
 
-def PathIn.length : PathIn ⟨H, m, ht⟩ → Nat
+def PathIn.length : PathIn ht → Nat
 | nil => 0
 | cons _ _ _ rest => 1 + rest.length
 
 -- Convert a path to a list, where the last path element will be the head.
-def PathIn.toList : PathIn ⟨H, m, ht⟩ → List Nat
+def PathIn.toList {ht : HisTree H m} : PathIn ht → List Nat
 | nil => []
 | cons _ _ _ rest => toList rest ++ [m]
 
-theorem PathIn.length_eq_toListLength (p : PathIn ⟨H, m, ht⟩): p.length = p.toList.length := by
+theorem PathIn.length_eq_toListLength H n (ht : HisTree H n) (p : PathIn ht):
+  p.length = p.toList.length := by
   cases p_def : p
   · simp [PathIn.toList, PathIn.length]
-  case cons _ _ _ _ _ rest =>
+  case cons ms m m_in step next rest =>
     simp [PathIn.toList, PathIn.length]
-    have : rest.length < p.length := by subst p_def; simp [PathIn.length]; omega
-    rw [PathIn.length_eq_toListLength rest]
+    have forTermination : rest.length < p.length := by subst p_def; simp [PathIn.length]; omega
+    have foo := PathIn.length_eq_toListLength (n :: H) m (next m_in) rest
+    rw [foo]
     omega
 termination_by
-  p.length
+  p.length -- sorry
 decreasing_by
-  simp_wf; simp at *; convert this; sorry -- where is the other "p" coming from?!
+  simp_wf
+  simp at *
+  subst p_def
+  convert forTermination
+  · tauto
+  · tauto
+  · sorry -- for this it would be good to have Step in the history.
+  · sorry -- here we even need the same tree!
+  · sorry -- here we even need the same tree!
+  · sorry -- same s
+  · sorry -- same rest
 
-def treeAt : PathIn ⟨H, n, ht⟩ → (Σ H n, HisTree H n)
-| PathIn.nil => ⟨H, n, ht⟩
-| PathIn.cons _ _ _ rest => treeAt rest -- wow, that is much simpler than treeAt' :-)
+def treeAt : PathIn ht → (Σ H n, HisTree H n)
+| PathIn.nil => ⟨_,_,ht⟩
+| PathIn.cons _ _ _ rest => treeAt rest -- wow, that is much simpler than treeAt' below :-)
 
 -- A better version to also give us the determined history:
-def treeAtP : (p : PathIn ⟨H, n, ht⟩) → (Σ n, HisTree (p.toList ++ H) n)
+def treeAtP {ht : HisTree H n} : (p : PathIn ht) → (Σ n, HisTree (p.toList ++ H) n)
 | PathIn.nil =>
     have : H = (PathIn.nil.toList ++ H) := by simp [PathIn.toList]
     ⟨n, this ▸ ht⟩
@@ -100,7 +112,7 @@ def treeAtP : (p : PathIn ⟨H, n, ht⟩) → (Σ n, HisTree (p.toList ++ H) n)
     this ▸ treeAtP rest
 
 -- Or, as a proof above treeAt:
-theorem treeAtH_is (p : PathIn ⟨H, n, ht⟩) : (treeAt p).1 = (p.toList ++ H) := by
+theorem treeAtH_is {ht : HisTree H n} (p : PathIn ht) : (treeAt p).1 = (p.toList ++ H) := by
   cases p
   · simp [PathIn.toList, treeAt]
   case cons ms m m_in s next rest =>
@@ -122,7 +134,7 @@ def isSplit : (Σ H n, HisTree H n) → Prop
 | ⟨_, _, step split _⟩ => True
 | _ => False
 
-def isPrefixOf : PathIn ⟨H, n, ht⟩ → PathIn ⟨H, n, ht⟩ → Prop
+def isPrefixOf : PathIn ht → PathIn ht → Prop
 | PathIn.nil, _ => true
 | PathIn.cons m _ _ rest, PathIn.cons m' _ _ rest' => (meq : m = m') → isPrefixOf rest (meq.symm ▸ rest')
 | PathIn.cons _ _ _ _, PathIn.nil => false
@@ -131,13 +143,14 @@ def isPrefixOf : PathIn ⟨H, n, ht⟩ → PathIn ⟨H, n, ht⟩ → Prop
 -- Any path to a repeat must have a prefix to a split.
 -- (This may or may not be similar enough to condition 6a for PDL.)
 theorem rep_needs_split_above
-    (p : PathIn ⟨[], m, ht⟩)
+    {ht : HisTree [] n}
+    (p : PathIn ht)
     (p_is_rep : isRep (treeAt p))
   : ∃ p', isPrefixOf p' p ∧ isSplit (treeAt p') :=
   by
   unfold isRep at *
-  rcases treeAt p with ⟨H,m,ht⟩
-  cases m
+  rcases treeAt p with ⟨H',n',ht⟩
+  cases n'
   case zero =>
     -- This should be impossible, a 0 cannot be repeated.
     by_contra hyp
