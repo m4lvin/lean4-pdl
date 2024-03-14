@@ -28,11 +28,10 @@ inductive Step : Nat → List Nat → Type
 
 def SomeStep := Σ n ms, Step n ms
 
-def History := List SomeStep
+abbrev History := List SomeStep
+-- (Not using "def" because we want typeclass inference to see through this.)
 
--- FIXME: Why can I not replace "List Step'" with "History" here?
--- https://leanprover.zulipchat.com/#narrow/stream/113489-new-members/topic/Why.2Fwhen.20can.20I.20not.20replace.20a.20type.20by.20a.20def.20synonm.3F/near/426344590
-inductive HisTree : List SomeStep → Nat → Type
+inductive HisTree : History → Nat → Type
 | leaf : HisTree H 1
 | step : {ms : _} → (s : Step n ms) → (next : ∀ {m}, m ∈ ms → HisTree (⟨_,_,s⟩ :: H) m) → HisTree H n
 | rep : (s : Step n ms) → ⟨_,_,s⟩ ∈ H → HisTree H m
