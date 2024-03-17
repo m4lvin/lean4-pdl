@@ -74,6 +74,23 @@ def record : LoadHistory → TNode → LoadHistory
 def recordAtm : LoadHistory → TNode → LoadHistory
 | (before, after), X => (after ++ before, [X])
 
+/-
+inductive PdlRule : TNode → TNode → Type
+  | mrkL : (~⌈α⌉φ) ∈ L → PdlRule (L, R, none)
+                                 (L.remove (~⌈α⌉φ), R, some (Sum.inl (toNegLoad α φ)))
+  | mrkR : (~⌈α⌉φ) ∈ R → PdlRule (L, R, none)
+                                 (L, R.remove (~⌈α⌉φ), some (Sum.inr (toNegLoad α φ)))
+  -- The (At) rule:
+  | atmL   {A X χ} : isSimpleNode X → PdLRule ⟨L, R, some (Sum.inl (~'⌊·A⌋(χ : LoadFormula)))⟩
+                                              (projection A L, projection A R, some (Sum.inl (~'χ)))
+  | atmR   {A X χ} : isSimpleNode X → PdlRule ⟨L, R, some (Sum.inr (~'⌊·A⌋(χ : LoadFormula)))⟩
+                                              (projection A L, projection A R, some (Sum.inr (~'χ)))
+  | atmL'  {A X φ} : isSimpleNode X → PdlRule ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
+                                              (projection A L ++ [~φ], projection A R, none)
+  | atmR'  {A X φ} : isSimpleNode X → PdlRule ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
+                                              (projection A L, projection A R ++ [~φ], none)
+-/
+
 -- ClosedTableau [parent, grandparent, ...] child
 --
 --
@@ -87,7 +104,7 @@ def recordAtm : LoadHistory → TNode → LoadHistory
 -- - a good repeat (MB condition six)
 inductive ClosedTableau : LoadHistory → TNode → Type
   -- Do a local tableau: (not recording any history!)
-  | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf ⟨X, lt⟩, ClosedTableau Hist Y) → ClosedTableau Hist X
+  | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf lt, ClosedTableau Hist Y) → ClosedTableau Hist X
   -- The (M+) rule:
   | mrkL : (~⌈α⌉φ) ∈ L → Step ClosedTableau Hist (L, R, none)
                                                  (L.remove (~⌈α⌉φ), R, some (Sum.inl (toNegLoad α φ)))

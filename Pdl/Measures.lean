@@ -44,27 +44,3 @@ instance listFormulaHasLength : HasLength (List Formula) := ⟨fun X => (X.map l
 instance programHasLength : HasLength Program := ⟨lengthOfProgram⟩
 @[simp]
 instance setProgramHasLength : HasLength (Finset Program) := ⟨fun X => X.sum lengthOfProgram⟩
-
-/-
--- MEASURE
-mutual
-  @[simp]
-  def mOfProgram : Program → Nat
-    | ·_ => 0
-    | ?'φ => 1 + mOfFormula φ
-    | α;'β => 1 + mOfProgram α + mOfProgram β + 1
-    | α⋓β => 1 + mOfProgram α + mOfProgram β + 1
-    | ∗α => 1 + mOfProgram α
-  @[simp]
-  def mOfFormula : Formula → Nat
-    | ⊥ => 0
-    | ~⊥ => 0
-    | ·_ => 0
-    | ~·_ => 0
-    | ~~φ => 1 + mOfFormula φ
-    | φ⋀ψ => 1 + mOfFormula φ + mOfFormula ψ
-    | ~φ⋀ψ => 1 + mOfFormula (~φ) + mOfFormula (~ψ)
-    | ⌈α⌉ φ => mOfProgram α + mOfFormula φ
-    | ~⌈α⌉ φ => mOfProgram α + mOfFormula (~φ)
-end
--/

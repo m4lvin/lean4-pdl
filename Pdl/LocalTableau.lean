@@ -10,6 +10,7 @@ open Undag HasLength
 -- TABLEAU NODES
 
 -- A tableau node has two lists of formulas and one or no negated loaded formula.
+-- TODO: turn this into "abbrev" to avoid silly instance below.
 def TNode := List Formula × List Formula × Option (Sum NegLoadFormula NegLoadFormula) -- ⟨L, R, o⟩
   deriving DecidableEq, Repr
 
@@ -583,57 +584,67 @@ open LocalTableau
 
 -- LOCAL END NODES AND TERMINATION
 
+-- Use this plus D-M to show termination on LocalTableau. Overkill?
 @[simp]
-def lengthOfTNode : TNode -> ℕ
-  | (L, R, none) => lengthOf L + lengthOf R
-  | (L, R, some (Sum.inl (~'χ))) => lengthOf L + lengthOf R + lengthOf (~ unload χ)
-  | (L, R, some (Sum.inr (~'χ))) => lengthOf L + lengthOf R + lengthOf (~ unload χ)
+def lmOfFormula : Formula → Nat
+| ⊥ => 0
+| ~⊥ => 0
+| ·_ => 0
+| ~·_ => 0
+| ~~φ => 1 + lmOfFormula φ
+| φ⋀ψ => 1 + lmOfFormula φ + lmOfFormula ψ
+| ~φ⋀ψ => 1 + lmOfFormula (~φ) + lmOfFormula (~ψ)
+| ⌈·_⌉ _ => 0 -- No more local steps!
+| ⌈?'φt⌉ φ => 1 + lmOfFormula (~φt) + lmOfFormula φ
+| ⌈α;'β⌉ φ => 1 + lmOfFormula (⌈α⌉φ) + lmOfFormula (⌈β⌉φ)
+| ⌈α⋓β⌉ φ => 1 + lmOfFormula (⌈α⌉φ) + lmOfFormula (⌈β⌉φ)
+| ⌈∗α⌉ φ => 1 + lmOfFormula (φ) -- ??? (because DagTab does all α steps)
+| ~⌈·_⌉ _ => 0 -- No more local steps
+| ~⌈?'φt⌉ φ => 1 + lmOfFormula (~φ)
+| ~⌈α;'β⌉ φ => 1 + lmOfFormula (~⌈α⌉φ) + lmOfFormula (~⌈β⌉φ)
+| ~⌈α⋓β⌉ φ => 1 + lmOfFormula (~⌈α⌉φ) + lmOfFormula (~⌈β⌉φ) -- max
+| ~⌈∗α⌉ φ => 1 + lmOfFormula (~φ) -- ???
+
+-- FIXME Only need this here, be careful with exporting this?
+instance : LT Formula := ⟨fun φ ψ  => lmOfFormula φ < lmOfFormula ψ⟩
+
+def node_to_list : TNode → List Formula
+| (L, R, none) => (L ++ R)
+| (L, R, some (Sum.inl (~'χ))) => (L ++ R ++ [~ unload χ])
+| (L, R, some (Sum.inr (~'χ))) => (L ++ R ++ [~ unload χ])
+
+-- Yet another definition of the DM ordering.
+-- This is the one used by coq CoLoR library.
+def lt_DM {α} [LT α] (M N : List α) := -- M < N iff ...
+    ∃ (X Y Z : List α),
+      X ≠ ∅
+      ∧ M = Z ++ Y
+      ∧ N = Z ++ X
+      ∧ ∀ y ∈ Y, (∃ x ∈ X, y < x)
+
+notation M:arg " <_DM " N:arg => lt_DM M N
+
+theorem lt_DM_WellFounded {α : Type u} [DecidableEq α] [LT α] (t :  WellFoundedLT α) :
+    WellFounded (@lt_DM α _) := by
+  -- Haitian / dm branch
+  sorry
 
 @[simp]
-instance tnodeHasLength : HasLength TNode := ⟨lengthOfTNode⟩
+def lt_TNode (X : TNode) (Y : TNode) := lt_DM (node_to_list X) (node_to_list Y)
 
-theorem localRuleDecreasesLengthSide (rule : LocalRule condit ress) :
-  ∀ r ∈ ress, lengthOf r < lengthOf condit :=
-    by
-    intro r r_in_ress
-    cases rule
-    case LRnegL => simp at *
-    case LRnegR => simp at *
-    case oneSidedL orule =>
-      cases orule
-      all_goals
-        simp at *
-      all_goals
-        sorry -- should be analogous to oneSidedR
-    case oneSidedR orule =>
-      cases orule
-      all_goals
-        simp at *
-      all_goals
-        try subst_eqs
-        try simp
-        try linarith
-      all_goals
-        sorry -- some of the goals here are wrong due to using lengthOf, need a local measure!
-    case loadedL lrule =>
-      cases lrule
-      all_goals
-        simp at *
-        cases r_in_ress
-      all_goals
-        try subst_eqs
-        simp at *
-      all_goals
-        try linarith
-      all_goals
-        sorry
-    case loadedR =>
-      sorry -- should be analogous to loadedL
+theorem lt_TNode_WellFounded : WellFounded lt_TNode := by
+  have := @lt_DM_WellFounded Formula _ _
+  unfold lt_TNode
 
--- TODO: is this even going to be true for our new system?
--- Maybe use a different measure than lengthOf? Also Dershowitz-Manna?
-theorem localRuleApp.decreaseLength {X : TNode} {B : List TNode}
-    (lrA : LocalRuleApp X B) : ∀ Y ∈ B, lengthOf Y < lengthOf X :=
+  sorry
+
+-- Needed for termination of endNOdesOf.
+instance : WellFoundedRelation TNode where
+  rel := lt_TNode
+  wf := lt_TNode_WellFounded
+
+theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
+    (lrA : LocalRuleApp X B) : ∀ Y ∈ B, lt_DM (node_to_list Y) (node_to_list X) :=
   by
   rcases lrA with ⟨Lcond,Rcond,OCond,rule,preconP⟩
   rename_i L R ress O B_def
@@ -641,18 +652,18 @@ theorem localRuleApp.decreaseLength {X : TNode} {B : List TNode}
   intro Y Y_in
   simp [applyLocalRule] at Y_in
   rcases Y_in with ⟨⟨Lnew,Rnew,Onew⟩, Y_in_ress, claim⟩
-  have := localRuleDecreasesLengthSide rule Y
+
   sorry
 
--- open end nodes of a given localTableau
 @[simp]
-def endNodesOf : (Σ X, LocalTableau X) → List TNode
-  | ⟨X, @byLocalRule _ B lr next⟩ =>
+def endNodesOf : {X : _} → LocalTableau X → List TNode
+  | .(_), (@byLocalRule X B lr next) =>
     (B.attach.map fun ⟨Y, h⟩ =>
-      have : lengthOf Y < lengthOf X := localRuleApp.decreaseLength lr Y h
-      endNodesOf ⟨Y, next Y h⟩).join
-  | ⟨X, sim _⟩ => [X]
+      have : lt_DM (node_to_list Y) (node_to_list X) := localRuleApp.decreases_DM lr Y h
+      endNodesOf (next Y h)).join
+  | .(_), (@sim X _) => [X]
 termination_by
-  X => lengthOf X.1
+  X => X -- pick up instance WellFoundedRelation TNode from above!
 decreasing_by
-  convert this
+  simp_wf
+  exact this

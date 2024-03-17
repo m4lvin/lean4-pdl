@@ -439,8 +439,8 @@ instance : Membership AnyNegFormula TNode := ⟨AnyNegFormula_in_TNode⟩
 
 -- TODO Computable version possible?
 noncomputable def endNode_to_endNodeOfChildNonComp (lrA)
-  (E_in: E ∈ endNodesOf ⟨X, LocalTableau.byLocalRule lrA subTabs⟩) :
-  @Subtype TNode (fun x => ∃ h, E ∈ endNodesOf ⟨x, subTabs x h⟩) := by
+  (E_in: E ∈ endNodesOf (@LocalTableau.byLocalRule X _ lrA subTabs)) :
+  @Subtype TNode (fun x => ∃ h, E ∈ endNodesOf (subTabs x h)) := by
   simp [endNodesOf] at E_in
   choose l h E_in using E_in
   choose c c_in l_eq using h
@@ -449,8 +449,8 @@ noncomputable def endNode_to_endNodeOfChildNonComp (lrA)
   use c_in
 
 theorem endNodeIsEndNodeOfChild (lrA)
-  (E_in: E ∈ endNodesOf ⟨X, LocalTableau.byLocalRule lrA subTabs⟩) :
-  ∃ Y h, E ∈ endNodesOf ⟨Y, subTabs Y h⟩ := by
+  (E_in: E ∈ endNodesOf (@LocalTableau.byLocalRule X _ lrA subTabs)) :
+  ∃ Y h, E ∈ endNodesOf (subTabs Y h) := by
   have := endNode_to_endNodeOfChildNonComp lrA E_in
   use this
   aesop
@@ -464,14 +464,14 @@ theorem endNodeOfChild_to_endNode
     (h : ltX = LocalTableau.byLocalRule lrA subTabs)
     (Y_in : Y ∈ C)
     {Z : TNode}
-    (Z_in: Z ∈ endNodesOf ⟨Y, subTabs Y Y_in⟩)
-    : Z ∈ endNodesOf ⟨X, ltX⟩ :=
+    (Z_in: Z ∈ endNodesOf (subTabs Y Y_in))
+    : Z ∈ endNodesOf ltX :=
   by
   cases h' : subTabs Y Y_in -- No induction needed for this!
   case sim Y_isSimp =>
     subst h
     simp
-    use endNodesOf ⟨Y,subTabs Y Y_in⟩
+    use endNodesOf (subTabs Y Y_in)
     constructor
     · use Y, Y_in
     · exact Z_in
@@ -479,7 +479,7 @@ theorem endNodeOfChild_to_endNode
     subst h
     rw [h'] at Z_in
     simp
-    use endNodesOf ⟨Y,subTabs Y Y_in⟩
+    use endNodesOf (subTabs Y Y_in)
     constructor
     · use Y, Y_in
     · rw [h']
@@ -519,7 +519,7 @@ notation pa:arg "◃'" pb:arg => edgesBack pa pb
 -- - a path to be walked
 -- return if succeeds: the TNode at the end of the path or a local end node and the remaining path
 -- TOOD: rewrite with more match cases in term mode without "by"?
-def nodeInLocalAt (ltX : LocalTableau X) : List TNode → Option (TNode ⊕ (Subtype (fun Y => Y ∈ endNodesOf ⟨X, ltX⟩) × List TNode))
+def nodeInLocalAt (ltX : LocalTableau X) : List TNode → Option (TNode ⊕ (Subtype (fun Y => Y ∈ endNodesOf ltX) × List TNode))
 | [] => some (Sum.inl X) -- we have reached the destination
 | (Y::rest) => by
     cases ltX
@@ -579,7 +579,7 @@ termination_by
 -- - a path to be walked
 -- return if succeeds: the local tableau at the end of the path or a local end node and the remaining path
 -- TOOD: rewrite with more match cases in term mode without "by"?
-def tabInLocalAt (ltX : LocalTableau X) : List TNode → Option ((Σ Z, LocalTableau Z) ⊕ (Subtype (fun Y => Y ∈ endNodesOf ⟨X, ltX⟩) × List TNode))
+def tabInLocalAt (ltX : LocalTableau X) : List TNode → Option ((Σ Z, LocalTableau Z) ⊕ (Subtype (fun Y => Y ∈ endNodesOf ltX) × List TNode))
 | [] => some (Sum.inl ⟨X, ltX⟩) -- we have reached the destination
 | (Y::rest) => by
     cases ltX
@@ -623,7 +623,7 @@ def tabInAt : (Σ X HistX, ClosedTableau HistX X) → List TNode → Option (Σ 
           case inl Z_ltZ =>
             -- reached end of path inside the local tableau.
             rcases Z_ltZ with ⟨Z, ltZ⟩
-            let ctZnext : (W : TNode) → W ∈ endNodesOf ⟨Z, ltZ⟩ → ClosedTableau hX W :=
+            let ctZnext : (W : TNode) → W ∈ endNodesOf ltZ → ClosedTableau hX W :=
               fun W W_in => next _ sorry -- Need: endNnodesOf ltZ ⊆ endNnodesOf ltX
             let ctZ : ClosedTableau _ Z := ClosedTableau.loc ltZ ctZnext
             exact some ⟨Z, _, ctZ⟩
@@ -663,7 +663,7 @@ def goTo : (Σ R, ClosedTableau ([],[]) R) → List TNode → TNode → Option (
             -- move down a real step:
             · let ltY := lnext Y Y_in
               -- now need to turn ltY into a closed tableau. or change the return type?
-              let ctYnext : (Z : TNode) → Z ∈ endNodesOf ⟨Y, ltY⟩ → ClosedTableau HistX Z :=
+              let ctYnext : (Z : TNode) → Z ∈ endNodesOf ltY → ClosedTableau HistX Z :=
                 fun Z Z_in => next _ (endNodeOfChild_to_endNode lrApp lnext rfl Y_in Z_in)
               let ctY : ClosedTableau _ Y := ClosedTableau.loc ltY ctYnext
               exact some ⟨Y, _, ctY⟩
