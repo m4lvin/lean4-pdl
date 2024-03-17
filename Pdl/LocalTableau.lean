@@ -598,15 +598,22 @@ def lmOfFormula : Formula → Nat
 | ⌈?'φt⌉ φ => 1 + lmOfFormula (~φt) + lmOfFormula φ
 | ⌈α;'β⌉ φ => 1 + lmOfFormula (⌈α⌉φ) + lmOfFormula (⌈β⌉φ)
 | ⌈α⋓β⌉ φ => 1 + lmOfFormula (⌈α⌉φ) + lmOfFormula (⌈β⌉φ)
-| ⌈∗α⌉ φ => 1 + lmOfFormula (φ) -- ??? (because DagTab does all α steps)
+| ⌈∗α⌉ φ => 1 + lmOfFormula (φ) -- because DagTab does all α steps
 | ~⌈·_⌉ _ => 0 -- No more local steps
 | ~⌈?'φt⌉ φ => 1 + lmOfFormula (~φ)
 | ~⌈α;'β⌉ φ => 1 + lmOfFormula (~⌈α⌉φ) + lmOfFormula (~⌈β⌉φ)
 | ~⌈α⋓β⌉ φ => 1 + lmOfFormula (~⌈α⌉φ) + lmOfFormula (~⌈β⌉φ) -- max
-| ~⌈∗α⌉ φ => 1 + lmOfFormula (~φ) -- ???
+| ~⌈∗α⌉ φ => 1 + lmOfFormula (~φ) -- because DagTab does all α steps
 
 -- FIXME Only need this here, be careful with exporting this?
-instance : LT Formula := ⟨fun φ ψ  => lmOfFormula φ < lmOfFormula ψ⟩
+@[simp]
+instance : LT Formula := ⟨Nat.lt on lmOfFormula⟩
+
+instance Formula.WellFoundedLT : WellFoundedLT Formula := by
+  unfold WellFoundedLT
+  constructor
+  simp_all only [instLTFormula, Nat.lt_eq]
+  exact @WellFounded.onFun Formula Nat Nat.lt lmOfFormula Nat.lt_wfRel.wf
 
 def node_to_list : TNode → List Formula
 | (L, R, none) => (L ++ R)
@@ -618,8 +625,8 @@ def node_to_list : TNode → List Formula
 def lt_DM {α} [LT α] (M N : List α) := -- M < N iff ...
     ∃ (X Y Z : List α),
       X ≠ ∅
-      ∧ M = Z ++ Y
-      ∧ N = Z ++ X
+      ∧ M = Z ++ Y -- weaken this to List.perm ? Or change all to Multiset here!
+      ∧ N = Z ++ X -- weaken this to List.perm ?
       ∧ ∀ y ∈ Y, (∃ x ∈ X, y < x)
 
 notation M:arg " <_DM " N:arg => lt_DM M N
@@ -632,11 +639,8 @@ theorem lt_DM_WellFounded {α : Type u} [DecidableEq α] [LT α] (t :  WellFound
 @[simp]
 def lt_TNode (X : TNode) (Y : TNode) := lt_DM (node_to_list X) (node_to_list Y)
 
-theorem lt_TNode_WellFounded : WellFounded lt_TNode := by
-  have := @lt_DM_WellFounded Formula _ _
-  unfold lt_TNode
-
-  sorry
+theorem lt_TNode_WellFounded : WellFounded lt_TNode :=
+  InvImage.wf node_to_list (lt_DM_WellFounded Formula.WellFoundedLT)
 
 -- Needed for termination of endNOdesOf.
 instance : WellFoundedRelation TNode where
@@ -652,8 +656,25 @@ theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
   intro Y Y_in
   simp [applyLocalRule] at Y_in
   rcases Y_in with ⟨⟨Lnew,Rnew,Onew⟩, Y_in_ress, claim⟩
-
-  sorry
+  /-
+  simp at claim
+  unfold lt_DM
+  cases O <;> cases Onew <;>
+  cases rule
+  --  <;> cases orule
+  all_goals
+    unfold node_to_list
+    simp_all
+  all_goals
+    subst_eqs
+    try simp at *
+    rename_i oil_rule
+    cases oil_rule -- 136 goals O.o
+  all_goals
+    try simp at *
+  -/
+  all_goals
+    sorry
 
 @[simp]
 def endNodesOf : {X : _} → LocalTableau X → List TNode
