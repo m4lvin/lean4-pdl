@@ -339,7 +339,7 @@ inductive LocalRuleApp : TNode → List TNode → Type
        (Ocond : Option (Sum NegLoadFormula NegLoadFormula))
        (rule : LocalRule (Lcond, Rcond, Ocond) ress)
        {hC : C = applyLocalRule rule (L,R,O)}
-       (preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R ∧ Ocond ⊆ O)
+       (preconditionProof : List.Sublist Lcond L ∧ List.Sublist Rcond R ∧ Ocond ⊆ O)
        : LocalRuleApp (L,R,O) C
 
 theorem localRuleTruth
@@ -362,7 +362,7 @@ theorem localRuleTruth
         rw [← osTruth, conEval]
         intro f f_in; apply w_LRO
         simp only [List.mem_union_iff, List.mem_append]
-        exact Or.inl $ Or.inl $ preconditionProof f_in
+        exact Or.inl $ Or.inl $ List.Sublist.subset preconditionProof f_in
       rw [disconEval] at this
       rcases this with ⟨Y, Y_in, claim⟩
       use Y
@@ -407,7 +407,7 @@ theorem localRuleTruth
         rw [← osTruth, conEval]
         intro f f_in; apply w_LRO
         simp only [List.mem_union_iff, List.mem_append]
-        exact Or.inl $ Or.inr $ preconditionProof f_in
+        exact Or.inl $ Or.inr $ List.Sublist.subset preconditionProof f_in
       rw [disconEval] at this
       rcases this with ⟨Y, Y_in, claim⟩
       use Y
@@ -588,22 +588,28 @@ open LocalTableau
 @[simp]
 def lmOfFormula : Formula → Nat
 | ⊥ => 0
-| ~⊥ => 0
 | ·_ => 0
-| ~·_ => 0
-| ~~φ => 1 + lmOfFormula φ
 | φ⋀ψ => 1 + lmOfFormula φ + lmOfFormula ψ
-| ~φ⋀ψ => 1 + lmOfFormula (~φ) + lmOfFormula (~ψ)
 | ⌈·_⌉ _ => 0 -- No more local steps!
 | ⌈?'φt⌉ φ => 1 + lmOfFormula (~φt) + lmOfFormula φ
 | ⌈α;'β⌉ φ => 1 + lmOfFormula (⌈α⌉φ) + lmOfFormula (⌈β⌉φ)
 | ⌈α⋓β⌉ φ => 1 + lmOfFormula (⌈α⌉φ) + lmOfFormula (⌈β⌉φ)
 | ⌈∗α⌉ φ => 1 + lmOfFormula (φ) -- because DagTab does all α steps
+-- IDEA
+-- lazy shortcut:
+| ~φ => 1 + lmOfFormula (φ)
+/-
+-- original, closer to actual rules:
+| ~⊥ => 0
+| ~·_ => 0
+| ~~φ => 1 + lmOfFormula φ
+| ~φ⋀ψ => 1 + lmOfFormula (~φ) + lmOfFormula (~ψ)
 | ~⌈·_⌉ _ => 0 -- No more local steps
-| ~⌈?'φt⌉ φ => 1 + lmOfFormula (~φ)
+| ~⌈?'φt⌉ φ => 1 + lmOfFormula (~φt) + lmOfFormula (~φ)
 | ~⌈α;'β⌉ φ => 1 + lmOfFormula (~⌈α⌉φ) + lmOfFormula (~⌈β⌉φ)
 | ~⌈α⋓β⌉ φ => 1 + lmOfFormula (~⌈α⌉φ) + lmOfFormula (~⌈β⌉φ) -- max
 | ~⌈∗α⌉ φ => 1 + lmOfFormula (~φ) -- because DagTab does all α steps
+-/
 
 -- FIXME Only need this here, be careful with exporting this?
 @[simp]
@@ -615,72 +621,164 @@ instance Formula.WellFoundedLT : WellFoundedLT Formula := by
   simp_all only [instLTFormula, Nat.lt_eq]
   exact @WellFounded.onFun Formula Nat Nat.lt lmOfFormula Nat.lt_wfRel.wf
 
-def node_to_list : TNode → List Formula
-| (L, R, none) => (L ++ R)
-| (L, R, some (Sum.inl (~'χ))) => (L ++ R ++ [~ unload χ])
-| (L, R, some (Sum.inr (~'χ))) => (L ++ R ++ [~ unload χ])
+def node_to_multiset : TNode → Multiset Formula
+| (L, R, none) => (L + R)
+| (L, R, some (Sum.inl (~'χ))) => (L + R + [~ unload χ])
+| (L, R, some (Sum.inr (~'χ))) => (L + R + [~ unload χ])
+
+def preconP_to_submultiset (preconditionProof : List.Sublist Lcond L ∧ List.Sublist Rcond R ∧ Ocond ⊆ O) :
+    node_to_multiset (Lcond, Rcond, Ocond) ≤ node_to_multiset (L, R, O) :=
+  by
+  cases Ocond <;> cases O
+  all_goals (try (rename_i f g; cases f; cases g))
+  all_goals (try (rename_i f; cases f))
+  all_goals simp [node_to_multiset] at *
+  case none.none =>
+    exact (List.Sublist.append preconditionProof.1 preconditionProof.2).subperm
+
+  all_goals sorry
+
 
 -- Yet another definition of the DM ordering.
 -- This is the one used by coq CoLoR library.
-def lt_DM {α} [LT α] (M N : List α) := -- M < N iff ...
-    ∃ (X Y Z : List α),
-      X ≠ ∅
-      ∧ M = Z ++ Y -- weaken this to List.perm ? Or change all to Multiset here!
-      ∧ N = Z ++ X -- weaken this to List.perm ?
+-- (MultisetLT on dm branch)
+def lt_DM {α} [LT α] (M N : Multiset α) := -- M < N iff ...
+    ∃ (X Y Z : Multiset α),
+      X ≠ ∅ -- X are the removed formulas, Y are the newly added ones.
+      ∧ M = Z + Y
+      ∧ N = Z + X
       ∧ ∀ y ∈ Y, (∃ x ∈ X, y < x)
 
 notation M:arg " <_DM " N:arg => lt_DM M N
 
-theorem lt_DM_WellFounded {α : Type u} [DecidableEq α] [LT α] (t :  WellFoundedLT α) :
+-- mord_wf
+theorem lt_DM_WellFounded {α : Type u} [DecidableEq α] [LT α] (wf_lt :  WellFoundedLT α) :
     WellFounded (@lt_DM α _) := by
   -- Haitian / dm branch
   sorry
 
 @[simp]
-def lt_TNode (X : TNode) (Y : TNode) := lt_DM (node_to_list X) (node_to_list Y)
+def lt_TNode (X : TNode) (Y : TNode) := lt_DM (node_to_multiset X) (node_to_multiset Y)
 
 theorem lt_TNode_WellFounded : WellFounded lt_TNode :=
-  InvImage.wf node_to_list (lt_DM_WellFounded Formula.WellFoundedLT)
+  InvImage.wf node_to_multiset (lt_DM_WellFounded Formula.WellFoundedLT)
 
 -- Needed for termination of endNOdesOf.
 instance : WellFoundedRelation TNode where
   rel := lt_TNode
   wf := lt_TNode_WellFounded
 
-theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
-    (lrA : LocalRuleApp X B) : ∀ Y ∈ B, lt_DM (node_to_list Y) (node_to_list X) :=
+theorem LocalRule.cond_non_empty (rule : LocalRule (Lcond, Rcond, Ocond) X) :
+    node_to_multiset (Lcond, Rcond, Ocond) ≠ ∅ :=
   by
-  rcases lrA with ⟨Lcond,Rcond,OCond,rule,preconP⟩
+  cases rule
+  all_goals simp [node_to_multiset]
+  case oneSidedL _ orule => cases orule <;> simp
+  case oneSidedR _ orule => cases orule <;> simp
+
+theorem Multiset.sub_add_of_subset_eq [DecidableEq α] {M : Multiset α} (h : X ≤ M):
+    M = M - X + X := (tsub_add_cancel_of_le h).symm
+
+theorem LocalRule.Decreases (rule : LocalRule X ress) :
+    ∀ Y ∈ ress, ∀ y ∈ node_to_multiset Y, ∃ x ∈ node_to_multiset X, y < x :=
+  by
+    intro Y Y_in_ress y y_in_Y
+    cases rule
+    case LRnegL => simp at *
+    case LRnegR => simp at *
+
+    case oneSidedL orule =>
+      cases orule
+      all_goals
+        simp [node_to_multiset] at *
+        try subst_eqs
+        try simp at *
+        try subst_eqs
+      case neg.refl => linarith
+      case con.refl =>
+        cases y_in_Y <;> (subst_eqs; linarith)
+      case nCo =>
+        cases Y_in_ress <;> (subst_eqs; simp at * ; subst_eqs ; simp at *)
+        linarith
+      case nTe φt φ =>
+        cases y_in_Y <;> subst_eqs
+        · linarith
+        · simp at *
+      case nSe =>
+        sorry
+      case uni =>
+        sorry
+      case seq =>
+        sorry
+      case tes =>
+        sorry
+      case nUn =>
+        sorry
+      case sta α φ =>
+        -- need: lmOfFormula goes down in boxDagEndNodes
+        sorry
+      case nSt α φ =>
+        -- need: lmOfFormula goes down in dagEndNodes
+        sorry
+
+    case oneSidedR orule =>
+      sorry -- should be analogous to oneSidedL, better refactor this out into a lemma?
+
+    case loadedL lrule =>
+      simp [node_to_multiset]
+      cases lrule
+      -- 8 goals, analogous to the unloaded cases above?
+      all_goals
+        sorry
+    case loadedR lrule =>
+      sorry -- should be analogous to loadedL
+
+theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
+    (lrA : LocalRuleApp X B) : ∀ Y ∈ B, lt_DM (node_to_multiset Y) (node_to_multiset X) :=
+  by
+  rcases lrA with ⟨Lcond,Rcond,Ocond,rule,preconP⟩
   rename_i L R ress O B_def
   subst B_def
-  intro Y Y_in
-  simp [applyLocalRule] at Y_in
-  rcases Y_in with ⟨⟨Lnew,Rnew,Onew⟩, Y_in_ress, claim⟩
-  /-
+  intro RES RES_in
+  simp [applyLocalRule] at RES_in
+  rcases RES_in with ⟨⟨Lnew,Rnew,Onew⟩, Y_in_ress, claim⟩
   simp at claim
   unfold lt_DM
-  cases O <;> cases Onew <;>
-  cases rule
-  --  <;> cases orule
-  all_goals
-    unfold node_to_list
-    simp_all
-  all_goals
-    subst_eqs
-    try simp at *
-    rename_i oil_rule
-    cases oil_rule -- 136 goals O.o
-  all_goals
-    try simp at *
-  -/
-  all_goals
-    sorry
+  use node_to_multiset (Lcond, Rcond, Ocond) -- choose X to be the removed formulas
+  use node_to_multiset (Lnew, Rnew, Onew) -- choose Y to be the newly added formulas
+  -- Now choose a way to define Z:
+  -- let Z:= use node_to_multiset RES - node_to_multiset (Lnew, Rnew, Onew) -- way 1
+  let Z:= node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) -- way 2
+  use Z
+  -- claim that the other definition would have been the same:
+  have Z_eq : Z = node_to_multiset RES - node_to_multiset (Lnew, Rnew, Onew) := by sorry
+
+  split_ands
+  · exact (LocalRule.cond_non_empty rule : node_to_multiset (Lcond, Rcond, Ocond) ≠ ∅)
+  · cases Onew
+    all_goals try (rename_i f; cases f)
+    all_goals simp_all
+    all_goals cases O
+    all_goals try (rename_i cond; cases cond)
+
+    all_goals cases Ocond
+    all_goals try (rename_i cond; cases cond)
+    all_goals try simp_all
+    all_goals subst claim
+    all_goals try simp_all
+    all_goals
+      simp [node_to_multiset]
+
+      sorry
+  · apply Multiset.sub_add_of_subset_eq
+    exact preconP_to_submultiset preconP
+  · exact LocalRule.Decreases rule _ Y_in_ress
 
 @[simp]
 def endNodesOf : {X : _} → LocalTableau X → List TNode
   | .(_), (@byLocalRule X B lr next) =>
     (B.attach.map fun ⟨Y, h⟩ =>
-      have : lt_DM (node_to_list Y) (node_to_list X) := localRuleApp.decreases_DM lr Y h
+      have : lt_DM (node_to_multiset Y) (node_to_multiset X) := localRuleApp.decreases_DM lr Y h
       endNodesOf (next Y h)).join
   | .(_), (@sim X _) => [X]
 termination_by
