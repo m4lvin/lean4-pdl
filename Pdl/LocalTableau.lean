@@ -632,12 +632,32 @@ def preconP_to_submultiset (preconditionProof : List.Sublist Lcond L ∧ List.Su
   cases Ocond <;> cases O
   all_goals (try (rename_i f g; cases f; cases g))
   all_goals (try (rename_i f; cases f))
-  all_goals simp [node_to_multiset] at *
+  all_goals
+    simp [node_to_multiset] at *
   case none.none =>
     exact (List.Sublist.append preconditionProof.1 preconditionProof.2).subperm
-
-  all_goals sorry
-
+  case none.some.inl =>
+    rw [Multiset.le_iff_count]
+    intro f
+    have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2) f
+    simp_all
+    linarith
+  case none.some.inr =>
+    rw [Multiset.le_iff_count]
+    intro f
+    have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2) f
+    simp_all
+    linarith
+  case some.some.inl.inl.neg =>
+    rw [Multiset.le_iff_count]
+    intro f
+    have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2.1) f
+    simp_all
+  case some.some.inr.neg a =>
+    rw [Multiset.le_iff_count]
+    intro f
+    have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2.1) f
+    cases g <;> (rename_i nlform; cases nlform; simp_all)
 
 -- Yet another definition of the DM ordering.
 -- This is the one used by coq CoLoR library.
@@ -705,6 +725,7 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
         · linarith
         · simp at *
       case nSe =>
+        simp
         sorry
       case uni =>
         sorry
@@ -748,19 +769,22 @@ theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
   use node_to_multiset (Lnew, Rnew, Onew) -- choose Y to be the newly added formulas
   -- Now choose a way to define Z:
   -- let Z:= use node_to_multiset RES - node_to_multiset (Lnew, Rnew, Onew) -- way 1
-  let Z:= node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) -- way 2
+  let Z := node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) -- way 2
   use Z
   -- claim that the other definition would have been the same:
-  have Z_eq : Z = node_to_multiset RES - node_to_multiset (Lnew, Rnew, Onew) := by sorry
-
+  have Z_eq : Z = node_to_multiset RES - node_to_multiset (Lnew, Rnew, Onew) := by
+    -- maybe similar to the proof of preconP_to_submultiset?
+    sorry
   split_ands
   · exact (LocalRule.cond_non_empty rule : node_to_multiset (Lcond, Rcond, Ocond) ≠ ∅)
-  · cases Onew
+  · rw [Z_eq]
+    apply Multiset.sub_add_of_subset_eq
+    cases Onew
+    -- TODO: clean this up once it works
     all_goals try (rename_i f; cases f)
     all_goals simp_all
     all_goals cases O
     all_goals try (rename_i cond; cases cond)
-
     all_goals cases Ocond
     all_goals try (rename_i cond; cases cond)
     all_goals try simp_all
@@ -768,7 +792,8 @@ theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
     all_goals try simp_all
     all_goals
       simp [node_to_multiset]
-
+      try apply List.Sublist.subperm
+      try simp_all
       sorry
   · apply Multiset.sub_add_of_subset_eq
     exact preconP_to_submultiset preconP
