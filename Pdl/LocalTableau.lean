@@ -585,19 +585,23 @@ open LocalTableau
 -- LOCAL END NODES AND TERMINATION
 
 -- Use this plus D-M to show termination on LocalTableau. Overkill?
+mutual
 @[simp]
 def lmOfFormula : Formula → Nat
 | ⊥ => 0
 | ·_ => 0
-| φ⋀ψ => 1 + lmOfFormula φ + lmOfFormula ψ
-| ⌈·_⌉ _ => 0 -- No more local steps!
-| ⌈?'φt⌉ φ => 1 + lmOfFormula (~φt) + lmOfFormula φ
-| ⌈α;'β⌉ φ => 1 + lmOfFormula (⌈α⌉φ) + lmOfFormula (⌈β⌉φ)
-| ⌈α⋓β⌉ φ => 1 + lmOfFormula (⌈α⌉φ) + lmOfFormula (⌈β⌉φ)
-| ⌈∗α⌉ φ => 1 + lmOfFormula (φ) -- because DagTab does all α steps
--- IDEA
--- lazy shortcut:
 | ~φ => 1 + lmOfFormula (φ)
+| φ⋀ψ => 1 + lmOfFormula φ + lmOfFormula ψ
+| ⌈α⌉ φ => lmOfProgram α + lmOfFormula φ
+@[simp]
+def lmOfProgram : Program → Nat
+| ·_  => 0 -- No more local steps!
+| ?'φt  => 1 + lmOfFormula (~φt)
+| α;'β  => 1 + lmOfProgram (α) + lmOfProgram (β)
+| α⋓β  => 1 + lmOfProgram (α) + lmOfProgram (β)
+| ∗α  => 1 + lmOfProgram (α) -- DagTab does all α steps, but may stop at other formulas ?????
+end
+
 /-
 -- original, closer to actual rules:
 | ~⊥ => 0
@@ -699,6 +703,34 @@ theorem LocalRule.cond_non_empty (rule : LocalRule (Lcond, Rcond, Ocond) X) :
 theorem Multiset.sub_add_of_subset_eq [DecidableEq α] {M : Multiset α} (h : X ≤ M):
     M = M - X + X := (tsub_add_cancel_of_le h).symm
 
+-- TODO: move this to DagTableau? (after moving lmOf to Measures?)
+theorem boxDagEndNodes.decreases_lmOf {α : Program} {φ : Formula} {E : List Formula}
+    (E_in : E ∈ boxDagEndNodes ({φ}, [DagFormula.box α (DagFormula.dag α φ)]))
+    (y_in_E : y ∈ E)
+    : lmOfFormula y < 1 + lmOfProgram α + lmOfFormula φ :=
+  by
+  -- Is this even true? Why is there no ∗α in the claim? Is the diamond case easier?
+  -- Try induction loading and a claim about boxDagNext and intermediate (dagger) formulas?
+  cases y
+  case box β φ =>
+    cases β
+    case star β =>
+      simp
+      -- y_in_E should be impossible now, dagEndNodes never contain top-level stars (Lemma!?)
+      sorry
+    all_goals sorry
+  all_goals sorry
+
+-- TODO: move this to DagTableau? (after moving lmOf to Measures?)
+theorem dagEndNodes.decreases_lmOf {α : Program} {φ : Formula} {E : List Formula}
+    (E_in : E ∈ dagEndNodes ([], some (NegDagFormula.neg (DagFormula.box α (DagFormula.dag α φ)))))
+    (y_in_E : y ∈ E)
+    : lmOfFormula y < 1 + (1 + lmOfProgram α + lmOfFormula φ) :=
+  by
+  sorry
+
+-- TODO: also need loadDagEndNodes.decreases_lmOf or similar?
+
 theorem LocalRule.Decreases (rule : LocalRule X ress) :
     ∀ Y ∈ ress, ∀ y ∈ node_to_multiset Y, ∃ x ∈ node_to_multiset X, y < x :=
   by
@@ -715,44 +747,98 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
         try simp at *
         try subst_eqs
       case neg.refl => linarith
-      case con.refl =>
-        cases y_in_Y <;> (subst_eqs; linarith)
-      case nCo =>
-        cases Y_in_ress <;> (subst_eqs; simp at * ; subst_eqs ; simp at *)
-        linarith
-      case nTe φt φ =>
-        cases y_in_Y <;> subst_eqs
-        · linarith
-        · simp at *
-      case nSe =>
-        simp
-        sorry
-      case uni =>
-        sorry
-      case seq =>
-        sorry
-      case tes =>
-        sorry
-      case nUn =>
-        sorry
+      case con.refl => cases y_in_Y <;> (subst_eqs; linarith)
+      case nCo => cases Y_in_ress <;> (subst_eqs; simp at * ; subst_eqs ; simp at *); linarith
+      case nTe => cases y_in_Y <;> subst_eqs; linarith; simp
+      case nSe α β φ => cases α <;> (simp_all; try linarith)
+      case uni α β φ => cases y_in_Y <;> (subst_eqs; simp; try linarith)
+      case seq => simp; linarith
+      case tes => cases Y_in_ress <;> subst_eqs <;> (simp_all; try linarith)
+      case nUn => cases Y_in_ress <;> subst_eqs <;> (simp_all; try linarith)
       case sta α φ =>
-        -- need: lmOfFormula goes down in boxDagEndNodes
-        sorry
+        rcases Y_in_ress with ⟨E, E_in, E_def⟩
+        subst E_def
+        simp_all only [List.append_nil, Multiset.mem_coe]
+        exact boxDagEndNodes.decreases_lmOf E_in y_in_Y
       case nSt α φ =>
         -- need: lmOfFormula goes down in dagEndNodes
         sorry
 
     case oneSidedR orule =>
-      sorry -- should be analogous to oneSidedL, better refactor this out into a lemma?
+      cases orule
+      all_goals
+        simp [node_to_multiset] at *
+        try subst_eqs
+        try simp at *
+        try subst_eqs
+      case neg.refl => linarith
+      case con.refl => cases y_in_Y <;> (subst_eqs; linarith)
+      case nCo => cases Y_in_ress <;> (subst_eqs; simp at * ; subst_eqs ; simp at *); linarith
+      case nTe => cases y_in_Y <;> subst_eqs; linarith; simp
+      case nSe α β φ => cases α <;> (simp_all; try linarith)
+      case uni α β φ => cases y_in_Y <;> (subst_eqs; simp; try linarith)
+      case seq => simp; linarith
+      case tes => cases Y_in_ress <;> subst_eqs <;> (simp_all; try linarith)
+      case nUn => cases Y_in_ress <;> subst_eqs <;> (simp_all; try linarith)
+      case sta α φ =>
+        rcases Y_in_ress with ⟨E, E_in, E_def⟩
+        subst E_def
+        simp_all only [List.append_nil, Multiset.mem_coe]
+        exact boxDagEndNodes.decreases_lmOf E_in y_in_Y
+      case nSt α φ =>
+        cases Y_in_ress
+        · simp_all
+        case inr Y_in =>
+          rcases Y_in with ⟨E, E_in, E_def⟩
+          subst E_def
+          simp_all
+          exact dagEndNodes.decreases_lmOf E_in y_in_Y
 
     case loadedL lrule =>
       simp [node_to_multiset]
       cases lrule
-      -- 8 goals, analogous to the unloaded cases above?
       all_goals
+        simp [node_to_multiset] at *
+        try subst_eqs
+        try simp at *
+        try subst_eqs
+      case nTe => cases y_in_Y <;> subst_eqs; linarith; simp
+      case nTe' => cases y_in_Y <;> subst_eqs; linarith; simp
+      case nSe α β χ => cases α <;> (simp_all; try linarith)
+      case nSe' α β φ => cases α <;> (simp_all; try linarith)
+      case nUn => cases Y_in_ress <;> subst_eqs <;> (simp_all; try linarith)
+      case nUn' => cases Y_in_ress <;> subst_eqs <;> (simp_all; try linarith)
+      case nSt α χ =>
+        -- need: lmOfFormula goes down in loadDagEndNodes
         sorry
+      case nSt' α φ =>
+        -- need: lmOfFormula goes down in loadDagEndNodes
+        sorry
+
     case loadedR lrule =>
-      sorry -- should be analogous to loadedL
+      simp [node_to_multiset]
+      cases lrule
+      all_goals
+        simp [node_to_multiset] at *
+        try subst_eqs
+        try simp at *
+        try subst_eqs
+      case nTe => cases y_in_Y <;> subst_eqs; linarith; simp
+      case nTe' => cases y_in_Y <;> subst_eqs; linarith; simp
+      case nSe α β χ => cases α <;> (simp_all; try linarith)
+      case nSe' α β φ => cases α <;> (simp_all; try linarith)
+      case nUn =>
+        cases Y_in_ress <;> subst_eqs
+        all_goals (simp_all; try linarith)
+      case nUn' =>
+        cases Y_in_ress <;> subst_eqs
+        all_goals (simp_all; try linarith)
+      case nSt α χ =>
+        -- need: lmOfFormula goes down in loadDagEndNodes
+        sorry
+      case nSt' α φ =>
+        -- need: lmOfFormula goes down in loadDagEndNodes
+        sorry
 
 theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
     (lrA : LocalRuleApp X B) : ∀ Y ∈ B, lt_DM (node_to_multiset Y) (node_to_multiset X) :=
