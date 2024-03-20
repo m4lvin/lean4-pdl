@@ -3,6 +3,7 @@ import Mathlib.Tactic.Linarith
 import Mathlib.Data.Set.Finite
 import Mathlib.Data.Multiset.Basic
 import Mathlib.Logic.Relation
+import Mathlib.Tactic.Ring
 
 import Pdl.Syntax
 import Pdl.Discon
@@ -1283,13 +1284,13 @@ notation M:arg " <_DM " N:arg => MultisetLT M N
 notation M:arg " ≤_DM " N:arg => MultisetLT M N ∨ M = N
 notation M:arg " ≥_DM " N:arg => MultisetLT N M ∨ M = N
 
-lemma mul_not_lower_zero [DecidableEq α] [Preorder α] : ∀ (M : Multiset α), ¬ M <_DM 0 := by
-      intro M
-      have M_geq_0: M ≥ 0 := Multiset.zero_le M
-      by_contra M_le_0
-      rw [ge_iff_le] at *
+-- lemma mul_not_lower_zero [DecidableEq α] [Preorder α] : ∀ (M : Multiset α), ¬ M <_DM 0 := by
+--       intro M
+--       have M_geq_0: M ≥ 0 := Multiset.zero_le M
+--       by_contra M_le_0
+--       rw [ge_iff_le] at *
 
-      sorry
+--       sorry
 
 -- This is not true in general: See counterexample below!
 lemma WRONG_list_count_subset_le [DecidableEq α] [LT α] : ∀ (N M : List α), N ⊆ M →  List.count a N ≤ List.count a M := by
@@ -1347,14 +1348,6 @@ lemma mem_leq_diff [DecidableEq α] [Preorder α] : ∀ (M N: Multiset α), N �
   rw [Multiset.eq_union_left]
   exact h
 
-
-lemma mem_leq_diff' [DecidableEq α] [Preorder α] : ∀ (M N: Multiset α), N ≤ M → M = M - N + N := by
-  intros M N h
-  rw [← Multiset.union_def]
-  rw [Multiset.eq_union_left]
-  exact h
-
-
 lemma obvious {α} [pre : Preorder α] :  ∀ {a b c : α},
   a < b → b < c → a < c := by
   apply @lt_trans α pre
@@ -1388,13 +1381,58 @@ lemma le_sub_add {α} [pre : Preorder α] [dec : DecidableEq α]:
           simp_all only [ge_iff_le]
         simp_all only [ge_iff_le, add_left_inj]
 
+lemma le_eq_sub : ∀ (M N P Q : ℕ) , M ≤ P → M + N = P + Q → N = Q + (P - M):= by
+  intros M N P Q h0 h1
+  have := tsub_add_cancel_of_le h0
+  linarith
 
 
+
+  -- simp_all
+  -- have : N = P + Q - M := by sorry
+  -- rw [this]
+  -- have : Q + (P - M) = (Q + P) - M := by
+  --   rw [add_sub_cancel']
+  --   rw [←add_assoc]
+
+
+  -- have h1 : M + (N - Q) = P := by sorry
+  --   -- rw [add_sub_cancel', ←add_assoc, h, add_assoc, add_comm Q, ←add_assoc, add_assoc, add_sub_cancel']
+
+  -- have h2 : N - Q + Q = Q + (N - Q) := by sorry
+  -- { rw nat.add_sub_cancel' },
+  -- rw [←h1, h2],
+
+
+
+#check add_assoc
+-- Constant CoLoR.Util.Multiset.MultisetOrder.MultisetOrder.MSet.double_split
+-- Module Import MSet := MultisetTheory.Multiset MC.
 lemma double_split {α} [pre : Preorder α] [dec : DecidableEq α]:
       ∀ (M N P Q: Multiset α) ,  M + N = P + Q → N = N ∩ Q + (P - M)  := by
         intros M N P Q h
+        ext x
+        rw [Multiset.count_add]
+        rw [Multiset.count_inter]
+        rw [Multiset.count_sub]
+        have H0 : Multiset.count x M + Multiset.count x N = Multiset.count x P + Multiset.count x Q := by
+          rw [Multiset.ext] at h
+          simp_all only [Multiset.mem_add, Multiset.count_add]
+        if l_u : Multiset.count x M ≤ Multiset.count x P then
+          have : Multiset.count x N ≥ Multiset.count x Q := by linarith
 
-        sorry
+          aesop --Ask Malvin: how to replace aesop with more explicit tactics?
+          apply le_eq_sub (Multiset.count x M) (Multiset.count x N) (Multiset.count x P) (Multiset.count x Q)
+          aesop
+          exact H0
+          -- use H0
+        else
+          simp_all only [not_le, gt_iff_lt]
+          have : Multiset.count x N ≤ Multiset.count x Q := by linarith
+          aesop
+          apply le_of_lt
+          exact l_u
+
 
 
 lemma in_notin_diff {α} [pre : Preorder α] [dec : DecidableEq α]:
@@ -1421,12 +1459,6 @@ lemma WRONG_inter_add_dist {α} [pre : Preorder α] [dec : DecidableEq α]:
             sorry
           else
             sorry
-
-
-
-
-
-
 
 
 lemma WRONG_add_inter_complement {α} [pre : Preorder α] [dec : DecidableEq α]:
@@ -1837,7 +1869,7 @@ lemma WRONG_LT_trans {α} [pre : Preorder α] [dec : DecidableEq α]:
 
 --Ask Malvin: The problem is if I don't use [LT α] < will be both used for A and Multiset A. However, it seems like lean can tell the difference.
 
- lemma direct_subset_red [DecidableEq α] [Preorder α] [DecidableRel (fun (x : α) (y: α) => x < y)] : ∀ (M N : Multiset α), MultisetLT M N →  MultisetLt M N := by
+ lemma direct_subset_red [dec : DecidableEq α] [Preorder α] [DecidableRel (fun (x : α) (y: α) => x < y)] : ∀ (M N : Multiset α), MultisetLT M N →  MultisetLt M N := by
       intros M N LTXY
       cases LTXY
       case MLT X Y Z Y_not_empty MZX NZY h =>
@@ -1868,11 +1900,11 @@ lemma WRONG_LT_trans {α} [pre : Preorder α] [dec : DecidableEq α]:
             have newY_nonEmpty : newY ≠ ∅ := by simp; sorry
             have newY_sub_Y : newY < Y := by simp; exact claim
             let f : α → Multiset α := fun y' => X.filter (fun x => x < y')
-            let f' : α → List α := fun y' => (Multiset.toList X).filter (fun x => x < y') --toList uses choice
-            let g : Multiset α → Multiset α := fun M => sorry
-            let h : List α → List α → List α -- Why is h not recognized in this recursive call?
-                | [], _ => []
-                | (y :: ys), X' => (Multiset.toList X').filter (fun x => x < y) ++ (h ys (X' - ((Multiset.toList X').filter (fun x => x < y))))
+            -- let f' : α → List α := fun y' => (Multiset.toList X).filter (fun x => x < y') --toList uses choice
+            -- let g : Multiset α → Multiset α := fun M => sorry
+            -- let h : List α → List α → List α -- Why is h not recognized in this recursive call?
+            --    | [], _ => []
+            --    | (y :: ys), X' => (Multiset.toList X').filter (fun x => x < y) ++ (h ys (X' - ((Multiset.toList X').filter (fun x => x < y))))
 
             let N' := Z + newY + f y -- DecidableRel
             apply TC.trans
@@ -1880,13 +1912,18 @@ lemma WRONG_LT_trans {α} [pre : Preorder α] [dec : DecidableEq α]:
             -- step from N' to M
             · apply IH newY newY_sub_Y newY_nonEmpty
               -- change M = (Z + f y) + (newY.map f).join -- This might be wrong actually
-              change M = (Z + f y) + (newY.map f).join -- This is wrong!
-              · have Xfy: f y + Multiset.join (Multiset.map f newY) = X := by
-                  sorry
-                have : Z + f y + Multiset.join (Multiset.map f newY) = Z + (f y + Multiset.join (Multiset.map f newY)) := by apply add_assoc
-                rw [this]
-                rw [Xfy]
-                aesop
+              change M = (Z + f y) + (X - f y) -- new try
+              ·
+                have : f y ≤ X := Multiset.filter_le (fun x => x < y) X
+                ext a
+                have count_lt := Multiset.count_le_of_le a this
+                rw [M_def]
+                simp_all
+
+                -- linarith
+
+                -- aesop
+                sorry
 
               · have : Z + newY + f y = Z + f y + newY := by
                   have : newY + f y = f y + newY := by apply add_comm
