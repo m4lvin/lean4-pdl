@@ -1546,219 +1546,219 @@ lemma LT_trans {α} [pre : Preorder α] [dec : DecidableEq α]:
             let _ := h y_in_Y1
             aesop
 
--- lemma LT_trans {α} [pre : Preorder α] [dec : DecidableEq α] [LT : LT α]:
---       Transitive (@MultisetLT α dec LT) := by
-lemma WRONG_LT_trans {α} [pre : Preorder α] [dec : DecidableEq α]:
-      ∀ (M N P : Multiset α) , MultisetLT M N → MultisetLT N P → MultisetLT M P  := by
-      intros M N P LTMN LTNP
-      rcases LTMN with ⟨X, Y, Z, Y_not_empty, MZX, NZY, h⟩
-      rcases LTNP with ⟨X', Y', Z', Y'_not_empty,NZX',PZY', h' ⟩
--- Useful results throughout the proof:
-      have H0: Multiset.inter Z Z' ≤ Z' := by apply Multiset.inter_le_right
-      have H1: Y' ≤ (Z' + Y' - Multiset.inter Z Z') := by
-          -- have H1: Multiset.inter Z Z' ≤ Z' + Y' := by
-          --   apply le_trans
-          --   exact H0
-          --   aesop
-          have : Y' ≤ Y' + Z' - Multiset.inter Z Z' := by
-            have : Y' + Z' - Multiset.inter Z Z' = Y' + (Z' - Multiset.inter Z Z') := by
-              apply add_tsub_assoc_of_le
-              exact H0
-            aesop
-          have : Y' + Z' = Z' + Y' := by
-            apply add_comm
-          aesop
+-- -- lemma LT_trans {α} [pre : Preorder α] [dec : DecidableEq α] [LT : LT α]:
+-- --       Transitive (@MultisetLT α dec LT) := by
+-- lemma WRONG_LT_trans {α} [pre : Preorder α] [dec : DecidableEq α]:
+--       ∀ (M N P : Multiset α) , MultisetLT M N → MultisetLT N P → MultisetLT M P  := by
+--       intros M N P LTMN LTNP
+--       rcases LTMN with ⟨X, Y, Z, Y_not_empty, MZX, NZY, h⟩
+--       rcases LTNP with ⟨X', Y', Z', Y'_not_empty,NZX',PZY', h' ⟩
+-- -- Useful results throughout the proof:
+--       have H0: Multiset.inter Z Z' ≤ Z' := by apply Multiset.inter_le_right
+--       have H1: Y' ≤ (Z' + Y' - Multiset.inter Z Z') := by
+--           -- have H1: Multiset.inter Z Z' ≤ Z' + Y' := by
+--           --   apply le_trans
+--           --   exact H0
+--           --   aesop
+--           have : Y' ≤ Y' + Z' - Multiset.inter Z Z' := by
+--             have : Y' + Z' - Multiset.inter Z Z' = Y' + (Z' - Multiset.inter Z Z') := by
+--               apply add_tsub_assoc_of_le
+--               exact H0
+--             aesop
+--           have : Y' + Z' = Z' + Y' := by
+--             apply add_comm
+--           aesop
 
-      apply MultisetLT.MLT ((Z+X) - (Multiset.inter Z Z')) ((Z'+Y')-(Multiset.inter Z Z')) (Multiset.inter Z Z') -- I think the application is wrong here! But maybe it also works? Discuss with Malvin!
-      . aesop
-        -- The rest is when we have H: Y' ≤_DM (Z' + Y' - Multiset.inter Z Z') instead of Y' ≤ (Z' + Y' - Multiset.inter Z Z')
-        -- cases H
-        -- -- with ⟨X,Y,Z,h0,h1,h2,h3⟩
-        -- case MLT.MLT.a.inl H := by
-        --   cases H
-        --   aesop
-        -- case MLT.MLT.a.inr H := by
-        --   rw [H] at Y'_not_empty
-        --   exact Y'_not_empty
-      . rw [MZX]
-        have : Multiset.inter Z Z' ≤ Z + X := by
-          have : Multiset.inter Z Z' ≤ Z := by apply Multiset.inter_le_left
-          apply le_trans
-          exact this
-          aesop
-        aesop_subst [NZY, PZY', MZX]
-        simp_all only [Multiset.empty_eq_zero]
-        simp_all [ne_eq]
-      . rw [PZY']
-        have : Multiset.inter Z Z' ≤ Z' + Y' := by
-          have : Multiset.inter Z Z' ≤ Z' := by apply Multiset.inter_le_right
-          apply le_trans
-          exact this
-          aesop
-        aesop_subst [NZX', PZY', MZX]
-        simp_all only [Multiset.empty_eq_zero, ne_eq, ge_iff_le, add_tsub_cancel_of_le]
-      . intro x
-        intro H
-        have H' : Z + X - Multiset.inter Z Z' = Z - Multiset.inter Z Z' + X := by -- Use the fact that Multiset.inter Z Z' ≤ Z
+--       apply MultisetLT.MLT ((Z+X) - (Multiset.inter Z Z')) ((Z'+Y')-(Multiset.inter Z Z')) (Multiset.inter Z Z') -- I think the application is wrong here! But maybe it also works? Discuss with Malvin!
+--       . aesop
+--         -- The rest is when we have H: Y' ≤_DM (Z' + Y' - Multiset.inter Z Z') instead of Y' ≤ (Z' + Y' - Multiset.inter Z Z')
+--         -- cases H
+--         -- -- with ⟨X,Y,Z,h0,h1,h2,h3⟩
+--         -- case MLT.MLT.a.inl H := by
+--         --   cases H
+--         --   aesop
+--         -- case MLT.MLT.a.inr H := by
+--         --   rw [H] at Y'_not_empty
+--         --   exact Y'_not_empty
+--       . rw [MZX]
+--         have : Multiset.inter Z Z' ≤ Z + X := by
+--           have : Multiset.inter Z Z' ≤ Z := by apply Multiset.inter_le_left
+--           apply le_trans
+--           exact this
+--           aesop
+--         aesop_subst [NZY, PZY', MZX]
+--         simp_all only [Multiset.empty_eq_zero]
+--         simp_all [ne_eq]
+--       . rw [PZY']
+--         have : Multiset.inter Z Z' ≤ Z' + Y' := by
+--           have : Multiset.inter Z Z' ≤ Z' := by apply Multiset.inter_le_right
+--           apply le_trans
+--           exact this
+--           aesop
+--         aesop_subst [NZX', PZY', MZX]
+--         simp_all only [Multiset.empty_eq_zero, ne_eq, ge_iff_le, add_tsub_cancel_of_le]
+--       . intro x
+--         intro H
+--         have H' : Z + X - Multiset.inter Z Z' = Z - Multiset.inter Z Z' + X := by -- Use the fact that Multiset.inter Z Z' ≤ Z
 
-          have Z_Z'_le_Z : Multiset.inter Z Z' ≤ Z := by apply Multiset.inter_le_left
+--           have Z_Z'_le_Z : Multiset.inter Z Z' ≤ Z := by apply Multiset.inter_le_left
 
-          have : Z + X - Multiset.inter Z Z' + Multiset.inter Z Z'= Z - Multiset.inter Z Z' + X + Multiset.inter Z Z' := by
-            have : Multiset.inter Z Z' ≤ Z + X := by apply le_trans ; exact Z_Z'_le_Z ; aesop
-            have : Z + X - Multiset.inter Z Z' = Z - Multiset.inter Z Z' + X := by
-              have : Z + X - Multiset.inter Z Z' + Multiset.inter Z Z' = Z - Multiset.inter Z Z' + X + Multiset.inter Z Z' := by
-                have : Z + X - Multiset.inter Z Z' + Multiset.inter Z Z' = Z + X := by
-                  have : Z + X - Multiset.inter Z Z' + Multiset.inter Z Z' = Z + X + Multiset.inter Z Z' - Multiset.inter Z Z' := by
-                    apply le_sub_add
-                    exact this
-                  aesop -- use add_tsub_assoc_of_le
-                have : Z - Multiset.inter Z Z' + X + Multiset.inter Z Z' = Z + X := by
-                  have : Z - Multiset.inter Z Z' + X = Z + X - Multiset.inter Z Z' := by
-                    apply le_sub_add
-                    exact Z_Z'_le_Z
+--           have : Z + X - Multiset.inter Z Z' + Multiset.inter Z Z'= Z - Multiset.inter Z Z' + X + Multiset.inter Z Z' := by
+--             have : Multiset.inter Z Z' ≤ Z + X := by apply le_trans ; exact Z_Z'_le_Z ; aesop
+--             have : Z + X - Multiset.inter Z Z' = Z - Multiset.inter Z Z' + X := by
+--               have : Z + X - Multiset.inter Z Z' + Multiset.inter Z Z' = Z - Multiset.inter Z Z' + X + Multiset.inter Z Z' := by
+--                 have : Z + X - Multiset.inter Z Z' + Multiset.inter Z Z' = Z + X := by
+--                   have : Z + X - Multiset.inter Z Z' + Multiset.inter Z Z' = Z + X + Multiset.inter Z Z' - Multiset.inter Z Z' := by
+--                     apply le_sub_add
+--                     exact this
+--                   aesop -- use add_tsub_assoc_of_le
+--                 have : Z - Multiset.inter Z Z' + X + Multiset.inter Z Z' = Z + X := by
+--                   have : Z - Multiset.inter Z Z' + X = Z + X - Multiset.inter Z Z' := by
+--                     apply le_sub_add
+--                     exact Z_Z'_le_Z
 
-                  rw [this]
-                  simp_all only [Multiset.empty_eq_zero, ne_eq, ge_iff_le]
-                aesop
-              aesop
-            aesop
-          aesop
-        if hyp : x ∈ Z - Multiset.inter Z Z' then
-          have x_in_X': x ∈ X' := by
-            have : Z - Multiset.inter Z Z' ≤ X' := by
-              have : Z - Multiset.inter Z Z' = Z - Z' := by apply Multiset.sub_inter
-              -- simp
-              have : Z ≤ X' + Z' := by
-                simp_all only [ge_iff_le, le_add_iff_nonneg_right, zero_le]
-                have : X' + Z' = Z' + X' := by apply add_comm
-                rw [this]
-                simp_all only [Multiset.empty_eq_zero, ne_eq, ge_iff_le, Multiset.mem_add, true_or, le_add_iff_nonneg_right, zero_le]
-              simp_all only [Multiset.empty_eq_zero, ne_eq, ge_iff_le, Multiset.mem_add, tsub_le_iff_right]
-            apply Multiset.mem_of_le
-            exact this
-            exact hyp
+--                   rw [this]
+--                   simp_all only [Multiset.empty_eq_zero, ne_eq, ge_iff_le]
+--                 aesop
+--               aesop
+--             aesop
+--           aesop
+--         if hyp : x ∈ Z - Multiset.inter Z Z' then
+--           have x_in_X': x ∈ X' := by
+--             have : Z - Multiset.inter Z Z' ≤ X' := by
+--               have : Z - Multiset.inter Z Z' = Z - Z' := by apply Multiset.sub_inter
+--               -- simp
+--               have : Z ≤ X' + Z' := by
+--                 simp_all only [ge_iff_le, le_add_iff_nonneg_right, zero_le]
+--                 have : X' + Z' = Z' + X' := by apply add_comm
+--                 rw [this]
+--                 simp_all only [Multiset.empty_eq_zero, ne_eq, ge_iff_le, Multiset.mem_add, true_or, le_add_iff_nonneg_right, zero_le]
+--               simp_all only [Multiset.empty_eq_zero, ne_eq, ge_iff_le, Multiset.mem_add, tsub_le_iff_right]
+--             apply Multiset.mem_of_le
+--             exact this
+--             exact hyp
 
-          have yY : ∃ y ∈ Y', x < y := (h' x x_in_X')
-          -- have : Y' ≤ Z' + Y' - Multiset.inter Z Z':= by sorry
-          rcases yY with ⟨y,y_in_Y', xy⟩
-          use y
-          have : y ∈ Z' + Y' - Multiset.inter Z Z' := by
-            exact Multiset.mem_of_le H1 y_in_Y'
-          aesop
-        else
-          have hyp: x ∈ X := by
-            have : x ∈ Z - Multiset.inter Z Z' + X := by aesop
-            aesop
-          have yY : ∃ y ∈ Y, x < y := h x hyp
-          rcases yY with ⟨y, y_in_Y, xy⟩
-          if hyp': y ∈ Z' - Z then
-            use y
-            constructor
-            . have y_in_Z'_ZZ' : y ∈ Z' - Multiset.inter Z Z' := by
-                have : Z' - Z = Z' - Multiset.inter Z Z' := by
-                  have : Z' - Multiset.inter Z Z' = Z' - Z' ∩ Z := by
-                    have : Multiset.inter Z Z' = Z' ∩ Z := by apply Multiset.inter_comm
-                    rw [this]
-                  rw [this]
-                  rw [Multiset.sub_inter]
-                aesop
-              have : Z' - Multiset.inter Z Z' ≤ Z' + Y' - Multiset.inter Z Z' := by
-                have : Z' ≤ Z' + Y' := by aesop
-                aesop
-                have : Z' + Y' = Z' + Y' - Multiset.inter Z Z' + Multiset.inter Z Z' := by
-                  apply mem_leq_diff
-                  apply le_trans H0
-                  simp_all only [ge_iff_le, le_add_iff_nonneg_right, zero_le]
-                rw [← this]
-                apply Multiset.le_add_right
+--           have yY : ∃ y ∈ Y', x < y := (h' x x_in_X')
+--           -- have : Y' ≤ Z' + Y' - Multiset.inter Z Z':= by sorry
+--           rcases yY with ⟨y,y_in_Y', xy⟩
+--           use y
+--           have : y ∈ Z' + Y' - Multiset.inter Z Z' := by
+--             exact Multiset.mem_of_le H1 y_in_Y'
+--           aesop
+--         else
+--           have hyp: x ∈ X := by
+--             have : x ∈ Z - Multiset.inter Z Z' + X := by aesop
+--             aesop
+--           have yY : ∃ y ∈ Y, x < y := h x hyp
+--           rcases yY with ⟨y, y_in_Y, xy⟩
+--           if hyp': y ∈ Z' - Z then
+--             use y
+--             constructor
+--             . have y_in_Z'_ZZ' : y ∈ Z' - Multiset.inter Z Z' := by
+--                 have : Z' - Z = Z' - Multiset.inter Z Z' := by
+--                   have : Z' - Multiset.inter Z Z' = Z' - Z' ∩ Z := by
+--                     have : Multiset.inter Z Z' = Z' ∩ Z := by apply Multiset.inter_comm
+--                     rw [this]
+--                   rw [this]
+--                   rw [Multiset.sub_inter]
+--                 aesop
+--               have : Z' - Multiset.inter Z Z' ≤ Z' + Y' - Multiset.inter Z Z' := by
+--                 have : Z' ≤ Z' + Y' := by aesop
+--                 aesop
+--                 have : Z' + Y' = Z' + Y' - Multiset.inter Z Z' + Multiset.inter Z Z' := by
+--                   apply mem_leq_diff
+--                   apply le_trans H0
+--                   simp_all only [ge_iff_le, le_add_iff_nonneg_right, zero_le]
+--                 rw [← this]
+--                 apply Multiset.le_add_right
 
-              apply Multiset.mem_of_le
-              exact this
-              assumption
-            . assumption
-          else
-            use y
-            constructor
-            . sorry
-            . assumption
+--               apply Multiset.mem_of_le
+--               exact this
+--               assumption
+--             . assumption
+--           else
+--             use y
+--             constructor
+--             . sorry
+--             . assumption
 
-            have yX' : y ∈ X' := by
-              have Y_Z'_X' : Y - Z' ≤ X' := by
-                have : Y ≤ N := by simp_all only [Multiset.empty_eq_zero, ne_eq, ge_iff_le, Multiset.mem_add, or_true, le_add_iff_nonneg_left, zero_le]
+--             have yX' : y ∈ X' := by
+--               have Y_Z'_X' : Y - Z' ≤ X' := by
+--                 have : Y ≤ N := by simp_all only [Multiset.empty_eq_zero, ne_eq, ge_iff_le, Multiset.mem_add, or_true, le_add_iff_nonneg_left, zero_le]
 
-                have : Y - Z'  ≤ N - Z' := by
-                  -- use Y ≤ N
-                  have : Y ≤ N - Z' + Z' := by
-                    have : N - Z' + Z' = N := by
-                      have : N - Z' + Z' = N ∪ Z' := by apply Multiset.union_def
-                      have : N ∪ Z' = N := by
-                        have : Z' ≤ N := by
-                          rw [Multiset.le_iff_exists_add]
-                          use X'
-                        apply Multiset.eq_union_left
-                        exact this
-                      aesop
-                    aesop
-                  rw [Multiset.sub_le_iff_le_add]
-                  exact this
-                have : X' = N - Z' := by
-                  have : X' + Z' = N - Z' + Z' := by
-                    have : N - Z' + Z' = N := by
-                      have : N - Z' + Z' = N ∪ Z' := by apply Multiset.union_def
-                      have : N ∪ Z' = N := by
-                        have : Z' ≤ N := by
-                          rw [Multiset.le_iff_exists_add]
-                          use X'
-                        apply Multiset.eq_union_left
-                        exact this
-                      aesop
-                    rw [this]
-                    rw [NZX']
-                    apply add_comm
-                  simp_all only [Multiset.empty_eq_zero, ne_eq, ge_iff_le, Multiset.mem_add, or_true, le_add_iff_nonneg_left, zero_le, tsub_le_iff_right, add_left_inj, add_le_iff_nonpos_right, nonpos_iff_eq_zero, tsub_eq_zero_iff_le, add_tsub_cancel_left]
+--                 have : Y - Z'  ≤ N - Z' := by
+--                   -- use Y ≤ N
+--                   have : Y ≤ N - Z' + Z' := by
+--                     have : N - Z' + Z' = N := by
+--                       have : N - Z' + Z' = N ∪ Z' := by apply Multiset.union_def
+--                       have : N ∪ Z' = N := by
+--                         have : Z' ≤ N := by
+--                           rw [Multiset.le_iff_exists_add]
+--                           use X'
+--                         apply Multiset.eq_union_left
+--                         exact this
+--                       aesop
+--                     aesop
+--                   rw [Multiset.sub_le_iff_le_add]
+--                   exact this
+--                 have : X' = N - Z' := by
+--                   have : X' + Z' = N - Z' + Z' := by
+--                     have : N - Z' + Z' = N := by
+--                       have : N - Z' + Z' = N ∪ Z' := by apply Multiset.union_def
+--                       have : N ∪ Z' = N := by
+--                         have : Z' ≤ N := by
+--                           rw [Multiset.le_iff_exists_add]
+--                           use X'
+--                         apply Multiset.eq_union_left
+--                         exact this
+--                       aesop
+--                     rw [this]
+--                     rw [NZX']
+--                     apply add_comm
+--                   simp_all only [Multiset.empty_eq_zero, ne_eq, ge_iff_le, Multiset.mem_add, or_true, le_add_iff_nonneg_left, zero_le, tsub_le_iff_right, add_left_inj, add_le_iff_nonpos_right, nonpos_iff_eq_zero, tsub_eq_zero_iff_le, add_tsub_cancel_left]
 
-                rw [this]
-                assumption
-              sorry
-              -- have y_Y_Z': y ∈ Y - Z' := by
-              --   have : Y = (Y - Z') + (Z' - Z) := by
-              --     have : Y - Z' = Y - (Y ∩ Z') := by
-              --       rw [Multiset.sub_inter]
-              --     rw [this]
-              --     have : Z' - Z = Y ∩ Z' := by -- wrong?
-              --       have : Z' - Z = Z' - (Z' ∩ Z) := by rw [Multiset.sub_inter]
-              --       rw [this]
-              --       have : Z' - Z' ∩ Z + Z' ∩ Z = Y ∩ Z' + Z' ∩ Z := by
-              --         have : Z' - Z' ∩ Z + Z' ∩ Z = Z' := by rw [← mem_leq_diff] ; rw [Multiset.inter_comm] ; exact H0
-              --         rw [this]
-              --         have : Y ∩ Z' = Z' ∩ Y := by apply Multiset.inter_comm
-              --         rw [this]
-              --         apply add_inter_complement
-              --         rw [add_comm Y Z]
-              --         rw [← NZY]
-              --         aesop
-              --       aesop
-              --     rw [this]
-              --     have : Y ∩ Z' ≤ Y := by apply Multiset.inter_le_left
-              --     apply mem_leq_diff
-              --     simp_all only [Multiset.empty_eq_zero, ne_eq, ge_iff_le, Multiset.mem_add, or_true, Multiset.mem_inter, true_and, Multiset.le_inter_iff, le_refl, tsub_le_iff_right]
-              --   rw [this] at y_in_Y
-              --   rw [Multiset.mem_add] at y_in_Y
-              --   cases y_in_Y with
-              --   | inl => assumption
-              --   | inr h =>
-              --     apply False.elim
-              --     exact hyp' h
+--                 rw [this]
+--                 assumption
+--               sorry
+--               -- have y_Y_Z': y ∈ Y - Z' := by
+--               --   have : Y = (Y - Z') + (Z' - Z) := by
+--               --     have : Y - Z' = Y - (Y ∩ Z') := by
+--               --       rw [Multiset.sub_inter]
+--               --     rw [this]
+--               --     have : Z' - Z = Y ∩ Z' := by -- wrong?
+--               --       have : Z' - Z = Z' - (Z' ∩ Z) := by rw [Multiset.sub_inter]
+--               --       rw [this]
+--               --       have : Z' - Z' ∩ Z + Z' ∩ Z = Y ∩ Z' + Z' ∩ Z := by
+--               --         have : Z' - Z' ∩ Z + Z' ∩ Z = Z' := by rw [← mem_leq_diff] ; rw [Multiset.inter_comm] ; exact H0
+--               --         rw [this]
+--               --         have : Y ∩ Z' = Z' ∩ Y := by apply Multiset.inter_comm
+--               --         rw [this]
+--               --         apply add_inter_complement
+--               --         rw [add_comm Y Z]
+--               --         rw [← NZY]
+--               --         aesop
+--               --       aesop
+--               --     rw [this]
+--               --     have : Y ∩ Z' ≤ Y := by apply Multiset.inter_le_left
+--               --     apply mem_leq_diff
+--               --     simp_all only [Multiset.empty_eq_zero, ne_eq, ge_iff_le, Multiset.mem_add, or_true, Multiset.mem_inter, true_and, Multiset.le_inter_iff, le_refl, tsub_le_iff_right]
+--               --   rw [this] at y_in_Y
+--               --   rw [Multiset.mem_add] at y_in_Y
+--               --   cases y_in_Y with
+--               --   | inl => assumption
+--               --   | inr h =>
+--               --     apply False.elim
+--               --     exact hyp' h
 
-              -- apply Multiset.mem_of_le
-              -- exact Y_Z'_X'
-              -- exact y_Y_Z'
-            have y'_Y': ∃ y' ∈ Y', y < y' := h' y yX'
-            rcases y'_Y' with ⟨w, w_in_Y', yw⟩
-            use w
-            constructor
-            . exact Multiset.mem_of_le H1 w_in_Y'
-            . exact lt_trans xy yw
+--               -- apply Multiset.mem_of_le
+--               -- exact Y_Z'_X'
+--               -- exact y_Y_Z'
+--             have y'_Y': ∃ y' ∈ Y', y < y' := h' y yX'
+--             rcases y'_Y' with ⟨w, w_in_Y', yw⟩
+--             use w
+--             constructor
+--             . exact Multiset.mem_of_le H1 w_in_Y'
+--             . exact lt_trans xy yw
 
 -- lemma LT_trans {α} [pre : Preorder α] [dec : DecidableEq α] [LT : LT α]:
 --       Transitive (@MultisetLT α dec LT) := by
@@ -1848,7 +1848,7 @@ lemma WRONG_LT_trans {α} [pre : Preorder α] [dec : DecidableEq α]:
 
 
 
-
+-- lemma filter_disjoint :
 
 #check Multiset.card
 
@@ -1869,6 +1869,33 @@ lemma WRONG_LT_trans {α} [pre : Preorder α] [dec : DecidableEq α]:
 
 --Ask Malvin: The problem is if I don't use [LT α] < will be both used for A and Multiset A. However, it seems like lean can tell the difference.
 
+lemma nat_not_0 : ∀ (n : ℕ), n ≠ 0 → n ≥ 1 := by
+  intros n h
+  cases n
+  . contradiction
+  . exact Nat.succ_le_iff.mpr (Nat.zero_lt_succ _)
+
+lemma nat_not_0_not_1 : ∀ (n : ℕ), n ≠ 0 → n ≠ 1 → n ≥ 2 := by
+  intros n h0 h1
+  cases n
+  case zero => contradiction
+  case succ m =>
+    cases m
+    case zero => contradiction
+    case succ n=>
+      apply Nat.succ_le_succ
+      aesop
+
+-- variable (p : α → Prop) [DecidablePred p]
+-- lemma filter_disjoint [dec : DecidableEq α] [Preorder α] : ∀ (M : Multiset α), (Multiset.inter (Multiset.filter p M) M) - (Multiset.filter p M) = 0 := by
+--   intros M
+--   ext a
+--   simp only [Multiset.count_sub, Multiset.count_inter, Multiset.count_zero]
+--   by_cases h : p a
+--   case pos => rw [Multiset.count_filter_of_pos h, max_eq_right (le_refl _)]
+--   case neg => sorry
+
+
  lemma direct_subset_red [dec : DecidableEq α] [Preorder α] [DecidableRel (fun (x : α) (y: α) => x < y)] : ∀ (M N : Multiset α), MultisetLT M N →  MultisetLt M N := by
       intros M N LTXY
       cases LTXY
@@ -1881,7 +1908,7 @@ lemma WRONG_LT_trans {α} [pre : Preorder α] [dec : DecidableEq α]:
           cases em (Multiset.card Y = 0)
           · simp_all
           cases em (Multiset.card Y = 1)
-          case inl hyp =>
+          case inl hyp' hyp=>
             rw [Multiset.card_eq_one] at hyp
             rcases hyp with ⟨y,Y'_def⟩
             apply TC.base
@@ -1889,7 +1916,7 @@ lemma WRONG_LT_trans {α} [pre : Preorder α] [dec : DecidableEq α]:
             apply @MultisetRedLt.RedLt α _ _ M N Z X y M_def N_def
             simp [Y'_def] at X_lt_Y
             exact X_lt_Y
-          case inr hyp =>
+          case inr hyp' hyp =>
             have : ∃ a, a ∈ Y := by
               rw [← Y.card_pos_iff_exists_mem]
               cases foo : Multiset.card Y
@@ -1897,7 +1924,19 @@ lemma WRONG_LT_trans {α} [pre : Preorder α] [dec : DecidableEq α]:
               simp
             rcases this with ⟨y,claim⟩
             let newY := Y.erase y
-            have newY_nonEmpty : newY ≠ ∅ := by simp; sorry
+            have newY_nonEmpty : newY ≠ ∅ := by
+              have card_Y_ge_2 : Multiset.card Y ≥ 2 := by
+                apply nat_not_0_not_1
+                exact hyp'
+                exact hyp
+              have : Multiset.card (Multiset.erase Y y) ≥ 1 := by
+                rw [Multiset.card_erase_eq_ite]
+                aesop -- Don't know how to make it more explicit. Ask Malvin!
+                have card_Y_g_1 : 1 < Multiset.card Y := by aesop
+                exact Nat.pred_le_pred card_Y_g_1
+              have : 0 < Multiset.card (Multiset.erase Y y) := by aesop
+              rw [Multiset.card_pos] at this
+              aesop
             have newY_sub_Y : newY < Y := by simp; exact claim
             let f : α → Multiset α := fun y' => X.filter (fun x => x < y')
             -- let f' : α → List α := fun y' => (Multiset.toList X).filter (fun x => x < y') --toList uses choice
@@ -1919,12 +1958,13 @@ lemma WRONG_LT_trans {α} [pre : Preorder α] [dec : DecidableEq α]:
                 have count_lt := Multiset.count_le_of_le a this
                 rw [M_def]
                 simp_all
-
-                -- linarith
-
-                -- aesop
-                sorry
-
+                let x := Multiset.count a X
+                let z := Multiset.count a Z
+                let fx := Multiset.count a (Multiset.filter (fun x => x < y) X)
+                change z + x = z + fx + (x - fx)
+                change fx ≤ x at count_lt
+                have : x = fx + (x - fx) := by aesop
+                linarith
               · have : Z + newY + f y = Z + f y + newY := by
                   have : newY + f y = f y + newY := by apply add_comm
                   have : Z + newY + f y = Z + (newY + f y) := by apply add_assoc
@@ -1933,7 +1973,64 @@ lemma WRONG_LT_trans {α} [pre : Preorder α] [dec : DecidableEq α]:
                   rw [this]
                   aesop
                 aesop
-              · aesop
+              · intro x x_in --use X_lt_Y -- It is still correct here
+                let X_lt_Y := X_lt_Y x
+                have : x ∈ X := by
+                  have Xfy_le_X : X - f y ≤ X:= by aesop
+                  apply Multiset.mem_of_le Xfy_le_X
+                  exact x_in
+                let X_lt_Y := X_lt_Y this
+                rcases X_lt_Y with ⟨t, t_in_Y, x_lt_t⟩
+                use t --it might already be wrong here
+                constructor
+                -- .
+                --   if t_ne_y : t ≠ y then
+                --     simp
+                --     rw [Multiset.mem_erase_of_ne]
+                --     exact t_in_Y
+                --     exact t_ne_y
+                --   else
+                --     exfalso
+                --     have : x ∈ f y := by sorry
+                --     aesop
+
+                --     sorry
+
+                . if t_in_newY : t ∈ newY then  -- The abandoned proof that t ∈ newY
+                    exact t_in_newY
+                    else
+                      exfalso
+                      have : t = y := by
+                        have : Y = newY + {y} := by aesop
+                        rw [this] at t_in_Y
+                        rw [Multiset.mem_add] at t_in_Y
+                        have : t ∈ ( {y} : Multiset α) := by exact Or.resolve_left t_in_Y t_in_newY
+                        rw [← Multiset.mem_singleton]
+                        assumption
+                      have : x ∈ f y := by aesop
+                      have x_notin_Xfy : x ∉ X - f y := by
+                        by_contra
+                        let neg_f : α → Multiset α := fun y' => X.filter (fun x => ¬ x < y')
+                        have : X - f y = neg_f y := by
+                          have fy_negfy_X : f y + neg_f y = X := by
+                            rw [Multiset.filter_add_not]
+                          have fy_le_X : f y ≤ X := by
+                            apply Multiset.filter_le _ X
+                          have : X - f y + f y = neg_f y + f y := by
+                            have : X = X - f y + f y := by
+                              apply mem_leq_diff
+                              exact fy_le_X
+                            rw [← this]
+                            rw [← fy_negfy_X]
+                            apply add_comm
+                          aesop
+                        aesop
+                      aesop
+                . exact x_lt_t
+
+
+
+
             -- single step N to N'
             · have : MultisetRedLt N' N := by
                 apply MultisetRedLt.RedLt (Z + newY) (f y) y
