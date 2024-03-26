@@ -626,10 +626,17 @@ instance Formula.WellFoundedLT : WellFoundedLT Formula := by
   simp_all only [instLTFormula, Nat.lt_eq]
   exact @WellFounded.onFun Formula Nat Nat.lt lmOfFormula Nat.lt_wfRel.wf
 
+instance Formula.instPreorderFormula : Preorder Formula := Preorder.lift lmOfFormula
+
 def node_to_multiset : TNode → Multiset Formula
 | (L, R, none) => (L + R)
 | (L, R, some (Sum.inl (~'χ))) => (L + R + [~ unload χ])
 | (L, R, some (Sum.inr (~'χ))) => (L + R + [~ unload χ])
+
+
+-- The lemma mul_cons_trivial breaks the proof below due to non-terminal simps.
+-- FIXME: delete this after MultisetOrder is cleaned up.
+attribute [-simp] mul_cons_trivial
 
 def preconP_to_submultiset (preconditionProof : List.Sublist Lcond L ∧ List.Sublist Rcond R ∧ Ocond ⊆ O) :
     node_to_multiset (Lcond, Rcond, Ocond) ≤ node_to_multiset (L, R, O) :=
@@ -638,21 +645,19 @@ def preconP_to_submultiset (preconditionProof : List.Sublist Lcond L ∧ List.Su
   all_goals (try (rename_i f g; cases f; cases g))
   all_goals (try (rename_i f; cases f))
   all_goals
-    simp only [Option.instHasSubsetOption, Option.some_subseteq, Option.some.injEq, Sum.inl.injEq,
-      node_to_multiset, Multiset.coe_add, Multiset.coe_singleton,
-      Multiset.cons_coe, Multiset.coe_le] at *
+    simp [node_to_multiset] at * -- FIXME avoid non-terminal simp here!
   case none.none =>
-    exact (List.Sublist.append preconditionProof.1 preconditionProof.2.1).subperm
+    exact (List.Sublist.append preconditionProof.1 preconditionProof.2).subperm
   case none.some.inl =>
     rw [Multiset.le_iff_count]
     intro f
-    have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2.1) f
+    have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2) f
     simp_all
     linarith
   case none.some.inr =>
     rw [Multiset.le_iff_count]
     intro f
-    have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2.1) f
+    have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2) f
     simp_all
     linarith
   case some.some.inl.inl.neg =>
@@ -666,24 +671,14 @@ def preconP_to_submultiset (preconditionProof : List.Sublist Lcond L ∧ List.Su
     have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2.1) f
     cases g <;> (rename_i nlform; cases nlform; simp_all)
 
-notation M:arg " <_DM " N:arg => MultisetLT M N
-
-instance : Preorder Formula := sorry
-
 @[simp]
 def lt_TNode (X : TNode) (Y : TNode) := MultisetLT (node_to_multiset X) (node_to_multiset Y)
 
-theorem lt_TNode_WellFounded : WellFounded lt_TNode := by
-  apply InvImage.wf node_to_multiset
-  have := @dm_wf Formula _ _ ?_
-  apply this
-  · sorry -- WellFoundedLT Formula
-  sorry -- DecidableRel
-
 -- Needed for termination of endNOdesOf.
+-- Here we use `dm_wf` from MultisetOrder.lean.
 instance : WellFoundedRelation TNode where
   rel := lt_TNode
-  wf := lt_TNode_WellFounded
+  wf := InvImage.wf node_to_multiset (dm_wf Formula.WellFoundedLT)
 
 theorem LocalRule.cond_non_empty (rule : LocalRule (Lcond, Rcond, Ocond) X) :
     node_to_multiset (Lcond, Rcond, Ocond) ≠ ∅ :=
@@ -833,8 +828,31 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
         -- need: lmOfFormula goes down in loadDagEndNodes
         sorry
 
+-- This is standard definition of DM.
+-- TODO: Move to MultisetOrder
+def MultisetLT' {α} [DecidableEq α] [Preorder α] (M : Multiset α) (N : Multiset α) : Prop :=
+  ∃ (X Y Z: Multiset α),
+        Y ≠ ∅ ∧
+        M = Z + X ∧
+        N = Z + Y ∧
+        (∀ x ∈ X, ∃ y ∈ Y, x < y)
+
+-- The definition used in the DM proof is equivalent to the standard definition.
+-- TODO: Move to MultisetOrder
+theorem MultisetLT.iff_MultisetLT' [DecidableEq α] [Preorder α] {M N : Multiset α} :
+    MultisetLT M N ↔ MultisetLT' M N := by
+  unfold MultisetLT'
+  constructor
+  · intro M_LT_N
+    cases M_LT_N
+    aesop
+  · intro M_LT'_N
+    rcases M_LT'_N with ⟨X,Y,Z,claim⟩
+    apply MultisetLT.MLT X Y Z
+    all_goals tauto
+
 theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
-    (lrA : LocalRuleApp X B) : ∀ Y ∈ B, lt_DM (node_to_multiset Y) (node_to_multiset X) :=
+    (lrA : LocalRuleApp X B) : ∀ Y ∈ B, lt_TNode Y X :=
   by
   rcases lrA with ⟨Lcond,Rcond,Ocond,rule,preconP⟩
   rename_i L R ress O B_def
@@ -842,10 +860,12 @@ theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
   intro RES RES_in
   simp [applyLocalRule] at RES_in
   rcases RES_in with ⟨⟨Lnew,Rnew,Onew⟩, Y_in_ress, claim⟩
+  unfold lt_TNode
   simp at claim
-  unfold lt_DM
-  use node_to_multiset (Lcond, Rcond, Ocond) -- choose X to be the removed formulas
-  use node_to_multiset (Lnew, Rnew, Onew) -- choose Y to be the newly added formulas
+  rw [MultisetLT.iff_MultisetLT']
+  unfold MultisetLT'
+  use node_to_multiset (Lnew, Rnew, Onew) -- choose X to be the newly added formulas
+  use node_to_multiset (Lcond, Rcond, Ocond) -- choose Y to be the removed formulas
   -- Now choose a way to define Z:
   -- let Z:= use node_to_multiset RES - node_to_multiset (Lnew, Rnew, Onew) -- way 1
   let Z := node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) -- way 2
@@ -882,7 +902,7 @@ theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
 def endNodesOf : {X : _} → LocalTableau X → List TNode
   | .(_), (@byLocalRule X B lr next) =>
     (B.attach.map fun ⟨Y, h⟩ =>
-      have : lt_DM (node_to_multiset Y) (node_to_multiset X) := localRuleApp.decreases_DM lr Y h
+      have : MultisetLT (node_to_multiset Y) (node_to_multiset X) := localRuleApp.decreases_DM lr Y h
       endNodesOf (next Y h)).join
   | .(_), (@sim X _) => [X]
 termination_by
