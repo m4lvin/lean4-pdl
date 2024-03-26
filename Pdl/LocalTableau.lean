@@ -4,6 +4,7 @@ import Pdl.Setsimp
 import Pdl.Discon
 import Pdl.DagTableau
 import Pdl.Vocab
+import Pdl.MultisetOrder
 
 open Undag HasLength
 
@@ -637,19 +638,21 @@ def preconP_to_submultiset (preconditionProof : List.Sublist Lcond L ∧ List.Su
   all_goals (try (rename_i f g; cases f; cases g))
   all_goals (try (rename_i f; cases f))
   all_goals
-    simp [node_to_multiset] at *
+    simp only [Option.instHasSubsetOption, Option.some_subseteq, Option.some.injEq, Sum.inl.injEq,
+      node_to_multiset, Multiset.coe_add, Multiset.coe_singleton,
+      Multiset.cons_coe, Multiset.coe_le] at *
   case none.none =>
-    exact (List.Sublist.append preconditionProof.1 preconditionProof.2).subperm
+    exact (List.Sublist.append preconditionProof.1 preconditionProof.2.1).subperm
   case none.some.inl =>
     rw [Multiset.le_iff_count]
     intro f
-    have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2) f
+    have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2.1) f
     simp_all
     linarith
   case none.some.inr =>
     rw [Multiset.le_iff_count]
     intro f
-    have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2) f
+    have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2.1) f
     simp_all
     linarith
   case some.some.inl.inl.neg =>
@@ -663,29 +666,19 @@ def preconP_to_submultiset (preconditionProof : List.Sublist Lcond L ∧ List.Su
     have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2.1) f
     cases g <;> (rename_i nlform; cases nlform; simp_all)
 
--- Yet another definition of the DM ordering.
--- This is the one used by coq CoLoR library.
--- (MultisetLT on dm branch)
-def lt_DM {α} [LT α] (M N : Multiset α) := -- M < N iff ...
-    ∃ (X Y Z : Multiset α),
-      X ≠ ∅ -- X are the removed formulas, Y are the newly added ones.
-      ∧ M = Z + Y
-      ∧ N = Z + X
-      ∧ ∀ y ∈ Y, (∃ x ∈ X, y < x)
+notation M:arg " <_DM " N:arg => MultisetLT M N
 
-notation M:arg " <_DM " N:arg => lt_DM M N
-
--- mord_wf
-theorem lt_DM_WellFounded {α : Type u} [DecidableEq α] [LT α] (wf_lt :  WellFoundedLT α) :
-    WellFounded (@lt_DM α _) := by
-  -- Haitian / dm branch
-  sorry
+instance : Preorder Formula := sorry
 
 @[simp]
-def lt_TNode (X : TNode) (Y : TNode) := lt_DM (node_to_multiset X) (node_to_multiset Y)
+def lt_TNode (X : TNode) (Y : TNode) := MultisetLT (node_to_multiset X) (node_to_multiset Y)
 
-theorem lt_TNode_WellFounded : WellFounded lt_TNode :=
-  InvImage.wf node_to_multiset (lt_DM_WellFounded Formula.WellFoundedLT)
+theorem lt_TNode_WellFounded : WellFounded lt_TNode := by
+  apply InvImage.wf node_to_multiset
+  have := @dm_wf Formula _ _ ?_
+  apply this
+  · sorry -- WellFoundedLT Formula
+  sorry -- DecidableRel
 
 -- Needed for termination of endNOdesOf.
 instance : WellFoundedRelation TNode where

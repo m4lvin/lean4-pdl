@@ -136,6 +136,7 @@ TC MultisetRedLt
 def MultisetLt' [DecidableEq α][LT α] : Multiset α → Multiset α → Prop :=
 Relation.TransGen MultisetRedLt
 
+-- This is the actually used definition of DM.
 inductive MultisetLT {α} [DecidableEq α] [Preorder α] : (M : Multiset α) → (N : Multiset α) → Prop :=
   | MLT : ∀ (X Y Z: Multiset α),
         Y ≠ ∅ →
@@ -775,7 +776,7 @@ lemma double_split {α} [pre : Preorder α] [dec : DecidableEq α]:
         if l_u : Multiset.count x M ≤ Multiset.count x P then
           have : Multiset.count x N ≥ Multiset.count x Q := by linarith
 
-          aesop --Ask Malvin: how to replace aesop with more explicit tactics?
+          simp_all --Ask Malvin: how to replace aesop with more explicit tactics?
           apply le_eq_sub (Multiset.count x M) (Multiset.count x N) (Multiset.count x P) (Multiset.count x Q)
           aesop
           exact H0
@@ -783,10 +784,9 @@ lemma double_split {α} [pre : Preorder α] [dec : DecidableEq α]:
         else
           simp_all only [not_le, gt_iff_lt]
           have : Multiset.count x N ≤ Multiset.count x Q := by linarith
-          aesop
-          apply le_of_lt
-          exact l_u
-
+          simp_all
+          have:= le_of_lt l_u
+          simp_all
 
 
 lemma in_notin_diff {α} [pre : Preorder α] [dec : DecidableEq α]:
@@ -1291,7 +1291,7 @@ lemma nat_not_0_not_1 : ∀ (n : ℕ), n ≠ 0 → n ≠ 1 → n ≥ 2 := by
               have : 0 < Multiset.card (Multiset.erase Y y) := by aesop
               rw [Multiset.card_pos] at this
               aesop
-            have newY_sub_Y : newY < Y := by simp; exact claim
+            have newY_sub_Y : newY < Y := by simp (config := {zetaDelta := true}); exact claim
             let f : α → Multiset α := fun y' => X.filter (fun x => x < y')
             -- let f' : α → List α := fun y' => (Multiset.toList X).filter (fun x => x < y') --toList uses choice
             -- let g : Multiset α → Multiset α := fun M => sorry
@@ -1325,12 +1325,14 @@ lemma nat_not_0_not_1 : ∀ (n : ℕ), n ≠ 0 → n ≠ 1 → n ≥ 2 := by
                   rw [this]
                   have : Z + f y + newY = Z + (f y + newY) := by apply add_assoc
                   rw [this]
-                  aesop
-                aesop
+                  simp (config := {zetaDelta := true})
+                  assumption
+                simp (config := {zetaDelta := true})
+                sorry
               · intro x x_in --use X_lt_Y -- It is still correct here
                 let X_lt_Y := X_lt_Y x
                 have : x ∈ X := by
-                  have Xfy_le_X : X - f y ≤ X:= by aesop
+                  have Xfy_le_X : X - f y ≤ X:= by simp (config := {zetaDelta := true})
                   apply Multiset.mem_of_le Xfy_le_X
                   exact x_in
                 let X_lt_Y := X_lt_Y this
@@ -1355,21 +1357,20 @@ lemma nat_not_0_not_1 : ∀ (n : ℕ), n ≠ 0 → n ≠ 1 → n ≥ 2 := by
                     else
                       exfalso
                       have : t = y := by
-                        have : Y = newY + {y} := by aesop
+                        have : Y = newY + {y} := by unfold_let newY; simp [Multiset.cons_erase claim]
                         rw [this] at t_in_Y
                         rw [Multiset.mem_add] at t_in_Y
                         have : t ∈ ( {y} : Multiset α) := by exact Or.resolve_left t_in_Y t_in_newY
                         rw [← Multiset.mem_singleton]
                         assumption
-                      have : x ∈ f y := by aesop
+                      have x_in_fy : x ∈ f y := by unfold_let f; simp; rw [← this]; tauto
                       have x_notin_Xfy : x ∉ X - f y := by
                         by_contra
                         let neg_f : α → Multiset α := fun y' => X.filter (fun x => ¬ x < y')
                         have : X - f y = neg_f y := by
                           have fy_negfy_X : f y + neg_f y = X := by
                             rw [Multiset.filter_add_not]
-                          have fy_le_X : f y ≤ X := by
-                            apply Multiset.filter_le _ X
+                          have fy_le_X : f y ≤ X := Multiset.filter_le _ X
                           have : X - f y + f y = neg_f y + f y := by
                             have : X = X - f y + f y := by
                               apply mem_leq_diff
@@ -1377,9 +1378,13 @@ lemma nat_not_0_not_1 : ∀ (n : ℕ), n ≠ 0 → n ≠ 1 → n ≥ 2 := by
                             rw [← this]
                             rw [← fy_negfy_X]
                             apply add_comm
-                          aesop
-                        aesop
-                      aesop
+                          rw [← fy_negfy_X]; simp
+                        subst_eqs
+                        absurd x_in_fy
+                        unfold_let f at *
+                        unfold_let neg_f at *
+                        sorry -- aesop
+                      sorry -- aesop
                 . exact x_lt_t
 
 
@@ -1389,36 +1394,14 @@ lemma nat_not_0_not_1 : ∀ (n : ℕ), n ≠ 0 → n ≠ 1 → n ≥ 2 := by
             · have : MultisetRedLt N' N := by
                 apply MultisetRedLt.RedLt (Z + newY) (f y) y
                 . rfl
-                . have newY_y_Y: newY + {y} = Y := by aesop
+                . have newY_y_Y: newY + {y} = Y := by unfold_let newY; simp; apply Multiset.cons_erase claim
                   have : Z + newY + {y} = Z + (newY + {y}) := by apply add_assoc
                   rw [this]
                   rw [newY_y_Y]
                   exact N_def
-                . aesop
+                . unfold_let f; intro z z_in; simp at z_in; tauto
               apply TC.base
               exact this
-
-
- lemma direct_subset_red' [DecidableEq α] [Preorder α]: ∀ (M N : Multiset α), MultisetLT M N →  MultisetLt M N := by
-      intros M N LTXY
-      cases LTXY
-      case MLT W Y Z Y_not_empty MZW NZY h =>
-        unfold MultisetLt
-        let n := Multiset.card Y
-        cases n_case : n -- using Nat.strongInductionOn
-        case zero =>
-          simp_all
-        case succ k =>
-          -- have := direct_subset_red ...
-
-          have hyp0: TC MultisetRedLt (Z+Y) (N) := by sorry
-          have hyp1: TC MultisetRedLt (M) (Z+Y) := by
-
-
-            sorry
-          apply TC.trans
-          exact hyp1
-          exact hyp0
 
 
 -- It uses `LT_trans`, which still needs to be proved.
@@ -1453,6 +1436,6 @@ lemma equiv_r_wf [DecidableEq α] [LT α] (h1 : WellFounded (r1 :  Multiset α �
   aesop
 
 -- The desired theorem. If `LT.lt` is well-founded, then `MultisetLT` is well-founded.
-theorem dm_wf' [DecidableEq α][ Preorder α] [DecidableRel (fun (x : α) (y: α) => x < y)](wf_lt :  WellFoundedLT α) :
+theorem dm_wf [DecidableEq α] [Preorder α] [DecidableRel (fun (x : α) (y: α) => x < y)] (wf_lt :  WellFoundedLT α) :
       WellFounded (MultisetLT : Multiset α → Multiset α → Prop) := by
       apply (equiv_r_wf (Lt_wf (RedLt_wf wf_lt)) Lt_LT_equiv)
