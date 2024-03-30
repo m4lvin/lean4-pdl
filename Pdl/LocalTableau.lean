@@ -704,7 +704,7 @@ theorem boxDagEndNodes.decreases_lmOf {α : Program} {φ : Formula} {E : List Fo
     cases β
     case star β =>
       simp
-      -- y_in_E should be impossible now, dagEndNodes never contain top-level stars (Lemma!?)
+      -- NOTE: y_in_E is *not* impossible now, dagEndNodes may contain top-level stars (e.g. via tests).
       sorry
     all_goals sorry
   all_goals sorry
@@ -749,8 +749,13 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
         simp_all only [List.append_nil, Multiset.mem_coe]
         exact boxDagEndNodes.decreases_lmOf E_in y_in_Y
       case nSt α φ =>
-        -- need: lmOfFormula goes down in dagEndNodes
-        sorry
+        cases Y_in_ress
+        · simp_all
+        case inr Y_in =>
+          rcases Y_in with ⟨E, E_in, E_def⟩
+          subst E_def
+          simp_all
+          exact dagEndNodes.decreases_lmOf E_in y_in_Y
 
     case oneSidedR orule =>
       cases orule
