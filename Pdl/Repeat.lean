@@ -1,7 +1,8 @@
 import Std.Data.List.Lemmas
 import Aesop
-import Mathlib.Tactic.Tauto
 import Mathlib.Tactic.Convert
+import Mathlib.Tactic.Linarith
+import Mathlib.Tactic.Tauto
 import Mathlib.Tactic.Use
 
 -- This file is not part of PDL, but just a playground for
@@ -67,6 +68,7 @@ def bla : HisTree [] 4 :=
 inductive PathIn : HisTree H n → Type
 | nil : PathIn ht
 | cons m (m_in : m ∈ ms) (s : Step n ms) next (rest : PathIn (next m_in)) : PathIn (step s next)
+-- is the "cons" above generating something bad in proofs below?
 
 def PathIn.length : PathIn ht → Nat
 | nil => 0
@@ -80,7 +82,7 @@ def PathIn.toList {ht : HisTree H m} : PathIn ht → List Nat
 -- Convert a path to a list of Steps, where the last path element will be the head.
 def PathIn.toSteps : PathIn ht → List SomeStep
 | nil => []
-| @cons _ _ _ _ _ s _ rest => toSteps rest ++ [⟨_,_,s⟩]
+| cons _ _ s _ rest => toSteps rest ++ [⟨_,_,s⟩]
 
 theorem PathIn.length_eq_toListLength H n (ht : HisTree H n) (p : PathIn ht):
   p.length = p.toList.length := by
@@ -107,39 +109,119 @@ def treeAtP {ht : HisTree H n} : (p : PathIn ht) → (Σ n, HisTree (p.toSteps +
 termination_by
   x => sizeOf x
 
--- Or, as a proof above treeAt:
-theorem treeAtH_is H n {ht : HisTree H n} (p : PathIn ht) : (treeAt p).1 = (p.toSteps ++ H) := by
-  cases p
-  · simp [PathIn.toSteps, treeAt]
-  case cons ms m m_in s next rest =>
-    let ht := next m_in
-    have IH := treeAtH_is (⟨n,ms,s⟩ :: H) m rest
-    simp [PathIn.toSteps, treeAt]
-    -- have forTermination : rest.length < (PathIn.cons m m_in s next rest).length := by simp[PathIn.length]; omega
-    exact IH
-termination_by
-  sizeOf p
-decreasing_by
-  simp_wf;
-  subst_eqs
-  simp at *
-  -- Why do I now have different "rest" and "next"?
-  all_goals sorry
-
 -- def goUp : PathIn ⟨H, m, ht⟩ → Option PathIn ⟨H, _, ht⟩ -- TODO??
 
+@[simp]
 def isRep : (Σ H n, HisTree H n) → Prop
 | ⟨_, _, rep _ _⟩ => True
 | _ => False
 
+@[simp]
 def isSplit : (Σ H n, HisTree H n) → Prop
 | ⟨_, _, step split _⟩ => True
 | _ => False
 
+@[simp]
 def isPrefixOf : PathIn ht → PathIn ht → Prop
 | PathIn.nil, _ => true
 | PathIn.cons m _ _ _ rest, PathIn.cons m' _ _ _ rest' => (meq : m = m') → isPrefixOf rest (meq.symm ▸ rest')
 | PathIn.cons _ _ _ _ _, PathIn.nil => false
+
+@[simp]
+def sameNode : PathIn ht1 → PathIn ht2 → Prop
+| p1, p2 => (treeAtP p1).fst = (treeAtP p2).fst
+
+theorem sameNode_cons {rest rest'} :
+    sameNode rest rest' →
+    sameNode (PathIn.cons m m_in_ms st next rest) (PathIn.cons m m_in_ms st next rest') := by
+  intro hyp
+  simp_all [treeAtP]
+  sorry
+
+
+-- Example of an easier statement about repeats.
+-- Any path to a repeat must have a prefix to the same thing,
+-- (This should be implied by the def of condition 6a for PDL.)
+theorem rep_needs_same_above
+    {ht : HisTree [] n}
+    (p : PathIn ht)
+    (p_is_rep : isRep (treeAt p))
+  : ∃ p', isPrefixOf p' p ∧ sameNode p p'  :=
+  by
+  cases p
+  case nil =>
+    simp [treeAt, treeAtP] at *
+    cases ht
+    all_goals simp at *
+    case rep _ _ _in_empty =>
+      exfalso
+      cases _in_empty
+  case cons ms m m_in_ms st next rest =>
+    -- now want to use an induction hypothesis, but need it for a non-empty history!
+    sorry
+
+theorem rep_needs_same_above_general
+    {H n}
+    {ht : HisTree H n}
+    (p : PathIn ht)
+    (p_is_rep : isRep (treeAt p))
+  : ∃ p', isPrefixOf p' p ∧ sameNode p p'  :=
+  by
+  cases H -- induction does not allow us to generalize n
+  case nil =>
+    cases p
+    case nil =>
+      simp [treeAt, treeAtP] at *
+      cases ht
+      all_goals simp at *
+      case rep _ _ _in_empty =>
+        exfalso
+        cases _in_empty
+    case cons ms m m_in_ms st next rest =>
+      -- now want to use an induction hypothesis, but need it for a non-empty history!
+      have IH_rest := rep_needs_same_above_general rest p_is_rep
+      rcases IH_rest with ⟨q', q_claim⟩
+      use PathIn.cons m m_in_ms st _ q' -- ??
+      constructor
+      · simp
+        exact q_claim.1
+      · exact sameNode_cons q_claim.2
+
+  -- MYSTERY: where and when do we really need that the repeat is within p ??
+
+  case cons st H =>
+    cases p
+    case nil =>
+      simp [treeAt, treeAtP] at *
+      cases ht
+      all_goals simp at *
+      case rep _ _ _in_empty =>
+        cases _in_empty -- is the repeat one ore more steps ago?
+        sorry
+        sorry
+    case cons ms m m_in_ms st next rest =>
+      -- now want to use an induction hypothesis, but need it for a non-empty history!
+
+      -- TODO need something for termination here!
+      -- have : H.length + p.length < H.length + p.length := sorry
+      have IH_rest := rep_needs_same_above_general rest (by sorry)
+      rcases IH_rest with ⟨q', q_claim⟩
+      use PathIn.cons m m_in_ms st _ q' -- ??
+      constructor
+      · simp
+        exact q_claim.1
+      · exact sameNode_cons q_claim.2
+
+termination_by
+  H.length + p.length
+decreasing_by
+  · simp_wf
+    subst_eqs
+    -- why the different "rest" and "p" here?!
+    sorry
+  · simp_wf
+    subst_eqs
+    sorry
 
 -- Example of a statement about repeats that should be tricky to prove now:
 -- Any path to a repeat must have a prefix to a split.
@@ -147,21 +229,30 @@ def isPrefixOf : PathIn ht → PathIn ht → Prop
 theorem rep_needs_split_above
     {ht : HisTree [] n}
     (p : PathIn ht)
-    (p_is_rep : isRep (treeAt p))
+    (p_ht_def : p_ht = treeAt p)
+    (p_is_rep : isRep p_ht)
   : ∃ p', isPrefixOf p' p ∧ isSplit (treeAt p') :=
   by
   unfold isRep at *
-  rcases treeAt p with ⟨H',n',ht⟩
-  cases n'
-  case zero =>
-    -- This should be impossible, a 0 cannot be repeated.
-    by_contra hyp
-    simp at hyp
-    sorry
-  case succ mp_pred =>
-    -- TODO: should "rep" contain the information how long ago the repeat is?
-    sorry
+  rcases p_ht with ⟨H',n',ht⟩
+  induction ht
+  case leaf =>
+    -- Impossible, a leaf is not a repeat.
+    exfalso
+    simp at *
+  case rep =>
+    cases p
+    case nil _ _ _ _in_H' =>
+      subst_eqs
+      cases _in_H'
+    case cons _in_H ms m m_in s next rest=> -- n' ks n'_ks n'_ks_in_H' ms m m_in_ms n_ms next rest IH foo
+      sorry
+  case step =>
+    -- Impossible, a step is not a repeat.
+    exfalso
+    simp at p_is_rep
 
+-- TODO: should "rep" contain the information how long ago the repeat is?
 
 -- TODO: define loopy-paths succ relation including steps via back-loops
 
