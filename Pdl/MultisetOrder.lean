@@ -142,14 +142,14 @@ lemma mul_mem_not_erase : ∀ {α : Type u} [DecidableEq α] [LT α] {a a0: α} 
 
 lemma mem_erase_cons : ∀ {α : Type u} [DecidableEq α] [LT α] {a0: α} {M : Multiset α},
       a0 ∈ M → M = M - {a0} + {a0} := by
-      aesop?
+      aesop
 
 lemma neq_negeq1 : ¬ a0 = a → a0 ≠ a := by aesop
 
 lemma neq_negeq2 : ¬ a = a0 → a0 ≠ a := by aesop
 
-lemma neq_erase : ∀ {α : Type u} [DecidableEq α] [LT α] {a a0: α} (M : Multiset α)(h: a0 ≠ a), Multiset.count a0 (Multiset.erase M a) = Multiset.count a0 M := by
-  intros _ _ _ a a0 M h
+lemma neq_erase : ∀ {α : Type u} [DecidableEq α] [LT α] {a a0: α} (M : Multiset α)(_ : a0 ≠ a), Multiset.count a0 (Multiset.erase M a) = Multiset.count a0 M := by
+  intros _ _ _ a a0 M _
   have : Multiset.count a0 (a ::ₘ (Multiset.erase M a)) = Multiset.count a0 (a ::ₘ M) := by aesop
   aesop
 
@@ -407,7 +407,7 @@ lemma le_eq_sub : ∀ (M N P Q : ℕ) , M ≤ P → M + N = P + Q → N = Q + (P
   have := tsub_add_cancel_of_le h0
   linarith
 
-lemma double_split {α} [pre : Preorder α] [dec : DecidableEq α]:
+lemma double_split {α} [Preorder α] [dec : DecidableEq α]:
       ∀ (M N P Q: Multiset α) ,  M + N = P + Q → N = N ∩ Q + (P - M)  := by
         intros M N P Q h
         ext x
@@ -564,7 +564,7 @@ lemma nat_not_0_not_1 : ∀ (n : ℕ), n ≠ 0 → n ≠ 1 → n ≥ 2 := by
                 exact hyp
               have : Multiset.card (Multiset.erase Y y) ≥ 1 := by
                 rw [Multiset.card_erase_eq_ite]
-                aesop -- Don't know how to make it more explicit. Ask Malvin!
+                simp_all -- Don't know how to make it more explicit. Ask Malvin!
                 have card_Y_g_1 : 1 < Multiset.card Y := by aesop
                 exact Nat.pred_le_pred card_Y_g_1
               have : 0 < Multiset.card (Multiset.erase Y y) := by aesop
@@ -672,7 +672,7 @@ lemma Lt_LT_equiv [DecidableEq α] [Preorder α] [DecidableRel (fun (x : α) (y:
       · -- Lt → LT:
         intros hLt
         induction hLt with
-        | base a b hLt => --should be easy: use `use`
+        | base a b hLt =>
           rcases hLt with ⟨Z, X, y, a_def, b_def, X_lt_y⟩  -- This used to work
           -- constructor
           use X
