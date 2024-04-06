@@ -1,7 +1,6 @@
 import Mathlib.Data.Finset.Basic
 import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.Ring
-import Mathlib.Data.Nat.Pow
 
 import Pdl.Semantics
 import Pdl.Star

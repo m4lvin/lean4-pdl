@@ -1,6 +1,6 @@
 -- TABLEAU
 
-import Mathlib.Algebra.BigOperators.Order
+import Mathlib.Algebra.Order.BigOperators.Ring.Finset
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Finset.PImage
 import Mathlib.Logic.IsEmpty

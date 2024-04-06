@@ -1,6 +1,7 @@
 import Pdl.Syntax
 
 import Mathlib.Data.Finset.Basic
+import Mathlib.Data.Finset.Union
 
 mutual
   def vocabOfProgram : Program → Finset Char

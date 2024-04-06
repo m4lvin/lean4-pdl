@@ -1,6 +1,6 @@
 -- TABLEAU
 
-import Mathlib.Data.List.Card
+import Mathlib.Data.List.ReduceOption
 
 import Pdl.LocalTableau
 
@@ -19,12 +19,14 @@ def projection : Char → List Formula → List Formula
 @[simp]
 theorem proj : g ∈ projection A X ↔ (⌈·A⌉g) ∈ X :=
   by
-  rw [projection]
-  simp
   induction X
-  aesop
-  aesop
-
+  case nil =>
+    simp only [projection, formProjection, beq_iff_eq, List.map_nil, List.not_mem_nil, iff_false]
+    exact List.count_eq_zero.mp rfl
+  case cons =>
+    simp only [projection, formProjection, beq_iff_eq, List.map_cons, List.mem_cons]
+    rw [List.reduceOption_mem_iff]
+    aesop
 
 -- LOADING
 
@@ -77,9 +79,9 @@ def recordAtm : LoadHistory → TNode → LoadHistory
 /-
 inductive PdlRule : TNode → TNode → Type
   | mrkL : (~⌈α⌉φ) ∈ L → PdlRule (L, R, none)
-                                 (L.remove (~⌈α⌉φ), R, some (Sum.inl (toNegLoad α φ)))
+                                 (L.erase (~⌈α⌉φ), R, some (Sum.inl (toNegLoad α φ)))
   | mrkR : (~⌈α⌉φ) ∈ R → PdlRule (L, R, none)
-                                 (L, R.remove (~⌈α⌉φ), some (Sum.inr (toNegLoad α φ)))
+                                 (L, R.erase (~⌈α⌉φ), some (Sum.inr (toNegLoad α φ)))
   -- The (At) rule:
   | atmL   {A X χ} : isSimpleNode X → PdLRule ⟨L, R, some (Sum.inl (~'⌊·A⌋(χ : LoadFormula)))⟩
                                               (projection A L, projection A R, some (Sum.inl (~'χ)))
@@ -107,9 +109,9 @@ inductive ClosedTableau : LoadHistory → TNode → Type
   | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf lt, ClosedTableau Hist Y) → ClosedTableau Hist X
   -- The (M+) rule:
   | mrkL : (~⌈α⌉φ) ∈ L → Step ClosedTableau Hist (L, R, none)
-                                                 (L.remove (~⌈α⌉φ), R, some (Sum.inl (toNegLoad α φ)))
+                                                 (L.erase (~⌈α⌉φ), R, some (Sum.inl (toNegLoad α φ)))
   | mrkR : (~⌈α⌉φ) ∈ R → Step ClosedTableau Hist (L, R, none)
-                                                 (L, R.remove (~⌈α⌉φ), some (Sum.inr (toNegLoad α φ)))
+                                                 (L, R.erase (~⌈α⌉φ), some (Sum.inr (toNegLoad α φ)))
   -- The (At) rule:
   -- TODO: can we avoid the four cases?
   | atmL   {A X χ} : isSimpleNode X → Step ClosedTableau Hist ⟨L, R, some (Sum.inl (~'⌊·A⌋(χ : LoadFormula)))⟩

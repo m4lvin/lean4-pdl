@@ -114,7 +114,7 @@ example : ClosedTableau ({r⋀~(□p), r↣□(p⋀q)}, {}) :=
             subst c_def
             -- first branch, apply "not"
             apply LocalTableau.fromRule
-            apply LocalRuleApp.mk _ {r, ~r} {} (LocalRule.oneSidedL (OneSidedLocalRule.not r))
+            apply LocalRuleApp.mk _ {r, ~(r)} {} (LocalRule.oneSidedL (OneSidedLocalRule.not r))
             · simp
             · exact [] -- claim there are no children
             · rfl
