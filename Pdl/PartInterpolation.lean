@@ -8,10 +8,25 @@ open HasVocabulary HasSat
 
 def canonProg : sorry := sorry
 
-def IsPartInterpolant (N : TNode) (θ : Formula) :=
-  voc θ ⊆ voc N ∧ (¬Satisfiable (N.L ∪ {~θ}) ∧ ¬Satisfiable (N.R ∪ {θ}))
+@[simp]
+def TNode.left : TNode → List Formula
+| ⟨L, _, none⟩ => L
+| ⟨L, _, some (Sum.inl ⟨f⟩)⟩ => unload f :: L
+| ⟨L, _, some (Sum.inr _  )⟩ => L
 
-def PartInterpolant (N : TNode) := Subtype <| IsPartInterpolant N
+@[simp]
+def TNode.right : TNode → List Formula
+| ⟨_, R, none⟩ => R
+| ⟨_, R, some (Sum.inl _  )⟩ => R
+| ⟨_, R, some (Sum.inr ⟨f⟩)⟩ => unload f :: R
+
+@[simp]
+def jvoc : (LR: TNode) → Finset Char := λ X => voc (X.left) ∩ voc (X.right)
+
+def isPartInterpolant (X : TNode) (θ : Formula) :=
+  voc θ ⊆ jvoc X ∧ (¬Satisfiable ((~θ) :: X.left) ∧ ¬Satisfiable (θ :: X.right))
+
+def PartInterpolant (N : TNode) := Subtype <| isPartInterpolant N
 
 theorem localInterpolantStep
   (C : List TNode)
@@ -39,7 +54,10 @@ theorem localInterpolantStep
   | loadedL χ lrule => sorry
   | loadedR χ lrule => sorry
 
-
 theorem partInterpolation :
     ∀ (L R : List Formula), ¬Satisfiable (L ∪ R) → PartInterpolant (L,R,none) := by
+  sorry
+
+theorem tabToInt {X : TNode} (tab : ClosedTableau LoadHistory.nil X) :
+    PartInterpolant X := by
   sorry

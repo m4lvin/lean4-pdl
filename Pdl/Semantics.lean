@@ -147,7 +147,6 @@ theorem forms_to_lists {φ ψ : Formula} : φ⊨ψ → ([φ] : List Formula)⊨(
   · tauto
   · aesop
 
-
 theorem notSat_iff_semImplies (X : List Formula) (χ : Formula):
     ¬Satisfiable (X ∪ [~χ]) ↔ X ⊨ ([χ] : List Formula) := by
   simp only [Satisfiable, not_exists, not_forall, exists_prop, setCanSemImplySet, semImpliesSets, forall_eq]
@@ -168,10 +167,10 @@ theorem equivSat {M : KripkeModel W} {w : W} (φ ψ : Formula): φ ≡ ψ → (M
     rw [φ_eq_ψ] at this
     tauto
 
-theorem equiv_iff {M : KripkeModel W} {w : W} {φ ψ : Formula} (hyp : φ ≡ ψ) : (M, w) ⊨ φ ↔ (M, w) ⊨ ψ :=
+theorem tautImp_iff_comboNotUnsat {φ ψ : Formula} :
+    φ ⊨ ψ ↔ ¬Satisfiable ([φ, ~ψ]) :=
   by
-    simp only [semEquiv, modelCanSemImplyForm, evaluatePoint] at *
-    exact hyp W M w
+  simp [formCanSemImplyForm, semImpliesLists, Satisfiable, evaluate]
 
 theorem relate_steps : ∀ x z, relate M (Program.steps (as ++ bs)) x z  ↔
   ∃ y, relate M (Program.steps as) x y ∧ relate M (Program.steps bs) y z :=

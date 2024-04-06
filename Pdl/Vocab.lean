@@ -22,7 +22,7 @@ def vocabOfSetFormula : Finset Formula → Finset Char
   | X => X.biUnion vocabOfFormula
 
 def vocabOfListFormula : List Formula → Finset Char := λX =>
-  X.foldl (λV φ => V ∪ vocabOfFormula φ ) ∅
+  X.foldl (λ V φ => V ∪ vocabOfFormula φ) ∅
 
 theorem inVocList : ℓ ∈ vocabOfListFormula L ↔ ∃φ ∈ L, ℓ ∈ vocabOfFormula φ := by sorry
 

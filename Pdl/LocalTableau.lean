@@ -3,7 +3,6 @@
 import Pdl.Setsimp
 import Pdl.Discon
 import Pdl.DagTableau
-import Pdl.Vocab
 import Pdl.MultisetOrder
 
 open Undag HasLength
@@ -41,10 +40,6 @@ def TNode.isLoaded : TNode → Bool
 | ⟨_, _, none  ⟩ => False
 | ⟨_, _, some _⟩ => True
 
-open HasVocabulary
-def sharedVoc : TNode → Finset Char := λN => voc N.L ∩ voc N.R
-instance tNodeHasVocabulary : HasVocabulary (TNode) := ⟨sharedVoc⟩
-
 instance modelCanSemImplyTNode : vDash (KripkeModel W × W) TNode :=
   vDash.mk (λ ⟨M,w⟩ ⟨L, R, o⟩ => ∀ f ∈ L ∪ R ∪ (o.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
 
@@ -54,6 +49,14 @@ instance modelCanSemImplyLLO : vDash (KripkeModel W × W) (List Formula × List 
 
 instance tNodeHasSat : HasSat TNode :=
   HasSat.mk fun Δ => ∃ (W : Type) (M : KripkeModel W) (w : W), (M,w) ⊨ Δ
+
+theorem tautImp_iff_TNodeUnsat {φ ψ} {X : TNode} :
+    X = ([φ], [~ψ], none) →
+    (φ ⊨ ψ ↔ ¬HasSat.Satisfiable X) :=
+  by
+  intro defX
+  subst defX
+  simp [HasSat.Satisfiable,evaluate,modelCanSemImplyTNode,formCanSemImplyForm,semImpliesLists] at *
 
 -- LOCAL TABLEAU
 

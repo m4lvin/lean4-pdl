@@ -7,21 +7,36 @@ open HasVocabulary vDash HasSat
 def Interpolant (φ : Formula) (ψ : Formula) (θ : Formula) :=
   voc θ ⊆ voc φ ∩ voc ψ  ∧  φ ⊨ θ  ∧  θ ⊨ ψ
 
-
-
-theorem interpolation : ∀ (φ : Formula) (ψ : Formula), φ⊨ψ → ∃ θ : Formula, Interpolant φ ψ θ :=
-  by sorry /-
+theorem interpolation : ∀ (φ ψ : Formula), φ⊨ψ → ∃ θ : Formula, Interpolant φ ψ θ :=
+  by
   intro φ ψ hyp
-  let L : List Formula := {φ}
-  let R : List Formula := {~ψ}
-  have : ¬Satisfiable (L ∪ R) := by
-    rw [notSat_iff_semImplies]
-    exact forms_to_sets hyp
-  have haveInt := partInterpolation L R this
-  rcases haveInt with ⟨θ, ⟨vocSubs, φ_θ, θ_ψ⟩⟩
+  let X : TNode := ([φ], [~(ψ)], none)
+  have ctX : ClosedTableau _ X :=
+    by
+    rw [tautImp_iff_TNodeUnsat rfl] at hyp
+    rw [← completeness] at hyp -- using completeness
+    simp [Consistent,Inconsistent] at hyp
+    exact Classical.choice hyp
+  have partInt := tabToInt ctX -- using tableau interpolation
+  rcases partInt with ⟨θ, pI_prop⟩
+  unfold isPartInterpolant at pI_prop
   use θ
-  rw [notSat_iff_semImplies] at φ_θ
-  rw [notSat_iff_semImplies] at θ_ψ
-  unfold Interpolant
-  simp [voc, vocabOfFormula, vocabOfSetFormula] at vocSubs
-  tauto-/
+  constructor
+  · intro f f_in
+    simp [voc,jvoc,vocabOfListFormula,vocabOfFormula] at pI_prop
+    exact pI_prop.1 f_in
+  constructor
+  · have := pI_prop.2.1
+    clear pI_prop
+    rw [tautImp_iff_comboNotUnsat]
+    simp [Satisfiable] at *
+    intro W M w
+    specialize this W M w
+    tauto
+  · have := pI_prop.2.2
+    clear pI_prop
+    rw [tautImp_iff_comboNotUnsat]
+    simp [Satisfiable] at *
+    intro W M w
+    specialize this W M w
+    tauto
