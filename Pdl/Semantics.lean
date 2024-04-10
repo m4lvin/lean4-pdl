@@ -74,8 +74,11 @@ def semImpliesLists (X : List Formula) (Y : List Formula) :=
   ∀ (W : Type) (M : KripkeModel W) (w),
     (∀ φ ∈ X, evaluate M w φ) → ∀ ψ ∈ Y, evaluate M w ψ
 
-def semEquiv (φ : Formula) (ψ : Formula) :=
-  ∀ (W : Type) (M : KripkeModel W) (w), evaluate M w φ ↔ evaluate M w ψ
+def semEquiv (φ ψ : Formula) :=
+  ∀ (W : Type) (M : KripkeModel W) w, evaluate M w φ ↔ evaluate M w ψ
+
+def relEquiv (α β : Program) :=
+  ∀ (W : Type) (M : KripkeModel W) v w, relate M α v w ↔ relate M β v w
 
 theorem notsatisfnotThenTaut : ∀ φ, ¬Satisfiable (~φ) → tautology φ :=
   by
@@ -113,6 +116,8 @@ instance formCanSemImplyForm : vDash Formula Formula := vDash.mk fun φ ψ => se
 infixl:40 "⊨" => SemImplies
 
 infixl:40 "≡" => semEquiv
+
+infixl:40 "≡ᵣ" => relEquiv
 
 infixl:40 "⊭" => fun a b => ¬a⊨b
 
