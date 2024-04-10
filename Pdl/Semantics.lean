@@ -163,6 +163,11 @@ theorem equivSat {M : KripkeModel W} {w : W} (φ ψ : Formula): φ ≡ ψ → (M
     rw [φ_eq_ψ] at this
     tauto
 
+theorem equiv_iff {M : KripkeModel W} {w : W} {φ ψ : Formula} (hyp : φ ≡ ψ) : (M, w) ⊨ φ ↔ (M, w) ⊨ ψ :=
+  by
+    simp only [semEquiv, modelCanSemImplyForm, evaluatePoint] at *
+    exact hyp W M w
+
 theorem relate_steps : ∀ x z, relate M (Program.steps (as ++ bs)) x z  ↔
   ∃ y, relate M (Program.steps as) x y ∧ relate M (Program.steps bs) y z :=
   by
