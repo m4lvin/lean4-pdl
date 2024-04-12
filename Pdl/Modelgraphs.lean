@@ -202,7 +202,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
             rfl
           rw [this]
           exact steprel
-    rcases starIsFinitelyManySteps _ X Y X_rel_Y with ⟨n, ys, X_is_head, Y_is_last, steprel⟩
+    rcases ReflTransGen.to_finitelyManySteps X_rel_Y with ⟨n, ys, X_is_head, Y_is_last, steprel⟩
     rw [Y_is_last]
     rw [X_is_head] at boxP_in_X
     exact claim n ys boxP_in_X steprel

@@ -164,8 +164,8 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
               (Sum.inr ⟨R, w⟩) (Sum.inr ⟨R, v⟩) ↔ Relation.ReflTransGen (relate (collection R).snd.snd.fst a) w v :=
             by
             intro w v
-            rw [starIffFinitelyManySteps]
-            rw [starIffFinitelyManySteps]
+            rw [ReflTransGen.iff_finitelyManySteps]
+            rw [ReflTransGen.iff_finitelyManySteps]
             -- alternatively, use @Relation.ReflTransGen.head_induction_on here?
             sorry
           constructor <;> aesop
@@ -178,7 +178,7 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
         · intro R oldWorld
           unfold relate
           intro star_rel
-          cases starCases star_rel
+          cases ReflTransGen.cases_tail_eq_neq star_rel
           case inl hyp => simp at hyp
           case inr hyp =>
             rcases hyp.2 with ⟨u, _neq_u, a_rel_to_u, b_rel_u_to⟩

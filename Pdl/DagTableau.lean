@@ -126,7 +126,7 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
 
   case star β =>
     simp at v_a_w
-    have := starCases v_a_w
+    have := ReflTransGen.cases_tail_eq_neq v_a_w
     cases this
     case inl v_is_w =>
       subst v_is_w
@@ -387,7 +387,7 @@ theorem notStarSoundness
       intro w_naSf
       simp at w_naSf
       rcases w_naSf with ⟨y, x_rel_y, y_nf⟩
-      cases starCases x_rel_y -- NOTE: Relation.ReflTransGen.cases_head without ≠ is not enough here ...
+      cases ReflTransGen.cases_tail_eq_neq x_rel_y -- NOTE: Relation.ReflTransGen.cases_head without ≠ is not enough here ...
       case inl w_is_y =>
         subst w_is_y
         use [~φ]
@@ -687,7 +687,7 @@ theorem loadNotStarSoundnessAux (a : Program) M (v w : W) (fs)
         exact v_a_w
   case star β =>
     simp at v_a_w
-    have := starCases v_a_w
+    have := ReflTransGen.cases_tail_eq_neq v_a_w
     cases this
     case inl v_is_w =>
       subst v_is_w
@@ -958,7 +958,7 @@ theorem loadNotStarSoundness
   intro w_naSf
   simp [modelCanSemImplyForm] at w_naSf
   rcases w_naSf with ⟨y, x_rel_y, y_nf⟩
-  cases starCases x_rel_y -- NOTE: Relation.ReflTransGen.cases_head without ≠ is not enough here ...
+  cases ReflTransGen.cases_tail_eq_neq x_rel_y -- NOTE: Relation.ReflTransGen.cases_head without ≠ is not enough here ...
   case inl w_is_y =>
     subst w_is_y
     use (∅, some (~'χ))
@@ -1013,7 +1013,7 @@ theorem loadNotStarSoundness'
   intro w_naSf
   simp [modelCanSemImplyForm] at w_naSf
   rcases w_naSf with ⟨y, x_rel_y, y_nf⟩
-  cases starCases x_rel_y -- NOTE: Relation.ReflTransGen.cases_head without ≠ is not enough here ...
+  cases ReflTransGen.cases_tail_eq_neq x_rel_y -- NOTE: Relation.ReflTransGen.cases_head without ≠ is not enough here ...
   case inl w_is_y =>
     subst w_is_y
     use ([~φ], none)

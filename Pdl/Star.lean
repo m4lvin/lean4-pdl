@@ -1,12 +1,11 @@
 import Mathlib.Data.Vector.Basic
 import Mathlib.Logic.Relation
 
--- Mathlib this?
-theorem starCases {r : α → α → Prop} {x z : α} :
-  Relation.ReflTransGen r x z → (x = z ∨ (x ≠ z ∧ ∃ y, x ≠ y ∧ r x y ∧ Relation.ReflTransGen r y z)) :=
-  by
-  intro x_rS_z
-  induction x_rS_z using Relation.ReflTransGen.head_induction_on
+/-- A version of `Relation.ReflTransGen.cases_tail` also giving (in)equalities. -/
+-- TODO: add/make this an ↔ maybe?
+theorem ReflTransGen.cases_tail_eq_neq {r : α → α → Prop} (h : Relation.ReflTransGen r x z) :
+    x = z ∨ (x ≠ z ∧ ∃ y, x ≠ y ∧ r x y ∧ Relation.ReflTransGen r y z) := by
+  induction h using Relation.ReflTransGen.head_induction_on
   · left
     rfl
   case head a b a_r_b b_r_z IH_b_z =>
@@ -37,14 +36,12 @@ theorem starCases {r : α → α → Prop} {x z : α} :
           · assumption
           · use b
 
--- related via star ==> related via a finite chain
-theorem starIsFinitelyManySteps (r : α → α → Prop) (x z : α) :
-  Relation.ReflTransGen r x z →
+/-- `∃ x₀ ... xₙ, a = x₀ ∧ r x₀ x₁ ∧ ... ∧ xₙ = b` implies `ReflTransGen r a b` -/
+theorem ReflTransGen.to_finitelyManySteps {r : α → α → Prop} (h : Relation.ReflTransGen r x z) :
     ∃ (n : ℕ) (ys : Vector α n.succ),
-      x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (ys.get i.castSucc) (ys.get (i.succ)) :=
-  by
-  intro x_aS_z
-  induction x_aS_z using Relation.ReflTransGen.head_induction_on
+      x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (ys.get i.castSucc) (ys.get (i.succ)) := by
+
+  induction h using Relation.ReflTransGen.head_induction_on
   case refl =>
     use 0, Vector.cons z Vector.nil
     aesop
@@ -52,24 +49,24 @@ theorem starIsFinitelyManySteps (r : α → α → Prop) (x z : α) :
     rcases IH_b_z with ⟨m, zs, b_is_head_zs, z_is_last_zs, zs_steps⟩
     use m + 1
     use a ::ᵥ zs
-    simp
+    simp only [Vector.head_cons, Vector.get_cons_succ, true_and]
     constructor
     · aesop
     · intro i
       induction i using Fin.induction
       all_goals aesop
 
--- related via a finite chain ==> related via star
-theorem finitelyManyStepsIsStar (r : α → α → Prop) {n : ℕ}  :
+/-- `ReflTransGen r a b` implies that `∃ x₀ ... xₙ, a = x₀ ∧ r x₀ x₁ ∧ ... ∧ xₙ = b` -/
+theorem ReflTransGen.from_finitelyManySteps (r : α → α → Prop) {n : ℕ} :
     ∀ (x z : α) (ys : Vector α (Nat.succ n)),
       (x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (ys.get i.castSucc) (ys.get (i.succ)))
-      → Relation.ReflTransGen r x z :=
-  by
+        → Relation.ReflTransGen r x z := by
   induction n
   case zero =>
-    rintro x z ys ⟨x_is_head, z_is_last, steprel⟩
+    rintro x z ys ⟨x_is_head, z_is_last, _⟩
     have : x = z := by
-      simp [x_is_head, z_is_last, Vector.last_def, ← Fin.cast_nat_eq_last]
+      simp only [x_is_head, Nat.zero_eq, z_is_last, Vector.last_def, ← Fin.cast_nat_eq_last,
+        Nat.cast_zero, Fin.isValue, Vector.get_zero]
     rw [this]
   case succ n IH =>
     rintro x z ys ⟨x_is_head, z_is_last, steprel⟩
@@ -79,7 +76,7 @@ theorem finitelyManyStepsIsStar (r : α → α → Prop) {n : ℕ}  :
     use y
     constructor
     · specialize steprel 0
-      simp at steprel
+      simp only [Fin.castSucc_zero, Vector.get_zero, Fin.succ_zero_eq_one] at steprel
       rw [← x_is_head] at steprel
       convert steprel
       cases ys using Vector.inductionOn
@@ -87,7 +84,7 @@ theorem finitelyManyStepsIsStar (r : α → α → Prop) {n : ℕ}  :
         cases ys using Vector.inductionOn
         rfl
     · apply IH y z ys.tail
-      simp
+      simp only [Vector.get_tail_succ, true_and]
       constructor
       · have sameLast : ys.tail.last = ys.last := by
           cases ys using Vector.inductionOn
@@ -101,14 +98,11 @@ theorem finitelyManyStepsIsStar (r : α → α → Prop) {n : ℕ}  :
         induction i
         all_goals aesop
 
--- related via star <==> related via a finite chain
-theorem starIffFinitelyManySteps (r : α → α → Prop) (x z : α) :
+/-- `ReflTransGen r a b` is equivalent to `∃ x₀ ... xₙ, a = x₀ ∧ r x₀ x₁ ∧ ... ∧ r xₙ = b` -/
+theorem ReflTransGen.iff_finitelyManySteps (r : α → α → Prop) (x z : α) :
     Relation.ReflTransGen r x z ↔
       ∃ (n : ℕ) (ys : Vector α n.succ),
         x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (ys.get i.castSucc) (ys.get (i.succ)) :=
-  by
-  constructor
-  apply starIsFinitelyManySteps r x z
-  intro rhs
-  rcases rhs with ⟨n, ys, x_is_head, z_is_last, rhs⟩
-  exact finitelyManyStepsIsStar r x z ys ⟨x_is_head, z_is_last, rhs⟩
+  ⟨ReflTransGen.to_finitelyManySteps,
+  fun ⟨_, ys, x_is_head, z_is_last, rhs⟩ =>
+    ReflTransGen.from_finitelyManySteps r x z ys ⟨x_is_head, z_is_last, rhs⟩⟩

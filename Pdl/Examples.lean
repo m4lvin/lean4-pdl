@@ -128,7 +128,7 @@ example (a b : Program) (X : Formula) :
       · intro v w_a_v u
         intro v_aSubS_w
         apply lhs
-        have := starCases v_aSubS_w
+        have := ReflTransGen.cases_tail_eq_neq v_aSubS_w
         cases this
         case inl hyp =>
           subst hyp
@@ -146,7 +146,7 @@ theorem starIffFinitelyManyStepsModel (W : Type) (M : KripkeModel W) (x z : W) (
       ∃ (n : ℕ) (ys : Vector W n.succ),
         x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, relate M α (get ys i.castSucc) (get ys (i.succ)) :=
   by
-  exact starIffFinitelyManySteps (relate M α) x z
+  exact ReflTransGen.iff_finitelyManySteps (relate M α) x z
 
 -- Example 1 in Borzechowski
 theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a⌉(φ ↣ (⌈a⌉φ))) ↣ (⌈∗a⌉φ)) :=
