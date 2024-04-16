@@ -18,24 +18,65 @@ def Saturated : Finset Formula → Prop
     ∧ ((⌈a;'b⌉P) ∈ X → (⌈a⌉⌈b⌉P) ∈ X)
     ∧ ((⌈a⋓b⌉P) ∈ X → (⌈a⌉P) ∈ X ∧ (⌈b⌉P) ∈ X)
     ∧ ((⌈?'Q⌉P) ∈ X → (~Q) ∈ X ∨ P ∈ X)
-    ∧ ((⌈∗a⌉P) ∈ X → P ∈ X ∧ (⌈a⌉⌈∗a⌉P) ∈ X)
+    ∧ ((⌈∗a⌉P) ∈ X → sorry) -- P ∈ X ∧ (⌈a⌉⌈∗a⌉P) ∈ X)   -- TODO ∃ ℓ ∈ TP α, Xset ℓ α ψ ⊆ X
     ∧ ((~⌈a;'b⌉P) ∈ X → (~⌈a⌉⌈b⌉P) ∈ X)
     ∧ ((~⌈a⋓b⌉P) ∈ X  → (~⌈a⌉P) ∈ X ∨ (~⌈b⌉P) ∈ X)
     ∧ ((~⌈?'Q⌉P) ∈ X → Q ∈ X ∧ (~P) ∈ X)
-    ∧ ((~⌈∗a⌉P) ∈ X → (~P) ∈ X ∨ (~⌈a⌉⌈∗a⌉P) ∈ X)
+    ∧ ((~⌈∗a⌉P) ∈ X → sorry) -- (~P) ∈ X ∨ (~⌈a⌉⌈∗a⌉P) ∈ X)  -- TODO replace this !!
+
+/-- Q α -/
+def Q {W : Finset (Finset Formula)} (R : Char → W → W → Prop)
+  : Program → W → W → Prop
+| ·c     => R c
+| ?'τ    => fun v w => v = w ∧ τ ∈ v.1
+| α ⋓ β  => fun v w => Q R α v w ∨ Q R β v w
+| α ;' β => Relation.Comp (Q R α) (Q R β)
+| ∗ α    => Relation.ReflTransGen (Q R α)
 
 -- Definition 19, page 31
 def ModelGraph (W : Finset (Finset Formula)) :=
-  let i := ∀ X : W, Saturated X.val ∧ ⊥ ∉ X.val ∧ ∀ (pp : Char), (·pp : Formula) ∈ X.val → (~(·pp)) ∉ X.val
+  let i := ∀ X : W, Saturated X.val ∧ ⊥ ∉ X.val ∧ ∀ pp, (·pp : Formula) ∈ X.val → (~(·pp)) ∉ X.val
   let ii M := ∀ X p, (·p : Formula) ∈ X.val ↔ M.val X p
   -- Note: Borzechowski only has → in ii. We follow BRV, Def 4.18 and 4.84.
-  let iii M := ∀ X Y A P, M.Rel A X Y → (⌈·A⌉P) ∈ X.val → P ∈ Y.val
-  let iv M := ∀ X a P, (~⌈a⌉P) ∈ X.val → ∃ Y, relate M a X Y ∧ (~P) ∈ Y.val
-  -- Note: In iii the A is atomic, but in iv the a is any program!
+  let iii M := ∀ X Y a P, M.Rel a X Y → (⌈·a⌉P) ∈ X.val → P ∈ Y.val
+  let iv M := ∀ X α P, (~⌈α⌉P) ∈ X.val → ∃ Y, (Q M.Rel) α X Y ∧ (~P) ∈ Y.val
+  -- Note: In iii "a" is atomic, but in iv "α" is any program!
   Subtype fun M : KripkeModel W => i ∧ ii M ∧ iii M ∧ iv M
 
--- Lemma 9, page 32, stronger version for induction loading.
+-- Originally MB Lemma 9, page 32, stronger version for induction loading.
+-- Now also using Q relation to overwrite tests.
 mutual
+
+theorem Q_then_relate (MG : ModelGraph Worlds) α (X Y : Worlds) :
+    Q MG.val.Rel α X Y → relate MG.val α X Y := by
+  cases α
+  case atom_prog =>
+    simp [Q, relate]
+  case sequence α β =>
+    have := Q_then_relate MG α
+    have := Q_then_relate MG β
+    simp [Q, relate, Relation.Comp] at *
+    aesop
+  case union α β =>
+    have := Q_then_relate MG α
+    have := Q_then_relate MG β
+    simp [Q, relate, Relation.Comp] at *
+    aesop
+  case star α =>
+    simp only [instBot, Q, relate]
+    apply Relation.ReflTransGen.lift
+    intro a b Qab
+    exact Q_then_relate MG α a b Qab
+  case test φ =>
+    have := loadedTruthLemma MG X φ
+    simp [Q, relate, Relation.Comp] at *
+    intro X_is_Y phi_in_X
+    subst X_is_Y
+    constructor
+    · tauto
+    · tauto
+termination_by
+  lengthOf α
 
 theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
     ∀ P, (P ∈ X.val → evaluate MG.val X P) -- (+)
@@ -112,7 +153,7 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
       rcases my_iv with ⟨⟨Y, Y_in⟩, X_a_Y, nP_in_Y⟩
       use Y, Y_in
       constructor
-      · exact X_a_Y
+      · exact Q_then_relate ⟨M,⟨i,ii,iii,iv⟩⟩ a X ⟨Y,Y_in⟩ X_a_Y
       · have ⟨_, minus_Y⟩ := loadedTruthLemma ⟨M,⟨i,ii,iii,iv⟩⟩ ⟨Y, Y_in⟩ P
         simp at minus_Y
         specialize minus_Y nP_in_Y
@@ -169,7 +210,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
         have ⟨_,⟨i,_,_,_⟩⟩ := MG
         have := (i ys.head).left
         simp [Saturated] at this
-        exact ((this P P a a).right.right.right.right.right.right.left boxP_in_head).left
+        sorry -- exact ((this P P a a).right.right.right.right.right.right.left boxP_in_head).left
       case succ m IH =>
         rintro ys boxP_in_head steprel
         let Z := ys.get 1
@@ -180,7 +221,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
           have ⟨_,⟨i,_,_,_⟩⟩ := MG
           have := (i ys.head).left
           simp [Saturated] at this
-          exact ((this P P a a).right.right.right.right.right.right.left boxP_in_head).right
+          sorry -- exact ((this P P a a).right.right.right.right.right.right.left boxP_in_head).right
         have boxP_in_Z : (⌈∗a⌉P) ∈ Z.val := loadedTruthLemmaProg MG a ys.head (⌈∗a⌉P) this Z head_a_Z
         have : ys.last = ys.tail.last := by
           cases ys using Vector.inductionOn
