@@ -112,8 +112,8 @@ lemma mem_erase_cons {α : Type u} [DecidableEq α] [LT α] {a0: α} {M : Multis
 
 lemma neq_erase {α : Type u} [DecidableEq α] [LT α] {a a0: α} (M : Multiset α)(_ : a0 ≠ a) :
     Multiset.count a0 (Multiset.erase M a) = Multiset.count a0 M := by
-  have : Multiset.count a0 (a ::ₘ (Multiset.erase M a)) = Multiset.count a0 (a ::ₘ M) := by aesop?
-  aesop
+  have : Multiset.count a0 (a ::ₘ (Multiset.erase M a)) = Multiset.count a0 (a ::ₘ M) := by simp_all
+  simp_all
 
 lemma cons_erase {α : Type u} [DecidableEq α] [LT α] {a a0: α} {M X : Multiset α}
     (H : a ::ₘ M = X + {a0}) : M = X + {a0} - {a} := by
