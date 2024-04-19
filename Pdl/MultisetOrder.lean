@@ -1,6 +1,6 @@
 /-
 Copyright (c) 2024 Haitian Wang. All rights reserved.
-Released under Apache 2.0 license..... as described in the file LICENSE.
+Released under Apache 2.0 license as described in the file LICENSE.
 Author: Haitian Wang, Malvin Gattinger.
 -/
 import Mathlib.Tactic.Linarith
@@ -10,35 +10,23 @@ import Mathlib.Logic.Relation
 /-!
 # Dershowitz-Manna ordering
 
-In this file we formalize a theorem about the `Dershowitz-Manna ordering`. The theorem states that given a well-founded partial order, the
-`Dershowitz-Manna ordering` defined over the multisets derived from the underlying set is also well-founded.
+In this file we define the _Dershowitz-Manna ordering_ on multisets.
+We prove that, given a well-founded partial order on the underlying set,
+the Dershowitz-Manna ordering defined over multisets is also well-founded.
 
 ## Main results
 
 - `MultisetLT` :  the standard definition
 - `dm_wf` :       the main theorem about the `Dershowitz-Manna ordering`.
-- `Lt_LT_equiv` : two definitions of the `Dershowitz-Manna ordering` are equivalent.
-
-e.g.
-- `exists_foo`: the main existence theorem of `foo`s.
-- `bar_of_foo`: a construction of a `bar`, given a `foo`.
-- `bar_eq`    : the main classification theorem of `bar`s.
-
-## Notation
-
-e.g.
- - `|_|` : The barrification operator, see `bar_of_foo`.
+- `Lt_LT_equiv` : two definitions of the Dershowitz-Manna ordering are equivalent.
 
 ## References
 
-e.g.
-See [Thales600BC] for the original account on Xyzzyology.
+* [Wikipedia, Dershowitz–Manna ordering*](https://en.wikipedia.org/wiki/Dershowitz%E2%80%93Manna_ordering)
 
-See [https://en.wikipedia.org/wiki/Dershowitz%E2%80%93Manna_ordering] for a brief introduction to
-the `Dershowitz-Manna ordering`.
-
-See [https://github.com/fblanqui/color/blob/master/Util/Multiset/MultisetOrder.v] for a
-formalization in Coq of the same theorem under the name `mOrd_wf`.
+* [CoLoR](https://github.com/fblanqui/color), a Coq library on rewriting theory and termination.
+  Our code here is inspired by their version of called `mOrd_wf` in the file
+  [MultisetList.v](https://github.com/fblanqui/color/blob/1.8.5/Util/Multiset/MultisetList.v).
 
 -/
 
@@ -55,17 +43,12 @@ inductive MultisetRedLt [DecidableEq α][LT α] (M N : Multiset α) : Prop :=
     (N = X + {a}) →
     (∀ y, y ∈ Y → y < a) → MultisetRedLt M N
 
--- MultisetLt is the transitive closure of MultisetRedLt
+/-- MultisetLt is the transitive closure of MultisetRedLt -/
 def MultisetLt [DecidableEq α][LT α] : Multiset α → Multiset α → Prop := TC MultisetRedLt
 def AccM_1 [DecidableEq α][Preorder α] : Multiset α → Prop := Acc MultisetRedLt
 
--- Some unused notations?
-notation M:arg " <_DM " N:arg => MultisetLT M N
-notation M:arg " ≤_DM " N:arg => MultisetLT M N ∨ M = N
-notation M:arg " ≥_DM " N:arg => MultisetLT N M ∨ M = N
-
 -- Some useful lemmas about Multisets and the defined relations
-lemma not_MultisetRedLt_0 [DecidableEq α][LT α] (M: Multiset α) : ¬ (MultisetRedLt M 0) := by
+lemma not_MultisetRedLt_0 [DecidableEq α] [LT α] (M: Multiset α) : ¬ MultisetRedLt M 0 := by
   intro h
   cases h with
   | RedLt X Y a M nonsense _ =>
@@ -73,11 +56,6 @@ lemma not_MultisetRedLt_0 [DecidableEq α][LT α] (M: Multiset α) : ¬ (Multise
       rw [nonsense]
       simp_all only [Multiset.mem_add, Multiset.mem_singleton, or_true]
     contradiction
-
--- This lemma is not used, should I remove it?
-lemma meq_union_meq {α : Type u} [DecidableEq α] [Preorder α] {M N P : Multiset α}
-    ( _ : M + P = N + P) : M = N := by
-  simp_all only [add_left_inj]
 
 lemma meq_union_meq_reverse {α : Type u} [DecidableEq α] [Preorder α] {M N P : Multiset α}
     (_ : M = N) : M + P = N + P := by
@@ -140,22 +118,22 @@ lemma cons_erase {α : Type u} [DecidableEq α] [LT α] {a a0: α} {M X : Multis
       rw [ba0] at H
       have : Multiset.count a0 (Multiset.erase (a ::ₘ M) a) = Multiset.count a0 (Multiset.erase (a ::ₘ M) a) := by
         simp
-      have : Multiset.count a0 (a ::ₘ M) = Multiset.count a0 X + 1 := by subst_eqs; rw [mul_cons_trivial] at H; aesop
+      have : Multiset.count a0 (a ::ₘ M) = Multiset.count a0 X + 1 := by subst_eqs; rw [mul_cons_trivial] at H; simp_all
       have : Multiset.count a0 M = Multiset.count a0 (a ::ₘ M) := by
-        have : a0 ≠ a := by aesop
+        have : a0 ≠ a := by simp_all
         rw [Multiset.count_cons_of_ne this M]
-      aesop
-      -- have : Multiset.count a0 (a ::ₘ M) = Multiset.count a0 M := by aesop
+      simp_all
+      -- have : Multiset.count a0 (a ::ₘ M) = Multiset.count a0 M := by simp_all
       else
       have : Multiset.count b M = Multiset.count b (a ::ₘ M) := by
-        have : b ≠ a := by aesop
+        have : b ≠ a := by simp_all
         -- have : ∀s, Multiset.count a s = Multiset.count a (b ::ₘ s) := by
         rw [Multiset.count_cons_of_ne this M]
       rw [this ]
       have : Multiset.count b (X + {a0}) = Multiset.count b (Multiset.erase (a0 ::ₘ X) a) := by
         simp
-        aesop
-      aesop
+        simp_all
+      simp_all
 
 lemma red_insert {α : Type u} [DecidableEq α] [LT α] {a : α} {M N : Multiset α}
       (H : MultisetRedLt N (a ::ₘ M)) :
@@ -165,13 +143,12 @@ lemma red_insert {α : Type u} [DecidableEq α] [LT α] {a : α} {M N : Multiset
         rcases H with ⟨X, Y, a0, H1, H0, H2⟩
         -- cases h : (decide (a = a0))
         if hyp : a = a0 then
-          --subst hyp  (this would remove hyp)
            exists Y; right; apply And.intro
            . rw [H1]
              rw [add_left_inj]
              rw [mul_cons_trivial] at H0
-             aesop
-           . aesop
+             simp_all
+           . simp_all
         else
           exists (Y + (M - {a0}))
           left
@@ -224,16 +201,16 @@ lemma mord_wf_1 {α : Type u} {_ : Multiset α} [DecidableEq α] [Preorder α] (
     clear H --It is weird that removing this line cause aesop to not be able to prove it. Even though it reports after `exhaustive` search?
     induction x using Multiset.induction with
     | empty =>
-      aesop
+      simpa
     | cons h =>
       rename_i _ _ a0 M
-      have trivial: M0 + a0 ::ₘ M= a0 ::ₘ (M0 + M) := by aesop
+      have trivial: M0 + a0 ::ₘ M = a0 ::ₘ (M0 + M) := by simp
       rw [trivial]
-      aesop
+      simp_all
   case h.intro.inl.intro =>
-    aesop
+    simp_all
 
-lemma mord_wf_2 {α : Type u} {M : Multiset α} [DecidableEq α] [Preorder α] (a : α)
+lemma mord_wf_2 {α : Type u} [DecidableEq α] [Preorder α] (a : α)
     (H : ∀ (b : α), ∀ (M : Multiset α), LT.lt b a → AccM_1 M → AccM_1 (b ::ₘ M)) :
     ∀ M, AccM_1 M → AccM_1 (a ::ₘ M) := by
   unfold AccM_1
@@ -241,14 +218,14 @@ lemma mord_wf_2 {α : Type u} {M : Multiset α} [DecidableEq α] [Preorder α] (
   induction H0 with
   | intro x wfH wfH2 =>
     apply mord_wf_1
-    . aesop
+    . simpa
     . intros b x a
       unfold AccM_1
       apply H
       assumption
     . constructor
-      aesop
-    . aesop
+      simpa
+    . simpa
 
 lemma mord_wf_3 {α : Type u} {_ : Multiset α} [DecidableEq α] [Preorder α] :
     ∀ (a:α), Acc LT.lt a → ∀ (M : Multiset α), AccM_1 M → AccM_1 (a ::ₘ M) := by
@@ -256,7 +233,7 @@ lemma mord_wf_3 {α : Type u} {_ : Multiset α} [DecidableEq α] [Preorder α] :
   induction w_a with
   | intro x _ ih =>
       intro M accM1
-      apply @mord_wf_2 α M _ _ _ _ _ accM1
+      apply @mord_wf_2 α _ _ _ _ _ accM1
       simp_all
 
 -- If all elements of a multiset M is accessible given the underlying relation `LT.lt`, then the multiset M is accessible given the `MultisetRedLt` relation.
@@ -274,11 +251,11 @@ lemma mred_acc {α : Type u} [DecidableEq α] [Preorder α] :
     apply mord_wf_3
     . assumption
     . apply wf_el
-      aesop
+      simp_all
     . apply ih
       intros
       apply wf_el
-      aesop
+      simp_all
 
 -- If `LT.lt` is well-founded, then `MultisetRedLt` is well-founded.
 -- lemma `mred_acc` needed.
@@ -357,14 +334,13 @@ lemma double_split {α} [Preorder α] [dec : DecidableEq α]:
     simp_all only [Multiset.mem_add, Multiset.count_add]
   if l_u : Multiset.count x M ≤ Multiset.count x P then
     have : Multiset.count x N ≥ Multiset.count x Q := by linarith
-    simp_all --Ask Malvin: how to replace aesop with more explicit tactics?
+    simp_all only [ge_iff_le, min_eq_right]
     apply le_eq_sub (Multiset.count x M) (Multiset.count x N) (Multiset.count x P) (Multiset.count x Q)
-    aesop
-    exact H0
+    · simp_all
+    · exact H0
   else
     simp_all only [not_le, gt_iff_lt]
     have : Multiset.count x N ≤ Multiset.count x Q := by linarith
-    simp_all
     have:= le_of_lt l_u
     simp_all
 
