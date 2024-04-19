@@ -460,11 +460,6 @@ def node_to_multiset : TNode → Multiset Formula
 | (L, R, some (Sum.inl (~'χ))) => (L + R + [~ unload χ])
 | (L, R, some (Sum.inr (~'χ))) => (L + R + [~ unload χ])
 
-
--- The lemma mul_cons_trivial breaks the proof below due to non-terminal simps.
--- FIXME: delete this after MultisetOrder is cleaned up.
-attribute [-simp] mul_cons_trivial
-
 def preconP_to_submultiset (preconditionProof : List.Sublist Lcond L ∧ List.Sublist Rcond R ∧ Ocond ⊆ O) :
     node_to_multiset (Lcond, Rcond, Ocond) ≤ node_to_multiset (L, R, O) :=
   by
