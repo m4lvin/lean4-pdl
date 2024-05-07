@@ -2,6 +2,7 @@ import Mathlib.Init.Data.Nat.Lemmas
 
 import Pdl.Semantics
 
+-- FIXME: rename "Con" to "con"
 @[simp]
 def Con : List Formula → Formula
   | [] => ⊤

@@ -47,6 +47,7 @@ def ModelGraph (W : Finset (Finset Formula)) :=
 -- Now also using Q relation to overwrite tests.
 mutual
 
+-- Why does Lan say this uses "sorry"? Due to mutualness?
 theorem Q_then_relate (MG : ModelGraph Worlds) α (X Y : Worlds) :
     Q MG.val.Rel α X Y → relate MG.val α X Y := by
   cases α
