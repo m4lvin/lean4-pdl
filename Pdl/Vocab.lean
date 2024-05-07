@@ -21,10 +21,11 @@ end
 def vocabOfSetFormula : Finset Formula → Finset Char
   | X => X.biUnion vocabOfFormula
 
-def vocabOfListFormula : List Formula → Finset Char := λX =>
-  X.foldl (λ V φ => V ∪ vocabOfFormula φ) ∅
+def vocabOfListFormula : List Formula → Finset Char
+  | X => (X.toFinset).biUnion vocabOfFormula
 
-theorem inVocList : ℓ ∈ vocabOfListFormula L ↔ ∃φ ∈ L, ℓ ∈ vocabOfFormula φ := by sorry
+theorem inVocList : ℓ ∈ vocabOfListFormula L ↔ ∃φ ∈ L, ℓ ∈ vocabOfFormula φ := by
+  simp only [vocabOfListFormula, Finset.mem_biUnion, List.mem_toFinset]
 
 class HasVocabulary (α : Type) where
   voc : α → Finset Char
