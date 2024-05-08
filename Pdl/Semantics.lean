@@ -167,6 +167,19 @@ theorem equivSat {M : KripkeModel W} {w : W} (φ ψ : Formula): φ ≡ ψ → (M
     rw [φ_eq_ψ] at this
     tauto
 
+theorem equiv_iff {M : KripkeModel W} {w : W} (φ ψ : Formula): φ ≡ ψ → ((M, w) ⊨ φ ↔ (M, w) ⊨ ψ) :=
+  by
+    intro φ_eq_ψ
+    constructor
+    · intro
+      have : evaluate M w φ := by tauto
+      rw [φ_eq_ψ] at this
+      tauto
+    · intro
+      have : evaluate M w ψ := by tauto
+      rw [← φ_eq_ψ] at this
+      tauto
+
 theorem tautImp_iff_comboNotUnsat {φ ψ : Formula} :
     φ ⊨ ψ ↔ ¬Satisfiable ([φ, ~ψ]) :=
   by

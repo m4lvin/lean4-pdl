@@ -23,6 +23,7 @@ end
 def Formula.or : Formula → Formula → Formula
   | f, g => Formula.neg (Formula.and (Formula.neg f) (Formula.neg g))
 
+/-- □(αs,φ) -/
 @[simp]
 def Formula.boxes : List Program → Formula → Formula
   | [], f => f

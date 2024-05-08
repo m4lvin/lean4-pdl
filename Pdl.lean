@@ -12,6 +12,7 @@ import «Pdl».Examples
 import «Pdl».Modelgraphs
 import «Pdl».Discon
 import «Pdl».Vocab
+import «Pdl».Unfold
 import «Pdl».LocalTableau
 import «Pdl».Tableau
 import «Pdl».Soundness
