@@ -29,13 +29,13 @@ inductive Step : Nat → List Nat → Type
 
 def SomeStep := Σ n ms, Step n ms
 
-abbrev History := List SomeStep
+abbrev History := List Nat
 -- (Not using "def" because we want typeclass inference to see through this.)
 
 inductive HisTree : History → Nat → Type
 | leaf : HisTree H 1
-| step : {ms : _} → (s : Step n ms) → (next : ∀ {m}, m ∈ ms → HisTree (⟨_,_,s⟩ :: H) m) → HisTree H n
-| rep : (s : Step n ms) → ⟨_,_,s⟩ ∈ H → HisTree H m
+| step : {ms : _} → (s : Step n ms) → (next : ∀ {m}, m ∈ ms → HisTree (n :: H) m) → HisTree H n
+| rep : (k : Nat) → some k = H.indexOf? m → HisTree H m
 
 open Step HisTree
 
@@ -61,7 +61,7 @@ def bla : HisTree [] 4 :=
     --    1   2
       leaf
       --      4
-      (step up $ helper $ by apply rep split; aesop)
+      (step up $ helper $ by apply rep; aesop)
 
 -- * NEW: PATHS, inductively and hopefully better than the unsafe verson below
 
@@ -84,6 +84,12 @@ def PathIn.toSteps : PathIn ht → List SomeStep
 | nil => []
 | cons _ _ s _ rest => toSteps rest ++ [⟨_,_,s⟩]
 
+def PathIn.drop (p : PathIn ht) (k : Nat) (h : k < p.length) : PathIn ht :=
+  match k, p with
+  | 0, p => p
+  | k, nil => sorry
+  | k, cons _ _ s _ rest => sorry
+
 theorem PathIn.length_eq_toListLength H n (ht : HisTree H n) (p : PathIn ht):
   p.length = p.toList.length := by
   induction p -- now works, and termination too. Maybe because PathIn.cons now has more arguments to keep track of?
@@ -97,14 +103,45 @@ def treeAt : PathIn ht → (Σ H n, HisTree H n)
 | PathIn.nil => ⟨_,_,ht⟩
 | PathIn.cons _ _ _ _ rest => treeAt rest -- wow, that is much simpler than treeAt' below :-)
 
--- A better version to also give us the determined history:
-def treeAtP {ht : HisTree H n} : (p : PathIn ht) → (Σ n, HisTree (p.toSteps ++ H) n)
+theorem length_is_good {ht : HisTree H n} {p : PathIn ht} :
+    Hp = (treeAt p).1 → Hp.length = H.length + p.length := by
+  intro HP_def
+  subst_eqs
+  induction p
+  case nil =>
+    simp [treeAt, PathIn.length]
+  case cons _ _ _ _ _ _ _ _ IH =>
+    simp only [treeAt, PathIn.length]
+    rw [IH]
+    simp
+    omega
+
+-- maybe not needed?
+def Environment (root : HisTree H n) : Type := PathIn root → PathIn root
+
+/-- Like `treeAt` but "jumping back" to companions. -/
+-- TODO: rewrite in term-mode
+def unravelAt {root : HisTree H n} : PathIn root → PathIn root := by
+  intro p
+  have ⟨Hp,m,htp⟩ := treeAt p
+  cases htp_def : htp
+  case leaf =>
+    exact p
+  case step =>
+    exact p
+  case rep k k_eq =>
+    -- roll back the path p by k steps!
+    apply p.drop k
+    sorry
+
+-- A potentialy better version of treeAt to also give us the determined history:
+def treeAtP {ht : HisTree H n} : (p : PathIn ht) → (Σ n, HisTree (p.toList ++ H) n)
 | PathIn.nil =>
-    have : H = (PathIn.nil.toSteps ++ H) := by simp [PathIn.toSteps]
+    have : H = (PathIn.nil.toList ++ H) := by simp [PathIn.toList]
     ⟨n, this ▸ ht⟩
 | PathIn.cons m m_in s next rest =>
-    have : rest.toSteps ++ ⟨_,_,s⟩ :: H = (PathIn.cons m m_in s next rest).toSteps ++ H := by
-      simp [PathIn.toSteps]
+    have : rest.toList ++ n :: H = (PathIn.cons m m_in s next rest).toList ++ H := by
+      simp [PathIn.toList]
     this ▸ treeAtP rest
 termination_by
   x => sizeOf x
@@ -153,7 +190,7 @@ theorem rep_needs_same_above
     simp [treeAt, treeAtP] at *
     cases ht
     all_goals simp at *
-    case rep _ _ _in_empty =>
+    case rep _ _in_empty =>
       exfalso
       cases _in_empty
   case cons ms m m_in_ms st next rest =>
@@ -174,7 +211,7 @@ theorem rep_needs_same_above_general
       simp [treeAt, treeAtP] at *
       cases ht
       all_goals simp at *
-      case rep _ _ _in_empty =>
+      case rep _ _in_empty =>
         exfalso
         cases _in_empty
     case cons ms m m_in_ms st next rest =>
@@ -195,9 +232,8 @@ theorem rep_needs_same_above_general
       simp [treeAt, treeAtP] at *
       cases ht
       all_goals simp at *
-      case rep _ _ _in_empty =>
-        cases _in_empty -- is the repeat one ore more steps ago?
-        sorry
+      case rep _ _in_empty =>
+        -- TODO: is the repeat one ore more steps ago?
         sorry
     case cons ms m m_in_ms st next rest =>
       -- now want to use an induction hypothesis, but need it for a non-empty history!
@@ -244,7 +280,6 @@ theorem rep_needs_split_above
     cases p
     case nil _ _ _ _in_H' =>
       subst_eqs
-      cases _in_H'
     case cons _in_H ms m m_in s next rest=> -- n' ks n'_ks n'_ks_in_H' ms m m_in_ms n_ms next rest IH foo
       sorry
   case step =>
