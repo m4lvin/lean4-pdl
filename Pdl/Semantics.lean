@@ -160,16 +160,19 @@ theorem notSat_iff_semImplies (X : List Formula) (χ : Formula):
     -- cases em (evaluate M w χ)
     sorry
 
-theorem equivSat {M : KripkeModel W} {w : W} (φ ψ : Formula): φ ≡ ψ → (M, w) ⊨ φ → (M, w) ⊨ ψ :=
+theorem equivSat (φ ψ : Formula) {M : KripkeModel W} {w : W} :
+    φ ≡ ψ → (M, w) ⊨ φ → (M, w) ⊨ ψ :=
   by
     intro φ_eq_ψ evalφ
     have : evaluate M w φ := by tauto
     rw [φ_eq_ψ] at this
     tauto
 
-theorem equiv_iff {M : KripkeModel W} {w : W} (φ ψ : Formula): φ ≡ ψ → ((M, w) ⊨ φ ↔ (M, w) ⊨ ψ) :=
+theorem equiv_iff (φ ψ : Formula) (φ_eq_ψ : φ ≡ ψ) :
+    ∀ {W} {M : KripkeModel W} {w : W},
+    (M, w) ⊨ φ ↔ (M, w) ⊨ ψ :=
   by
-    intro φ_eq_ψ
+    intro W M w
     constructor
     · intro
       have : evaluate M w φ := by tauto
