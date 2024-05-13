@@ -151,33 +151,50 @@ theorem repl_in_P_equiv x ψ :
 
 -- ### Test Profiles
 
-def allFunToBool : (L : List α) → List (Subtype (fun β => β ∈ L) → Bool)
-| [] => [fun x => by exfalso; cases x; tauto]
-| (x::xs) => (allFunToBool xs).map sorry -- extend the function somehow?
-
-def TestProfile (α : Program) : Type := Subtype (fun β => β ∈ testsOfProgram α) → Bool
+-- def TestProfile (α : Program) : Type := {L // L ∈ (testsOfProgram α).sublists}
+-- NOTE: Replaced "TestProfile" with "List Formula".
 
 /-- List of all test profiles for a given program. -/
-def TP (α : Program) : List (TestProfile α) := allFunToBool (testsOfProgram α)
+def TP (α : Program) : List (List Formula) := (testsOfProgram α).sublists
 
 /-- σ^ℓ -/
-def signature (ℓ : TestProfile α) : Formula :=
-  Con $ (testsOfProgram α).attach.map (fun ⟨τ,h⟩ => if ℓ ⟨τ,h⟩ then τ else ~ τ)
+def signature (α : Program) (ℓ : List Formula) : Formula :=
+  Con $ (testsOfProgram α).map (fun τ => if τ ∈ ℓ then τ else ~ τ)
 
 -- Now come the three facts about test profiles and signatures.
 
-theorem top_equiv_disj_TP : ⊤ ≡ dis ((TP α).map signature) := by
+theorem top_equiv_disj_TP {L} : ∀ α, L = testsOfProgram α → tautology (dis ((TP α).map (signature α))) := by
+  intro α
+  intro L_def
   intro W M w
+  rw [disEval]
+  induction L
+  case nil =>
+    simp [TP,signature]
+    rw [← L_def]
+    simp
+  case cons τ L IH =>
+    simp [TP,signature] at *
+    rw [← L_def]
+    cases em (evaluate M w τ)
+    · sorry
+    · sorry
+
+theorem signature_conbot_iff_neq : contradiction (signature α ℓ ⋀ signature α ℓ')  ↔  ℓ ≠ ℓ' := by
+  constructor
+  · intro contrasign
+    sorry
+  · intro ldiff
+    have := @List.ext _ ℓ ℓ'
+    sorry
+
+theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ ∈ TP α, φ ⋀ signature α ℓ ≡ ψ ⋀ signature α ℓ := by
   sorry
 
-theorem signature_conbot_iff_neq : ℓ ⋀ ℓ' ≡ ⊥  ↔  ℓ ≠ ℓ' := by
-  sorry
-
-theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ ∈ TP α, φ ⋀ signature ℓ ≡ ψ ⋀ signature ℓ := by
-  sorry
-
+/-
 -- Coercion of TestProfiles to subprograms
--- These are needed to re-use `l` in the recursive calls of `F`.
+-- These WERE needed to re-use `l` in the recursive calls of `F`.
+
 instance : CoeOut (TestProfile (α ⋓ β)) (TestProfile α) :=
   ⟨fun l ⟨f,f_in⟩ => l ⟨f, by simp only [testsOfProgram, List.mem_union_iff]; exact Or.inl f_in⟩⟩
 instance : CoeOut (TestProfile (α ⋓ β)) (TestProfile β) :=
@@ -190,30 +207,31 @@ instance : CoeOut (TestProfile (α ;' β)) (TestProfile β) :=
 
 instance : CoeOut (TestProfile (∗α)) (TestProfile α) :=
   ⟨fun l ⟨f,f_in⟩ => l ⟨f, by simp only [testsOfProgram]; exact f_in⟩⟩
+-/
 
 -- ### F, P, X and the Φ_□ set
 
 -- NOTE: In P and Xset
 -- We use lists here because we eventually want to make formulas.
 
-def F : (Σ α, TestProfile α) → List Formula
+def F : (Program × List Formula) → List Formula
 | ⟨·_, _⟩ => ∅
-| ⟨?' τ, l⟩ => if l ⟨τ, by simp [TestProfile,testsOfProgram] at *⟩ then ∅ else {~τ}
+| ⟨?' τ, l⟩ => if τ ∈ l then ∅ else {~τ}
 | ⟨α ⋓ β, l⟩ => F ⟨α, l⟩ ∪ F ⟨β, l⟩
 | ⟨α;'β, l⟩ => F ⟨α, l⟩ ∪ F ⟨β, l⟩
 | ⟨∗α, l⟩ => F ⟨α, l⟩
 
 def ε : List Program := [] -- ugly way to define the empty program?
 
-def P : (Σ α, TestProfile α) → List (List Program)
+def P : (Program × List Formula) → List (List Program)
 | ⟨·a, _⟩ => [ [(·a : Program)] ]
-| ⟨?' τ, l⟩ => if l ⟨τ, by simp [TestProfile,testsOfProgram] at *⟩ then ∅ else [ [] ]
+| ⟨?' τ, l⟩ => if τ ∈ l then ∅ else [ [] ]
 | ⟨α ⋓ β, l⟩ => P ⟨α, l⟩ ∪ P ⟨β, l⟩ -- ∪ or ++ here ??
 | ⟨α;'β, l⟩ => (P ⟨α,l⟩ \ [ε]).map (fun as => as ++ [β])
              ∪ (if ε ∈ P ⟨α,l⟩ then (P ⟨β,l⟩ \ [ε]) else [])
 | ⟨∗α, l⟩ => [ ε ] ∪ (P (⟨α, l⟩) \ [ε]).map (fun as => as ++ [∗α])
 
-def Xset (α) (l : TestProfile α) (ψ : Formula) : List Formula :=
+def Xset (α : Program) (l : List Formula) (ψ : Formula) : List Formula :=
   F ⟨α, l⟩ ++ (P ⟨α, l⟩).map (fun as => Formula.boxes as ψ)
 
 /-- Φ_□(αs,ψ) -/
@@ -261,7 +279,8 @@ theorem guardToStar (x : Char)
     exact fortysix W M u1 u2 w_rho u1_b_u2
 
 /-- Induction claim for `localBoxTruth`. -/
-theorem localBoxTruth' γ ψ ℓ : (⌈γ⌉ψ) ⋀ signature ℓ ≡ Con (Xset γ ℓ ψ) ⋀ signature ℓ := by
+-- NOTE: "signature γ" or should it be "signature α" here?!?
+theorem localBoxTruth' γ ψ ℓ : (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Xset γ ℓ ψ) ⋀ signature γ ℓ := by
   cases γ
   case atom_prog =>
     sorry
