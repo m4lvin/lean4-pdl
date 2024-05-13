@@ -4,6 +4,7 @@ import Mathlib.Tactic.Convert
 import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.Tauto
 import Mathlib.Tactic.Use
+import Mathlib.Data.List.Basic
 
 -- This file is not part of PDL, but just a playground for
 -- representing trees with repeats / back-pointers.
@@ -26,6 +27,7 @@ import Mathlib.Tactic.Use
 inductive Step : Nat → List Nat → Type
 | up    : Step k     [k+2]
 | split : Step (k+1) [1,k]
+deriving Repr
 
 def SomeStep := Σ n ms, Step n ms
 
@@ -36,6 +38,7 @@ inductive HisTree : History → Nat → Type
 | leaf : HisTree H 1
 | step : {ms : _} → (s : Step n ms) → (next : ∀ {m}, m ∈ ms → HisTree (n :: H) m) → HisTree H n
 | rep : (k : Nat) → some k = H.indexOf? m → HisTree H m
+-- TODO: deriving Repr -- not working?
 
 open Step HisTree
 
@@ -65,6 +68,7 @@ def bla : HisTree [] 4 :=
 
 -- * NEW: PATHS, inductively and hopefully better than the unsafe verson below
 
+/-- A path in a tree. Note that in `cons` the `m` is the child we move to. -/
 inductive PathIn : HisTree H n → Type
 | nil : PathIn ht
 | cons m (m_in : m ∈ ms) (s : Step n ms) next (rest : PathIn (next m_in)) : PathIn (step s next)
@@ -73,7 +77,6 @@ inductive PathIn : HisTree H n → Type
 def PathIn.length : PathIn ht → Nat
 | nil => 0
 | cons _ _ _ _ rest => 1 + rest.length
-
 -- Convert a path to a list of Nats, where the last path element will be the head.
 def PathIn.toList {ht : HisTree H m} : PathIn ht → List Nat
 | nil => []
@@ -84,11 +87,27 @@ def PathIn.toSteps : PathIn ht → List SomeStep
 | nil => []
 | cons _ _ s _ rest => toSteps rest ++ [⟨_,_,s⟩]
 
-def PathIn.drop (p : PathIn ht) (k : Nat) (h : k < p.length) : PathIn ht :=
-  match k, p with
-  | 0, p => p
-  | k, nil => sorry
-  | k, cons _ _ s _ rest => sorry
+def blaPath : PathIn bla := by
+  apply PathIn.cons 3 (by aesop)
+  simp [helperSplit]
+  apply PathIn.cons 2 (by aesop)
+  simp [helperSplit]
+  apply PathIn.cons 4 (by aesop)
+  apply PathIn.nil
+
+example : blaPath.toList == [2,3,4] := by rfl
+
+def PathIn.dropAtEnd (p : PathIn ht) (k : Nat) (h : k ≤ p.length) : PathIn ht :=
+  if _ : k = p.length then nil else
+    match p with
+    | nil => by simp only [length, nonpos_iff_eq_zero] at *; exfalso; tauto
+    | cons m m_in s next rest => by
+        have newRest := rest.dropAtEnd k (by simp [PathIn.length] at *; omega)
+        exact cons m m_in s next newRest
+
+#eval blaPath.length
+
+#eval (blaPath.dropAtEnd 1 (by simp [PathIn.length])).toSteps
 
 theorem PathIn.length_eq_toListLength H n (ht : HisTree H n) (p : PathIn ht):
   p.length = p.toList.length := by
@@ -103,10 +122,8 @@ def treeAt : PathIn ht → (Σ H n, HisTree H n)
 | PathIn.nil => ⟨_,_,ht⟩
 | PathIn.cons _ _ _ _ rest => treeAt rest -- wow, that is much simpler than treeAt' below :-)
 
-theorem length_is_good {ht : HisTree H n} {p : PathIn ht} :
-    Hp = (treeAt p).1 → Hp.length = H.length + p.length := by
-  intro HP_def
-  subst_eqs
+theorem length_is_good {ht : HisTree H n} (p : PathIn ht) :
+    (treeAt p).1.length = H.length + p.length := by
   induction p
   case nil =>
     simp [treeAt, PathIn.length]
@@ -120,18 +137,46 @@ theorem length_is_good {ht : HisTree H n} {p : PathIn ht} :
 def Environment (root : HisTree H n) : Type := PathIn root → PathIn root
 
 /-- Like `treeAt` but "jumping back" to companions. -/
+-- NOTE: Only works for H=[] to ensure the repeat k does not jump too far above!
 -- TODO: rewrite in term-mode
-def unravelAt {root : HisTree H n} : PathIn root → PathIn root := by
+def unravelAt {root : HisTree [] n} : PathIn root → PathIn root := by
   intro p
-  have ⟨Hp,m,htp⟩ := treeAt p
-  cases htp_def : htp
+  let ⟨Hp,m,htp⟩ := treeAt p
+  cases htp
   case leaf =>
     exact p
   case step =>
     exact p
   case rep k k_eq =>
     -- roll back the path p by k steps!
-    apply p.drop k
+    apply p.dropAtEnd k
+    have Hp_len_def := length_is_good p
+    have : k < Hp.length := sorry -- List.indexOf_le_length
+    -- rw [Hp_len_def] at this
+    -- TODO: too strong goal here, need to also add the length of H still?!?!??!
+    -- linarith
+    -- omega
+    sorry
+
+/-- Like `treeAt` but "jumping back" to companions. -/
+-- TODO: rewrite in term-mode
+def unravelAt' {root : HisTree H n} : PathIn root → PathIn root := by
+  intro p
+  let ⟨Hp,m,htp⟩ := treeAt p
+  cases htp
+  case leaf =>
+    exact p
+  case step =>
+    exact p
+  case rep k k_eq =>
+    -- roll back the path p by k steps!
+    apply p.dropAtEnd k
+    have Hp_len_def := length_is_good p
+    have : k < Hp.length := sorry -- List.indexOf_le_length
+    -- rw [Hp_len_def] at this
+    -- TODO: too strong goal here, need to also add the length of H still?!?!??!
+    -- linarith
+    -- omega
     sorry
 
 -- A potentialy better version of treeAt to also give us the determined history:
