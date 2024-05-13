@@ -75,7 +75,7 @@ theorem repl_in_model_sat_iff x ψ φ {W} (M : KripkeModel W) (w : W) :
     simp [evaluatePoint, modelCanSemImplyForm]
   case atom_prop c =>
     simp [evaluatePoint, modelCanSemImplyForm, evaluate, repl_in_model]
-    sorry
+    aesop
   case neg φ =>
     have IH := repl_in_model_sat_iff x ψ φ M w
     simp [evaluatePoint, modelCanSemImplyForm] at *
@@ -98,7 +98,32 @@ theorem repl_in_model_sat_iff x ψ φ {W} (M : KripkeModel W) (w : W) :
 
 theorem repl_in_model_rel_iff x ψ α {W} (M : KripkeModel W) (w v : W) :
     relate M (repl_in_P x ψ α) w v ↔ relate (repl_in_model x ψ M) α w v := by
-  sorry
+  cases α
+  case atom_prog a =>
+    simp [repl_in_model]
+  case sequence α β =>
+    have IHα := repl_in_model_rel_iff x ψ α M
+    have IHβ := repl_in_model_rel_iff x ψ β M
+    simp_all only [repl_in_P, relate]
+  case union α β =>
+    have IHα := repl_in_model_rel_iff x ψ α M
+    have IHβ := repl_in_model_rel_iff x ψ β M
+    simp_all only [repl_in_P, relate]
+  case star α =>
+    have IHα := repl_in_model_rel_iff x ψ α M
+    simp_all only [repl_in_P, relate]
+    constructor
+    all_goals
+      apply Relation.ReflTransGen.mono
+      intro w v
+      rw [IHα w v]
+      tauto
+  case test φ =>
+    have IHφ := repl_in_model_sat_iff x ψ φ M v
+    simp only [repl_in_P, relate, and_congr_right_iff, evaluatePoint, modelCanSemImplyForm] at *
+    intro w_is_v
+    subst w_is_v
+    exact IHφ
 end
 
 theorem repl_in_F_equiv x ψ :
