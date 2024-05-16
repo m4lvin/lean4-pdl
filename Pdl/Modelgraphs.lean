@@ -14,15 +14,9 @@ def saturated : Finset Formula → Prop
       ((~~P) ∈ X → P ∈ X)
     ∧ (P⋀Q ∈ X → P ∈ X ∧ Q ∈ X)
     ∧ ((~(P⋀Q)) ∈ X → (~P) ∈ X ∨ (~Q) ∈ X)
-    -- programs closure:
-    ∧ ((⌈a;'b⌉P) ∈ X → (⌈a⌉⌈b⌉P) ∈ X)
-    ∧ ((⌈a⋓b⌉P) ∈ X → (⌈a⌉P) ∈ X ∧ (⌈b⌉P) ∈ X)
-    ∧ ((⌈?'Q⌉P) ∈ X → (~Q) ∈ X ∨ P ∈ X)
-    ∧ ((⌈∗a⌉P) ∈ X → sorry) -- P ∈ X ∧ (⌈a⌉⌈∗a⌉P) ∈ X)   -- TODO ∃ ℓ ∈ TP α, Xset ℓ α ψ ⊆ X
-    ∧ ((~⌈a;'b⌉P) ∈ X → (~⌈a⌉⌈b⌉P) ∈ X)
-    ∧ ((~⌈a⋓b⌉P) ∈ X  → (~⌈a⌉P) ∈ X ∨ (~⌈b⌉P) ∈ X)
-    ∧ ((~⌈?'Q⌉P) ∈ X → Q ∈ X ∧ (~P) ∈ X)
-    ∧ ((~⌈∗a⌉P) ∈ X → sorry) -- (~P) ∈ X ∨ (~⌈a⌉⌈∗a⌉P) ∈ X)  -- TODO replace this !!
+    -- programs closure, now only two general cases, no program subcases:
+    ∧ ((⌈α⌉P) ∈ X → ∃ l ∈ TP α, (Xset α l P).all (fun y => y ∈ X))
+    ∧ ((~⌈α⌉P) ∈ X → ∃ Fδ ∈ H α, (Yset Fδ P).all (fun y => y ∈ X))
 
 /-- Q α -/
 def Q {W : Finset (Finset Formula)} (R : Char → W → W → Prop)
@@ -117,13 +111,15 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
       simp
       have ⟨M,⟨i,_,_,_⟩⟩ := MG
       rcases i X with ⟨X_saturated, _, _⟩
-      exact plus ((X_saturated Q Q (?'Q) (?'Q)).left notnotQ_in_X)
+      sorry -- exact plus ((X_saturated Q Q (?'Q) (?'Q)).left notnotQ_in_X)
   case and Q R =>
     have ⟨plus_Q, minus_Q⟩ := loadedTruthLemma MG X Q
     have ⟨plus_R, minus_R⟩ := loadedTruthLemma MG X R
     have ⟨M,⟨i,_,iii,_⟩⟩ := MG
     rcases i X with ⟨X_saturated, _, _⟩
     unfold saturated at X_saturated
+    sorry
+    /-
     rcases X_saturated Q R (?'Q) (?'Q) with ⟨_, ⟨andSplit, ⟨notAndSplit, _⟩⟩⟩
     repeat' constructor
     · intro QandR_in_X
@@ -139,6 +135,7 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
       cases' notAndSplit with notQ_in_X notR_in_X
       · left; exact minus_Q notQ_in_X
       · right; exact minus_R notR_in_X
+    -/
   case box a P =>
     repeat' constructor
     all_goals simp
@@ -177,7 +174,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
       have ⟨_,⟨i,_,_,_⟩⟩ := MG
       have := (i X).left
       simp [saturated] at this
-      exact (this P P b c).right.right.right.left boxP_in_X
+      sorry -- exact (this P P b c).right.right.right.left boxP_in_X
     rcases X_rel_Y with ⟨Z, Z_in, X_b_Z, Z_c_Y⟩
     have cP_in_Z := (loadedTruthLemmaProg MG b X) (⌈c⌉P) bcP_in_X ⟨Z,Z_in⟩ X_b_Z
     have : lengthOf c < lengthOf (b;'c) := by simp
@@ -187,7 +184,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
       have ⟨_,⟨i,_,_,_⟩⟩ := MG
       have := (i X).left
       simp [saturated] at this
-      exact (this P P b c).right.right.right.right.left boxP_in_X
+      sorry -- exact (this P P b c).right.right.right.right.left boxP_in_X
     cases X_rel_Y
     case inl X_b_Y =>
       exact (loadedTruthLemmaProg MG b X) P bP_and_cP_in_X.left Y X_b_Y
@@ -253,7 +250,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
       have ⟨_,⟨i,_,_,_⟩⟩ := MG
       have := (i X).left
       simp [saturated] at this
-      exact (this P R (?'⊤) (?'⊤)).right.right.right.right.right.left boxP_in_X
+      sorry -- exact (this P R (?'⊤) (?'⊤)).right.right.right.right.right.left boxP_in_X
     rcases X_rel_Y with ⟨X_is_Y, X_R⟩
     subst X_is_Y
     cases nR_or_P_in_X

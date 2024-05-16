@@ -5,6 +5,31 @@ import Pdl.Vocab
 import Pdl.Discon
 import Pdl.Substitution
 
+def ε : List Program := [] -- the empty program
+
+-- ### Diamonds
+
+def H : Program → List (List Formula × List Program)
+| ·a => [ ([], [·a]) ]
+| ?'τ => [ ({τ}, ε) ]
+| α ⋓ β => H α ∪ H β
+| α;'β => ((H α).map (fun ⟨F,δ⟩ =>
+            if δ = ε
+              then ((H β).map (fun ⟨G,δ⟩ => if δ = ε then [] else [⟨F ∪ G, δ⟩])).join
+              else [⟨F, δ ++ [β]⟩])
+          ).join
+| ∗α => [ (∅,ε) ] ∪ ((H α).map (fun (F,δ) => if δ = ε then [] else [(F, δ ++ [∗α])])).join
+
+-- TODO NEXT:
+def Yset : (List Formula × List Program) → (Formula) → List Formula
+| ⟨F, δ⟩, φ => F ∪ [~ Formula.boxes δ φ ]
+
+def unfoldDiamond (α : Program) (φ : Formula) : List (List Formula) :=
+  (H α).map (fun Fδ => Yset Fδ φ)
+
+theorem localDiamondTruth : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ => Con (Yset Fδ ψ)) ) := by
+  sorry
+
 -- ### Test Profiles
 
 -- def TestProfile (α : Program) : Type := {L // L ∈ (testsOfProgram α).sublists}
@@ -77,12 +102,10 @@ def F : (Program × List Formula) → List Formula
 | ⟨α;'β, l⟩ => F ⟨α, l⟩ ∪ F ⟨β, l⟩
 | ⟨∗α, l⟩ => F ⟨α, l⟩
 
-def ε : List Program := [] -- ugly way to define the empty program?
-
 def P : (Program × List Formula) → List (List Program)
 | ⟨·a, _⟩ => [ [(·a : Program)] ]
 | ⟨?' τ, l⟩ => if τ ∈ l then ∅ else [ [] ]
-| ⟨α ⋓ β, l⟩ => P ⟨α, l⟩ ∪ P ⟨β, l⟩ -- ∪ or ++ here ??
+| ⟨α ⋓ β, l⟩ => P ⟨α, l⟩ ∪ P ⟨β, l⟩
 | ⟨α;'β, l⟩ => (P ⟨α,l⟩ \ [ε]).map (fun as => as ++ [β])
              ∪ (if ε ∈ P ⟨α,l⟩ then (P ⟨β,l⟩ \ [ε]) else [])
 | ⟨∗α, l⟩ => [ ε ] ∪ (P (⟨α, l⟩) \ [ε]).map (fun as => as ++ [∗α])
