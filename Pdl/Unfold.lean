@@ -11,7 +11,7 @@ def ε : List Program := [] -- the empty program
 
 def H : Program → List (List Formula × List Program)
 | ·a => [ ([], [·a]) ]
-| ?'τ => [ ({τ}, ε) ]
+| ?'τ => [ ([τ], ε) ]
 | α ⋓ β => H α ∪ H β
 | α;'β => ((H α).map (fun ⟨F,δ⟩ =>
             if δ = ε
@@ -20,9 +20,8 @@ def H : Program → List (List Formula × List Program)
           ).join
 | ∗α => [ (∅,ε) ] ∪ ((H α).map (fun (F,δ) => if δ = ε then [] else [(F, δ ++ [∗α])])).join
 
--- TODO NEXT:
 def Yset : (List Formula × List Program) → (Formula) → List Formula
-| ⟨F, δ⟩, φ => F ∪ [~ Formula.boxes δ φ ]
+| ⟨F, δ⟩, φ => F ∪ [ ~ Formula.boxes δ φ ]
 
 def unfoldDiamond (α : Program) (φ : Formula) : List (List Formula) :=
   (H α).map (fun Fδ => Yset Fδ φ)
@@ -31,17 +30,65 @@ theorem guardToStarDiamond (x : Char)
     (x_notin_beta : x ∉ HasVocabulary.voc β)
     (beta_equiv : (~⌈β⌉~·x) ≡ (((·x) ⋀ σ0) ⋁ σ1))
     (repl_imp_rho : repl_in_F x ρ σ1 ⊨ ρ)
-    (notrho_imp_psi : (~ψ) ⊨ ρ)
-  : (~⌈(∗β)⌉~ψ) ⊨ ρ:= by
-  intro W M w
-  sorry
+    (notPsi_imp_rho : (~ψ) ⊨ ρ)
+  : (~⌈(∗β)⌉ψ) ⊨ ρ:= by
+  intro W M
+  have claim : ∀ u v, (M,v) ⊨ (~ψ) → relate M β u v → ((M,u) ⊨ ρ ∧ (M,u) ⊨ (~ψ)) := by
+    intro u v v_nPsi u_β_v
+    have v_rho : evaluate M v ρ := by
+      simp [formCanSemImplyForm,vDash,modelCanSemImplyForm] at notPsi_imp_rho v_nPsi
+      specialize notPsi_imp_rho W M v
+      simp at notPsi_imp_rho
+      exact notPsi_imp_rho v_nPsi
+    have u_ : (M,u) ⊨ (~⌈β⌉~ρ) := by
+      simp [modelCanSemImplyForm]
+      use v
+    have u_2 : (M, u) ⊨ (ρ ⋀ repl_in_F x ρ σ0) ⋁ (repl_in_F x ρ σ1) := by
+      have repl_equiv := repl_in_F_equiv x ρ beta_equiv
+      simp only [repl_in_F, beq_self_eq_true, reduceIte, Formula.or] at repl_equiv
+      have nox : repl_in_P x ρ β = β := repl_in_P_non_occ_eq x_notin_beta
+      rw [nox] at repl_equiv
+      rw [equiv_iff _ _ repl_equiv] at u_
+      simp [modelCanSemImplyForm, evaluatePoint, formCanSemImplyForm, semImpliesLists] at *
+      tauto
+    simp only [modelCanSemImplyForm, Formula.or, evaluatePoint, evaluate] at u_2
+    rw [← @or_iff_not_and_not] at u_2
+    cases u_2 -- NEXT: check again in document
+    · sorry
+    · sorry
+  -- It remains to show the goal using claim.
+  intro w hyp
+  simp at *
+  rcases hyp with ⟨v, w_bS_v, v_Psi⟩
+  induction w_bS_v
+  · specialize notPsi_imp_rho W M w
+    simp_all
+  case tail u1 u2 u1_b_u2 _ IH =>
+    simp at *
+    specialize claim u1 u2
+    specialize notPsi_imp_rho W M u1
+    simp [modelCanSemImplyForm, evaluatePoint, formCanSemImplyForm, semImpliesLists] at *
+    simp_all
 
 theorem localDiamondTruth : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ => Con (Yset Fδ ψ)) ) := by
+  intro W M w
   cases γ
+  case atom_prog a =>
+    simp [evaluate, H]
+  case test τ =>
+    simp [evaluate, H, Yset]
+    rw [conEval]
+    simp
+  case union α β =>
+    simp [evaluate, H, Yset]
+    -- "This case is straightforward"
+    sorry
+  case sequence α β =>
+    -- "This case follows from the following computation"
+    sorry
   case star =>
     -- use guardToStarDiamond here!
     sorry
-  all_goals sorry
 
 -- TODO move to Semantics when sure that this is a good way to define it
 def relateSeq {W} (M : KripkeModel W) (δ : List Program) (w v : W) : Prop :=
@@ -49,8 +96,20 @@ def relateSeq {W} (M : KripkeModel W) (δ : List Program) (w v : W) : Prop :=
   | [] => w = v
   | (α::as) => ∃ u, relate M α w u ∧ relateSeq M as u v
 
-theorem existsDiamondH : relate M γ w v → ∃ Fδ ∈ H γ, (M,v) ⊨ Fδ.1 ∧ relateSeq M Fδ.2 w v := by
-  sorry
+theorem existsDiamondH (w_γ_v : relate M γ w v) :
+    ∃ Fδ ∈ H γ, (M,v) ⊨ Fδ.1 ∧ relateSeq M Fδ.2 w v := by
+  cases γ
+  case atom_prog =>
+    simp [H, relateSeq] at *
+    exact w_γ_v
+  case test τ =>
+    sorry
+  case union =>
+    sorry
+  case sequence α β =>
+    sorry
+  case star α =>
+    sorry
 
 -- ### Test Profiles
 
