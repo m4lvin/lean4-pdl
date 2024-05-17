@@ -27,7 +27,29 @@ def Yset : (List Formula × List Program) → (Formula) → List Formula
 def unfoldDiamond (α : Program) (φ : Formula) : List (List Formula) :=
   (H α).map (fun Fδ => Yset Fδ φ)
 
+theorem guardToStarDiamond (x : Char)
+    (x_notin_beta : x ∉ HasVocabulary.voc β)
+    (beta_equiv : (~⌈β⌉~·x) ≡ (((·x) ⋀ σ0) ⋁ σ1))
+    (repl_imp_rho : repl_in_F x ρ σ1 ⊨ ρ)
+    (notrho_imp_psi : (~ψ) ⊨ ρ)
+  : (~⌈(∗β)⌉~ψ) ⊨ ρ:= by
+  intro W M w
+  sorry
+
 theorem localDiamondTruth : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ => Con (Yset Fδ ψ)) ) := by
+  cases γ
+  case star =>
+    -- use guardToStarDiamond here!
+    sorry
+  all_goals sorry
+
+-- TODO move to Semantics when sure that this is a good way to define it
+def relateSeq {W} (M : KripkeModel W) (δ : List Program) (w v : W) : Prop :=
+  match δ with
+  | [] => w = v
+  | (α::as) => ∃ u, relate M α w u ∧ relateSeq M as u v
+
+theorem existsDiamondH : relate M γ w v → ∃ Fδ ∈ H γ, (M,v) ⊨ Fδ.1 ∧ relateSeq M Fδ.2 w v := by
   sorry
 
 -- ### Test Profiles

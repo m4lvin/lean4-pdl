@@ -50,13 +50,14 @@ theorem Q_then_relate (MG : ModelGraph Worlds) α (X Y : Worlds) :
   case sequence α β =>
     have := Q_then_relate MG α
     have := Q_then_relate MG β
-    simp [Q, relate, Relation.Comp] at *
-    aesop
+    simp only [instBot, Subtype.forall, Q, Relation.Comp, Subtype.exists,
+      relate, forall_exists_index, and_imp] at *
+    tauto
   case union α β =>
     have := Q_then_relate MG α
     have := Q_then_relate MG β
-    simp [Q, relate, Relation.Comp] at *
-    aesop
+    simp only [instBot, Subtype.forall, Q, relate] at *
+    tauto
   case star α =>
     simp only [instBot, Q, relate]
     apply Relation.ReflTransGen.lift
@@ -87,16 +88,16 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
       have ⟨_,⟨i,_,_,_⟩⟩ := MG
       specialize i X
       tauto
-    · simp
+    · simp only [instBot, evaluate, not_false_eq_true, implies_true]
   case atom_prop pp =>
     have ⟨M,⟨i,ii,_,_⟩⟩ := MG
     repeat' constructor
     · intro P_in_X
-      simp
+      simp only [evaluate]
       rw [ii X pp] at P_in_X
       exact P_in_X
     · intro notP_in_X
-      simp
+      simp only [evaluate]
       rw [← ii X pp]
       rcases i X with ⟨_, _, P_in_then_notP_not_in⟩
       specialize P_in_then_notP_not_in pp
@@ -105,22 +106,19 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
     have ⟨plus,minus⟩ := loadedTruthLemma MG X Q
     repeat' constructor
     · intro notQ_in_X
-      simp
+      simp only [evaluate]
       exact minus notQ_in_X
     · intro notnotQ_in_X
-      simp
+      simp only [instBot, evaluate, not_not]
       have ⟨M,⟨i,_,_,_⟩⟩ := MG
       rcases i X with ⟨X_saturated, _, _⟩
-      sorry -- exact plus ((X_saturated Q Q (?'Q) (?'Q)).left notnotQ_in_X)
+      exact plus ((X_saturated Q Q (?'Q)).1 notnotQ_in_X)
   case and Q R =>
     have ⟨plus_Q, minus_Q⟩ := loadedTruthLemma MG X Q
     have ⟨plus_R, minus_R⟩ := loadedTruthLemma MG X R
     have ⟨M,⟨i,_,iii,_⟩⟩ := MG
     rcases i X with ⟨X_saturated, _, _⟩
-    unfold saturated at X_saturated
-    sorry
-    /-
-    rcases X_saturated Q R (?'Q) (?'Q) with ⟨_, ⟨andSplit, ⟨notAndSplit, _⟩⟩⟩
+    rcases X_saturated Q R (?'Q) with ⟨_, ⟨andSplit, ⟨notAndSplit, _⟩⟩⟩
     repeat' constructor
     · intro QandR_in_X
       specialize andSplit QandR_in_X
@@ -135,7 +133,6 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
       cases' notAndSplit with notQ_in_X notR_in_X
       · left; exact minus_Q notQ_in_X
       · right; exact minus_R notR_in_X
-    -/
   case box a P =>
     repeat' constructor
     all_goals simp
@@ -161,10 +158,9 @@ termination_by
 
 theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
     ∀ X P, ((⌈a⌉P) ∈ X.val → (∀ (Y : Worlds), relate MG.val a X Y → P ∈ Y.val)) -- (0)
-    :=
-  by -- todo: unindent all
+    := by
   intro X P boxP_in_X
-  cases a
+  cases a -- TODO: this distinction is now bad - want to use TP, H, XSet, YSet etc now?
   all_goals (intro Y X_rel_Y; simp at X_rel_Y)
   case atom_prog A =>
     have ⟨_,⟨_,_,iii,_⟩⟩ := MG
