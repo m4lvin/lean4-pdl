@@ -259,3 +259,11 @@ theorem localBoxTruth : (⌈γ⌉ψ) ≡ dis ( (TP γ).map (fun ℓ => Con (Xset
   have := localBoxTruth' γ ψ
   -- clearly this suffices to prove the theorem ;-)
   sorry
+
+theorem existsBoxFP (v_γ_w : relate M γ v w) (ℓ_in : ℓ ∈ TP γ) (v_conF : (M,v) ⊨ Con (F (γ,ℓ))) :
+    ∃ δ ∈ P (γ,ℓ), relateSeq M δ v w := by
+  cases γ
+  case atom_prog =>
+    simp [F, P, relateSeq] at *
+    exact v_γ_w
+  all_goals sorry
