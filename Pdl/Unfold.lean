@@ -23,6 +23,7 @@ def H : Program → List (List Formula × List Program)
 def Yset : (List Formula × List Program) → (Formula) → List Formula
 | ⟨F, δ⟩, φ => F ∪ [ ~ Formula.boxes δ φ ]
 
+/-- Φ_◇(α,ψ) -/
 def unfoldDiamond (α : Program) (φ : Formula) : List (List Formula) :=
   (H α).map (fun Fδ => Yset Fδ φ)
 
@@ -33,15 +34,10 @@ theorem guardToStarDiamond (x : Char)
     (notPsi_imp_rho : (~ψ) ⊨ ρ)
   : (~⌈(∗β)⌉ψ) ⊨ ρ:= by
   intro W M
-  have claim : ∀ u v, (M,v) ⊨ (~ψ) → relate M β u v → ((M,u) ⊨ ρ ∧ (M,u) ⊨ (~ψ)) := by
-    intro u v v_nPsi u_β_v
-    have v_rho : evaluate M v ρ := by
-      simp [formCanSemImplyForm,vDash,modelCanSemImplyForm] at notPsi_imp_rho v_nPsi
-      specialize notPsi_imp_rho W M v
-      simp at notPsi_imp_rho
-      exact notPsi_imp_rho v_nPsi
+  have claim : ∀ u v, (M,v) ⊨ ρ → relate M β u v → (M,u) ⊨ ρ := by
+    intro u v v_rho u_β_v
     have u_ : (M,u) ⊨ (~⌈β⌉~ρ) := by
-      simp [modelCanSemImplyForm]
+      simp [modelCanSemImplyForm] at *
       use v
     have u_2 : (M, u) ⊨ (ρ ⋀ repl_in_F x ρ σ0) ⋁ (repl_in_F x ρ σ1) := by
       have repl_equiv := repl_in_F_equiv x ρ beta_equiv
@@ -53,24 +49,23 @@ theorem guardToStarDiamond (x : Char)
       tauto
     simp only [modelCanSemImplyForm, Formula.or, evaluatePoint, evaluate] at u_2
     rw [← @or_iff_not_and_not] at u_2
-    cases u_2 -- NEXT: check again in document
-    · sorry
-    · sorry
+    specialize repl_imp_rho W M u
+    aesop
   -- It remains to show the goal using claim.
   intro w hyp
-  simp at *
+  simp only [Formula.or, List.mem_singleton, forall_eq, evaluate, relate, not_forall, exists_prop] at *
   rcases hyp with ⟨v, w_bS_v, v_Psi⟩
-  induction w_bS_v
-  · specialize notPsi_imp_rho W M w
+  induction w_bS_v using Relation.ReflTransGen.head_induction_on
+  case refl =>
+    specialize notPsi_imp_rho W M v
     simp_all
-  case tail u1 u2 u1_b_u2 _ IH =>
-    simp at *
+  case head u1 u2 u1_b_u2 _ IH =>
     specialize claim u1 u2
     specialize notPsi_imp_rho W M u1
     simp [modelCanSemImplyForm, evaluatePoint, formCanSemImplyForm, semImpliesLists] at *
     simp_all
 
-theorem localDiamondTruth : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ => Con (Yset Fδ ψ)) ) := by
+theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ => Con (Yset Fδ ψ)) ) := by
   intro W M w
   cases γ
   case atom_prog a =>
@@ -80,14 +75,23 @@ theorem localDiamondTruth : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ => Con (
     rw [conEval]
     simp
   case union α β =>
-    simp [evaluate, H, Yset]
+    have IHα := localDiamondTruth α ψ W M w
+    have IHβ := localDiamondTruth β ψ W M w
+    simp [evaluate, H, Yset, disEval] at *
     -- "This case is straightforward"
     sorry
   case sequence α β =>
+    have IHα := localDiamondTruth α ψ W M w
+    have IHβ := localDiamondTruth β ψ W M w
+    simp [evaluate, H, Yset, disEval] at *
     -- "This case follows from the following computation"
     sorry
-  case star =>
-    -- use guardToStarDiamond here!
+  case star β =>
+    have IHβ := localDiamondTruth β ψ W M w
+    simp [evaluate, H, Yset, disEval] at *
+    let ρ := dis ((H (∗β)).map (fun Fδ => Con Fδ.1 ⋀ (~ Formula.boxes Fδ.2 ψ)))
+    -- use guardToStarDiamond somewhere below!
+    -- "then our goal will be ..."
     sorry
 
 -- TODO move to Semantics when sure that this is a good way to define it
