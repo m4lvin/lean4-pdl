@@ -7,7 +7,7 @@ import Pdl.Substitution
 
 def ε : List Program := [] -- the empty program
 
--- ### Diamonds
+-- ### Diamonds: H, Y and Φ_⋄
 
 def H : Program → List (List Formula × List Program)
 | ·a => [ ([], [·a]) ]
@@ -79,7 +79,33 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
     have IHβ := localDiamondTruth β ψ W M w
     simp [evaluate, H, Yset, disEval] at *
     -- "This case is straightforward"
-    sorry
+    constructor
+    · intro lhs
+      rcases lhs with ⟨v, v_claim⟩
+      rw [or_and_right] at v_claim
+      cases v_claim
+      case inl hyp =>
+        have : (∃ x, relate M α w x ∧ ¬evaluate M x ψ) := ⟨v, hyp⟩
+        rw [IHα] at this
+        rcases this with ⟨f, ⟨⟨a, b, ⟨ab_in, def_f⟩⟩, w_f⟩⟩
+        exact ⟨f, ⟨⟨a, b, ⟨Or.inl ab_in, def_f⟩⟩, w_f⟩⟩
+      case inr hyp =>
+        have : (∃ x, relate M β w x ∧ ¬evaluate M x ψ) := ⟨v, hyp⟩
+        rw [IHβ] at this
+        rcases this with ⟨f, ⟨⟨a, b, ⟨ab_in, def_f⟩⟩, w_f⟩⟩
+        exact ⟨f, ⟨⟨a, b, ⟨Or.inr ab_in, def_f⟩⟩, w_f⟩⟩
+    · intro rhs
+      rcases rhs with ⟨f, ⟨a, b, ⟨(ab_in_Hα|ab_in_Hβ), def_f⟩⟩, w_f⟩
+      · have : ∃ f, (∃ a b, (a, b) ∈ H α ∧ Con (a ∪ [~⌈⌈b⌉⌉ψ]) = f) ∧ evaluate M w f :=
+          ⟨f, ⟨⟨a, b, ⟨ab_in_Hα, def_f⟩⟩, w_f⟩⟩
+        rw [← IHα] at this
+        rcases this with ⟨x, ⟨w_α_x, x_Psi⟩⟩
+        exact ⟨x, ⟨Or.inl w_α_x, x_Psi⟩⟩
+      · have : ∃ f, (∃ a b, (a, b) ∈ H β ∧ Con (a ∪ [~⌈⌈b⌉⌉ψ]) = f) ∧ evaluate M w f :=
+          ⟨f, ⟨⟨a, b, ⟨ab_in_Hβ, def_f⟩⟩, w_f⟩⟩
+        rw [← IHβ] at this
+        rcases this with ⟨x, ⟨w_β_x, x_Psi⟩⟩
+        exact ⟨x, ⟨Or.inr w_β_x, x_Psi⟩⟩
   case sequence α β =>
     have IHα := localDiamondTruth α ψ W M w
     have IHβ := localDiamondTruth β ψ W M w
@@ -115,7 +141,7 @@ theorem existsDiamondH (w_γ_v : relate M γ w v) :
   case star α =>
     sorry
 
--- ### Test Profiles
+-- ### Preparation for Boxes: Test Profiles
 
 -- def TestProfile (α : Program) : Type := {L // L ∈ (testsOfProgram α).sublists}
 -- NOTE: Replaced "TestProfile" with "List Formula".
@@ -175,10 +201,9 @@ instance : CoeOut (TestProfile (∗α)) (TestProfile α) :=
   ⟨fun l ⟨f,f_in⟩ => l ⟨f, by simp only [testsOfProgram]; exact f_in⟩⟩
 -/
 
--- ### F, P, X and the Φ_□ set
+-- ### Boxes: F, P, X and the Φ_□ set
 
--- NOTE: In P and Xset
--- We use lists here because we eventually want to make formulas.
+-- NOTE: In P and Xset we use lists not sets, to eventually make formulas.
 
 def F : (Program × List Formula) → List Formula
 | ⟨·_, _⟩ => ∅
@@ -200,7 +225,7 @@ def Xset (α : Program) (l : List Formula) (ψ : Formula) : List Formula :=
 
 /-- Φ_□(αs,ψ) -/
 -- *Not* the same as `Formula.boxes`.
-def PhiSet α ψ := { Xset α l ψ | l ∈ TP α }
+def unfoldBox α ψ := { Xset α l ψ | l ∈ TP α }
 
 -- TODO Lemma 21 with parts 1) and 2)
 
