@@ -75,13 +75,12 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
     rw [conEval]
     simp
   case union α β =>
+    -- "This case is straightforward"
     have IHα := localDiamondTruth α ψ W M w
     have IHβ := localDiamondTruth β ψ W M w
     simp [evaluate, H, Yset, disEval] at *
-    -- "This case is straightforward"
     constructor
-    · intro lhs
-      rcases lhs with ⟨v, v_claim⟩
+    · rintro ⟨v, v_claim⟩
       rw [or_and_right] at v_claim
       cases v_claim
       case inl hyp =>
@@ -94,8 +93,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
         rw [IHβ] at this
         rcases this with ⟨f, ⟨⟨a, b, ⟨ab_in, def_f⟩⟩, w_f⟩⟩
         exact ⟨f, ⟨⟨a, b, ⟨Or.inr ab_in, def_f⟩⟩, w_f⟩⟩
-    · intro rhs
-      rcases rhs with ⟨f, ⟨a, b, ⟨(ab_in_Hα|ab_in_Hβ), def_f⟩⟩, w_f⟩
+    · rintro ⟨f, ⟨a, b, ⟨(ab_in_Hα|ab_in_Hβ), def_f⟩⟩, w_f⟩
       · have : ∃ f, (∃ a b, (a, b) ∈ H α ∧ Con (a ∪ [~⌈⌈b⌉⌉ψ]) = f) ∧ evaluate M w f :=
           ⟨f, ⟨⟨a, b, ⟨ab_in_Hα, def_f⟩⟩, w_f⟩⟩
         rw [← IHα] at this
@@ -107,11 +105,44 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
         rcases this with ⟨x, ⟨w_β_x, x_Psi⟩⟩
         exact ⟨x, ⟨Or.inr w_β_x, x_Psi⟩⟩
   case sequence α β =>
-    have IHα := localDiamondTruth α ψ W M w
-    have IHβ := localDiamondTruth β ψ W M w
-    simp [evaluate, H, Yset, disEval] at *
     -- "This case follows from the following computation"
-    sorry
+    have IHα := localDiamondTruth α (⌈β⌉ψ) W M w
+    have IHβ := localDiamondTruth β ψ W M w
+    rw [evaluate]
+    rw [evaluate]
+    simp only [relate]
+    rw [evaluate] at IHα
+    rw [evaluate] at IHα
+    simp only [evaluate, not_forall, exists_prop] at IHα
+    suffices
+      (∃ x, relate M α w x ∧ ∃ x_1, relate M β x x_1 ∧ ¬evaluate M x_1 ψ)
+      ↔
+      evaluate M w (dis (List.map (fun Fδ => Con (Yset Fδ ψ)) (H (α;'β))))
+      by
+      rw [← this]
+      clear IHβ this IHα
+      aesop
+    rw [IHα]
+    clear IHα
+    simp [evaluate, H, Yset, disEval] at *
+    constructor
+    · rintro ⟨f, ⟨⟨a, b, ⟨ab_in, def_f⟩ ⟩ , w_f⟩⟩
+      use f -- hmm...
+      constructor
+      · constructor
+        constructor
+        · use a, b
+        · subst def_f
+          simp
+          cases em (b = ε)
+          · sorry -- maybe already need other f above?
+          · use a, b ++ [β]
+            constructor
+            · simp_all
+            · simp [boxes_append]
+      · exact w_f
+    · intro rhs
+      sorry
   case star β =>
     have IHβ := localDiamondTruth β ψ W M w
     simp [evaluate, H, Yset, disEval] at *

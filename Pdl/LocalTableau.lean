@@ -75,6 +75,7 @@ inductive OneSidedLocalRule : List Formula → List (List Formula) → Type
   | con (φ ψ : Formula) : OneSidedLocalRule [φ ⋀ ψ]  [[φ,ψ]]
   | nCo (φ ψ : Formula) : OneSidedLocalRule [~(φ⋀ψ)] [[~φ], [~ψ]]
   -- PROGRAMS
+  -- TODO: replace all of these with the new two local rules.
   -- one-child rules:
   | nTe (φ ψ)   : OneSidedLocalRule [~⌈?'φ⌉ψ]  [ [φ, ~ψ] ]
   | nSe (a b f) : OneSidedLocalRule [~⌈a;'b⌉f] [ [~⌈a⌉⌈b⌉f] ]
