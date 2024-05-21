@@ -167,8 +167,51 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
           apply w_Con
           tauto
     -- upwards direction in notes:
-    · intro rhs
-      sorry
+    · rintro ⟨⟨Fs,δ⟩, ⟨Fδ_in, w_Con⟩⟩ -- ⟨⟨l, ⟨⟨a, b, ⟨ab_in, def_l⟩⟩, f_in_l⟩⟩, w_f⟩⟩
+      simp [H] at Fδ_in
+      rcases Fδ_in with ⟨l, ⟨Gs, γ, ⟨Gγ_in, def_l⟩⟩, Gγ_in_l⟩
+      subst def_l
+      cases em (γ = ε)
+      case inl δ_is_ε => -- tricky case where we actually need the IH for β
+        subst δ_is_ε
+        simp at Gγ_in_l
+        rcases Gγ_in_l with ⟨l, ⟨⟨aaa, bbb, ⟨_in_Hβ,def_l⟩ ⟩, Fsδ_in_l⟩ ⟩
+        subst def_l
+        simp
+        use Gs, ε
+        constructor
+        · exact Gγ_in
+        · simp at Fsδ_in_l
+          cases Fsδ_in_l
+          subst_eqs
+          simp [conEval, Yset]
+          intro f f_in
+          cases f_in
+          case inl f_in =>
+            rw [conEval] at w_Con
+            simp [Yset] at *
+            specialize w_Con f
+            tauto
+          case inr f_def =>
+            subst f_def
+            have IHβ := localDiamondTruth β ψ W M w
+            rw [IHβ]
+            clear IHβ
+            rw [disEval]
+            rw [helper]
+            refine ⟨⟨aaa, δ⟩, ⟨_in_Hβ, ?_⟩⟩
+            rw [conEval]
+            rw [conEval] at w_Con
+            simp [Yset] at *
+            intro f
+            specialize w_Con f
+            tauto
+      case inr δ_not_ε => -- the easy case?
+        simp_all
+        cases Gγ_in_l
+        subst_eqs
+        simp_all [Yset, conEval, boxes_append]
+        use Fs, γ
   case star β =>
     have IHβ := localDiamondTruth β ψ W M w
     simp [evaluate, H, Yset, disEval] at *
