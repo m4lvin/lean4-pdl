@@ -15,7 +15,7 @@ def H : Program → List (List Formula × List Program)
 | α ⋓ β => H α ∪ H β
 | α;'β => ((H α).map (fun ⟨F,δ⟩ =>
             if δ = ε
-              then ((H β).map (fun ⟨G,δ⟩ => if δ = ε then [] else [⟨F ∪ G, δ⟩])).join
+              then ((H β).map (fun ⟨G,δ'⟩ => [⟨F ∪ G, δ'⟩])).join
               else [⟨F, δ ++ [β]⟩])
           ).join
 | ∗α => [ (∅,ε) ] ∪ ((H α).map (fun (F,δ) => if δ = ε then [] else [(F, δ ++ [∗α])])).join
@@ -106,41 +106,67 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
         exact ⟨x, ⟨Or.inr w_β_x, x_Psi⟩⟩
   case sequence α β =>
     -- "This case follows from the following computation"
+    have : evaluate M w (~⌈α;'β⌉ψ) ↔ evaluate M w (~⌈α⌉⌈β⌉ψ) := by aesop
+    rw [this]
+    clear this
     have IHα := localDiamondTruth α (⌈β⌉ψ) W M w
-    have IHβ := localDiamondTruth β ψ W M w
-    rw [evaluate]
-    rw [evaluate]
-    simp only [relate]
-    rw [evaluate] at IHα
-    rw [evaluate] at IHα
-    simp only [evaluate, not_forall, exists_prop] at IHα
-    suffices
-      (∃ x, relate M α w x ∧ ∃ x_1, relate M β x x_1 ∧ ¬evaluate M x_1 ψ)
-      ↔
-      evaluate M w (dis (List.map (fun Fδ => Con (Yset Fδ ψ)) (H (α;'β))))
-      by
-      rw [← this]
-      clear IHβ this IHα
-      aesop
     rw [IHα]
     clear IHα
-    simp [evaluate, H, Yset, disEval] at *
+    rw [disEval]
+    rw [disEval]
+    have helper : ∀ (p : List Formula × List Program → Formula) X,
+        (∃ f ∈ List.map p X, evaluate M w f)
+      ↔ (∃ Fδ ∈ X, evaluate M w (p Fδ)) := by aesop
+    rw [helper, helper]
     constructor
-    · rintro ⟨f, ⟨⟨a, b, ⟨ab_in, def_f⟩ ⟩ , w_f⟩⟩
-      use f -- hmm...
-      constructor
-      · constructor
+    -- downwards direction in notes:
+    · rintro ⟨⟨Fs,δ⟩, ⟨Fδ_in, w_Con⟩⟩
+      cases em (δ = ε)
+      case inl δ_is_ε => -- tricky case where we actually need the IH for β
+        subst δ_is_ε
+        have claim : ∃ Gγ ∈ H β, evaluate M w (Con (Yset Gγ ψ)) := by
+          rw [conEval] at w_Con
+          simp [Yset, Con] at w_Con
+          have := w_Con (~⌈β⌉ψ)
+          simp only [or_true, forall_true_left] at this
+          have IHβ := localDiamondTruth β ψ W M w
+          rw [IHβ] at this
+          clear IHβ
+          rw [disEval] at this
+          rw [helper] at this
+          exact this
+        rcases claim with ⟨⟨Gs,γ⟩, Gsγ_in, claim⟩
+        unfold H
+        use ⟨Fs ∪ Gs, γ⟩
         constructor
-        · use a, b
-        · subst def_f
-          simp
-          cases em (b = ε)
-          · sorry -- maybe already need other f above?
-          · use a, b ++ [β]
-            constructor
-            · simp_all
-            · simp [boxes_append]
-      · exact w_f
+        · simp only [List.mem_join, List.mem_map, Prod.exists]
+          use ((H β).map (fun ⟨Gs',δ'⟩ => [⟨Fs ∪ Gs', δ'⟩])).join
+          simp only [List.mem_join, List.mem_map, Prod.exists]
+          constructor
+          · use Fs, ε
+            simp only [reduceIte, and_true]
+            exact Fδ_in
+          · tauto
+        · simp only [Yset, conEval, List.mem_union_iff, List.mem_singleton] at *
+          intro f f_in
+          specialize w_Con f
+          specialize claim f
+          tauto
+      case inr δ_not_ε => -- the easy case?
+        unfold H
+        use ⟨Fs, δ ++ [β]⟩
+        constructor
+        · simp
+          use [(Fs, δ ++ [β])]
+          constructor
+          · use Fs, δ
+            simp_all only [List.mem_map, Prod.exists, reduceIte, and_self]
+          · simp_all only [List.mem_map, Prod.exists, List.mem_singleton]
+        · simp [Yset, conEval, boxes_append] at *
+          intro f f_in
+          apply w_Con
+          tauto
+    -- upwards direction in notes:
     · intro rhs
       sorry
   case star β =>
