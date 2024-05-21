@@ -65,6 +65,10 @@ theorem guardToStarDiamond (x : Char)
     simp [modelCanSemImplyForm, evaluatePoint, formCanSemImplyForm, semImpliesLists] at *
     simp_all
 
+theorem helper : ∀ (p : List Formula × List Program → Formula) X,
+        (∃ f ∈ List.map p X, evaluate M w f)
+      ↔ (∃ Fδ ∈ X, evaluate M w (p Fδ)) := by aesop
+
 theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ => Con (Yset Fδ ψ)) ) := by
   intro W M w
   cases γ
@@ -114,9 +118,6 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
     clear IHα
     rw [disEval]
     rw [disEval]
-    have helper : ∀ (p : List Formula × List Program → Formula) X,
-        (∃ f ∈ List.map p X, evaluate M w f)
-      ↔ (∃ Fδ ∈ X, evaluate M w (p Fδ)) := by aesop
     rw [helper, helper]
     constructor
     -- downwards direction in notes:
@@ -131,9 +132,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
           simp only [or_true, forall_true_left] at this
           have IHβ := localDiamondTruth β ψ W M w
           rw [IHβ] at this
-          clear IHβ
-          rw [disEval] at this
-          rw [helper] at this
+          rw [disEval, helper] at this
           exact this
         rcases claim with ⟨⟨Gs,γ⟩, Gsγ_in, claim⟩
         unfold H
@@ -195,10 +194,8 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
           case inr f_def =>
             subst f_def
             have IHβ := localDiamondTruth β ψ W M w
-            rw [IHβ]
+            rw [IHβ, disEval, helper]
             clear IHβ
-            rw [disEval]
-            rw [helper]
             refine ⟨⟨aaa, δ⟩, ⟨_in_Hβ, ?_⟩⟩
             rw [conEval]
             rw [conEval] at w_Con
@@ -206,21 +203,53 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
             intro f
             specialize w_Con f
             tauto
-      case inr δ_not_ε => -- the easy case?
+      case inr δ_not_ε => -- the easy case
         simp_all
         cases Gγ_in_l
         subst_eqs
         simp_all [Yset, conEval, boxes_append]
         use Fs, γ
   case star β =>
-    have IHβ := localDiamondTruth β ψ W M w
-    simp [evaluate, H, Yset, disEval] at *
-    let ρ := dis ((H (∗β)).map (fun Fδ => Con Fδ.1 ⋀ (~ Formula.boxes Fδ.2 ψ)))
-    -- use guardToStarDiamond somewhere below!
+    let ρ := dis ((H (∗β)).map (fun Fδ => Con (Yset Fδ ψ)))
     -- "then our goal will be ..."
-    sorry
+    suffices goal : (~⌈∗β⌉ψ) ≡ ρ by
+      have := @equiv_iff _ _ goal W M w
+      simp only [modelCanSemImplyForm, evaluatePoint] at this
+      rw [this]
+    -- Note that we are switching model now.
+    intro W M w
+    constructor
+    · -- left to right, done second in notes
+      -- BIG PROBLEM: Char is finite. We cannot get fresh variables!!
+      -- ideas to solve this:
+      -- - refactor everything to allow different types! - hard but useful?
+      -- - replace Char with Nat? - easier?
+      let x : Char := sorry
+      have x_not_in : x ∉ HasVocabulary.voc β := sorry
+      let σ0 : Formula := dis $
+        ((H β).filter (fun (F,δ) => δ = ε)).map (fun (F,_) => Con F)
+      let σ1 : Formula := dis $
+        ((H β).filter (fun (F,δ) => δ ≠ ε)).map (fun (F,δ) => Con F ⋀ (~ Formula.boxes δ (~(·x : Formula))))
+      have := @guardToStarDiamond β σ0 σ1 ρ ψ x x_not_in
+      simp only [formCanSemImplyForm, semImpliesLists, List.mem_singleton, forall_eq] at this
+      apply this <;> clear this
+      · -- Switching model again.
+        intro W M w
+        have IHβ := localDiamondTruth β (~·x) W M w
+        rw [disEval] at IHβ
+        rw [helper] at IHβ
+        rw [IHβ]
+        unfold_let σ0
+        unfold_let σ1
+        simp_all [conEval, disEval]
+        sorry
+      · intro W M w
+        sorry
+      · sorry
+    · -- right to left, done first in notes
+      sorry
 
--- TODO move to Semantics when sure that this is a good way to define it
+-- TODO move to Semantics.lean when sure that this is a good way to define it
 def relateSeq {W} (M : KripkeModel W) (δ : List Program) (w v : W) : Prop :=
   match δ with
   | [] => w = v
