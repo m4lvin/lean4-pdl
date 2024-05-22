@@ -217,7 +217,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
       simp only [modelCanSemImplyForm, evaluatePoint] at this
       rw [this]
     -- Note that we are switching model now.
-    intro W M w
+    clear W M w; intro W M w
     constructor
     · -- left to right, done second in notes
       -- BIG PROBLEM: Char is finite. We cannot get fresh variables!!
@@ -226,28 +226,149 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
       -- - replace Char with Nat? - easier?
       let x : Char := sorry
       have x_not_in : x ∉ HasVocabulary.voc β := sorry
+      -- NOTE the use of ⊥ below - matters for rhs-to-lhs in first Lemma condition.
       let σ0 : Formula := dis $
-        ((H β).filter (fun (F,δ) => δ = ε)).map (fun (F,_) => Con F)
+        (H β).map (fun (F,δ) => if δ = ε then Con F else ⊥)
       let σ1 : Formula := dis $
-        ((H β).filter (fun (F,δ) => δ ≠ ε)).map (fun (F,δ) => Con F ⋀ (~ Formula.boxes δ (~(·x : Formula))))
+        ((H β).map (fun (F,δ) => if δ ≠ ε then Con ((~ Formula.boxes δ (~(·x : Formula))) :: F) else ⊥))
+      -- Now we use the previous Lemma:
       have := @guardToStarDiamond β σ0 σ1 ρ ψ x x_not_in
       simp only [formCanSemImplyForm, semImpliesLists, List.mem_singleton, forall_eq] at this
-      apply this <;> clear this
-      · -- Switching model again.
-        intro W M w
+      apply this <;> (clear this W M w; intro W M w) -- Switching model again.
+      · -- Use IH to show first Lemma condition:
         have IHβ := localDiamondTruth β (~·x) W M w
-        rw [disEval] at IHβ
-        rw [helper] at IHβ
+        rw [disEval,helper] at IHβ
         rw [IHβ]
-        unfold_let σ0
+        clear IHβ
+        constructor
+        · rintro ⟨⟨Fs, δ⟩, Fδ_in, w_⟩
+          simp only [evaluate, Formula.or]
+          rw [← or_iff_not_and_not]
+          cases em (δ = ε)
+          · subst_eqs
+            simp [conEval, Yset] at w_
+            left
+            unfold_let σ0
+            simp_all
+            rw [disEval, helper]
+            constructor
+            · have := w_ (~~·x)
+              simp at this
+              exact this
+            · use (Fs, ε)
+              simp_all
+              rw [conEval]
+              intro f f_in
+              apply w_
+              left
+              exact f_in
+          · simp [conEval, Yset] at w_
+            right
+            unfold_let σ1
+            simp_all
+            rw [disEval, helper]
+            use (Fs, δ)
+            simp_all
+            rw [conEval]
+            intro f f_in
+            apply w_ f
+            simp at f_in
+            tauto
+        · intro rhs
+          simp only [evaluate, Formula.or] at rhs
+          rw [← or_iff_not_and_not] at rhs
+          cases rhs
+          case inl hyp =>
+            unfold_let σ0 at hyp
+            simp at hyp
+            rw [disEval, helper] at hyp
+            rcases hyp with ⟨w_x, ⟨⟨Fs,δ⟩, w_⟩⟩
+            use (Fs,δ)
+            simp [conEval, Yset]
+            constructor
+            · exact w_.1
+            · cases em (δ = ε)
+              case inl δ_is_ε =>
+                subst δ_is_ε
+                simp_all [conEval]
+                intro f f_in
+                cases f_in
+                · apply w_.2; assumption
+                · subst_eqs; simp; assumption
+              case inr δ_notEmpty => exfalso; simp_all
+                -- this case works because we used ⊥ above!
+          case inr hyp =>
+            unfold_let σ1 at hyp
+            simp at hyp
+            rw [disEval, helper] at hyp
+            rcases hyp with ⟨⟨Fs,δ⟩, ⟨Fδ_in, w_⟩⟩
+            use ⟨Fs,δ⟩
+            simp [conEval, Yset] at *
+            -- hmm
+            constructor
+            · exact Fδ_in
+            · cases em (δ = ε)
+              case inl δ_is_ε => exfalso; simp_all
+                -- this case works because we used ⊥ above!
+              case inr δ_notEmpty =>
+                simp_all [conEval]
+                intro f f_in
+                cases f_in
+                · apply w_.2; assumption
+                · subst_eqs; simp; exact w_.1
+      · -- Lemma condition that is done last in notes:
         unfold_let σ1
-        simp_all [conEval, disEval]
+        simp
+        have := repl_in_model_sat_iff x ρ
+        simp only [modelCanSemImplyForm, evaluatePoint] at this
+        rw [this, disEval, helper]
+        clear this
+        rintro ⟨⟨Fs,δ⟩, ⟨Fδ_in, repl_w_⟩⟩
+        unfold_let ρ
+        have δ_notEmpty : δ ≠ ε := by by_contra; subst_eqs; simp at repl_w_
+        -- unsure from here on
+        simp_all [disEval, helper, H]
+        -- on what formula do we actually want to apply th IH here?
+        have IHβ := localDiamondTruth β ψ W M w
+        -- QUESTION: do the notes use the first Lemma condition here for the first step?
         sorry
-      · intro W M w
-        sorry
-      · sorry
+      · -- Second Lemma condition
+        intro w_nPsi
+        unfold_let ρ
+        rw [disEval, helper]
+        simp [H, conEval, Yset]
+        left
+        simp at w_nPsi
+        exact w_nPsi
     · -- right to left, done first in notes
-      sorry
+      unfold_let ρ
+      rw [disEval, helper]
+      rintro ⟨⟨Fs,δ⟩, ⟨Fδ_in, w_Con⟩⟩
+      rw [conEval] at w_Con
+      simp [H] at Fδ_in
+      cases Fδ_in
+      case inl hyp =>
+        cases hyp
+        subst_eqs
+        simp_all [Yset]
+        use w
+      case inr hyp =>
+        have : ∃ γ, δ = γ ++ [∗β] ∧ γ ≠ ε ∧ (Fs,γ) ∈ H β := by aesop
+        rcases this with ⟨γ, ⟨δ_def, γ_notEmpty, Fγ_in⟩⟩
+        subst δ_def
+        simp only [Yset, List.mem_union_iff, List.mem_singleton] at w_Con
+        have := w_Con (~⌈⌈γ ++ [∗β]⌉⌉ψ)
+        simp at this
+        suffices evaluate M w (~⌈β⌉⌈∗β⌉ψ) by
+          simp at *
+          rcases this with ⟨v, ⟨w_β_v, ⟨u, ⟨v_Sβ_u, u_nPsi⟩⟩⟩⟩
+          refine ⟨u, ?_, u_nPsi⟩
+          exact Relation.ReflTransGen.head w_β_v v_Sβ_u
+        have IHβ := localDiamondTruth β (⌈∗β⌉ψ) W M w
+        rw [disEval, helper] at IHβ
+        rw [IHβ]
+        refine ⟨⟨Fs, γ⟩, ⟨Fγ_in, ?_⟩⟩
+        simp_all [conEval, Yset, boxes_append]
 
 -- TODO move to Semantics.lean when sure that this is a good way to define it
 def relateSeq {W} (M : KripkeModel W) (δ : List Program) (w v : W) : Prop :=
