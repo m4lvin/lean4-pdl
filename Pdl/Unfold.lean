@@ -1,9 +1,12 @@
 -- UNFOLD
 
+import Mathlib.Tactic.Linarith
+
 import Pdl.Semantics
 import Pdl.Vocab
 import Pdl.Discon
 import Pdl.Substitution
+import Pdl.Fresh
 
 def ε : List Program := [] -- the empty program
 
@@ -69,31 +72,8 @@ theorem helper : ∀ (p : List Formula × List Program → Formula) X,
         (∃ f ∈ List.map p X, evaluate M w f)
       ↔ (∃ Fδ ∈ X, evaluate M w (p Fδ)) := by aesop
 
--- TODO: move this to Syntax.lean or so later?
-mutual
-  /-- Get a fresh atomic proposition `x` not in `ψ`. -/
-  def freshVarForm : Formula → Nat
-    | ⊥ => 0
-    | ·c => c + 1
-    | ~φ => freshVarForm φ
-    | φ1⋀φ2 => max (freshVarForm φ1) (freshVarForm φ2)
-    | ⌈α⌉ φ => max (freshVarProg α) (freshVarForm φ)
-  /-- Get a fresh atomic proposition `x` not in `α`. -/
-  def freshVarProg : Program → Nat
-    | ·c => c + 1
-    | α;'β  => max (freshVarProg α) (freshVarProg β)
-    | α⋓β  =>  max (freshVarProg α) (freshVarProg β)
-    | ∗α  => freshVarProg α
-    | ?'φ  => freshVarForm φ
-end
-
-mutual
-theorem freshVarForm_is_fresh (φ) : freshVarForm φ ∉ HasVocabulary.voc φ := by
-  sorry
-
-theorem freshVarProg_is_fresh (α) : freshVarProg α ∉ HasVocabulary.voc α := by
-  sorry
-end
+-- TODO: it seems default 200000 is not enough for theorem below?!
+set_option maxHeartbeats 2000000
 
 theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ => Con (Yset Fδ ψ)) ) := by
   intro W M w
@@ -353,11 +333,37 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
         unfold_let ρ
         have δ_notEmpty : δ ≠ ε := by by_contra; subst_eqs; simp at repl_w_
         -- unsure from here on
-        simp_all [disEval, helper, H]
-        -- on what formula do we actually want to apply th IH here?
-        have IHβ := localDiamondTruth β ψ W M w
         -- QUESTION: do the notes use the first Lemma condition here for the first step?
-        sorry
+        simp_all [disEval, helper]
+        simp [H]
+        -- hmm
+        use Con (Yset (Fs,δ ++ [∗β]) ψ)
+        constructor
+        · use Fs, δ ++ [∗β]
+          simp_all
+          right
+          use [(Fs, δ ++ [∗β])]
+          simp
+          use Fs, δ
+          simp_all
+        · simp [conEval, Yset]
+          intro f f_in
+          -- (on what formula) do we even want to apply the IH here?
+          -- have IHβ := localDiamondTruth β (⌈∗β⌉ψ) W M w
+          --repl_w_ : evaluate (repl_in_model x ρ M) w (Con ((~⌈⌈δ⌉⌉~·x) :: Fs))
+          have want : evaluate M w (Con ((~⌈⌈δ⌉⌉~ρ) :: Fs)) := by
+            -- NEED: x ∉ voc δ  (and maybe also not in Fs ???)
+            sorry
+          rw [conEval] at want
+          cases f_in
+          · specialize want f
+            simp_all
+          · subst_eqs
+            simp_all [boxes_append]
+            -- really unsure from here on
+            unfold_let ρ at want
+            simp [Yset, H] at want
+            sorry
       · -- Second Lemma condition
         intro w_nPsi
         unfold_let ρ
