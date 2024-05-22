@@ -5,7 +5,7 @@ import Pdl.Vocab
 mutual
   /-- Replace atomic proposition `x` by `ψ` in a formula. -/
   @[simp]
-  def repl_in_F (x : Char) (ψ : Formula) : Formula → Formula
+  def repl_in_F (x : Nat) (ψ : Formula) : Formula → Formula
     | ⊥ => ⊥
     | ·c => if c == x then ψ else ·c
     | ~φ => ~(repl_in_F x ψ φ)
@@ -13,7 +13,7 @@ mutual
     | ⌈α⌉ φ => ⌈repl_in_P x ψ α⌉ (repl_in_F x ψ φ)
   /-- Replace atomic proposition `x` by `ψ` in a program. -/
   @[simp]
-  def repl_in_P (x : Char) (ψ : Formula) : Program → Program
+  def repl_in_P (x : Nat) (ψ : Formula) : Program → Program
     | ·c => ·c
     | α;'β  => (repl_in_P x ψ α) ;' (repl_in_P x ψ β)
     | α⋓β  => (repl_in_P x ψ α) ⋓ (repl_in_P x ψ β)
@@ -59,7 +59,7 @@ theorem repl_in_P_non_occ_eq {x α ρ} :
 end
 
 /-- Overwrite the valuation of `x` with the current value of `ψ` in a model. -/
-def repl_in_model (x : Char) (ψ : Formula) : KripkeModel W → KripkeModel W
+def repl_in_model (x : Nat) (ψ : Formula) : KripkeModel W → KripkeModel W
 | M@⟨V,R⟩ => ⟨fun w c => if c == x then (M,w) ⊨ ψ else V w c,R⟩
 
 mutual

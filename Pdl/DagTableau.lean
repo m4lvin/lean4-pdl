@@ -106,7 +106,7 @@ theorem notStarSoundnessAux (a : Program) M (v w : W) (fs)
     (v_a_w : relate M a v w)
     (w_nP : (M, w) ⊨ (~undag φ)) :
     ∃ Γ ∈ dagNextTransRefl (fs, ~⌈a⌉φ),
-      (M, v) ⊨ Γ ∧ ( ( ∃ (a : Char) (as : List Program), (~ ⌈·a⌉⌈⌈as⌉⌉(undag φ)) ∈ Γ.1
+      (M, v) ⊨ Γ ∧ ( ( ∃ (a : Nat) (as : List Program), (~ ⌈·a⌉⌈⌈as⌉⌉(undag φ)) ∈ Γ.1
                        ∧ relate M (Program.steps ([Program.atom_prog a] ++ as)) v w
                        ∧ Γ.2 = none )
                    ∨ ((~φ) ∈ Γ.2 ∧ v = w) ) := by
@@ -556,9 +556,9 @@ theorem unloadUndagOnly: unload (undagOnly γ) = unloadAndUndag γ := by
   induction γ
   all_goals simp_all
 
-example : DagLoadFormula := ⌊(·'a')†⌋(·'p')
-example : DagLoadFormula := ⌊(·'a')†⌋⌊·'a'⌋(·'p') -- should this be allowed?!
-example : DagLoadFormula := ⌊·'a'⌋⌊(·'a')†⌋(·'p')
+example : DagLoadFormula := ⌊(·1)†⌋(·2)
+example : DagLoadFormula := ⌊(·1)†⌋⌊·1⌋(·2) -- should this be allowed?!
+example : DagLoadFormula := ⌊·1⌋⌊(·1)†⌋(·2)
 
 -- In an LDDT we have a list of normal formulas and optionally either a NegLoadFormula or a NegDagLoadFormula.
 
@@ -668,7 +668,7 @@ theorem loadNotStarSoundnessAux (a : Program) M (v w : W) (fs)
     (v_a_w : relate M a v w)
     (w_nP : (M, w) ⊨ (~unloadAndUndag φ)):
     ∃ Γ ∈ loadDagNextTransRefl (fs, Sum.inr (~⌊a⌋φ)),
-      (M, v) ⊨ Γ ∧ ( ( ∃ (a : Char) (as : List Program), Sum.inl (~' ⌊·a⌋⌊⌊as⌋⌋(undagOnly φ)) = Γ.2
+      (M, v) ⊨ Γ ∧ ( ( ∃ (a : Nat) (as : List Program), Sum.inl (~' ⌊·a⌋⌊⌊as⌋⌋(undagOnly φ)) = Γ.2
                        ∧ relate M (Program.steps ([Program.atom_prog a] ++ as)) v w
                        ∧ Γ.isDagFree )
                    ∨ (Sum.inr (~φ) = Γ.2 ∧ v = w) ) := by

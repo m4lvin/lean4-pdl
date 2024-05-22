@@ -19,7 +19,7 @@ def saturated : Finset Formula → Prop
     ∧ ((~⌈α⌉P) ∈ X → ∃ Fδ ∈ H α, (Yset Fδ P).all (fun y => y ∈ X))
 
 /-- Q α -/
-def Q {W : Finset (Finset Formula)} (R : Char → W → W → Prop)
+def Q {W : Finset (Finset Formula)} (R : Nat → W → W → Prop)
   : Program → W → W → Prop
 | ·c     => R c
 | ?'τ    => fun v w => v = w ∧ τ ∈ v.1

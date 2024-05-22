@@ -27,7 +27,7 @@ def Yset : (List Formula × List Program) → (Formula) → List Formula
 def unfoldDiamond (α : Program) (φ : Formula) : List (List Formula) :=
   (H α).map (fun Fδ => Yset Fδ φ)
 
-theorem guardToStarDiamond (x : Char)
+theorem guardToStarDiamond (x : Nat)
     (x_notin_beta : x ∉ HasVocabulary.voc β)
     (beta_equiv : (~⌈β⌉~·x) ≡ (((·x) ⋀ σ0) ⋁ σ1))
     (repl_imp_rho : repl_in_F x ρ σ1 ⊨ ρ)
@@ -69,11 +69,37 @@ theorem helper : ∀ (p : List Formula × List Program → Formula) X,
         (∃ f ∈ List.map p X, evaluate M w f)
       ↔ (∃ Fδ ∈ X, evaluate M w (p Fδ)) := by aesop
 
+-- TODO: move this to Syntax.lean or so later?
+mutual
+  /-- Get a fresh atomic proposition `x` not in `ψ`. -/
+  def freshVarForm : Formula → Nat
+    | ⊥ => 0
+    | ·c => c + 1
+    | ~φ => freshVarForm φ
+    | φ1⋀φ2 => max (freshVarForm φ1) (freshVarForm φ2)
+    | ⌈α⌉ φ => max (freshVarProg α) (freshVarForm φ)
+  /-- Get a fresh atomic proposition `x` not in `α`. -/
+  def freshVarProg : Program → Nat
+    | ·c => c + 1
+    | α;'β  => max (freshVarProg α) (freshVarProg β)
+    | α⋓β  =>  max (freshVarProg α) (freshVarProg β)
+    | ∗α  => freshVarProg α
+    | ?'φ  => freshVarForm φ
+end
+
+mutual
+theorem freshVarForm_is_fresh (φ) : freshVarForm φ ∉ HasVocabulary.voc φ := by
+  sorry
+
+theorem freshVarProg_is_fresh (α) : freshVarProg α ∉ HasVocabulary.voc α := by
+  sorry
+end
+
 theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ => Con (Yset Fδ ψ)) ) := by
   intro W M w
   cases γ
   case atom_prog a =>
-    simp [evaluate, H]
+    simp [H]
   case test τ =>
     simp [evaluate, H, Yset]
     rw [conEval]
@@ -220,12 +246,12 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
     clear W M w; intro W M w
     constructor
     · -- left to right, done second in notes
-      -- BIG PROBLEM: Char is finite. We cannot get fresh variables!!
-      -- ideas to solve this:
-      -- - refactor everything to allow different types! - hard but useful?
-      -- - replace Char with Nat? - easier?
-      let x : Char := sorry
-      have x_not_in : x ∉ HasVocabulary.voc β := sorry
+      -- NOTE: Here is why we switched from `Char` to `Nat` for atomic propositions.
+      -- Char was finite so we could not get fresh variables. Now we can :-)
+      -- An alternative idea to solve this would have been to refactor everything
+      -- to allow different types, but that seemed harded and not (yet?!) needed.
+      let x : Nat := freshVarProg β
+      have x_not_in : x ∉ HasVocabulary.voc β := by apply freshVarProg_is_fresh
       -- NOTE the use of ⊥ below - matters for rhs-to-lhs in first Lemma condition.
       let σ0 : Formula := dis $
         (H β).map (fun (F,δ) => if δ = ε then Con F else ⊥)
@@ -481,7 +507,7 @@ def unfoldBox α ψ := { Xset α l ψ | l ∈ TP α }
 
 -- TODO Lemma 22 with parts 1) and 2) and 3)
 
-theorem guardToStar (x : Char)
+theorem guardToStar (x : Nat)
     (x_notin_beta : x ∉ HasVocabulary.voc β)
     (beta_equiv : (⌈β⌉·x) ≡ (((·x) ⋀ χ0) ⋁ χ1))
     (rho_imp_repl : ρ ⊨ (repl_in_F x ρ) (χ0 ⋁ χ1))

@@ -7,10 +7,10 @@ import Mathlib.Order.FixedPoints
 import Pdl.Syntax
 import Pdl.Measures
 
--- Kripke Models aka Labelled Transition Systems
+/-- Kripke Models, also known as Labelled Transition Systems -/
 structure KripkeModel (W : Type) : Type where
-  val : W → Char → Prop
-  Rel : Char → W → W → Prop
+  val : W → Nat → Prop
+  Rel : Nat → W → W → Prop
 
 @[simp]
 def complexityOfQuery {W : Type} :

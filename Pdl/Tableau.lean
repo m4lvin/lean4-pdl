@@ -9,11 +9,11 @@ open HasLength
 -- PROJECTIONS
 
 @[simp]
-def formProjection : Char → Formula → Option Formula
+def formProjection : Nat → Formula → Option Formula
   | A, ⌈·B⌉φ => if A == B then some φ else none
   | _, _ => none
 
-def projection : Char → List Formula → List Formula
+def projection : Nat → List Formula → List Formula
   | A, X => (X.map fun x => (formProjection A x)).reduceOption
 
 @[simp]

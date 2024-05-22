@@ -3,13 +3,13 @@ import Mathlib.Order.BoundedOrder
 mutual
   inductive Formula : Type
     | bottom : Formula
-    | atom_prop : Char → Formula
+    | atom_prop : Nat → Formula
     | neg : Formula → Formula
     | and : Formula → Formula → Formula
     | box : Program → Formula → Formula
   deriving Repr,DecidableEq
   inductive Program : Type
-    | atom_prog : Char → Program
+    | atom_prog : Nat → Program
     | sequence : Program → Program → Program
     | union : Program → Program → Program
     | star : Program → Program
@@ -106,8 +106,8 @@ notation "⌊" α "⌋" χ => LoadFormula.box α χ
 notation "⌊⌊" αs "⌋⌋" χ => LoadFormula.boxes αs χ
 notation "~'" χ => NegLoadFormula.neg χ
 
-example : NegLoadFormula := ~'(⌊((·'a') ;' (·'b'))⌋⊤)
-example : NegLoadFormula := ~'(⌊⌊[·'a', ·'b']⌋⌋⌊·'a'⌋ ⊤)
+example : NegLoadFormula := ~'(⌊((·1) ;' (·2))⌋⊤)
+example : NegLoadFormula := ~'(⌊⌊[·1, ·2]⌋⌋⌊·1⌋ ⊤)
 
 theorem loadBoxes_last : (~'⌊a⌋LoadFormula.boxes (as ++ [c]) P) = (~'⌊a⌋LoadFormula.boxes as (⌊c⌋P)) :=
   by

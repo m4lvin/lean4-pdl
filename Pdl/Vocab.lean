@@ -4,13 +4,13 @@ import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Finset.Union
 
 mutual
-  def vocabOfProgram : Program → Finset Char
+  def vocabOfProgram : Program → Finset Nat
     | ·c => {c}
     | α;'β => vocabOfProgram α ∪ vocabOfProgram β
     | α ⋓ β => vocabOfProgram α ∪ vocabOfProgram β
     | ∗α => vocabOfProgram α
     | ?' φ => vocabOfFormula φ
-  def vocabOfFormula : Formula → Finset Char
+  def vocabOfFormula : Formula → Finset Nat
     | ⊥ => ∅
     | ·c => {c}
     | ~φ => vocabOfFormula φ
@@ -18,17 +18,17 @@ mutual
     | ⌈α⌉ φ => vocabOfProgram α ∪ vocabOfFormula φ
 end
 
-def vocabOfSetFormula : Finset Formula → Finset Char
+def vocabOfSetFormula : Finset Formula → Finset Nat
   | X => X.biUnion vocabOfFormula
 
-def vocabOfListFormula : List Formula → Finset Char
+def vocabOfListFormula : List Formula → Finset Nat
   | X => (X.toFinset).biUnion vocabOfFormula
 
 theorem inVocList : ℓ ∈ vocabOfListFormula L ↔ ∃φ ∈ L, ℓ ∈ vocabOfFormula φ := by
   simp only [vocabOfListFormula, Finset.mem_biUnion, List.mem_toFinset]
 
 class HasVocabulary (α : Type) where
-  voc : α → Finset Char
+  voc : α → Finset Nat
 
 instance formulaHasVocabulary : HasVocabulary Formula := ⟨vocabOfFormula⟩
 instance programHasVocabulary : HasVocabulary Program := ⟨vocabOfProgram⟩

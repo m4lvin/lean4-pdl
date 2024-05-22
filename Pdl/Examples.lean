@@ -10,7 +10,7 @@ import Pdl.Star
 open Vector HasSat
 
 -- some simple silly stuff
-theorem mytaut1 (p : Char) : tautology ((·p) ↣ (·p)) :=
+theorem mytaut1 (p : Nat) : tautology ((·p) ↣ (·p)) :=
   by
   unfold tautology
   intro W M w
@@ -18,7 +18,7 @@ theorem mytaut1 (p : Char) : tautology ((·p) ↣ (·p)) :=
 
 open Classical
 
-theorem mytaut2 (p : Char) : tautology ((~~·p)↣·p) :=
+theorem mytaut2 (p : Nat) : tautology ((~~·p)↣·p) :=
   by
   unfold tautology evaluate
   intro W M w
@@ -28,7 +28,7 @@ def myModel : KripkeModel ℕ where
   val _ _ := True
   Rel _ _ v := HEq v 1
 
-theorem mysat (p : Char) : Satisfiable (·p : Formula) :=
+theorem mysat (p : Nat) : Satisfiable (·p : Formula) :=
   by
   use ℕ, myModel, 1
   unfold myModel

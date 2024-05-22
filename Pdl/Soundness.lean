@@ -10,8 +10,8 @@ open HasSat
 
 -- Combine a collection of pointed models with one new world using the given valuation.
 -- TODO: rewrite to term mode?
-def combinedModel {β : Type} (collection : β → Σ W : Type, Char × KripkeModel W × W)
-    (newVal : Char → Prop) :
+def combinedModel {β : Type} (collection : β → Σ W : Type, Nat × KripkeModel W × W)
+    (newVal : Nat → Prop) :
     KripkeModel (Sum Unit (Σ k : β, (collection k).fst)) × Sum Unit (Σ k : β, (collection k).fst) :=
   by
   constructor
@@ -49,7 +49,7 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, Char × KripkeMo
 
 
 theorem combMo_preserves_truth_at_oldWOrld {β : Type}
-    (collection : β → Σ W : Type, Char × KripkeModel W × W) (newVal : Char → Prop) :
+    (collection : β → Σ W : Type, Nat × KripkeModel W × W) (newVal : Nat → Prop) :
     ∀ (f : Formula) (R : β) (oldWorld : (collection R).fst),
       evaluate (combinedModel collection newVal).fst (Sum.inr ⟨R, oldWorld⟩) f ↔
         evaluate (collection R).snd.snd.fst oldWorld f :=
@@ -243,7 +243,7 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
         constructor
         · -- show that f is false at old world
           have coMoLemma :=
-            combMo_preserves_truth_at_oldWOrld collection (fun c : Char => (·c) ∈ (L ∪ R)) f ⟨f, h⟩
+            combMo_preserves_truth_at_oldWOrld collection (fun c : Nat => (·c) ∈ (L ∪ R)) f ⟨f, h⟩
               (collection ⟨f, h⟩).snd.snd
           rw [coMoLemma]
           specialize all_pro_sat ⟨f, h⟩ (~f)
