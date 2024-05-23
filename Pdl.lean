@@ -12,7 +12,6 @@ import «Pdl».Substitution
 import «Pdl».Setsimp
 import «Pdl».MultisetOrder
 import «Pdl».DagSyntax
-import «Pdl».DagTableau
 import «Pdl».Examples
 import «Pdl».Modelgraphs
 import «Pdl».Discon

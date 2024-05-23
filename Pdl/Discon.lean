@@ -109,7 +109,7 @@ theorem disconEval' {W M} {w : W} :
     intro rhs
     cases' rhs with Y rhs
     cases' rhs with Y_in Ysat
-    simp at Y_in 
+    simp at Y_in
     cases' Y_in with Y_in
     · left
       subst Y_in
@@ -195,3 +195,23 @@ theorem union_elem_uplus {XS YS : Finset (Finset Formula)} {X Y : Finset Formula
   intro X_in Y_in
   simp
   exact ⟨X, X_in, Y, Y_in, rfl⟩
+
+-- helper function for oneSidedLocalRuleTruth, used with g = Yset
+theorem mapCon_mapForall (M : KripkeModel W) w φ
+    (g : (List Formula × List Program) → Formula → List Formula) :
+    (∃ f ∈ List.map (fun Fδ => Con (g Fδ φ)) X, evaluate M w f) ↔
+    ∃ fs ∈ List.map (fun Fδ => g Fδ φ) X, ∀ f ∈ fs, evaluate M w f := by
+  simp_all
+  constructor
+  · rintro ⟨f,⟨a, b, ab_in, def_f⟩, w_f⟩
+    subst def_f
+    use g (a,b) φ
+    constructor
+    · use a, b
+    · intro f f_in; rw [conEval] at w_f; specialize w_f f; tauto
+  · rintro ⟨fs,⟨⟨a, b, ab_in, def_fs⟩, w_fs⟩⟩
+    subst def_fs
+    use Con (g (a, b) φ)
+    constructor
+    · use a, b
+    · rw [conEval]; intro f; tauto

@@ -421,6 +421,23 @@ theorem existsDiamondH (w_γ_v : relate M γ w v) :
   case star α =>
     sorry
 
+-- ### Loaded Diamonds
+
+
+-- NOTE: Do we actually need "Option" here?
+-- I.e. can the loading disappear during unfolding? (See old DagTableau.loadDagEndNodes?)
+
+-- for (~'⌊α⌋(χ : LoadFormula))
+def unfoldDiamondLoad (α : Program) (χ : LoadFormula) : List (List Formula × Option NegLoadFormula) :=
+  sorry
+  -- TODO -- (H α).map (fun Fδ => Yset Fδ χ)
+-- for (~'⌊α⌋(φ : Formula))
+def unfoldDiamondLoad' (α : Program) (φ : Formula) : List (List Formula × Option NegLoadFormula) :=
+  sorry
+  -- TODO -- (H α).map (fun Fδ => Yset Fδ φ)
+
+
+
 -- ### Preparation for Boxes: Test Profiles
 
 -- def TestProfile (α : Program) : Type := {L // L ∈ (testsOfProgram α).sublists}
@@ -504,8 +521,8 @@ def Xset (α : Program) (l : List Formula) (ψ : Formula) : List Formula :=
   F ⟨α, l⟩ ++ (P ⟨α, l⟩).map (fun as => Formula.boxes as ψ)
 
 /-- Φ_□(αs,ψ) -/
--- *Not* the same as `Formula.boxes`.
-def unfoldBox α ψ := { Xset α l ψ | l ∈ TP α }
+def unfoldBox (α : Program) (φ : Formula) : List (List Formula) :=
+  (TP α).map (fun l => Xset α l φ)
 
 -- TODO Lemma 21 with parts 1) and 2)
 
@@ -564,7 +581,7 @@ theorem localBoxTruth' γ ψ ℓ : (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Xs
     -- use guardToStar
     sorry
 
-theorem localBoxTruth : (⌈γ⌉ψ) ≡ dis ( (TP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) := by
+theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (TP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) := by
   have := localBoxTruth' γ ψ
   -- clearly this suffices to prove the theorem ;-)
   sorry

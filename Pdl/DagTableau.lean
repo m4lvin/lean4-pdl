@@ -1,3 +1,11 @@
+
+
+
+-- DEPRECATED
+-- This whole file is replaced by `Unfold.lean` now.
+
+
+
 import Mathlib.Data.Finset.Basic
 import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.Ring

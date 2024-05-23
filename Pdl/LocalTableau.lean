@@ -2,10 +2,10 @@
 
 import Pdl.Setsimp
 import Pdl.Discon
-import Pdl.DagTableau
+import Pdl.Unfold
 import Pdl.MultisetOrder
 
-open Undag HasLength
+open HasLength
 
 -- TABLEAU NODES
 
@@ -75,19 +75,9 @@ inductive OneSidedLocalRule : List Formula → List (List Formula) → Type
   | con (φ ψ : Formula) : OneSidedLocalRule [φ ⋀ ψ]  [[φ,ψ]]
   | nCo (φ ψ : Formula) : OneSidedLocalRule [~(φ⋀ψ)] [[~φ], [~ψ]]
   -- PROGRAMS
-  -- TODO: replace all of these with the new two local rules.
-  -- one-child rules:
-  | nTe (φ ψ)   : OneSidedLocalRule [~⌈?'φ⌉ψ]  [ [φ, ~ψ] ]
-  | nSe (a b f) : OneSidedLocalRule [~⌈a;'b⌉f] [ [~⌈a⌉⌈b⌉f] ]
-  | uni (a b f) : OneSidedLocalRule [⌈a⋓b⌉f]   [ [⌈a⌉f, ⌈b⌉f] ]
-  | seq (a b f) : OneSidedLocalRule [⌈a;'b⌉f]  [ [⌈a⌉⌈b⌉f] ]
-  -- splitting rules:
-  | tes (f g)   : OneSidedLocalRule [⌈?'f⌉g]    [ [~f], [g] ]
-  | nUn (a b f) : OneSidedLocalRule [~⌈a ⋓ b⌉f] [ [~⌈a⌉f], [~⌈b⌉f] ]
-  -- STAR
-  -- NOTE: we "manually" already make the first unravel/dagger step here to satisfy the (Neg)DagFormula type.
-  | sta (a f) : OneSidedLocalRule [⌈∗a⌉f] (boxDagEndNodes ({f}, [ inject [a] a f ]))
-  | nSt (a f) : OneSidedLocalRule [~⌈∗a⌉f] ([ [~f] ] ++ (dagEndNodes (∅, NegDagFormula.neg (inject [a] a f))))
+  -- the two general local rules:
+  | box (α φ) : OneSidedLocalRule [ ⌈α⌉φ] (unfoldBox     α φ)
+  | dia (α φ) : OneSidedLocalRule [~⌈α⌉φ] (unfoldDiamond α φ)
 
 theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B :=
   by
@@ -95,209 +85,42 @@ theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B
   cases lr
   all_goals try (simp; done) -- takes care of all propositional rules
   all_goals try (aesop; done) -- takes care of three more rules
-
-  case nUn a b φ => -- from {~⌈a ⋓ b⌉φ} to {~⌈a⌉φ} or {~⌈b⌉φ}
+  case box α φ =>
+    rw [conEval]
+    simp only [List.mem_singleton, forall_eq]
+    rw [localBoxTruth α φ W M w]
+    simp only [disEval, List.mem_map, exists_exists_and_eq_and, unfoldBox, disconEval]
     constructor
-    · aesop
-    · intro w_X
-      simp only [discon, Con, evaluate, Formula.or, ← or_iff_not_and_not] at w_X
-      cases w_X
-      all_goals aesop
-
-  -- STAR RULES
-  case nSt a φ =>
-    constructor
-    · -- soundness
-      intro w_naSphi
-      have := notStarSoundness M w a φ w_naSphi
-      rcases this with ⟨Γ, Γ_in, w_Γ⟩
-      rw [disconEval]
-      simp [evaluatePoint,modelCanSemImplyList] at *
-      aesop
-    · -- invertibility
-      intro w_X
-      simp at w_X
-      rw [disconEval] at w_X
-      simp
-      rcases w_X with ⟨Y,⟨Y_in, sat_Y⟩⟩
-      cases Y_in
-      · use w
-        constructor
-        · apply Relation.ReflTransGen.refl
-        · simp at sat_Y; assumption
-      · have := notStarInvert M w _ (by aesop) (~⌈a⌉⌈∗a⌉φ)
-        simp [vDash, modelCanSemImplyDagTabNode] at this
-        rcases this with ⟨z, w_a_z, y, z_aS_x, y_nf⟩
-        use y
-        constructor
-        · apply Relation.ReflTransGen.head
-          all_goals aesop
-        · assumption
-
-  case sta a f =>
-    constructor
-    · -- soundness
-      intro Mw_X
-      rw [disconEval]
-      apply starSoundness M w ([f], [inject [a] a f])
-      intro phi phi_in
-      simp [vDash, undag, modelCanSemImplyDagTabNode, inject] at phi_in
-      cases phi_in
-      case inl phi_is_f =>
-            subst phi_is_f
-            simp at *
-            apply Mw_X _ Relation.ReflTransGen.refl
-      case inr phi_is_aaSf =>
-            subst phi_is_aaSf
-            simp at *
-            intro v w_a_v z v_a_z
-            exact Mw_X _ (Relation.ReflTransGen.head w_a_v v_a_z)
-    · -- invertibility
-      intro w_B
-      have Mw_X := starInvert M w ([f], [inject [a] a f])
-      specialize Mw_X _
-      · rw [disconEval] at w_B
-        exact w_B
-      simp at *
-      intro v w_aS_v
-      cases Relation.ReflTransGen.cases_head w_aS_v
-      case inl w_is_v =>
-        subst w_is_v
-        specialize Mw_X f
-        simp at Mw_X
-        exact Mw_X
-      case inr hyp =>
-        rcases hyp with ⟨z, w_a_z, z_aS_v⟩
-        specialize Mw_X (⌈a⌉⌈∗a⌉f)
-        simp at Mw_X
-        exact Mw_X z w_a_z v z_aS_v
-
+    · rintro ⟨l,hyp⟩; use l; rw [conEval] at hyp; tauto
+    · rintro ⟨l,hyp⟩; use l; rw [conEval]; tauto
+  case dia α φ =>
+    rw [conEval]
+    simp only [List.mem_singleton, forall_eq, discon, unfoldDiamond]
+    rw [localDiamondTruth α φ W M w, disEval, disconEval]
+    apply mapCon_mapForall
 
 -- LOADED rule applications
--- Only the local rules ¬u, ¬; ¬* and ¬? may be applied to loaded formulas (MB page 19).
+-- Only the local diamond rule may be applied to loaded formulas.
+-- (In MB page 19 these were only the rules ¬u, ¬; ¬* and ¬?).
 -- Each rule replaces the loaded formula by:
 -- - up to one loaded formula,
 -- - and a set of normal formulas.
--- It's annoying to need each rule twice here (due to the definition of LoadFormula).
+-- It's annoying to need the rule twice here due to the definition of LoadFormula.
 inductive LoadRule : NegLoadFormula → List (List Formula × Option NegLoadFormula) → Type
-  | nUn  {α β χ} : LoadRule (~'⌊α⋓β ⌋(χ : LoadFormula)) [ (∅, some (~'⌊α⌋χ)), (∅, some (~'⌊β⌋χ)) ]
-  | nUn' {α β φ} : LoadRule (~'⌊α⋓β ⌋(φ : Formula    )) [ (∅, some (~'⌊α⌋φ)), (∅, some (~'⌊β⌋φ)) ]
-  | nSe  {α β χ} : LoadRule (~'⌊α;'β⌋(χ : LoadFormula)) [ (∅, some (~'⌊α⌋⌊β⌋χ)) ]
-  | nSe' {α β φ} : LoadRule (~'⌊α;'β⌋(φ : Formula    )) [ (∅, some (~'⌊α⌋⌊β⌋φ)) ]
-  -- Now we use loaded dagger diamond tableau:
-  | nSt  {α χ}   : LoadRule (~'⌊∗α  ⌋(χ : LoadFormula)) ([ (∅, some (~'χ)) ] ++
-     loadDagEndNodes (∅, (Sum.inr (NegDagLoadFormula.neg (injectLoad α χ)))))
-  | nSt' {α φ}   : LoadRule (~'⌊∗α  ⌋(φ : Formula    )) ([ ([~φ], none) ] ++
-     loadDagEndNodes (∅, (Sum.inr (NegDagLoadFormula.neg (injectLoad' α φ)))))
-  | nTe  {φt χ}  : LoadRule (~'⌊?'φt⌋(χ : LoadFormula)) [ ([φt], some (~'χ)) ]
-  | nTe' {φt φ}  : LoadRule (~'⌊?'φt⌋(φ : Formula    )) [ ([φt, ~φ], none) ]
+  | dia  {α χ}   : LoadRule (~'⌊α  ⌋(χ : LoadFormula)) (unfoldDiamondLoad α χ)
+    -- ([ (∅, some (~'χ)) ] ++ loadDagEndNodes (∅, (Sum.inr (NegDagLoadFormula.neg (injectLoad α χ)))))
+  | dia' {α φ}   : LoadRule (~'⌊α  ⌋(φ : Formula    )) (unfoldDiamondLoad' α φ)
+    -- ([ ([~φ], none) ] ++ loadDagEndNodes (∅, (Sum.inr (NegDagLoadFormula.neg (injectLoad' α φ)))))
 
 theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
     (~(unload χ)) ≡ dis (B.map (λ (fs, o) => Con (fs ++ (o.map negUnload).toList))) :=
   by
   intro W M w
   cases lr
-
-  case nTe => simp
-  case nTe' => simp
-
-  case nSe => aesop
-  case nSe' => aesop
-
-  case nUn α β χ =>
-    have := oneSidedLocalRuleTruth (OneSidedLocalRule.nUn α β (unload χ)) W M w
-    simp at *
-    exact this
-  case nUn' α β φ =>
-    have := oneSidedLocalRuleTruth (OneSidedLocalRule.nUn α β φ) W M w
-    simp at *
-    exact this
-
-  case nSt α χ =>
-    constructor
-    · -- soundness
-      intro w_naSchi
-      have := loadNotStarSoundness M w α χ w_naSchi
-      rcases this with ⟨Γ, Γ_in, w_Γ⟩
-      simp at Γ_in
-      simp
-      rw [disEvalHT, disEval]
-      cases Γ_in
-      case inl Γ_def =>
-        subst Γ_def
-        left
-        apply w_Γ
-        simp
-      case inr Γ_in =>
-        right
-        simp only [List.mem_map, Prod.exists]
-        refine ⟨?_, ⟨Γ.1, Γ.2, ?_⟩, ?_⟩
-        · exact Con (Γ.1 ++ Option.toList (Option.map negUnload Γ.2))
-        · simp; assumption
-        · rw [conEval]; apply w_Γ
-    · -- invertibility
-      intro w_X
-      simp [disEvalHT, disEval] at w_X
-      cases w_X
-      · simp; use w
-      case inr hyp =>
-        simp at hyp
-        rcases hyp with ⟨f, ⟨Γ1, Γ2, ⟨Γ_in_ends, def_f⟩⟩, w_Γ⟩
-        let thelf := NegDagLoadFormula.neg (DagLoadFormula.box α (DagLoadFormula.ldg α χ))
-        have := loadNotStarInvert M w ([], Sum.inr thelf) ⟨⟨Γ1,Γ2⟩, ⟨Γ_in_ends, ?_⟩⟩
-        · simp [vDash, modelCanSemImplyLoadDagTabNode, evaluateLDDTNode] at *
-          rcases this with ⟨z, w_a_z, y, z_aS_x, y_nf⟩
-          use y
-          constructor
-          · exact Relation.ReflTransGen.head w_a_z z_aS_x
-          · assumption
-        · intro g g_in -- for the ?_ above
-          subst def_f
-          rw [conEval] at w_Γ
-          aesop
-  case nSt' α φ =>
-    -- analogous to nSt, but using loadNotStarSoundness' with a φ instead of χ.
-    constructor
-    · -- soundness
-      intro w_naSchi
-      have := loadNotStarSoundness' M w α φ w_naSchi
-      rcases this with ⟨Γ, Γ_in, w_Γ⟩
-      simp at Γ_in
-      simp
-      rw [disEvalHT, disEval]
-      cases Γ_in
-      case inl Γ_def =>
-        subst Γ_def
-        left
-        apply w_Γ
-        simp
-      case inr Γ_in =>
-        right
-        simp only [List.mem_map, Prod.exists]
-        refine ⟨?_, ⟨Γ.1, Γ.2, ?_⟩, ?_⟩
-        · exact Con (Γ.1 ++ Option.toList (Option.map negUnload Γ.2))
-        · simp; assumption
-        · rw [conEval]; apply w_Γ
-    · -- invertibility
-      intro w_X
-      simp [disEvalHT, disEval] at w_X
-      cases w_X
-      · simp; use w
-      case inr hyp =>
-        simp at hyp
-        rcases hyp with ⟨f, ⟨Γ1, Γ2, ⟨Γ_in_ends, def_f⟩⟩, w_Γ⟩
-        let thelf := NegDagLoadFormula.neg (DagLoadFormula.box α (DagLoadFormula.dag α φ))
-        have := loadNotStarInvert M w ([], Sum.inr thelf) ⟨⟨Γ1,Γ2⟩, ⟨Γ_in_ends, ?_⟩⟩
-        · simp [vDash, modelCanSemImplyLoadDagTabNode, evaluateLDDTNode] at *
-          rcases this with ⟨z, w_a_z, y, z_aS_x, y_nf⟩
-          use y
-          constructor
-          · exact Relation.ReflTransGen.head w_a_z z_aS_x
-          · assumption
-        · intro g g_in -- for the ?_ above
-          subst def_f
-          rw [conEval] at w_Γ
-          aesop
+  case dia =>
+    sorry
+  case dia' =>
+    sorry
 
 -- A LocalRule is a OneSidedLocalRule or a LoadRule.
 -- Formulas can be in four places now: left, right, loaded left, loaded right.
@@ -695,12 +518,13 @@ theorem LocalRule.cond_non_empty (rule : LocalRule (Lcond, Rcond, Ocond) X) :
 theorem Multiset.sub_add_of_subset_eq [DecidableEq α] {M : Multiset α} (h : X ≤ M):
     M = M - X + X := (tsub_add_cancel_of_le h).symm
 
--- TODO: move this to DagTableau? (after moving lmOf to Measures?)
-theorem boxDagEndNodes.decreases_lmOf {α : Program} {φ : Formula} {E : List Formula}
-    (E_in : E ∈ boxDagEndNodes ({φ}, [DagFormula.box α (DagFormula.dag α φ)]))
+-- TODO: move this to `Unfold.lean`? (after moving lmOf to Measures?)
+theorem unfoldBox.decreases_lmOf {α : Program} {φ : Formula} {E : List Formula}
+    (E_in : E ∈ unfoldBox α φ)
     (y_in_E : y ∈ E)
-    : lmOfFormula y < 1 + lmOfProgram α + lmOfFormula φ :=
+    : lmOfFormula y < lmOfProgram α + lmOfFormula φ :=
   by
+  -- OLD NOTE:
   -- Is this even true? Why is there no ∗α in the claim? Is the diamond case easier?
   -- Try induction loading and a claim about boxDagNext and intermediate (dagger) formulas?
   cases y
@@ -708,17 +532,18 @@ theorem boxDagEndNodes.decreases_lmOf {α : Program} {φ : Formula} {E : List Fo
     cases β
     case star β =>
       simp
-      -- NOTE: y_in_E is *not* impossible now, dagEndNodes may contain top-level stars (e.g. via tests).
+      -- OLD NOTE: y_in_E is *not* impossible now, dagEndNodes may contain top-level stars (e.g. via tests).
       sorry
     all_goals sorry
   all_goals sorry
 
--- TODO: move this to DagTableau? (after moving lmOf to Measures?)
-theorem dagEndNodes.decreases_lmOf {α : Program} {φ : Formula} {E : List Formula}
-    (E_in : E ∈ dagEndNodes ([], some (NegDagFormula.neg (DagFormula.box α (DagFormula.dag α φ)))))
+-- TODO: move this to Unfold? (after moving lmOf to Measures?)
+theorem unfoldDiamond.decreases_lmOf {α : Program} {φ : Formula} {E : List Formula}
+    (E_in : E ∈ unfoldDiamond α φ)
     (y_in_E : y ∈ E)
-    : lmOfFormula y < 1 + (1 + lmOfProgram α + lmOfFormula φ) :=
+    : lmOfFormula y < 1 + lmOfProgram α + lmOfFormula φ :=
   by
+  -- Note: the "1+" comes from the diamond/negation.
   sorry
 
 -- TODO: also need loadDagEndNodes.decreases_lmOf or similar?
@@ -741,25 +566,17 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
       case neg.refl => linarith
       case con.refl => cases y_in_Y <;> (subst_eqs; linarith)
       case nCo => cases Y_in_ress <;> (subst_eqs; simp at * ; subst_eqs ; simp at *); linarith
-      case nTe => cases y_in_Y <;> subst_eqs; linarith; simp
-      case nSe α β φ => cases α <;> (simp_all; try linarith)
-      case uni α β φ => cases y_in_Y <;> (subst_eqs; simp; try linarith)
-      case seq => simp; linarith
-      case tes => cases Y_in_ress <;> subst_eqs <;> (simp_all; try linarith)
-      case nUn => cases Y_in_ress <;> subst_eqs <;> (simp_all; try linarith)
-      case sta α φ =>
+      case dia α φ =>
         rcases Y_in_ress with ⟨E, E_in, E_def⟩
         subst E_def
         simp_all only [List.append_nil, Multiset.mem_coe]
-        exact boxDagEndNodes.decreases_lmOf E_in y_in_Y
-      case nSt α φ =>
-        cases Y_in_ress
-        · simp_all
-        case inr Y_in =>
-          rcases Y_in with ⟨E, E_in, E_def⟩
-          subst E_def
-          simp_all
-          exact dagEndNodes.decreases_lmOf E_in y_in_Y
+        rw [← add_assoc]
+        exact unfoldDiamond.decreases_lmOf E_in y_in_Y
+      case box α φ =>
+        rcases Y_in_ress with ⟨E, E_in, E_def⟩
+        subst E_def
+        simp_all only [List.append_nil, Multiset.mem_coe]
+        exact unfoldBox.decreases_lmOf E_in y_in_Y
 
     case oneSidedR orule =>
       cases orule
@@ -771,25 +588,17 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
       case neg.refl => linarith
       case con.refl => cases y_in_Y <;> (subst_eqs; linarith)
       case nCo => cases Y_in_ress <;> (subst_eqs; simp at * ; subst_eqs ; simp at *); linarith
-      case nTe => cases y_in_Y <;> subst_eqs; linarith; simp
-      case nSe α β φ => cases α <;> (simp_all; try linarith)
-      case uni α β φ => cases y_in_Y <;> (subst_eqs; simp; try linarith)
-      case seq => simp; linarith
-      case tes => cases Y_in_ress <;> subst_eqs <;> (simp_all; try linarith)
-      case nUn => cases Y_in_ress <;> subst_eqs <;> (simp_all; try linarith)
-      case sta α φ =>
+      case dia α φ =>
         rcases Y_in_ress with ⟨E, E_in, E_def⟩
         subst E_def
         simp_all only [List.append_nil, Multiset.mem_coe]
-        exact boxDagEndNodes.decreases_lmOf E_in y_in_Y
-      case nSt α φ =>
-        cases Y_in_ress
-        · simp_all
-        case inr Y_in =>
-          rcases Y_in with ⟨E, E_in, E_def⟩
-          subst E_def
-          simp_all
-          exact dagEndNodes.decreases_lmOf E_in y_in_Y
+        rw [← add_assoc]
+        exact unfoldDiamond.decreases_lmOf E_in y_in_Y
+      case box α φ =>
+        rcases Y_in_ress with ⟨E, E_in, E_def⟩
+        subst E_def
+        simp_all only [List.append_nil, Multiset.mem_coe]
+        exact unfoldBox.decreases_lmOf E_in y_in_Y
 
     case loadedL lrule =>
       simp [node_to_multiset]
@@ -799,17 +608,11 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
         try subst_eqs
         try simp at *
         try subst_eqs
-      case nTe => cases y_in_Y <;> subst_eqs; linarith; simp
-      case nTe' => cases y_in_Y <;> subst_eqs; linarith; simp
-      case nSe α β χ => cases α <;> (simp_all; try linarith)
-      case nSe' α β φ => cases α <;> (simp_all; try linarith)
-      case nUn => cases Y_in_ress <;> subst_eqs <;> (simp_all; try linarith)
-      case nUn' => cases Y_in_ress <;> subst_eqs <;> (simp_all; try linarith)
-      case nSt α χ =>
-        -- need: lmOfFormula goes down in loadDagEndNodes
+      case dia α χ =>
+        -- need: lmOfFormula goes down in unfoldDiamondLoad
         sorry
-      case nSt' α φ =>
-        -- need: lmOfFormula goes down in loadDagEndNodes
+      case dia' α φ =>
+        -- need: lmOfFormula goes down in unfoldDiamondLoad'
         sorry
 
     case loadedR lrule =>
@@ -820,21 +623,11 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
         try subst_eqs
         try simp at *
         try subst_eqs
-      case nTe => cases y_in_Y <;> subst_eqs; linarith; simp
-      case nTe' => cases y_in_Y <;> subst_eqs; linarith; simp
-      case nSe α β χ => cases α <;> (simp_all; try linarith)
-      case nSe' α β φ => cases α <;> (simp_all; try linarith)
-      case nUn =>
-        cases Y_in_ress <;> subst_eqs
-        all_goals (simp_all; try linarith)
-      case nUn' =>
-        cases Y_in_ress <;> subst_eqs
-        all_goals (simp_all; try linarith)
-      case nSt α χ =>
-        -- need: lmOfFormula goes down in loadDagEndNodes
+      case dia α χ =>
+        -- need: lmOfFormula goes down in unfoldDiamondLoad
         sorry
-      case nSt' α φ =>
-        -- need: lmOfFormula goes down in loadDagEndNodes
+      case dia' α φ =>
+        -- need: lmOfFormula goes down in unfoldDiamondLoad'
         sorry
 
 -- This is standard definition of DM.
@@ -909,13 +702,10 @@ theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
 
 @[simp]
 def endNodesOf : {X : _} → LocalTableau X → List TNode
-  | .(_), (@byLocalRule X B lr next) =>
-    (B.attach.map fun ⟨Y, h⟩ =>
-      have : MultisetLT (node_to_multiset Y) (node_to_multiset X) := localRuleApp.decreases_DM lr Y h
-      endNodesOf (next Y h)).join
+  | .(_), (@byLocalRule X B _lr next) => (B.attach.map (fun ⟨Y, h⟩ => endNodesOf (next Y h))).join
   | .(_), (@sim X _) => [X]
 termination_by
   X => X -- pick up instance WellFoundedRelation TNode from above!
 decreasing_by
   simp_wf
-  exact this
+  apply localRuleApp.decreases_DM _lr Y h
