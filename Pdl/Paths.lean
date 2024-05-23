@@ -1,4 +1,4 @@
-import Pdl.Semantics
+
 import Pdl.Unfold
 
 def atomRel (M : KripkeModel W) (v w : W) := ∃ a, relate M (·a) v w

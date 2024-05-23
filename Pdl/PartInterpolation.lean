@@ -1,10 +1,8 @@
 import Mathlib.Data.Finset.Basic
 
-import Pdl.Vocab
 import Pdl.Completeness
 
 open HasVocabulary HasSat
-
 
 def canonProg : sorry := sorry
 

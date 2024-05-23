@@ -2,8 +2,6 @@
 
 import Mathlib.Tactic.Linarith
 
-import Pdl.Semantics
-import Pdl.Vocab
 import Pdl.Discon
 import Pdl.Substitution
 import Pdl.Fresh
