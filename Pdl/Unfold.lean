@@ -421,7 +421,11 @@ theorem relateSeq_singelton (M : KripkeModel W) (α : Program) (w v : W) :
 
 theorem relateSeq_append (M : KripkeModel W) (l1 l2 : List Program) (w v : W) :
     relateSeq M (l1 ++ l2) w v ↔ ∃ u, relateSeq M l1 w u ∧ relateSeq M l2 u v := by
-  sorry
+  induction l1 generalizing w v
+  · simp [relateSeq]
+  case cons l l1 IH =>
+    simp [relateSeq]
+    aesop
 
 theorem existsDiamondH (v_γ_w : relate M γ v w) :
     ∃ Fδ ∈ H γ, (M,v) ⊨ Fδ.1 ∧ relateSeq M Fδ.2 v w := by
