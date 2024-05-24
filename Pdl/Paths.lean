@@ -26,6 +26,30 @@ termination_by (π.1.length, δ.length)
 decreasing_by
   all_goals sorry
 
-theorem existsWitnessPath {M : KripkeModel W} :
+theorem existsWitnessPath {M : KripkeModel W} δ v :
     (M,v) ⊨ (~ Formula.boxes δ ξ) ↔ ∃ π, witnessing M v π δ ξ := by
-  sorry
+  induction δ generalizing v
+  case nil =>
+    simp [modelCanSemImplyForm, witnessing]
+    constructor
+    · intro nvXi
+      use ⟨[], by simp⟩
+      simp only [witnessing, modelCanSemImplyForm, evaluatePoint, evaluate]
+      exact nvXi
+    · rintro ⟨π, foo⟩
+      rcases π with ⟨no|bla, foo⟩
+      · simp [witnessing, modelCanSemImplyForm, evaluatePoint, evaluate] at *
+        assumption
+      · simp [witnessing] at *
+  case cons d δ IH =>
+    simp only [Formula.boxes]
+    constructor
+    · simp only [modelCanSemImplyForm, evaluatePoint, evaluate, not_forall, exists_prop, forall_exists_index, and_imp] at *
+      intro w v_d_w not_w_
+      rw [IH] at not_w_
+      -- rcases not_w_ with ⟨π, wit⟩
+      -- simp [witnessing] at *
+
+      sorry
+    ·
+      sorry
