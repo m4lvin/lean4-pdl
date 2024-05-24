@@ -5,6 +5,7 @@ import Mathlib.Tactic.Linarith
 import Pdl.Discon
 import Pdl.Substitution
 import Pdl.Fresh
+import Pdl.Star
 
 def ε : List Program := [] -- the empty program
 
@@ -422,18 +423,18 @@ theorem relateSeq_append (M : KripkeModel W) (l1 l2 : List Program) (w v : W) :
     relateSeq M (l1 ++ l2) w v ↔ ∃ u, relateSeq M l1 w u ∧ relateSeq M l2 u v := by
   sorry
 
-theorem existsDiamondH (w_γ_v : relate M γ w v) :
-    ∃ Fδ ∈ H γ, (M,v) ⊨ Fδ.1 ∧ relateSeq M Fδ.2 w v := by
+theorem existsDiamondH (v_γ_w : relate M γ v w) :
+    ∃ Fδ ∈ H γ, (M,v) ⊨ Fδ.1 ∧ relateSeq M Fδ.2 v w := by
   cases γ
   case atom_prog =>
     simp [H, relateSeq] at *
-    exact w_γ_v
+    exact v_γ_w
   case test τ =>
     simp [H, relateSeq] at *
     aesop
   case union α β =>
     simp [H, relateSeq] at *
-    cases w_γ_v
+    cases v_γ_w
     case inl hyp =>
       have IHα := existsDiamondH hyp
       aesop
@@ -441,22 +442,22 @@ theorem existsDiamondH (w_γ_v : relate M γ w v) :
       have IHβ := existsDiamondH hyp
       aesop
   case sequence α β =>
-    simp only [relate] at w_γ_v
-    rcases w_γ_v with ⟨u, w_u, u_v⟩
-    have IHα := existsDiamondH w_u
+    simp only [relate] at v_γ_w
+    rcases v_γ_w with ⟨u, v_α_u, u_β_w⟩
+    have IHα := existsDiamondH v_α_u
     simp [H, relateSeq] at IHα
-    rcases IHα with ⟨Fs, δ, ⟨Fδ_in, u_Fs, w_δ_u⟩⟩
+    rcases IHα with ⟨Fs, δ, ⟨Fδ_in, u_Fs, v_δ_u⟩⟩
     cases em (δ = ε)
     case inl hyp =>
       subst hyp
-      simp only [relateSeq] at w_δ_u -- we have w = u
-      subst w_δ_u
-      have IHβ := existsDiamondH u_v
+      simp only [relateSeq] at v_δ_u -- we have v = u
+      subst v_δ_u
+      have IHβ := existsDiamondH u_β_w
       simp [H, relateSeq] at IHβ
-      rcases IHβ with ⟨Gs, η, ⟨Gη_in, v_Gs, w_η_v⟩⟩
-      refine ⟨ ⟨Fs ∪ Gs, η⟩, ⟨?_, ?_, w_η_v⟩ ⟩
+      rcases IHβ with ⟨Gs, η, ⟨Gη_in, v_Gs, v_η_w⟩⟩
+      refine ⟨ ⟨Fs ∪ Gs, η⟩, ⟨?_, ?_, v_η_w⟩ ⟩
       · simp_all [H]
-        refine ⟨_, ⟨⟨Fs, ε, ⟨Fδ_in, (by rfl)⟩⟩, ?_⟩⟩
+        refine ⟨_, ⟨⟨Fs, ε, ⟨Fδ_in, by rfl⟩⟩, ?_⟩⟩
         simp
         use [(Fs ∪ Gs, η)]
         aesop
@@ -464,24 +465,50 @@ theorem existsDiamondH (w_γ_v : relate M γ w v) :
         simp at f_in
         cases f_in
         · specialize u_Fs f (by assumption)
-          -- but now we need v = w here??
-          sorry
+          assumption
         · apply v_Gs f
           assumption
     case inr hyp =>
-      refine ⟨ ⟨Fs, δ ++ [β]⟩, ⟨?_, ?_, ?_⟩⟩
+      refine ⟨⟨Fs, δ ++ [β]⟩, ⟨?_, ?_, ?_⟩⟩
       · simp_all [H]
-        sorry
+        refine ⟨_, ⟨⟨Fs, δ, ⟨ Fδ_in , by rfl⟩⟩, ?_⟩⟩
+        simp_all
       · intro f f_in
         simp at f_in
         specialize u_Fs f f_in
-        -- now we need u = v ??
-        sorry
+        assumption
       · simp [relateSeq_append]
         use u
   case star β =>
-    simp [H, relateSeq] at *
-    sorry
+    simp only [relate] at v_γ_w
+    have := ReflTransGen.cases_tail_eq_neq v_γ_w
+    cases this
+    · subst_eqs
+      use ⟨∅, ε⟩
+      simp [H, relateSeq]
+    case inr hyp =>
+      rcases hyp with ⟨v_neq_w, ⟨v1, v_neq_v1, v_β_v1, v1_βS_w⟩⟩
+      have IHβ := existsDiamondH v_β_v1
+      rcases IHβ with ⟨⟨Fs,δ⟩, Fδ_in, v_Fs, v_δ_v1⟩
+      use ⟨Fs, δ ++ [∗β]⟩
+      constructor
+      · simp [H] at *
+        right
+        have claim : δ ≠ ε := by
+          by_contra hyp
+          subst_eqs
+          simp [relateSeq] at v_δ_v1
+          tauto
+        refine ⟨_, ⟨⟨Fs, δ, ⟨Fδ_in, by rfl⟩⟩, ?_⟩⟩
+        simp_all
+      · constructor
+        · intro f f_in
+          simp at f_in
+          exact v_Fs f f_in
+        · rw [relateSeq_append]
+          use v1
+          simp [relateSeq] at *
+          tauto
 
 -- ### Loaded Diamonds
 
