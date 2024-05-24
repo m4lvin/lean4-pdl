@@ -488,6 +488,7 @@ theorem endNodeOfChild_to_endNode
 
 -- * Navigating through tableaux
 
+-- OLD NOTE:
 -- Given our representation of condition 6a, now we want to prove MB Lemma 7.
 --
 -- To represent both the whole Tableau and a specific node in it we use
@@ -506,14 +507,30 @@ inductive PathInLocal {X} : LocalTableau X → Type
 inductive PathIn {H X} : ClosedTableau H X → Type
 -- TODO
 
--- Definition of ◃' in a tableu, successor + back loops
--- MB: page 26
-def edgesBack {H X} {ctX : ClosedTableau H X} : PathIn ctX → PathIn ctX → Prop := sorry -- TODO
+/-- The immediate successor relation ◃ in a tableau -/
+def stepRel {H X} {ctX : ClosedTableau H X} : PathIn ctX → PathIn ctX → Prop
+| t, s => sorry -- TODO
+
+notation pa:arg "◃" pb:arg => stepRel pa pb
+
+/-- Successor relation plus back loops: ◃' (MB: page 26) -/
+def edgesBack {H X} {ctX : ClosedTableau H X} : PathIn ctX → PathIn ctX → Prop
+| t, s => sorry -- TODO
 
 notation pa:arg "◃'" pb:arg => edgesBack pa pb
 
--- TODO: ≤' should be the refl-tran closure of ◃'
+/-- ReflTrans closure of ◃ is denoted by ≤' -/
+notation pa:arg "≤'" pb:arg => Relation.ReflTransGen stepRel pa pb
 
+-- NOTE: for free nodes we have < iff <'
+
+-- TODO: def companionOf : ...
+
+def K {H X} {ctX : ClosedTableau H X} : PathIn ctX → PathIn ctX → Prop
+| t, s => sorry -- TODO: t is successful leaf and s is the companion of s
+
+def E {H X} {ctX : ClosedTableau H X} : PathIn ctX → PathIn ctX → Prop
+| t, s => (t ◃ s) ∨ K t s
 
 -- Given:
 -- - a local tableau (not necessarily a root)
