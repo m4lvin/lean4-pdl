@@ -21,6 +21,13 @@ def H : Program → List (List Formula × List Program)
           ).join
 | ∗α => [ (∅,ε) ] ∪ ((H α).map (fun (F,δ) => if δ = ε then [] else [(F, δ ++ [∗α])])).join
 
+-- Example sanity check that associativity does not matter:
+/-
+#eval H ((?'(·2)) ;' (·1) ;' (?'(·3)))
+#eval H (( (?'(·2)) ;'   (·1) ) ;' (?'(·3)  ))
+#eval H (  (?'(·2)) ;' ( (·1)   ;' (?'(·3)) ))
+-/
+
 def Yset : (List Formula × List Program) → (Formula) → List Formula
 | ⟨F, δ⟩, φ => F ∪ [ ~ Formula.boxes δ φ ]
 
@@ -406,6 +413,15 @@ def relateSeq {W} (M : KripkeModel W) (δ : List Program) (w v : W) : Prop :=
   | [] => w = v
   | (α::as) => ∃ u, relate M α w u ∧ relateSeq M as u v
 
+@[simp]
+theorem relateSeq_singelton (M : KripkeModel W) (α : Program) (w v : W) :
+    relateSeq M [α] w v ↔ relate M α w v := by
+  simp [relateSeq]
+
+theorem relateSeq_append (M : KripkeModel W) (l1 l2 : List Program) (w v : W) :
+    relateSeq M (l1 ++ l2) w v ↔ ∃ u, relateSeq M l1 w u ∧ relateSeq M l2 u v := by
+  sorry
+
 theorem existsDiamondH (w_γ_v : relate M γ w v) :
     ∃ Fδ ∈ H γ, (M,v) ⊨ Fδ.1 ∧ relateSeq M Fδ.2 w v := by
   cases γ
@@ -413,12 +429,58 @@ theorem existsDiamondH (w_γ_v : relate M γ w v) :
     simp [H, relateSeq] at *
     exact w_γ_v
   case test τ =>
-    sorry
-  case union =>
-    sorry
+    simp [H, relateSeq] at *
+    aesop
+  case union α β =>
+    simp [H, relateSeq] at *
+    cases w_γ_v
+    case inl hyp =>
+      have IHα := existsDiamondH hyp
+      aesop
+    case inr hyp =>
+      have IHβ := existsDiamondH hyp
+      aesop
   case sequence α β =>
-    sorry
-  case star α =>
+    simp only [relate] at w_γ_v
+    rcases w_γ_v with ⟨u, w_u, u_v⟩
+    have IHα := existsDiamondH w_u
+    simp [H, relateSeq] at IHα
+    rcases IHα with ⟨Fs, δ, ⟨Fδ_in, u_Fs, w_δ_u⟩⟩
+    cases em (δ = ε)
+    case inl hyp =>
+      subst hyp
+      simp only [relateSeq] at w_δ_u -- we have w = u
+      subst w_δ_u
+      have IHβ := existsDiamondH u_v
+      simp [H, relateSeq] at IHβ
+      rcases IHβ with ⟨Gs, η, ⟨Gη_in, v_Gs, w_η_v⟩⟩
+      refine ⟨ ⟨Fs ∪ Gs, η⟩, ⟨?_, ?_, w_η_v⟩ ⟩
+      · simp_all [H]
+        refine ⟨_, ⟨⟨Fs, ε, ⟨Fδ_in, (by rfl)⟩⟩, ?_⟩⟩
+        simp
+        use [(Fs ∪ Gs, η)]
+        aesop
+      · intro f f_in
+        simp at f_in
+        cases f_in
+        · specialize u_Fs f (by assumption)
+          -- but now we need v = w here??
+          sorry
+        · apply v_Gs f
+          assumption
+    case inr hyp =>
+      refine ⟨ ⟨Fs, δ ++ [β]⟩, ⟨?_, ?_, ?_⟩⟩
+      · simp_all [H]
+        sorry
+      · intro f f_in
+        simp at f_in
+        specialize u_Fs f f_in
+        -- now we need u = v ??
+        sorry
+      · simp [relateSeq_append]
+        use u
+  case star β =>
+    simp [H, relateSeq] at *
     sorry
 
 -- ### Loaded Diamonds
