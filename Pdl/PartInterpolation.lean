@@ -22,7 +22,7 @@ def TNode.right : TNode → List Formula
 def jvoc : (LR: TNode) → Finset Nat := λ X => voc (X.left) ∩ voc (X.right)
 
 def isPartInterpolant (X : TNode) (θ : Formula) :=
-  voc θ ⊆ jvoc X ∧ (¬Satisfiable ((~θ) :: X.left) ∧ ¬Satisfiable (θ :: X.right))
+  voc θ ⊆ jvoc X ∧ (¬ satisfiable ((~θ) :: X.left) ∧ ¬ satisfiable (θ :: X.right))
 
 def PartInterpolant (N : TNode) := Subtype <| isPartInterpolant N
 
@@ -53,7 +53,7 @@ theorem localInterpolantStep
   | loadedR χ lrule => sorry
 
 theorem partInterpolation :
-    ∀ (L R : List Formula), ¬Satisfiable (L ∪ R) → PartInterpolant (L,R,none) := by
+    ∀ (L R : List Formula), ¬ satisfiable (L ∪ R) → PartInterpolant (L,R,none) := by
   sorry
 
 theorem tabToInt {X : TNode} (tab : ClosedTableau LoadHistory.nil X) :

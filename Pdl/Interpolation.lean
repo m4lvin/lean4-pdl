@@ -15,7 +15,7 @@ theorem interpolation : ∀ (φ ψ : Formula), φ⊨ψ → ∃ θ : Formula, Int
     by
     rw [tautImp_iff_TNodeUnsat rfl] at hyp
     rw [← completeness] at hyp -- using completeness
-    simp [Consistent,Inconsistent] at hyp
+    simp [consistent,inconsistent] at hyp
     exact Classical.choice hyp
   have partInt := tabToInt ctX -- using tableau interpolation
   rcases partInt with ⟨θ, pI_prop⟩
@@ -29,14 +29,14 @@ theorem interpolation : ∀ (φ ψ : Formula), φ⊨ψ → ∃ θ : Formula, Int
   · have := pI_prop.2.1
     clear pI_prop
     rw [tautImp_iff_comboNotUnsat]
-    simp [Satisfiable] at *
+    simp [satisfiable] at *
     intro W M w
     specialize this W M w
     tauto
   · have := pI_prop.2.2
     clear pI_prop
     rw [tautImp_iff_comboNotUnsat]
-    simp [Satisfiable] at *
+    simp [satisfiable] at *
     intro W M w
     specialize this W M w
     tauto

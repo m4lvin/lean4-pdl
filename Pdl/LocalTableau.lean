@@ -50,19 +50,21 @@ instance modelCanSemImplyLLO : vDash (KripkeModel W × W) (List Formula × List 
 instance tNodeHasSat : HasSat TNode :=
   HasSat.mk fun Δ => ∃ (W : Type) (M : KripkeModel W) (w : W), (M,w) ⊨ Δ
 
+open HasSat
+
 theorem tautImp_iff_TNodeUnsat {φ ψ} {X : TNode} :
     X = ([φ], [~ψ], none) →
-    (φ ⊨ ψ ↔ ¬HasSat.Satisfiable X) :=
+    (φ ⊨ ψ ↔ ¬ satisfiable X) :=
   by
   intro defX
   subst defX
-  simp [HasSat.Satisfiable,evaluate,modelCanSemImplyTNode,formCanSemImplyForm,semImpliesLists] at *
+  simp [satisfiable,evaluate,modelCanSemImplyTNode,formCanSemImplyForm,semImpliesLists] at *
 
 -- LOCAL TABLEAU
 
--- Definition 9, page 15
+-- MB Definition 9, page 15
 -- A set X is closed  iff  0 ∈ X or X contains a formula and its negation.
-def Closed : Finset Formula → Prop := fun X => ⊥ ∈ X ∨ ∃ f ∈ X, (~f) ∈ X
+def closed : Finset Formula → Prop := fun X => ⊥ ∈ X ∨ ∃ f ∈ X, (~f) ∈ X
 
 -- Local rules replace a given set of formulas by other sets, one for each branch.
 -- (In Haskell this is "ruleFor" in Logic.PDL.Prove.Tree.)

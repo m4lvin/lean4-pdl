@@ -125,13 +125,13 @@ inductive ClosedTableau : LoadHistory → TNode → Type
   -- Condition 6a repeats are end nodes:
   | rep {X Hist} (rep : condSixRepeat X Hist) : ClosedTableau Hist X
 
-inductive Provable : Formula → Prop
-  | byTableauL {φ : Formula} : ClosedTableau ([],[]) ⟨[~φ], [], none⟩ → Provable φ
-  | byTableauR {φ : Formula} : ClosedTableau ([],[]) ⟨[], [~φ], none⟩ → Provable φ
+inductive provable : Formula → Prop
+  | byTableauL {φ : Formula} : ClosedTableau ([],[]) ⟨[~φ], [], none⟩ → provable φ
+  | byTableauR {φ : Formula} : ClosedTableau ([],[]) ⟨[], [~φ], none⟩ → provable φ
 
 -- Definition 17, page 30
-def Inconsistent : TNode → Prop
+def inconsistent : TNode → Prop
   | LR => Nonempty (ClosedTableau .nil LR)
 
-def Consistent : TNode → Prop
-  | LR => ¬Inconsistent LR
+def consistent : TNode → Prop
+  | LR => ¬inconsistent LR

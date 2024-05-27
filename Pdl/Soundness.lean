@@ -198,7 +198,7 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
 /-
 -- The combined model for X satisfies X.
 theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
-    {beta_def : β = {F : Formula | f_in_TNode (~F.box) (L, R)}} (simple_LR : Simple (L, R)) (not_closed_LR : ¬Closed (L ∪ R))
+    {beta_def : β = {F : Formula | f_in_TNode (~F.box) (L, R)}} (simple_LR : Simple (L, R)) (not_closed_LR : ¬closed (L ∪ R))
     (collection : β → Σ W : Type, KripkeModel W × W)
     (all_pro_sat :
       ∀ F : β,
@@ -217,7 +217,7 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
     cases f
     -- no induction because (L, R) is simple
     case bottom =>
-      unfold Closed at not_closed_LR
+      unfold closed at not_closed_LR
       aesop
     case atom_prop =>
       unfold combinedModel
@@ -230,7 +230,7 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
       case atom_prop =>
         unfold combinedModel
         unfold Evaluate
-        unfold Closed at not_closed_LR
+        unfold closed at not_closed_LR
         rw [not_or] at not_closed_LR
         aesop
       case box f =>
@@ -309,18 +309,18 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
 -- A simple set of formulas X is satisfiable if and only if
 -- it is not closed  and  for all ¬[A]R ∈ X also XA; ¬R is satisfiable.
 theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
-    Simple LR → (Satisfiable LR ↔ ¬Closed (LR.1 ∪ LR.2) ∧ ∀ F, f_in_TNode (~(□F)) LR → Satisfiable (projection (LR.1 ∪ LR.2) ∪ {~F})) :=
+    Simple LR → (satisfiable LR ↔ ¬closed (LR.1 ∪ LR.2) ∧ ∀ F, f_in_TNode (~(□F)) LR → satisfiable (projection (LR.1 ∪ LR.2) ∪ {~F})) :=
   by
     intro LR_is_simple
     constructor
     · -- left to right
       intro sat_LR
-      unfold Satisfiable at *
+      unfold satisfiable at *
       rcases sat_LR with ⟨W, M, w, w_sat_LR⟩
       constructor
       · -- show that X is not closed:
         by_contra hyp
-        unfold Closed at hyp
+        unfold closed at hyp
         cases' hyp with bot_in_LR f_and_notf_in_LR
         · exact w_sat_LR ⊥ bot_in_LR
         · rcases f_and_notf_in_LR with ⟨f, f_in_LR, notf_in_LR⟩
@@ -349,7 +349,7 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
     · -- right to left
       intro rhs
       cases' rhs with not_closed_LR all_pro_sat
-      unfold Satisfiable at *
+      unfold satisfiable at *
       -- Let's build a new Kripke model!
       let (L, R) := LR
       let β := {F : Formula | f_in_TNode (~(□F)) (L, R)}
@@ -749,30 +749,30 @@ theorem freeSatDown : sorry := sorry
 -- have := loadedDiamondPaths
 
 
-theorem tableauThenNotSat : ∀ X, ClosedTableau LoadHistory.nil X → ¬Satisfiable X :=
+theorem tableauThenNotSat : ∀ X, ClosedTableau LoadHistory.nil X → ¬satisfiable X :=
   by
   intro X t
   sorry
 
 -- Theorem 2, page 30
-theorem correctness : ∀LR : TNode, Satisfiable LR → Consistent LR :=
+theorem correctness : ∀LR : TNode, satisfiable LR → consistent LR :=
   by
     intro LR
     contrapose
-    unfold Consistent
-    unfold Inconsistent
+    unfold consistent
+    unfold inconsistent
     simp only [not_nonempty_iff, not_isEmpty_iff, not_exists, not_forall, exists_prop, Nonempty.forall]
     intro hyp
     apply tableauThenNotSat LR hyp
 
-theorem soundTableau : ∀φ, Provable φ → ¬Satisfiable ({~φ} : Finset Formula) :=
+theorem soundTableau : ∀φ, provable φ → ¬satisfiable ({~φ} : Finset Formula) :=
   by
     intro φ prov
     rcases prov with ⟨tabl⟩|⟨tabl⟩
     exact tableauThenNotSat ([~φ], [], none) tabl
     exact tableauThenNotSat ([], [~φ], none) tabl
 
-theorem soundness : ∀φ, Provable φ → tautology φ :=
+theorem soundness : ∀φ, provable φ → tautology φ :=
   by
     intro φ prov
     apply notsatisfnotThenTaut

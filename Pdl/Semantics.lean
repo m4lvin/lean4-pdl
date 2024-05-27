@@ -54,7 +54,7 @@ def contradiction (φ : Formula) :=
 
 -- MB: Definition 5, page 9
 class HasSat (α : Type) where
-  Satisfiable : α → Prop
+  satisfiable : α → Prop
 open HasSat
 @[simp]
 instance formHasSat : HasSat Formula :=
@@ -80,10 +80,10 @@ def semEquiv (φ ψ : Formula) :=
 def relEquiv (α β : Program) :=
   ∀ (W : Type) (M : KripkeModel W) v w, relate M α v w ↔ relate M β v w
 
-theorem notsatisfnotThenTaut : ∀ φ, ¬Satisfiable (~φ) → tautology φ :=
+theorem notsatisfnotThenTaut : ∀ φ, ¬ satisfiable (~φ) → tautology φ :=
   by
   intro phi
-  unfold Satisfiable
+  unfold satisfiable
   unfold tautology
   simp
 
@@ -122,7 +122,7 @@ infixl:40 "≡ᵣ" => relEquiv
 infixl:40 "⊭" => fun a b => ¬a⊨b
 
 @[simp]
-theorem singletonSat_iff_sat : ∀ φ, Satisfiable ({φ} : Finset Formula) ↔ Satisfiable φ :=
+theorem singletonSat_iff_sat : ∀ φ, satisfiable ({φ} : Finset Formula) ↔ satisfiable φ :=
   by
   intro phi
   simp
@@ -148,8 +148,8 @@ theorem forms_to_lists {φ ψ : Formula} : φ⊨ψ → ([φ] : List Formula)⊨(
   · aesop
 
 theorem notSat_iff_semImplies (X : List Formula) (χ : Formula):
-    ¬Satisfiable (X ∪ [~χ]) ↔ X ⊨ ([χ] : List Formula) := by
-  simp only [Satisfiable, not_exists, not_forall, exists_prop, setCanSemImplySet, semImpliesSets, forall_eq]
+    ¬ satisfiable (X ∪ [~χ]) ↔ X ⊨ ([χ] : List Formula) := by
+  simp only [satisfiable, not_exists, not_forall, exists_prop, setCanSemImplySet, semImpliesSets, forall_eq]
   constructor
   · intro nSat W M w satX
     specialize nSat W M w
@@ -184,9 +184,9 @@ theorem equiv_iff (φ ψ : Formula) (φ_eq_ψ : φ ≡ ψ) :
       tauto
 
 theorem tautImp_iff_comboNotUnsat {φ ψ : Formula} :
-    φ ⊨ ψ ↔ ¬Satisfiable ([φ, ~ψ]) :=
+    φ ⊨ ψ ↔ ¬ satisfiable ([φ, ~ψ]) :=
   by
-  simp [formCanSemImplyForm, semImpliesLists, Satisfiable, evaluate]
+  simp [formCanSemImplyForm, semImpliesLists, satisfiable, evaluate]
 
 theorem relate_steps : ∀ x z, relate M (Program.steps (as ++ bs)) x z  ↔
   ∃ y, relate M (Program.steps as) x y ∧ relate M (Program.steps bs) y z :=
@@ -234,7 +234,7 @@ theorem rel_steps_last {as} : ∀ v w,
       rw [IH]
       tauto
 
-theorem truthImply_then_satImply (X Y : List Formula) : X ⊨ Y → Satisfiable X → Satisfiable Y :=
+theorem truthImply_then_satImply (X Y : List Formula) : X ⊨ Y → satisfiable X → satisfiable Y :=
   by
   intro X_Y
   intro satX

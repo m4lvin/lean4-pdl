@@ -28,7 +28,7 @@ def myModel : KripkeModel ℕ where
   val _ _ := True
   Rel _ _ v := HEq v 1
 
-theorem mysat (p : Nat) : Satisfiable (·p : Formula) :=
+theorem mysat (p : Nat) : satisfiable (·p : Formula) :=
   by
   use ℕ, myModel, 1
   unfold myModel

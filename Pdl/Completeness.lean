@@ -13,13 +13,13 @@ theorem freeConsSuccExists : sorry := sorry
 -- TODO: the type below is not correct, this may also be within / across a local tableau!?
 def relInTableau {H X} {ctX : ClosedTableau H X} : PathIn ctX → PathIn ctX → Prop := sorry -- TODO
 
-theorem modelExistence: Consistent X →
+theorem modelExistence: consistent X →
     ∃ (WS : Finset (Finset Formula)) (_ : ModelGraph WS) (W : WS), X.toFinset ⊆ W :=
   by
   sorry
 
 -- Theorem 4, page 37
-theorem completeness : ∀ X, Consistent X ↔ Satisfiable X :=
+theorem completeness : ∀ X, consistent X ↔ satisfiable X :=
   by
   intro X
   constructor
@@ -35,7 +35,7 @@ theorem completeness : ∀ X, Consistent X ↔ Satisfiable X :=
   -- use Theorem 2:
   · exact correctness X
 
-theorem singletonCompleteness : ∀ φ, Consistent ([φ],[],none) ↔ Satisfiable φ :=
+theorem singletonCompleteness : ∀ φ, consistent ([φ],[],none) ↔ satisfiable φ :=
   by
   intro φ
   have := completeness ⟨[φ], [], none⟩
