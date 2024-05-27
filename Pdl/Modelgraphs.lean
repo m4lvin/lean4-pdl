@@ -9,6 +9,7 @@ open Formula
 open HasLength
 
 def saturated : Finset Formula → Prop
+  -- TODO: change P Q notation to φ ψ
   | X => ∀ (P Q : Formula) (α : Program),
     -- propositional closure:
       ((~~P) ∈ X → P ∈ X)
@@ -41,7 +42,7 @@ def ModelGraph (W : Finset (Finset Formula)) :=
 -- Now also using Q relation to overwrite tests.
 mutual
 
--- Why does Lan say this uses "sorry"? Due to mutualness?
+-- C3 in notes
 theorem Q_then_relate (MG : ModelGraph Worlds) α (X Y : Worlds) :
     Q MG.val.Rel α X Y → relate MG.val α X Y := by
   cases α
@@ -74,6 +75,7 @@ theorem Q_then_relate (MG : ModelGraph Worlds) α (X Y : Worlds) :
 termination_by
   lengthOf α
 
+-- C1 and C2 in notes
 theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
     ∀ P, (P ∈ X.val → evaluate MG.val X P) -- (+)
     ∧ ((~P) ∈ X.val → ¬evaluate MG.val X P) -- (-)
@@ -156,44 +158,63 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
 termination_by
   f => lengthOf f
 
+-- C4 in notes
 theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
-    ∀ X P, ((⌈a⌉P) ∈ X.val → (∀ (Y : Worlds), relate MG.val a X Y → P ∈ Y.val)) -- (0)
+    ∀ X φ, ((⌈a⌉φ) ∈ X.val → (∀ (Y : Worlds), relate MG.val a X Y → φ ∈ Y.val)) -- (0)
     := by
-  intro X P boxP_in_X
+  intro X φ boxP_in_X
   cases a -- TODO: this distinction is now bad - want to use TP, H, XSet, YSet etc now?
-  all_goals (intro Y X_rel_Y; simp at X_rel_Y)
+  all_goals
+    intro Y X_rel_Y
   case atom_prog A =>
+    simp at X_rel_Y
     have ⟨_,⟨_,_,iii,_⟩⟩ := MG
     exact iii X Y _ _ X_rel_Y boxP_in_X
   case sequence b c =>
-    have bcP_in_X : (⌈b⌉⌈c⌉P) ∈ X.val := by
-      have ⟨_,⟨i,_,_,_⟩⟩ := MG
-      have := (i X).left
-      simp [saturated] at this
-      sorry -- exact (this P P b c).right.right.right.left boxP_in_X
-    rcases X_rel_Y with ⟨Z, Z_in, X_b_Z, Z_c_Y⟩
-    have cP_in_Z := (loadedTruthLemmaProg MG b X) (⌈c⌉P) bcP_in_X ⟨Z,Z_in⟩ X_b_Z
-    have : lengthOf c < lengthOf (b;'c) := by simp
-    exact (loadedTruthLemmaProg MG c ⟨Z, Z_in⟩) P cP_in_Z Y Z_c_Y
+    have := (MG.prop.1 X).left
+    simp [saturated] at this
+    -- use saturatedness to get a testprofile ℓ:
+    have := (this φ φ (b;'c)).right.right.right.left boxP_in_X
+    rcases this with ⟨ℓ, ℓ_in_TPbc, Xset_sub_X⟩
+    simp [Xset] at Xset_sub_X
+    have X_F : ∀ τ ∈ F (b;'c, ℓ), evaluate MG.val X τ := by
+      -- use IH of C2 here on test formulas in b;'c -- probably needs some extra lemmas
+      sorry
+    have := existsBoxFP X_rel_Y ℓ_in_TPbc (by simp [modelCanSemImplyForm,conEval]; exact X_F)
+    rcases this with ⟨δ, δ_in_P, X_δ_Y⟩
+    -- now want to apply IH of C3 (or C4 ??) to all elements in δ
+
+    induction δ -- is this okay with Lean?
+
+    case nil =>
+      simp [relateSeq] at X_δ_Y
+      subst X_δ_Y
+      simp [P] at δ_in_P
+      sorry
+
+    case cons d δs IH =>
+      simp [relateSeq] at X_δ_Y
+
+      have : lengthOf d < lengthOf (b;'c) := by sorry -- lemma about P needed?
+      have := loadedTruthLemmaProg MG d
+
+      apply this
+      -- rcases X_rel_Y with ⟨Z, Z_in, X_b_Z, Z_c_Y⟩
+      -- have cP_in_Z := (loadedTruthLemmaProg MG b X) (⌈c⌉P) bcP_in_X ⟨Z,Z_in⟩ X_b_Z
+      -- exact (loadedTruthLemmaProg MG c ⟨Z, Z_in⟩) P cP_in_Z Y Z_c_Y
+      all_goals sorry
+
   case union b c =>
-    have bP_and_cP_in_X : (⌈b⌉P) ∈ X.val ∧ (⌈c⌉P) ∈ X.val := by
-      have ⟨_,⟨i,_,_,_⟩⟩ := MG
-      have := (i X).left
-      simp [saturated] at this
-      sorry -- exact (this P P b c).right.right.right.right.left boxP_in_X
-    cases X_rel_Y
-    case inl X_b_Y =>
-      exact (loadedTruthLemmaProg MG b X) P bP_and_cP_in_X.left Y X_b_Y
-    case inr X_c_Y =>
-      have : lengthOf c < lengthOf (b⋓c) := by simp
-      exact (loadedTruthLemmaProg MG c X) P bP_and_cP_in_X.right Y X_c_Y
+    -- TODO: should now be the same as sequence
+    sorry
+
   case star a =>
     -- We now follow MB and do another level of induction over n.
     have claim : ∀ n (ys : Vector Worlds n.succ),
-      (⌈∗a⌉P) ∈ ys.head.val → (∀ i : Fin n, relate MG.val a (ys.get i.castSucc) (ys.get (i.succ))) → P ∈ ys.last.val
+      (⌈∗a⌉φ) ∈ ys.head.val → (∀ i : Fin n, relate MG.val a (ys.get i.castSucc) (ys.get (i.succ))) → φ ∈ ys.last.val
       := by
       intro n
-      induction n
+      induction n -- "inner induction"
       case zero =>
         rintro ys boxP_in_head steprel
         have : ys.last = ys.head := by
@@ -204,19 +225,19 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
         have ⟨_,⟨i,_,_,_⟩⟩ := MG
         have := (i ys.head).left
         simp [saturated] at this
-        sorry -- exact ((this P P a a).right.right.right.right.right.right.left boxP_in_head).left
+        sorry -- exact ((this φ φ a a).right.right.right.right.right.right.left boxP_in_head).left
       case succ m IH =>
         rintro ys boxP_in_head steprel
         let Z := ys.get 1
         have head_a_Z : relate MG.val a ys.head Z := by
           convert (steprel 0)
           simp
-        have : (⌈a⌉⌈∗a⌉P) ∈ ys.head.val := by
+        have : (⌈a⌉⌈∗a⌉φ) ∈ ys.head.val := by
           have ⟨_,⟨i,_,_,_⟩⟩ := MG
           have := (i ys.head).left
           simp [saturated] at this
-          sorry -- exact ((this P P a a).right.right.right.right.right.right.left boxP_in_head).right
-        have boxP_in_Z : (⌈∗a⌉P) ∈ Z.val := loadedTruthLemmaProg MG a ys.head (⌈∗a⌉P) this Z head_a_Z
+          sorry -- exact ((this φ φ a a).right.right.right.right.right.right.left boxP_in_head).right
+        have boxP_in_Z : (⌈∗a⌉φ) ∈ Z.val := loadedTruthLemmaProg MG a ys.head (⌈∗a⌉φ) this Z head_a_Z
         have : ys.last = ys.tail.last := by
           cases ys using Vector.inductionOn
           case h_cons rest _ =>
@@ -237,16 +258,19 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
             rfl
           rw [this]
           exact steprel
+    simp at X_rel_Y
     rcases ReflTransGen.to_finitelyManySteps X_rel_Y with ⟨n, ys, X_is_head, Y_is_last, steprel⟩
     rw [Y_is_last]
     rw [X_is_head] at boxP_in_X
     exact claim n ys boxP_in_X steprel
   case test R =>
-    have nR_or_P_in_X : (~R) ∈ X.val ∨ P ∈ X.val := by
+    -- TODO: now to be replaced with same as union and sequence ?!
+    have nR_or_P_in_X : (~R) ∈ X.val ∨ φ ∈ X.val := by
       have ⟨_,⟨i,_,_,_⟩⟩ := MG
       have := (i X).left
       simp [saturated] at this
       sorry -- exact (this P R (?'⊤) (?'⊤)).right.right.right.right.right.left boxP_in_X
+    simp at X_rel_Y
     rcases X_rel_Y with ⟨X_is_Y, X_R⟩
     subst X_is_Y
     cases nR_or_P_in_X
