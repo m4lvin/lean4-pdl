@@ -189,6 +189,12 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       simp_all
     have := existsBoxFP X_rel_Y (α_def ▸ ℓ_in_TPα) (by simp [modelCanSemImplyForm,conEval]; exact (α_def ▸ X_F))
     rcases this with ⟨δ, δ_in_P, X_δ_Y⟩
+    have δφ_in_X : (⌈⌈δ⌉⌉φ) ∈ X.val := by
+      simp_all [relateSeq]
+      subst_eqs
+      apply Xset_sub_X
+      right
+      use δ
     -- FIXME: Notes now want to apply IH of C3, but we use C4 for all elements in δ
     have IHδ : ∀ d ∈ δ, ∀ (X' Y' : Worlds), ∀ φ', (⌈d⌉φ') ∈ X'.val → relate MG.val d X' Y' → φ' ∈ Y'.val := by
       intro d d_in_δ X' Y' φ' dφ_in_X' X'_d_Y'
@@ -197,16 +203,40 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
     -- NOTE: tried `induction δ` before, but seems bad idea, yields too weak/annoying IH
     -- Instead, check if δ is empty, and in non-empty case use `relateSeq_toChain'`.
     cases em (δ = [])
-    · simp_all [relateSeq]
-      subst_eqs
-      apply Xset_sub_X
-      right
-      use []
-      tauto
+    · simp_all [relateSeq] -- uses δφ_in_X from above.
     case inr δ_notEmpty =>
       have := relateSeq_toChain' X_δ_Y δ_notEmpty
       rcases this with ⟨l, length_def, lchain⟩
-      -- TODO NEXT: how can we combine `lchain` with `IHδ`?
+      -- Now we prove a claim to combine `lchain` with `IHδ`.
+      let k := l.length
+      have loadClaim : ∀ i : Fin ((X :: l ++ [Y]).length),
+          (⌈⌈δ.drop i⌉⌉φ) ∈ ((X :: l ++ [Y]).get i).val := by
+        intro i
+        induction i using Fin.inductionOn
+        case zero =>
+          -- use X -- is equal to (List.get (X :: l ++ [Y]) 0)
+          simp_all -- uses δφ_in_X from above.
+        case succ i IH =>
+          simp
+          have helpy : List.length (List.append l [Y]) = List.length δ := sorry
+          apply IHδ (δ.get (helpy ▸ i)) (by apply List.get_mem) (List.get (X :: l ++ [Y]) i.castSucc)
+          · have : (⌈List.get δ (helpy ▸ i)⌉⌈⌈List.drop (↑i + 1) δ⌉⌉φ) = (⌈⌈List.drop (↑(Fin.castSucc i)) δ⌉⌉φ) := by
+              simp
+              rw [← Formula.boxes]
+              have := @List.drop_eq_get_cons _ i δ (by sorry) -- use Fin.val_lt_last or similar?
+              rw [this]
+              simp_all
+              -- the remaining = between two List.get should be easy now
+              -- maybe make the types in `loadClaim` above more concrete?
+              sorry
+            rw [this]
+            exact IH
+          ·
+            -- use lchain here somehow!
+            sorry
+      specialize loadClaim (Fin.last _)
+      simp at loadClaim
+
       sorry
 
   case union b c =>
