@@ -7,7 +7,9 @@ import Pdl.Substitution
 import Pdl.Fresh
 import Pdl.Star
 
-def ε : List Program := [] -- the empty program
+@[simp]
+-- the empty program
+def ε : List Program := []
 
 -- ### Diamonds: H, Y and Φ_⋄
 
@@ -171,8 +173,8 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
           use [(Fs, δ ++ [β])]
           constructor
           · use Fs, δ
-            simp_all only [List.mem_map, Prod.exists, reduceIte, and_self]
-          · simp_all only [List.mem_map, Prod.exists, List.mem_singleton]
+            simp_all
+          · simp_all
         · simp [Yset, conEval, boxes_append] at *
           intro f f_in
           apply w_Con
@@ -347,7 +349,6 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
         constructor
         · use Fs, δ ++ [∗β]
           simp_all
-          right
           use [(Fs, δ ++ [∗β])]
           simp
           use Fs, δ
@@ -427,6 +428,40 @@ theorem relateSeq_append (M : KripkeModel W) (l1 l2 : List Program) (w v : W) :
     simp [relateSeq]
     aesop
 
+-- Helper function to trick "List.Chain r" to use a different r at each step.
+def pairRel (M : KripkeModel W) : (Program × W) → (Program × W) → Prop
+| (_, v), (α, w) => relate M α v w
+
+-- use later for Modelgraphs
+theorem relateSeq_toChain' {M} {δ} {v w : W} : relateSeq M δ v w → δ ≠ [] →
+    ∃ (l : List W), l.length + 1 = δ.length ∧
+    List.Chain' (pairRel M) (List.zip ((?'⊤) :: δ) (v :: l ++ [w]) ) := by
+  induction δ generalizing v w
+  case nil =>
+    simp [relateSeq]
+  case cons e δ IH =>
+    cases em (δ = [])
+    case inl δ_eq_empty =>
+      subst δ_eq_empty
+      intro _
+      simp_all
+      use []
+      simp_all [pairRel]
+    case inr δ_notEmpty =>
+      simp only [relateSeq]
+      rintro ⟨u, v_d_u, u_δ_w⟩ _
+      specialize IH u_δ_w δ_notEmpty
+      rcases IH with ⟨l, l_def, lchain⟩
+      use (u :: l)
+      constructor
+      · simp_all
+      · simp_all [pairRel]
+        apply List.Chain'.cons'
+        · have := List.Chain'.tail lchain
+          simp_all
+        · cases l <;> cases δ
+          all_goals simp_all [pairRel]
+
 theorem existsDiamondH (v_γ_w : relate M γ v w) :
     ∃ Fδ ∈ H γ, (M,v) ⊨ Fδ.1 ∧ relateSeq M Fδ.2 v w := by
   cases γ
@@ -497,7 +532,6 @@ theorem existsDiamondH (v_γ_w : relate M γ v w) :
       use ⟨Fs, δ ++ [∗β]⟩
       constructor
       · simp [H] at *
-        right
         have claim : δ ≠ ε := by
           by_contra hyp
           subst_eqs
@@ -597,7 +631,7 @@ instance : CoeOut (TestProfile (∗α)) (TestProfile α) :=
 
 def F : (Program × List Formula) → List Formula
 | ⟨·_, _⟩ => ∅
-| ⟨?' τ, l⟩ => if τ ∈ l then ∅ else {~τ}
+| ⟨?' τ, l⟩ => if τ ∈ l then ∅ else [~τ]
 | ⟨α ⋓ β, l⟩ => F ⟨α, l⟩ ∪ F ⟨β, l⟩
 | ⟨α;'β, l⟩ => F ⟨α, l⟩ ∪ F ⟨β, l⟩
 | ⟨∗α, l⟩ => F ⟨α, l⟩
@@ -606,9 +640,9 @@ def P : (Program × List Formula) → List (List Program)
 | ⟨·a, _⟩ => [ [(·a : Program)] ]
 | ⟨?' τ, l⟩ => if τ ∈ l then ∅ else [ [] ]
 | ⟨α ⋓ β, l⟩ => P ⟨α, l⟩ ∪ P ⟨β, l⟩
-| ⟨α;'β, l⟩ => (P ⟨α,l⟩ \ [ε]).map (fun as => as ++ [β])
-             ∪ (if ε ∈ P ⟨α,l⟩ then (P ⟨β,l⟩ \ [ε]) else [])
-| ⟨∗α, l⟩ => [ ε ] ∪ (P (⟨α, l⟩) \ [ε]).map (fun as => as ++ [∗α])
+| ⟨α;'β, l⟩ => ((P ⟨α,l⟩).filter (. != ε)).map (fun as => as ++ [β])
+             ∪ (if ε ∈ P ⟨α,l⟩ then ((P ⟨β,l⟩).filter (. != ε)) else [])
+| ⟨∗α, l⟩ => [ ε ] ∪ ((P (⟨α, l⟩)).filter (. != ε)).map (fun as => as ++ [∗α])
 
 def Xset (α : Program) (l : List Formula) (ψ : Formula) : List Formula :=
   F ⟨α, l⟩ ++ (P ⟨α, l⟩).map (fun as => Formula.boxes as ψ)
@@ -617,9 +651,40 @@ def Xset (α : Program) (l : List Formula) (ψ : Formula) : List Formula :=
 def unfoldBox (α : Program) (φ : Formula) : List (List Formula) :=
   (TP α).map (fun l => Xset α l φ)
 
--- TODO Lemma 21 with parts 1) and 2)
+theorem F_goes_down : φ ∈ F (α, l) → lengthOfFormula φ < lengthOfProgram α := by
+  intro φ_in
+  cases α
+  all_goals
+    simp only [F, List.mem_union_iff, lengthOfProgram] at *
+  case atom_prog =>
+    simp only [List.empty_eq, List.not_mem_nil] at φ_in
+  case sequence α β =>
+    cases φ_in
+    case inl φ_in_Fα =>
+      have IHα := F_goes_down φ_in_Fα
+      linarith
+    case inr φ_in_Fβ =>
+      have IHβ := F_goes_down φ_in_Fβ
+      linarith
+  case union α β =>
+    cases φ_in
+    case inl φ_in_Fα =>
+      have IHα := F_goes_down φ_in_Fα
+      linarith
+    case inr φ_in_Fβ =>
+      have IHβ := F_goes_down φ_in_Fβ
+      linarith
+  case star α =>
+    have IHα := F_goes_down φ_in
+    linarith
+  case test τ =>
+    cases em (τ ∈ l)
+    · simp_all
+    · simp_all
 
--- TODO Lemma 22 with parts 1) and 2) and 3)
+-- TODO Lemma ~21 with parts 1) and 2)
+
+-- TODO Lemma ~22 with parts 1) and 2) and 3)
 
 theorem guardToStar (x : Nat)
     (x_notin_beta : x ∉ HasVocabulary.voc β)

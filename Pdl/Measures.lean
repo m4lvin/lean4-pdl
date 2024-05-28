@@ -14,7 +14,7 @@ mutual
     | α;'β => 1 + lengthOfProgram α + lengthOfProgram β
     | α⋓β => 1 + lengthOfProgram α + lengthOfProgram β
     | ∗α => 1 + lengthOfProgram α
-    | ?'φ => 1 + lengthOfFormula φ
+    | ?'φ => 2 + lengthOfFormula φ -- 2 not 1, to make F^ℓ go down ;-)
   @[simp]
   def lengthOfFormula : Formula → Nat
     | Formula.bottom => 1

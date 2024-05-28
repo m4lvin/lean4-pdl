@@ -38,6 +38,9 @@ def ModelGraph (W : Finset (Finset Formula)) :=
   -- Note: In iii "a" is atomic, but in iv "α" is any program!
   Subtype fun M : KripkeModel W => i ∧ ii M ∧ iii M ∧ iv M
 
+-- TODO: it seems default 200000 is not enough for mutual theorems below?!
+set_option maxHeartbeats 2000000
+
 -- Originally MB Lemma 9, page 32, stronger version for induction loading.
 -- Now also using Q relation to overwrite tests.
 mutual
@@ -159,57 +162,59 @@ termination_by
   f => lengthOf f
 
 -- C4 in notes
-theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
-    ∀ X φ, ((⌈a⌉φ) ∈ X.val → (∀ (Y : Worlds), relate MG.val a X Y → φ ∈ Y.val)) -- (0)
+theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
+    ∀ X φ, ((⌈α⌉φ) ∈ X.val → (∀ (Y : Worlds), relate MG.val α X Y → φ ∈ Y.val)) -- (0)
     := by
   intro X φ boxP_in_X
-  cases a -- TODO: this distinction is now bad - want to use TP, H, XSet, YSet etc now?
+  cases α_def : α -- TODO: only partially distinguish (atom | star | all other cases)
   all_goals
     intro Y X_rel_Y
-  case atom_prog A =>
+  case atom_prog a =>
+    subst α_def
     simp at X_rel_Y
     have ⟨_,⟨_,_,iii,_⟩⟩ := MG
     exact iii X Y _ _ X_rel_Y boxP_in_X
-  case sequence b c =>
-    have := (MG.prop.1 X).left
-    simp [saturated] at this
+  case sequence β γ =>
+    have satX := (MG.prop.1 X).left
+    simp [saturated] at satX
     -- use saturatedness to get a testprofile ℓ:
-    have := (this φ φ (b;'c)).right.right.right.left boxP_in_X
-    rcases this with ⟨ℓ, ℓ_in_TPbc, Xset_sub_X⟩
+    rcases (satX φ φ α).right.right.right.left boxP_in_X with ⟨ℓ, ℓ_in_TPα, Xset_sub_X⟩
     simp [Xset] at Xset_sub_X
-    have X_F : ∀ τ ∈ F (b;'c, ℓ), evaluate MG.val X τ := by
-      -- use IH of C2 here on test formulas in b;'c -- probably needs some extra lemmas
-      sorry
-    have := existsBoxFP X_rel_Y ℓ_in_TPbc (by simp [modelCanSemImplyForm,conEval]; exact X_F)
+    have X_F : ∀ τ ∈ F (α, ℓ), evaluate MG.val X τ := by
+      intro τ τ_in
+      -- Now we use IH of C2 on the tests in a
+      -- NOTE: for this (in the test case, not sequence) we tweaked `lengthOfProgram (?'φ)` ;-)
+      have forTermination : lengthOfFormula τ < lengthOfProgram α := F_goes_down τ_in
+      have := loadedTruthLemma MG X τ
+      simp_all
+    have := existsBoxFP X_rel_Y (α_def ▸ ℓ_in_TPα) (by simp [modelCanSemImplyForm,conEval]; exact (α_def ▸ X_F))
     rcases this with ⟨δ, δ_in_P, X_δ_Y⟩
-    -- now want to apply IH of C3 (or C4 ??) to all elements in δ
-
-    induction δ -- is this okay with Lean?
-
-    case nil =>
-      simp [relateSeq] at X_δ_Y
-      subst X_δ_Y
-      simp [P] at δ_in_P
+    -- FIXME: Notes now want to apply IH of C3, but we use C4 for all elements in δ
+    have IHδ : ∀ d ∈ δ, ∀ (X' Y' : Worlds), ∀ φ', (⌈d⌉φ') ∈ X'.val → relate MG.val d X' Y' → φ' ∈ Y'.val := by
+      intro d d_in_δ X' Y' φ' dφ_in_X' X'_d_Y'
+      have forTermination : lengthOf d < lengthOf (β;'γ) := by sorry -- lemma about P needed?
+      exact loadedTruthLemmaProg MG d X' φ' dφ_in_X' Y' X'_d_Y'
+    -- NOTE: tried `induction δ` before, but seems bad idea, yields too weak/annoying IH
+    -- Instead, check if δ is empty, and in non-empty case use `relateSeq_toChain'`.
+    cases em (δ = [])
+    · simp_all [relateSeq]
+      subst_eqs
+      apply Xset_sub_X
+      right
+      use []
+      tauto
+    case inr δ_notEmpty =>
+      have := relateSeq_toChain' X_δ_Y δ_notEmpty
+      rcases this with ⟨l, length_def, lchain⟩
+      -- TODO NEXT: how can we combine `lchain` with `IHδ`?
       sorry
-
-    case cons d δs IH =>
-      simp [relateSeq] at X_δ_Y
-
-      have : lengthOf d < lengthOf (b;'c) := by sorry -- lemma about P needed?
-      have := loadedTruthLemmaProg MG d
-
-      apply this
-      -- rcases X_rel_Y with ⟨Z, Z_in, X_b_Z, Z_c_Y⟩
-      -- have cP_in_Z := (loadedTruthLemmaProg MG b X) (⌈c⌉P) bcP_in_X ⟨Z,Z_in⟩ X_b_Z
-      -- exact (loadedTruthLemmaProg MG c ⟨Z, Z_in⟩) P cP_in_Z Y Z_c_Y
-      all_goals sorry
 
   case union b c =>
-    -- TODO: should now be the same as sequence
+    -- TODO: should be the same as sequence
     sorry
 
   case star a =>
-    -- We now follow MB and do another level of induction over n.
+    -- We now follow MB and do another level of induction over n. -- TODO replace with new way
     have claim : ∀ n (ys : Vector Worlds n.succ),
       (⌈∗a⌉φ) ∈ ys.head.val → (∀ i : Fin n, relate MG.val a (ys.get i.castSucc) (ys.get (i.succ))) → φ ∈ ys.last.val
       := by
@@ -262,7 +267,8 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
     rcases ReflTransGen.to_finitelyManySteps X_rel_Y with ⟨n, ys, X_is_head, Y_is_last, steprel⟩
     rw [Y_is_last]
     rw [X_is_head] at boxP_in_X
-    exact claim n ys boxP_in_X steprel
+    exact claim n ys (α_def ▸ boxP_in_X) steprel
+
   case test R =>
     -- TODO: now to be replaced with same as union and sequence ?!
     have nR_or_P_in_X : (~R) ∈ X.val ∨ φ ∈ X.val := by
@@ -283,7 +289,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) a :
     case inr P_in_X =>
       exact P_in_X
 termination_by
-  _ _ _ => lengthOf a
+  _ _ _ => lengthOf α
 
 end
 
