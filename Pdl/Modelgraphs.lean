@@ -40,6 +40,7 @@ def ModelGraph (W : Finset (Finset Formula)) :=
 
 -- TODO: it seems default 200000 is not enough for mutual theorems below?!
 set_option maxHeartbeats 2000000
+-- set_option trace.profiler true
 
 -- Originally MB Lemma 9, page 32, stronger version for induction loading.
 -- Now also using Q relation to overwrite tests.
@@ -50,7 +51,7 @@ theorem Q_then_relate (MG : ModelGraph Worlds) α (X Y : Worlds) :
     Q MG.val.Rel α X Y → relate MG.val α X Y := by
   cases α
   case atom_prog =>
-    simp [Q, relate]
+    simp only [instBot, Q, relate, imp_self]
   case sequence α β =>
     have := Q_then_relate MG α
     have := Q_then_relate MG β
@@ -128,7 +129,7 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
     · intro QandR_in_X
       specialize andSplit QandR_in_X
       cases' andSplit with Q_in_X R_in_X
-      simp
+      simp only [evaluate]
       constructor
       · exact plus_Q Q_in_X
       · exact plus_R R_in_X
@@ -155,7 +156,7 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
       constructor
       · exact Q_then_relate ⟨M,⟨i,ii,iii,iv⟩⟩ a X ⟨Y,Y_in⟩ X_a_Y
       · have ⟨_, minus_Y⟩ := loadedTruthLemma ⟨M,⟨i,ii,iii,iv⟩⟩ ⟨Y, Y_in⟩ P
-        simp at minus_Y
+        simp only at minus_Y
         specialize minus_Y nP_in_Y
         convert minus_Y
 termination_by
@@ -171,26 +172,26 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
     intro Y X_rel_Y
   case atom_prog a =>
     subst α_def
-    simp at X_rel_Y
+    simp only [instBot, relate] at X_rel_Y
     have ⟨_,⟨_,_,iii,_⟩⟩ := MG
     exact iii X Y _ _ X_rel_Y boxP_in_X
   case sequence β γ =>
     have satX := (MG.prop.1 X).left
-    simp [saturated] at satX
+    simp only [saturated, List.all_eq_true, decide_eq_true_eq, Prod.exists] at satX
     -- use saturatedness to get a testprofile ℓ:
     rcases (satX φ φ α).right.right.right.left boxP_in_X with ⟨ℓ, ℓ_in_TPα, Xset_sub_X⟩
-    simp [Xset] at Xset_sub_X
+    simp only [Xset, List.mem_append, List.mem_map] at Xset_sub_X
     have X_F : ∀ τ ∈ F (α, ℓ), evaluate MG.val X τ := by
       intro τ τ_in
       -- Now we use IH of C2 on the tests in a
       -- NOTE: for this (in the test case, not sequence) we tweaked `lengthOfProgram (?'φ)` ;-)
       have forTermination : lengthOfFormula τ < lengthOfProgram α := F_goes_down τ_in
       have := loadedTruthLemma MG X τ
-      simp_all
+      simp_all only [instBot, relate, Subtype.exists, lengthOfProgram, true_or, forall_true_left]
     have := existsBoxFP X_rel_Y (α_def ▸ ℓ_in_TPα) (by simp [modelCanSemImplyForm,conEval]; exact (α_def ▸ X_F))
     rcases this with ⟨δ, δ_in_P, X_δ_Y⟩
     have δφ_in_X : (⌈⌈δ⌉⌉φ) ∈ X.val := by
-      simp_all [relateSeq]
+      simp_all only [instBot, relate, Subtype.exists]
       subst_eqs
       apply Xset_sub_X
       right
@@ -208,36 +209,38 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       have := relateSeq_toChain' X_δ_Y δ_notEmpty
       rcases this with ⟨l, length_def, lchain⟩
       -- Now we prove a claim to combine `lchain` with `IHδ`.
-      let k := l.length
-      have loadClaim : ∀ i : Fin ((X :: l ++ [Y]).length),
+      have loadClaim : ∀ i : Fin (X :: l ++ [Y]).length,
           (⌈⌈δ.drop i⌉⌉φ) ∈ ((X :: l ++ [Y]).get i).val := by
         intro i
         induction i using Fin.inductionOn
         case zero =>
-          -- use X -- is equal to (List.get (X :: l ++ [Y]) 0)
           simp_all -- uses δφ_in_X from above.
         case succ i IH =>
-          simp
-          have helpy : List.length (List.append l [Y]) = List.length δ := sorry
-          apply IHδ (δ.get (helpy ▸ i)) (by apply List.get_mem) (List.get (X :: l ++ [Y]) i.castSucc)
-          · have : (⌈List.get δ (helpy ▸ i)⌉⌈⌈List.drop (↑i + 1) δ⌉⌉φ) = (⌈⌈List.drop (↑(Fin.castSucc i)) δ⌉⌉φ) := by
-              simp
+          simp only [List.cons_append, List.length_cons, List.append_eq, Fin.val_succ, List.get_cons_succ']
+          have help1 : (List.append l [Y]).length = δ.length := by simp [length_def]
+          apply IHδ (δ.get (i.cast help1)) (by apply List.get_mem) (List.get (X :: l ++ [Y]) i.castSucc)
+          · have : (⌈List.get δ (i.cast help1)⌉⌈⌈List.drop (i + 1) δ⌉⌉φ) = (⌈⌈List.drop (i.castSucc) δ⌉⌉φ) := by
+              simp only [List.append_eq, Fin.coe_castSucc]
               rw [← Formula.boxes]
-              have := @List.drop_eq_get_cons _ i δ (by sorry) -- use Fin.val_lt_last or similar?
+              have := @List.drop_eq_get_cons _ i δ (by rw [← length_def]; have := Fin.is_lt i; convert this; simp)
               rw [this]
+              cases i
               simp_all
-              -- the remaining = between two List.get should be easy now
-              -- maybe make the types in `loadClaim` above more concrete?
-              sorry
             rw [this]
             exact IH
-          ·
-            -- use lchain here somehow!
+          · simp [relate]
+            -- TODO: use lchain here somehow!
+            rw [List.chain'_iff_get] at lchain -- hmmm
             sorry
       specialize loadClaim (Fin.last _)
       simp at loadClaim
-
-      sorry
+      rw [length_def] at loadClaim
+      simp at loadClaim
+      convert loadClaim
+      have := @List.get_last _ Y (X :: l) (Fin.last _)
+      simp at this
+      rw [eq_comm]
+      exact this
 
   case union b c =>
     -- TODO: should be the same as sequence
