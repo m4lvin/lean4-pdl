@@ -42,6 +42,18 @@ def ModelGraph (W : Finset (Finset Formula)) :=
 set_option maxHeartbeats 2000000
 -- set_option trace.profiler true
 
+theorem get_eq_getzip {X Y : α} {i : Fin ((List.length (l ++ [Y])))} {h} :
+  List.get (X :: (l ++ [Y])) (Fin.castSucc i) = (List.get ((x, X) :: List.zip δ (l ++ [Y])) ⟨i.val, h⟩).2 := by
+  induction l
+  case nil =>
+    simp at i
+    have : i = 0 := by simp_all; ext; simp_all
+    simp_all
+  case cons l ls IH =>
+    simp_all
+    -- ugly, maybe need a different IH here?
+    sorry
+
 -- Originally MB Lemma 9, page 32, stronger version for induction loading.
 -- Now also using Q relation to overwrite tests.
 mutual
@@ -199,7 +211,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
     -- FIXME: Notes now want to apply IH of C3, but we use C4 for all elements in δ
     have IHδ : ∀ d ∈ δ, ∀ (X' Y' : Worlds), ∀ φ', (⌈d⌉φ') ∈ X'.val → relate MG.val d X' Y' → φ' ∈ Y'.val := by
       intro d d_in_δ X' Y' φ' dφ_in_X' X'_d_Y'
-      have forTermination : lengthOf d < lengthOf (β;'γ) := by sorry -- lemma about P needed?
+      have forTermination : lengthOf d < lengthOf α := by sorry -- lemma about P needed?
       exact loadedTruthLemmaProg MG d X' φ' dφ_in_X' Y' X'_d_Y'
     -- NOTE: tried `induction δ` before, but seems bad idea, yields too weak/annoying IH
     -- Instead, check if δ is empty, and in non-empty case use `relateSeq_toChain'`.
@@ -229,18 +241,31 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
             rw [this]
             exact IH
           · simp [relate]
-            -- TODO: use lchain here somehow!
-            rw [List.chain'_iff_get] at lchain -- hmmm
-            sorry
+            -- It now remains to make lchain usable
+            rw [List.chain'_iff_get] at lchain
+            specialize lchain i ?_
+            · simp
+              rcases i with ⟨val, hyp⟩
+              simp_all
+              rw [← length_def]
+              simp at hyp
+              exact hyp
+            simp only [pairRel, instBot, insTop, List.cons_append, List.zip_cons_cons, List.length_cons, List.append_eq, List.get_cons_succ, List.get_zip] at lchain
+            convert lchain
+            · rw [← length_def]
+              simp
+            · simp only [Fin.cast, List.append_eq]
+              rcases i with ⟨val, hyp⟩
+              rw [Fin.heq_ext_iff]
+              rw [← length_def]
+              simp
+            · clear satX Xset_sub_X X_F IHδ
+              apply get_eq_getzip
       specialize loadClaim (Fin.last _)
-      simp at loadClaim
-      rw [length_def] at loadClaim
-      simp at loadClaim
+      simp [length_def] at loadClaim
       convert loadClaim
       have := @List.get_last _ Y (X :: l) (Fin.last _)
-      simp at this
-      rw [eq_comm]
-      exact this
+      simp_all [eq_comm]
 
   case union b c =>
     -- TODO: should be the same as sequence
