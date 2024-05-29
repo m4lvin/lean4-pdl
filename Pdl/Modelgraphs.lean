@@ -44,15 +44,10 @@ set_option maxHeartbeats 2000000
 
 theorem get_eq_getzip {X Y : α} {i : Fin ((List.length (l ++ [Y])))} {h} :
   List.get (X :: (l ++ [Y])) (Fin.castSucc i) = (List.get ((x, X) :: List.zip δ (l ++ [Y])) ⟨i.val, h⟩).2 := by
-  induction l
-  case nil =>
-    simp at i
-    have : i = 0 := by simp_all; ext; simp_all
-    simp_all
-  case cons l ls IH =>
-    simp_all
-    -- ugly, maybe need a different IH here?
-    sorry
+  -- special thanks to droplet739
+  simp only [←List.zip_cons_cons]
+  rw [List.get_zip]
+  rfl
 
 -- Originally MB Lemma 9, page 32, stronger version for induction loading.
 -- Now also using Q relation to overwrite tests.
