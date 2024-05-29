@@ -179,15 +179,70 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
     ∀ X φ, ((⌈α⌉φ) ∈ X.val → (∀ (Y : Worlds), relate MG.val α X Y → φ ∈ Y.val)) -- (0)
     := by
   intro X φ boxP_in_X
-  cases α_def : α -- TODO: only partially distinguish (atom | star | all other cases)
-  all_goals
-    intro Y X_rel_Y
+  cases α_def : α <;> intro Y X_rel_Y
+  -- NOTE we do `atom` and `star` but then `all_goals`
   case atom_prog a =>
     subst α_def
     simp only [instBot, relate] at X_rel_Y
     have ⟨_,⟨_,_,iii,_⟩⟩ := MG
     exact iii X Y _ _ X_rel_Y boxP_in_X
-  case sequence β γ =>
+  case star a =>
+    -- We now follow MB and do another level of induction over n. -- TODO replace with new way
+    have claim : ∀ n (ys : Vector Worlds n.succ),
+      (⌈∗a⌉φ) ∈ ys.head.val → (∀ i : Fin n, relate MG.val a (ys.get i.castSucc) (ys.get (i.succ))) → φ ∈ ys.last.val
+      := by
+      intro n
+      induction n -- "inner induction"
+      case zero =>
+        rintro ys boxP_in_head steprel
+        have : ys.last = ys.head := by
+          cases ys using Vector.inductionOn
+          case h_cons rest _ =>
+            cases rest using Vector.inductionOn; simp only [Nat.zero_eq, Vector.head_cons]; rfl
+        rw [this]
+        have ⟨_,⟨i,_,_,_⟩⟩ := MG
+        have := (i ys.head).left
+        simp [saturated] at this
+        sorry -- exact ((this φ φ a a).right.right.right.right.right.right.left boxP_in_head).left
+      case succ m IH =>
+        rintro ys boxP_in_head steprel
+        let Z := ys.get 1
+        have head_a_Z : relate MG.val a ys.head Z := by
+          convert (steprel 0)
+          simp
+        have : (⌈a⌉⌈∗a⌉φ) ∈ ys.head.val := by
+          have ⟨_,⟨i,_,_,_⟩⟩ := MG
+          have := (i ys.head).left
+          simp [saturated] at this
+          sorry -- exact ((this φ φ a a).right.right.right.right.right.right.left boxP_in_head).right
+        have boxP_in_Z : (⌈∗a⌉φ) ∈ Z.val := loadedTruthLemmaProg MG a ys.head (⌈∗a⌉φ) this Z head_a_Z
+        have : ys.last = ys.tail.last := by
+          cases ys using Vector.inductionOn
+          case h_cons rest _ =>
+            cases rest using Vector.inductionOn; simp; rfl
+        rw [this]
+        apply IH ys.tail
+        · convert boxP_in_Z
+          cases ys using Vector.inductionOn
+          case h_cons _ rest _ _ =>
+            cases rest using Vector.inductionOn
+            · simp only [Vector.tail_cons, Vector.head_cons]
+              rfl
+        · intro i
+          specialize steprel (i.succ).castSucc
+          simp
+          simp at steprel
+          have : (Fin.succ (Fin.castSucc i)) = (Fin.castSucc (Fin.succ i)) := by
+            rfl
+          rw [this]
+          exact steprel
+    simp at X_rel_Y
+    rcases ReflTransGen.to_finitelyManySteps X_rel_Y with ⟨n, ys, X_is_head, Y_is_last, steprel⟩
+    rw [Y_is_last]
+    rw [X_is_head] at boxP_in_X
+    exact claim n ys (α_def ▸ boxP_in_X) steprel
+  -- remaining cases: sequence, union, test
+  all_goals -- sic!
     have satX := (MG.prop.1 X).left
     simp only [saturated, List.all_eq_true, decide_eq_true_eq, Prod.exists] at satX
     -- use saturatedness to get a testprofile ℓ:
@@ -267,85 +322,6 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       have := @List.get_last _ Y (X :: l) (Fin.last _)
       simp_all [eq_comm]
 
-  case union b c =>
-    -- TODO: should be the same as sequence
-    sorry
-
-  case star a =>
-    -- We now follow MB and do another level of induction over n. -- TODO replace with new way
-    have claim : ∀ n (ys : Vector Worlds n.succ),
-      (⌈∗a⌉φ) ∈ ys.head.val → (∀ i : Fin n, relate MG.val a (ys.get i.castSucc) (ys.get (i.succ))) → φ ∈ ys.last.val
-      := by
-      intro n
-      induction n -- "inner induction"
-      case zero =>
-        rintro ys boxP_in_head steprel
-        have : ys.last = ys.head := by
-          cases ys using Vector.inductionOn
-          case h_cons rest _ =>
-            cases rest using Vector.inductionOn; simp only [Nat.zero_eq, Vector.head_cons]; rfl
-        rw [this]
-        have ⟨_,⟨i,_,_,_⟩⟩ := MG
-        have := (i ys.head).left
-        simp [saturated] at this
-        sorry -- exact ((this φ φ a a).right.right.right.right.right.right.left boxP_in_head).left
-      case succ m IH =>
-        rintro ys boxP_in_head steprel
-        let Z := ys.get 1
-        have head_a_Z : relate MG.val a ys.head Z := by
-          convert (steprel 0)
-          simp
-        have : (⌈a⌉⌈∗a⌉φ) ∈ ys.head.val := by
-          have ⟨_,⟨i,_,_,_⟩⟩ := MG
-          have := (i ys.head).left
-          simp [saturated] at this
-          sorry -- exact ((this φ φ a a).right.right.right.right.right.right.left boxP_in_head).right
-        have boxP_in_Z : (⌈∗a⌉φ) ∈ Z.val := loadedTruthLemmaProg MG a ys.head (⌈∗a⌉φ) this Z head_a_Z
-        have : ys.last = ys.tail.last := by
-          cases ys using Vector.inductionOn
-          case h_cons rest _ =>
-            cases rest using Vector.inductionOn; simp; rfl
-        rw [this]
-        apply IH ys.tail
-        · convert boxP_in_Z
-          cases ys using Vector.inductionOn
-          case h_cons _ rest _ _ =>
-            cases rest using Vector.inductionOn
-            · simp only [Vector.tail_cons, Vector.head_cons]
-              rfl
-        · intro i
-          specialize steprel (i.succ).castSucc
-          simp
-          simp at steprel
-          have : (Fin.succ (Fin.castSucc i)) = (Fin.castSucc (Fin.succ i)) := by
-            rfl
-          rw [this]
-          exact steprel
-    simp at X_rel_Y
-    rcases ReflTransGen.to_finitelyManySteps X_rel_Y with ⟨n, ys, X_is_head, Y_is_last, steprel⟩
-    rw [Y_is_last]
-    rw [X_is_head] at boxP_in_X
-    exact claim n ys (α_def ▸ boxP_in_X) steprel
-
-  case test R =>
-    -- TODO: now to be replaced with same as union and sequence ?!
-    have nR_or_P_in_X : (~R) ∈ X.val ∨ φ ∈ X.val := by
-      have ⟨_,⟨i,_,_,_⟩⟩ := MG
-      have := (i X).left
-      simp [saturated] at this
-      sorry -- exact (this P R (?'⊤) (?'⊤)).right.right.right.right.right.left boxP_in_X
-    simp at X_rel_Y
-    rcases X_rel_Y with ⟨X_is_Y, X_R⟩
-    subst X_is_Y
-    cases nR_or_P_in_X
-    case inl nR_in_X =>
-      have := loadedTruthLemma MG X R
-      have minus_X := this.right
-      specialize minus_X nR_in_X
-      absurd minus_X
-      exact X_R
-    case inr P_in_X =>
-      exact P_in_X
 termination_by
   _ _ _ => lengthOf α
 
