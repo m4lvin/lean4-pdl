@@ -651,6 +651,73 @@ def Xset (α : Program) (l : List Formula) (ψ : Formula) : List Formula :=
 def unfoldBox (α : Program) (φ : Formula) : List (List Formula) :=
   (TP α).map (fun l => Xset α l φ)
 
+-- FIXME: move to Syntax.lea
+def isAtomic : Program → Bool
+| ·_ => true
+| _ => false
+
+def isStar : Program → Bool
+| ∗_ => true
+| _ => false
+
+theorem P_goes_down : γ ∈ δ → δ ∈ P (α, l) → (if isAtomic α then γ = α else if isStar α then lengthOfProgram γ ≤  lengthOfProgram α else lengthOfProgram γ < lengthOfProgram α) := by
+  intro γ_in δ_in
+  cases α
+  all_goals
+    simp_all [isAtomic, isStar, P]
+  case sequence α β =>
+    cases δ_in
+    case inl δ_in =>
+      rcases δ_in with ⟨αs, αs_in, def_δ⟩
+      subst def_δ
+      simp_all
+      cases γ_in
+      case inl γ_in =>
+        have IH := P_goes_down γ_in (List.mem_of_mem_filter αs_in)
+        cases em (isAtomic α) <;> cases em (isStar α)
+        all_goals (simp_all;try linarith)
+      case inr γ_in =>
+        subst γ_in
+        linarith
+    case inr δ_in =>
+      cases em ([] ∈ P (α,l))
+      · simp_all
+        have IH := P_goes_down γ_in (List.mem_of_mem_filter δ_in)
+        cases em (isAtomic β) <;> cases em (isStar β)
+        all_goals (simp_all;try linarith)
+      · simp_all
+  case union α β =>
+    cases δ_in
+    case inl δ_in =>
+      have IH := P_goes_down γ_in δ_in
+      cases em (isAtomic α) <;> cases em (isStar α)
+      all_goals (simp_all;try linarith)
+    case inr δ_in =>
+      have IH := P_goes_down γ_in δ_in
+      cases em (isAtomic β) <;> cases em (isStar β)
+      all_goals (simp_all;try linarith)
+  case star α =>
+    cases δ
+    case nil =>
+      exfalso; cases γ_in
+    case cons =>
+      simp_all only [false_or]
+      rcases δ_in with ⟨αs, αs_in, def_δ⟩
+      subst_eqs
+      cases em (γ ∈ αs)
+      case inl γ_in =>
+        have IH := P_goes_down γ_in (List.mem_of_mem_filter αs_in)
+        cases em (isAtomic α) <;> cases em (isStar α)
+        all_goals (simp_all;try linarith)
+      case inr γ_not_in =>
+        have : γ = (∗α) := by rw [← def_δ] at γ_in; simp at γ_in; tauto
+        subst_eqs
+        simp
+  case test τ =>
+    cases em (τ ∈ l)
+    · simp_all
+    · simp_all
+
 theorem F_goes_down : φ ∈ F (α, l) → lengthOfFormula φ < lengthOfProgram α := by
   intro φ_in
   cases α

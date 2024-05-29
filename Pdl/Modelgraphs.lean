@@ -187,7 +187,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
     have ⟨_,⟨_,_,iii,_⟩⟩ := MG
     exact iii X Y _ _ X_rel_Y boxP_in_X
   case star a =>
-    -- We now follow MB and do another level of induction over n. -- TODO replace with new way
+    -- We now follow MB and do another level of induction over n. -- TODO replace with new way - or not, base case still works!
     have claim : ∀ n (ys : Vector Worlds n.succ),
       (⌈∗a⌉φ) ∈ ys.head.val → (∀ i : Fin n, relate MG.val a (ys.get i.castSucc) (ys.get (i.succ))) → φ ∈ ys.last.val
       := by
@@ -201,20 +201,24 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
             cases rest using Vector.inductionOn; simp only [Nat.zero_eq, Vector.head_cons]; rfl
         rw [this]
         have ⟨_,⟨i,_,_,_⟩⟩ := MG
-        have := (i ys.head).left
-        simp [saturated] at this
-        sorry -- exact ((this φ φ a a).right.right.right.right.right.right.left boxP_in_head).left
+        have := ((i ys.head).left φ φ (∗a)).right.right.right.left boxP_in_head
+        simp [TP, Xset] at this
+        rcases this with ⟨l, l_sub_Prog, claim⟩
+        apply claim
+        simp [testsOfProgram, P, F]
       case succ m IH =>
         rintro ys boxP_in_head steprel
         let Z := ys.get 1
         have head_a_Z : relate MG.val a ys.head Z := by
           convert (steprel 0)
           simp
+        -- TODO needs adaptation, `a` might be further taken apart and not actually be in ys.head :-/
         have : (⌈a⌉⌈∗a⌉φ) ∈ ys.head.val := by
           have ⟨_,⟨i,_,_,_⟩⟩ := MG
-          have := (i ys.head).left
-          simp [saturated] at this
-          sorry -- exact ((this φ φ a a).right.right.right.right.right.right.left boxP_in_head).right
+          have := ((i ys.head).left φ φ (∗a)).right.right.right.left boxP_in_head
+          simp [TP, Xset] at this
+          rcases this with ⟨l, l_sub_Prog, claim⟩
+          sorry
         have boxP_in_Z : (⌈∗a⌉φ) ∈ Z.val := loadedTruthLemmaProg MG a ys.head (⌈∗a⌉φ) this Z head_a_Z
         have : ys.last = ys.tail.last := by
           cases ys using Vector.inductionOn
@@ -266,7 +270,9 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
     -- FIXME: Notes now want to apply IH of C3, but we use C4 for all elements in δ
     have IHδ : ∀ d ∈ δ, ∀ (X' Y' : Worlds), ∀ φ', (⌈d⌉φ') ∈ X'.val → relate MG.val d X' Y' → φ' ∈ Y'.val := by
       intro d d_in_δ X' Y' φ' dφ_in_X' X'_d_Y'
-      have forTermination : lengthOf d < lengthOf α := by sorry -- lemma about P needed?
+      have forTermination : lengthOf d < lengthOf α := by
+        have := P_goes_down d_in_δ δ_in_P
+        simp_all [isAtomic, isStar]
       exact loadedTruthLemmaProg MG d X' φ' dφ_in_X' Y' X'_d_Y'
     -- NOTE: tried `induction δ` before, but seems bad idea, yields too weak/annoying IH
     -- Instead, check if δ is empty, and in non-empty case use `relateSeq_toChain'`.
