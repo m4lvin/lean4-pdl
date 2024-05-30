@@ -85,47 +85,55 @@ theorem existsWitnessPath_rtl (M : KripkeModel W) (n : Nat) :
         · -- need Lemma about H here?
           sorry
 
-
-/-
-theorem existsWitnessPath {M : KripkeModel W} δ v :
-    (M,v) ⊨ (~ Formula.boxes δ ξ) ↔ ∃ π, witness M v π δ ξ := by
+theorem existsWitnessPath_ltr (M : KripkeModel W) v δ ξ :
+    evaluate M v (~ Formula.boxes δ ξ) → Nonempty (witness M v δ ξ) := by
   induction δ generalizing v
   case nil =>
-    simp [modelCanSemImplyForm, witness]
+    intro v_ξ
     constructor
-    · intro nvXi
-      use []
-    · rintro ⟨π, wit⟩
-      cases wit
-      simp only [modelCanSemImplyForm, evaluatePoint, evaluate] at *
-      assumption
-  case cons d δ IH =>
-    simp only [Formula.boxes]
-    constructor
-    · simp [modelCanSemImplyForm, evaluatePoint, evaluate, not_forall, exists_prop, forall_exists_index, and_imp] at *
-      intro w v_d_w not_w_
-      rw [IH] at not_w_
-      clear IH
-      rcases not_w_ with ⟨π, w_π_δ_wit⟩
-      cases d -- Distinguish cases by the first program `d` in the path `d :: δ`.
-      all_goals simp only [relate] at v_d_w
-      case atom_prog a =>
-        exact ⟨w :: π, witness.consAtom v_d_w w_π_δ_wit⟩
-      case test φ =>
-        rcases v_d_w with ⟨v_is_w, v_φ⟩
-        subst v_is_w
-        use π
-        exact witness.consEmpty [φ] (by simp [H]) (by simp [modelCanSemImplyList]; exact v_φ) w_π_δ_wit
-      -- NEXT: in all remaining cases, use witness.consComp
-      -- QUESTION: Do we need IHs/recursion now? What if δ becomes longer in the recursive call?
-      case sequence α β =>
-        rcases v_d_w with ⟨u, v_α_u, u_β_w⟩
-
-        sorry
-      case union α β =>
-        sorry
-      case star α =>
-        sorry
-    ·
+    apply witness.nil
+    simp at *
+    exact v_ξ
+  case cons α γs IH =>
+    intro v_
+    simp at *
+    rcases v_ with ⟨w, v_α_w, w_⟩
+    rcases IH w w_ with ⟨w_wit⟩
+    cases α -- do this before `constructor`.
+    case atom_prog a =>
+      simp at v_α_w
+      constructor
+      apply witness.consAtom v_α_w w_wit
+    -- TODO: in remaining cases, when do we use which one?
+    -- apply withess.consEmpty
+    -- apply witness.consComp
+    case sequence α β =>
+      simp at *
+      rcases v_α_w with ⟨u, v_u, u_w⟩
+      rcases IH w w_ with ⟨w_wit⟩
+      constructor
+      -- ?
       sorry
--/
+    case union α β =>
+      -- ?
+      constructor
+      sorry
+    case test τ =>
+      -- ?
+      constructor
+      sorry
+    case star β =>
+      -- ?
+      constructor
+      sorry
+
+theorem existsWitnessPath {M : KripkeModel W} δ v :
+    (M,v) ⊨ (~ Formula.boxes δ ξ) ↔ Nonempty (witness M v δ ξ) := by
+  constructor
+  · simp [modelCanSemImplyForm, evaluatePoint] at *
+    have := existsWitnessPath_ltr M v δ ξ
+    simp_all
+  · rintro ⟨wit⟩
+    simp [modelCanSemImplyForm, evaluatePoint] at *
+    have := existsWitnessPath_rtl M wit.length v δ ξ wit --  or remove wit.length later?
+    simp_all
