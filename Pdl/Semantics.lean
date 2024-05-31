@@ -234,6 +234,28 @@ theorem rel_steps_last {as} : ∀ v w,
       rw [IH]
       tauto
 
+def relateSeq {W} (M : KripkeModel W) (δ : List Program) (w v : W) : Prop :=
+  match δ with
+  | [] => w = v
+  | (α::as) => ∃ u, relate M α w u ∧ relateSeq M as u v
+
+@[simp]
+theorem relateSeq_singelton (M : KripkeModel W) (α : Program) (w v : W) :
+    relateSeq M [α] w v ↔ relate M α w v := by
+  simp [relateSeq]
+
+theorem relateSeq_append (M : KripkeModel W) (l1 l2 : List Program) (w v : W) :
+    relateSeq M (l1 ++ l2) w v ↔ ∃ u, relateSeq M l1 w u ∧ relateSeq M l2 u v := by
+  induction l1 generalizing w v
+  · simp [relateSeq]
+  case cons l l1 IH =>
+    simp [relateSeq]
+    aesop
+
+theorem evalBoxes (δ : List Program) φ :
+    evaluate M w (⌈⌈δ⌉⌉φ) ↔ (∀ v, relateSeq M δ w v → evaluate M v φ) := by
+  sorry
+
 theorem truthImply_then_satImply (X Y : List Formula) : X ⊨ Y → satisfiable X → satisfiable Y :=
   by
   intro X_Y
