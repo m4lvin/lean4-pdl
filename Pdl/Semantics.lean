@@ -147,18 +147,24 @@ theorem forms_to_lists {φ ψ : Formula} : φ⊨ψ → ([φ] : List Formula)⊨(
   · tauto
   · aesop
 
-theorem notSat_iff_semImplies (X : List Formula) (χ : Formula):
-    ¬ satisfiable (X ∪ [~χ]) ↔ X ⊨ ([χ] : List Formula) := by
-  simp only [satisfiable, not_exists, not_forall, exists_prop, setCanSemImplySet, semImpliesSets, forall_eq]
+theorem notSat_iff_semImplies (X : List Formula) (φ : Formula):
+    ¬ satisfiable (X ∪ [~φ]) ↔ X ⊨ ([φ] : List Formula) := by
   constructor
-  · intro nSat W M w satX
+  · simp only [satisfiable, not_exists, not_forall, exists_prop, setCanSemImplySet, semImpliesSets, forall_eq]
+    intro nSat W M w satX
     specialize nSat W M w
     rcases nSat with ⟨φ, phi_in, not_phi⟩
     aesop
-  · intro X_chi W M w
-    specialize X_chi W M w
-    -- cases em (evaluate M w χ)
-    sorry
+  · intro X_φ
+    by_contra hyp
+    simp only [satisfiable, setCanSemImplySet, semImpliesSets] at hyp
+    rcases hyp with ⟨W, M, w, w_⟩
+    specialize X_φ W M w
+    cases X
+    · simp_all
+    · have := w_ (~φ)
+      simp at *
+      simp_all
 
 theorem equivSat (φ ψ : Formula) {M : KripkeModel W} {w : W} :
     φ ≡ ψ → (M, w) ⊨ φ → (M, w) ⊨ ψ :=
@@ -254,7 +260,25 @@ theorem relateSeq_append (M : KripkeModel W) (l1 l2 : List Program) (w v : W) :
 
 theorem evalBoxes (δ : List Program) φ :
     evaluate M w (⌈⌈δ⌉⌉φ) ↔ (∀ v, relateSeq M δ w v → evaluate M v φ) := by
-  sorry
+  induction δ generalizing w
+  · simp [relateSeq]
+  case cons α δ IH =>
+    simp only [Formula.boxes, evaluate]
+    constructor
+    · intro lhs
+      intro v v_αδ_w
+      simp [relateSeq] at *
+      rcases v_αδ_w with ⟨u, w_α_u, u_δ_v⟩
+      specialize @IH u
+      refine IH.1 ?_ v u_δ_v
+      simp_all only [true_iff]
+    · intro rhs
+      intro u w_α_u
+      apply IH.2
+      intro v u_δ_v
+      apply rhs
+      simp only [relateSeq]
+      use u
 
 theorem truthImply_then_satImply (X Y : List Formula) : X ⊨ Y → satisfiable X → satisfiable Y :=
   by
