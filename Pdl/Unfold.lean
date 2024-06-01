@@ -26,45 +26,99 @@ def H : Program → List (List Formula × List Program)
 
 open HasVocabulary
 
-theorem H_keeps_fresh α : x ∉ voc α → ∀ Fδ ∈ H α, x ∉ voc Fδ.1 ∧ x ∉ voc Fδ.2 := by
-  intro x_notin Fδ Fδ_in_H
+theorem keepFreshH α : x ∉ voc α → ∀ F δ, (F,δ) ∈ H α → x ∉ voc F ∧ x ∉ voc δ := by
+  intro x_notin F δ Fδ_in_H
   cases α
   all_goals
     simp [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram] at *
-    subst_eqs
   case atom_prog a =>
+    cases Fδ_in_H
+    subst_eqs
     simp [vocabOfProgram]
     assumption
-  all_goals (constructor <;> intro x x_in)
+  case test =>
+    cases Fδ_in_H
+    subst_eqs
+    aesop
+  all_goals
+    constructor <;> intro y y_in -- FIXME: delay this to shorten the proof?
   case sequence.left α β =>
-    rcases Fδ_in_H with ⟨l, ⟨⟨ F',δ', ⟨Fδ'_in, def_l⟩ ⟩  , Fδ_in_l⟩⟩
+    rw [not_or] at x_notin
+    rcases Fδ_in_H with ⟨l, ⟨⟨F', δ', ⟨Fδ'_in, def_l⟩⟩, Fδ_in_l⟩⟩
     subst def_l
     cases em (δ' = []) <;> simp_all
     · subst_eqs
-      rw [not_or] at x_notin
-      have := H_keeps_fresh α x_notin.1 (F',[]) Fδ'_in
+      have IHα := keepFreshH α x_notin.1 F' [] Fδ'_in
       simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
-      apply this
-      -- take apart Fδ_in_l here???
-      sorry
+      rcases Fδ_in_l with ⟨l', ⟨⟨a', b', ⟨a'b'_in_Hβ, def_l'⟩⟩, Fδ_in_l'⟩⟩
+      subst_eqs
+      simp_all
+      cases y_in
+      · apply IHα
+        assumption
+      · have IHβ := keepFreshH β x_notin.2 a' b' a'b'_in_Hβ
+        simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
     · subst_eqs
-      rw [not_or] at x_notin
-      have := H_keeps_fresh α x_notin.1 (F',δ') Fδ'_in
+      have := keepFreshH α x_notin.1 F' δ' Fδ'_in
       simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
   case sequence.right α β =>
-    sorry
+    rw [not_or] at x_notin
+    rcases Fδ_in_H with ⟨l, ⟨⟨F', δ', ⟨Fδ'_in, def_l⟩⟩, Fδ_in_l⟩⟩
+    subst def_l
+    cases em (δ' = []) <;> simp_all
+    · subst_eqs
+      have IHα := keepFreshH α x_notin.1 F' [] Fδ'_in
+      simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
+      rcases Fδ_in_l with ⟨l', ⟨⟨a', b', ⟨a'b'_in_Hβ, def_l'⟩⟩, Fδ_in_l'⟩⟩
+      subst_eqs
+      simp_all
+      have IHβ := keepFreshH β x_notin.2 a' b' a'b'_in_Hβ
+      simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
+    · cases y_in
+      · have IHα := keepFreshH α x_notin.1 F' δ' Fδ'_in
+        simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
+      · subst_eqs
+        tauto
   case union.left α β =>
-    sorry
+    rw [not_or] at x_notin
+    cases Fδ_in_H
+    · have IHα := keepFreshH α x_notin.1 F δ
+      simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
+    · have IHβ := keepFreshH β x_notin.2 F δ
+      simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
   case union.right α β =>
-    sorry
+    rw [not_or] at x_notin
+    cases Fδ_in_H
+    · have IHα := keepFreshH α x_notin.1 F δ
+      simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
+    · have IHβ := keepFreshH β x_notin.2 F δ
+      simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
   case star.left α =>
-    sorry
+    cases Fδ_in_H
+    · exfalso; simp_all
+    case inr hyp =>
+      rcases hyp with ⟨l, ⟨⟨F', δ', ⟨Fδ'_in_Hα, def_l⟩⟩, Fδ_in_l⟩⟩
+      subst def_l
+      have IHα := keepFreshH α x_notin F' δ' Fδ'_in_Hα
+      cases em (δ' = []) <;> simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
   case star.right α =>
-    sorry
-  case test.refl.left τ =>
-    sorry
-  case test.refl.right τ =>
-    sorry
+    cases Fδ_in_H
+    · exfalso; simp_all
+    case inr hyp =>
+      rcases hyp with ⟨l, ⟨⟨F', δ', ⟨Fδ'_in_Hα, def_l⟩⟩, Fδ_in_l⟩⟩
+      subst def_l
+      have IHα := keepFreshH α x_notin F' δ' Fδ'_in_Hα
+      cases em (δ' = [])
+      · simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
+      · simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
+        cases Fδ_in_l
+        subst_eqs
+        cases y_in
+        · have := keepFreshH α x_notin F δ' Fδ'_in_Hα
+          simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
+        · subst_eqs
+          simp [vocabOfProgram]
+          exact x_notin
 
 def Yset : (List Formula × List Program) → (Formula) → List Formula
 | ⟨F, δ⟩, φ => F ∪ [ ~ Formula.boxes δ φ ]
@@ -411,7 +465,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
             rw [this]
             simp only [repl_in_F, Formula.instBot]
             -- use that x not in β and thus also not in any element of H β
-            have myFresh := H_keeps_fresh β x_not_in
+            have myFresh := keepFreshH β x_not_in
             apply listEq_to_disEq
             rw [List.map_eq_map_iff]
             intro Fδ Fδ_in_Hβ

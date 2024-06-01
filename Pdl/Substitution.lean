@@ -23,10 +23,24 @@ mutual
 end
 
 theorem repl_in_Con : repl_in_F x ψ (Con l) = Con (l.map (repl_in_F x ψ)) := by
-  induction l
+  cases l
   · simp
-  · simp [Con]
-    sorry
+  case cons φ1 l =>
+    cases l
+    · simp
+    case cons φ2 l =>
+      simp [Con]
+      apply repl_in_Con
+
+theorem repl_in_dis : repl_in_F x ψ (dis l) = dis (l.map (repl_in_F x ψ)) := by
+  cases l
+  · simp
+  case cons φ1 l =>
+    cases l
+    · simp
+    case cons φ2 l =>
+      simp [dis]
+      apply repl_in_dis
 
 open HasVocabulary
 
@@ -192,4 +206,6 @@ theorem repl_in_P_equiv x ψ :
 theorem repl_in_disMap x ρ (L : List α) (p : α → Prop) (f : α → Formula) [DecidablePred p] :
     repl_in_F x ρ (dis (L.map (fun Fδ => if p Fδ then Formula.bottom else f Fδ))) =
     dis (L.map (fun Fδ => if p Fδ then Formula.bottom else repl_in_F x ρ (f Fδ))) := by
-  sorry
+  rw [repl_in_dis, listEq_to_disEq]
+  simp only [List.map_map]
+  aesop
