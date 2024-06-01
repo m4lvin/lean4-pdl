@@ -24,6 +24,9 @@ def vocabOfSetFormula : Finset Formula → Finset Nat
 def vocabOfListFormula : List Formula → Finset Nat
   | X => (X.toFinset).biUnion vocabOfFormula
 
+def vocabOfListProgram : List Program → Finset Nat
+  | X => (X.toFinset).biUnion vocabOfProgram
+
 theorem inVocList : ℓ ∈ vocabOfListFormula L ↔ ∃φ ∈ L, ℓ ∈ vocabOfFormula φ := by
   simp only [vocabOfListFormula, Finset.mem_biUnion, List.mem_toFinset]
 
@@ -34,6 +37,7 @@ instance formulaHasVocabulary : HasVocabulary Formula := ⟨vocabOfFormula⟩
 instance programHasVocabulary : HasVocabulary Program := ⟨vocabOfProgram⟩
 instance finsetFormulaHasVocabulary : HasVocabulary (Finset Formula) := ⟨vocabOfSetFormula⟩
 instance listFormulaHasVocabulary : HasVocabulary (List Formula) := ⟨vocabOfListFormula⟩
+instance listProgramHasVocabulary : HasVocabulary (List Program) := ⟨vocabOfListProgram⟩
 
 /-- Tests(α) -/
 def testsOfProgram : Program → List Formula

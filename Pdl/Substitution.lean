@@ -1,6 +1,7 @@
 
 import Pdl.Semantics
 import Pdl.Vocab
+import Pdl.Discon
 
 mutual
   /-- Replace atomic proposition `x` by `ψ` in a formula. -/
@@ -20,6 +21,12 @@ mutual
     | ∗α  => ∗(repl_in_P x ψ α)
     | ?'φ  => ?' (repl_in_F x ψ φ)
 end
+
+theorem repl_in_Con : repl_in_F x ψ (Con l) = Con (l.map (repl_in_F x ψ)) := by
+  induction l
+  · simp
+  · simp [Con]
+    sorry
 
 open HasVocabulary
 
@@ -57,6 +64,28 @@ theorem repl_in_P_non_occ_eq {x α ρ} :
   case test φ =>
     apply repl_in_F_non_occ_eq; tauto
 end
+
+theorem repl_in_boxes_non_occ_eq (δ : List Program) :
+    x ∉ voc δ → repl_in_F x ψ (⌈⌈δ⌉⌉~·x) = ⌈⌈δ⌉⌉~ψ := by
+  intro nonOcc
+  induction δ
+  · simp
+  case cons α δ IH =>
+    simp
+    constructor
+    · apply repl_in_P_non_occ_eq
+      simp [voc,vocabOfProgram,vocabOfListProgram] at *
+      aesop
+    · apply IH
+      clear IH
+      simp [voc,vocabOfProgram,vocabOfListProgram] at *
+      rw [not_or] at nonOcc
+      intro d d_in
+      aesop
+
+theorem repl_in_list_non_occ_eq (F : List Formula) :
+     x ∉ voc F → F.map (repl_in_F x ρ) = F := by
+  sorry
 
 /-- Overwrite the valuation of `x` with the current value of `ψ` in a model. -/
 def repl_in_model (x : Nat) (ψ : Formula) : KripkeModel W → KripkeModel W
@@ -143,3 +172,8 @@ theorem repl_in_P_equiv x ψ :
   rw [claim1]
   rw [claim2]
   apply hyp
+
+theorem repl_in_disMap x ρ (L : List α) (p : α → Prop) (f : α → Formula) [DecidablePred p] :
+    repl_in_F x ρ (dis (L.map (fun Fδ => if p Fδ then Formula.bottom else f Fδ))) =
+    dis (L.map (fun Fδ => if p Fδ then Formula.bottom else repl_in_F x ρ (f Fδ))) := by
+  sorry

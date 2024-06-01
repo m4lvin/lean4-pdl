@@ -15,6 +15,9 @@ theorem conempty : Con ∅ = (⊤ : Formula) := by rfl
 @[simp]
 theorem consingle {f : Formula} : Con [f] = f := by rfl
 
+theorem listEq_to_conEq : l1 = l2 → Con l1 = Con l2 := by
+  aesop
+
 @[simp]
 def dis : List Formula → Formula
   | [] => ⊥
@@ -26,6 +29,9 @@ theorem disempty : dis ∅ = (⊥ : Formula) := by rfl
 
 @[simp]
 theorem dissingle {f : Formula} : dis [f] = f := by rfl
+
+theorem listEq_to_disEq : l1 = l2 → dis l1 = dis l2 := by
+  aesop
 
 @[simp]
 def discon : List (List Formula) → Formula
