@@ -71,21 +71,37 @@ theorem repl_in_boxes_non_occ_eq (δ : List Program) :
   induction δ
   · simp
   case cons α δ IH =>
-    simp
+    simp only [Formula.boxes, repl_in_F, Formula.box.injEq]
     constructor
     · apply repl_in_P_non_occ_eq
       simp [voc,vocabOfProgram,vocabOfListProgram] at *
-      aesop
+      intro _
+      simp_all
     · apply IH
       clear IH
       simp [voc,vocabOfProgram,vocabOfListProgram] at *
       rw [not_or] at nonOcc
       intro d d_in
-      aesop
+      simp_all
 
 theorem repl_in_list_non_occ_eq (F : List Formula) :
      x ∉ voc F → F.map (repl_in_F x ρ) = F := by
-  sorry
+  intro nonOcc
+  induction F
+  · simp
+  case cons φ F IH =>
+    simp only [List.map_cons, List.cons.injEq]
+    constructor
+    · apply repl_in_F_non_occ_eq
+      simp [voc,vocabOfProgram,vocabOfListFormula] at *
+      rw [not_or] at nonOcc
+      exact nonOcc.left
+    · apply IH
+      clear IH
+      simp [voc,vocabOfProgram,vocabOfListFormula] at *
+      rw [not_or] at nonOcc
+      intro d d_in
+      simp_all
 
 /-- Overwrite the valuation of `x` with the current value of `ψ` in a model. -/
 def repl_in_model (x : Nat) (ψ : Formula) : KripkeModel W → KripkeModel W
