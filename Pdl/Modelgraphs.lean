@@ -51,6 +51,55 @@ theorem get_eq_getzip {X Y : α} {i : Fin ((List.length (l ++ [Y])))} {h} :
   rw [List.get_zip]
   rfl
 
+theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
+    {MG : ModelGraph Worlds}
+    {X Y : { x // x ∈ Worlds }}
+    {δ : List Program}
+    {φ : Formula}
+    {l: List { x // x ∈ Worlds }}
+    (length_def: l.length + 1 = δ.length)
+    (δφ_in_X : (⌈⌈δ⌉⌉φ) ∈ X.val)
+    (lchain : List.Chain' (pairRel MG.1) (List.zip ((?'⊤) :: δ) (X :: l ++ [Y])))
+    (IHδ : ∀ d ∈ δ, ∀ (X' Y' : { x // x ∈ Worlds }) (φ' : Formula), (⌈d⌉φ') ∈ X'.1 → relate (MG.1) d X' Y' → φ' ∈ Y'.1)
+    (i : Fin (List.length (X :: l ++ [Y])))
+    :
+    (⌈⌈δ.drop i⌉⌉φ) ∈ ((X :: l ++ [Y]).get i).val := by
+  induction i using Fin.inductionOn
+  case zero =>
+    simp_all -- uses δφ_in_X
+  case succ i IH =>
+    simp_all only [List.cons_append, List.length_cons, List.append_eq, Fin.val_succ, List.get_cons_succ']
+    have help1 : (List.append l [Y]).length = δ.length := by simp [length_def]
+    apply IHδ (δ.get (i.cast help1)) (by apply List.get_mem) (List.get (X :: l ++ [Y]) i.castSucc)
+    · have : (⌈List.get δ (i.cast help1)⌉⌈⌈List.drop (i + 1) δ⌉⌉φ) = (⌈⌈List.drop (i.castSucc) δ⌉⌉φ) := by
+        simp only [List.append_eq, Fin.coe_castSucc]
+        rw [← Formula.boxes]
+        have := @List.drop_eq_get_cons _ i δ (by rw [← length_def]; have := Fin.is_lt i; convert this; simp)
+        rw [this]
+        cases i
+        simp_all
+      rw [this]
+      exact IH
+    · simp [relate]
+      -- It now remains to make lchain usable
+      rw [List.chain'_iff_get] at lchain
+      specialize lchain i ?_
+      · rcases i with ⟨val, hyp⟩
+        simp_all
+        rw [← length_def]
+        simp at hyp
+        exact hyp
+      simp only [pairRel, instBot, insTop, List.cons_append, List.zip_cons_cons, List.length_cons, List.append_eq, List.get_cons_succ, List.get_zip] at lchain
+      convert lchain
+      · rw [← length_def]
+        simp
+      · simp only [Fin.cast, List.append_eq]
+        rcases i with ⟨val, hyp⟩
+        rw [Fin.heq_ext_iff]
+        rw [← length_def]
+        simp
+      · apply get_eq_getzip
+
 -- Originally MB Lemma 9, page 32, stronger version for induction loading.
 -- Now also using Q relation to overwrite tests.
 mutual
@@ -209,7 +258,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       apply Xset_sub_X
       right
       use δ
-    -- FIXME: Notes now want to apply IH of C3, but we use C4 for all elements in δ
+    -- Now we apply IH of C4 to all elements in δ
     have IHδ : ∀ d ∈ δ, ∀ (X' Y' : Worlds), ∀ φ', (⌈d⌉φ') ∈ X'.val → relate MG.val d X' Y' → φ' ∈ Y'.val := by
       intro d d_in_δ X' Y' φ' dφ_in_X' X'_d_Y'
       have forTermination : lengthOf d < lengthOf α := by
@@ -224,51 +273,15 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       have := relateSeq_toChain' X_δ_Y δ_notEmpty
       rcases this with ⟨l, length_def, lchain⟩
       -- Now we prove a claim to combine `lchain` with `IHδ`.
-      have loadClaim : ∀ i : Fin (X :: l ++ [Y]).length,
-          (⌈⌈δ.drop i⌉⌉φ) ∈ ((X :: l ++ [Y]).get i).val := by
-        intro i
-        induction i using Fin.inductionOn
-        case zero =>
-          simp_all -- uses δφ_in_X from above.
-        case succ i IH =>
-          simp only [List.cons_append, List.length_cons, List.append_eq, Fin.val_succ, List.get_cons_succ']
-          have help1 : (List.append l [Y]).length = δ.length := by simp [length_def]
-          apply IHδ (δ.get (i.cast help1)) (by apply List.get_mem) (List.get (X :: l ++ [Y]) i.castSucc)
-          · have : (⌈List.get δ (i.cast help1)⌉⌈⌈List.drop (i + 1) δ⌉⌉φ) = (⌈⌈List.drop (i.castSucc) δ⌉⌉φ) := by
-              simp only [List.append_eq, Fin.coe_castSucc]
-              rw [← Formula.boxes]
-              have := @List.drop_eq_get_cons _ i δ (by rw [← length_def]; have := Fin.is_lt i; convert this; simp)
-              rw [this]
-              cases i
-              simp_all
-            rw [this]
-            exact IH
-          · simp [relate]
-            -- It now remains to make lchain usable
-            rw [List.chain'_iff_get] at lchain
-            specialize lchain i ?_
-            · simp
-              rcases i with ⟨val, hyp⟩
-              simp_all
-              rw [← length_def]
-              simp at hyp
-              exact hyp
-            simp only [pairRel, instBot, insTop, List.cons_append, List.zip_cons_cons, List.length_cons, List.append_eq, List.get_cons_succ, List.get_zip] at lchain
-            convert lchain
-            · rw [← length_def]
-              simp
-            · simp only [Fin.cast, List.append_eq]
-              rcases i with ⟨val, hyp⟩
-              rw [Fin.heq_ext_iff]
-              rw [← length_def]
-              simp
-            · clear satX Xset_sub_X X_F IHδ
-              apply get_eq_getzip
-      specialize loadClaim (Fin.last _)
-      simp [length_def] at loadClaim
-      convert loadClaim
-      have := @List.get_last _ Y (X :: l) (Fin.last _)
-      simp_all [eq_comm]
+      suffices loadClaim : ∀ i : Fin (X :: l ++ [Y]).length,
+          (⌈⌈δ.drop i⌉⌉φ) ∈ ((X :: l ++ [Y]).get i).val by
+        specialize loadClaim (Fin.last _)
+        simp [length_def] at loadClaim
+        convert loadClaim
+        have := @List.get_last _ Y (X :: l) (Fin.last _)
+        simp_all [eq_comm]
+      intro i
+      exact loadClaimHelper length_def δφ_in_X lchain IHδ i
 
 termination_by
   _ _ _ => lengthOf α
@@ -346,42 +359,60 @@ theorem extracted_1 {Worlds : Finset (Finset Formula)} (MG : ModelGraph Worlds)
         have : (Vector.get (Vector.tail YS) (Fin.succ i)) = (Vector.get YS (Fin.succ (Fin.succ i))) := by aesop
         rw [this]; clear this
         exact relSteps
+    case inr δ_notEmpty =>
 
-    have : (δ ++ [∗β]) ∈ P (∗β, ℓ) := by
-      simp [P]
-      apply List.mem_filter_of_mem δ_in_P
+      have : (δ ++ [∗β]) ∈ P (∗β, ℓ) := by
+        simp [P]
+        apply List.mem_filter_of_mem δ_in_P
+        simp_all
+      have δβSφ_in_X : (⌈⌈δ⌉⌉⌈∗β⌉φ) ∈ X.1 := by
+        apply mysat
+        right
+        use δ ++ [∗β]
+        simp_all [boxes_append]
+      have : (⌈∗β⌉φ) ∈ Z.1 := by
+        clear innerIH
+        -- Now we apply IH of C4 loadedTruthLemmaProg to all elements in δ
+        have IHδ : ∀ d ∈ δ, ∀ (X' Y' : Worlds), ∀ φ', (⌈d⌉φ') ∈ X'.val → relate MG.val d X' Y' → φ' ∈ Y'.val := by
+          intro d d_in_δ X' Y' φ' dφ_in_X' X'_d_Y'
+          -- TODO: need this later????
+          -- have forTermination : lengthOf d < lengthOf (∗β) := by
+          --  have := P_goes_down d_in_δ δ_in_P
+          --  simp_all [P, isAtomic, isStar]
+          exact loadedTruthLemmaProg MG d X' φ' dφ_in_X' Y' X'_d_Y'
+        have := relateSeq_toChain' X_δ_Z δ_notEmpty
+        rcases this with ⟨l, length_def, lchain⟩
+        -- now combine lchain with IHδ
+        suffices loadClaim : ∀ i : Fin (X :: l ++ [Z]).length,
+            (⌈⌈δ.drop i⌉⌉⌈∗β⌉φ) ∈ ((X :: l ++ [Z]).get i).val by
+          specialize loadClaim (Fin.last _)
+          simp [length_def] at loadClaim
+          convert loadClaim
+          have := @List.get_last _ Z (X :: l) (Fin.last _)
+          simp_all [eq_comm]
+        intro i
+        exact loadClaimHelper length_def δβSφ_in_X lchain IHδ i
+      -- lastly, apply innerIH on Z and Y:
+      apply innerIH Z _ this
+      clear innerIH
       simp_all
-    have : (⌈⌈δ⌉⌉⌈∗β⌉φ) ∈ X.1 := by
-      apply mysat
-      right
-      use δ ++ [∗β]
-      simp_all [boxes_append]
-
-    have : (⌈∗β⌉φ) ∈ Z.1 := by
-      -- use C4 loadedTruthLemmaProg on programs in δ multiple times?
-      sorry
-
-    -- lastly, apply innerIH on Z and Y:
-    apply innerIH Z _ this
-    clear innerIH
-    simp_all
-    refine ⟨YS.tail, ?_, ?_, ?_⟩
-    · unfold_let Z
-      rw [← Vector.get_zero]
-      rw [Vector.get_tail_succ]
-      rfl
-    · unfold_let Z
-      rw [Vector.last_def, Vector.last_def]
-      rw [Vector.get_tail_succ]
-      rfl
-    · intro i
-      clear * -relSteps
-      specialize relSteps i.succ
-      have : (Vector.get (Vector.tail YS) (Fin.castSucc i)) = (Vector.get YS (Fin.castSucc (Fin.succ i))) := by aesop
-      rw [this]; clear this
-      have : (Vector.get (Vector.tail YS) (Fin.succ i)) = (Vector.get YS (Fin.succ (Fin.succ i))) := by aesop
-      rw [this]; clear this
-      exact relSteps
+      refine ⟨YS.tail, ?_, ?_, ?_⟩
+      · unfold_let Z
+        rw [← Vector.get_zero]
+        rw [Vector.get_tail_succ]
+        rfl
+      · unfold_let Z
+        rw [Vector.last_def, Vector.last_def]
+        rw [Vector.get_tail_succ]
+        rfl
+      · intro i
+        clear * -relSteps
+        specialize relSteps i.succ
+        have : (Vector.get (Vector.tail YS) (Fin.castSucc i)) = (Vector.get YS (Fin.castSucc (Fin.succ i))) := by aesop
+        rw [this]; clear this
+        have : (Vector.get (Vector.tail YS) (Fin.succ i)) = (Vector.get YS (Fin.succ (Fin.succ i))) := by aesop
+        rw [this]; clear this
+        exact relSteps
 
 theorem truthLemma {Worlds} (MG : ModelGraph Worlds) :
     ∀ X : Worlds, ∀ P, P ∈ X.val → evaluate MG.val X P :=
