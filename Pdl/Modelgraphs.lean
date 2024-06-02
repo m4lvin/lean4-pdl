@@ -1,4 +1,6 @@
 -- MODELGRAPHS
+import Mathlib.Tactic.ClearExcept
+import Mathlib.Data.Vector.Basic
 
 import Pdl.Semantics
 import Pdl.Star
@@ -182,64 +184,9 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
     have ⟨_,⟨_,_,iii,_⟩⟩ := MG
     exact iii X Y _ _ X_rel_Y boxP_in_X
   case star a =>
-    -- We now follow MB and do another level of induction over n. -- TODO replace with new way - or not, base case still works!
-    have claim : ∀ n (ys : Vector Worlds n.succ),
-      (⌈∗a⌉φ) ∈ ys.head.val → (∀ i : Fin n, relate MG.val a (ys.get i.castSucc) (ys.get (i.succ))) → φ ∈ ys.last.val
-      := by
-      intro n
-      induction n -- "inner induction"
-      case zero =>
-        rintro ys boxP_in_head steprel
-        have : ys.last = ys.head := by
-          cases ys using Vector.inductionOn
-          case h_cons rest _ =>
-            cases rest using Vector.inductionOn; simp only [Nat.zero_eq, Vector.head_cons]; rfl
-        rw [this]
-        have ⟨_,⟨i,_,_,_⟩⟩ := MG
-        have := ((i ys.head).left φ φ (∗a)).right.right.right.left boxP_in_head
-        simp [TP, Xset] at this
-        rcases this with ⟨l, l_sub_Prog, claim⟩
-        apply claim
-        simp [testsOfProgram, P, F]
-      case succ m IH =>
-        rintro ys boxP_in_head steprel
-        let Z := ys.get 1
-        have head_a_Z : relate MG.val a ys.head Z := by
-          convert (steprel 0)
-          simp
-        -- TODO needs adaptation, `a` might be further taken apart and not actually be in ys.head :-/
-        have : (⌈a⌉⌈∗a⌉φ) ∈ ys.head.val := by
-          have ⟨_,⟨i,_,_,_⟩⟩ := MG
-          have := ((i ys.head).left φ φ (∗a)).right.right.right.left boxP_in_head
-          simp [TP, Xset] at this
-          rcases this with ⟨l, l_sub_Prog, claim⟩
-          sorry
-        have boxP_in_Z : (⌈∗a⌉φ) ∈ Z.val := loadedTruthLemmaProg MG a ys.head (⌈∗a⌉φ) this Z head_a_Z
-        have : ys.last = ys.tail.last := by
-          cases ys using Vector.inductionOn
-          case h_cons rest _ =>
-            cases rest using Vector.inductionOn; simp; rfl
-        rw [this]
-        apply IH ys.tail
-        · convert boxP_in_Z
-          cases ys using Vector.inductionOn
-          case h_cons _ rest _ _ =>
-            cases rest using Vector.inductionOn
-            · simp only [Vector.tail_cons, Vector.head_cons]
-              rfl
-        · intro i
-          specialize steprel (i.succ).castSucc
-          simp
-          simp at steprel
-          have : (Fin.succ (Fin.castSucc i)) = (Fin.castSucc (Fin.succ i)) := by
-            rfl
-          rw [this]
-          exact steprel
     simp at X_rel_Y
-    rcases ReflTransGen.to_finitelyManySteps X_rel_Y with ⟨n, ys, X_is_head, Y_is_last, steprel⟩
-    rw [Y_is_last]
-    rw [X_is_head] at boxP_in_X
-    exact claim n ys (α_def ▸ boxP_in_X) steprel
+    -- extract_goal -- TODO: inline proof of theorem below.
+    sorry
   -- remaining cases: sequence, union, test
   all_goals -- sic!
     have satX := (MG.prop.1 X).left
@@ -328,8 +275,114 @@ termination_by
 
 end
 
+-- TODO: move into above
+theorem extracted_1 {Worlds : Finset (Finset Formula)} (MG : ModelGraph Worlds)
+  (β: Program)
+  (X : { x // x ∈ Worlds }) (φ : Formula) (boxP_in_X : (⌈∗β⌉φ) ∈ X.val)
+  (Y : { x // x ∈ Worlds })
+  (X_rel_Y : Relation.ReflTransGen (relate MG.1 β) X Y) : φ ∈ Y.val := by
 
--- Lemma 9, page 32
+  -- induction X_rel_Y using Relation.ReflTransGen.head_induction_on -- hmm ??
+  rw [ReflTransGen.iff_finitelyManySteps] at X_rel_Y
+  rcases X_rel_Y with ⟨n, claim⟩
+  induction n generalizing X φ -- not generalizing Y, but φ to be replaced φ with ⌈∗β⌉φ below!
+  · rcases claim with ⟨YS, X_def, Y_def, _⟩
+    have : YS.head = YS.last := by
+      have := Vector.exists_eq_cons YS
+      aesop
+    rw [this] at X_def
+    subst X_def Y_def
+    have ⟨M,⟨i,ii,iii,iv⟩⟩ := MG
+    have := ((i (YS.last)).1 φ φ (∗β)).right.right.right.left boxP_in_X
+    rcases this with ⟨ℓ, ℓ_in_TP, mysat⟩
+    simp_all [Xset, F, P]
+  case succ m innerIH => -- Z U X_β_Z Z_βS_U IH_φ_in_Z =>
+    rcases claim with ⟨YS, X_def, Y_def, relSteps⟩
+    let Z := YS.get 1
+    have X_β_Z : relate MG.1 β X Z := by
+      specialize relSteps 0
+      unfold_let Z
+      unfold_let X
+      convert relSteps
+      aesop
+    have := ((MG.2.1 X).1 φ φ (∗β)).right.right.right.left boxP_in_X
+    rcases this with ⟨ℓ, ℓ_in_TP, mysat⟩
+    simp [Xset] at mysat
+    -- Now we use the outer IH for C2 on all formulas in F(β,ℓ):
+    have X_ConF : evaluate MG.1 X (Con $ F (β, ℓ)) := by
+      rw [conEval]
+      intro ψ ψ_in
+      -- termination here will need F_goes_down when moving this into the above?
+      apply (loadedTruthLemma MG X ψ).1
+      apply mysat; left; simp [F]; assumption
+    have TP_eq : TP (∗β) = TP β := by simp [TP,testsOfProgram]
+    -- now use Lemma 34:
+    have := existsBoxFP X_β_Z (TP_eq ▸ ℓ_in_TP) X_ConF
+    rcases this with ⟨δ, δ_in_P, X_δ_Z⟩
+
+    -- Notes now use δ ≠ [] from X ≠ Z, but ReflTransGen.iff_finitelyManySteps does not provide that.
+    cases em (δ = [])
+    case inl hyp =>
+      subst hyp
+      simp only [relateSeq] at X_δ_Z
+      -- subst X_δ_Z
+      -- now apply inner IH ???
+      apply innerIH X φ boxP_in_X
+      -- copied and adapted from below!
+      refine ⟨YS.tail, ?_, ?_, ?_⟩
+      · unfold_let Z
+        rw [← Vector.get_zero]
+        rw [Vector.get_tail_succ]
+        aesop
+      · unfold_let Z
+        rw [Vector.last_def]
+        rw [Vector.get_tail_succ]
+        aesop
+      · intro i
+        clear * -relSteps
+        specialize relSteps i.succ
+        have : (Vector.get (Vector.tail YS) (Fin.castSucc i)) = (Vector.get YS (Fin.castSucc (Fin.succ i))) := by aesop
+        rw [this]; clear this
+        have : (Vector.get (Vector.tail YS) (Fin.succ i)) = (Vector.get YS (Fin.succ (Fin.succ i))) := by aesop
+        rw [this]; clear this
+        exact relSteps
+
+    have : (δ ++ [∗β]) ∈ P (∗β, ℓ) := by
+      simp [P]
+      apply List.mem_filter_of_mem δ_in_P
+      simp_all
+    have : (⌈⌈δ⌉⌉⌈∗β⌉φ) ∈ X.1 := by
+      apply mysat
+      right
+      use δ ++ [∗β]
+      simp_all [boxes_append]
+
+    have : (⌈∗β⌉φ) ∈ Z.1 := by
+      -- use C4 loadedTruthLemmaProg on programs in δ multiple times?
+      sorry
+
+    -- lastly, apply innerIH on Z and Y:
+    apply innerIH Z _ this
+    clear innerIH
+    simp_all
+    refine ⟨YS.tail, ?_, ?_, ?_⟩
+    · unfold_let Z
+      rw [← Vector.get_zero]
+      rw [Vector.get_tail_succ]
+      rfl
+    · unfold_let Z
+      rw [Vector.last_def, Vector.last_def]
+      rw [Vector.get_tail_succ]
+      rfl
+    · intro i
+      clear * -relSteps
+      specialize relSteps i.succ
+      have : (Vector.get (Vector.tail YS) (Fin.castSucc i)) = (Vector.get YS (Fin.castSucc (Fin.succ i))) := by aesop
+      rw [this]; clear this
+      have : (Vector.get (Vector.tail YS) (Fin.succ i)) = (Vector.get YS (Fin.succ (Fin.succ i))) := by aesop
+      rw [this]; clear this
+      exact relSteps
+
 theorem truthLemma {Worlds} (MG : ModelGraph Worlds) :
     ∀ X : Worlds, ∀ P, P ∈ X.val → evaluate MG.val X P :=
   by
