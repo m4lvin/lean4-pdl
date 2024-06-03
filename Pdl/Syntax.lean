@@ -55,6 +55,14 @@ infixl:33 "⋓" => Program.union
 prefix:33 "∗" => Program.star
 prefix:33 "?'" => Program.test -- avoiding plain "?" which has a meaning in Lean 4
 
+def isAtomic : Program → Bool
+| ·_ => true
+| _ => false
+
+def isStar : Program → Bool
+| ∗_ => true
+| _ => false
+
 theorem boxes_last : (~⌈a⌉Formula.boxes (as ++ [c]) P) = (~⌈a⌉Formula.boxes as (⌈c⌉P)) :=
   by
   induction as

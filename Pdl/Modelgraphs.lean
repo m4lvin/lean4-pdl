@@ -235,8 +235,6 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
   case star β =>
     subst α_def
     simp at X_rel_Y
-    -- extract_goal -- TODO: inline proof of theorem below.
-    /- snip -/
     rw [ReflTransGen.iff_finitelyManySteps] at X_rel_Y
     rcases X_rel_Y with ⟨n, claim⟩
     induction n generalizing X φ -- not generalizing Y, but φ to be replaced φ with ⌈∗β⌉φ below!
@@ -276,15 +274,13 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       -- now use Lemma 34:
       have := existsBoxFP X_β_Z (TP_eq ▸ ℓ_in_TP) X_ConF
       rcases this with ⟨δ, δ_in_P, X_δ_Z⟩
-      -- Notes now use δ ≠ [] from X ≠ Z, but ReflTransGen.iff_finitelyManySteps does not provide that.
+      -- Notes use δ ≠ [] from X ≠ Z, but ReflTransGen.iff_finitelyManySteps does not provide that.
       cases em (δ = [])
       case inl hyp =>
         subst hyp
         simp only [relateSeq] at X_δ_Z
-        -- subst X_δ_Z
-        -- now apply inner IH ???
         apply innerIH X φ boxP_in_X
-        -- copied and adapted from below!
+        -- rest here is similar to same part in all_goals below.
         refine ⟨YS.tail, ?_, ?_, ?_⟩
         · unfold_let Z
           rw [← Vector.get_zero]
@@ -297,9 +293,9 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
         · intro i
           clear * -relSteps
           specialize relSteps i.succ
-          have : (Vector.get (Vector.tail YS) (Fin.castSucc i)) = (Vector.get YS (Fin.castSucc (Fin.succ i))) := by aesop
+          have : ((Vector.tail YS).get i.castSucc) = (YS.get ((Fin.succ i).castSucc)) := by aesop
           rw [this]; clear this
-          have : (Vector.get (Vector.tail YS) (Fin.succ i)) = (Vector.get YS (Fin.succ (Fin.succ i))) := by aesop
+          have : ((Vector.tail YS).get i.succ) = (YS.get ((Fin.succ i).succ)) := by aesop
           rw [this]; clear this
           exact relSteps
       case inr δ_notEmpty =>
@@ -315,7 +311,8 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
         have : (⌈∗β⌉φ) ∈ Z.1 := by
           clear innerIH
           -- Now we apply IH of C4 loadedTruthLemmaProg to all elements in δ
-          have IHδ : ∀ d ∈ δ, ∀ (X' Y' : Worlds), ∀ φ', (⌈d⌉φ') ∈ X'.val → relate MG.val d X' Y' → φ' ∈ Y'.val := by
+          have IHδ : ∀ d ∈ δ, ∀ (X' Y' : Worlds),
+              ∀ φ', (⌈d⌉φ') ∈ X'.val → relate MG.val d X' Y' → φ' ∈ Y'.val := by
             intro d d_in_δ X' Y' φ' dφ_in_X' X'_d_Y'
             have _forTermination : lengthOf d < lengthOf (∗β) := by
               have := P_goes_down d_in_δ δ_in_P
@@ -352,12 +349,11 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
         · intro i
           clear * -relSteps
           specialize relSteps i.succ
-          have : (Vector.get (Vector.tail YS) (Fin.castSucc i)) = (Vector.get YS (Fin.castSucc (Fin.succ i))) := by aesop
+          have : ((Vector.tail YS).get i.castSucc) = (YS.get i.succ.castSucc) := by aesop
           rw [this]; clear this
-          have : (Vector.get (Vector.tail YS) (Fin.succ i)) = (Vector.get YS (Fin.succ (Fin.succ i))) := by aesop
+          have : ((Vector.tail YS).get i.succ) = (YS.get i.succ.succ) := by aesop
           rw [this]; clear this
           exact relSteps
-    /- snip -/
   -- remaining cases: sequence, union, test
   all_goals -- sic!
     have satX := (MG.prop.1 X).left
@@ -372,7 +368,8 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       have forTermination : lengthOfFormula τ < lengthOfProgram α := F_goes_down τ_in
       have := loadedTruthLemma MG X τ
       simp_all only [instBot, relate, Subtype.exists, lengthOfProgram, true_or, forall_true_left]
-    have := existsBoxFP X_rel_Y (α_def ▸ ℓ_in_TPα) (by simp [modelCanSemImplyForm,conEval]; exact (α_def ▸ X_F))
+    have := existsBoxFP X_rel_Y (α_def ▸ ℓ_in_TPα)
+      (by simp [modelCanSemImplyForm,conEval]; exact (α_def ▸ X_F))
     rcases this with ⟨δ, δ_in_P, X_δ_Y⟩
     have δφ_in_X : (⌈⌈δ⌉⌉φ) ∈ X.val := by
       simp_all only [instBot, relate, Subtype.exists]
@@ -381,13 +378,14 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       right
       use δ
     -- Now we apply IH of C4 to all elements in δ
-    have IHδ : ∀ d ∈ δ, ∀ (X' Y' : Worlds), ∀ φ', (⌈d⌉φ') ∈ X'.val → relate MG.val d X' Y' → φ' ∈ Y'.val := by
+    have IHδ : ∀ d ∈ δ, ∀ (X' Y' : Worlds), ∀ φ',
+        (⌈d⌉φ') ∈ X'.val → relate MG.val d X' Y' → φ' ∈ Y'.val := by
       intro d d_in_δ X' Y' φ' dφ_in_X' X'_d_Y'
       have forTermination : lengthOf d < lengthOf α := by
         have := P_goes_down d_in_δ δ_in_P
         simp_all [isAtomic, isStar]
       exact loadedTruthLemmaProg MG d X' φ' dφ_in_X' Y' X'_d_Y'
-    -- NOTE: tried `induction δ` before, but seems bad idea, yields too weak/annoying IH
+    -- NOTE: tried `induction δ` before, but that yields a too weak/annoying IH.
     -- Instead, check if δ is empty, and in non-empty case use `relateSeq_toChain'`.
     cases em (δ = [])
     · simp_all [relateSeq] -- uses δφ_in_X from above.
@@ -409,131 +407,6 @@ termination_by
   _ _ _ => lengthOf α
 
 end
-
--- TODO: move into above
-theorem extracted_1 {Worlds : Finset (Finset Formula)} (MG : ModelGraph Worlds)
-  (β: Program)
-  (X : { x // x ∈ Worlds }) (φ : Formula) (boxP_in_X : (⌈∗β⌉φ) ∈ X.val)
-  (Y : { x // x ∈ Worlds })
-  (X_rel_Y : Relation.ReflTransGen (relate MG.1 β) X Y) : φ ∈ Y.val := by
-
-  -- induction X_rel_Y using Relation.ReflTransGen.head_induction_on -- hmm ??
-  rw [ReflTransGen.iff_finitelyManySteps] at X_rel_Y
-  rcases X_rel_Y with ⟨n, claim⟩
-  induction n generalizing X φ -- not generalizing Y, but φ to be replaced φ with ⌈∗β⌉φ below!
-  · rcases claim with ⟨YS, X_def, Y_def, _⟩
-    have : YS.head = YS.last := by
-      have := Vector.exists_eq_cons YS
-      aesop
-    rw [this] at X_def
-    subst X_def Y_def
-    have := ((MG.2.1 (YS.last)).1 φ φ (∗β)).right.right.right.left boxP_in_X
-    rcases this with ⟨ℓ, _, mysat⟩
-    simp_all [Xset, F, P]
-  case succ m innerIH => -- Z U X_β_Z Z_βS_U IH_φ_in_Z =>
-    rcases claim with ⟨YS, X_def, Y_def, relSteps⟩
-    let Z := YS.get 1
-    have X_β_Z : relate MG.1 β X Z := by
-      specialize relSteps 0
-      unfold_let Z
-      unfold_let X
-      convert relSteps
-      aesop
-    have := ((MG.2.1 X).1 φ φ (∗β)).right.right.right.left boxP_in_X
-    rcases this with ⟨ℓ, ℓ_in_TP, mysat⟩
-    simp [Xset] at mysat
-    -- Now we use the outer IH for C2 on all formulas in F(β,ℓ):
-    have X_ConF : evaluate MG.1 X (Con $ F (β, ℓ)) := by
-      rw [conEval]
-      intro ψ ψ_in
-      -- termination here will need F_goes_down when moving this into the above?
-      apply (loadedTruthLemma MG X ψ).1
-      apply mysat; left; simp [F]; assumption
-    have TP_eq : TP (∗β) = TP β := by simp [TP,testsOfProgram]
-    -- now use Lemma 34:
-    have := existsBoxFP X_β_Z (TP_eq ▸ ℓ_in_TP) X_ConF
-    rcases this with ⟨δ, δ_in_P, X_δ_Z⟩
-
-    -- Notes now use δ ≠ [] from X ≠ Z, but ReflTransGen.iff_finitelyManySteps does not provide that.
-    cases em (δ = [])
-    case inl hyp =>
-      subst hyp
-      simp only [relateSeq] at X_δ_Z
-      -- subst X_δ_Z
-      -- now apply inner IH ???
-      apply innerIH X φ boxP_in_X
-      -- copied and adapted from below!
-      refine ⟨YS.tail, ?_, ?_, ?_⟩
-      · unfold_let Z
-        rw [← Vector.get_zero]
-        rw [Vector.get_tail_succ]
-        aesop
-      · unfold_let Z
-        rw [Vector.last_def]
-        rw [Vector.get_tail_succ]
-        aesop
-      · intro i
-        clear * -relSteps
-        specialize relSteps i.succ
-        have : (Vector.get (Vector.tail YS) (Fin.castSucc i)) = (Vector.get YS (Fin.castSucc (Fin.succ i))) := by aesop
-        rw [this]; clear this
-        have : (Vector.get (Vector.tail YS) (Fin.succ i)) = (Vector.get YS (Fin.succ (Fin.succ i))) := by aesop
-        rw [this]; clear this
-        exact relSteps
-    case inr δ_notEmpty =>
-
-      have : (δ ++ [∗β]) ∈ P (∗β, ℓ) := by
-        simp [P]
-        apply List.mem_filter_of_mem δ_in_P
-        simp_all
-      have δβSφ_in_X : (⌈⌈δ⌉⌉⌈∗β⌉φ) ∈ X.1 := by
-        apply mysat
-        right
-        use δ ++ [∗β]
-        simp_all [boxes_append]
-      have : (⌈∗β⌉φ) ∈ Z.1 := by
-        clear innerIH
-        -- Now we apply IH of C4 loadedTruthLemmaProg to all elements in δ
-        have IHδ : ∀ d ∈ δ, ∀ (X' Y' : Worlds), ∀ φ', (⌈d⌉φ') ∈ X'.val → relate MG.val d X' Y' → φ' ∈ Y'.val := by
-          intro d d_in_δ X' Y' φ' dφ_in_X' X'_d_Y'
-          -- TODO: need this later????
-          -- have forTermination : lengthOf d < lengthOf (∗β) := by
-          --  have := P_goes_down d_in_δ δ_in_P
-          --  simp_all [P, isAtomic, isStar]
-          exact loadedTruthLemmaProg MG d X' φ' dφ_in_X' Y' X'_d_Y'
-        have := relateSeq_toChain' X_δ_Z δ_notEmpty
-        rcases this with ⟨l, length_def, lchain⟩
-        -- now combine lchain with IHδ
-        suffices loadClaim : ∀ i : Fin (X :: l ++ [Z]).length,
-            (⌈⌈δ.drop i⌉⌉⌈∗β⌉φ) ∈ ((X :: l ++ [Z]).get i).val by
-          specialize loadClaim (Fin.last _)
-          simp [length_def] at loadClaim
-          convert loadClaim
-          have := @List.get_last _ Z (X :: l) (Fin.last _)
-          simp_all [eq_comm]
-        intro i
-        exact loadClaimHelper length_def δβSφ_in_X lchain IHδ i
-      -- lastly, apply innerIH on Z and Y:
-      apply innerIH Z _ this
-      clear innerIH
-      simp_all
-      refine ⟨YS.tail, ?_, ?_, ?_⟩
-      · unfold_let Z
-        rw [← Vector.get_zero]
-        rw [Vector.get_tail_succ]
-        rfl
-      · unfold_let Z
-        rw [Vector.last_def, Vector.last_def]
-        rw [Vector.get_tail_succ]
-        rfl
-      · intro i
-        clear * -relSteps
-        specialize relSteps i.succ
-        have : (Vector.get (Vector.tail YS) (Fin.castSucc i)) = (Vector.get YS (Fin.castSucc (Fin.succ i))) := by aesop
-        rw [this]; clear this
-        have : (Vector.get (Vector.tail YS) (Fin.succ i)) = (Vector.get YS (Fin.succ (Fin.succ i))) := by aesop
-        rw [this]; clear this
-        exact relSteps
 
 theorem truthLemma {Worlds} (MG : ModelGraph Worlds) :
     ∀ X : Worlds, ∀ P, P ∈ X.val → evaluate MG.val X P :=

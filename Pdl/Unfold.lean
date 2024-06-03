@@ -749,15 +749,6 @@ def Xset (α : Program) (l : List Formula) (ψ : Formula) : List Formula :=
 def unfoldBox (α : Program) (φ : Formula) : List (List Formula) :=
   (TP α).map (fun l => Xset α l φ)
 
--- FIXME: move to Syntax.lea
-def isAtomic : Program → Bool
-| ·_ => true
-| _ => false
-
-def isStar : Program → Bool
-| ∗_ => true
-| _ => false
-
 theorem P_goes_down : γ ∈ δ → δ ∈ P (α, l) → (if isAtomic α then γ = α else if isStar α then lengthOfProgram γ ≤  lengthOfProgram α else lengthOfProgram γ < lengthOfProgram α) := by
   intro γ_in δ_in
   cases α
