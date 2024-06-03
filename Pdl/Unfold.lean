@@ -668,27 +668,30 @@ def unfoldDiamondLoad' (α : Program) (φ : Formula) : List (List Formula × Opt
 -- def TestProfile (α : Program) : Type := {L // L ∈ (testsOfProgram α).sublists}
 -- NOTE: Replaced "TestProfile" with "List Formula".
 
+/-- Type of test profiles for a given program. -/
+def TP (α : Program) : Type := {τ // τ ∈ testsOfProgram α} → Bool
+
 /-- List of all test profiles for a given program. -/
-def TP (α : Program) : List (List Formula) := (testsOfProgram α).sublists
+def allTP α : List (TP α) := (testsOfProgram α).sublists.map (fun l ⟨τ, _⟩ => τ ∈ l)
 
 /-- σ^ℓ -/
-def signature (α : Program) (ℓ : List Formula) : Formula :=
-  Con $ (testsOfProgram α).map (fun τ => if τ ∈ ℓ then τ else ~τ)
+def signature (α : Program) (ℓ : TP α) : Formula :=
+  Con $ (testsOfProgram α).attach.map (fun τ => if ℓ τ then τ.val else ~τ.val)
 
 -- Now come the three facts about test profiles and signatures.
 
-theorem top_equiv_disj_TP {L} : ∀ α, L = testsOfProgram α → tautology (dis ((TP α).map (signature α))) := by
+theorem top_equiv_disj_TP {L} : ∀ α, L = testsOfProgram α → tautology (dis ((allTP α).map (signature α))) := by
   intro α
   intro L_def
   intro W M w
   rw [disEval]
   induction L
   case nil =>
-    simp [TP,signature]
+    simp [TP,signature,allTP]
     rw [← L_def]
     simp
   case cons τ L IH =>
-    simp [TP,signature] at *
+    simp [TP,signature,allTP] at *
     rw [← L_def]
     cases em (evaluate M w τ)
     · sorry
@@ -699,57 +702,52 @@ theorem signature_conbot_iff_neq : contradiction (signature α ℓ ⋀ signature
   · intro contrasign
     sorry
   · intro ldiff
-    have := @List.ext _ ℓ ℓ'
+    -- have := @List.ext _ ℓ ℓ'
     sorry
 
-theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ ∈ TP α, φ ⋀ signature α ℓ ≡ ψ ⋀ signature α ℓ := by
+theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α ℓ ≡ ψ ⋀ signature α ℓ := by
   sorry
 
-/-
--- Coercion of TestProfiles to subprograms
--- These WERE needed to re-use `l` in the recursive calls of `F`.
-
-instance : CoeOut (TestProfile (α ⋓ β)) (TestProfile α) :=
-  ⟨fun l ⟨f,f_in⟩ => l ⟨f, by simp only [testsOfProgram, List.mem_union_iff]; exact Or.inl f_in⟩⟩
-instance : CoeOut (TestProfile (α ⋓ β)) (TestProfile β) :=
-  ⟨fun l ⟨f,f_in⟩ => l ⟨f, by simp only [testsOfProgram, List.mem_union_iff]; exact Or.inr f_in⟩⟩
-
-instance : CoeOut (TestProfile (α ;' β)) (TestProfile α) :=
-  ⟨fun l ⟨f,f_in⟩ => l ⟨f, by simp only [testsOfProgram, List.mem_union_iff]; exact Or.inl f_in⟩⟩
-instance : CoeOut (TestProfile (α ;' β)) (TestProfile β) :=
-  ⟨fun l ⟨f,f_in⟩ => l ⟨f, by simp only [testsOfProgram, List.mem_union_iff]; exact Or.inr f_in⟩⟩
-
-instance : CoeOut (TestProfile (∗α)) (TestProfile α) :=
+-- Coercions of TP α to the subprograms of α.
+-- These are needed to re-use `ℓ` in recursive calls of `F` and `P` below.
+instance : CoeOut (TP (α ⋓ β)) (TP α) :=
+  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by cases τ; simp [testsOfProgram]; left; assumption⟩  ⟩
+instance : CoeOut (TP (α ⋓ β)) (TP β) :=
+  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by cases τ; simp [testsOfProgram]; right; assumption⟩  ⟩
+instance : CoeOut (TP (α ;' β)) (TP α) :=
+  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by cases τ; simp [testsOfProgram]; left; assumption⟩  ⟩
+instance : CoeOut (TP (α ;' β)) (TP β) :=
+  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by cases τ; simp [testsOfProgram]; right; assumption⟩  ⟩
+instance : CoeOut (TP (∗α)) (TP α) :=
   ⟨fun l ⟨f,f_in⟩ => l ⟨f, by simp only [testsOfProgram]; exact f_in⟩⟩
--/
 
 -- ### Boxes: F, P, X and the Φ_□ set
 
 -- NOTE: In P and Xset we use lists not sets, to eventually make formulas.
 
-def F : (Program × List Formula) → List Formula
-| ⟨·_, _⟩ => ∅
-| ⟨?' τ, l⟩ => if τ ∈ l then ∅ else [~τ]
-| ⟨α ⋓ β, l⟩ => F ⟨α, l⟩ ∪ F ⟨β, l⟩
-| ⟨α;'β, l⟩ => F ⟨α, l⟩ ∪ F ⟨β, l⟩
-| ⟨∗α, l⟩ => F ⟨α, l⟩
+def F : (α : Program) → (ℓ : TP α) → List Formula
+| ·_ , _ => ∅
+| ?'τ, ℓ => if ℓ ⟨τ, by simp [testsOfProgram]⟩ then ∅ else [~ τ]
+| α ⋓ β, l => F α l ∪ F β l
+| α;'β, l => F α l ∪ F β l
+| ∗α, l => F α l
 
-def P : (Program × List Formula) → List (List Program)
-| ⟨·a, _⟩ => [ [(·a : Program)] ]
-| ⟨?' τ, l⟩ => if τ ∈ l then ∅ else [ [] ]
-| ⟨α ⋓ β, l⟩ => P ⟨α, l⟩ ∪ P ⟨β, l⟩
-| ⟨α;'β, l⟩ => ((P ⟨α,l⟩).filter (. != ε)).map (fun as => as ++ [β])
-             ∪ (if ε ∈ P ⟨α,l⟩ then ((P ⟨β,l⟩).filter (. != ε)) else [])
-| ⟨∗α, l⟩ => [ ε ] ∪ ((P (⟨α, l⟩)).filter (. != ε)).map (fun as => as ++ [∗α])
+def P : (α : Program) →  (ℓ : TP α) → List (List Program)
+| ·a, _ => [ [(·a : Program)] ]
+| ?' τ, ℓ => if ℓ ⟨τ, by simp [testsOfProgram]⟩ then [ [] ] else ∅
+| α ⋓ β, ℓ => P α ℓ ∪ P β ℓ
+| α;'β, ℓ => ((P α ℓ).filter (. != ε)).map (fun as => as ++ [β])
+             ∪ (if ε ∈ P α ℓ then (P β ℓ) else [])
+| ∗α, ℓ => [ ε ] ∪ ((P α ℓ).filter (. != ε)).map (fun as => as ++ [∗α])
 
-def Xset (α : Program) (l : List Formula) (ψ : Formula) : List Formula :=
-  F ⟨α, l⟩ ++ (P ⟨α, l⟩).map (fun as => Formula.boxes as ψ)
+def Xset (α : Program) (ℓ : TP α) (ψ : Formula) : List Formula :=
+  F α ℓ ++ (P α ℓ).map (fun as => Formula.boxes as ψ)
 
 /-- Φ_□(αs,ψ) -/
 def unfoldBox (α : Program) (φ : Formula) : List (List Formula) :=
-  (TP α).map (fun l => Xset α l φ)
+  (allTP α).map (fun ℓ => Xset α ℓ φ)
 
-theorem P_goes_down : γ ∈ δ → δ ∈ P (α, l) → (if isAtomic α then γ = α else if isStar α then lengthOfProgram γ ≤  lengthOfProgram α else lengthOfProgram γ < lengthOfProgram α) := by
+theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if isAtomic α then γ = α else if isStar α then lengthOfProgram γ ≤  lengthOfProgram α else lengthOfProgram γ < lengthOfProgram α) := by
   intro γ_in δ_in
   cases α
   all_goals
@@ -769,9 +767,9 @@ theorem P_goes_down : γ ∈ δ → δ ∈ P (α, l) → (if isAtomic α then γ
         subst γ_in
         linarith
     case inr δ_in =>
-      cases em ([] ∈ P (α,l))
+      cases em ([] ∈ P α ℓ)
       · simp_all
-        have IH := P_goes_down γ_in (List.mem_of_mem_filter δ_in)
+        have IH := P_goes_down γ_in δ_in
         cases em (isAtomic β) <;> cases em (isStar β)
         all_goals (simp_all;try linarith)
       · simp_all
@@ -803,11 +801,11 @@ theorem P_goes_down : γ ∈ δ → δ ∈ P (α, l) → (if isAtomic α then γ
         subst_eqs
         simp
   case test τ =>
-    cases em (τ ∈ l)
+    cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩)
     · simp_all
     · simp_all
 
-theorem F_goes_down : φ ∈ F (α, l) → lengthOfFormula φ < lengthOfProgram α := by
+theorem F_goes_down : φ ∈ F α ℓ → lengthOfFormula φ < lengthOfProgram α := by
   intro φ_in
   cases α
   all_goals
@@ -834,7 +832,7 @@ theorem F_goes_down : φ ∈ F (α, l) → lengthOfFormula φ < lengthOfProgram 
     have IHα := F_goes_down φ_in
     linarith
   case test τ =>
-    cases em (τ ∈ l)
+    cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩)
     · simp_all
     · simp_all
 
@@ -895,15 +893,80 @@ theorem localBoxTruth' γ ψ ℓ : (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Xs
     -- use guardToStar
     sorry
 
-theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (TP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) := by
+theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) := by
   have := localBoxTruth' γ ψ
   -- clearly this suffices to prove the theorem ;-)
   sorry
 
-theorem existsBoxFP (v_γ_w : relate M γ v w) (ℓ_in : ℓ ∈ TP γ) (v_conF : (M,v) ⊨ Con (F (γ,ℓ))) :
-    ∃ δ ∈ P (γ,ℓ), relateSeq M δ v w := by
+theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M,v) ⊨ Con (F γ ℓ)) :
+    ∃ δ ∈ P γ ℓ, relateSeq M δ v w := by
   cases γ
   case atom_prog =>
     simp [F, P, relateSeq] at *
     exact v_γ_w
-  all_goals sorry
+  case test τ =>
+    simp only [relate] at v_γ_w
+    rcases v_γ_w with ⟨v_is_w, v_τ⟩
+    cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩ )
+    all_goals
+      simp_all [modelCanSemImplyForm, evaluatePoint, F, P, relateSeq, TP, testsOfProgram]
+  case union α β =>
+    simp at v_γ_w
+    cases v_γ_w
+    case inl v_α_w =>
+      have v_Fℓα : evaluate M v (Con (F α ℓ)) := by simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+      have IHα := existsBoxFP α v_α_w ℓ v_Fℓα -- using coercion from above :-)
+      rcases IHα with ⟨δ, _⟩
+      use δ
+      simp_all [P]
+    case inr v_β_w =>
+      have v_Fℓβ : evaluate M v (Con (F β ℓ)) := by simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+      have IHβ := existsBoxFP β v_β_w ℓ v_Fℓβ -- using coercion from above :-)
+      rcases IHβ with ⟨δ, _⟩
+      use δ
+      simp_all [P]
+  case sequence α β =>
+    simp only [relate] at v_γ_w
+    rcases v_γ_w with ⟨u, v_α_u, u_β_w⟩
+    have v_Fℓα : evaluate M v (Con (F α ℓ)) := by simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+    have IHα := existsBoxFP α v_α_u ℓ v_Fℓα -- using coercion from above :-)
+    rcases IHα with ⟨δ, ⟨δ_in, v_δ_u⟩⟩
+    -- "We make a further case distinction"
+    cases em (δ = [])
+    case inl hyp =>
+      subst hyp
+      simp [relateSeq] at v_δ_u
+      subst v_δ_u
+      rename relate M β v w => v_β_w
+      have v_Fℓβ : evaluate M v (Con (F β ℓ)) := by simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+      have IHβ := existsBoxFP β v_β_w ℓ v_Fℓβ -- using coercion from above :-)
+      rcases IHβ with ⟨η, ⟨η_in, v_η_w⟩⟩
+      use η
+      simp_all [P]
+    case inr _ =>
+      use δ ++ [β]
+      simp_all [P, relateSeq]
+      constructor
+      · left
+        apply List.mem_filter_of_mem δ_in (by aesop)
+      · simp [relateSeq_append]
+        use u
+  case star β =>
+    simp only [relate] at v_γ_w
+    cases ReflTransGen.cases_tail_eq_neq v_γ_w
+    case inl v_is_w =>
+      subst v_is_w
+      use []
+      simp_all [P,relateSeq]
+    case inr hyp =>
+      rcases hyp with ⟨v_neq_w, ⟨u, v_neq_u, v_β_u, u_βS_w⟩⟩
+      have v_Fℓβ : evaluate M v (Con (F β ℓ)) := by simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+      have IHβ := existsBoxFP β v_β_u ℓ v_Fℓβ
+      rcases IHβ with ⟨δ, ⟨δ_in, v_δ_w⟩⟩
+      have claim : δ ≠ [] := by by_contra hyp; subst hyp; simp_all [relateSeq];
+      use δ ++ [∗β]
+      simp_all [P, relateSeq]
+      constructor
+      · apply List.mem_filter_of_mem δ_in (by aesop)
+      · simp [relateSeq_append]
+        use u

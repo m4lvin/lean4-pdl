@@ -43,8 +43,8 @@ instance listProgramHasVocabulary : HasVocabulary (List Program) := ⟨vocabOfLi
 def testsOfProgram : Program → List Formula
 | ·_ => ∅
 | ?' τ => [τ] -- no sub-tests etc. needed?
-| α;'β => testsOfProgram α ∪ testsOfProgram β
-| α ⋓ β => testsOfProgram α ∪ testsOfProgram β
+| α;'β => testsOfProgram α ++ testsOfProgram β
+| α ⋓ β => testsOfProgram α ++ testsOfProgram β
 | ∗α => testsOfProgram α
 -- IDEA ? def testsOfFormula : Formula → Finset Formula
 -- class HasTests (α : Type) where testsOf : α  → Finset Formula
@@ -53,6 +53,6 @@ def testsOfProgram : Program → List Formula
 def subprograms : Program → List Program
 | ·a => [(·a : Program)]
 | ?' φ => [?' φ]
-| α;'β => [α;'β ] ∪ subprograms α ∪ subprograms β
-| α ⋓ β => [α ⋓ β] ∪ subprograms α ∪ subprograms β
-| ∗α => [∗α] ∪ subprograms α
+| α;'β => [α;'β ] ++ subprograms α ++ subprograms β
+| α ⋓ β => [α ⋓ β] ++ subprograms α ++ subprograms β
+| ∗α => [∗α] ++ subprograms α

@@ -18,7 +18,7 @@ def saturated : Finset Formula → Prop
     ∧ (P⋀Q ∈ X → P ∈ X ∧ Q ∈ X)
     ∧ ((~(P⋀Q)) ∈ X → (~P) ∈ X ∨ (~Q) ∈ X)
     -- programs closure, now only two general cases, no program subcases:
-    ∧ ((⌈α⌉P) ∈ X → ∃ l ∈ TP α, (Xset α l P).all (fun y => y ∈ X))
+    ∧ ((⌈α⌉P) ∈ X → ∃ l : TP α, (Xset α l P).all (fun y => y ∈ X))
     ∧ ((~⌈α⌉P) ∈ X → ∃ Fδ ∈ H α, (Yset Fδ P).all (fun y => y ∈ X))
 
 /-- Q α -/
@@ -245,7 +245,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       rw [this] at X_def
       subst X_def Y_def
       have := ((MG.2.1 (YS.last)).1 φ φ (∗β)).right.right.right.left boxP_in_X
-      rcases this with ⟨ℓ, _, mysat⟩
+      rcases this with ⟨ℓ, mysat⟩
       simp_all [Xset, F, P]
     case succ m innerIH => -- Z U X_β_Z Z_βS_U IH_φ_in_Z =>
       rcases claim with ⟨YS, X_def, Y_def, relSteps⟩
@@ -257,22 +257,22 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
         convert relSteps
         aesop
       have := ((MG.2.1 X).1 φ φ (∗β)).right.right.right.left boxP_in_X
-      rcases this with ⟨ℓ, ℓ_in_TP, mysat⟩
+      rcases this with ⟨ℓ, mysat⟩
       simp [Xset] at mysat
+      have TP_eq : TP (∗β) = TP β := by simp [TP,testsOfProgram]
       -- Now we use the outer IH for C2 on all formulas in F(β,ℓ):
-      have X_ConF : evaluate MG.1 X (Con $ F (β, ℓ)) := by
+      have X_ConF : evaluate MG.1 X (Con $ F β ℓ) := by
         rw [conEval]
         intro ψ ψ_in
         -- termination here will need F_goes_down when moving this into the above?
         have _forTermination : lengthOfFormula ψ < lengthOfProgram (∗β) := by
           apply F_goes_down
           simp [F]
-          exact ψ_in
+          exact (TP_eq ▸ ψ_in)
         apply (loadedTruthLemma MG X ψ).1
         apply mysat; left; simp [F]; assumption
-      have TP_eq : TP (∗β) = TP β := by simp [TP,testsOfProgram]
       -- now use Lemma 34:
-      have := existsBoxFP X_β_Z (TP_eq ▸ ℓ_in_TP) X_ConF
+      have := existsBoxFP β X_β_Z ℓ X_ConF
       rcases this with ⟨δ, δ_in_P, X_δ_Z⟩
       -- Notes use δ ≠ [] from X ≠ Z, but ReflTransGen.iff_finitelyManySteps does not provide that.
       cases em (δ = [])
@@ -299,10 +299,10 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
           rw [this]; clear this
           exact relSteps
       case inr δ_notEmpty =>
-        have : (δ ++ [∗β]) ∈ P (∗β, ℓ) := by
+        have : (δ ++ [∗β]) ∈ P (∗β) ℓ := by
           simp [P]
-          apply List.mem_filter_of_mem δ_in_P
-          simp_all
+          apply List.mem_filter_of_mem
+          all_goals simp_all
         have δβSφ_in_X : (⌈⌈δ⌉⌉⌈∗β⌉φ) ∈ X.1 := by
           apply mysat
           right
@@ -359,17 +359,18 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
     have satX := (MG.prop.1 X).left
     simp only [saturated, List.all_eq_true, decide_eq_true_eq, Prod.exists] at satX
     -- use saturatedness to get a testprofile ℓ:
-    rcases (satX φ φ α).right.right.right.left boxP_in_X with ⟨ℓ, ℓ_in_TPα, Xset_sub_X⟩
+    rcases (satX φ φ α).right.right.right.left boxP_in_X with ⟨ℓ, Xset_sub_X⟩
     simp only [Xset, List.mem_append, List.mem_map] at Xset_sub_X
-    have X_F : ∀ τ ∈ F (α, ℓ), evaluate MG.val X τ := by
+    have X_F : ∀ τ ∈ F _ (α_def ▸ ℓ), evaluate MG.val X τ := by
       intro τ τ_in
       -- Now we use IH of C2 on the tests in a
       -- NOTE: for this (in the test case, not sequence) we tweaked `lengthOfProgram (?'φ)` ;-)
-      have forTermination : lengthOfFormula τ < lengthOfProgram α := F_goes_down τ_in
+      have forTermination : lengthOfFormula τ < lengthOfProgram _ := F_goes_down τ_in
       have := loadedTruthLemma MG X τ
+      subst α_def
       simp_all only [instBot, relate, Subtype.exists, lengthOfProgram, true_or, forall_true_left]
-    have := existsBoxFP X_rel_Y (α_def ▸ ℓ_in_TPα)
-      (by simp [modelCanSemImplyForm,conEval]; exact (α_def ▸ X_F))
+    have := existsBoxFP _ X_rel_Y (α_def ▸ ℓ)
+      (by simp [modelCanSemImplyForm,conEval]; exact X_F)
     rcases this with ⟨δ, δ_in_P, X_δ_Y⟩
     have δφ_in_X : (⌈⌈δ⌉⌉φ) ∈ X.val := by
       simp_all only [instBot, relate, Subtype.exists]
