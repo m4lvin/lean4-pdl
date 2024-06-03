@@ -266,7 +266,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
         rw [conEval]
         intro ψ ψ_in
         -- termination here will need F_goes_down when moving this into the above?
-        have forTermination : lengthOfFormula ψ < lengthOfProgram (∗β) := by
+        have _forTermination : lengthOfFormula ψ < lengthOfProgram (∗β) := by
           apply F_goes_down
           simp [F]
           exact ψ_in
@@ -317,12 +317,12 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
           -- Now we apply IH of C4 loadedTruthLemmaProg to all elements in δ
           have IHδ : ∀ d ∈ δ, ∀ (X' Y' : Worlds), ∀ φ', (⌈d⌉φ') ∈ X'.val → relate MG.val d X' Y' → φ' ∈ Y'.val := by
             intro d d_in_δ X' Y' φ' dφ_in_X' X'_d_Y'
-            -- TODO: Maybe need something stronger about TP or P or so?
-            have forTermination : lengthOf d < lengthOf (∗β) := by
-              -- have δ_in_P' : δ ∈ P (∗β, ℓ) := by simp [P]; sorry -- hmm?
+            have _forTermination : lengthOf d < lengthOf (∗β) := by
               have := P_goes_down d_in_δ δ_in_P
-              simp_all [P, isAtomic, isStar]
-              sorry
+              cases em (isAtomic β) <;> cases em (isStar β)
+              all_goals
+                simp_all [P]
+                try linarith
             exact loadedTruthLemmaProg MG d X' φ' dφ_in_X' Y' X'_d_Y'
           have := relateSeq_toChain' X_δ_Z δ_notEmpty
           rcases this with ⟨l, length_def, lchain⟩
