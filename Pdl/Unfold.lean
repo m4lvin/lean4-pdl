@@ -885,7 +885,45 @@ theorem F_goes_down : φ ∈ F α ℓ → lengthOfFormula φ < lengthOfProgram �
     · simp_all
     · simp_all
 
--- TODO Lemma ~21 with parts 1) and 2)
+-- TODO move to Syntax.lean or Measueres.lean?
+def fischerLadner : Formula → Finset Formula
+| _ => sorry -- TODO
+
+-- NOTE: see `P_goes_down` for proof inspiration, and later make it a consequence of this?
+theorem boxHelperTermination γ (ℓ : TP γ) ψ :
+    ( ∀ δ ∈ P γ ℓ,
+        (∀ α ∈ δ, α ∈ subprograms γ)
+      ∧ ((h : δ.length > 0) → isAtomic (δ.get (Fin.ofNat' 0 h)))
+      ∧ (∀ iα ∈ δ.enum, iα.2 = γ ↔ ((isAtomic γ ∧ iα.1 = n ∧ iα.1 = 1) ∨ (isStar (γ) ∧ iα.1 = n)))
+    )
+    ∧
+    ( ∀ φ ∈ (unfoldBox γ ψ).join,
+        φ ∈ fischerLadner (⌈γ⌉ψ)
+      ∧ (  (φ = ψ)
+         ∨ (∃ τ ∈ testsOfProgram γ, φ = (~τ))
+         ∨ (∃ δ, φ = (⌈a⌉⌈⌈δ⌉⌉ψ) ∧ ∀ α ∈ δ, α ∈ subprograms γ))
+    ) := by
+  sorry
+
+theorem boxHelperTP α (ℓ : TP α) :
+    (∀ τ, (~τ.val) ∈ F α ℓ → ℓ τ = false)
+  ∧ (Con (F α ℓ) ⋀ signature α ℓ ≡ signature α ℓ)
+  ∧ ∀ ψ, (Con (Xset α ℓ ψ) ⋀ signature α ℓ ≡ Con ((P α ℓ).map (fun αs => ⌈⌈αs⌉⌉ψ)) ⋀ signature α ℓ )
+    := by
+  refine ⟨?_, ?_, ?_⟩
+  · intro τ τ_in
+    unfold F at *
+    -- need `cases α` now?!
+    sorry
+  · intro W M w
+    simp [conEval, signature, F]
+    unfold F at *
+    -- need `cases α` now?!
+    sorry
+  · intro ψ
+    intro W M w
+    simp [conEval, Xset]
+    sorry
 
 -- TODO Lemma ~22 with parts 1) and 2) and 3)
 
@@ -926,8 +964,8 @@ theorem guardToStar (x : Nat)
     exact fortysix W M u1 u2 w_rho u1_b_u2
 
 /-- Induction claim for `localBoxTruth`. -/
--- NOTE: "signature γ" or should it be "signature α" here?!?
-theorem localBoxTruth' γ ψ ℓ : (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Xset γ ℓ ψ) ⋀ signature γ ℓ := by
+theorem localBoxTruth' γ ψ (ℓ :TP γ) :
+    (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Xset γ ℓ ψ) ⋀ signature γ ℓ := by
   cases γ
   case atom_prog =>
     sorry
@@ -938,14 +976,26 @@ theorem localBoxTruth' γ ψ ℓ : (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Xs
   case sequence =>
     sorry
   case star =>
-
-    -- use guardToStar
+    -- have := guardToStar
     sorry
 
 theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) := by
-  have := localBoxTruth' γ ψ
-  -- clearly this suffices to prove the theorem ;-)
-  sorry
+  intro W M w
+  constructor
+  · intro w_γψ
+    rw [disEval]
+    -- have := localBoxTruth' γ ψ ℓ W M w -- how do we get an ℓ here?
+    sorry
+  · intro w_Cons
+    rw [disEval] at w_Cons
+    rcases w_Cons with ⟨φ, φ_in, w_φ⟩
+    simp at φ_in
+    rcases φ_in with ⟨ℓ, ℓ_in, def_φ⟩
+    subst def_φ
+    rw [conEval] at w_φ
+    have := localBoxTruth' γ ψ ℓ W M w
+    -- clearly this suffices to prove the theorem ;-)
+    sorry
 
 theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M,v) ⊨ Con (F γ ℓ)) :
     ∃ δ ∈ P γ ℓ, relateSeq M δ v w := by

@@ -39,17 +39,15 @@ instance finsetFormulaHasVocabulary : HasVocabulary (Finset Formula) := ⟨vocab
 instance listFormulaHasVocabulary : HasVocabulary (List Formula) := ⟨vocabOfListFormula⟩
 instance listProgramHasVocabulary : HasVocabulary (List Program) := ⟨vocabOfListProgram⟩
 
-/-- Tests(α) -/
+/-- Test(α) -/
 def testsOfProgram : Program → List Formula
 | ·_ => ∅
 | ?' τ => [τ] -- no sub-tests etc. needed?
 | α;'β => testsOfProgram α ++ testsOfProgram β
 | α ⋓ β => testsOfProgram α ++ testsOfProgram β
 | ∗α => testsOfProgram α
--- IDEA ? def testsOfFormula : Formula → Finset Formula
--- class HasTests (α : Type) where testsOf : α  → Finset Formula
 
-/-- Progs(α) -/
+/-- Prog(α) -/
 def subprograms : Program → List Program
 | ·a => [(·a : Program)]
 | ?' φ => [?' φ]

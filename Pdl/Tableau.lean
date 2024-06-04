@@ -66,7 +66,7 @@ def condSixRepeat (X : TNode) (Hist : LoadHistory) :=
 -- Step to an unloaded node, resetting history.
 notation "Step" Ct:arg Hist:arg parent:arg child:arg => Ct ([],[]) child → Ct Hist parent
 
--- Lstep to a loaded node, contnuing the history.
+-- Lstep to a loaded node, continuing the history.
 notation "LStep" Ct:arg Hist:arg recf:arg parent:arg child:arg => Ct (recf Hist parent) child → Ct Hist parent
 
 def record : LoadHistory → TNode → LoadHistory
