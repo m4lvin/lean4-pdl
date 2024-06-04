@@ -671,12 +671,35 @@ def unfoldDiamondLoad' (α : Program) (φ : Formula) : List (List Formula × Opt
 /-- Type of test profiles for a given program. -/
 def TP (α : Program) : Type := {τ // τ ∈ testsOfProgram α} → Bool
 
+theorem TP_eq_iff {α} {ℓ ℓ' : TP α} : (ℓ = ℓ') ↔ ∀ τ ∈ (testsOfProgram α).attach, ℓ τ = ℓ' τ := by
+  constructor
+  · intro ℓ_eq_ℓ _ _
+    simp_all
+  · intro rhs
+    simp_all
+    unfold TP at *
+    ext τ
+    apply rhs
+
 /-- List of all test profiles for a given program. -/
 def allTP α : List (TP α) := (testsOfProgram α).sublists.map (fun l ⟨τ, _⟩ => τ ∈ l)
 
 /-- σ^ℓ -/
 def signature (α : Program) (ℓ : TP α) : Formula :=
   Con $ (testsOfProgram α).attach.map (fun τ => if ℓ τ then τ.val else ~τ.val)
+
+theorem signature_iff {W} {M : KripkeModel W} {w : W} :
+    evaluate M w (signature α ℓ) ↔ ∀ τ ∈ (testsOfProgram α).attach, ℓ τ ↔ evaluate M w τ.val := by
+  simp [signature, conEval]
+  constructor
+  · intro w_ℓ
+    intro τ τ_in
+    cases em (ℓ ⟨τ, τ_in⟩)
+    · specialize w_ℓ τ τ τ_in
+      aesop
+    · specialize w_ℓ (~τ) τ τ_in
+      aesop
+  · aesop
 
 -- Now come the three facts about test profiles and signatures.
 
@@ -685,25 +708,51 @@ theorem top_equiv_disj_TP {L} : ∀ α, L = testsOfProgram α → tautology (dis
   intro L_def
   intro W M w
   rw [disEval]
-  induction L
+  induction L generalizing α -- probably bad idea, try `cases α` at start instead?
   case nil =>
     simp [TP,signature,allTP]
     rw [← L_def]
     simp
   case cons τ L IH =>
-    simp [TP,signature,allTP] at *
+    simp [TP,signature,allTP,conEval] at *
     rw [← L_def]
     cases em (evaluate M w τ)
     · sorry
     · sorry
 
-theorem signature_conbot_iff_neq : contradiction (signature α ℓ ⋀ signature α ℓ')  ↔  ℓ ≠ ℓ' := by
+theorem signature_conbot_iff_neq : contradiction (signature α ℓ ⋀ signature α ℓ') ↔  ℓ ≠ ℓ' := by
+  simp only [ne_eq]
+  rw [TP_eq_iff]
   constructor
   · intro contrasign
+    simp_all [TP, contradiction, signature_iff]
+    -- QUESTION: do we need to choose a model here? How to do it?
+    -- specialize contrasign Bool sorry false -- ??
     sorry
   · intro ldiff
-    -- have := @List.ext _ ℓ ℓ'
-    sorry
+    intro W M w
+    simp_all only [List.mem_attach, forall_true_left, Subtype.forall, not_forall, evaluate, not_and]
+    rcases ldiff with ⟨τ, τ_in, disagree⟩
+    simp_all [signature, conEval]
+    intro ℓ_conform
+    cases em (ℓ ⟨τ,τ_in⟩)
+    · specialize ℓ_conform τ τ τ_in
+      simp_all only [ite_true, forall_true_left]
+      use (~τ)
+      constructor
+      · use τ, τ_in
+        simp_all
+        tauto
+      · simp
+        assumption
+    · specialize ℓ_conform (~τ) τ τ_in
+      simp_all only [Bool.not_eq_true, ite_false, evaluate, forall_true_left]
+      use τ
+      constructor
+      · use τ, τ_in
+        simp_all
+        tauto
+      · assumption
 
 theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α ℓ ≡ ψ ⋀ signature α ℓ := by
   sorry
