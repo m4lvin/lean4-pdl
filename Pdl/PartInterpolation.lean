@@ -26,7 +26,7 @@ def isPartInterpolant (X : TNode) (θ : Formula) :=
 
 def PartInterpolant (N : TNode) := Subtype <| isPartInterpolant N
 
-theorem localInterpolantStep
+def localInterpolantStep
   (C : List TNode)
   (L R : List Formula)
   (O : Option (Sum NegLoadFormula NegLoadFormula))
@@ -52,10 +52,10 @@ theorem localInterpolantStep
   | loadedL χ lrule => sorry
   | loadedR χ lrule => sorry
 
-theorem partInterpolation :
+def partInterpolation :
     ∀ (L R : List Formula), ¬ satisfiable (L ∪ R) → PartInterpolant (L,R,none) := by
   sorry
 
-theorem tabToInt {X : TNode} (tab : ClosedTableau LoadHistory.nil X) :
+def tabToInt {X : TNode} (tab : ClosedTableau LoadHistory.nil X) :
     PartInterpolant X := by
   sorry

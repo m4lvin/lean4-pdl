@@ -65,8 +65,8 @@ theorem ReflTransGen.from_finitelyManySteps (r : α → α → Prop) {n : ℕ} :
   case zero =>
     rintro x z ys ⟨x_is_head, z_is_last, _⟩
     have : x = z := by
-      simp only [x_is_head, Nat.zero_eq, z_is_last, Vector.last_def, ← Fin.cast_nat_eq_last,
-        Nat.cast_zero, Fin.isValue, Vector.get_zero]
+      subst_eqs
+      simp_all [Vector.head, Vector.last, Fin.last]
     rw [this]
   case succ n IH =>
     rintro x z ys ⟨x_is_head, z_is_last, steprel⟩

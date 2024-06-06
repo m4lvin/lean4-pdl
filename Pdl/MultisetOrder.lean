@@ -249,8 +249,8 @@ theorem mord_wf {α : Type u} [DecidableEq α] [Preorder α]
 
 
 -- Assuming the necessary context
-variables {A B : Type} {R : A → A → Prop} {T : B → B → Prop}
-variables {morphism : A → B → Prop}
+variable {A B : Type} {R : A → A → Prop} {T : B → B → Prop}
+variable {morphism : A → B → Prop}
 
 theorem acc_homo (h : ∀ (x y : B) (x' : A), morphism x' x → T y x → ∃ (y' : A), R y' x' ∧ morphism y' y) :
   ∀ (x : A), Acc R x → ∀ (x' : B), morphism x x' → Acc T x' := by sorry
@@ -471,8 +471,8 @@ lemma mord_wf_1 {α : Type u} {_ : Multiset α} [DecidableEq α] [Preorder α] :
           aesop
         | cons h =>
           rename_i _ _ a0 M
-          have trivial: M0 + a0 ::ₘ M= a0 ::ₘ (M0 + M) := by aesop
-          rw [trivial]
+          --have trivial: M0 + a0 ::ₘ M= a0 ::ₘ (M0 + M) := by aesop
+          --rw [trivial]
           aesop
        case h.intro.inl.intro =>
         aesop
@@ -547,10 +547,7 @@ lemma mred_acc {α : Type u} [DecidableEq α] [Preorder α] :
         . assumption
         . apply wf_el
           aesop
-        . apply ih
-          intros
-          apply wf_el
-          aesop
+        . aesop
 
 -- If `LT.lt` is well-founded, then `MultisetRedLt` is well-founded.
 -- lemma `mred_acc` needed.

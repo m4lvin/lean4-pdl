@@ -43,7 +43,6 @@ theorem keepFreshH α : x ∉ voc α → ∀ F δ, (F,δ) ∈ H α → x ∉ voc
   all_goals
     constructor <;> intro y y_in -- FIXME: delay this to shorten the proof?
   case sequence.left α β =>
-    rw [not_or] at x_notin
     rcases Fδ_in_H with ⟨l, ⟨⟨F', δ', ⟨Fδ'_in, def_l⟩⟩, Fδ_in_l⟩⟩
     subst def_l
     cases em (δ' = []) <;> simp_all
@@ -62,7 +61,6 @@ theorem keepFreshH α : x ∉ voc α → ∀ F δ, (F,δ) ∈ H α → x ∉ voc
       have := keepFreshH α x_notin.1 F' δ' Fδ'_in
       simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
   case sequence.right α β =>
-    rw [not_or] at x_notin
     rcases Fδ_in_H with ⟨l, ⟨⟨F', δ', ⟨Fδ'_in, def_l⟩⟩, Fδ_in_l⟩⟩
     subst def_l
     cases em (δ' = []) <;> simp_all
@@ -80,14 +78,12 @@ theorem keepFreshH α : x ∉ voc α → ∀ F δ, (F,δ) ∈ H α → x ∉ voc
       · subst_eqs
         tauto
   case union.left α β =>
-    rw [not_or] at x_notin
     cases Fδ_in_H
     · have IHα := keepFreshH α x_notin.1 F δ
       simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
     · have IHβ := keepFreshH β x_notin.2 F δ
       simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
   case union.right α β =>
-    rw [not_or] at x_notin
     cases Fδ_in_H
     · have IHα := keepFreshH α x_notin.1 F δ
       simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
@@ -542,8 +538,6 @@ theorem relateSeq_toChain' {M} {δ} {v w : W} : relateSeq M δ v w → δ ≠ []
     case inl δ_eq_empty =>
       subst δ_eq_empty
       intro _
-      simp_all
-      use []
       simp_all [pairRel]
     case inr δ_notEmpty =>
       simp only [relateSeq]
@@ -742,7 +736,6 @@ theorem signature_conbot_iff_neq : contradiction (signature α ℓ ⋀ signature
       constructor
       · use τ, τ_in
         simp_all
-        tauto
       · simp
         assumption
     · specialize ℓ_conform (~τ) τ τ_in
@@ -751,7 +744,6 @@ theorem signature_conbot_iff_neq : contradiction (signature α ℓ ⋀ signature
       constructor
       · use τ, τ_in
         simp_all
-        tauto
       · assumption
 
 theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α ℓ ≡ ψ ⋀ signature α ℓ := by

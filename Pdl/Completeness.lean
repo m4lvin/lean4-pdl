@@ -5,10 +5,6 @@ import Pdl.Modelgraphs
 
 open HasSat
 
-theorem freeSuccExists : sorry := sorry
-
-theorem freeConsSuccExists : sorry := sorry
-
 -- MB page 34
 -- TODO: the type below is not correct, this may also be within / across a local tableau!?
 def relInTableau {H X} {ctX : ClosedTableau H X} : PathIn ctX → PathIn ctX → Prop := sorry -- TODO

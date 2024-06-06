@@ -40,7 +40,7 @@ theorem vocElem_subs_vocSet {ϕ X} : ϕ ∈ X → vocabOfFormula ϕ ⊆ vocabOfS
   case empty =>
     intro phi_in_X;
     cases phi_in_X
-  case insert ψ S _ IH =>
+  case insert ψ S _ _ =>
     intro psi_in_insert
     simp at *
     intro a aIn

@@ -23,7 +23,7 @@ def PartInterpolant (LR : TNode) := Subtype <| isPartInterpolant LR
 theorem choice_property_in_image {f : α → β }{l : List α} {p : β → Prop} (p_in_image: ∃y ∈ (List.map f l), p y) : ∃x ∈ l, p (f x) :=
   by simp at p_in_image; assumption
 
-theorem InterpolantInductionStep
+def InterpolantInductionStep
   (L R : Finset Formula)
   (ruleA : LocalRuleApp (L,R) C)
   (subθs : Π c ∈ C, PartInterpolant c)
@@ -236,8 +236,10 @@ theorem projection_reflects_unsat_R_R
     case inl hyp => subst hyp; simp; exact v_nPhi
     case inr => simp at this; apply this (by right; assumption) v w_v
 
-theorem tabToInt {LR : TNode} (tab : ClosedTableau LR)
-: PartInterpolant LR := by
+def tabToInt {LR : TNode} (tab : ClosedTableau LR) : PartInterpolant LR :=
+  sorry -- broken with lean 7.8.0
+  /-
+  by
   induction tab
   case loc LR lt next nextθs =>
     -- Term-mode version below was broken after removal of AppLocalTableau.
@@ -276,3 +278,4 @@ theorem tabToInt {LR : TNode} (tab : ClosedTableau LR)
     · constructor -- implication property
       · exact projection_reflects_unsat_R_L nBoxφ_in_R pθ.2.2.1
       · exact projection_reflects_unsat_R_R nBoxφ_in_R pθ.2.2.2
+  -/

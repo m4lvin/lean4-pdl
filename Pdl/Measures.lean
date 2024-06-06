@@ -1,6 +1,6 @@
 -- MEASURES
 
-import Mathlib.Algebra.BigOperators.Basic
+import Mathlib.Algebra.BigOperators.Group.Finset
 import Mathlib.Data.Finset.Basic
 
 import Pdl.Syntax

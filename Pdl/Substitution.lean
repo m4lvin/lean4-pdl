@@ -94,7 +94,6 @@ theorem repl_in_boxes_non_occ_eq (δ : List Program) :
     · apply IH
       clear IH
       simp [voc,vocabOfProgram,vocabOfListProgram] at *
-      rw [not_or] at nonOcc
       intro d d_in
       simp_all
 
@@ -108,12 +107,10 @@ theorem repl_in_list_non_occ_eq (F : List Formula) :
     constructor
     · apply repl_in_F_non_occ_eq
       simp [voc,vocabOfProgram,vocabOfListFormula] at *
-      rw [not_or] at nonOcc
       exact nonOcc.left
     · apply IH
       clear IH
       simp [voc,vocabOfProgram,vocabOfListFormula] at *
-      rw [not_or] at nonOcc
       intro d d_in
       simp_all
 

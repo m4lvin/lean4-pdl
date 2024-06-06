@@ -744,7 +744,7 @@ theorem loadedDiamondPaths
   all_goals sorry
 
 -- MB: Lemma 8
-theorem freeSatDown : sorry := sorry
+-- theorem freeSatDown : Prop := sorry
 -- have := localRuleTruth
 -- have := loadedDiamondPaths
 

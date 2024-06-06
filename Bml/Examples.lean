@@ -41,7 +41,7 @@ theorem A3 (X Y : Formula) : Tautology (□(X⋀Y) ↣ □X⋀□Y) :=
   unfold Tautology Evaluate
   intro W M w
   by_contra hyp
-  simp at hyp 
+  simp at hyp
   unfold Evaluate at hyp
   cases' hyp with hl hr
   contrapose! hr

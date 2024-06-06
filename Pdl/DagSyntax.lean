@@ -1,5 +1,3 @@
-import Std.Tactic.NoMatch
-
 import Pdl.Syntax
 
 inductive DagFormula : Type

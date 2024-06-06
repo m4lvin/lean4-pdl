@@ -266,7 +266,7 @@ theorem pathSaturated (path : Path consLR): Saturated (pathToFinset path) := by
             cases IH3
             all_goals simp_all
 
-theorem botTableauL (bot_in: ⊥ ∈ LR.1): ClosedTableau LR := by
+def botTableauL (bot_in: ⊥ ∈ LR.1): ClosedTableau LR := by
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
@@ -277,7 +277,7 @@ theorem botTableauL (bot_in: ⊥ ∈ LR.1): ClosedTableau LR := by
     aesop
   case next => aesop
 
-theorem botTableauR (bot_in: ⊥ ∈ LR.2): ClosedTableau LR := by
+def botTableauR (bot_in: ⊥ ∈ LR.2): ClosedTableau LR := by
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
@@ -288,7 +288,7 @@ theorem botTableauR (bot_in: ⊥ ∈ LR.2): ClosedTableau LR := by
     aesop
   case next => aesop
 
-theorem notTableauLL (pp_in: (·pp) ∈ LR.1) (npp_in: (~·pp) ∈ LR.1): ClosedTableau LR := by
+def notTableauLL (pp_in: (·pp) ∈ LR.1) (npp_in: (~·pp) ∈ LR.1): ClosedTableau LR := by
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
@@ -299,7 +299,7 @@ theorem notTableauLL (pp_in: (·pp) ∈ LR.1) (npp_in: (~·pp) ∈ LR.1): Closed
     aesop
   case next => aesop
 
-theorem notTableauLR (pp_in: (·pp) ∈ LR.1) (npp_in: (~·pp) ∈ LR.2): ClosedTableau LR := by
+def notTableauLR (pp_in: (·pp) ∈ LR.1) (npp_in: (~·pp) ∈ LR.2): ClosedTableau LR := by
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
@@ -310,7 +310,7 @@ theorem notTableauLR (pp_in: (·pp) ∈ LR.1) (npp_in: (~·pp) ∈ LR.2): Closed
     aesop
   case next => aesop
 
-theorem notTableauRL (pp_in: (·pp) ∈ LR.2) (npp_in: (~·pp) ∈ LR.1): ClosedTableau LR := by
+def notTableauRL (pp_in: (·pp) ∈ LR.2) (npp_in: (~·pp) ∈ LR.1): ClosedTableau LR := by
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
@@ -321,7 +321,7 @@ theorem notTableauRL (pp_in: (·pp) ∈ LR.2) (npp_in: (~·pp) ∈ LR.1): Closed
     aesop
   case next => aesop
 
-theorem notTableauRR (pp_in: (·pp) ∈ LR.2) (npp_in: (~·pp) ∈ LR.2): ClosedTableau LR := by
+def notTableauRR (pp_in: (·pp) ∈ LR.2) (npp_in: (~·pp) ∈ LR.2): ClosedTableau LR := by
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule

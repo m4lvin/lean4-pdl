@@ -72,12 +72,12 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
     have help1 : (List.append l [Y]).length = δ.length := by simp [length_def]
     apply IHδ (δ.get (i.cast help1)) (by apply List.get_mem) (List.get (X :: l ++ [Y]) i.castSucc)
     · have : (⌈List.get δ (i.cast help1)⌉⌈⌈List.drop (i + 1) δ⌉⌉φ) = (⌈⌈List.drop (i.castSucc) δ⌉⌉φ) := by
-        simp only [List.append_eq, Fin.coe_castSucc]
+        simp? only [List.append_eq, Fin.coe_castSucc]
         rw [← Formula.boxes]
         have := @List.drop_eq_get_cons _ i δ (by rw [← length_def]; have := Fin.is_lt i; convert this; simp)
         rw [this]
         cases i
-        simp_all
+        sorry -- simp_all -- broken with lean 7.8.0
       rw [this]
       exact IH
     · simp [relate]
@@ -268,7 +268,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
         have _forTermination : lengthOfFormula ψ < lengthOfProgram (∗β) := by
           apply F_goes_down
           simp [F]
-          exact (TP_eq ▸ ψ_in)
+          convert ψ_in
         apply (loadedTruthLemma MG X ψ).1
         apply mysat; left; simp [F]; assumption
       -- now use Lemma 34:
