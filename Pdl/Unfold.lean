@@ -476,7 +476,8 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
               · exact repl_in_boxes_non_occ_eq _ ((myFresh _ _ (Fδ_in_Hβ)).2)
               · exact repl_in_list_non_occ_eq _ ((myFresh _ _ (Fδ_in_Hβ)).1)
           -- remains to push repl_in_F through dis and map
-          exact repl_in_disMap x ρ (H β) (fun Fδ => Fδ.2 = []) (fun Fδ => (Con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)))
+          convert repl_in_disMap x ρ (H β) (fun Fδ => Fδ.2 = []) (fun Fδ => (Con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)))
+          simp
         rw [this, disEval, helper]
         clear this
         rintro ⟨⟨Fs,δ⟩, ⟨Fδ_in, repl_w_⟩⟩

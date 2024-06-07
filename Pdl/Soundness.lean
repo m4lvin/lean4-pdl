@@ -70,7 +70,7 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
               -- Program IH 3: no old world can see the new world
               ∧ (∀ (R : β) (oldWorld : (collection R).fst),
                 ¬(relate (combinedModel collection newVal).fst π (Sum.inr ⟨R, oldWorld⟩) (Sum.inl Unit.unit))))
-      (by tauto)      -- case bottom
+      (by simp)       -- case bottom
       (by aesop)      -- case atom_prop
       (by aesop)      -- case neg
       (by aesop)      -- case and

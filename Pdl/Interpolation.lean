@@ -11,7 +11,7 @@ theorem interpolation : ∀ (φ ψ : Formula), φ⊨ψ → ∃ θ : Formula, Int
   by
   intro φ ψ hyp
   let X : TNode := ([φ], [~(ψ)], none)
-  have ctX : ClosedTableau _ X :=
+  have ctX : ClosedTableau ([],[]) X :=
     by
     rw [tautImp_iff_TNodeUnsat rfl] at hyp
     rw [← completeness] at hyp -- using completeness
