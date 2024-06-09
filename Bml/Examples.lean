@@ -38,13 +38,4 @@ theorem boxTop : Tautology (□⊤) := by
 
 theorem A3 (X Y : Formula) : Tautology (□(X⋀Y) ↣ □X⋀□Y) :=
   by
-  unfold Tautology Evaluate
-  intro W M w
-  by_contra hyp
-  simp at hyp
-  unfold Evaluate at hyp
-  cases' hyp with hl hr
-  contrapose! hr
-  constructor
-  · intro v1 ass; exact (hl v1 ass).1
-  · intro v2 ass; exact (hl v2 ass).2
+  simp_all [Tautology, Evaluate]

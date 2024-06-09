@@ -236,29 +236,34 @@ theorem projection_reflects_unsat_R_R
     case inl hyp => subst hyp; simp; exact v_nPhi
     case inr => simp at this; apply this (by right; assumption) v w_v
 
+open HasLength
+
+def ClosedTableau.myLength : ClosedTableau LR → Nat
+  | (ClosedTableau.loc lt next) => 1 + ((endNodesOf ⟨LR, lt⟩).attach.map (fun ⟨c, c_in_ends⟩ => (next c c_in_ends).myLength)).sum
+  | (@ClosedTableau.atmL LR φ nBoxφ_in_L simple_LR cTabProj) => 1 + cTabProj.myLength
+  | (@ClosedTableau.atmR LR φ nBoxφ_in_R simple_LR cTabProj) => 1 + cTabProj.myLength
+
+@[simp]
+instance : HasLength (ClosedTableau LR) := HasLength.mk $ ClosedTableau.myLength
+
 def tabToInt {LR : TNode} (tab : ClosedTableau LR) : PartInterpolant LR :=
-  sorry -- broken with lean 7.8.0
-  /-
-  by
-  induction tab
-  case loc LR lt next nextθs =>
-    -- Term-mode version below was broken after removal of AppLocalTableau.
-    induction lt
-    case fromRule WhatIsThis LR C lrApp subTabs IH =>
+  match t_def : tab with
+  | (ClosedTableau.loc lt next) => by
+    match lt_def : lt with
+    | (@LocalTableau.fromRule _ C lrApp subTabs) =>
       apply InterpolantInductionStep LR.1 LR.2 lrApp
       intro cLR c_in_C
-      apply IH cLR c_in_C
-      · intro eLR e_in_end
-        apply next
-        aesop
-      · intro Y Y_in
-        apply nextθs
-        aesop
-    case fromSimple =>
-      aesop
-
-  case atmL LR φ nBoxφ_in_L simple_LR cTabProj pθ =>
-    use ~(□~pθ.val) -- modal rule on the right: use diamond of interpolant!
+      refine tabToInt (ClosedTableau.loc (subTabs cLR c_in_C) ?_) -- termination?!
+      intro Y Y_endOf_ctLR
+      apply next
+      simp [endNodesOf]
+      use endNodesOf ⟨cLR, subTabs cLR c_in_C⟩
+      exact ⟨⟨cLR, by simp_all⟩, Y_endOf_ctLR⟩
+    | (LocalTableau.fromSimple isSimple) =>
+      apply tabToInt (next LR (by simp [endNodesOf])) -- termination??
+  | (@ClosedTableau.atmL LR φ nBoxφ_in_L simple_LR cTabProj) => by
+    let pθ := tabToInt cTabProj
+    use (~(□~pθ.val)) -- modal rule on the right: use diamond of interpolant!
     constructor
     · -- voc property
       intro ℓ ℓ_in_θ
@@ -267,9 +272,9 @@ def tabToInt {LR : TNode} (tab : ClosedTableau LR) : PartInterpolant LR :=
       · rw [sat_double_neq_invariant]
         exact projection_reflects_unsat_L_L nBoxφ_in_L pθ.2.2.1
       · exact projection_reflects_unsat_L_R nBoxφ_in_L pθ.2.2.2
-
   -- dual to atmL
-  case atmR LR φ nBoxφ_in_R simple_LR cTabProj pθ =>
+  | (@ClosedTableau.atmR LR φ nBoxφ_in_R simple_LR cTabProj) => by
+    let pθ := tabToInt cTabProj
     use (□pθ.val) -- modal rule on the right: use box of interpolant!
     constructor
     · -- voc property
@@ -278,4 +283,14 @@ def tabToInt {LR : TNode} (tab : ClosedTableau LR) : PartInterpolant LR :=
     · constructor -- implication property
       · exact projection_reflects_unsat_R_L nBoxφ_in_R pθ.2.2.1
       · exact projection_reflects_unsat_R_R nBoxφ_in_R pθ.2.2.2
-  -/
+
+decreasing_by
+· simp_wf
+
+  sorry
+· simp_wf
+
+  sorry
+
+· simp_wf
+· simp_wf
