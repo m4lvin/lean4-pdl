@@ -238,13 +238,71 @@ theorem projection_reflects_unsat_R_R
 
 open HasLength
 
-def ClosedTableau.myLength : ClosedTableau LR → Nat
-  | (ClosedTableau.loc lt next) => 1 + ((endNodesOf ⟨LR, lt⟩).attach.map (fun ⟨c, c_in_ends⟩ => (next c c_in_ends).myLength)).sum
-  | (@ClosedTableau.atmL LR φ nBoxφ_in_L simple_LR cTabProj) => 1 + cTabProj.myLength
-  | (@ClosedTableau.atmR LR φ nBoxφ_in_R simple_LR cTabProj) => 1 + cTabProj.myLength
+def LocalTableau.length : LocalTableau LR → Nat
+  | (@LocalTableau.fromRule _ C _ next) =>
+      1 + (C.attach.map (fun ⟨c,c_in⟩ => (next c c_in).length )).sum
+  | (LocalTableau.fromSimple _) => 1
 
-@[simp]
-instance : HasLength (ClosedTableau LR) := HasLength.mk $ ClosedTableau.myLength
+def ClosedTableau.length : ClosedTableau LR → Nat
+  | (ClosedTableau.loc lt next) =>
+      1 + lt.length + ((endNodesOf ⟨LR, lt⟩).attach.map (fun ⟨c, c_in_ends⟩ => (next c c_in_ends).length)).sum
+  | (@ClosedTableau.atmL LR _ _ _ cTabProj) => 1 + cTabProj.length
+  | (@ClosedTableau.atmR LR _ _ _ cTabProj) => 1 + cTabProj.length
+
+-- TODO: move to Tableau.lean
+theorem endNodeOfChildIsEndNode
+  lrApp
+  (subTabs : (c : TNode) → c ∈ C → LocalTableau c)
+  (E_in:  E ∈ endNodesOf ⟨x, subTabs x h⟩)
+  : E ∈ endNodesOf ⟨LR, @LocalTableau.fromRule LR C lrApp subTabs⟩
+  := by
+  unfold endNodesOf
+  simp_all only [List.mem_join, List.mem_map, List.mem_attach, true_and, Subtype.exists]
+  refine ⟨endNodesOf ⟨x, subTabs x h⟩, ⟨x, h, by simp⟩ , E_in⟩
+
+def childNext
+  (subTabs : (c : TNode) → c ∈ C → LocalTableau c)
+  (next : (Y : TNode) → Y ∈ endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩ → ClosedTableau Y)
+  (cLR : TNode)
+  (c_in_C : cLR ∈ C)
+  :
+  (Y : TNode) → Y ∈ endNodesOf ⟨cLR, subTabs cLR c_in_C⟩ → ClosedTableau Y := by
+  intro Y Y_in
+  exact next Y (endNodeOfChildIsEndNode lrApp subTabs Y_in)
+
+theorem childNext_lt
+    (subTabs : (c : TNode) → c ∈ C → LocalTableau c)
+    (next : (Y : TNode) → Y ∈ endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩ → ClosedTableau Y)
+    (cLR : TNode)
+    (c_in_C : cLR ∈ C)
+    :
+    (ClosedTableau.loc (subTabs cLR c_in_C) (childNext subTabs next cLR c_in_C)).length
+    <
+    (ClosedTableau.loc (LocalTableau.fromRule lrApp subTabs) next).length := by
+  simp_all [ClosedTableau.length, LocalTableau.length]
+  sorry
+
+theorem elem_lt_map_sum {x : α} {l : List α}
+    (h : x ∈ l) (f : α → Nat) : f x ≤ (l.map f).sum := by
+  induction l
+  · simp_all
+  case cons k l IH =>
+    simp_all
+    cases h
+    · simp_all
+    case inr x_in =>
+      specialize IH x_in
+      linarith
+
+theorem simple_lt
+  (isSimple : Simple LR)
+  (next : (Y : TNode) → Y ∈ endNodesOf ⟨LR, LocalTableau.fromSimple isSimple⟩ → ClosedTableau Y)
+  (h : LR ∈ endNodesOf ⟨LR, LocalTableau.fromSimple isSimple⟩)
+  :
+  (next LR h).length < (ClosedTableau.loc (LocalTableau.fromSimple isSimple) next).length :=  by
+  simp_all [ClosedTableau.length, endNodesOf, LocalTableau.length]
+  have := elem_lt_map_sum h -- ClosedTableau.length -- mismatch: mapping over LRs, not the tableaux?
+  sorry
 
 def tabToInt {LR : TNode} (tab : ClosedTableau LR) : PartInterpolant LR :=
   match t_def : tab with
@@ -253,12 +311,7 @@ def tabToInt {LR : TNode} (tab : ClosedTableau LR) : PartInterpolant LR :=
     | (@LocalTableau.fromRule _ C lrApp subTabs) =>
       apply InterpolantInductionStep LR.1 LR.2 lrApp
       intro cLR c_in_C
-      refine tabToInt (ClosedTableau.loc (subTabs cLR c_in_C) ?_) -- termination?!
-      intro Y Y_endOf_ctLR
-      apply next
-      simp [endNodesOf]
-      use endNodesOf ⟨cLR, subTabs cLR c_in_C⟩
-      exact ⟨⟨cLR, by simp_all⟩, Y_endOf_ctLR⟩
+      refine tabToInt (ClosedTableau.loc (subTabs cLR c_in_C) (by apply childNext subTabs next cLR))
     | (LocalTableau.fromSimple isSimple) =>
       apply tabToInt (next LR (by simp [endNodesOf])) -- termination??
   | (@ClosedTableau.atmL LR φ nBoxφ_in_L simple_LR cTabProj) => by
@@ -283,14 +336,13 @@ def tabToInt {LR : TNode} (tab : ClosedTableau LR) : PartInterpolant LR :=
     · constructor -- implication property
       · exact projection_reflects_unsat_R_L nBoxφ_in_R pθ.2.2.1
       · exact projection_reflects_unsat_R_R nBoxφ_in_R pθ.2.2.2
-
+termination_by tab.length
 decreasing_by
 · simp_wf
-
-  sorry
+  exact childNext_lt subTabs next cLR c_in_C
 · simp_wf
-
-  sorry
-
+  apply simple_lt isSimple next
 · simp_wf
+  simp [ClosedTableau.length]
 · simp_wf
+  simp [ClosedTableau.length]
