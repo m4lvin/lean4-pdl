@@ -270,6 +270,17 @@ def childNext
   intro Y Y_in
   exact next Y (endNodeOfChildIsEndNode lrApp subTabs Y_in)
 
+theorem childNext_eq
+  (subTabs : (c : TNode) → c ∈ C → LocalTableau c)
+  (next : (Y : TNode) → Y ∈ endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩ → ClosedTableau Y)
+  (cLR : TNode)
+  (c_in_C : cLR ∈ C)
+  Y
+  (Y_in : Y ∈ endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩)
+  (Y_in_child : Y ∈ endNodesOf ⟨cLR, subTabs cLR c_in_C⟩)
+  : childNext subTabs next cLR c_in_C Y Y_in_child = next Y Y_in := by
+  simp [childNext]
+
 theorem elem_lt_map_sum {x : α} {l : List α}
     (h : x ∈ l) (f : α → Nat) : f x ≤ (l.map f).sum := by
   induction l
@@ -282,6 +293,40 @@ theorem elem_lt_map_sum {x : α} {l : List α}
       specialize IH x_in
       linarith
 
+theorem endNodesOfChildAreEndNodes
+    (subTabs : (c : TNode) → c ∈ C → LocalTableau c)
+    (c_in_C : cLR ∈ C)
+    lrApp
+    : (endNodesOf ⟨cLR, subTabs cLR c_in_C⟩)
+    ⊆ (endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩) := by
+  intro x x_in
+  apply endNodeOfChildIsEndNode lrApp subTabs x_in
+
+theorem endNodesOfChildSublistEndNodes
+    (subTabs : (c : TNode) → c ∈ C → LocalTableau c)
+    (c_in_C : cLR ∈ C)
+    lrApp
+    : (endNodesOf ⟨cLR, subTabs cLR c_in_C⟩).Sublist (endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩) := by
+  simp_all [endNodesOf]
+  apply List.sublist_join
+  simp_all
+  use cLR, c_in_C
+
+theorem map_sum_le_map_sum
+    (xs ys : List α)
+    (h : xs.Sublist ys) -- NOTE: subset is not enough!
+    (f : { x // x ∈ xs } → Nat)
+    (g : { x // x ∈ ys } → Nat)
+    (agree : ∀ x ∈ xs.attach, ∀ x_in_ys, f x = g ⟨x.1, x_in_ys⟩)
+    : (List.map f xs.attach).sum ≤ (List.map g ys.attach).sum := by
+  apply List.Sublist.sum_le_sum
+  · induction ys -- maybe not a good strategy
+    · simp_all
+    case cons y ys IH =>
+      simp_all
+      sorry
+  · simp
+
 theorem childNext_lt
     (subTabs : (c : TNode) → c ∈ C → LocalTableau c)
     (next : (Y : TNode) → Y ∈ endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩ → ClosedTableau Y)
@@ -291,12 +336,24 @@ theorem childNext_lt
     (ClosedTableau.loc (subTabs cLR c_in_C) (childNext subTabs next cLR c_in_C)).length
     <
     (ClosedTableau.loc (LocalTableau.fromRule lrApp subTabs) next).length := by
-  simp_all [ClosedTableau.length, LocalTableau.length]
-  -- trying to do the same as below?
-  have := List.mem_attach _ ⟨_, c_in_C⟩
-  have := elem_lt_map_sum this (fun x => (childNext subTabs next cLR c_in_C ↑x.1 sorry).length)
-  -- probably something wrong here. x.2 not matching.
-  sorry
+  have := childNext_eq subTabs next cLR c_in_C
+  simp_all [ClosedTableau.length, endNodesOf, LocalTableau.length]
+  have : (subTabs cLR c_in_C).length ≤ (List.map (fun x => (subTabs x.1 x.2).length) C.attach).sum := by
+    have := List.mem_attach _ ⟨_, c_in_C⟩
+    have := elem_lt_map_sum this (fun x => (subTabs x.1 x.2).length)
+    linarith
+  have :
+      (List.map (fun x => (childNext subTabs next cLR c_in_C x.1 x.2).length) (endNodesOf ⟨cLR, subTabs cLR c_in_C⟩).attach).sum
+      ≤
+      (List.map (fun x => (next x.1 x.2).length) (endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩).attach).sum := by
+    apply map_sum_le_map_sum
+      (endNodesOf ⟨cLR, subTabs cLR c_in_C⟩)
+      (endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩)
+      (endNodesOfChildSublistEndNodes subTabs c_in_C lrApp)
+    intro _ _ _
+    rw [childNext_eq]
+  linarith
+
 
 theorem simple_lt
   (isSimple : Simple LR)
@@ -309,17 +366,19 @@ theorem simple_lt
   have := elem_lt_map_sum this (fun x => (next x.1 x.2).length)
   linarith
 
+-- NOTE for doing this in PDL some day, it seems better to split things:
+-- first do only the definition of the interpolant and then the proof that it is one.
 def tabToInt {LR : TNode} (tab : ClosedTableau LR) : PartInterpolant LR :=
   match t_def : tab with
   | (ClosedTableau.loc lt next) => by
-    match lt_def : lt with
+    match lt with
     | (@LocalTableau.fromRule _ C lrApp subTabs) =>
       apply InterpolantInductionStep LR.1 LR.2 lrApp
       intro cLR c_in_C
       refine tabToInt (ClosedTableau.loc (subTabs cLR c_in_C) (by apply childNext subTabs next cLR))
     | (LocalTableau.fromSimple isSimple) =>
       apply tabToInt (next LR (by simp [endNodesOf])) -- termination??
-  | (@ClosedTableau.atmL LR' φ nBoxφ_in_L simple_LR' cTabProj) => by
+  | (@ClosedTableau.atmL LR' φ nBoxφ_in_L _simple_LR' cTabProj) => by
     let pθ := tabToInt cTabProj
     use (~(□~pθ.val)) -- modal rule on the right: use diamond of interpolant!
     constructor
@@ -331,7 +390,7 @@ def tabToInt {LR : TNode} (tab : ClosedTableau LR) : PartInterpolant LR :=
         exact projection_reflects_unsat_L_L nBoxφ_in_L pθ.2.2.1
       · exact projection_reflects_unsat_L_R nBoxφ_in_L pθ.2.2.2
   -- dual to atmL
-  | (@ClosedTableau.atmR LR' φ nBoxφ_in_R simple_LR' cTabProj) => by
+  | (@ClosedTableau.atmR LR' φ nBoxφ_in_R _simple_LR' cTabProj) => by
     let pθ := tabToInt cTabProj
     use (□pθ.val) -- modal rule on the right: use box of interpolant!
     constructor
