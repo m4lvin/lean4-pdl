@@ -28,7 +28,7 @@ theorem proj : g ∈ projection A X ↔ (⌈·A⌉g) ∈ X :=
     rw [List.reduceOption_mem_iff]
     aesop
 
--- LOADING
+/-! ## Loading and Loaded Histories -/
 
 def boxesOf : Formula → List Program × Formula
 | (Formula.box prog nextf) => let (rest,endf) := boxesOf nextf; ⟨prog::rest, endf⟩
@@ -45,10 +45,18 @@ def toNegLoad (α : Program) (φ : Formula) : NegLoadFormula :=
 -- - The newest/lowest TNode should be the head of the list.
 -- - We only track "big" steps, hoping we do not need steps within local tableaux.
 
--- TNodes  before × since  last (At) application (and only recording loaded nodes)
+-- TNodes  before × since  last (M) application (and only recording loaded nodes)
 def LoadHistory : Type := List TNode × List TNode -- This may not be enough!
 
 def LoadHistory.nil : LoadHistory := ([], [])
+
+@[simp]
+def newLoadHistory : TNode → LoadHistory
+| X => ([], [X])
+
+@[simp]
+def LoadHistory.addAtm : TNode → LoadHistory → LoadHistory
+| X, (before, since) => (X :: since ++ before, [])
 
 -- MB Condition 6, simplified to only represent closed tableau:
 --
@@ -57,70 +65,42 @@ def LoadHistory.nil : LoadHistory := ([], [])
 def condSixRepeat (X : TNode) (Hist : LoadHistory) :=
   Subtype (fun (k, Y) => Hist.1.get? k = some Y ∧ X.setEqTo Y)
 
--- TABLEAUX
+/-! ## The PDL rules -/
 
--- The "Step" notation has two jobs:
--- - flip the order in the definition below to be more natural.
--- - avoid having to repeat "parent" to build the history.
-
--- Step to an unloaded node, resetting history.
-notation "Step" Ct:arg Hist:arg parent:arg child:arg => Ct ([],[]) child → Ct Hist parent
-
--- Lstep to a loaded node, continuing the history.
-notation "LStep" Ct:arg Hist:arg recf:arg parent:arg child:arg => Ct (recf Hist parent) child → Ct Hist parent
-
-def record : LoadHistory → TNode → LoadHistory
-| (before, after), X => if X.isLoaded then (before, X :: after) else ([], [])
-
--- Use this for atmL and atmR, but not for the primed ones!
-def recordAtm : LoadHistory → TNode → LoadHistory
-| (before, after), X => (after ++ before, [X])
-
-/-
-inductive PdlRule : TNode → TNode → Type
+/-- A rule to go from Γ to Δ. Note the four variants of the modal rule. -/
+-- TODO: Think about whether the LoadHistory function works backwards!?
+-- hfun converts the LoadHistory for Γ into that of Δ
+inductive PdlRule : (Γ : TNode) → (Δ : TNode) → (hfun : LoadHistory → LoadHistory) → Type
   | mrkL : (~⌈α⌉φ) ∈ L → PdlRule (L, R, none)
                                  (L.erase (~⌈α⌉φ), R, some (Sum.inl (toNegLoad α φ)))
+                                 (fun _ => newLoadHistory (L, R, none))
   | mrkR : (~⌈α⌉φ) ∈ R → PdlRule (L, R, none)
                                  (L, R.erase (~⌈α⌉φ), some (Sum.inr (toNegLoad α φ)))
-  -- The (At) rule:
-  | atmL   {A X χ} : isBasic X → PdLRule ⟨L, R, some (Sum.inl (~'⌊·A⌋(χ : LoadFormula)))⟩
-                                              (projection A L, projection A R, some (Sum.inl (~'χ)))
-  | atmR   {A X χ} : isBasic X → PdlRule ⟨L, R, some (Sum.inr (~'⌊·A⌋(χ : LoadFormula)))⟩
-                                              (projection A L, projection A R, some (Sum.inr (~'χ)))
-  | atmL'  {A X φ} : isBasic X → PdlRule ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
-                                              (projection A L ++ [~φ], projection A R, none)
-  | atmR'  {A X φ} : isBasic X → PdlRule ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
-                                              (projection A L, projection A R ++ [~φ], none)
--/
+                                 (fun _ => newLoadHistory (L, R, none))
+  | atmL   {A X χ} : X = ⟨L, R, some (Sum.inl (~'⌊·A⌋(χ : LoadFormula)))⟩ → isBasic X → PdlRule X
+                         ⟨projection A L, projection A R, some (Sum.inl (~'χ))⟩
+                         (LoadHistory.addAtm X)
+  | atmR   {A X χ} : X = ⟨L, R, some (Sum.inr (~'⌊·A⌋(χ : LoadFormula)))⟩ → isBasic X → PdlRule X
+                         ⟨projection A L, projection A R, some (Sum.inr (~'χ))⟩
+                         (LoadHistory.addAtm X)
+  | atmL'  {A X φ} : X = ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩ → isBasic X → PdlRule X
+                         ⟨(~φ) :: projection A L, projection A R, none⟩
+                         (LoadHistory.addAtm X)
+  | atmR'  {A X φ} : X = ⟨L, R, some (Sum.inr (~'⌊·A⌋(φ : Formula)))⟩ → isBasic X → PdlRule X
+                         ⟨projection A L, (~φ) :: projection A R, none⟩
+                         (LoadHistory.addAtm X)
 
 -- ClosedTableau [parent, grandparent, ...] child
 --
 -- A closed tableau for X is either of:
 -- - a local tableau for X followed by closed tableaux for all end nodes,
--- - a (L+) loading rule application
---   (left or right)
--- - a (M) modal rule application (two cases due to LoadFormula type)
---   (left or right, and loaded or unloaded)
+-- - a PDL rule application
 -- - a successful loaded repeat (MB condition six)
+
 inductive ClosedTableau : LoadHistory → TNode → Type
-  -- Do a local tableau: (not recording any history!)
+  -- FIXME: also record the "loc" step in `Hist`?
   | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf lt, ClosedTableau Hist Y) → ClosedTableau Hist X
-  -- The (L+) rule:
-  | mrkL : (~⌈α⌉φ) ∈ L → Step ClosedTableau Hist (L, R, none)
-                                                 (L.erase (~⌈α⌉φ), R, some (Sum.inl (toNegLoad α φ)))
-  | mrkR : (~⌈α⌉φ) ∈ R → Step ClosedTableau Hist (L, R, none)
-                                                 (L, R.erase (~⌈α⌉φ), some (Sum.inr (toNegLoad α φ)))
-  -- The (At) rule:
-  -- TODO: can we avoid the four cases?
-  | atmL   {A X χ} : isBasic X → Step ClosedTableau Hist ⟨L, R, some (Sum.inl (~'⌊·A⌋(χ : LoadFormula)))⟩
-                                                              (projection A L, projection A R, some (Sum.inl (~'χ)))
-  | atmL'  {A X φ} : isBasic X → LStep ClosedTableau Hist record ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
-                                                              (projection A L ++ [~φ], projection A R, none)
-  | atmR   {A X χ} : isBasic X → Step ClosedTableau Hist ⟨L, R, some (Sum.inr (~'⌊·A⌋(χ : LoadFormula)))⟩
-                                                              (projection A L, projection A R, some (Sum.inr (~'χ)))
-  | atmR'  {A X φ} : isBasic X → LStep ClosedTableau Hist record ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
-                                                              (projection A L, projection A R ++ [~φ], none)
-  -- Condition 6a repeats are end nodes:
+  | pdl {Δ Γ} : PdlRule Γ Δ hfun → ClosedTableau (hfun Hist) Δ → ClosedTableau Hist Γ
   | rep {X Hist} (rep : condSixRepeat X Hist) : ClosedTableau Hist X
 
 inductive provable : Formula → Prop
