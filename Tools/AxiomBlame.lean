@@ -41,7 +41,7 @@ partial def collect (src : List Name) (c : Name) : M Unit := do
 end CollectAxiomBlame
 
 elab "#axiom_blame " id:ident : command => Elab.Command.liftTermElabM do
-  let n ← Elab.resolveGlobalConstNoOverloadWithInfo id
+  let n ← Elab.realizeGlobalConstNoOverloadWithInfo id
   Elab.addCompletionInfo <| .id id id.getId (danglingDot := false) {} none
   let env ← getEnv
   let (_, s) := ((CollectAxiomBlame.collect [] n).run env).run {}

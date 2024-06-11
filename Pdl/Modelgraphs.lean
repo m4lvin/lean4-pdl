@@ -66,18 +66,21 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
     (⌈⌈δ.drop i⌉⌉φ) ∈ ((X :: l ++ [Y]).get i).val := by
   induction i using Fin.inductionOn
   case zero =>
-    simp_all -- uses δφ_in_X
+    simp_all only [instBot, insTop, List.cons_append, List.zip_cons_cons, Subtype.forall,
+      List.length_cons, Nat.succ_eq_add_one, Fin.val_zero, List.drop_zero, List.get_cons_zero]
+      -- uses δφ_in_X
   case succ i IH =>
     simp_all only [List.cons_append, List.length_cons, List.append_eq, Fin.val_succ, List.get_cons_succ']
     have help1 : (List.append l [Y]).length = δ.length := by simp [length_def]
     apply IHδ (δ.get (i.cast help1)) (by apply List.get_mem) (List.get (X :: l ++ [Y]) i.castSucc)
     · have : (⌈List.get δ (i.cast help1)⌉⌈⌈List.drop (i + 1) δ⌉⌉φ) = (⌈⌈List.drop (i.castSucc) δ⌉⌉φ) := by
-        simp? only [List.append_eq, Fin.coe_castSucc]
+        simp only [List.append_eq, Fin.coe_castSucc]
         rw [← Formula.boxes]
         have := @List.drop_eq_get_cons _ i δ (by rw [← length_def]; have := Fin.is_lt i; convert this; simp)
         rw [this]
         cases i
-        sorry -- simp_all -- broken with lean 7.8.0
+        simp_all only [instBot, insTop, List.zip_cons_cons, Subtype.forall, List.append_eq,
+          Fin.castSucc_mk, boxes, Fin.cast_mk]
       rw [this]
       exact IH
     · simp [relate]
@@ -85,19 +88,22 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
       rw [List.chain'_iff_get] at lchain
       specialize lchain i ?_
       · rcases i with ⟨val, hyp⟩
-        simp_all
+        simp_all only [insTop, List.zip_cons_cons, List.length_cons, List.length_zip,
+          List.length_append, List.length_singleton, min_self, Nat.succ_eq_add_one,
+          add_tsub_cancel_right, instBot, List.get_cons_succ, List.get_zip, Subtype.forall,
+          List.append_eq, Fin.castSucc_mk]
         rw [← length_def]
         simp at hyp
         exact hyp
       simp only [pairRel, instBot, insTop, List.cons_append, List.zip_cons_cons, List.length_cons, List.append_eq, List.get_cons_succ, List.get_zip] at lchain
       convert lchain
       · rw [← length_def]
-        simp
+        simp only [List.length_append, List.length_singleton]
       · simp only [Fin.cast, List.append_eq]
         rcases i with ⟨val, hyp⟩
         rw [Fin.heq_ext_iff]
         rw [← length_def]
-        simp
+        simp only [List.append_eq, List.length_append, List.length_singleton]
       · apply get_eq_getzip
 
 -- Originally MB Lemma 9, page 32, stronger version for induction loading.
