@@ -3,6 +3,9 @@ import Pdl.Semantics
 import Pdl.Vocab
 import Pdl.Discon
 
+-- ## Single-step replacing
+-- For simultaneous substition, see below!
+
 mutual
   /-- Replace atomic proposition `x` by `ψ` in a formula. -/
   @[simp]
@@ -206,3 +209,89 @@ theorem repl_in_disMap x ρ (L : List α) (p : α → Prop) (f : α → Formula)
   rw [repl_in_dis, listEq_to_disEq]
   simp only [List.map_map]
   aesop
+
+-- ## Substitutions
+-- Simultaneous
+
+abbrev Substitution := Nat → Formula
+
+mutual
+  /-- Replace atomic proposition `x` by `ψ` in a formula. -/
+  @[simp]
+  def subst_in_F (σ : Substitution) : Formula → Formula
+    | ⊥ => ⊥
+    | ·c => σ c
+    | ~φ => ~(subst_in_F σ φ)
+    | φ1⋀φ2 => (subst_in_F σ) φ1 ⋀ (subst_in_F σ) φ2
+    | ⌈α⌉ φ => ⌈subst_in_P σ α⌉ (subst_in_F σ φ)
+  /-- Replace atomic proposition `x` by `ψ` in a program. -/
+  @[simp]
+  def subst_in_P (σ : Substitution) : Program → Program
+    | ·c => ·c
+    | α;'β  => (subst_in_P σ α) ;' (subst_in_P σ β)
+    | α⋓β  => (subst_in_P σ α) ⋓ (subst_in_P σ β)
+    | ∗α  => ∗(subst_in_P σ α)
+    | ?'φ  => ?' (subst_in_F σ φ)
+end
+
+/-- Overwrite the valuation in `M` with the substitution `σ`. -/
+def subst_in_model (σ : Substitution) : (M : KripkeModel W) → KripkeModel W
+| M@⟨_, R⟩ => ⟨fun w c => (M,w) ⊨ σ c, R⟩
+
+mutual
+theorem substitutionLemma σ φ {W} (M : KripkeModel W) (w : W) :
+    (M, w) ⊨ subst_in_F σ φ ↔ (subst_in_model σ M, w) ⊨ φ := by
+  cases φ
+  case bottom =>
+    simp [evaluatePoint, modelCanSemImplyForm]
+  case atom_prop c =>
+    simp [evaluatePoint, modelCanSemImplyForm, evaluate, subst_in_model]
+  case neg φ =>
+    have IH := substitutionLemma σ φ M w
+    simp [evaluatePoint, modelCanSemImplyForm] at *
+    tauto
+  case and φ1 φ2 =>
+    have IH1 := substitutionLemma σ φ1 M w
+    have IH2 := substitutionLemma σ φ2 M w
+    simp [evaluatePoint, modelCanSemImplyForm] at *
+    rw [IH1, IH2]
+  case box α φ =>
+    have IHα := substitutionLemmaRel σ α M w
+    simp [evaluatePoint, modelCanSemImplyForm] at *
+    constructor
+    all_goals
+      intro hyp v rel
+      have IHφ := substitutionLemma σ φ M v
+      specialize IHα v
+      specialize hyp v
+      tauto
+
+theorem substitutionLemmaRel (σ : Substitution) α {W} (M : KripkeModel W) (w v : W) :
+    relate M (subst_in_P σ α) w v ↔ relate (subst_in_model σ M) α w v := by
+  cases α
+  case atom_prog a =>
+    simp [subst_in_model]
+  case sequence α β =>
+    have IHα := substitutionLemmaRel σ α M
+    have IHβ := substitutionLemmaRel σ β M
+    simp_all only [subst_in_P, relate]
+  case union α β =>
+    have IHα := substitutionLemmaRel σ α M
+    have IHβ := substitutionLemmaRel σ β M
+    simp_all only [subst_in_P, relate]
+  case star α =>
+    have IHα := substitutionLemmaRel σ α M
+    simp_all only [subst_in_P, relate]
+    constructor
+    all_goals
+      apply Relation.ReflTransGen.mono
+      intro w v
+      rw [IHα w v]
+      tauto
+  case test φ =>
+    have IHφ := substitutionLemma σ φ M v
+    simp only [subst_in_P, relate, and_congr_right_iff, evaluatePoint, modelCanSemImplyForm] at *
+    intro w_is_v
+    subst w_is_v
+    exact IHφ
+end
