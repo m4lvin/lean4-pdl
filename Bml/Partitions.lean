@@ -312,6 +312,26 @@ theorem endNodesOfChildSublistEndNodes
   simp_all
   use cLR, c_in_C
 
+open List
+
+-- Thanks to Daniel Weber on Zulip!
+lemma Sublist.pmap {α β : Type*} {p p2 : α → Prop}
+    {f : (a : α) → p a → β} {g : (a : α) → p2 a → β}
+    {xs ys : List α} {H : ∀ a ∈ xs, p a} {H2 : ∀ a ∈ ys, p2 a}
+    (h : xs.Sublist ys)
+    (agree : ∀ x, (h1 : p x) → (h2 : p2 x) → f x h1 = g x h2):
+    (xs.pmap f H).Sublist (ys.pmap g H2) := by
+  induction h with
+  | slnil => simp
+  | cons _ _ h =>
+    apply Sublist.cons
+    apply h
+  | cons₂ _ _ h =>
+    rw [pmap.eq_2, pmap.eq_2]
+    convert Sublist.cons₂ ..
+    apply (agree ..).symm
+    apply h
+
 theorem map_sum_le_map_sum
     (xs ys : List α)
     (h : xs.Sublist ys) -- NOTE: subset is not enough!
@@ -319,12 +339,17 @@ theorem map_sum_le_map_sum
     (g : { x // x ∈ ys } → Nat)
     (agree : ∀ x ∈ xs.attach, ∀ x_in_ys, f x = g ⟨x.1, x_in_ys⟩)
     : (List.map f xs.attach).sum ≤ (List.map g ys.attach).sum := by
+  have : (List.map f xs.attach).Sublist (List.map g ys.attach) := by
+    let ff := fun a ha => f ⟨a,ha⟩
+    let gg := fun a ha => g ⟨a,ha⟩
+    -- FIXME: There is probably a cleaner way to do this.
+    have : (xs.pmap ff _).Sublist (ys.pmap gg _) :=
+      @Sublist.pmap _ _ _ _ ff gg xs ys (by simp) (by simp) h (fun x h1 h2 => by unfold_let ff; unfold_let gg; simp_all)
+    rw [List.pmap_eq_map_attach] at this
+    rw [List.pmap_eq_map_attach] at this
+    aesop
   apply List.Sublist.sum_le_sum
-  · induction ys -- maybe not a good strategy
-    · simp_all
-    case cons y ys IH =>
-      simp_all
-      sorry
+  · exact this
   · simp
 
 theorem childNext_lt
