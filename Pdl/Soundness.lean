@@ -394,7 +394,7 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
 -/
 
 
--- * Tools for saying that different kinds of formulas are in a TNode
+/-- ## Tools for saying that different kinds of formulas are in a TNode -/
 
 @[simp]
 instance : Membership Formula TNode :=
@@ -436,7 +436,7 @@ def AnyNegFormula_in_TNode := fun (anf : AnyNegFormula) (X : TNode) => match anf
 @[simp]
 instance : Membership AnyNegFormula TNode := ⟨AnyNegFormula_in_TNode⟩
 
--- * Helper functions, to be moved to (Local)Tableau.lean
+/-- ## Helper functions, TODO: move to (Local)Tableau.lean -/
 
 -- TODO Computable version possible?
 noncomputable def endNode_to_endNodeOfChildNonComp (lrA)
@@ -486,28 +486,32 @@ theorem endNodeOfChild_to_endNode
     · rw [h']
       exact Z_in
 
--- * Navigating through tableaux
+/-- ## Navigating through tableaux -/
 
--- OLD NOTE:
--- Given our representation of condition 6a, now we want to prove MB Lemma 7.
+-- To define ancestor / decendant relations inside tableaux we need to
+-- represent both the whole Tableau and a specific node in it.
+-- For this we use `PathInLocal` and `PathIn`.
+-- They basically say "go to this child, then to this child, etc."
 --
--- To represent both the whole Tableau and a specific node in it we use
--- a "List TNode" path to say "go to this child, then to this child, etc."
--- These paths:
--- - can go through/across multiple LocalTableau, like LHistories
---   and unlike the Paths used in the Complteness Proof
--- - are over the relation that includes back-loops.
+-- TODO: Do we need paths that go through/across multiple LocalTableau like
+--       LHistories and unlike the Paths used in the Complteness Proof
+--
+-- TODO: Do we need paths that include back-loops?
 
 -- TODO: Replace the "unsafe" list paths with inductive types
 --       See the toy examples and experiments in "Repeat.lean".
 
-inductive PathInLocal {X} : LocalTableau X → Type
--- TODO
+inductive PathInLocal : ∀ {X}, LocalTableau X → Type
+| byLocalRuleStep :
+    (h : Y ∈ B)
+    → PathInLocal (next Y h)
+    → PathInLocal (LocalTableau.byLocalRule lrApp (next: ∀ Y ∈ B, LocalTableau Y))
+| simEnd : PathInLocal (LocalTableau.sim _)
 
 inductive PathIn {H X} : ClosedTableau H X → Type
--- TODO
+-- TODO  this would now have 8 cases, maybe first refactor `ClosedTableau`?
 
-/-- The immediate successor relation ◃ in a tableau -/
+/-- The parent-child relation ◃ in a tableau -/
 def stepRel {H X} {ctX : ClosedTableau H X} : PathIn ctX → PathIn ctX → Prop
 | t, s => sorry -- TODO
 

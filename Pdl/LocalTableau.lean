@@ -60,10 +60,9 @@ theorem tautImp_iff_TNodeUnsat {φ ψ} {X : TNode} :
   subst defX
   simp [satisfiable,evaluate,modelCanSemImplyTNode,formCanSemImplyForm,semImpliesLists] at *
 
--- LOCAL TABLEAU
+/-! ## Local Tableaux -/
 
--- MB Definition 9, page 15
--- A set X is closed  iff  0 ∈ X or X contains a formula and its negation.
+/-- A set is closed iff it contains `⊥` or contains a formula and its negation. -/
 def closed : Finset Formula → Prop := fun X => ⊥ ∈ X ∨ ∃ f ∈ X, (~f) ∈ X
 
 -- Local rules replace a given set of formulas by other sets, one for each branch.
@@ -387,9 +386,8 @@ theorem localRuleTruth
             · apply w_Ci; simp_all
             · subst g_def; apply w_Ci; simp_all
 
--- A set X is simple  iff  all P ∈ X are (negated) atoms or [A]_ or ¬[A]_.
 @[simp]
-def isSimpleForm : Formula → Bool
+def isBasicForm : Formula → Bool
   | ⊥ => True -- TODO: change to False, covered by bot rule?
   | ~⊥ => True
   | ·_ => True
@@ -398,21 +396,21 @@ def isSimpleForm : Formula → Bool
   | ~⌈·_⌉_ => True
   | _ => False
 
-def isSimpleSet : Finset Formula → Bool
-  | X => ∀ P ∈ X, isSimpleForm P
+def isBasicSet : Finset Formula → Bool
+  | X => ∀ P ∈ X, isBasicForm P
 
-def isSimpleNode : TNode → Bool
-  | (L, R, o) => ∀ f ∈ L ++ R ++ (o.map (Sum.elim negUnload negUnload)).toList, isSimpleForm f
+/-- A sequent is _basic_ iff it only contains ⊥, ¬⊥, p, ¬p, [A]_ or ¬[A]_ formulas. -/
+def isBasic : TNode → Bool
+  | (L, R, o) => ∀ f ∈ L ++ R ++ (o.map (Sum.elim negUnload negUnload)).toList, isBasicForm f
 
--- MB: Definition 8
--- a local tableau for X, must be maximal
-inductive LocalTableau : TNode → Type
+/-- Local tableau for `X`, maximal by definition. -/
+inductive LocalTableau : (X : TNode) → Type
   | byLocalRule {X B} (_ : LocalRuleApp X B) (next : ∀ Y ∈ B, LocalTableau Y) : LocalTableau X
-  | sim {X} : isSimpleNode X → LocalTableau X
+  | sim {X} : isBasic X → LocalTableau X
+
+/-! ## Termination of LocalTableau -/
 
 open LocalTableau
-
--- LOCAL END NODES AND TERMINATION
 
 -- Use this plus D-M to show termination on LocalTableau. Overkill?
 mutual

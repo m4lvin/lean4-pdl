@@ -83,44 +83,42 @@ inductive PdlRule : TNode → TNode → Type
   | mrkR : (~⌈α⌉φ) ∈ R → PdlRule (L, R, none)
                                  (L, R.erase (~⌈α⌉φ), some (Sum.inr (toNegLoad α φ)))
   -- The (At) rule:
-  | atmL   {A X χ} : isSimpleNode X → PdLRule ⟨L, R, some (Sum.inl (~'⌊·A⌋(χ : LoadFormula)))⟩
+  | atmL   {A X χ} : isBasic X → PdLRule ⟨L, R, some (Sum.inl (~'⌊·A⌋(χ : LoadFormula)))⟩
                                               (projection A L, projection A R, some (Sum.inl (~'χ)))
-  | atmR   {A X χ} : isSimpleNode X → PdlRule ⟨L, R, some (Sum.inr (~'⌊·A⌋(χ : LoadFormula)))⟩
+  | atmR   {A X χ} : isBasic X → PdlRule ⟨L, R, some (Sum.inr (~'⌊·A⌋(χ : LoadFormula)))⟩
                                               (projection A L, projection A R, some (Sum.inr (~'χ)))
-  | atmL'  {A X φ} : isSimpleNode X → PdlRule ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
+  | atmL'  {A X φ} : isBasic X → PdlRule ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
                                               (projection A L ++ [~φ], projection A R, none)
-  | atmR'  {A X φ} : isSimpleNode X → PdlRule ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
+  | atmR'  {A X φ} : isBasic X → PdlRule ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
                                               (projection A L, projection A R ++ [~φ], none)
 -/
 
 -- ClosedTableau [parent, grandparent, ...] child
 --
---
--- (MB: Definition 16, page 29)
 -- A closed tableau for X is either of:
--- - a local tableau for X followed by tableaux for all end nodes,
--- - a (M+) loading rule application
+-- - a local tableau for X followed by closed tableaux for all end nodes,
+-- - a (L+) loading rule application
 --   (left or right)
--- - a (At) modal rule application (two cases due to LoadFormula type)
+-- - a (M) modal rule application (two cases due to LoadFormula type)
 --   (left or right, and loaded or unloaded)
--- - a good repeat (MB condition six)
+-- - a successful loaded repeat (MB condition six)
 inductive ClosedTableau : LoadHistory → TNode → Type
   -- Do a local tableau: (not recording any history!)
   | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf lt, ClosedTableau Hist Y) → ClosedTableau Hist X
-  -- The (M+) rule:
+  -- The (L+) rule:
   | mrkL : (~⌈α⌉φ) ∈ L → Step ClosedTableau Hist (L, R, none)
                                                  (L.erase (~⌈α⌉φ), R, some (Sum.inl (toNegLoad α φ)))
   | mrkR : (~⌈α⌉φ) ∈ R → Step ClosedTableau Hist (L, R, none)
                                                  (L, R.erase (~⌈α⌉φ), some (Sum.inr (toNegLoad α φ)))
   -- The (At) rule:
   -- TODO: can we avoid the four cases?
-  | atmL   {A X χ} : isSimpleNode X → Step ClosedTableau Hist ⟨L, R, some (Sum.inl (~'⌊·A⌋(χ : LoadFormula)))⟩
+  | atmL   {A X χ} : isBasic X → Step ClosedTableau Hist ⟨L, R, some (Sum.inl (~'⌊·A⌋(χ : LoadFormula)))⟩
                                                               (projection A L, projection A R, some (Sum.inl (~'χ)))
-  | atmL'  {A X φ} : isSimpleNode X → LStep ClosedTableau Hist record ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
+  | atmL'  {A X φ} : isBasic X → LStep ClosedTableau Hist record ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
                                                               (projection A L ++ [~φ], projection A R, none)
-  | atmR   {A X χ} : isSimpleNode X → Step ClosedTableau Hist ⟨L, R, some (Sum.inr (~'⌊·A⌋(χ : LoadFormula)))⟩
+  | atmR   {A X χ} : isBasic X → Step ClosedTableau Hist ⟨L, R, some (Sum.inr (~'⌊·A⌋(χ : LoadFormula)))⟩
                                                               (projection A L, projection A R, some (Sum.inr (~'χ)))
-  | atmR'  {A X φ} : isSimpleNode X → LStep ClosedTableau Hist record ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
+  | atmR'  {A X φ} : isBasic X → LStep ClosedTableau Hist record ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩
                                                               (projection A L, projection A R ++ [~φ], none)
   -- Condition 6a repeats are end nodes:
   | rep {X Hist} (rep : condSixRepeat X Hist) : ClosedTableau Hist X
