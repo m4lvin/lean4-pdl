@@ -216,17 +216,17 @@ theorem repl_in_disMap x ρ (L : List α) (p : α → Prop) (f : α → Formula)
 abbrev Substitution := Nat → Formula
 
 mutual
-  /-- Replace atomic proposition `x` by `ψ` in a formula. -/
+  /-- Apply substitution `σ` to formula `φ`. -/
   @[simp]
-  def subst_in_F (σ : Substitution) : Formula → Formula
+  def subst_in_F (σ : Substitution) : (φ : Formula) → Formula
     | ⊥ => ⊥
     | ·c => σ c
     | ~φ => ~(subst_in_F σ φ)
     | φ1⋀φ2 => (subst_in_F σ) φ1 ⋀ (subst_in_F σ) φ2
     | ⌈α⌉ φ => ⌈subst_in_P σ α⌉ (subst_in_F σ φ)
-  /-- Replace atomic proposition `x` by `ψ` in a program. -/
+  /-- Apply substitution `σ` to program `α`. -/
   @[simp]
-  def subst_in_P (σ : Substitution) : Program → Program
+  def subst_in_P (σ : Substitution) : (α : Program) → Program
     | ·c => ·c
     | α;'β  => (subst_in_P σ α) ;' (subst_in_P σ β)
     | α⋓β  => (subst_in_P σ α) ⋓ (subst_in_P σ β)
