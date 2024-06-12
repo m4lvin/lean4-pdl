@@ -203,10 +203,7 @@ lemma mord_wf_1 {α : Type u} {_ : Multiset α} [DecidableEq α] [Preorder α] (
     | empty =>
       simpa
     | cons h =>
-      rename_i _ _ a0 M
-      have trivial: M0 + a0 ::ₘ M = a0 ::ₘ (M0 + M) := by simp
-      rw [trivial]
-      simp_all
+      simp_all only [Multiset.mem_cons, or_true, implies_true, true_implies, forall_eq_or_imp, Multiset.add_cons]
   case h.intro.inl.intro =>
     simp_all
 
@@ -247,7 +244,7 @@ lemma mred_acc {α : Type u} [DecidableEq α] [Preorder α] :
     intro y y_lt
     absurd y_lt
     apply not_MultisetRedLt_0
-  | cons ih =>
+  | cons _ _ ih =>
     apply mord_wf_3
     . assumption
     . apply wf_el
@@ -460,17 +457,14 @@ lemma nat_not_0_not_1 : ∀ (n : ℕ), n ≠ 0 → n ≠ 1 → n ≥ 2 := by
           rw [← Y.card_pos_iff_exists_mem]
           cases foo : Multiset.card Y
           tauto
-          simp
+          simp?
         rcases this with ⟨y,claim⟩
         let newY := Y.erase y
         have newY_nonEmpty : newY ≠ ∅ := by
-          have card_Y_ge_2 : Multiset.card Y ≥ 2 := by
-            apply nat_not_0_not_1
-            exact hyp'
-            exact hyp
+          have card_Y_ge_2 : Multiset.card Y ≥ 2 := nat_not_0_not_1 _ hyp' hyp
           have : Multiset.card (Multiset.erase Y y) ≥ 1 := by
             rw [Multiset.card_erase_eq_ite]
-            simp_all
+            simp_all?
             have card_Y_g_1 : 1 < Multiset.card Y := by aesop
             exact Nat.pred_le_pred card_Y_g_1
           have : 0 < Multiset.card (Multiset.erase Y y) := by aesop
@@ -500,14 +494,13 @@ lemma nat_not_0_not_1 : ∀ (n : ℕ), n ≠ 0 → n ≠ 1 → n ≥ 2 := by
               have : newY + f y = f y + newY := by apply add_comm
               have : Z + newY + f y = Z + (newY + f y) := by apply add_assoc
               rw [this]
+              clear this
               have : Z + f y + newY = Z + (f y + newY) := by apply add_assoc
               rw [this]
-              simp (config := {zetaDelta := true})
+              simp (config := { zetaDelta := true }) only [gt_iff_lt, add_right_inj]
               assumption
             unfold_let N'
-            rw [add_assoc]
-            rw [add_assoc]
-            rw [add_comm newY (f y)]
+            rw [add_assoc, add_assoc, add_comm newY (f y)]
           · intro x x_in
             let X_lt_Y := X_lt_Y x
             have : x ∈ X := by
@@ -550,7 +543,8 @@ lemma nat_not_0_not_1 : ∀ (n : ℕ), n ≠ 0 → n ≠ 1 → n ≥ 2 := by
                     have x_in_neg_fy : x ∈ neg_f y := by rw [this] at x_in; exact x_in
                     subst_eqs
                     unfold_let neg_f at *
-                    simp_all
+                    simp_all only [Multiset.empty_eq_zero, ne_eq, Multiset.card_eq_zero,
+                      not_false_eq_true, Multiset.mem_filter, not_true_eq_false, and_false]
                   exact x_notin_Xfy x_in
             . exact x_lt_t
         -- single step N to N'
@@ -563,8 +557,7 @@ lemma nat_not_0_not_1 : ∀ (n : ℕ), n ≠ 0 → n ≠ 1 → n ≥ 2 := by
               rw [newY_y_Y]
               exact N_def
             . unfold_let f; intro z z_in; simp at z_in; tauto
-          apply TC.base
-          exact this
+          exact TC.base _ _ this
 
 -- It uses `LT_trans`.
 -- Is this gonna be hard to prove? Why does the coq proof use some other ways to prove:
@@ -593,7 +586,7 @@ lemma Lt_LT_equiv [DecidableEq α] [Preorder α] [DecidableRel (fun (x : α) (y:
 -- well-founded.
 lemma equiv_r_wf [DecidableEq α] [LT α] (h1 : WellFounded (r1 :  Multiset α → Multiset α → Prop))
     (h2: r1 = r2): WellFounded r2 := by
-  aesop_subst h2
+  subst h2
   simp_all only
 
 -- The desired theorem. If `LT.lt` is well-founded, then `MultisetLT` is well-founded.
