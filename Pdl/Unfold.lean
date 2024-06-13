@@ -954,20 +954,43 @@ theorem guardToStar (x : Nat)
     apply IH
     exact fortysix W M u1 u2 w_rho u1_b_u2
 
+-- theorem helper idea, unused for below
+-- evaluate M w (φ ⋀ ψ) ↔ evaluate M w (Con (Xset (∗β) ℓ ψ)⋀signature (∗β) ℓ)
+
 /-- Induction claim for `localBoxTruth`. -/
 theorem localBoxTruth' γ ψ (ℓ :TP γ) :
     (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Xset γ ℓ ψ) ⋀ signature γ ℓ := by
+  intro W M w
   cases γ
-  case atom_prog =>
+  case atom_prog a =>
+    simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
+  case test τ =>
+    cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩ )
+    · simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
+    · simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
+  case union α β =>
+    have IHα := localBoxTruth' α ψ ℓ
+    have IHβ := localBoxTruth' β ψ ℓ
+    have := (boxHelperTP (α⋓β) ℓ).2.2 ψ -- using part (3) of Lemma
+    simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
     sorry
-  case test =>
+  case sequence α β =>
+    have IHα := localBoxTruth' α (⌈β⌉ψ) ℓ
+    have IHβ := localBoxTruth' β ψ ℓ
+    simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
     sorry
-  case union =>
-    sorry
-  case sequence =>
-    sorry
-  case star =>
+  case star β =>
+    have IHβ := fun φ => localBoxTruth' β φ ℓ
+    let ρ := dis ((allTP (∗β)).map (fun ℓ => Con (Xset (∗β) ℓ ψ)))
+    suffices goal :(⌈∗β⌉ψ) ≡ ρ by
+      have := @equiv_iff _ _ goal W M w
+      simp only [evaluatePoint, modelCanSemImplyForm, evaluatePoint, formCanSemImplyForm] at this
+      sorry
+
+    simp [TP, testsOfProgram, signature, conEval, Xset, P, F] at *
+
     -- have := guardToStar
+
     sorry
 
 theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) := by
@@ -983,9 +1006,10 @@ theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => 
     simp at φ_in
     rcases φ_in with ⟨ℓ, ℓ_in, def_φ⟩
     subst def_φ
-    rw [conEval] at w_φ
     have := localBoxTruth' γ ψ ℓ W M w
-    -- clearly this suffices to prove the theorem ;-)
+    have := boxHelperTP γ ℓ
+    simp [conEval] at *
+    -- By the properties of the signature formulas clearly this suffices to prove the theorem ;-)
     sorry
 
 theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M,v) ⊨ Con (F γ ℓ)) :
