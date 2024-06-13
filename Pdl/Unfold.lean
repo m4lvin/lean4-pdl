@@ -878,10 +878,6 @@ theorem F_goes_down : φ ∈ F α ℓ → lengthOfFormula φ < lengthOfProgram �
     · simp_all
     · simp_all
 
--- TODO move to Syntax.lean or Measueres.lean?
-def fischerLadner : Formula → Finset Formula
-| _ => sorry -- TODO
-
 -- NOTE: see `P_goes_down` for proof inspiration, and later make it a consequence of this?
 theorem boxHelperTermination γ (ℓ : TP γ) ψ :
     ( ∀ δ ∈ P γ ℓ,
@@ -891,12 +887,14 @@ theorem boxHelperTermination γ (ℓ : TP γ) ψ :
     )
     ∧
     ( ∀ φ ∈ (unfoldBox γ ψ).join,
-        φ ∈ fischerLadner (⌈γ⌉ψ)
+        φ ∈ fischerLadner [⌈γ⌉ψ]
       ∧ (  (φ = ψ)
          ∨ (∃ τ ∈ testsOfProgram γ, φ = (~τ))
          ∨ (∃ δ, φ = (⌈a⌉⌈⌈δ⌉⌉ψ) ∧ ∀ α ∈ δ, α ∈ subprograms γ))
     ) := by
-  sorry
+  constructor
+  · sorry
+  · sorry
 
 theorem boxHelperTP α (ℓ : TP α) :
     (∀ τ, (~τ.val) ∈ F α ℓ → ℓ τ = false)

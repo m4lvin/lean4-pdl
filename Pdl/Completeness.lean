@@ -14,25 +14,24 @@ theorem modelExistence: consistent X →
   by
   sorry
 
--- Theorem 4, page 37
-theorem completeness : ∀ X, consistent X ↔ satisfiable X :=
+theorem completeness : ∀ X, consistent X → satisfiable X :=
   by
   intro X
-  constructor
-  · intro X_is_consistent
-    rcases X with ⟨L, R, O⟩
-    have ⟨WS, M, w, h⟩ := modelExistence X_is_consistent
-    use WS, M.val, w
-    simp [modelCanSemImplyTNode, TNode.toFinset] at *
-    intro f f_in
-    apply truthLemma M w f
-    apply h
-    aesop
-  -- use Theorem 2:
-  · exact correctness X
+  intro X_is_consistent
+  rcases X with ⟨L, R, O⟩
+  have ⟨WS, M, w, h⟩ := modelExistence X_is_consistent
+  use WS, M.val, w
+  simp [modelCanSemImplyTNode, TNode.toFinset] at *
+  intro f f_in
+  apply truthLemma M w f
+  apply h
+  aesop
 
-theorem singletonCompleteness : ∀ φ, consistent ([φ],[],none) ↔ satisfiable φ :=
+theorem consIffSat : ∀ X, consistent X ↔ satisfiable X :=
+  fun X => ⟨completeness X, correctness X⟩
+
+theorem singletonConsIffSat : ∀ φ, consistent ([φ],[],none) ↔ satisfiable φ :=
   by
   intro φ
-  have := completeness ⟨[φ], [], none⟩
+  have := consIffSat ⟨[φ], [], none⟩
   simp [this,tNodeHasSat,modelCanSemImplyTNode]
