@@ -457,14 +457,15 @@ lemma nat_not_0_not_1 : ∀ (n : ℕ), n ≠ 0 → n ≠ 1 → n ≥ 2 := by
           rw [← Y.card_pos_iff_exists_mem]
           cases foo : Multiset.card Y
           tauto
-          simp?
+          simp
         rcases this with ⟨y,claim⟩
         let newY := Y.erase y
         have newY_nonEmpty : newY ≠ ∅ := by
           have card_Y_ge_2 : Multiset.card Y ≥ 2 := nat_not_0_not_1 _ hyp' hyp
           have : Multiset.card (Multiset.erase Y y) ≥ 1 := by
             rw [Multiset.card_erase_eq_ite]
-            simp_all?
+            simp_all only [Multiset.empty_eq_zero, ne_eq, Multiset.card_eq_zero, not_false_eq_true,
+              ge_iff_le, Nat.pred_eq_sub_one, ite_true]
             have card_Y_g_1 : 1 < Multiset.card Y := by aesop
             exact Nat.pred_le_pred card_Y_g_1
           have : 0 < Multiset.card (Multiset.erase Y y) := by aesop
