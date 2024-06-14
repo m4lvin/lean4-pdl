@@ -174,6 +174,7 @@ theorem equivSat (φ ψ : Formula) {M : KripkeModel W} {w : W} :
     rw [φ_eq_ψ] at this
     tauto
 
+-- TODO: remove this, avoid evaluatePoint etc.
 theorem equiv_iff (φ ψ : Formula) (φ_eq_ψ : φ ≡ ψ) :
     ∀ {W} {M : KripkeModel W} {w : W},
     (M, w) ⊨ φ ↔ (M, w) ⊨ ψ :=

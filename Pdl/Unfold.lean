@@ -984,7 +984,12 @@ theorem localBoxTruth' γ ψ (ℓ :TP γ) :
     let ρ := dis ((allTP (∗β)).map (fun ℓ => Con (Xset (∗β) ℓ ψ)))
     suffices goal :(⌈∗β⌉ψ) ≡ ρ by
       have := @equiv_iff _ _ goal W M w
-      simp only [evaluatePoint, modelCanSemImplyForm, evaluatePoint, formCanSemImplyForm] at this
+      have := equiv_con goal (signature (∗β) ℓ) W M w
+      -- use equiv_cases_helper here?
+      rw [this]
+      clear this
+      unfold_let ρ
+      simp_all [evaluatePoint, modelCanSemImplyForm, evaluatePoint, formCanSemImplyForm, signature, conEval, testsOfProgram, Xset, allTP, disEval]
       sorry
 
     simp [TP, testsOfProgram, signature, conEval, Xset, P, F] at *

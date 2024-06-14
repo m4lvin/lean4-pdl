@@ -295,3 +295,45 @@ theorem substitutionLemmaRel (σ : Substitution) α {W} (M : KripkeModel W) (w v
     subst w_is_v
     exact IHφ
 end
+
+-- ## Replacement of Equivalents and similar helpers
+
+-- This is *not* true because `frm` might be sneaky.
+theorem wrong_equiv_repl φ1 φ2 (h : φ1 ≡ φ2) (frm : Formula → Formula) :
+    frm φ1 ≡ frm φ2 := by
+  sorry
+
+-- if we replace `frm` with a special case then we get something true:
+theorem equiv_con {φ1 φ2} (h : φ1 ≡ φ2) ψ :
+    φ1 ⋀ ψ ≡ φ2 ⋀ ψ := by
+  intro W M w
+  specialize h W M w
+  simp_all
+
+-- helper for LocalBoxTruth star case
+theorem equiv_cases_helper {φ1} (X : List α)
+    (f : α → Formula)
+    (g : α → Formula)
+    (fCover : ∀ x ∈ X, φ1 ⋀ g x ≡ f x ⋀ g x)
+    (gTotal : dis (X.map g) ≡ ⊤)
+    (gDisjoint : ∀ i ∈ X, ∀ j ∈ X, (g i ⋀ g j ≡ ⊥) ↔  i ≠ j)
+    : φ1 ≡ dis (X.map f) := by
+  intro W M w
+  specialize gTotal W M w
+  simp_all [disEval]
+  constructor
+  · have := fun x x_in => fCover x x_in W M w
+    aesop
+  · rintro ⟨x, x_in_X, hyp⟩
+    rcases gTotal with ⟨y, y_in_X, w_gy⟩
+    specialize gDisjoint x x_in_X y y_in_X
+    cases em (x = y)
+    · subst_eqs
+      simp_all
+      sorry
+    ·
+      simp_all
+      specialize gDisjoint W M w
+      specialize fCover x x_in_X W M w
+      simp_all
+      sorry
