@@ -287,3 +287,17 @@ theorem truthImply_then_satImply (X Y : List Formula) : X ⊨ Y → satisfiable 
   rcases satX with ⟨W,M,w,v_X⟩
   specialize X_Y W M w v_X
   use W, M, w
+
+theorem stepToStar : φ ⊨ (⌈α⌉φ) ⋀ ψ  →  φ ⊨ (⌈∗α⌉ψ) := by
+  intro hyp
+  intro W M w w_φ
+  specialize hyp W M
+  have : ∀ v, relate M (∗α) w v → evaluate M v φ := by
+    intro v w_sta_v
+    simp_all only [List.mem_singleton, forall_eq, evaluate, relate]
+    induction w_sta_v
+    case refl =>
+      simp_all
+    case tail s t _ s_α_t s_φ =>
+      exact (hyp s s_φ).1 t s_α_t
+  simp_all
