@@ -123,17 +123,29 @@ inductive PathInLocal : ∀ {X}, LocalTableau X → Type
     → PathInLocal (LocalTableau.byLocalRule lrApp (next: ∀ Y ∈ B, LocalTableau Y))
 | simEnd : PathInLocal (LocalTableau.sim _)
 
-inductive PathIn {H X} : ClosedTableau H X → Type
--- TODO  this should now have 3 cases, after the refactor of `ClosedTableau` with separate `PdlRule`
--- ClosedTableau.loc
--- ClosedTableau.pdl
--- ClosedTableau.rep
+-- Three ways to make a path: empty, local step or pdl step.
+-- The steps correspond to two out of three constructors of `ClosedTableau`.
+inductive PathIn : ∀ {H X}, ClosedTableau H X → Type
+| nil : PathIn _
+| loc : (Y_in : Y ∈ endNodesOf lt) → (tail : PathIn (next Y Y_in)) → PathIn (ClosedTableau.loc lt next)
+| pdl : (r : PdlRule Γ Δ hfun) → PathIn (child : ClosedTableau (hfun Hist) Δ) → PathIn (ClosedTableau.pdl r child)
 
-def nodeAt : PathIn tab → TNode := sorry
+def tabAt : PathIn tab → Σ H X, ClosedTableau H X
+| PathIn.nil => ⟨_,_,tab⟩
+| PathIn.loc _ tail => tabAt tail
+| PathIn.pdl _ p_child => tabAt p_child
 
-/-- The parent-child relation ◃ in a tableau -/
+def nodeAt {H X} {tab : (ClosedTableau H X)} : PathIn tab → TNode
+| PathIn.nil => X
+| PathIn.loc _ tail => nodeAt tail
+| PathIn.pdl _ p_child => nodeAt p_child
+
+-- TODO: adjust notation and s-t or t-s convention to notes!
+
+/-- The parent-child relation `s ◃ t` in a tableau -/
 def stepRel {H X} {ctX : ClosedTableau H X} : PathIn ctX → PathIn ctX → Prop
-| t, s => sorry -- TODO
+| s, t => sorry -- TODO
+  -- (∃ Y_in, s = PathIn.loc Y_in t) -- does not make sense, both paths are from the same root!
 
 notation pa:arg "◃" pb:arg => stepRel pa pb
 

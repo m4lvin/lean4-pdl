@@ -1,5 +1,8 @@
 import Pdl.Unfold
 
+-- NOTE: This possibly obsolete file is about **paths in models**,
+-- and *not* about paths in tableaux.
+
 def atomRel {W} (M : KripkeModel W) (v w : W) := ∃ a, relate M (·a) v w
 
 abbrev WorldPath {W} (M : KripkeModel W) := Subtype $ List.Chain' (atomRel M)
