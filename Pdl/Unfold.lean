@@ -770,9 +770,9 @@ instance : CoeOut (TP (∗α)) (TP α) :=
 def F : (α : Program) → (ℓ : TP α) → List Formula
 | ·_ , _ => ∅
 | ?'τ, ℓ => if ℓ ⟨τ, by simp [testsOfProgram]⟩ then ∅ else [~ τ]
-| α ⋓ β, l => F α l ∪ F β l
-| α;'β, l => F α l ∪ F β l
-| ∗α, l => F α l
+| α⋓β, ℓ => F α ℓ ∪ F β ℓ
+| α;'β, ℓ => F α ℓ ∪ F β ℓ
+| ∗α, ℓ => F α ℓ
 
 def P : (α : Program) →  (ℓ : TP α) → List (List Program)
 | ·a, _ => [ [(·a : Program)] ]
@@ -788,6 +788,25 @@ def Xset (α : Program) (ℓ : TP α) (ψ : Formula) : List Formula :=
 /-- Φ_□(αs,ψ) -/
 def unfoldBox (α : Program) (φ : Formula) : List (List Formula) :=
   (allTP α).map (fun ℓ => Xset α ℓ φ)
+
+theorem F_mem_iff_neg α (ℓ : TP α) φ : φ ∈ F α ℓ ↔ ∃ τ, ∃ (h : τ ∈ testsOfProgram α), φ = (~τ) ∧ ℓ ⟨τ,h⟩ = false := by
+  simp
+  cases α
+  all_goals
+    simp_all [testsOfProgram, F]
+  case sequence α β =>
+    have := F_mem_iff_neg α ℓ φ
+    have := F_mem_iff_neg β ℓ φ
+    aesop
+  case union α β =>
+    have := F_mem_iff_neg α ℓ φ
+    have := F_mem_iff_neg β ℓ φ
+    aesop
+  case star α =>
+    have := F_mem_iff_neg α ℓ φ
+    aesop
+  case test τ =>
+    aesop
 
 theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if isAtomic α then γ = α else if isStar α then lengthOfProgram γ ≤  lengthOfProgram α else lengthOfProgram γ < lengthOfProgram α) := by
   intro γ_in δ_in
@@ -1030,14 +1049,42 @@ theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => 
     split_ifs <;> simp_all
   · intro w_Cons
     rw [disEval] at w_Cons
-    rcases w_Cons with ⟨φ, φ_in, w_φ⟩
+    rcases w_Cons with ⟨φ, φ_in, w_Xℓ⟩
     simp at φ_in
     rcases φ_in with ⟨ℓ, ℓ_in, def_φ⟩
     subst def_φ
-    have := localBoxTruthI γ ψ ℓ W M w
-    have := boxHelperTP γ ℓ
-    simp [conEval] at *
-    sorry
+    have := Classical.propDecidable
+    -- again we get a test profile ℓ from the model:
+    let ℓ' : TP γ := fun ⟨τ,_⟩ => decide (evaluate M w τ)
+    have w_Xℓ' : evaluate M w (Con (Xset γ ℓ' ψ)) := by
+      simp [Xset, conEval]
+      intro φ φ_in
+      cases φ_in
+      case inl φ_in_Fℓ' =>
+        simp [F_mem_iff_neg _ ℓ' φ, exists_and_left] at φ_in_Fℓ'
+        rcases φ_in_Fℓ' with ⟨τ, φ_def, τ_in, ℓ'_τ_false⟩
+        unfold_let ℓ' at ℓ'_τ_false
+        simp_all
+      case inr φ_in_Pℓ' =>
+        rcases φ_in_Pℓ' with ⟨δ, δ_in_P, def_φ⟩
+        simp_all [conEval, Xset]
+        apply w_Xℓ φ
+        right
+        use δ
+        simp_all
+        -- better use some Lemma here about P subsets (with recursive proof)
+        unfold_let ℓ' at δ_in_P
+        unfold P at δ_in_P
+        sorry
+    have : evaluate M w ((⌈γ⌉ψ)⋀signature γ ℓ') := by
+      apply (localBoxTruthI γ ψ ℓ' W M w).2
+      simp only [evaluate]
+      constructor
+      · assumption
+      · unfold_let
+        simp_all [signature, conEval]
+        aesop
+    simp_all
 
 theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M,v) ⊨ Con (F γ ℓ)) :
     ∃ δ ∈ P γ ℓ, relateSeq M δ v w := by
