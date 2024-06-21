@@ -999,12 +999,35 @@ theorem localBoxTruth' γ ψ (ℓ :TP γ) :
     sorry
 
 theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) := by
+  -- By the properties of the signature formulas clearly ;-)
+  -- `localBoxTruth'` suffices to prove `localBoxTruth`.
   intro W M w
   constructor
   · intro w_γψ
     rw [disEval]
-    -- have := localBoxTruth' γ ψ ℓ W M w -- how do we get an ℓ here?
-    sorry
+    -- decidable semantics would be nice, but here we can also
+    -- accept something noncomputable, as we only want proof :-)
+    have := Classical.propDecidable
+     -- get a test profile ℓ from the model:
+    let ℓ : TP γ := fun ⟨τ,_⟩ => decide (evaluate M w τ)
+    have ℓ_in : ℓ ∈ allTP γ := by
+      unfold_let ℓ;
+      simp [allTP];
+      use ((testsOfProgram γ).filter (fun τ => evaluate M w τ))
+      simp only [List.filter_sublist, true_and]
+      apply funext
+      simp only [Subtype.forall]
+      intro τ τ_in
+      simp [List.mem_filter]
+      tauto
+    have := localBoxTruth' γ ψ ℓ W M w -- using the claim proven by induction
+    simp_all
+    refine ⟨ℓ,ℓ_in, ?_⟩
+    apply this
+    unfold_let ℓ
+    simp_all [signature, conEval]
+    intro τ τ_in
+    split_ifs <;> simp_all
   · intro w_Cons
     rw [disEval] at w_Cons
     rcases w_Cons with ⟨φ, φ_in, w_φ⟩
@@ -1014,7 +1037,6 @@ theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => 
     have := localBoxTruth' γ ψ ℓ W M w
     have := boxHelperTP γ ℓ
     simp [conEval] at *
-    -- By the properties of the signature formulas clearly this suffices to prove the theorem ;-)
     sorry
 
 theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M,v) ⊨ Con (F γ ℓ)) :
