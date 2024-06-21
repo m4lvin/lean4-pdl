@@ -972,20 +972,33 @@ theorem boxHelperTP α (ℓ : TP α) :
     := by
   refine ⟨?_, ?_, ?_⟩
   · intro τ τ_in
-    unfold F at *
-    -- need `cases α` now?!
-    sorry
+    have := F_mem_iff_neg α ℓ (~τ)
+    aesop
   · intro W M w
     simp [conEval, signature, F]
-    unfold F at *
-    -- need `cases α` now?!
-    sorry
+    intro w_ℓ
+    intro φ φ_in
+    have := F_mem_iff_neg α ℓ φ
+    rw [this] at φ_in
+    clear this
+    rcases φ_in with ⟨τ, τ_in, φ_def, not_ℓ_τ⟩
+    specialize w_ℓ φ τ
+    aesop
   · intro ψ
     intro W M w
     simp [conEval, Xset]
-    sorry
-
--- TODO Lemma ~22 with parts 1) and 2) and 3)
+    intro w_sign
+    constructor
+    · intro lhs δ δ_in
+      aesop
+    · rintro rhs φ (φ_in_F | ⟨δ,δ_in,def_φ⟩)
+      · rw [F_mem_iff_neg α ℓ φ] at φ_in_F
+        rcases φ_in_F with ⟨τ, τ_in, φ_def, not_ℓ_τ⟩
+        subst φ_def
+        simp_all [signature, conEval, F]
+        specialize w_sign (~τ) τ
+        aesop
+      · aesop
 
 theorem guardToStar (x : Nat)
     (x_notin_beta : x ∉ HasVocabulary.voc β)
