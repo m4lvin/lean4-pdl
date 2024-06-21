@@ -310,7 +310,8 @@ theorem equiv_con {φ1 φ2} (h : φ1 ≡ φ2) ψ :
   specialize h W M w
   simp_all
 
--- helper for LocalBoxTruth star case
+-- helper for localBoxTruthI star case
+-- NOT SURE IF TRUE!
 theorem equiv_cases_helper {φ1} (X : List α)
     (f : α → Formula)
     (g : α → Formula)
@@ -330,10 +331,13 @@ theorem equiv_cases_helper {φ1} (X : List α)
     cases em (x = y)
     · subst_eqs
       simp_all
-      sorry
-    ·
+      specialize fCover x y_in_X W M w
       simp_all
+    · simp_all only [not_false_eq_true, iff_true]
       specialize gDisjoint W M w
-      specialize fCover x x_in_X W M w
+      have := fCover x x_in_X W M w
+      have := fCover y y_in_X W M w
+      simp_all
+      rw [← this]
       simp_all
       sorry

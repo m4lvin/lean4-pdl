@@ -808,6 +808,56 @@ theorem F_mem_iff_neg α (ℓ : TP α) φ : φ ∈ F α ℓ ↔ ∃ τ, ∃ (h :
   case test τ =>
     aesop
 
+theorem P_monotone α (ℓ ℓ' : TP α) (h : ∀ τ, ℓ τ → ℓ' τ) δ : δ ∈ P α ℓ → δ ∈ P α ℓ' := by
+  cases α
+  case atom_prog _ =>
+    simp_all [testsOfProgram, P]
+  case union α β =>
+    intro δ_in
+    have IHα := P_monotone α ℓ ℓ' (by intro τ τ_in; apply h; simp_all)
+    have IHβ := P_monotone β ℓ ℓ' (by intro τ τ_in; apply h; simp_all)
+    simp [testsOfProgram, P] at *
+    cases δ_in <;> simp_all
+  case sequence α β =>
+    intro δ_in
+    have IHα := P_monotone α ℓ ℓ' (by intro τ τ_in; apply h; simp_all)
+    have IHβ := P_monotone β ℓ ℓ' (by intro τ τ_in; apply h; simp_all)
+    simp [testsOfProgram, P] at *
+    cases δ_in
+    case inl δ_in =>
+      rcases δ_in with ⟨δ', δ'_in, def_δ⟩
+      subst def_δ
+      left
+      use δ'
+      constructor
+      · apply List.mem_filter_of_mem
+        · have := List.filter_subset _ δ'_in
+          simp_all only
+        · have := List.of_mem_filter δ'_in
+          simp_all only
+      · rfl
+    · aesop
+  case star α =>
+    intro δ_in
+    cases em (δ = [])
+    · simp_all [testsOfProgram, P]
+    · have IHα := P_monotone α ℓ ℓ' (by intro τ τ_in; apply h; simp_all)
+      simp_all [testsOfProgram, P]
+      rcases δ_in with ⟨δ', δ'_in, def_δ⟩
+      subst def_δ
+      use δ'
+      constructor
+      · simp_all only [List.append_eq_nil, List.cons_ne_self, and_false, not_false_eq_true]
+        apply List.mem_filter_of_mem
+        · have := List.filter_subset _ δ'_in
+          simp_all only
+        · have := List.of_mem_filter δ'_in
+          simp_all only
+      · rfl
+  case test τ =>
+    simp_all [testsOfProgram, P]
+    aesop
+
 theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if isAtomic α then γ = α else if isStar α then lengthOfProgram γ ≤  lengthOfProgram α else lengthOfProgram γ < lengthOfProgram α) := by
   intro γ_in δ_in
   cases α
@@ -1057,25 +1107,35 @@ theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => 
     -- again we get a test profile ℓ from the model:
     let ℓ' : TP γ := fun ⟨τ,_⟩ => decide (evaluate M w τ)
     have w_Xℓ' : evaluate M w (Con (Xset γ ℓ' ψ)) := by
-      simp [Xset, conEval]
+      simp only [Xset, conEval, List.mem_append, List.mem_map]
       intro φ φ_in
       cases φ_in
       case inl φ_in_Fℓ' =>
-        simp [F_mem_iff_neg _ ℓ' φ, exists_and_left] at φ_in_Fℓ'
+        simp only [F_mem_iff_neg _ ℓ' φ, exists_and_left] at φ_in_Fℓ'
         rcases φ_in_Fℓ' with ⟨τ, φ_def, τ_in, ℓ'_τ_false⟩
         unfold_let ℓ' at ℓ'_τ_false
         simp_all
       case inr φ_in_Pℓ' =>
         rcases φ_in_Pℓ' with ⟨δ, δ_in_P, def_φ⟩
-        simp_all [conEval, Xset]
+        simp_all only [Xset, conEval, List.mem_append, List.mem_map]
         apply w_Xℓ φ
         right
         use δ
-        simp_all
-        -- better use some Lemma here about P subsets (with recursive proof)
-        unfold_let ℓ' at δ_in_P
-        unfold P at δ_in_P
-        sorry
+        simp_all only [and_true]
+        apply P_monotone γ ℓ' ℓ ?_ δ δ_in_P
+        intro τ ℓ_τ
+        unfold_let ℓ'
+        by_contra hyp
+        absurd ℓ_τ
+        simp only [Bool.not_eq_true] at *
+        unfold_let ℓ'
+        simp only [decide_eq_false_iff_not]
+        have := w_Xℓ (~τ)
+        simp only [evaluate] at this
+        apply this
+        left
+        rw [F_mem_iff_neg]
+        tauto
     have : evaluate M w ((⌈γ⌉ψ)⋀signature γ ℓ') := by
       apply (localBoxTruthI γ ψ ℓ' W M w).2
       simp only [evaluate]
