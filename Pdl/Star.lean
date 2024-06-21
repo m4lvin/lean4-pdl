@@ -80,7 +80,7 @@ theorem ReflTransGen.from_finitelyManySteps (r : α → α → Prop) {n : ℕ} :
       rw [← x_is_head] at steprel
       convert steprel
       cases ys using Vector.inductionOn
-      case h_cons y ys hyp =>
+      case cons y ys hyp =>
         cases ys using Vector.inductionOn
         rfl
     · apply IH y z ys.tail
@@ -88,7 +88,7 @@ theorem ReflTransGen.from_finitelyManySteps (r : α → α → Prop) {n : ℕ} :
       constructor
       · have sameLast : ys.tail.last = ys.last := by
           cases ys using Vector.inductionOn
-          case h_cons y ys hyp =>
+          case cons y ys hyp =>
             cases ys using Vector.inductionOn
             rfl
         rw [sameLast]

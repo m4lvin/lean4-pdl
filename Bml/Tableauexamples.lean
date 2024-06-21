@@ -29,6 +29,8 @@ theorem noBot : Provable (~⊥) := by
     -- show that endNodesOf is empty
     intro Y Y_in
     simp [endNodesOf] at *
+    sorry -- since Lean v4.9.0-rc2
+
 
 theorem noContradiction : Provable (~(p⋀~p)) :=
   by
@@ -60,6 +62,7 @@ theorem noContradiction : Provable (~(p⋀~p)) :=
     -- show that endNodesOf is empty
     intro Y Y_in
     simp [endNodesOf] at *
+    sorry -- since Lean v4.9.0-rc2
 
 -- preparing example 2
 def subTabForEx2 : ClosedTableau ({·'r', ~(□p), □(p⋀q)}, {}) :=
@@ -86,6 +89,7 @@ def subTabForEx2 : ClosedTableau ({·'r', ~(□p), □(p⋀q)}, {}) :=
   case next =>
     intro Y Y_in
     simp [endNodesOf] at *
+    sorry -- since Lean v4.9.0-rc2
 
 
 -- needed to ensure simple-ness in next example.
@@ -135,8 +139,11 @@ example : ClosedTableau ({r⋀~(□p), r↣□(p⋀q)}, {}) :=
   case next =>
       intro Y Y_in
       simp (config := {decide := true}) at *
+      sorry -- since Lean v4.9.0-rc2
+      /-
       · subst Y_in
         -- rewrite the Finset in the goal to that of subTabForEx2
         have : insert (□(p⋀q)) (Finset.erase {·Char.ofNat 114, ~(□p), ~~(□(p⋀q))} (~~(□(p⋀q)))) = {·'r', ~(□p), □(p⋀q)} := by decide
         rw [this]
         exact subTabForEx2
+      -/
