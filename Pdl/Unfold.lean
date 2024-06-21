@@ -1038,17 +1038,91 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     · simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
     · simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
   case union α β =>
-    have IHα := localBoxTruthI α ψ ℓ
-    have IHβ := localBoxTruthI β ψ ℓ
-    have := (boxHelperTP (α⋓β) ℓ).2.2 ψ -- using part (3) of Lemma
-    simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
-    sorry
+    have IHα := localBoxTruthI α ψ ℓ W M w
+    have IHβ := localBoxTruthI β ψ ℓ W M w
+    simp at *
+    intro w_sign_ℓ
+    specialize IHα ?_
+    · simp_all [signature, conEval, testsOfProgram]; intro f τ τ_in; apply w_sign_ℓ; aesop
+    specialize IHβ ?_
+    · simp_all [signature, conEval, testsOfProgram]; intro f τ τ_in; apply w_sign_ℓ; aesop
+    -- rewrite using semantics of union and the two IH:
+    have : (∀ (v : W), relate M α w v ∨ relate M β w v → evaluate M v ψ)
+        ↔ ((∀ (v : W), relate M α w v → evaluate M v ψ)
+         ∧ (∀ (v : W), relate M β w v → evaluate M v ψ)) := by aesop
+    rw [this, IHα, IHβ]
+    clear this IHα IHβ
+    -- signature is true, so we can add it for free:
+    have helper : ∀ φ, evaluate M w φ
+                     ↔ evaluate M w (φ ⋀ signature (α⋓β) ℓ) := by simp_all [conEval]
+    rw [helper (Con (Xset (α⋓β) ℓ ψ))]
+    -- using part (3) of Lemma:
+    have := (boxHelperTP (α⋓β) ℓ).2.2 ψ W M w
+    rw [this]
+    clear this
+    simp [P]
+    constructor
+    · intro lhs
+      simp only [conEval] at lhs
+      constructor
+      · rw [conEval]
+        intro φ φ_in
+        simp only [List.mem_map, List.mem_union_iff] at φ_in
+        rcases φ_in with ⟨δ, δ_in, def_φ⟩
+        subst def_φ
+        cases δ_in
+        · apply lhs.1
+          simp only [Xset, List.mem_append, List.mem_map]
+          right
+          use δ
+        · apply lhs.2
+          simp only [Xset, List.mem_append, List.mem_map]
+          right
+          use δ
+      · assumption
+    · intro rhs
+      rw [conEval] at rhs
+      constructor -- α and β parts, analogous
+      · simp? [conEval, Xset]
+        intro φ φ_in
+        cases φ_in
+        case inl φ_in_F => -- F case, use signature
+          rw [F_mem_iff_neg α ℓ φ] at φ_in_F
+          rcases φ_in_F with ⟨τ, τ_in, def_φ, not_ℓ_τ⟩
+          simp [signature,conEval] at w_sign_ℓ
+          apply w_sign_ℓ _ τ
+          · simp_all
+          · simp_all [testsOfProgram]
+        case inr hyp =>
+          rcases hyp with ⟨δ, bla, def_φ⟩  -- P case, interesting
+          apply rhs.1 φ
+          simp only [List.mem_map, List.mem_union_iff]
+          use δ
+          tauto
+      · simp only [Xset, conEval, List.mem_append, List.mem_map]
+        intro φ φ_in
+        cases φ_in
+        case inl φ_in_F => -- F case, use signature
+          rw [F_mem_iff_neg β ℓ φ] at φ_in_F
+          rcases φ_in_F with ⟨τ, τ_in, def_φ, not_ℓ_τ⟩
+          simp [signature,conEval] at w_sign_ℓ
+          apply w_sign_ℓ _ τ
+          · simp_all
+          · simp_all [testsOfProgram]
+        case inr hyp =>
+          rcases hyp with ⟨δ, bla, def_φ⟩  -- P case, interesting
+          apply rhs.1 φ
+          simp only [List.mem_map, List.mem_union_iff]
+          use δ
+          tauto
   case sequence α β =>
     have IHα := localBoxTruthI α (⌈β⌉ψ) ℓ
     have IHβ := localBoxTruthI β ψ ℓ
     simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
     sorry
   case star β =>
+    sorry
+    /-
     have IHβ := fun φ => localBoxTruthI β φ ℓ
     let ρ := dis ((allTP (∗β)).map (fun ℓ => Con (Xset (∗β) ℓ ψ)))
     suffices goal :(⌈∗β⌉ψ) ≡ ρ by
@@ -1066,7 +1140,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     -- have := guardToStar
 
     sorry
-
+    -/
 theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) := by
   -- By the properties of the signature formulas clearly ;-)
   -- `localBoxTruthI` suffices to prove `localBoxTruth`.
