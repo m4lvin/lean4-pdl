@@ -63,6 +63,8 @@ theorem A4 : tautology ((⌈a;'b⌉(·p)) ⟷ (⌈a⌉(⌈b⌉(·p)))) :=
   simp
   tauto
 
+set_option linter.unusedVariables false -- for `contrapose! rhs` below
+
 theorem A5 : tautology ((⌈a ⋓ b⌉X) ⟷ ((⌈a⌉X) ⋀ (⌈b⌉X))) :=
   by
   unfold tautology evaluate

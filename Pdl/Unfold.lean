@@ -1036,9 +1036,6 @@ theorem guardToStar (x : Nat)
     apply IH
     exact fortysix W M u1 u2 w_rho u1_b_u2
 
--- theorem helper idea, unused for below
--- evaluate M w (φ ⋀ ψ) ↔ evaluate M w (Con (Xset (∗β) ℓ ψ)⋀signature (∗β) ℓ)
-
 /-- Induction claim for `localBoxTruth`. -/
 theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Xset γ ℓ ψ) ⋀ signature γ ℓ := by
@@ -1066,9 +1063,10 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     rw [this, IHα, IHβ]
     clear this IHα IHβ
     -- signature is true, so we can add it for free:
-    have helper : ∀ φ, evaluate M w φ
-                     ↔ evaluate M w (φ ⋀ signature (α⋓β) ℓ) := by simp_all [conEval]
-    rw [helper (Con (Xset (α⋓β) ℓ ψ))]
+    have : ∀ φ, evaluate M w φ
+              ↔ evaluate M w (φ ⋀ signature (α⋓β) ℓ) := by simp_all [conEval]
+    rw [this (Con (Xset (α⋓β) ℓ ψ))]
+    clear this
     -- using part (3) of Lemma:
     have := (boxHelperTP (α⋓β) ℓ).2.2 ψ W M w
     rw [this]
@@ -1096,18 +1094,18 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     · intro rhs
       rw [conEval] at rhs
       constructor -- α and β parts, analogous
-      · simp? [conEval, Xset]
+      · simp only [Xset, conEval, List.mem_append, List.mem_map]
         intro φ φ_in
         cases φ_in
-        case inl φ_in_F => -- F case, use signature
+        case inl φ_in_F =>
           rw [F_mem_iff_neg α ℓ φ] at φ_in_F
           rcases φ_in_F with ⟨τ, τ_in, def_φ, not_ℓ_τ⟩
           simp [signature,conEval] at w_sign_ℓ
           apply w_sign_ℓ _ τ
           · simp_all
           · simp_all [testsOfProgram]
-        case inr hyp =>
-          rcases hyp with ⟨δ, bla, def_φ⟩  -- P case, interesting
+        case inr φ_from_P =>
+          rcases φ_from_P with ⟨δ, bla, def_φ⟩
           apply rhs.1 φ
           simp only [List.mem_map, List.mem_union_iff]
           use δ
@@ -1115,15 +1113,15 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
       · simp only [Xset, conEval, List.mem_append, List.mem_map]
         intro φ φ_in
         cases φ_in
-        case inl φ_in_F => -- F case, use signature
+        case inl φ_in_F =>
           rw [F_mem_iff_neg β ℓ φ] at φ_in_F
           rcases φ_in_F with ⟨τ, τ_in, def_φ, not_ℓ_τ⟩
           simp [signature,conEval] at w_sign_ℓ
           apply w_sign_ℓ _ τ
           · simp_all
           · simp_all [testsOfProgram]
-        case inr hyp =>
-          rcases hyp with ⟨δ, bla, def_φ⟩  -- P case, interesting
+        case inr φ_from_P =>
+          rcases φ_from_P with ⟨δ, bla, def_φ⟩
           apply rhs.1 φ
           simp only [List.mem_map, List.mem_union_iff]
           use δ
@@ -1178,17 +1176,17 @@ theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => 
       tauto
     have := localBoxTruthI γ ψ ℓ W M w -- using the claim proven by induction
     simp_all
-    refine ⟨ℓ,ℓ_in, ?_⟩
+    refine ⟨ℓ, ℓ_in, ?_⟩
     apply this
     unfold_let ℓ
     simp_all [signature, conEval]
-    intro τ τ_in
+    intro τ _
     split_ifs <;> simp_all
   · intro w_Cons
     rw [disEval] at w_Cons
     rcases w_Cons with ⟨φ, φ_in, w_Xℓ⟩
     simp at φ_in
-    rcases φ_in with ⟨ℓ, ℓ_in, def_φ⟩
+    rcases φ_in with ⟨ℓ, _, def_φ⟩
     subst def_φ
     have := Classical.propDecidable
     -- again we get a test profile ℓ from the model:
