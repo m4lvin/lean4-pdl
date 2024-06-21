@@ -958,7 +958,7 @@ theorem guardToStar (x : Nat)
 -- evaluate M w (φ ⋀ ψ) ↔ evaluate M w (Con (Xset (∗β) ℓ ψ)⋀signature (∗β) ℓ)
 
 /-- Induction claim for `localBoxTruth`. -/
-theorem localBoxTruth' γ ψ (ℓ :TP γ) :
+theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Xset γ ℓ ψ) ⋀ signature γ ℓ := by
   intro W M w
   cases γ
@@ -969,18 +969,18 @@ theorem localBoxTruth' γ ψ (ℓ :TP γ) :
     · simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
     · simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
   case union α β =>
-    have IHα := localBoxTruth' α ψ ℓ
-    have IHβ := localBoxTruth' β ψ ℓ
+    have IHα := localBoxTruthI α ψ ℓ
+    have IHβ := localBoxTruthI β ψ ℓ
     have := (boxHelperTP (α⋓β) ℓ).2.2 ψ -- using part (3) of Lemma
     simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
     sorry
   case sequence α β =>
-    have IHα := localBoxTruth' α (⌈β⌉ψ) ℓ
-    have IHβ := localBoxTruth' β ψ ℓ
+    have IHα := localBoxTruthI α (⌈β⌉ψ) ℓ
+    have IHβ := localBoxTruthI β ψ ℓ
     simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
     sorry
   case star β =>
-    have IHβ := fun φ => localBoxTruth' β φ ℓ
+    have IHβ := fun φ => localBoxTruthI β φ ℓ
     let ρ := dis ((allTP (∗β)).map (fun ℓ => Con (Xset (∗β) ℓ ψ)))
     suffices goal :(⌈∗β⌉ψ) ≡ ρ by
       have := @equiv_iff _ _ goal W M w
@@ -1000,7 +1000,7 @@ theorem localBoxTruth' γ ψ (ℓ :TP γ) :
 
 theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) := by
   -- By the properties of the signature formulas clearly ;-)
-  -- `localBoxTruth'` suffices to prove `localBoxTruth`.
+  -- `localBoxTruthI` suffices to prove `localBoxTruth`.
   intro W M w
   constructor
   · intro w_γψ
@@ -1020,7 +1020,7 @@ theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => 
       intro τ τ_in
       simp [List.mem_filter]
       tauto
-    have := localBoxTruth' γ ψ ℓ W M w -- using the claim proven by induction
+    have := localBoxTruthI γ ψ ℓ W M w -- using the claim proven by induction
     simp_all
     refine ⟨ℓ,ℓ_in, ?_⟩
     apply this
@@ -1034,7 +1034,7 @@ theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => 
     simp at φ_in
     rcases φ_in with ⟨ℓ, ℓ_in, def_φ⟩
     subst def_φ
-    have := localBoxTruth' γ ψ ℓ W M w
+    have := localBoxTruthI γ ψ ℓ W M w
     have := boxHelperTP γ ℓ
     simp [conEval] at *
     sorry
