@@ -58,28 +58,28 @@ theorem repl_in_F_non_occ_eq {x φ ρ} :
     intro c_is_x; simp [voc,vocabOfFormula] at *; tauto
   case neg φ0 =>
     simp [voc,vocabOfFormula] at *
-    apply repl_in_F_non_occ_eq; tauto
+    apply repl_in_F_non_occ_eq; simp; tauto
   case and φ1 φ2 =>
     simp [voc,vocabOfFormula] at *
-    constructor <;> (apply repl_in_F_non_occ_eq ; tauto)
+    constructor <;> (apply repl_in_F_non_occ_eq ; simp; tauto)
   case box α φ0 =>
     simp [voc,vocabOfFormula] at *
     constructor
-    · apply repl_in_P_non_occ_eq; tauto
-    · apply repl_in_F_non_occ_eq; tauto
+    · apply repl_in_P_non_occ_eq; simp; tauto
+    · apply repl_in_F_non_occ_eq; simp; tauto
 theorem repl_in_P_non_occ_eq {x α ρ} :
     x ∉ voc α → repl_in_P x ρ α = α := by
   intro x_notin_alpha
   cases α
   all_goals simp [voc,vocabOfProgram] at *
   case sequence β γ =>
-    constructor <;> (apply repl_in_P_non_occ_eq; tauto)
+    constructor <;> (apply repl_in_P_non_occ_eq; simp; tauto)
   case union β γ =>
-    constructor <;> (apply repl_in_P_non_occ_eq; tauto)
+    constructor <;> (apply repl_in_P_non_occ_eq; simp; tauto)
   case star β =>
-    apply repl_in_P_non_occ_eq ; tauto
+    apply repl_in_P_non_occ_eq ; simp; tauto
   case test φ =>
-    apply repl_in_F_non_occ_eq; tauto
+    apply repl_in_F_non_occ_eq; simp; tauto
 end
 
 theorem repl_in_boxes_non_occ_eq (δ : List Program) :
@@ -92,12 +92,10 @@ theorem repl_in_boxes_non_occ_eq (δ : List Program) :
     constructor
     · apply repl_in_P_non_occ_eq
       simp [voc,vocabOfProgram,vocabOfListProgram] at *
-      intro _
       simp_all
     · apply IH
       clear IH
       simp [voc,vocabOfProgram,vocabOfListProgram] at *
-      intro d d_in
       simp_all
 
 theorem repl_in_list_non_occ_eq (F : List Formula) :
@@ -110,11 +108,10 @@ theorem repl_in_list_non_occ_eq (F : List Formula) :
     constructor
     · apply repl_in_F_non_occ_eq
       simp [voc,vocabOfProgram,vocabOfListFormula] at *
-      exact nonOcc.left
+      simp_all
     · apply IH
       clear IH
       simp [voc,vocabOfProgram,vocabOfListFormula] at *
-      intro d d_in
       simp_all
 
 /-- Overwrite the valuation of `x` with the current value of `ψ` in a model. -/

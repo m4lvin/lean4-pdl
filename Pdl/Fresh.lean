@@ -2,14 +2,14 @@
 import Pdl.Vocab
 
 mutual
-  /-- Get a fresh atomic proposition `x` not occuring in `ψ`. -/
+  /-- Get a fresh atom `x` not occuring in `ψ`. -/
   def freshVarForm : Formula → Nat
     | ⊥ => 0
     | ·c => c + 1
     | ~φ => freshVarForm φ
     | φ1⋀φ2 => max (freshVarForm φ1) (freshVarForm φ2)
     | ⌈α⌉ φ => max (freshVarProg α) (freshVarForm φ)
-  /-- Get a fresh atomic proposition `x` not occuring in `α`. -/
+  /-- Get a fresh atom `x` not occuring in `α`. -/
   def freshVarProg : Program → Nat
     | ·c => c + 1
     | α;'β  => max (freshVarProg α) (freshVarProg β)
