@@ -101,7 +101,7 @@ theorem endNodeOfChild_to_endNode
     · rw [h']
       exact Z_in
 
-/-- ## Navigating through tableaux -/
+/-- ## Navigating through tableaux with PathIn -/
 
 -- To define ancestor / decendant relations inside tableaux we need to
 -- represent both the whole Tableau and a specific node in it.
@@ -113,9 +113,8 @@ theorem endNodeOfChild_to_endNode
 --
 -- TODO: Do we need paths that include back-loops?
 
--- TODO: Replace the "unsafe" list paths with inductive types
---       See the toy examples and experiments in "Repeat.lean".
 
+-- UNUSED
 inductive PathInLocal : ∀ {X}, LocalTableau X → Type
 | byLocalRuleStep :
     (h : Y ∈ B)
@@ -124,52 +123,121 @@ inductive PathInLocal : ∀ {X}, LocalTableau X → Type
 | simEnd : PathInLocal (LocalTableau.sim _)
 
 -- Three ways to make a path: empty, local step or pdl step.
--- The steps correspond to two out of three constructors of `ClosedTableau`.
+-- The `loc` ad `pdl` steps correspond to two out of three constructors of `ClosedTableau`.
 inductive PathIn : ∀ {H X}, ClosedTableau H X → Type
 | nil : PathIn _
 | loc : (Y_in : Y ∈ endNodesOf lt) → (tail : PathIn (next Y Y_in)) → PathIn (ClosedTableau.loc lt next)
 | pdl : (r : PdlRule Γ Δ hfun) → PathIn (child : ClosedTableau (hfun Hist) Δ) → PathIn (ClosedTableau.pdl r child)
 
 def tabAt : PathIn tab → Σ H X, ClosedTableau H X
-| PathIn.nil => ⟨_,_,tab⟩
-| PathIn.loc _ tail => tabAt tail
-| PathIn.pdl _ p_child => tabAt p_child
+| .nil => ⟨_,_,tab⟩
+| .loc _ tail => tabAt tail
+| .pdl _ p_child => tabAt p_child
 
 def nodeAt {H X} {tab : (ClosedTableau H X)} : PathIn tab → TNode
-| PathIn.nil => X
-| PathIn.loc _ tail => nodeAt tail
-| PathIn.pdl _ p_child => nodeAt p_child
+| .nil => X
+| .loc _ tail => nodeAt tail
+| .pdl _ p_child => nodeAt p_child
+
+def PathIn.append (p : PathIn tab) (q : PathIn (tabAt p).2.2) : PathIn tab := match p with
+  | .nil => q
+  | .loc Y_in tail => .loc Y_in (PathIn.append tail q)
+  | .pdl r p_child => .pdl r (PathIn.append p_child q)
+
+/-! ## Parents, Children, Ancestors and Descendants -/
 
 -- TODO: adjust notation and s-t or t-s convention to notes!
 
+/-- One-step children, with changed type. Use `children` instead. -/
+def children' (p : PathIn tab) : List (PathIn (tabAt p).2.2) := match tabAt p with
+  | ⟨_, _, ClosedTableau.loc lt _next⟩  =>
+      ((endNodesOf lt).attach.map (fun ⟨Y,Y_in⟩ => [ .loc Y_in .nil ] )).join
+  | ⟨_, _, ClosedTableau.pdl r _ct⟩  => [ .pdl r .nil ]
+  | ⟨_, _, ClosedTableau.rep _⟩  => [ ]
+
+/-- List of one-step children, given by paths from the same root. -/
+def children (p : PathIn tab) : List (PathIn tab) := (children' p).map (PathIn.append p)
+
 /-- The parent-child relation `s ◃ t` in a tableau -/
-def stepRel {H X} {ctX : ClosedTableau H X} : PathIn ctX → PathIn ctX → Prop
-| s, t => sorry -- TODO
-  -- (∃ Y_in, s = PathIn.loc Y_in t) -- does not make sense, both paths are from the same root!
+def stepRel {H X} {ctX : ClosedTableau H X} (s : PathIn ctX) (t : PathIn ctX) : Prop :=
+  t ∈ children s
 
-notation pa:arg "◃" pb:arg => stepRel pa pb
+/-- Notation ◃ for `stepRel` -/
+notation s:arg "◃" t:arg => stepRel s t
 
-/-- Successor relation plus back loops: ◃' (MB: page 26) -/
-def edgesBack {H X} {ctX : ClosedTableau H X} : PathIn ctX → PathIn ctX → Prop
-| t, s => sorry -- TODO
+/-- Enable "<" notation for transitive closure of ◃ -/
+instance : LT (PathIn tab) := ⟨TC stepRel⟩
 
-notation pa:arg "◃'" pb:arg => edgesBack pa pb
+/-- Trans closure of ◃ is denoted by <' -/
+notation pa:arg "<'" pb:arg => TC stepRel pa pb
 
 /-- ReflTrans closure of ◃ is denoted by ≤' -/
 notation pa:arg "≤'" pb:arg => Relation.ReflTransGen stepRel pa pb
+
+/-! ## K, ◃', edgesBeck, E -/
+
+def K {H X} {ctX : ClosedTableau H X} : PathIn ctX → PathIn ctX → Prop
+| t, s =>
+    ∃ RRR, (tabAt t).2.2 = ClosedTableau.rep RRR -- t is a successful leaf
+    ∧
+    sorry -- TODO: say that s is the companion of t
+
+/-- Successor relation plus back loops: ◃' (MB: page 26) -/
+def edgesBack {H X} {ctX : ClosedTableau H X} (s : PathIn ctX) (t : PathIn ctX) : Prop :=
+  s ◃ t  ∨  ∃ u, K s u ∧ u ◃ t
+
+notation pa:arg "◃'" pb:arg => edgesBack pa pb
 
 -- NOTE: for free nodes we have < iff <'
 
 -- TODO: def companionOf : ...
 
-def K {H X} {ctX : ClosedTableau H X} : PathIn ctX → PathIn ctX → Prop
-| t, s => sorry -- TODO: t is successful leaf and s is the companion of s
-
-def E {H X} {ctX : ClosedTableau H X} : PathIn ctX → PathIn ctX → Prop
+def E {Hist X} {ctX : ClosedTableau Hist X} : PathIn ctX → PathIn ctX → Prop
 | t, s => (t ◃ s) ∨ K t s
 
-theorem loadedDiamondPaths
-  {Root Δ : TNode}
+/-- We have: ◁′ = ◁ ∪ (K; ◁) -/
+example : pa ◃' pb ↔ (pa ◃' pb) ∨ ∃ pc, K pa pc ∧ pc ◃ pb := by
+  simp_all [edgesBack]
+
+
+/-! ## ≡_E and Clusters -/
+
+-- TODO: how to define the equivalence relation given by E:
+-- Use EqvGen from Mathlib or maually as "both ways TC related"?
+
+-- manual
+def E_equiv {Hist X} {tab : ClosedTableau Hist X} (pa pb : PathIn tab) : Prop := TC E pa pb ∧ TC E pb pa
+
+notation t:arg "≡_E" s:arg => E_equiv t s
+
+-- better?
+def E_equiv_maybe_this (tab : ClosedTableau Hist X) (pa pb : PathIn tab) : Prop := EqvGen E pa pb
+def clusterOf (tab : ClosedTableau Hist X) (p : PathIn tab) := Quot.mk E p
+
+def E_below {Hist X} {tab : ClosedTableau Hist X}
+  (s t : PathIn tab) : Prop := TC E t s ∧ ¬ TC E s t
+
+notation t:arg "⊏_E" s:arg => E_below t s
+
+theorem eProp (tab : ClosedTableau Hist X) :
+    Equivalence (@E_equiv _ _ tab)
+    ∧
+    WellFounded (@E_below _ _ tab) := by
+  sorry
+
+theorem eProp2 (tab : ClosedTableau Hist X) (s s' t : PathIn tab) :
+      (s ◃ t → (t ⊏_E s) ∨ (t ≡_E s)) -- a
+    ∧ (K s t → t ≡_E s) --b
+    ∧ sorry -- s is free and s ◁ t, then t ⊏E s; -- c
+    ∧ sorry -- s is loaded, t is free and s ◁ t, then t ⊏E s; --d
+    ∧ (s ≡_E s' ∧ t ⊏_E s  →  t ⊏_E s') -- e
+    ∧ (s <' t ∧ ¬(s ≡_E t)  →  t ⊏_E s) --f
+  := by
+sorry
+
+/-! ## Soundness -/
+
+theorem loadedDiamondPaths {Root Δ : TNode}
   (tab : ClosedTableau ([],[]) Root) -- ensure History = [] here to prevent repeats from "above".
   (path_to_Δ : PathIn tab)
   (h : Δ = nodeAt path_to_Δ)
@@ -186,6 +254,7 @@ theorem loadedDiamondPaths
       ∧ (AnyNegFormula_in_TNode (~''φ) Γ) -- FIXME: ∈ not working here?
       ∧ (M,w) ⊨ Γ :=
   by
+  have := eProp2 tab
   let ⟨L,R,O⟩ := Δ
   all_goals sorry
 
@@ -193,6 +262,7 @@ theorem loadedDiamondPaths
 theorem tableauThenNotSat : ∀ X, ClosedTableau LoadHistory.nil X → ¬satisfiable X :=
   by
   intro X t
+  -- by induction on the relation ⊏_E
   sorry
 
 
