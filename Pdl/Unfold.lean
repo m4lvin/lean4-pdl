@@ -1184,8 +1184,34 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
             simp_all
         · simp_all
     · intro rhs
-      -- TODO NEXT
-      sorry
+      rw [conEval]
+      simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
+      rintro φ (φ_in_Fα|⟨δ, φ_in_Pα, def_φ⟩)
+      · tauto
+      · subst def_φ
+        cases em (δ = [])
+        · simp_all only [Formula.boxes.eq_1, evaluate, ite_true] -- uses IHβ
+          clear IHβ
+          rintro φ ((φ_in_Fβ) | ⟨δ, ⟨(δ_from_Pβ), def_φ⟩⟩)
+          · apply rhs
+            simp_all
+          · subst_eqs
+            apply rhs
+            right
+            use δ
+            simp_all
+        · apply rhs
+          right
+          use δ ++ [β]
+          simp [boxes_append]
+          cases em ([] ∈ P α ℓ)
+          · simp_all
+            left
+            rw [List.mem_filter]
+            aesop
+          · simp_all
+            rw [List.mem_filter]
+            aesop
   case star β =>
     sorry
     /-
