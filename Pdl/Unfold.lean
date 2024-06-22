@@ -1062,7 +1062,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
   case union α β =>
     have IHα := localBoxTruthI α ψ ℓ W M w
     have IHβ := localBoxTruthI β ψ ℓ W M w
-    simp at *
+    simp only [evaluate, and_congr_left_iff, relate] at *
     intro w_sign_ℓ
     specialize IHα ?_
     · simp_all [signature, conEval, testsOfProgram]; intro f τ τ_in; apply w_sign_ℓ; aesop
@@ -1083,7 +1083,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     have := (boxHelperTP (α⋓β) ℓ).2.2 ψ W M w
     rw [this]
     clear this
-    simp [P]
+    simp only [P, evaluate]
     constructor
     · intro lhs
       simp only [conEval] at lhs
@@ -1139,10 +1139,53 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
           use δ
           tauto
   case sequence α β =>
-    have IHα := localBoxTruthI α (⌈β⌉ψ) ℓ
-    have IHβ := localBoxTruthI β ψ ℓ
-    simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
-    sorry
+    have IHα := localBoxTruthI α (⌈β⌉ψ) ℓ W M w
+    have IHβ := localBoxTruthI β ψ ℓ W M w -- ??
+    simp only [evaluate, relate, forall_exists_index, and_imp, and_congr_left_iff] at *
+    intro w_sign_ℓ
+    specialize IHα ?_
+    · simp_all [signature, conEval, testsOfProgram]; intro f τ τ_in; apply w_sign_ℓ; aesop
+    specialize IHβ ?_
+    · simp_all [signature, conEval, testsOfProgram]; intro f τ τ_in; apply w_sign_ℓ; aesop
+    -- only rewriting with IHα here, but not yet IHβ
+    have : (∀ (v x : W), relate M α w x → relate M β x v → evaluate M v ψ)
+          ↔ ∀ (v : W), relate M α w v → ∀ (v_1 : W), relate M β v v_1 → evaluate M v_1 ψ := by
+      clear IHα IHβ
+      aesop
+    rw [this, IHα]
+    clear this IHα
+    constructor
+    · intro lhs
+      rw [conEval]
+      simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
+      rintro φ ((φ_in_Fα|φ_in_Fβ) | ⟨δ, ⟨(δ_from_Pα|δ_from_Pβ), def_φ⟩⟩)
+      · tauto
+      · rw [F_mem_iff_neg β ℓ φ] at φ_in_Fβ
+        rcases φ_in_Fβ with ⟨τ, τ_in, def_φ, not_ℓ_τ⟩
+        apply w_sign_ℓ _ τ
+        · simp_all
+        · simp_all [testsOfProgram]
+      · subst def_φ
+        apply lhs
+        right
+        rcases δ_from_Pα with ⟨δ_α, bla, def_δ⟩
+        use δ_α
+        subst def_δ
+        simp_all [boxes_append, List.mem_filter]
+      · subst def_φ
+        cases em ([] ∈ P α ℓ)
+        · simp_all
+          apply IHβ.1 ?_ (⌈⌈δ⌉⌉ψ) <;> clear IHβ
+          · right; aesop
+          · have := lhs (⌈β⌉ψ)
+            simp at this; apply this; clear this -- sounds like daft punk ;-)
+            right
+            use []
+            simp_all
+        · simp_all
+    · intro rhs
+      -- TODO NEXT
+      sorry
   case star β =>
     sorry
     /-
