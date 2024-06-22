@@ -55,31 +55,31 @@ theorem repl_in_F_non_occ_eq {x φ ρ} :
   case bottom => simp
   case atom_prop c =>
     simp only [repl_in_F, beq_iff_eq, ite_eq_right_iff]
-    intro c_is_x; simp [voc,vocabOfFormula] at *; tauto
+    intro c_is_x; simp [voc,vocabOfFormula,instMembershipNatVocab] at *; tauto
   case neg φ0 =>
     simp [voc,vocabOfFormula] at *
-    apply repl_in_F_non_occ_eq; simp; tauto
+    apply repl_in_F_non_occ_eq; simp [instMembershipNatVocab] at *; tauto
   case and φ1 φ2 =>
-    simp [voc,vocabOfFormula] at *
-    constructor <;> (apply repl_in_F_non_occ_eq ; simp; tauto)
+    simp [voc, vocabOfFormula, instMembershipNatVocab] at *
+    constructor <;> (apply repl_in_F_non_occ_eq ; simp [instMembershipNatVocab]; tauto)
   case box α φ0 =>
     simp [voc,vocabOfFormula] at *
     constructor
-    · apply repl_in_P_non_occ_eq; simp; tauto
-    · apply repl_in_F_non_occ_eq; simp; tauto
+    · apply repl_in_P_non_occ_eq; simp [instMembershipNatVocab] at *; tauto
+    · apply repl_in_F_non_occ_eq; simp [instMembershipNatVocab] at *; tauto
 theorem repl_in_P_non_occ_eq {x α ρ} :
     x ∉ voc α → repl_in_P x ρ α = α := by
   intro x_notin_alpha
   cases α
   all_goals simp [voc,vocabOfProgram] at *
   case sequence β γ =>
-    constructor <;> (apply repl_in_P_non_occ_eq; simp; tauto)
+    constructor <;> (apply repl_in_P_non_occ_eq; simp [instMembershipNatVocab] at *; tauto)
   case union β γ =>
-    constructor <;> (apply repl_in_P_non_occ_eq; simp; tauto)
+    constructor <;> (apply repl_in_P_non_occ_eq; simp [instMembershipNatVocab] at *; tauto)
   case star β =>
-    apply repl_in_P_non_occ_eq ; simp; tauto
+    apply repl_in_P_non_occ_eq ; simp [instMembershipNatVocab] at *; tauto
   case test φ =>
-    apply repl_in_F_non_occ_eq; simp; tauto
+    apply repl_in_F_non_occ_eq; simp [instMembershipNatVocab] at *; tauto
 end
 
 theorem repl_in_boxes_non_occ_eq (δ : List Program) :
@@ -91,12 +91,12 @@ theorem repl_in_boxes_non_occ_eq (δ : List Program) :
     simp only [Formula.boxes, repl_in_F, Formula.box.injEq]
     constructor
     · apply repl_in_P_non_occ_eq
-      simp [voc,vocabOfProgram,vocabOfListProgram] at *
-      simp_all
+      simp [voc,vocabOfProgram] at *
+      simp_all [instMembershipNatVocab]
     · apply IH
       clear IH
-      simp [voc,vocabOfProgram,vocabOfListProgram] at *
-      simp_all
+      simp [voc,vocabOfProgram] at *
+      simp_all [instMembershipNatVocab]
 
 theorem repl_in_list_non_occ_eq (F : List Formula) :
      x ∉ voc F → F.map (repl_in_F x ρ) = F := by
@@ -107,12 +107,12 @@ theorem repl_in_list_non_occ_eq (F : List Formula) :
     simp only [List.map_cons, List.cons.injEq]
     constructor
     · apply repl_in_F_non_occ_eq
-      simp [voc,vocabOfProgram,vocabOfListFormula] at *
-      simp_all
+      simp [voc,vocabOfProgram] at *
+      simp_all [instMembershipNatVocab]
     · apply IH
       clear IH
-      simp [voc,vocabOfProgram,vocabOfListFormula] at *
-      simp_all
+      simp [voc,vocabOfProgram] at *
+      simp_all [instMembershipNatVocab]
 
 /-- Overwrite the valuation of `x` with the current value of `ψ` in a model. -/
 def repl_in_model (x : Nat) (ψ : Formula) : KripkeModel W → KripkeModel W

@@ -29,34 +29,40 @@ open HasVocabulary
 theorem keepFreshH α : x ∉ voc α → ∀ F δ, (F,δ) ∈ H α → x ∉ voc F ∧ x ∉ voc δ := by
   intro x_notin F δ Fδ_in_H
   cases α
-  all_goals
-    simp [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram] at *
   case atom_prog a =>
+    simp [H, voc,vocabOfFormula,vocabOfProgram] at *
     cases Fδ_in_H
     subst_eqs
-    simp [vocabOfProgram]
+    simp [vocabOfProgram, instMembershipNatVocab] at *
     assumption
   case test =>
+    simp [H, voc,vocabOfFormula,vocabOfProgram] at *
     cases Fδ_in_H
     subst_eqs
+    simp [vocabOfProgram, instMembershipNatVocab] at *
     aesop
   all_goals
-    constructor <;> intro y y_in -- FIXME: delay this to shorten the proof?
+    constructor -- FIXME: delay this to shorten the proof?
   case sequence.left α β =>
+    simp [voc, vocabOfProgram, vocabOfProgram_mem_union] at x_notin
+    simp only [H, ε, List.mem_join, List.mem_map, Prod.exists] at Fδ_in_H
     rcases Fδ_in_H with ⟨l, ⟨⟨F', δ', ⟨Fδ'_in, def_l⟩⟩, Fδ_in_l⟩⟩
     subst def_l
     cases em (δ' = []) <;> simp_all
-    · subst_eqs
-      have IHα := keepFreshH α x_notin.1 F' [] Fδ'_in
-      simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
+    · have IHα := keepFreshH α x_notin.1 F' [] Fδ'_in
       rcases Fδ_in_l with ⟨l', ⟨⟨a', b', ⟨a'b'_in_Hβ, def_l'⟩⟩, Fδ_in_l'⟩⟩
       subst_eqs
+      simp at  Fδ_in_l'
+      cases Fδ_in_l'
+      subst_eqs
+      intro φ φ_in
       simp_all
-      cases y_in
-      · apply IHα
-        assumption
-      · have IHβ := keepFreshH β x_notin.2 a' b' a'b'_in_Hβ
-        simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
+      apply IHα
+      cases φ_in
+      assumption
+      · have IHβ := keepFreshH β x_notin.2 a' δ a'b'_in_Hβ
+        simp_all [H, voc,vocabOfFormula,vocabOfProgram]
+        sorry
     · subst_eqs
       have := keepFreshH α x_notin.1 F' δ' Fδ'_in
       simp_all [H, voc,vocabOfListFormula,vocabOfListProgram,vocabOfFormula,vocabOfProgram]
