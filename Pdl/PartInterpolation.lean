@@ -19,7 +19,7 @@ def TNode.right : TNode → List Formula
 | ⟨_, R, some (Sum.inr ⟨f⟩)⟩ => unload f :: R
 
 @[simp]
-def jvoc : (LR: TNode) → Finset Nat := λ X => voc (X.left) ∩ voc (X.right)
+def jvoc : (LR: TNode) → Vocab := λ X => voc (X.left) ∩ voc (X.right)
 
 def isPartInterpolant (X : TNode) (θ : Formula) :=
   voc θ ⊆ jvoc X ∧ (¬ satisfiable ((~θ) :: X.left) ∧ ¬ satisfiable (θ :: X.right))

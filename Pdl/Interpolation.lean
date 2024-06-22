@@ -23,8 +23,10 @@ theorem interpolation : ∀ (φ ψ : Formula), φ⊨ψ → ∃ θ : Formula, Int
   use θ
   constructor
   · intro f f_in
-    simp [voc,jvoc,vocabOfListFormula,vocabOfFormula] at pI_prop
-    exact pI_prop.1 f_in
+    simp [voc, jvoc, vocabOfFormula, Vocab.fromList] at pI_prop f_in
+    simp only [voc, Finset.mem_inter]
+    have := pI_prop.1 f_in
+    aesop
   constructor
   · have := pI_prop.2.1
     clear pI_prop

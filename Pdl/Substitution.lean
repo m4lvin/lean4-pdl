@@ -49,13 +49,13 @@ open HasVocabulary
 
 mutual
 theorem repl_in_F_non_occ_eq {x φ ρ} :
-    x ∉ voc φ → repl_in_F x ρ φ = φ := by
+    (Sum.inl x) ∉ voc φ → repl_in_F x ρ φ = φ := by
   intro x_notin_phi
   cases φ
   case bottom => simp
   case atom_prop c =>
     simp only [repl_in_F, beq_iff_eq, ite_eq_right_iff]
-    intro c_is_x; simp [voc,vocabOfFormula] at *; tauto
+    intro c_is_x; simp [voc,vocabOfFormula] at *; subst_eqs; tauto
   case neg φ0 =>
     simp [voc,vocabOfFormula] at *
     apply repl_in_F_non_occ_eq; tauto
@@ -68,7 +68,7 @@ theorem repl_in_F_non_occ_eq {x φ ρ} :
     · apply repl_in_P_non_occ_eq; tauto
     · apply repl_in_F_non_occ_eq; tauto
 theorem repl_in_P_non_occ_eq {x α ρ} :
-    x ∉ voc α → repl_in_P x ρ α = α := by
+    (Sum.inl x) ∉ voc α → repl_in_P x ρ α = α := by
   intro x_notin_alpha
   cases α
   all_goals simp [voc,vocabOfProgram] at *
@@ -83,7 +83,7 @@ theorem repl_in_P_non_occ_eq {x α ρ} :
 end
 
 theorem repl_in_boxes_non_occ_eq (δ : List Program) :
-    x ∉ voc δ → repl_in_F x ψ (⌈⌈δ⌉⌉~·x) = ⌈⌈δ⌉⌉~ψ := by
+    (Sum.inl x) ∉ voc δ → repl_in_F x ψ (⌈⌈δ⌉⌉~·x) = ⌈⌈δ⌉⌉~ψ := by
   intro nonOcc
   induction δ
   · simp
@@ -91,17 +91,13 @@ theorem repl_in_boxes_non_occ_eq (δ : List Program) :
     simp only [Formula.boxes, repl_in_F, Formula.box.injEq]
     constructor
     · apply repl_in_P_non_occ_eq
-      simp [voc,vocabOfProgram,vocabOfListProgram] at *
-      intro _
-      simp_all
+      simp_all [voc, vocabOfProgram, Vocab.fromList]
     · apply IH
       clear IH
-      simp [voc,vocabOfProgram,vocabOfListProgram] at *
-      intro d d_in
-      simp_all
+      simp_all [voc, vocabOfProgram, Vocab.fromList]
 
 theorem repl_in_list_non_occ_eq (F : List Formula) :
-     x ∉ voc F → F.map (repl_in_F x ρ) = F := by
+     (Sum.inl x) ∉ voc F → F.map (repl_in_F x ρ) = F := by
   intro nonOcc
   induction F
   · simp
@@ -109,13 +105,11 @@ theorem repl_in_list_non_occ_eq (F : List Formula) :
     simp only [List.map_cons, List.cons.injEq]
     constructor
     · apply repl_in_F_non_occ_eq
-      simp [voc,vocabOfProgram,vocabOfListFormula] at *
+      simp [voc, vocabOfProgram, Vocab.fromList] at *
       exact nonOcc.left
     · apply IH
       clear IH
-      simp [voc,vocabOfProgram,vocabOfListFormula] at *
-      intro d d_in
-      simp_all
+      simp_all [voc, vocabOfProgram, Vocab.fromList]
 
 /-- Overwrite the valuation of `x` with the current value of `ψ` in a model. -/
 def repl_in_model (x : Nat) (ψ : Formula) : KripkeModel W → KripkeModel W
