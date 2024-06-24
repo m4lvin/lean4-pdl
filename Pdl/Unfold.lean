@@ -1229,14 +1229,58 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
           rw [disEval] at this
           simp at this
           rcases this with ⟨ℓ', ℓ'_in_TP, w_Xℓ'⟩
-          -- tricky, now how to ensure ℓ and ℓ' agree?
-          -- compare to what we needed in the sequence case!
-          simp_all [evaluatePoint, modelCanSemImplyForm, evaluatePoint, formCanSemImplyForm, signature, conEval, testsOfProgram, Xset, allTP, disEval]
-          sorry
+          clear goal ρ
+          simp [conEval, Xset, F, P] at *
+          rintro f (f_in_Fβ|(f_eq_ψ|f_from_Pβ))
+          · simp [signature, conEval] at lhs
+            have := lhs.2 f
+            clear lhs
+            rw [F_mem_iff_neg] at f_in_Fβ
+            simp at f_in_Fβ
+            rcases f_in_Fβ with ⟨τ, f_def, ⟨τ_in, bla⟩⟩
+            apply this τ <;> simp_all [testsOfProgram]
+          · apply w_Xℓ'
+            right
+            left
+            assumption
+          · rcases f_from_Pβ with ⟨δ, δ_in, def_f⟩
+            have := P_monotone β ℓ ℓ' -- or flip order?
+            apply w_Xℓ'
+            right
+            right
+            use δ
+            constructor
+            · simp only [Subtype.forall] at this
+              cases em (δ = [])
+              · have := (List.mem_filter.1 δ_in).2
+                subst_eqs
+              · rw [List.mem_filter]
+                rw [List.mem_filter] at δ_in
+                simp_all only [bne_iff_ne, ne_eq, not_false_eq_true, and_true]
+                apply this _ _ δ_in
+                clear this
+                --remains to show that ℓ τ → ℓ' τ
+                -- tricky, now how to ensure ℓ and ℓ' agree?
+                -- compare to sequence case and localBoxTruth ??
+                intro τ τ_in ℓ_τ
+                have := lhs.2
+                simp only [signature, conEval, List.mem_map, List.mem_attach, true_and,
+                  Subtype.exists, forall_exists_index] at this
+                specialize this τ τ (by simp [testsOfProgram]; exact τ_in)
+                simp_all only [ite_true, true_implies]
+                by_contra hyp
+                absurd this
+                specialize w_Xℓ' (~τ)
+                simp only [evaluate] at w_Xℓ'
+                apply w_Xℓ'
+                left
+                rw [F_mem_iff_neg]
+                simp_all
+            · assumption
         · exact lhs.2
       · intro rhs -- the easy direction
-        simp at rhs
-        simp
+        simp only [evaluate] at rhs
+        simp only [evaluate, relate]
         constructor
         · rw [goal]
           unfold_let ρ
