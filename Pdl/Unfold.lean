@@ -691,6 +691,8 @@ theorem TP_eq_iff {α} {ℓ ℓ' : TP α} : (ℓ = ℓ') ↔ ∀ τ ∈ (testsOf
 /-- List of all test profiles for a given program. -/
 def allTP α : List (TP α) := (testsOfProgram α).sublists.map (fun l ⟨τ, _⟩ => τ ∈ l)
 
+theorem allTP_mem (ℓ : TP α) : ℓ ∈ allTP α := by sorry
+
 /-- σ^ℓ -/
 def signature (α : Program) (ℓ : TP α) : Formula :=
   Con $ (testsOfProgram α).attach.map (fun τ => if ℓ τ then τ.val else ~τ.val)
@@ -1213,26 +1215,47 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
             rw [List.mem_filter]
             aesop
   case star β =>
-    sorry
-    /-
-    have IHβ := fun φ => localBoxTruthI β φ ℓ
     let ρ := dis ((allTP (∗β)).map (fun ℓ => Con (Xset (∗β) ℓ ψ)))
-    suffices goal :(⌈∗β⌉ψ) ≡ ρ by
-      have := @equiv_iff _ _ goal W M w
-      have := equiv_con goal (signature (∗β) ℓ) W M w
-      -- use equiv_cases_helper here?
-      rw [this]
-      clear this
-      unfold_let ρ
-      simp_all [evaluatePoint, modelCanSemImplyForm, evaluatePoint, formCanSemImplyForm, signature, conEval, testsOfProgram, Xset, allTP, disEval]
-      sorry
+    suffices goal : (⌈∗β⌉ψ) ≡ ρ by
+      specialize goal W M w
+      simp only [evaluate, relate] at goal
+      constructor
+      · intro lhs
+        simp at lhs
+        simp
+        constructor
+        · unfold_let ρ at goal
+          have := goal.1 lhs.1
+          rw [disEval] at this
+          simp at this
+          rcases this with ⟨ℓ', ℓ'_in_TP, w_Xℓ'⟩
+          -- tricky, now how to ensure ℓ and ℓ' agree?
+          -- compare to what we needed in the sequence case!
+          simp_all [evaluatePoint, modelCanSemImplyForm, evaluatePoint, formCanSemImplyForm, signature, conEval, testsOfProgram, Xset, allTP, disEval]
+          sorry
+        · exact lhs.2
+      · intro rhs -- the easy direction
+        simp at rhs
+        simp
+        constructor
+        · rw [goal]
+          unfold_let ρ
+          rw [disEval]
+          use Con (Xset (∗β) ℓ ψ)
+          simp_all only [List.mem_map, and_true]
+          use ℓ
+          simp only [and_true]
+          exact allTP_mem ℓ
+        · exact rhs.2
+    -- now show `goal`
+    have IHβ := fun φ => localBoxTruthI β φ ℓ
+
+    -- have := guardToStar -- what are the arguments given to it here?
 
     simp [TP, testsOfProgram, signature, conEval, Xset, P, F] at *
 
-    -- have := guardToStar
-
     sorry
-    -/
+
 theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) := by
   -- By the properties of the signature formulas clearly ;-)
   -- `localBoxTruthI` suffices to prove `localBoxTruth`.

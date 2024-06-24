@@ -303,35 +303,3 @@ theorem equiv_con {φ1 φ2} (h : φ1 ≡ φ2) ψ :
   intro W M w
   specialize h W M w
   simp_all
-
--- helper for localBoxTruthI star case
--- NOT SURE IF TRUE!
-theorem equiv_cases_helper {φ1} (X : List α)
-    (f : α → Formula)
-    (g : α → Formula)
-    (fCover : ∀ x ∈ X, φ1 ⋀ g x ≡ f x ⋀ g x)
-    (gTotal : dis (X.map g) ≡ ⊤)
-    (gDisjoint : ∀ i ∈ X, ∀ j ∈ X, (g i ⋀ g j ≡ ⊥) ↔  i ≠ j)
-    : φ1 ≡ dis (X.map f) := by
-  intro W M w
-  specialize gTotal W M w
-  simp_all [disEval]
-  constructor
-  · have := fun x x_in => fCover x x_in W M w
-    aesop
-  · rintro ⟨x, x_in_X, hyp⟩
-    rcases gTotal with ⟨y, y_in_X, w_gy⟩
-    specialize gDisjoint x x_in_X y y_in_X
-    cases em (x = y)
-    · subst_eqs
-      simp_all
-      specialize fCover x y_in_X W M w
-      simp_all
-    · simp_all only [not_false_eq_true, iff_true]
-      specialize gDisjoint W M w
-      have := fCover x x_in_X W M w
-      have := fCover y y_in_X W M w
-      simp_all
-      rw [← this]
-      simp_all
-      sorry
