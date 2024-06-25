@@ -1050,6 +1050,8 @@ theorem guardToStar (x : Nat)
     apply IH
     exact fortysix W M u1 u2 w_rho u1_b_u2
 
+-- because we want `localBoxTruth for the star case of localBoxTruthI`
+
 /-- Induction claim for `localBoxTruth`. -/
 theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Xset γ ℓ ψ) ⋀ signature γ ℓ := by
@@ -1244,24 +1246,24 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
             left
             assumption
           · rcases f_from_Pβ with ⟨δ, δ_in, def_f⟩
-            have := P_monotone β ℓ ℓ' -- or flip order?
             apply w_Xℓ'
             right
             right
             use δ
             constructor
-            · simp only [Subtype.forall] at this
-              cases em (δ = [])
+            · cases em (δ = [])
               · have := (List.mem_filter.1 δ_in).2
                 subst_eqs
               · rw [List.mem_filter]
                 rw [List.mem_filter] at δ_in
                 simp_all only [bne_iff_ne, ne_eq, not_false_eq_true, and_true]
+                have := P_monotone β ℓ ℓ' -- or flip order?
+                simp only [Subtype.forall] at this
                 apply this _ _ δ_in
                 clear this
-                --remains to show that ℓ τ → ℓ' τ
-                -- tricky, now how to ensure ℓ and ℓ' agree?
-                -- compare to sequence case and localBoxTruth ??
+                -- remains to show that ℓ τ → ℓ' τ
+                -- this might have been easier if F would be same as σ.
+                -- but we can do it.
                 intro τ τ_in ℓ_τ
                 have := lhs.2
                 simp only [signature, conEval, List.mem_map, List.mem_attach, true_and,
@@ -1292,13 +1294,85 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
           exact allTP_mem ℓ
         · exact rhs.2
     -- now show `goal`
-    have IHβ := fun φ => localBoxTruthI β φ ℓ
+    -- Notes discuss IHβ_thm here, we do it below.
+    intro W M w
+    -- switching model!?
+    constructor
+    -- Left to right, relatively short in the notes ;-)
+    · suffices step : (⌈∗β⌉ψ) ⋀ signature (∗β) ℓ ⊨ Con ((P (∗β) ℓ).map fun αs => ⌈⌈αs⌉⌉ψ) by
+        have := (boxHelperTP β ℓ).2.2
+        sorry
+      intro W M w
+      simp only [List.mem_singleton, forall_eq]
+      intro hyp
+      rw [conEval]
+      intro f f_in
+      simp at f_in
+      rcases f_in with ⟨αs, αs_in, def_f⟩
+      subst def_f
+      cases em (αs = [])
+      · subst_eqs
+        simp [Formula.boxes]
+        simp at hyp
+        apply hyp.1
+        exact Relation.ReflTransGen.refl
+      · simp [P] at αs_in
+        simp_all
+        rcases αs_in with ⟨δ, δ_in, def_αs⟩
+        subst def_αs
+        -- Notes now prove a ⊨ but we prove → to avoid a model switch here.
+        have : evaluate M w (⌈β⌉⌈∗β⌉ψ) → evaluate M w (⌈⌈δ⌉⌉⌈∗β⌉ψ) := by
+          -- Here we use the "mutual".
+          have IHβ_thm φ : (⌈β⌉φ) ≡ dis ((allTP β).map fun ℓ => Con (Xset β ℓ φ)) :=
+            by
+            -- need mutual or localBoxTruth_connector <<<<
+            sorry
+            -- fun φ => localBoxTruth β φ -- for *any* φ
+          -- avoid the model switch! intro W M w -- model switch again ;-)
+          have := (IHβ_thm (⌈∗β⌉ψ) W M w).1
+          simp [disEval, conEval, Xset] at *
+          intro hyp2
+          specialize this hyp2
+          rcases this with ⟨ℓ', ℓ'_in, w_Xℓ'⟩
+          apply w_Xℓ'
+          right
+          use δ
+          rw [List.mem_filter] at δ_in
+          rcases δ_in with ⟨δ_in, δ_not_empty⟩
+          simp_all
+          apply P_monotone β ℓ ℓ' -- γ ℓ' ℓ ?_ δ δ_in_P
+          · simp
+            -- again remains to show that ℓ τ → ℓ' τ
+            intro τ τ_in ℓ_τ
+            by_contra wrong
+            absurd w_Xℓ'
+            simp
+            use ~τ
+            rw [F_mem_iff_neg]
+            constructor
+            · left
+              simp_all
+            · have := hyp.2
+              simp [evaluate, signature, conEval] at *
+              specialize this τ τ (by simp [testsOfProgram]; exact τ_in)
+              simp at this
+              apply this
+              intro
+              simp_all
+          · simp; exact δ_in
+        simp [boxes_append]
+        simp at this
+        apply this
+        intro v w_β_v u v_βS_u
+        apply hyp.1
+        apply Relation.ReflTransGen.head w_β_v v_βS_u
 
-    -- have := guardToStar -- what are the arguments given to it here?
+    -- Right to left, "more work is required"
+    ·
+      -- simp [TP, testsOfProgram, signature, conEval, Xset, P, F] at *
+      -- have := guardToStar -- what are the arguments given to it here?
 
-    simp [TP, testsOfProgram, signature, conEval, Xset, P, F] at *
-
-    sorry
+      sorry
 
 theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) := by
   -- By the properties of the signature formulas clearly ;-)
