@@ -688,10 +688,91 @@ theorem TP_eq_iff {α} {ℓ ℓ' : TP α} : (ℓ = ℓ') ↔ ∀ τ ∈ (testsOf
     ext τ
     apply rhs
 
+-- Coercions of TP α to the subprograms of α.
+-- These are needed to re-use `ℓ` in recursive calls of `F` and `P` below.
+instance : CoeOut (TP (α ⋓ β)) (TP α) :=
+  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by cases τ; simp [testsOfProgram]; left; assumption⟩  ⟩
+instance : CoeOut (TP (α ⋓ β)) (TP β) :=
+  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by cases τ; simp [testsOfProgram]; right; assumption⟩  ⟩
+instance : CoeOut (TP (α ;' β)) (TP α) :=
+  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by cases τ; simp [testsOfProgram]; left; assumption⟩  ⟩
+instance : CoeOut (TP (α ;' β)) (TP β) :=
+  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by cases τ; simp [testsOfProgram]; right; assumption⟩  ⟩
+instance : CoeOut (TP (∗α)) (TP α) :=
+  ⟨fun l ⟨f,f_in⟩ => l ⟨f, by simp only [testsOfProgram]; exact f_in⟩⟩
+
 /-- List of all test profiles for a given program. -/
 def allTP α : List (TP α) := (testsOfProgram α).sublists.map (fun l ⟨τ, _⟩ => τ ∈ l)
 
-theorem allTP_mem (ℓ : TP α) : ℓ ∈ allTP α := by sorry
+theorem allTP_mem α (ℓ : TP α) : ℓ ∈ allTP α := by
+  cases α
+  case atom_prog n =>
+    simp_all [allTP, TP, testsOfProgram]
+    funext ⟨τ, τ_in⟩
+    exfalso
+    unfold testsOfProgram at τ_in
+    tauto
+  case union α β =>
+    have IHα := allTP_mem α ℓ
+    have IHβ := allTP_mem β ℓ
+    simp_all [allTP, TP, testsOfProgram]
+    rcases IHα with ⟨Lα, sub_α, dec_α⟩
+    rcases IHβ with ⟨Lβ, sub_β, dec_β⟩
+    use Lα ++ Lβ
+    constructor
+    · exact List.Sublist.append sub_α sub_β
+    · funext ⟨τ, τ_in⟩
+      simp
+      unfold testsOfProgram at τ_in
+      simp at τ_in
+      cases τ_in
+      ·
+        -- should be easy
+        sorry
+      · sorry
+  case sequence α β =>
+    have IHα := allTP_mem α ℓ
+    have IHβ := allTP_mem β ℓ
+    simp_all [allTP, TP, testsOfProgram]
+    rcases IHα with ⟨Lα, sub_α, dec_α⟩
+    rcases IHβ with ⟨Lβ, sub_β, dec_β⟩
+    use Lα ++ Lβ
+    constructor
+    · exact List.Sublist.append sub_α sub_β
+    · funext ⟨τ, τ_in⟩
+      simp
+      unfold testsOfProgram at τ_in
+      simp at τ_in
+      cases τ_in
+      ·
+        -- should be easy
+        sorry
+      · sorry
+  case star β =>
+    have IHβ := allTP_mem β ℓ
+    simp_all [allTP, testsOfProgram]
+    rcases IHβ with ⟨Lβ, sub_β, dec_β⟩
+    use Lβ
+    constructor
+    · assumption
+    · funext ⟨τ, τ_in⟩
+      simp at *
+      -- should be easy
+      sorry
+  case test τ =>
+    simp_all [allTP, TP, testsOfProgram]
+    have : τ ∈ testsOfProgram (?'τ) := by simp [testsOfProgram]
+    cases em (ℓ ⟨τ,this⟩)
+    · right
+      funext ⟨τ', τ'_in⟩
+      simp_all
+      unfold testsOfProgram at this
+      -- why is the "decide" sneaking in here?
+      sorry
+    · left -- hmm??
+      funext ⟨τ', τ'_in⟩
+
+      sorry
 
 /-- σ^ℓ -/
 def signature (α : Program) (ℓ : TP α) : Formula :=
@@ -763,19 +844,6 @@ theorem signature_conbot_iff_neq : contradiction (signature α ℓ ⋀ signature
 
 theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α ℓ ≡ ψ ⋀ signature α ℓ := by
   sorry
-
--- Coercions of TP α to the subprograms of α.
--- These are needed to re-use `ℓ` in recursive calls of `F` and `P` below.
-instance : CoeOut (TP (α ⋓ β)) (TP α) :=
-  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by cases τ; simp [testsOfProgram]; left; assumption⟩  ⟩
-instance : CoeOut (TP (α ⋓ β)) (TP β) :=
-  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by cases τ; simp [testsOfProgram]; right; assumption⟩  ⟩
-instance : CoeOut (TP (α ;' β)) (TP α) :=
-  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by cases τ; simp [testsOfProgram]; left; assumption⟩  ⟩
-instance : CoeOut (TP (α ;' β)) (TP β) :=
-  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by cases τ; simp [testsOfProgram]; right; assumption⟩  ⟩
-instance : CoeOut (TP (∗α)) (TP α) :=
-  ⟨fun l ⟨f,f_in⟩ => l ⟨f, by simp only [testsOfProgram]; exact f_in⟩⟩
 
 -- ### Boxes: F, P, X and the Φ_□ set
 
@@ -1014,7 +1082,7 @@ theorem boxHelperTP α (ℓ : TP α) :
         aesop
       · aesop
 
-theorem guardToStar (x : Nat)
+theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
     (x_notin_beta : Sum.inl x ∉ HasVocabulary.voc β)
     (beta_equiv : (⌈β⌉·x) ≡ (((·x) ⋀ χ0) ⋁ χ1))
     (rho_imp_repl : ρ ⊨ (repl_in_F x ρ) (χ0 ⋁ χ1))
@@ -1371,15 +1439,15 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
           simp_all only [List.mem_map, and_true]
           use ℓ
           simp only [and_true]
-          exact allTP_mem ℓ
+          exact allTP_mem (∗β) ℓ
         · exact rhs.2
     -- now show `goal`
     -- Notes discuss IHβ_thm here, we do it below.
     intro W M w
-    -- switching model!?
+    -- switching model, but that seems okay
     constructor
-    -- Left to right, relatively short in the notes ;-)
-    · suffices step : (⌈∗β⌉ψ) ⋀ signature (∗β) ℓ ⊨ Con ((P (∗β) ℓ).map fun αs => ⌈⌈αs⌉⌉ψ) by
+    · -- Left to right, relatively short in the notes ;-)
+      suffices step : (⌈∗β⌉ψ) ⋀ signature (∗β) ℓ ⊨ Con ((P (∗β) ℓ).map fun αs => ⌈⌈αs⌉⌉ψ) by
         have := (boxHelperTP β ℓ).2.2
         sorry
       intro W M w
@@ -1444,12 +1512,39 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         intro v w_β_v u v_βS_u
         apply hyp.1
         apply Relation.ReflTransGen.head w_β_v v_βS_u
+    · -- Right to left, "more work is required"
+      let x : Nat := freshVarProg β
+      have x_not_in : Sum.inl x ∉ HasVocabulary.voc β := by apply freshVarProg_is_fresh
 
-    -- Right to left, "more work is required"
-    ·
-      -- simp [TP, testsOfProgram, signature, conEval, Xset, P, F] at *
-      -- have := guardToStar -- what are the arguments given to it here?
-      sorry
+      let φ ℓ' := Con ((P β ℓ').map (fun αs => ⌈⌈αs⌉⌉·x))
+      -- ...
+      let T0 := (allTP β).filter (fun ℓ => [] ∈ P β ℓ)
+      let T1 := (allTP β).filter (fun ℓ => [] ∉ P β ℓ)
+      -- ...
+      let φ'ℓ := Con (((P β ℓ).filter (fun αs => αs ≠ [])).map (fun αs => ⌈⌈αs⌉⌉·x))
+      -- ...
+      -- ...
+      let χ0 : Formula := dis (T0.map (fun ℓ' => Con (F _ ℓ') ⋀ φ ℓ'))
+      let χ1 : Formula := dis (T1.map (fun ℓ' => Con (F _ ℓ') ⋀ φ ℓ'))
+      -- ...
+      have := guardToStar x β χ0 χ1 ρ ψ x_not_in ?_ ?_ ?_ W M w
+      simp only [List.mem_singleton, forall_eq] at this
+      exact this
+      -- remaining goals are the conditions of guardToStar
+      · intro W M W
+        -- TODO NEXT unfold_let ...
+        sorry
+      · intro W M w
+        -- TODO NEXT unfold_let ...
+        sorry
+      · intro W M w
+        unfold_let ρ
+        simp [disEval, conEval, Xset, P]
+        intro ℓ_whatever _ hyp
+        apply hyp
+        right
+        left
+        rfl
 
 theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) :=
   localBoxTruth_connector γ ψ (localBoxTruthI γ ψ)

@@ -70,7 +70,7 @@ theorem inVocList {α} [HasVocabulary α] n (L : List α): n ∈ voc L ↔ ∃ �
 
 /-- Test(α) -/
 def testsOfProgram : Program → List Formula
-| ·_ => ∅
+| ·_ => []
 | ?' τ => [τ] -- no sub-tests etc. needed?
 | α;'β => testsOfProgram α ++ testsOfProgram β
 | α ⋓ β => testsOfProgram α ++ testsOfProgram β
