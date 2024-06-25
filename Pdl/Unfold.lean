@@ -1050,7 +1050,87 @@ theorem guardToStar (x : Nat)
     apply IH
     exact fortysix W M u1 u2 w_rho u1_b_u2
 
--- because we want `localBoxTruth for the star case of localBoxTruthI`
+/-- Show "suffices" part outside, to use `localBoxTruth` for star case in `localBoxTruthI`. -/
+theorem localBoxTruth_connector γ ψ :
+    (goal : ∀ ℓ, (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Xset γ ℓ ψ) ⋀ signature γ ℓ) →
+    (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) := by
+  -- By the properties of the signature formulas clearly ;-)
+  -- `localBoxTruthI` suffices to prove `localBoxTruth`.
+  intro goal W M w
+  constructor
+  · intro w_γψ
+    rw [disEval]
+    -- decidable semantics would be nice, but here we can also
+    -- accept something noncomputable, as we only want proof :-)
+    have := Classical.propDecidable
+     -- get a test profile ℓ from the model:
+    let ℓ : TP γ := fun ⟨τ,_⟩ => decide (evaluate M w τ)
+    have ℓ_in : ℓ ∈ allTP γ := by
+      unfold_let ℓ;
+      simp [allTP];
+      use ((testsOfProgram γ).filter (fun τ => evaluate M w τ))
+      simp only [List.filter_sublist, true_and]
+      apply funext
+      simp only [Subtype.forall]
+      intro τ τ_in
+      simp [List.mem_filter]
+      tauto
+    have := goal ℓ W M w -- using the claim proven by induction
+    simp_all
+    refine ⟨ℓ, ℓ_in, ?_⟩
+    apply this
+    unfold_let ℓ
+    simp_all [signature, conEval]
+    intro τ _
+    split_ifs <;> simp_all
+  · intro w_Cons
+    rw [disEval] at w_Cons
+    rcases w_Cons with ⟨φ, φ_in, w_Xℓ⟩
+    simp at φ_in
+    rcases φ_in with ⟨ℓ, _, def_φ⟩
+    subst def_φ
+    have := Classical.propDecidable
+    -- again we get a test profile ℓ from the model:
+    let ℓ' : TP γ := fun ⟨τ,_⟩ => decide (evaluate M w τ)
+    have w_Xℓ' : evaluate M w (Con (Xset γ ℓ' ψ)) := by
+      simp only [Xset, conEval, List.mem_append, List.mem_map]
+      intro φ φ_in
+      cases φ_in
+      case inl φ_in_Fℓ' =>
+        simp only [F_mem_iff_neg _ ℓ' φ, exists_and_left] at φ_in_Fℓ'
+        rcases φ_in_Fℓ' with ⟨τ, φ_def, τ_in, ℓ'_τ_false⟩
+        unfold_let ℓ' at ℓ'_τ_false
+        simp_all
+      case inr φ_in_Pℓ' =>
+        rcases φ_in_Pℓ' with ⟨δ, δ_in_P, def_φ⟩
+        simp_all only [Xset, conEval, List.mem_append, List.mem_map]
+        apply w_Xℓ φ
+        right
+        use δ
+        simp_all only [and_true]
+        apply P_monotone γ ℓ' ℓ ?_ δ δ_in_P
+        intro τ ℓ_τ
+        unfold_let ℓ'
+        by_contra hyp
+        absurd ℓ_τ
+        simp only [Bool.not_eq_true] at *
+        unfold_let ℓ'
+        simp only [decide_eq_false_iff_not]
+        have := w_Xℓ (~τ)
+        simp only [evaluate] at this
+        apply this
+        left
+        rw [F_mem_iff_neg]
+        tauto
+    have : evaluate M w ((⌈γ⌉ψ)⋀signature γ ℓ') := by
+      apply (goal ℓ' W M w).2
+      simp only [evaluate]
+      constructor
+      · assumption
+      · unfold_let
+        simp_all [signature, conEval]
+        aesop
+    simp_all
 
 /-- Induction claim for `localBoxTruth`. -/
 theorem localBoxTruthI γ ψ (ℓ :TP γ) :
@@ -1322,14 +1402,12 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         subst def_αs
         -- Notes now prove a ⊨ but we prove → to avoid a model switch here.
         have : evaluate M w (⌈β⌉⌈∗β⌉ψ) → evaluate M w (⌈⌈δ⌉⌉⌈∗β⌉ψ) := by
-          -- Here we use the "mutual".
-          have IHβ_thm φ : (⌈β⌉φ) ≡ dis ((allTP β).map fun ℓ => Con (Xset β ℓ φ)) :=
-            by
-            -- need mutual or localBoxTruth_connector <<<<
-            sorry
-            -- fun φ => localBoxTruth β φ -- for *any* φ
-          -- avoid the model switch! intro W M w -- model switch again ;-)
+          have IHβ_thm φ : (⌈β⌉φ) ≡ dis ((allTP β).map fun ℓ => Con (Xset β ℓ φ)) := by
+            -- To get this we use the connector!
+            have IHβ := localBoxTruthI β φ
+            apply localBoxTruth_connector _ _ IHβ
           have := (IHβ_thm (⌈∗β⌉ψ) W M w).1
+          clear IHβ_thm
           simp [disEval, conEval, Xset] at *
           intro hyp2
           specialize this hyp2
@@ -1371,87 +1449,10 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     ·
       -- simp [TP, testsOfProgram, signature, conEval, Xset, P, F] at *
       -- have := guardToStar -- what are the arguments given to it here?
-
       sorry
 
-theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) := by
-  -- By the properties of the signature formulas clearly ;-)
-  -- `localBoxTruthI` suffices to prove `localBoxTruth`.
-  intro W M w
-  constructor
-  · intro w_γψ
-    rw [disEval]
-    -- decidable semantics would be nice, but here we can also
-    -- accept something noncomputable, as we only want proof :-)
-    have := Classical.propDecidable
-     -- get a test profile ℓ from the model:
-    let ℓ : TP γ := fun ⟨τ,_⟩ => decide (evaluate M w τ)
-    have ℓ_in : ℓ ∈ allTP γ := by
-      unfold_let ℓ;
-      simp [allTP];
-      use ((testsOfProgram γ).filter (fun τ => evaluate M w τ))
-      simp only [List.filter_sublist, true_and]
-      apply funext
-      simp only [Subtype.forall]
-      intro τ τ_in
-      simp [List.mem_filter]
-      tauto
-    have := localBoxTruthI γ ψ ℓ W M w -- using the claim proven by induction
-    simp_all
-    refine ⟨ℓ, ℓ_in, ?_⟩
-    apply this
-    unfold_let ℓ
-    simp_all [signature, conEval]
-    intro τ _
-    split_ifs <;> simp_all
-  · intro w_Cons
-    rw [disEval] at w_Cons
-    rcases w_Cons with ⟨φ, φ_in, w_Xℓ⟩
-    simp at φ_in
-    rcases φ_in with ⟨ℓ, _, def_φ⟩
-    subst def_φ
-    have := Classical.propDecidable
-    -- again we get a test profile ℓ from the model:
-    let ℓ' : TP γ := fun ⟨τ,_⟩ => decide (evaluate M w τ)
-    have w_Xℓ' : evaluate M w (Con (Xset γ ℓ' ψ)) := by
-      simp only [Xset, conEval, List.mem_append, List.mem_map]
-      intro φ φ_in
-      cases φ_in
-      case inl φ_in_Fℓ' =>
-        simp only [F_mem_iff_neg _ ℓ' φ, exists_and_left] at φ_in_Fℓ'
-        rcases φ_in_Fℓ' with ⟨τ, φ_def, τ_in, ℓ'_τ_false⟩
-        unfold_let ℓ' at ℓ'_τ_false
-        simp_all
-      case inr φ_in_Pℓ' =>
-        rcases φ_in_Pℓ' with ⟨δ, δ_in_P, def_φ⟩
-        simp_all only [Xset, conEval, List.mem_append, List.mem_map]
-        apply w_Xℓ φ
-        right
-        use δ
-        simp_all only [and_true]
-        apply P_monotone γ ℓ' ℓ ?_ δ δ_in_P
-        intro τ ℓ_τ
-        unfold_let ℓ'
-        by_contra hyp
-        absurd ℓ_τ
-        simp only [Bool.not_eq_true] at *
-        unfold_let ℓ'
-        simp only [decide_eq_false_iff_not]
-        have := w_Xℓ (~τ)
-        simp only [evaluate] at this
-        apply this
-        left
-        rw [F_mem_iff_neg]
-        tauto
-    have : evaluate M w ((⌈γ⌉ψ)⋀signature γ ℓ') := by
-      apply (localBoxTruthI γ ψ ℓ' W M w).2
-      simp only [evaluate]
-      constructor
-      · assumption
-      · unfold_let
-        simp_all [signature, conEval]
-        aesop
-    simp_all
+theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) :=
+  localBoxTruth_connector γ ψ (localBoxTruthI γ ψ)
 
 theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M,v) ⊨ Con (F γ ℓ)) :
     ∃ δ ∈ P γ ℓ, relateSeq M δ v w := by
