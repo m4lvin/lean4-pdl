@@ -1437,12 +1437,14 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
           rw [disEval]
           use Con (Xset (∗β) ℓ ψ)
           simp_all only [List.mem_map, and_true]
-          use ℓ
+          use ℓ -- seems to be only place where we actually use the given ℓ
           simp only [and_true]
           exact allTP_mem (∗β) ℓ
         · exact rhs.2
     -- now show `goal`
     -- Notes discuss IHβ_thm here, we do it below.
+    clear ℓ -- goal does not depend on given ℓ and given model
+    clear W M w
     intro W M w
     -- switching model, but that seems okay
     constructor
@@ -1489,11 +1491,8 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         subst def_αs
         -- Notes now prove a ⊨ but we prove → to avoid a model switch here.
         have : evaluate M w (⌈β⌉⌈∗β⌉ψ) → evaluate M w (⌈⌈δ⌉⌉⌈∗β⌉ψ) := by
-          have IHβ_thm φ : (⌈β⌉φ) ≡ dis ((allTP β).map fun ℓ => Con (Xset β ℓ φ)) := by
-            -- To get this we use the connector!
-            have IHβ := localBoxTruthI β φ
-            apply localBoxTruth_connector _ _ IHβ
-          have := (IHβ_thm (⌈∗β⌉ψ) W M w).1
+          have IHβ_thm := localBoxTruth_connector _ _ (localBoxTruthI β (⌈∗β⌉ψ))
+          have := (IHβ_thm  W M w).1
           clear IHβ_thm
           simp [disEval, conEval, Xset] at *
           intro hyp2
@@ -1534,29 +1533,45 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     · -- Right to left, "more work is required"
       let x : Nat := freshVarProg β
       have x_not_in : Sum.inl x ∉ HasVocabulary.voc β := by apply freshVarProg_is_fresh
-
-      let φ ℓ' := Con ((P β ℓ').map (fun αs => ⌈⌈αs⌉⌉·x))
-      -- ...
+      let φ ℓ := Con ((P β ℓ).map (fun αs => ⌈⌈αs⌉⌉·x))
       let T0 := (allTP β).filter (fun ℓ => [] ∈ P β ℓ)
       let T1 := (allTP β).filter (fun ℓ => [] ∉ P β ℓ)
-      -- ...
-      let φ'ℓ := Con (((P β ℓ).filter (fun αs => αs ≠ [])).map (fun αs => ⌈⌈αs⌉⌉·x))
-      -- ...
-      -- ...
-      let χ0 : Formula := dis (T0.map (fun ℓ' => Con (F _ ℓ') ⋀ φ ℓ'))
-      let χ1 : Formula := dis (T1.map (fun ℓ' => Con (F _ ℓ') ⋀ φ ℓ'))
-      -- ...
+      let φ' ℓ := Con (((P β ℓ).filter (fun αs => αs ≠ [])).map (fun αs => ⌈⌈αs⌉⌉·x))
+      let χ0 : Formula := dis (T0.map (fun ℓ => Con (F _ ℓ) ⋀ φ' ℓ))
+      let χ1 : Formula := dis (T1.map (fun ℓ => Con (F _ ℓ) ⋀ φ' ℓ))
       have := guardToStar x β χ0 χ1 ρ ψ x_not_in ?_ ?_ ?_ W M w
       simp only [List.mem_singleton, forall_eq] at this
       exact this
-      -- remaining goals are the conditions of guardToStar
-      · intro W M W
-        -- TODO NEXT unfold_let ...
+      all_goals
+        clear W M w
+        intro W M w
+      -- remaining goals are the conditions of `guardToStar`
+      · -- ⌈β⌉x ≡ (x⋀χ0)⋁χ1
+        unfold_let χ0 χ1 T0 T1 φ
+        clear χ0 χ1 T0 T1 φ
+        have IHβ_thm := localBoxTruth_connector _ _ (localBoxTruthI β (·x)) W M w
+        rw [IHβ_thm]
+        clear IHβ_thm
+        simp [disEval, conEval, Xset]
+        -- TODO NEXT
         sorry
-      · intro W M w
-        -- TODO NEXT unfold_let ...
+      · -- ρ ⊨ (χ0⋁χ1) [ρ/x]
+        simp only [List.mem_singleton, forall_eq]
+        intro w_ρ
+        unfold_let ρ at w_ρ
+        simp [disEval] at w_ρ
+        rcases w_ρ with ⟨ℓ, ℓ_in, w_Xℓ⟩
+        -- unsure from here onwards
+        unfold_let χ0 χ1 T0 T1 φ
+        clear χ0 χ1 T0 T1 φ
+        have := repl_in_model_sat_iff
+        simp [vDash, modelCanSemImplyForm] at this
+        simp [this, disEval, conEval]
+        clear this
+        intro hyp
+        -- TODO NEXT
         sorry
-      · intro W M w
+      · -- ρ ⊨ ψ
         unfold_let ρ
         simp [disEval, conEval, Xset, P]
         intro ℓ_whatever _ hyp
