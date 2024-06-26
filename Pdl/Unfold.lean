@@ -1447,10 +1447,29 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     -- switching model, but that seems okay
     constructor
     · -- Left to right, relatively short in the notes ;-)
-      suffices step : (⌈∗β⌉ψ) ⋀ signature (∗β) ℓ ⊨ Con ((P (∗β) ℓ).map fun αs => ⌈⌈αs⌉⌉ψ) by
-        have := (boxHelperTP β ℓ).2.2
-        sorry
-      intro W M w
+      suffices step : ∀ ℓ, (⌈∗β⌉ψ) ⋀ signature (∗β) ℓ ⊨ Con ((P (∗β) ℓ).map fun αs => ⌈⌈αs⌉⌉ψ) by
+        have := Classical.propDecidable
+        let ℓ' : TP (∗β) := fun ⟨τ,_⟩ => decide (evaluate M w τ)
+        intro w_bSpsi
+        unfold_let ρ
+        rw [disEval]
+        simp
+        use ℓ'
+        constructor
+        · exact allTP_mem (∗β) ℓ'
+        · simp [conEval, Xset]
+          rintro f (f_in_F| ⟨δ, δ_in, def_f⟩)
+          · simp [F_mem_iff_neg] at f_in_F
+            unfold_let ℓ' at f_in_F
+            aesop
+          · subst def_f
+            specialize step ℓ' W M w
+            simp only [List.mem_singleton, forall_eq, and_imp] at step
+            rw [conEval] at step
+            unfold_let ℓ'
+            simp [evaluate, relate, signature,conEval] at step
+            apply step <;> aesop
+      intro ℓ W M w
       simp only [List.mem_singleton, forall_eq]
       intro hyp
       rw [conEval]
