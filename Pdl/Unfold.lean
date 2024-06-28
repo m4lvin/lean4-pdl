@@ -735,6 +735,7 @@ theorem signature_iff {W} {M : KripkeModel W} {w : W} :
 
 -- Now come the three facts about test profiles and signatures.
 
+-- unused
 theorem top_equiv_disj_TP {L} : ∀ α, L = testsOfProgram α → tautology (dis ((allTP α).map (signature α))) := by
   intro α
   intro L_def
@@ -752,6 +753,7 @@ theorem top_equiv_disj_TP {L} : ∀ α, L = testsOfProgram α → tautology (dis
     · sorry
     · sorry
 
+-- unused?
 theorem signature_conbot_iff_neq : contradiction (signature α ℓ ⋀ signature α ℓ') ↔  ℓ ≠ ℓ' := by
   simp only [ne_eq]
   rw [TP_eq_iff]
@@ -784,6 +786,7 @@ theorem signature_conbot_iff_neq : contradiction (signature α ℓ ⋀ signature
         simp_all
       · assumption
 
+-- unused?
 theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α ℓ ≡ ψ ⋀ signature α ℓ := by
   sorry
 
@@ -972,16 +975,42 @@ theorem F_goes_down : φ ∈ F α ℓ → lengthOfFormula φ < lengthOfProgram �
     · simp_all
 
 theorem keepFreshF α ℓ (x_notin : x ∉ voc α) : ∀ φ ∈ F α ℓ, x ∉ voc φ := by
-  intro φ δ x_in_voc
+  intro φ φ_in
   cases α
   all_goals
     simp [F, voc, vocabOfFormula, vocabOfProgram, Vocab.fromList] at *
-  all_goals
-    -- need induction / recursion
-    sorry
+  case test τ =>
+    cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩) <;> simp_all [vocabOfFormula]
+  case sequence α β =>
+    have := keepFreshF α ℓ x_notin.1
+    have := keepFreshF β ℓ x_notin.2
+    aesop
+  case union α β =>
+    have := keepFreshF α ℓ x_notin.1
+    have := keepFreshF β ℓ x_notin.2
+    aesop
+  case star α =>
+    have := keepFreshF α ℓ x_notin
+    aesop
 
 theorem keepFreshP α ℓ (x_notin : x ∉ voc α) : ∀ δ ∈ P α ℓ, x ∉ voc δ := by
-  sorry
+  intro φ φ_in
+  cases α
+  all_goals
+    simp_all [P, voc, vocabOfFormula, vocabOfProgram, Vocab.fromList]
+  case test τ =>
+    cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩) <;> simp_all [vocabOfFormula, Vocab.fromList]
+  case sequence α β =>
+    have := keepFreshP α ℓ x_notin.1
+    have := keepFreshP β ℓ x_notin.2
+    sorry
+  case union α β =>
+    have := keepFreshP α ℓ x_notin.1
+    have := keepFreshP β ℓ x_notin.2
+    sorry
+  case star α =>
+    have := keepFreshP α ℓ x_notin
+    sorry
 
 -- NOTE: see `P_goes_down` for proof inspiration, and later make it a consequence of this?
 -- Maybe unused / to be deleted?
@@ -1560,8 +1589,8 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
               simp [evalBoxes]
               aesop
         case inr empty_not_in_Pβ =>
-          -- very similar to inl case
           right
+          -- exactly the same as inl case!
           simp_all [disEval, conEval, repl_in_dis, repl_in_Con]
           use ℓ
           simp_all [List.mem_filter]
@@ -1578,8 +1607,20 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
               apply keepFreshF β ℓ x_not_in_β
               simp
               exact φ_in_Fβ
-            · -- TODO NEXT, analogous?
-              sorry
+            · intro δ δ_in_Pβ δ_not_empty
+              have : repl_in_F x ρ (⌈⌈δ⌉⌉·x) = ⌈⌈δ⌉⌉ρ :=
+                repl_in_boxes_non_occ_eq_pos _ (keepFreshP β ℓ x_not_in_β δ δ_in_Pβ)
+              rw [this]; clear this
+              specialize w_Xℓ (⌈⌈δ ++ [∗β]⌉⌉ψ) (Or.inr ?_)
+              · use δ ++ [∗β]
+                simp [P, List.mem_filter]
+                simp_all only [not_false_eq_true, and_self, x]
+              simp [boxes_append] at w_Xℓ
+              -- need ⌈∗β⌉ψ ⊨ ρ now, and that is the other direction we have already shown :-)
+              specialize left_to_right W M
+              simp [evalBoxes] at left_to_right w_Xℓ
+              simp [evalBoxes]
+              aesop
       · -- ρ ⊨ ψ
         unfold_let ρ
         simp [disEval, conEval, Xset, P]
