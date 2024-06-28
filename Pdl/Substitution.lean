@@ -86,8 +86,22 @@ theorem repl_in_P_non_occ_eq {x α ρ} :
     apply repl_in_F_non_occ_eq; tauto
 end
 
-theorem repl_in_boxes_non_occ_eq (δ : List Program) :
+theorem repl_in_boxes_non_occ_eq_neg (δ : List Program) :
     (Sum.inl x) ∉ voc δ → repl_in_F x ψ (⌈⌈δ⌉⌉~·x) = ⌈⌈δ⌉⌉~ψ := by
+  intro nonOcc
+  induction δ
+  · simp
+  case cons α δ IH =>
+    simp only [Formula.boxes, repl_in_F, Formula.box.injEq]
+    constructor
+    · apply repl_in_P_non_occ_eq
+      simp_all [voc, vocabOfProgram, Vocab.fromList]
+    · apply IH
+      clear IH
+      simp_all [voc, vocabOfProgram, Vocab.fromList]
+
+theorem repl_in_boxes_non_occ_eq_pos (δ : List Program) :
+    (Sum.inl x) ∉ voc δ → repl_in_F x ψ (⌈⌈δ⌉⌉·x) = ⌈⌈δ⌉⌉ψ := by
   intro nonOcc
   induction δ
   · simp

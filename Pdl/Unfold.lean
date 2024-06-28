@@ -482,7 +482,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
               apply listEq_to_conEq
               simp only [List.cons.injEq, Formula.neg.injEq]
               constructor
-              · exact repl_in_boxes_non_occ_eq _ ((myFresh _ _ (Fδ_in_Hβ)).2)
+              · exact repl_in_boxes_non_occ_eq_neg _ ((myFresh _ _ (Fδ_in_Hβ)).2)
               · exact repl_in_list_non_occ_eq _ ((myFresh _ _ (Fδ_in_Hβ)).1)
           -- remains to push repl_in_F through dis and map
           convert repl_in_disMap x ρ (H β) (fun Fδ => Fδ.2 = []) (fun Fδ => (Con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)))
@@ -980,7 +980,7 @@ theorem keepFreshF α ℓ (x_notin : x ∉ voc α) : ∀ φ ∈ F α ℓ, x ∉ 
     -- need induction / recursion
     sorry
 
-theorem keepFreshP α ℓ (x_notin : x ∉ voc α) : ∀ δ ∈ P α ℓ, ∀ β ∈ δ, x ∉ voc β := by
+theorem keepFreshP α ℓ (x_notin : x ∉ voc α) : ∀ δ ∈ P α ℓ, x ∉ voc δ := by
   sorry
 
 -- NOTE: see `P_goes_down` for proof inspiration, and later make it a consequence of this?
@@ -1399,18 +1399,19 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     -- now show `goal`
     -- Notes discuss IHβ_thm here, we do it below.
     clear ℓ -- goal does not depend on given ℓ and given model
+    -- switching model, but that seems okay
     clear W M w
     intro W M w
-    -- switching model, but that seems okay
-    constructor
-    · -- Left to right, relatively short in the notes ;-)
+    -- Left to right, relatively short in the notes ;-)
+    -- We show left_to_right as a claim because we need left_to_right for right to left.
+    have left_to_right : (⌈∗β⌉ψ) ⊨ ρ := by
+      intro W M w
       suffices step : ∀ ℓ, (⌈∗β⌉ψ) ⋀ signature (∗β) ℓ ⊨ Con ((P (∗β) ℓ).map fun αs => ⌈⌈αs⌉⌉ψ) by
         have := Classical.propDecidable
         let ℓ' : TP (∗β) := fun ⟨τ,_⟩ => decide (evaluate M w τ)
         intro w_bSpsi
         unfold_let ρ
-        rw [disEval]
-        simp
+        simp? [disEval]
         use ℓ'
         constructor
         · exact allTP_mem ℓ'
@@ -1485,16 +1486,20 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         intro v w_β_v u v_βS_u
         apply hyp.1
         apply Relation.ReflTransGen.head w_β_v v_βS_u
+    constructor
+    · specialize left_to_right W M w
+      simp only [List.mem_singleton, forall_eq] at left_to_right
+      exact left_to_right
     · -- Right to left, "more work is required"
       let x : Nat := freshVarProg β
-      have x_not_in : Sum.inl x ∉ HasVocabulary.voc β := by apply freshVarProg_is_fresh
+      have x_not_in_β : Sum.inl x ∉ HasVocabulary.voc β := by apply freshVarProg_is_fresh
       let φ ℓ := Con ((P β ℓ).map (fun αs => ⌈⌈αs⌉⌉·x))
       let T0 := (allTP β).filter (fun ℓ => [] ∈ P β ℓ)
       let T1 := (allTP β).filter (fun ℓ => [] ∉ P β ℓ)
       let φ' ℓ := Con (((P β ℓ).filter (fun αs => αs ≠ [])).map (fun αs => ⌈⌈αs⌉⌉·x))
       let χ0 : Formula := dis (T0.map (fun ℓ => Con (F _ ℓ) ⋀ φ' ℓ))
       let χ1 : Formula := dis (T1.map (fun ℓ => Con (F _ ℓ) ⋀ φ' ℓ))
-      have := guardToStar x β χ0 χ1 ρ ψ x_not_in ?_ ?_ ?_ W M w
+      have := guardToStar x β χ0 χ1 ρ ψ x_not_in_β ?_ ?_ ?_ W M w
       simp only [List.mem_singleton, forall_eq] at this
       exact this
       all_goals
@@ -1518,8 +1523,9 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         rcases w_ρ with ⟨ℓ, ℓ_in, w_Xℓ⟩ -- here we get ℓ
         simp only [repl_in_or, evalDis]
         simp [conEval, conEval, Xset] at w_Xℓ
+        -- trying to follow notes from here
         unfold_let χ0 χ1 T0 T1 φ φ'
-        clear χ0 χ1 T0 T1 φ φ'
+        -- clear χ0 χ1 T0 T1 φ φ'
         cases em ([] ∈ P β ℓ) -- based on this, go left or right
         case inl empty_in_Pβ =>
           left
@@ -1536,22 +1542,23 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
               convert φ_in_Fβ
               -- now we use that x ∉ β implies x ∉ φ ∈ Fβ
               apply repl_in_F_non_occ_eq
-              apply keepFreshF β ℓ x_not_in
+              apply keepFreshF β ℓ x_not_in_β
               simp
               exact φ_in_Fβ
             · intro δ δ_in_Pβ δ_not_empty
-              have := keepFreshP β ℓ x_not_in δ δ_in_Pβ
-              simp at this
-              have : repl_in_F x ρ (⌈⌈δ⌉⌉·x) = ⌈⌈δ⌉⌉ρ := by
-                sorry -- TODO: lemma
-              rw [this]
-              -- unsure from here!
-              unfold_let ρ
-              apply w_Xℓ
-              right
-              use δ
-              simp [P]
-              sorry
+              have : repl_in_F x ρ (⌈⌈δ⌉⌉·x) = ⌈⌈δ⌉⌉ρ :=
+                repl_in_boxes_non_occ_eq_pos _ (keepFreshP β ℓ x_not_in_β δ δ_in_Pβ)
+              rw [this]; clear this
+              specialize w_Xℓ (⌈⌈δ ++ [∗β]⌉⌉ψ) (Or.inr ?_)
+              · use δ ++ [∗β]
+                simp [P, List.mem_filter]
+                simp_all only [not_false_eq_true, and_self, x]
+              simp [boxes_append] at w_Xℓ
+              -- need ⌈∗β⌉ψ ⊨ ρ now, and that is the other direction we have already shown :-)
+              specialize left_to_right W M
+              simp [evalBoxes] at left_to_right w_Xℓ
+              simp [evalBoxes]
+              aesop
         case inr empty_not_in_Pβ =>
           -- very similar to inl case
           right
@@ -1568,10 +1575,10 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
               convert φ_in_Fβ
               -- now we use that x ∉ β implies x ∉ φ ∈ Fβ
               apply repl_in_F_non_occ_eq
-              apply keepFreshF β ℓ x_not_in
+              apply keepFreshF β ℓ x_not_in_β
               simp
               exact φ_in_Fβ
-            ·
+            · -- TODO NEXT, analogous?
               sorry
       · -- ρ ⊨ ψ
         unfold_let ρ
