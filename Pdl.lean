@@ -1,7 +1,6 @@
 -- This module serves as the root of the `Pdl` library.
 -- Import modules here that should be built as part of the library.
 import «Pdl».Syntax
-import «Pdl».DagSyntax
 import «Pdl».Measures
 import «Pdl».Closure
 import «Pdl».Star
@@ -11,7 +10,6 @@ import «Pdl».Fresh
 import «Pdl».Substitution
 import «Pdl».Setsimp
 import «Pdl».MultisetOrder
-import «Pdl».DagSyntax
 import «Pdl».Examples
 import «Pdl».Modelgraphs
 import «Pdl».Discon
