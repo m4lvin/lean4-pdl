@@ -11,7 +11,7 @@ mutual
     | ⌈α⌉ φ => max (freshVarProg α) (freshVarForm φ)
   /-- Get a fresh atomic proposition `x` not occuring in `α`. -/
   def freshVarProg : Program → Nat
-    | ·c => 0 -- don't care!
+    | ·_ => 0 -- don't care!
     | α;'β  => max (freshVarProg α) (freshVarProg β)
     | α⋓β  =>  max (freshVarProg α) (freshVarProg β)
     | ∗α  => freshVarProg α

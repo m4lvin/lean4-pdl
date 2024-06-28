@@ -1461,7 +1461,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         let ℓ' : TP (∗β) := fun ⟨τ,_⟩ => decide (evaluate M w τ)
         intro w_bSpsi
         unfold_let ρ
-        simp? [disEval]
+        simp only [List.mem_singleton, forall_eq, disEval, List.mem_map, exists_exists_and_eq_and]
         use ℓ'
         constructor
         · exact allTP_mem ℓ'
