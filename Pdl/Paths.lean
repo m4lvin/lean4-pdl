@@ -70,7 +70,7 @@ theorem existsWitnessPath_rtl (M : KripkeModel W) (n : Nat) :
       constructor
       · -- need Lemma about H here?
         sorry
-      · apply IH v γs ξ wit_γs
+      · apply IH v _ ξ wit_γs
         linarith
     case consComp α Fs v1 ηs γs a Fsaηs_in_Hα v_a_v1 four wit_v1_ηγs =>
       simp only [evaluate, witness.length, Formula.boxes, relate, not_forall, exists_prop] at *

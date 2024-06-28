@@ -146,8 +146,6 @@ def PathIn.append (p : PathIn tab) (q : PathIn (tabAt p).2.2) : PathIn tab := ma
 
 /-! ## Parents, Children, Ancestors and Descendants -/
 
--- TODO: adjust notation and s-t or t-s convention to notes!
-
 /-- One-step children, with changed type. Use `children` instead. -/
 def children' (p : PathIn tab) : List (PathIn (tabAt p).2.2) := match tabAt p with
   | ⟨_, _, ClosedTableau.loc lt _next⟩  =>
@@ -162,43 +160,42 @@ def children (p : PathIn tab) : List (PathIn tab) := (children' p).map (PathIn.a
 def stepRel {H X} {ctX : ClosedTableau H X} (s : PathIn ctX) (t : PathIn ctX) : Prop :=
   t ∈ children s
 
-/-- Notation ◃ for `stepRel` -/
+/-- Notation ◃ (even thought it is ⋖ in notes) for `stepRel` -/
 notation s:arg "◃" t:arg => stepRel s t
 
-/-- Enable "<" notation for transitive closure of ◃ -/
+/-- Enable "<" notation for transitive closure of ⋖ -/
 instance : LT (PathIn tab) := ⟨TC stepRel⟩
 
-/-- Trans closure of ◃ is denoted by <' -/
-notation pa:arg "<'" pb:arg => TC stepRel pa pb
+/-- Enable "≤" notation for transitive closure of ⋖ -/
+instance : LE (PathIn tab) := ⟨Relation.ReflTransGen stepRel⟩
 
-/-- ReflTrans closure of ◃ is denoted by ≤' -/
-notation pa:arg "≤'" pb:arg => Relation.ReflTransGen stepRel pa pb
+/-! ## Companion, ccEdge, cEdge, etc. -/
 
-/-! ## K, ◃', edgesBeck, E -/
+def companion {H X} {ctX : ClosedTableau H X} (t s : PathIn ctX) : Prop :=
+  ∃ RRR, (tabAt t).2.2 = ClosedTableau.rep RRR -- t is a successful leaf
+  ∧
+  sorry -- TODO: say that s is the companion of t
 
-def K {H X} {ctX : ClosedTableau H X} : PathIn ctX → PathIn ctX → Prop
-| t, s =>
-    ∃ RRR, (tabAt t).2.2 = ClosedTableau.rep RRR -- t is a successful leaf
-    ∧
-    sorry -- TODO: say that s is the companion of t
+notation pa:arg "♥" pb:arg => companion pa pb
 
 /-- Successor relation plus back loops: ◃' (MB: page 26) -/
-def edgesBack {H X} {ctX : ClosedTableau H X} (s : PathIn ctX) (t : PathIn ctX) : Prop :=
-  s ◃ t  ∨  ∃ u, K s u ∧ u ◃ t
+def ccEdge {H X} {ctX : ClosedTableau H X} (s t : PathIn ctX) : Prop :=
+  s ◃ t  ∨  ∃ u, s ♥ u ∧ u ◃ t
 
-notation pa:arg "◃'" pb:arg => edgesBack pa pb
+notation pa:arg "⋖ᶜᶜ" pb:arg => ccEdge pa pb
 
--- NOTE: for free nodes we have < iff <'
+/-- We have: ⋖ᶜ = ⋖ ∪ ♥ -/
+example : pa ⋖ᶜᶜ pb ↔ (pa ◃ pb) ∨ ∃ pc, pa ♥ pc ∧ pc ◃ pb := by
+  simp_all [ccEdge]
 
--- TODO: def companionOf : ...
+def cEdge {Hist X} {ctX : ClosedTableau Hist X} : PathIn ctX → PathIn ctX → Prop
+| t, s => (t ◃ s) ∨ t ♥ s
 
-def E {Hist X} {ctX : ClosedTableau Hist X} : PathIn ctX → PathIn ctX → Prop
-| t, s => (t ◃ s) ∨ K t s
+notation pa:arg "⋖ᶜ" pb:arg => cEdge pa pb
 
-/-- We have: ◁′ = ◁ ∪ (K; ◁) -/
-example : pa ◃' pb ↔ (pa ◃' pb) ∨ ∃ pc, K pa pc ∧ pc ◃ pb := by
-  simp_all [edgesBack]
-
+/-- We have: ⋖ᶜ = ⋖ ∪ ♥ -/
+example : pa ⋖ᶜ pb ↔ (pa ◃ pb) ∨ pa ♥ pb := by
+  simp_all [cEdge]
 
 /-! ## ≡_E and Clusters -/
 
@@ -206,32 +203,38 @@ example : pa ◃' pb ↔ (pa ◃' pb) ∨ ∃ pc, K pa pc ∧ pc ◃ pb := by
 -- Use EqvGen from Mathlib or maually as "both ways TC related"?
 
 -- manual
-def E_equiv {Hist X} {tab : ClosedTableau Hist X} (pa pb : PathIn tab) : Prop := TC E pa pb ∧ TC E pb pa
+def E_equiv {Hist X} {tab : ClosedTableau Hist X} (pa pb : PathIn tab) : Prop :=
+  TC cEdge pa pb ∧ TC cEdge pb pa
 
 notation t:arg "≡_E" s:arg => E_equiv t s
 
+def clusterOf {tab : ClosedTableau Hist X} (p : PathIn tab) := Quot.mk E_equiv p
+
 -- better?
-def E_equiv_maybe_this (tab : ClosedTableau Hist X) (pa pb : PathIn tab) : Prop := EqvGen E pa pb
-def clusterOf (tab : ClosedTableau Hist X) (p : PathIn tab) := Quot.mk E p
+def E_equiv_alternative {tab : ClosedTableau Hist X} (pa pb : PathIn tab) : Prop :=
+  EqvGen cEdge pa pb
 
-def E_below {Hist X} {tab : ClosedTableau Hist X}
-  (s t : PathIn tab) : Prop := TC E t s ∧ ¬ TC E s t
+def clusterOf_alternative {tab : ClosedTableau Hist X} (p : PathIn tab) :=
+  Quot.mk E_equiv_alternative p
 
-notation t:arg "⊏_E" s:arg => E_below t s
+def simpler {Hist X} {tab : ClosedTableau Hist X}
+  (s t : PathIn tab) : Prop := TC cEdge t s ∧ ¬ TC cEdge s t
+
+notation t:arg "⊏_c" s:arg => simpler t s
 
 theorem eProp (tab : ClosedTableau Hist X) :
     Equivalence (@E_equiv _ _ tab)
     ∧
-    WellFounded (@E_below _ _ tab) := by
+    WellFounded (@simpler _ _ tab) := by
   sorry
 
 theorem eProp2 (tab : ClosedTableau Hist X) (s s' t : PathIn tab) :
-      (s ◃ t → (t ⊏_E s) ∨ (t ≡_E s)) -- a
-    ∧ (K s t → t ≡_E s) --b
-    ∧ sorry -- s is free and s ◁ t, then t ⊏E s; -- c
-    ∧ sorry -- s is loaded, t is free and s ◁ t, then t ⊏E s; --d
-    ∧ (s ≡_E s' ∧ t ⊏_E s  →  t ⊏_E s') -- e
-    ∧ (s <' t ∧ ¬(s ≡_E t)  →  t ⊏_E s) --f
+      (s ◃ t → (t ⊏_c s) ∨ (t ≡_E s)) -- (a)
+    ∧ (s ♥ t → t ≡_E s) -- (b)
+    ∧ sorry -- s is free and s ◁ t, then t ⊏E s; -- (c)
+    ∧ sorry -- s is loaded, t is free and s ◁ t, then t ⊏E s; -- (d)
+    ∧ (s ≡_E s' ∧ t ⊏_c s  →  t ⊏_c s') -- (e)
+    ∧ (ccEdge s t ∧ ¬(s ≡_E t)  →  t ⊏_c s) --(f)
   := by
 sorry
 

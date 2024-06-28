@@ -1552,9 +1552,8 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         rcases w_ρ with ⟨ℓ, ℓ_in, w_Xℓ⟩ -- here we get ℓ
         simp only [repl_in_or, evalDis]
         simp [conEval, conEval, Xset] at w_Xℓ
-        -- trying to follow notes from here
         unfold_let χ0 χ1 T0 T1 φ φ'
-        -- clear χ0 χ1 T0 T1 φ φ'
+        clear χ0 χ1 T0 T1 φ φ'
         cases em ([] ∈ P β ℓ) -- based on this, go left or right
         case inl empty_in_Pβ =>
           left
