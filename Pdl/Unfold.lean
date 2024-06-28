@@ -994,23 +994,44 @@ theorem keepFreshF α ℓ (x_notin : x ∉ voc α) : ∀ φ ∈ F α ℓ, x ∉ 
     aesop
 
 theorem keepFreshP α ℓ (x_notin : x ∉ voc α) : ∀ δ ∈ P α ℓ, x ∉ voc δ := by
-  intro φ φ_in
+  intro δ δ_in
   cases α
   all_goals
     simp_all [P, voc, vocabOfFormula, vocabOfProgram, Vocab.fromList]
   case test τ =>
     cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩) <;> simp_all [vocabOfFormula, Vocab.fromList]
   case sequence α β =>
-    have := keepFreshP α ℓ x_notin.1
-    have := keepFreshP β ℓ x_notin.2
-    sorry
+    have IHα := keepFreshP α ℓ x_notin.1
+    have IHβ := keepFreshP β ℓ x_notin.2
+    simp_all [P, voc, vocabOfFormula, vocabOfProgram, Vocab.fromList, List.mem_filter, Vocab.fromListProgram_map_iff]
+    rcases δ_in with (⟨δ', δ'_in, def_δ⟩ | δ_in)
+    · subst def_δ
+      have := IHα _ δ'_in.1
+      simp_all [Vocab.fromListProgram_map_iff]
+      aesop
+    · cases em ([] ∈ P α ℓ) <;> simp_all
+      have := IHβ _ δ_in
+      simp_all [Vocab.fromListProgram_map_iff]
   case union α β =>
-    have := keepFreshP α ℓ x_notin.1
-    have := keepFreshP β ℓ x_notin.2
-    sorry
+    have IHα := keepFreshP α ℓ x_notin.1
+    have IHβ := keepFreshP β ℓ x_notin.2
+    simp_all [P, voc, vocabOfFormula, vocabOfProgram, Vocab.fromList, List.mem_filter]
+    aesop
   case star α =>
-    have := keepFreshP α ℓ x_notin
-    sorry
+    have IHα := keepFreshP α ℓ x_notin
+    rcases δ_in with (_ | ⟨δ', δ'_in, def_δ⟩)
+    · subst_eqs
+      simp_all [voc, Vocab.fromList, Finset.not_mem_empty, not_false_eq_true]
+    · subst def_δ
+      rw [Vocab.fromListProgram_map_iff]
+      simp_all [voc, Vocab.fromList, Finset.not_mem_empty, not_false_eq_true]
+      rintro γ (γ_in_δ' | γ_def)
+      · simp_all [List.mem_filter]
+        have := IHα _ δ'_in.1
+        simp_all [Vocab.fromListProgram_map_iff]
+      · subst γ_def
+        simp [vocabOfProgram]
+        aesop
 
 -- NOTE: see `P_goes_down` for proof inspiration, and later make it a consequence of this?
 -- Maybe unused / to be deleted?

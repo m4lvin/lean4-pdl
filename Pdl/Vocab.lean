@@ -46,21 +46,27 @@ instance [HasVocabulary α] : HasVocabulary (List α) :=
 instance [HasVocabulary α] : HasVocabulary (Finset α) :=
   ⟨fun X => (X.biUnion (fun f => {voc f})).fold (fun x y => x ∪ y) {} id⟩
 
-theorem Vocab.fromListFormula_map_iff n (L : List Formula): n ∈ Vocab.fromList (L.map vocabOfFormula) ↔ ∃ φ ∈ L, n ∈ vocabOfFormula φ := by
+theorem Vocab.fromListFormula_map_iff n (L : List Formula) :
+    n ∈ Vocab.fromList (L.map vocabOfFormula)
+    ↔ ∃ φ ∈ L, n ∈ vocabOfFormula φ := by
   induction L
   · simp [fromList]
   case cons h t IH =>
     simp only [fromList, Finset.mem_union, List.mem_cons, exists_eq_or_imp]
     rw [← IH]
 
-theorem Vocab.fromListProgram_map_iff n (L : List Program): n ∈ Vocab.fromList (L.map vocabOfProgram) ↔ ∃ α ∈ L, n ∈ vocabOfProgram α := by
+theorem Vocab.fromListProgram_map_iff n (L : List Program) :
+    n ∈ Vocab.fromList (L.map vocabOfProgram)
+    ↔ ∃ α ∈ L, n ∈ vocabOfProgram α := by
   induction L
   · simp [fromList]
   case cons h t IH =>
     simp only [fromList, Finset.mem_union, List.mem_cons, exists_eq_or_imp]
     rw [← IH]
 
-theorem inVocList {α} [HasVocabulary α] n (L : List α): n ∈ voc L ↔ ∃ φ ∈ L, n ∈ voc φ := by
+theorem inVocList {α} [HasVocabulary α] n (L : List α) :
+    n ∈ voc L
+    ↔ ∃ φ ∈ L, n ∈ voc φ := by
   induction L
   · simp [voc, Finset.mem_biUnion, List.mem_toFinset, Vocab.fromList]
   case cons h t IH =>
