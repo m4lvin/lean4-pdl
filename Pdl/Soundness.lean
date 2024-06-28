@@ -1,6 +1,5 @@
 -- SOUNDNESS
 
-import Pdl.Star
 import Pdl.Tableau
 
 import Mathlib.Tactic.Ring

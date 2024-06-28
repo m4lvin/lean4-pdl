@@ -1,6 +1,7 @@
 import Mathlib.Data.Finset.Basic
 
 import Pdl.Completeness
+import Pdl.Distance
 
 open HasVocabulary HasSat
 

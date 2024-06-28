@@ -2,22 +2,20 @@
 -- Import modules here that should be built as part of the library.
 import «Pdl».Syntax
 import «Pdl».Measures
-import «Pdl».Closure
 import «Pdl».Star
 import «Pdl».Semantics
 import «Pdl».Vocab
 import «Pdl».Fresh
 import «Pdl».Substitution
-import «Pdl».Setsimp
 import «Pdl».MultisetOrder
 import «Pdl».Examples
 import «Pdl».Modelgraphs
 import «Pdl».Discon
 import «Pdl».Unfold
-import «Pdl».Paths
 import «Pdl».LocalTableau
 import «Pdl».Tableau
 import «Pdl».Soundness
 import «Pdl».Completeness
+import «Pdl».Distance
 import «Pdl».PartInterpolation
 import «Pdl».Interpolation

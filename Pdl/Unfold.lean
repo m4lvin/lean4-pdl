@@ -3,7 +3,6 @@
 import Mathlib.Data.Fintype.Pi
 import Mathlib.Tactic.Linarith
 
-import Pdl.Discon
 import Pdl.Substitution
 import Pdl.Fresh
 import Pdl.Star

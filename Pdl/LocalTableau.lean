@@ -1,7 +1,5 @@
 -- LOCAL TABLEAU
 
-import Pdl.Setsimp
-import Pdl.Discon
 import Pdl.Unfold
 import Pdl.MultisetOrder
 
