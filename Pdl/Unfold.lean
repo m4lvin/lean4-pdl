@@ -1362,7 +1362,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
           have := goal.1 lhs.1
           rw [disEval] at this
           simp at this
-          rcases this with ⟨ℓ', ℓ'_in_TP, w_Xℓ'⟩
+          rcases this with ⟨ℓ', _, w_Xℓ'⟩
           clear goal ρ
           simp [conEval, Xset, F, P] at *
           rintro f (f_in_Fβ|(f_eq_ψ|f_from_Pβ))
@@ -1536,20 +1536,71 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         intro W M w
       -- remaining goals are the conditions of `guardToStar`
       · -- ⌈β⌉x ≡ (x⋀χ0)⋁χ1
-        unfold_let χ0 χ1 T0 T1 φ
-        clear χ0 χ1 T0 T1 φ
         have IHβ_thm := localBoxTruth_connector _ _ (localBoxTruthI β (·x)) W M w
         rw [IHβ_thm]
         clear IHβ_thm
-        simp [disEval, conEval, Xset, repl_in_disMap]
-        -- TODO NEXT
-        sorry
+        simp only [Xset, evalDis, disEval, List.mem_map, exists_exists_and_eq_and, conEval, List.mem_append, evaluate]
+        constructor
+        · rintro ⟨ℓ, ℓ_in, w_Xβ⟩
+          -- now need to choose x⋀χ0 or χ1
+          cases em ([] ∈ P β ℓ)
+          case inl empty_in_Pβ =>
+            left -- choose x⋀χ0
+            constructor
+            · specialize w_Xβ (·x) (Or.inr ⟨[], empty_in_Pβ, by simp [Formula.boxes]⟩)
+              simp only [evaluate] at w_Xβ
+              exact w_Xβ
+            · unfold_let χ0 T0 φ'
+              simp [disEval, conEval]
+              use ℓ
+              simp_all [List.mem_filter]
+              intro δ δ_in δ_not_empty
+              apply w_Xβ
+              right
+              aesop
+          · right -- choose χ1
+            unfold_let χ1 T1 φ'
+            simp [disEval, conEval]
+            use ℓ
+            simp_all [List.mem_filter]
+            intro δ δ_in _
+            apply w_Xβ
+            right
+            aesop
+        · rintro (⟨w_c, w_χ0⟩ | w_χ1)
+          · unfold_let χ0 T0 φ' at w_χ0
+            simp [disEval, conEval, List.mem_filter] at w_χ0
+            rcases w_χ0 with ⟨ℓ, w_Xℓ⟩
+            use ℓ
+            simp_all
+            rintro φ (φ_in_Fβ | ⟨δ, δ_in, def_φ⟩)
+            · aesop
+            · subst def_φ
+              cases em (δ = [])
+              · simp_all
+              case inr δ_not_empty =>
+                apply w_Xℓ.2.2 _ _ δ_in δ_not_empty
+                simp [Formula.boxes]
+          · unfold_let χ1 T1 φ' at w_χ1
+            simp [disEval, conEval, List.mem_filter] at w_χ1
+            rcases w_χ1 with ⟨ℓ, w_Xℓ⟩
+            use ℓ
+            constructor
+            · apply allTP_mem
+            · rintro φ (φ_in_Fβ | ⟨δ, δ_in, def_φ⟩)
+              · apply w_Xℓ.2.1 _ φ_in_Fβ
+              · subst def_φ
+                cases em (δ = [])
+                · simp_all
+                case inr δ_not_empty =>
+                  apply w_Xℓ.2.2 _ _ δ_in δ_not_empty
+                  simp [Formula.boxes]
       · -- ρ ⊨ (χ0⋁χ1) [ρ/x]
         simp only [List.mem_singleton, forall_eq]
         intro w_ρ
         unfold_let ρ at w_ρ
         simp [disEval] at w_ρ
-        rcases w_ρ with ⟨ℓ, ℓ_in, w_Xℓ⟩ -- here we get ℓ
+        rcases w_ρ with ⟨ℓ, _, w_Xℓ⟩ -- here we get ℓ
         simp only [repl_in_or, evalDis]
         simp [conEval, conEval, Xset] at w_Xℓ
         unfold_let χ0 χ1 T0 T1 φ φ'
@@ -1615,7 +1666,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
                 simp [P, List.mem_filter]
                 simp_all only [not_false_eq_true, and_self, x]
               simp [boxes_append] at w_Xℓ
-              -- need ⌈∗β⌉ψ ⊨ ρ now, and that is the other direction we have already shown :-)
+              -- need ⌈∗β⌉ψ ⊨ ρ which is the other direction we have already shown :-)
               specialize left_to_right W M
               simp [evalBoxes] at left_to_right w_Xℓ
               simp [evalBoxes]
