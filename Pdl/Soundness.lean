@@ -156,17 +156,17 @@ def children' (p : PathIn tab) : List (PathIn (tabAt p).2.2) := match tabAt p wi
 def children (p : PathIn tab) : List (PathIn tab) := (children' p).map (PathIn.append p)
 
 /-- The parent-child relation `s ◃ t` in a tableau -/
-def stepRel {H X} {ctX : ClosedTableau H X} (s : PathIn ctX) (t : PathIn ctX) : Prop :=
+def edge {H X} {ctX : ClosedTableau H X} (s : PathIn ctX) (t : PathIn ctX) : Prop :=
   t ∈ children s
 
-/-- Notation ◃ (even thought it is ⋖ in notes) for `stepRel` -/
-notation s:arg "◃" t:arg => stepRel s t
+/-- Notation ◃ (even thought it is ⋖ in notes) for `edge` -/
+notation s:arg " ◃ " t:arg => edge s t
 
 /-- Enable "<" notation for transitive closure of ⋖ -/
-instance : LT (PathIn tab) := ⟨TC stepRel⟩
+instance : LT (PathIn tab) := ⟨TC edge⟩
 
 /-- Enable "≤" notation for transitive closure of ⋖ -/
-instance : LE (PathIn tab) := ⟨Relation.ReflTransGen stepRel⟩
+instance : LE (PathIn tab) := ⟨Relation.ReflTransGen edge⟩
 
 /-! ## Companion, ccEdge, cEdge, etc. -/
 
@@ -175,22 +175,22 @@ def companion {H X} {ctX : ClosedTableau H X} (t s : PathIn ctX) : Prop :=
   ∧
   sorry -- TODO: say that s is the companion of t
 
-notation pa:arg "♥" pb:arg => companion pa pb
+notation pa:arg " ♥ " pb:arg => companion pa pb
 
 /-- Successor relation plus back loops: ◃' (MB: page 26) -/
 def ccEdge {H X} {ctX : ClosedTableau H X} (s t : PathIn ctX) : Prop :=
   s ◃ t  ∨  ∃ u, s ♥ u ∧ u ◃ t
 
-notation pa:arg "⋖ᶜᶜ" pb:arg => ccEdge pa pb
+notation pa:arg " ⋖ᶜᶜ " pb:arg => ccEdge pa pb
 
 /-- We have: ⋖ᶜ = ⋖ ∪ ♥ -/
 example : pa ⋖ᶜᶜ pb ↔ (pa ◃ pb) ∨ ∃ pc, pa ♥ pc ∧ pc ◃ pb := by
   simp_all [ccEdge]
 
-def cEdge {Hist X} {ctX : ClosedTableau Hist X} : PathIn ctX → PathIn ctX → Prop
-| t, s => (t ◃ s) ∨ t ♥ s
+def cEdge {Hist X} {ctX : ClosedTableau Hist X} (t s : PathIn ctX) : Prop :=
+  (t ◃ s) ∨ t ♥ s
 
-notation pa:arg "⋖ᶜ" pb:arg => cEdge pa pb
+notation pa:arg " ⋖ᶜ " pb:arg => cEdge pa pb
 
 /-- We have: ⋖ᶜ = ⋖ ∪ ♥ -/
 example : pa ⋖ᶜ pb ↔ (pa ◃ pb) ∨ pa ♥ pb := by
@@ -202,12 +202,13 @@ example : pa ⋖ᶜ pb ↔ (pa ◃ pb) ∨ pa ♥ pb := by
 -- Use EqvGen from Mathlib or maually as "both ways TC related"?
 
 -- manual
-def E_equiv {Hist X} {tab : ClosedTableau Hist X} (pa pb : PathIn tab) : Prop :=
-  TC cEdge pa pb ∧ TC cEdge pb pa
+def cEquiv {Hist X} {tab : ClosedTableau Hist X} (pa pb : PathIn tab) : Prop :=
+    Relation.ReflTransGen cEdge pa pb
+  ∧ Relation.ReflTransGen cEdge pb pa
 
-notation t:arg "≡_E" s:arg => E_equiv t s
+notation t:arg " ≡_E " s:arg => cEquiv t s
 
-def clusterOf {tab : ClosedTableau Hist X} (p : PathIn tab) := Quot.mk E_equiv p
+def clusterOf {tab : ClosedTableau Hist X} (p : PathIn tab) := Quot.mk cEquiv p
 
 -- better?
 def E_equiv_alternative {tab : ClosedTableau Hist X} (pa pb : PathIn tab) : Prop :=
@@ -219,28 +220,70 @@ def clusterOf_alternative {tab : ClosedTableau Hist X} (p : PathIn tab) :=
 def simpler {Hist X} {tab : ClosedTableau Hist X}
   (s t : PathIn tab) : Prop := TC cEdge t s ∧ ¬ TC cEdge s t
 
-notation t:arg "⊏_c" s:arg => simpler t s
+notation t:arg " ⊏_c " s:arg => simpler t s
 
 theorem eProp (tab : ClosedTableau Hist X) :
-    Equivalence (@E_equiv _ _ tab)
+    Equivalence (@cEquiv _ _ tab)
     ∧
     WellFounded (@simpler _ _ tab) := by
-  sorry
+  constructor
+  · constructor
+    · intro _
+      simp [cEquiv]
+      exact Relation.ReflTransGen.refl
+    · intro _ _
+      simp [cEquiv]
+      tauto
+    · intro s u t
+      simp [cEquiv]
+      intro s_u u_s u_t t_u
+      exact ⟨ Relation.ReflTransGen.trans s_u u_t
+            , Relation.ReflTransGen.trans t_u u_s ⟩
+  · constructor
+    intro s
+    -- need to show `Acc` - inductino on path s maybe?
+    unfold simpler
+    sorry
 
-theorem eProp2 (tab : ClosedTableau Hist X) (s s' t : PathIn tab) :
+theorem eProp2 (tab : ClosedTableau Hist X) (s u t : PathIn tab) :
       (s ◃ t → (t ⊏_c s) ∨ (t ≡_E s)) -- (a)
     ∧ (s ♥ t → t ≡_E s) -- (b)
-    ∧ sorry -- s is free and s ◁ t, then t ⊏E s; -- (c)
-    ∧ sorry -- s is loaded, t is free and s ◁ t, then t ⊏E s; -- (d)
-    ∧ (s ≡_E s' ∧ t ⊏_c s  →  t ⊏_c s') -- (e)
-    ∧ (ccEdge s t ∧ ¬(s ≡_E t)  →  t ⊏_c s) --(f)
+    ∧ ((nodeAt s).isFree → edge s t → t ⊏_c s) -- (c)
+    ∧ ((nodeAt s).isLoaded → (nodeAt t).isFree → edge s t → t ⊏_c s) -- (d)
+    ∧ (t ⊏_c u ∧ u ⊏_c s → t ⊏_c s) -- (e)
+    ∧ (ccEdge s t ∧ ¬(s ≡_E t)  →  t ⊏_c s) -- (f)
   := by
-sorry
+refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
+all_goals
+  simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion]
+-- (a)
+· intro t_childOf_s
+  have : TC cEdge s t := by
+    -- may need to go via repeat?
+    sorry
+  cases Classical.em (TC cEdge t s) <;> simp_all
+  ·
+    sorry
+-- (b)
+·
+  sorry
+-- (c)
+·
+  sorry
+-- (d)
+·
+  sorry
+-- (e)
+·
+  sorry
+-- (f)
+·
+  sorry
 
 /-! ## Soundness -/
 
 theorem loadedDiamondPaths {Root Δ : TNode}
-  (tab : ClosedTableau ([],[]) Root) -- ensure History = [] here to prevent repeats from "above".
+  (tab : ClosedTableau LoadHistory.nil Root) -- LoadHistory.nil to prevent repeats from "above"
   (path_to_Δ : PathIn tab)
   (h : Δ = nodeAt path_to_Δ)
   {M : KripkeModel W} {v : W}
@@ -258,15 +301,18 @@ theorem loadedDiamondPaths {Root Δ : TNode}
   by
   have := eProp2 tab
   let ⟨L,R,O⟩ := Δ
+  -- by induction on the complexity of α
+  cases α
+  -- TODO
   all_goals sorry
 
-
-theorem tableauThenNotSat : ∀ X, ClosedTableau LoadHistory.nil X → ¬satisfiable X :=
+theorem tableauThenNotSat (tab : ClosedTableau LoadHistory.nil Root) (t : PathIn tab) : ¬satisfiable (nodeAt t) :=
   by
-  intro X t
-  -- by induction on the relation ⊏_E
+  -- by induction on the well-founded strict partial order ⊏
+  apply @WellFounded.induction _ simpler ((eProp tab).2 : _) _ t
+  clear t
+  intro t IH
   sorry
-
 
 theorem correctness : ∀LR : TNode, satisfiable LR → consistent LR :=
   by
@@ -276,15 +322,16 @@ theorem correctness : ∀LR : TNode, satisfiable LR → consistent LR :=
     unfold inconsistent
     simp only [not_nonempty_iff, not_isEmpty_iff, not_exists, not_forall, exists_prop, Nonempty.forall]
     intro hyp
-    apply tableauThenNotSat LR hyp
+    apply tableauThenNotSat hyp .nil
 
 theorem soundTableau : ∀φ, provable φ → ¬satisfiable ({~φ} : Finset Formula) :=
   by
     intro φ prov
     rcases prov with ⟨tabl⟩|⟨tabl⟩
-    exact tableauThenNotSat ([~φ], [], none) tabl
-    exact tableauThenNotSat ([], [~φ], none) tabl
+    exact tableauThenNotSat tabl .nil
+    exact tableauThenNotSat tabl .nil
 
+-- See `tableauThenNotSat` for the actual proof of what the notes call soundness.
 theorem soundness : ∀φ, provable φ → tautology φ :=
   by
     intro φ prov

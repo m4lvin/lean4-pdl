@@ -38,6 +38,8 @@ def TNode.isLoaded : TNode → Bool
 | ⟨_, _, none  ⟩ => False
 | ⟨_, _, some _⟩ => True
 
+def TNode.isFree (Γ : TNode) : Bool := ¬ Γ.isLoaded
+
 instance modelCanSemImplyTNode : vDash (KripkeModel W × W) TNode :=
   vDash.mk (λ ⟨M,w⟩ ⟨L, R, o⟩ => ∀ f ∈ L ∪ R ∪ (o.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
 

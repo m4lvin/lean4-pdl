@@ -118,29 +118,31 @@ theorem A6 (a : Program) (X : Formula) : tautology ((⌈∗a⌉X) ⟷ (X ⋀ (�
 example (a b : Program) (X : Formula) :
   (⌈∗(∗a) ⋓ b⌉X) ≡ X ⋀ (⌈a⌉(⌈∗(∗a) ⋓ b⌉ X)) ⋀ (⌈b⌉(⌈∗(∗a) ⋓ b⌉ X)) :=
   by
-  unfold semEquiv
   intro W M w
   simp
+  have : ∀ v, Relation.ReflTransGen (relate M ((∗a)⋓b)) w v ↔
+      ( w = v
+      ∨ ∃ u, relate M a w u ∧ Relation.ReflTransGen (relate M ((∗a)⋓b)) u v
+      ∨ ∃ u, relate M b w u ∧ Relation.ReflTransGen (relate M ((∗a)⋓b)) u v ) := by
+    intro v
+    constructor
+    · intro lhs
+      sorry
+    · intro rhs
+      sorry
   constructor
   · intro lhs
     constructor
-    · apply lhs
-      exact Relation.ReflTransGen.refl
+    · simp_all only [true_or]
     · constructor
       · intro v w_a_v u
         intro v_aSubS_w
-        apply lhs
-        have := ReflTransGen.cases_tail_eq_neq v_aSubS_w
-        cases this
-        case inl hyp =>
-          subst hyp
-          sorry
-        · sorry
+        aesop
       · intro v w_b_v u v_aSubS_u
         apply lhs
-        sorry
+        aesop
   · rintro ⟨w_X, aBox, bBox⟩ v w_aSubS_v
-    sorry
+    aesop
 
 -- related via star <=> related via a finite chain
 theorem starIffFinitelyManyStepsModel (W : Type) (M : KripkeModel W) (x z : W) (α : Program) :
