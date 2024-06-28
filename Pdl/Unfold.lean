@@ -1,5 +1,6 @@
 -- UNFOLD
 
+import Mathlib.Data.Fintype.Pi
 import Mathlib.Tactic.Linarith
 
 import Pdl.Discon
@@ -678,6 +679,10 @@ def unfoldDiamondLoad' (α : Program) (φ : Formula) : List (List Formula × Opt
 /-- Type of test profiles for a given program. -/
 def TP (α : Program) : Type := {τ // τ ∈ testsOfProgram α} → Bool
 
+instance : Fintype (TP α) := by
+  unfold TP
+  apply Pi.fintype
+
 theorem TP_eq_iff {α} {ℓ ℓ' : TP α} : (ℓ = ℓ') ↔ ∀ τ ∈ (testsOfProgram α).attach, ℓ τ = ℓ' τ := by
   constructor
   · intro ℓ_eq_ℓ _ _
@@ -701,78 +706,19 @@ instance : CoeOut (TP (α ;' β)) (TP β) :=
 instance : CoeOut (TP (∗α)) (TP α) :=
   ⟨fun l ⟨f,f_in⟩ => l ⟨f, by simp only [testsOfProgram]; exact f_in⟩⟩
 
-/-- List of all test profiles for a given program. -/
+/-- List of all test profiles for a given program.
+Note that in contrast to `Fintype.elems : Finset (TP α)`
+here we get a computable List (TP α). -/
 def allTP α : List (TP α) := (testsOfProgram α).sublists.map (fun l ⟨τ, _⟩ => τ ∈ l)
 
-theorem allTP_mem α (ℓ : TP α) : ℓ ∈ allTP α := by
-  cases α
-  case atom_prog n =>
-    simp_all [allTP, TP, testsOfProgram]
-    funext ⟨τ, τ_in⟩
-    exfalso
-    unfold testsOfProgram at τ_in
-    tauto
-  case union α β =>
-    have IHα := allTP_mem α ℓ
-    have IHβ := allTP_mem β ℓ
-    simp_all [allTP, TP, testsOfProgram]
-    rcases IHα with ⟨Lα, sub_α, dec_α⟩
-    rcases IHβ with ⟨Lβ, sub_β, dec_β⟩
-    use Lα ++ Lβ
-    constructor
-    · exact List.Sublist.append sub_α sub_β
-    · funext ⟨τ, τ_in⟩
-      simp
-      unfold testsOfProgram at τ_in
-      simp at τ_in
-      cases τ_in
-      ·
-        -- should be easy
-        sorry
-      · sorry
-  case sequence α β =>
-    have IHα := allTP_mem α ℓ
-    have IHβ := allTP_mem β ℓ
-    simp_all [allTP, TP, testsOfProgram]
-    rcases IHα with ⟨Lα, sub_α, dec_α⟩
-    rcases IHβ with ⟨Lβ, sub_β, dec_β⟩
-    use Lα ++ Lβ
-    constructor
-    · exact List.Sublist.append sub_α sub_β
-    · funext ⟨τ, τ_in⟩
-      simp
-      unfold testsOfProgram at τ_in
-      simp at τ_in
-      cases τ_in
-      ·
-        -- should be easy
-        sorry
-      · sorry
-  case star β =>
-    have IHβ := allTP_mem β ℓ
-    simp_all [allTP, testsOfProgram]
-    rcases IHβ with ⟨Lβ, sub_β, dec_β⟩
-    use Lβ
-    constructor
-    · assumption
-    · funext ⟨τ, τ_in⟩
-      simp at *
-      -- should be easy
-      sorry
-  case test τ =>
-    simp_all [allTP, TP, testsOfProgram]
-    have : τ ∈ testsOfProgram (?'τ) := by simp [testsOfProgram]
-    cases em (ℓ ⟨τ,this⟩)
-    · right
-      funext ⟨τ', τ'_in⟩
-      simp_all
-      unfold testsOfProgram at this
-      -- why is the "decide" sneaking in here?
-      sorry
-    · left -- hmm??
-      funext ⟨τ', τ'_in⟩
-
-      sorry
+/-- All test profiles are in the list of all test profiles.
+Thanks to Floris van Doorn
+https://leanprover.zulipchat.com/#narrow/stream/217875-Is-there-code-for-X.3F/topic/List.20of.20.28provably.29.20all.20functions.20from.20given.20List.20to.20Bool
+-/
+theorem allTP_mem (ℓ : TP α) : ℓ ∈ allTP α := by
+  simp_rw [allTP, List.mem_map, List.mem_sublists]
+  use (testsOfProgram α).filter (fun τ ↦ ∃ h : τ ∈ testsOfProgram α, ℓ ⟨τ, h⟩)
+  simp (config := {contextual := true}) [TP, List.mem_filter, Function.funext_iff]
 
 /-- σ^ℓ -/
 def signature (α : Program) (ℓ : TP α) : Formula :=
@@ -1439,7 +1385,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
           simp_all only [List.mem_map, and_true]
           use ℓ -- seems to be only place where we actually use the given ℓ
           simp only [and_true]
-          exact allTP_mem (∗β) ℓ
+          exact allTP_mem ℓ
         · exact rhs.2
     -- now show `goal`
     -- Notes discuss IHβ_thm here, we do it below.
@@ -1458,7 +1404,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         simp
         use ℓ'
         constructor
-        · exact allTP_mem (∗β) ℓ'
+        · exact allTP_mem ℓ'
         · simp [conEval, Xset]
           rintro f (f_in_F| ⟨δ, δ_in, def_f⟩)
           · simp [F_mem_iff_neg] at f_in_F
