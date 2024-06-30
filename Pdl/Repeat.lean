@@ -1,4 +1,3 @@
-import Std.Data.List.Lemmas
 import Aesop
 import Mathlib.Tactic.Convert
 import Mathlib.Tactic.Linarith
@@ -100,7 +99,7 @@ example : blaPath.toList == [2,3,4] := by rfl
 def PathIn.dropAtEnd (p : PathIn ht) (k : Nat) (h : k ≤ p.length) : PathIn ht :=
   if _ : k = p.length then nil else
     match p with
-    | nil => by simp only [length, nonpos_iff_eq_zero] at *; exfalso; tauto
+    | nil => by simp only [length, nonpos_iff_eq_zero] at *; absurd h; assumption
     | cons m m_in s next rest => by
         have newRest := rest.dropAtEnd k (by simp [PathIn.length] at *; omega)
         exact cons m m_in s next newRest
