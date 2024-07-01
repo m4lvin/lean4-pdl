@@ -168,12 +168,59 @@ instance : LT (PathIn tab) := ⟨TC edge⟩
 /-- Enable "≤" notation for transitive closure of ⋖ -/
 instance : LE (PathIn tab) := ⟨Relation.ReflTransGen edge⟩
 
+/-- Sort-of inverse of PathIn.append -/
+def fromTo (s t : PathIn tab) (h : s < t ) : PathIn (tabAt s).2.2 := by
+  simp [LT.lt] at h
+  sorry
+  /-
+  -- not working, can only eliminate into Prop
+  exact
+    match h with
+    | TC.base _ _ _ => sorry
+    | TC.trans _ _ _ _ _ => sorry
+  -/
+
 /-! ## Companion, ccEdge, cEdge, etc. -/
 
+def PathIn.head (t : PathIn tab) : TNode := (tabAt t).2.1
+
+def PathIn.last (t : PathIn tab) : TNode :=
+match t with
+  | .nil => t.head
+  | .pdl _ tail => tail.last
+  | .loc _ tail => tail.last
+
+def PathIn.isLoaded (t : PathIn tab) : Prop :=
+match t with
+  | .nil => t.head.isLoaded
+  | .pdl _ tail => t.head.isLoaded ∧ tail.isLoaded
+  | .loc _ tail => t.head.isLoaded ∧ tail.isLoaded
+
+/-- Given path is loaded, and start and end are the same. -/
+def isLprPath (t : PathIn tab) : Prop := t.head = t.last ∧ t.isLoaded
+
+-- given tab and path to repeat
+-- split path into the path until companion
+
+-- aka:
+-- - from ClosedTableau.rep with LoadedPathRepeat
+-- - to isLprPath (which allows us to "go back up")
+theorem findCompanion (t : PathIn tab) :
+  (∃ lpr, (tabAt t).2.2 = ClosedTableau.rep lpr) →
+    ∃ (pc : PathIn tab) (pt : PathIn (tabAt pc).2.2),
+        pc.append pt = t
+      ∧ isLprPath pt := by
+  sorry
+
 def companion {H X} {ctX : ClosedTableau H X} (t s : PathIn ctX) : Prop :=
-  ∃ lpr, (tabAt t).2.2 = ClosedTableau.rep lpr -- t is a successful leaf
-  ∧
-  sorry -- TODO: say that s is the companion of t
+  ∃ lpr,
+    (tabAt t).2.2 = ClosedTableau.rep lpr -- t is a loaded-path repeat
+    ∧
+    s < t -- there is a path from s to t
+    ∧
+    sorry
+    -- TODO: still need to say that LoadHistory from lpr "matches" the Path.
+    -- use isLprPath OR findCompanion for this?
 
 notation pa:arg " ♥ " pb:arg => companion pa pb
 
