@@ -41,29 +41,28 @@ def toNegLoad (α : Program) (φ : Formula) : NegLoadFormula :=
     | ([], f) => ~'⌊α⌋f
     | (b::bs, f) => ~'⌊α⌋(List.foldl (flip LoadFormula.box) (LoadFormula.load b f) bs)
 
--- NOTES about the History type:
--- - The newest/lowest TNode should be the head of the list.
--- - We only track "big" steps, hoping we do not need steps within local tableaux.
+/-- A pair of lists of TNodes: since × before last (M) application, only recording loaded nodes.
+This only tracks "big" steps,  hoping we do not need steps within a local tableau.
+The head of the first list is the newest TNode. -/
+structure LoadHistory : Type := (since : List TNode) (before : List TNode) -- This may not be enough!
 
--- TNodes  before × since  last (M) application (and only recording loaded nodes)
-def LoadHistory : Type := List TNode × List TNode -- This may not be enough!
-
-def LoadHistory.nil : LoadHistory := ([], [])
+def LoadHistory.nil : LoadHistory := ⟨[], []⟩
 
 @[simp]
 def newLoadHistory : TNode → LoadHistory
-| X => ([], [X])
+| X => ⟨[], [X]⟩
+
+@[simp]
+def LoadHistory.add : TNode → LoadHistory → LoadHistory
+| X, ⟨since, before⟩ => ⟨X :: since, before⟩
 
 @[simp]
 def LoadHistory.addAtm : TNode → LoadHistory → LoadHistory
-| X, (before, since) => (X :: since ++ before, [])
+| X, ⟨since, before⟩ => ⟨[], X :: since ++ before⟩
 
--- MB Condition 6, simplified to only represent closed tableau:
---
--- A node t repeating s can be treated as a closed end node if
--- the path from s to t is critical and loaded.
-def condSixRepeat (X : TNode) (Hist : LoadHistory) :=
-  Subtype (fun (k, Y) => Hist.1.get? k = some Y ∧ X.setEqTo Y)
+/-- A repeat with a loaded path to its companion (MB condition 6) -/
+def LoadedPathRepeat (X : TNode) (Hist : LoadHistory) : Type :=
+  Subtype (fun (k, Y) => Hist.before.get? k = some Y ∧ X.setEqTo Y)
 
 /-! ## The PDL rules -/
 
@@ -98,18 +97,18 @@ inductive PdlRule : (Γ : TNode) → (Δ : TNode) → (hfun : LoadHistory → Lo
 -- - a successful loaded repeat (MB condition six)
 
 inductive ClosedTableau : LoadHistory → TNode → Type
-  -- FIXME: also record the "loc" step in `Hist`?
-  | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf lt, ClosedTableau Hist Y) → ClosedTableau Hist X
+  | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf lt, ClosedTableau (Hist.add X) Y) → ClosedTableau Hist X
   | pdl {Δ Γ} : PdlRule Γ Δ hfun → ClosedTableau (hfun Hist) Δ → ClosedTableau Hist Γ
-  | rep {X Hist} (rep : condSixRepeat X Hist) : ClosedTableau Hist X
+  | rep {X Hist} (lpr : LoadedPathRepeat X Hist) : ClosedTableau Hist X
 
 inductive provable : Formula → Prop
-  | byTableauL {φ : Formula} : ClosedTableau ([],[]) ⟨[~φ], [], none⟩ → provable φ
-  | byTableauR {φ : Formula} : ClosedTableau ([],[]) ⟨[], [~φ], none⟩ → provable φ
+  | byTableauL {φ : Formula} : ClosedTableau ⟨[],[]⟩ ⟨[~φ], [], none⟩ → provable φ
+  | byTableauR {φ : Formula} : ClosedTableau ⟨[],[]⟩ ⟨[], [~φ], none⟩ → provable φ
 
--- Definition 17, page 30
+/-- A TNode is inconsistent if there exists a closed tableau for it. -/
 def inconsistent : TNode → Prop
   | LR => Nonempty (ClosedTableau .nil LR)
 
+/-- A TNode is consistent iff it is not inconsistent. -/
 def consistent : TNode → Prop
   | LR => ¬inconsistent LR

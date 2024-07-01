@@ -148,7 +148,7 @@ def PathIn.append (p : PathIn tab) (q : PathIn (tabAt p).2.2) : PathIn tab := ma
 /-- One-step children, with changed type. Use `children` instead. -/
 def children' (p : PathIn tab) : List (PathIn (tabAt p).2.2) := match tabAt p with
   | ⟨_, _, ClosedTableau.loc lt _next⟩  =>
-      ((endNodesOf lt).attach.map (fun ⟨Y,Y_in⟩ => [ .loc Y_in .nil ] )).join
+      ((endNodesOf lt).attach.map (fun ⟨_, Y_in⟩ => [ .loc Y_in .nil ] )).join
   | ⟨_, _, ClosedTableau.pdl r _ct⟩  => [ .pdl r .nil ]
   | ⟨_, _, ClosedTableau.rep _⟩  => [ ]
 
@@ -171,7 +171,7 @@ instance : LE (PathIn tab) := ⟨Relation.ReflTransGen edge⟩
 /-! ## Companion, ccEdge, cEdge, etc. -/
 
 def companion {H X} {ctX : ClosedTableau H X} (t s : PathIn ctX) : Prop :=
-  ∃ RRR, (tabAt t).2.2 = ClosedTableau.rep RRR -- t is a successful leaf
+  ∃ lpr, (tabAt t).2.2 = ClosedTableau.rep lpr -- t is a successful leaf
   ∧
   sorry -- TODO: say that s is the companion of t
 

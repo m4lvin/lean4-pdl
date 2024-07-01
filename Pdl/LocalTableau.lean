@@ -8,6 +8,7 @@ open HasLength
 -- TABLEAU NODES
 
 -- A tableau node has two lists of formulas and one or no negated loaded formula.
+-- TODO: rename `TNode` to `Sequent`
 -- TODO: turn this into "abbrev" to avoid silly instance below.
 def TNode := List Formula × List Formula × Option (Sum NegLoadFormula NegLoadFormula) -- ⟨L, R, o⟩
   deriving DecidableEq, Repr
@@ -85,7 +86,6 @@ theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B
   intro W M w
   cases lr
   all_goals try (simp; done) -- takes care of all propositional rules
-  all_goals try (aesop; done) -- takes care of three more rules
   case box α φ =>
     rw [conEval]
     simp only [List.mem_singleton, forall_eq]
@@ -685,7 +685,6 @@ theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
     all_goals try (rename_i cond; cases cond)
     all_goals try simp_all
     all_goals subst claim
-    all_goals try simp_all
     all_goals
       simp [node_to_multiset]
       try apply List.Sublist.subperm
