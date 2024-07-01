@@ -15,7 +15,7 @@ theorem noBot : Provable (~⊥) := by
     rfl
     · -- build one child tableau
       intro c c_in
-      simp  at c_in
+      simp at c_in
       subst c_in
       let ltBot : LocalTableau ({⊥},∅) := by
         apply LocalTableau.fromRule
@@ -24,13 +24,13 @@ theorem noBot : Provable (~⊥) := by
         use []
         simp
         aesop
+      simp at ltBot
       exact ltBot
   case a.next =>
     -- show that endNodesOf is empty
     intro Y Y_in
-    simp [endNodesOf] at *
-    sorry -- since Lean v4.9.0-rc2
-
+    exfalso
+    aesop
 
 theorem noContradiction : Provable (~(p⋀~p)) :=
   by
@@ -61,8 +61,8 @@ theorem noContradiction : Provable (~(p⋀~p)) :=
   case a.next =>
     -- show that endNodesOf is empty
     intro Y Y_in
-    simp [endNodesOf] at *
-    sorry -- since Lean v4.9.0-rc2
+    exfalso
+    aesop
 
 -- preparing example 2
 def subTabForEx2 : ClosedTableau ({·'r', ~(□p), □(p⋀q)}, {}) :=
@@ -88,9 +88,8 @@ def subTabForEx2 : ClosedTableau ({·'r', ~(□p), □(p⋀q)}, {}) :=
       exact ltB
   case next =>
     intro Y Y_in
-    simp [endNodesOf] at *
-    sorry -- since Lean v4.9.0-rc2
-
+    exfalso
+    aesop
 
 -- needed to ensure simple-ness in next example.
 notation "r" => (·'r')
@@ -139,11 +138,24 @@ example : ClosedTableau ({r⋀~(□p), r↣□(p⋀q)}, {}) :=
   case next =>
       intro Y Y_in
       simp (config := {decide := true}) at *
-      sorry -- since Lean v4.9.0-rc2
-      /-
-      · subst Y_in
-        -- rewrite the Finset in the goal to that of subTabForEx2
-        have : insert (□(p⋀q)) (Finset.erase {·Char.ofNat 114, ~(□p), ~~(□(p⋀q))} (~~(□(p⋀q)))) = {·'r', ~(□p), □(p⋀q)} := by decide
-        rw [this]
-        exact subTabForEx2
-      -/
+      have : Y = ({·'r', ~(□p), □(p⋀q)}, {}) := by
+        rcases Y_in with ⟨l, ⟨a, ⟨a_def, def_l⟩⟩, Y_in_l⟩
+        subst_eqs
+        simp [endNodesOf] at *
+        rcases Y_in_l with ⟨l, ⟨a, ⟨a_def, def_l⟩⟩, Y_in_l⟩
+        cases a_def
+        · subst_eqs
+          simp [endNodesOf] at *
+        · subst_eqs
+          simp [endNodesOf] at *
+          have : ({·'r', ~(□p), ~~(□(p⋀q))}, ∅) ≠ (({·'r', ~(□p), ~·'r'}: Finset Formula), (∅ : Finset Formula)) := by decide
+          simp only [this] at Y_in_l
+          simp at Y_in_l
+          clear this -- hmm
+          rcases Y_in_l with ⟨l, ⟨a, ⟨ a_def, def_l⟩ ⟩, Y_in_l⟩
+          subst_eqs
+          simp [endNodesOf] at *
+          subst Y_in_l
+          decide
+      subst this
+      exact subTabForEx2
