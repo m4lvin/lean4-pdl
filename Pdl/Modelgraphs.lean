@@ -259,7 +259,6 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       have X_β_Z : relate MG.1 β X Z := by
         specialize relSteps 0
         unfold_let Z
-        unfold_let X
         convert relSteps
         aesop
       have := ((MG.2.1 X).1 φ φ (∗β)).right.right.right.left boxP_in_X
@@ -371,7 +370,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       intro τ τ_in
       -- Now we use IH of C2 on the tests in a
       -- NOTE: for this (in the test case, not sequence) we tweaked `lengthOfProgram (?'φ)` ;-)
-      have forTermination : lengthOfFormula τ < lengthOfProgram _ := F_goes_down τ_in
+      have _forTermination : lengthOfFormula τ < lengthOfProgram _ := F_goes_down τ_in
       have := loadedTruthLemma MG X τ
       subst α_def
       simp_all only [instBot, relate, Subtype.exists, lengthOfProgram, true_or, forall_true_left]
@@ -388,7 +387,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
     have IHδ : ∀ d ∈ δ, ∀ (X' Y' : Worlds), ∀ φ',
         (⌈d⌉φ') ∈ X'.val → relate MG.val d X' Y' → φ' ∈ Y'.val := by
       intro d d_in_δ X' Y' φ' dφ_in_X' X'_d_Y'
-      have forTermination : lengthOf d < lengthOf α := by
+      have _forTermination : lengthOf d < lengthOf α := by
         have := P_goes_down d_in_δ δ_in_P
         simp_all [isAtomic, isStar]
       exact loadedTruthLemmaProg MG d X' φ' dφ_in_X' Y' X'_d_Y'

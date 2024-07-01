@@ -63,13 +63,11 @@ lemma meq_union_meq_reverse {α : Type u} [DecidableEq α] [Preorder α] {M N P 
 
 lemma mul_cons_trivial {α : Type u} [DecidableEq α] [LT α] {a : α} {M : Multiset α} :
     M + {a} = a ::ₘ M := by
-  intros
   ext
   simp [Multiset.count_cons, Multiset.count_singleton, Multiset.count_add]
 
 lemma mul_erase_trivial {α : Type u} [DecidableEq α] [LT α] {a : α} {M : Multiset α} :
     M - {a} = Multiset.erase M a := by
-  intros
   ext
   simp [Multiset.erase_singleton]
   simp [Multiset.count_cons, Multiset.count_singleton, Multiset.count_add]

@@ -55,8 +55,7 @@ theorem keepFreshH α : x ∉ voc α → ∀ F δ, (F,δ) ∈ H α → x ∉ voc
         assumption
       · have IHβ := keepFreshH β x_notin.2 a' b' a'b'_in_Hβ
         simp_all [H, voc, vocabOfFormula, vocabOfProgram, Vocab.fromListFormula_map_iff]
-    · subst_eqs
-      have := keepFreshH α x_notin.1 F' δ' Fδ'_in
+    · have := keepFreshH α x_notin.1 F' δ' Fδ'_in
       simp_all [H, voc,vocabOfFormula,vocabOfProgram]
   case sequence.right α β =>
     rcases Fδ_in_H with ⟨l, ⟨⟨F', δ', ⟨Fδ'_in, def_l⟩⟩, Fδ_in_l⟩⟩
@@ -927,7 +926,6 @@ theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if isAtomic α then γ 
     case cons =>
       simp_all only [false_or]
       rcases δ_in with ⟨αs, αs_in, def_δ⟩
-      subst_eqs
       cases em (γ ∈ αs)
       case inl γ_in =>
         have IH := P_goes_down γ_in (List.mem_of_mem_filter αs_in)
@@ -1182,7 +1180,6 @@ theorem localBoxTruth_connector γ ψ :
         simp_all only [and_true]
         apply P_monotone γ ℓ' ℓ ?_ δ δ_in_P
         intro τ ℓ_τ
-        unfold_let ℓ'
         by_contra hyp
         absurd ℓ_τ
         simp only [Bool.not_eq_true] at *
@@ -1473,7 +1470,6 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
             specialize step ℓ' W M w
             simp only [List.mem_singleton, forall_eq, and_imp] at step
             rw [conEval] at step
-            unfold_let ℓ'
             simp [evaluate, relate, signature,conEval] at step
             apply step <;> aesop
       intro ℓ W M w
