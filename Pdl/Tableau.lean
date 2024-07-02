@@ -41,53 +41,42 @@ def toNegLoad (α : Program) (φ : Formula) : NegLoadFormula :=
     | ([], f) => ~'⌊α⌋f
     | (b::bs, f) => ~'⌊α⌋(List.foldl (flip LoadFormula.box) (LoadFormula.load b f) bs)
 
-/-- A pair of lists of TNodes: since × before last (M) application, only recording loaded nodes.
-This only tracks "big" steps,  hoping we do not need steps within a local tableau.
-The head of the first list is the newest TNode. -/
-structure LoadHistory : Type := (since : List TNode) (before : List TNode) -- This may not be enough!
+/-- A history is a list of TNodes.
+This only tracks "big" steps, hoping we do not need steps within a local tableau.
+The head of the first list is the newest TNode.
+-/
+def History : Type := List TNode
 
-def LoadHistory.nil : LoadHistory := ⟨[], []⟩
-
-@[simp]
-def newLoadHistory : TNode → LoadHistory
-| X => ⟨[], [X]⟩
-
-@[simp]
-def LoadHistory.add : TNode → LoadHistory → LoadHistory
-| X, ⟨since, before⟩ => ⟨X :: since, before⟩
-
-@[simp]
-def LoadHistory.addAtm : TNode → LoadHistory → LoadHistory
-| X, ⟨since, before⟩ => ⟨[], X :: since ++ before⟩
-
-/-- A repeat with a loaded path to its companion (MB condition 6) -/
-def LoadedPathRepeat (X : TNode) (Hist : LoadHistory) : Type :=
-  Subtype (fun (k, Y) => Hist.before.get? k = some Y ∧ X.setEqTo Y)
+/-- A lpr means we can go `k` steps back in the history to
+reach an equal node, and all nodes on the way are loaded. -/
+def LoadedPathRepeat (Hist : History) (X : TNode) : Type :=
+  Subtype (fun k => (Hist.get k).setEqTo X ∧ ∀ m ≤ k, (Hist.get m).isLoaded)
 
 /-! ## The PDL rules -/
 
 /-- A rule to go from Γ to Δ. Note the four variants of the modal rule. -/
 -- TODO: Think about whether the LoadHistory function works backwards!?
 -- hfun converts the LoadHistory for Γ into that of Δ
-inductive PdlRule : (Γ : TNode) → (Δ : TNode) → (hfun : LoadHistory → LoadHistory) → Type
-  | mrkL : (~⌈α⌉φ) ∈ L → PdlRule (L, R, none)
-                                 (L.erase (~⌈α⌉φ), R, some (Sum.inl (toNegLoad α φ)))
-                                 (fun _ => newLoadHistory (L, R, none))
-  | mrkR : (~⌈α⌉φ) ∈ R → PdlRule (L, R, none)
-                                 (L, R.erase (~⌈α⌉φ), some (Sum.inr (toNegLoad α φ)))
-                                 (fun _ => newLoadHistory (L, R, none))
+inductive PdlRule : (Γ : TNode) → (Δ : TNode) → Type
+  -- The (L+) rule:
+  | loadL : (~⌈α⌉φ) ∈ L → PdlRule (L, R, none)
+                                  (L.erase (~⌈α⌉φ), R, some (Sum.inl (toNegLoad α φ)))
+  | loadR : (~⌈α⌉φ) ∈ R → PdlRule (L, R, none)
+                                  (L, R.erase (~⌈α⌉φ), some (Sum.inr (toNegLoad α φ)))
+  -- The (L-) rule:
+  | freeL : PdlRule (L, R, some (Sum.inl (toNegLoad α φ)))
+                    (L.insert (~⌈α⌉φ), R, none)
+  | freeR : PdlRule (L, R, some (Sum.inr (toNegLoad α φ)))
+                    (L, R.insert (~⌈α⌉φ), none)
+  -- The (M) rule:
   | atmL   {A X χ} : X = ⟨L, R, some (Sum.inl (~'⌊·A⌋(χ : LoadFormula)))⟩ → isBasic X → PdlRule X
                          ⟨projection A L, projection A R, some (Sum.inl (~'χ))⟩
-                         (LoadHistory.addAtm X)
   | atmR   {A X χ} : X = ⟨L, R, some (Sum.inr (~'⌊·A⌋(χ : LoadFormula)))⟩ → isBasic X → PdlRule X
                          ⟨projection A L, projection A R, some (Sum.inr (~'χ))⟩
-                         (LoadHistory.addAtm X)
   | atmL'  {A X φ} : X = ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩ → isBasic X → PdlRule X
                          ⟨(~φ) :: projection A L, projection A R, none⟩
-                         (LoadHistory.addAtm X)
   | atmR'  {A X φ} : X = ⟨L, R, some (Sum.inr (~'⌊·A⌋(φ : Formula)))⟩ → isBasic X → PdlRule X
                          ⟨projection A L, (~φ) :: projection A R, none⟩
-                         (LoadHistory.addAtm X)
 
 -- ClosedTableau [parent, grandparent, ...] child
 --
@@ -96,14 +85,14 @@ inductive PdlRule : (Γ : TNode) → (Δ : TNode) → (hfun : LoadHistory → Lo
 -- - a PDL rule application
 -- - a successful loaded repeat (MB condition six)
 
-inductive ClosedTableau : LoadHistory → TNode → Type
-  | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf lt, ClosedTableau (Hist.add X) Y) → ClosedTableau Hist X
-  | pdl {Δ Γ} : PdlRule Γ Δ hfun → ClosedTableau (hfun Hist) Δ → ClosedTableau Hist Γ
-  | rep {X Hist} (lpr : LoadedPathRepeat X Hist) : ClosedTableau Hist X
+inductive ClosedTableau : History → TNode → Type
+  | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf lt, ClosedTableau (X :: Hist) Y) → ClosedTableau Hist X
+  | pdl {Δ Γ} : PdlRule Γ Δ → ClosedTableau (Γ :: Hist) Δ → ClosedTableau Hist Γ
+  | rep {X Hist} (lpr : LoadedPathRepeat Hist X) : ClosedTableau Hist X
 
 inductive provable : Formula → Prop
-  | byTableauL {φ : Formula} : ClosedTableau ⟨[],[]⟩ ⟨[~φ], [], none⟩ → provable φ
-  | byTableauR {φ : Formula} : ClosedTableau ⟨[],[]⟩ ⟨[], [~φ], none⟩ → provable φ
+  | byTableauL {φ : Formula} : ClosedTableau .nil ⟨[~φ], [], none⟩ → provable φ
+  | byTableauR {φ : Formula} : ClosedTableau .nil ⟨[], [~φ], none⟩ → provable φ
 
 /-- A TNode is inconsistent if there exists a closed tableau for it. -/
 def inconsistent : TNode → Prop

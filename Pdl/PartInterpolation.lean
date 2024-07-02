@@ -57,6 +57,6 @@ def partInterpolation :
     ∀ (L R : List Formula), ¬ satisfiable (L ∪ R) → PartInterpolant (L,R,none) := by
   sorry
 
-def tabToInt {X : TNode} (tab : ClosedTableau LoadHistory.nil X) :
+def tabToInt {X : TNode} (tab : ClosedTableau .nil X) :
     PartInterpolant X := by
   sorry

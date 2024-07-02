@@ -19,9 +19,9 @@ def TNode := List Formula × List Formula × Option (Sum NegLoadFormula NegLoadF
 -- - each (loaded) formula can be on the left/right/both
 -- - we also need to track loading and the side "through" dagger tableau.
 
--- We do not care about the order of the lists.
--- TNodes should be considered equal when their Finset versions are equal.
--- Hint: use List.toFinset.ext_iff with this.
+/-- We do not care about the order of the lists.
+TNodes should be considered equal when their Finset versions are equal.
+Hint: use `List.toFinset.ext_iff` with this. -/
 def TNode.setEqTo : TNode → TNode → Bool
 | (L,R,O), (L',R',O') => L.toFinset == L'.toFinset ∧ R.toFinset == R'.toFinset ∧ O == O'
 

@@ -126,7 +126,7 @@ inductive PathInLocal : ∀ {X}, LocalTableau X → Type
 inductive PathIn : ∀ {H X}, ClosedTableau H X → Type
 | nil : PathIn _
 | loc : (Y_in : Y ∈ endNodesOf lt) → (tail : PathIn (next Y Y_in)) → PathIn (ClosedTableau.loc lt next)
-| pdl : (r : PdlRule Γ Δ hfun) → PathIn (child : ClosedTableau (hfun Hist) Δ) → PathIn (ClosedTableau.pdl r child)
+| pdl : (r : PdlRule Γ Δ) → PathIn (child : ClosedTableau (Γ :: Hist) Δ) → PathIn (ClosedTableau.pdl r child)
 
 def tabAt : PathIn tab → Σ H X, ClosedTableau H X
 | .nil => ⟨_,_,tab⟩
@@ -168,27 +168,30 @@ instance : LT (PathIn tab) := ⟨TC edge⟩
 /-- Enable "≤" notation for transitive closure of ⋖ -/
 instance : LE (PathIn tab) := ⟨Relation.ReflTransGen edge⟩
 
-/-- Sort-of inverse of PathIn.append -/
-def fromTo (s t : PathIn tab) (h : s < t ) : PathIn (tabAt s).2.2 := by
-  simp [LT.lt] at h
+@[simp]
+def PathIn.head {tab : ClosedTableau Hist X} (_ : PathIn tab) : TNode := X
+
+@[simp]
+def PathIn.last (t : PathIn tab) : TNode := (tabAt t).2.1
+
+/-- Convert a path to a list of nodes. The head of the list is the start of the path. -/
+def PathIn.toList {tab : ClosedTableau Hist X} : (t : PathIn tab) → List TNode
+| .nil => []
+| .pdl _ tail => X :: tail.toList
+| .loc _ tail => X :: tail.toList
+
+/-- Converting a path to a list yields the history in reverse.
+Hopefully this is the trick to get the companions! -/
+theorem PathIn.toList_eq_Hist.reverse {tab : ClosedTableau .nil X} (t : PathIn tab) :
+    t.toList = (tabAt t).1.reverse := by
+
+  -- This seems like it will be hard to prove.
+  -- Idea for induction loading:
+  --   Don't insist on .nil, but allow `Hist` and
+  --   assume that for all elements in the history we already have ... ?
+  -- bottom-up or top-down?!
+
   sorry
-  /-
-  -- not working, can only eliminate into Prop
-  exact
-    match h with
-    | TC.base _ _ _ => sorry
-    | TC.trans _ _ _ _ _ => sorry
-  -/
-
-/-! ## Companion, ccEdge, cEdge, etc. -/
-
-def PathIn.head (t : PathIn tab) : TNode := (tabAt t).2.1
-
-def PathIn.last (t : PathIn tab) : TNode :=
-match t with
-  | .nil => t.head
-  | .pdl _ tail => tail.last
-  | .loc _ tail => tail.last
 
 def PathIn.isLoaded (t : PathIn tab) : Prop :=
 match t with
@@ -196,33 +199,57 @@ match t with
   | .pdl _ tail => t.head.isLoaded ∧ tail.isLoaded
   | .loc _ tail => t.head.isLoaded ∧ tail.isLoaded
 
-/-- Given path is loaded, and start and end are the same. -/
-def isLprPath (t : PathIn tab) : Prop := t.head = t.last ∧ t.isLoaded
+/-- A path is critical iff the (M) rule is used on it. -/
+def PathIn.isCritical (t : PathIn tab) : Prop :=
+match t with
+  | .nil => False
+  | .pdl r _ => match r with
+     | .atmL _ _ => True
+     | .atmR _ _ => True
+     | .atmL' _ _ => True
+     | .atmR' _ _ => True
+     | _ => False
+  | .loc _ tail => tail.isCritical
 
--- given tab and path to repeat
--- split path into the path until companion
+/-- A path is a loaded-repeat path iff it is loaded and start and end are the same. -/
+def PathIn.isLpr (t : PathIn tab) : Prop :=
+  t.head = t.last ∧ t.isLoaded
 
--- aka:
--- - from ClosedTableau.rep with LoadedPathRepeat
--- - to isLprPath (which allows us to "go back up")
-theorem findCompanion (t : PathIn tab) :
-  (∃ lpr, (tabAt t).2.2 = ClosedTableau.rep lpr) →
-    ∃ (pc : PathIn tab) (pt : PathIn (tabAt pc).2.2),
-        pc.append pt = t
-      ∧ isLprPath pt := by
-  sorry
 
-def companion {H X} {ctX : ClosedTableau H X} (t s : PathIn ctX) : Prop :=
+-- TOO SPECIFIC, probably not useful
+def PathIn.agreesWith (lpr : LoadedPathRepeat Hist X) (t : PathIn tab) : Prop :=
+  match lpr with
+  | ⟨k, _⟩ => t.toList = (Hist.take k).reverse -- note the reversal!
+
+/-! ## Companion, ccEdge, cEdge, etc. -/
+
+/-- s ♥ t means s has the companion t -/
+def companion {Hist X} {ctX : ClosedTableau Hist X} (s t : PathIn ctX) : Prop :=
   ∃ lpr,
-    (tabAt t).2.2 = ClosedTableau.rep lpr -- t is a loaded-path repeat
+    (tabAt s).2.2 = ClosedTableau.rep lpr -- s is a loaded-path repeat
     ∧
-    s < t -- there is a path from s to t
-    ∧
-    sorry
-    -- TODO: still need to say that LoadHistory from lpr "matches" the Path.
-    -- use isLprPath OR findCompanion for this?
+    ∃ lp, t.append lp = s -- there is a path from t to s
+      ∧ lp.isLpr
+      ∧ lp.agreesWith lpr
 
 notation pa:arg " ♥ " pb:arg => companion pa pb
+
+/-- Every loaded-path repeat has a companion. -/
+-- In the notes this is easy, but in Lean it is a claim.
+-- We go from `ClosedTableau.rep` containing a `LoadedPathRepeat`
+-- to the more powerful `companion` allowing us to "go back up".
+-- NOTE that we need .nil history
+theorem findCompanion {tab : ClosedTableau .nil X} (s : PathIn tab) lpr :
+  (tabAt s).2.2 = ClosedTableau.rep lpr →
+    ∃ (t : PathIn tab), s ♥ t := by
+  intro hyp
+  rcases lpr with ⟨k, comp_eq⟩
+  -- This seems like it will be hard to prove.
+  -- Ideas for induction loading:
+  -- -- assume that for all elements in the history we already have ... ?
+
+  -- more general: find a way to convert History to PathIn ???
+  sorry
 
 /-- Successor relation plus back loops: ◃' (MB: page 26) -/
 def ccEdge {H X} {ctX : ClosedTableau H X} (s t : PathIn ctX) : Prop :=
@@ -330,7 +357,7 @@ all_goals
 /-! ## Soundness -/
 
 theorem loadedDiamondPaths {Root Δ : TNode}
-  (tab : ClosedTableau LoadHistory.nil Root) -- LoadHistory.nil to prevent repeats from "above"
+  (tab : ClosedTableau .nil Root) -- LoadHistory.nil to prevent repeats from "above"
   (path_to_Δ : PathIn tab)
   (h : Δ = nodeAt path_to_Δ)
   {M : KripkeModel W} {v : W}
@@ -353,7 +380,7 @@ theorem loadedDiamondPaths {Root Δ : TNode}
   -- TODO
   all_goals sorry
 
-theorem tableauThenNotSat (tab : ClosedTableau LoadHistory.nil Root) (t : PathIn tab) : ¬satisfiable (nodeAt t) :=
+theorem tableauThenNotSat (tab : ClosedTableau .nil Root) (t : PathIn tab) : ¬satisfiable (nodeAt t) :=
   by
   -- by induction on the well-founded strict partial order ⊏
   apply @WellFounded.induction _ simpler ((eProp tab).2 : _) _ t
