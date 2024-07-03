@@ -9,9 +9,78 @@ import Mathlib.Data.List.Basic
 -- representing trees with repeats / back-pointers.
 
 -- Instead of formulas, here we use Nat.
--- The following type would allows arbitrary trees with Nat entries.
--- inductive Tree
--- | Node : Nat → List Tree → Tree
+
+/-! ### Minimal Binary Tree examples -/
+
+-- The following type allows arbitrary binary trees Nat entries.
+inductive MyTree
+| Leaf : Nat → MyTree
+| Node : Nat → MyTree → MyTree → MyTree
+
+-- But suppose now we only want to allow trees such that for all
+-- `Leaf k` the value `k` has occurred somewhere *above* it.
+--
+-- BAD:
+--   Leaf 4  -- no history at all, not allowed
+--   Node 3 (Leaf 4) (Leaf 3)  -- 3 is fine, but 4 not allowed
+--
+-- NICE:
+--   Node 3 (Leaf 3) (Leaf 3)
+--   Node 3 (Node 2 (Leaf 3) (Leaf 2)) (Leaf 3)
+--   -- here 2 is an immediate repeat, but the 3 is longer ago
+
+def isNiceAfter (ns : List Nat) : (t : MyTree) → Prop
+| MyTree.Leaf k => k ∈ ns
+| MyTree.Node k c1 c2 => isNiceAfter (k :: ns) c1 ∧ isNiceAfter (k :: ns) c2
+
+def isNice : MyTree → Prop := isNiceAfter []
+
+-- So the type I want is then in fact:
+def niceTrees := Subtype isNice
+
+-- But I would like a direct, inductive definition of this.
+-- For this we add the Nat list as a type parameter:
+
+inductive NiceTree : List Nat → Type
+| Node : (k : Nat) → NiceTree (k :: N) → NiceTree (k :: N) → NiceTree N
+| Leaf : (k : Nat) → k ∈ N → NiceTree N
+
+notation "lf " k => NiceTree.Leaf k (by simp)
+
+-- NICE examples:
+example : NiceTree [] := .Node 3 (lf 3) (lf 3)
+example : NiceTree [] := .Node 3 (.Node 2 (lf 3) (lf 2)) (lf 3)
+
+-- BAD examples:
+example : NiceTree [] := NiceTree.Leaf 4 (sorry : 4 ∈ []) -- impossible, as we want it to be
+example : NiceTree [] := .Node 3 (.Leaf 4 sorry) (lf 3)  --  also impossible
+
+-- So this works, but I am wondering if there is a better way.
+-- Especially, because saying and proving things like the following seems hard/impossible:
+
+-- "Whenever we have a leaf, there must be a node above it with the same value."
+-- How do I even say this theorem in Lean?
+
+theorem find_predecessor_of_leaf :
+    (h : t = NiceTree.Leaf k k_in_N)
+      → ∃ s : NiceTree [], sorry -- here I want to say "s is above"
+    :=
+  sorry
+
+-- In general, once I am given a thing like `NiceTree.Leaf k k_in_N` then
+-- too much information is lost, and it seems very tricky to "jump back up"
+-- and get the whole tree again.
+
+-- Saying "s is above t" is possible, for that I have a definition of
+-- Paths, somewhat like this
+inductive PathIn : NiceTree H → Type
+| nil : PathIn ht
+| goLeft (c1 c2 : NiceTree (k :: rest)) (tail : PathIn c1) : PathIn (NiceTree.Node k c1 c2)
+| goRight (c1 c2 : NiceTree (k :: rest)) (tail : PathIn c2) : PathIn (NiceTree.Node k c1 c2)
+
+
+
+/-! ### OLDER, more complicated toy example with rules -/
 
 -- But suppose we only want trees formed using these three rules:
 --
@@ -104,9 +173,9 @@ def PathIn.dropAtEnd (p : PathIn ht) (k : Nat) (h : k ≤ p.length) : PathIn ht 
         have newRest := rest.dropAtEnd k (by simp [PathIn.length] at *; omega)
         exact cons m m_in s next newRest
 
-#eval blaPath.length
+-- #eval blaPath.length
 
-#eval (blaPath.dropAtEnd 1 (by simp [PathIn.length])).toSteps
+-- #eval (blaPath.dropAtEnd 1 (by simp [PathIn.length])).toSteps
 
 theorem PathIn.length_eq_toListLength H n (ht : HisTree H n) (p : PathIn ht):
   p.length = p.toList.length := by
