@@ -2,6 +2,7 @@
 
 import Pdl.Tableau
 
+import Mathlib.Logic.Relation
 import Mathlib.Tactic.Ring
 
 open Classical
@@ -159,11 +160,11 @@ def children (p : PathIn tab) : List (PathIn tab) := (children' p).map (PathIn.a
 def edge {H X} {ctX : ClosedTableau H X} (s : PathIn ctX) (t : PathIn ctX) : Prop :=
   t ∈ children s
 
-/-- Notation ◃ (even thought it is ⋖ in notes) for `edge` -/
+/-- Notation ◃ for `edge` (because ⋖ in notes is taken in Mathlib). -/
 notation s:arg " ◃ " t:arg => edge s t
 
 /-- Enable "<" notation for transitive closure of ⋖ -/
-instance : LT (PathIn tab) := ⟨TC edge⟩
+instance : LT (PathIn tab) := ⟨Relation.TransGen edge⟩
 
 /-- Enable "≤" notation for transitive closure of ⋖ -/
 instance : LE (PathIn tab) := ⟨Relation.ReflTransGen edge⟩
@@ -176,7 +177,7 @@ def PathIn.last (t : PathIn tab) : TNode := (tabAt t).2.1
 
 /-- Convert a path to a list of nodes. The head of the list is the start of the path. -/
 def PathIn.toList {tab : ClosedTableau Hist X} : (t : PathIn tab) → List TNode
-| .nil => []
+| .nil => [] -- THINK ABOUT: should X be in here too?
 | .pdl _ tail => X :: tail.toList
 | .loc _ tail => X :: tail.toList
 
@@ -184,14 +185,14 @@ def PathIn.toList {tab : ClosedTableau Hist X} : (t : PathIn tab) → List TNode
 def PathIn.length (t : PathIn tab) : ℕ := (t.toList).length
 
 /-- A path gives the same list of nodes as the history of its last node, reversed. -/
-theorem PathIn.toList_eq_Hist.reverse {tab : ClosedTableau Hist X} (t : PathIn tab) :
+theorem PathIn.toList_eq_Hist {tab : ClosedTableau Hist X} (t : PathIn tab) :
     t.toList.reverse ++ Hist = (tabAt t).1 := by
   induction tab
   all_goals
     cases t <;> simp_all [tabAt, PathIn.toList]
 
 theorem PathIn.root_length_eq_Hist.length (tab : ClosedTableau .nil X) (s : PathIn tab) : (tabAt s).fst.length = s.toList.length := by
-  have := PathIn.toList_eq_Hist.reverse s
+  have := PathIn.toList_eq_Hist s
   rw [← this]
   simp
 
@@ -216,17 +217,48 @@ match t with
 /-- Prefix of a path, going back `k` steps. -/
 -- If k=0, no more steps
 -- If k=j+1, make one step and recurse
+-- Note that this cannot go into Hist.
 def PathIn.prefix : (t : PathIn tab) → (k : Fin (t.toList.length)) → PathIn tab
-| .nil, k => .nil
+| .nil, _ => .nil
 | .pdl r tail, k =>
     Fin.cases (PathIn.pdl r tail) (fun j => PathIn.pdl r (tail.prefix j)) k
 | .loc Y_in tail, k =>
     Fin.cases (PathIn.loc Y_in tail) (fun j => PathIn.loc Y_in (tail.prefix j)) k
 
-theorem PathIn.toList_prefix_toList (t : PathIn tab) (k : Fin (t.toList.length)) :
-    (t.prefix k).toList = (t.toList).take k := by
-  sorry
+-- how to even state this, 0 does not match type?
+-- theorem PathIn.prefix_zero_eq (t : PathIn tab) : t.prefix 0 = 0 := by
 
+theorem PathIn.prefix_toList_eq_toList {tab : ClosedTableau Hist X} (t : PathIn tab) (k : Fin (t.toList.length)) :
+    (t.prefix k).toList = (t.toList).take k := by
+  induction tab
+  case loc rest Y lt next IH =>
+    cases t
+    case nil =>
+      simp only [PathIn.toList, List.length_nil, List.take_nil]
+    case loc Z Z_in tail =>
+      simp only [PathIn.prefix, PathIn.toList, List.length_cons, Nat.succ_eq_add_one]
+      specialize IH Z Z_in tail
+      sorry
+  case pdl =>
+    cases t
+    case nil =>
+      simp_all [tabAt, PathIn.toList, PathIn.prefix]
+    case pdl rest Y Z r tab IH tail =>
+      let j : Fin tail.toList.length := k.pred (by
+        unfold PathIn.toList at k
+        simp at k
+        -- but now I have a new k unrelated to the k in the goal?!
+        sorry
+        )
+      specialize IH tail j
+      unfold_let j at IH
+      simp_all only [PathIn.prefix, PathIn.toList, List.length_cons, Nat.succ_eq_add_one]
+      sorry
+  case rep =>
+    cases t
+    simp_all [tabAt, PathIn.toList, PathIn.prefix]
+
+-- theorem idea : k + j = length → prefix k). append (suffix j) = same ...
 
 /-! ## Companion, ccEdge, cEdge, etc. -/
 
@@ -264,7 +296,7 @@ example : pa ⋖ᶜ pb ↔ (pa ◃ pb) ∨ pa ♥ pb := by
 /-! ## ≡_E and Clusters -/
 
 -- TODO: how to define the equivalence relation given by E:
--- Use EqvGen from Mathlib or maually as "both ways TC related"?
+-- Use `EqvGen` from Mathlib or manual "both ways Relation.ReflTransGen"?
 
 -- manual
 def cEquiv {X} {tab : ClosedTableau .nil X} (pa pb : PathIn tab) : Prop :=
@@ -283,7 +315,7 @@ def clusterOf_alternative {tab : ClosedTableau .nil X} (p : PathIn tab) :=
   Quot.mk E_equiv_alternative p
 
 def simpler {X} {tab : ClosedTableau .nil X}
-  (s t : PathIn tab) : Prop := TC cEdge t s ∧ ¬ TC cEdge s t
+  (s t : PathIn tab) : Prop := Relation.TransGen cEdge t s ∧ ¬ Relation.TransGen cEdge s t
 
 notation t:arg " ⊏_c " s:arg => simpler t s
 
@@ -323,12 +355,23 @@ all_goals
   simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion]
 -- (a)
 · intro t_childOf_s
-  have : TC cEdge s t := by
-    -- may need to go via repeat?
-    sorry
-  cases Classical.em (TC cEdge t s) <;> simp_all
-  ·
-    sorry
+  have s_cEdge_t : TC cEdge s t := by
+    apply TC.base
+    simp_all [cEdge]
+    left
+    assumption
+  if Relation.TransGen cEdge t s
+  then
+    right
+    constructor
+    · apply Relation.TransGen.to_reflTransGen
+      assumption
+    · apply Relation.ReflTransGen.single
+      simp [cEdge]
+      left
+      exact t_childOf_s
+  else
+    tauto
 -- (b)
 ·
   sorry
