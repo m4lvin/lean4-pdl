@@ -45,7 +45,7 @@ def toNegLoad (α : Program) (φ : Formula) : NegLoadFormula :=
 This only tracks "big" steps, hoping we do not need steps within a local tableau.
 The head of the first list is the newest TNode.
 -/
-def History : Type := List TNode
+abbrev History : Type := List TNode
 
 /-- A lpr means we can go `k` steps back in the history to
 reach an equal node, and all nodes on the way are loaded. -/

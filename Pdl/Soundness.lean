@@ -180,18 +180,20 @@ def PathIn.toList {tab : ClosedTableau Hist X} : (t : PathIn tab) → List TNode
 | .pdl _ tail => X :: tail.toList
 | .loc _ tail => X :: tail.toList
 
-/-- Converting a path to a list yields the history in reverse.
-Hopefully this is the trick to get the companions! -/
-theorem PathIn.toList_eq_Hist.reverse {tab : ClosedTableau .nil X} (t : PathIn tab) :
-    t.toList = (tabAt t).1.reverse := by
+@[simp]
+def PathIn.length (t : PathIn tab) : ℕ := (t.toList).length
 
-  -- This seems like it will be hard to prove.
-  -- Idea for induction loading:
-  --   Don't insist on .nil, but allow `Hist` and
-  --   assume that for all elements in the history we already have ... ?
-  -- bottom-up or top-down?!
+/-- A path gives the same list of nodes as the history of its last node, reversed. -/
+theorem PathIn.toList_eq_Hist.reverse {tab : ClosedTableau Hist X} (t : PathIn tab) :
+    t.toList.reverse ++ Hist = (tabAt t).1 := by
+  induction tab
+  all_goals
+    cases t <;> simp_all [tabAt, PathIn.toList]
 
-  sorry
+theorem PathIn.root_length_eq_Hist.length (tab : ClosedTableau .nil X) (s : PathIn tab) : (tabAt s).fst.length = s.toList.length := by
+  have := PathIn.toList_eq_Hist.reverse s
+  rw [← this]
+  simp
 
 def PathIn.isLoaded (t : PathIn tab) : Prop :=
 match t with
@@ -211,48 +213,37 @@ match t with
      | _ => False
   | .loc _ tail => tail.isCritical
 
-/-- A path is a loaded-repeat path iff it is loaded and start and end are the same. -/
-def PathIn.isLpr (t : PathIn tab) : Prop :=
-  t.head = t.last ∧ t.isLoaded
+/-- Prefix of a path, going back `k` steps. -/
+-- If k=0, no more steps
+-- If k=j+1, make one step and recurse
+def PathIn.prefix : (t : PathIn tab) → (k : Fin (t.toList.length)) → PathIn tab
+| .nil, k => .nil
+| .pdl r tail, k =>
+    Fin.cases (PathIn.pdl r tail) (fun j => PathIn.pdl r (tail.prefix j)) k
+| .loc Y_in tail, k =>
+    Fin.cases (PathIn.loc Y_in tail) (fun j => PathIn.loc Y_in (tail.prefix j)) k
 
+theorem PathIn.toList_prefix_toList (t : PathIn tab) (k : Fin (t.toList.length)) :
+    (t.prefix k).toList = (t.toList).take k := by
+  sorry
 
--- TOO SPECIFIC, probably not useful
-def PathIn.agreesWith (lpr : LoadedPathRepeat Hist X) (t : PathIn tab) : Prop :=
-  match lpr with
-  | ⟨k, _⟩ => t.toList = (Hist.take k).reverse -- note the reversal!
 
 /-! ## Companion, ccEdge, cEdge, etc. -/
 
-/-- s ♥ t means s has the companion t -/
-def companion {Hist X} {ctX : ClosedTableau Hist X} (s t : PathIn ctX) : Prop :=
-  ∃ lpr,
-    (tabAt s).2.2 = ClosedTableau.rep lpr -- s is a loaded-path repeat
-    ∧
-    ∃ lp, t.append lp = s -- there is a path from t to s
-      ∧ lp.isLpr
-      ∧ lp.agreesWith lpr
+/-- To get the companion of an LPR node we go as many steps back as the LPR says. -/
+def companionOf {X} {tab : ClosedTableau .nil X} (s : PathIn tab) lpr
+ (_ : (tabAt s).2.2 = ClosedTableau.rep lpr) : PathIn tab :=
+  s.prefix (PathIn.root_length_eq_Hist.length tab s ▸ lpr.val)
+
+/-- s ♥ t means s is a LPR and its companion is t -/
+def companion {X} {tab : ClosedTableau .nil X} (s t : PathIn tab) : Prop :=
+  ∃ (lpr : _) (h : (tabAt s).2.2 = ClosedTableau.rep lpr),
+      t = companionOf s lpr h
 
 notation pa:arg " ♥ " pb:arg => companion pa pb
 
-/-- Every loaded-path repeat has a companion. -/
--- In the notes this is easy, but in Lean it is a claim.
--- We go from `ClosedTableau.rep` containing a `LoadedPathRepeat`
--- to the more powerful `companion` allowing us to "go back up".
--- NOTE that we need .nil history
-theorem findCompanion {tab : ClosedTableau .nil X} (s : PathIn tab) lpr :
-  (tabAt s).2.2 = ClosedTableau.rep lpr →
-    ∃ (t : PathIn tab), s ♥ t := by
-  intro hyp
-  rcases lpr with ⟨k, comp_eq⟩
-  -- This seems like it will be hard to prove.
-  -- Ideas for induction loading:
-  -- -- assume that for all elements in the history we already have ... ?
-
-  -- more general: find a way to convert History to PathIn ???
-  sorry
-
 /-- Successor relation plus back loops: ◃' (MB: page 26) -/
-def ccEdge {H X} {ctX : ClosedTableau H X} (s t : PathIn ctX) : Prop :=
+def ccEdge {X} {ctX : ClosedTableau .nil X} (s t : PathIn ctX) : Prop :=
   s ◃ t  ∨  ∃ u, s ♥ u ∧ u ◃ t
 
 notation pa:arg " ⋖ᶜᶜ " pb:arg => ccEdge pa pb
@@ -261,7 +252,7 @@ notation pa:arg " ⋖ᶜᶜ " pb:arg => ccEdge pa pb
 example : pa ⋖ᶜᶜ pb ↔ (pa ◃ pb) ∨ ∃ pc, pa ♥ pc ∧ pc ◃ pb := by
   simp_all [ccEdge]
 
-def cEdge {Hist X} {ctX : ClosedTableau Hist X} (t s : PathIn ctX) : Prop :=
+def cEdge {X} {ctX : ClosedTableau .nil X} (t s : PathIn ctX) : Prop :=
   (t ◃ s) ∨ t ♥ s
 
 notation pa:arg " ⋖ᶜ " pb:arg => cEdge pa pb
@@ -276,30 +267,30 @@ example : pa ⋖ᶜ pb ↔ (pa ◃ pb) ∨ pa ♥ pb := by
 -- Use EqvGen from Mathlib or maually as "both ways TC related"?
 
 -- manual
-def cEquiv {Hist X} {tab : ClosedTableau Hist X} (pa pb : PathIn tab) : Prop :=
+def cEquiv {X} {tab : ClosedTableau .nil X} (pa pb : PathIn tab) : Prop :=
     Relation.ReflTransGen cEdge pa pb
   ∧ Relation.ReflTransGen cEdge pb pa
 
 notation t:arg " ≡_E " s:arg => cEquiv t s
 
-def clusterOf {tab : ClosedTableau Hist X} (p : PathIn tab) := Quot.mk cEquiv p
+def clusterOf {tab : ClosedTableau .nil X} (p : PathIn tab) := Quot.mk cEquiv p
 
 -- better?
-def E_equiv_alternative {tab : ClosedTableau Hist X} (pa pb : PathIn tab) : Prop :=
+def E_equiv_alternative {tab : ClosedTableau .nil X} (pa pb : PathIn tab) : Prop :=
   EqvGen cEdge pa pb
 
-def clusterOf_alternative {tab : ClosedTableau Hist X} (p : PathIn tab) :=
+def clusterOf_alternative {tab : ClosedTableau .nil X} (p : PathIn tab) :=
   Quot.mk E_equiv_alternative p
 
-def simpler {Hist X} {tab : ClosedTableau Hist X}
+def simpler {X} {tab : ClosedTableau .nil X}
   (s t : PathIn tab) : Prop := TC cEdge t s ∧ ¬ TC cEdge s t
 
 notation t:arg " ⊏_c " s:arg => simpler t s
 
-theorem eProp (tab : ClosedTableau Hist X) :
-    Equivalence (@cEquiv _ _ tab)
+theorem eProp (tab : ClosedTableau .nil X) :
+    Equivalence (@cEquiv _ tab)
     ∧
-    WellFounded (@simpler _ _ tab) := by
+    WellFounded (@simpler _ tab) := by
   constructor
   · constructor
     · intro _
@@ -315,11 +306,11 @@ theorem eProp (tab : ClosedTableau Hist X) :
             , Relation.ReflTransGen.trans t_u u_s ⟩
   · constructor
     intro s
-    -- need to show `Acc` - inductino on path s maybe?
+    -- need to show `Acc` - induction on path `s` maybe?
     unfold simpler
     sorry
 
-theorem eProp2 (tab : ClosedTableau Hist X) (s u t : PathIn tab) :
+theorem eProp2 (tab : ClosedTableau .nil X) (s u t : PathIn tab) :
       (s ◃ t → (t ⊏_c s) ∨ (t ≡_E s)) -- (a)
     ∧ (s ♥ t → t ≡_E s) -- (b)
     ∧ ((nodeAt s).isFree → edge s t → t ⊏_c s) -- (c)
