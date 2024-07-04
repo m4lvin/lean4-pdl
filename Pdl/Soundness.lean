@@ -175,24 +175,37 @@ def PathIn.head {tab : ClosedTableau Hist X} (_ : PathIn tab) : TNode := X
 @[simp]
 def PathIn.last (t : PathIn tab) : TNode := (tabAt t).2.1
 
-/-- Convert a path to a list of nodes. The head of the list is the start of the path. -/
+/-- Convert a path to a History. Does not include the last node. -/
+def PathIn.toHistory {tab : ClosedTableau Hist X} : (t : PathIn tab) → History
+| .nil => []
+| .pdl _ tail => tail.toHistory ++ [X]
+| .loc _ tail => tail.toHistory ++ [X]
+
+/-- Convert a path to a list of nodes. Reverse of the history and does include the last node. -/
 def PathIn.toList {tab : ClosedTableau Hist X} : (t : PathIn tab) → List TNode
-| .nil => [] -- THINK ABOUT: should X be in here too?
+| .nil => [X]
 | .pdl _ tail => X :: tail.toList
 | .loc _ tail => X :: tail.toList
 
+/-- The length of a path is the number of actual steps. -/
 @[simp]
-def PathIn.length (t : PathIn tab) : ℕ := (t.toList).length
+def PathIn.length : (t : PathIn tab) → ℕ
+| .nil => 0
+| .pdl _ tail => tail.length + 1
+| .loc _ tail => tail.length + 1
+
+-- TODO:  length = history length
 
 /-- A path gives the same list of nodes as the history of its last node, reversed. -/
-theorem PathIn.toList_eq_Hist {tab : ClosedTableau Hist X} (t : PathIn tab) :
-    t.toList.reverse ++ Hist = (tabAt t).1 := by
+theorem PathIn.toHistory_eq_Hist {tab : ClosedTableau Hist X} (t : PathIn tab) :
+    t.toHistory ++ Hist = (tabAt t).1 := by
   induction tab
   all_goals
-    cases t <;> simp_all [tabAt, PathIn.toList]
+    cases t <;> simp_all [tabAt, PathIn.toHistory]
 
-theorem PathIn.root_length_eq_Hist.length (tab : ClosedTableau .nil X) (s : PathIn tab) : (tabAt s).fst.length = s.toList.length := by
-  have := PathIn.toList_eq_Hist s
+theorem PathIn.root_length_eq_Hist.length (tab : ClosedTableau .nil X) (s : PathIn tab) :
+    (tabAt s).fst.length = s.toHistory.length := by
+  have := PathIn.toHistory_eq_Hist s
   rw [← this]
   simp
 
@@ -214,58 +227,49 @@ match t with
      | _ => False
   | .loc _ tail => tail.isCritical
 
-/-- Prefix of a path, going back `k` steps. -/
--- If k=0, no more steps
--- If k=j+1, make one step and recurse
--- Note that this cannot go into Hist.
-def PathIn.prefix : (t : PathIn tab) → (k : Fin (t.toList.length)) → PathIn tab
+/-- Prefix of a path, taking only the first `k` steps. -/
+def PathIn.prefix {tab : ClosedTableau Hist X} : (t : PathIn tab) → (k : Fin (t.length + 1)) → PathIn tab
 | .nil, _ => .nil
-| .pdl r tail, k =>
-    Fin.cases (PathIn.pdl r tail) (fun j => PathIn.pdl r (tail.prefix j)) k
-| .loc Y_in tail, k =>
-    Fin.cases (PathIn.loc Y_in tail) (fun j => PathIn.loc Y_in (tail.prefix j)) k
+| .pdl r tail, k => Fin.cases (.nil) (fun j => .pdl r (tail.prefix j)) k
+| .loc Y_in tail, k => Fin.cases (.nil) (fun j => .loc Y_in (tail.prefix j)) k
 
--- how to even state this, 0 does not match type?
--- theorem PathIn.prefix_zero_eq (t : PathIn tab) : t.prefix 0 = 0 := by
-
-theorem PathIn.prefix_toList_eq_toList {tab : ClosedTableau Hist X} (t : PathIn tab) (k : Fin (t.toList.length)) :
-    (t.prefix k).toList = (t.toList).take k := by
+/-- The list of a prefix of a path is the same as the prefix of the list of the path. -/
+theorem PathIn.prefix_toList_eq_toList_take {tab : ClosedTableau Hist X} (t : PathIn tab) (k : Fin (t.length + 1)) :
+    (t.prefix k).toList = (t.toList).take (k + 1) := by
   induction tab
   case loc rest Y lt next IH =>
     cases t
     case nil =>
-      simp only [PathIn.toList, List.length_nil, List.take_nil]
+      simp [PathIn.toList, PathIn.prefix]
     case loc Z Z_in tail =>
-      simp only [PathIn.prefix, PathIn.toList, List.length_cons, Nat.succ_eq_add_one]
-      specialize IH Z Z_in tail
-      sorry
+      simp [PathIn.toList, PathIn.prefix]
+      induction k using Fin.inductionOn <;> simp_all [PathIn.toList, PathIn.prefix]
   case pdl =>
     cases t
     case nil =>
-      simp_all [tabAt, PathIn.toList, PathIn.prefix]
+      simp_all [PathIn.toList, PathIn.prefix]
     case pdl rest Y Z r tab IH tail =>
-      let j : Fin tail.toList.length := k.pred (by
-        unfold PathIn.toList at k
-        simp at k
-        -- but now I have a new k unrelated to the k in the goal?!
-        sorry
-        )
-      specialize IH tail j
-      unfold_let j at IH
-      simp_all only [PathIn.prefix, PathIn.toList, List.length_cons, Nat.succ_eq_add_one]
-      sorry
+      simp [PathIn.toList, PathIn.prefix]
+      induction k using Fin.inductionOn <;> simp_all [PathIn.toList, PathIn.prefix]
   case rep =>
     cases t
-    simp_all [tabAt, PathIn.toList, PathIn.prefix]
+    simp_all [PathIn.toList, PathIn.prefix]
 
 -- theorem idea : k + j = length → prefix k). append (suffix j) = same ...
+
+/-- Rewinding a path, removing the last `k` steps. Cannot go into Hist.
+Used to go to the companion of a repeat. -/
+def PathIn.rewind : (t : PathIn tab) → (k : Fin (t.toHistory.length)) → PathIn tab
+| .nil, _ => .nil
+| .loc Y_in tail, k => Fin.cases (PathIn.loc Y_in tail) (PathIn.loc Y_in ∘ tail.rewind) k
+| .pdl r tail, k => Fin.cases (PathIn.pdl r tail) (PathIn.pdl r ∘ tail.rewind) k
 
 /-! ## Companion, ccEdge, cEdge, etc. -/
 
 /-- To get the companion of an LPR node we go as many steps back as the LPR says. -/
 def companionOf {X} {tab : ClosedTableau .nil X} (s : PathIn tab) lpr
  (_ : (tabAt s).2.2 = ClosedTableau.rep lpr) : PathIn tab :=
-  s.prefix (PathIn.root_length_eq_Hist.length tab s ▸ lpr.val)
+  s.rewind (PathIn.root_length_eq_Hist.length tab s ▸ lpr.val)
 
 /-- s ♥ t means s is a LPR and its companion is t -/
 def companion {X} {tab : ClosedTableau .nil X} (s t : PathIn tab) : Prop :=
