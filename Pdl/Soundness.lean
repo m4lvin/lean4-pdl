@@ -377,25 +377,34 @@ all_goals
   else
     tauto
 -- (b)
-·
-  sorry
+· intro lpr hyp t_def
+  constructor
+  · sorry
+  · sorry
 -- (c)
-·
-  sorry
+· intro s_free t_childOf_s
+  constructor
+  · sorry
+  · sorry
 -- (d)
-·
-  sorry
+· intro s_loaded t_free t_childOf_s
+  constructor
+  · sorry
+  · sorry
 -- (e)
-·
-  sorry
+· intro u_t not_t_u s_u not_u_s
+  constructor
+  · sorry
+  · sorry
 -- (f)
-·
+· intro hyp -- TODO: rintro
   sorry
 
 /-! ## Soundness -/
 
+-- TODO: adjust/update statement to what is in the Notes!
 theorem loadedDiamondPaths {Root Δ : TNode}
-  (tab : ClosedTableau .nil Root) -- LoadHistory.nil to prevent repeats from "above"
+  (tab : ClosedTableau .nil Root) -- .nil to prevent repeats from "above"
   (path_to_Δ : PathIn tab)
   (h : Δ = nodeAt path_to_Δ)
   {M : KripkeModel W} {v : W}
