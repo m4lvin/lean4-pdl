@@ -794,7 +794,7 @@ theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α
 
 def F : (α : Program) → (ℓ : TP α) → List Formula
 | ·_ , _ => ∅
-| ?'τ, ℓ => if ℓ ⟨τ, by simp [testsOfProgram]⟩ then ∅ else [~ τ]
+| ?'τ, ℓ => if ℓ ⟨τ, by simp [testsOfProgram]⟩ then [τ] else [~τ]
 | α⋓β, ℓ => F α ℓ ∪ F β ℓ
 | α;'β, ℓ => F α ℓ ∪ F β ℓ
 | ∗α, ℓ => F α ℓ
@@ -814,8 +814,9 @@ def Xset (α : Program) (ℓ : TP α) (ψ : Formula) : List Formula :=
 def unfoldBox (α : Program) (φ : Formula) : List (List Formula) :=
   (allTP α).map (fun ℓ => Xset α ℓ φ)
 
-theorem F_mem_iff_neg α (ℓ : TP α) φ : φ ∈ F α ℓ ↔ ∃ τ, ∃ (h : τ ∈ testsOfProgram α), φ = (~τ) ∧ ℓ ⟨τ,h⟩ = false := by
-  simp
+theorem F_mem_iff_neg α (ℓ : TP α) φ :
+    φ ∈ F α ℓ ↔ ∃ τ, ∃ (h : τ ∈ testsOfProgram α), φ = (~τ) ∧ ℓ ⟨τ,h⟩ = false ∨ φ = τ ∧ ℓ ⟨τ,h⟩ = true := by
+
   cases α
   all_goals
     simp_all [testsOfProgram, F]
@@ -1050,16 +1051,20 @@ theorem boxHelperTermination γ (ℓ : TP γ) ψ :
   · sorry
 
 theorem boxHelperTP α (ℓ : TP α) :
-    (∀ τ, (~τ.val) ∈ F α ℓ → ℓ τ = false)
-  ∧ (Con (F α ℓ) ⋀ signature α ℓ ≡ signature α ℓ)
-  ∧ ∀ ψ, (Con (Xset α ℓ ψ) ⋀ signature α ℓ ≡ Con ((P α ℓ).map (fun αs => ⌈⌈αs⌉⌉ψ)) ⋀ signature α ℓ )
+ --    (∀ τ, (~τ.val) ∈ F α ℓ → (ℓ τ = false ∨ ℓ (~τ) = true)) -- removed.
+    (Con (F α ℓ) ≡ signature α ℓ)
+  ∧ ∀ ψ, (Con (Xset α ℓ ψ) ≡ Con ((P α ℓ).map (fun αs => ⌈⌈αs⌉⌉ψ)) ⋀ signature α ℓ )
     := by
-  refine ⟨?_, ?_, ?_⟩
+  refine ⟨?_, ?_⟩
+  /-
   · intro τ τ_in
     have := F_mem_iff_neg α ℓ (~τ)
     aesop
+    -/
   · intro W M w
     simp [conEval, signature, F]
+    sorry
+    /-
     intro w_ℓ
     intro φ φ_in
     have := F_mem_iff_neg α ℓ φ
@@ -1068,12 +1073,14 @@ theorem boxHelperTP α (ℓ : TP α) :
     rcases φ_in with ⟨τ, τ_in, φ_def, not_ℓ_τ⟩
     specialize w_ℓ φ τ
     aesop
+    -/
   · intro ψ
     intro W M w
     simp [conEval, Xset]
-    intro w_sign
+    sorry
+    /-
     constructor
-    · intro lhs δ δ_in
+    · intro lhs
       aesop
     · rintro rhs φ (φ_in_F | ⟨δ,δ_in,def_φ⟩)
       · rw [F_mem_iff_neg α ℓ φ] at φ_in_F
@@ -1083,6 +1090,7 @@ theorem boxHelperTP α (ℓ : TP α) :
         specialize w_sign (~τ) τ
         aesop
       · aesop
+    -/
 
 theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
     (x_notin_beta : Sum.inl x ∉ HasVocabulary.voc β)
