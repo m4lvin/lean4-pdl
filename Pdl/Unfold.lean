@@ -714,79 +714,6 @@ theorem allTP_mem (ℓ : TP α) : ℓ ∈ allTP α := by
   use (testsOfProgram α).filter (fun τ ↦ ∃ h : τ ∈ testsOfProgram α, ℓ ⟨τ, h⟩)
   simp (config := {contextual := true}) [TP, List.mem_filter, Function.funext_iff]
 
-/-- σ^ℓ -/
-def signature (α : Program) (ℓ : TP α) : Formula :=
-  Con $ (testsOfProgram α).attach.map (fun τ => if ℓ τ then τ.val else ~τ.val)
-
-theorem signature_iff {W} {M : KripkeModel W} {w : W} :
-    evaluate M w (signature α ℓ) ↔ ∀ τ ∈ (testsOfProgram α).attach, ℓ τ ↔ evaluate M w τ.val := by
-  simp [signature, conEval]
-  constructor
-  · intro w_ℓ
-    intro τ τ_in
-    cases em (ℓ ⟨τ, τ_in⟩)
-    · specialize w_ℓ τ τ τ_in
-      aesop
-    · specialize w_ℓ (~τ) τ τ_in
-      aesop
-  · aesop
-
--- Now come the three facts about test profiles and signatures.
-
--- unused
-theorem top_equiv_disj_TP {L} : ∀ α, L = testsOfProgram α → tautology (dis ((allTP α).map (signature α))) := by
-  intro α
-  intro L_def
-  intro W M w
-  rw [disEval]
-  induction L generalizing α -- probably bad idea, try `cases α` at start instead?
-  case nil =>
-    simp [TP,signature,allTP]
-    rw [← L_def]
-    simp
-  case cons τ L IH =>
-    simp [TP,signature,allTP,conEval] at *
-    rw [← L_def]
-    cases em (evaluate M w τ)
-    · sorry
-    · sorry
-
--- unused?
-theorem signature_conbot_iff_neq : contradiction (signature α ℓ ⋀ signature α ℓ') ↔  ℓ ≠ ℓ' := by
-  simp only [ne_eq]
-  rw [TP_eq_iff]
-  constructor
-  · intro contrasign
-    simp_all [TP, contradiction, signature_iff]
-    -- QUESTION: do we need to choose a model here? How to do it?
-    -- specialize contrasign Bool sorry false -- ??
-    sorry
-  · intro ldiff
-    intro W M w
-    simp_all only [List.mem_attach, forall_true_left, Subtype.forall, not_forall, evaluate, not_and]
-    rcases ldiff with ⟨τ, τ_in, disagree⟩
-    simp_all [signature, conEval]
-    intro ℓ_conform
-    cases em (ℓ ⟨τ,τ_in⟩)
-    · specialize ℓ_conform τ τ τ_in
-      simp_all only [ite_true, forall_true_left]
-      use (~τ)
-      constructor
-      · use τ, τ_in
-        simp_all
-      · simp
-        assumption
-    · specialize ℓ_conform (~τ) τ τ_in
-      simp_all only [Bool.not_eq_true, ite_false, evaluate, forall_true_left]
-      use τ
-      constructor
-      · use τ, τ_in
-        simp_all
-      · assumption
-
--- unused?
-theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α ℓ ≡ ψ ⋀ signature α ℓ := by
-  sorry
 
 -- ### Boxes: F, P, X and the Φ_□ set
 
@@ -815,8 +742,7 @@ def unfoldBox (α : Program) (φ : Formula) : List (List Formula) :=
   (allTP α).map (fun ℓ => Xset α ℓ φ)
 
 theorem F_mem_iff_neg α (ℓ : TP α) φ :
-    φ ∈ F α ℓ ↔ ∃ τ, ∃ (h : τ ∈ testsOfProgram α), φ = (~τ) ∧ ℓ ⟨τ,h⟩ = false ∨ φ = τ ∧ ℓ ⟨τ,h⟩ = true := by
-
+    φ ∈ F α ℓ ↔ ∃ τ, ∃ (h : τ ∈ testsOfProgram α), (φ = (~τ) ∧ ¬ ℓ ⟨τ,h⟩) ∨ (φ = τ ∧ ℓ ⟨τ,h⟩) := by
   cases α
   all_goals
     simp_all [testsOfProgram, F]
@@ -1050,48 +976,6 @@ theorem boxHelperTermination γ (ℓ : TP γ) ψ :
   · sorry
   · sorry
 
-theorem boxHelperTP α (ℓ : TP α) :
- --    (∀ τ, (~τ.val) ∈ F α ℓ → (ℓ τ = false ∨ ℓ (~τ) = true)) -- removed.
-    (Con (F α ℓ) ≡ signature α ℓ)
-  ∧ ∀ ψ, (Con (Xset α ℓ ψ) ≡ Con ((P α ℓ).map (fun αs => ⌈⌈αs⌉⌉ψ)) ⋀ signature α ℓ )
-    := by
-  refine ⟨?_, ?_⟩
-  /-
-  · intro τ τ_in
-    have := F_mem_iff_neg α ℓ (~τ)
-    aesop
-    -/
-  · intro W M w
-    simp [conEval, signature, F]
-    sorry
-    /-
-    intro w_ℓ
-    intro φ φ_in
-    have := F_mem_iff_neg α ℓ φ
-    rw [this] at φ_in
-    clear this
-    rcases φ_in with ⟨τ, τ_in, φ_def, not_ℓ_τ⟩
-    specialize w_ℓ φ τ
-    aesop
-    -/
-  · intro ψ
-    intro W M w
-    simp [conEval, Xset]
-    sorry
-    /-
-    constructor
-    · intro lhs
-      aesop
-    · rintro rhs φ (φ_in_F | ⟨δ,δ_in,def_φ⟩)
-      · rw [F_mem_iff_neg α ℓ φ] at φ_in_F
-        rcases φ_in_F with ⟨τ, τ_in, φ_def, not_ℓ_τ⟩
-        subst φ_def
-        simp_all [signature, conEval, F]
-        specialize w_sign (~τ) τ
-        aesop
-      · aesop
-    -/
-
 theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
     (x_notin_beta : Sum.inl x ∉ HasVocabulary.voc β)
     (beta_equiv : (⌈β⌉·x) ≡ (((·x) ⋀ χ0) ⋁ χ1))
@@ -1130,7 +1014,7 @@ theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
 
 /-- Show "suffices" part outside, to use `localBoxTruth` for star case in `localBoxTruthI`. -/
 theorem localBoxTruth_connector γ ψ :
-    (goal : ∀ ℓ, (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Xset γ ℓ ψ) ⋀ signature γ ℓ) →
+    (goal : ∀ ℓ, (⌈γ⌉ψ) ⋀ Con (F γ ℓ) ≡ Con (Xset γ ℓ ψ)) →
     (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) := by
   -- By the properties of the signature formulas clearly ;-)
   -- `localBoxTruthI` suffices to prove `localBoxTruth`.
@@ -1156,11 +1040,11 @@ theorem localBoxTruth_connector γ ψ :
     have := goal ℓ W M w -- using the claim proven by induction
     simp_all
     refine ⟨ℓ, ℓ_in, ?_⟩
-    apply this
+    rw [← this]
     unfold_let ℓ
-    simp_all [signature, conEval]
+    simp_all [conEval, F_mem_iff_neg]
     intro τ _
-    split_ifs <;> simp_all
+    aesop
   · intro w_Cons
     rw [disEval] at w_Cons
     rcases w_Cons with ⟨φ, φ_in, w_Xℓ⟩
@@ -1179,6 +1063,7 @@ theorem localBoxTruth_connector γ ψ :
         rcases φ_in_Fℓ' with ⟨τ, φ_def, τ_in, ℓ'_τ_false⟩
         unfold_let ℓ' at ℓ'_τ_false
         simp_all
+        aesop
       case inr φ_in_Pℓ' =>
         rcases φ_in_Pℓ' with ⟨δ, δ_in_P, def_φ⟩
         simp_all only [Xset, conEval, List.mem_append, List.mem_map]
@@ -1198,116 +1083,81 @@ theorem localBoxTruth_connector γ ψ :
         apply this
         left
         rw [F_mem_iff_neg]
-        tauto
-    have : evaluate M w ((⌈γ⌉ψ)⋀signature γ ℓ') := by
-      apply (goal ℓ' W M w).2
-      simp only [evaluate]
-      constructor
-      · assumption
-      · unfold_let
-        simp_all [signature, conEval]
         aesop
+    have : evaluate M w ((⌈γ⌉ψ) ⋀ Con (F γ ℓ')) := by
+      apply (goal ℓ' W M w).2
+      assumption
     simp_all
 
 /-- Induction claim for `localBoxTruth`. -/
 theorem localBoxTruthI γ ψ (ℓ :TP γ) :
-    (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Xset γ ℓ ψ) ⋀ signature γ ℓ := by
+    (⌈γ⌉ψ) ⋀ Con (F γ ℓ) ≡ Con (Xset γ ℓ ψ) := by
   intro W M w
   cases γ
   case atom_prog a =>
-    simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
+    simp_all [TP, testsOfProgram, conEval, Xset, P, F]
   case test τ =>
-    cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩ )
-    · simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
-    · simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
+    cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩)
+    · simp_all [TP, testsOfProgram, conEval, Xset, P, F]; tauto
+    · simp_all [TP, testsOfProgram, conEval, Xset, P, F]
   case union α β =>
     have IHα := localBoxTruthI α ψ ℓ W M w
     have IHβ := localBoxTruthI β ψ ℓ W M w
-    simp only [evaluate, and_congr_left_iff, relate] at *
-    intro w_sign_ℓ
-    specialize IHα ?_
-    · simp_all [signature, conEval, testsOfProgram]; intro f τ τ_in; apply w_sign_ℓ; aesop
-    specialize IHβ ?_
-    · simp_all [signature, conEval, testsOfProgram]; intro f τ τ_in; apply w_sign_ℓ; aesop
-    -- rewrite using semantics of union and the two IH:
-    have : (∀ (v : W), relate M α w v ∨ relate M β w v → evaluate M v ψ)
-        ↔ ((∀ (v : W), relate M α w v → evaluate M v ψ)
-         ∧ (∀ (v : W), relate M β w v → evaluate M v ψ)) := by aesop
-    rw [this, IHα, IHβ]
-    clear this IHα IHβ
-    -- signature is true, so we can add it for free:
-    have : ∀ φ, evaluate M w φ
-              ↔ evaluate M w (φ ⋀ signature (α⋓β) ℓ) := by simp_all [conEval]
-    rw [this (Con (Xset (α⋓β) ℓ ψ))]
-    clear this
-    -- using part (3) of Lemma:
-    have := (boxHelperTP (α⋓β) ℓ).2.2 ψ W M w
-    rw [this]
-    clear this
-    simp only [P, evaluate]
+    simp only [Xset, F, P, conEval, evaluate, relate] at *
     constructor
-    · intro lhs
-      simp only [conEval] at lhs
-      constructor
-      · rw [conEval]
-        intro φ φ_in
-        simp only [List.mem_map, List.mem_union_iff] at φ_in
-        rcases φ_in with ⟨δ, δ_in, def_φ⟩
-        subst def_φ
-        cases δ_in
-        · apply lhs.1
-          simp only [Xset, List.mem_append, List.mem_map]
-          right
-          use δ
-        · apply lhs.2
-          simp only [Xset, List.mem_append, List.mem_map]
-          right
-          use δ
-      · assumption
+    · intro lhs φ φ_in
+      simp only [List.mem_append, List.mem_union_iff, F_mem_iff_neg, Bool.not_eq_true,
+        List.mem_map] at φ_in
+      rcases φ_in with (⟨τ, τ_in, φ_claim⟩ | ⟨τ, τ_in, φ_claim⟩) | ⟨δ, δ_in⟩
+      · apply IHα.1
+        · rcases φ_claim with (⟨def_φ, not_ℓτ⟩ | ⟨def_φ, ℓτ⟩)
+          all_goals
+            subst def_φ; constructor
+            · exact fun v w_α_v => lhs.left v (by tauto)
+            · intro φ φ_in ; apply lhs.2; simp only [List.mem_union_iff]; tauto
+        · simp only [List.mem_append, List.mem_map,F_mem_iff_neg]
+          left; use τ, τ_in; simp_all
+      · apply IHβ.1
+        · rcases φ_claim with (⟨def_φ, not_ℓτ⟩ | ⟨def_φ, ℓτ⟩) <;>
+          all_goals
+            subst def_φ; constructor
+            · exact fun v w_α_v => lhs.left v (by tauto)
+            · intro φ φ_in ; apply lhs.2; simp only [List.mem_union_iff]; tauto
+        · simp only [List.mem_append, List.mem_map,F_mem_iff_neg]
+          left; use τ, τ_in; simp_all
+      · aesop
     · intro rhs
-      rw [conEval] at rhs
-      constructor -- α and β parts, analogous
-      · simp only [Xset, conEval, List.mem_append, List.mem_map]
-        intro φ φ_in
-        cases φ_in
-        case inl φ_in_F =>
-          rw [F_mem_iff_neg α ℓ φ] at φ_in_F
-          rcases φ_in_F with ⟨τ, τ_in, def_φ, not_ℓ_τ⟩
-          simp [signature,conEval] at w_sign_ℓ
-          apply w_sign_ℓ _ τ
-          · simp_all
-          · simp_all [testsOfProgram]
-        case inr φ_from_P =>
-          rcases φ_from_P with ⟨δ, bla, def_φ⟩
-          apply rhs.1 φ
-          simp only [List.mem_map, List.mem_union_iff]
-          use δ
-          tauto
-      · simp only [Xset, conEval, List.mem_append, List.mem_map]
-        intro φ φ_in
-        cases φ_in
-        case inl φ_in_F =>
-          rw [F_mem_iff_neg β ℓ φ] at φ_in_F
-          rcases φ_in_F with ⟨τ, τ_in, def_φ, not_ℓ_τ⟩
-          simp [signature,conEval] at w_sign_ℓ
-          apply w_sign_ℓ _ τ
-          · simp_all
-          · simp_all [testsOfProgram]
-        case inr φ_from_P =>
-          rcases φ_from_P with ⟨δ, bla, def_φ⟩
-          apply rhs.1 φ
-          simp only [List.mem_map, List.mem_union_iff]
-          use δ
-          tauto
+      constructor
+      · rintro v (w_α_v | w_β_v)
+        · apply (fun goal => (IHα.2 goal).1) _ _ w_α_v
+          simp only [List.mem_append, List.mem_union_iff, List.mem_map] at *
+          rintro φ φ_prop
+          apply rhs φ
+          aesop
+        · apply (fun goal => (IHβ.2 goal).1) _ _ w_β_v
+          simp only [List.mem_append, List.mem_union_iff, List.mem_map] at *
+          rintro φ φ_prop
+          apply rhs φ
+          aesop
+      · intro φ φ_in_F
+        apply rhs φ
+        simp only [List.mem_append, List.mem_union_iff, List.mem_map] at *
+        tauto
+
   case sequence α β =>
     have IHα := localBoxTruthI α (⌈β⌉ψ) ℓ W M w
     have IHβ := localBoxTruthI β ψ ℓ W M w -- ??
-    simp only [evaluate, relate, forall_exists_index, and_imp, and_congr_left_iff] at *
+    simp_all [evaluate, relate, forall_exists_index, and_imp, and_congr_left_iff, conEval, F_mem_iff_neg, testsOfProgram, Xset]
+
+    sorry
+    /-
+
+
     intro w_sign_ℓ
     specialize IHα ?_
-    · simp_all [signature, conEval, testsOfProgram]; intro f τ τ_in; apply w_sign_ℓ; aesop
+    · simp_all [conEval, testsOfProgram]; intro f τ τ_in; apply w_sign_ℓ; aesop
     specialize IHβ ?_
-    · simp_all [signature, conEval, testsOfProgram]; intro f τ τ_in; apply w_sign_ℓ; aesop
+    · simp_all [conEval, testsOfProgram]; intro f τ τ_in; apply w_sign_ℓ; aesop
     -- only rewriting with IHα here, but not yet IHβ
     have : (∀ (v x : W), relate M α w x → relate M β x v → evaluate M v ψ)
           ↔ ∀ (v : W), relate M α w v → ∀ (v_1 : W), relate M β v v_1 → evaluate M v_1 ψ := by
@@ -1318,7 +1168,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     constructor
     · intro lhs
       rw [conEval]
-      simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
+      simp_all [TP, testsOfProgram, conEval, Xset, P, F]
       rintro φ ((φ_in_Fα|φ_in_Fβ) | ⟨δ, ⟨(δ_from_Pα|δ_from_Pβ), def_φ⟩⟩)
       · tauto
       · rw [F_mem_iff_neg β ℓ φ] at φ_in_Fβ
@@ -1346,7 +1196,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         · simp_all
     · intro rhs
       rw [conEval]
-      simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
+      simp_all [TP, testsOfProgram, conEval, Xset, P, F]
       rintro φ (φ_in_Fα|⟨δ, φ_in_Pα, def_φ⟩)
       · tauto
       · subst def_φ
@@ -1373,7 +1223,10 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
           · simp_all
             rw [List.mem_filter]
             aesop
+    -/
   case star β =>
+    sorry
+    /-
     let ρ := dis ((allTP (∗β)).map (fun ℓ => Con (Xset (∗β) ℓ ψ)))
     suffices goal : (⌈∗β⌉ψ) ≡ ρ by
       specialize goal W M w
@@ -1391,7 +1244,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
           clear goal ρ
           simp [conEval, Xset, F, P] at *
           rintro f (f_in_Fβ|(f_eq_ψ|f_from_Pβ))
-          · simp [signature, conEval] at lhs
+          · simp [F_mem_iff_neg, conEval] at lhs
             have := lhs.2 f
             clear lhs
             rw [F_mem_iff_neg] at f_in_Fβ
@@ -1423,7 +1276,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
                 -- but we can do it.
                 intro τ τ_in ℓ_τ
                 have := lhs.2
-                simp only [signature, conEval, List.mem_map, List.mem_attach, true_and,
+                simp only [conEval, List.mem_map, List.mem_attach, true_and,
                   Subtype.exists, forall_exists_index] at this
                 specialize this τ τ (by simp [testsOfProgram]; exact τ_in)
                 simp_all only [ite_true, true_implies]
@@ -1460,7 +1313,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     -- We show left_to_right as a claim because we need left_to_right for right to left.
     have left_to_right : (⌈∗β⌉ψ) ⊨ ρ := by
       intro W M w
-      suffices step : ∀ ℓ, (⌈∗β⌉ψ) ⋀ signature (∗β) ℓ ⊨ Con ((P (∗β) ℓ).map fun αs => ⌈⌈αs⌉⌉ψ) by
+      suffices step : ∀ ℓ, (⌈∗β⌉ψ) ⋀ Con (F (∗β) ℓ) ⊨ Con ((P (∗β) ℓ).map fun αs => ⌈⌈αs⌉⌉ψ) by
         have := Classical.propDecidable
         let ℓ' : TP (∗β) := fun ⟨τ,_⟩ => decide (evaluate M w τ)
         intro w_bSpsi
@@ -1478,7 +1331,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
             specialize step ℓ' W M w
             simp only [List.mem_singleton, forall_eq, and_imp] at step
             rw [conEval] at step
-            simp [evaluate, relate, signature,conEval] at step
+            simp [evaluate, relate, conEval, F_mem_iff_neg] at step
             apply step <;> aesop
       intro ℓ W M w
       simp only [List.mem_singleton, forall_eq]
@@ -1525,13 +1378,13 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
             constructor
             · left
               simp_all
+              tauto
             · have := hyp.2
-              simp [evaluate, signature, conEval] at *
+              simp [evaluate, F_mem_iff_neg, conEval] at *
               specialize this τ τ (by simp [testsOfProgram]; exact τ_in)
               simp at this
               apply this
-              intro
-              simp_all
+              tauto
           · simp; exact δ_in
         simp [boxes_append]
         simp at this
@@ -1703,6 +1556,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         right
         left
         rfl
+    -/
 
 theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) :=
   localBoxTruth_connector γ ψ (localBoxTruthI γ ψ)
