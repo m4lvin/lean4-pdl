@@ -175,13 +175,15 @@ def PathIn.head {tab : ClosedTableau Hist X} (_ : PathIn tab) : TNode := X
 @[simp]
 def PathIn.last (t : PathIn tab) : TNode := (tabAt t).2.1
 
-/-- Convert a path to a History. Does not include the last node. -/
+/-- Convert a path to a History. Does not include the last node.
+The history of `.nil` is `[]`. -/
 def PathIn.toHistory {tab : ClosedTableau Hist X} : (t : PathIn tab) → History
 | .nil => []
 | .pdl _ tail => tail.toHistory ++ [X]
 | .loc _ tail => tail.toHistory ++ [X]
 
-/-- Convert a path to a list of nodes. Reverse of the history and does include the last node. -/
+/-- Convert a path to a list of nodes. Reverse of the history and does include the last node.
+The list of `.nil` is `[X]`. -/
 def PathIn.toList {tab : ClosedTableau Hist X} : (t : PathIn tab) → List TNode
 | .nil => [X]
 | .pdl _ tail => X :: tail.toList
@@ -264,6 +266,34 @@ def PathIn.rewind : (t : PathIn tab) → (k : Fin (t.toHistory.length)) → Path
 | .loc Y_in tail, k => Fin.cases (PathIn.loc Y_in tail) (PathIn.loc Y_in ∘ tail.rewind) k
 | .pdl r tail, k => Fin.cases (PathIn.pdl r tail) (PathIn.pdl r ∘ tail.rewind) k
 
+theorem PathIn.rewind_le (t : PathIn tab) (k : Fin (t.toHistory.length)) : t.rewind k ≤ t := by
+  induction tab
+  case loc rest Y lt next IH =>
+    cases t
+    case nil =>
+      simp [PathIn.toHistory, PathIn.rewind]
+      unfold LE.le instLEPathIn; simp; exact Relation.ReflTransGen.refl
+    case loc Z Z_in tail =>
+      simp [PathIn.toHistory, PathIn.rewind]
+      specialize IH Z Z_in tail
+      have : (loc Z_in tail).toHistory.length = tail.toHistory.length + 1 := by simp [PathIn.toHistory]
+
+      sorry
+  case pdl =>
+    cases t
+    case nil =>
+      simp_all [PathIn.toHistory, PathIn.rewind]
+      unfold LE.le instLEPathIn; simp; exact Relation.ReflTransGen.refl
+    case pdl rest Y Z r tab IH tail =>
+      simp [PathIn.toHistory, PathIn.rewind]
+      specialize IH tail
+      have : (pdl r tail).toHistory.length = tail.toHistory.length + 1 := by simp [PathIn.toHistory]
+      sorry
+  case rep =>
+    cases t
+    simp_all [PathIn.toList, PathIn.rewind]
+    unfold LE.le instLEPathIn; simp; exact Relation.ReflTransGen.refl
+
 /-! ## Companion, ccEdge, cEdge, etc. -/
 
 /-- To get the companion of an LPR node we go as many steps back as the LPR says. -/
@@ -342,9 +372,28 @@ theorem eProp (tab : ClosedTableau .nil X) :
             , Relation.ReflTransGen.trans t_u u_s ⟩
   · constructor
     intro s
-    -- need to show `Acc` - induction on path `s` maybe?
-    unfold simpler
-    sorry
+    -- need to show `Acc` but `induction s` does not work
+    -- because we fixed Hist = .nil (in many defs above already)
+    cases s
+    case nil =>
+      constructor
+      intro t t_c_nil
+      simp_all [simpler, cEdge]
+      unfold simpler
+      sorry
+    case loc =>
+      sorry
+    case pdl =>
+      sorry
+
+-- move / upstream or already in mathlib?
+theorem Relation.ReflTransGen_or_left {r r' : α → α → Prop} {a b : α} :
+  Relation.ReflTransGen (fun x y => r x y) a b
+  → Relation.ReflTransGen (fun x y => r x y ∨ r' x y) a b := by sorry
+
+theorem Relation.ReflTransGen_or_right {r r' : α → α → Prop} {a b : α} :
+  Relation.ReflTransGen (fun x y => r x y) a b
+  → Relation.ReflTransGen (fun x y => r' x y ∨ r x y) a b := by sorry
 
 theorem eProp2 (tab : ClosedTableau .nil X) (s u t : PathIn tab) :
       (s ◃ t → (t ⊏_c s) ∨ (t ≡_E s)) -- (a)
@@ -355,10 +404,9 @@ theorem eProp2 (tab : ClosedTableau .nil X) (s u t : PathIn tab) :
     ∧ (ccEdge s t ∧ ¬(s ≡_E t)  →  t ⊏_c s) -- (f)
   := by
 refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
-all_goals
-  simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion]
 -- (a)
-· intro t_childOf_s
+· simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion]
+  intro t_childOf_s
   have s_cEdge_t : TC cEdge s t := by
     apply TC.base
     simp_all [cEdge]
@@ -377,53 +425,80 @@ all_goals
   else
     tauto
 -- (b)
-· intro lpr hyp t_def
+· intro comp
   constructor
-  · sorry
-  · sorry
+  · simp only [companion, companionOf, exists_prop] at comp
+    rcases comp with ⟨lpr, tabAt_s_def, t_def⟩
+    have := PathIn.rewind_le s (PathIn.root_length_eq_Hist.length tab s ▸ lpr.val)
+    unfold LE.le instLEPathIn at this
+    simp at this
+    unfold cEdge
+    rcases ReflTransGen.cases_tail_eq_neq this with ( _ | ⟨ _, v, _, t_v, v_s ⟩ )
+    · convert Relation.ReflTransGen.refl
+      tauto
+    · exact Relation.ReflTransGen.head (t_def ▸ Or.inl t_v) (Relation.ReflTransGen_or_left v_s)
+  · unfold cEdge
+    apply Relation.ReflTransGen_or_right
+    exact Relation.ReflTransGen.single comp
 -- (c)
 · intro s_free t_childOf_s
+  simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion]
   constructor
   · sorry
   · sorry
 -- (d)
 · intro s_loaded t_free t_childOf_s
+  simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion]
   constructor
   · sorry
   · sorry
 -- (e)
-· intro u_t not_t_u s_u not_u_s
+· simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion]
+  intro u_t not_t_u s_u not_u_s
   constructor
   · sorry
   · sorry
 -- (f)
-· intro hyp -- TODO: rintro
+· simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion]
+  intro hyp -- TODO: rintro
   sorry
 
 /-! ## Soundness -/
 
--- TODO: adjust/update statement to what is in the Notes!
-theorem loadedDiamondPaths {Root Δ : TNode}
+theorem loadedDiamondPaths {α} {Root X : TNode}
   (tab : ClosedTableau .nil Root) -- .nil to prevent repeats from "above"
-  (path_to_Δ : PathIn tab)
-  (h : Δ = nodeAt path_to_Δ)
-  {M : KripkeModel W} {v : W}
-  (φ : AnyFormula)
-  (negLoad_in : NegLoadFormula_in_TNode (~'⌊α⌋φ) Δ) -- FIXME: ∈ not working here?
-  (v_X : (M,v) ⊨ Δ)
+  (t : PathIn tab)
+  {W}
+  {M : KripkeModel W} {v w : W}
+  (v_t : (M,v) ⊨ nodeAt t)
+  (ξ : AnyFormula)
+  (negLoad_in : NegLoadFormula_in_TNode (~'⌊α⌋ξ) (nodeAt t))
   (v_α_w : relate M α v w)
-  (w_φ : (M,w) ⊨ ~''φ)
-  : ∃ Γ : TNode,
-    ∃ path_to_Γ : PathIn tab,
-        Γ = nodeAt path_to_Γ
-      -- TODO: must be an extension of path_to_Δ
-      ∧ (AnyNegFormula_in_TNode (~''φ) Γ) -- FIXME: ∈ not working here?
-      ∧ (M,w) ⊨ Γ :=
-  by
-  have := eProp2 tab
-  let ⟨L,R,O⟩ := Δ
-  -- by induction on the complexity of α
+  (w_nξ : (M,w) ⊨ ~''ξ)
+  : ∃ s : PathIn tab, t ⋖ᶜᶜ s
+    ∧ ( ¬ (cEquiv s t)
+      ∨ ( (AnyNegFormula_in_TNode (~''ξ) (nodeAt s))
+        ∧ (M,w) ⊨ (nodeAt s))) := by
+  --
+  simp_all
+  -- Notes first take care of cases where rule is applied to non-loaded formula.
+  -- For this, we need to distinguish what happens at `t`.
+  rcases tabAt t with ⟨H, Y, ctY⟩
+  cases ctY
+  -- applying a local or a pdl rule or being a repeat?
+  -- TODO: extra Lemmas / unclear how to get these:
+  -- - every loaded node has a ccEdge successor.
+  -- - eventually a rule must be applied to the loaded formula (at node t' in Notes)
+
+
+  -- have := eProp2 tab -- used later!
+
+  -- Notes then do induction on the complexity of α, but
+  -- with the assumption that the rule is applied to the loaded formula!
   cases α
+  case atom_prog a =>
+
+    sorry
   -- TODO
   all_goals sorry
 
