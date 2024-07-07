@@ -43,8 +43,7 @@ def toNegLoad (α : Program) (φ : Formula) : NegLoadFormula :=
 
 /-- A history is a list of TNodes.
 This only tracks "big" steps, hoping we do not need steps within a local tableau.
-The head of the first list is the newest TNode.
--/
+The head of the first list is the newest TNode. -/
 abbrev History : Type := List TNode
 
 /-- A lpr means we can go `k` steps back in the history to
@@ -52,11 +51,16 @@ reach an equal node, and all nodes on the way are loaded. -/
 def LoadedPathRepeat (Hist : History) (X : TNode) : Type :=
   Subtype (fun k => (Hist.get k).setEqTo X ∧ ∀ m ≤ k, (Hist.get m).isLoaded)
 
+theorem LoadedPathRepeat_isLoaded (lpr : LoadedPathRepeat Hist X) : X.isLoaded := by
+  rcases lpr with ⟨k, claim⟩
+  have := setEqTo_isLoaded_iff claim.1
+  rw [← this]
+  apply claim.2
+  apply le_refl
+
 /-! ## The PDL rules -/
 
 /-- A rule to go from Γ to Δ. Note the four variants of the modal rule. -/
--- TODO: Think about whether the LoadHistory function works backwards!?
--- hfun converts the LoadHistory for Γ into that of Δ
 inductive PdlRule : (Γ : TNode) → (Δ : TNode) → Type
   -- The (L+) rule:
   | loadL : (~⌈α⌉φ) ∈ L → PdlRule (L, R, none)

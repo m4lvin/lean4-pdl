@@ -41,6 +41,14 @@ def TNode.isLoaded : TNode → Bool
 
 def TNode.isFree (Γ : TNode) : Bool := ¬ Γ.isLoaded
 
+theorem setEqTo_isLoaded_iff {X Y : TNode} (h : X.setEqTo Y) : X.isLoaded = Y.isLoaded := by
+  simp_all [TNode.setEqTo, TNode.isLoaded]
+  rcases X with ⟨XL, XR, _|_⟩ <;> rcases Y with ⟨YL, YR, _|_⟩
+  all_goals
+    simp_all
+  all_goals
+    exfalso; rcases h with ⟨_,_,impossible⟩ ; exact (Bool.eq_not_self _).mp impossible
+
 instance modelCanSemImplyTNode : vDash (KripkeModel W × W) TNode :=
   vDash.mk (λ ⟨M,w⟩ ⟨L, R, o⟩ => ∀ f ∈ L ∪ R ∪ (o.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
 

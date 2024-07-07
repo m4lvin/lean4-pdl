@@ -15,8 +15,8 @@ open HasSat
 instance : Membership Formula TNode :=
   ⟨fun φ X => φ ∈ X.L ∨ φ ∈ X.R⟩
 
-@[simp]
-def NegLoadFormula_in_TNode := fun nlf (X : TNode) => X.O = some (Sum.inl nlf) ∨ X.O = some (Sum.inr nlf)
+def NegLoadFormula_in_TNode (nlf : NegLoadFormula) (X : TNode) : Prop :=
+  X.O = some (Sum.inl nlf) ∨ X.O = some (Sum.inr nlf)
 
 @[simp]
 instance NegLoadFormula.HasMem_TNode : Membership NegLoadFormula TNode := ⟨NegLoadFormula_in_TNode⟩
@@ -28,22 +28,18 @@ inductive AnyNegFormula
 
 local notation "~''" φ:arg => AnyNegFormula.neg φ
 
-@[simp]
 instance modelCanSemImplyAnyNegFormula {W : Type} : vDash (KripkeModel W × W) AnyNegFormula :=
   vDash.mk (λ ⟨M,w⟩ af => match af with
    | ⟨Sum.inl f⟩ => evaluate M w f
    | ⟨Sum.inr f⟩ => evaluate M w (unload f)
    )
 
-@[simp]
 def anyNegLoad : Program → AnyFormula → NegLoadFormula
 | α, Sum.inl φ => ~'⌊α⌋φ
 | α, Sum.inr χ => ~'⌊α⌋χ
 
 local notation "~'⌊" α "⌋" χ => anyNegLoad α χ
 
--- set_option trace.Meta.synthInstance true -- turn this on to debug ∈ below.
-@[simp]
 def AnyNegFormula_in_TNode := fun (anf : AnyNegFormula) (X : TNode) => match anf with
 | ⟨Sum.inl φ⟩ => (~φ) ∈ X
 | ⟨Sum.inr χ⟩ => NegLoadFormula_in_TNode (~'χ) X -- FIXME: ∈ not working here
@@ -134,10 +130,7 @@ def tabAt : PathIn tab → Σ H X, ClosedTableau H X
 | .loc _ tail => tabAt tail
 | .pdl _ p_child => tabAt p_child
 
-def nodeAt {H X} {tab : (ClosedTableau H X)} : PathIn tab → TNode
-| .nil => X
-| .loc _ tail => nodeAt tail
-| .pdl _ p_child => nodeAt p_child
+def nodeAt {H X} {tab : (ClosedTableau H X)} (p : PathIn tab) : TNode := (tabAt p).2.1
 
 def PathIn.append (p : PathIn tab) (q : PathIn (tabAt p).2.2) : PathIn tab := match p with
   | .nil => q
@@ -351,7 +344,7 @@ def clusterOf_alternative {tab : ClosedTableau .nil X} (p : PathIn tab) :=
 def simpler {X} {tab : ClosedTableau .nil X}
   (s t : PathIn tab) : Prop := Relation.TransGen cEdge t s ∧ ¬ Relation.TransGen cEdge s t
 
-notation t:arg " ⊏_c " s:arg => simpler t s
+notation s:arg " ⊏_c " t:arg => simpler s t
 
 theorem eProp (tab : ClosedTableau .nil X) :
     Equivalence (@cEquiv _ tab)
@@ -386,32 +379,10 @@ theorem eProp (tab : ClosedTableau .nil X) :
     case pdl =>
       sorry
 
--- move / upstream or already in mathlib?
-theorem Relation.ReflTransGen_or_left {r r' : α → α → Prop} {a b : α} :
-  Relation.ReflTransGen (fun x y => r x y) a b
-  → Relation.ReflTransGen (fun x y => r x y ∨ r' x y) a b := by sorry
-
-theorem Relation.ReflTransGen_or_right {r r' : α → α → Prop} {a b : α} :
-  Relation.ReflTransGen (fun x y => r x y) a b
-  → Relation.ReflTransGen (fun x y => r' x y ∨ r x y) a b := by sorry
-
-theorem eProp2 (tab : ClosedTableau .nil X) (s u t : PathIn tab) :
-      (s ◃ t → (t ⊏_c s) ∨ (t ≡_E s)) -- (a)
-    ∧ (s ♥ t → t ≡_E s) -- (b)
-    ∧ ((nodeAt s).isFree → edge s t → t ⊏_c s) -- (c)
-    ∧ ((nodeAt s).isLoaded → (nodeAt t).isFree → edge s t → t ⊏_c s) -- (d)
-    ∧ (t ⊏_c u ∧ u ⊏_c s → t ⊏_c s) -- (e)
-    ∧ (ccEdge s t ∧ ¬(s ≡_E t)  →  t ⊏_c s) -- (f)
-  := by
-refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
--- (a)
-· simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion]
+theorem eProp2.a {tab : ClosedTableau .nil X} (s t : PathIn tab) :
+    s ◃ t → (t ⊏_c s) ∨ (t ≡_E s) := by
+  simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion]
   intro t_childOf_s
-  have s_cEdge_t : TC cEdge s t := by
-    apply TC.base
-    simp_all [cEdge]
-    left
-    assumption
   if Relation.TransGen cEdge t s
   then
     right
@@ -424,8 +395,10 @@ refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
       exact t_childOf_s
   else
     tauto
--- (b)
-· intro comp
+
+theorem eProp2.b {tab : ClosedTableau .nil X} (s t : PathIn tab) :
+    s ♥ t → t ≡_E s := by
+  intro comp
   constructor
   · simp only [companion, companionOf, exists_prop] at comp
     rcases comp with ⟨lpr, tabAt_s_def, t_def⟩
@@ -440,28 +413,51 @@ refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
   · unfold cEdge
     apply Relation.ReflTransGen_or_right
     exact Relation.ReflTransGen.single comp
--- (c)
-· intro s_free t_childOf_s
-  simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion]
+
+theorem eProp2.c {tab : ClosedTableau .nil X} (s t : PathIn tab) :
+    (nodeAt s).isFree → s ◃ t → t ⊏_c s := by
+  intro s_free t_childOf_s
   constructor
-  · sorry
-  · sorry
--- (d)
-· intro s_loaded t_free t_childOf_s
-  simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion]
+  · apply Relation.TransGen.single; exact Or.inl t_childOf_s
+  · unfold cEdge
+    -- simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion, children]
+    sorry
+
+theorem eProp2.d {tab : ClosedTableau .nil X} (s t : PathIn tab) :
+    (nodeAt s).isLoaded → (nodeAt t).isFree → s ◃ t → t ⊏_c s := by
+  intro s_loaded t_free t_childOf_s
   constructor
-  · sorry
-  · sorry
--- (e)
-· simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion]
-  intro u_t not_t_u s_u not_u_s
+  · apply Relation.TransGen.single; exact Or.inl t_childOf_s
+  ·
+    -- need some way to show that cEdge from free only goes down?
+    sorry
+
+theorem eProp2.e {tab : ClosedTableau .nil X} (s u t : PathIn tab) :
+    t ⊏_c u  →  u ⊏_c s  →  t ⊏_c s := by
+  rintro ⟨u_t, not_u_t⟩ ⟨s_u, not_u_s⟩
   constructor
-  · sorry
-  · sorry
--- (f)
-· simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion]
-  intro hyp -- TODO: rintro
-  sorry
+  · exact Relation.TransGen.trans s_u u_t
+  ·
+    -- seems non-trivial
+    sorry
+
+theorem eProp2.f {tab : ClosedTableau .nil X} (s t : PathIn tab) :
+    (s ⋖ᶜᶜ t  →  ¬ s ≡_E t  →  t ⊏_c s) := by
+  rintro s_cc_t s_nequiv_t -- TODO: rintro
+  constructor
+  ·
+    sorry
+  ·
+    sorry
+
+theorem eProp2 {tab : ClosedTableau .nil X} (s u t : PathIn tab) :
+    (s ◃ t → (t ⊏_c s) ∨ (t ≡_E s))
+  ∧ (s ♥ t → t ≡_E s)
+  ∧ ((nodeAt s).isFree → edge s t → t ⊏_c s)
+  ∧ ((nodeAt s).isLoaded → (nodeAt t).isFree → edge s t → t ⊏_c s)
+  ∧ (t ⊏_c u → u ⊏_c s → t ⊏_c s)
+  ∧ (s ⋖ᶜᶜ t → ¬ s ≡_E t → t ⊏_c s) :=
+  ⟨eProp2.a _ _, eProp2.b _ _, eProp2.c _ _, eProp2.d _ _, eProp2.e _ _ _, eProp2.f _ _⟩
 
 /-! ## Soundness -/
 
@@ -479,8 +475,6 @@ theorem loadedDiamondPaths {α} {Root X : TNode}
     ∧ ( ¬ (cEquiv s t)
       ∨ ( (AnyNegFormula_in_TNode (~''ξ) (nodeAt s))
         ∧ (M,w) ⊨ (nodeAt s))) := by
-  --
-  simp_all
   -- Notes first take care of cases where rule is applied to non-loaded formula.
   -- For this, we need to distinguish what happens at `t`.
   rcases tabAt t with ⟨H, Y, ctY⟩
@@ -502,36 +496,58 @@ theorem loadedDiamondPaths {α} {Root X : TNode}
   -- TODO
   all_goals sorry
 
-theorem tableauThenNotSat (tab : ClosedTableau .nil Root) (t : PathIn tab) : ¬satisfiable (nodeAt t) :=
+theorem tableauThenNotSat (tab : ClosedTableau .nil Root) (t : PathIn tab) :
+    ¬satisfiable (nodeAt t) :=
   by
   -- by induction on the well-founded strict partial order ⊏
   apply @WellFounded.induction _ simpler ((eProp tab).2 : _) _ t
   clear t
   intro t IH
-  sorry
+  let ⟨tH, ⟨L, R, O⟩, tt⟩ := tabAt t
+  cases Classical.em (TNode.isFree ⟨L,R,O⟩)
+  case inl t_is_free =>
+    -- First assume that t is free.
+    cases tt
+    case rep lpr => -- Then t cannot be a LPR.
+      exfalso
+      have := LoadedPathRepeat_isLoaded lpr
+      simp_all [TNode.isFree]
+    case loc =>
+      sorry
 
-theorem correctness : ∀LR : TNode, satisfiable LR → consistent LR :=
-  by
-    intro LR
-    contrapose
-    unfold consistent
-    unfold inconsistent
-    simp only [not_nonempty_iff, not_isEmpty_iff, not_exists, not_forall, exists_prop, Nonempty.forall]
-    intro hyp
-    apply tableauThenNotSat hyp .nil
+    case pdl =>
+      sorry
 
-theorem soundTableau : ∀φ, provable φ → ¬satisfiable ({~φ} : Finset Formula) :=
-  by
-    intro φ prov
-    rcases prov with ⟨tabl⟩|⟨tabl⟩
-    exact tableauThenNotSat tabl .nil
-    exact tableauThenNotSat tabl .nil
+  case inr not_free =>
+    simp [TNode.isFree, TNode.isLoaded] at not_free
+    rcases O with _ | (nlf | nlf)
+    · exfalso; simp_all
+    -- left and right case left over
+    · sorry -- left, should be analogous to next case
+    · clear not_free
+      rcases nlf with ⟨lf⟩
 
--- See `tableauThenNotSat` for the actual proof of what the notes call soundness.
-theorem soundness : ∀φ, provable φ → tautology φ :=
-  by
-    intro φ prov
-    apply notsatisfnotThenTaut
-    rw [← singletonSat_iff_sat]
-    apply soundTableau
-    exact prov
+      sorry
+theorem correctness : ∀LR : TNode, satisfiable LR → consistent LR := by
+  intro LR
+  contrapose
+  unfold consistent
+  unfold inconsistent
+  simp only [not_nonempty_iff, not_isEmpty_iff, Nonempty.forall]
+  intro hyp
+  apply tableauThenNotSat hyp .nil
+
+theorem soundTableau : ∀φ, provable φ → ¬satisfiable ({~φ} : Finset Formula) := by
+  intro φ prov
+  rcases prov with ⟨tabl⟩|⟨tabl⟩
+  exact tableauThenNotSat tabl .nil
+  exact tableauThenNotSat tabl .nil
+
+/-- All provable formulas are semantic tautologies.
+See `tableauThenNotSat` for what the notes call soundness. -/
+theorem soundness : ∀φ, provable φ → tautology φ := by
+  intro φ prov
+  apply notsatisfnotThenTaut
+  rw [← singletonSat_iff_sat]
+  apply soundTableau
+  exact prov

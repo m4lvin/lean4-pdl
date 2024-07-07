@@ -106,3 +106,28 @@ theorem ReflTransGen.iff_finitelyManySteps (r : α → α → Prop) (x z : α) :
   ⟨ReflTransGen.to_finitelyManySteps,
   fun ⟨_, ys, x_is_head, z_is_last, rhs⟩ =>
     ReflTransGen.from_finitelyManySteps r x z ys ⟨x_is_head, z_is_last, rhs⟩⟩
+
+theorem Relation.ReflTransGen_or_left {r r' : α → α → Prop} {a b : α} :
+  Relation.ReflTransGen r a b
+  → Relation.ReflTransGen (fun x y => r x y ∨ r' x y) a b := by
+  intro a_b
+  induction a_b
+  case refl => exact ReflTransGen.refl
+  case tail _ b_c IH => exact ReflTransGen.tail IH (Or.inl b_c)
+
+theorem Relation.ReflTransGen_or_right {r r' : α → α → Prop} {a b : α} :
+  Relation.ReflTransGen r a b
+  → Relation.ReflTransGen (fun x y => r' x y ∨ r x y) a b := by
+  intro a_b
+  induction a_b
+  case refl => exact ReflTransGen.refl
+  case tail _ b_c IH => exact ReflTransGen.tail IH (Or.inr b_c)
+
+theorem Relation.ReflTransGen_imp {r r' : α → α → Prop} {a b : α} :
+  (∀ x y, r x y → r' x y)
+  → Relation.ReflTransGen r a b
+  → Relation.ReflTransGen r' a b := by
+  intro hyp a_b
+  induction a_b
+  case refl => exact ReflTransGen.refl
+  case tail _ b_c IH => exact ReflTransGen.tail IH (hyp _ _ b_c)
