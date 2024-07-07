@@ -182,8 +182,8 @@ inductive LocalRuleApp : TNode → List TNode → Type
 theorem localRuleTruth
     {L R : List Formula}
     {C : List TNode}
-    (O : Option (Sum NegLoadFormula NegLoadFormula))
-    (lrA : LocalRuleApp (L,R,O) C) (M : KripkeModel W) (w : W)
+    {O : Option (Sum NegLoadFormula NegLoadFormula)}
+    (lrA : LocalRuleApp (L,R,O) C) {W} (M : KripkeModel W) (w : W)
   : (M,w) ⊨ (L,R,O) ↔ ∃ Ci ∈ C, (M,w) ⊨ Ci
   := by
   rcases lrA with ⟨Lcond, Rcond, Ocond, rule, preconditionProof⟩
@@ -711,3 +711,76 @@ termination_by
 decreasing_by
   simp_wf
   apply localRuleApp.decreases_DM _lr Y h
+
+/-- ## Helper functions, relating end nodes and children -/
+
+-- TODO Computable version possible?
+noncomputable def endNode_to_endNodeOfChildNonComp (lrA)
+  (E_in: E ∈ endNodesOf (@LocalTableau.byLocalRule X _ lrA subTabs)) :
+  @Subtype TNode (fun x => ∃ h, E ∈ endNodesOf (subTabs x h)) := by
+  simp [endNodesOf] at E_in
+  choose l h E_in using E_in
+  choose c c_in l_eq using h
+  subst l_eq
+  use c
+  use c_in
+
+theorem endNodeIsEndNodeOfChild (lrA)
+  (E_in: E ∈ endNodesOf (@LocalTableau.byLocalRule X _ lrA subTabs)) :
+  ∃ Y h, E ∈ endNodesOf (subTabs Y h) := by
+  have := endNode_to_endNodeOfChildNonComp lrA E_in
+  use this
+  aesop
+
+theorem endNodeOfChild_to_endNode
+    {X Y: TNode}
+    {ltX}
+    {C : List TNode}
+    (lrA : LocalRuleApp X C)
+    subTabs
+    (h : ltX = LocalTableau.byLocalRule lrA subTabs)
+    (Y_in : Y ∈ C)
+    {Z : TNode}
+    (Z_in: Z ∈ endNodesOf (subTabs Y Y_in))
+    : Z ∈ endNodesOf ltX :=
+  by
+  cases h' : subTabs Y Y_in -- No induction needed for this!
+  case sim Y_isSimp =>
+    subst h
+    simp
+    use endNodesOf (subTabs Y Y_in)
+    constructor
+    · use Y, Y_in
+    · exact Z_in
+  case byLocalRule C' subTabs' lrA' =>
+    subst h
+    rw [h'] at Z_in
+    simp
+    use endNodesOf (subTabs Y Y_in)
+    constructor
+    · use Y, Y_in
+    · rw [h']
+      exact Z_in
+
+/-! ## Overall Soundness and Invertibility of LocalTableau -/
+
+theorem localTableauTruth {X} (lt : LocalTableau X) {W} (M : KripkeModel W) (w : W) :
+    (M,w) ⊨ X  ↔ ∃ Y ∈ endNodesOf lt, (M,w) ⊨ Y := by
+  induction lt
+  case byLocalRule Y B lrA next IH  =>
+    have := localRuleTruth lrA M w
+    aesop
+  case sim =>
+    simp_all
+
+theorem localTableauSat {X} (lt : LocalTableau X) :
+    satisfiable X ↔ ∃ Y ∈ endNodesOf lt, satisfiable Y := by
+  constructor
+  · rintro ⟨W, M, w, w_X⟩
+    rw [localTableauTruth lt M w] at w_X
+    rcases w_X with ⟨Y, Y_in, w_Y⟩
+    use Y, Y_in, W, M, w
+  · rintro ⟨Y, Y_in, ⟨W, M, w, w_Y⟩⟩
+    use W, M, w
+    apply (localTableauTruth lt M w).2
+    use Y

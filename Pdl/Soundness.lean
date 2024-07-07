@@ -9,6 +9,117 @@ open Classical
 
 open HasSat
 
+/-! ## Soundness of the PDL rules -/
+
+/-- The PDL rules are sound. -/
+theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := by
+  rcases satX with ⟨W, M, w, w_⟩
+  -- 8 cases, quite some duplication here unfortunately.
+  cases r
+  -- the loading rules are easy, because loading never changes semantics
+  case loadL =>
+    use W, M, w
+    simp_all [modelCanSemImplyTNode]
+    intro φ φ_in
+    rcases φ_in with ((in_L | in_R) | φ_def)
+    all_goals
+      apply w_
+      subst_eqs
+      try tauto
+    · left
+      exact List.mem_of_mem_erase in_L
+    · left
+      simp [toNegLoad, unload]
+      sorry
+  case loadR =>
+    use W, M, w
+    simp_all [modelCanSemImplyTNode]
+    sorry
+  case freeL =>
+    use W, M, w
+    simp_all [modelCanSemImplyTNode]
+    sorry
+  case freeR =>
+    use W, M, w
+    simp_all [modelCanSemImplyTNode]
+    sorry
+  case atmL L R a χ X_def x_basic =>
+    subst X_def
+    use W, M -- but not the same world!
+    have := w_ (negUnload (~'⌊·a⌋χ))
+    simp at this
+    rcases this with ⟨v, w_a_b, v_⟩
+    use v
+    intro φ φ_in
+    simp at φ_in
+    rcases φ_in with ((in_L | in_R) | φ_def)
+    · have := w_ (⌈·a⌉φ) (by simp; tauto)
+      simp at this;
+      exact this _ w_a_b
+    · have := w_ (⌈·a⌉φ) (by simp; tauto)
+      simp at this;
+      exact this _ w_a_b
+    · subst φ_def
+      simp only [evaluate]
+      assumption
+  case atmR L R a χ X_def x_basic =>
+    subst X_def
+    use W, M -- but not the same world!
+    have := w_ (negUnload (~'⌊·a⌋χ))
+    simp at this
+    rcases this with ⟨v, w_a_b, v_⟩
+    use v
+    intro φ φ_in
+    simp at φ_in
+    rcases φ_in with ((in_L | in_R) | φ_def)
+    · have := w_ (⌈·a⌉φ) (by simp; tauto)
+      simp at this;
+      exact this _ w_a_b
+    · have := w_ (⌈·a⌉φ) (by simp; tauto)
+      simp at this;
+      exact this _ w_a_b
+    · subst φ_def
+      simp only [evaluate]
+      assumption
+  case atmL' L R a φ X_def x_basic =>
+    subst X_def
+    use W, M -- but not the same world!
+    have := w_ (negUnload (~'⌊·a⌋φ))
+    simp at this
+    rcases this with ⟨v, w_a_b, v_⟩
+    use v
+    intro φ φ_in
+    simp at φ_in
+    rcases φ_in with (φ_def | (in_L | in_R))
+    · subst φ_def
+      simp only [evaluate]
+      assumption
+    · have := w_ (⌈·a⌉φ) (by simp; tauto)
+      simp at this;
+      exact this _ w_a_b
+    · have := w_ (⌈·a⌉φ) (by simp; tauto)
+      simp at this;
+      exact this _ w_a_b
+  case atmR' L R a φ X_def x_basic =>
+    subst X_def
+    use W, M -- but not the same world!
+    have := w_ (negUnload (~'⌊·a⌋φ))
+    simp at this
+    rcases this with ⟨v, w_a_b, v_⟩
+    use v
+    intro φ φ_in
+    simp at φ_in
+    rcases φ_in with (in_L | (φ_def | in_R))
+    · have := w_ (⌈·a⌉φ) (by simp; tauto)
+      simp at this;
+      exact this _ w_a_b
+    · subst φ_def
+      simp only [evaluate]
+      assumption
+    · have := w_ (⌈·a⌉φ) (by simp; tauto)
+      simp at this;
+      exact this _ w_a_b
+
 /-- ## Tools for saying that different kinds of formulas are in a TNode -/
 
 @[simp]
@@ -47,56 +158,6 @@ def AnyNegFormula_in_TNode := fun (anf : AnyNegFormula) (X : TNode) => match anf
 @[simp]
 instance : Membership AnyNegFormula TNode := ⟨AnyNegFormula_in_TNode⟩
 
-/-- ## Helper functions, TODO: move to (Local)Tableau.lean -/
-
--- TODO Computable version possible?
-noncomputable def endNode_to_endNodeOfChildNonComp (lrA)
-  (E_in: E ∈ endNodesOf (@LocalTableau.byLocalRule X _ lrA subTabs)) :
-  @Subtype TNode (fun x => ∃ h, E ∈ endNodesOf (subTabs x h)) := by
-  simp [endNodesOf] at E_in
-  choose l h E_in using E_in
-  choose c c_in l_eq using h
-  subst l_eq
-  use c
-  use c_in
-
-theorem endNodeIsEndNodeOfChild (lrA)
-  (E_in: E ∈ endNodesOf (@LocalTableau.byLocalRule X _ lrA subTabs)) :
-  ∃ Y h, E ∈ endNodesOf (subTabs Y h) := by
-  have := endNode_to_endNodeOfChildNonComp lrA E_in
-  use this
-  aesop
-
-theorem endNodeOfChild_to_endNode
-    {X Y: TNode}
-    {ltX}
-    {C : List TNode}
-    (lrA : LocalRuleApp X C)
-    subTabs
-    (h : ltX = LocalTableau.byLocalRule lrA subTabs)
-    (Y_in : Y ∈ C)
-    {Z : TNode}
-    (Z_in: Z ∈ endNodesOf (subTabs Y Y_in))
-    : Z ∈ endNodesOf ltX :=
-  by
-  cases h' : subTabs Y Y_in -- No induction needed for this!
-  case sim Y_isSimp =>
-    subst h
-    simp
-    use endNodesOf (subTabs Y Y_in)
-    constructor
-    · use Y, Y_in
-    · exact Z_in
-  case byLocalRule C' subTabs' lrA' =>
-    subst h
-    rw [h'] at Z_in
-    simp
-    use endNodesOf (subTabs Y Y_in)
-    constructor
-    · use Y, Y_in
-    · rw [h']
-      exact Z_in
-
 /-- ## Navigating through tableaux with PathIn -/
 
 -- To define ancestor / decendant relations inside tableaux we need to
@@ -118,8 +179,8 @@ inductive PathInLocal : ∀ {X}, LocalTableau X → Type
     → PathInLocal (LocalTableau.byLocalRule lrApp (next: ∀ Y ∈ B, LocalTableau Y))
 | simEnd : PathInLocal (LocalTableau.sim _)
 
--- Three ways to make a path: empty, local step or pdl step.
--- The `loc` ad `pdl` steps correspond to two out of three constructors of `ClosedTableau`.
+/-- A path in a tableau. Three constructors for the empty path, a local step or a pdl step.
+The `loc` ad `pdl` steps correspond to two out of three constructors of `ClosedTableau`. -/
 inductive PathIn : ∀ {H X}, ClosedTableau H X → Type
 | nil : PathIn _
 | loc : (Y_in : Y ∈ endNodesOf lt) → (tail : PathIn (next Y Y_in)) → PathIn (ClosedTableau.loc lt next)
@@ -130,12 +191,52 @@ def tabAt : PathIn tab → Σ H X, ClosedTableau H X
 | .loc _ tail => tabAt tail
 | .pdl _ p_child => tabAt p_child
 
-def nodeAt {H X} {tab : (ClosedTableau H X)} (p : PathIn tab) : TNode := (tabAt p).2.1
-
 def PathIn.append (p : PathIn tab) (q : PathIn (tabAt p).2.2) : PathIn tab := match p with
   | .nil => q
   | .loc Y_in tail => .loc Y_in (PathIn.append tail q)
   | .pdl r p_child => .pdl r (PathIn.append p_child q)
+
+@[simp]
+theorem tabAt_append (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
+    tabAt (p.append q) = tabAt q := by
+  induction p
+  case nil => simp [PathIn.append]
+  case loc IH =>
+    simp [PathIn.append]
+    rw [← IH]
+    simp [tabAt]
+  case pdl IH =>
+    simp [PathIn.append]
+    rw [← IH]
+    simp [tabAt]
+
+@[simp]
+theorem tabAt_nil {tab : ClosedTableau Hist X} : tabAt (.nil : PathIn tab) = ⟨_, _, tab⟩ := by
+  simp [tabAt, tabAt]
+
+@[simp]
+theorem tabAt_loc : tabAt (.loc Y_in tail : PathIn _) = tabAt tail := by simp [tabAt]
+
+@[simp]
+theorem tabAt_pdl : tabAt (.pdl r tail : PathIn _) = tabAt tail := by simp [tabAt]
+
+def nodeAt {H X} {tab : (ClosedTableau H X)} (p : PathIn tab) : TNode := (tabAt p).2.1
+
+@[simp]
+theorem nodeAt_nil {tab : ClosedTableau Hist X} : nodeAt (.nil : PathIn tab) = X := by
+  simp [nodeAt, tabAt]
+
+@[simp]
+theorem nodeAt_loc : nodeAt (.loc Y_in tail : PathIn _) = nodeAt tail := by simp [nodeAt, tabAt]
+
+@[simp]
+theorem nodeAt_pdl : nodeAt (.pdl r tail : PathIn _) = nodeAt tail := by simp [nodeAt, tabAt]
+
+@[simp]
+theorem nodeAt_append (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
+    nodeAt (p.append q) = nodeAt q := by
+  unfold nodeAt
+  rw [tabAt_append p q]
 
 /-! ## Parents, Children, Ancestors and Descendants -/
 
@@ -503,25 +604,46 @@ theorem tableauThenNotSat (tab : ClosedTableau .nil Root) (t : PathIn tab) :
   apply @WellFounded.induction _ simpler ((eProp tab).2 : _) _ t
   clear t
   intro t IH
-  let ⟨tH, ⟨L, R, O⟩, tt⟩ := tabAt t
-  cases Classical.em (TNode.isFree ⟨L,R,O⟩)
+  cases Classical.em (TNode.isFree $ nodeAt t)
   case inl t_is_free =>
-    -- First assume that t is free.
-    cases tt
+    -- "First assume that t is free.""
+    cases t_def : (tabAt t).2.2 -- Now consider what the tableau does at `t`.
     case rep lpr => -- Then t cannot be a LPR.
       exfalso
       have := LoadedPathRepeat_isLoaded lpr
-      simp_all [TNode.isFree]
-    case loc =>
+      simp_all [TNode.isFree, nodeAt]
+    case loc lt next =>
+      simp [nodeAt]
+      rw [localTableauSat lt] -- using soundness of local tableaux here!
+      simp
+      intro Y Y_in
+      -- We are given an end node, now need to define a path leading to it.
+      let t_to_s : PathIn _ := (@PathIn.loc _ _ _ lt next Y_in .nil)
+      let s : PathIn tab := t.append (t_def ▸ t_to_s)
+      have t_s : t ◃ s := by
+        unfold_let s
+        simp [edge, children, children']
+        use (t_def ▸ t_to_s)
+        unfold_let t_to_s
+        simp
+        sorry
+      have : Y = nodeAt s := by
+        unfold_let s t_to_s; simp
+        sorry
+      rw [this]
+      apply IH
+      apply eProp2.c t _ t_is_free t_s
+    case pdl Y r ctY =>
+      simp [nodeAt]
+      -- use soundness of pdl rules here?!
       sorry
 
-    case pdl =>
-      sorry
 
   case inr not_free =>
-    simp [TNode.isFree, TNode.isLoaded] at not_free
-    rcases O with _ | (nlf | nlf)
-    · exfalso; simp_all
+    simp [TNode.isFree] at not_free
+    -- have ⟨tH, ⟨L, R, O⟩, tt⟩ := tabAt t -- hmmm
+    rcases O_def : (tabAt t).2.1.2.2 with _ | (nlf | nlf)
+    · exfalso; simp_all [nodeAt, TNode.isLoaded]; split at not_free <;> simp_all
     -- left and right case left over
     · sorry -- left, should be analogous to next case
     · clear not_free
