@@ -56,7 +56,7 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
     {X Y : { x // x ∈ Worlds }}
     {δ : List Program}
     {φ : Formula}
-    {l: List { x // x ∈ Worlds }}
+    {l : List { x // x ∈ Worlds }}
     (length_def: l.length + 1 = δ.length)
     (δφ_in_X : (⌈⌈δ⌉⌉φ) ∈ X.val)
     (lchain : List.Chain' (pairRel MG.1) (List.zip ((?'⊤) :: δ) (X :: l ++ [Y])))

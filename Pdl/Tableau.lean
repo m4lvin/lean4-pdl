@@ -34,13 +34,6 @@ def boxesOf : Formula → List Program × Formula
 | (Formula.box prog nextf) => let (rest,endf) := boxesOf nextf; ⟨prog::rest, endf⟩
 | f => ([], f)
 
--- From ~⌈α⌉φ to ~'⌊α⌋χ with maximal loading
-def toNegLoad (α : Program) (φ : Formula) : NegLoadFormula :=
-  let (bs, f) := boxesOf φ
-  match (bs.reverse, f) with -- reverse so we get bs.last for LoadFormula.load.
-    | ([], f) => ~'⌊α⌋f
-    | (b::bs, f) => ~'⌊α⌋(List.foldl (flip LoadFormula.box) (LoadFormula.load b f) bs)
-
 /-- A history is a list of TNodes.
 This only tracks "big" steps, hoping we do not need steps within a local tableau.
 The head of the first list is the newest TNode. -/
@@ -63,24 +56,24 @@ theorem LoadedPathRepeat_isLoaded (lpr : LoadedPathRepeat Hist X) : X.isLoaded :
 /-- A rule to go from Γ to Δ. Note the four variants of the modal rule. -/
 inductive PdlRule : (Γ : TNode) → (Δ : TNode) → Type
   -- The (L+) rule:
-  | loadL : (~⌈α⌉φ) ∈ L → PdlRule (L, R, none)
-                                  (L.erase (~⌈α⌉φ), R, some (Sum.inl (toNegLoad α φ)))
-  | loadR : (~⌈α⌉φ) ∈ R → PdlRule (L, R, none)
-                                  (L, R.erase (~⌈α⌉φ), some (Sum.inr (toNegLoad α φ)))
+  | loadL : (~⌈⌈δ⌉⌉⌈α⌉φ) ∈ L → PdlRule (L, R, none)
+                                       (L.erase (~⌈⌈δ⌉⌉φ), R, some (Sum.inl (~'(⌊⌊δ⌋⌋⌊α⌋φ))))
+  | loadR : (~⌈⌈δ⌉⌉⌈α⌉φ) ∈ R → PdlRule (L, R, none)
+                                       (L, R.erase (~⌈⌈δ⌉⌉φ), some (Sum.inr (~'(⌊⌊δ⌋⌋⌊α⌋φ))))
   -- The (L-) rule:
-  | freeL : PdlRule (L, R, some (Sum.inl (toNegLoad α φ)))
-                    (L.insert (~⌈α⌉φ), R, none)
-  | freeR : PdlRule (L, R, some (Sum.inr (toNegLoad α φ)))
-                    (L, R.insert (~⌈α⌉φ), none)
+  | freeL : PdlRule (L, R, some (Sum.inl (~'(⌊⌊δ⌋⌋⌊α⌋(φ : Formula)))))
+                    (L.insert (~⌈⌈δ⌉⌉⌈α⌉φ), R, none)
+  | freeR : PdlRule (L, R, some (Sum.inr (~'(⌊⌊δ⌋⌋⌊α⌋(φ : Formula)))))
+                    (L, R.insert (~⌈⌈δ⌉⌉⌈α⌉φ), none)
   -- The (M) rule:
-  | atmL   {A X χ} : X = ⟨L, R, some (Sum.inl (~'⌊·A⌋(χ : LoadFormula)))⟩ → isBasic X → PdlRule X
-                         ⟨projection A L, projection A R, some (Sum.inl (~'χ))⟩
-  | atmR   {A X χ} : X = ⟨L, R, some (Sum.inr (~'⌊·A⌋(χ : LoadFormula)))⟩ → isBasic X → PdlRule X
-                         ⟨projection A L, projection A R, some (Sum.inr (~'χ))⟩
-  | atmL'  {A X φ} : X = ⟨L, R, some (Sum.inl (~'⌊·A⌋(φ : Formula)))⟩ → isBasic X → PdlRule X
-                         ⟨(~φ) :: projection A L, projection A R, none⟩
-  | atmR'  {A X φ} : X = ⟨L, R, some (Sum.inr (~'⌊·A⌋(φ : Formula)))⟩ → isBasic X → PdlRule X
-                         ⟨projection A L, (~φ) :: projection A R, none⟩
+  | modL   {A X ξ} : X = ⟨L, R, some (Sum.inl (~'⌊·A⌋(ξ : AnyFormula)))⟩ → isBasic X → PdlRule X
+                         ( match ξ with
+                         | .normal φ => ⟨(~φ) :: projection A L, projection A R, none⟩
+                         | .loaded χ => ⟨projection A L, projection A R, some (Sum.inl (~'χ))⟩ )
+  | modR   {A X ξ} : X = ⟨L, R, some (Sum.inr (~'⌊·A⌋(ξ : AnyFormula)))⟩ → isBasic X → PdlRule X
+                         ( match ξ with
+                         | .normal φ => ⟨projection A L, (~φ) :: projection A R, none⟩
+                         | .loaded χ => ⟨projection A L, projection A R, some (Sum.inr (~'χ))⟩ )
 
 -- ClosedTableau [parent, grandparent, ...] child
 --

@@ -5,7 +5,7 @@ import Pdl.MultisetOrder
 
 open HasLength
 
--- TABLEAU NODES
+/-! ## Tableau Nodes -/
 
 -- A tableau node has two lists of formulas and one or no negated loaded formula.
 -- TODO: rename `TNode` to `Sequent`
@@ -49,6 +49,8 @@ theorem setEqTo_isLoaded_iff {X Y : TNode} (h : X.setEqTo Y) : X.isLoaded = Y.is
   all_goals
     exfalso; rcases h with ⟨_,_,impossible⟩ ; exact (Bool.eq_not_self _).mp impossible
 
+/-! ## Semantics of a TNode -/
+
 instance modelCanSemImplyTNode : vDash (KripkeModel W × W) TNode :=
   vDash.mk (λ ⟨M,w⟩ ⟨L, R, o⟩ => ∀ f ∈ L ∪ R ∪ (o.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
 
@@ -68,6 +70,24 @@ theorem tautImp_iff_TNodeUnsat {φ ψ} {X : TNode} :
   intro defX
   subst defX
   simp [satisfiable,evaluate,modelCanSemImplyTNode,formCanSemImplyForm,semImpliesLists] at *
+
+/-! ## Different kinds of formulas as elements of TNode -/
+
+@[simp]
+instance : Membership Formula TNode := ⟨fun φ X => φ ∈ X.L ∨ φ ∈ X.R⟩
+
+def NegLoadFormula_in_TNode (nlf : NegLoadFormula) (X : TNode) : Prop :=
+  X.O = some (Sum.inl nlf) ∨ X.O = some (Sum.inr nlf)
+
+@[simp]
+instance : Membership NegLoadFormula TNode := ⟨NegLoadFormula_in_TNode⟩
+
+def AnyNegFormula_in_TNode : (anf : AnyNegFormula) → (X : TNode) → Prop
+| ⟨.normal φ⟩, X => (~φ) ∈ X
+| ⟨.loaded χ⟩, X => NegLoadFormula_in_TNode (~'χ) X -- FIXME: ∈ not working here
+
+@[simp]
+instance : Membership AnyNegFormula TNode := ⟨AnyNegFormula_in_TNode⟩
 
 /-! ## Local Tableaux -/
 

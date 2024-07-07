@@ -108,6 +108,10 @@ instance modelCanSemImplyForm {W : Type} : vDash (KripkeModel W × W) Formula :=
 instance modelCanSemImplySet {W : Type} : vDash (KripkeModel W × W) (List Formula) := vDash.mk (λ ⟨M,w⟩ fs => ∀ f ∈ fs, @evaluate W M w f)
 @[simp]
 instance modelCanSemImplyList {W : Type} : vDash (KripkeModel W × W) (List Formula) := vDash.mk (λ ⟨M,w⟩ fs => ∀ f ∈ fs, @evaluate W M w f)
+instance modelCanSemImplyAnyNegFormula {W : Type} : vDash (KripkeModel W × W) AnyNegFormula :=
+  vDash.mk (λ ⟨M,w⟩ af => match af with
+   | ⟨.normal f⟩ => evaluate M w f
+   | ⟨.loaded f⟩ => evaluate M w (unload f) )
 instance setCanSemImplySet : vDash (List Formula) (List Formula) := vDash.mk semImpliesLists
 instance setCanSemImplyForm : vDash (List Formula) Formula:= vDash.mk fun X ψ => semImpliesLists X [ψ]
 instance formCanSemImplySet : vDash Formula (List Formula) := vDash.mk fun φ X => semImpliesLists [φ] X

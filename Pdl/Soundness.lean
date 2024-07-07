@@ -14,7 +14,7 @@ open HasSat
 /-- The PDL rules are sound. -/
 theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := by
   rcases satX with ⟨W, M, w, w_⟩
-  -- 8 cases, quite some duplication here unfortunately.
+  -- 6 cases, quite some duplication here unfortunately.
   cases r
   -- the loading rules are easy, because loading never changes semantics
   case loadL =>
@@ -22,141 +22,97 @@ theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := b
     simp_all [modelCanSemImplyTNode]
     intro φ φ_in
     rcases φ_in with ((in_L | in_R) | φ_def)
-    all_goals
-      apply w_
-      subst_eqs
-      try tauto
-    · left
-      exact List.mem_of_mem_erase in_L
-    · left
-      simp [toNegLoad, unload]
-      sorry
+    all_goals (apply w_;  subst_eqs; try tauto)
+    left; exact List.mem_of_mem_erase in_L
   case loadR =>
     use W, M, w
     simp_all [modelCanSemImplyTNode]
-    sorry
+    intro φ φ_in
+    rcases φ_in with ((in_L | in_R) | φ_def)
+    all_goals (apply w_;  subst_eqs; try tauto)
+    right; exact List.mem_of_mem_erase in_R
   case freeL =>
     use W, M, w
     simp_all [modelCanSemImplyTNode]
-    sorry
+    intro φ φ_in
+    rcases φ_in with (φ_def | (in_L | in_R))
+    all_goals (apply w_;  subst_eqs; try tauto)
   case freeR =>
     use W, M, w
     simp_all [modelCanSemImplyTNode]
-    sorry
-  case atmL L R a χ X_def x_basic =>
-    subst X_def
-    use W, M -- but not the same world!
-    have := w_ (negUnload (~'⌊·a⌋χ))
-    simp at this
-    rcases this with ⟨v, w_a_b, v_⟩
-    use v
     intro φ φ_in
-    simp at φ_in
-    rcases φ_in with ((in_L | in_R) | φ_def)
-    · have := w_ (⌈·a⌉φ) (by simp; tauto)
-      simp at this;
-      exact this _ w_a_b
-    · have := w_ (⌈·a⌉φ) (by simp; tauto)
-      simp at this;
-      exact this _ w_a_b
-    · subst φ_def
-      simp only [evaluate]
-      assumption
-  case atmR L R a χ X_def x_basic =>
-    subst X_def
-    use W, M -- but not the same world!
-    have := w_ (negUnload (~'⌊·a⌋χ))
-    simp at this
-    rcases this with ⟨v, w_a_b, v_⟩
-    use v
-    intro φ φ_in
-    simp at φ_in
-    rcases φ_in with ((in_L | in_R) | φ_def)
-    · have := w_ (⌈·a⌉φ) (by simp; tauto)
-      simp at this;
-      exact this _ w_a_b
-    · have := w_ (⌈·a⌉φ) (by simp; tauto)
-      simp at this;
-      exact this _ w_a_b
-    · subst φ_def
-      simp only [evaluate]
-      assumption
-  case atmL' L R a φ X_def x_basic =>
-    subst X_def
-    use W, M -- but not the same world!
-    have := w_ (negUnload (~'⌊·a⌋φ))
-    simp at this
-    rcases this with ⟨v, w_a_b, v_⟩
-    use v
-    intro φ φ_in
-    simp at φ_in
     rcases φ_in with (φ_def | (in_L | in_R))
-    · subst φ_def
-      simp only [evaluate]
-      assumption
-    · have := w_ (⌈·a⌉φ) (by simp; tauto)
-      simp at this;
-      exact this _ w_a_b
-    · have := w_ (⌈·a⌉φ) (by simp; tauto)
-      simp at this;
-      exact this _ w_a_b
-  case atmR' L R a φ X_def x_basic =>
+    all_goals (apply w_;  subst_eqs; try tauto)
+  case modL L R a χ X_def x_basic =>
     subst X_def
     use W, M -- but not the same world!
-    have := w_ (negUnload (~'⌊·a⌋φ))
-    simp at this
-    rcases this with ⟨v, w_a_b, v_⟩
-    use v
-    intro φ φ_in
-    simp at φ_in
-    rcases φ_in with (in_L | (φ_def | in_R))
-    · have := w_ (⌈·a⌉φ) (by simp; tauto)
-      simp at this;
-      exact this _ w_a_b
-    · subst φ_def
-      simp only [evaluate]
-      assumption
-    · have := w_ (⌈·a⌉φ) (by simp; tauto)
-      simp at this;
-      exact this _ w_a_b
-
-/-- ## Tools for saying that different kinds of formulas are in a TNode -/
-
-@[simp]
-instance : Membership Formula TNode :=
-  ⟨fun φ X => φ ∈ X.L ∨ φ ∈ X.R⟩
-
-def NegLoadFormula_in_TNode (nlf : NegLoadFormula) (X : TNode) : Prop :=
-  X.O = some (Sum.inl nlf) ∨ X.O = some (Sum.inr nlf)
-
-@[simp]
-instance NegLoadFormula.HasMem_TNode : Membership NegLoadFormula TNode := ⟨NegLoadFormula_in_TNode⟩
-
-def AnyFormula := Sum Formula LoadFormula
-
-inductive AnyNegFormula
-| neg : AnyFormula → AnyNegFormula
-
-local notation "~''" φ:arg => AnyNegFormula.neg φ
-
-instance modelCanSemImplyAnyNegFormula {W : Type} : vDash (KripkeModel W × W) AnyNegFormula :=
-  vDash.mk (λ ⟨M,w⟩ af => match af with
-   | ⟨Sum.inl f⟩ => evaluate M w f
-   | ⟨Sum.inr f⟩ => evaluate M w (unload f)
-   )
-
-def anyNegLoad : Program → AnyFormula → NegLoadFormula
-| α, Sum.inl φ => ~'⌊α⌋φ
-| α, Sum.inr χ => ~'⌊α⌋χ
-
-local notation "~'⌊" α "⌋" χ => anyNegLoad α χ
-
-def AnyNegFormula_in_TNode := fun (anf : AnyNegFormula) (X : TNode) => match anf with
-| ⟨Sum.inl φ⟩ => (~φ) ∈ X
-| ⟨Sum.inr χ⟩ => NegLoadFormula_in_TNode (~'χ) X -- FIXME: ∈ not working here
-
-@[simp]
-instance : Membership AnyNegFormula TNode := ⟨AnyNegFormula_in_TNode⟩
+    have := w_ (negUnload (~'⌊·a⌋χ))
+    cases χ
+    · simp [unload] at *
+      rcases this with ⟨v, w_a_b, v_⟩
+      use v
+      intro φ φ_in
+      simp at φ_in
+      rcases φ_in with ( φ_def | (in_L | in_R))
+      · subst φ_def
+        simp only [evaluate]
+        assumption
+      · have := w_ (⌈·a⌉φ) (by simp; tauto)
+        simp at this;
+        exact this _ w_a_b
+      · have := w_ (⌈·a⌉φ) (by simp; tauto)
+        simp at this;
+        exact this _ w_a_b
+    · simp [unload] at *
+      rcases this with ⟨v, w_a_b, v_⟩
+      use v
+      intro φ φ_in
+      simp at φ_in
+      rcases φ_in with ((in_L | in_R) | φ_def)
+      · have := w_ (⌈·a⌉φ) (by simp; tauto)
+        simp at this;
+        exact this _ w_a_b
+      · have := w_ (⌈·a⌉φ) (by simp; tauto)
+        simp at this;
+        exact this _ w_a_b
+      · subst φ_def
+        simp only [evaluate]
+        assumption
+  case modR L R a χ X_def x_basic =>
+    subst X_def
+    use W, M -- but not the same world!
+    have := w_ (negUnload (~'⌊·a⌋χ))
+    cases χ
+    · simp [unload] at *
+      rcases this with ⟨v, w_a_b, v_⟩
+      use v
+      intro φ φ_in
+      simp at φ_in
+      rcases φ_in with (in_L | (φ_def | in_R))
+      · have := w_ (⌈·a⌉φ) (by simp; tauto)
+        simp at this;
+        exact this _ w_a_b
+      · subst φ_def
+        simp only [evaluate]
+        assumption
+      · have := w_ (⌈·a⌉φ) (by simp; tauto)
+        simp at this;
+        exact this _ w_a_b
+    · simp [unload] at *
+      rcases this with ⟨v, w_a_b, v_⟩
+      use v
+      intro φ φ_in
+      simp at φ_in
+      rcases φ_in with ((in_L | in_R) | φ_def)
+      · have := w_ (⌈·a⌉φ) (by simp; tauto)
+        simp at this;
+        exact this _ w_a_b
+      · have := w_ (⌈·a⌉φ) (by simp; tauto)
+        simp at this;
+        exact this _ w_a_b
+      · subst φ_def
+        simp only [evaluate]
+        assumption
 
 /-- ## Navigating through tableaux with PathIn -/
 
@@ -315,12 +271,9 @@ match t with
 def PathIn.isCritical (t : PathIn tab) : Prop :=
 match t with
   | .nil => False
-  | .pdl r _ => match r with
-     | .atmL _ _ => True
-     | .atmR _ _ => True
-     | .atmL' _ _ => True
-     | .atmR' _ _ => True
-     | _ => False
+  | .pdl (.modL _ _) _ => True
+  | .pdl (.modR _ _) _ => True
+  | .pdl _ tail => tail.isCritical
   | .loc _ tail => tail.isCritical
 
 /-- Prefix of a path, taking only the first `k` steps. -/
@@ -635,9 +588,21 @@ theorem tableauThenNotSat (tab : ClosedTableau .nil Root) (t : PathIn tab) :
       apply eProp2.c t _ t_is_free t_s
     case pdl Y r ctY =>
       simp [nodeAt]
-      -- use soundness of pdl rules here?!
-      sorry
-
+      intro hyp
+      have := pdlRuleSat r hyp -- using soundness of pdl rules here!
+      absurd this
+      -- As in `loc` case, it now remains to define a path leading to `Y`.
+      let t_to_s : PathIn _ := (@PathIn.pdl _ _ _ ctY r .nil)
+      let s : PathIn tab := t.append (t_def ▸ t_to_s)
+      have t_s : t ◃ s := by
+        unfold_let s
+        sorry
+      have : Y = nodeAt s := by
+        unfold_let s
+        sorry
+      rw [this]
+      apply IH
+      apply eProp2.c t _ t_is_free t_s
 
   case inr not_free =>
     simp [TNode.isFree] at not_free
