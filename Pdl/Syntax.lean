@@ -113,6 +113,12 @@ def unload : LoadFormula → Formula
 | LoadFormula.box α (.normal φ) => ⌈α⌉φ
 | LoadFormula.box α (.loaded χ) => ⌈α⌉(unload χ)
 
+-- TODO: should this replace `unload`?
+def anyUnload : AnyFormula → Formula
+| .normal φ => φ
+| .loaded (LoadFormula.box α (.normal φ)) => ⌈α⌉φ
+| .loaded (LoadFormula.box α (.loaded χ)) => ⌈α⌉(unload χ)
+
 inductive NegLoadFormula : Type -- ¬χ
   | neg : LoadFormula → NegLoadFormula
   deriving Repr, DecidableEq

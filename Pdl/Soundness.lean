@@ -176,6 +176,7 @@ theorem tabAt_loc : tabAt (.loc Y_in tail : PathIn _) = tabAt tail := by simp [t
 @[simp]
 theorem tabAt_pdl : tabAt (.pdl r tail : PathIn _) = tabAt tail := by simp [tabAt]
 
+/-- Given a path to node `t`, this is its label Λ(t). -/
 def nodeAt {H X} {tab : (ClosedTableau H X)} (p : PathIn tab) : TNode := (tabAt p).2.1
 
 @[simp]
@@ -386,6 +387,10 @@ def cEquiv {X} {tab : ClosedTableau .nil X} (pa pb : PathIn tab) : Prop :=
 
 notation t:arg " ≡_E " s:arg => cEquiv t s
 
+theorem cEquiv.symm (s t : PathIn tab) : s ≡_E t ↔  t ≡_E s := by
+  unfold cEquiv
+  tauto
+
 def clusterOf {tab : ClosedTableau .nil X} (p : PathIn tab) := Quot.mk cEquiv p
 
 -- better?
@@ -515,8 +520,8 @@ theorem eProp2 {tab : ClosedTableau .nil X} (s u t : PathIn tab) :
 
 /-! ## Soundness -/
 
-theorem loadedDiamondPaths {α} {Root X : TNode}
-  (tab : ClosedTableau .nil Root) -- .nil to prevent repeats from "above"
+theorem loadedDiamondPaths {α} {X : TNode}
+  (tab : ClosedTableau .nil X) -- .nil to prevent repeats from "above"
   (t : PathIn tab)
   {W}
   {M : KripkeModel W} {v w : W}
@@ -525,10 +530,10 @@ theorem loadedDiamondPaths {α} {Root X : TNode}
   (negLoad_in : NegLoadFormula_in_TNode (~'⌊α⌋ξ) (nodeAt t))
   (v_α_w : relate M α v w)
   (w_nξ : (M,w) ⊨ ~''ξ)
-  : ∃ s : PathIn tab, t ⋖ᶜᶜ s
-    ∧ ( ¬ (cEquiv s t)
-      ∨ ( (AnyNegFormula_in_TNode (~''ξ) (nodeAt s))
-        ∧ (M,w) ⊨ (nodeAt s))) := by
+  : ∃ s : PathIn tab,
+      t ⋖ᶜᶜ s
+    ∧ ( ¬ (cEquiv s t) ∨ (AnyNegFormula_in_TNode (~''ξ) (nodeAt s)) )
+    ∧ (M,w) ⊨ (nodeAt s) := by
   -- Notes first take care of cases where rule is applied to non-loaded formula.
   -- For this, we need to distinguish what happens at `t`.
   rcases tabAt t with ⟨H, Y, ctY⟩
@@ -550,6 +555,8 @@ theorem loadedDiamondPaths {α} {Root X : TNode}
   -- TODO
   all_goals sorry
 
+/-- Any node in a closed tableau is not satisfiable.
+This is the main argument for soundness. -/
 theorem tableauThenNotSat (tab : ClosedTableau .nil Root) (t : PathIn tab) :
     ¬satisfiable (nodeAt t) :=
   by
@@ -608,13 +615,49 @@ theorem tableauThenNotSat (tab : ClosedTableau .nil Root) (t : PathIn tab) :
     simp [TNode.isFree] at not_free
     -- have ⟨tH, ⟨L, R, O⟩, tt⟩ := tabAt t -- hmmm
     rcases O_def : (tabAt t).2.1.2.2 with _ | (nlf | nlf)
+    -- "none" case is impossible because t is not free:
     · exfalso; simp_all [nodeAt, TNode.isLoaded]; split at not_free <;> simp_all
-    -- left and right case left over
-    · sorry -- left, should be analogous to next case
-    · clear not_free
-      rcases nlf with ⟨lf⟩
+    -- two goals  remainig, but left and right case are axactly the same :-)
 
-      sorry
+    all_goals
+      clear not_free
+      rcases nlf with ⟨⟨α, af⟩⟩
+
+      -- Maybe better to get all loaded boxes?
+      -- YES, then we would know how many `loadedDiamondPaths` applications we need below!
+
+      -- Now assume for contradiction, that Λ(t) is satisfiable.
+      rintro ⟨W,M,v,v_⟩
+
+      have := v_ (~ unload (⌊α⌋af)) (by cases af <;> simp [unload]; all_goals simp_all)
+      simp at this
+      rcases this with ⟨w, v_α_w, not_w_af⟩
+      have w_not_af : (M, w) ⊨ ~''af := by
+        simp_all [modelCanSemImplyAnyNegFormula, modelCanSemImplyAnyFormula]
+        cases af <;> simp_all
+
+      have := loadedDiamondPaths tab t v_ af (?_) v_α_w (w_not_af)-- TODO NEXT
+      clear w_not_af not_w_af
+
+      · rcases this with ⟨s, t_cc_s, (notequi | not_af_in_s), w_s⟩
+        · -- left the cluster, cannot be the case by Lemma and IH:
+          have := eProp2.f t s t_cc_s (by rw [cEquiv.symm]; exact notequi)
+          absurd IH _ this
+          use W, M, w
+        · -- PROBLEM: need an unknown number of applications of `loadedDiamondPaths`
+          -- solve this by induction, but on *what*?
+          sorry
+
+      · -- still need to show ?_ for loadedDiamondPaths
+        simp_all [nodeAt, NegLoadFormula_in_TNode]
+        let ⟨Hist, ⟨L,R,O⟩ , ctX⟩ := tabAt t
+        have : (tabAt t).snd.fst.2.2 = O := by
+          -- Annoying but should be true.
+          -- Maybe some information got lost.
+          -- Try a different way to get `O_def` above?
+          sorry
+        simp_all
+
 theorem correctness : ∀LR : TNode, satisfiable LR → consistent LR := by
   intro LR
   contrapose
