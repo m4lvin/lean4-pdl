@@ -22,21 +22,21 @@ theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := b
     simp_all [modelCanSemImplyTNode]
     intro φ φ_in
     rcases φ_in with ((in_L | in_R) | φ_def)
-    all_goals (apply w_;  subst_eqs; try tauto)
+    all_goals (apply w_; subst_eqs; try tauto)
     left; exact List.mem_of_mem_erase in_L
   case loadR =>
     use W, M, w
     simp_all [modelCanSemImplyTNode]
     intro φ φ_in
     rcases φ_in with ((in_L | in_R) | φ_def)
-    all_goals (apply w_;  subst_eqs; try tauto)
+    all_goals (apply w_; subst_eqs; try tauto)
     right; exact List.mem_of_mem_erase in_R
   case freeL =>
     use W, M, w
     simp_all [modelCanSemImplyTNode]
     intro φ φ_in
     rcases φ_in with (φ_def | (in_L | in_R))
-    all_goals (apply w_;  subst_eqs; try tauto)
+    all_goals (apply w_; tauto)
   case freeR =>
     use W, M, w
     simp_all [modelCanSemImplyTNode]
@@ -284,8 +284,9 @@ def PathIn.prefix {tab : ClosedTableau Hist X} : (t : PathIn tab) → (k : Fin (
 | .loc Y_in tail, k => Fin.cases (.nil) (fun j => .loc Y_in (tail.prefix j)) k
 
 /-- The list of a prefix of a path is the same as the prefix of the list of the path. -/
-theorem PathIn.prefix_toList_eq_toList_take {tab : ClosedTableau Hist X} (t : PathIn tab) (k : Fin (t.length + 1)) :
-    (t.prefix k).toList = (t.toList).take (k + 1) := by
+theorem PathIn.prefix_toList_eq_toList_take {tab : ClosedTableau Hist X}
+    (t : PathIn tab) (k : Fin (t.length + 1))
+    : (t.prefix k).toList = (t.toList).take (k + 1) := by
   induction tab
   case loc rest Y lt next IH =>
     cases t
@@ -362,6 +363,8 @@ def ccEdge {X} {ctX : ClosedTableau .nil X} (s t : PathIn ctX) : Prop :=
 
 notation pa:arg " ⋖ᶜᶜ " pb:arg => ccEdge pa pb
 
+notation pa:arg " <ᶜᶜ " pb:arg => Relation.TransGen ccEdge pa pb
+
 /-- We have: ⋖ᶜ = ⋖ ∪ ♥ -/
 example : pa ⋖ᶜᶜ pb ↔ (pa ◃ pb) ∨ ∃ pc, pa ♥ pc ∧ pc ◃ pb := by
   simp_all [ccEdge]
@@ -370,6 +373,8 @@ def cEdge {X} {ctX : ClosedTableau .nil X} (t s : PathIn ctX) : Prop :=
   (t ◃ s) ∨ t ♥ s
 
 notation pa:arg " ⋖ᶜ " pb:arg => cEdge pa pb
+
+notation pa:arg " <ᶜ " pb:arg => Relation.TransGen cEdge pa pb
 
 /-- We have: ⋖ᶜ = ⋖ ∪ ♥ -/
 example : pa ⋖ᶜ pb ↔ (pa ◃ pb) ∨ pa ♥ pb := by
@@ -500,14 +505,26 @@ theorem eProp2.e {tab : ClosedTableau .nil X} (s u t : PathIn tab) :
     -- seems non-trivial
     sorry
 
+theorem eProp.f_helper {tab : ClosedTableau .nil X} (s t : PathIn tab) :
+    s ⋖ᶜᶜ t → Relation.ReflTransGen cEdge s t := by
+  intro s_cc_t
+  unfold cEdge
+  rcases s_cc_t with s_c_t | ⟨u, s_comp_u, u_t⟩
+  · exact Relation.ReflTransGen.single (Or.inl s_c_t)
+  · exact Relation.ReflTransGen.tail (Relation.ReflTransGen.single (Or.inr s_comp_u)) (Or.inl u_t)
+
 theorem eProp2.f {tab : ClosedTableau .nil X} (s t : PathIn tab) :
     (s ⋖ᶜᶜ t  →  ¬ s ≡_E t  →  t ⊏_c s) := by
   rintro s_cc_t s_nequiv_t -- TODO: rintro
   constructor
-  ·
-    sorry
-  ·
-    sorry
+  · rcases s_cc_t with s_c_t | ⟨u, s_comp_u, u_t⟩
+    · exact Relation.TransGen.single (Or.inl s_c_t)
+    · exact Relation.TransGen.tail (Relation.TransGen.single (Or.inr s_comp_u)) ((Or.inl u_t))
+  · intro t_c_s
+    absurd s_nequiv_t
+    constructor
+    · exact eProp.f_helper _ _ s_cc_t
+    · exact Relation.TransGen.to_reflTransGen t_c_s
 
 theorem eProp2 {tab : ClosedTableau .nil X} (s u t : PathIn tab) :
     (s ◃ t → (t ⊏_c s) ∨ (t ≡_E s))
@@ -520,7 +537,9 @@ theorem eProp2 {tab : ClosedTableau .nil X} (s u t : PathIn tab) :
 
 /-! ## Soundness -/
 
-theorem loadedDiamondPaths {α} {X : TNode}
+theorem loadedDiamondPaths
+  (α : Program)
+  {X : TNode}
   (tab : ClosedTableau .nil X) -- .nil to prevent repeats from "above"
   (t : PathIn tab)
   {W}
@@ -636,7 +655,7 @@ theorem tableauThenNotSat (tab : ClosedTableau .nil Root) (t : PathIn tab) :
         simp_all [modelCanSemImplyAnyNegFormula, modelCanSemImplyAnyFormula]
         cases af <;> simp_all
 
-      have := loadedDiamondPaths tab t v_ af (?_) v_α_w (w_not_af)-- TODO NEXT
+      have := loadedDiamondPaths α tab t v_ af (?_) v_α_w (w_not_af)
       clear w_not_af not_w_af
 
       · rcases this with ⟨s, t_cc_s, (notequi | not_af_in_s), w_s⟩
