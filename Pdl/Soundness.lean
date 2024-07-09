@@ -214,6 +214,18 @@ def edge {H X} {ctX : ClosedTableau H X} (s : PathIn ctX) (t : PathIn ctX) : Pro
 /-- Notation ◃ for `edge` (because ⋖ in notes is taken in Mathlib). -/
 notation s:arg " ◃ " t:arg => edge s t
 
+/-- The ◃ relation is well-founded, i.e. all tableaux are finite. -/
+theorem edge.wellFounded : WellFounded (@edge _ _ tab) := by
+  constructor
+  intro a
+  constructor
+  -- induction a  OR  induction tab  here?
+  sorry
+
+instance edge.isAsymm : IsAsymm (PathIn tab) edge := by
+  constructor
+  apply WellFounded.asymmetric edge.wellFounded
+
 /-- Enable "<" notation for transitive closure of ⋖ -/
 instance : LT (PathIn tab) := ⟨Relation.TransGen edge⟩
 
@@ -357,6 +369,9 @@ def companion {X} {tab : ClosedTableau .nil X} (s t : PathIn tab) : Prop :=
 
 notation pa:arg " ♥ " pb:arg => companion pa pb
 
+theorem companion_loaded : s ♥ t → (nodeAt s).isLoaded ∧ (nodeAt t).isLoaded := by
+  sorry
+
 /-- Successor relation plus back loops: ◃' (MB: page 26) -/
 def ccEdge {X} {ctX : ClosedTableau .nil X} (s t : PathIn ctX) : Prop :=
   s ◃ t  ∨  ∃ u, s ♥ u ∧ u ◃ t
@@ -460,8 +475,7 @@ theorem eProp2.a {tab : ClosedTableau .nil X} (s t : PathIn tab) :
   else
     tauto
 
-theorem eProp2.b {tab : ClosedTableau .nil X} (s t : PathIn tab) :
-    s ♥ t → t ≡_E s := by
+theorem eProp2.b {tab : ClosedTableau .nil X} (s t : PathIn tab) : s ♥ t → t ≡_E s := by
   intro comp
   constructor
   · simp only [companion, companionOf, exists_prop] at comp
@@ -484,8 +498,21 @@ theorem eProp2.c {tab : ClosedTableau .nil X} (s t : PathIn tab) :
   constructor
   · apply Relation.TransGen.single; exact Or.inl t_childOf_s
   · unfold cEdge
-    -- simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion, children]
-    sorry
+    intro hyp
+    induction hyp -- ((t_s | t_comp_s) | blu)
+    case single u t_u =>
+      rcases t_u with (t_u | t_comp_u )
+      · have := edge.isAsymm.1 _ _ t_u
+        tauto
+      · have := (companion_loaded t_comp_u).2
+        simp_all [TNode.isFree]
+    case tail b s t_b b_s IH =>
+      rcases  b_s with (b_s | b_comp_s)
+      · have := edge.isAsymm.1 _ _ b_s -- not useful?
+        sorry
+      · have := (companion_loaded b_comp_s).2
+        simp [TNode.isFree] at s_free
+        simp_all
 
 theorem eProp2.d {tab : ClosedTableau .nil X} (s t : PathIn tab) :
     (nodeAt s).isLoaded → (nodeAt t).isFree → s ◃ t → t ⊏_c s := by
