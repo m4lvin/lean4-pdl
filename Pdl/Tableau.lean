@@ -78,25 +78,25 @@ inductive PdlRule : (Γ : TNode) → (Δ : TNode) → Type
                          | .normal φ => ⟨projection A L, (~φ) :: projection A R, none⟩
                          | .loaded χ => ⟨projection A L, projection A R, some (Sum.inr (~'χ))⟩ )
 
--- ClosedTableau [parent, grandparent, ...] child
+-- Tableau [parent, grandparent, ...] child
 --
 -- A closed tableau for X is either of:
 -- - a local tableau for X followed by closed tableaux for all end nodes,
 -- - a PDL rule application
 -- - a successful loaded repeat (MB condition six)
 
-inductive ClosedTableau : History → TNode → Type
-  | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf lt, ClosedTableau (X :: Hist) Y) → ClosedTableau Hist X
-  | pdl {Δ Γ} : PdlRule Γ Δ → ClosedTableau (Γ :: Hist) Δ → ClosedTableau Hist Γ
-  | rep {X Hist} (lpr : LoadedPathRepeat Hist X) : ClosedTableau Hist X
+inductive Tableau : History → TNode → Type
+  | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf lt, Tableau (X :: Hist) Y) → Tableau Hist X
+  | pdl {Δ Γ} : PdlRule Γ Δ → Tableau (Γ :: Hist) Δ → Tableau Hist Γ
+  | rep {X Hist} (lpr : LoadedPathRepeat Hist X) : Tableau Hist X
 
 inductive provable : Formula → Prop
-  | byTableauL {φ : Formula} : ClosedTableau .nil ⟨[~φ], [], none⟩ → provable φ
-  | byTableauR {φ : Formula} : ClosedTableau .nil ⟨[], [~φ], none⟩ → provable φ
+  | byTableauL {φ : Formula} : Tableau .nil ⟨[~φ], [], none⟩ → provable φ
+  | byTableauR {φ : Formula} : Tableau .nil ⟨[], [~φ], none⟩ → provable φ
 
 /-- A TNode is inconsistent if there exists a closed tableau for it. -/
 def inconsistent : TNode → Prop
-  | LR => Nonempty (ClosedTableau .nil LR)
+  | LR => Nonempty (Tableau .nil LR)
 
 /-- A TNode is consistent iff it is not inconsistent. -/
 def consistent : TNode → Prop

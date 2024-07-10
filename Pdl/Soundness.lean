@@ -122,13 +122,13 @@ theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := b
 -- Its values basically say "go to this child, then to this child, etc."
 
 /-- A path in a tableau. Three constructors for the empty path, a local step or a pdl step.
-The `loc` ad `pdl` steps correspond to two out of three constructors of `ClosedTableau`. -/
-inductive PathIn : ∀ {H X}, ClosedTableau H X → Type
+The `loc` ad `pdl` steps correspond to two out of three constructors of `Tableau`. -/
+inductive PathIn : ∀ {H X}, Tableau H X → Type
 | nil : PathIn _
-| loc : (Y_in : Y ∈ endNodesOf lt) → (tail : PathIn (next Y Y_in)) → PathIn (ClosedTableau.loc lt next)
-| pdl : (r : PdlRule Γ Δ) → PathIn (child : ClosedTableau (Γ :: Hist) Δ) → PathIn (ClosedTableau.pdl r child)
+| loc : (Y_in : Y ∈ endNodesOf lt) → (tail : PathIn (next Y Y_in)) → PathIn (Tableau.loc lt next)
+| pdl : (r : PdlRule Γ Δ) → PathIn (child : Tableau (Γ :: Hist) Δ) → PathIn (Tableau.pdl r child)
 
-def tabAt : PathIn tab → Σ H X, ClosedTableau H X
+def tabAt : PathIn tab → Σ H X, Tableau H X
 | .nil => ⟨_,_,tab⟩
 | .loc _ tail => tabAt tail
 | .pdl _ p_child => tabAt p_child
@@ -153,7 +153,7 @@ theorem tabAt_append (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
     simp [tabAt]
 
 @[simp]
-theorem tabAt_nil {tab : ClosedTableau Hist X} : tabAt (.nil : PathIn tab) = ⟨_, _, tab⟩ := by
+theorem tabAt_nil {tab : Tableau Hist X} : tabAt (.nil : PathIn tab) = ⟨_, _, tab⟩ := by
   simp [tabAt, tabAt]
 
 @[simp]
@@ -163,10 +163,10 @@ theorem tabAt_loc : tabAt (.loc Y_in tail : PathIn _) = tabAt tail := by simp [t
 theorem tabAt_pdl : tabAt (.pdl r tail : PathIn _) = tabAt tail := by simp [tabAt]
 
 /-- Given a path to node `t`, this is its label Λ(t). -/
-def nodeAt {H X} {tab : (ClosedTableau H X)} (p : PathIn tab) : TNode := (tabAt p).2.1
+def nodeAt {H X} {tab : (Tableau H X)} (p : PathIn tab) : TNode := (tabAt p).2.1
 
 @[simp]
-theorem nodeAt_nil {tab : ClosedTableau Hist X} : nodeAt (.nil : PathIn tab) = X := by
+theorem nodeAt_nil {tab : Tableau Hist X} : nodeAt (.nil : PathIn tab) = X := by
   simp [nodeAt, tabAt]
 
 @[simp]
@@ -185,16 +185,16 @@ theorem nodeAt_append (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
 
 /-- One-step children, with changed type. Use `children` instead. -/
 def children' (p : PathIn tab) : List (PathIn (tabAt p).2.2) := match tabAt p with
-  | ⟨_, _, ClosedTableau.loc lt _next⟩  =>
+  | ⟨_, _, Tableau.loc lt _next⟩  =>
       ((endNodesOf lt).attach.map (fun ⟨_, Y_in⟩ => [ .loc Y_in .nil ] )).join
-  | ⟨_, _, ClosedTableau.pdl r _ct⟩  => [ .pdl r .nil ]
-  | ⟨_, _, ClosedTableau.rep _⟩  => [ ]
+  | ⟨_, _, Tableau.pdl r _ct⟩  => [ .pdl r .nil ]
+  | ⟨_, _, Tableau.rep _⟩  => [ ]
 
 /-- List of one-step children, given by paths from the same root. -/
 def children (p : PathIn tab) : List (PathIn tab) := (children' p).map (PathIn.append p)
 
 /-- The parent-child relation `s ◃ t` in a tableau -/
-def edge {H X} {ctX : ClosedTableau H X} (s : PathIn ctX) (t : PathIn ctX) : Prop :=
+def edge {H X} {tab : Tableau H X} (s t : PathIn tab) : Prop :=
   t ∈ children s
 
 /-- Notation ◃ for `edge` (because ⋖ in notes is taken in Mathlib). -/
@@ -219,21 +219,21 @@ instance : LT (PathIn tab) := ⟨Relation.TransGen edge⟩
 instance : LE (PathIn tab) := ⟨Relation.ReflTransGen edge⟩
 
 @[simp]
-def PathIn.head {tab : ClosedTableau Hist X} (_ : PathIn tab) : TNode := X
+def PathIn.head {tab : Tableau Hist X} (_ : PathIn tab) : TNode := X
 
 @[simp]
 def PathIn.last (t : PathIn tab) : TNode := (tabAt t).2.1
 
 /-- Convert a path to a History. Does not include the last node.
 The history of `.nil` is `[]`. -/
-def PathIn.toHistory {tab : ClosedTableau Hist X} : (t : PathIn tab) → History
+def PathIn.toHistory {tab : Tableau Hist X} : (t : PathIn tab) → History
 | .nil => []
 | .pdl _ tail => tail.toHistory ++ [X]
 | .loc _ tail => tail.toHistory ++ [X]
 
 /-- Convert a path to a list of nodes. Reverse of the history and does include the last node.
 The list of `.nil` is `[X]`. -/
-def PathIn.toList {tab : ClosedTableau Hist X} : (t : PathIn tab) → List TNode
+def PathIn.toList {tab : Tableau Hist X} : (t : PathIn tab) → List TNode
 | .nil => [X]
 | .pdl _ tail => X :: tail.toList
 | .loc _ tail => X :: tail.toList
@@ -248,13 +248,13 @@ def PathIn.length : (t : PathIn tab) → ℕ
 -- TODO: PathIn.length = PathIn.tohistory.length ??
 
 /-- A path gives the same list of nodes as the history of its last node. -/
-theorem PathIn.toHistory_eq_Hist {tab : ClosedTableau Hist X} (t : PathIn tab) :
+theorem PathIn.toHistory_eq_Hist {tab : Tableau Hist X} (t : PathIn tab) :
     t.toHistory ++ Hist = (tabAt t).1 := by
   induction tab
   all_goals
     cases t <;> simp_all [tabAt, PathIn.toHistory]
 
-theorem tabAt_fst_length_eq_toHistory_length {tab : ClosedTableau .nil X} (s : PathIn tab) :
+theorem tabAt_fst_length_eq_toHistory_length {tab : Tableau .nil X} (s : PathIn tab) :
     (tabAt s).fst.length = s.toHistory.length := by
   have := PathIn.toHistory_eq_Hist s
   rw [← this]
@@ -276,13 +276,13 @@ match t with
   | .loc _ tail => tail.isCritical
 
 /-- Prefix of a path, taking only the first `k` steps. -/
-def PathIn.prefix {tab : ClosedTableau Hist X} : (t : PathIn tab) → (k : Fin (t.length + 1)) → PathIn tab
+def PathIn.prefix {tab : Tableau Hist X} : (t : PathIn tab) → (k : Fin (t.length + 1)) → PathIn tab
 | .nil, _ => .nil
 | .pdl r tail, k => Fin.cases (.nil) (fun j => .pdl r (tail.prefix j)) k
 | .loc Y_in tail, k => Fin.cases (.nil) (fun j => .loc Y_in (tail.prefix j)) k
 
 /-- The list of a prefix of a path is the same as the prefix of the list of the path. -/
-theorem PathIn.prefix_toList_eq_toList_take {tab : ClosedTableau Hist X}
+theorem PathIn.prefix_toList_eq_toList_take {tab : Tableau Hist X}
     (t : PathIn tab) (k : Fin (t.length + 1))
     : (t.prefix k).toList = (t.toList).take (k + 1) := by
   induction tab
@@ -346,7 +346,7 @@ theorem PathIn.rewind_le (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) : t
     unfold LE.le instLEPathIn; simp; exact Relation.ReflTransGen.refl
 
 /-- The node we get from rewinding `k` steps is element `k+1` in the history. -/
-theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : ClosedTableau Hist X}
+theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
     (t : PathIn tab) (k : Fin (t.toHistory.length + 1))
     : nodeAt (t.rewind k) = (nodeAt t :: t.toHistory).get k := by
   induction tab
@@ -384,13 +384,13 @@ theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : ClosedTableau Hist X}
 /-! ## Companion, ccEdge, cEdge, etc. -/
 
 /-- To get the companion of an LPR node we go as many steps back as the LPR says. -/
-def companionOf {X} {tab : ClosedTableau .nil X} (s : PathIn tab) lpr
-  (_ : (tabAt s).2.2 = ClosedTableau.rep lpr) : PathIn tab :=
+def companionOf {X} {tab : Tableau .nil X} (s : PathIn tab) lpr
+  (_ : (tabAt s).2.2 = Tableau.rep lpr) : PathIn tab :=
     s.rewind ((tabAt_fst_length_eq_toHistory_length s ▸ lpr.val).succ)
 
 /-- s ♥ t means s is a LPR and its companion is t -/
-def companion {X} {tab : ClosedTableau .nil X} (s t : PathIn tab) : Prop :=
-  ∃ (lpr : _) (h : (tabAt s).2.2 = ClosedTableau.rep lpr), t = companionOf s lpr h
+def companion {X} {tab : Tableau .nil X} (s t : PathIn tab) : Prop :=
+  ∃ (lpr : _) (h : (tabAt s).2.2 = Tableau.rep lpr), t = companionOf s lpr h
 
 notation pa:arg " ♥ " pb:arg => companion pa pb
 
@@ -419,7 +419,7 @@ theorem companion_loaded : s ♥ t → (nodeAt s).isLoaded ∧ (nodeAt t).isLoad
     simp
 
 /-- Successor relation plus back loops: ◃' (MB: page 26) -/
-def ccEdge {X} {ctX : ClosedTableau .nil X} (s t : PathIn ctX) : Prop :=
+def ccEdge {X} {ctX : Tableau .nil X} (s t : PathIn ctX) : Prop :=
   s ◃ t  ∨  ∃ u, s ♥ u ∧ u ◃ t
 
 notation pa:arg " ⋖ᶜᶜ " pb:arg => ccEdge pa pb
@@ -430,7 +430,7 @@ notation pa:arg " <ᶜᶜ " pb:arg => Relation.TransGen ccEdge pa pb
 example : pa ⋖ᶜᶜ pb ↔ (pa ◃ pb) ∨ ∃ pc, pa ♥ pc ∧ pc ◃ pb := by
   simp_all [ccEdge]
 
-def cEdge {X} {ctX : ClosedTableau .nil X} (t s : PathIn ctX) : Prop :=
+def cEdge {X} {ctX : Tableau .nil X} (t s : PathIn ctX) : Prop :=
   (t ◃ s) ∨ t ♥ s
 
 notation pa:arg " ⋖ᶜ " pb:arg => cEdge pa pb
@@ -447,7 +447,7 @@ example : pa ⋖ᶜ pb ↔ (pa ◃ pb) ∨ pa ♥ pb := by
 -- Use `EqvGen` from Mathlib or manual "both ways Relation.ReflTransGen"?
 
 -- manual
-def cEquiv {X} {tab : ClosedTableau .nil X} (pa pb : PathIn tab) : Prop :=
+def cEquiv {X} {tab : Tableau .nil X} (pa pb : PathIn tab) : Prop :=
     Relation.ReflTransGen cEdge pa pb
   ∧ Relation.ReflTransGen cEdge pb pa
 
@@ -457,21 +457,21 @@ theorem cEquiv.symm (s t : PathIn tab) : s ≡_E t ↔  t ≡_E s := by
   unfold cEquiv
   tauto
 
-def clusterOf {tab : ClosedTableau .nil X} (p : PathIn tab) := Quot.mk cEquiv p
+def clusterOf {tab : Tableau .nil X} (p : PathIn tab) := Quot.mk cEquiv p
 
 -- better?
-def E_equiv_alternative {tab : ClosedTableau .nil X} (pa pb : PathIn tab) : Prop :=
+def E_equiv_alternative {tab : Tableau .nil X} (pa pb : PathIn tab) : Prop :=
   EqvGen cEdge pa pb
 
-def clusterOf_alternative {tab : ClosedTableau .nil X} (p : PathIn tab) :=
+def clusterOf_alternative {tab : Tableau .nil X} (p : PathIn tab) :=
   Quot.mk E_equiv_alternative p
 
-def simpler {X} {tab : ClosedTableau .nil X}
+def simpler {X} {tab : Tableau .nil X}
   (s t : PathIn tab) : Prop := Relation.TransGen cEdge t s ∧ ¬ Relation.TransGen cEdge s t
 
 notation s:arg " ⊏_c " t:arg => simpler s t
 
-theorem eProp (tab : ClosedTableau .nil X) :
+theorem eProp (tab : Tableau .nil X) :
     Equivalence (@cEquiv _ tab)
     ∧
     WellFounded (@simpler _ tab) := by
@@ -504,7 +504,7 @@ theorem eProp (tab : ClosedTableau .nil X) :
     case pdl =>
       sorry
 
-theorem eProp2.a {tab : ClosedTableau .nil X} (s t : PathIn tab) :
+theorem eProp2.a {tab : Tableau .nil X} (s t : PathIn tab) :
     s ◃ t → (t ⊏_c s) ∨ (t ≡_E s) := by
   simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion]
   intro t_childOf_s
@@ -521,7 +521,7 @@ theorem eProp2.a {tab : ClosedTableau .nil X} (s t : PathIn tab) :
   else
     tauto
 
-theorem eProp2.b {tab : ClosedTableau .nil X} (s t : PathIn tab) : s ♥ t → t ≡_E s := by
+theorem eProp2.b {tab : Tableau .nil X} (s t : PathIn tab) : s ♥ t → t ≡_E s := by
   intro comp
   constructor
   · simp only [companion, companionOf, exists_prop] at comp
@@ -534,7 +534,7 @@ theorem eProp2.b {tab : ClosedTableau .nil X} (s t : PathIn tab) : s ♥ t → t
     apply Relation.ReflTransGen_or_right
     exact Relation.ReflTransGen.single comp
 
-theorem eProp2.c_help {tab : ClosedTableau .nil X} (s : PathIn tab) :
+theorem eProp2.c_help {tab : Tableau .nil X} (s : PathIn tab) :
     (nodeAt s).isFree → ∀ t, s < t → t ⊏_c s := by
   intro s_free t t_path_s
   constructor
@@ -558,13 +558,13 @@ theorem eProp2.c_help {tab : ClosedTableau .nil X} (s : PathIn tab) :
         simp [TNode.isFree] at s_free
         simp_all
 
-theorem eProp2.c {tab : ClosedTableau .nil X} (s t : PathIn tab) :
+theorem eProp2.c {tab : Tableau .nil X} (s t : PathIn tab) :
     (nodeAt s).isFree → s ◃ t → t ⊏_c s := by
   intro s_free t_childOf_s
   apply eProp2.c_help _ s_free
   apply Relation.TransGen.single; exact t_childOf_s
 
-theorem eProp2.d {tab : ClosedTableau .nil X} (s t : PathIn tab) :
+theorem eProp2.d {tab : Tableau .nil X} (s t : PathIn tab) :
     (nodeAt s).isLoaded → (nodeAt t).isFree → s ◃ t → t ⊏_c s := by
   intro s_loaded t_free t_childOf_s
   constructor
@@ -573,7 +573,7 @@ theorem eProp2.d {tab : ClosedTableau .nil X} (s t : PathIn tab) :
     -- need some way to show that cEdge from free only goes down?
     sorry
 
-theorem eProp2.e {tab : ClosedTableau .nil X} (s u t : PathIn tab) :
+theorem eProp2.e {tab : Tableau .nil X} (s u t : PathIn tab) :
     t ⊏_c u  →  u ⊏_c s  →  t ⊏_c s := by
   rintro ⟨u_t, not_u_t⟩ ⟨s_u, not_u_s⟩
   constructor
@@ -582,7 +582,7 @@ theorem eProp2.e {tab : ClosedTableau .nil X} (s u t : PathIn tab) :
     -- seems non-trivial
     sorry
 
-theorem eProp.f_helper {tab : ClosedTableau .nil X} (s t : PathIn tab) :
+theorem eProp.f_helper {tab : Tableau .nil X} (s t : PathIn tab) :
     s ⋖ᶜᶜ t → Relation.ReflTransGen cEdge s t := by
   intro s_cc_t
   unfold cEdge
@@ -590,7 +590,7 @@ theorem eProp.f_helper {tab : ClosedTableau .nil X} (s t : PathIn tab) :
   · exact Relation.ReflTransGen.single (Or.inl s_c_t)
   · exact Relation.ReflTransGen.tail (Relation.ReflTransGen.single (Or.inr s_comp_u)) (Or.inl u_t)
 
-theorem eProp2.f {tab : ClosedTableau .nil X} (s t : PathIn tab) :
+theorem eProp2.f {tab : Tableau .nil X} (s t : PathIn tab) :
     (s ⋖ᶜᶜ t  →  ¬ s ≡_E t  →  t ⊏_c s) := by
   rintro s_cc_t s_nequiv_t -- TODO: rintro
   constructor
@@ -603,7 +603,7 @@ theorem eProp2.f {tab : ClosedTableau .nil X} (s t : PathIn tab) :
     · exact eProp.f_helper _ _ s_cc_t
     · exact Relation.TransGen.to_reflTransGen t_c_s
 
-theorem eProp2 {tab : ClosedTableau .nil X} (s u t : PathIn tab) :
+theorem eProp2 {tab : Tableau .nil X} (s u t : PathIn tab) :
     (s ◃ t → (t ⊏_c s) ∨ (t ≡_E s))
   ∧ (s ♥ t → t ≡_E s)
   ∧ ((nodeAt s).isFree → edge s t → t ⊏_c s)
@@ -615,7 +615,7 @@ theorem eProp2 {tab : ClosedTableau .nil X} (s u t : PathIn tab) :
 /-! ## Soundness -/
 
 theorem loadedDiamondPaths (α : Program) {X : TNode}
-  (tab : ClosedTableau .nil X) -- .nil to prevent repeats from "above"
+  (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
   (t : PathIn tab)
   {W}
   {M : KripkeModel W} {v w : W}
@@ -651,7 +651,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
 
 /-- Any node in a closed tableau is not satisfiable.
 This is the main argument for soundness. -/
-theorem tableauThenNotSat (tab : ClosedTableau .nil Root) (t : PathIn tab) :
+theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
     ¬satisfiable (nodeAt t) :=
   by
   -- by induction on the well-founded strict partial order ⊏
