@@ -744,13 +744,8 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
 
       · -- still need to show ?_ for loadedDiamondPaths
         simp_all [nodeAt, NegLoadFormula_in_TNode]
-        let ⟨Hist, ⟨L,R,O⟩ , ctX⟩ := tabAt t
-        have : (tabAt t).snd.fst.2.2 = O := by
-          -- Annoying but should be true.
-          -- Maybe some information got lost.
-          -- Try a different way to get `O_def` above?
-          sorry
-        simp_all
+        rw [← O_def]
+        aesop
 
 theorem correctness : ∀LR : TNode, satisfiable LR → consistent LR := by
   intro LR
