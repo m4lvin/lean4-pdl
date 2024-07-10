@@ -114,26 +114,12 @@ theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := b
         simp only [evaluate]
         assumption
 
-/-- ## Navigating through tableaux with PathIn -/
+/-! ## Navigating through tableaux with PathIn -/
 
 -- To define ancestor / decendant relations inside tableaux we need to
 -- represent both the whole Tableau and a specific node in it.
--- For this we use `PathInLocal` and `PathIn`.
--- They basically say "go to this child, then to this child, etc."
---
--- TODO: Do we need paths that go through/across multiple LocalTableau like
---       LHistories and unlike the Paths used in the Complteness Proof
---
--- TODO: Do we need paths that include back-loops?
-
-
--- UNUSED
-inductive PathInLocal : ∀ {X}, LocalTableau X → Type
-| byLocalRuleStep :
-    (h : Y ∈ B)
-    → PathInLocal (next Y h)
-    → PathInLocal (LocalTableau.byLocalRule lrApp (next: ∀ Y ∈ B, LocalTableau Y))
-| simEnd : PathInLocal (LocalTableau.sim _)
+-- For this we use the type `PathIn`.
+-- Its values basically say "go to this child, then to this child, etc."
 
 /-- A path in a tableau. Three constructors for the empty path, a local step or a pdl step.
 The `loc` ad `pdl` steps correspond to two out of three constructors of `ClosedTableau`. -/
@@ -259,16 +245,16 @@ def PathIn.length : (t : PathIn tab) → ℕ
 | .pdl _ tail => tail.length + 1
 | .loc _ tail => tail.length + 1
 
--- TODO:  length = history length
+-- TODO: PathIn.length = PathIn.tohistory.length ??
 
-/-- A path gives the same list of nodes as the history of its last node, reversed. -/
+/-- A path gives the same list of nodes as the history of its last node. -/
 theorem PathIn.toHistory_eq_Hist {tab : ClosedTableau Hist X} (t : PathIn tab) :
     t.toHistory ++ Hist = (tabAt t).1 := by
   induction tab
   all_goals
     cases t <;> simp_all [tabAt, PathIn.toHistory]
 
-theorem PathIn.root_length_eq_Hist.length (tab : ClosedTableau .nil X) (s : PathIn tab) :
+theorem tabAt_fst_length_eq_toHistory_length {tab : ClosedTableau .nil X} (s : PathIn tab) :
     (tabAt s).fst.length = s.toHistory.length := by
   have := PathIn.toHistory_eq_Hist s
   rw [← this]
@@ -322,12 +308,16 @@ theorem PathIn.prefix_toList_eq_toList_take {tab : ClosedTableau Hist X}
 
 /-- Rewinding a path, removing the last `k` steps. Cannot go into Hist.
 Used to go to the companion of a repeat. -/
-def PathIn.rewind : (t : PathIn tab) → (k : Fin (t.toHistory.length)) → PathIn tab
+def PathIn.rewind : (t : PathIn tab) → (k : Fin (t.toHistory.length + 1)) → PathIn tab
 | .nil, _ => .nil
-| .loc Y_in tail, k => Fin.cases (PathIn.loc Y_in tail) (PathIn.loc Y_in ∘ tail.rewind) k
-| .pdl r tail, k => Fin.cases (PathIn.pdl r tail) (PathIn.pdl r ∘ tail.rewind) k
+| .loc Y_in tail, k =>
+    have : List.length tail.toHistory + 1 = List.length (loc Y_in tail).toHistory := by simp [toHistory]
+    Fin.cases (PathIn.loc Y_in tail) (PathIn.loc Y_in ∘ (this ▸ tail.rewind)) k
+| .pdl r tail, k =>
+    have : List.length tail.toHistory + 1 = List.length (pdl r tail).toHistory := by simp [toHistory]
+    Fin.cases (PathIn.pdl r tail) (PathIn.pdl r ∘ (this ▸ tail.rewind)) k
 
-theorem PathIn.rewind_le (t : PathIn tab) (k : Fin (t.toHistory.length)) : t.rewind k ≤ t := by
+theorem PathIn.rewind_le (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) : t.rewind k ≤ t := by
   induction tab
   case loc rest Y lt next IH =>
     cases t
@@ -355,22 +345,78 @@ theorem PathIn.rewind_le (t : PathIn tab) (k : Fin (t.toHistory.length)) : t.rew
     simp_all [PathIn.toList, PathIn.rewind]
     unfold LE.le instLEPathIn; simp; exact Relation.ReflTransGen.refl
 
+/-- The node we get from rewinding `k` steps is element `k+1` in the history. -/
+theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : ClosedTableau Hist X}
+    (t : PathIn tab) (k : Fin (t.toHistory.length + 1))
+    : nodeAt (t.rewind k) = (nodeAt t :: t.toHistory).get k := by
+  induction tab
+  case loc rest Y lt next IH =>
+    cases t
+    case nil =>
+      simp [PathIn.toHistory, PathIn.rewind]
+    case loc Z Z_in tail =>
+      cases k using Fin.cases
+      · specialize IH Z Z_in tail 0
+        simp [PathIn.toHistory, PathIn.rewind] at *
+      case succ j =>
+        have : List.length (loc Z_in tail).toHistory = List.length tail.toHistory + 1 := by sorry
+        specialize IH Z Z_in tail (this ▸ j)
+        -- almost there, how to simplify nodeAt tail rewind ??
+        -- simp_all [PathIn.rewind, nodeAt, tabAt]
+        sorry
+  case pdl =>
+    cases t
+    case nil =>
+      simp_all [PathIn.toHistory, PathIn.rewind]
+    case pdl rest Y Z r tab IH tail =>
+      simp [PathIn.toHistory, PathIn.rewind]
+      simp [PathIn.toHistory] at k
+      induction k using Fin.inductionOn
+      · specialize IH tail
+        -- should be similar to `loc` case
+        sorry
+      · assumption
+  case rep =>
+    cases t
+    simp_all [PathIn.toHistory, PathIn.rewind]
+
+
 /-! ## Companion, ccEdge, cEdge, etc. -/
 
 /-- To get the companion of an LPR node we go as many steps back as the LPR says. -/
 def companionOf {X} {tab : ClosedTableau .nil X} (s : PathIn tab) lpr
- (_ : (tabAt s).2.2 = ClosedTableau.rep lpr) : PathIn tab :=
-  s.rewind (PathIn.root_length_eq_Hist.length tab s ▸ lpr.val)
+  (_ : (tabAt s).2.2 = ClosedTableau.rep lpr) : PathIn tab :=
+    s.rewind ((tabAt_fst_length_eq_toHistory_length s ▸ lpr.val).succ)
 
 /-- s ♥ t means s is a LPR and its companion is t -/
 def companion {X} {tab : ClosedTableau .nil X} (s t : PathIn tab) : Prop :=
-  ∃ (lpr : _) (h : (tabAt s).2.2 = ClosedTableau.rep lpr),
-      t = companionOf s lpr h
+  ∃ (lpr : _) (h : (tabAt s).2.2 = ClosedTableau.rep lpr), t = companionOf s lpr h
 
 notation pa:arg " ♥ " pb:arg => companion pa pb
 
+/-- The node at a companion is the same as the one in the history. -/
+theorem nodeAt_companionOf_eq_toHistory_get_lpr_val (s : PathIn tab) lpr h :
+    nodeAt (companionOf s lpr h)
+    = s.toHistory.get (tabAt_fst_length_eq_toHistory_length s ▸ lpr.val) := by
+  unfold companionOf
+  rw [PathIn.nodeAt_rewind_eq_toHistory_get]
+  simp
+
+/-- Any repeat and companion are both loaded. -/
 theorem companion_loaded : s ♥ t → (nodeAt s).isLoaded ∧ (nodeAt t).isLoaded := by
-  sorry
+  intro s_comp_t
+  unfold companion at s_comp_t
+  rcases s_comp_t with ⟨lpr, h, t_def⟩
+  constructor
+  · simp_all only [nodeAt] -- takes care of s
+    exact LoadedPathRepeat_rep_isLoaded lpr
+  · subst t_def
+    rw [nodeAt_companionOf_eq_toHistory_get_lpr_val]
+    have := PathIn.toHistory_eq_Hist s
+    simp at this
+    have := lpr.2.2 lpr.val (by simp)
+    convert this
+    simp
 
 /-- Successor relation plus back loops: ◃' (MB: page 26) -/
 def ccEdge {X} {ctX : ClosedTableau .nil X} (s t : PathIn ctX) : Prop :=
@@ -479,31 +525,29 @@ theorem eProp2.b {tab : ClosedTableau .nil X} (s t : PathIn tab) : s ♥ t → t
   intro comp
   constructor
   · simp only [companion, companionOf, exists_prop] at comp
-    rcases comp with ⟨lpr, tabAt_s_def, t_def⟩
-    have := PathIn.rewind_le s (PathIn.root_length_eq_Hist.length tab s ▸ lpr.val)
-    unfold LE.le instLEPathIn at this
-    simp at this
-    unfold cEdge
-    rcases ReflTransGen.cases_tail_eq_neq this with ( _ | ⟨ _, v, _, t_v, v_s ⟩ )
-    · convert Relation.ReflTransGen.refl
-      tauto
-    · exact Relation.ReflTransGen.head (t_def ▸ Or.inl t_v) (Relation.ReflTransGen_or_left v_s)
+    rcases comp with ⟨lpr, _, t_def⟩
+    subst t_def
+    have := PathIn.rewind_le s ((tabAt_fst_length_eq_toHistory_length s ▸ lpr.val).succ)
+    simp only [LE.le, instLEPathIn] at this
+    exact Relation.ReflTransGen_or_left this
   · unfold cEdge
     apply Relation.ReflTransGen_or_right
     exact Relation.ReflTransGen.single comp
 
-theorem eProp2.c {tab : ClosedTableau .nil X} (s t : PathIn tab) :
-    (nodeAt s).isFree → s ◃ t → t ⊏_c s := by
-  intro s_free t_childOf_s
+theorem eProp2.c_help {tab : ClosedTableau .nil X} (s : PathIn tab) :
+    (nodeAt s).isFree → ∀ t, s < t → t ⊏_c s := by
+  intro s_free t t_path_s
   constructor
-  · apply Relation.TransGen.single; exact Or.inl t_childOf_s
+  · apply Relation.TransGen_or_left; exact t_path_s
   · unfold cEdge
     intro hyp
+    -- alternative idea: induction t_path_s
     induction hyp -- ((t_s | t_comp_s) | blu)
     case single u t_u =>
       rcases t_u with (t_u | t_comp_u )
-      · have := edge.isAsymm.1 _ _ t_u
-        tauto
+      · -- have := edge.isAsymm.1 _ _ t_u
+        -- use that TransGen edge is asymm!
+        sorry
       · have := (companion_loaded t_comp_u).2
         simp_all [TNode.isFree]
     case tail b s t_b b_s IH =>
@@ -513,6 +557,12 @@ theorem eProp2.c {tab : ClosedTableau .nil X} (s t : PathIn tab) :
       · have := (companion_loaded b_comp_s).2
         simp [TNode.isFree] at s_free
         simp_all
+
+theorem eProp2.c {tab : ClosedTableau .nil X} (s t : PathIn tab) :
+    (nodeAt s).isFree → s ◃ t → t ⊏_c s := by
+  intro s_free t_childOf_s
+  apply eProp2.c_help _ s_free
+  apply Relation.TransGen.single; exact t_childOf_s
 
 theorem eProp2.d {tab : ClosedTableau .nil X} (s t : PathIn tab) :
     (nodeAt s).isLoaded → (nodeAt t).isFree → s ◃ t → t ⊏_c s := by
@@ -564,9 +614,7 @@ theorem eProp2 {tab : ClosedTableau .nil X} (s u t : PathIn tab) :
 
 /-! ## Soundness -/
 
-theorem loadedDiamondPaths
-  (α : Program)
-  {X : TNode}
+theorem loadedDiamondPaths (α : Program) {X : TNode}
   (tab : ClosedTableau .nil X) -- .nil to prevent repeats from "above"
   (t : PathIn tab)
   {W}
@@ -616,7 +664,7 @@ theorem tableauThenNotSat (tab : ClosedTableau .nil Root) (t : PathIn tab) :
     cases t_def : (tabAt t).2.2 -- Now consider what the tableau does at `t`.
     case rep lpr => -- Then t cannot be a LPR.
       exfalso
-      have := LoadedPathRepeat_isLoaded lpr
+      have := LoadedPathRepeat_rep_isLoaded lpr
       simp_all [TNode.isFree, nodeAt]
     case loc lt next =>
       simp [nodeAt]

@@ -148,10 +148,7 @@ theorem loadBoxes_append : LoadFormula.boxes (as ++ bs) P = LoadFormula.boxes as
 
 theorem loadBoxes_last : (~'⌊a⌋LoadFormula.boxes (as ++ [c]) P) = (~'⌊a⌋LoadFormula.boxes as (⌊c⌋P)) :=
   by
-  induction as
-  · simp
-  case cons IH =>
-    simp [loadBoxes_append] at *
+  induction as <;> simp [loadBoxes_append]
 
 @[simp]
 theorem unload_boxes : unload (⌊⌊δ⌋⌋φ) = ⌈⌈δ⌉⌉(unload φ) := by

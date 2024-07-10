@@ -40,16 +40,19 @@ The head of the first list is the newest TNode. -/
 abbrev History : Type := List TNode
 
 /-- A lpr means we can go `k` steps back in the history to
-reach an equal node, and all nodes on the way are loaded. -/
+reach an equal node, and all nodes on the way are loaded.
+Note: `k=0` means the first element of `Hist` is the companion. -/
 def LoadedPathRepeat (Hist : History) (X : TNode) : Type :=
   Subtype (fun k => (Hist.get k).setEqTo X ∧ ∀ m ≤ k, (Hist.get m).isLoaded)
 
-theorem LoadedPathRepeat_isLoaded (lpr : LoadedPathRepeat Hist X) : X.isLoaded := by
+theorem LoadedPathRepeat_comp_isLoaded (lpr : LoadedPathRepeat Hist X) : (Hist.get lpr.val).isLoaded := by
+  rcases lpr with ⟨j, claim⟩
+  apply claim.2 j (le_refl j)
+
+theorem LoadedPathRepeat_rep_isLoaded (lpr : LoadedPathRepeat Hist X) : X.isLoaded := by
   rcases lpr with ⟨k, claim⟩
-  have := setEqTo_isLoaded_iff claim.1
-  rw [← this]
-  apply claim.2
-  apply le_refl
+  rw [← setEqTo_isLoaded_iff claim.1]
+  exact claim.2 k (le_refl k)
 
 /-! ## The PDL rules -/
 
