@@ -1,6 +1,7 @@
 import Mathlib.Init.Data.Nat.Lemmas
 
 import Pdl.Semantics
+import Pdl.Vocab
 
 -- FIXME: rename "Con" to "con"
 @[simp]
@@ -221,3 +222,27 @@ theorem mapCon_mapForall (M : KripkeModel W) w φ
     constructor
     · use a, b
     · rw [conEval]; intro f; tauto
+
+open HasVocabulary
+
+theorem in_voc_dis n (L : List Formula) :
+    n ∈ voc (dis L) ↔ ∃ φ ∈ L, n ∈ voc φ := by
+  induction L
+  · simp [voc, dis, vocabOfFormula]
+  case cons h t IH =>
+    induction t -- needed to select case in `dis`
+    · simp [voc, dis, vocabOfFormula]
+    case cons h t IH =>
+      simp [voc, dis, vocabOfFormula] at *
+      rw [← IH]
+
+theorem in_voc_con n (L : List Formula) :
+    n ∈ voc (Con L) ↔ ∃ φ ∈ L, n ∈ voc φ := by
+  induction L
+  · simp [voc, Con, vocabOfFormula]
+  case cons h t IH =>
+    induction t -- needed to select case in `Con`
+    · simp [voc, Con, vocabOfFormula]
+    case cons h t IH =>
+      simp [voc, Con, vocabOfFormula] at *
+      rw [← IH]
