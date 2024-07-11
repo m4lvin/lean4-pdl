@@ -573,14 +573,15 @@ theorem eProp2.d {tab : Tableau .nil X} (s t : PathIn tab) :
     -- need some way to show that cEdge from free only goes down?
     sorry
 
+/-- ⊏_c is transitive -/
 theorem eProp2.e {tab : Tableau .nil X} (s u t : PathIn tab) :
     t ⊏_c u  →  u ⊏_c s  →  t ⊏_c s := by
-  rintro ⟨u_t, not_u_t⟩ ⟨s_u, not_u_s⟩
+  rintro ⟨u_t, not_u_t⟩ ⟨s_u, _⟩
   constructor
   · exact Relation.TransGen.trans s_u u_t
-  ·
-    -- seems non-trivial
-    sorry
+  · intro t_s
+    absurd not_u_t
+    apply Relation.TransGen.trans t_s s_u
 
 theorem eProp.f_helper {tab : Tableau .nil X} (s t : PathIn tab) :
     s ⋖ᶜᶜ t → Relation.ReflTransGen cEdge s t := by
@@ -592,7 +593,7 @@ theorem eProp.f_helper {tab : Tableau .nil X} (s t : PathIn tab) :
 
 theorem eProp2.f {tab : Tableau .nil X} (s t : PathIn tab) :
     (s ⋖ᶜᶜ t  →  ¬ s ≡_E t  →  t ⊏_c s) := by
-  rintro s_cc_t s_nequiv_t -- TODO: rintro
+  rintro s_cc_t s_nequiv_t
   constructor
   · rcases s_cc_t with s_c_t | ⟨u, s_comp_u, u_t⟩
     · exact Relation.TransGen.single (Or.inl s_c_t)
@@ -747,7 +748,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
         rw [← O_def]
         aesop
 
-theorem correctness : ∀LR : TNode, satisfiable LR → consistent LR := by
+theorem correctness : ∀ LR : TNode, satisfiable LR → consistent LR := by
   intro LR
   contrapose
   unfold consistent
@@ -756,7 +757,7 @@ theorem correctness : ∀LR : TNode, satisfiable LR → consistent LR := by
   intro hyp
   apply tableauThenNotSat hyp .nil
 
-theorem soundTableau : ∀φ, provable φ → ¬satisfiable ({~φ} : Finset Formula) := by
+theorem soundTableau : ∀ φ, provable φ → ¬satisfiable ({~φ} : Finset Formula) := by
   intro φ prov
   rcases prov with ⟨tabl⟩|⟨tabl⟩
   exact tableauThenNotSat tabl .nil
@@ -764,7 +765,7 @@ theorem soundTableau : ∀φ, provable φ → ¬satisfiable ({~φ} : Finset Form
 
 /-- All provable formulas are semantic tautologies.
 See `tableauThenNotSat` for what the notes call soundness. -/
-theorem soundness : ∀φ, provable φ → tautology φ := by
+theorem soundness : ∀ φ, provable φ → tautology φ := by
   intro φ prov
   apply notsatisfnotThenTaut
   rw [← singletonSat_iff_sat]
