@@ -218,6 +218,46 @@ instance : LT (PathIn tab) := ⟨Relation.TransGen edge⟩
 /-- Enable "≤" notation for transitive closure of ⋖ -/
 instance : LE (PathIn tab) := ⟨Relation.ReflTransGen edge⟩
 
+/-! ## Alternative definitions of `edge` -/
+
+/-- Attempt to define `edge` *recursively* by "going to the end" of the paths.
+Note there are no mixed .loc and .pdl cases. -/
+-- TODO: try if making this the definition makes life easier?
+def edgeRec : PathIn tab → PathIn tab → Prop
+| .nil, .nil => false
+| .nil, .loc Y_in tail => tail = .nil
+| .nil, .pdl _ tail => tail = .nil
+| .pdl _ _, .nil => false
+| .pdl _ tail, .pdl _ tail2 => edgeRec tail tail2
+| .loc _ _, .nil => false
+| @PathIn.loc _ _ Y1 _ _ _ tail1,
+  @PathIn.loc _ _ Y2 _ _ _ tail2 =>
+  if h : Y1 = Y2 then edgeRec tail1 (h ▸ tail2) else false
+
+/-- Alternative definition of `edge` by two cases via `append`. -/
+-- TODO: prove that this is equivalent? (or try it out as the definition?)
+def edgeCases (s t : PathIn tab) : Prop :=
+  ( ∃ Hist X lt next Y, ∃ (Y_in : Y ∈ endNodesOf lt) (h : tabAt s = ⟨Hist, X, Tableau.loc lt next⟩),
+      t = s.append (h ▸ PathIn.loc Y_in .nil) )
+  ∨
+  ( ∃ Hist X Y r, ∃ (next : Tableau (X :: Hist) Y) (h : tabAt s = ⟨Hist, X, Tableau.pdl r next⟩),
+      t = s.append (h ▸ PathIn.pdl r .nil) )
+
+/-
+/-- Slightly broken attempt to define `edgeCases` *inductively*. -/
+inductive edgeIndu : PathIn tab → PathIn tab → Prop
+| loc Hist X lt next Y (Y_in : Y ∈ endNodesOf lt)
+      (h : tabAt s = ⟨Hist, X, Tableau.loc lt next⟩)
+      (h2 : t = s.append (h ▸ PathIn.loc Y_in .nil))
+      : edgeIndu s t
+| pdl Hist X Y r (next : Tableau (X :: Hist) Y)
+      (h : tabAt s = ⟨Hist, X, Tableau.pdl r next⟩)
+      (h2 : t = s.append (h ▸ PathIn.pdl r .nil))
+      : edgeIndu s t
+-/
+
+/-! ## More about Path and History -/
+
 @[simp]
 def PathIn.head {tab : Tableau Hist X} (_ : PathIn tab) : TNode := X
 
