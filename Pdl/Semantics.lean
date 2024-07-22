@@ -90,13 +90,19 @@ theorem notsatisfnotThenTaut : ∀ φ, ¬ satisfiable (~φ) → tautology φ :=
 theorem subsetSat {M : KripkeModel W} {w : W} {X Y : List Formula} : (∀ φ ∈ X, evaluate M w φ) → Y ⊆ X → ∀ φ ∈ Y, evaluate M w φ :=
   by aesop
 
-theorem semEquiv.transitive : Transitive semEquiv :=
-  by
-  unfold Transitive
-  unfold semEquiv
-  intro f g h f_is_g g_is_h W M w
-  specialize f_is_g W M w
-  specialize g_is_h W M w
+theorem semEquiv.refl : Reflexive semEquiv := by
+  tauto
+
+theorem semEquiv.symm : Symmetric semEquiv := by
+  intro φ1 φ2 hyp
+  intro W M w
+  specialize hyp W M w
+  tauto
+
+theorem semEquiv.trans : Transitive semEquiv := by
+  intro _ _ _ hyp1 hyp2 W M w
+  specialize hyp1 W M w
+  specialize hyp2 W M w
   tauto
 
 class vDash (α : Type) (β : Type) where
