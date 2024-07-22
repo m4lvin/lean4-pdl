@@ -11,7 +11,8 @@ import «Pdl».MultisetOrder
 import «Pdl».Examples
 import «Pdl».Modelgraphs
 import «Pdl».Discon
-import «Pdl».Unfold
+import «Pdl».UnfoldBox
+import «Pdl».UnfoldDia
 import «Pdl».LocalTableau
 import «Pdl».Tableau
 import «Pdl».Soundness

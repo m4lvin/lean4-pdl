@@ -1,6 +1,7 @@
 -- LOCAL TABLEAU
 
-import Pdl.Unfold
+import Pdl.UnfoldBox
+import Pdl.UnfoldDia
 import Pdl.MultisetOrder
 
 open HasLength

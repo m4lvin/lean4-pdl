@@ -3,8 +3,8 @@ import Mathlib.Tactic.ClearExcept
 import Mathlib.Data.Vector.Basic
 
 import Pdl.Semantics
-import Pdl.Star
-import Pdl.Unfold
+import Pdl.UnfoldBox
+import Pdl.UnfoldDia
 
 open Formula
 

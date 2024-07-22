@@ -1,6 +1,5 @@
 
 import Pdl.Semantics
-import Pdl.Vocab
 import Pdl.Discon
 
 -- ## Single-step replacing
