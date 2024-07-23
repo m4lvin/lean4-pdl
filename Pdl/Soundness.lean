@@ -133,10 +133,42 @@ def tabAt : PathIn tab → Σ H X, Tableau H X
 | .loc _ tail => tabAt tail
 | .pdl _ p_child => tabAt p_child
 
+@[simp]
+theorem tabAt_nil {tab : Tableau Hist X} : tabAt (.nil : PathIn tab) = ⟨Hist, X, tab⟩ := by
+  simp [tabAt, tabAt]
+
+@[simp]
+theorem tabAt_loc : tabAt (.loc Y_in tail : PathIn _) = tabAt tail := by simp [tabAt]
+
+@[simp]
+theorem tabAt_pdl : tabAt (.pdl r tail : PathIn _) = tabAt tail := by simp [tabAt]
+
 def PathIn.append (p : PathIn tab) (q : PathIn (tabAt p).2.2) : PathIn tab := match p with
   | .nil => q
   | .loc Y_in tail => .loc Y_in (PathIn.append tail q)
   | .pdl r p_child => .pdl r (PathIn.append p_child q)
+
+@[simp]
+theorem PathIn.nil_append {tab : Tableau Hist X} (p : PathIn (tabAt .nil).2.2) : (.nil : PathIn tab).append p = p := by
+  simp [PathIn.append]
+
+@[simp] -- maybe not?
+theorem PathIn.pdl_append {tab : Tableau (X :: Hist) Y} {p : PathIn tab} {q : PathIn (tabAt (pdl r p)).snd.snd} :
+    PathIn.pdl r (p.append (tabAt_pdl ▸ q)) = (PathIn.pdl r p).append q := by
+  cases p <;> simp [PathIn.append]
+
+@[simp] -- maybe not?
+theorem PathIn.loc_append {ltX : LocalTableau X} Y {Y_in : Y ∈ endNodesOf ltX} {Hist : History}
+    {next : (Y : TNode) → Y ∈ endNodesOf ltX → Tableau (X :: Hist) Y} {p : PathIn (next Y Y_in)}
+    {q : PathIn (tabAt (loc Y_in p)).2.2} :
+    PathIn.loc Y_in (p.append (tabAt_loc ▸ q)) = (PathIn.loc Y_in p).append q := by
+  simp [PathIn.append]
+
+@[simp]
+theorem PathIn.append_nil (p : PathIn tab) : p.append .nil = p := by
+  induction p <;> simp [PathIn.append]
+  · assumption
+  · assumption
 
 @[simp]
 theorem tabAt_append (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
@@ -146,21 +178,9 @@ theorem tabAt_append (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
   case loc IH =>
     simp [PathIn.append]
     rw [← IH]
-    simp [tabAt]
   case pdl IH =>
     simp [PathIn.append]
     rw [← IH]
-    simp [tabAt]
-
-@[simp]
-theorem tabAt_nil {tab : Tableau Hist X} : tabAt (.nil : PathIn tab) = ⟨_, _, tab⟩ := by
-  simp [tabAt, tabAt]
-
-@[simp]
-theorem tabAt_loc : tabAt (.loc Y_in tail : PathIn _) = tabAt tail := by simp [tabAt]
-
-@[simp]
-theorem tabAt_pdl : tabAt (.pdl r tail : PathIn _) = tabAt tail := by simp [tabAt]
 
 /-- Given a path to node `t`, this is its label Λ(t). -/
 def nodeAt {H X} {tab : (Tableau H X)} (p : PathIn tab) : TNode := (tabAt p).2.1
@@ -191,11 +211,28 @@ def children' (p : PathIn tab) : List (PathIn (tabAt p).2.2) := match tabAt p wi
   | ⟨_, _, Tableau.rep _⟩  => [ ]
 
 /-- List of one-step children, given by paths from the same root. -/
-def children (p : PathIn tab) : List (PathIn tab) := (children' p).map (PathIn.append p)
+def childrenOld (p : PathIn tab) : List (PathIn tab) := (children' p).map (PathIn.append p)
 
-/-- The parent-child relation `s ◃ t` in a tableau -/
-def edge {H X} {tab : Tableau H X} (s t : PathIn tab) : Prop :=
-  t ∈ children s
+/-- Direct def of one-step children, given by paths from the same root. -/
+def children (p : PathIn tab) : List (PathIn tab) := match h : (tabAt p).2.2 with
+  | Tableau.loc lt _next  =>
+      ((endNodesOf lt).attach.map (fun ⟨_, Y_in⟩ => [ p.append (h ▸ .loc Y_in .nil) ] )).join
+  | Tableau.pdl r _ct  => [ p.append (h ▸ .pdl r .nil) ]
+  | Tableau.rep _  => [ ]
+
+/-- The parent-child relation `s ◃ t` in a tableau
+Note there are no mixed .loc and .pdl cases. -/
+def edge : PathIn tab → PathIn tab → Prop
+| .nil, .nil => false
+| .nil, .loc Y_in tail => tail = .nil
+| .nil, .pdl _ tail => tail = .nil
+| .pdl _ _, .nil => false
+| .pdl _ tail, .pdl _ tail2 => edge tail tail2
+| .loc _ _, .nil => false
+| @PathIn.loc _ _ Y1 _ _ _ tail1,
+  @PathIn.loc _ _ Y2 _ _ _ tail2 =>
+  if h : Y1 = Y2 then edge tail1 (h ▸ tail2) else false
+
 
 /-- Notation ◃ for `edge` (because ⋖ in notes is taken in Mathlib). -/
 notation s:arg " ◃ " t:arg => edge s t
@@ -220,19 +257,8 @@ instance : LE (PathIn tab) := ⟨Relation.ReflTransGen edge⟩
 
 /-! ## Alternative definitions of `edge` -/
 
-/-- Attempt to define `edge` *recursively* by "going to the end" of the paths.
-Note there are no mixed .loc and .pdl cases. -/
--- TODO: try if making this the definition makes life easier?
-def edgeRec : PathIn tab → PathIn tab → Prop
-| .nil, .nil => false
-| .nil, .loc Y_in tail => tail = .nil
-| .nil, .pdl _ tail => tail = .nil
-| .pdl _ _, .nil => false
-| .pdl _ tail, .pdl _ tail2 => edgeRec tail tail2
-| .loc _ _, .nil => false
-| @PathIn.loc _ _ Y1 _ _ _ tail1,
-  @PathIn.loc _ _ Y2 _ _ _ tail2 =>
-  if h : Y1 = Y2 then edgeRec tail1 (h ▸ tail2) else false
+def edgeViaChildren {H X} {tab : Tableau H X} (s t : PathIn tab) : Prop :=
+  t ∈ children s
 
 /-- Alternative definition of `edge` by two cases via `append`. -/
 -- TODO: prove that this is equivalent? (or try it out as the definition?)
@@ -242,6 +268,62 @@ def edgeCases (s t : PathIn tab) : Prop :=
   ∨
   ( ∃ Hist X Y r, ∃ (next : Tableau (X :: Hist) Y) (h : tabAt s = ⟨Hist, X, Tableau.pdl r next⟩),
       t = s.append (h ▸ PathIn.pdl r .nil) )
+
+-- TODO: it seems default 200000 is not enough for theorem below?!
+set_option maxHeartbeats 2000000
+
+
+theorem edge_iff_edgeCases : edge s t ↔ edgeCases s t := by
+  unfold edge edgeCases
+  constructor
+  · intro t_in -- rintro ⟨u, u_in, sa_eq_t⟩
+    cases s <;> cases t <;> simp at * <;> subst_eqs
+    case nil.loc.refl Hist X Y lt Y_in next =>
+      left
+      use Hist, X, lt, next, Y, Y_in, ⟨rfl, by simp⟩
+    case nil.pdl.refl Hist X Y r child =>
+      right
+      use Hist, X, Y, r, child
+      simp
+    case loc.loc Hist X Y1 lt Y1_in next tail Y2 Y2_in tail2 =>
+      by_cases h : Y1 = Y2 <;> simp_all
+      subst h
+      rw [edge_iff_edgeCases] at t_in -- termination problem?
+      unfold edgeCases at t_in
+      simp at t_in
+      rcases t_in with ⟨Hist, X, lt, next, Y, Y_in, tabAt_s_def, t_def⟩ | ⟨Hist, X, Y, r, next, tabAt_s_def, t_def⟩
+      · left
+        use Hist, X, lt, next, Y, Y_in, tabAt_s_def
+        -- convert PathIn.loc_append -- hmm?
+        sorry
+      · right
+        use Hist, X, Y, r, next, tabAt_s_def
+        -- convert PathIn.loc_append -- hmm?
+        sorry
+
+    · rw [edge_iff_edgeCases] at t_in -- induction / recursion, check termination later?
+      unfold edgeCases at t_in
+      simp at t_in
+      rcases t_in with ⟨Hist, X, lt, next, Y, Y_in, tabAt_s_def, t_def⟩ | ⟨Hist, X, Y, r, next, tabAt_s_def, t_def⟩
+      · left
+        use Hist, X, lt, next, Y, Y_in, tabAt_s_def
+        convert PathIn.pdl_append
+      · right
+        use Hist, X, Y, r, next, tabAt_s_def
+        convert PathIn.pdl_append
+
+  · rintro (⟨Hist, X, lt, next, Y, Y_in, tabAt_s_def, t_def⟩ | ⟨Hist, X, Y, r, next, tabAt_s_def, t_def⟩ )
+    · subst t_def
+      sorry
+    · subst t_def
+      -- use (tabAt_s_def ▸ PathIn.pdl r PathIn.nil)
+      sorry
+termination_by
+  sizeOf s
+decreasing_by
+  all_goals simp_wf
+  · sorry
+  · sorry
 
 /-
 /-- Slightly broken attempt to define `edgeCases` *inductively*. -/
@@ -717,10 +799,10 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
       let s : PathIn tab := t.append (t_def ▸ t_to_s)
       have t_s : t ◃ s := by
         unfold_let s
-        simp [edge, children, children']
-        use (t_def ▸ t_to_s)
-        unfold_let t_to_s
-        simp
+        -- simp [edge, children, children']
+        -- use (t_def ▸ t_to_s)
+        -- unfold_let t_to_s
+        -- simp
         sorry
       have : Y = nodeAt s := by
         unfold_let s t_to_s; simp
