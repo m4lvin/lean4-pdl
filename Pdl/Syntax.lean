@@ -101,7 +101,7 @@ inductive AnyNegFormula
 
 @[simp]
 def loadMulti : List Program → Program → Formula → LoadFormula
-| bs, α, φ => List.foldl (fun f β => LoadFormula.box β f) (LoadFormula.box α φ) bs
+| bs, α, φ => List.foldr (fun f β => LoadFormula.box f β) (LoadFormula.box α φ) bs
 
 @[simp]
 def LoadFormula.boxes : List Program → LoadFormula → LoadFormula
@@ -113,11 +113,14 @@ def unload : LoadFormula → Formula
 | LoadFormula.box α (.normal φ) => ⌈α⌉φ
 | LoadFormula.box α (.loaded χ) => ⌈α⌉(unload χ)
 
--- TODO: should this replace `unload`?
-def anyUnload : AnyFormula → Formula
-| .normal φ => φ
-| .loaded (LoadFormula.box α (.normal φ)) => ⌈α⌉φ
-| .loaded (LoadFormula.box α (.loaded χ)) => ⌈α⌉(unload χ)
+@[simp]
+theorem unload_loadMulti : unload (loadMulti δ α φ) = ⌈⌈δ⌉⌉⌈α⌉φ := by
+  induction δ
+  · simp
+  case cons IH =>
+    simp only [loadMulti, List.foldr_cons, unload, Formula.boxes, Formula.box.injEq, true_and]
+    rw [← IH]
+    simp
 
 inductive NegLoadFormula : Type -- ¬χ
   | neg : LoadFormula → NegLoadFormula
@@ -163,33 +166,3 @@ theorem unload_neg_loaded : unload (~'⌊α⌋(.loaded χ)).1 = ⌈α⌉(unload 
 @[simp]
 theorem unload_neg_normal : unload (~'⌊α⌋(.normal φ)).1 = ⌈α⌉φ := by
   simp [unload]
-
-/-! ## Fischer-Ladner Closure -/
-
-def fischerLadnerStep : Formula → List Formula
-| ⊥ => []
-| ·_ => []
-| φ⋀ψ => [~(φ⋀ψ), φ, ψ]
-| ⌈·_⌉φ => [φ]
-| ⌈α;'β⌉φ => [ ⌈α⌉⌈β⌉φ ]
-| ⌈α⋓β⌉φ => [ ⌈α⌉φ, ⌈β⌉φ ]
-| ⌈∗α⌉φ => [ φ, ⌈α⌉⌈∗α⌉φ ]
-| ⌈?'τ⌉φ => [ τ, φ ]
-| ~~φ => [~φ]
-| ~⊥ => []
-| ~(·_) => []
-| ~(φ⋀ψ) => [φ⋀ψ]
-| ~⌈·_⌉φ => [~φ]
-| ~⌈α;'β⌉φ => [ ~⌈α⌉⌈β⌉φ ]
-| ~⌈α⋓β⌉φ => [ ~⌈α⌉φ, ~⌈β⌉φ ]
-| ~⌈∗α⌉φ => [ ~φ, ~⌈α⌉⌈∗α⌉φ ]
-| ~⌈?'τ⌉φ => [ ~τ, ~φ ]
-
-def fischerLadner : List Formula → List Formula
-| X => let Y := X ∪ (X.map fischerLadnerStep).join
-       if Y ⊆ X then Y else fischerLadner Y
-decreasing_by sorry -- hmm??
-
--- Examples:
--- #eval fischerLadner [~~((·1) : Formula)]
--- #eval fischerLadner [ ((⌈(·1) ⋓ (·2)⌉(·3)) ⟷ ((⌈(·1)⌉(·3)) ⋀ (⌈(·2)⌉(·3)))) ]

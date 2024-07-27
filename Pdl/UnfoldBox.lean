@@ -6,6 +6,7 @@ import Mathlib.Tactic.Linarith
 import Pdl.Substitution
 import Pdl.Fresh
 import Pdl.Star
+import Pdl.FischerLadner
 
 open HasVocabulary
 
@@ -159,7 +160,7 @@ def unfoldBox (α : Program) (φ : Formula) : List (List Formula) :=
   (allTP α).map (fun ℓ => Xset α ℓ φ)
 
 theorem F_mem_iff_neg α (ℓ : TP α) φ : φ ∈ F α ℓ ↔ ∃ τ, ∃ (h : τ ∈ testsOfProgram α), φ = (~τ) ∧ ℓ ⟨τ,h⟩ = false := by
-  simp
+  simp_all only [exists_and_left]
   cases α
   all_goals
     simp_all [testsOfProgram, F]
@@ -205,7 +206,8 @@ theorem P_monotone α (ℓ ℓ' : TP α) (h : ∀ τ, ℓ τ → ℓ' τ) δ : �
         · have := List.of_mem_filter δ'_in
           simp_all only
       · rfl
-    · aesop
+    case inr h' =>
+      split <;> split at h' <;> simp_all
   case star α =>
     intro δ_in
     cases em (δ = [])
@@ -225,7 +227,8 @@ theorem P_monotone α (ℓ ℓ' : TP α) (h : ∀ τ, ℓ τ → ℓ' τ) δ : �
       · rfl
   case test τ =>
     simp_all [testsOfProgram, P]
-    aesop
+    intro h'
+    split <;> split at h' <;> simp_all
 
 theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if isAtomic α then γ = α else if isStar α then lengthOfProgram γ ≤  lengthOfProgram α else lengthOfProgram γ < lengthOfProgram α) := by
   intro γ_in δ_in

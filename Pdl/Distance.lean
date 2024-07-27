@@ -1,5 +1,4 @@
 
-import Pdl.UnfoldBox
 import Pdl.UnfoldDia
 
 -- Alternative to `Paths.lean` for the proof of `correctRightIP`.

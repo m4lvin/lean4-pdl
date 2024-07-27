@@ -261,6 +261,11 @@ def relateSeq {W} (M : KripkeModel W) (δ : List Program) (w v : W) : Prop :=
   | (α::as) => ∃ u, relate M α w u ∧ relateSeq M as u v
 
 @[simp]
+theorem relateSeq_nil (M : KripkeModel W) (w v : W) :
+    relateSeq M [] w v ↔ w = v := by
+  simp [relateSeq]
+
+@[simp]
 theorem relateSeq_singelton (M : KripkeModel W) (α : Program) (w v : W) :
     relateSeq M [α] w v ↔ relate M α w v := by
   simp [relateSeq]

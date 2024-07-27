@@ -1,6 +1,7 @@
 -- SOUNDNESS
 
 import Pdl.Tableau
+import Pdl.LoadSplit
 
 import Mathlib.Logic.Relation
 import Mathlib.Tactic.Ring
@@ -613,6 +614,13 @@ theorem eProp2.d {tab : Tableau .nil X} (s t : PathIn tab) :
     -- need some way to show that cEdge from free only goes down?
     sorry
 
+-- Added for loadedDiamondPaths - change to <ᶜ later? replace the original eProp2.d with this?
+theorem eProp2.d_cc {tab : Tableau .nil X} (s t : PathIn tab) :
+    (nodeAt s).isLoaded → (nodeAt t).isFree → s ⋖ᶜᶜ t → t ⊏_c s := by
+  intro s_loaded t_free s_cc_t
+  sorry
+
+
 /-- ⊏_c is transitive -/
 theorem eProp2.e {tab : Tableau .nil X} (s u t : PathIn tab) :
     t ⊏_c u  →  u ⊏_c s  →  t ⊏_c s := by
@@ -655,6 +663,18 @@ theorem eProp2 {tab : Tableau .nil X} (s u t : PathIn tab) :
 
 /-! ## Soundness -/
 
+-- TODO: move to LocalTableau / should be possible to make it computable?
+noncomputable def TNode.without : (LRO : TNode) → (naf : AnyNegFormula) → TNode
+| ⟨L,R,O⟩, ⟨.normal f⟩  => ⟨L \ {~f}, R \ {~f}, O⟩
+| ⟨L,R,O⟩, ⟨.loaded lf⟩ => if decide (NegLoadFormula_in_TNode (~'lf) ⟨L,R,O⟩) then ⟨L, R, none⟩  else ⟨L,R,O⟩
+
+@[simp]
+theorem TNode.without_normal_isFree_iff_isFree (LRO : TNode) :
+    (LRO.without (~''(.normal φ))).isFree ↔ LRO.isFree := by
+  rcases LRO with ⟨L, R, O⟩
+  simp [TNode.without, isFree, isLoaded]
+  aesop
+
 theorem loadedDiamondPaths (α : Program) {X : TNode}
   (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
   (t : PathIn tab)
@@ -668,7 +688,8 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
   : ∃ s : PathIn tab,
       t ⋖ᶜᶜ s
     ∧ ( ¬ (cEquiv s t) ∨ (AnyNegFormula_in_TNode (~''ξ) (nodeAt s)) )
-    ∧ (M,w) ⊨ (nodeAt s) := by
+    ∧ (M,w) ⊨ (nodeAt s)
+    ∧ ((nodeAt s).without (~''ξ)).isFree := by
   -- Notes first take care of cases where rule is applied to non-loaded formula.
   -- For this, we need to distinguish what happens at `t`.
   rcases tabAt t with ⟨H, Y, ctY⟩
@@ -752,41 +773,50 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
     rcases O_def : (tabAt t).2.1.2.2 with _ | (nlf | nlf)
     -- "none" case is impossible because t is not free:
     · exfalso; simp_all [nodeAt, TNode.isLoaded]; split at not_free <;> simp_all
-    -- two goals  remainig, but left and right case are axactly the same :-)
-
-    all_goals
+    -- two goals  remaining, but left and right case are axactly the same :-)
+    · sorry -- FIXME replace with all_goals
+    ·
       clear not_free
-      rcases nlf with ⟨⟨α, af⟩⟩
-
-      -- Maybe better to get all loaded boxes?
-      -- YES, then we would know how many `loadedDiamondPaths` applications we need below!
+      rcases nlf with ⟨lf⟩
+      -- Now we take apart the loaded formula to get all loaded boxes from the front at once,
+      -- so that we know how many `loadedDiamondPaths` applications we need below.
+      rcases LoadFormula.exists_loadMulti lf with ⟨δ, α, φ, lf_def⟩
 
       -- Now assume for contradiction, that Λ(t) is satisfiable.
       rintro ⟨W,M,v,v_⟩
 
-      have := v_ (~ unload (⌊α⌋af)) (by cases af <;> simp [unload]; all_goals simp_all)
-      simp at this
-      rcases this with ⟨w, v_α_w, not_w_af⟩
-      have w_not_af : (M, w) ⊨ ~''af := by
-        simp_all [modelCanSemImplyAnyNegFormula, modelCanSemImplyAnyFormula]
-        cases af <;> simp_all
+      have := v_ (~ unload (loadMulti δ α φ)) (by simp; right; aesop)
+      rw [unload_loadMulti] at this
+      induction δ generalizing lf -- α -- amazing that this does not give a wrong motive ;-)
+      · simp [evalBoxes] at this
+        rcases this with ⟨w, v_α_w, not_w_φ⟩
+        simp only [loadMulti, List.foldr_nil] at *
+        have in_t : NegLoadFormula_in_TNode (~'⌊α⌋AnyFormula.normal φ) (nodeAt t) := by
+          simp_all [nodeAt, NegLoadFormula_in_TNode]; aesop
+        have := loadedDiamondPaths α tab t v_ φ in_t v_α_w (not_w_φ)
 
-      have := loadedDiamondPaths α tab t v_ af (?_) v_α_w (w_not_af)
-      clear w_not_af not_w_af
-
-      · rcases this with ⟨s, t_cc_s, (notequi | not_af_in_s), w_s⟩
-        · -- left the cluster, cannot be the case by Lemma and IH:
-          have := eProp2.f t s t_cc_s (by rw [cEquiv.symm]; exact notequi)
-          absurd IH _ this
-          use W, M, w
-        · -- PROBLEM: need an unknown number of applications of `loadedDiamondPaths`
-          -- solve this by induction, but on *what*?
-          sorry
-
-      · -- still need to show ?_ for loadedDiamondPaths
-        simp_all [nodeAt, NegLoadFormula_in_TNode]
-        rw [← O_def]
-        aesop
+        · rcases this with ⟨s, t_cc_s, (notequi | not_af_in_s), w_s, rest_s_free⟩
+          · -- left the cluster, cannot be the case by Lemma and IH:
+            have := eProp2.f t s t_cc_s (by rw [cEquiv.symm]; exact notequi)
+            absurd IH _ this
+            use W, M, w
+          ·
+            -- this should now be a relatively easy contradiction!
+            -- or not ;-) (it is not about ~φ and φ at w ...)
+            absurd IH s ?_
+            use W, M, w
+            · -- Remains to show that s is simpler than t.
+              -- Follows because s is free, which we get from `loadedDiamondPaths`.
+              simp only [TNode.without_normal_isFree_iff_isFree] at rest_s_free
+              apply eProp2.d_cc t s ?_ rest_s_free t_cc_s
+              · unfold TNode.isLoaded
+                cases in_t <;> aesop
+      case cons β δ IH =>
+        -- we need an unknown number of applications of `loadedDiamondPaths`
+        -- now the new `IH` here should solve this??
+        -- probably still need to make one step with the lemma for β
+        simp [evalBoxes, relateSeq] at this -- ???
+        sorry
 
 theorem correctness : ∀ LR : TNode, satisfiable LR → consistent LR := by
   intro LR
