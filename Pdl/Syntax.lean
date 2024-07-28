@@ -24,10 +24,8 @@ def Formula.or : Formula → Formula → Formula
   | f, g => Formula.neg (Formula.and (Formula.neg f) (Formula.neg g))
 
 /-- □(αs,φ) -/
-@[simp]
 def Formula.boxes : List Program → Formula → Formula
-  | [], f => f
-  | (p :: ps), f => Formula.box p (Formula.boxes ps f)
+| δ, χ => List.foldr (fun β φ => Formula.box β φ) χ δ
 
 @[simp]
 def Program.steps : List Program → Program
@@ -63,19 +61,19 @@ def isStar : Program → Bool
 | ∗_ => true
 | _ => false
 
-theorem boxes_last : (~⌈a⌉Formula.boxes (as ++ [c]) P) = (~⌈a⌉Formula.boxes as (⌈c⌉P)) :=
+@[simp]
+theorem Formula.boxes_nil : Formula.boxes [] φ = φ := by simp [Formula.boxes]
+
+@[simp]
+theorem Formula.boxes_cons : Formula.boxes (β :: δ) φ = Formula.box β (Formula.boxes δ φ) := by simp [Formula.boxes]
+
+theorem boxes_last : Formula.boxes (δ ++ [α]) φ = Formula.boxes δ (⌈α⌉φ) :=
   by
-  induction as
-  · simp
-  · simp at *
-    assumption
+  induction δ <;> simp [Formula.boxes]
 
 theorem boxes_append : Formula.boxes (as ++ bs) P = Formula.boxes as (Formula.boxes bs P) :=
   by
-  induction as
-  · simp
-  · simp at *
-    assumption
+  induction as <;> simp [Formula.boxes]
 
 /-! ## Loaded Formulas -/
 
@@ -99,14 +97,21 @@ instance : Coe LoadFormula AnyFormula := ⟨AnyFormula.loaded⟩
 inductive AnyNegFormula
 | neg : AnyFormula → AnyNegFormula
 
-@[simp]
 def loadMulti : List Program → Program → Formula → LoadFormula
-| bs, α, φ => List.foldr (fun f β => LoadFormula.box f β) (LoadFormula.box α φ) bs
+| bs, α, φ => List.foldr (fun β lf => LoadFormula.box β lf) (LoadFormula.box α φ) bs
 
 @[simp]
+theorem loadMulti_nil : loadMulti [] α φ = LoadFormula.box α φ := by simp [loadMulti]
+
+@[simp]
+theorem loadMulti_cons : loadMulti (β :: δ) α φ = LoadFormula.box β (loadMulti δ α φ) := by simp [loadMulti]
+
 def LoadFormula.boxes : List Program → LoadFormula → LoadFormula
-| [], χ => χ
-| (b::bs), χ => LoadFormula.box b (LoadFormula.boxes bs χ)
+| δ, χ => List.foldr (fun β lf => LoadFormula.box β lf) χ δ
+
+@[simp]
+theorem boxes_first : (Formula.boxes (α :: δ) φ) = ⌈α⌉(Formula.boxes δ φ) := by
+  simp [Formula.boxes, LoadFormula.boxes]
 
 @[simp]
 def unload : LoadFormula → Formula
@@ -116,11 +121,8 @@ def unload : LoadFormula → Formula
 @[simp]
 theorem unload_loadMulti : unload (loadMulti δ α φ) = ⌈⌈δ⌉⌉⌈α⌉φ := by
   induction δ
-  · simp
-  case cons IH =>
-    simp only [loadMulti, List.foldr_cons, unload, Formula.boxes, Formula.box.injEq, true_and]
-    rw [← IH]
-    simp
+  · simp [Formula.boxes, LoadFormula.boxes, loadMulti]
+  · simpa [Formula.boxes, LoadFormula.boxes, loadMulti]
 
 inductive NegLoadFormula : Type -- ¬χ
   | neg : LoadFormula → NegLoadFormula
@@ -144,20 +146,17 @@ example : NegLoadFormula := ~'(⌊⌊[·1, ·2]⌋⌋⌊·1⌋(⊤ : Formula))
 
 theorem loadBoxes_append : LoadFormula.boxes (as ++ bs) P = LoadFormula.boxes as (LoadFormula.boxes bs P) :=
   by
-  induction as
-  · simp
-  · simp at *
-    assumption
+  induction as <;> simp [LoadFormula.boxes]
 
 theorem loadBoxes_last : (~'⌊a⌋LoadFormula.boxes (as ++ [c]) P) = (~'⌊a⌋LoadFormula.boxes as (⌊c⌋P)) :=
   by
-  induction as <;> simp [loadBoxes_append]
+  induction as <;> simp [LoadFormula.boxes, loadBoxes_append]
 
 @[simp]
 theorem unload_boxes : unload (⌊⌊δ⌋⌋φ) = ⌈⌈δ⌉⌉(unload φ) := by
   induction δ
-  · simp
-  · simp_all only [LoadFormula.boxes, unload, Formula.boxes]
+  · simp only [LoadFormula.boxes, List.foldr_nil, Formula.boxes]
+  · simpa [Formula.boxes, LoadFormula.boxes]
 
 @[simp]
 theorem unload_neg_loaded : unload (~'⌊α⌋(.loaded χ)).1 = ⌈α⌉(unload χ) := by

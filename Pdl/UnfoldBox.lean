@@ -693,7 +693,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
       · tauto
       · subst def_φ
         cases em (δ = [])
-        · simp_all only [Formula.boxes.eq_1, evaluate, ite_true] -- uses IHβ
+        · simp_all only [Formula.boxes_nil, evaluate, ite_true] -- uses IHβ
           clear IHβ
           rintro φ ((φ_in_Fβ) | ⟨δ, ⟨(δ_from_Pβ), def_φ⟩⟩)
           · apply rhs

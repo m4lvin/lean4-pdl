@@ -75,12 +75,12 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
     apply IHδ (δ.get (i.cast help1)) (by apply List.get_mem) (List.get (X :: l ++ [Y]) i.castSucc)
     · have : (⌈List.get δ (i.cast help1)⌉⌈⌈List.drop (i + 1) δ⌉⌉φ) = (⌈⌈List.drop (i.castSucc) δ⌉⌉φ) := by
         simp only [List.append_eq, Fin.coe_castSucc]
-        rw [← Formula.boxes]
         have := @List.drop_eq_get_cons _ i δ (by rw [← length_def]; have := Fin.is_lt i; convert this; simp)
         rw [this]
         cases i
         simp_all only [instBot, insTop, List.zip_cons_cons, Subtype.forall, List.append_eq,
-          Fin.castSucc_mk, boxes, Fin.cast_mk]
+          Fin.castSucc_mk, Fin.cast_mk]
+        rw [Formula.boxes_cons]
       rw [this]
       exact IH
     · simp [relate]

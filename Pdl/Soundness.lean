@@ -778,45 +778,47 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
     ·
       clear not_free
       rcases nlf with ⟨lf⟩
-      -- Now we take apart the loaded formula to get all loaded boxes from the front at once,
-      -- so that we know how many `loadedDiamondPaths` applications we need below.
+      -- Now we take apart the loaded formula to get all loaded boxes from the front at once ...
       rcases LoadFormula.exists_loadMulti lf with ⟨δ, α, φ, lf_def⟩
-
       -- Now assume for contradiction, that Λ(t) is satisfiable.
       rintro ⟨W,M,v,v_⟩
-
       have := v_ (~ unload (loadMulti δ α φ)) (by simp; right; aesop)
       rw [unload_loadMulti] at this
-      induction δ generalizing lf -- α -- amazing that this does not give a wrong motive ;-)
+      -- ... so that we can do induction on δ for multiple `loadedDiamondPaths` applications.
+      induction δ generalizing lf v t -- α -- amazing that this does not give a wrong motive ;-)
       · simp [evalBoxes] at this
         rcases this with ⟨w, v_α_w, not_w_φ⟩
         simp only [loadMulti, List.foldr_nil] at *
-        have in_t : NegLoadFormula_in_TNode (~'⌊α⌋AnyFormula.normal φ) (nodeAt t) := by
+        have in_t : NegLoadFormula_in_TNode (~'⌊α⌋φ) (nodeAt t) := by
           simp_all [nodeAt, NegLoadFormula_in_TNode]; aesop
         have := loadedDiamondPaths α tab t v_ φ in_t v_α_w (not_w_φ)
-
-        · rcases this with ⟨s, t_cc_s, (notequi | not_af_in_s), w_s, rest_s_free⟩
-          · -- left the cluster, cannot be the case by Lemma and IH:
-            have := eProp2.f t s t_cc_s (by rw [cEquiv.symm]; exact notequi)
-            absurd IH _ this
-            use W, M, w
-          ·
-            -- this should now be a relatively easy contradiction!
-            -- or not ;-) (it is not about ~φ and φ at w ...)
-            absurd IH s ?_
-            use W, M, w
-            · -- Remains to show that s is simpler than t.
-              -- Follows because s is free, which we get from `loadedDiamondPaths`.
-              simp only [TNode.without_normal_isFree_iff_isFree] at rest_s_free
-              apply eProp2.d_cc t s ?_ rest_s_free t_cc_s
-              · unfold TNode.isLoaded
-                cases in_t <;> aesop
-      case cons β δ IH =>
-        -- we need an unknown number of applications of `loadedDiamondPaths`
-        -- now the new `IH` here should solve this??
-        -- probably still need to make one step with the lemma for β
-        simp [evalBoxes, relateSeq] at this -- ???
-        sorry
+        rcases this with ⟨s, t_cc_s, s_property, w_s, rest_s_free⟩
+        -- We now claim that we have a contradiction with the IH because we left the cluster:
+        absurd IH s ?_
+        use W, M, w
+        -- Remains to show that s is simpler than t, using eProp2 for that.
+        rcases s_property with (notequi | not_af_in_s)
+        · exact eProp2.f t s t_cc_s (by rw [cEquiv.symm]; exact notequi)
+        · -- Follows because s is free, which we get from `loadedDiamondPaths`.
+          simp only [TNode.without_normal_isFree_iff_isFree] at rest_s_free
+          apply eProp2.d_cc t s ?_ rest_s_free t_cc_s
+          unfold TNode.isLoaded
+          cases in_t <;> aesop
+      case cons β δ IH_inner =>
+        -- We make one step with `loadedDiamondPaths` for β before we can apply IH.
+        rw [boxes_first] at this
+        simp at this
+        rcases this with ⟨w, v_β_w, not_w_δαφ⟩
+        have in_t : NegLoadFormula_in_TNode (~'⌊β⌋(⌊⌊δ⌋⌋⌊α⌋φ)) (nodeAt t) := by
+          simp_all [nodeAt, NegLoadFormula_in_TNode]
+          aesop
+        have := loadedDiamondPaths β tab t v_ (⌊⌊δ⌋⌋⌊α⌋φ) in_t v_β_w
+          (by simp [vDash,modelCanSemImplyAnyNegFormula]; exact not_w_δαφ)
+        -- this gets us a node `s` to which we apply the **inner or outer ???** IH
+        rcases this with ⟨s, t_cc_s, s_property, w_s, rest_s_free⟩
+        rcases s_property with (notequi | not_af_in_s)
+        · sorry
+        · sorry
 
 theorem correctness : ∀ LR : TNode, satisfiable LR → consistent LR := by
   intro LR

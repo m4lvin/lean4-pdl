@@ -90,7 +90,6 @@ theorem loadMulti_nonEmpty_eq_loadMulti :
   case cons IH =>
     simp
     rw [IH]
-    simp
 
 theorem LoadFormula.split_eq_loadMulti (lf : LoadFormula) {δ α φ}
     (h : lf.split = (δ ++ [α], φ)) : lf = loadMulti δ α φ := by

@@ -91,7 +91,7 @@ theorem repl_in_boxes_non_occ_eq_neg (δ : List Program) :
   induction δ
   · simp
   case cons α δ IH =>
-    simp only [Formula.boxes, repl_in_F, Formula.box.injEq]
+    simp only [Formula.boxes, List.foldr_cons, repl_in_F, Formula.box.injEq]
     constructor
     · apply repl_in_P_non_occ_eq
       simp_all [voc, vocabOfProgram, Vocab.fromList]
@@ -105,7 +105,7 @@ theorem repl_in_boxes_non_occ_eq_pos (δ : List Program) :
   induction δ
   · simp
   case cons α δ IH =>
-    simp only [Formula.boxes, repl_in_F, Formula.box.injEq]
+    simp only [Formula.boxes, List.foldr_cons, repl_in_F, Formula.box.injEq]
     constructor
     · apply repl_in_P_non_occ_eq
       simp_all [voc, vocabOfProgram, Vocab.fromList]
