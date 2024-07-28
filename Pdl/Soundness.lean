@@ -140,6 +140,34 @@ def PathIn.append (p : PathIn tab) (q : PathIn (tabAt p).2.2) : PathIn tab := ma
   | .pdl r p_child => .pdl r (PathIn.append p_child q)
 
 @[simp]
+theorem PathIn.eq_append_iff_other_eq_nil (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
+    p = p.append q ↔ q = nil := by
+  induction p <;> cases tab
+  all_goals
+    unfold PathIn.append
+    try simp at *
+    aesop
+
+/- IDEA (broken)
+theorem PathIn.other_eq_append_iff_eq_nil (p q : PathIn tab) :
+    q = p.append q ↔ p = .nil := by
+  induction p <;> cases tab
+  all_goals
+    unfold PathIn.append
+    try simp at *
+    aesop
+-/
+
+theorem PathIn.nil_eq_append_then_nil (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
+    .nil = p.append q → p = .nil ∧ q = .nil := by
+  intro hyp
+  induction p <;> cases tab
+  all_goals
+    simp_all
+  all_goals
+    sorry
+
+@[simp]
 theorem tabAt_append (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
     tabAt (p.append q) = tabAt q := by
   induction p
@@ -184,30 +212,80 @@ theorem nodeAt_append (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
 
 /-! ## Parents, Children, Ancestors and Descendants -/
 
-/-- One-step children, with changed type. Use `children` instead. -/
-def children' (p : PathIn tab) : List (PathIn (tabAt p).2.2) := match tabAt p with
-  | ⟨_, _, Tableau.loc lt _next⟩  =>
-      ((endNodesOf lt).attach.map (fun ⟨_, Y_in⟩ => [ .loc Y_in .nil ] )).join
-  | ⟨_, _, Tableau.pdl r _ct⟩  => [ .pdl r .nil ]
-  | ⟨_, _, Tableau.rep _⟩  => [ ]
+/-- Definition of `edge` by two cases via `append`. -/
+def edge (s t : PathIn tab) : Prop :=
+  ( ∃ Hist X lt next Y, ∃ (Y_in : Y ∈ endNodesOf lt) (h : tabAt s = ⟨Hist, X, Tableau.loc lt next⟩),
+      t = s.append (h ▸ PathIn.loc Y_in .nil) )
+  ∨
+  ( ∃ Hist X Y r, ∃ (next : Tableau (X :: Hist) Y) (h : tabAt s = ⟨Hist, X, Tableau.pdl r next⟩),
+      t = s.append (h ▸ PathIn.pdl r .nil) )
 
-/-- List of one-step children, given by paths from the same root. -/
-def children (p : PathIn tab) : List (PathIn tab) := (children' p).map (PathIn.append p)
+@[simp]
+theorem edge_append_loc_nil (h : (tabAt s).2.2 = Tableau.loc lt next) :
+    edge s (s.append (h ▸ PathIn.loc Y_in .nil)) := by
+  simp [edge]
+  left
+  use (tabAt s).1, (tabAt s).2.1, lt, next, (by assumption), Y_in
+  constructor
+  · -- should be some "convert" or HEq thing?
+    sorry
+  · aesop
 
-/-- The parent-child relation `s ◃ t` in a tableau -/
-def edge {H X} {tab : Tableau H X} (s t : PathIn tab) : Prop :=
-  t ∈ children s
+@[simp]
+theorem edge_append_pdl_nil (h : (tabAt s).2.2 = Tableau.pdl r next) :
+    edge s (s.append (h ▸ PathIn.pdl r .nil)) := by
+  simp [edge]
+  right
+  use (tabAt s).1, (tabAt s).2.1, (by assumption), r, next
+  constructor
+  · sorry
+  · aesop
+
+/-- The root has no parent. -/
+theorem not_edge_nil (tab : Tableau [] X) (t : PathIn tab) : ¬ edge t .nil := by
+  intro t_nil
+  rcases t_nil with ( ⟨Hist, Z, lt, next, Y, Y_in, tabAt_s_def, t_def⟩
+                    | ⟨Hist, Z, Y, r, next, tabAt_s_def, def_t_append⟩ )
+  all_goals
+    -- need lemmas about nil = append  to find contradictions here.
+    sorry
+
+/-- The root has no parent, even when Hist ≠ [] -- TODO is this even true? -/
+theorem not_edge_nil' (tab : Tableau Hist X) (t : PathIn tab) : ¬ edge t .nil := by
+  intro t_nil
+  rcases t_nil with ( ⟨Hist, Z, lt, next, Y, Y_in, tabAt_s_def, t_def⟩
+                    | ⟨Hist, Z, Y, r, next, tabAt_s_def, def_t_append⟩ )
+  all_goals
+    -- need lemmas about nil = append  to find contradictions here.
+    sorry
+
+theorem nodeAt_loc_nil {H : List TNode} {lt : LocalTableau X}
+    (next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (X :: H) Y) (Y_in : Y ∈ endNodesOf lt) :
+    nodeAt (@PathIn.loc H X Y lt next Y_in .nil) = Y := by
+  simp [nodeAt, tabAt]
+
+theorem nodeAt_pdl_nil (child : Tableau (Γ :: Hist) Δ) (r : PdlRule Γ Δ) :
+    nodeAt (@PathIn.pdl Γ Δ Hist child r .nil) = Δ := by
+  simp [nodeAt, tabAt]
 
 /-- Notation ◃ for `edge` (because ⋖ in notes is taken in Mathlib). -/
 notation s:arg " ◃ " t:arg => edge s t
 
 /-- The ◃ relation is well-founded, i.e. all tableaux are finite. -/
-theorem edge.wellFounded : WellFounded (@edge _ _ tab) := by
+theorem edge.wellFounded : WellFounded (@edge Hist X tab) := by
   constructor
   intro a
   constructor
   -- induction a  OR  induction tab  here?
-  sorry
+  induction a
+  case nil Hist' Y next =>
+    intro p p_edge_nil
+    exfalso
+    exact not_edge_nil' next p p_edge_nil
+  case loc IH =>
+    sorry
+  case pdl IH =>
+    sorry
 
 instance edge.isAsymm : IsAsymm (PathIn tab) edge := by
   constructor
@@ -235,27 +313,6 @@ def edgeRec : PathIn tab → PathIn tab → Prop
   @PathIn.loc _ _ Y2 _ _ _ tail2 =>
   if h : Y1 = Y2 then edgeRec tail1 (h ▸ tail2) else false
 
-/-- Alternative definition of `edge` by two cases via `append`. -/
--- TODO: prove that this is equivalent? (or try it out as the definition?)
-def edgeCases (s t : PathIn tab) : Prop :=
-  ( ∃ Hist X lt next Y, ∃ (Y_in : Y ∈ endNodesOf lt) (h : tabAt s = ⟨Hist, X, Tableau.loc lt next⟩),
-      t = s.append (h ▸ PathIn.loc Y_in .nil) )
-  ∨
-  ( ∃ Hist X Y r, ∃ (next : Tableau (X :: Hist) Y) (h : tabAt s = ⟨Hist, X, Tableau.pdl r next⟩),
-      t = s.append (h ▸ PathIn.pdl r .nil) )
-
-/-
-/-- Slightly broken attempt to define `edgeCases` *inductively*. -/
-inductive edgeIndu : PathIn tab → PathIn tab → Prop
-| loc Hist X lt next Y (Y_in : Y ∈ endNodesOf lt)
-      (h : tabAt s = ⟨Hist, X, Tableau.loc lt next⟩)
-      (h2 : t = s.append (h ▸ PathIn.loc Y_in .nil))
-      : edgeIndu s t
-| pdl Hist X Y r (next : Tableau (X :: Hist) Y)
-      (h : tabAt s = ⟨Hist, X, Tableau.pdl r next⟩)
-      (h2 : t = s.append (h ▸ PathIn.pdl r .nil))
-      : edgeIndu s t
--/
 
 /-! ## More about Path and History -/
 
@@ -560,7 +617,14 @@ theorem eProp2.a {tab : Tableau .nil X} (s t : PathIn tab) :
       left
       exact t_childOf_s
   else
-    tauto
+    rcases t_childOf_s with ( ⟨Hist, Z, lt, next, Y, Y_in, tabAt_s_def, t_def⟩
+                            | ⟨Hist, Z, Y, r, next, tabAt_s_def, def_t_append⟩ )
+    · subst_eqs
+      simp_all
+      sorry
+    · subst_eqs
+      simp_all
+      sorry
 
 theorem eProp2.b {tab : Tableau .nil X} (s t : PathIn tab) : s ♥ t → t ≡_E s := by
   intro comp
@@ -750,15 +814,14 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
       let t_to_s : PathIn _ := (@PathIn.loc _ _ _ lt next Y_in .nil)
       let s : PathIn tab := t.append (t_def ▸ t_to_s)
       have t_s : t ◃ s := by
-        unfold_let s
-        simp [edge, children, children']
-        use (t_def ▸ t_to_s)
-        unfold_let t_to_s
-        simp
-        sorry
+        unfold_let s t_to_s
+        exact edge_append_loc_nil t_def
       have : Y = nodeAt s := by
-        unfold_let s t_to_s; simp
-        sorry
+        unfold_let s t_to_s
+        simp
+        apply Eq.symm
+        convert nodeAt_loc_nil next Y_in
+        simp
       rw [this]
       apply IH
       apply eProp2.c t _ t_is_free t_s
@@ -771,11 +834,14 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
       let t_to_s : PathIn _ := (@PathIn.pdl _ _ _ ctY r .nil)
       let s : PathIn tab := t.append (t_def ▸ t_to_s)
       have t_s : t ◃ s := by
-        unfold_let s
-        sorry
+        unfold_let s t_to_s
+        exact edge_append_pdl_nil t_def
       have : Y = nodeAt s := by
-        unfold_let s
-        sorry
+        unfold_let s t_to_s
+        simp only [nodeAt_append]
+        apply Eq.symm
+        convert nodeAt_pdl_nil ctY r
+        simp
       rw [this]
       apply IH
       apply eProp2.c t _ t_is_free t_s
