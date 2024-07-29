@@ -235,11 +235,8 @@ theorem edge_append_loc_nil (h : (tabAt s).2.2 = Tableau.loc lt next) :
   left
   use (tabAt s).1, (tabAt s).2.1, lt, next, (by assumption), Y_in
   constructor
-  · apply eq_then_append_eq -- gets rid of the outer `s.append`
-    simp -- no visible change, but types do change here!
-    rw [← heq_iff_eq]
-    rw [heq_eqRec_iff_heq]
-    rw [eqRec_heq_iff_heq]
+  · apply eq_then_append_eq
+    rw [← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
     rw [← h]
 
 @[simp]
@@ -249,26 +246,29 @@ theorem edge_append_pdl_nil (h : (tabAt s).2.2 = Tableau.pdl r next) :
   right
   use (tabAt s).1, (tabAt s).2.1, (by assumption), r, next
   constructor
-  · sorry
-  · aesop
+  · apply eq_then_append_eq
+    rw [← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
+    rw [← h]
 
-/-- The root has no parent. -/
-theorem not_edge_nil (tab : Tableau [] X) (t : PathIn tab) : ¬ edge t .nil := by
+/-- The root has no parent. Note this holds even when Hist ≠ []. -/
+theorem not_edge_nil (tab : Tableau Hist X) (t : PathIn tab) : ¬ edge t .nil := by
   intro t_nil
   rcases t_nil with ( ⟨Hist, Z, lt, next, Y, Y_in, tabAt_s_def, t_def⟩
-                    | ⟨Hist, Z, Y, r, next, tabAt_s_def, def_t_append⟩ )
+                    | ⟨Hist, Z, Y, r, next, tabAt_s_def, t_def⟩ )
   all_goals
-    -- need lemmas about nil = append  to find contradictions here.
-    sorry
-
-/-- The root has no parent, even when Hist ≠ [] -- TODO is this even true? -/
-theorem not_edge_nil' (tab : Tableau Hist X) (t : PathIn tab) : ¬ edge t .nil := by
-  intro t_nil
-  rcases t_nil with ( ⟨Hist, Z, lt, next, Y, Y_in, tabAt_s_def, t_def⟩
-                    | ⟨Hist, Z, Y, r, next, tabAt_s_def, def_t_append⟩ )
-  all_goals
-    -- need lemmas about nil = append  to find contradictions here.
-    sorry
+    rw [PathIn.nil_eq_append_iff_both_eq_nil] at t_def
+    rcases t_def with ⟨t_nil, loc_eq_nil⟩
+    subst t_nil
+    rw [tabAt_nil] at tabAt_s_def
+    rw [Sigma.mk.inj_iff] at tabAt_s_def
+    rcases tabAt_s_def with ⟨nil_eq_Hist, hyp⟩
+    subst nil_eq_Hist
+    rw [heq_eq_eq, Sigma.mk.inj_iff] at hyp
+    rcases hyp with ⟨X_eq_Z, hyp⟩
+    subst X_eq_Z
+    rw [heq_eq_eq] at hyp
+    subst hyp
+    simp_all only
 
 theorem nodeAt_loc_nil {H : List TNode} {lt : LocalTableau X}
     (next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (X :: H) Y) (Y_in : Y ∈ endNodesOf lt) :
@@ -292,7 +292,7 @@ theorem edge.wellFounded : WellFounded (@edge Hist X tab) := by
   case nil Hist' Y next =>
     intro p p_edge_nil
     exfalso
-    exact not_edge_nil' next p p_edge_nil
+    exact not_edge_nil next p p_edge_nil
   case loc IH =>
     sorry
   case pdl IH =>
