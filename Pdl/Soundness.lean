@@ -148,24 +148,19 @@ theorem PathIn.eq_append_iff_other_eq_nil (p : PathIn tab) (q : PathIn (tabAt p)
     try simp at *
     aesop
 
-/- IDEA (broken)
-theorem PathIn.other_eq_append_iff_eq_nil (p q : PathIn tab) :
-    q = p.append q ↔ p = .nil := by
-  induction p <;> cases tab
-  all_goals
-    unfold PathIn.append
-    try simp at *
-    aesop
--/
-
-theorem PathIn.nil_eq_append_then_nil (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
-    .nil = p.append q → p = .nil ∧ q = .nil := by
-  intro hyp
-  induction p <;> cases tab
-  all_goals
-    simp_all
-  all_goals
-    sorry
+theorem PathIn.nil_eq_append_iff_both_eq_nil (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
+    .nil = p.append q ↔ p = .nil ∧ q = .nil := by
+  constructor
+  · intro nil_eq
+    cases p
+    · simp_all
+    case loc IH =>
+      simp [append] at nil_eq
+    case pdl IH =>
+      simp [append] at nil_eq
+  · rintro ⟨p_def, q_def⟩
+    subst_eqs
+    simp
 
 @[simp]
 theorem tabAt_append (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
@@ -220,6 +215,17 @@ def edge (s t : PathIn tab) : Prop :=
   ( ∃ Hist X Y r, ∃ (next : Tableau (X :: Hist) Y) (h : tabAt s = ⟨Hist, X, Tableau.pdl r next⟩),
       t = s.append (h ▸ PathIn.pdl r .nil) )
 
+/-- The `Y_in` proof does not matter for a local path step. -/
+theorem PathIn.loc_Yin_irrel {lt : LocalTableau X}
+    {next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (X :: rest) Y} {Y : TNode}
+    (Y_in1 Y_in2 : Y ∈ endNodesOf lt)
+    {tail : PathIn (next Y Y_in1)}
+    : (.loc Y_in1 tail : PathIn (.loc lt next)) = .loc Y_in2 tail := by
+  simp
+
+theorem heq_helper (h1 h2 : α = β) (X Y : α) : X = Y → (h1 ▸ X) = (h2 ▸ Y) := by
+  aesop
+
 @[simp]
 theorem edge_append_loc_nil (h : (tabAt s).2.2 = Tableau.loc lt next) :
     edge s (s.append (h ▸ PathIn.loc Y_in .nil)) := by
@@ -227,8 +233,13 @@ theorem edge_append_loc_nil (h : (tabAt s).2.2 = Tableau.loc lt next) :
   left
   use (tabAt s).1, (tabAt s).2.1, lt, next, (by assumption), Y_in
   constructor
-  · -- should be some "convert" or HEq thing?
-    sorry
+  · convert (by rfl : _ = _) -- gets rid of the outer `s.append`
+    -- should be some "convert" or HEq thing?
+
+    -- apply heq_helper -- does not work here, why?
+
+    all_goals
+    · sorry
   · aesop
 
 @[simp]
