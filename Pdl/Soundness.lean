@@ -207,7 +207,7 @@ theorem nodeAt_append (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
 
 /-! ## Parents, Children, Ancestors and Descendants -/
 
-/-- Definition of `edge` by two cases via `append`. -/
+/-- Relation `s◃t` says `t` is one more step than `s`. Two cases, both defined via `append`. -/
 def edge (s t : PathIn tab) : Prop :=
   ( ∃ Hist X lt next Y, ∃ (Y_in : Y ∈ endNodesOf lt) (h : tabAt s = ⟨Hist, X, Tableau.loc lt next⟩),
       t = s.append (h ▸ PathIn.loc Y_in .nil) )
@@ -451,7 +451,6 @@ theorem PathIn.rewind_le (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) : t
       simp [PathIn.toHistory, PathIn.rewind]
       specialize IH Z Z_in tail
       have : (loc Z_in tail).toHistory.length = tail.toHistory.length + 1 := by simp [PathIn.toHistory]
-
       sorry
   case pdl =>
     cases t
@@ -776,6 +775,24 @@ theorem TNode.without_normal_isFree_iff_isFree (LRO : TNode) :
   simp [TNode.without, isFree, isLoaded]
   aesop
 
+-- TODO: move elsewhere?
+inductive Side
+| LL : Side
+| RR : Side
+
+open Side
+
+@[simp]
+def sideOf : Sum α α → Side
+| Sum.inl _ => LL
+| Sum.inr _ => RR
+
+def AnyNegFormula_on_side_in_TNode : (anf : AnyNegFormula) → Side → (X : TNode) → Prop
+| ⟨.normal φ⟩, LL, ⟨L, _, _⟩ => (~φ) ∈ L
+| ⟨.normal φ⟩, RR, ⟨_, R, _⟩ => (~φ) ∈ R
+| ⟨.loaded χ⟩, LL, ⟨_, _, O⟩ => O = some (Sum.inl (~'χ))
+| ⟨.loaded χ⟩, RR, ⟨_, _, O⟩ => O = some (Sum.inr (~'χ))
+
 theorem loadedDiamondPaths (α : Program) {X : TNode}
   (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
   (t : PathIn tab)
@@ -783,12 +800,13 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
   {M : KripkeModel W} {v w : W}
   (v_t : (M,v) ⊨ nodeAt t)
   (ξ : AnyFormula)
-  (negLoad_in : NegLoadFormula_in_TNode (~'⌊α⌋ξ) (nodeAt t))
+  {side : Side} -- NOT in notes but needed for partition
+  (negLoad_in : AnyNegFormula_on_side_in_TNode (~''(⌊α⌋ξ)) side (nodeAt t))
   (v_α_w : relate M α v w)
   (w_nξ : (M,w) ⊨ ~''ξ)
   : ∃ s : PathIn tab,
       t ⋖ᶜᶜ s
-    ∧ ( ¬ (cEquiv s t) ∨ (AnyNegFormula_in_TNode (~''ξ) (nodeAt s)) )
+    ∧ ( ¬ (cEquiv s t) ∨ (AnyNegFormula_on_side_in_TNode (~''ξ) side (nodeAt s)) )
     ∧ (M,w) ⊨ (nodeAt s)
     ∧ ((nodeAt s).without (~''ξ)).isFree := by
   -- Notes first take care of cases where rule is applied to non-loaded formula.
@@ -825,8 +843,7 @@ theorem simpler_equiv_simpler {u s t : PathIn tab} :
     absurd not_u_c_s
     exact Relation.TransGen.trans_left u_c_t t_s
 
-/-- Any node in a closed tableau is not satisfiable.
-This is the main argument for soundness. -/
+/-- Any node in a closed tableau is not satisfiable. This is the main argument for soundness. -/
 theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
     ¬satisfiable (nodeAt t) :=
   by
@@ -882,15 +899,15 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
       rw [this]
       apply IH
       apply eProp2.c t _ t_is_free t_s
-
   case inr not_free =>
     simp [TNode.isFree] at not_free
-    -- have ⟨tH, ⟨L, R, O⟩, tt⟩ := tabAt t -- hmmm
-    rcases O_def : (tabAt t).2.1.2.2 with _ | (nlf | nlf)
-    -- "none" case is impossible because t is not free:
-    · exfalso; simp_all [nodeAt, TNode.isLoaded]; split at not_free <;> simp_all
-    -- two goals  remaining, but left and right case are axactly the same :-)
-    · sorry -- FIXME replace with all_goals
+    rcases O_def : (tabAt t).2.1.2.2 with _ | snlf
+    · -- "none" case is impossible because t is not free:
+      exfalso; simp_all [nodeAt, TNode.isLoaded]; split at not_free <;> simp_all
+    -- two goals remaining, but left and right case are almost the same :-)
+    let _theSide := sideOf snlf -- Needed below in `all_goals` block.
+    rcases snlf with (nlf | nlf)
+    all_goals
     · clear not_free -- to clear up inner IH
       rcases nlf with ⟨lf⟩
       -- Now we take apart the loaded formula to get all loaded boxes from the front at once,
@@ -898,40 +915,43 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
       rcases LoadFormula.exists_loadMulti lf with ⟨δ, α, φ, lf_def⟩
       -- Start the induction before `rintro` so the inner IH is about satisfiability.
       induction δ generalizing lf t -- amazing that this does not give a wrong motive ;-)
+      -- Note that here it is too late to generalize whether loaded formula was left/right.
       · -- Now assume for contradiction, that Λ(t) is satisfiable.
         rintro ⟨W,M,v,v_⟩
         have := v_ (~ unload (loadMulti [] α φ)) (by simp; right; aesop)
         rw [unload_loadMulti] at this
-
-        simp [evalBoxes] at this
+        simp only [Formula.boxes_nil, evaluate, not_forall, Classical.not_imp] at this
         rcases this with ⟨w, v_α_w, not_w_φ⟩
         simp only [loadMulti, List.foldr_nil] at *
-        have in_t : NegLoadFormula_in_TNode (~'⌊α⌋φ) (nodeAt t) := by
-          simp_all [nodeAt, NegLoadFormula_in_TNode]; aesop
+        have in_t : AnyNegFormula_on_side_in_TNode (~''(⌊α⌋φ)) _theSide (nodeAt t) := by
+          simp_all [nodeAt]; aesop
         have := loadedDiamondPaths α tab t v_ φ in_t v_α_w (not_w_φ)
         rcases this with ⟨s, t_cc_s, s_property, w_s, rest_s_free⟩
         -- We now claim that we have a contradiction with the outer IH as we left the cluster:
         absurd IH s ?_
         use W, M, w
         -- Remains to show that s is simpler than t. We use eProp2.
-        rcases s_property with (notequi | not_af_in_s)
+        rcases s_property with (notequi | _)
         · exact eProp2.f t s t_cc_s (by rw [cEquiv.symm]; exact notequi)
         · -- Here is the case where s is free.
           simp only [TNode.without_normal_isFree_iff_isFree] at rest_s_free
           apply eProp2.d_cc t s ?_ rest_s_free t_cc_s
           unfold TNode.isLoaded
-          cases in_t <;> aesop
+          simp [AnyNegFormula_on_side_in_TNode] at in_t
+          aesop
       case cons β δ inner_IH =>
         rintro ⟨W,M,v,v_⟩
         have := v_ (~ unload (loadMulti (β :: δ) α φ)) (by simp; right; aesop)
-        simp at this
+        simp only [loadMulti_cons, unload, unload_loadMulti, evaluate, not_forall,
+          Classical.not_imp] at this
         -- We make one step with `loadedDiamondPaths` for β.
         rcases this with ⟨w, v_β_w, not_w_δαφ⟩
-        have in_t : NegLoadFormula_in_TNode (~'⌊β⌋(⌊⌊δ⌋⌋⌊α⌋φ)) (nodeAt t) := by
-          simp_all [nodeAt, NegLoadFormula_in_TNode]
-          aesop
+        have in_t : AnyNegFormula_on_side_in_TNode (~''(⌊β⌋(⌊⌊δ⌋⌋⌊α⌋φ))) _theSide (nodeAt t) := by
+          simp_all only [nodeAt, loadMulti_cons]
+          subst lf_def
+          exact O_def
         have := loadedDiamondPaths β tab t v_ (⌊⌊δ⌋⌋⌊α⌋φ) in_t v_β_w
-          (by simp [vDash,modelCanSemImplyAnyNegFormula]; exact not_w_δαφ)
+          (by simp only [modelCanSemImplyAnyNegFormula, unload_boxes, unload]; exact not_w_δαφ)
         rcases this with ⟨s, t_cc_s, s_property, w_s, rest_s_free⟩
         rw [not_or_iff_not_or_and] at s_property
         rcases s_property with (notequi | ⟨s_equiv_t, not_af_in_s⟩)
@@ -945,12 +965,10 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
           · use W, M, w
           · intro u u_simpler_s
             exact IH _ (simpler_equiv_simpler u_simpler_s s_equiv_t)
-          · simp [AnyNegFormula_in_TNode, NegLoadFormula_in_TNode, nodeAt] at not_af_in_s
-            cases not_af_in_s
-            · -- TODO: loadedDiamondPaths should guarantee that `lf` stays on the same side.
-              -- This problem does not occur in the notes because we don't partition yet ;-)
-              sorry
-            · aesop
+          · simp only [nodeAt] at not_af_in_s
+            subst lf_def
+            simp_all
+            assumption
 
 theorem correctness : ∀ LR : TNode, satisfiable LR → consistent LR := by
   intro LR
