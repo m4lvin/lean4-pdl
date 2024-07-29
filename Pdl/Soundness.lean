@@ -283,34 +283,101 @@ theorem nodeAt_pdl_nil (child : Tableau (Γ :: Hist) Δ) (r : PdlRule Γ Δ) :
 notation s:arg " ◃ " t:arg => edge s t
 
 /-- The ◃ relation is well-founded, i.e. all tableaux are finite. -/
-theorem edge.wellFounded : WellFounded (@edge Hist X tab) := by
+-- TODO this is the attempt to do induction on path.
+theorem edge.wellFounded : WellFounded (@edge HistX X tab) := by
   constructor
   intro a
   constructor
-  -- induction a  OR  induction tab  here?
+  -- induction on the path here!
   induction a
   case nil Hist' Y next =>
     intro p p_edge_nil
     exfalso
     exact not_edge_nil next p p_edge_nil
-  case loc IH =>
+  case loc Hist Y Z lt next Z_in tail IH =>
     intro p p_edge_nil
-    rcases p_edge_nil with ( ⟨Hist, Z, lt, next, Y, Y_in, tabAt_s_def, t_def⟩
-                           | ⟨Hist, Z, Y, r, next, tabAt_s_def, t_def⟩ )
-    · -- interesting cases
-      sorry
-    · exfalso
-      absurd t_def -- loc ≠ pdl
-      sorry
+    rcases p_edge_nil with ( ⟨Hist', Z', lt', next', Y', Y'_in, tabAt_s_def, t_def⟩
+                           | ⟨Hist', Z', Y', r', next', tabAt_s_def, t_def⟩ )
+    -- STUCK here, and similar below.
+    -- Induction/cases on paths is taking them apart at their first step,
+    -- but we get induction hypotheses that work for the last step.
+    -- Can we define a better induction principle for paths?
+    -- But then, such an induction principle is only valid if ◃ is well-founded already?!
+    · sorry
+    · sorry
   case pdl IH =>
     intro p p_edge_nil
     rcases p_edge_nil with ( ⟨Hist, Z, lt, next, Y, Y_in, tabAt_s_def, t_def⟩
                            | ⟨Hist, Z, Y, r, next, tabAt_s_def, t_def⟩ )
-    · exfalso
-      absurd t_def -- pdl ≠ loc
-      sorry
-    · -- interesting cases
-      sorry
+    · sorry
+    · sorry
+
+-- also back direction?
+theorem loc_edge_then_edge {lt : LocalTableau X} {Y_in : Y ∈ endNodesOf lt} {tail : List TNode}
+    {next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (X :: tail) Y}
+    {tail1 tail2 : PathIn (next Y Y_in)}
+    : (PathIn.loc Y_in tail1) ◃ (PathIn.loc Y_in tail2) → tail1 ◃ tail2 := by
+  sorry
+
+-- TODO: alternative attempt to do induction on tab, then cases on paths:
+theorem edge.wellFounded_TAB_THEN_CASES_CASES : WellFounded (@edge HistX X tab) := by
+  constructor
+  induction tab
+  case loc Hist X' lt next IH =>
+    intro s
+    cases s
+    case nil =>
+      constructor
+      intro p p_edge_nil
+      absurd p_edge_nil
+      apply not_edge_nil
+    case loc Y Y_in tail =>
+      constructor
+      intro t t_edge_loc_tail
+      cases t -- sjonge sjonge
+      case nil =>
+        constructor
+        intro p p_edge_nil
+        absurd p_edge_nil
+        apply not_edge_nil
+      case loc Y2 Y2_in tail2 =>
+        -- unsure here
+        have : Y = Y2 := by sorry
+        subst this
+        have : Y_in = Y2_in := by sorry
+        subst this
+        have := loc_edge_then_edge t_edge_loc_tail
+        have := IH Y Y_in
+        sorry
+  case pdl Hist Y Z r next IH =>
+    intro s
+    cases s
+    case nil =>
+      constructor
+      intro p p_edge_nil
+      absurd p_edge_nil
+      apply not_edge_nil
+    case pdl tail =>
+      constructor
+      intro t t_edge_loc_tail
+      cases t -- sjonge sjonge
+      case nil =>
+        constructor
+        intro p p_edge_nil
+        absurd p_edge_nil
+        apply not_edge_nil
+      case pdl tail2 =>
+        -- easier than `loc` case above maybe?
+        have := IH tail
+        have := IH tail2
+        sorry
+  case rep Y Hist lpr =>
+    intro s
+    cases s -- only nil case
+    constructor
+    intro p p_edge_nil
+    absurd p_edge_nil
+    apply not_edge_nil
 
 instance edge.isAsymm : IsAsymm (PathIn tab) edge := by
   constructor
