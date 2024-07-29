@@ -294,9 +294,23 @@ theorem edge.wellFounded : WellFounded (@edge Hist X tab) := by
     exfalso
     exact not_edge_nil next p p_edge_nil
   case loc IH =>
-    sorry
+    intro p p_edge_nil
+    rcases p_edge_nil with ( ⟨Hist, Z, lt, next, Y, Y_in, tabAt_s_def, t_def⟩
+                           | ⟨Hist, Z, Y, r, next, tabAt_s_def, t_def⟩ )
+    · -- interesting cases
+      sorry
+    · exfalso
+      absurd t_def -- loc ≠ pdl
+      sorry
   case pdl IH =>
-    sorry
+    intro p p_edge_nil
+    rcases p_edge_nil with ( ⟨Hist, Z, lt, next, Y, Y_in, tabAt_s_def, t_def⟩
+                           | ⟨Hist, Z, Y, r, next, tabAt_s_def, t_def⟩ )
+    · exfalso
+      absurd t_def -- pdl ≠ loc
+      sorry
+    · -- interesting cases
+      sorry
 
 instance edge.isAsymm : IsAsymm (PathIn tab) edge := by
   constructor
@@ -632,10 +646,22 @@ theorem eProp2.a {tab : Tableau .nil X} (s t : PathIn tab) :
                             | ⟨Hist, Z, Y, r, next, tabAt_s_def, def_t_append⟩ )
     · subst_eqs
       simp_all
-      sorry
+      left
+      unfold cEdge
+      apply Relation.TransGen.single
+      left
+      unfold edge
+      left
+      use Hist, Z, lt, next, Y, Y_in, tabAt_s_def
     · subst_eqs
       simp_all
-      sorry
+      left
+      unfold cEdge
+      apply Relation.TransGen.single
+      left
+      unfold edge
+      right
+      use Hist, Z, Y, r, next, tabAt_s_def
 
 theorem eProp2.b {tab : Tableau .nil X} (s t : PathIn tab) : s ♥ t → t ≡_E s := by
   intro comp
@@ -792,7 +818,7 @@ theorem simpler_equiv_simpler {u s t : PathIn tab} :
     u ⊏_c s → s ≡_E t → u ⊏_c t := by
   intro u_simpler_s s_equiv_t
   rcases u_simpler_s with ⟨s_c_u, not_u_c_s⟩
-  rcases s_equiv_t with ⟨s_t, t_s⟩
+  rcases s_equiv_t with ⟨_, t_s⟩
   constructor
   · exact Relation.TransGen.trans_right t_s s_c_u
   · intro u_c_t
