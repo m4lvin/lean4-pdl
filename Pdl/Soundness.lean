@@ -223,24 +223,24 @@ theorem PathIn.loc_Yin_irrel {lt : LocalTableau X}
     : (.loc Y_in1 tail : PathIn (.loc lt next)) = .loc Y_in2 tail := by
   simp
 
-theorem heq_helper (h1 h2 : α = β) (X Y : α) : X = Y → (h1 ▸ X) = (h2 ▸ Y) := by
-  aesop
+-- TOOD: also prove ← direction, move up, make @[simp]
+theorem eq_then_append_eq (s : PathIn tab) p q : p = q → s.append p = s.append q := by
+  intro hyp
+  subst hyp
+  rfl
 
-@[simp]
 theorem edge_append_loc_nil (h : (tabAt s).2.2 = Tableau.loc lt next) :
     edge s (s.append (h ▸ PathIn.loc Y_in .nil)) := by
-  simp [edge]
+  unfold edge
   left
   use (tabAt s).1, (tabAt s).2.1, lt, next, (by assumption), Y_in
   constructor
-  · convert (by rfl : _ = _) -- gets rid of the outer `s.append`
-    -- should be some "convert" or HEq thing?
-
-    -- apply heq_helper -- does not work here, why?
-
-    all_goals
-    · sorry
-  · aesop
+  · apply eq_then_append_eq -- gets rid of the outer `s.append`
+    simp -- no visible change, but types do change here!
+    rw [← heq_iff_eq]
+    rw [heq_eqRec_iff_heq]
+    rw [eqRec_heq_iff_heq]
+    rw [← h]
 
 @[simp]
 theorem edge_append_pdl_nil (h : (tabAt s).2.2 = Tableau.pdl r next) :
