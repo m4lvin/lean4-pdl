@@ -205,6 +205,19 @@ theorem nodeAt_append (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
   unfold nodeAt
   rw [tabAt_append p q]
 
+@[simp]
+def PathIn.head {tab : Tableau Hist X} (_ : PathIn tab) : TNode := X
+
+@[simp]
+def PathIn.last (t : PathIn tab) : TNode := (tabAt t).2.1
+
+/-- The length of a path is the number of actual steps. -/
+@[simp]
+def PathIn.length : (t : PathIn tab) → ℕ
+| .nil => 0
+| .pdl _ tail => tail.length + 1
+| .loc _ tail => tail.length + 1
+
 /-! ## Parents, Children, Ancestors and Descendants -/
 
 /-- Relation `s◃t` says `t` is one more step than `s`. Two cases, both defined via `append`. -/
@@ -223,11 +236,27 @@ theorem PathIn.loc_Yin_irrel {lt : LocalTableau X}
     : (.loc Y_in1 tail : PathIn (.loc lt next)) = .loc Y_in2 tail := by
   simp
 
--- TOOD: also prove ← direction, move up, make @[simp]
-theorem eq_then_append_eq (s : PathIn tab) p q : p = q → s.append p = s.append q := by
-  intro hyp
-  subst hyp
-  rfl
+@[simp]
+theorem append_eq_iff_eq (s : PathIn tab) p q : s.append p = s.append q ↔ p = q := by
+  constructor
+  · unfold PathIn.append
+    intro hyp
+    let k := s.length
+    cases tab <;> cases s <;> simp_all
+    case loc.loc tail =>
+      have forTermination : tail.length < k := by unfold_let k; simp
+      rw [append_eq_iff_eq _ _ _] at hyp
+      exact hyp
+    case pdl.pdl tail =>
+      have forTermination : tail.length < k := by unfold_let k; simp
+      rw [append_eq_iff_eq _ _ _] at hyp
+      exact hyp
+  · simp_all
+termination_by
+  s.length
+decreasing_by
+  · simp_wf; convert forTermination <;> sorry
+  · simp_wf; convert forTermination <;> sorry
 
 theorem edge_append_loc_nil (h : (tabAt s).2.2 = Tableau.loc lt next) :
     edge s (s.append (h ▸ PathIn.loc Y_in .nil)) := by
@@ -235,7 +264,7 @@ theorem edge_append_loc_nil (h : (tabAt s).2.2 = Tableau.loc lt next) :
   left
   use (tabAt s).1, (tabAt s).2.1, lt, next, (by assumption), Y_in
   constructor
-  · apply eq_then_append_eq
+  · simp only [append_eq_iff_eq]
     rw [← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
     rw [← h]
 
@@ -246,9 +275,11 @@ theorem edge_append_pdl_nil (h : (tabAt s).2.2 = Tableau.pdl r next) :
   right
   use (tabAt s).1, (tabAt s).2.1, (by assumption), r, next
   constructor
-  · apply eq_then_append_eq
-    rw [← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
+  · rw [← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
     rw [← h]
+
+theorem append_length {p : PathIn tab} q : (p.append q).length = p.length + q.length := by
+  sorry
 
 /-- The root has no parent. Note this holds even when Hist ≠ []. -/
 theorem not_edge_nil (tab : Tableau Hist X) (t : PathIn tab) : ¬ edge t .nil := by
@@ -282,102 +313,32 @@ theorem nodeAt_pdl_nil (child : Tableau (Γ :: Hist) Δ) (r : PdlRule Γ Δ) :
 /-- Notation ◃ for `edge` (because ⋖ in notes is taken in Mathlib). -/
 notation s:arg " ◃ " t:arg => edge s t
 
-/-- The ◃ relation is well-founded, i.e. all tableaux are finite. -/
--- TODO this is the attempt to do induction on path.
-theorem edge.wellFounded : WellFounded (@edge HistX X tab) := by
-  constructor
-  intro a
-  constructor
-  -- induction on the path here!
-  induction a
-  case nil Hist' Y next =>
-    intro p p_edge_nil
-    exfalso
-    exact not_edge_nil next p p_edge_nil
-  case loc Hist Y Z lt next Z_in tail IH =>
-    intro p p_edge_nil
-    rcases p_edge_nil with ( ⟨Hist', Z', lt', next', Y', Y'_in, tabAt_s_def, t_def⟩
-                           | ⟨Hist', Z', Y', r', next', tabAt_s_def, t_def⟩ )
-    -- STUCK here, and similar below.
-    -- Induction/cases on paths is taking them apart at their first step,
-    -- but we get induction hypotheses that work for the last step.
-    -- Can we define a better induction principle for paths?
-    -- But then, such an induction principle is only valid if ◃ is well-founded already?!
-    · sorry
-    · sorry
-  case pdl IH =>
-    intro p p_edge_nil
-    rcases p_edge_nil with ( ⟨Hist, Z, lt, next, Y, Y_in, tabAt_s_def, t_def⟩
-                           | ⟨Hist, Z, Y, r, next, tabAt_s_def, t_def⟩ )
-    · sorry
-    · sorry
+/-- The length of `edge`-related paths differs by one. -/
+theorem edge_then_length_sub {s t : PathIn tab} : s ◃ t → s.length + 1 = t.length := by
+  intro s_t
+  rcases s_t with ( ⟨Hist', Z', lt', next', Y', Y'_in, tabAt_s_def, t_def⟩
+                  | ⟨Hist', Z', Y', r', next', tabAt_s_def, t_def⟩ )
+  all_goals
+  · subst t_def
+    simp
+    rw [append_length]
+    simp
+    -- need lemma that PathIn.length does not care about the specific `tab`.
+    sorry
 
--- also back direction?
-theorem loc_edge_then_edge {lt : LocalTableau X} {Y_in : Y ∈ endNodesOf lt} {tail : List TNode}
-    {next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (X :: tail) Y}
-    {tail1 tail2 : PathIn (next Y Y_in)}
-    : (PathIn.loc Y_in tail1) ◃ (PathIn.loc Y_in tail2) → tail1 ◃ tail2 := by
-  sorry
+theorem edge_then_length_lt {s t : PathIn tab} (s_t : s ◃ t) : s.length < t.length := by
+  have := edge_then_length_sub s_t
+  linarith
 
--- TODO: alternative attempt to do induction on tab, then cases on paths:
-theorem edge.wellFounded_TAB_THEN_CASES_CASES : WellFounded (@edge HistX X tab) := by
-  constructor
-  induction tab
-  case loc Hist X' lt next IH =>
-    intro s
-    cases s
-    case nil =>
-      constructor
-      intro p p_edge_nil
-      absurd p_edge_nil
-      apply not_edge_nil
-    case loc Y Y_in tail =>
-      constructor
-      intro t t_edge_loc_tail
-      cases t -- sjonge sjonge
-      case nil =>
-        constructor
-        intro p p_edge_nil
-        absurd p_edge_nil
-        apply not_edge_nil
-      case loc Y2 Y2_in tail2 =>
-        -- unsure here
-        have : Y = Y2 := by sorry
-        subst this
-        have : Y_in = Y2_in := by sorry
-        subst this
-        have := loc_edge_then_edge t_edge_loc_tail
-        have := IH Y Y_in
-        sorry
-  case pdl Hist Y Z r next IH =>
-    intro s
-    cases s
-    case nil =>
-      constructor
-      intro p p_edge_nil
-      absurd p_edge_nil
-      apply not_edge_nil
-    case pdl tail =>
-      constructor
-      intro t t_edge_loc_tail
-      cases t -- sjonge sjonge
-      case nil =>
-        constructor
-        intro p p_edge_nil
-        absurd p_edge_nil
-        apply not_edge_nil
-      case pdl tail2 =>
-        -- easier than `loc` case above maybe?
-        have := IH tail
-        have := IH tail2
-        sorry
-  case rep Y Hist lpr =>
-    intro s
-    cases s -- only nil case
-    constructor
-    intro p p_edge_nil
-    absurd p_edge_nil
-    apply not_edge_nil
+def edge_natLT_relHom {Hist X tab} : RelHom (@edge Hist X tab) Nat.lt :=
+  ⟨PathIn.length, edge_then_length_lt⟩
+
+/-- The ◃ relation in a tableau is well-founded. -/
+theorem edge.wellFounded : WellFounded (@edge Hist X tab) := by
+  apply @RelHomClass.wellFounded _ Nat (@edge Hist X tab) Nat.lt _ _ _ edge_natLT_relHom
+  have := instWellFoundedLTNat
+  rcases this with ⟨nat_wf⟩
+  convert nat_wf
 
 instance edge.isAsymm : IsAsymm (PathIn tab) edge := by
   constructor
@@ -408,12 +369,6 @@ def edgeRec : PathIn tab → PathIn tab → Prop
 
 /-! ## More about Path and History -/
 
-@[simp]
-def PathIn.head {tab : Tableau Hist X} (_ : PathIn tab) : TNode := X
-
-@[simp]
-def PathIn.last (t : PathIn tab) : TNode := (tabAt t).2.1
-
 /-- Convert a path to a History. Does not include the last node.
 The history of `.nil` is `[]`. -/
 def PathIn.toHistory {tab : Tableau Hist X} : (t : PathIn tab) → History
@@ -427,13 +382,6 @@ def PathIn.toList {tab : Tableau Hist X} : (t : PathIn tab) → List TNode
 | .nil => [X]
 | .pdl _ tail => X :: tail.toList
 | .loc _ tail => X :: tail.toList
-
-/-- The length of a path is the number of actual steps. -/
-@[simp]
-def PathIn.length : (t : PathIn tab) → ℕ
-| .nil => 0
-| .pdl _ tail => tail.length + 1
-| .loc _ tail => tail.length + 1
 
 -- TODO: PathIn.length = PathIn.tohistory.length ??
 
@@ -680,7 +628,7 @@ theorem eProp (tab : Tableau .nil X) :
   · constructor
     intro s
     -- need to show `Acc` but `induction s` does not work
-    -- because we fixed Hist = .nil (in many defs above already)
+    -- because we fixed Hist = .nil (in def `companionOf` above)
     cases s
     case nil =>
       constructor
