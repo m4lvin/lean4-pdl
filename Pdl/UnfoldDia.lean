@@ -122,7 +122,7 @@ theorem keepFreshH α : x ∉ voc α → ∀ F δ, (F,δ) ∈ H α → x ∉ voc
         · subst_eqs
           tauto
 
-def Yset : (List Formula × List Program) → (Formula) → List Formula
+def Yset : (List Formula × List Program) → Formula → List Formula
 | ⟨F, δ⟩, φ => F ∪ [ ~ Formula.boxes δ φ ]
 
 /-- Φ_◇(α,ψ) -/
@@ -648,14 +648,21 @@ theorem existsDiamondH (v_γ_w : relate M γ v w) :
 
 -- ### Loaded Diamonds
 
--- NOTE: Do we actually need "Option" here?
--- I.e. can the loading disappear during unfolding? (See old DagTableau.loadDagEndNodes?)
+-- The `Option` below is used because unfolding of tests can lead to free nodes.
 
--- for (~'⌊α⌋(χ : LoadFormula))
-def unfoldDiamondLoad (α : Program) (χ : LoadFormula) : List (List Formula × Option NegLoadFormula) :=
-  sorry
-  -- TODO -- (H α).map (fun Fδ => Yset Fδ χ)
--- for (~'⌊α⌋(φ : Formula))
-def unfoldDiamondLoad' (α : Program) (φ : Formula) : List (List Formula × Option NegLoadFormula) :=
-  sorry
-  -- TODO -- (H α).map (fun Fδ => Yset Fδ φ)
+def YsetLoad : (List Formula × List Program) → LoadFormula → (List Formula × Option NegLoadFormula)
+| ⟨F, δ⟩, χ => ⟨F , ~' (LoadFormula.boxes δ χ)⟩
+
+def YsetLoad' : (List Formula × List Program) → Formula → (List Formula × Option NegLoadFormula)
+| ⟨F, []⟩, φ => ⟨(~φ) :: F, none⟩
+| ⟨F, (β::δ)⟩, φ => sorry -- ⟨F , ~' (loadMulti? β? δ? φ)⟩ -- TODO: need *last* element of δ for loadMulti here?
+
+/-- Loaded unfolding for ~'⌊α⌋(χ : LoadFormula) -/
+def unfoldDiamondLoaded (α : Program) (χ : LoadFormula) : List (List Formula × Option NegLoadFormula) :=
+  (H α).map (fun Fδ => YsetLoad Fδ χ)
+
+/-- Loaded unfolding for ~'⌊α⌋(φ : Formula) -/
+def unfoldDiamondLoaded' (α : Program) (φ : Formula) : List (List Formula × Option NegLoadFormula) :=
+  (H α).map (fun Fδ => YsetLoad' Fδ φ)
+
+-- TODO: Do we need other theorems here to prepare `loadRuleTruth` in `LocalTableau.lean`?

@@ -137,9 +137,9 @@ theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B
 -- - and a set of normal formulas.
 -- It's annoying to need the rule twice here due to the definition of LoadFormula.
 inductive LoadRule : NegLoadFormula → List (List Formula × Option NegLoadFormula) → Type
-  | dia  {α χ}   : LoadRule (~'⌊α  ⌋(χ : LoadFormula)) (unfoldDiamondLoad α χ)
+  | dia  {α χ}   : LoadRule (~'⌊α  ⌋(χ : LoadFormula)) (unfoldDiamondLoaded α χ)
     -- ([ (∅, some (~'χ)) ] ++ loadDagEndNodes (∅, (Sum.inr (NegDagLoadFormula.neg (injectLoad α χ)))))
-  | dia' {α φ}   : LoadRule (~'⌊α  ⌋(φ : Formula    )) (unfoldDiamondLoad' α φ)
+  | dia' {α φ}   : LoadRule (~'⌊α  ⌋(φ : Formula    )) (unfoldDiamondLoaded' α φ)
     -- ([ ([~φ], none) ] ++ loadDagEndNodes (∅, (Sum.inr (NegDagLoadFormula.neg (injectLoad' α φ)))))
 
 theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
