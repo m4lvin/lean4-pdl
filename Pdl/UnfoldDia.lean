@@ -171,6 +171,8 @@ theorem helper : ∀ (p : List Formula × List Program → Formula) X,
         (∃ f ∈ List.map p X, evaluate M w f)
       ↔ (∃ Fδ ∈ X, evaluate M w (p Fδ)) := by aesop
 
+set_option maxHeartbeats 1000000 -- FIXME: added since Lean v4.10.0 -- how to speed up proof below?
+
 theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ => Con (Yset Fδ ψ)) ) := by
   intro W M w
   cases γ
@@ -466,7 +468,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
             -- use that x not in β and thus also not in any element of H β
             have myFresh := keepFreshH β x_not_in
             apply listEq_to_disEq
-            rw [List.map_eq_map_iff]
+            rw [List.map_inj_left]
             intro Fδ Fδ_in_Hβ
             cases em (Fδ.2 = [])
             · simp_all

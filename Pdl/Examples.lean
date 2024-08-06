@@ -144,10 +144,12 @@ example (a b : Program) (X : Formula) :
   · rintro ⟨w_X, aBox, bBox⟩ v w_aSubS_v
     aesop
 
+open Mathlib.Vector
+
 -- related via star <=> related via a finite chain
 theorem starIffFinitelyManyStepsModel (W : Type) (M : KripkeModel W) (x z : W) (α : Program) :
     Relation.ReflTransGen (relate M α) x z ↔
-      ∃ (n : ℕ) (ys : Vector W n.succ),
+      ∃ (n : ℕ) (ys : Mathlib.Vector W n.succ),
         x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, relate M α (get ys i.castSucc) (get ys (i.succ)) :=
   by
   exact ReflTransGen.iff_finitelyManySteps (relate M α) x z
@@ -176,7 +178,7 @@ theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a
   simp at claim
   have x_is_ys_nsucc : x = ys.get (n + 1) :=
     by
-    simp [Vector.last_def] at x_is_last
+    simp [last_def] at x_is_last
     sorry
   rw [x_is_ys_nsucc]
   sorry -- was: exact claim

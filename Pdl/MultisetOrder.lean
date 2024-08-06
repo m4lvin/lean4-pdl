@@ -1,3 +1,8 @@
+-- NOTE:
+-- After the following PR is merged in mathlib
+--   https://github.com/leanprover-community/mathlib4/pull/14411
+-- this file should be deleted from lean4-pdl.
+
 /-
 Copyright (c) 2024 Haitian Wang. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
@@ -142,16 +147,16 @@ lemma red_insert {α : Type u} [DecidableEq α] [LT α] {a : α} {M N : Multiset
         -- cases h : (decide (a = a0))
         if hyp : a = a0 then
            exists Y; right; apply And.intro
-           . rw [H1]
+           · rw [H1]
              rw [add_left_inj]
              rw [mul_cons_trivial] at H0
              simp_all
-           . simp_all
+           · simp_all
         else
           exists (Y + (M - {a0}))
           left
           constructor --; apply And.intro
-          . rw [H1]
+          · rw [H1]
             have : X = (M - {a0} + {a}) := by
               simp [mul_cons_trivial] at *
               ext b
@@ -168,20 +173,20 @@ lemma red_insert {α : Type u} [DecidableEq α] [LT α] {a : α} {M N : Multiset
             subst this
             rw [add_comm,mul_cons_trivial]
             aesop
-          . constructor
+          · constructor
             · change Y + (M - {a0}) = (M - {a0}) + Y
               rw [add_comm]
             · change M = M - {a0} + {a0}
               have this0: M = X + {a0} - {a} := by apply cons_erase ; exact H0
               have a0M: a0 ∈ M := by
                 apply mul_mem_not_erase
-                . change M = Multiset.erase (a0 ::ₘ X) a
+                · change M = Multiset.erase (a0 ::ₘ X) a
                   rw [mul_erase_trivial] at this0
                   rw [mul_cons_trivial] at this0
                   exact this0
-                . exact hyp
+                · exact hyp
               apply mem_erase_cons
-              . exact a0M
+              · exact a0M
             exact H2
 
 lemma mord_wf_1 {α : Type u} {_ : Multiset α} [DecidableEq α] [Preorder α] (a : α) (M0 : Multiset α)
@@ -213,14 +218,14 @@ lemma mord_wf_2 {α : Type u} [DecidableEq α] [Preorder α] (a : α)
   induction H0 with
   | intro x wfH wfH2 =>
     apply mord_wf_1
-    . simpa
-    . intros b x a
+    · simpa
+    · intros b x a
       unfold AccM_1
       apply H
       assumption
-    . constructor
+    · constructor
       simpa
-    . simpa
+    · simpa
 
 lemma mord_wf_3 {α : Type u} {_ : Multiset α} [DecidableEq α] [Preorder α] :
     ∀ (a:α), Acc LT.lt a → ∀ (M : Multiset α), AccM_1 M → AccM_1 (a ::ₘ M) := by
@@ -244,10 +249,10 @@ lemma mred_acc {α : Type u} [DecidableEq α] [Preorder α] :
     apply not_MultisetRedLt_0
   | cons _ _ ih =>
     apply mord_wf_3
-    . assumption
-    . apply wf_el
+    · assumption
+    · apply wf_el
       simp_all
-    . apply ih
+    · apply ih
       intros
       apply wf_el
       simp_all
@@ -357,8 +362,8 @@ lemma LT_trans {α} [pre : Preorder α] [dec : DecidableEq α]:
   rcases LTNM with ⟨Y1, X1, Z1, X1_ne, N1_def, M1_def, Ord1⟩
   rcases LTPN with ⟨Y2, X2, Z2, _, P2_def, N2_def, Ord2⟩
   apply MultisetLT.MLT (Y2 + (Y1 - X2)) (X1 + (X2 - Y1)) (Z1 ∩ Z2)
-  . aesop
-  . rw [P2_def]
+  · aesop
+  · rw [P2_def]
     have : Z1 ∩ Z2 + (Y2 + (Y1 - X2)) = Z1 ∩ Z2 + (Y1 - X2) + Y2 := by
       have : (Y2 + (Y1 - X2)) = (Y1 - X2) + Y2 := by rw [add_comm]
       rw [this]
@@ -373,7 +378,7 @@ lemma LT_trans {α} [pre : Preorder α] [dec : DecidableEq α]:
     rw [← N2_def]
     rw [N1_def]
     apply add_comm
-  . rw [M1_def]
+  · rw [M1_def]
     have : Z1 ∩ Z2 + (X1 + (X2 - Y1)) = Z1 ∩ Z2 + (X2 - Y1) + X1 := by
       have : (X1 + (X2 - Y1)) = (X2 - Y1) + X1 := by rw [add_comm]
       rw [this]
@@ -385,27 +390,27 @@ lemma LT_trans {α} [pre : Preorder α] [dec : DecidableEq α]:
     rw [← N1_def]
     rw [N2_def]
     apply add_comm
-  . intros y y_in_union
+  · intros y y_in_union
     if y_in : y ∈ Y2 then
       rcases (Ord2 y y_in) with ⟨x, x_in_X2, y_lt_x⟩
       if x_in : x ∈ Y1 then
         rcases (Ord1 x x_in) with ⟨x', x'_in_X1, x_lt_x'⟩
         use x'
         constructor
-        . rw [Multiset.mem_add]
+        · rw [Multiset.mem_add]
           constructor
           exact x'_in_X1
-        . exact lt_trans y_lt_x x_lt_x'
+        · exact lt_trans y_lt_x x_lt_x'
         else
           use x
           constructor
-          . rw [add_comm]
+          · rw [add_comm]
             rw [Multiset.mem_add]
             constructor
             apply in_notin_diff
             exact x_in_X2
             exact x_in
-          . exact y_lt_x
+          · exact y_lt_x
       else
         have y_in : y ∈ (Y1 - X2) := by aesop
         let h := (Ord1 y)
@@ -510,7 +515,7 @@ lemma nat_not_0_not_1 : ∀ (n : ℕ), n ≠ 0 → n ≠ 1 → n ≥ 2 := by
             rcases X_lt_Y with ⟨t, t_in_Y, x_lt_t⟩
             use t
             constructor
-            . if t_in_newY : t ∈ newY then
+            · if t_in_newY : t ∈ newY then
                 exact t_in_newY
                 else
                   exfalso
@@ -545,17 +550,17 @@ lemma nat_not_0_not_1 : ∀ (n : ℕ), n ≠ 0 → n ≠ 1 → n ≥ 2 := by
                     simp_all only [Multiset.empty_eq_zero, ne_eq, Multiset.card_eq_zero,
                       not_false_eq_true, Multiset.mem_filter, not_true_eq_false, and_false]
                   exact x_notin_Xfy x_in
-            . exact x_lt_t
+            · exact x_lt_t
         -- single step N to N'
         · have : MultisetRedLt N' N := by
             apply MultisetRedLt.RedLt (Z + newY) (f y) y
-            . rfl
-            . have newY_y_Y: newY + {y} = Y := by unfold_let newY; simp [mul_cons_trivial]; apply Multiset.cons_erase claim
+            · rfl
+            · have newY_y_Y: newY + {y} = Y := by unfold_let newY; simp [mul_cons_trivial]; apply Multiset.cons_erase claim
               have : Z + newY + {y} = Z + (newY + {y}) := by apply add_assoc
               rw [this]
               rw [newY_y_Y]
               exact N_def
-            . unfold_let f; intro z z_in; simp at z_in; tauto
+            · unfold_let f; intro z z_in; simp at z_in; tauto
           exact TC.base _ _ this
 
 -- It uses `LT_trans`.

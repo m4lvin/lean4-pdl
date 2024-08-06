@@ -38,18 +38,18 @@ theorem ReflTransGen.cases_tail_eq_neq {r : α → α → Prop} (h : Relation.Re
 
 /-- `∃ x₀ ... xₙ, a = x₀ ∧ r x₀ x₁ ∧ ... ∧ xₙ = b` implies `ReflTransGen r a b` -/
 theorem ReflTransGen.to_finitelyManySteps {r : α → α → Prop} (h : Relation.ReflTransGen r x z) :
-    ∃ (n : ℕ) (ys : Vector α n.succ),
+    ∃ (n : ℕ) (ys : Mathlib.Vector α n.succ),
       x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (ys.get i.castSucc) (ys.get (i.succ)) := by
 
   induction h using Relation.ReflTransGen.head_induction_on
   case refl =>
-    use 0, Vector.cons z Vector.nil
+    use 0, Mathlib.Vector.cons z Mathlib.Vector.nil
     aesop
   case head a b a_r_b b_rS_z IH_b_z =>
     rcases IH_b_z with ⟨m, zs, b_is_head_zs, z_is_last_zs, zs_steps⟩
     use m + 1
     use a ::ᵥ zs
-    simp only [Vector.head_cons, Vector.get_cons_succ, true_and]
+    simp only [Mathlib.Vector.head_cons, Mathlib.Vector.get_cons_succ, true_and]
     constructor
     · aesop
     · intro i
@@ -58,7 +58,7 @@ theorem ReflTransGen.to_finitelyManySteps {r : α → α → Prop} (h : Relation
 
 /-- `ReflTransGen r a b` implies that `∃ x₀ ... xₙ, a = x₀ ∧ r x₀ x₁ ∧ ... ∧ xₙ = b` -/
 theorem ReflTransGen.from_finitelyManySteps (r : α → α → Prop) {n : ℕ} :
-    ∀ (x z : α) (ys : Vector α (Nat.succ n)),
+    ∀ (x z : α) (ys : Mathlib.Vector α (Nat.succ n)),
       (x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (ys.get i.castSucc) (ys.get (i.succ)))
         → Relation.ReflTransGen r x z := by
   induction n
@@ -66,7 +66,7 @@ theorem ReflTransGen.from_finitelyManySteps (r : α → α → Prop) {n : ℕ} :
     rintro x z ys ⟨x_is_head, z_is_last, _⟩
     have : x = z := by
       subst_eqs
-      simp_all [Vector.head, Vector.last, Fin.last]
+      simp_all [Mathlib.Vector.head, Mathlib.Vector.last, Fin.last]
     rw [this]
   case succ n IH =>
     rintro x z ys ⟨x_is_head, z_is_last, steprel⟩
@@ -76,20 +76,20 @@ theorem ReflTransGen.from_finitelyManySteps (r : α → α → Prop) {n : ℕ} :
     use y
     constructor
     · specialize steprel 0
-      simp only [Fin.castSucc_zero, Vector.get_zero, Fin.succ_zero_eq_one] at steprel
+      simp only [Fin.castSucc_zero, Mathlib.Vector.get_zero, Fin.succ_zero_eq_one] at steprel
       rw [← x_is_head] at steprel
       convert steprel
-      cases ys using Vector.inductionOn
+      cases ys using Mathlib.Vector.inductionOn
       case cons y ys hyp =>
-        cases ys using Vector.inductionOn
+        cases ys using Mathlib.Vector.inductionOn
         rfl
     · apply IH y z ys.tail
-      simp only [Vector.get_tail_succ, true_and]
+      simp only [Mathlib.Vector.get_tail_succ, true_and]
       constructor
       · have sameLast : ys.tail.last = ys.last := by
-          cases ys using Vector.inductionOn
+          cases ys using Mathlib.Vector.inductionOn
           case cons y ys hyp =>
-            cases ys using Vector.inductionOn
+            cases ys using Mathlib.Vector.inductionOn
             rfl
         rw [sameLast]
         exact z_is_last
@@ -101,7 +101,7 @@ theorem ReflTransGen.from_finitelyManySteps (r : α → α → Prop) {n : ℕ} :
 /-- `ReflTransGen r a b` is equivalent to `∃ x₀ ... xₙ, a = x₀ ∧ r x₀ x₁ ∧ ... ∧ r xₙ = b` -/
 theorem ReflTransGen.iff_finitelyManySteps (r : α → α → Prop) (x z : α) :
     Relation.ReflTransGen r x z ↔
-      ∃ (n : ℕ) (ys : Vector α n.succ),
+      ∃ (n : ℕ) (ys : Mathlib.Vector α n.succ),
         x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (ys.get i.castSucc) (ys.get (i.succ)) :=
   ⟨ReflTransGen.to_finitelyManySteps,
   fun ⟨_, ys, x_is_head, z_is_last, rhs⟩ =>

@@ -53,7 +53,7 @@ def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) 
     · constructor
       · intro L_and_nθ_sat
         sorry -- See Bml?
-      . intro R_and_θ_sat
+      · intro R_and_θ_sat
         sorry -- See Bml?
   case oneSidedR orule =>
     let interList :=  (C.attach).map $ λ⟨c, cinC⟩ => (subθs c cinC).1
@@ -70,7 +70,7 @@ def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) 
     · constructor
       · intro L_and_nθ_sat
         sorry -- See Bml?
-      . intro R_and_θ_sat
+      · intro R_and_θ_sat
         sorry -- See Bml?
   case LRnegL φ =>
     use φ

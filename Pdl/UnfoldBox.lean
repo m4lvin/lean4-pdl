@@ -148,9 +148,9 @@ def P : (α : Program) →  (ℓ : TP α) → List (List Program)
 | ·a, _ => [ [(·a : Program)] ]
 | ?' τ, ℓ => if ℓ ⟨τ, by simp [testsOfProgram]⟩ then [ [] ] else ∅
 | α ⋓ β, ℓ => P α ℓ ∪ P β ℓ
-| α;'β, ℓ => ((P α ℓ).filter (. != [])).map (fun as => as ++ [β])
+| α;'β, ℓ => ((P α ℓ).filter (· != [])).map (fun as => as ++ [β])
              ∪ (if [] ∈ P α ℓ then (P β ℓ) else [])
-| ∗α, ℓ => [ [] ] ∪ ((P α ℓ).filter (. != [])).map (fun as => as ++ [∗α])
+| ∗α, ℓ => [ [] ] ∪ ((P α ℓ).filter (· != [])).map (fun as => as ++ [∗α])
 
 def Xset (α : Program) (ℓ : TP α) (ψ : Formula) : List Formula :=
   F α ℓ ++ (P α ℓ).map (fun as => Formula.boxes as ψ)

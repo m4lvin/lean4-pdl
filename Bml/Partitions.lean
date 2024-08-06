@@ -64,7 +64,7 @@ def InterpolantInductionStep
             bigConNeg_union_sat_down sat_c_θ (subθs c c_in_C).1 (by simp (config := {zetaDelta := true}); use c, c_in_C)
           exact (subθs c c_in_C).2 |> And.right |> And.left <| sat_c_c'sθ
 
-        . intro R_and_θ_sat
+        · intro R_and_θ_sat
           have ⟨⟨c,c_in_C⟩, _, sat_cθ⟩ := choice_property_in_image <| bigDis_union_sat_down R_and_θ_sat
           have cR_eq_R : c.2 = R := (oneSidedRule_preserves_other_side_L def_ruleA def_rule) c c_in_C
           rw[←cR_eq_R] at sat_cθ
@@ -111,10 +111,10 @@ def InterpolantInductionStep
         constructor
         · use  φ; constructor
           · exact preproof.left <| Finset.mem_singleton.mpr rfl
-          . exact ℓinφ
+          · exact ℓinφ
         · use ~φ; constructor
           · exact preproof.right <| Finset.mem_singleton.mpr rfl
-          . exact ℓinφ
+          · exact ℓinφ
 
       · constructor <;> apply negation_not_cosatisfiable φ <;> simp only [union_singleton_is_insert, Finset.mem_insert, true_or]
         · apply Or.intro_right; exact preproof.left <| Finset.mem_singleton.mpr rfl
@@ -129,10 +129,10 @@ def InterpolantInductionStep
         constructor
         · use  ~φ; constructor
           · exact preproof.left <| Finset.mem_singleton.mpr rfl
-          . exact ℓinφ
+          · exact ℓinφ
         · use φ; constructor
           · exact preproof.right <| Finset.mem_singleton.mpr rfl
-          . exact ℓinφ
+          · exact ℓinφ
 
       · constructor
         · apply negation_not_cosatisfiable (~φ) <;> simp
