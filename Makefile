@@ -20,7 +20,9 @@ clean:
 dependencies.svg: Pdl/*.lean
 	(echo "digraph {"; (grep -nr "import Pdl" Pdl/*.lean | awk -F[./] '{print $$4 " -> " $$2}'); echo "}") | dot -Tsvg > dependencies.svg
 
-# From https://leanprover.zulipchat.com/#narrow/stream/270676-lean4/topic/Invalid.20lake.20configuration/near/405630149
 update-fix:
-	cp .lake/packages/mathlib/lean-toolchain .
+	rm -rf .lake
+	echo "leanprover/lean4:v4.10.0" > lean-toolchain
+	echo "If next command fails, edit lakefile.lean manually."
+	grep v4.10.0 lakefile.lean
 	lake update -R
