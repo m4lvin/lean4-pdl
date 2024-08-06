@@ -510,7 +510,7 @@ theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
     simp_all [PathIn.toHistory, PathIn.rewind]
 
 
-/-! ## Companion, ccEdge, cEdge, etc. -/
+/-! ## Companion, cEdge, etc. -/
 
 /-- To get the companion of an LPR node we go as many steps back as the LPR says. -/
 def companionOf {X} {tab : Tableau .nil X} (s : PathIn tab) lpr
@@ -546,18 +546,6 @@ theorem companion_loaded : s ♥ t → (nodeAt s).isLoaded ∧ (nodeAt t).isLoad
     have := lpr.2.2 lpr.val (by simp)
     convert this
     simp
-
-/-- Successor relation plus back loops: ◃' (MB: page 26) -/
-def ccEdge {X} {ctX : Tableau .nil X} (s t : PathIn ctX) : Prop :=
-  s ◃ t  ∨  ∃ u, s ♥ u ∧ u ◃ t
-
-notation pa:arg " ⋖ᶜᶜ " pb:arg => ccEdge pa pb
-
-notation pa:arg " <ᶜᶜ " pb:arg => Relation.TransGen ccEdge pa pb
-
-/-- We have: ⋖ᶜ = ⋖ ∪ ♥ -/
-example : pa ⋖ᶜᶜ pb ↔ (pa ◃ pb) ∨ ∃ pc, pa ♥ pc ∧ pc ◃ pb := by
-  simp_all [ccEdge]
 
 def cEdge {X} {ctX : Tableau .nil X} (t s : PathIn ctX) : Prop :=
   (t ◃ s) ∨ t ♥ s
@@ -635,7 +623,7 @@ theorem eProp (tab : Tableau .nil X) :
 
 theorem eProp2.a {tab : Tableau .nil X} (s t : PathIn tab) :
     s ◃ t → (t ⊏_c s) ∨ (t ≡_E s) := by
-  simp_all [edge, cEdge, ccEdge, cEquiv, simpler, companion]
+  simp_all [edge, cEdge, cEquiv, simpler, companion]
   intro t_childOf_s
   if Relation.TransGen cEdge t s
   then
@@ -722,9 +710,9 @@ theorem eProp2.d {tab : Tableau .nil X} (s t : PathIn tab) :
     sorry
 
 -- Added for loadedDiamondPaths - change to <ᶜ later? replace the original eProp2.d with this?
-theorem eProp2.d_cc {tab : Tableau .nil X} (s t : PathIn tab) :
-    (nodeAt s).isLoaded → (nodeAt t).isFree → s ⋖ᶜᶜ t → t ⊏_c s := by
-  intro s_loaded t_free s_cc_t
+theorem eProp2.d_help {tab : Tableau .nil X} (s t : PathIn tab) :
+    (nodeAt s).isLoaded → (nodeAt t).isFree → s <ᶜ t → t ⊏_c s := by
+  intro s_loaded t_free s_c_t
   sorry
 
 
@@ -738,25 +726,15 @@ theorem eProp2.e {tab : Tableau .nil X} (s u t : PathIn tab) :
     absurd not_u_t
     apply Relation.TransGen.trans t_s s_u
 
-theorem eProp.f_helper {tab : Tableau .nil X} (s t : PathIn tab) :
-    s ⋖ᶜᶜ t → Relation.ReflTransGen cEdge s t := by
-  intro s_cc_t
-  unfold cEdge
-  rcases s_cc_t with s_c_t | ⟨u, s_comp_u, u_t⟩
-  · exact Relation.ReflTransGen.single (Or.inl s_c_t)
-  · exact Relation.ReflTransGen.tail (Relation.ReflTransGen.single (Or.inr s_comp_u)) (Or.inl u_t)
-
 theorem eProp2.f {tab : Tableau .nil X} (s t : PathIn tab) :
-    (s ⋖ᶜᶜ t  →  ¬ s ≡_E t  →  t ⊏_c s) := by
-  rintro s_cc_t s_nequiv_t
+    (s <ᶜ t  →  ¬ s ≡_E t  →  t ⊏_c s) := by
+  rintro s_c_t s_nequiv_t
   constructor
-  · rcases s_cc_t with s_c_t | ⟨u, s_comp_u, u_t⟩
-    · exact Relation.TransGen.single (Or.inl s_c_t)
-    · exact Relation.TransGen.tail (Relation.TransGen.single (Or.inr s_comp_u)) ((Or.inl u_t))
+  · exact s_c_t
   · intro t_c_s
     absurd s_nequiv_t
     constructor
-    · exact eProp.f_helper _ _ s_cc_t
+    · exact Relation.TransGen.to_reflTransGen s_c_t
     · exact Relation.TransGen.to_reflTransGen t_c_s
 
 theorem eProp2 {tab : Tableau .nil X} (s u t : PathIn tab) :
@@ -765,7 +743,7 @@ theorem eProp2 {tab : Tableau .nil X} (s u t : PathIn tab) :
   ∧ ((nodeAt s).isFree → edge s t → t ⊏_c s)
   ∧ ((nodeAt s).isLoaded → (nodeAt t).isFree → edge s t → t ⊏_c s)
   ∧ (t ⊏_c u → u ⊏_c s → t ⊏_c s)
-  ∧ (s ⋖ᶜᶜ t → ¬ s ≡_E t → t ⊏_c s) :=
+  ∧ (s <ᶜ t → ¬ s ≡_E t → t ⊏_c s) :=
   ⟨eProp2.a _ _, eProp2.b _ _, eProp2.c _ _, eProp2.d _ _, eProp2.e _ _ _, eProp2.f _ _⟩
 
 /-! ## Soundness -/
@@ -812,30 +790,86 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
   (v_α_w : relate M α v w)
   (w_nξ : (M,w) ⊨ ~''ξ)
   : ∃ s : PathIn tab,
-      t ⋖ᶜᶜ s
+      t <ᶜ s
     ∧ ( ¬ (cEquiv s t) ∨ (AnyNegFormula_on_side_in_TNode (~''ξ) side (nodeAt s)) )
     ∧ (M,w) ⊨ (nodeAt s)
     ∧ ((nodeAt s).without (~''ξ)).isFree := by
   -- Notes first take care of cases where rule is applied to non-loaded formula.
   -- For this, we need to distinguish what happens at `t`.
-  rcases tabAt t with ⟨H, Y, ctY⟩
-  cases ctY
+  rcases tabAt_t_def : tabAt t with ⟨Hist, Z, tZ⟩
   -- applying a local or a pdl rule or being a repeat?
-  -- TODO: extra Lemmas / unclear how to get these:
-  -- - every loaded node has a ccEdge successor.
-  -- - eventually a rule must be applied to the loaded formula (at node t' in Notes)
+  induction tZ generalizing t
+  case loc HistZ Z ltZ next IH =>
+    -- local step(s), *may* work on the loaded formula
+    have : ∃ Y ∈ endNodesOf ltZ, (M, v) ⊨Y := by
+      have := localTableauTruth ltZ M v -- using soundness of local tableaux here!
+      rw [← this]
+      sorry -- should be easy
+    rcases this with ⟨Y, Y_in, w_Y⟩ -- given end node, now define path to it
+    let t_to_s : PathIn _ := (@PathIn.loc _ _ _ ltZ next Y_in .nil)
+    let s : PathIn tab := t.append (tabAt_t_def ▸ t_to_s)
+    have t_s : t ◃ s := by
+      unfold_let s t_to_s
+      sorry -- apply edge_append_loc_nil
+    have v_s : (M,v) ⊨ nodeAt s := sorry
+    have f_in : AnyNegFormula_on_side_in_TNode (~''(AnyFormula.loaded (⌊α⌋ξ))) side (nodeAt s) :=
+      by sorry -- PROBLEM - how to get this (for possibly different α) from localTableauTruth?
+    have tabAt_s_def : tabAt s = ⟨Z :: HistZ, ⟨Y, next Y Y_in⟩⟩ := by
+      sorry
+    specialize IH Y Y_in s v_s f_in tabAt_s_def
+    rcases IH with ⟨s1, s_c_s1, s1or, w_s1, s1_almost_free⟩
+    refine ⟨s1, ?_, ?_, w_s1, s1_almost_free⟩
+    · exact Relation.TransGen.head (.inl t_s) s_c_s1
+    · cases s1or
+      · left
+        -- what now? is eProp2.f relevant?
+        sorry
+      · right; assumption
+  case pdl Y r next IH =>
 
+    cases r -- six PDL rules
+    case loadL =>
+      -- should be impossible as we already have a loaded formula before
+      sorry
+    case loadR =>
+      -- should be impossible as we already have a loaded formula before
+      sorry
+    case freeL =>
+      -- leaving cluster
+      sorry
+    case freeR =>
+      -- leaving cluster
+      sorry
+    case modL =>
+      -- modal rule, so α must actually be atomic!
+      sorry
+    case modR =>
+      -- modal rule, so α must actually be atomic!
+      sorry
 
-  -- have := eProp2 tab -- used later!
+  case rep lpr =>
+    -- need to go to companion, seems it will be hard to convince Lean of termination for this.
+    sorry
 
-  -- Notes then do induction on the complexity of α, but
-  -- with the assumption that the rule is applied to the loaded formula!
+  -- additional things used in notes:
+    -- have := existsDiamondH
+    -- have := @eProp2 X tab
+  -- Extra lemmas, unclear how to get these:
+    -- - every loaded node has a cEdge successor.
+    -- - eventually a rule must be applied to the loaded formula (at node t' in Notes)
+  /- -- Induction on the complexity of α, with assumption that rule is applied to loaded formula?
   cases α
   case atom_prog a =>
-
     sorry
-  -- TODO
-  all_goals sorry
+  case sequence =>
+    sorry
+  case union =>
+    sorry
+  case star =>
+    sorry
+  case test =>
+    sorry
+  -/
 
 theorem not_or_iff_not_or_and : ∀ p q : Prop, ¬p ∨ q ↔ ¬p ∨ (p ∧ q) := by tauto
 
@@ -933,16 +967,16 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
         have in_t : AnyNegFormula_on_side_in_TNode (~''(⌊α⌋φ)) _theSide (nodeAt t) := by
           simp_all [nodeAt]; aesop
         have := loadedDiamondPaths α tab t v_ φ in_t v_α_w (not_w_φ)
-        rcases this with ⟨s, t_cc_s, s_property, w_s, rest_s_free⟩
+        rcases this with ⟨s, t_c_s, s_property, w_s, rest_s_free⟩
         -- We now claim that we have a contradiction with the outer IH as we left the cluster:
         absurd IH s ?_
         use W, M, w
         -- Remains to show that s is simpler than t. We use eProp2.
         rcases s_property with (notequi | _)
-        · exact eProp2.f t s t_cc_s (by rw [cEquiv.symm]; exact notequi)
+        · exact eProp2.f t s t_c_s (by rw [cEquiv.symm]; exact notequi)
         · -- Here is the case where s is free.
           simp only [TNode.without_normal_isFree_iff_isFree] at rest_s_free
-          apply eProp2.d_cc t s ?_ rest_s_free t_cc_s
+          apply eProp2.d_help t s ?_ rest_s_free t_c_s
           unfold TNode.isLoaded
           simp [AnyNegFormula_on_side_in_TNode] at in_t
           aesop
@@ -959,13 +993,13 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
           exact O_def
         have := loadedDiamondPaths β tab t v_ (⌊⌊δ⌋⌋⌊α⌋φ) in_t v_β_w
           (by simp only [modelCanSemImplyAnyNegFormula, unload_boxes, unload]; exact not_w_δαφ)
-        rcases this with ⟨s, t_cc_s, s_property, w_s, rest_s_free⟩
+        rcases this with ⟨s, t_c_s, s_property, w_s, rest_s_free⟩
         rw [not_or_iff_not_or_and] at s_property
         rcases s_property with (notequi | ⟨s_equiv_t, not_af_in_s⟩)
         · -- We left the cluster, use outer IH to get contradiction.
           absurd IH s ?_
           use W, M, w
-          exact eProp2.f t s t_cc_s (by rw [cEquiv.symm]; exact notequi)
+          exact eProp2.f t s t_c_s (by rw [cEquiv.symm]; exact notequi)
         · -- Here is the cae where s is still loaded and in the same cluster.
           -- We apply the *inner* IH to s (and not to t) to get a contradiction.
           absurd inner_IH s ?_ (loadMulti δ α φ) ?_ rfl
