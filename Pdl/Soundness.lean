@@ -238,25 +238,7 @@ theorem PathIn.loc_Yin_irrel {lt : LocalTableau X}
 
 @[simp]
 theorem append_eq_iff_eq (s : PathIn tab) p q : s.append p = s.append q ↔ p = q := by
-  constructor
-  · unfold PathIn.append
-    intro hyp
-    let k := s.length
-    cases tab <;> cases s <;> simp_all
-    case loc.loc tail =>
-      have forTermination : tail.length < k := by unfold_let k; simp
-      rw [append_eq_iff_eq _ _ _] at hyp
-      exact hyp
-    case pdl.pdl tail =>
-      have forTermination : tail.length < k := by unfold_let k; simp
-      rw [append_eq_iff_eq _ _ _] at hyp
-      exact hyp
-  · simp_all
-termination_by
-  s.length
-decreasing_by
-  · simp_wf; convert forTermination <;> sorry
-  · simp_wf; convert forTermination <;> sorry
+  induction s <;> simp_all [PathIn.append]
 
 theorem edge_append_loc_nil (h : (tabAt s).2.2 = Tableau.loc lt next) :
     edge s (s.append (h ▸ PathIn.loc Y_in .nil)) := by
@@ -264,14 +246,13 @@ theorem edge_append_loc_nil (h : (tabAt s).2.2 = Tableau.loc lt next) :
   left
   use (tabAt s).1, (tabAt s).2.1, lt, next, (by assumption), Y_in
   constructor
-  · simp only [append_eq_iff_eq]
-    rw [← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
+  · rw [append_eq_iff_eq, ← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
     rw [← h]
 
 @[simp]
 theorem edge_append_pdl_nil (h : (tabAt s).2.2 = Tableau.pdl r next) :
     edge s (s.append (h ▸ PathIn.pdl r .nil)) := by
-  simp [edge]
+  simp only [edge, append_eq_iff_eq]
   right
   use (tabAt s).1, (tabAt s).2.1, (by assumption), r, next
   constructor
@@ -279,7 +260,9 @@ theorem edge_append_pdl_nil (h : (tabAt s).2.2 = Tableau.pdl r next) :
     rw [← h]
 
 theorem append_length {p : PathIn tab} q : (p.append q).length = p.length + q.length := by
-  sorry
+  induction p <;> simp [PathIn.append]
+  case loc IH => rw [IH]; linarith
+  case pdl IH => rw [IH]; linarith
 
 /-- The root has no parent. Note this holds even when Hist ≠ []. -/
 theorem not_edge_nil (tab : Tableau Hist X) (t : PathIn tab) : ¬ edge t .nil := by
@@ -318,13 +301,22 @@ theorem edge_then_length_sub {s t : PathIn tab} : s ◃ t → s.length + 1 = t.l
   intro s_t
   rcases s_t with ( ⟨Hist', Z', lt', next', Y', Y'_in, tabAt_s_def, t_def⟩
                   | ⟨Hist', Z', Y', r', next', tabAt_s_def, t_def⟩ )
-  all_goals
   · subst t_def
-    simp
-    rw [append_length]
-    simp
-    -- need lemma that PathIn.length does not care about the specific `tab`.
-    sorry
+    rw [append_length, add_right_inj]
+    have : 1 = (PathIn.loc Y'_in PathIn.nil : PathIn (Tableau.loc lt' next')).length := by simp
+    convert this
+    · simp_all only [PathIn.length, zero_add]
+    · rw [tabAt_s_def]
+    · rw [tabAt_s_def]
+    · subst_eqs; simp_all only [PathIn.length, zero_add, heq_eq_eq, eqRec_heq_iff_heq]
+  · subst t_def
+    rw [append_length, add_right_inj]
+    have : 1 = (PathIn.pdl r' PathIn.nil : PathIn (Tableau.pdl r' next')).length := by simp
+    convert this
+    · simp_all only [PathIn.length, zero_add]
+    · rw [tabAt_s_def]
+    · rw [tabAt_s_def]
+    · subst_eqs; simp_all only [PathIn.length, zero_add, heq_eq_eq, eqRec_heq_iff_heq]
 
 theorem edge_then_length_lt {s t : PathIn tab} (s_t : s ◃ t) : s.length < t.length := by
   have := edge_then_length_sub s_t
