@@ -122,6 +122,7 @@ theorem keepFreshH α : x ∉ voc α → ∀ F δ, (F,δ) ∈ H α → x ∉ voc
         · subst_eqs
           tauto
 
+-- NOTE: this intermediate definition is no longer in the notes.
 def Yset : (List Formula × List Program) → Formula → List Formula
 | ⟨F, δ⟩, φ => F ∪ [ ~ Formula.boxes δ φ ]
 

@@ -309,10 +309,12 @@ end
 
 -- ## Replacement of Equivalents and similar helpers
 
+/-
 -- This is *not* true because `frm` might be sneaky.
 theorem wrong_equiv_repl φ1 φ2 (h : φ1 ≡ φ2) (frm : Formula → Formula) :
     frm φ1 ≡ frm φ2 := by
   sorry
+-/
 
 -- if we replace `frm` with a special case then we get something true:
 theorem equiv_con {φ1 φ2} (h : φ1 ≡ φ2) ψ :
