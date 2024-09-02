@@ -664,30 +664,24 @@ def splitLast : List α → Option (List α × α)
 @[simp]
 theorem splitLast_nil : splitLast [] = (none : Option (List α × α)) := by simp [splitLast]
 
-/--- This probably should be in Std or Mathlib. -/
-def List.init : List α → List α
-| [] => []
-| [_] => []
-| (x :: y :: xs) => x :: (y :: xs).init
-
-theorem List.init_append_getLast_eq_cons (x : α) (xs : List α) :
-    (x :: xs).init ++ [(x :: xs).getLast (List.cons_ne_nil x xs)] = x :: xs := by
+/-- Maybe upstream a version of this to Mathlib? -/
+theorem List.dropLast_append_getLast_eq_cons (x : α) (xs : List α) :
+    (x :: xs).dropLast ++ [(x :: xs).getLast (List.cons_ne_nil x xs)] = x :: xs := by
   cases xs
-  · simp [List.init]
+  · simp
   case cons y ys =>
-    simp [List.init] at *
-    apply List.init_append_getLast_eq_cons
+    simp at *
+    apply List.dropLast_append_getLast_eq_cons
 
 theorem splitLast_cons_eq_some (x : α) (xs : List α) :
-    (splitLast (x :: xs)) = some ((x :: xs).init, (x :: xs).getLast (List.cons_ne_nil x xs)) := by
+    (splitLast (x :: xs)) = some ((x :: xs).dropLast, (x :: xs).getLast (List.cons_ne_nil x xs)) := by
   cases xs
-  · simp [splitLast, List.init]
+  · simp [splitLast]
   case cons y ys =>
     have := splitLast_cons_eq_some y ys -- recursion!
     unfold splitLast
     rw [this]
     simp
-    rfl
 
 @[simp]
 theorem splitLast_append_singleton : splitLast (xs ++ [x]) = some (xs, x) := by
@@ -724,8 +718,8 @@ theorem unfoldDiamondLoaded'_eq α φ : (unfoldDiamondLoaded' α φ).map pairUnl
   · simp
   case cons x xs =>
     simp only [splitLast_cons_eq_some, unload_loadMulti, Formula.boxes_cons]
-    have := (@boxes_append (x :: xs).init [(x :: xs).getLast (List.cons_ne_nil x xs)] φ).symm
+    have := (@boxes_append (x :: xs).dropLast [(x :: xs).getLast (List.cons_ne_nil x xs)] φ).symm
     simp only [Formula.boxes_cons, Formula.boxes_nil] at this
     rw [this]
-    rw [List.init_append_getLast_eq_cons]
+    rw [List.dropLast_append_getLast_eq_cons]
     simp_all
