@@ -529,7 +529,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
         exact w_nPsi
     · apply right_to_left_claim -- done above
 
--- Helper function to trick "List.Chain r" to use a different r at each step.
+/-- Helper function to trick "List.Chain r" to use a different r at each step. -/
 def pairRel (M : KripkeModel W) : (Program × W) → (Program × W) → Prop
 | (_, v), (α, w) => relate M α v w
 
@@ -654,9 +654,53 @@ theorem existsDiamondH (v_γ_w : relate M γ v w) :
 def YsetLoad : (List Formula × List Program) → LoadFormula → (List Formula × Option NegLoadFormula)
 | ⟨F, δ⟩, χ => ⟨F , ~' (LoadFormula.boxes δ χ)⟩
 
+/-- Helper function for YsetLoad' to get last list element. -/
+def splitLast : List α → Option (List α × α)
+| [] => none
+| (x :: xs) => some $ match splitLast xs with
+  | none => ([], x)
+  | some (ys, y) => (x::ys, y)
+
+@[simp]
+theorem splitLast_nil : splitLast [] = (none : Option (List α × α)) := by simp [splitLast]
+
+/--- This probably should be in Std or Mathlib. -/
+def List.init : List α → List α
+| [] => []
+| [_] => []
+| (x :: y :: xs) => x :: (y :: xs).init
+
+theorem List.init_append_getLast_eq_cons (x : α) (xs : List α) :
+    (x :: xs).init ++ [(x :: xs).getLast (List.cons_ne_nil x xs)] = x :: xs := by
+  cases xs
+  · simp [List.init]
+  case cons y ys =>
+    simp [List.init] at *
+    apply List.init_append_getLast_eq_cons
+
+theorem splitLast_cons_eq_some (x : α) (xs : List α) :
+    (splitLast (x :: xs)) = some ((x :: xs).init, (x :: xs).getLast (List.cons_ne_nil x xs)) := by
+  cases xs
+  · simp [splitLast, List.init]
+  case cons y ys =>
+    have := splitLast_cons_eq_some y ys -- recursion!
+    unfold splitLast
+    rw [this]
+    simp
+    rfl
+
+@[simp]
+theorem splitLast_append_singleton : splitLast (xs ++ [x]) = some (xs, x) := by
+  induction xs
+  · simp [splitLast]
+  case cons IH =>
+    simp [splitLast]
+    rw [IH]
+
 def YsetLoad' : (List Formula × List Program) → Formula → (List Formula × Option NegLoadFormula)
-| ⟨F, []⟩, φ => ⟨(~φ) :: F, none⟩
-| ⟨F, (β::δ)⟩, φ => sorry -- ⟨F , ~' (loadMulti? β? δ? φ)⟩ -- TODO: need *last* element of δ for loadMulti here?
+| ⟨F, δ⟩, φ => match splitLast δ with
+    | none => ⟨F ∪ [~φ], none⟩
+    | some (δ, β) => ⟨F , ~' (loadMulti δ β φ)⟩
 
 /-- Loaded unfolding for ~'⌊α⌋(χ : LoadFormula) -/
 def unfoldDiamondLoaded (α : Program) (χ : LoadFormula) : List (List Formula × Option NegLoadFormula) :=
@@ -666,4 +710,22 @@ def unfoldDiamondLoaded (α : Program) (χ : LoadFormula) : List (List Formula �
 def unfoldDiamondLoaded' (α : Program) (φ : Formula) : List (List Formula × Option NegLoadFormula) :=
   (H α).map (fun Fδ => YsetLoad' Fδ φ)
 
--- TODO: Do we need other theorems here to prepare `loadRuleTruth` in `LocalTableau.lean`?
+def pairUnload : List Formula × Option NegLoadFormula → List Formula
+| (xs, none) => xs
+| (xs, some nlf) => xs ∪ [negUnload nlf]
+
+theorem unfoldDiamondLoaded_eq α χ : (unfoldDiamondLoaded α χ).map pairUnload = unfoldDiamond α (unload χ) := by
+  simp [unfoldDiamondLoaded, unfoldDiamond, YsetLoad, Yset, pairUnload]
+
+theorem unfoldDiamondLoaded'_eq α φ : (unfoldDiamondLoaded' α φ).map pairUnload = unfoldDiamond α φ := by
+  simp [unfoldDiamondLoaded', unfoldDiamond, YsetLoad', Yset, pairUnload]
+  intro F δ in_H
+  cases δ
+  · simp
+  case cons x xs =>
+    simp only [splitLast_cons_eq_some, unload_loadMulti, Formula.boxes_cons]
+    have := (@boxes_append (x :: xs).init [(x :: xs).getLast (List.cons_ne_nil x xs)] φ).symm
+    simp only [Formula.boxes_cons, Formula.boxes_nil] at this
+    rw [this]
+    rw [List.init_append_getLast_eq_cons]
+    simp_all

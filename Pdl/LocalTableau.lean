@@ -131,35 +131,27 @@ theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B
 
 -- LOADED rule applications
 -- Only the local diamond rule may be applied to loaded formulas.
--- (In MB page 19 these were only the rules ¬u, ¬; ¬* and ¬?).
+-- (In MB page 19 these were the rules ¬u, ¬; ¬* and ¬?).
 -- Each rule replaces the loaded formula by:
 -- - up to one loaded formula,
 -- - and a set of normal formulas.
 -- It's annoying to need the rule twice here due to the definition of LoadFormula.
 inductive LoadRule : NegLoadFormula → List (List Formula × Option NegLoadFormula) → Type
-  | dia  {α χ}   : LoadRule (~'⌊α  ⌋(χ : LoadFormula)) (unfoldDiamondLoaded α χ)
-    -- ([ (∅, some (~'χ)) ] ++ loadDagEndNodes (∅, (Sum.inr (NegDagLoadFormula.neg (injectLoad α χ)))))
-  | dia' {α φ}   : LoadRule (~'⌊α  ⌋(φ : Formula    )) (unfoldDiamondLoaded' α φ)
-    -- ([ ([~φ], none) ] ++ loadDagEndNodes (∅, (Sum.inr (NegDagLoadFormula.neg (injectLoad' α φ)))))
+  | dia  {α χ}   : LoadRule (~'⌊α⌋(χ : LoadFormula)) (unfoldDiamondLoaded  α χ)
+  | dia' {α φ}   : LoadRule (~'⌊α⌋(φ : Formula    )) (unfoldDiamondLoaded' α φ)
 
-/-- Given a loaded rule application, define the equivalent.
+/-- Given a LoadRule application, define the equivalent unloaded rule application.
 This allows re-using `oneSidedLocalRuleTruth` to prove `loadRuleTruth`. -/
-def LoadRule.unload : LoadRule (~'χ) B → OneSidedLocalRule [~(unload χ)] (B.map (λ (fs, o) => fs ∪ (o.map negUnload).toList))
+def LoadRule.unload : LoadRule (~'χ) B → OneSidedLocalRule [~(unload χ)] (B.map pairUnload)
 | @dia α χ => by
-    convert OneSidedLocalRule.dia α ((_root_.unload χ))
-    · simp
-    · simp [unfoldDiamondLoaded, YsetLoad, unfoldDiamond, Yset]
+    convert OneSidedLocalRule.dia α ((_root_.unload χ)) <;> simp [unfoldDiamondLoaded_eq α χ]
 | @dia' α φ => by
-    convert OneSidedLocalRule.dia α φ
-    · simp
-    · simp [unfoldDiamondLoaded', YsetLoad', unfoldDiamond, Yset]
-      -- BLOCKED on def YsetLoad'
-      sorry
+    convert OneSidedLocalRule.dia α φ  <;> simp [unfoldDiamondLoaded'_eq α φ]
 
 /-- The loaded unfold rule is sound and invertible.
 In the notes this is part of localRuleTruth. -/
 theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
-    (~(unload χ)) ≡ dis (B.map (λ (fs, o) => Con (fs ∪ (o.map negUnload).toList))) :=
+    (~(unload χ)) ≡ dis (B.map (Con ∘ pairUnload)) :=
   by
   intro W M w
   have := oneSidedLocalRuleTruth (lr.unload) W M w
@@ -173,11 +165,13 @@ theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
     use Con Y
     simp_all only [conEval, implies_true, and_true]
     use a, b, ab_in_B
-    rw [def_Y]
+    rw [← def_Y]
+    simp
   · rintro ⟨f, ⟨a, b, ab_in_B, def_f⟩, w_f⟩
     subst def_f
+    simp at w_f
     rw [conEval] at w_f
-    use a ∪ (Option.map negUnload b).toList
+    use pairUnload (a,b)
     constructor
     · use a, b
     · exact w_f
@@ -366,10 +360,10 @@ theorem localRuleTruth
         use (L ++ X, R, some (Sum.inl val))
         constructor
         · use X, some val; simp only [Option.map_some', and_true]; exact in_ress
-        · intro g g_in; subst def_f; rw [conEval] at w_f
-          simp only [List.mem_union_iff, List.mem_append, List.mem_singleton] at g_in
-          rcases g_in with ((g_in|g_in)|g_in)|g_in
-          all_goals aesop
+        · intro g g_in
+          subst def_f
+          simp_all [pairUnload, negUnload, conEval]
+          aesop
     · rintro ⟨Ci, ⟨⟨X, O, ⟨in_ress, def_Ci⟩⟩, w_Ci⟩⟩
       intro f f_in
       subst def_Ci
@@ -384,12 +378,10 @@ theorem localRuleTruth
         · subst f_in
           simp only [evaluate]
           rw [this]
-          use Con (X ∪ Option.toList (Option.map negUnload (some val)))
+          use Con (pairUnload (X, some val))
           constructor
           · use X, some val
-          · rw [conEval]
-            simp only [Option.map_some', negUnload, Option.toList_some, List.mem_union_iff,
-              List.mem_singleton]
+          · simp only [pairUnload, negUnload, conEval, List.mem_union_iff, List.mem_singleton]
             intro g g_in
             rcases g_in with (_|g_def)
             · apply w_Ci; simp_all
@@ -418,10 +410,10 @@ theorem localRuleTruth
         use (L, R ++ X, some (Sum.inr val))
         constructor
         · use X, some val; simp only [Option.map_some', and_true]; exact in_ress
-        · intro g g_in; subst def_f; rw [conEval] at w_f
-          simp only [List.mem_union_iff, List.mem_append, List.mem_singleton] at g_in
-          rcases g_in with (g_in|(g_in|g_in))|g_in
-          all_goals aesop
+        · intro g g_in
+          subst def_f
+          simp_all [pairUnload, negUnload, conEval]
+          aesop
     · rintro ⟨Ci, ⟨⟨X, O, ⟨in_ress, def_Ci⟩⟩, w_Ci⟩⟩
       intro f f_in
       subst def_Ci
@@ -436,12 +428,10 @@ theorem localRuleTruth
         · subst f_in
           simp only [evaluate]
           rw [this]
-          use Con (X ∪ Option.toList (Option.map negUnload (some val)))
+          use Con (pairUnload (X, some val))
           constructor
           · use X, some val
-          · rw [conEval]
-            simp only [Option.map_some', negUnload, Option.toList_some, List.mem_union_iff,
-              List.mem_singleton]
+          · simp only [pairUnload, negUnload, conEval, List.mem_union_iff, List.mem_singleton]
             intro g g_in
             rcases g_in with (_|g_def)
             · apply w_Ci; simp_all
