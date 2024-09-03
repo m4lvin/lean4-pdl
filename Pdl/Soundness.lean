@@ -438,6 +438,7 @@ theorem PathIn.prefix_toList_eq_toList_take {tab : Tableau Hist X}
 
 /-- Rewinding a path, removing the last `k` steps. Cannot go into Hist.
 Used to go to the companion of a repeat. -/
+-- PROBLEM: this definition seems to be wrong!
 def PathIn.rewind : (t : PathIn tab) → (k : Fin (t.toHistory.length + 1)) → PathIn tab
 | .nil, _ => .nil
 | .loc Y_in tail, k =>
