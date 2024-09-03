@@ -133,7 +133,7 @@ example (a b : Program) (X : Formula) :
   constructor
   · intro lhs
     constructor
-    · simp_all only [true_or]
+    · simp_all
     · constructor
       · intro v w_a_v u
         intro v_aSubS_w

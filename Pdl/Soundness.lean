@@ -983,9 +983,17 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
           aesop
       case cons β δ inner_IH =>
         rintro ⟨W,M,v,v_⟩
-        have := v_ (~ unload (loadMulti (β :: δ) α φ)) (by simp; right; aesop)
-        simp only [loadMulti_cons, unload, unload_loadMulti, evaluate, not_forall,
-          Classical.not_imp] at this
+        have := v_ (~ unload (loadMulti (β :: δ) α φ)) (by
+          simp
+          right
+          rw [O_def]
+          -- the following is needed because we are in "all_goals"
+          try (left; use (~'loadMulti (β :: δ) α φ); simp_all; done)
+          try (right; use (~'loadMulti (β :: δ) α φ); simp_all)
+          )
+        simp only [unload_loadMulti] at this
+        rw [Formula.boxes_cons] at this
+        simp only [evaluate, not_forall, Classical.not_imp] at this
         -- We make one step with `loadedDiamondPaths` for β.
         rcases this with ⟨w, v_β_w, not_w_δαφ⟩
         have in_t : AnyNegFormula_on_side_in_TNode (~''(⌊β⌋(⌊⌊δ⌋⌋⌊α⌋φ))) _theSide (nodeAt t) := by
@@ -993,7 +1001,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
           subst lf_def
           exact O_def
         have := loadedDiamondPaths β tab t v_ (⌊⌊δ⌋⌋⌊α⌋φ) in_t v_β_w
-          (by simp only [modelCanSemImplyAnyNegFormula, unload_boxes, unload]; exact not_w_δαφ)
+          (by rw [modelCanSemImplyAnyNegFormula]; simp; exact not_w_δαφ)
         rcases this with ⟨s, t_c_s, s_property, w_s, rest_s_free⟩
         rw [not_or_iff_not_or_and] at s_property
         rcases s_property with (notequi | ⟨s_equiv_t, not_af_in_s⟩)

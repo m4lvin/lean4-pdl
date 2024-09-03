@@ -269,7 +269,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
           simp [F]
           convert ψ_in
         apply (loadedTruthLemma MG X ψ).1
-        apply mysat; left; simp [F]; assumption
+        apply mysat.1; simp [F]; assumption
       -- now use Lemma 34:
       have := existsBoxFP β X_β_Z ℓ X_ConF
       rcases this with ⟨δ, δ_in_P, X_δ_Z⟩
@@ -302,12 +302,9 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       case inr δ_notEmpty =>
         have : (δ ++ [∗β]) ∈ P (∗β) ℓ := by
           simp [P]
-          apply List.mem_filter_of_mem
           all_goals simp_all
         have δβSφ_in_X : (⌈⌈δ⌉⌉⌈∗β⌉φ) ∈ X.1 := by
-          apply mysat
-          right
-          use δ ++ [∗β]
+          have := mysat.2 _ this
           simp_all [boxes_append]
         have : (⌈∗β⌉φ) ∈ Z.1 := by
           clear innerIH

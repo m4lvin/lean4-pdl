@@ -199,13 +199,7 @@ theorem P_monotone α (ℓ ℓ' : TP α) (h : ∀ τ, ℓ τ → ℓ' τ) δ : �
       subst def_δ
       left
       use δ'
-      constructor
-      · apply List.mem_filter_of_mem
-        · have := List.filter_subset _ δ'_in
-          simp_all only
-        · have := List.of_mem_filter δ'_in
-          simp_all only
-      · rfl
+      simp_all
     case inr h' =>
       split <;> split at h' <;> simp_all
   case star α =>
@@ -217,14 +211,7 @@ theorem P_monotone α (ℓ ℓ' : TP α) (h : ∀ τ, ℓ τ → ℓ' τ) δ : �
       rcases δ_in with ⟨δ', δ'_in, def_δ⟩
       subst def_δ
       use δ'
-      constructor
-      · simp_all only [List.append_eq_nil, List.cons_ne_self, and_false, not_false_eq_true]
-        apply List.mem_filter_of_mem
-        · have := List.filter_subset _ δ'_in
-          simp_all only
-        · have := List.of_mem_filter δ'_in
-          simp_all only
-      · rfl
+      simp_all
   case test τ =>
     simp_all [testsOfProgram, P]
     intro h'
@@ -243,7 +230,7 @@ theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if isAtomic α then γ 
       simp_all
       cases γ_in
       case inl γ_in =>
-        have IH := P_goes_down γ_in (List.mem_of_mem_filter αs_in)
+        have IH := P_goes_down γ_in αs_in.1
         cases em (isAtomic α) <;> cases em (isStar α)
         all_goals (simp_all;try linarith)
       case inr γ_in =>
@@ -275,7 +262,7 @@ theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if isAtomic α then γ 
       rcases δ_in with ⟨αs, αs_in, def_δ⟩
       cases em (γ ∈ αs)
       case inl γ_in =>
-        have IH := P_goes_down γ_in (List.mem_of_mem_filter αs_in)
+        have IH := P_goes_down γ_in αs_in.1
         cases em (isAtomic α) <;> cases em (isStar α)
         all_goals (simp_all;try linarith)
       case inr γ_not_in =>
@@ -370,8 +357,7 @@ theorem keepFreshP α ℓ (x_notin : x ∉ voc α) : ∀ δ ∈ P α ℓ, x ∉ 
       rw [Vocab.fromListProgram_map_iff]
       simp_all [voc, Vocab.fromList, Finset.not_mem_empty, not_false_eq_true]
       rintro γ (γ_in_δ' | γ_def)
-      · simp_all [List.mem_filter]
-        have := IHα _ δ'_in.1
+      · have := IHα _ δ'_in.1
         simp_all [Vocab.fromListProgram_map_iff]
       · subst γ_def
         simp [vocabOfProgram]
@@ -709,12 +695,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
           simp [boxes_append]
           cases em ([] ∈ P α ℓ)
           · simp_all
-            left
-            rw [List.mem_filter]
-            aesop
           · simp_all
-            rw [List.mem_filter]
-            aesop
   case star β =>
     let ρ := dis ((allTP (∗β)).map (fun ℓ => Con (Xset (∗β) ℓ ψ)))
     suffices goal : (⌈∗β⌉ψ) ≡ ρ by
@@ -751,11 +732,9 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
             use δ
             constructor
             · cases em (δ = [])
-              · have := (List.mem_filter.1 δ_in).2
-                subst_eqs
-              · rw [List.mem_filter]
-                rw [List.mem_filter] at δ_in
-                simp_all only [bne_iff_ne, ne_eq, not_false_eq_true, and_true]
+              · subst_eqs
+                simp_all
+              · simp_all only [bne_iff_ne, ne_eq, not_false_eq_true, and_true]
                 have := P_monotone β ℓ ℓ' -- or flip order?
                 simp only [Subtype.forall] at this
                 apply this _ _ δ_in
@@ -848,12 +827,11 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
           simp [disEval, conEval, Xset] at *
           intro hyp2
           specialize this hyp2
-          rcases this with ⟨ℓ', ℓ'_in, w_Xℓ'⟩
+          rcases this with ⟨ℓ', _, w_Xℓ'⟩
           apply w_Xℓ'
           right
           use δ
-          rw [List.mem_filter] at δ_in
-          rcases δ_in with ⟨δ_in, δ_not_empty⟩
+          rcases δ_in with ⟨δ_in, _⟩
           simp_all
           apply P_monotone β ℓ ℓ' -- γ ℓ' ℓ ?_ δ δ_in_P
           · simp
@@ -874,7 +852,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
               apply this
               intro
               simp_all
-          · simp; exact δ_in
+          · exact δ_in
         simp [boxes_append]
         simp at this
         apply this
@@ -906,6 +884,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         rw [IHβ_thm]
         clear IHβ_thm
         simp only [Xset, evalDis, disEval, List.mem_map, exists_exists_and_eq_and, conEval, List.mem_append, evaluate]
+        rw [← @or_iff_not_and_not]
         constructor
         · rintro ⟨ℓ, ℓ_in, w_Xβ⟩
           -- now need to choose x⋀χ0 or χ1
@@ -920,7 +899,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
               simp [disEval, conEval]
               use ℓ
               simp_all [List.mem_filter]
-              intro δ δ_in δ_not_empty
+              intro f δ δ_in _ def_f
               apply w_Xβ
               right
               aesop
@@ -929,7 +908,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
             simp [disEval, conEval]
             use ℓ
             simp_all [List.mem_filter]
-            intro δ δ_in _
+            intro f δ δ_in _ def_f
             apply w_Xβ
             right
             aesop
@@ -983,14 +962,14 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
             · intro φ φ_in_Fβ
               apply w_Xℓ
               left
-              simp [F]
+              simp only [F]
               convert φ_in_Fβ
               -- now we use that x ∉ β implies x ∉ φ ∈ Fβ
               apply repl_in_F_non_occ_eq
               apply keepFreshF β ℓ x_not_in_β
-              simp
               exact φ_in_Fβ
-            · intro δ δ_in_Pβ δ_not_empty
+            · intro f δ δ_in_Pβ δ_not_empty def_f
+              subst def_f
               have : repl_in_F x ρ (⌈⌈δ⌉⌉·x) = ⌈⌈δ⌉⌉ρ :=
                 repl_in_boxes_non_occ_eq_pos _ (keepFreshP β ℓ x_not_in_β δ δ_in_Pβ)
               rw [this]; clear this
@@ -1021,9 +1000,9 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
               -- now we use that x ∉ β implies x ∉ φ ∈ Fβ
               apply repl_in_F_non_occ_eq
               apply keepFreshF β ℓ x_not_in_β
-              simp
               exact φ_in_Fβ
-            · intro δ δ_in_Pβ δ_not_empty
+            · intro f δ δ_in_Pβ δ_not_empty def_f
+              subst def_f
               have : repl_in_F x ρ (⌈⌈δ⌉⌉·x) = ⌈⌈δ⌉⌉ρ :=
                 repl_in_boxes_non_occ_eq_pos _ (keepFreshP β ℓ x_not_in_β δ δ_in_Pβ)
               rw [this]; clear this
@@ -1096,12 +1075,8 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M,v) 
       simp_all [P]
     case inr _ =>
       use δ ++ [β]
-      simp_all [P, relateSeq]
-      constructor
-      · left
-        apply List.mem_filter_of_mem δ_in (by aesop)
-      · simp [relateSeq_append]
-        use u
+      simp_all [P, relateSeq, relateSeq_append]
+      use u
   case star β =>
     simp only [relate] at v_γ_w
     cases ReflTransGen.cases_tail_eq_neq v_γ_w
@@ -1116,8 +1091,5 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M,v) 
       rcases IHβ with ⟨δ, ⟨δ_in, v_δ_w⟩⟩
       have claim : δ ≠ [] := by by_contra hyp; subst hyp; simp_all [relateSeq];
       use δ ++ [∗β]
-      simp_all [P, relateSeq]
-      constructor
-      · apply List.mem_filter_of_mem δ_in (by aesop)
-      · simp [relateSeq_append]
-        use u
+      simp_all [P, relateSeq, relateSeq_append]
+      use u

@@ -81,9 +81,9 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
         constructor
         · intro newWorld
           unfold combinedModel
+          -- the new world is never reachable, trivial case
           tauto
-        -- the new world is never reachable, trivial case
-        · intro otherR otherWorld
+        · rintro ⟨otherR, otherWorld⟩
           intro rel_in_new_model
           specialize f_IH otherR otherWorld
           unfold combinedModel at rel_in_new_model

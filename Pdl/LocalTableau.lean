@@ -143,10 +143,8 @@ inductive LoadRule : NegLoadFormula → List (List Formula × Option NegLoadForm
 /-- Given a LoadRule application, define the equivalent unloaded rule application.
 This allows re-using `oneSidedLocalRuleTruth` to prove `loadRuleTruth`. -/
 def LoadRule.unload : LoadRule (~'χ) B → OneSidedLocalRule [~(unload χ)] (B.map pairUnload)
-| @dia α χ => by
-    convert OneSidedLocalRule.dia α ((_root_.unload χ)) <;> simp [unfoldDiamondLoaded_eq α χ]
-| @dia' α φ => by
-    convert OneSidedLocalRule.dia α φ  <;> simp [unfoldDiamondLoaded'_eq α φ]
+| @dia α χ => unfoldDiamondLoaded_eq α χ ▸ OneSidedLocalRule.dia α ((_root_.unload χ))
+| @dia' α φ => unfoldDiamondLoaded'_eq α φ ▸ OneSidedLocalRule.dia α φ
 
 /-- The loaded unfold rule is sound and invertible.
 In the notes this is part of localRuleTruth. -/
@@ -363,6 +361,7 @@ theorem localRuleTruth
         · intro g g_in
           subst def_f
           simp_all [pairUnload, negUnload, conEval]
+          have := w_f (~unload val.1)
           aesop
     · rintro ⟨Ci, ⟨⟨X, O, ⟨in_ress, def_Ci⟩⟩, w_Ci⟩⟩
       intro f f_in
@@ -413,6 +412,7 @@ theorem localRuleTruth
         · intro g g_in
           subst def_f
           simp_all [pairUnload, negUnload, conEval]
+          have := w_f (~unload val.1)
           aesop
     · rintro ⟨Ci, ⟨⟨X, O, ⟨in_ress, def_Ci⟩⟩, w_Ci⟩⟩
       intro f f_in
@@ -545,13 +545,13 @@ def preconP_to_submultiset (preconditionProof : List.Sublist Lcond L ∧ List.Su
     cases g <;> (rename_i nlform; cases nlform; simp_all)
 
 @[simp]
-def lt_TNode (X : TNode) (Y : TNode) := MultisetLT (node_to_multiset X) (node_to_multiset Y)
+def lt_TNode (X : TNode) (Y : TNode) := MultisetDMLT (node_to_multiset X) (node_to_multiset Y)
 
 -- Needed for termination of endNOdesOf.
 -- Here we use `dm_wf` from MultisetOrder.lean.
 instance : WellFoundedRelation TNode where
   rel := lt_TNode
-  wf := InvImage.wf node_to_multiset (dm_wf Formula.WellFoundedLT)
+  wf := InvImage.wf node_to_multiset (dmLT_wf Formula.WellFoundedLT)
 
 theorem LocalRule.cond_non_empty (rule : LocalRule (Lcond, Rcond, Ocond) X) :
     node_to_multiset (Lcond, Rcond, Ocond) ≠ ∅ :=
@@ -687,8 +687,8 @@ def MultisetLT' {α} [DecidableEq α] [Preorder α] (M : Multiset α) (N : Multi
 
 -- The definition used in the DM proof is equivalent to the standard definition.
 -- TODO: Move to MultisetOrder
-theorem MultisetLT.iff_MultisetLT' [DecidableEq α] [Preorder α] {M N : Multiset α} :
-    MultisetLT M N ↔ MultisetLT' M N := by
+theorem MultisetDMLT.iff_MultisetLT' [DecidableEq α] [Preorder α] {M N : Multiset α} :
+    MultisetDMLT M N ↔ MultisetLT' M N := by
   unfold MultisetLT'
   constructor
   · intro M_LT_N
@@ -696,7 +696,7 @@ theorem MultisetLT.iff_MultisetLT' [DecidableEq α] [Preorder α] {M N : Multise
     aesop
   · intro M_LT'_N
     rcases M_LT'_N with ⟨X,Y,Z,claim⟩
-    apply MultisetLT.MLT X Y Z
+    apply MultisetDMLT.DMLT X Y Z
     all_goals tauto
 
 theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
@@ -710,7 +710,7 @@ theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
   rcases RES_in with ⟨⟨Lnew,Rnew,Onew⟩, Y_in_ress, claim⟩
   unfold lt_TNode
   simp at claim
-  rw [MultisetLT.iff_MultisetLT']
+  rw [MultisetDMLT.iff_MultisetLT']
   unfold MultisetLT'
   use node_to_multiset (Lnew, Rnew, Onew) -- choose X to be the newly added formulas
   use node_to_multiset (Lcond, Rcond, Ocond) -- choose Y to be the removed formulas

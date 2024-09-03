@@ -283,7 +283,7 @@ theorem evalBoxes (δ : List Program) φ :
   induction δ generalizing w
   · simp [relateSeq]
   case cons α δ IH =>
-    simp only [evaluate, boxes_first]
+    simp only [boxes_first]
     constructor
     · intro lhs
       intro v v_αδ_w
