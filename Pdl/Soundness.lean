@@ -140,6 +140,10 @@ def PathIn.append (p : PathIn tab) (q : PathIn (tabAt p).2.2) : PathIn tab := ma
   | .pdl r p_child => .pdl r (PathIn.append p_child q)
 
 @[simp]
+theorem append_eq_iff_eq (s : PathIn tab) p q : s.append p = s.append q ↔ p = q := by
+  induction s <;> simp_all [PathIn.append]
+
+@[simp]
 theorem PathIn.eq_append_iff_other_eq_nil (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
     p = p.append q ↔ q = nil := by
   induction p <;> cases tab
@@ -218,6 +222,14 @@ def PathIn.length : (t : PathIn tab) → ℕ
 | .pdl _ tail => tail.length + 1
 | .loc _ tail => tail.length + 1
 
+/-- The `Y_in` proof does not matter for a local path step. -/
+theorem PathIn.loc_Yin_irrel {lt : LocalTableau X}
+    {next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (X :: rest) Y} {Y : TNode}
+    (Y_in1 Y_in2 : Y ∈ endNodesOf lt)
+    {tail : PathIn (next Y Y_in1)}
+    : (.loc Y_in1 tail : PathIn (.loc lt next)) = .loc Y_in2 tail := by
+  simp
+
 /-! ## Parents, Children, Ancestors and Descendants -/
 
 /-- Relation `s◃t` says `t` is one more step than `s`. Two cases, both defined via `append`. -/
@@ -228,17 +240,9 @@ def edge (s t : PathIn tab) : Prop :=
   ( ∃ Hist X Y r, ∃ (next : Tableau (X :: Hist) Y) (h : tabAt s = ⟨Hist, X, Tableau.pdl r next⟩),
       t = s.append (h ▸ PathIn.pdl r .nil) )
 
-/-- The `Y_in` proof does not matter for a local path step. -/
-theorem PathIn.loc_Yin_irrel {lt : LocalTableau X}
-    {next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (X :: rest) Y} {Y : TNode}
-    (Y_in1 Y_in2 : Y ∈ endNodesOf lt)
-    {tail : PathIn (next Y Y_in1)}
-    : (.loc Y_in1 tail : PathIn (.loc lt next)) = .loc Y_in2 tail := by
-  simp
+/-- Notation ◃ for `edge` (because ⋖ in notes is taken in Mathlib). -/
+notation s:arg " ◃ " t:arg => edge s t
 
-@[simp]
-theorem append_eq_iff_eq (s : PathIn tab) p q : s.append p = s.append q ↔ p = q := by
-  induction s <;> simp_all [PathIn.append]
 
 theorem edge_append_loc_nil (h : (tabAt s).2.2 = Tableau.loc lt next) :
     edge s (s.append (h ▸ PathIn.loc Y_in .nil)) := by
@@ -293,8 +297,6 @@ theorem nodeAt_pdl_nil (child : Tableau (Γ :: Hist) Δ) (r : PdlRule Γ Δ) :
     nodeAt (@PathIn.pdl Γ Δ Hist child r .nil) = Δ := by
   simp [nodeAt, tabAt]
 
-/-- Notation ◃ for `edge` (because ⋖ in notes is taken in Mathlib). -/
-notation s:arg " ◃ " t:arg => edge s t
 
 /-- The length of `edge`-related paths differs by one. -/
 theorem edge_then_length_sub {s t : PathIn tab} : s ◃ t → s.length + 1 = t.length := by
@@ -344,7 +346,7 @@ instance : LE (PathIn tab) := ⟨Relation.ReflTransGen edge⟩
 
 /-! ## Alternative definitions of `edge` -/
 
-/-- Attempt to define `edge` *recursively* by "going to the end" of the paths.
+/-- UNUSED definition of `edge` *recursively* by "going to the end" of the paths.
 Note there are no mixed .loc and .pdl cases. -/
 -- TODO: try if making this the definition makes life easier?
 def edgeRec : PathIn tab → PathIn tab → Prop
@@ -639,24 +641,16 @@ theorem eProp2.a {tab : Tableau .nil X} (s t : PathIn tab) :
   else
     rcases t_childOf_s with ( ⟨Hist, Z, lt, next, Y, Y_in, tabAt_s_def, t_def⟩
                             | ⟨Hist, Z, Y, r, next, tabAt_s_def, def_t_append⟩ )
-    · subst_eqs
+    all_goals
+      subst_eqs
       simp_all
       left
       unfold cEdge
       apply Relation.TransGen.single
       left
       unfold edge
-      left
-      use Hist, Z, lt, next, Y, Y_in, tabAt_s_def
-    · subst_eqs
-      simp_all
-      left
-      unfold cEdge
-      apply Relation.TransGen.single
-      left
-      unfold edge
-      right
-      use Hist, Z, Y, r, next, tabAt_s_def
+    · left; use Hist, Z, lt, next, Y, Y_in, tabAt_s_def
+    · right; use Hist, Z, Y, r, next, tabAt_s_def
 
 theorem eProp2.b {tab : Tableau .nil X} (s t : PathIn tab) : s ♥ t → t ≡_E s := by
   intro comp
