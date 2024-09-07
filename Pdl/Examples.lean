@@ -144,41 +144,17 @@ example (a b : Program) (X : Formula) :
   · rintro ⟨w_X, aBox, bBox⟩ v w_aSubS_v
     aesop
 
-open Mathlib.Vector
-
--- related via star <=> related via a finite chain
-theorem starIffFinitelyManyStepsModel (W : Type) (M : KripkeModel W) (x z : W) (α : Program) :
-    Relation.ReflTransGen (relate M α) x z ↔
-      ∃ (n : ℕ) (ys : Mathlib.Vector W n.succ),
-        x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, relate M α (get ys i.castSucc) (get ys (i.succ)) :=
-  by
-  exact ReflTransGen.iff_finitelyManySteps (relate M α) x z
-
--- Example 1 in Borzechowski
+/-- The induction axiom is semantically valid. Example 1 in MB. -/
 theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a⌉(φ ↣ (⌈a⌉φ))) ↣ (⌈∗a⌉φ)) :=
   by
   intro W M w
-  simp
-  intro Mwφ
-  intro MwStarImpHyp
+  simp only [evaluate, relate, not_forall, not_and, not_exists, not_not, and_imp]
+  intro Mwφ  MwStarImpHyp
   intro x w_starA_x
-  rw [starIffFinitelyManyStepsModel] at w_starA_x
-  rcases w_starA_x with ⟨n, ys, w_is_head, x_is_last, i_a_isucc⟩
-  have claim : ∀ i : Fin n.succ, evaluate M (ys.get i) φ :=
-    by
-    apply Fin.induction
-    · simp
-      rw [← w_is_head]
-      exact Mwφ
-    · intro i
-      specialize i_a_isucc i
-      intro sat_phi
-      sorry
-  specialize claim n.succ
-  simp at claim
-  have x_is_ys_nsucc : x = ys.get (n + 1) :=
-    by
-    simp [last_def] at x_is_last
-    sorry
-  rw [x_is_ys_nsucc]
-  sorry -- was: exact claim
+  induction w_starA_x
+  case refl => assumption
+  case tail u v w_aS_u u_a_v IH =>
+    apply MwStarImpHyp
+    · exact w_aS_u
+    · exact IH
+    · assumption
