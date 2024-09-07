@@ -459,11 +459,10 @@ theorem PathIn.init_inductionOn t {motive : PathIn tab → Prop}
     exact root
 
 theorem PathIn.nil_le_anything : PathIn.nil ≤ t := by
-  apply PathIn.init_inductionOn t
+  induction t using PathIn.init_inductionOn
   case root =>
     exact Relation.ReflTransGen.refl
-  case step Hist two three =>
-    intro s nil_le_s u s_edge_u
+  case step nil_le_s u s_edge_u =>
     apply Relation.ReflTransGen.tail nil_le_s s_edge_u
 
 theorem PathIn.loc_le_loc_of_le {t1 t2} (h : t1 ≤ t2) :
@@ -600,7 +599,7 @@ def PathIn.rewind : (t : PathIn tab) → (k : Fin (t.toHistory.length + 1)) → 
 | .pdl r tail, k => Fin.lastCases (.nil)
     (PathIn.pdl r ∘ tail.rewind ∘ Fin.cast (pdl_length_eq r tail)) k
 
-/-- Rewinding with 0 steps does nothing. -/
+/-- Rewinding 0 steps does nothing. -/
 theorem PathIn.rewind_zero {p : PathIn tab} : p.rewind 0 = p := by
   induction p -- Not sure about the strategy here.
   · simp [rewind]
