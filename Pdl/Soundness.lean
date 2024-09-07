@@ -371,7 +371,7 @@ theorem nodeAt_pdl_nil (child : Tableau (X :: Hist) Y) (r : PdlRule X Y) :
   simp [nodeAt, tabAt]
 
 /-- The length of `edge`-related paths differs by one. -/
-theorem edge_then_length_sub {s t : PathIn tab} : s ◃ t → s.length + 1 = t.length := by
+theorem length_succ_eq_length_of_edge {s t : PathIn tab} : s ◃ t → s.length + 1 = t.length := by
   intro s_t
   rcases s_t with ( ⟨Hist', Z', lt', next', Y', Y'_in, tabAt_s_def, t_def⟩
                   | ⟨Hist', Z', Y', r', next', tabAt_s_def, t_def⟩ )
@@ -393,7 +393,7 @@ theorem edge_then_length_sub {s t : PathIn tab} : s ◃ t → s.length + 1 = t.l
     · subst_eqs; simp_all only [PathIn.length, zero_add, heq_eq_eq, eqRec_heq_iff_heq]
 
 theorem edge_then_length_lt {s t : PathIn tab} (s_t : s ◃ t) : s.length < t.length := by
-  have := edge_then_length_sub s_t
+  have := length_succ_eq_length_of_edge s_t
   linarith
 
 def edge_natLT_relHom {Hist X tab} : RelHom (@edge Hist X tab) Nat.lt :=
@@ -468,11 +468,21 @@ theorem PathIn.nil_le_anything : PathIn.nil ≤ t := by
 
 theorem PathIn.loc_le_loc_of_le {t1 t2} (h : t1 ≤ t2) :
   @loc Hist X Y lt next Z_in t1 ≤ @ loc Hist X Y lt next Z_in t2 := by
-  sorry
+  induction h
+  · exact Relation.ReflTransGen.refl
+  case tail s t _ s_t IH =>
+    apply Relation.ReflTransGen.tail IH
+    simp
+    exact s_t
 
 theorem PathIn.pdl_le_pdl_of_le {t1 t2} (h : t1 ≤ t2) :
   @pdl Hist X Y r Z_in t1 ≤ @pdl Hist X Y r Z_in t2 := by
-  sorry
+  induction h
+  · exact Relation.ReflTransGen.refl
+  case tail s t _ s_t IH =>
+    apply Relation.ReflTransGen.tail IH
+    simp
+    exact s_t
 
 /-! ## Alternative definitions of `edge` -/
 
@@ -489,46 +499,7 @@ def edgeRec : PathIn tab → PathIn tab → Prop
   @PathIn.loc _ _ Y2 _ _ _ tail2 =>
   if h : Y1 = Y2 then edgeRec tail1 (h ▸ tail2) else false
 
-
-/-! ## More about Path and History -/
-
-/-- Convert a path to a History. Does not include the last node.
-The history of `.nil` is `[]`. -/
-def PathIn.toHistory {tab : Tableau Hist X} : (t : PathIn tab) → History
-| .nil => []
-| .pdl _ tail => tail.toHistory ++ [X]
-| .loc _ tail => tail.toHistory ++ [X]
-
-/-- Convert a path to a list of nodes. Reverse of the history and does include the last node.
-The list of `.nil` is `[X]`. -/
-def PathIn.toList {tab : Tableau Hist X} : (t : PathIn tab) → List TNode
-| .nil => [X]
-| .pdl _ tail => X :: tail.toList
-| .loc _ tail => X :: tail.toList
-
--- TODO: PathIn.length = PathIn.tohistory.length ??
-
-/-- A path gives the same list of nodes as the history of its last node. -/
-theorem PathIn.toHistory_eq_Hist {tab : Tableau Hist X} (t : PathIn tab) :
-    t.toHistory ++ Hist = (tabAt t).1 := by
-  induction tab
-  all_goals
-    cases t <;> simp_all [tabAt, PathIn.toHistory]
-
--- TODO general [] to hist with + Hist.length
-theorem tabAt_fst_length_eq_toHistory_length {tab : Tableau [] X} (s : PathIn tab) :
-    (tabAt s).fst.length = s.toHistory.length := by
-  have := PathIn.toHistory_eq_Hist s
-  rw [← this]
-  simp
-
-@[simp]
-theorem PathIn.loc_length_eq : (loc Z_in tail).toHistory.length = tail.toHistory.length + 1 := by
-  simp [PathIn.toHistory]
-
-@[simp]
-theorem PathIn.pdl_length_eq : (pdl r tail).toHistory.length = tail.toHistory.length + 1 := by
-  simp [PathIn.toHistory]
+/-! ## Path Properties (UNUSED?) -/
 
 def PathIn.isLoaded (t : PathIn tab) : Prop :=
 match t with
@@ -544,6 +515,48 @@ match t with
   | .pdl (.modR _ _) _ => True
   | .pdl _ tail => tail.isCritical
   | .loc _ tail => tail.isCritical
+
+/-! ## From Path to History -/
+
+/-- Convert a path to a History.
+Does not include the last node.
+The history of `.nil` is `[]` because this will not go into `Hist`. -/
+def PathIn.toHistory {tab : Tableau Hist X} : (t : PathIn tab) → History
+| .nil => []
+| .pdl _ tail => tail.toHistory ++ [X]
+| .loc _ tail => tail.toHistory ++ [X]
+
+/-- Convert a path to a list of nodes. Reverse of the history and does include the last node.
+The list of `.nil` is `[X]`. -/
+def PathIn.toList {tab : Tableau Hist X} : (t : PathIn tab) → List TNode
+| .nil => [X]
+| .pdl _ tail => X :: tail.toList
+| .loc _ tail => X :: tail.toList
+
+/-- A path gives the same list of nodes as the history of its last node. -/
+theorem PathIn.toHistory_eq_Hist {tab : Tableau Hist X} (t : PathIn tab) :
+    t.toHistory ++ Hist = (tabAt t).1 := by
+  induction tab
+  all_goals
+    cases t <;> simp_all [tabAt, PathIn.toHistory]
+
+-- TODO generalise [] to Hist with + Hist.length ??
+theorem tabAt_fst_length_eq_toHistory_length {tab : Tableau [] X} (s : PathIn tab) :
+    (tabAt s).fst.length = s.toHistory.length := by
+  have := PathIn.toHistory_eq_Hist s
+  rw [← this]
+  simp
+
+@[simp]
+theorem PathIn.loc_length_eq {X Y Hist} {lt : LocalTableau X} (Y_in)
+    {next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (X :: Hist) Y} (tail : PathIn (next Y Y_in))
+    : (loc Y_in tail).toHistory.length = tail.toHistory.length + 1 := by
+  simp [PathIn.toHistory]
+
+@[simp]
+theorem PathIn.pdl_length_eq {X Y Hist} (r) {next : Tableau (X :: Hist) Y} (tail : PathIn next)
+    : (pdl r tail).toHistory.length = tail.toHistory.length + 1 := by
+  simp [PathIn.toHistory]
 
 /-- Prefix of a path, taking only the first `k` steps. -/
 def PathIn.prefix {tab : Tableau Hist X} : (t : PathIn tab) → (k : Fin (t.length + 1)) → PathIn tab
@@ -574,7 +587,7 @@ theorem PathIn.prefix_toList_eq_toList_take {tab : Tableau Hist X}
     cases t
     simp_all [PathIn.toList, PathIn.prefix]
 
--- theorem idea : k + j = length → prefix k). append (suffix j) = same ...
+/-! ## Path Rewinding -/
 
 /-- Rewinding a path, removing the last `k` steps. Cannot go into Hist.
 Used to go to the companion of a repeat. Returns `.nil` when `k` is the length of the whole path.
@@ -582,53 +595,52 @@ We use +1 in the type because `rewind 0` is always possible, even with history `
 Defined using Fin.lastCases. -/
 def PathIn.rewind : (t : PathIn tab) → (k : Fin (t.toHistory.length + 1)) → PathIn tab
 | .nil, _ => .nil
-| .loc Y_in tail, k => Fin.lastCases (.nil) (PathIn.loc Y_in ∘ (loc_length_eq ▸ tail.rewind)) k
-| .pdl r tail, k => Fin.lastCases (.nil) (PathIn.pdl r ∘ (pdl_length_eq ▸ tail.rewind)) k
+| .loc Y_in tail, k => Fin.lastCases (.nil)
+    (PathIn.loc Y_in ∘ tail.rewind ∘ Fin.cast (loc_length_eq Y_in tail)) k
+| .pdl r tail, k => Fin.lastCases (.nil)
+    (PathIn.pdl r ∘ tail.rewind ∘ Fin.cast (pdl_length_eq r tail)) k
+
+/-- Rewinding with 0 steps does nothing. -/
+theorem PathIn.rewind_zero {p : PathIn tab} : p.rewind 0 = p := by
+  induction p -- Not sure about the strategy here.
+  · simp [rewind]
+  case loc Y_in tail IH =>
+    simp [rewind]
+    sorry
+  case pdl =>
+    simp [rewind]
+    sorry
 
 theorem PathIn.rewind_le (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) : t.rewind k ≤ t := by
   induction tab
   case loc rest Y lt next IH =>
-    cases t
+    cases t <;> simp only [rewind]
     case nil =>
-      simp only [rewind]
       exact Relation.ReflTransGen.refl
     case loc Z Z_in tail =>
-      simp [PathIn.rewind]
       specialize IH Z Z_in tail
-      -- rw [loc_length_eq] at k -- introduces copy of k but keeps old k in goal :-/
       cases k using Fin.lastCases
       case last =>
-        rw [Fin.lastCases_last] -- should be doable after rewriting with `this`?
-        -- rw [loc_length_eq] -- problem with motive
+        rw [Fin.lastCases_last]
         exact PathIn.nil_le_anything
       case cast j =>
         simp only [Fin.lastCases_castSucc, Function.comp_apply]
         apply PathIn.loc_le_loc_of_le
-        -- rw [← loc_length_eq] at IH -- motive not type correct :-/
-        have j' := Fin.cast loc_length_eq j
-        specialize IH j' -- bad coercing :-/
-        convert IH -- broken by coercing?
-        sorry
+        apply IH
   case pdl =>
-    cases t
+    cases t <;> simp only [rewind]
     case nil =>
-      simp only [rewind]
       exact Relation.ReflTransGen.refl
     case pdl rest Y Z r tab IH tail =>
-      -- simp [PathIn.toHistory, PathIn.rewind]
       specialize IH tail
       cases k using Fin.lastCases
       case last =>
-        -- rw [loc_length_eq] -- problem with motive
-        -- rw [Fin.lastCases_last] -- should be doable after rewriting with `this`?
-        sorry
+        rw [Fin.lastCases_last]
+        exact PathIn.nil_le_anything
       case cast j =>
-        -- simp only [Fin.lastCases_castSucc, Function.comp_apply]
-        -- apply PathIn.pdl_le_pdl_of_le
-        -- rw [← loc_length_eq] at IH -- motive not type correct :-/
-        -- specialize IH (Fin.cast loc_length_eq j) -- bad coercing :-/
-        -- convert IH -- broken by coercing?
-        sorry
+        simp only [Fin.lastCases_castSucc, Function.comp_apply]
+        apply PathIn.pdl_le_pdl_of_le
+        apply IH
   case rep =>
     cases t
     simp only [rewind]
@@ -645,30 +657,39 @@ theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
       simp [PathIn.toHistory, PathIn.rewind]
     case loc Z Z_in tail =>
       cases k using Fin.lastCases
-      · specialize IH Z Z_in tail 0
-        simp [PathIn.toHistory, PathIn.rewind] at *
+      · simp [PathIn.toHistory, PathIn.rewind] at *
       case cast j =>
-        have : List.length (loc Z_in tail).toHistory = List.length tail.toHistory + 1 := by sorry
-        specialize IH Z Z_in tail (this ▸ j)
-        -- almost there, how to simplify nodeAt tail rewind ??
-        -- simp_all [PathIn.rewind, nodeAt, tabAt]
-        sorry
+        specialize IH Z Z_in tail
+        simp only [List.get_eq_getElem, List.length_cons, toHistory, nodeAt_loc] at *
+        simp_all [PathIn.rewind]
+        have := @List.getElem_append _ (nodeAt tail :: tail.toHistory) [Y] j.val (by
+          rcases j with ⟨j,j_lt⟩
+          rw [List.length_cons]
+          rw [loc_length_eq] at j_lt
+          exact j_lt)
+        simp at this
+        rw [this]
   case pdl =>
     cases t
     case nil =>
       simp_all [PathIn.toHistory, PathIn.rewind]
     case pdl rest Y Z r tab IH tail =>
-      simp [PathIn.toHistory, PathIn.rewind]
-      simp [PathIn.toHistory] at k
-      induction k using Fin.inductionOn
-      · specialize IH tail
-        -- should be similar to `loc` case
-        sorry
-      · assumption
+      cases k using Fin.lastCases
+      · simp [PathIn.toHistory, PathIn.rewind] at *
+      case cast j =>
+        specialize IH tail
+        simp only [List.get_eq_getElem, List.length_cons, toHistory, nodeAt_pdl] at *
+        simp_all [PathIn.rewind]
+        have := @List.getElem_append _ (nodeAt tail :: tail.toHistory) [Z] j.val (by
+          rcases j with ⟨j,j_lt⟩
+          rw [List.length_cons]
+          rw [pdl_length_eq] at j_lt
+          exact j_lt)
+        simp at this
+        rw [this]
   case rep =>
     cases t
     simp_all [PathIn.toHistory, PathIn.rewind]
-
 
 /-! ## Companion, cEdge, etc. -/
 
@@ -718,12 +739,10 @@ notation pa:arg " <ᶜ " pb:arg => Relation.TransGen cEdge pa pb
 example : pa ⋖ᶜ pb ↔ (pa ◃ pb) ∨ pa ♥ pb := by
   simp_all [cEdge]
 
-/-! ## ≡_E and Clusters -/
+/-! ## ≡_c and Clusters -/
 
--- TODO: how to define the equivalence relation given by E:
--- Use `EqvGen` from Mathlib or manual "both ways Relation.ReflTransGen"?
-
--- manual
+/-- Nodes are c-equivalent iff there are `⋖ᶜ` paths both ways:  ≡_c  =  <ᶜ ∩ <ᶜ.
+Note that this is not a closure, so we do not want `Relation.EqvGen` here. -/
 def cEquiv {X} {tab : Tableau .nil X} (pa pb : PathIn tab) : Prop :=
     Relation.ReflTransGen cEdge pa pb
   ∧ Relation.ReflTransGen cEdge pb pa
