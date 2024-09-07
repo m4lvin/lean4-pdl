@@ -77,8 +77,19 @@ theorem tautImp_iff_TNodeUnsat {φ ψ} {X : TNode} :
 @[simp]
 instance : Membership Formula TNode := ⟨fun φ X => φ ∈ X.L ∨ φ ∈ X.R⟩
 
+@[simp]
 def NegLoadFormula_in_TNode (nlf : NegLoadFormula) (X : TNode) : Prop :=
   X.O = some (Sum.inl nlf) ∨ X.O = some (Sum.inr nlf)
+
+instance : Decidable (NegLoadFormula_in_TNode nlf ⟨L,R,O⟩) := by
+  refine
+    if h : O = some (Sum.inl nlf) then isTrue ?_
+    else if h2 : O = some (Sum.inr nlf) then isTrue ?_ else isFalse ?_
+  all_goals simp; tauto
+
+def TNode.without : (LRO : TNode) → (naf : AnyNegFormula) → TNode
+| ⟨L,R,O⟩, ⟨.normal f⟩  => ⟨L \ {~f}, R \ {~f}, O⟩
+| ⟨L,R,O⟩, ⟨.loaded lf⟩ => if (NegLoadFormula_in_TNode (~'lf) ⟨L,R,O⟩) then ⟨L, R, none⟩ else ⟨L,R,O⟩
 
 @[simp]
 instance : Membership NegLoadFormula TNode := ⟨NegLoadFormula_in_TNode⟩
