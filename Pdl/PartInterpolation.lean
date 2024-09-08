@@ -122,9 +122,32 @@ def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) 
     -- keep interpolant the same
     sorry
 
-def partInterpolation :
-    ∀ (L R : List Formula), ¬ satisfiable (L ∪ R) → PartInterpolant (L,R,none) := by
+
+/-- The exits of a cluster: (C \ C+). -/
+-- IDEA: similar to endNodesOf?
+def exitsOf : (tab : Tableau Hist (L, R, some nlf)) → List (PathIn tab)
+| .rep lpr => [] -- a repeat is never an exit
+| .loc lt next => sorry -- TODO: can the exit be "inside" lt? Or can we filter `endNodesOf lt`?
+| .pdl r next => sorry -- TODO: if (L-) then root of next is exit, also if (M) removes loading etc?
+
+/-- W.l.o.g version of `clusterInterpolation`. -/
+def clusterInterpolation_right {Hist L R nlf}
+    (tab : Tableau Hist (L, R, some (Sum.inr nlf)))
+    (exitIPs : ∀ e ∈ exitsOf tab, PartInterpolant (nodeAt e))
+    : PartInterpolant (L, R, some (Sum.inr nlf)) := by
   sorry
+
+/-- Given a tableau where the root is loaded, and exit interpolants, interpolate the root. -/
+def clusterInterpolation {Hist L R snlf}
+    (tab : Tableau Hist (L, R, some snlf))
+    (exitIPs : ∀ e ∈ exitsOf tab, PartInterpolant (nodeAt e))
+    : PartInterpolant (L, R, some snlf) := by
+  cases snlf
+  case inl nlf =>
+    -- TODO: "flip" the left/right sides of `tab` so we can apply the wlog version.
+    sorry
+  case inr nlf =>
+    exact @clusterInterpolation_right _ _ _ nlf tab exitIPs
 
 def tabToInt {X : TNode} (tab : Tableau .nil X) :
     PartInterpolant X := by
