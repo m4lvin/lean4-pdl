@@ -600,15 +600,24 @@ def PathIn.rewind : (t : PathIn tab) → (k : Fin (t.toHistory.length + 1)) → 
     (PathIn.pdl r ∘ tail.rewind ∘ Fin.cast (pdl_length_eq r tail)) k
 
 /-- Rewinding 0 steps does nothing. -/
-theorem PathIn.rewind_zero {p : PathIn tab} : p.rewind 0 = p := by
-  induction p -- Not sure about the strategy here.
-  · simp [rewind]
-  case loc Y_in tail IH =>
-    simp [rewind]
-    sorry
-  case pdl =>
-    simp [rewind]
-    sorry
+theorem PathIn.rewind_zero {tab : Tableau Hist X} {p : PathIn tab} : p.rewind 0 = p := by
+  induction p <;> simp only [rewind]
+  case loc Hist0 X0 lt next Y_in tail IH =>
+    by_cases 0 = Fin.last (loc Y_in tail).toHistory.length
+    case pos hyp =>
+      rw [PathIn.loc_length_eq] at hyp
+      have := @Fin.last_pos tail.toHistory.length
+      omega
+    case neg hyp =>
+      simp_all [Fin.lastCases, Fin.reverseInduction]
+  case pdl Y Z X0 next r tail IH =>
+    by_cases 0 = Fin.last (pdl r tail).toHistory.length
+    case pos hyp =>
+      rw [PathIn.pdl_length_eq] at hyp
+      have := @Fin.last_pos tail.toHistory.length
+      omega
+    case neg hyp =>
+      simp_all [Fin.lastCases, Fin.reverseInduction]
 
 theorem PathIn.rewind_le (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) : t.rewind k ≤ t := by
   induction tab
