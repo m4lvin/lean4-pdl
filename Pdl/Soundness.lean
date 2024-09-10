@@ -237,7 +237,7 @@ theorem PathIn.loc_Yin_irrel {lt : LocalTableau X}
 
 /-! ## Parents, Children, Ancestors and Descendants -/
 
-/-- Relation `s◃t` says `t` is one more step than `s`. Two cases, both defined via `append`. -/
+/-- Relation `s ⋖_ t` says `t` is one more step than `s`. Two cases, both defined via `append`. -/
 def edge (s t : PathIn tab) : Prop :=
   ( ∃ Hist X lt next Y, ∃ (Y_in : Y ∈ endNodesOf lt) (h : tabAt s = ⟨Hist, X, Tableau.loc lt next⟩),
       t = s.append (h ▸ PathIn.loc Y_in .nil) )
@@ -245,8 +245,8 @@ def edge (s t : PathIn tab) : Prop :=
   ( ∃ Hist X Y r, ∃ (next : Tableau (X :: Hist) Y) (h : tabAt s = ⟨Hist, X, Tableau.pdl r next⟩),
       t = s.append (h ▸ PathIn.pdl r .nil) )
 
-/-- Notation ◃ for `edge` (because ⋖ in notes is taken in Mathlib). -/
-notation s:arg " ◃ " t:arg => edge s t
+/-- Notation ⋖_ for `edge` (because ⋖ is taken in Mathlib). -/
+notation s:arg " ⋖_ " t:arg => edge s t
 
 theorem edge_append_loc_nil (h : (tabAt s).2.2 = Tableau.loc lt next) :
     edge s (s.append (h ▸ PathIn.loc Y_in .nil)) := by
@@ -271,7 +271,7 @@ theorem edge_append_pdl_nil (h : (tabAt s).2.2 = Tableau.pdl r next) :
 @[simp]
 theorem nil_edge_loc_nil {Y X : TNode} {lt : LocalTableau X} {Y_in : Y ∈ endNodesOf lt}
     {tail} {next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (X :: tail) Y}
-    : (.nil : PathIn (.loc lt next)) ◃ (.loc Y_in .nil) := by
+    : (.nil : PathIn (.loc lt next)) ⋖_ (.loc Y_in .nil) := by
   left
   use tail, X, lt, next, Y, Y_in, rfl
   simp_all
@@ -279,7 +279,7 @@ theorem nil_edge_loc_nil {Y X : TNode} {lt : LocalTableau X} {Y_in : Y ∈ endNo
 
 @[simp]
 theorem nil_edge_pdl_nil {X Y} {r : PdlRule X Y} {tail : List TNode} {next : Tableau (X :: tail) Y} :
-  (.nil : PathIn (.pdl r next)) ◃ (.pdl r .nil) := by
+  (.nil : PathIn (.pdl r next)) ⋖_ (.pdl r .nil) := by
   right
   use tail, X, Y, r, next
   simp_all
@@ -289,7 +289,7 @@ theorem nil_edge_pdl_nil {X Y} {r : PdlRule X Y} {tail : List TNode} {next : Tab
 theorem loc_edge_loc_iff_edge {Y X} {lt : LocalTableau X} {Y_in : Y ∈ endNodesOf lt}
     {tail} {next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (X :: tail) Y}
     {t s : PathIn (next Y Y_in)}
-    : (.loc Y_in t) ◃ (.loc Y_in s) ↔ (t ◃ s) := by
+    : (.loc Y_in t) ⋖_ (.loc Y_in s) ↔ (t ⋖_ s) := by
   constructor
   · rintro (⟨Hist, X, lt, next, Y, Y_in, tab_def, p_def⟩ | ⟨Hist, X, Y, r, next, tab_def, p_def⟩)
     · left
@@ -316,7 +316,7 @@ theorem loc_edge_loc_iff_edge {Y X} {lt : LocalTableau X} {Y_in : Y ∈ endNodes
 @[simp]
 theorem pdl_edge_pdl_iff_edge {X Y} {r : PdlRule X Y} {tail : List TNode}
     {a : Tableau (X :: tail) Y} {t s : PathIn a}
-    : (.pdl r t) ◃ (.pdl r s) ↔ t ◃ s := by
+    : (.pdl r t) ⋖_ (.pdl r s) ↔ t ⋖_ s := by
   -- exact same proof as `loc_edge_loc_iff_edge` ;-)
   constructor
   · rintro (⟨Hist, X, lt, next, Y, Y_in, tab_def, p_def⟩ | ⟨Hist, X, Y, r, next, tab_def, p_def⟩)
@@ -371,7 +371,7 @@ theorem nodeAt_pdl_nil (child : Tableau (X :: Hist) Y) (r : PdlRule X Y) :
   simp [nodeAt, tabAt]
 
 /-- The length of `edge`-related paths differs by one. -/
-theorem length_succ_eq_length_of_edge {s t : PathIn tab} : s ◃ t → s.length + 1 = t.length := by
+theorem length_succ_eq_length_of_edge {s t : PathIn tab} : s ⋖_ t → s.length + 1 = t.length := by
   intro s_t
   rcases s_t with ( ⟨Hist', Z', lt', next', Y', Y'_in, tabAt_s_def, t_def⟩
                   | ⟨Hist', Z', Y', r', next', tabAt_s_def, t_def⟩ )
@@ -392,14 +392,14 @@ theorem length_succ_eq_length_of_edge {s t : PathIn tab} : s ◃ t → s.length 
     · rw [tabAt_s_def]
     · subst_eqs; simp_all only [PathIn.length, zero_add, heq_eq_eq, eqRec_heq_iff_heq]
 
-theorem edge_then_length_lt {s t : PathIn tab} (s_t : s ◃ t) : s.length < t.length := by
+theorem edge_then_length_lt {s t : PathIn tab} (s_t : s ⋖_ t) : s.length < t.length := by
   have := length_succ_eq_length_of_edge s_t
   linarith
 
 def edge_natLT_relHom {Hist X tab} : RelHom (@edge Hist X tab) Nat.lt :=
   ⟨PathIn.length, edge_then_length_lt⟩
 
-/-- The ◃ relation in a tableau is well-founded. -/
+/-- The ⋖_ relation in a tableau is well-founded. -/
 theorem edge.wellFounded : WellFounded (@edge Hist X tab) := by
   apply @RelHomClass.wellFounded _ Nat (@edge Hist X tab) Nat.lt _ _ _ edge_natLT_relHom
   have := instWellFoundedLTNat
@@ -410,10 +410,10 @@ instance edge.isAsymm : IsAsymm (PathIn tab) edge := by
   constructor
   apply WellFounded.asymmetric edge.wellFounded
 
-/-- Enable "<" notation for transitive closure of ⋖ -/
+/-- Enable "<" notation for transitive closure of ⋖_. -/
 instance : LT (PathIn tab) := ⟨Relation.TransGen edge⟩
 
-/-- Enable "≤" notation for transitive closure of ⋖ -/
+/-- Enable "≤" notation for reflexive transitive closure of ⋖_ -/
 instance : LE (PathIn tab) := ⟨Relation.ReflTransGen edge⟩
 
 /-- An induction principle for `PathIn` that works by ... TODO EXPLAIN
@@ -423,7 +423,7 @@ instance : LE (PathIn tab) := ⟨Relation.ReflTransGen edge⟩
 -/
 theorem PathIn.init_inductionOn t {motive : PathIn tab → Prop}
     (root : motive .nil)
-    (step : (t : PathIn tab) → motive t → ∀ {s}, (t_s : edge t s) → motive (s))
+    (step : (t : PathIn tab) → motive t → ∀ {s}, (t_s : t ⋖_ s) → motive s)
     : motive t := by
   induction tab -- works only if motive goes to Prop!
   case loc Hist X lt next IH =>
@@ -736,50 +736,55 @@ theorem companion_loaded : s ♥ t → (nodeAt s).isLoaded ∧ (nodeAt t).isLoad
     convert this
     simp
 
-def cEdge {X} {ctX : Tableau .nil X} (t s : PathIn ctX) : Prop :=
-  (t ◃ s) ∨ t ♥ s
+def cEdge {X} {ctX : Tableau .nil X} (s t : PathIn ctX) : Prop :=
+  (s ⋖_ t) ∨ s ♥ t
 
-notation pa:arg " ⋖ᶜ " pb:arg => cEdge pa pb
+notation pa:arg " ◃ " pb:arg => cEdge pa pb
 
-notation pa:arg " <ᶜ " pb:arg => Relation.TransGen cEdge pa pb
+notation pa:arg " ◃⁺ " pb:arg => Relation.TransGen cEdge pa pb
 
-/-- We have: ⋖ᶜ = ⋖ ∪ ♥ -/
-example : pa ⋖ᶜ pb ↔ (pa ◃ pb) ∨ pa ♥ pb := by
+notation pa:arg " ◃* " pb:arg => Relation.ReflTransGen cEdge pa pb
+
+/-- We have: ◃ = ⋖_ ∪ ♥ -/
+example : pa ◃ pb ↔ (pa ⋖_ pb) ∨ pa ♥ pb := by
   simp_all [cEdge]
 
-/-! ## ≡_c and Clusters -/
+/-! ## ≡ᶜ and Clusters -/
 
-/-- Nodes are c-equivalent iff there are `⋖ᶜ` paths both ways:  ≡_c  =  <ᶜ ∩ <ᶜ.
+/-- Nodes are c-equivalent iff there are `◃` paths both ways.
 Note that this is not a closure, so we do not want `Relation.EqvGen` here. -/
-def cEquiv {X} {tab : Tableau .nil X} (pa pb : PathIn tab) : Prop :=
-    Relation.ReflTransGen cEdge pa pb
-  ∧ Relation.ReflTransGen cEdge pb pa
+def cEquiv {X} {tab : Tableau .nil X} (s t : PathIn tab) : Prop :=
+  s ◃* t  ∧  t ◃* s
 
-notation t:arg " ≡_E " s:arg => cEquiv t s
+notation t:arg " ≡ᶜ " s:arg => cEquiv t s
 
-theorem cEquiv.symm (s t : PathIn tab) : s ≡_E t ↔  t ≡_E s := by
+/-- ≡ᶜ is an equivalence relation. -/
+theorem cEquiv.symm (s t : PathIn tab) : s ≡ᶜ t ↔  t ≡ᶜ s := by
   unfold cEquiv
   tauto
 
-def clusterOf {tab : Tableau .nil X} (p : PathIn tab) := Quot.mk cEquiv p
+def clusterOf {X} {tab : Tableau .nil X} (p : PathIn tab) :=
+  Quot.mk cEquiv p
 
--- better?
-def E_equiv_alternative {tab : Tableau .nil X} (pa pb : PathIn tab) : Prop :=
-  EqvGen cEdge pa pb
+/-- We have `before s t` iff there is a path from s to t but not from t to s.
+This means the cluster of `s` comes before the cluster of `t` in `tab`.
+NB: The notes use ◃* here but we use ◃⁺. The definitions are equivalent. -/
+def before {X} {tab : Tableau .nil X} (s t : PathIn tab) : Prop :=
+  s ◃⁺ t  ∧  ¬ t ◃⁺ s
 
-def clusterOf_alternative {tab : Tableau .nil X} (p : PathIn tab) :=
-  Quot.mk E_equiv_alternative p
+/-- `s <ᶜ t` means there is a ◃-path from `s` to `t` but not from `t` to `s`.
+This means `t` is *simpler* to deal with first. -/
+notation s:arg " <ᶜ " t:arg => before s t
 
-def simpler {X} {tab : Tableau .nil X}
-  (s t : PathIn tab) : Prop := Relation.TransGen cEdge t s ∧ ¬ Relation.TransGen cEdge s t
-
-notation s:arg " ⊏_c " t:arg => simpler s t
-
+/-- ≣ᶜ is an equivalence relation and <ᶜ is well-founded and converse well-founded.  -/
 theorem eProp (tab : Tableau .nil X) :
     Equivalence (@cEquiv _ tab)
     ∧
-    WellFounded (@simpler _ tab) := by
-  constructor
+    WellFounded (@before _ tab)
+    ∧
+    WellFounded (flip (@before _ tab))
+     := by
+  refine ⟨?_, ?_, ?_⟩
   · constructor
     · intro _
       simp [cEquiv]
@@ -792,6 +797,7 @@ theorem eProp (tab : Tableau .nil X) :
       intro s_u u_s u_t t_u
       exact ⟨ Relation.ReflTransGen.trans s_u u_t
             , Relation.ReflTransGen.trans t_u u_s ⟩
+  · sorry
   · constructor
     intro s
     -- need to show `Acc` but `induction s` does not work
@@ -800,8 +806,7 @@ theorem eProp (tab : Tableau .nil X) :
     case nil =>
       constructor
       intro t t_c_nil
-      simp_all [simpler, cEdge]
-      unfold simpler
+      simp_all [flip, before, cEdge]
       sorry
     case loc =>
       sorry
@@ -809,8 +814,8 @@ theorem eProp (tab : Tableau .nil X) :
       sorry
 
 theorem eProp2.a {tab : Tableau .nil X} (s t : PathIn tab) :
-    s ◃ t → (t ⊏_c s) ∨ (t ≡_E s) := by
-  simp_all [edge, cEdge, cEquiv, simpler, companion]
+    s ⋖_ t → (s <ᶜ t) ∨ (t ≡ᶜ s) := by
+  simp_all [edge, cEdge, cEquiv, flip, before, companion]
   intro t_childOf_s
   if Relation.TransGen cEdge t s
   then
@@ -827,8 +832,8 @@ theorem eProp2.a {tab : Tableau .nil X} (s t : PathIn tab) :
                             | ⟨Hist, Z, Y, r, next, tabAt_s_def, def_t_append⟩ )
     all_goals
       subst_eqs
-      simp_all
       left
+      simp_all
       unfold cEdge
       apply Relation.TransGen.single
       left
@@ -836,7 +841,7 @@ theorem eProp2.a {tab : Tableau .nil X} (s t : PathIn tab) :
     · left; use Hist, Z, lt, next, Y, Y_in, tabAt_s_def
     · right; use Hist, Z, Y, r, next, tabAt_s_def
 
-theorem eProp2.b {tab : Tableau .nil X} (s t : PathIn tab) : s ♥ t → t ≡_E s := by
+theorem eProp2.b {tab : Tableau .nil X} (s t : PathIn tab) : s ♥ t → t ≡ᶜ s := by
   intro comp
   constructor
   · simp only [companion, companionOf, exists_prop] at comp
@@ -850,7 +855,7 @@ theorem eProp2.b {tab : Tableau .nil X} (s t : PathIn tab) : s ♥ t → t ≡_E
     exact Relation.ReflTransGen.single comp
 
 theorem eProp2.c_help {tab : Tableau .nil X} (s : PathIn tab) :
-    (nodeAt s).isFree → ∀ t, s < t → t ⊏_c s := by
+    (nodeAt s).isFree → ∀ t, s < t → s <ᶜ t := by
   intro s_free t t_path_s
   constructor
   · apply Relation.TransGen_or_left; exact t_path_s
@@ -874,13 +879,13 @@ theorem eProp2.c_help {tab : Tableau .nil X} (s : PathIn tab) :
         simp_all
 
 theorem eProp2.c {tab : Tableau .nil X} (s t : PathIn tab) :
-    (nodeAt s).isFree → s ◃ t → t ⊏_c s := by
+    (nodeAt s).isFree → s ⋖_ t → s <ᶜ t := by
   intro s_free t_childOf_s
   apply eProp2.c_help _ s_free
   apply Relation.TransGen.single; exact t_childOf_s
 
 theorem eProp2.d {tab : Tableau .nil X} (s t : PathIn tab) :
-    (nodeAt s).isLoaded → (nodeAt t).isFree → s ◃ t → t ⊏_c s := by
+    (nodeAt s).isLoaded → (nodeAt t).isFree → s ⋖_ t → s <ᶜ t := by
   intro s_loaded t_free t_childOf_s
   constructor
   · apply Relation.TransGen.single; exact Or.inl t_childOf_s
@@ -890,15 +895,15 @@ theorem eProp2.d {tab : Tableau .nil X} (s t : PathIn tab) :
 
 -- Added for loadedDiamondPaths - change to <ᶜ later? replace the original eProp2.d with this?
 theorem eProp2.d_help {tab : Tableau .nil X} (s t : PathIn tab) :
-    (nodeAt s).isLoaded → (nodeAt t).isFree → s <ᶜ t → t ⊏_c s := by
+    (nodeAt s).isLoaded → (nodeAt t).isFree → s < t → t <ᶜ s := by
   intro s_loaded t_free s_c_t
   sorry
 
 
-/-- ⊏_c is transitive -/
+/-- <ᶜ is transitive -/
 theorem eProp2.e {tab : Tableau .nil X} (s u t : PathIn tab) :
-    t ⊏_c u  →  u ⊏_c s  →  t ⊏_c s := by
-  rintro ⟨u_t, not_u_t⟩ ⟨s_u, _⟩
+    s <ᶜ u  →  u <ᶜ t  →  s <ᶜ t := by
+  rintro ⟨s_u, _⟩ ⟨u_t, not_u_t⟩
   constructor
   · exact Relation.TransGen.trans s_u u_t
   · intro t_s
@@ -906,7 +911,7 @@ theorem eProp2.e {tab : Tableau .nil X} (s u t : PathIn tab) :
     apply Relation.TransGen.trans t_s s_u
 
 theorem eProp2.f {tab : Tableau .nil X} (s t : PathIn tab) :
-    (s <ᶜ t  →  ¬ s ≡_E t  →  t ⊏_c s) := by
+    (t ◃⁺ s  →  ¬ t ≡ᶜ s  →  t <ᶜ s) := by
   rintro s_c_t s_nequiv_t
   constructor
   · exact s_c_t
@@ -917,12 +922,12 @@ theorem eProp2.f {tab : Tableau .nil X} (s t : PathIn tab) :
     · exact Relation.TransGen.to_reflTransGen t_c_s
 
 theorem eProp2 {tab : Tableau .nil X} (s u t : PathIn tab) :
-    (s ◃ t → (t ⊏_c s) ∨ (t ≡_E s))
-  ∧ (s ♥ t → t ≡_E s)
-  ∧ ((nodeAt s).isFree → edge s t → t ⊏_c s)
-  ∧ ((nodeAt s).isLoaded → (nodeAt t).isFree → edge s t → t ⊏_c s)
-  ∧ (t ⊏_c u → u ⊏_c s → t ⊏_c s)
-  ∧ (s <ᶜ t → ¬ s ≡_E t → t ⊏_c s) :=
+    (s ⋖_ t → (s <ᶜ t) ∨ (t ≡ᶜ s))
+  ∧ (s ♥ t → t ≡ᶜ s)
+  ∧ ((nodeAt s).isFree → s ⋖_ t → s <ᶜ t)
+  ∧ ((nodeAt s).isLoaded → (nodeAt t).isFree → s ⋖_ t → s <ᶜ t)
+  ∧ (t <ᶜ u → u <ᶜ s → t <ᶜ s)
+  ∧ (t ◃⁺ s  →  ¬ t ≡ᶜ s  →  t <ᶜ s) :=
   ⟨eProp2.a _ _, eProp2.b _ _, eProp2.c _ _, eProp2.d _ _, eProp2.e _ _ _, eProp2.f _ _⟩
 
 /-! ## Soundness -/
@@ -964,7 +969,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
   (v_α_w : relate M α v w)
   (w_nξ : (M,w) ⊨ ~''ξ)
   : ∃ s : PathIn tab,
-      t <ᶜ s
+      t ◃⁺ s
     ∧ ( ¬ (cEquiv s t) ∨ (AnyNegFormula_on_side_in_TNode (~''ξ) side (nodeAt s)) )
     ∧ (M,w) ⊨ (nodeAt s)
     ∧ ((nodeAt s).without (~''ξ)).isFree := by
@@ -982,7 +987,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
     rcases this with ⟨Y, Y_in, w_Y⟩ -- given end node, now define path to it
     let t_to_s : PathIn _ := (@PathIn.loc _ _ _ ltZ next Y_in .nil)
     let s : PathIn tab := t.append (tabAt_t_def ▸ t_to_s)
-    have t_s : t ◃ s := by
+    have t_s : t ⋖_ s := by
       unfold_let s t_to_s
       sorry -- apply edge_append_loc_nil
     have v_s : (M,v) ⊨ nodeAt s := sorry
@@ -1048,7 +1053,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
 theorem not_or_iff_not_or_and : ∀ p q : Prop, ¬p ∨ q ↔ ¬p ∨ (p ∧ q) := by tauto
 
 theorem simpler_equiv_simpler {u s t : PathIn tab} :
-    u ⊏_c s → s ≡_E t → u ⊏_c t := by
+    s <ᶜ u → s ≡ᶜ t → t <ᶜ u := by
   intro u_simpler_s s_equiv_t
   rcases u_simpler_s with ⟨s_c_u, not_u_c_s⟩
   rcases s_equiv_t with ⟨_, t_s⟩
@@ -1062,8 +1067,8 @@ theorem simpler_equiv_simpler {u s t : PathIn tab} :
 theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
     ¬satisfiable (nodeAt t) :=
   by
-  -- by induction on the well-founded strict partial order ⊏
-  apply @WellFounded.induction _ simpler ((eProp tab).2 : _) _ t
+  -- by induction on the *converse* well-founded strict partial order <ᶜ called `before`.
+  apply @WellFounded.induction _ (flip before) ((eProp tab).2.2 : _) _ t
   clear t
   intro t IH
   cases Classical.em (TNode.isFree $ nodeAt t)
@@ -1082,7 +1087,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
       -- We are given an end node, now need to define a path leading to it.
       let t_to_s : PathIn _ := (@PathIn.loc _ _ _ lt next Y_in .nil)
       let s : PathIn tab := t.append (t_def ▸ t_to_s)
-      have t_s : t ◃ s := by
+      have t_s : t ⋖_ s := by
         unfold_let s t_to_s
         exact edge_append_loc_nil t_def
       have : Y = nodeAt s := by
@@ -1102,7 +1107,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
       -- As in `loc` case, it now remains to define a path leading to `Y`.
       let t_to_s : PathIn _ := (@PathIn.pdl _ _ _ ctY r .nil)
       let s : PathIn tab := t.append (t_def ▸ t_to_s)
-      have t_s : t ◃ s := by
+      have t_s : t ⋖_ s := by
         unfold_let s t_to_s
         exact edge_append_pdl_nil t_def
       have : Y = nodeAt s := by
@@ -1141,16 +1146,18 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
         have in_t : AnyNegFormula_on_side_in_TNode (~''(⌊α⌋φ)) _theSide (nodeAt t) := by
           simp_all [nodeAt]; aesop
         have := loadedDiamondPaths α tab t v_ φ in_t v_α_w (not_w_φ)
-        rcases this with ⟨s, t_c_s, s_property, w_s, rest_s_free⟩
+        rcases this with ⟨s, s_c_t, s_property, w_s, rest_s_free⟩
         -- We now claim that we have a contradiction with the outer IH as we left the cluster:
         absurd IH s ?_
         use W, M, w
         -- Remains to show that s is simpler than t. We use eProp2.
         rcases s_property with (notequi | _)
-        · exact eProp2.f t s t_c_s (by rw [cEquiv.symm]; exact notequi)
+        · simp [flip]
+          exact eProp2.f s t s_c_t (by rw [cEquiv.symm]; exact notequi)
         · -- Here is the case where s is free.
           simp only [TNode.without_normal_isFree_iff_isFree] at rest_s_free
-          apply eProp2.d_help t s ?_ rest_s_free t_c_s
+          simp [flip]
+          apply eProp2.d t s ?_ rest_s_free sorry -- s_c_t
           unfold TNode.isLoaded
           simp [AnyNegFormula_on_side_in_TNode] at in_t
           aesop
@@ -1181,7 +1188,8 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
         · -- We left the cluster, use outer IH to get contradiction.
           absurd IH s ?_
           use W, M, w
-          exact eProp2.f t s t_c_s (by rw [cEquiv.symm]; exact notequi)
+          simp [flip]
+          exact eProp2.f s t t_c_s (by rw [cEquiv.symm]; exact notequi)
         · -- Here is the cae where s is still loaded and in the same cluster.
           -- We apply the *inner* IH to s (and not to t) to get a contradiction.
           absurd inner_IH s ?_ (loadMulti δ α φ) ?_ rfl
