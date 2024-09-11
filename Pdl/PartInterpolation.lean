@@ -30,7 +30,8 @@ theorem localRuleApp_does_not_increase_jvoc (ruleA : LocalRuleApp X C) :
     ∀ Y ∈ C, jvoc Y ⊆ jvoc X := by
   sorry -- see Bml
 
-/-- Maehara's method for local rule applications. -/
+/-- Maehara's method for local rule applications.
+This probably should be used for singleton clusters, but not only. -/
 def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) C)
     (subθs : Π c ∈ C, PartInterpolant c)
     : PartInterpolant (L,R,o) := by
@@ -129,6 +130,13 @@ def exitsOf : (tab : Tableau Hist (L, R, some nlf)) → List (PathIn tab)
 | .rep lpr => [] -- a repeat is never an exit
 | .loc lt next => sorry -- TODO: can the exit be "inside" lt? Or can we filter `endNodesOf lt`?
 | .pdl r next => sorry -- TODO: if (L-) then root of next is exit, also if (M) removes loading etc?
+
+-- TODO move to Soundness.lean ?
+def PathIn.children : (p : PathIn tab) → List (PathIn tab) := sorry
+
+/-- C+ -/
+def plus_exits {X} {tab : Tableau .nil X} (C : List (PathIn tab)) : List (PathIn tab) :=
+  C ++ (C.map (fun p => p.children)).join
 
 /-- W.l.o.g version of `clusterInterpolation`. -/
 def clusterInterpolation_right {Hist L R nlf}

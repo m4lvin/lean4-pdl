@@ -235,7 +235,7 @@ theorem PathIn.loc_Yin_irrel {lt : LocalTableau X}
     : (.loc Y_in1 tail : PathIn (.loc lt next)) = .loc Y_in2 tail := by
   simp
 
-/-! ## Parents, Children, Ancestors and Descendants -/
+/-! ## Edge Relation -/
 
 /-- Relation `s ⋖_ t` says `t` is one more step than `s`. Two cases, both defined via `append`. -/
 def edge (s t : PathIn tab) : Prop :=
@@ -776,7 +776,8 @@ def before {X} {tab : Tableau .nil X} (s t : PathIn tab) : Prop :=
 This means `t` is *simpler* to deal with first. -/
 notation s:arg " <ᶜ " t:arg => before s t
 
-/-- ≣ᶜ is an equivalence relation and <ᶜ is well-founded and converse well-founded.  -/
+/-- ≣ᶜ is an equivalence relation and <ᶜ is well-founded and converse well-founded.
+The converse well-founded is what we really need for induction proofs. -/
 theorem eProp (tab : Tableau .nil X) :
     Equivalence (@cEquiv _ tab)
     ∧
@@ -797,7 +798,7 @@ theorem eProp (tab : Tableau .nil X) :
       intro s_u u_s u_t t_u
       exact ⟨ Relation.ReflTransGen.trans s_u u_t
             , Relation.ReflTransGen.trans t_u u_s ⟩
-  · sorry
+  · sorry -- not important
   · constructor
     intro s
     -- need to show `Acc` but `induction s` does not work
@@ -813,6 +814,7 @@ theorem eProp (tab : Tableau .nil X) :
     case pdl =>
       sorry
 
+-- Unused?
 theorem eProp2.a {tab : Tableau .nil X} (s t : PathIn tab) :
     s ⋖_ t → (s <ᶜ t) ∨ (t ≡ᶜ s) := by
   simp_all [edge, cEdge, cEquiv, flip, before, companion]
@@ -841,6 +843,7 @@ theorem eProp2.a {tab : Tableau .nil X} (s t : PathIn tab) :
     · left; use Hist, Z, lt, next, Y, Y_in, tabAt_s_def
     · right; use Hist, Z, Y, r, next, tabAt_s_def
 
+-- Unused?
 theorem eProp2.b {tab : Tableau .nil X} (s t : PathIn tab) : s ♥ t → t ≡ᶜ s := by
   intro comp
   constructor
@@ -884,22 +887,35 @@ theorem eProp2.c {tab : Tableau .nil X} (s t : PathIn tab) :
   apply eProp2.c_help _ s_free
   apply Relation.TransGen.single; exact t_childOf_s
 
+-- TODO IMPORTANT
+/-- A free node and a loaded node cannot be ≡ᶜ equivalent. -/
+theorem not_cEquiv_of_free_loaded (s t : PathIn tab) :
+    (nodeAt s).isFree → (nodeAt t).isLoaded → ¬ s ≡ᶜ t := by
+  sorry
+
+-- Unused?
 theorem eProp2.d {tab : Tableau .nil X} (s t : PathIn tab) :
     (nodeAt s).isLoaded → (nodeAt t).isFree → s ⋖_ t → s <ᶜ t := by
   intro s_loaded t_free t_childOf_s
   constructor
   · apply Relation.TransGen.single; exact Or.inl t_childOf_s
-  ·
-    -- need some way to show that cEdge from free only goes down?
-    sorry
+  · intro t_s
+    absurd not_cEquiv_of_free_loaded _ _ t_free s_loaded
+    constructor
+    · apply Relation.TransGen.to_reflTransGen; assumption
+    · apply Relation.ReflTransGen.single
+      left
+      assumption
 
--- Added for loadedDiamondPaths - change to <ᶜ later? replace the original eProp2.d with this?
+-- Added for loadedDiamondPaths
 theorem eProp2.d_help {tab : Tableau .nil X} (s t : PathIn tab) :
-    (nodeAt s).isLoaded → (nodeAt t).isFree → s < t → t <ᶜ s := by
-  intro s_loaded t_free s_c_t
-  sorry
+    (nodeAt t).isLoaded → (nodeAt s).isFree → t ◃⁺ s → ¬ (s ◃⁺ t) := by
+  intro t_loaded s_free t_s
+  intro s_t
+  absurd not_cEquiv_of_free_loaded _ _ s_free t_loaded
+  constructor <;> apply Relation.TransGen.to_reflTransGen <;> assumption
 
-
+-- Unused?
 /-- <ᶜ is transitive -/
 theorem eProp2.e {tab : Tableau .nil X} (s u t : PathIn tab) :
     s <ᶜ u  →  u <ᶜ t  →  s <ᶜ t := by
@@ -1119,6 +1135,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
       rw [this]
       apply IH
       apply eProp2.c t _ t_is_free t_s
+  -- "The interesting case is where t is loaded;"
   case inr not_free =>
     simp [TNode.isFree] at not_free
     rcases O_def : (tabAt t).2.1.2.2 with _ | snlf
@@ -1157,10 +1174,13 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
         · -- Here is the case where s is free.
           simp only [TNode.without_normal_isFree_iff_isFree] at rest_s_free
           simp [flip]
-          apply eProp2.d t s ?_ rest_s_free sorry -- s_c_t
-          unfold TNode.isLoaded
-          simp [AnyNegFormula_on_side_in_TNode] at in_t
-          aesop
+          constructor
+          · exact s_c_t
+          · have : (nodeAt t).isLoaded := by
+              unfold TNode.isLoaded
+              simp [AnyNegFormula_on_side_in_TNode] at in_t
+              aesop
+            apply eProp2.d_help _ _ this rest_s_free s_c_t
       case cons β δ inner_IH =>
         rintro ⟨W,M,v,v_⟩
         have := v_ (~ unload (loadMulti (β :: δ) α φ)) (by
