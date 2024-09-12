@@ -1210,7 +1210,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
           use W, M, w
           simp [flip]
           exact eProp2.f s t t_c_s (by rw [cEquiv.symm]; exact notequi)
-        · -- Here is the cae where s is still loaded and in the same cluster.
+        · -- Here is the case where s is still loaded and in the same cluster.
           -- We apply the *inner* IH to s (and not to t) to get a contradiction.
           absurd inner_IH s ?_ (loadMulti δ α φ) ?_ rfl
           · use W, M, w

@@ -67,29 +67,26 @@ theorem keepFreshH α : x ∉ voc α → ∀ F δ, (F,δ) ∈ H α → x ∉ voc
       subst_eqs
       simp_all
       have IHβ := keepFreshH β x_notin.2 a' b' a'b'_in_Hβ
-      simp_all [H, voc, vocabOfFormula, vocabOfProgram, Vocab.fromList]
-    · have : List.map vocabOfProgram δ' ++ [vocabOfProgram β]
-          = List.map vocabOfProgram (δ' ++ [β]) := by induction δ' <;> simp_all
-      rw [this, Vocab.fromListProgram_map_iff]
-      simp
+      simp_all
+    · rw [Vocab.fromListProgram_map_iff]
+      simp only [not_exists, not_and]
       intro y y_in
-      cases y_in
-      · have IHα := keepFreshH α x_notin.1 F' δ' Fδ'_in
-        simp_all [H, voc, vocabOfFormula, vocabOfProgram, Vocab.fromList, Vocab.fromListFormula_map_iff, Vocab.fromListProgram_map_iff]
-      · subst_eqs
-        tauto
+      cases Fδ_in_l
+      subst_eqs
+      have IHα := keepFreshH α x_notin.1 F δ' Fδ'_in
+      simp_all [H, Vocab.fromListFormula_map_iff, Vocab.fromListProgram_map_iff]
   case union.left α β =>
     cases Fδ_in_H
     · have IHα := keepFreshH α x_notin.1 F δ
-      simp_all [H, voc,vocabOfFormula,vocabOfProgram]
+      simp_all
     · have IHβ := keepFreshH β x_notin.2 F δ
-      simp_all [H, voc,vocabOfFormula,vocabOfProgram]
+      simp_all
   case union.right α β =>
     cases Fδ_in_H
     · have IHα := keepFreshH α x_notin.1 F δ
-      simp_all [H, voc,vocabOfFormula,vocabOfProgram]
+      simp_all
     · have IHβ := keepFreshH β x_notin.2 F δ
-      simp_all [H, voc,vocabOfFormula,vocabOfProgram]
+      simp_all
   case star.left α =>
     cases Fδ_in_H
     · simp_all [Vocab.fromList]
@@ -97,7 +94,7 @@ theorem keepFreshH α : x ∉ voc α → ∀ F δ, (F,δ) ∈ H α → x ∉ voc
       rcases hyp with ⟨l, ⟨⟨F', δ', ⟨Fδ'_in_Hα, def_l⟩⟩, Fδ_in_l⟩⟩
       subst def_l
       have IHα := keepFreshH α x_notin F' δ' Fδ'_in_Hα
-      cases em (δ' = []) <;> simp_all [H, voc,vocabOfFormula,vocabOfProgram]
+      cases em (δ' = []) <;> simp_all
   case star.right α =>
     cases Fδ_in_H
     · simp_all [Vocab.fromList]
@@ -105,22 +102,7 @@ theorem keepFreshH α : x ∉ voc α → ∀ F δ, (F,δ) ∈ H α → x ∉ voc
       rcases hyp with ⟨l, ⟨⟨F', δ', ⟨Fδ'_in_Hα, def_l⟩⟩, Fδ_in_l⟩⟩
       subst def_l
       have IHα := keepFreshH α x_notin F' δ' Fδ'_in_Hα
-      cases em (δ' = [])
-      · simp_all [H, voc,vocabOfFormula,vocabOfProgram]
-      · simp_all [H, voc,vocabOfFormula,vocabOfProgram]
-        cases Fδ_in_l
-        subst_eqs
-        have : List.map vocabOfProgram δ' ++ [vocabOfProgram α]
-             = List.map vocabOfProgram (δ' ++ [α]) := by induction δ' <;> simp_all
-        rw [this, Vocab.fromListProgram_map_iff]
-        clear this
-        simp
-        intro y y_in
-        cases y_in
-        · have := keepFreshH α x_notin F δ' Fδ'_in_Hα
-          simp_all [H, voc, vocabOfFormula, vocabOfProgram, Vocab.fromList, Vocab.fromListFormula_map_iff, Vocab.fromListProgram_map_iff]
-        · subst_eqs
-          tauto
+      cases em (δ' = []) <;> simp_all
 
 -- NOTE: this intermediate definition is no longer in the notes.
 def Yset : (List Formula × List Program) → Formula → List Formula

@@ -5,17 +5,15 @@ import Pdl.Distance
 
 open HasVocabulary HasSat
 
-@[simp]
-def TNode.left : TNode → List Formula
-| ⟨L, _, none⟩ => L
-| ⟨L, _, some (Sum.inl ⟨f⟩)⟩ => unload f :: L
-| ⟨L, _, some (Sum.inr _  )⟩ => L
+def Olf.toForms : Olf → List Formula
+| none => []
+| some (Sum.inl ⟨lf⟩) => [~ unload lf]
+| some (Sum.inr ⟨lf⟩) => [~ unload lf]
 
 @[simp]
-def TNode.right : TNode → List Formula
-| ⟨_, R, none⟩ => R
-| ⟨_, R, some (Sum.inl _  )⟩ => R
-| ⟨_, R, some (Sum.inr ⟨f⟩)⟩ => unload f :: R
+def TNode.left (X : TNode) : List Formula := X.L ++ X.O.toForms
+@[simp]
+def TNode.right (X : TNode) : List Formula := X.R ++ X.O.toForms
 
 /-- Joint vocabulary of all parts of a TNode. -/
 @[simp]
@@ -26,12 +24,65 @@ def isPartInterpolant (X : TNode) (θ : Formula) :=
 
 def PartInterpolant (N : TNode) := Subtype <| isPartInterpolant N
 
+-- move to UnfoldBox.lean ?
+theorem unfoldBox_voc {x α φ} {L} (L_in : L ∈ unfoldBox α φ) {ψ} (ψ_in : ψ ∈ L)
+    (x_in_voc_ψ : x ∈ vocabOfFormula ψ) : x ∈ vocabOfProgram α ∨ x ∈ vocabOfFormula φ := by
+  sorry
+
+-- move to UnfoldDia.lean ?
+theorem unfoldDiamond_voc {x α φ} {L} (L_in : L ∈ unfoldDiamond α φ) {ψ} (ψ_in : ψ ∈ L)
+    (x_in_voc_ψ : x ∈ vocabOfFormula ψ) : x ∈ vocabOfProgram α ∨ x ∈ vocabOfFormula φ := by
+  sorry
+
+theorem localRule_does_not_increase_vocab_L (rule : LocalRule (Lcond, Rcond, Ocond) ress) :
+    ∀ res ∈ ress, voc res.1 ⊆ voc Lcond := by
+  intro res ress_in_ress x x_in_res
+  cases rule
+  case oneSidedL ress orule =>
+    cases orule <;> simp_all
+    case nCo =>
+      aesop
+    case box α φ =>
+      rw [Vocab.fromListFormula_map_iff] at x_in_res
+      rcases x_in_res with ⟨ψ, ψ_in, x_in_voc_ψ⟩
+      rcases ress_in_ress with ⟨L, L_in, def_res⟩
+      subst def_res
+      simp at *
+      exact unfoldBox_voc L_in ψ_in x_in_voc_ψ
+    case dia =>
+      rw [Vocab.fromListFormula_map_iff] at x_in_res
+      rcases x_in_res with ⟨ψ, ψ_in, x_in_voc_ψ⟩
+      rcases ress_in_ress with ⟨L, L_in, def_res⟩
+      subst def_res
+      simp at *
+      exact unfoldDiamond_voc L_in ψ_in x_in_voc_ψ
+  -- other cases *should be* trivial (as in Bml)
+  all_goals
+    simp at *
+  · sorry
+  · sorry
+  · sorry
+
+theorem localRule_does_not_increase_vocab_R (rule : LocalRule (Lcond, Rcond, Ocond) ress) :
+    ∀ res ∈ ress, voc res.2.1 ⊆ voc Rcond := by
+  -- should be dual to _L version
+  sorry
+
+theorem localRule_does_not_increase_vocab_O (rule : LocalRule (Lcond, Rcond, Ocond) ress) :
+    ∀ res ∈ ress, voc res.2.2 ⊆ voc Ocond := by
+  sorry
+
 theorem localRuleApp_does_not_increase_jvoc (ruleA : LocalRuleApp X C) :
     ∀ Y ∈ C, jvoc Y ⊆ jvoc X := by
-  sorry -- see Bml
+  match ruleA with
+  | @LocalRuleApp.mk L R C ress O Lcond Rcond Ocond lrule hC preconditionProof =>
+    rintro ⟨cL, cR, cO⟩ C_in x x_in_voc_C <;> simp [jvoc] at x_in_voc_C
+    have := localRule_does_not_increase_vocab_L lrule
+    -- See Bml?
+    sorry
 
 /-- Maehara's method for local rule applications.
-This probably should be used for singleton clusters, but not only. -/
+This is `easyItp` for singleton clusters in the notes, but not only. -/
 def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) C)
     (subθs : Π c ∈ C, PartInterpolant c)
     : PartInterpolant (L,R,o) := by
@@ -59,7 +110,7 @@ def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) 
   case oneSidedR orule =>
     let interList :=  (C.attach).map $ λ⟨c, cinC⟩ => (subθs c cinC).1
     use Con interList
-    constructor
+    refine ⟨?_, ?_, ?_⟩
     · intro n n_in_inter
       rw [in_voc_con] at n_in_inter
       rcases n_in_inter with ⟨φ, φ_in, n_in_voc_φ⟩
@@ -68,54 +119,49 @@ def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) 
       apply localRuleApp_does_not_increase_jvoc ruleA Y Y_in
       subst def_φ
       exact (subθs Y Y_in).prop.1 n_in_voc_φ
-    · constructor
-      · intro L_and_nθ_sat
-        sorry -- See Bml?
-      · intro R_and_θ_sat
-        sorry -- See Bml?
+    · intro L_and_nθ_sat
+      sorry -- See Bml?
+    · intro R_and_θ_sat
+      sorry -- See Bml?
+
   case LRnegL φ =>
     use φ
-    constructor
+    refine ⟨?_, ?_, ?_⟩
     · intro n n_in_φ
-      unfold jvoc
-      simp
-      constructor
-      · rcases o with _ | (_|_)
-        all_goals
-          simp [voc, Vocab.fromList, Vocab.fromListFormula_map_iff] at *
-          simp at precondProof
-          tauto
-      · rcases o with _ | (_|_)
-        all_goals
-          simp [voc, Vocab.fromList, Vocab.fromListFormula_map_iff] at *
-          simp at precondProof
-          try right
-          use ~φ
-          simp [vocabOfFormula]
-          tauto
-    · sorry -- see Bml?
+      simp [Vocab.fromListFormula_map_iff] at *
+      aesop
+    · rintro ⟨W, M, w, w_⟩
+      simp only [List.empty_eq, List.mem_cons, forall_eq_or_imp, evaluate] at *
+      subst_eqs
+      absurd w_.1
+      have := w_.2 φ
+      simp_all [evaluate]
+    · rintro ⟨W, M, w, w_⟩
+      simp only [List.empty_eq, List.mem_cons, forall_eq_or_imp, evaluate] at *
+      subst_eqs
+      absurd w_.1
+      have := w_.2 (~φ)
+      simp_all [evaluate]
+
   case LRnegR φ =>
-    use ~φ -- not sure about this one
-    constructor
+    use ~φ
+    refine ⟨?_, ?_, ?_⟩
     · intro n n_in_φ
-      unfold jvoc
-      simp
-      constructor
-      · rcases o with _ | (_|_)
-        all_goals
-          simp [voc, Vocab.fromList, Vocab.fromListFormula_map_iff] at *
-          simp at precondProof
-          tauto
-      · rcases o with _ | (_|_)
-        all_goals
-        · simp [voc, Vocab.fromList, Vocab.fromListFormula_map_iff] at *
-          simp at precondProof
-          try right
-          use φ
-          constructor
-          · exact precondProof.2
-          · simp only [vocabOfFormula] at n_in_φ; exact n_in_φ
-    · sorry -- see Bml?
+      simp [Vocab.fromListFormula_map_iff] at *
+      aesop
+    · rintro ⟨W, M, w, w_⟩
+      simp only [List.empty_eq, List.mem_cons, forall_eq_or_imp, evaluate] at *
+      subst_eqs
+      absurd w_.1
+      have := w_.2 (~φ)
+      simp_all [evaluate]
+    · rintro ⟨W, M, w, w_⟩
+      simp only [List.empty_eq, List.mem_cons, forall_eq_or_imp, evaluate] at *
+      subst_eqs
+      absurd w_.1
+      have := w_.2 φ
+      simp_all [evaluate]
+
   case loadedL =>
     -- keep interpolant the same
     sorry

@@ -13,12 +13,14 @@ def Vocab.atomProgs : Vocab → Finset Nat :=
   fun X => X.biUnion (fun x => match x with | Sum.inl _ => {} | Sum.inr n => {n} )
 
 mutual
+  @[simp]
   def vocabOfProgram : Program → Vocab
     | ·n => {.inr n}
     | α;'β => vocabOfProgram α ∪ vocabOfProgram β
     | α ⋓ β => vocabOfProgram α ∪ vocabOfProgram β
     | ∗α => vocabOfProgram α
     | ?' φ => vocabOfFormula φ
+  @[simp]
   def vocabOfFormula : Formula → Vocab
     | ⊥ => ∅
     | ·n => {.inl n}
@@ -32,17 +34,32 @@ class HasVocabulary (α : Type) where
 
 open HasVocabulary
 
+@[simp]
 instance formulaHasVocabulary : HasVocabulary Formula := ⟨vocabOfFormula⟩
 
+@[simp]
 instance programHasVocabulary : HasVocabulary Program := ⟨vocabOfProgram⟩
 
+-- rename to Vocab.join? or use `class Hadd`?
+-- QUESTION: Is there a List.join but for Finset?
+@[simp]
 def Vocab.fromList : (L : List Vocab) → Vocab
 | [] => {}
 | (v::vs) => v ∪ Vocab.fromList vs
 
+@[simp]
+theorem Vocab.fromList_singleton : Vocab.fromList [V] = V := by
+  simp [Vocab.fromList]
+
+@[simp]
+theorem Vocab.fromList_append : Vocab.fromList (L ++ R) = Vocab.fromList L ∪ Vocab.fromList R := by
+  induction L <;> induction R <;> simp_all
+
+@[simp]
 instance [HasVocabulary α] : HasVocabulary (List α) :=
   ⟨fun X => .fromList (X.map voc)⟩
 
+-- delete this?
 instance [HasVocabulary α] : HasVocabulary (Finset α) :=
   ⟨fun X => (X.biUnion (fun f => {voc f})).fold (fun x y => x ∪ y) {} id⟩
 
@@ -73,6 +90,18 @@ theorem inVocList {α} [HasVocabulary α] n (L : List α) :
     simp only [voc, Vocab.fromList, Finset.mem_union, List.mem_cons, exists_eq_or_imp]
     rw [← IH]
     simp only [voc]
+
+@[simp]
+def vocabOfLoadFormula (lf : LoadFormula) : Vocab := vocabOfFormula (unload lf)
+
+@[simp]
+def vocabOfNegLoadFormula (nlf : NegLoadFormula) : Vocab := vocabOfFormula (negUnload nlf)
+
+@[simp]
+instance LoadFormula.instHasVocabulary : HasVocabulary LoadFormula := ⟨vocabOfLoadFormula⟩
+
+@[simp]
+instance NegLoadFormula.instHasVocabulary : HasVocabulary NegLoadFormula := ⟨vocabOfNegLoadFormula⟩
 
 /-- Test(α) -/
 def testsOfProgram : Program → List Formula

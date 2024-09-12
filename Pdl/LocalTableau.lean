@@ -8,20 +8,32 @@ open HasLength
 
 /-! ## Tableau Nodes -/
 
--- A tableau node has two lists of formulas and one or no negated loaded formula.
+/-- In nodes we optionally have a negated loaded formula on the left or right. -/
+abbrev Olf := Option (NegLoadFormula ⊕ NegLoadFormula)
+
+open HasVocabulary
+
+@[simp]
+def vocabOfOlf : Olf → Vocab
+| none => {}
+| some (Sum.inl nlf) => voc nlf
+| some (Sum.inr nlf) => voc nlf
+
+@[simp]
+instance : HasVocabulary Olf := ⟨ vocabOfOlf ⟩
+
+/-- A tableau node has two lists of formulas and an `Olf`. -/
 -- TODO: rename `TNode` to `Sequent`
 -- TODO: turn this into "abbrev" to avoid silly instance below.
-def TNode := List Formula × List Formula × Option (Sum NegLoadFormula NegLoadFormula) -- ⟨L, R, o⟩
+def TNode := List Formula × List Formula × Olf -- ⟨L, R, o⟩
   deriving DecidableEq, Repr
 
 -- Some thoughts about the TNode type:
 -- - one formula may be loaded
--- - loading is not changed in local tableaux, but must be tracked through it.
 -- - each (loaded) formula can be on the left/right/both
--- - we also need to track loading and the side "through" dagger tableau.
 
 /-- We do not care about the order of the lists.
-TNodes should be considered equal when their Finset versions are equal.
+TNodes are considered equal when their Finset versions are equal.
 Hint: use `List.toFinset.ext_iff` with this. -/
 def TNode.setEqTo : TNode → TNode → Prop
 | (L,R,O), (L',R',O') => L.toFinset == L'.toFinset ∧ R.toFinset == R'.toFinset ∧ O == O'
@@ -34,7 +46,7 @@ def TNode.L : TNode → List Formula := λ⟨L,_,_⟩ => L
 @[simp]
 def TNode.R : TNode → List Formula := λ⟨_,R,_⟩ => R
 @[simp]
-def TNode.O : TNode → Option (Sum NegLoadFormula NegLoadFormula) := λ⟨_,_,O⟩ => O
+def TNode.O : TNode → Olf := λ⟨_,_,O⟩ => O
 
 def TNode.isLoaded : TNode → Bool
 | ⟨_, _, none  ⟩ => False
@@ -56,7 +68,7 @@ instance modelCanSemImplyTNode : vDash (KripkeModel W × W) TNode :=
   vDash.mk (λ ⟨M,w⟩ ⟨L, R, o⟩ => ∀ f ∈ L ∪ R ∪ (o.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
 
 -- silly but useful:
-instance modelCanSemImplyLLO : vDash (KripkeModel W × W) (List Formula × List Formula × Option (Sum NegLoadFormula NegLoadFormula)) :=
+instance modelCanSemImplyLLO : vDash (KripkeModel W × W) (List Formula × List Formula × Olf) :=
   vDash.mk (λ ⟨M,w⟩ ⟨L, R, o⟩ => ∀ f ∈ L ∪ R ∪ (o.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
 
 instance tNodeHasSat : HasSat TNode :=
@@ -200,11 +212,18 @@ inductive LocalRule : TNode → List TNode → Type
       LocalRule (∅, ∅, some (Sum.inr (~'χ))) $ ress.map $ λ (X, o) => (∅, X, o.map Sum.inr)
 
 @[simp]
+def Olf.change : (oldO : Olf) → (Ocond : Olf) → (newO : Olf) → Olf
+| oldO, none  , none      => oldO      -- no change
+| _   , none  , some wnlf => some wnlf -- loading
+| _   , some _, none      => none      -- unloading
+| _   , some _, some wnlf => some wnlf -- replacing
+
+@[simp]
 def applyLocalRule (_ : LocalRule (Lcond, Rcond, Ocond) ress) : TNode → List TNode
-  | ⟨L, R, O⟩ => ress.map $ λ (Lnew, Rnew, Onew) => match Onew with
-      | none                 => (L.diff Lcond ++ Lnew, R.diff Rcond ++ Rnew, O)
-      | some (Sum.inl (~'χ)) => (L.diff Lcond ++ Lnew, R.diff Rcond ++ Rnew, some (Sum.inl (~'χ)))
-      | some (Sum.inr (~'χ)) => (L.diff Lcond ++ Lnew, R.diff Rcond ++ Rnew, some (Sum.inr (~'χ)))
+  | ⟨L, R, O⟩ => ress.map $
+      fun (Lnew, Rnew, Onew) => ( L.diff Lcond ++ Lnew
+                                , R.diff Rcond ++ Rnew
+                                , Olf.change O Ocond Onew )
 
 -- mathlib this?
 @[simp]
@@ -225,9 +244,9 @@ inductive LocalRuleApp : TNode → List TNode → Type
   | mk {L R : List Formula}
        {C : List TNode}
        {ress : List TNode}
-       {O : Option (Sum NegLoadFormula NegLoadFormula)}
+       {O : Olf}
        (Lcond Rcond : List Formula)
-       (Ocond : Option (Sum NegLoadFormula NegLoadFormula))
+       (Ocond : Olf)
        (rule : LocalRule (Lcond, Rcond, Ocond) ress)
        {hC : C = applyLocalRule rule (L,R,O)}
        (preconditionProof : List.Sublist Lcond L ∧ List.Sublist Rcond R ∧ Ocond ⊆ O)
@@ -236,7 +255,7 @@ inductive LocalRuleApp : TNode → List TNode → Type
 theorem localRuleTruth
     {L R : List Formula}
     {C : List TNode}
-    {O : Option (Sum NegLoadFormula NegLoadFormula)}
+    {O : Olf}
     (lrA : LocalRuleApp (L,R,O) C) {W} (M : KripkeModel W) (w : W)
   : (M,w) ⊨ (L,R,O) ↔ ∃ Ci ∈ C, (M,w) ⊨ Ci
   := by
@@ -361,7 +380,7 @@ theorem localRuleTruth
       rw [this] at hyp'
       rcases hyp' with ⟨f, ⟨X , O, in_ress, def_f⟩, w_f⟩
       cases O
-      · use (L ++ X, R, some (Sum.inl (~'χ)))
+      · use (L ++ X, R, none)
         constructor
         · use X, none; simp only [Option.map_none', and_true]; exact in_ress
         · intro g; subst def_f; rw [conEval] at w_f; specialize hyp g; aesop
@@ -377,10 +396,19 @@ theorem localRuleTruth
     · rintro ⟨Ci, ⟨⟨X, O, ⟨in_ress, def_Ci⟩⟩, w_Ci⟩⟩
       intro f f_in
       subst def_Ci
-      cases O
-      all_goals simp at *
-      · have := w_Ci f
-        aesop
+      cases O <;> simp at *
+      · cases f_in
+        · aesop
+        subst_eqs
+        simp only [evaluate]
+        rw [this]
+        use (Con (pairUnload (X, none)))
+        constructor
+        · use X, none
+        · simp only [pairUnload, conEval]
+          intro f f_in
+          apply w_Ci
+          simp_all
       case some val =>
         rcases f_in with (f_in|f_in)|f_in
         · apply w_Ci; simp_all
@@ -412,7 +440,7 @@ theorem localRuleTruth
       rw [this] at hyp'
       rcases hyp' with ⟨f, ⟨X , O, in_ress, def_f⟩, w_f⟩
       cases O
-      · use (L, R ++ X, some (Sum.inr (~'χ)))
+      · use (L, R ++ X, none)
         constructor
         · use X, none; simp only [Option.map_none', and_true]; exact in_ress
         · intro g; subst def_f; rw [conEval] at w_f; specialize hyp g; aesop
@@ -428,10 +456,19 @@ theorem localRuleTruth
     · rintro ⟨Ci, ⟨⟨X, O, ⟨in_ress, def_Ci⟩⟩, w_Ci⟩⟩
       intro f f_in
       subst def_Ci
-      cases O
-      all_goals simp at *
-      · have := w_Ci f
-        aesop
+      cases O <;> simp at *
+      · cases f_in
+        · aesop
+        subst_eqs
+        simp only [evaluate]
+        rw [this]
+        use (Con (pairUnload (X, none)))
+        constructor
+        · use X, none
+        · simp only [pairUnload, conEval]
+          intro f f_in
+          apply w_Ci
+          simp_all
       case some val =>
         rcases f_in with (f_in|f_in)|f_in
         · apply w_Ci; simp_all
