@@ -1,3 +1,5 @@
+import Mathlib.Data.Finset.Lattice.Fold
+
 import Pdl.Tableau
 import Pdl.Vector
 
@@ -652,3 +654,48 @@ theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
   case lrep =>
     cases t
     simp_all [PathIn.toHistory, PathIn.rewind]
+
+/-- ## Finiteness and Wellfoundedness --/
+
+-- Why not in Mathlib?
+-- See https://leanprover.zulipchat.com/#narrow/stream/217875-Is-there-code-for-X.3F/topic/Union.20BigOperator/near/470044981
+@[simp]
+def Finset.join [DecidableEq α] (M : Finset (Finset α)) : Finset α := M.sup id
+
+def allPaths : (tab : Tableau Hist X) → Finset (PathIn tab)
+| .loc _ _ lt next => { .nil } ∪
+    ((endNodesOf lt).attach.map
+      (fun Y => (allPaths (next Y.1 Y.2)).image (fun p => PathIn.loc Y.2 p))
+    ).toFinset.join
+| .pdl _ _ _ next => { .nil } ∪ (allPaths next).image (fun p => PathIn.pdl p)
+| .lrep _ => { .nil }
+
+theorem allPaths_loc_cases (s : PathIn _) : s ∈ allPaths (.loc nrep nbas lt next) ↔
+      s = PathIn.nil
+    ∨ ∃ (Y : Sequent) (Y_in : Y ∈ endNodesOf lt) (t : allPaths (next Y Y_in)),
+        s = PathIn.loc Y_in t := by
+  sorry
+
+theorem PathIn.elem_allPaths {Hist : History} {X : Sequent} {tab : Tableau Hist X} (p : PathIn tab) :
+    p ∈ allPaths tab := by
+  induction tab
+  case loc Hist X lt nexts IH =>
+    induction p using init_inductionOn
+    case root =>
+      simp_all [allPaths]
+    case step t _ s t_s =>
+      rw [allPaths_loc_cases]
+      cases s
+      · tauto
+      case loc nrep nbas Y Y_in tail =>
+        right
+        simp_all
+  case pdl nrep bas r next =>
+    cases p <;> simp_all [allPaths]
+  case lrep lpr =>
+    cases p
+    simp_all [allPaths]
+
+-- TODO: This shows that a Tableau is finite!? Use it for well-foundedness?
+instance PathIn.instFintype {tab : Tableau Hist X} : Fintype (PathIn tab) := by
+  refine ⟨allPaths tab, PathIn.elem_allPaths⟩
