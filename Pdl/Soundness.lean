@@ -224,7 +224,13 @@ theorem PathIn.before_leaf_inductionOn {tab : Tableau .nil X} (t : PathIn tab) {
     (leaf : ∀ {u}, (nodeAt u).isFree → (¬ ∃ s, u ⋖_ s) → motive u)
     (up : ∀ {u}, (∀ {s}, (u_s : u <ᶜ s) → motive s) → motive u)
     : motive t := by
-  sorry
+  cases tab -- cannot do `induction tab` because of fixed `.nil` parameter.
+  case loc =>
+    sorry
+  case pdl =>
+    sorry
+  case lrep lpr =>
+    sorry
 
 /-- ≣ᶜ is an equivalence relation and <ᶜ is well-founded and converse well-founded.
 The converse well-founded is what we really need for induction proofs. -/
