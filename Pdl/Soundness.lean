@@ -128,6 +128,7 @@ inductive PathIn : ∀ {H X}, Tableau H X → Type
 | nil : PathIn _
 | loc : (Y_in : Y ∈ endNodesOf lt) → (tail : PathIn (next Y Y_in)) → PathIn (Tableau.loc lt next)
 | pdl : (r : PdlRule Γ Δ) → PathIn (child : Tableau (Γ :: Hist) Δ) → PathIn (Tableau.pdl r child)
+deriving DecidableEq
 
 def tabAt : PathIn tab → Σ H X, Tableau H X
 | .nil => ⟨_,_,tab⟩
@@ -483,9 +484,12 @@ theorem PathIn.pdl_le_pdl_of_le {t1 t2} (h : t1 ≤ t2) :
     simp
     exact s_t
 
-theorem PathIn.edge_leaf_inductionOn t {motive : PathIn tab → Prop}
+-- not used YET ?
+theorem PathIn.edge_leaf_inductionOn {Hist X} {tab : Tableau Hist X}
+    (t : PathIn tab)
+    {motive : PathIn tab → Prop}
     (leaf : ∀ {u}, (¬ ∃ s, u ⋖_ s) → motive u)
-    (up : (∀ {s}, (u_s : u ⋖_ s) → motive s) → motive u)
+    (up : ∀ {u}, (∀ {s}, (u_s : u ⋖_ s) → motive s) → motive u)
     : motive t := by
   sorry
   -- try `induction tab` as for init_inductionOn
@@ -783,8 +787,8 @@ def before {X} {tab : Tableau .nil X} (s t : PathIn tab) : Prop :=
 This means `t` is *simpler* to deal with first. -/
 notation s:arg " <ᶜ " t:arg => before s t
 
--- not used YET
-theorem PathIn.before_leaf_inductionOn (t : PathIn tab) {motive : PathIn tab → Prop}
+-- Needed, and tricky to show?
+theorem PathIn.before_leaf_inductionOn {tab : Tableau .nil X} (t : PathIn tab) {motive : PathIn tab → Prop}
     (leaf : ∀ {u}, (nodeAt u).isFree → (¬ ∃ s, u ⋖_ s) → motive u)
     (up : ∀ {u}, (∀ {s}, (u_s : u <ᶜ s) → motive s) → motive u)
     : motive t := by
