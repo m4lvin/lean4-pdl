@@ -76,8 +76,10 @@ theorem localRuleApp_does_not_increase_jvoc (ruleA : LocalRuleApp X C) :
     ∀ Y ∈ C, jvoc Y ⊆ jvoc X := by
   match ruleA with
   | @LocalRuleApp.mk L R C ress O Lcond Rcond Ocond lrule hC preconditionProof =>
-    rintro ⟨cL, cR, cO⟩ C_in x x_in_voc_C <;> simp [jvoc] at x_in_voc_C
+    rintro ⟨cL, cR, cO⟩ C_in x x_in_voc_C
+    simp [jvoc] at x_in_voc_C
     have := localRule_does_not_increase_vocab_L lrule
+    subst hC
     -- See Bml?
     sorry
 

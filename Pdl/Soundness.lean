@@ -483,6 +483,13 @@ theorem PathIn.pdl_le_pdl_of_le {t1 t2} (h : t1 ≤ t2) :
     simp
     exact s_t
 
+theorem PathIn.edge_leaf_inductionOn t {motive : PathIn tab → Prop}
+    (leaf : ∀ {u}, (¬ ∃ s, u ⋖_ s) → motive u)
+    (up : (∀ {s}, (u_s : u ⋖_ s) → motive s) → motive u)
+    : motive t := by
+  sorry
+  -- try `induction tab` as for init_inductionOn
+
 /-! ## Alternative definitions of `edge` -/
 
 /-- UNUSED definition of `edge` *recursively* by "going to the end" of the paths.
@@ -776,14 +783,21 @@ def before {X} {tab : Tableau .nil X} (s t : PathIn tab) : Prop :=
 This means `t` is *simpler* to deal with first. -/
 notation s:arg " <ᶜ " t:arg => before s t
 
+-- not used YET
+theorem PathIn.before_leaf_inductionOn (t : PathIn tab) {motive : PathIn tab → Prop}
+    (leaf : ∀ {u}, (nodeAt u).isFree → (¬ ∃ s, u ⋖_ s) → motive u)
+    (up : ∀ {u}, (∀ {s}, (u_s : u <ᶜ s) → motive s) → motive u)
+    : motive t := by
+  sorry
+
 /-- ≣ᶜ is an equivalence relation and <ᶜ is well-founded and converse well-founded.
 The converse well-founded is what we really need for induction proofs. -/
-theorem eProp (tab : Tableau .nil X) :
-    Equivalence (@cEquiv _ tab)
+theorem eProp {X} (tab : Tableau .nil X) :
+    Equivalence (@cEquiv X tab)
     ∧
-    WellFounded (@before _ tab)
+    WellFounded (@before X tab)
     ∧
-    WellFounded (flip (@before _ tab))
+    WellFounded (flip (@before X tab))
      := by
   refine ⟨?_, ?_, ?_⟩
   · constructor
@@ -798,21 +812,30 @@ theorem eProp (tab : Tableau .nil X) :
       intro s_u u_s u_t t_u
       exact ⟨ Relation.ReflTransGen.trans s_u u_t
             , Relation.ReflTransGen.trans t_u u_s ⟩
-  · sorry -- not important
+  · sorry -- not important?
   · constructor
     intro s
-    -- need to show `Acc` but `induction s` does not work
-    -- because we fixed Hist = .nil (in def `companionOf` above)
-    cases s
-    case nil =>
+    -- Here we cannot do `induction s` because we fixed Hist = .nil
+    -- in `companionOf`. Hence, use our own induction principle.
+    induction s using PathIn.before_leaf_inductionOn
+    case leaf l l_isFree l_is_leaf =>
       constructor
-      intro t t_c_nil
-      simp_all [flip, before, cEdge]
-      sorry
-    case loc =>
-      sorry
-    case pdl =>
-      sorry
+      intro k ⟨l_k, not_k_l⟩
+      exfalso
+      rw [Relation.TransGen.head'_iff] at l_k
+      rcases l_k with ⟨j, l_j, _⟩
+      cases l_j
+      · absurd l_is_leaf
+        use j
+      case inr ll =>
+        have := companion_loaded  ll
+        simp_all [TNode.isLoaded, TNode.isFree]
+    case up l IH =>
+      constructor
+      intro k l_k
+      simp [flip] at *
+      apply IH
+      exact l_k
 
 -- Unused?
 theorem eProp2.a {tab : Tableau .nil X} (s t : PathIn tab) :
