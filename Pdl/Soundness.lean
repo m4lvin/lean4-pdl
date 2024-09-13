@@ -484,6 +484,46 @@ theorem PathIn.pdl_le_pdl_of_le {t1 t2} (h : t1 ≤ t2) :
     simp
     exact s_t
 
+-- Why not in Mathlib?
+-- See https://leanprover.zulipchat.com/#narrow/stream/217875-Is-there-code-for-X.3F/topic/Union.20BigOperator/near/470044981
+@[simp]
+def Finset.join [DecidableEq α] (M : Finset (Finset α)) : Finset α := M.sup id
+
+def allPaths : (tab : Tableau Hist X) → Finset (PathIn tab)
+| .loc lt next => { .nil } ∪
+    ((endNodesOf lt).attach.map (fun Y => (allPaths (next Y.1 Y.2)).image (fun p => PathIn.loc Y.2 p))).toFinset.join
+| .pdl r next => { .nil } ∪ (allPaths next).image (fun p => PathIn.pdl r p)
+| .rep _ => { .nil }
+
+theorem allPaths_loc_cases (s : PathIn _) : s ∈ allPaths (.loc lt next) ↔
+    s = PathIn.nil ∨ ∃ Y, ∃ (Y_in : Y ∈ endNodesOf lt), ∃ t ∈ allPaths (next Y Y_in), s = PathIn.loc Y_in t := by
+  sorry
+
+theorem PathIn.elem_allPaths {Hist : History} {X : TNode} {tab : Tableau Hist X} (p : PathIn tab) :
+    p ∈ allPaths tab := by
+  induction tab
+  case loc Hist X lt nexts IH =>
+    induction p using init_inductionOn
+    case root =>
+      simp_all [allPaths]
+    case step t _ s t_s =>
+      rw [allPaths_loc_cases]
+      cases s
+      · tauto
+      case loc Y Y_in tail =>
+        right
+        use Y, Y_in, tail
+        simp_all
+  case pdl r next =>
+    cases p <;> simp_all [allPaths]
+  case rep lpr =>
+    cases p
+    simp_all [allPaths]
+
+-- TODO: This shows that a Tableau is finite!? Use it for well-foundedness?
+instance PathIn.instFintype {tab : Tableau Hist X} : Fintype (PathIn tab) := by
+  refine ⟨allPaths tab, PathIn.elem_allPaths⟩
+
 -- not used YET ?
 theorem PathIn.edge_leaf_inductionOn {Hist X} {tab : Tableau Hist X}
     (t : PathIn tab)
@@ -792,7 +832,13 @@ theorem PathIn.before_leaf_inductionOn {tab : Tableau .nil X} (t : PathIn tab) {
     (leaf : ∀ {u}, (nodeAt u).isFree → (¬ ∃ s, u ⋖_ s) → motive u)
     (up : ∀ {u}, (∀ {s}, (u_s : u <ᶜ s) → motive s) → motive u)
     : motive t := by
-  sorry
+  cases tab -- cannot do `induction tab` because of fixed `.nil` parameter.
+  case loc =>
+    sorry
+  case pdl =>
+    sorry
+  case rep lpr =>
+    sorry
 
 /-- ≣ᶜ is an equivalence relation and <ᶜ is well-founded and converse well-founded.
 The converse well-founded is what we really need for induction proofs. -/
