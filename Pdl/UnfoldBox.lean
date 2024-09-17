@@ -373,7 +373,7 @@ theorem boxHelperTermination γ (ℓ : TP γ) ψ :
     )
     ∧
     ( ∀ φ ∈ (unfoldBox γ ψ).join,
-        φ ∈ fischerLadner [⌈γ⌉ψ]
+        φ ∈ fischerLadner {⌈γ⌉ψ}
       ∧ (  (φ = ψ)
          ∨ (∃ τ ∈ testsOfProgram γ, φ = (~τ))
          ∨ (∃ δ, φ = (⌈a⌉⌈⌈δ⌉⌉ψ) ∧ ∀ α ∈ δ, α ∈ subprograms γ))
