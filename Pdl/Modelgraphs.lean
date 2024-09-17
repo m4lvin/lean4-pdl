@@ -422,12 +422,12 @@ theorem truthLemma {Worlds} (MG : ModelGraph Worlds) :
 
 /-- Q_F - for a list `F` of tests (instead of a set in the notes). -/
 def Qtests {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (F : List Formula) : W → W → Prop
-| v, w => ∀ τ ∈ F, Q R (?' τ) v w
+| v, w => v == w ∧ ∀ τ ∈ F, Q R (?' τ) v w
 
 /-- Q_δ for a list `δ` of programs. -/
-def Qsteps {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) : (δ : List Program) → W → W → Prop
+def Qsteps {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) : List Program → W → W → Prop
 | [], v, w => v == w
-| (α :: rest), v, w => Relation.Comp (Q R α) (Qsteps R rest) v w
+| (α :: δ), v, w => Relation.Comp (Q R α) (Qsteps R δ) v w
 
 /-- Q_{F, δ} for a list of tests and a list or programs. -/
 def Qcombo {W : Finset (Finset Formula)} (R : Nat → W → W → Prop)
@@ -436,5 +436,58 @@ def Qcombo {W : Finset (Finset Formula)} (R : Nat → W → W → Prop)
 
 theorem cp3a {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α : Program) :
     ∀ Fδ ∈ H α, ∀ v w, Qcombo R Fδ.1 Fδ.2 v w → Q R α v w := by
-  -- proof should be similar to that of `existsBoxFP`
-  sorry
+  rintro ⟨F,δ⟩ in_H v w
+  cases α <;>
+    simp_all [Q, Qtests, Qsteps, Qcombo, Relation.Comp, H]
+  case union α β =>
+    have IHα := cp3a R α
+    have IHβ := cp3a R β
+    simp only [Qcombo, Relation.Comp, Qtests, beq_iff_eq, Q, Subtype.exists, forall_exists_index,
+      and_imp, Subtype.forall, Subtype.mk.injEq, Prod.forall] at *
+    -- aesop:
+    intro x x_1 a a_1 a_2
+    subst a
+    simp_all only [true_and]
+    obtain ⟨val, property⟩ := w
+    cases in_H with
+    | inl h =>
+      apply Or.inl
+      apply IHα
+      · exact h
+      on_goal 2 => {rfl
+      }
+      · simp_all only
+      · intro τ a
+        simp_all only
+      · exact a_2
+    | inr h_1 =>
+      apply Or.inr
+      apply IHβ
+      · exact h_1
+      on_goal 2 => {rfl
+      }
+      · simp_all only
+      · intro τ a
+        simp_all only
+      · exact a_2
+  case sequence α β =>
+    have IHα := cp3a R α
+    have IHβ := cp3a R β
+    simp only [Qcombo, Relation.Comp, Qtests, beq_iff_eq, Q, Subtype.exists, forall_exists_index,
+      and_imp, Subtype.forall, Subtype.mk.injEq, Prod.forall] at *
+
+    intro v_val v_in v_def F_sub_v v_δ_w
+
+    rcases in_H with ⟨L, ⟨F, δ, _in_H, def_L⟩, _in_L⟩
+    subst def_L
+
+    by_cases δ = []
+    · subst_eqs
+      sorry
+    · simp [*] at _in_L
+      sorry
+  case star β =>
+    have IHβ := cp3a R β
+    simp only [Qcombo, Relation.Comp, Qtests, beq_iff_eq, Q, Subtype.exists, forall_exists_index,
+      and_imp, Subtype.forall, Subtype.mk.injEq, Prod.forall] at *
+    sorry
