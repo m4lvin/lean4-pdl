@@ -10,6 +10,8 @@ open Formula
 
 open HasLength
 
+/-! ## Definition of Model Graphs -/
+
 def saturated : Finset Formula → Prop
   -- TODO: change P Q notation to φ ψ
   | X => ∀ (P Q : Formula) (α : Program),
@@ -39,6 +41,8 @@ def ModelGraph (W : Finset (Finset Formula)) :=
   let iv M := ∀ X α P, (~⌈α⌉P) ∈ X.val → ∃ Y, (Q M.Rel) α X Y ∧ (~P) ∈ Y.val
   -- Note: In iii "a" is atomic, but in iv "α" is any program!
   Subtype fun M : KripkeModel W => i ∧ ii M ∧ iii M ∧ iv M
+
+/-! ## Truth Lemma -/
 
 -- TODO: it seems default 200000 is not enough for mutual theorems below?!
 set_option maxHeartbeats 2000000
@@ -413,3 +417,24 @@ theorem truthLemma {Worlds} (MG : ModelGraph Worlds) :
   intro X P
   have ⟨claim, _⟩ := loadedTruthLemma MG X P
   exact claim
+
+/-! ## Additional Q relations for the completeness proof -/
+
+/-- Q_F - for a list `F` of tests (instead of a set in the notes). -/
+def Qtests {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (F : List Formula) : W → W → Prop
+| v, w => ∀ τ ∈ F, Q R (?' τ) v w
+
+/-- Q_δ for a list `δ` of programs. -/
+def Qsteps {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) : (δ : List Program) → W → W → Prop
+| [], v, w => v == w
+| (α :: rest), v, w => Relation.Comp (Q R α) (Qsteps R rest) v w
+
+/-- Q_{F, δ} for a list of tests and a list or programs. -/
+def Qcombo {W : Finset (Finset Formula)} (R : Nat → W → W → Prop)
+    (F : List Formula) (δ : List Program) : W → W → Prop
+  := Relation.Comp (Qtests R F) (Qsteps R δ)
+
+theorem cp3a {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α : Program) :
+    ∀ Fδ ∈ H α, ∀ v w, Qcombo R Fδ.1 Fδ.2 v w → Q R α v w := by
+  -- proof should be similar to that of `existsBoxFP`
+  sorry
