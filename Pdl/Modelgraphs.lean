@@ -429,65 +429,128 @@ def Qsteps {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) : List P
 | [], v, w => v == w
 | (α :: δ), v, w => Relation.Comp (Q R α) (Qsteps R δ) v w
 
-/-- Q_{F, δ} for a list of tests and a list or programs. -/
+@[simp]
+theorem Qsteps_single : Qsteps R [α] v w ↔ Q R α v w := by
+  simp [Qsteps, Relation.Comp]
+
+theorem Qsteps_append : Qsteps R (δ1 ++ δ2) v w ↔ ∃ u, Qsteps R δ1 v u ∧ Qsteps R δ2 u w := by
+  induction δ1 generalizing v w
+  case nil =>
+    simp [Qsteps]
+  case cons α δ IH =>
+    simp [Qsteps, Relation.Comp]
+    constructor <;> rintro ⟨z, z_in, hyp⟩
+    · rw [IH] at hyp
+      aesop
+    · aesop
+
+/-- Q_Fδ for a list of tests F and a list or programs δ. -/
 def Qcombo {W : Finset (Finset Formula)} (R : Nat → W → W → Prop)
     (F : List Formula) (δ : List Program) : W → W → Prop
   := Relation.Comp (Qtests R F) (Qsteps R δ)
 
+/-- Q_Fδ v w implies Q v w. -/
 theorem cp3a {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α : Program) :
     ∀ Fδ ∈ H α, ∀ v w, Qcombo R Fδ.1 Fδ.2 v w → Q R α v w := by
   rintro ⟨F,δ⟩ in_H v w
-  cases α <;>
-    simp_all [Q, Qtests, Qsteps, Qcombo, Relation.Comp, H]
+  cases α
+  case atom_prog =>
+    simp_all [Qtests, Qsteps, Qcombo, Relation.Comp, H]
+  case test =>
+    simp_all [Qtests, Qsteps, Qcombo, Relation.Comp, H]
   case union α β =>
-    have IHα := cp3a R α
-    have IHβ := cp3a R β
-    simp only [Qcombo, Relation.Comp, Qtests, beq_iff_eq, Q, Subtype.exists, forall_exists_index,
-      and_imp, Subtype.forall, Subtype.mk.injEq, Prod.forall] at *
-    -- aesop:
-    intro x x_1 a a_1 a_2
-    subst a
-    simp_all only [true_and]
-    obtain ⟨val, property⟩ := w
-    cases in_H with
-    | inl h =>
-      apply Or.inl
-      apply IHα
-      · exact h
-      on_goal 2 => {rfl
-      }
-      · simp_all only
-      · intro τ a
-        simp_all only
-      · exact a_2
-    | inr h_1 =>
-      apply Or.inr
-      apply IHβ
-      · exact h_1
-      on_goal 2 => {rfl
-      }
-      · simp_all only
-      · intro τ a
-        simp_all only
-      · exact a_2
+    intro v_combo_w
+    simp only [Q]
+    simp only [H, List.mem_union_iff] at in_H
+    rcases in_H with hyp|hyp
+    · left; exact cp3a R α (F, δ) hyp _ _ v_combo_w
+    · right; exact cp3a R β (F, δ) hyp _ _ v_combo_w
   case sequence α β =>
     have IHα := cp3a R α
     have IHβ := cp3a R β
-    simp only [Qcombo, Relation.Comp, Qtests, beq_iff_eq, Q, Subtype.exists, forall_exists_index,
-      and_imp, Subtype.forall, Subtype.mk.injEq, Prod.forall] at *
-
-    intro v_val v_in v_def F_sub_v v_δ_w
-
-    rcases in_H with ⟨L, ⟨F, δ, _in_H, def_L⟩, _in_L⟩
-    subst def_L
-
+    intro v_combo_w
+    simp only [H, List.mem_join, List.mem_map, Prod.exists] at in_H
+    rcases in_H with ⟨L, ⟨F, δ, in_Hα, def_l⟩, in_L⟩
+    simp only [Q, Relation.Comp]
+    subst def_l
     by_cases δ = []
     · subst_eqs
-      sorry
-    · simp [*] at _in_L
-      sorry
-  case star β =>
-    have IHβ := cp3a R β
-    simp only [Qcombo, Relation.Comp, Qtests, beq_iff_eq, Q, Subtype.exists, forall_exists_index,
-      and_imp, Subtype.forall, Subtype.mk.injEq, Prod.forall] at *
-    sorry
+      simp only [reduceIte, List.mem_join, List.mem_map, Prod.exists] at in_L
+      rcases in_L with ⟨l, ⟨F', δ', F'δ'_in_Hβ, def_l⟩, in_l⟩
+      subst def_l
+      simp only [List.mem_singleton, Prod.mk.injEq] at in_l
+      cases in_l
+      subst_eqs
+      simp_all only [Qcombo, Relation.Comp, Qtests, beq_iff_eq, List.mem_union_iff, Qsteps,
+        exists_eq_right, and_imp, forall_exists_index]
+      rcases v_combo_w with ⟨z, ⟨def_z, F_hyp⟩, z_w⟩
+      subst def_z
+      use v
+      constructor
+      · apply IHα _ in_Hα _ _ _ rfl (fun τ _ => by apply F_hyp; tauto)
+        simp [Qsteps]
+      · apply IHβ _ F'δ'_in_Hβ v w _ rfl (fun τ _ => by apply F_hyp; tauto) z_w
+    case neg hyp =>
+      simp only [hyp, reduceIte, List.mem_singleton, Prod.mk.injEq] at in_L
+      cases in_L
+      subst_eqs
+      simp only [Qcombo, Relation.Comp, Qtests] at v_combo_w
+      rcases v_combo_w with ⟨z, ⟨v_eq_z, F_hyp⟩, z_w⟩
+      simp only [beq_iff_eq] at v_eq_z
+      subst v_eq_z
+      simp only [Q, true_and] at F_hyp
+      rw [Qsteps_append] at z_w
+      rcases z_w with ⟨u, v_u, u_w⟩
+      use u
+      constructor
+      · apply IHα _ in_Hα
+        simp only [Qcombo, Relation.Comp]
+        use v
+        constructor
+        · simp only [Qtests, beq_self_eq_true, Q, true_and]
+          intro τ _
+          apply F_hyp
+          assumption
+        · exact v_u
+      · rw [Qsteps_single] at u_w
+        exact u_w
+  case star α =>
+    have IHα := cp3a R α
+    intro v_combo_w
+    simp [H, List.mem_join, List.mem_map, Prod.exists] at in_H
+    rcases in_H with ⟨F_nil, δ_nil⟩ | ⟨L, ⟨F, δ, in_Hα, def_l⟩, in_L⟩
+    · subst_eqs
+      simp [Qcombo, Relation.Comp, Qtests, Qsteps] at v_combo_w
+      subst v_combo_w
+      simp [Q]
+      exact Relation.ReflTransGen.refl
+    · simp only [Q]
+      subst def_l
+      by_cases δ = []
+      · subst_eqs
+        simp only [reduceIte, List.mem_join, List.mem_map, Prod.exists] at in_L
+        absurd in_L
+        exact List.not_mem_nil _
+      case neg hyp =>
+        simp only [hyp, reduceIte, List.mem_singleton, Prod.mk.injEq] at in_L
+        cases in_L
+        subst_eqs
+        simp only [Qcombo, Relation.Comp, Qtests] at v_combo_w
+        rcases v_combo_w with ⟨z, ⟨v_eq_z, F_hyp⟩, z_w⟩
+        simp only [beq_iff_eq] at v_eq_z
+        subst v_eq_z
+        simp only [Q, true_and] at F_hyp
+        rw [Qsteps_append] at z_w
+        rcases z_w with ⟨u, v_u, u_w⟩
+        apply @Relation.ReflTransGen.head _ _ _ u
+        · apply IHα _ in_Hα
+          simp only [Qcombo, Relation.Comp]
+          use v
+          constructor
+          · simp only [Qtests, beq_self_eq_true, Q, true_and]
+            intro τ _
+            apply F_hyp
+            assumption
+          · exact v_u
+        · rw [Qsteps_single] at u_w
+          exact u_w
