@@ -249,7 +249,11 @@ def edge (s t : PathIn tab) : Prop :=
 /-- Notation ⋖_ for `edge` (because ⋖ is taken in Mathlib). -/
 notation s:arg " ⋖_ " t:arg => edge s t
 
-theorem edge_append_loc_nil (h : (tabAt s).2.2 = Tableau.loc lt next) :
+theorem edge_append_loc_nil {X} {Hist} {tab : Tableau X Hist} {s : PathIn tab}
+    {lt : LocalTableau (tabAt s).snd.fst}
+    {next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau ((tabAt s).snd.fst :: (tabAt s).fst) Y}
+    {Y : TNode} {Y_in : Y ∈ endNodesOf lt}
+    (h : (tabAt s).2.2 = Tableau.loc lt next) :
     edge s (s.append (h ▸ PathIn.loc Y_in .nil)) := by
   unfold edge
   left
@@ -916,9 +920,14 @@ theorem eProp2.c {tab : Tableau .nil X} (s t : PathIn tab) :
 
 -- TODO IMPORTANT
 /-- A free node and a loaded node cannot be ≡ᶜ equivalent. -/
-theorem not_cEquiv_of_free_loaded (s t : PathIn tab) :
-    (nodeAt s).isFree → (nodeAt t).isLoaded → ¬ s ≡ᶜ t := by
-  sorry
+theorem not_cEquiv_of_free_loaded (s t : PathIn tab)
+    (s_free : (nodeAt s).isFree) (t_loaded: (nodeAt t).isLoaded) : ¬ s ≡ᶜ t := by
+  rintro ⟨s_t, t_s⟩
+  induction s_t -- might not be the right strategy, not using t_s now.
+  · simp [TNode.isFree] at *
+    simp_all
+  case tail u v s_u u_v IH =>
+    sorry
 
 -- Unused?
 theorem eProp2.d {tab : Tableau .nil X} (s t : PathIn tab) :
@@ -1023,16 +1032,30 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
   induction tZ generalizing t
   case loc HistZ Z ltZ next IH =>
     -- local step(s), *may* work on the loaded formula
-    have : ∃ Y ∈ endNodesOf ltZ, (M, v) ⊨Y := by
-      have := localTableauTruth ltZ M v -- using soundness of local tableaux here!
-      rw [← this]
-      sorry -- should be easy
+    have : ∃ Y ∈ endNodesOf ltZ, (M, v) ⊨ Y := by
+      rw [← localTableauTruth ltZ M v] -- using soundness of local tableaux here!
+      intro φ φ_in
+      apply v_t
+      simp at φ_in
+      rw [tabAt_t_def]
+      simp
+      exact φ_in
     rcases this with ⟨Y, Y_in, w_Y⟩ -- given end node, now define path to it
-    let t_to_s : PathIn _ := (@PathIn.loc _ _ _ ltZ next Y_in .nil)
-    let s : PathIn tab := t.append (tabAt_t_def ▸ t_to_s)
+    let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ @PathIn.loc _ _ _ ltZ next Y_in .nil)
+    let s : PathIn tab := t.append t_to_s
     have t_s : t ⋖_ s := by
       unfold_let s t_to_s
-      sorry -- apply edge_append_loc_nil
+      -- should be doable, but running into HEq problems here.
+      have := @edge_append_loc_nil _ _ _ t (tabAt_t_def ▸ ltZ) ?_ Y ?_ ?_
+      convert this
+      · sorry
+      · intro Y Y_in
+        rw [tabAt_t_def]
+        simp
+        have Y_in' : Y ∈ endNodesOf ltZ := by sorry
+        exact next Y Y_in'
+      · sorry
+      · sorry
     have v_s : (M,v) ⊨ nodeAt s := sorry
     have f_in : AnyNegFormula_on_side_in_TNode (~''(AnyFormula.loaded (⌊α⌋ξ))) side (nodeAt s) :=
       by sorry -- PROBLEM - how to get this (for possibly different α) from localTableauTruth?
