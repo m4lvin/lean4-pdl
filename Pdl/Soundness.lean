@@ -249,18 +249,17 @@ def edge (s t : PathIn tab) : Prop :=
 /-- Notation ⋖_ for `edge` (because ⋖ is taken in Mathlib). -/
 notation s:arg " ⋖_ " t:arg => edge s t
 
-theorem edge_append_loc_nil {X} {Hist} {tab : Tableau X Hist} {s : PathIn tab}
-    {lt : LocalTableau (tabAt s).snd.fst}
-    {next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau ((tabAt s).snd.fst :: (tabAt s).fst) Y}
-    {Y : TNode} {Y_in : Y ∈ endNodesOf lt}
-    (h : (tabAt s).2.2 = Tableau.loc lt next) :
-    edge s (s.append (h ▸ PathIn.loc Y_in .nil)) := by
+theorem edge_append_loc_nil {X} {Hist} {tab : Tableau X Hist} (s : PathIn tab)
+    {lt : LocalTableau sX} (next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (sX :: sHist) Y)
+    {Y : TNode} (Y_in : Y ∈ endNodesOf lt)
+    (tabAt_s_def : tabAt s = ⟨sHist, sX, Tableau.loc lt next⟩ ) :
+    edge s (s.append (tabAt_s_def ▸ PathIn.loc Y_in .nil)) := by
   unfold edge
   left
-  use (tabAt s).1, (tabAt s).2.1, lt, next, (by assumption), Y_in
+  use sHist, sX, lt, next, (by assumption), Y_in
   constructor
   · rw [append_eq_iff_eq, ← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
-    rw [← h]
+    rw [← tabAt_s_def]
 
 @[simp]
 theorem edge_append_pdl_nil (h : (tabAt s).2.2 = Tableau.pdl r next) :
@@ -1045,17 +1044,8 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
     let s : PathIn tab := t.append t_to_s
     have t_s : t ⋖_ s := by
       unfold_let s t_to_s
-      -- should be doable, but running into HEq problems here.
-      have := @edge_append_loc_nil _ _ _ t (tabAt_t_def ▸ ltZ) ?_ Y ?_ ?_
-      convert this
-      · sorry
-      · intro Y Y_in
-        rw [tabAt_t_def]
-        simp
-        have Y_in' : Y ∈ endNodesOf ltZ := by sorry
-        exact next Y Y_in'
-      · sorry
-      · sorry
+      apply edge_append_loc_nil
+      rw [tabAt_t_def]
     have v_s : (M,v) ⊨ nodeAt s := sorry
     have f_in : AnyNegFormula_on_side_in_TNode (~''(AnyFormula.loaded (⌊α⌋ξ))) side (nodeAt s) :=
       by sorry -- PROBLEM - how to get this (for possibly different α) from localTableauTruth?
@@ -1070,15 +1060,19 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
         -- what now? is eProp2.f relevant?
         sorry
       · right; assumption
-  case pdl Y r next IH =>
-
+  case pdl Hist' X' Y r next IH =>
     cases r -- six PDL rules
+    -- cannot apply (L+) because we already have a loaded formula
     case loadL =>
-      -- should be impossible as we already have a loaded formula before
-      sorry
+      exfalso
+      simp only [nodeAt, AnyNegFormula_on_side_in_TNode] at negLoad_in
+      rw [tabAt_t_def] at negLoad_in
+      aesop
     case loadR =>
-      -- should be impossible as we already have a loaded formula before
-      sorry
+      exfalso
+      simp only [nodeAt, AnyNegFormula_on_side_in_TNode] at negLoad_in
+      rw [tabAt_t_def] at negLoad_in
+      aesop
     case freeL =>
       -- leaving cluster
       sorry
@@ -1155,7 +1149,9 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
       let s : PathIn tab := t.append (t_def ▸ t_to_s)
       have t_s : t ⋖_ s := by
         unfold_let s t_to_s
-        exact edge_append_loc_nil t_def
+        have := edge_append_loc_nil t next Y_in (by rw [← t_def])
+        convert this
+        rw [← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
       have : Y = nodeAt s := by
         unfold_let s t_to_s
         simp
