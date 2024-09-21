@@ -249,6 +249,10 @@ def edge (s t : PathIn tab) : Prop :=
 /-- Notation ⋖_ for `edge` (because ⋖ is taken in Mathlib). -/
 notation s:arg " ⋖_ " t:arg => edge s t
 
+/-- Appending a one-step `loc` path is also a ⋖_ child.
+When using this, this may be helpful:
+`convert this; rw [← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]`.
+-/
 theorem edge_append_loc_nil {X} {Hist} {tab : Tableau X Hist} (s : PathIn tab)
     {lt : LocalTableau sX} (next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (sX :: sHist) Y)
     {Y : TNode} (Y_in : Y ∈ endNodesOf lt)
@@ -261,6 +265,7 @@ theorem edge_append_loc_nil {X} {Hist} {tab : Tableau X Hist} (s : PathIn tab)
   · rw [append_eq_iff_eq, ← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
     rw [← tabAt_s_def]
 
+/-- Appending a one-step `pdl` path is also a ⋖_ child. -/
 @[simp]
 theorem edge_append_pdl_nil (h : (tabAt s).2.2 = Tableau.pdl r next) :
     edge s (s.append (h ▸ PathIn.pdl r .nil)) := by
@@ -1039,18 +1044,33 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       rw [tabAt_t_def]
       simp
       exact φ_in
-    rcases this with ⟨Y, Y_in, w_Y⟩ -- given end node, now define path to it
+    rcases this with ⟨Y, Y_in, w_Y⟩
+    -- We are given end node, now define path to it, and prepare application of `IH`.
     let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ @PathIn.loc _ _ _ ltZ next Y_in .nil)
     let s : PathIn tab := t.append t_to_s
     have t_s : t ⋖_ s := by
       unfold_let s t_to_s
       apply edge_append_loc_nil
       rw [tabAt_t_def]
-    have v_s : (M,v) ⊨ nodeAt s := sorry
-    have f_in : AnyNegFormula_on_side_in_TNode (~''(AnyFormula.loaded (⌊α⌋ξ))) side (nodeAt s) :=
-      by sorry -- PROBLEM - how to get this (for possibly different α) from localTableauTruth?
     have tabAt_s_def : tabAt s = ⟨Z :: HistZ, ⟨Y, next Y Y_in⟩⟩ := by
-      sorry
+      unfold_let s t_to_s
+      rw [tabAt_append]
+      have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc ltZ next)))
+           = ⟨Z :: HistZ, ⟨Y, next Y Y_in⟩⟩ := by simp_all
+      convert this <;> try rw [tabAt_t_def]
+      rw [eqRec_heq_iff_heq]
+    have v_s : (M,v) ⊨ nodeAt s := by
+      intro φ φ_in
+      apply w_Y
+      have : (tabAt s).2.1 = Y := by rw [tabAt_s_def]
+      simp_all
+    have f_in : AnyNegFormula_on_side_in_TNode (~''(AnyFormula.loaded (⌊α⌋ξ))) side (nodeAt s) := by
+      unfold_let s t_to_s
+      simp [AnyNegFormula_on_side_in_TNode, nodeAt]
+      sorry -- PROBLEM - how to get this (for possibly different α) from localTableauTruth?
+    -- NOTE
+    -- seems weird here to apply the IH while still using the same program `α`
+    -- after all, there may be a different loaded program now at node `s`.
     specialize IH Y Y_in s v_s f_in tabAt_s_def
     rcases IH with ⟨s1, s_c_s1, s1or, w_s1, s1_almost_free⟩
     refine ⟨s1, ?_, ?_, w_s1, s1_almost_free⟩
@@ -1075,12 +1095,14 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       aesop
     case freeL =>
       -- leaving cluster
+      -- - defined child node with path to to it
+      -- - then show left disjunct from lemam that says load and free are never in same cluster.
       sorry
     case freeR =>
-      -- leaving cluster
+      -- leaving cluster - same as freeL
       sorry
     case modL =>
-      -- modal rule, so α must actually be atomic!
+      -- modal rule, so α must actually be atomic! (use `IH)
       sorry
     case modR =>
       -- modal rule, so α must actually be atomic!
