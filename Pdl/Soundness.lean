@@ -995,6 +995,15 @@ theorem TNode.without_normal_isFree_iff_isFree (LRO : TNode) :
   simp [TNode.without, isFree, isLoaded]
   aesop
 
+@[simp]
+theorem TNode.isFree_then_without_isFree (LRO : TNode) :
+    LRO.isFree → ∀ anf, (LRO.without anf).isFree := by
+  intro LRO_isFree anf
+  rcases LRO with ⟨L, R, _|_⟩
+  · rcases anf with ⟨_|_⟩ <;> simp [without, isFree, isLoaded]
+  · exfalso
+    simp [isFree, isLoaded] at *
+
 -- TODO: move elsewhere?
 inductive Side
 | LL : Side
@@ -1067,7 +1076,13 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
     have f_in : AnyNegFormula_on_side_in_TNode (~''(AnyFormula.loaded (⌊α⌋ξ))) side (nodeAt s) := by
       unfold_let s t_to_s
       simp [AnyNegFormula_on_side_in_TNode, nodeAt]
-      sorry -- PROBLEM - how to get this (for possibly different α) from localTableauTruth?
+      -- PROBLEM - how to get this (for possibly different α) from localTableauTruth?
+      -- QUESTION - is this where ...
+      have := @existsDiamondH W M
+      -- ... should be used?
+      -- Or we need some way to lift it to LocalTableau instead of the specific unfoldDia case?
+      -- In general, could the `s` witness be *inside* the local tableau and not an endNode of it?
+      sorry
     -- NOTE
     -- seems weird here to apply the IH while still using the same program `α`
     -- after all, there may be a different loaded program now at node `s`.
@@ -1093,19 +1108,65 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       simp only [nodeAt, AnyNegFormula_on_side_in_TNode] at negLoad_in
       rw [tabAt_t_def] at negLoad_in
       aesop
-    case freeL =>
+    case freeL L R δ β φ =>
       -- leaving cluster
-      -- - defined child node with path to to it
-      -- - then show left disjunct from lemam that says load and free are never in same cluster.
-      sorry
+      -- - define child node with path to to it
+      let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.pdl (PdlRule.freeL ) .nil)
+      let s : PathIn tab := t.append t_to_s
+      have tabAt_s_def : tabAt s = ⟨_, _, next⟩ := by
+        sorry
+      -- next step is wrong, need to use IH first!?
+      refine ⟨s, ?_, ?_, ?_, ?_⟩
+      · apply Relation.TransGen.single
+        left
+        right
+        unfold_let s t_to_s
+        refine ⟨Hist', _, _, PdlRule.freeL, next, ?_⟩
+        simp [tabAt_t_def]
+      · left
+        -- use lemma that load and free are never in same cluster?
+        sorry
+      · intro φ0 φ0_in
+        have := @pdlRuleSat (L, R, some (Sum.inl (~'⌊⌊δ⌋⌋⌊β⌋AnyFormula.normal φ))) _ (.freeL)
+        -- Satisfiability is not enough, we need that freeL is *locally sound*.
+        -- PROBLEM: How to show that φ0 from `s` holds at `w` when we only know things about `v`?
+        -- ANSWER: use `IH` first above, not `s`.
+        sorry
+      · -- result of freeL is free
+        apply TNode.isFree_then_without_isFree
+        simp [nodeAt, tabAt]
+        rw [tabAt_s_def]
+        simp [TNode.isFree, TNode.isLoaded]
+
     case freeR =>
-      -- leaving cluster - same as freeL
+      -- should be analogous to `freeL`
       sorry
-    case modL =>
-      -- modal rule, so α must actually be atomic! (use `IH)
-      sorry
+    case modL L R a ξ' Y_def Y_isBasic =>
+      -- modal rule, so α must actually be atomic! (use `IH`)
+      have α_is_a : α = (·a : Program) := by sorry
+      rw [α_is_a] at negLoad_in
+      rw [α_is_a] at IH
+
+      let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.pdl (PdlRule.modL Y_def Y_isBasic) .nil)
+      let s : PathIn tab := t.append t_to_s
+      specialize IH s
+      -- TODO: provide inputs for `IH`
+      refine ⟨s, ?_, ?_, ?_, ?_⟩ -- FIXME don't use `s`
+      · apply Relation.TransGen.single
+        left
+        right
+        unfold_let s t_to_s
+        refine ⟨Hist', _, _, PdlRule.modL Y_def Y_isBasic, next, ?_⟩
+        simp [tabAt_t_def]
+      · -- ???
+        sorry
+      · intro φ φ_in
+        -- ???
+        sorry
+      · -- ???
+        sorry
     case modR =>
-      -- modal rule, so α must actually be atomic!
+      -- should be analogous to `modL`
       sorry
 
   case rep lpr =>
@@ -1113,7 +1174,6 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
     sorry
 
   -- additional things used in notes:
-    -- have := existsDiamondH
     -- have := @eProp2 X tab
   -- Extra lemmas, unclear how to get these:
     -- - every loaded node has a cEdge successor.
@@ -1234,14 +1294,14 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
         rcases this with ⟨s, s_c_t, s_property, w_s, rest_s_free⟩
         -- We now claim that we have a contradiction with the outer IH as we left the cluster:
         absurd IH s ?_
-        use W, M, w
+        exact ⟨W, M, w, w_s⟩
         -- Remains to show that s is simpler than t. We use eProp2.
         rcases s_property with (notequi | _)
-        · simp [flip]
+        · simp only [flip]
           exact eProp2.f s t s_c_t (by rw [cEquiv.symm]; exact notequi)
         · -- Here is the case where s is free.
           simp only [TNode.without_normal_isFree_iff_isFree] at rest_s_free
-          simp [flip]
+          simp only [flip]
           constructor
           · exact s_c_t
           · have : (nodeAt t).isLoaded := by
@@ -1275,8 +1335,8 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
         rcases s_property with (notequi | ⟨s_equiv_t, not_af_in_s⟩)
         · -- We left the cluster, use outer IH to get contradiction.
           absurd IH s ?_
-          use W, M, w
-          simp [flip]
+          exact ⟨W, M, w, w_s⟩
+          simp only [flip]
           exact eProp2.f s t t_c_s (by rw [cEquiv.symm]; exact notequi)
         · -- Here is the case where s is still loaded and in the same cluster.
           -- We apply the *inner* IH to s (and not to t) to get a contradiction.
