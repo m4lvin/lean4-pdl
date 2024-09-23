@@ -1112,40 +1112,83 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       rw [tabAt_t_def] at negLoad_in
       aesop
     case freeL L R δ β φ =>
-      -- leaving cluster
-      -- - define child node with path to to it
+      -- Leaving cluster, interesting that IH is not needed here.
+      clear IH
+      -- Define child node with path to to it:
       let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.pdl (PdlRule.freeL ) .nil)
       let s : PathIn tab := t.append t_to_s
       have tabAt_s_def : tabAt s = ⟨_, _, next⟩ := by
-        sorry
-      -- next step is wrong, need to use IH first!?
-      refine ⟨s, ?_, ?_⟩
+        unfold_let s t_to_s
+        rw [tabAt_append]
+        -- Only some HEq business left here.
+        have : tabAt (PathIn.pdl PdlRule.freeL PathIn.nil : PathIn (Tableau.pdl PdlRule.freeL next))
+             = ⟨ (L, R, some (Sum.inl (~'⌊⌊δ⌋⌋⌊β⌋AnyFormula.normal φ))) :: Hist'
+               , ⟨(List.insert (~⌈⌈δ⌉⌉⌈β⌉φ) L, R, none), next⟩⟩ := by
+          unfold tabAt
+          unfold tabAt
+          rfl
+        convert this <;> try rw [tabAt_t_def]
+        simp
+      refine ⟨s, ?_, Or.inl ⟨?_, ?_⟩ ⟩
       · apply Relation.TransGen.single
         left
         right
         unfold_let s t_to_s
         refine ⟨Hist', _, _, PdlRule.freeL, next, ?_⟩
         simp [tabAt_t_def]
-      · left
-        -- use lemma that load and free are never in same cluster?
-        sorry
-    /-
-      · intro φ0 φ0_in
-        have := @pdlRuleSat (L, R, some (Sum.inl (~'⌊⌊δ⌋⌋⌊β⌋AnyFormula.normal φ))) _ (.freeL)
-        -- Satisfiability is not enough, we need that freeL is *locally sound*.
-        -- PROBLEM: How to show that φ0 from `s` holds at `w` when we only know things about `v`?
-        -- ANSWER: use `IH` first above, not `s`.
-        sorry
-      · -- result of freeL is free
-        apply TNode.isFree_then_without_isFree
-        simp [nodeAt, tabAt]
-        rw [tabAt_s_def]
-        simp [TNode.isFree, TNode.isLoaded]
-    -/
+      · use W, M, v
+        intro φ φ_in
+        rw [tabAt_s_def] at φ_in
+        apply v_t -- Let's use that t and s are equivalent if they only differ in loading
+        rw [tabAt_t_def]
+        aesop
+      · apply not_cEquiv_of_free_loaded
+        -- use lemma that load and free are never in same cluster
+        · simp only [TNode.isFree, TNode.isLoaded, nodeAt, decide_False, decide_True,
+          Bool.not_eq_true, Bool.decide_eq_false, Bool.not_eq_true']
+          rw [tabAt_s_def]
+        · simp only [TNode.isLoaded, nodeAt, decide_False, decide_True]
+          rw [tabAt_t_def]
 
-    case freeR =>
-      -- should be analogous to `freeL`
-      sorry
+    case freeR L R δ β φ =>
+      -- Leaving cluster, interesting that IH is not needed here.
+      clear IH
+      -- Define child node with path to to it:
+      let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.pdl (PdlRule.freeR ) .nil)
+      let s : PathIn tab := t.append t_to_s
+      have tabAt_s_def : tabAt s = ⟨_, _, next⟩ := by
+        unfold_let s t_to_s
+        rw [tabAt_append]
+        -- Only some HEq business left here.
+        have : tabAt (PathIn.pdl PdlRule.freeR PathIn.nil : PathIn (Tableau.pdl PdlRule.freeR next))
+             = ⟨ (L, R, some (Sum.inr (~'⌊⌊δ⌋⌋⌊β⌋AnyFormula.normal φ))) :: Hist'
+               , ⟨L, (List.insert (~⌈⌈δ⌉⌉⌈β⌉φ) R), none⟩, next⟩ := by
+          unfold tabAt
+          unfold tabAt
+          rfl
+        convert this <;> try rw [tabAt_t_def]
+        simp
+      refine ⟨s, ?_, Or.inl ⟨?_, ?_⟩ ⟩
+      · apply Relation.TransGen.single
+        left
+        right
+        unfold_let s t_to_s
+        refine ⟨Hist', _, _, PdlRule.freeR, next, ?_⟩
+        simp [tabAt_t_def]
+      · use W, M, v
+        intro φ φ_in
+        rw [tabAt_s_def] at φ_in
+        apply v_t -- Let's use that t and s are equivalent if they only differ in loading
+        rw [tabAt_t_def]
+        aesop
+      · apply not_cEquiv_of_free_loaded
+        -- use lemma that load and free are never in same cluster
+        · simp only [TNode.isFree, TNode.isLoaded, nodeAt, decide_False, decide_True,
+          Bool.not_eq_true, Bool.decide_eq_false, Bool.not_eq_true']
+          rw [tabAt_s_def]
+        · simp only [TNode.isLoaded, nodeAt, decide_False, decide_True]
+          rw [tabAt_t_def]
+
     case modL L R a ξ' Y_def Y_isBasic =>
       -- modal rule, so α must actually be atomic! (use `IH`)
       have α_is_a : α = (·a : Program) := by sorry
@@ -1163,7 +1206,8 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
         unfold_let s t_to_s
         refine ⟨Hist', _, _, PdlRule.modL Y_def Y_isBasic, next, ?_⟩
         simp [tabAt_t_def]
-      · -- ???
+      · right
+        -- ???
         sorry
     case modR =>
       -- should be analogous to `modL`
