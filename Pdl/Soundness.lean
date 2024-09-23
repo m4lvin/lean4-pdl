@@ -777,8 +777,8 @@ def cEquiv {X} {tab : Tableau .nil X} (s t : PathIn tab) : Prop :=
 
 notation t:arg " ≡ᶜ " s:arg => cEquiv t s
 
-/-- ≡ᶜ is an equivalence relation. -/
-theorem cEquiv.symm (s t : PathIn tab) : s ≡ᶜ t ↔  t ≡ᶜ s := by
+/-- ≡ᶜ is symmetric. -/
+theorem cEquiv.symm (s t : PathIn tab) : s ≡ᶜ t ↔ t ≡ᶜ s := by
   unfold cEquiv
   tauto
 
@@ -1035,7 +1035,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
   (w_nξ : (M,w) ⊨ ~''ξ)
   : ∃ s : PathIn tab, t ◃⁺ s ∧
     -- TODO: missing here: path from t to s is satisfiable!
-    ( ¬ (s ≡ᶜ t)
+    (   ( satisfiable (nodeAt s) ∧ ¬ (s ≡ᶜ t) )
       ∨ ( (AnyNegFormula_on_side_in_TNode (~''ξ) side (nodeAt s))
         ∧ (M,w) ⊨ (nodeAt s)
         ∧ ((nodeAt s).without (~''ξ)).isFree
@@ -1287,12 +1287,15 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
         have in_t : AnyNegFormula_on_side_in_TNode (~''(⌊α⌋φ)) _theSide (nodeAt t) := by
           simp_all [nodeAt]; aesop
         -- Let C be the cluster to which `t` belongs.
-        -- Claim that any ◃-path of satisfiable nodes starting at t must remain in C.
+        -- We claim that any ◃-path of satisfiable nodes starting at t must remain in C.
         have claim : ∀ s, t ◃⁺ s → satisfiable (nodeAt s) → s ≡ᶜ t := by
           intro s t_to_s s_sat
-          have := eProp2.f s t t_to_s
-          -- use IH to show this?
-          sorry
+          rw [cEquiv.symm]
+          by_contra hyp
+          absurd s_sat
+          -- use IH and Lemma (f) to show claim
+          apply IH
+          exact eProp2.f s t t_to_s hyp
         -- Now assume for contradiction, that Λ(t) is satisfiable.
         rintro ⟨W, M, v, v_⟩
         have := v_ (~ unload (loadMulti [] α φ)) (by simp; right; aesop)
@@ -1300,12 +1303,10 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
         simp only [Formula.boxes_nil, evaluate, not_forall, Classical.not_imp] at this
         rcases this with ⟨w, v_α_w, not_w_φ⟩
         have := loadedDiamondPaths α tab t v_ φ in_t v_α_w (not_w_φ)
-        rcases this with ⟨s, t_to_s, (notequi | ⟨in_s, w_s, rest_s_free⟩)⟩
-        · -- "Together wit hthe observation ..."
+        rcases this with ⟨s, t_to_s, (⟨s_sat, notequi⟩ | ⟨in_s, w_s, rest_s_free⟩)⟩
+        · -- "Together wit the observation ..."
           absurd notequi
-          apply claim _ t_to_s
-          -- TODO: here we need to get that s is satisfiable out of `loadedDiamondPaths`
-          sorry
+          apply claim _ t_to_s s_sat
         · -- We now claim that we have a contradiction with the outer IH as we left the cluster:
           absurd IH s ?_
           exact ⟨W, M, w, w_s⟩
@@ -1340,20 +1341,23 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
         have := loadedDiamondPaths β tab t v_ (⌊⌊δ⌋⌋⌊α⌋φ) in_t v_β_w
           (by rw [modelCanSemImplyAnyNegFormula]; simp; exact not_w_δαφ)
         rcases this with ⟨s, t_to_s, s_property⟩
-        rw [not_or_iff_not_or_and] at s_property -- important trick here :-)
-        rcases s_property with notequi | ⟨s_equiv_t, ⟨not_af_in_s, w_s, rest_s_free⟩⟩
+        rcases s_property with ⟨s_sat, notequi⟩ | ⟨not_af_in_s, w_s, rest_s_free⟩
         · -- We left the cluster, use outer IH to get contradiction.
           absurd IH s (eProp2.f s t t_to_s (by rw [cEquiv.symm]; exact notequi))
           -- need that `s` is satisfiable
-          sorry
+          exact s_sat
         · -- Here is the case where s is still loaded and in the same cluster.
-          -- We apply the *inner* IH to s (and not to t) to get a contradiction.
-          absurd IH s ?_
-          exact ⟨W, M, w, w_s⟩
-          absurd inner_IH s ?_ (loadMulti δ α φ) ?_ rfl
-          · use W, M, w
-          · intro u u_simpler_s
-            exact IH u (simpler_equiv_simpler u_simpler_s s_equiv_t)
+          -- We apply the *inner* IH to s and then the outer IH to get a contradiction
+          have := inner_IH s ?_ (loadMulti δ α φ) ?_ rfl
+          · absurd this
+            use W, M, w, w_s
+          · intro u ⟨u_to_s, not_s_to_u⟩
+            apply IH
+            constructor
+            · exact Relation.TransGen.trans t_to_s u_to_s
+            · intro hyp
+              absurd not_s_to_u
+              exact Relation.TransGen.trans hyp t_to_s
           · simp only [nodeAt] at not_af_in_s
             subst lf_def
             simp_all
