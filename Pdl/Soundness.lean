@@ -1033,11 +1033,13 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
   (negLoad_in : AnyNegFormula_on_side_in_TNode (~''(⌊α⌋ξ)) side (nodeAt t))
   (v_α_w : relate M α v w)
   (w_nξ : (M,w) ⊨ ~''ξ)
-  : ∃ s : PathIn tab,
-      t ◃⁺ s
-    ∧ ( ¬ (cEquiv s t) ∨ (AnyNegFormula_on_side_in_TNode (~''ξ) side (nodeAt s)) )
-    ∧ (M,w) ⊨ (nodeAt s)
-    ∧ ((nodeAt s).without (~''ξ)).isFree := by
+  : ∃ s : PathIn tab, t ◃⁺ s ∧
+    ( ¬ (s ≡ᶜ t)
+      ∨ ( (AnyNegFormula_on_side_in_TNode (~''ξ) side (nodeAt s))
+        ∧ (M,w) ⊨ (nodeAt s)
+        ∧ ((nodeAt s).without (~''ξ)).isFree
+        )
+    ) := by
   -- Notes first take care of cases where rule is applied to non-loaded formula.
   -- For this, we need to distinguish what happens at `t`.
   rcases tabAt_t_def : tabAt t with ⟨Hist, Z, tZ⟩
@@ -1087,10 +1089,10 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
     -- seems weird here to apply the IH while still using the same program `α`
     -- after all, there may be a different loaded program now at node `s`.
     specialize IH Y Y_in s v_s f_in tabAt_s_def
-    rcases IH with ⟨s1, s_c_s1, s1or, w_s1, s1_almost_free⟩
-    refine ⟨s1, ?_, ?_, w_s1, s1_almost_free⟩
+    rcases IH with ⟨s1, s_c_s1, s1_property⟩
+    refine ⟨s1, ?_, ?_⟩
     · exact Relation.TransGen.head (.inl t_s) s_c_s1
-    · cases s1or
+    · cases s1_property
       · left
         -- what now? is eProp2.f relevant?
         sorry
@@ -1116,7 +1118,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       have tabAt_s_def : tabAt s = ⟨_, _, next⟩ := by
         sorry
       -- next step is wrong, need to use IH first!?
-      refine ⟨s, ?_, ?_, ?_, ?_⟩
+      refine ⟨s, ?_, ?_⟩
       · apply Relation.TransGen.single
         left
         right
@@ -1126,6 +1128,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       · left
         -- use lemma that load and free are never in same cluster?
         sorry
+    /-
       · intro φ0 φ0_in
         have := @pdlRuleSat (L, R, some (Sum.inl (~'⌊⌊δ⌋⌋⌊β⌋AnyFormula.normal φ))) _ (.freeL)
         -- Satisfiability is not enough, we need that freeL is *locally sound*.
@@ -1137,6 +1140,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
         simp [nodeAt, tabAt]
         rw [tabAt_s_def]
         simp [TNode.isFree, TNode.isLoaded]
+    -/
 
     case freeR =>
       -- should be analogous to `freeL`
@@ -1151,18 +1155,13 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       let s : PathIn tab := t.append t_to_s
       specialize IH s
       -- TODO: provide inputs for `IH`
-      refine ⟨s, ?_, ?_, ?_, ?_⟩ -- FIXME don't use `s`
+      refine ⟨s, ?_, ?_⟩ -- FIXME don't use `s`
       · apply Relation.TransGen.single
         left
         right
         unfold_let s t_to_s
         refine ⟨Hist', _, _, PdlRule.modL Y_def Y_isBasic, next, ?_⟩
         simp [tabAt_t_def]
-      · -- ???
-        sorry
-      · intro φ φ_in
-        -- ???
-        sorry
       · -- ???
         sorry
     case modR =>
@@ -1291,17 +1290,20 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
         have in_t : AnyNegFormula_on_side_in_TNode (~''(⌊α⌋φ)) _theSide (nodeAt t) := by
           simp_all [nodeAt]; aesop
         have := loadedDiamondPaths α tab t v_ φ in_t v_α_w (not_w_φ)
-        rcases this with ⟨s, s_c_t, s_property, w_s, rest_s_free⟩
-        -- We now claim that we have a contradiction with the outer IH as we left the cluster:
-        absurd IH s ?_
-        exact ⟨W, M, w, w_s⟩
-        -- Remains to show that s is simpler than t. We use eProp2.
-        rcases s_property with (notequi | _)
-        · simp only [flip]
-          exact eProp2.f s t s_c_t (by rw [cEquiv.symm]; exact notequi)
-        · -- Here is the case where s is free.
+        rcases this with ⟨s, s_c_t, (notequi | ⟨in_s, w_s, rest_s_free⟩)⟩
+        · -- left cluster, use IH here?!
+          absurd notequi
+          have := eProp2.f s t s_c_t (by rw [cEquiv.symm]; exact notequi)
+          cases this
+          constructor
+          · sorry
+          · sorry
+        · -- We now claim that we have a contradiction with the outer IH as we left the cluster:
+          absurd IH s ?_
+          exact ⟨W, M, w, w_s⟩
           simp only [TNode.without_normal_isFree_iff_isFree] at rest_s_free
           simp only [flip]
+          -- Remains to show that s is simpler than t. We use eProp2.
           constructor
           · exact s_c_t
           · have : (nodeAt t).isLoaded := by
@@ -1330,20 +1332,24 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
           exact O_def
         have := loadedDiamondPaths β tab t v_ (⌊⌊δ⌋⌋⌊α⌋φ) in_t v_β_w
           (by rw [modelCanSemImplyAnyNegFormula]; simp; exact not_w_δαφ)
-        rcases this with ⟨s, t_c_s, s_property, w_s, rest_s_free⟩
-        rw [not_or_iff_not_or_and] at s_property
-        rcases s_property with (notequi | ⟨s_equiv_t, not_af_in_s⟩)
+        rcases this with ⟨s, s_c_t, s_property⟩
+        rw [not_or_iff_not_or_and] at s_property -- important trick here :-)
+        rcases s_property with notequi | ⟨s_equiv_t, ⟨not_af_in_s, w_s, rest_s_free⟩⟩
         · -- We left the cluster, use outer IH to get contradiction.
+          absurd IH s ?_
+          refine ⟨W, M, w, ?_⟩
+          · sorry
+          · simp only [flip]
+            exact eProp2.f s t s_c_t (by rw [cEquiv.symm]; exact notequi)
+        · -- Here is the case where s is still loaded and in the same cluster.
+          -- We apply the *inner* IH to s (and not to t) to get a contradiction.
           absurd IH s ?_
           exact ⟨W, M, w, w_s⟩
           simp only [flip]
-          exact eProp2.f s t t_c_s (by rw [cEquiv.symm]; exact notequi)
-        · -- Here is the case where s is still loaded and in the same cluster.
-          -- We apply the *inner* IH to s (and not to t) to get a contradiction.
           absurd inner_IH s ?_ (loadMulti δ α φ) ?_ rfl
           · use W, M, w
           · intro u u_simpler_s
-            exact IH _ (simpler_equiv_simpler u_simpler_s s_equiv_t)
+            exact IH u (simpler_equiv_simpler u_simpler_s s_equiv_t)
           · simp only [nodeAt] at not_af_in_s
             subst lf_def
             simp_all
