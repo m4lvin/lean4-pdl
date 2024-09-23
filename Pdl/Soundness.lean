@@ -1034,6 +1034,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
   (v_α_w : relate M α v w)
   (w_nξ : (M,w) ⊨ ~''ξ)
   : ∃ s : PathIn tab, t ◃⁺ s ∧
+    -- TODO: missing here: path from t to s is satisfiable!
     ( ¬ (s ≡ᶜ t)
       ∨ ( (AnyNegFormula_on_side_in_TNode (~''ξ) side (nodeAt s))
         ∧ (M,w) ⊨ (nodeAt s)
@@ -1212,8 +1213,9 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
   apply @WellFounded.induction _ (flip before) ((eProp tab).2.2 : _) _ t
   clear t
   intro t IH
-  cases Classical.em (TNode.isFree $ nodeAt t)
-  case inl t_is_free =>
+  simp [flip] at IH
+  by_cases (TNode.isFree $ nodeAt t)
+  case pos t_is_free =>
     -- "First assume that t is free.""
     cases t_def : (tabAt t).2.2 -- Now consider what the tableau does at `t`.
     case rep lpr => -- Then t cannot be a LPR.
@@ -1263,7 +1265,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
       apply IH
       apply eProp2.c t _ t_is_free t_s
   -- "The interesting case is where t is loaded;"
-  case inr not_free =>
+  case neg not_free =>
     simp [TNode.isFree] at not_free
     rcases O_def : (tabAt t).2.1.2.2 with _ | snlf
     · -- "none" case is impossible because t is not free:
@@ -1280,37 +1282,42 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
       -- Start the induction before `rintro` so the inner IH is about satisfiability.
       induction δ generalizing lf t -- amazing that this does not give a wrong motive ;-)
       -- Note that here it is too late to generalize whether loaded formula was left/right.
-      · -- Now assume for contradiction, that Λ(t) is satisfiable.
-        rintro ⟨W,M,v,v_⟩
+      case nil =>
+        simp only [loadMulti, List.foldr_nil] at lf_def
+        have in_t : AnyNegFormula_on_side_in_TNode (~''(⌊α⌋φ)) _theSide (nodeAt t) := by
+          simp_all [nodeAt]; aesop
+        -- Let C be the cluster to which `t` belongs.
+        -- Claim that any ◃-path of satisfiable nodes starting at t must remain in C.
+        have claim : ∀ s, t ◃⁺ s → satisfiable (nodeAt s) → s ≡ᶜ t := by
+          intro s t_to_s s_sat
+          have := eProp2.f s t t_to_s
+          -- use IH to show this?
+          sorry
+        -- Now assume for contradiction, that Λ(t) is satisfiable.
+        rintro ⟨W, M, v, v_⟩
         have := v_ (~ unload (loadMulti [] α φ)) (by simp; right; aesop)
         rw [unload_loadMulti] at this
         simp only [Formula.boxes_nil, evaluate, not_forall, Classical.not_imp] at this
         rcases this with ⟨w, v_α_w, not_w_φ⟩
-        simp only [loadMulti, List.foldr_nil] at *
-        have in_t : AnyNegFormula_on_side_in_TNode (~''(⌊α⌋φ)) _theSide (nodeAt t) := by
-          simp_all [nodeAt]; aesop
         have := loadedDiamondPaths α tab t v_ φ in_t v_α_w (not_w_φ)
-        rcases this with ⟨s, s_c_t, (notequi | ⟨in_s, w_s, rest_s_free⟩)⟩
-        · -- left cluster, use IH here?!
+        rcases this with ⟨s, t_to_s, (notequi | ⟨in_s, w_s, rest_s_free⟩)⟩
+        · -- "Together wit hthe observation ..."
           absurd notequi
-          have := eProp2.f s t s_c_t (by rw [cEquiv.symm]; exact notequi)
-          cases this
-          constructor
-          · sorry
-          · sorry
+          apply claim _ t_to_s
+          -- TODO: here we need to get that s is satisfiable out of `loadedDiamondPaths`
+          sorry
         · -- We now claim that we have a contradiction with the outer IH as we left the cluster:
           absurd IH s ?_
           exact ⟨W, M, w, w_s⟩
           simp only [TNode.without_normal_isFree_iff_isFree] at rest_s_free
-          simp only [flip]
           -- Remains to show that s is simpler than t. We use eProp2.
           constructor
-          · exact s_c_t
+          · exact t_to_s
           · have : (nodeAt t).isLoaded := by
               unfold TNode.isLoaded
               simp [AnyNegFormula_on_side_in_TNode] at in_t
               aesop
-            apply eProp2.d_help _ _ this rest_s_free s_c_t
+            apply eProp2.d_help _ _ this rest_s_free t_to_s
       case cons β δ inner_IH =>
         rintro ⟨W,M,v,v_⟩
         have := v_ (~ unload (loadMulti (β :: δ) α φ)) (by
@@ -1332,20 +1339,17 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
           exact O_def
         have := loadedDiamondPaths β tab t v_ (⌊⌊δ⌋⌋⌊α⌋φ) in_t v_β_w
           (by rw [modelCanSemImplyAnyNegFormula]; simp; exact not_w_δαφ)
-        rcases this with ⟨s, s_c_t, s_property⟩
+        rcases this with ⟨s, t_to_s, s_property⟩
         rw [not_or_iff_not_or_and] at s_property -- important trick here :-)
         rcases s_property with notequi | ⟨s_equiv_t, ⟨not_af_in_s, w_s, rest_s_free⟩⟩
         · -- We left the cluster, use outer IH to get contradiction.
-          absurd IH s ?_
-          refine ⟨W, M, w, ?_⟩
-          · sorry
-          · simp only [flip]
-            exact eProp2.f s t s_c_t (by rw [cEquiv.symm]; exact notequi)
+          absurd IH s (eProp2.f s t t_to_s (by rw [cEquiv.symm]; exact notequi))
+          -- need that `s` is satisfiable
+          sorry
         · -- Here is the case where s is still loaded and in the same cluster.
           -- We apply the *inner* IH to s (and not to t) to get a contradiction.
           absurd IH s ?_
           exact ⟨W, M, w, w_s⟩
-          simp only [flip]
           absurd inner_IH s ?_ (loadMulti δ α φ) ?_ rfl
           · use W, M, w
           · intro u u_simpler_s
