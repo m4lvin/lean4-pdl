@@ -492,6 +492,7 @@ theorem PathIn.pdl_le_pdl_of_le {t1 t2} (h : t1 ≤ t2) :
     simp
     exact s_t
 
+/-
 -- not used YET ?
 theorem PathIn.edge_leaf_inductionOn {Hist X} {tab : Tableau Hist X}
     (t : PathIn tab)
@@ -501,6 +502,7 @@ theorem PathIn.edge_leaf_inductionOn {Hist X} {tab : Tableau Hist X}
     : motive t := by
   sorry
   -- try `induction tab` as for init_inductionOn
+-/
 
 /-! ## Alternative definitions of `edge` -/
 

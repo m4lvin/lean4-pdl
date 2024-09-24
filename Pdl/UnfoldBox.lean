@@ -133,7 +133,7 @@ theorem signature_conbot_iff_neq : contradiction (signature α ℓ ⋀ signature
 theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α ℓ ≡ ψ ⋀ signature α ℓ := by
   sorry
 
--- ### Boxes: F, P, X and the Φ_□ set
+-- ### Boxes: F, P, X and unfoldBox
 
 -- NOTE: In P and Xset we use lists not sets, to eventually make formulas.
 
@@ -155,7 +155,7 @@ def P : (α : Program) →  (ℓ : TP α) → List (List Program)
 def Xset (α : Program) (ℓ : TP α) (ψ : Formula) : List Formula :=
   F α ℓ ++ (P α ℓ).map (fun as => Formula.boxes as ψ)
 
-/-- Φ_□(αs,ψ) -/
+/-- unfold_□(αs,ψ) -/
 def unfoldBox (α : Program) (φ : Formula) : List (List Formula) :=
   (allTP α).map (fun ℓ => Xset α ℓ φ)
 
@@ -217,11 +217,12 @@ theorem P_monotone α (ℓ ℓ' : TP α) (h : ∀ τ, ℓ τ → ℓ' τ) δ : �
     intro h'
     split <;> split at h' <;> simp_all
 
-theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if isAtomic α then γ = α else if isStar α then lengthOfProgram γ ≤  lengthOfProgram α else lengthOfProgram γ < lengthOfProgram α) := by
+-- prove this via boxHelperTermination instead?
+theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if α.isAtomic then γ = α else if α.isStar then lengthOfProgram γ ≤  lengthOfProgram α else lengthOfProgram γ < lengthOfProgram α) := by
   intro γ_in δ_in
   cases α
   all_goals
-    simp_all [isAtomic, isStar, P]
+    simp_all [Program.isAtomic, Program.isStar, P]
   case sequence α β =>
     cases δ_in
     case inl δ_in =>
@@ -231,7 +232,7 @@ theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if isAtomic α then γ 
       cases γ_in
       case inl γ_in =>
         have IH := P_goes_down γ_in αs_in.1
-        cases em (isAtomic α) <;> cases em (isStar α)
+        cases em α.isAtomic <;> cases em α.isStar
         all_goals (simp_all;try linarith)
       case inr γ_in =>
         subst γ_in
@@ -240,18 +241,18 @@ theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if isAtomic α then γ 
       cases em ([] ∈ P α ℓ)
       · simp_all
         have IH := P_goes_down γ_in δ_in
-        cases em (isAtomic β) <;> cases em (isStar β)
+        cases em β.isAtomic <;> cases em β.isStar
         all_goals (simp_all;try linarith)
       · simp_all
   case union α β =>
     cases δ_in
     case inl δ_in =>
       have IH := P_goes_down γ_in δ_in
-      cases em (isAtomic α) <;> cases em (isStar α)
+      cases em α.isAtomic <;> cases em α.isStar
       all_goals (simp_all;try linarith)
     case inr δ_in =>
       have IH := P_goes_down γ_in δ_in
-      cases em (isAtomic β) <;> cases em (isStar β)
+      cases em β.isAtomic <;> cases em β.isStar
       all_goals (simp_all;try linarith)
   case star α =>
     cases δ
@@ -263,7 +264,7 @@ theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if isAtomic α then γ 
       cases em (γ ∈ αs)
       case inl γ_in =>
         have IH := P_goes_down γ_in αs_in.1
-        cases em (isAtomic α) <;> cases em (isStar α)
+        cases em (α.isAtomic) <;> cases em α.isStar
         all_goals (simp_all;try linarith)
       case inr γ_not_in =>
         have : γ = (∗α) := by rw [← def_δ] at γ_in; simp at γ_in; tauto
@@ -364,23 +365,37 @@ theorem keepFreshP α ℓ (x_notin : x ∉ voc α) : ∀ δ ∈ P α ℓ, x ∉ 
         aesop
 
 -- NOTE: see `P_goes_down` for proof inspiration, and later make it a consequence of this?
--- Maybe unused / to be deleted?
-theorem boxHelperTermination γ (ℓ : TP γ) ψ :
-    ( ∀ δ ∈ P γ ℓ,
-        (∀ α ∈ δ, α ∈ subprograms γ)
-      ∧ ((h : δ.length > 0) → isAtomic (δ.get (Fin.ofNat' 0 h)))
-      ∧ (∀ iα ∈ δ.enum, iα.2 = γ ↔ ((isAtomic γ ∧ iα.1 = n ∧ iα.1 = 1) ∨ (isStar (γ) ∧ iα.1 = n)))
-    )
-    ∧
-    ( ∀ φ ∈ (unfoldBox γ ψ).join,
-        φ ∈ fischerLadner [⌈γ⌉ψ]
+theorem boxHelperTermination α (ℓ : TP α) :
+  ∀ δ ∈ P α ℓ,
+      ( α.isAtomic → δ = [α] )
+    ∧ ( ∀ β, α = (∗β) → true )
+    ∧ ( (¬ α.isAtomic ∧ ¬ α.isStar) → δ = [] ∨ ∃ a, ∃ δ1n, δ = [(·a : Program)] ++ δ1n ++ [α] )
+    := by
+  sorry
+
+theorem unfoldBoxContent α ψ :
+    ∀ X ∈ (unfoldBox α ψ),
+    ∀ φ ∈ X,
+        φ ∈ fischerLadner [⌈α⌉ψ]
       ∧ (  (φ = ψ)
-         ∨ (∃ τ ∈ testsOfProgram γ, φ = (~τ))
-         ∨ (∃ δ, φ = (⌈a⌉⌈⌈δ⌉⌉ψ) ∧ ∀ α ∈ δ, α ∈ subprograms γ))
-    ) := by
+         ∨ (∃ τ ∈ testsOfProgram α, φ = (~τ))
+         ∨ (∃ (a : Nat), ∃ δ, φ = (⌈·a⌉⌈⌈δ⌉⌉ψ) ∧ ∀ α ∈ δ, α ∈ subprograms α))
+    := by
+  intro X X_in φ φ_in_X
+  simp [unfoldBox, Xset] at X_in
+  rcases X_in with ⟨ℓ, ℓ_in, def_X⟩
+  subst def_X
+  simp only [List.mem_append, List.mem_map] at φ_in_X
   constructor
-  · sorry
-  · sorry
+  · sorry -- FL
+  · rcases φ_in_X with φ_in_F | ⟨δ, δ_in, def_φ⟩
+    · sorry
+    ·
+      have := boxHelperTermination α ℓ δ δ_in
+      subst def_φ
+      right
+      right
+      sorry
 
 theorem boxHelperTP α (ℓ : TP α) :
     (∀ τ, (~τ.val) ∈ F α ℓ → ℓ τ = false)

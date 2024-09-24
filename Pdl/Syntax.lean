@@ -53,11 +53,11 @@ infixl:33 "⋓" => Program.union
 prefix:33 "∗" => Program.star
 prefix:33 "?'" => Program.test -- avoiding plain "?" which has a meaning in Lean 4
 
-def isAtomic : Program → Bool
+def Program.isAtomic : Program → Bool
 | ·_ => true
 | _ => false
 
-def isStar : Program → Bool
+def Program.isStar : Program → Bool
 | ∗_ => true
 | _ => false
 

@@ -130,15 +130,15 @@ inductive OneSidedLocalRule : List Formula → List (List Formula) → Type
   | nCo (φ ψ : Formula) : OneSidedLocalRule [~(φ⋀ψ)] [[~φ], [~ψ]]
   -- PROGRAMS
   -- the two general local rules:
-  | box (α φ) : OneSidedLocalRule [ ⌈α⌉φ] (unfoldBox     α φ)
-  | dia (α φ) : OneSidedLocalRule [~⌈α⌉φ] (unfoldDiamond α φ)
+  | box (α φ) : (notAtom : ¬ α.isAtomic) → OneSidedLocalRule [ ⌈α⌉φ] (unfoldBox     α φ)
+  | dia (α φ) : (notAtom : ¬ α.isAtomic) → OneSidedLocalRule [~⌈α⌉φ] (unfoldDiamond α φ)
 
 theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B :=
   by
   intro W M w
   cases lr
   all_goals try (simp; done) -- takes care of all propositional rules
-  case box α φ =>
+  case box α φ notAtom =>
     rw [conEval]
     simp only [List.mem_singleton, forall_eq]
     rw [localBoxTruth α φ W M w]
@@ -146,7 +146,7 @@ theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B
     constructor
     · rintro ⟨l,hyp⟩; use l; rw [conEval] at hyp; tauto
     · rintro ⟨l,hyp⟩; use l; rw [conEval]; tauto
-  case dia α φ =>
+  case dia α φ notAtom =>
     rw [conEval]
     simp only [List.mem_singleton, forall_eq, discon, unfoldDiamond]
     rw [localDiamondTruth α φ W M w, disEval, disconEval]
@@ -160,14 +160,14 @@ theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B
 -- - and a set of normal formulas.
 -- It's annoying to need the rule twice here due to the definition of LoadFormula.
 inductive LoadRule : NegLoadFormula → List (List Formula × Option NegLoadFormula) → Type
-  | dia  {α χ}   : LoadRule (~'⌊α⌋(χ : LoadFormula)) (unfoldDiamondLoaded  α χ)
-  | dia' {α φ}   : LoadRule (~'⌊α⌋(φ : Formula    )) (unfoldDiamondLoaded' α φ)
+  | dia  {α χ} : (notAtom : ¬ α.isAtomic) → LoadRule (~'⌊α⌋(χ : LoadFormula)) (unfoldDiamondLoaded  α χ)
+  | dia' {α φ} : (notAtom : ¬ α.isAtomic) → LoadRule (~'⌊α⌋(φ : Formula    )) (unfoldDiamondLoaded' α φ)
 
 /-- Given a LoadRule application, define the equivalent unloaded rule application.
 This allows re-using `oneSidedLocalRuleTruth` to prove `loadRuleTruth`. -/
 def LoadRule.unload : LoadRule (~'χ) B → OneSidedLocalRule [~(unload χ)] (B.map pairUnload)
-| @dia α χ => unfoldDiamondLoaded_eq α χ ▸ OneSidedLocalRule.dia α ((_root_.unload χ))
-| @dia' α φ => unfoldDiamondLoaded'_eq α φ ▸ OneSidedLocalRule.dia α φ
+| @dia α χ notAtom => unfoldDiamondLoaded_eq α χ ▸ OneSidedLocalRule.dia α ((_root_.unload χ)) notAtom
+| @dia' α φ notAtom => unfoldDiamondLoaded'_eq α φ ▸ OneSidedLocalRule.dia α φ notAtom
 
 /-- The loaded unfold rule is sound and invertible.
 In the notes this is part of localRuleTruth. -/
@@ -509,38 +509,57 @@ inductive LocalTableau : (X : TNode) → Type
 
 /-! ## Termination of LocalTableau -/
 
+theorem testsOfProgram_sizeOf_lt α : ∀ τ ∈ testsOfProgram α, sizeOf τ < sizeOf α := by
+  intro τ τ_in
+  cases α
+  all_goals
+    simp [testsOfProgram] at *
+  case sequence α β =>
+    rcases τ_in with τ_in | τ_in
+    · have := testsOfProgram_sizeOf_lt α _ τ_in; linarith
+    · have := testsOfProgram_sizeOf_lt β _ τ_in; linarith
+  case union α β =>
+    rcases τ_in with τ_in | τ_in
+    · have := testsOfProgram_sizeOf_lt α _ τ_in; linarith
+    · have := testsOfProgram_sizeOf_lt β _ τ_in; linarith
+  case star β =>
+    have := testsOfProgram_sizeOf_lt β _ τ_in; linarith
+  case test τ =>
+    subst_eqs
+    linarith
+
 open LocalTableau
 
--- Use this plus D-M to show termination on LocalTableau. Overkill?
-mutual
+/-- The local measure we use together with D-M to show that LocalTableau are finite. -/
 @[simp]
-def lmOfFormula : Formula → Nat
+def lmOfFormula : (f : Formula) → Nat
 | ⊥ => 0
 | ·_ => 0
-| ~φ => 1 + lmOfFormula (φ)
 | φ⋀ψ => 1 + lmOfFormula φ + lmOfFormula ψ
-| ⌈α⌉ φ => lmOfProgram α + lmOfFormula φ
-@[simp]
-def lmOfProgram : Program → Nat
-| ·_  => 0 -- No more local steps!
-| ?'φt  => 1 + lmOfFormula (~φt)
-| α;'β  => 1 + lmOfProgram (α) + lmOfProgram (β)
-| α⋓β  => 1 + lmOfProgram (α) + lmOfProgram (β)
-| ∗α  => 1 + lmOfProgram (α) -- DagTab does all α steps, but may stop at other formulas ?????
-end
-
-/-
--- original, closer to actual rules:
+| ⌈·_⌉ _ => 0 -- No more local steps
+| ⌈α⌉φ => 1 + lmOfFormula φ -- unfoldBox
+            + ((testsOfProgram α).attach.map (fun τ => lmOfFormula (~τ.1))).sum
 | ~⊥ => 0
 | ~·_ => 0
 | ~~φ => 1 + lmOfFormula φ
-| ~φ⋀ψ => 1 + lmOfFormula (~φ) + lmOfFormula (~ψ)
+| ~(φ⋀ψ) => 1 + lmOfFormula (~φ) + lmOfFormula (~ψ)
 | ~⌈·_⌉ _ => 0 -- No more local steps
-| ~⌈?'φt⌉ φ => 1 + lmOfFormula (~φt) + lmOfFormula (~φ)
-| ~⌈α;'β⌉ φ => 1 + lmOfFormula (~⌈α⌉φ) + lmOfFormula (~⌈β⌉φ)
-| ~⌈α⋓β⌉ φ => 1 + lmOfFormula (~⌈α⌉φ) + lmOfFormula (~⌈β⌉φ) -- max
-| ~⌈∗α⌉ φ => 1 + lmOfFormula (~φ) -- because DagTab does all α steps
--/
+| ~⌈α⌉φ => 1 + lmOfFormula φ -- unfoldDia
+             + ((testsOfProgram α).attach.map (fun τ => lmOfFormula τ.1)).sum
+decreasing_by
+  all_goals simp_wf
+  all_goals try linarith
+  all_goals
+    have := testsOfProgram_sizeOf_lt _ _ τ.2
+    linarith
+
+def boxTestSumOf α := ((testsOfProgram α).attach.map (fun ⟨τ, _τ_in⟩ => lmOfFormula τ)).sum
+
+def diaTestSumOf α := ((testsOfProgram α).attach.map (fun ⟨τ, _τ_in⟩ => lmOfFormula (~τ))).sum
+
+-- fox box, also needed for diamond?
+theorem testsOfProgram_lmOf_lt α : ∀ τ ∈ testsOfProgram α, lmOfFormula (~τ) < boxTestSumOf α := by
+  sorry
 
 -- FIXME Only need this here, be careful with exporting this?
 @[simp]
@@ -613,34 +632,42 @@ theorem Multiset.sub_add_of_subset_eq [DecidableEq α] {M : Multiset α} (h : X 
     M = M - X + X := (tsub_add_cancel_of_le h).symm
 
 -- TODO: move this to `Unfold.lean`? (after moving lmOf to Measures?)
-theorem unfoldBox.decreases_lmOf {α : Program} {φ : Formula} {E : List Formula}
-    (E_in : E ∈ unfoldBox α φ)
-    (y_in_E : y ∈ E)
-    : lmOfFormula y < lmOfProgram α + lmOfFormula φ :=
-  by
-  -- OLD NOTE:
-  -- Is this even true? Why is there no ∗α in the claim? Is the diamond case easier?
-  -- Try induction loading and a claim about boxDagNext and intermediate (dagger) formulas?
-  cases y
-  case box β φ =>
-    cases β
-    case star β =>
-      simp
-      -- OLD NOTE: y_in_E is *not* impossible now, dagEndNodes may contain top-level stars (e.g. via tests).
-      sorry
-    all_goals sorry
-  all_goals sorry
+theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : List Formula}
+    (α_non_atomic : ¬ α.isAtomic)
+    (X_in : X ∈ unfoldBox α φ)
+    (ψ_in_X : ψ ∈ X)
+    : lmOfFormula ψ < lmOfFormula (⌈α⌉φ) := by
+  have ubc := unfoldBoxContent (α) φ X X_in ψ ψ_in_X
+  cases α <;> simp [Program.isAtomic] at *
+  case sequence α β =>
+    rcases ubc.2 with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ, subprogs⟩
+    · subst_eqs; linarith
+    · subst def_ψ
+      simp_all
+      suffices lmOfFormula (~τ) < 1 + (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (α;'β)).attach).sum by
+        linarith
+      suffices ∃ τ' ∈ testsOfProgram (α;'β), lmOfFormula τ < 1 + lmOfFormula τ' by
+        -- need List.attach_sum or so?
+        sorry
+      use τ
+      constructor
+      · assumption
+      · linarith
+    · subst def_ψ
+      simp [lmOfFormula]
+  all_goals
+    -- all similar to sequence case?
+    sorry
 
 -- TODO: move this to Unfold? (after moving lmOf to Measures?)
-theorem unfoldDiamond.decreases_lmOf {α : Program} {φ : Formula} {E : List Formula}
-    (E_in : E ∈ unfoldDiamond α φ)
-    (y_in_E : y ∈ E)
-    : lmOfFormula y < 1 + lmOfProgram α + lmOfFormula φ :=
+theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : List Formula}
+    (α_non_atomic : ¬ α.isAtomic)
+    (X_in : X ∈ unfoldDiamond α φ)
+    (ψ_in_X : ψ ∈ X)
+    : lmOfFormula ψ < lmOfFormula (~⌈α⌉φ) :=
   by
-  -- Note: the "1+" comes from the diamond/negation.
+  -- REMOVED Note: the "1+" comes from the diamond/negation.
   sorry
-
--- TODO: also need loadDagEndNodes.decreases_lmOf or similar?
 
 theorem LocalRule.Decreases (rule : LocalRule X ress) :
     ∀ Y ∈ ress, ∀ y ∈ node_to_multiset Y, ∃ x ∈ node_to_multiset X, y < x :=
@@ -659,18 +686,19 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
         try subst_eqs
       case neg.refl => linarith
       case con.refl => cases y_in_Y <;> (subst_eqs; linarith)
-      case nCo => cases Y_in_ress <;> (subst_eqs; simp at * ; subst_eqs ; simp at *); linarith
-      case dia α φ =>
+      case nCo => cases Y_in_ress <;> (subst_eqs; simp at * ; subst_eqs; linarith)
+      case dia α φ notAtom =>
         rcases Y_in_ress with ⟨E, E_in, E_def⟩
         subst E_def
         simp_all only [List.append_nil, Multiset.mem_coe]
-        rw [← add_assoc]
-        exact unfoldDiamond.decreases_lmOf E_in y_in_Y
-      case box α φ =>
+        rw [@Bool.eq_false_iff] at notAtom
+        exact unfoldDiamond.decreases_lmOf_nonAtomic notAtom E_in y_in_Y
+      case box α φ notAtom =>
         rcases Y_in_ress with ⟨E, E_in, E_def⟩
         subst E_def
         simp_all only [List.append_nil, Multiset.mem_coe]
-        exact unfoldBox.decreases_lmOf E_in y_in_Y
+        rw [@Bool.eq_false_iff] at notAtom
+        exact unfoldBox.decreases_lmOf_nonAtomic notAtom E_in y_in_Y
 
     case oneSidedR orule =>
       cases orule
@@ -681,18 +709,19 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
         try subst_eqs
       case neg.refl => linarith
       case con.refl => cases y_in_Y <;> (subst_eqs; linarith)
-      case nCo => cases Y_in_ress <;> (subst_eqs; simp at * ; subst_eqs ; simp at *); linarith
-      case dia α φ =>
+      case nCo => cases Y_in_ress <;> (subst_eqs; simp at * ; subst_eqs ; linarith)
+      case dia α φ notAtom =>
         rcases Y_in_ress with ⟨E, E_in, E_def⟩
         subst E_def
         simp_all only [List.append_nil, Multiset.mem_coe]
-        rw [← add_assoc]
-        exact unfoldDiamond.decreases_lmOf E_in y_in_Y
-      case box α φ =>
+        rw [@Bool.eq_false_iff] at notAtom
+        exact unfoldDiamond.decreases_lmOf_nonAtomic notAtom  E_in y_in_Y
+      case box α φ notAtom =>
         rcases Y_in_ress with ⟨E, E_in, E_def⟩
         subst E_def
         simp_all only [List.append_nil, Multiset.mem_coe]
-        exact unfoldBox.decreases_lmOf E_in y_in_Y
+        rw [@Bool.eq_false_iff] at notAtom
+        exact unfoldBox.decreases_lmOf_nonAtomic notAtom E_in y_in_Y
 
     case loadedL lrule =>
       simp [node_to_multiset]
