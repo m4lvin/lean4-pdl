@@ -707,9 +707,16 @@ theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X 
     : lmOfFormula ψ < lmOfFormula (~⌈α⌉φ) :=
   by
   simp [unfoldDiamond,Yset] at X_in
-
-  -- REMOVED Note: the "1+" comes from the diamond/negation.
-  sorry
+  rcases X_in with ⟨F, δ, in_H, def_X⟩
+  subst def_X
+  simp only [List.mem_union_iff, List.mem_singleton] at ψ_in_X
+  cases ψ_in_X
+  · sorry
+  · subst_eqs
+    cases α <;> simp [lmOfFormula, Program.isAtomic] at *
+    all_goals
+      rw [List.attach_map_val]
+      sorry
 
 theorem LocalRule.Decreases (rule : LocalRule X ress) :
     ∀ Y ∈ ress, ∀ y ∈ node_to_multiset Y, ∃ x ∈ node_to_multiset X, y < x :=
@@ -773,12 +780,25 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
         try subst_eqs
         try simp at *
         try subst_eqs
-      case dia α χ =>
-        -- need: lmOfFormula goes down in unfoldDiamondLoad
-        sorry
-      case dia' α φ =>
-        -- need: lmOfFormula goes down in unfoldDiamondLoad'
-        sorry
+      case dia α χ notAtom =>
+        -- we re-use the lemma for the free analogue here
+        rcases Y_in_ress with ⟨F, o, in_unfold, Y_def⟩
+        rw [@Bool.eq_false_iff] at notAtom
+        apply unfoldDiamond.decreases_lmOf_nonAtomic notAtom
+        · rw [← unfoldDiamondLoaded_eq α χ]
+          simp only [List.mem_map, Prod.exists]
+          use F, o
+        · subst Y_def
+          cases o <;> simp_all [pairUnload, negUnload]
+      case dia' α φ notAtom =>
+        rcases Y_in_ress with ⟨F, o, in_unfold, Y_def⟩
+        rw [@Bool.eq_false_iff] at notAtom
+        apply unfoldDiamond.decreases_lmOf_nonAtomic notAtom
+        · rw [← unfoldDiamondLoaded'_eq α φ]
+          simp only [List.mem_map, Prod.exists]
+          use F, o
+        · subst Y_def
+          cases o <;> simp_all [pairUnload]
 
     case loadedR lrule =>
       simp [node_to_multiset]
@@ -788,12 +808,25 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
         try subst_eqs
         try simp at *
         try subst_eqs
-      case dia α χ =>
-        -- need: lmOfFormula goes down in unfoldDiamondLoad
-        sorry
-      case dia' α φ =>
-        -- need: lmOfFormula goes down in unfoldDiamondLoad'
-        sorry
+      case dia α χ notAtom =>
+        -- we re-use the lemma for the free analogue here
+        rcases Y_in_ress with ⟨F, o, in_unfold, Y_def⟩
+        rw [@Bool.eq_false_iff] at notAtom
+        apply unfoldDiamond.decreases_lmOf_nonAtomic notAtom
+        · rw [← unfoldDiamondLoaded_eq α χ]
+          simp only [List.mem_map, Prod.exists]
+          use F, o
+        · subst Y_def
+          cases o <;> simp_all [pairUnload, negUnload]
+      case dia' α φ notAtom =>
+        rcases Y_in_ress with ⟨F, o, in_unfold, Y_def⟩
+        rw [@Bool.eq_false_iff] at notAtom
+        apply unfoldDiamond.decreases_lmOf_nonAtomic notAtom
+        · rw [← unfoldDiamondLoaded'_eq α φ]
+          simp only [List.mem_map, Prod.exists]
+          use F, o
+        · subst Y_def
+          cases o <;> simp_all [pairUnload]
 
 -- This is standard definition of DM.
 -- TODO: Move to MultisetOrder
@@ -826,27 +859,45 @@ theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
   subst B_def
   intro RES RES_in
   simp [applyLocalRule] at RES_in
-  rcases RES_in with ⟨⟨Lnew,Rnew,Onew⟩, Y_in_ress, claim⟩
+  rcases RES_in with ⟨⟨Lnew,Rnew,Onew⟩, Y_in_ress, def_RES⟩
   unfold lt_TNode
-  simp at claim
+  simp at def_RES
   rw [MultisetDMLT.iff_MultisetLT']
   unfold MultisetLT'
   use node_to_multiset (Lnew, Rnew, Onew) -- choose X to be the newly added formulas
   use node_to_multiset (Lcond, Rcond, Ocond) -- choose Y to be the removed formulas
-  -- Now choose a way to define Z:
+  -- Now choose a way to define Z (the context formulas that stay)
   -- let Z:= use node_to_multiset RES - node_to_multiset (Lnew, Rnew, Onew) -- way 1
   let Z := node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) -- way 2
   use Z
   -- claim that the other definition would have been the same:
   have Z_eq : Z = node_to_multiset RES - node_to_multiset (Lnew, Rnew, Onew) := by
-    -- maybe similar to the proof of preconP_to_submultiset?
+    -- TODO, unsure about approach here
+    -- Mostly this needs reasoning about Multisets
+    -- Note that by going to .count we get `-` truncating to 0.
+    -- Maybe similar to the proof of `preconP_to_submultiset` ?
+    unfold_let Z
+    /-
+    apply eq_of_le_of_le
+    · rw [tsub_le_iff_right]
+      rw [← def_RES]
+      rw [Multiset.le_iff_count]
+      intro φ
+      simp [node_to_multiset]
+      rcases O with _ | (f | f) <;> rcases Ocond with _ | (f | f)
+      all_goals
+        simp
+        sorry
+    ·
+      sorry
+    -/
     sorry
   split_ands
   · exact (LocalRule.cond_non_empty rule : node_to_multiset (Lcond, Rcond, Ocond) ≠ ∅)
   · rw [Z_eq]
     apply Multiset.sub_add_of_subset_eq
     cases Onew
-    -- TODO: clean this up once it works
+    -- FIXME: clean this up / use fewer non-terminal simp here
     all_goals try (rename_i f; cases f)
     all_goals simp_all
     all_goals cases O
@@ -854,12 +905,14 @@ theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
     all_goals cases Ocond
     all_goals try (rename_i cond; cases cond)
     all_goals try simp_all
-    all_goals subst claim
+    all_goals subst_eqs
     all_goals
-      simp [node_to_multiset]
-      try apply List.Sublist.subperm
-      try simp_all
-      sorry
+      unfold node_to_multiset
+      simp only []
+      rw [Multiset.le_iff_count]
+      intro φ
+      simp_all
+      linarith
   · apply Multiset.sub_add_of_subset_eq
     exact preconP_to_submultiset preconP
   · exact LocalRule.Decreases rule _ Y_in_ress
