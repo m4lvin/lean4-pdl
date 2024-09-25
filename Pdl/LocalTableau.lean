@@ -1,5 +1,7 @@
 -- LOCAL TABLEAU
 
+import Mathlib.Algebra.Order.BigOperators.Group.List
+
 import Pdl.UnfoldBox
 import Pdl.UnfoldDia
 import Pdl.MultisetOrder
@@ -553,6 +555,7 @@ decreasing_by
     have := testsOfProgram_sizeOf_lt _ _ τ.2
     linarith
 
+/-
 def boxTestSumOf α := ((testsOfProgram α).attach.map (fun ⟨τ, _τ_in⟩ => lmOfFormula τ)).sum
 
 def diaTestSumOf α := ((testsOfProgram α).attach.map (fun ⟨τ, _τ_in⟩ => lmOfFormula (~τ))).sum
@@ -560,6 +563,7 @@ def diaTestSumOf α := ((testsOfProgram α).attach.map (fun ⟨τ, _τ_in⟩ => 
 -- fox box, also needed for diamond?
 theorem testsOfProgram_lmOf_lt α : ∀ τ ∈ testsOfProgram α, lmOfFormula (~τ) < boxTestSumOf α := by
   sorry
+-/
 
 -- FIXME Only need this here, be careful with exporting this?
 @[simp]
@@ -631,7 +635,6 @@ theorem LocalRule.cond_non_empty (rule : LocalRule (Lcond, Rcond, Ocond) X) :
 theorem Multiset.sub_add_of_subset_eq [DecidableEq α] {M : Multiset α} (h : X ≤ M):
     M = M - X + X := (tsub_add_cancel_of_le h).symm
 
--- TODO: move this to `Unfold.lean`? (after moving lmOf to Measures?)
 theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : List Formula}
     (α_non_atomic : ¬ α.isAtomic)
     (X_in : X ∈ unfoldBox α φ)
@@ -640,32 +643,71 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
   have ubc := unfoldBoxContent (α) φ X X_in ψ ψ_in_X
   cases α <;> simp [Program.isAtomic] at *
   case sequence α β =>
-    rcases ubc.2 with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ, subprogs⟩
+    rcases ubc.2 with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ, _⟩
     · subst_eqs; linarith
     · subst def_ψ
-      simp_all
-      suffices lmOfFormula (~τ) < 1 + (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (α;'β)).attach).sum by
+      suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (α;'β)).attach).sum.succ by
+        simp_all
         linarith
       suffices ∃ τ' ∈ testsOfProgram (α;'β), lmOfFormula τ < 1 + lmOfFormula τ' by
-        -- need List.attach_sum or so?
-        sorry
-      use τ
-      constructor
-      · assumption
-      · linarith
+        rw [List.attach_map_val (testsOfProgram (α;'β)) (fun x => lmOfFormula (~↑x))]
+        rw [Nat.lt_succ]
+        -- TODO: use `List.le_sum_of_mem` from newer mathlib
+        exact List.single_le_sum (by simp) _ (by rw [List.mem_map]; use τ)
+      refine ⟨τ, τ_in, by linarith⟩
     · subst def_ψ
       simp [lmOfFormula]
-  all_goals
-    -- all similar to sequence case?
-    sorry
+  case union α β => -- based on sequence case
+    rcases ubc.2 with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ, _⟩
+    · subst_eqs; linarith
+    · subst def_ψ
+      suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (α⋓β)).attach).sum.succ by
+        simp_all
+        linarith
+      suffices ∃ τ' ∈ testsOfProgram (α⋓β), lmOfFormula τ < 1 + lmOfFormula τ' by
+        rw [List.attach_map_val (testsOfProgram (α⋓β)) (fun x => lmOfFormula (~↑x))]
+        rw [Nat.lt_succ]
+        exact List.single_le_sum (by simp) _ (by rw [List.mem_map]; use τ)
+      refine ⟨τ, τ_in, by linarith⟩
+    · subst def_ψ
+      simp [lmOfFormula]
+  case star β => -- based on sequence case
+    rcases ubc.2 with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ, _⟩
+    · subst_eqs; linarith
+    · subst def_ψ
+      suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (∗β)).attach).sum.succ by
+        simp_all
+        linarith
+      suffices ∃ τ' ∈ testsOfProgram (∗β), lmOfFormula τ < 1 + lmOfFormula τ' by
+        rw [List.attach_map_val (testsOfProgram (∗β)) (fun x => lmOfFormula (~↑x))]
+        rw [Nat.lt_succ]
+        exact List.single_le_sum (by simp) _ (by rw [List.mem_map]; use τ)
+      refine ⟨τ, τ_in, by linarith⟩
+    · subst def_ψ
+      simp [lmOfFormula]
+  case test τ0 => -- based on sequence case
+    rcases ubc.2 with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ, _⟩
+    · subst_eqs; linarith
+    · subst def_ψ
+      suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (?'τ0)).attach).sum.succ by
+        simp_all
+        linarith
+      suffices ∃ τ' ∈ testsOfProgram (?'τ0), lmOfFormula τ < 1 + lmOfFormula τ' by
+        rw [List.attach_map_val (testsOfProgram (?'τ0)) (fun x => lmOfFormula (~↑x))]
+        rw [Nat.lt_succ]
+        exact List.single_le_sum (by simp) _ (by rw [List.mem_map]; use τ)
+      refine ⟨τ, τ_in, by linarith⟩
+    · subst def_ψ
+      simp [lmOfFormula]
 
--- TODO: move this to Unfold? (after moving lmOf to Measures?)
 theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : List Formula}
     (α_non_atomic : ¬ α.isAtomic)
     (X_in : X ∈ unfoldDiamond α φ)
     (ψ_in_X : ψ ∈ X)
     : lmOfFormula ψ < lmOfFormula (~⌈α⌉φ) :=
   by
+  simp [unfoldDiamond,Yset] at X_in
+
   -- REMOVED Note: the "1+" comes from the diamond/negation.
   sorry
 
