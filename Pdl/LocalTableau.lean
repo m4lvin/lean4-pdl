@@ -740,13 +740,11 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
         rcases Y_in_ress with ⟨E, E_in, E_def⟩
         subst E_def
         simp_all only [List.append_nil, Multiset.mem_coe]
-        rw [@Bool.eq_false_iff] at notAtom
         exact unfoldDiamond.decreases_lmOf_nonAtomic notAtom E_in y_in_Y
       case box α φ notAtom =>
         rcases Y_in_ress with ⟨E, E_in, E_def⟩
         subst E_def
         simp_all only [List.append_nil, Multiset.mem_coe]
-        rw [@Bool.eq_false_iff] at notAtom
         exact unfoldBox.decreases_lmOf_nonAtomic notAtom E_in y_in_Y
 
     case oneSidedR orule =>
@@ -763,13 +761,11 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
         rcases Y_in_ress with ⟨E, E_in, E_def⟩
         subst E_def
         simp_all only [List.append_nil, Multiset.mem_coe]
-        rw [@Bool.eq_false_iff] at notAtom
         exact unfoldDiamond.decreases_lmOf_nonAtomic notAtom  E_in y_in_Y
       case box α φ notAtom =>
         rcases Y_in_ress with ⟨E, E_in, E_def⟩
         subst E_def
         simp_all only [List.append_nil, Multiset.mem_coe]
-        rw [@Bool.eq_false_iff] at notAtom
         exact unfoldBox.decreases_lmOf_nonAtomic notAtom E_in y_in_Y
 
     case loadedL lrule =>
@@ -783,7 +779,6 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
       case dia α χ notAtom =>
         -- we re-use the lemma for the free analogue here
         rcases Y_in_ress with ⟨F, o, in_unfold, Y_def⟩
-        rw [@Bool.eq_false_iff] at notAtom
         apply unfoldDiamond.decreases_lmOf_nonAtomic notAtom
         · rw [← unfoldDiamondLoaded_eq α χ]
           simp only [List.mem_map, Prod.exists]
@@ -792,7 +787,6 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
           cases o <;> simp_all [pairUnload, negUnload]
       case dia' α φ notAtom =>
         rcases Y_in_ress with ⟨F, o, in_unfold, Y_def⟩
-        rw [@Bool.eq_false_iff] at notAtom
         apply unfoldDiamond.decreases_lmOf_nonAtomic notAtom
         · rw [← unfoldDiamondLoaded'_eq α φ]
           simp only [List.mem_map, Prod.exists]
@@ -811,7 +805,6 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
       case dia α χ notAtom =>
         -- we re-use the lemma for the free analogue here
         rcases Y_in_ress with ⟨F, o, in_unfold, Y_def⟩
-        rw [@Bool.eq_false_iff] at notAtom
         apply unfoldDiamond.decreases_lmOf_nonAtomic notAtom
         · rw [← unfoldDiamondLoaded_eq α χ]
           simp only [List.mem_map, Prod.exists]
@@ -820,7 +813,6 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
           cases o <;> simp_all [pairUnload, negUnload]
       case dia' α φ notAtom =>
         rcases Y_in_ress with ⟨F, o, in_unfold, Y_def⟩
-        rw [@Bool.eq_false_iff] at notAtom
         apply unfoldDiamond.decreases_lmOf_nonAtomic notAtom
         · rw [← unfoldDiamondLoaded'_eq α φ]
           simp only [List.mem_map, Prod.exists]

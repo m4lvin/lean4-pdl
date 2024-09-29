@@ -53,13 +53,33 @@ infixl:33 "⋓" => Program.union
 prefix:33 "∗" => Program.star
 prefix:33 "?'" => Program.test -- avoiding plain "?" which has a meaning in Lean 4
 
-def Program.isAtomic : Program → Bool
+def Program.isAtomic : Program → Prop
 | ·_ => true
 | _ => false
 
-def Program.isStar : Program → Bool
+instance : DecidablePred Program.isAtomic := by
+  intro α
+  cases α <;> simp [Program.isAtomic] <;>
+  all_goals
+    try exact instDecidableTrue
+    try exact instDecidableFalse
+
+theorem Program.isAtomic_iff : α.isAtomic ↔ ∃ a, α = (·a : Program) := by
+  cases α <;> simp_all [isAtomic]
+
+def Program.isStar : Program → Prop
 | ∗_ => true
 | _ => false
+
+instance : DecidablePred Program.isStar := by
+  intro α
+  cases α <;> simp [Program.isStar] <;>
+  all_goals
+    try exact instDecidableTrue
+    try exact instDecidableFalse
+
+theorem Program.isStar_iff : α.isStar ↔ ∃ β, α = (∗β) := by
+  cases α <;> simp_all [isStar]
 
 @[simp]
 theorem Formula.boxes_nil : Formula.boxes [] φ = φ := by simp [Formula.boxes]

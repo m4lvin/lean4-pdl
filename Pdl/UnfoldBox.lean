@@ -155,7 +155,7 @@ def P : (α : Program) →  (ℓ : TP α) → List (List Program)
 def Xset (α : Program) (ℓ : TP α) (ψ : Formula) : List Formula :=
   F α ℓ ++ (P α ℓ).map (fun as => Formula.boxes as ψ)
 
-/-- unfold_□(αs,ψ) -/
+/-- unfold_□(α,ψ) -/
 def unfoldBox (α : Program) (φ : Formula) : List (List Formula) :=
   (allTP α).map (fun ℓ => Xset α ℓ φ)
 
@@ -364,14 +364,129 @@ theorem keepFreshP α ℓ (x_notin : x ∉ voc α) : ∀ δ ∈ P α ℓ, x ∉ 
         simp [vocabOfProgram]
         aesop
 
--- NOTE: see `P_goes_down` for proof inspiration, and later make it a consequence of this?
+/-- Depending on α we know what can occur inside `δ ∈ P α ℓ` for unfoldBox.
+The notes also say `δ1n ⊆ progsOf α \ {α}` but we do not include this here. -/
 theorem boxHelperTermination α (ℓ : TP α) :
   ∀ δ ∈ P α ℓ,
       ( α.isAtomic → δ = [α] )
-    ∧ ( ∀ β, α = (∗β) → true )
-    ∧ ( (¬ α.isAtomic ∧ ¬ α.isStar) → δ = [] ∨ ∃ a, ∃ δ1n, δ = [(·a : Program)] ++ δ1n ++ [α] )
+    ∧ ( ∀ β, α = (∗β) → δ = [] ∨ ∃ a, ∃ δ1n, δ = [(·a : Program)] ++ δ1n ++ [∗β] )
+    ∧ ( (¬ α.isAtomic ∧ ¬ α.isStar) → δ = [] ∨ ∃ a, ∃ δ1n, δ = [(·a : Program)] ++ δ1n )
     := by
-  sorry
+  intro δ δ_in
+  cases α
+  all_goals
+    simp_all [Program.isAtomic, Program.isStar, P]
+  case sequence α β =>
+    rcases δ_in with ⟨δ', ⟨ ⟨δ'_in, δ'_ne⟩, def_δ⟩⟩ | δ_in
+    · subst def_δ
+      simp_all
+      have IH := boxHelperTermination α ℓ δ' δ'_in
+      simp_all
+      by_cases α.isAtomic <;> by_cases α.isStar <;> simp_all
+      · exfalso
+        rw [Program.isAtomic_iff] at *
+        rw [Program.isStar_iff] at *
+        rename _ => hyp1
+        rcases hyp1 with ⟨γ, α_def⟩
+        subst α_def
+        rename _ => hyp2
+        rcases hyp2 with ⟨a, α_def⟩
+        cases α_def
+      · rw [Program.isAtomic_iff] at *
+        simp_all
+      · rw [Program.isStar_iff] at *
+        rename _ => hyp
+        rcases hyp with ⟨γ, α_def⟩
+        specialize IH γ
+        simp_all
+        rcases IH with ⟨a, δ1n, δ'_def⟩
+        subst δ'_def
+        simp
+      · rcases IH.2 with ⟨a, δ1n, δ'_def⟩
+        simp_all
+    · by_cases [] ∈ P α ℓ
+      · simp_all
+        have IH := boxHelperTermination β ℓ δ δ_in
+        simp_all
+        by_cases β.isAtomic <;> by_cases β.isStar <;> simp_all
+        · exfalso
+          rw [Program.isAtomic_iff] at *
+          rw [Program.isStar_iff] at *
+          rename _ => hyp1
+          rcases hyp1 with ⟨γ, α_def⟩
+          subst α_def
+          rename _ => hyp2
+          rcases hyp2 with ⟨a, α_def⟩
+          cases α_def
+        · rw [Program.isAtomic_iff] at *
+          simp_all
+        · rw [Program.isStar_iff] at *
+          rename _ => hyp
+          rcases hyp with ⟨γ, α_def⟩
+          specialize IH γ
+          simp_all
+          rcases IH with ⟨a, δ1n, δ'_def⟩ <;> aesop
+      · simp_all
+  case union α β =>
+    cases δ_in
+    case inl δ_in =>
+      have IH := boxHelperTermination α ℓ δ δ_in
+      cases em α.isAtomic <;> cases em α.isStar <;> simp_all
+      all_goals
+        rw [Program.isAtomic_iff] at *
+        rw [Program.isStar_iff] at *
+        simp_all
+      · rename _ => hyp
+        rcases hyp with ⟨γ, α_def⟩
+        specialize IH γ
+        simp_all
+        rcases IH with _ | ⟨a, δ1n, bla ⟩
+        · left; assumption
+        · right
+          use a, δ1n ++ [∗γ]
+    case inr δ_in =>
+      have IH := boxHelperTermination β ℓ δ δ_in
+      cases em β.isAtomic <;> cases em β.isStar <;> simp_all
+      all_goals
+        try rw [Program.isAtomic_iff] at *
+        try simp_all
+      · try rw [Program.isStar_iff] at *
+        rename _ => hyp
+        rcases hyp with ⟨γ, α_def⟩
+        specialize IH γ
+        simp_all
+        rcases IH with _ | ⟨a, δ1n, _⟩
+        · left; assumption
+        · right
+          use a, δ1n ++ [∗γ]
+  case test τ =>
+    cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩)
+    · simp_all
+    · simp_all
+  case star β =>
+    cases δ_in
+    · left; assumption
+    · right
+      rename _ => hyp
+      rcases hyp with ⟨δ', ⟨δ'_in, bla⟩, def_δ⟩
+      subst def_δ
+      have IH := boxHelperTermination β ℓ δ' δ'_in
+      cases em β.isAtomic <;> cases em β.isStar <;> simp_all
+      all_goals
+        try rw [Program.isAtomic_iff] at *
+        try simp_all
+      · try rw [Program.isStar_iff] at *
+        rename _ => hyp
+        rcases hyp with ⟨γ, α_def⟩
+        specialize IH γ α_def
+        simp_all only [not_false_eq_true, implies_true]
+        rcases IH with ⟨a, δ1n, δ'_def⟩
+        subst δ'_def
+        simp_all
+        use δ1n ++ [∗γ]
+        simp
+      · rcases IH.2 with ⟨a, δ1n, δ'_def⟩
+        simp_all
 
 theorem unfoldBoxContent α ψ :
     ∀ X ∈ (unfoldBox α ψ),
