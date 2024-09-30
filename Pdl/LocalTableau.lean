@@ -242,6 +242,14 @@ theorem Option.some_subseteq {O : Option α} : (some x ⊆ O) ↔ some x = O := 
   cases O
   all_goals simp
 
+/-- Instance that is used to say `(O : Olf) \ (O' : Olf)`. -/
+instance Option.insHasSdiff [DecidableEq α] : SDiff (Option α) := SDiff.mk
+  λ o1 del =>
+  match o1, del with
+  | none, _ => none
+  | some f, none => some f
+  | some f, some g => if f = g then none else some f
+
 inductive LocalRuleApp : TNode → List TNode → Type
   | mk {L R : List Formula}
        {C : List TNode}
@@ -251,7 +259,7 @@ inductive LocalRuleApp : TNode → List TNode → Type
        (Ocond : Olf)
        (rule : LocalRule (Lcond, Rcond, Ocond) ress)
        {hC : C = applyLocalRule rule (L,R,O)}
-       (preconditionProof : List.Sublist Lcond L ∧ List.Sublist Rcond R ∧ Ocond ⊆ O)
+       (preconditionProof : List.Subperm Lcond L ∧ List.Subperm Rcond R ∧ Ocond ⊆ O)
        : LocalRuleApp (L,R,O) C
 
 theorem localRuleTruth
@@ -274,7 +282,7 @@ theorem localRuleTruth
         rw [← osTruth, conEval]
         intro f f_in; apply w_LRO
         simp only [List.mem_union_iff, List.mem_append]
-        exact Or.inl $ Or.inl $ List.Sublist.subset preconditionProof f_in
+        exact Or.inl $ Or.inl $ List.Subperm.subset preconditionProof f_in
       rw [disconEval] at this
       rcases this with ⟨Y, Y_in, claim⟩
       use Y
@@ -319,7 +327,7 @@ theorem localRuleTruth
         rw [← osTruth, conEval]
         intro f f_in; apply w_LRO
         simp only [List.mem_union_iff, List.mem_append]
-        exact Or.inl $ Or.inr $ List.Sublist.subset preconditionProof f_in
+        exact Or.inl $ Or.inr $ List.Subperm.subset preconditionProof f_in
       rw [disconEval] at this
       rcases this with ⟨Y, Y_in, claim⟩
       use Y
@@ -577,12 +585,46 @@ instance Formula.WellFoundedLT : WellFoundedLT Formula := by
 
 instance Formula.instPreorderFormula : Preorder Formula := Preorder.lift lmOfFormula
 
+@[simp]
 def node_to_multiset : TNode → Multiset Formula
 | (L, R, none) => (L + R)
 | (L, R, some (Sum.inl (~'χ))) => (L + R + [~ unload χ])
 | (L, R, some (Sum.inr (~'χ))) => (L + R + [~ unload χ])
 
-def preconP_to_submultiset (preconditionProof : List.Sublist Lcond L ∧ List.Sublist Rcond R ∧ Ocond ⊆ O) :
+/-- If each three parts are the same then node_to_multiset is the same. -/
+theorem node_to_multiset_eq_of_three_eq (hL : L = L') (hR : R = R') (hO : O = O') :
+    node_to_multiset (L, R, O) = node_to_multiset (L', R', O') := by
+  aesop
+
+/-- Applying `node_to_multiset` before or after `applyLocalRule` gives the same. -/
+theorem node_to_multiset_of_precon (precon : Lcond.Subperm L ∧ Rcond.Subperm R ∧ Ocond ⊆ O) :
+    node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) + node_to_multiset (Lnew, Rnew, Onew)
+    = node_to_multiset (L.diff Lcond ++ Lnew, R.diff Rcond ++ Rnew, Olf.change O Ocond Onew) := by
+  rcases precon with ⟨Lpre, Rpre, Opre⟩
+  ext φ
+  all_goals cases O <;> try (rename_i cond; cases cond)
+  all_goals cases Onew <;> try (rename_i f; cases f)
+  all_goals cases Ocond <;> try (rename_i cond; cases cond)
+  all_goals simp_all
+  ·
+    sorry
+  all_goals
+    sorry
+
+-- not in mathlib ??? but should be true ???
+def List.Subperm.append {α : Type u_1} {l₁ l₂ r₁ r₂ : List α} :
+    l₁.Subperm l₂ → r₁.Subperm r₂ → (l₁ ++ r₁).Subperm (l₂ ++ r₂) := by
+  intro hl hr
+  induction l₁
+  case nil =>
+    cases l₂ -- not sure if useful
+    · simp_all
+    · simp_all
+      sorry
+  case cons IH =>
+    sorry
+
+theorem preconP_to_submultiset (preconditionProof : List.Subperm Lcond L ∧ List.Subperm Rcond R ∧ Ocond ⊆ O) :
     node_to_multiset (Lcond, Rcond, Ocond) ≤ node_to_multiset (L, R, O) :=
   by
   cases Ocond <;> cases O
@@ -591,28 +633,28 @@ def preconP_to_submultiset (preconditionProof : List.Sublist Lcond L ∧ List.Su
   all_goals
     simp [node_to_multiset] at * -- FIXME avoid non-terminal simp here!
   case none.none =>
-    exact (List.Sublist.append preconditionProof.1 preconditionProof.2).subperm
+    exact (List.Subperm.append preconditionProof.1 preconditionProof.2)
   case none.some.inl =>
     rw [Multiset.le_iff_count]
     intro f
-    have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2) f
+    have := List.Subperm.count_le (List.Subperm.append preconditionProof.1 preconditionProof.2) f
     simp_all
     linarith
   case none.some.inr =>
     rw [Multiset.le_iff_count]
     intro f
-    have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2) f
+    have := List.Subperm.count_le (List.Subperm.append preconditionProof.1 preconditionProof.2) f
     simp_all
     linarith
   case some.some.inl.inl.neg =>
     rw [Multiset.le_iff_count]
     intro f
-    have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2.1) f
+    have := List.Subperm.count_le (List.Subperm.append preconditionProof.1 preconditionProof.2.1) f
     simp_all
   case some.some.inr.neg a =>
     rw [Multiset.le_iff_count]
     intro f
-    have := List.Sublist.count_le (List.Sublist.append preconditionProof.1 preconditionProof.2.1) f
+    have := List.Subperm.count_le (List.Subperm.append preconditionProof.1 preconditionProof.2.1) f
     cases g <;> (rename_i nlform; cases nlform; simp_all)
 
 @[simp]
@@ -864,42 +906,25 @@ theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
   use Z
   -- claim that the other definition would have been the same:
   have Z_eq : Z = node_to_multiset RES - node_to_multiset (Lnew, Rnew, Onew) := by
-    -- TODO, unsure about approach here
-    -- Mostly this needs reasoning about Multisets
-    -- Note that by going to .count we get `-` truncating to 0.
-    -- Maybe similar to the proof of `preconP_to_submultiset` ?
     unfold_let Z
-    /-
-    apply eq_of_le_of_le
-    · rw [tsub_le_iff_right]
-      rw [← def_RES]
-      rw [Multiset.le_iff_count]
-      intro φ
-      simp [node_to_multiset]
-      rcases O with _ | (f | f) <;> rcases Ocond with _ | (f | f)
-      all_goals
-        simp
-        sorry
-    ·
-      sorry
-    -/
-    sorry
+    have : node_to_multiset RES = node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) + node_to_multiset (Lnew, Rnew, Onew) := by
+      rw [node_to_multiset_of_precon preconP]
+      subst def_RES
+      simp
+    rw [this]
+    subst def_RES
+    simp_all only [Option.instHasSubsetOption, add_tsub_cancel_right]
   split_ands
   · exact (LocalRule.cond_non_empty rule : node_to_multiset (Lcond, Rcond, Ocond) ≠ ∅)
   · rw [Z_eq]
     apply Multiset.sub_add_of_subset_eq
-    cases Onew
-    -- FIXME: clean this up / use fewer non-terminal simp here
-    all_goals try (rename_i f; cases f)
+    -- This works but be cleaner with fewer non-terminal simp.
+    all_goals cases O <;> try (rename_i cond; cases cond)
+    all_goals cases Onew <;> try (rename_i f; cases f)
+    all_goals cases Ocond <;> try (rename_i cond; cases cond)
     all_goals simp_all
-    all_goals cases O
-    all_goals try (rename_i cond; cases cond)
-    all_goals cases Ocond
-    all_goals try (rename_i cond; cases cond)
-    all_goals try simp_all
     all_goals subst_eqs
     all_goals
-      unfold node_to_multiset
       simp only []
       rw [Multiset.le_iff_count]
       intro φ
