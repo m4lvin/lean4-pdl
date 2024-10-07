@@ -611,18 +611,28 @@ theorem node_to_multiset_of_precon (precon : Lcond.Subperm L ∧ Rcond.Subperm R
   all_goals
     sorry
 
--- not in mathlib ??? but should be true ???
+-- mathlib this?
 def List.Subperm.append {α : Type u_1} {l₁ l₂ r₁ r₂ : List α} :
     l₁.Subperm l₂ → r₁.Subperm r₂ → (l₁ ++ r₁).Subperm (l₂ ++ r₂) := by
   intro hl hr
-  induction l₁
+  cases l₁
   case nil =>
-    cases l₂ -- not sure if useful
-    · simp_all
-    · simp_all
-      sorry
-  case cons IH =>
-    sorry
+    simp
+    apply List.Subperm.trans hr
+    induction l₂
+    · simp
+      exact Subperm.refl r₂
+    case cons IH =>
+      simp_all
+      apply List.Subperm.cons_right
+      exact IH
+  case cons h t =>
+    have : (h :: t ++ r₁).Subperm (l₂ ++ r₁) := by
+      rw [List.subperm_append_right]
+      exact hl
+    apply List.Subperm.trans this
+    rw [List.subperm_append_left]
+    exact hr
 
 theorem preconP_to_submultiset (preconditionProof : List.Subperm Lcond L ∧ List.Subperm Rcond R ∧ Ocond ⊆ O) :
     node_to_multiset (Lcond, Rcond, Ocond) ≤ node_to_multiset (L, R, O) :=
