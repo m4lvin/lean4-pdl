@@ -752,6 +752,34 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
     · subst def_ψ
       simp [lmOfFormula]
 
+theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ H α) {ψ} (in_Fs: ψ ∈ Fs) :
+    lmOfFormula ψ < lmOfFormula (~⌈α⌉φ) := by
+  cases α <;> simp [lmOfFormula]
+  · simp_all [H]
+  case sequence α β =>
+    simp_all [H, testsOfProgram, List.attach_map_val]
+    have IHα := H_goes_down α
+    have IHβ := H_goes_down β
+    sorry
+  case union α β =>
+    have IHα := H_goes_down α
+    have IHβ := H_goes_down β
+    sorry
+  case star α =>
+    simp [H] at in_H
+    rcases in_H with _ | ⟨l, ⟨Fs', δ', in_H', def_l⟩, in_l⟩
+    · simp_all only [List.not_mem_nil]
+    · subst def_l
+      by_cases δ' = []
+      · simp_all only [List.nil_append, ite_true, List.not_mem_nil]
+      · simp_all only [ite_false, List.mem_singleton, Prod.mk.injEq, testsOfProgram]
+        cases in_l
+        subst_eqs
+        have IHα := H_goes_down α φ in_H' in_Fs
+        cases α <;> simp_all only [lmOfFormula, not_lt_zero']
+  case test τ =>
+    simp_all [H, testsOfProgram, List.attach_map_val]
+
 theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : List Formula}
     (α_non_atomic : ¬ α.isAtomic)
     (X_in : X ∈ unfoldDiamond α φ)
@@ -759,15 +787,18 @@ theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X 
     : lmOfFormula ψ < lmOfFormula (~⌈α⌉φ) :=
   by
   simp [unfoldDiamond,Yset] at X_in
-  rcases X_in with ⟨F, δ, in_H, def_X⟩
+  rcases X_in with ⟨Fs, δ, in_H, def_X⟩
   subst def_X
   simp only [List.mem_union_iff, List.mem_singleton] at ψ_in_X
   cases ψ_in_X
-  · sorry
+  case inl ψ_in =>
+    exact H_goes_down α φ in_H ψ_in
   · subst_eqs
     cases α <;> simp [lmOfFormula, Program.isAtomic] at *
     all_goals
       rw [List.attach_map_val]
+      -- Need Lemma that tells us δ starts with something atomic.
+      -- `unfoldDiamondContent`, analogous to `unfoldBoxContent`?
       sorry
 
 theorem LocalRule.Decreases (rule : LocalRule X ress) :
