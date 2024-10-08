@@ -500,7 +500,9 @@ theorem boxHelperTermination α (ℓ : TP α) :
         simp_all
 
 /-- Where formulas in the unfolding can come from.
-NOTE: the paper version also says φ ∈ fischerLadner [⌈α⌉ψ], not done here. -/
+NOTE: the paper version says two things more which we omit here:
+ - `φ ∈ fischerLadner [⌈α⌉ψ]`
+ - `∀ γ ∈ δ, γ ∈ subprograms α` (in the last conjunct) -/
 theorem unfoldBoxContent α ψ :
     ∀ X ∈ (unfoldBox α ψ),
     ∀ φ ∈ X,
@@ -508,7 +510,7 @@ theorem unfoldBoxContent α ψ :
         -- ∧
         (  (φ = ψ)
          ∨ (∃ τ ∈ testsOfProgram α, φ = (~τ))
-         ∨ (∃ (a : Nat), ∃ δ, φ = (⌈·a⌉⌈⌈δ⌉⌉ψ) ∧ ∀ γ ∈ δ, γ ∈ subprograms α))
+         ∨ (∃ (a : Nat), ∃ δ, φ = (⌈·a⌉⌈⌈δ⌉⌉ψ) /- ∧ ∀ γ ∈ δ, γ ∈ subprograms α -/))
     := by
   intro X X_in φ φ_in_X
   simp [unfoldBox, Xset] at X_in
@@ -524,16 +526,16 @@ theorem unfoldBoxContent α ψ :
       case union α β =>
         rw [F_mem_iff_neg, F_mem_iff_neg] at φ_in_F
         rcases φ_in_F with
-          (⟨τ, τ_in, φ_def, not_ℓ_τ⟩ | ⟨τ, τ_in, φ_def, not_ℓ_τ⟩)
+          (⟨τ, τ_in, φ_def, _⟩ | ⟨τ, τ_in, φ_def, _⟩)
           <;> simp_all
       case sequence α β =>
         rw [F_mem_iff_neg, F_mem_iff_neg] at φ_in_F
         rcases φ_in_F with
-          (⟨τ, τ_in, φ_def, not_ℓ_τ⟩ | ⟨τ, τ_in, φ_def, not_ℓ_τ⟩)
+          (⟨τ, τ_in, φ_def, _⟩ | ⟨τ, τ_in, φ_def, _⟩)
           <;> simp_all
       case star β =>
         rw [F_mem_iff_neg] at φ_in_F
-        rcases φ_in_F with (⟨τ, τ_in, φ_def, not_ℓ_τ⟩)
+        rcases φ_in_F with (⟨τ, τ_in, φ_def, _⟩)
         simp_all
       case test τ =>
         simp only [allTP, List.mem_map, List.mem_sublists] at *
@@ -545,25 +547,29 @@ theorem unfoldBoxContent α ψ :
       case atom_prog a =>
         clear bht
         right
-        use a, []
+        use []
         simp
       case sequence α β =>
-        -- cases δ_in -- ??
         rcases bht with _ | ⟨a, δ1n, δ_def⟩
         · subst_eqs; simp
         · subst δ_def
           simp_all
           right
-          use a, δ1n
-          simp
-          -- need some IH after all? Or improve `bht` to also give `∈ subprograms`?
-          have := unfoldBoxContent α ψ
-          have := unfoldBoxContent β ψ
-          sorry
+          use δ1n
       case union α β =>
-        sorry
+        rcases bht with _ | ⟨a, δ1n, δ_def⟩
+        · subst_eqs; simp
+        · subst δ_def
+          simp_all
+          right
+          use δ1n
       case star β =>
-        sorry
+        rcases bht with _ | ⟨a, δ1n, δ_def⟩
+        · subst_eqs; simp
+        · subst δ_def
+          simp_all
+          right
+          use δ1n ++ [∗β]
       case test τ =>
         simp only [allTP, List.mem_map, List.mem_sublists] at *
         by_cases ℓ ⟨τ, (by simp : τ ∈ [τ])⟩ <;> simp_all
