@@ -6,7 +6,7 @@ import Mathlib.Tactic.Linarith
 import Pdl.Substitution
 import Pdl.Fresh
 import Pdl.Star
-import Pdl.FischerLadner
+-- import Pdl.FischerLadner
 
 open HasVocabulary
 
@@ -76,62 +76,73 @@ theorem signature_iff {W} {M : KripkeModel W} {w : W} :
       aesop
   · aesop
 
--- Now come the three facts about test profiles and signatures.
+-- Now come two out of the three facts about test profiles and signatures.
 
 -- unused
-theorem top_equiv_disj_TP {L} : ∀ α, L = testsOfProgram α → tautology (dis ((allTP α).map (signature α))) := by
+theorem top_equiv_disj_TP : ∀ α, tautology (dis ((allTP α).map (signature α))) := by
   intro α
-  intro L_def
   intro W M w
   rw [disEval]
-  induction L generalizing α -- probably bad idea, try `cases α` at start instead?
-  case nil =>
-    simp [TP,signature,allTP]
-    rw [← L_def]
-    simp
-  case cons τ L IH =>
-    simp [TP,signature,allTP,conEval] at *
-    rw [← L_def]
-    cases em (evaluate M w τ)
-    · sorry
-    · sorry
+  simp only [List.mem_map, exists_exists_and_eq_and]
+  have := Classical.propDecidable
+  let ℓ : TP α := fun τ => evaluate M w τ
+  use ℓ
+  constructor
+  · apply allTP_mem
+  · simp only [signature, conEval, List.mem_map, List.mem_attach, true_and, Subtype.exists,
+    forall_exists_index]
+    intro f τ τ_in def_f
+    subst def_f
+    aesop
 
 -- unused?
-theorem signature_conbot_iff_neq : contradiction (signature α ℓ ⋀ signature α ℓ') ↔  ℓ ≠ ℓ' := by
+theorem signature_contradiction_of_neq_TPs {ℓ ℓ' : TP α} :
+    ℓ ≠ ℓ' → contradiction (signature α ℓ ⋀ signature α ℓ') := by
   simp only [ne_eq]
   rw [TP_eq_iff]
-  constructor
-  · intro contrasign
-    simp_all [TP, contradiction, signature_iff]
-    -- QUESTION: do we need to choose a model here? How to do it?
-    -- specialize contrasign Bool sorry false -- ??
-    sorry
-  · intro ldiff
-    intro W M w
-    simp_all only [List.mem_attach, forall_true_left, Subtype.forall, not_forall, evaluate, not_and]
-    rcases ldiff with ⟨τ, τ_in, disagree⟩
-    simp_all [signature, conEval]
-    intro ℓ_conform
-    cases em (ℓ ⟨τ,τ_in⟩)
-    · specialize ℓ_conform τ τ τ_in
-      simp_all only [ite_true, forall_true_left]
-      use (~τ)
-      constructor
-      · use τ, τ_in
-        simp_all
-      · simp
-        assumption
-    · specialize ℓ_conform (~τ) τ τ_in
-      simp_all only [Bool.not_eq_true, ite_false, evaluate, forall_true_left]
-      use τ
-      constructor
-      · use τ, τ_in
-        simp_all
-      · assumption
+  intro ldiff
+  intro W M w
+  simp_all only [List.mem_attach, forall_true_left, Subtype.forall, not_forall, evaluate, not_and]
+  rcases ldiff with ⟨τ, τ_in, disagree⟩
+  simp_all [signature, conEval]
+  intro ℓ_conform
+  cases em (ℓ ⟨τ,τ_in⟩)
+  · specialize ℓ_conform τ τ τ_in
+    simp_all only [ite_true, forall_true_left]
+    use (~τ)
+    constructor
+    · use τ, τ_in
+      simp_all
+    · simp
+      assumption
+  · specialize ℓ_conform (~τ) τ τ_in
+    simp_all only [Bool.not_eq_true, ite_false, evaluate, forall_true_left]
+    use τ
+    constructor
+    · use τ, τ_in
+      simp_all
+    · assumption
 
 -- unused?
 theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α ℓ ≡ ψ ⋀ signature α ℓ := by
-  sorry
+  constructor
+  · intro phi_iff_psi
+    intro ℓ
+    intro W M w
+    simp only [evaluate, and_congr_left_iff]
+    specialize phi_iff_psi W M w
+    tauto
+  · intro hyp
+    intro W M w
+    have := Classical.propDecidable
+    let ℓ : TP α := fun τ => evaluate M w τ
+    specialize hyp ℓ W M w
+    simp at hyp
+    apply hyp
+    unfold_let ℓ
+    simp [signature, conEval]
+    intro τ _
+    split <;> simp_all
 
 -- ### Boxes: F, P, X and unfoldBox
 
@@ -488,11 +499,14 @@ theorem boxHelperTermination α (ℓ : TP α) :
       · rcases IH.2 with ⟨a, δ1n, δ'_def⟩
         simp_all
 
+/-- Where formulas in the unfolding can come from.
+NOTE: the paper version also says φ ∈ fischerLadner [⌈α⌉ψ], not done here. -/
 theorem unfoldBoxContent α ψ :
     ∀ X ∈ (unfoldBox α ψ),
     ∀ φ ∈ X,
-        φ ∈ fischerLadner [⌈α⌉ψ]
-      ∧ (  (φ = ψ)
+        -- φ ∈ fischerLadner [⌈α⌉ψ] -- not done for now.
+        -- ∧
+        (  (φ = ψ)
          ∨ (∃ τ ∈ testsOfProgram α, φ = (~τ))
          ∨ (∃ (a : Nat), ∃ δ, φ = (⌈·a⌉⌈⌈δ⌉⌉ψ) ∧ ∀ γ ∈ δ, γ ∈ subprograms α))
     := by
@@ -501,8 +515,8 @@ theorem unfoldBoxContent α ψ :
   rcases X_in with ⟨ℓ, ℓ_in, def_X⟩
   subst def_X
   simp only [List.mem_append, List.mem_map] at φ_in_X
-  constructor
-  · sorry -- FL
+  -- constructor
+  -- · sorry -- φ ∈ fischerLadner [⌈α⌉ψ]
   · rcases φ_in_X with φ_in_F | ⟨δ, δ_in, def_φ⟩
     · -- φ is in F so it must be a test
       right
