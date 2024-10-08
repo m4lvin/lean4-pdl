@@ -757,14 +757,50 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ H α) {ψ} (i
   cases α <;> simp [lmOfFormula]
   · simp_all [H]
   case sequence α β =>
-    simp_all [H, testsOfProgram, List.attach_map_val]
-    have IHα := H_goes_down α
-    have IHβ := H_goes_down β
-    sorry
+    simp [H] at in_H
+    rcases in_H with ⟨l, ⟨Fs', δ', in_H, def_l⟩, in_l⟩
+    · subst def_l
+      by_cases δ' = []
+      · subst_eqs
+        simp_all only [List.nil_append, ite_true, List.mem_join, List.mem_map, Prod.exists]
+        rcases in_l with ⟨l, ⟨Fs'', δ'', in_Hβ, def_l⟩, in_l⟩
+        subst def_l
+        simp only [List.mem_singleton, Prod.mk.injEq] at in_l
+        cases in_l
+        subst_eqs
+        simp_all only [List.mem_union_iff]
+        rcases in_Fs with in_Fs'|in_Fs''
+        · have IHα := H_goes_down α φ in_H in_Fs'
+          cases α
+          all_goals
+            simp_all [testsOfProgram, lmOfFormula, List.attach_map_val]
+            try linarith
+        · have IHβ := H_goes_down β φ in_Hβ in_Fs''
+          cases β
+          all_goals
+            simp_all [H, testsOfProgram, lmOfFormula, List.attach_map_val]
+            try linarith
+      · simp_all [testsOfProgram]
+        cases in_l
+        subst_eqs
+        have IHα := H_goes_down α φ in_H in_Fs
+        cases α
+        all_goals
+          simp_all [H, testsOfProgram, lmOfFormula, List.attach_map_val]
+          try linarith
   case union α β =>
-    have IHα := H_goes_down α
-    have IHβ := H_goes_down β
-    sorry
+    simp [H] at in_H
+    rcases in_H with hyp|hyp
+    · have IHα := H_goes_down α φ hyp in_Fs
+      cases α
+      all_goals
+        simp_all [H, testsOfProgram, lmOfFormula, List.attach_map_val]
+        try linarith
+    · have IHβ := H_goes_down β φ hyp in_Fs
+      cases β
+      all_goals
+        simp_all [H, testsOfProgram, lmOfFormula, List.attach_map_val]
+        try linarith
   case star α =>
     simp [H] at in_H
     rcases in_H with _ | ⟨l, ⟨Fs', δ', in_H', def_l⟩, in_l⟩
