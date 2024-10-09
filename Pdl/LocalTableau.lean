@@ -590,21 +590,6 @@ theorem node_to_multiset_eq_of_three_eq (hL : L = L') (hR : R = R') (hO : O = O'
     node_to_multiset (L, R, O) = node_to_multiset (L', R', O') := by
   aesop
 
-/-- Applying `node_to_multiset` before or after `applyLocalRule` gives the same. -/
-theorem node_to_multiset_of_precon (precon : Lcond.Subperm L ∧ Rcond.Subperm R ∧ Ocond ⊆ O) :
-    node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) + node_to_multiset (Lnew, Rnew, Onew)
-    = node_to_multiset (L.diff Lcond ++ Lnew, R.diff Rcond ++ Rnew, Olf.change O Ocond Onew) := by
-  rcases precon with ⟨Lpre, Rpre, Opre⟩
-  ext φ
-  all_goals cases O <;> try (rename_i cond; cases cond)
-  all_goals cases Onew <;> try (rename_i f; cases f)
-  all_goals cases Ocond <;> try (rename_i cond; cases cond)
-  all_goals simp_all
-  ·
-    sorry
-  all_goals
-    sorry
-
 -- mathlib this?
 def List.Subperm.append {α : Type u_1} {l₁ l₂ r₁ r₂ : List α} :
     l₁.Subperm l₂ → r₁.Subperm r₂ → (l₁ ++ r₁).Subperm (l₂ ++ r₂) := by
@@ -660,6 +645,20 @@ theorem preconP_to_submultiset (preconditionProof : List.Subperm Lcond L ∧ Lis
     intro f
     have := List.Subperm.count_le (List.Subperm.append preconditionProof.1 preconditionProof.2.1) f
     cases g <;> (rename_i nlform; cases nlform; simp_all)
+
+/-- Applying `node_to_multiset` before or after `applyLocalRule` gives the same. -/
+theorem node_to_multiset_of_precon (precon : Lcond.Subperm L ∧ Rcond.Subperm R ∧ Ocond ⊆ O) :
+    node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) + node_to_multiset (Lnew, Rnew, Onew)
+    = node_to_multiset (L.diff Lcond ++ Lnew, R.diff Rcond ++ Rnew, Olf.change O Ocond Onew) := by
+  have := preconP_to_submultiset precon -- TODO: can we use this to avoid the `-`?
+  rcases precon with ⟨Lpre, Rpre, Opre⟩
+  ext φ
+  all_goals cases O <;> try (rename_i cond; cases cond)
+  all_goals cases Onew <;> try (rename_i f; cases f)
+  all_goals cases Ocond <;> try (rename_i cond; cases cond)
+  all_goals simp_all
+  all_goals
+    sorry
 
 @[simp]
 def lt_TNode (X : TNode) (Y : TNode) := MultisetDMLT (node_to_multiset X) (node_to_multiset Y)
