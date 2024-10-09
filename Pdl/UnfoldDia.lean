@@ -21,6 +21,102 @@ def H : Program → List (List Formula × List Program)
           ).join
 | ∗α => [ (∅,[]) ] ∪ ((H α).map (fun (F,δ) => if δ = [] then [] else [(F, δ ++ [∗α])])).join
 
+/-- A test formula coming from `H` comes from a test in the given program. -/
+theorem H_mem_test α φ {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ H α) (φ_in_Fs: φ ∈ Fs) :
+    ∃ τ, ∃ (_ : τ ∈ testsOfProgram α), φ = τ := by
+  cases α
+  case atom_prog =>
+    simp_all only [H, List.mem_singleton, Prod.mk.injEq, testsOfProgram, List.not_mem_nil,
+      IsEmpty.exists_iff, exists_const]
+  case union α β =>
+    simp_all only [H, List.mem_union_iff, testsOfProgram, List.mem_append, exists_prop,
+      exists_eq_right']
+    rcases in_H with in_Hα | in_Hβ
+    · have IHα := H_mem_test α φ in_Hα φ_in_Fs
+      aesop
+    · have IHβ := H_mem_test β φ in_Hβ φ_in_Fs
+      aesop
+  case sequence α β =>
+    simp_all only [H, List.mem_join, List.mem_map, Prod.exists, testsOfProgram, List.mem_append,
+      exists_prop, exists_eq_right']
+    rcases in_H with ⟨l, ⟨Fs', δ', in_Hα, def_l⟩ , in_l⟩
+    subst def_l
+    by_cases δ' = []
+    · simp_all only [List.nil_append, ite_true, List.mem_join, List.mem_map, Prod.exists]
+      subst_eqs
+      rcases in_l with ⟨l', ⟨Fs'', δ'', in_Hβ, def_l'⟩ , in_l'⟩
+      subst def_l'
+      simp_all only [List.mem_singleton, Prod.mk.injEq, List.mem_union_iff]
+      cases in_l'
+      subst_eqs
+      rcases φ_in_Fs with φ_in_Fs' | φ_in_Fs''
+      · have IHβ := H_mem_test α φ in_Hα φ_in_Fs'
+        aesop
+      · have IHβ := H_mem_test β φ in_Hβ φ_in_Fs''
+        aesop
+    · simp_all only [ite_false, List.mem_singleton, Prod.mk.injEq]
+      cases in_l
+      subst_eqs
+      have IHα := H_mem_test α φ in_Hα φ_in_Fs
+      aesop
+  case star β =>
+    simp_all only [H, List.empty_eq, List.cons_union, List.nil_union, List.mem_insert_iff,
+      Prod.mk.injEq, List.mem_join, List.mem_map, Prod.exists, testsOfProgram, exists_prop,
+      exists_eq_right']
+    rcases in_H with both_nil | ⟨l, ⟨Fs', δ', in_Hβ, def_l⟩, in_l⟩
+    · exfalso; aesop
+    · by_cases δ' = []
+      · subst_eqs
+        simp_all only [List.nil_append, ite_true, List.not_mem_nil]
+      · subst def_l
+        simp_all only [ite_false, List.mem_singleton, Prod.mk.injEq]
+        cases in_l
+        subst_eqs
+        have IHβ := H_mem_test β φ in_Hβ φ_in_Fs
+        aesop
+  case test τ =>
+    simp_all [H, testsOfProgram]
+
+/-- A list of programs coming from `H` is either empty or starts with an atom. -/
+theorem H_mem_sequence α {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ H α) :
+    δ = [] ∨ ∃ a δ', δ = (·a : Program) :: δ' := by
+  cases α
+  case atom_prog =>
+    simp_all [H]
+  case union α β =>
+    simp_all [H]
+    rcases in_H with in_Hα | in_Hβ
+    · have IHα := H_mem_sequence α in_Hα
+      aesop
+    · have IHβ := H_mem_sequence β in_Hβ
+      aesop
+  case sequence α β =>
+    simp_all only [H, List.mem_join, List.mem_map, Prod.exists]
+    rcases in_H with ⟨l, ⟨Fs', δ', in_Hα, def_l⟩ , in_l⟩
+    subst def_l
+    by_cases δ' = []
+    · simp_all only [List.nil_append, ite_true, List.mem_join, List.mem_map, Prod.exists]
+      rcases in_l with ⟨l', ⟨Fs'', δ'', in_Hβ, def_l'⟩, in_l'⟩
+      subst def_l'
+      simp_all only [List.mem_singleton, Prod.mk.injEq]
+      have IHβ := H_mem_sequence β in_Hβ
+      aesop
+    · have IHα := H_mem_sequence α in_Hα
+      aesop
+  case star β =>
+    simp_all only [H, List.empty_eq, List.cons_union, List.nil_union, List.mem_insert_iff,
+      Prod.mk.injEq, List.mem_join, List.mem_map, Prod.exists]
+    rcases in_H with ⟨Fs_nil, δ_nil⟩ | ⟨l, ⟨Fs', δ', in_Hβ, def_l⟩ , in_l⟩
+    · subst_eqs
+      aesop
+    · subst def_l
+      by_cases δ' = []
+      · aesop
+      · have IHβ := H_mem_sequence β in_Hβ
+        aesop
+  case test τ =>
+    simp_all [H]
+
 theorem keepFreshH α : x ∉ voc α → ∀ F δ, (F,δ) ∈ H α → x ∉ voc F ∧ x ∉ voc δ := by
   intro x_notin F δ Fδ_in_H
   cases α
@@ -111,6 +207,30 @@ def Yset : (List Formula × List Program) → Formula → List Formula
 /-- Φ_◇(α,ψ) -/
 def unfoldDiamond (α : Program) (φ : Formula) : List (List Formula) :=
   (H α).map (fun Fδ => Yset Fδ φ)
+
+/-- Where formulas in the diamond unfolding can come from. Inspired by unfoldBoxContent. -/
+theorem unfoldDiamondContent α ψ :
+    ∀ X ∈ (unfoldDiamond α ψ),
+    ∀ φ ∈ X,
+        (  (φ = (~ψ))
+         ∨ (∃ τ ∈ testsOfProgram α, φ = τ)
+         ∨ (∃ (a : Nat), ∃ δ, φ = (~⌈·a⌉⌈⌈δ⌉⌉ψ)))
+    := by
+  intro X X_in φ φ_in_X
+  simp [unfoldDiamond, Yset] at X_in
+  rcases X_in with ⟨Fs, δ, in_H, def_X⟩
+  subst def_X
+  simp at φ_in_X
+  rcases φ_in_X with φ_in_Fs | φ_def
+  · -- φ is in F so it must be a test
+    right
+    left
+    have := H_mem_test α φ in_H φ_in_Fs
+    rcases this with ⟨τ, τ_in, φ_def⟩
+    use τ
+  · -- φ is made from some δ from H α
+    have := H_mem_sequence α in_H
+    aesop
 
 theorem guardToStarDiamond (x : Nat)
     (x_notin_beta : Sum.inl x ∉ HasVocabulary.voc β)
