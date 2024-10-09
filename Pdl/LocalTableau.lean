@@ -554,7 +554,7 @@ def lmOfFormula : (f : Formula) → Nat
 | ~~φ => 1 + lmOfFormula φ
 | ~(φ⋀ψ) => 1 + lmOfFormula (~φ) + lmOfFormula (~ψ)
 | ~⌈·_⌉ _ => 0 -- No more local steps
-| ~⌈α⌉φ => 1 + lmOfFormula φ -- unfoldDia
+| ~⌈α⌉φ => 1 + lmOfFormula (~φ) -- unfoldDia
              + ((testsOfProgram α).attach.map (fun τ => lmOfFormula τ.1)).sum
 decreasing_by
   all_goals simp_wf
@@ -563,15 +563,9 @@ decreasing_by
     have := testsOfProgram_sizeOf_lt _ _ τ.2
     linarith
 
-/-
-def boxTestSumOf α := ((testsOfProgram α).attach.map (fun ⟨τ, _τ_in⟩ => lmOfFormula τ)).sum
-
-def diaTestSumOf α := ((testsOfProgram α).attach.map (fun ⟨τ, _τ_in⟩ => lmOfFormula (~τ))).sum
-
--- fox box, also needed for diamond?
-theorem testsOfProgram_lmOf_lt α : ∀ τ ∈ testsOfProgram α, lmOfFormula (~τ) < boxTestSumOf α := by
-  sorry
--/
+theorem lmOfFormula_lt_box_of_nonAtom (h : ¬ α.isAtomic) :
+    lmOfFormula (~φ) < lmOfFormula (~⌈α⌉φ) := by
+  cases α <;> simp_all [List.attach_map_val, Program.isAtomic, testsOfProgram] <;> linarith
 
 -- FIXME Only need this here, be careful with exporting this?
 @[simp]
@@ -818,23 +812,57 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ H α) {ψ} (i
 
 -- TODO move to `UnfoldDia.lean`
 theorem H_mem_test α φ {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ H α) (φ_in_Fs: φ ∈ Fs) :
-    ∃ τ, ∃ (h : τ ∈ testsOfProgram α), φ = τ := by
+    ∃ τ, ∃ (_ : τ ∈ testsOfProgram α), φ = τ := by
   cases α
   case atom_prog =>
-    simp_all [H, testsOfProgram]
+    simp_all only [H, List.mem_singleton, Prod.mk.injEq, testsOfProgram, List.not_mem_nil,
+      IsEmpty.exists_iff, exists_const]
   case union α β =>
-    simp_all [H, testsOfProgram]
+    simp_all only [H, List.mem_union_iff, testsOfProgram, List.mem_append, exists_prop,
+      exists_eq_right']
     rcases in_H with in_Hα | in_Hβ
     · have IHα := H_mem_test α φ in_Hα φ_in_Fs
       aesop
     · have IHβ := H_mem_test β φ in_Hβ φ_in_Fs
       aesop
   case sequence α β =>
-    simp_all [H, testsOfProgram]
-    sorry
+    simp_all only [H, List.mem_join, List.mem_map, Prod.exists, testsOfProgram, List.mem_append,
+      exists_prop, exists_eq_right']
+    rcases in_H with ⟨l, ⟨Fs', δ', in_Hα, def_l⟩ , in_l⟩
+    subst def_l
+    by_cases δ' = []
+    · simp_all only [List.nil_append, ite_true, List.mem_join, List.mem_map, Prod.exists]
+      subst_eqs
+      rcases in_l with ⟨l', ⟨Fs'', δ'', in_Hβ, def_l'⟩ , in_l'⟩
+      subst def_l'
+      simp_all only [List.mem_singleton, Prod.mk.injEq, List.mem_union_iff]
+      cases in_l'
+      subst_eqs
+      rcases φ_in_Fs with φ_in_Fs' | φ_in_Fs''
+      · have IHβ := H_mem_test α φ in_Hα φ_in_Fs'
+        aesop
+      · have IHβ := H_mem_test β φ in_Hβ φ_in_Fs''
+        aesop
+    · simp_all only [ite_false, List.mem_singleton, Prod.mk.injEq]
+      cases in_l
+      subst_eqs
+      have IHα := H_mem_test α φ in_Hα φ_in_Fs
+      aesop
   case star β =>
-    simp_all [H, testsOfProgram]
-    sorry
+    simp_all only [H, List.empty_eq, List.cons_union, List.nil_union, List.mem_insert_iff,
+      Prod.mk.injEq, List.mem_join, List.mem_map, Prod.exists, testsOfProgram, exists_prop,
+      exists_eq_right']
+    rcases in_H with both_nil | ⟨l, ⟨Fs', δ', in_Hβ, def_l⟩, in_l⟩
+    · exfalso; aesop
+    · by_cases δ' = []
+      · subst_eqs
+        simp_all only [List.nil_append, ite_true, List.not_mem_nil]
+      · subst def_l
+        simp_all only [ite_false, List.mem_singleton, Prod.mk.injEq]
+        cases in_l
+        subst_eqs
+        have IHβ := H_mem_test β φ in_Hβ φ_in_Fs
+        aesop
   case test τ =>
     simp_all [H, testsOfProgram]
 
@@ -852,10 +880,21 @@ theorem H_mem_sequence α {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ H α) :
     · have IHβ := H_mem_sequence β in_Hβ
       aesop
   case sequence α β =>
-    simp_all [H]
-    sorry
+    simp_all only [H, List.mem_join, List.mem_map, Prod.exists]
+    rcases in_H with ⟨l, ⟨Fs', δ', in_Hα, def_l⟩ , in_l⟩
+    subst def_l
+    by_cases δ' = []
+    · simp_all only [List.nil_append, ite_true, List.mem_join, List.mem_map, Prod.exists]
+      rcases in_l with ⟨l', ⟨Fs'', δ'', in_Hβ, def_l'⟩, in_l'⟩
+      subst def_l'
+      simp_all only [List.mem_singleton, Prod.mk.injEq]
+      have IHβ := H_mem_sequence β in_Hβ
+      aesop
+    · have IHα := H_mem_sequence α in_Hα
+      aesop
   case star β =>
-    simp_all [H]
+    simp_all only [H, List.empty_eq, List.cons_union, List.nil_union, List.mem_insert_iff,
+      Prod.mk.injEq, List.mem_join, List.mem_map, Prod.exists]
     rcases in_H with ⟨Fs_nil, δ_nil⟩ | ⟨l, ⟨Fs', δ', in_Hβ, def_l⟩ , in_l⟩
     · subst_eqs
       aesop
@@ -903,17 +942,45 @@ theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X 
   by
   have udc := unfoldDiamondContent _ _ _ X_in _ ψ_in_X
   rcases udc with ψ_def | ⟨τ, τ_in, ψ_def⟩ | ⟨a, δ, ψ_def⟩ <;> subst ψ_def
-  · cases α <;> simp_all [Program.isAtomic]
-    all_goals
-      sorry
+  · exact lmOfFormula_lt_box_of_nonAtom α_non_atomic
   · cases α <;> simp_all [Program.isAtomic, testsOfProgram, List.attach_map_val]
-    -- these three should be easy?
-    · cases τ_in
-      <;> sorry
-    · cases τ_in
-      <;> sorry
-    · sorry
-  · simp
+    case sequence α β =>
+      suffices lmOfFormula ψ < (List.map lmOfFormula (testsOfProgram (α;'β))).sum.succ by
+        simp_all [testsOfProgram]
+        linarith
+      suffices ∃ τ' ∈ testsOfProgram (α;'β), lmOfFormula ψ < 1 + lmOfFormula τ' by
+        rw [Nat.lt_succ]
+        -- TODO: use `List.le_sum_of_mem` from newer mathlib also here?
+        apply List.single_le_sum (by simp) _
+        simp_all [testsOfProgram]
+        aesop
+      simp_all [testsOfProgram]
+      aesop
+    case union α β =>
+      suffices lmOfFormula ψ < (List.map lmOfFormula (testsOfProgram (α⋓β))).sum.succ by
+        simp_all [testsOfProgram]
+        linarith
+      suffices ∃ τ' ∈ testsOfProgram (α;'β), lmOfFormula ψ < 1 + lmOfFormula τ' by
+        rw [Nat.lt_succ]
+        -- TODO: use `List.le_sum_of_mem` from newer mathlib also here?
+        apply List.single_le_sum (by simp) _
+        simp_all [testsOfProgram]
+        aesop
+      simp_all [testsOfProgram]
+      aesop
+    case star β =>
+      suffices lmOfFormula ψ < (List.map lmOfFormula (testsOfProgram (∗β))).sum.succ by
+        simp_all [testsOfProgram]
+        linarith
+      suffices ∃ τ' ∈ testsOfProgram (∗β), lmOfFormula ψ < 1 + lmOfFormula τ' by
+        rw [Nat.lt_succ]
+        -- TODO: use `List.le_sum_of_mem` from newer mathlib also here?
+        apply List.single_le_sum (by simp) _
+        simp_all [testsOfProgram]
+        aesop
+      simp_all [testsOfProgram]
+      aesop
+  · simp only [lmOfFormula, gt_iff_lt]
     cases α <;> simp_all [Program.isAtomic]
 
 theorem LocalRule.Decreases (rule : LocalRule X ress) :
