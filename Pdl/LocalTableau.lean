@@ -816,26 +816,105 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ H α) {ψ} (i
   case test τ =>
     simp_all [H, testsOfProgram, List.attach_map_val]
 
+-- TODO move to `UnfoldDia.lean`
+theorem H_mem_test α φ {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ H α) (φ_in_Fs: φ ∈ Fs) :
+    ∃ τ, ∃ (h : τ ∈ testsOfProgram α), φ = τ := by
+  cases α
+  case atom_prog =>
+    simp_all [H, testsOfProgram]
+  case union α β =>
+    simp_all [H, testsOfProgram]
+    rcases in_H with in_Hα | in_Hβ
+    · have IHα := H_mem_test α φ in_Hα φ_in_Fs
+      aesop
+    · have IHβ := H_mem_test β φ in_Hβ φ_in_Fs
+      aesop
+  case sequence α β =>
+    simp_all [H, testsOfProgram]
+    sorry
+  case star β =>
+    simp_all [H, testsOfProgram]
+    sorry
+  case test τ =>
+    simp_all [H, testsOfProgram]
+
+-- TODO move to `UnfoldDia.lean`
+theorem H_mem_sequence α {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ H α) :
+    δ = [] ∨ ∃ a δ', δ = (·a : Program) :: δ' := by
+  cases α
+  case atom_prog =>
+    simp_all [H]
+  case union α β =>
+    simp_all [H]
+    rcases in_H with in_Hα | in_Hβ
+    · have IHα := H_mem_sequence α in_Hα
+      aesop
+    · have IHβ := H_mem_sequence β in_Hβ
+      aesop
+  case sequence α β =>
+    simp_all [H]
+    sorry
+  case star β =>
+    simp_all [H]
+    rcases in_H with ⟨Fs_nil, δ_nil⟩ | ⟨l, ⟨Fs', δ', in_Hβ, def_l⟩ , in_l⟩
+    · subst_eqs
+      aesop
+    · subst def_l
+      by_cases δ' = []
+      · aesop
+      · have IHβ := H_mem_sequence β in_Hβ
+        aesop
+  case test τ =>
+    simp_all [H]
+
+-- TODO move to `UnfoldDia.lean`
+/-- Where formulas in the unfolding can come from.
+NOTE: the paper version says two things more which we omit here:
+ - `φ ∈ fischerLadner [⌈α⌉ψ]`
+ - `∀ γ ∈ δ, γ ∈ subprograms α` (in the last conjunct) -/
+theorem unfoldDiamondContent α ψ :
+    ∀ X ∈ (unfoldDiamond α ψ),
+    ∀ φ ∈ X,
+        (  (φ = (~ψ))
+         ∨ (∃ τ ∈ testsOfProgram α, φ = τ)
+         ∨ (∃ (a : Nat), ∃ δ, φ = (~⌈·a⌉⌈⌈δ⌉⌉ψ)))
+    := by
+  intro X X_in φ φ_in_X
+  simp [unfoldDiamond, Yset] at X_in
+  rcases X_in with ⟨Fs, δ, in_H, def_X⟩
+  subst def_X
+  simp at φ_in_X
+  rcases φ_in_X with φ_in_Fs | φ_def
+  · -- φ is in F so it must be a test
+    right
+    left
+    have := H_mem_test α φ in_H φ_in_Fs
+    rcases this with ⟨τ, τ_in, φ_def⟩
+    use τ
+  · -- φ is made from some δ from P α ℓ
+    have := H_mem_sequence α in_H
+    aesop
+
 theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : List Formula}
     (α_non_atomic : ¬ α.isAtomic)
     (X_in : X ∈ unfoldDiamond α φ)
     (ψ_in_X : ψ ∈ X)
     : lmOfFormula ψ < lmOfFormula (~⌈α⌉φ) :=
   by
-  simp [unfoldDiamond,Yset] at X_in
-  rcases X_in with ⟨Fs, δ, in_H, def_X⟩
-  subst def_X
-  simp only [List.mem_union_iff, List.mem_singleton] at ψ_in_X
-  cases ψ_in_X
-  case inl ψ_in =>
-    exact H_goes_down α φ in_H ψ_in
-  · subst_eqs
-    cases α <;> simp [lmOfFormula, Program.isAtomic] at *
+  have udc := unfoldDiamondContent _ _ _ X_in _ ψ_in_X
+  rcases udc with ψ_def | ⟨τ, τ_in, ψ_def⟩ | ⟨a, δ, ψ_def⟩ <;> subst ψ_def
+  · cases α <;> simp_all [Program.isAtomic]
     all_goals
-      rw [List.attach_map_val]
-      -- Need Lemma that tells us δ starts with something atomic.
-      -- `unfoldDiamondContent`, analogous to `unfoldBoxContent`?
       sorry
+  · cases α <;> simp_all [Program.isAtomic, testsOfProgram, List.attach_map_val]
+    -- these three should be easy?
+    · cases τ_in
+      <;> sorry
+    · cases τ_in
+      <;> sorry
+    · sorry
+  · simp
+    cases α <;> simp_all [Program.isAtomic]
 
 theorem LocalRule.Decreases (rule : LocalRule X ress) :
     ∀ Y ∈ ress, ∀ y ∈ node_to_multiset Y, ∃ x ∈ node_to_multiset X, y < x :=
