@@ -585,6 +585,20 @@ def node_to_multiset : TNode → Multiset Formula
 | (L, R, some (Sum.inl (~'χ))) => (L + R + [~ unload χ])
 | (L, R, some (Sum.inr (~'χ))) => (L + R + [~ unload χ])
 
+@[simp]
+def Olf.toForm : Olf → List Formula
+| none => []
+| some (Sum.inl (~'χ)) => [~ unload χ]
+| some (Sum.inr (~'χ)) => [~ unload χ]
+
+theorem node_to_multiset_eq : node_to_multiset (L, R, O) = L + R + O.toForm := by
+  cases O
+  · simp [node_to_multiset]
+  case some nlf =>
+    cases nlf
+    · simp [node_to_multiset]
+    · simp [node_to_multiset]
+
 /-- If each three parts are the same then node_to_multiset is the same. -/
 theorem node_to_multiset_eq_of_three_eq (hL : L = L') (hR : R = R') (hO : O = O') :
     node_to_multiset (L, R, O) = node_to_multiset (L', R', O') := by
@@ -651,12 +665,15 @@ theorem node_to_multiset_of_precon (precon : Lcond.Subperm L ∧ Rcond.Subperm R
     node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) + node_to_multiset (Lnew, Rnew, Onew)
     = node_to_multiset (L.diff Lcond ++ Lnew, R.diff Rcond ++ Rnew, Olf.change O Ocond Onew) := by
   have := preconP_to_submultiset precon -- TODO: can we use this to avoid the `-`?
+  simp only [node_to_multiset_eq]
+  simp only [Multiset.coe_add, List.append_assoc, Multiset.coe_sub, List.diff_append,
+    Multiset.coe_eq_coe]
   rcases precon with ⟨Lpre, Rpre, Opre⟩
-  ext φ
-  all_goals cases O <;> try (rename_i cond; cases cond)
-  all_goals cases Onew <;> try (rename_i f; cases f)
+  -- we now get 3 * 3 * 3 = 27 cases
+  all_goals cases O <;> try (rename_i O; cases O)
+  all_goals cases Onew <;> try (rename_i Onew; cases Onew)
   all_goals cases Ocond <;> try (rename_i cond; cases cond)
-  all_goals simp_all
+  all_goals simp_all -- deals with 12 out of 27 cases
   all_goals
     sorry
 
