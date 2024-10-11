@@ -89,13 +89,13 @@ theorem tautImp_iff_TNodeUnsat {φ ψ} {X : TNode} :
 /-! ## Different kinds of formulas as elements of TNode -/
 
 @[simp]
-instance : Membership Formula TNode := ⟨fun φ X => φ ∈ X.L ∨ φ ∈ X.R⟩
+instance : Membership Formula TNode := ⟨fun X φ => φ ∈ X.L ∨ φ ∈ X.R⟩
 
 @[simp]
-def NegLoadFormula_in_TNode (nlf : NegLoadFormula) (X : TNode) : Prop :=
+def NegLoadFormula.mem_TNode (X : TNode) (nlf : NegLoadFormula) : Prop :=
   X.O = some (Sum.inl nlf) ∨ X.O = some (Sum.inr nlf)
 
-instance : Decidable (NegLoadFormula_in_TNode nlf ⟨L,R,O⟩) := by
+instance : Decidable (NegLoadFormula.mem_TNode ⟨L,R,O⟩ nlf) := by
   refine
     if h : O = some (Sum.inl nlf) then isTrue ?_
     else if h2 : O = some (Sum.inr nlf) then isTrue ?_ else isFalse ?_
@@ -103,17 +103,17 @@ instance : Decidable (NegLoadFormula_in_TNode nlf ⟨L,R,O⟩) := by
 
 def TNode.without : (LRO : TNode) → (naf : AnyNegFormula) → TNode
 | ⟨L,R,O⟩, ⟨.normal f⟩  => ⟨L \ {~f}, R \ {~f}, O⟩
-| ⟨L,R,O⟩, ⟨.loaded lf⟩ => if (NegLoadFormula_in_TNode (~'lf) ⟨L,R,O⟩) then ⟨L, R, none⟩ else ⟨L,R,O⟩
+| ⟨L,R,O⟩, ⟨.loaded lf⟩ => if ((~'lf).mem_TNode ⟨L,R,O⟩) then ⟨L, R, none⟩ else ⟨L,R,O⟩
 
 @[simp]
-instance : Membership NegLoadFormula TNode := ⟨NegLoadFormula_in_TNode⟩
+instance : Membership NegLoadFormula TNode := ⟨NegLoadFormula.mem_TNode⟩
 
-def AnyNegFormula_in_TNode : (anf : AnyNegFormula) → (X : TNode) → Prop
-| ⟨.normal φ⟩, X => (~φ) ∈ X
-| ⟨.loaded χ⟩, X => NegLoadFormula_in_TNode (~'χ) X -- FIXME: ∈ not working here
+def AnyNegFormula.mem_TNode : (X : TNode) → (anf : AnyNegFormula) → Prop
+| X, ⟨.normal φ⟩ => (~φ) ∈ X
+| X, ⟨.loaded χ⟩ => (~'χ).mem_TNode X -- FIXME: ∈ not working here
 
 @[simp]
-instance : Membership AnyNegFormula TNode := ⟨AnyNegFormula_in_TNode⟩
+instance : Membership AnyNegFormula TNode := ⟨AnyNegFormula.mem_TNode⟩
 
 /-! ## Local Tableaux -/
 
@@ -660,21 +660,32 @@ theorem preconP_to_submultiset (preconditionProof : List.Subperm Lcond L ∧ Lis
     have := List.Subperm.count_le (List.Subperm.append preconditionProof.1 preconditionProof.2.1) f
     cases g <;> (rename_i nlform; cases nlform; simp_all)
 
+-- easier way to do this?
+theorem Multiset.sub_of_le [DecidableEq α] {M N X Y: Multiset α} (h : N ≤ M) :
+    M - N + Y = X ↔ M + Y = X + N := by
+  constructor
+  · intro hyp
+    have := @tsub_eq_iff_eq_add_of_le _ _ _ _ _ _ _ _ _ Y _ h
+    sorry
+  · intro hyp
+    sorry
+
 /-- Applying `node_to_multiset` before or after `applyLocalRule` gives the same. -/
 theorem node_to_multiset_of_precon (precon : Lcond.Subperm L ∧ Rcond.Subperm R ∧ Ocond ⊆ O) :
     node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) + node_to_multiset (Lnew, Rnew, Onew)
     = node_to_multiset (L.diff Lcond ++ Lnew, R.diff Rcond ++ Rnew, Olf.change O Ocond Onew) := by
   have := preconP_to_submultiset precon -- TODO: can we use this to avoid the `-`?
+  rw [Multiset.sub_of_le]
   simp only [node_to_multiset_eq]
-  simp only [Multiset.coe_add, List.append_assoc, Multiset.coe_sub, List.diff_append,
-    Multiset.coe_eq_coe]
+  -- simp only [Multiset.coe_add, List.append_assoc, Multiset.coe_sub, List.diff_append, Multiset.coe_eq_coe]
   rcases precon with ⟨Lpre, Rpre, Opre⟩
   -- we now get 3 * 3 * 3 = 27 cases
   all_goals cases O <;> try (rename_i O; cases O)
   all_goals cases Onew <;> try (rename_i Onew; cases Onew)
   all_goals cases Ocond <;> try (rename_i cond; cases cond)
-  all_goals simp_all -- deals with 12 out of 27 cases
+  all_goals try (simp_all; done) -- deals with 12 out of 27 cases
   all_goals
+    simp
     sorry
 
 @[simp]
@@ -783,20 +794,30 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ H α) {ψ} (i
         · have IHα := H_goes_down α φ in_H in_Fs'
           cases α
           all_goals
-            simp_all [testsOfProgram, lmOfFormula, List.attach_map_val]
+            simp [lmOfFormula] at IHα
+          all_goals
+            simp only [List.attach_map_val, testsOfProgram] at *
+            simp_all [lmOfFormula]
             try linarith
         · have IHβ := H_goes_down β φ in_Hβ in_Fs''
           cases β
           all_goals
             simp_all [H, testsOfProgram, lmOfFormula, List.attach_map_val]
             try linarith
-      · simp_all [testsOfProgram]
+          all_goals
+            simp_all only [Function.comp_def, List.attach_map_val]
+            linarith
+      · simp_all only [ite_false, List.mem_singleton, Prod.mk.injEq, testsOfProgram,
+        List.attach_append, List.map_append, List.map_map, List.sum_append]
+        rw [Function.comp_def, Function.comp_def, List.attach_map_val, List.attach_map_val]
         cases in_l
         subst_eqs
         have IHα := H_goes_down α φ in_H in_Fs
         cases α
         all_goals
           simp_all [H, testsOfProgram, lmOfFormula, List.attach_map_val]
+        all_goals
+          try rw [Function.comp_def, Function.comp_def, List.attach_map_val, List.attach_map_val] at IHα
           try linarith
   case union α β =>
     simp [H] at in_H
@@ -806,11 +827,15 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ H α) {ψ} (i
       all_goals
         simp_all [H, testsOfProgram, lmOfFormula, List.attach_map_val]
         try linarith
+      all_goals
+        sorry
     · have IHβ := H_goes_down β φ hyp in_Fs
       cases β
       all_goals
         simp_all [H, testsOfProgram, lmOfFormula, List.attach_map_val]
         try linarith
+      all_goals
+        sorry
   case star α =>
     simp [H] at in_H
     rcases in_H with _ | ⟨l, ⟨Fs', δ', in_H', def_l⟩, in_l⟩
@@ -838,7 +863,7 @@ theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X 
   · cases α <;> simp_all [Program.isAtomic, testsOfProgram, List.attach_map_val]
     case sequence α β =>
       suffices lmOfFormula ψ < (List.map lmOfFormula (testsOfProgram (α;'β))).sum.succ by
-        simp_all [testsOfProgram]
+        simp_all [testsOfProgram, Function.comp_def, List.attach_map_val]
         linarith
       suffices ∃ τ' ∈ testsOfProgram (α;'β), lmOfFormula ψ < 1 + lmOfFormula τ' by
         rw [Nat.lt_succ]
@@ -850,7 +875,7 @@ theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X 
       aesop
     case union α β =>
       suffices lmOfFormula ψ < (List.map lmOfFormula (testsOfProgram (α⋓β))).sum.succ by
-        simp_all [testsOfProgram]
+        simp_all [testsOfProgram, Function.comp_def, List.attach_map_val]
         linarith
       suffices ∃ τ' ∈ testsOfProgram (α;'β), lmOfFormula ψ < 1 + lmOfFormula τ' by
         rw [Nat.lt_succ]

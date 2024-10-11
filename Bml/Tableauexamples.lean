@@ -139,23 +139,7 @@ example : ClosedTableau ({r⋀~(□p), r↣□(p⋀q)}, {}) :=
       intro Y Y_in
       simp (config := {decide := true}) at *
       have : Y = ({·'r', ~(□p), □(p⋀q)}, {}) := by
-        rcases Y_in with ⟨l, ⟨a, ⟨a_def, def_l⟩⟩, Y_in_l⟩
-        subst_eqs
-        simp [endNodesOf] at *
-        rcases Y_in_l with ⟨l, ⟨a, ⟨a_def, def_l⟩⟩, Y_in_l⟩
-        cases a_def
-        · subst_eqs
-          simp [endNodesOf] at *
-        · subst_eqs
-          simp [endNodesOf] at *
-          have : ({·'r', ~(□p), ~~(□(p⋀q))}, ∅) ≠ (({·'r', ~(□p), ~·'r'}: Finset Formula), (∅ : Finset Formula)) := by decide
-          simp only [this] at Y_in_l
-          simp at Y_in_l
-          clear this -- hmm
-          rcases Y_in_l with ⟨l, ⟨a, ⟨ a_def, def_l⟩ ⟩, Y_in_l⟩
-          subst_eqs
-          simp [endNodesOf] at *
-          subst Y_in_l
-          decide
+        subst Y_in
+        decide
       subst this
       exact subTabForEx2

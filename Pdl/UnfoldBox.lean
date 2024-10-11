@@ -121,7 +121,7 @@ theorem signature_contradiction_of_neq_TPs {ℓ ℓ' : TP α} :
     constructor
     · use τ, τ_in
       simp_all
-    · assumption
+    · simp_all
 
 -- unused?
 theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α ℓ ≡ ψ ⋀ signature α ℓ := by
@@ -270,15 +270,16 @@ theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if α.isAtomic then γ 
     case nil =>
       exfalso; cases γ_in
     case cons =>
-      simp_all only [false_or]
-      rcases δ_in with ⟨αs, αs_in, def_δ⟩
+      simp only [reduceCtorEq, false_or] at δ_in
+      rcases δ_in with ⟨αs, ⟨αs_in, αs_not_null⟩, def_δ⟩
       cases em (γ ∈ αs)
       case inl γ_in =>
-        have IH := P_goes_down γ_in αs_in.1
+        have IH := P_goes_down γ_in αs_in
         cases em (α.isAtomic) <;> cases em α.isStar
         all_goals (simp_all;try linarith)
       case inr γ_not_in =>
-        have : γ = (∗α) := by rw [← def_δ] at γ_in; simp at γ_in; tauto
+        have : γ = (∗α) := by
+          rw [← def_δ] at γ_in; simp at γ_in; tauto
         subst_eqs
         simp
   case test τ =>
@@ -746,9 +747,9 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     simp only [evaluate, and_congr_left_iff, relate] at *
     intro w_sign_ℓ
     specialize IHα ?_
-    · simp_all [signature, conEval, testsOfProgram]; intro f τ τ_in; apply w_sign_ℓ; aesop
+    · simp_all [signature, conEval, testsOfProgram]
     specialize IHβ ?_
-    · simp_all [signature, conEval, testsOfProgram]; intro f τ τ_in; apply w_sign_ℓ; aesop
+    · simp_all [signature, conEval, testsOfProgram]
     -- rewrite using semantics of union and the two IH:
     have : (∀ (v : W), relate M α w v ∨ relate M β w v → evaluate M v ψ)
         ↔ ((∀ (v : W), relate M α w v → evaluate M v ψ)
@@ -825,9 +826,9 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     simp only [evaluate, relate, forall_exists_index, and_imp, and_congr_left_iff] at *
     intro w_sign_ℓ
     specialize IHα ?_
-    · simp_all [signature, conEval, testsOfProgram]; intro f τ τ_in; apply w_sign_ℓ; aesop
+    · simp_all [signature, conEval, testsOfProgram]
     specialize IHβ ?_
-    · simp_all [signature, conEval, testsOfProgram]; intro f τ τ_in; apply w_sign_ℓ; aesop
+    · simp_all [signature, conEval, testsOfProgram]
     -- only rewriting with IHα here, but not yet IHβ
     have : (∀ (v x : W), relate M α w x → relate M β x v → evaluate M v ψ)
           ↔ ∀ (v : W), relate M α w v → ∀ (v_1 : W), relate M β v v_1 → evaluate M v_1 ψ := by
@@ -843,9 +844,12 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
       · tauto
       · rw [F_mem_iff_neg β ℓ φ] at φ_in_Fβ
         rcases φ_in_Fβ with ⟨τ, τ_in, def_φ, not_ℓ_τ⟩
-        apply w_sign_ℓ _ τ
-        · simp_all
-        · simp_all [testsOfProgram]
+        apply w_sign_ℓ φ
+        subst def_φ
+        simp_all only [testsOfProgram]
+        right
+        use τ, τ_in
+        simp_all
       · subst def_φ
         apply lhs
         right
@@ -859,7 +863,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
           apply IHβ.1 ?_ (⌈⌈δ⌉⌉ψ) <;> clear IHβ
           · right; aesop
           · have := lhs (⌈β⌉ψ)
-            simp at this; apply this; clear this -- sounds like daft punk ;-)
+            simp only [evaluate] at this; apply this; clear this -- sounds like daft punk ;-)
             right
             use []
             simp_all

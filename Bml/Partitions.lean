@@ -307,9 +307,9 @@ theorem endNodesOfChildSublistEndNodes
     (c_in_C : cLR ∈ C)
     lrApp
     : (endNodesOf ⟨cLR, subTabs cLR c_in_C⟩).Sublist (endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩) := by
-  simp_all [endNodesOf]
-  apply List.sublist_join
-  simp_all
+  simp_all only [lrEndNodes]
+  apply List.sublist_join_of_mem
+  simp_all only [List.mem_map, List.mem_attach, true_and, Subtype.exists]
   use cLR, c_in_C
 
 open List

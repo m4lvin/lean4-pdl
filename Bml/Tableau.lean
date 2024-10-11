@@ -59,7 +59,7 @@ def SimpleForm : Formula → Prop
   | _ => False
 
 instance : Decidable (SimpleForm φ) :=
-  match h : φ with
+  match φ with
   | ⊥
   | ·_
   | □_  => Decidable.isTrue <| by aesop
@@ -204,13 +204,13 @@ inductive LocalRuleApp : TNode → List TNode → Type
 
 theorem oneSidedRule_preserves_other_side_L
   {ruleApp : LocalRuleApp (L, R) C}
-  (hmyrule : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (res, ∅)) _) _ _ rule hC preproof))
+  (_ : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (res, ∅)) _) _ _ rule hC preproof))
   (rule_is_left : rule = LocalRule.oneSidedL orule )
   : ∀ c ∈ C, c.2 = R := by aesop
 
 theorem oneSidedRule_preserves_other_side_R
   {ruleApp : LocalRuleApp (L, R) C}
-  (hmyrule : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (∅, res)) _) _ _ rule hC preproof))
+  (_ : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (∅, res)) _) _ _ rule hC preproof))
   (rule_is_right : rule = LocalRule.oneSidedR orule )
   : ∀ c ∈ C, c.1 = L := by aesop
 
@@ -820,7 +820,9 @@ theorem existsLocalTableauFor LR : Nonempty (LocalTableau LR) :=
       apply LocalTableau.fromSimple
       by_contra hyp
       have := notSimpleThenLocalRule hyp
-      aesop
+      rcases this with ⟨Lcond, Rcond, ress, lr, Lin, Rin⟩
+      absurd canApplyRule
+      tauto
     case inr canApplyRule =>
       rw [not_not] at canApplyRule
       rcases canApplyRule with ⟨LCond, RCond, C, lr_exists, preconL, preconR⟩

@@ -126,8 +126,8 @@ theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := b
 The `loc` ad `pdl` steps correspond to two out of three constructors of `Tableau`. -/
 inductive PathIn : ∀ {H X}, Tableau H X → Type
 | nil : PathIn _
-| loc : (Y_in : Y ∈ endNodesOf lt) → (tail : PathIn (next Y Y_in)) → PathIn (Tableau.loc lt next)
-| pdl : (r : PdlRule Γ Δ) → PathIn (child : Tableau (Γ :: Hist) Δ) → PathIn (Tableau.pdl r child)
+| loc {Y lt next} : (Y_in : Y ∈ endNodesOf lt) → (tail : PathIn (next Y Y_in)) → PathIn (Tableau.loc lt next)
+| pdl {Γ Δ Hist child} : (r : PdlRule Γ Δ) → PathIn (child : Tableau (Γ :: Hist) Δ) → PathIn (Tableau.pdl r child)
 deriving DecidableEq
 
 def tabAt : PathIn tab → Σ H X, Tableau H X
@@ -368,7 +368,7 @@ theorem not_edge_nil (tab : Tableau Hist X) (t : PathIn tab) : ¬ edge t .nil :=
     subst X_eq_Z
     rw [heq_eq_eq] at hyp
     subst hyp
-    simp_all only
+    simp_all
 
 theorem nodeAt_loc_nil {H : List TNode} {lt : LocalTableau X}
     (next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (X :: H) Y) (Y_in : Y ∈ endNodesOf lt) :

@@ -45,7 +45,6 @@ lemma singleton_add_sub_of_cons_add [DecidableEq α] {a a0: α} {M X : Multiset 
 theorem sub_singleton [DecidableEq α] (a : α) (s : Multiset α) : s - {a} = s.erase a := by
   ext
   simp [Multiset.erase_singleton, Multiset.count_singleton]
-  split <;> simp_all
 
 theorem mem_sub_of_not_mem_of_mem {α} [DecidableEq α] (x : α) (X Y: Multiset α) (x_in_X : x ∈ X)
     (x_notin_Y : x ∉ Y) : x ∈ X - Y  := by
@@ -136,13 +135,6 @@ lemma not_redLT_zero [DecidableEq α] [LT α] (M: Multiset α) : ¬ MultisetRedL
       simp_all only [Multiset.mem_add, Multiset.mem_singleton, or_true]
     contradiction
 
--- Should be added to 'mathlib4/Mathlib/Data/Multiset/Basic.lean'
-lemma mul_singleton_erase [DecidableEq α] {a : α} {M : Multiset α} :
-    M - {a} = M.erase a := by
-  ext
-  simp [Multiset.erase_singleton, Multiset.count_singleton]
-  split <;> simp_all
-
 lemma red_insert [DecidableEq α] [LT α] {a : α} {M N : Multiset α} (h : MultisetRedLT N (a ::ₘ M)) :
     ∃ M',
       N = (a ::ₘ M') ∧ (MultisetRedLT M' M) ∨ (N = M + M') ∧ (∀ x : α, x ∈ M' → x < a) := by
@@ -165,7 +157,6 @@ lemma red_insert [DecidableEq α] [LT α] {a : α} {M N : Multiset α} (h : Mult
         · have := h0 b
           aesop
         · have := h0 b
-          simp [mul_singleton_erase]
           aesop
       subst this
       rw [add_comm]
@@ -179,7 +170,7 @@ lemma red_insert [DecidableEq α] [LT α] {a : α} {M N : Multiset α} (h : Mult
         have a0M: a0 ∈ M := by
           apply in_of_ne_of_cons_erase
           · change M = Multiset.erase (a0 ::ₘ X) a
-            rw [mul_singleton_erase, add_comm] at this0
+            rw [Multiset.sub_singleton, add_comm] at this0
             exact this0
           · exact hyp
         rw [add_comm]
