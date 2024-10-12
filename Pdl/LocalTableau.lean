@@ -686,10 +686,21 @@ theorem Multiset_diff_append_of_le [DecidableEq α] {R Rcond Rnew : List α} :
   rw [@Multiset.coe_sub]
   rw [Multiset.coe_add]
 
-theorem List.count_eq_diff_of_subperm [DecidableEq α] {L Lcond : List α} (h : Lcond.Subperm L) φ :
-    List.count φ L = List.count φ (L.diff Lcond) + List.count φ Lcond := by
-  have := List.Subperm.count_le h φ
-  sorry
+theorem List.Perm_diff_append_of_Subperm {α} [DecidableEq α] {L M : List α} (h : M.Subperm L) :
+    L.Perm (L.diff M ++ M) := by
+  rw [perm_iff_count]
+  intro φ
+  rw [← Multiset.coe_count, ← Multiset.coe_count]
+  rw [@Multiset_diff_append_of_le α _ L M M]
+  rw [tsub_add_cancel_of_le h]
+
+theorem List.count_eq_diff_of_subperm [DecidableEq α] {L M : List α} (h : M.Subperm L) φ :
+    List.count φ L = List.count φ (L.diff M) + List.count φ M := by
+  suffices L.Perm (L.diff M ++ M) by
+    rw [← count_append]
+    have := @List.perm_iff_count _ _ L (L.diff M ++ M)
+    tauto
+  apply List.Perm_diff_append_of_Subperm h
 
 /-- Applying `node_to_multiset` before or after `applyLocalRule` gives the same. -/
 theorem node_to_multiset_of_precon (precon : Lcond.Subperm L ∧ Rcond.Subperm R ∧ Ocond ⊆ O) :
