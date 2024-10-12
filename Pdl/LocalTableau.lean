@@ -213,12 +213,20 @@ inductive LocalRule : TNode → List TNode → Type
   | loadedR (χ : LoadFormula) (lrule : LoadRule (~'χ) ress) :
       LocalRule (∅, ∅, some (Sum.inr (~'χ))) $ ress.map $ λ (X, o) => (∅, X, o.map Sum.inr)
 
-@[simp]
 def Olf.change : (oldO : Olf) → (Ocond : Olf) → (newO : Olf) → Olf
 | oldO, none  , none      => oldO      -- no change
 | _   , none  , some wnlf => some wnlf -- loading
 | _   , some _, none      => none      -- unloading
 | _   , some _, some wnlf => some wnlf -- replacing
+
+@[simp]
+theorem Olf.change_none_none : Olf.change oldO none none = oldO := by simp [Olf.change]
+
+@[simp]
+theorem Olf.change_some_none : Olf.change oldO (some wnlf) none = none := by simp [Olf.change]
+
+@[simp]
+theorem Olf.change_some: Olf.change oldO whatever (some wnlf) = some wnlf := by cases whatever <;> simp [Olf.change]
 
 @[simp]
 def applyLocalRule (_ : LocalRule (Lcond, Rcond, Ocond) ress) : TNode → List TNode
@@ -392,12 +400,12 @@ theorem localRuleTruth
       cases O
       · use (L ++ X, R, none)
         constructor
-        · use X, none; simp only [Option.map_none', and_true]; exact in_ress
+        · use X, none; simp only [Option.map_none', Olf.change_some_none, and_true]; exact in_ress
         · intro g; subst def_f; rw [conEval] at w_f; specialize hyp g; aesop
       case some val =>
         use (L ++ X, R, some (Sum.inl val))
         constructor
-        · use X, some val; simp only [Option.map_some', and_true]; exact in_ress
+        · use X, some val; simp only [Option.map_some', Olf.change_some, and_true]; exact in_ress
         · intro g g_in
           subst def_f
           simp_all [pairUnload, negUnload, conEval]
@@ -452,12 +460,12 @@ theorem localRuleTruth
       cases O
       · use (L, R ++ X, none)
         constructor
-        · use X, none; simp only [Option.map_none', and_true]; exact in_ress
+        · use X, none; simp only [Option.map_none', Olf.change_some_none, and_true]; exact in_ress
         · intro g; subst def_f; rw [conEval] at w_f; specialize hyp g; aesop
       case some val =>
         use (L, R ++ X, some (Sum.inr val))
         constructor
-        · use X, some val; simp only [Option.map_some', and_true]; exact in_ress
+        · use X, some val; simp only [Option.map_some', Olf.change_some, and_true]; exact in_ress
         · intro g g_in
           subst def_f
           simp_all [pairUnload, negUnload, conEval]
@@ -585,19 +593,18 @@ def node_to_multiset : TNode → Multiset Formula
 | (L, R, some (Sum.inl (~'χ))) => (L + R + [~ unload χ])
 | (L, R, some (Sum.inr (~'χ))) => (L + R + [~ unload χ])
 
-@[simp]
-def Olf.toForm : Olf → List Formula
-| none => []
-| some (Sum.inl (~'χ)) => [~ unload χ]
-| some (Sum.inr (~'χ)) => [~ unload χ]
+def Olf.toForm : Olf → Multiset Formula
+| none => {}
+| some (Sum.inl (~'χ)) => {~ unload χ}
+| some (Sum.inr (~'χ)) => {~ unload χ}
 
-theorem node_to_multiset_eq : node_to_multiset (L, R, O) = L + R + O.toForm := by
+theorem node_to_multiset_eq : node_to_multiset (L, R, O) = Multiset.ofList L + Multiset.ofList R + O.toForm := by
   cases O
-  · simp [node_to_multiset]
+  · simp [node_to_multiset, Olf.toForm]
   case some nlf =>
     cases nlf
-    · simp [node_to_multiset]
-    · simp [node_to_multiset]
+    · simp [node_to_multiset, Olf.toForm]
+    · simp [node_to_multiset, Olf.toForm]
 
 /-- If each three parts are the same then node_to_multiset is the same. -/
 theorem node_to_multiset_eq_of_three_eq (hL : L = L') (hR : R = R') (hO : O = O') :
@@ -660,32 +667,72 @@ theorem preconP_to_submultiset (preconditionProof : List.Subperm Lcond L ∧ Lis
     have := List.Subperm.count_le (List.Subperm.append preconditionProof.1 preconditionProof.2.1) f
     cases g <;> (rename_i nlform; cases nlform; simp_all)
 
--- easier way to do this?
 theorem Multiset.sub_of_le [DecidableEq α] {M N X Y: Multiset α} (h : N ≤ M) :
     M - N + Y = X ↔ M + Y = X + N := by
   constructor
-  · intro hyp
-    have := @tsub_eq_iff_eq_add_of_le _ _ _ _ _ _ _ _ _ Y _ h
-    sorry
-  · intro hyp
-    sorry
+  all_goals
+    intro hyp
+    ext φ
+    rw [@Multiset.ext] at hyp
+    specialize hyp φ
+    rw [@le_iff_count] at h
+    specialize h φ
+    simp only [count_add, count_sub] at *
+    omega
+
+theorem Multiset_diff_append_of_le [DecidableEq α] {R Rcond Rnew : List α} :
+    Multiset.ofList (R.diff Rcond ++ Rnew)
+    = Multiset.ofList R - Multiset.ofList Rcond + Multiset.ofList Rnew := by
+  rw [@Multiset.coe_sub]
+  rw [Multiset.coe_add]
+
+theorem List.count_eq_diff_of_subperm [DecidableEq α] {L Lcond : List α} (h : Lcond.Subperm L) φ :
+    List.count φ L = List.count φ (L.diff Lcond) + List.count φ Lcond := by
+  have := List.Subperm.count_le h φ
+  sorry
 
 /-- Applying `node_to_multiset` before or after `applyLocalRule` gives the same. -/
 theorem node_to_multiset_of_precon (precon : Lcond.Subperm L ∧ Rcond.Subperm R ∧ Ocond ⊆ O) :
     node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) + node_to_multiset (Lnew, Rnew, Onew)
     = node_to_multiset (L.diff Lcond ++ Lnew, R.diff Rcond ++ Rnew, Olf.change O Ocond Onew) := by
-  have := preconP_to_submultiset precon -- TODO: can we use this to avoid the `-`?
-  rw [Multiset.sub_of_le]
+  have my_le := preconP_to_submultiset precon
+  rw [Multiset.sub_of_le my_le]
+  clear my_le
   simp only [node_to_multiset_eq]
-  -- simp only [Multiset.coe_add, List.append_assoc, Multiset.coe_sub, List.diff_append, Multiset.coe_eq_coe]
+  rw [Multiset_diff_append_of_le]
+  rw [Multiset_diff_append_of_le]
+  have claim : ↑L - ↑Lcond + ↑Lnew + (↑R - ↑Rcond + ↑Rnew) + (O.change Ocond Onew).toForm + (↑Lcond + ↑Rcond + Ocond.toForm) = ↑L + ↑Lnew + (↑R + ↑Rnew) + (O.change Ocond Onew).toForm + (Ocond.toForm) := by
+    rw [← add_assoc]
+    apply add_right_cancel_iff.mpr
+    rw [add_add_add_comm]
+    rw [← add_assoc]
+    rw [add_right_comm]
+    rw [@add_right_cancel_iff]
+    ext φ
+    simp only [Multiset.coe_sub, Multiset.coe_add, List.append_assoc, Multiset.coe_count,
+      List.count_append]
+    have := List.count_eq_diff_of_subperm precon.2.1 φ
+    have := List.count_eq_diff_of_subperm precon.1 φ
+    linarith
+  rw [claim]
+  clear claim
+  ext φ
+  simp
+  suffices Multiset.count φ O.toForm + (Multiset.count φ Onew.toForm) =
+      Multiset.count φ (O.change Ocond Onew).toForm + Multiset.count φ Ocond.toForm by
+    linarith
   rcases precon with ⟨Lpre, Rpre, Opre⟩
   -- we now get 3 * 3 * 3 = 27 cases
   all_goals cases O <;> try (rename_i O; cases O)
   all_goals cases Onew <;> try (rename_i Onew; cases Onew)
   all_goals cases Ocond <;> try (rename_i cond; cases cond)
-  all_goals try (simp_all; done) -- deals with 12 out of 27 cases
+  all_goals simp_all [Olf.toForm, Olf.change] -- deals with 19 out of 27 cases
   all_goals
-    simp
+    subst_eqs
+    try linarith -- 4 goals left
+  all_goals
+    -- PROBLEM: now need to show that φ is not the unloaded formula?
+    -- Some relevant information about rules and cases got lost here.
     sorry
 
 @[simp]
