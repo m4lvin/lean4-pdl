@@ -831,12 +831,23 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
     · subst def_ψ
       simp [lmOfFormula]
 
+theorem lmOfFormula.le_union_left α β φ : lmOfFormula (~⌈α⌉φ) ≤ lmOfFormula (~⌈α⋓β⌉φ) := by
+  cases α <;> simp [lmOfFormula, List.attach_map_val]
+  all_goals
+    simp [testsOfProgram]
+
+theorem lmOfFormula.le_union_right α β φ : lmOfFormula (~⌈β⌉φ) ≤ lmOfFormula (~⌈α⋓β⌉φ) := by
+  cases β <;> simp [lmOfFormula, List.attach_map_val]
+  all_goals
+    simp [testsOfProgram]
+
 theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ H α) {ψ} (in_Fs: ψ ∈ Fs) :
     lmOfFormula ψ < lmOfFormula (~⌈α⌉φ) := by
-  cases α <;> simp [lmOfFormula]
+  cases α
   · simp_all [H]
   case sequence α β =>
-    simp [H] at in_H
+    simp only [lmOfFormula]
+    simp only [H, List.mem_join, List.mem_map, Prod.exists] at in_H
     rcases in_H with ⟨l, ⟨Fs', δ', in_H, def_l⟩, in_l⟩
     · subst def_l
       by_cases δ' = []
@@ -878,23 +889,16 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ H α) {ψ} (i
           try rw [Function.comp_def, Function.comp_def, List.attach_map_val, List.attach_map_val] at IHα
           try linarith
   case union α β =>
-    simp [H] at in_H
+    simp only [H, List.mem_union_iff] at in_H
     rcases in_H with hyp|hyp
     · have IHα := H_goes_down α φ hyp in_Fs
-      cases α
-      all_goals
-        simp_all [H, testsOfProgram, lmOfFormula, List.attach_map_val]
-        try linarith
-      all_goals
-        sorry
+      suffices lmOfFormula (~⌈α⌉φ) ≤ lmOfFormula (~⌈α⋓β⌉φ) by linarith
+      apply lmOfFormula.le_union_left
     · have IHβ := H_goes_down β φ hyp in_Fs
-      cases β
-      all_goals
-        simp_all [H, testsOfProgram, lmOfFormula, List.attach_map_val]
-        try linarith
-      all_goals
-        sorry
+      suffices lmOfFormula (~⌈β⌉φ) ≤ lmOfFormula (~⌈α⋓β⌉φ) by linarith
+      apply lmOfFormula.le_union_right
   case star α =>
+    simp only [lmOfFormula]
     simp [H] at in_H
     rcases in_H with _ | ⟨l, ⟨Fs', δ', in_H', def_l⟩, in_l⟩
     · simp_all only [List.not_mem_nil]
