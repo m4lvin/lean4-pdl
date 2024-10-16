@@ -61,11 +61,7 @@ instance {α : Type u} [DecidableEq α] [LT α] : LT (mul α) :=
 theorem wf_mul {α : Type u} [DecidableEq α] [LT α]
     (t :  WellFoundedLT α) :
     WellFounded ((LT.lt) : Multiset α → Multiset α → Prop) := by
-  apply WellFounded.intro
-  intro dma
-  apply Acc.intro dma
-  intro dmb h
-  sorry
+  exact wellFounded_lt
 
 -- theorem mOrd_acc {α : Type u} : ∀ M : mul (α), (∀ x : α, Membership.mem x (mul α)) -> Acc ltA _) -> Acc _ _ := by
 --   sorry
