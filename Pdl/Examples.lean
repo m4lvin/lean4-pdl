@@ -117,20 +117,53 @@ theorem A6 (a : Program) (X : Formula) : tautology ((⌈∗a⌉X) ⟷ (X ⋀ (�
     simp
 
 example (a b : Program) (X : Formula) :
-  (⌈∗(∗a) ⋓ b⌉X) ≡ X ⋀ (⌈a⌉(⌈∗(∗a) ⋓ b⌉ X)) ⋀ (⌈b⌉(⌈∗(∗a) ⋓ b⌉ X)) :=
+  (⌈∗((∗a) ⋓ b)⌉X) ≡ X ⋀ (⌈a⌉(⌈∗((∗a) ⋓ b)⌉ X)) ⋀ (⌈b⌉(⌈∗((∗a) ⋓ b)⌉ X)) :=
   by
   intro W M w
-  simp
-  have : ∀ v, Relation.ReflTransGen (relate M ((∗a)⋓b)) w v ↔
+  have claim : ∀ v, Relation.ReflTransGen (relate M ((∗a)⋓b)) w v ↔
       ( w = v
       ∨ ∃ u, relate M a w u ∧ Relation.ReflTransGen (relate M ((∗a)⋓b)) u v
       ∨ ∃ u, relate M b w u ∧ Relation.ReflTransGen (relate M ((∗a)⋓b)) u v ) := by
     intro v
     constructor
     · intro lhs
-      sorry
-    · intro rhs
-      sorry
+      have := ReflTransGen.cases_tail_eq_neq lhs
+      rcases this with _ | ⟨w_ne_v, y, w_ne_y, w_y, y_v⟩
+      · left; assumption
+      · simp only [relate] at w_y
+        cases w_y
+        case inl hyp =>
+          have := ReflTransGen.cases_tail_eq_neq hyp
+          rcases this with _ | ⟨w_ne_y, z, w_ne_z, w_z, z_y⟩
+          · aesop
+          · right
+            use z
+            left
+            constructor
+            · exact w_z
+            · apply @Relation.ReflTransGen.trans W _ z y v
+              · apply Relation.ReflTransGen.single
+                aesop
+              · exact y_v
+        · right
+          use v
+          right
+          use y
+    · rintro (w_eq_v | ⟨u, (⟨w_u, w_v⟩  | ⟨u, w_u, u_v⟩ )⟩ )
+      · aesop
+      · apply @Relation.ReflTransGen.trans W _ w u v
+        · apply Relation.ReflTransGen.single
+          simp only [relate]
+          left
+          apply Relation.ReflTransGen.single
+          exact w_u
+        · exact w_v
+      · apply @Relation.ReflTransGen.trans W _ w u v
+        · apply Relation.ReflTransGen.single
+          simp only [relate]
+          right
+          exact w_u
+        · exact u_v
   constructor
   · intro lhs
     constructor
