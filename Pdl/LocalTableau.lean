@@ -213,28 +213,6 @@ inductive LocalRule : TNode → List TNode → Type
   | loadedR (χ : LoadFormula) (lrule : LoadRule (~'χ) ress) :
       LocalRule (∅, ∅, some (Sum.inr (~'χ))) $ ress.map $ λ (X, o) => (∅, X, o.map Sum.inr)
 
-def Olf.change : (oldO : Olf) → (Ocond : Olf) → (newO : Olf) → Olf
-| oldO, none  , none      => oldO      -- no change
-| _   , none  , some wnlf => some wnlf -- loading
-| _   , some _, none      => none      -- unloading
-| _   , some _, some wnlf => some wnlf -- replacing
-
-@[simp]
-theorem Olf.change_none_none : Olf.change oldO none none = oldO := by simp [Olf.change]
-
-@[simp]
-theorem Olf.change_some_none : Olf.change oldO (some wnlf) none = none := by simp [Olf.change]
-
-@[simp]
-theorem Olf.change_some: Olf.change oldO whatever (some wnlf) = some wnlf := by cases whatever <;> simp [Olf.change]
-
-@[simp]
-def applyLocalRule (_ : LocalRule (Lcond, Rcond, Ocond) ress) : TNode → List TNode
-  | ⟨L, R, O⟩ => ress.map $
-      fun (Lnew, Rnew, Onew) => ( L.diff Lcond ++ Lnew
-                                , R.diff Rcond ++ Rnew
-                                , Olf.change O Ocond Onew )
-
 -- mathlib this?
 @[simp]
 instance Option.instHasSubsetOption : HasSubset (Option α) := HasSubset.mk
@@ -257,6 +235,32 @@ instance Option.insHasSdiff [DecidableEq α] : SDiff (Option α) := SDiff.mk
   | none, _ => none
   | some f, none => some f
   | some f, some g => if f = g then none else some f
+
+@[simp]
+def Option.overwrite : Option α → Option α → Option α
+| old, none   => old
+| _  , some x => some x
+
+def Olf.change (oldO : Olf) (Ocond : Olf) (newO : Olf) : Olf := (oldO \ Ocond).overwrite newO
+
+@[simp]
+theorem Olf.change_none_none : Olf.change oldO none none = oldO := by
+  cases oldO <;> simp [Olf.change, Option.overwrite, Option.insHasSdiff]
+
+@[simp]
+theorem Olf.change_some_some_none : Olf.change (some wnlf) (some wnlf) none = none := by
+  simp [Olf.change, Option.overwrite, Option.insHasSdiff]
+
+@[simp]
+theorem Olf.change_some: Olf.change oldO whatever (some wnlf) = some wnlf := by
+    cases oldO <;> simp [Olf.change, Option.overwrite, Option.insHasSdiff]
+
+@[simp]
+def applyLocalRule (_ : LocalRule (Lcond, Rcond, Ocond) ress) : TNode → List TNode
+  | ⟨L, R, O⟩ => ress.map $
+      fun (Lnew, Rnew, Onew) => ( L.diff Lcond ++ Lnew
+                                , R.diff Rcond ++ Rnew
+                                , Olf.change O Ocond Onew )
 
 inductive LocalRuleApp : TNode → List TNode → Type
   | mk {L R : List Formula}
@@ -400,7 +404,7 @@ theorem localRuleTruth
       cases O
       · use (L ++ X, R, none)
         constructor
-        · use X, none; simp only [Option.map_none', Olf.change_some_none, and_true]; exact in_ress
+        · use X, none; simp only [Option.map_none', Olf.change_some_some_none, and_true]; exact in_ress
         · intro g; subst def_f; rw [conEval] at w_f; specialize hyp g; aesop
       case some val =>
         use (L ++ X, R, some (Sum.inl val))
@@ -460,7 +464,7 @@ theorem localRuleTruth
       cases O
       · use (L, R ++ X, none)
         constructor
-        · use X, none; simp only [Option.map_none', Olf.change_some_none, and_true]; exact in_ress
+        · use X, none; simp only [Option.map_none', Olf.change_some_some_none, and_true]; exact in_ress
         · intro g; subst def_f; rw [conEval] at w_f; specialize hyp g; aesop
       case some val =>
         use (L, R ++ X, some (Sum.inr val))
@@ -703,8 +707,10 @@ theorem List.count_eq_diff_of_subperm [DecidableEq α] {L M : List α} (h : M.Su
   apply List.Perm_diff_append_of_Subperm h
 
 /-- Applying `node_to_multiset` before or after `applyLocalRule` gives the same. -/
-theorem node_to_multiset_of_precon (precon : Lcond.Subperm L ∧ Rcond.Subperm R ∧ Ocond ⊆ O) :
-    node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) + node_to_multiset (Lnew, Rnew, Onew)
+theorem node_to_multiset_of_precon {O Ocond Onew : Olf}
+    (precon : Lcond.Subperm L ∧ Rcond.Subperm R ∧ Ocond ⊆ O)
+    (O_extracon : O ≠ none → Ocond = none → Onew = none)
+    : node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) + node_to_multiset (Lnew, Rnew, Onew)
     = node_to_multiset (L.diff Lcond ++ Lnew, R.diff Rcond ++ Rnew, Olf.change O Ocond Onew) := by
   have my_le := preconP_to_submultiset precon
   rw [Multiset.sub_of_le my_le]
@@ -732,19 +738,27 @@ theorem node_to_multiset_of_precon (precon : Lcond.Subperm L ∧ Rcond.Subperm R
   suffices Multiset.count φ O.toForm + (Multiset.count φ Onew.toForm) =
       Multiset.count φ (O.change Ocond Onew).toForm + Multiset.count φ Ocond.toForm by
     linarith
-  rcases precon with ⟨Lpre, Rpre, Opre⟩
+  unfold Olf.change
+  have claim : (Olf.toForm (Option.overwrite (O \ Ocond) Onew)) = O.toForm - Ocond.toForm + Onew.toForm := by
+    all_goals cases O_Def : O <;> try (cases O_def2 : O)
+    all_goals cases Ocond_Def : Ocond <;> try (cases Ocond_def2 : Ocond)
+    all_goals cases Onew_Def : Onew <;> try (cases Onew_def2 : Onew)
+    all_goals simp_all [Olf.toForm, Olf.change, Option.insHasSdiff]
+    all_goals
+      rcases precon with ⟨_Lpre, _Rpre, Opre⟩
+      subst_eqs
+    · rename_i lf
+      cases lf <;> simp
+    · rename_i lf1 lf2
+      cases lf1 <;> simp
+  rw [claim]
   -- we now get 3 * 3 * 3 = 27 cases
   all_goals cases O <;> try (rename_i O; cases O)
   all_goals cases Onew <;> try (rename_i Onew; cases Onew)
   all_goals cases Ocond <;> try (rename_i cond; cases cond)
-  all_goals simp_all [Olf.toForm, Olf.change] -- deals with 19 out of 27 cases
+  all_goals simp_all [Olf.toForm, Olf.change] -- solve 23 out of 27 cases, of which 4 use O_extracon
   all_goals
-    subst_eqs
-    try linarith -- 4 goals left
-  all_goals
-    -- PROBLEM: now need to show that φ is not the unloaded formula?
-    -- Some relevant information about rules and cases got lost here.
-    sorry
+    linarith
 
 @[simp]
 def lt_TNode (X : TNode) (Y : TNode) := MultisetDMLT (node_to_multiset X) (node_to_multiset Y)
@@ -1110,9 +1124,11 @@ theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
   have Z_eq : Z = node_to_multiset RES - node_to_multiset (Lnew, Rnew, Onew) := by
     unfold_let Z
     have : node_to_multiset RES = node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) + node_to_multiset (Lnew, Rnew, Onew) := by
-      rw [node_to_multiset_of_precon preconP]
-      subst def_RES
-      simp
+      have lrOprop : O ≠ none → Ocond = none → Onew = none := by
+        cases O <;> cases Ocond <;> cases Onew <;> cases rule <;> simp_all
+        all_goals
+          rcases Y_in_ress with ⟨a, a_in, bla⟩ ; cases bla
+      rw [← def_RES, node_to_multiset_of_precon preconP lrOprop]
     rw [this]
     subst def_RES
     simp_all only [Option.instHasSubsetOption, add_tsub_cancel_right]
