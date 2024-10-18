@@ -503,7 +503,7 @@ theorem boxHelperTermination α (ℓ : TP α) :
 /-- Where formulas in the unfolding can come from.
 NOTE: the paper version says two things more which we omit here:
  - `φ ∈ fischerLadner [⌈α⌉ψ]`
- - `∀ γ ∈ δ, γ ∈ subprograms α` (in the last conjunct) -/
+ - `∀ γ ∈ (a::δ), γ ∈ subprograms α` (in the last conjunct) -/
 theorem unfoldBoxContent α ψ :
     ∀ X ∈ (unfoldBox α ψ),
     ∀ φ ∈ X,
@@ -511,7 +511,7 @@ theorem unfoldBoxContent α ψ :
         -- ∧
         (  (φ = ψ)
          ∨ (∃ τ ∈ testsOfProgram α, φ = (~τ))
-         ∨ (∃ (a : Nat), ∃ δ, φ = (⌈·a⌉⌈⌈δ⌉⌉ψ) /- ∧ ∀ γ ∈ δ, γ ∈ subprograms α -/))
+         ∨ (∃ (a : Nat), ∃ δ, φ = (⌈·a⌉⌈⌈δ⌉⌉ψ) /- ∧ ∀ γ ∈ (a::δ), γ ∈ subprograms α -/))
     := by
   intro X X_in φ φ_in_X
   simp [unfoldBox, Xset] at X_in

@@ -24,15 +24,53 @@ def isPartInterpolant (X : TNode) (θ : Formula) :=
 
 def PartInterpolant (N : TNode) := Subtype <| isPartInterpolant N
 
+-- TODO move elsewhere
+theorem Formula.voc_boxes : vocabOfFormula (⌈⌈δ⌉⌉φ) =
+    Vocab.fromList (δ.map vocabOfProgram) ∪ vocabOfFormula φ := by sorry
+
 -- move to UnfoldBox.lean ?
 theorem unfoldBox_voc {x α φ} {L} (L_in : L ∈ unfoldBox α φ) {ψ} (ψ_in : ψ ∈ L)
     (x_in_voc_ψ : x ∈ vocabOfFormula ψ) : x ∈ vocabOfProgram α ∨ x ∈ vocabOfFormula φ := by
-  sorry
+  rcases unfoldBoxContent _ _ _ L_in _ ψ_in with ψ_def | ⟨τ, τ_in, ψ_def⟩ | ⟨a, δ, ψ_def⟩
+  all_goals subst ψ_def
+  · right; exact x_in_voc_ψ
+  · simp only [vocabOfFormula] at x_in_voc_ψ
+    left
+    -- PROBLEM: here and in next case we need the stronger version of `unfoldBoxContent`.
+    sorry
+  · simp at *
+    rw [Formula.voc_boxes] at x_in_voc_ψ
+    sorry
 
 -- move to UnfoldDia.lean ?
 theorem unfoldDiamond_voc {x α φ} {L} (L_in : L ∈ unfoldDiamond α φ) {ψ} (ψ_in : ψ ∈ L)
     (x_in_voc_ψ : x ∈ vocabOfFormula ψ) : x ∈ vocabOfProgram α ∨ x ∈ vocabOfFormula φ := by
-  sorry
+  simp [unfoldDiamond, Yset] at L_in
+  -- TODO use unfoldDiamondContent here instead?
+  rcases L_in with ⟨Fs, δ, in_H, def_L⟩
+  subst def_L
+  simp at ψ_in
+  cases ψ_in
+  case inl hyp =>
+    left
+    have := H_mem_test α ψ in_H hyp
+    rcases this with ⟨τ, τ_in, ψ_def⟩
+    subst ψ_def
+    -- need lemma that voc-of-testsOfProgram is subset of voc
+    sorry
+  case inr ψ_def =>
+    have := H_mem_sequence
+    subst ψ_def
+    simp only [vocabOfFormula, Formula.voc_boxes, Finset.mem_union] at x_in_voc_ψ
+    cases x_in_voc_ψ
+    case inl hyp =>
+      left
+      rw [Vocab.fromListProgram_map_iff] at *
+      rcases hyp with ⟨α', α'_in, x_in⟩
+      -- need lemma that vocabOf in (H α) is subset of vocabOf α
+      sorry
+    · right
+      assumption
 
 theorem localRule_does_not_increase_vocab_L (rule : LocalRule (Lcond, Rcond, Ocond) ress) :
     ∀ res ∈ ress, voc res.1 ⊆ voc Lcond := by
@@ -59,9 +97,17 @@ theorem localRule_does_not_increase_vocab_L (rule : LocalRule (Lcond, Rcond, Oco
   -- other cases *should be* trivial (as in Bml)
   all_goals
     simp at *
-  · sorry
-  · sorry
-  · sorry
+  · aesop
+  case loadedL ress χ lrule =>
+    rcases ress_in_ress with ⟨L, lnf, in_ress, def_res⟩
+    subst def_res
+    simp [Vocab.fromListProgram_map_iff, Vocab.fromListFormula_map_iff] at *
+    rcases x_in_res with ⟨φ, φ_in_L, bla⟩
+    -- wait, where should a contradiction come from now?
+    -- PROBLEM: theorem is not true. The loadedL case here *does* add voc in "L" part, coming "O".
+    -- SOLUTION: Do not have separate theorems for vocab_L, vocab_R and vocab_O.
+    sorry
+  · aesop
 
 theorem localRule_does_not_increase_vocab_R (rule : LocalRule (Lcond, Rcond, Ocond) ress) :
     ∀ res ∈ ress, voc res.2.1 ⊆ voc Rcond := by

@@ -29,6 +29,7 @@ mutual
     | ⌈α⌉ φ => vocabOfProgram α ∪ vocabOfFormula φ
 end
 
+-- avoid this, instead rename the above to Formula.voc and Program.voc ?
 class HasVocabulary (α : Type) where
   voc : α → Vocab
 
