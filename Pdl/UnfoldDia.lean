@@ -6,8 +6,6 @@ import Pdl.Substitution
 import Pdl.Fresh
 import Pdl.Star
 
-open HasVocabulary
-
 -- ### Diamonds: H, Y and Φ_⋄
 
 def H : Program → List (List Formula × List Program)
@@ -117,15 +115,15 @@ theorem H_mem_sequence α {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ H α) :
   case test τ =>
     simp_all [H]
 
-theorem keepFreshH α : x ∉ voc α → ∀ F δ, (F,δ) ∈ H α → x ∉ voc F ∧ x ∉ voc δ := by
+theorem keepFreshH α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ H α → x ∉ F.fvoc ∧ x ∉ δ.pvoc := by
   intro x_notin F δ Fδ_in_H
   cases α
   all_goals
-    simp [H, voc, vocabOfFormula, vocabOfProgram, Vocab.fromList] at *
+    simp [H, Formula.voc, Program.voc, Vocab.fromList] at *
   case atom_prog a =>
     cases Fδ_in_H
     subst_eqs
-    simp [vocabOfProgram, Vocab.fromList]
+    simp [Program.voc, Vocab.fromList]
     assumption
   case test =>
     cases Fδ_in_H
@@ -140,7 +138,7 @@ theorem keepFreshH α : x ∉ voc α → ∀ F δ, (F,δ) ∈ H α → x ∉ voc
     cases em (δ' = []) <;> simp_all
     · subst_eqs
       have IHα := keepFreshH α x_notin.1 F' [] Fδ'_in
-      simp_all [H, voc, vocabOfFormula, vocabOfProgram, Vocab.fromList]
+      simp_all [H, Formula.voc, Program.voc, Vocab.fromList]
       rcases Fδ_in_l with ⟨l', ⟨⟨a', b', ⟨a'b'_in_Hβ, def_l'⟩⟩, Fδ_in_l'⟩⟩
       subst_eqs
       simp_all [Vocab.fromListFormula_map_iff]
@@ -149,16 +147,16 @@ theorem keepFreshH α : x ∉ voc α → ∀ F δ, (F,δ) ∈ H α → x ∉ voc
       · apply IHα
         assumption
       · have IHβ := keepFreshH β x_notin.2 a' b' a'b'_in_Hβ
-        simp_all [H, voc, vocabOfFormula, vocabOfProgram, Vocab.fromListFormula_map_iff]
+        simp_all [H, Formula.voc, Program.voc, Vocab.fromListFormula_map_iff]
     · have := keepFreshH α x_notin.1 F' δ' Fδ'_in
-      simp_all [H, voc,vocabOfFormula,vocabOfProgram]
+      simp_all [H, Formula.voc, Program.voc]
   case sequence.right α β =>
     rcases Fδ_in_H with ⟨l, ⟨⟨F', δ', ⟨Fδ'_in, def_l⟩⟩, Fδ_in_l⟩⟩
     subst def_l
     cases em (δ' = []) <;> simp_all
     · subst_eqs
       have IHα := keepFreshH α x_notin.1 F' [] Fδ'_in
-      simp_all [H, voc, vocabOfFormula, vocabOfProgram, Vocab.fromList]
+      simp_all [H, Formula.voc, Program.voc, Vocab.fromList]
       rcases Fδ_in_l with ⟨l', ⟨⟨a', b', ⟨a'b'_in_Hβ, def_l'⟩⟩, Fδ_in_l'⟩⟩
       subst_eqs
       simp_all
@@ -233,7 +231,7 @@ theorem unfoldDiamondContent α ψ :
     aesop
 
 theorem guardToStarDiamond (x : Nat)
-    (x_notin_beta : Sum.inl x ∉ HasVocabulary.voc β)
+    (x_notin_beta : Sum.inl x ∉ β.voc)
     (beta_equiv : (~⌈β⌉~·x) ≡ (((·x) ⋀ σ0) ⋁ σ1))
     (repl_imp_rho : repl_in_F x ρ σ1 ⊨ ρ)
     (notPsi_imp_rho : (~ψ) ⊨ ρ)
@@ -464,7 +462,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
       -- An alternative idea to solve this would have been to refactor everything
       -- to allow different types, but that seemed harder and not (yet?!) needed.
       let x : Nat := freshVarProg β
-      have x_not_in : Sum.inl x ∉ HasVocabulary.voc β := by apply freshVarProg_is_fresh
+      have x_not_in : Sum.inl x ∉ β.voc := by apply freshVarProg_is_fresh
       -- NOTE the use of ⊥ below - matters for rhs-to-lhs in first Lemma condition.
       let σ0 : Formula := dis $
         (H β).map (fun (F,δ) => if δ = [] then Con F else ⊥)

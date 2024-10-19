@@ -13,16 +13,11 @@ open HasLength
 /-- In nodes we optionally have a negated loaded formula on the left or right. -/
 abbrev Olf := Option (NegLoadFormula ⊕ NegLoadFormula)
 
-open HasVocabulary
-
 @[simp]
-def vocabOfOlf : Olf → Vocab
+def Olf.voc : Olf → Vocab
 | none => {}
-| some (Sum.inl nlf) => voc nlf
-| some (Sum.inr nlf) => voc nlf
-
-@[simp]
-instance : HasVocabulary Olf := ⟨ vocabOfOlf ⟩
+| some (Sum.inl nlf) => nlf.voc
+| some (Sum.inr nlf) => nlf.voc
 
 /-- A tableau node has two lists of formulas and an `Olf`. -/
 -- TODO: rename `TNode` to `Sequent`
@@ -788,7 +783,7 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
   have ubc := unfoldBoxContent (α) φ X X_in ψ ψ_in_X
   cases α <;> simp [Program.isAtomic] at *
   case sequence α β =>
-    rcases ubc with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ⟩
+    rcases ubc with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ, _⟩
     · subst_eqs; linarith
     · subst def_ψ
       suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (α;'β)).attach).sum.succ by
@@ -803,7 +798,7 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
     · subst def_ψ
       simp [lmOfFormula]
   case union α β => -- based on sequence case
-    rcases ubc with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ⟩
+    rcases ubc with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ, _⟩
     · subst_eqs; linarith
     · subst def_ψ
       suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (α⋓β)).attach).sum.succ by
@@ -817,7 +812,7 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
     · subst def_ψ
       simp [lmOfFormula]
   case star β => -- based on sequence case
-    rcases ubc with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ⟩
+    rcases ubc with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ, _⟩
     · subst_eqs; linarith
     · subst def_ψ
       suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (∗β)).attach).sum.succ by
@@ -831,7 +826,7 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
     · subst def_ψ
       simp [lmOfFormula]
   case test τ0 => -- based on sequence case
-    rcases ubc with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ⟩
+    rcases ubc with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ, _⟩
     · subst_eqs; linarith
     · subst def_ψ
       suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (?'τ0)).attach).sum.succ by

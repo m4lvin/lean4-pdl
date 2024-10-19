@@ -8,8 +8,6 @@ import Pdl.Fresh
 import Pdl.Star
 -- import Pdl.FischerLadner
 
-open HasVocabulary
-
 -- ### Preparation for Boxes: Test Profiles
 
 -- def TestProfile (α : Program) : Type := {L // L ∈ (testsOfProgram α).sublists}
@@ -318,13 +316,13 @@ theorem F_goes_down : φ ∈ F α ℓ → lengthOfFormula φ < lengthOfProgram �
     · simp_all
     · simp_all
 
-theorem keepFreshF α ℓ (x_notin : x ∉ voc α) : ∀ φ ∈ F α ℓ, x ∉ voc φ := by
+theorem keepFreshF α ℓ (x_notin : x ∉ α.voc) : ∀ φ ∈ F α ℓ, x ∉ φ.voc := by
   intro φ φ_in
   cases α
   all_goals
-    simp [F, voc, vocabOfFormula, vocabOfProgram, Vocab.fromList] at *
+    simp [F, Formula.voc, Program.voc, Vocab.fromList] at *
   case test τ =>
-    cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩) <;> simp_all [vocabOfFormula]
+    cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩) <;> simp_all [Formula.voc]
   case sequence α β =>
     have := keepFreshF α ℓ x_notin.1
     have := keepFreshF β ℓ x_notin.2
@@ -337,17 +335,17 @@ theorem keepFreshF α ℓ (x_notin : x ∉ voc α) : ∀ φ ∈ F α ℓ, x ∉ 
     have := keepFreshF α ℓ x_notin
     aesop
 
-theorem keepFreshP α ℓ (x_notin : x ∉ voc α) : ∀ δ ∈ P α ℓ, x ∉ voc δ := by
+theorem keepFreshP α ℓ (x_notin : x ∉ α.voc) : ∀ δ ∈ P α ℓ, x ∉ δ.pvoc := by
   intro δ δ_in
   cases α
   all_goals
-    simp_all [P, voc, vocabOfFormula, vocabOfProgram, Vocab.fromList]
+    simp_all [P, Formula.voc, Program.voc, Vocab.fromList]
   case test τ =>
-    cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩) <;> simp_all [vocabOfFormula, Vocab.fromList]
+    cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩) <;> simp_all [Formula.voc, Vocab.fromList]
   case sequence α β =>
     have IHα := keepFreshP α ℓ x_notin.1
     have IHβ := keepFreshP β ℓ x_notin.2
-    simp_all [P, voc, vocabOfFormula, vocabOfProgram, Vocab.fromList, List.mem_filter, Vocab.fromListProgram_map_iff]
+    simp_all [P, Formula.voc, Program.voc, Vocab.fromList, List.mem_filter, Vocab.fromListProgram_map_iff]
     rcases δ_in with (⟨δ', δ'_in, def_δ⟩ | δ_in)
     · subst def_δ
       have := IHα _ δ'_in.1
@@ -359,30 +357,35 @@ theorem keepFreshP α ℓ (x_notin : x ∉ voc α) : ∀ δ ∈ P α ℓ, x ∉ 
   case union α β =>
     have IHα := keepFreshP α ℓ x_notin.1
     have IHβ := keepFreshP β ℓ x_notin.2
-    simp_all [P, voc, vocabOfFormula, vocabOfProgram, Vocab.fromList, List.mem_filter]
+    simp_all [P, Formula.voc, Program.voc, Vocab.fromList, List.mem_filter]
     aesop
   case star α =>
     have IHα := keepFreshP α ℓ x_notin
     rcases δ_in with (_ | ⟨δ', δ'_in, def_δ⟩)
     · subst_eqs
-      simp_all [voc, Vocab.fromList, Finset.not_mem_empty, not_false_eq_true]
+      simp_all [Vocab.fromList, Finset.not_mem_empty, not_false_eq_true]
     · subst def_δ
       rw [Vocab.fromListProgram_map_iff]
-      simp_all [voc, Vocab.fromList, Finset.not_mem_empty, not_false_eq_true]
+      simp_all [Vocab.fromList, Finset.not_mem_empty, not_false_eq_true]
       rintro γ (γ_in_δ' | γ_def)
       · have := IHα _ δ'_in.1
         simp_all [Vocab.fromListProgram_map_iff]
       · subst γ_def
-        simp [vocabOfProgram]
+        simp [Program.voc]
         aesop
 
-/-- Depending on α we know what can occur inside `δ ∈ P α ℓ` for unfoldBox.
-The notes also say `δ1n ⊆ progsOf α \ {α}` but we do not include this here yet. -/
+/-- Depending on α we know what can occur inside `δ ∈ P α ℓ` for unfoldBox. -/
 theorem boxHelperTermination α (ℓ : TP α) :
   ∀ δ ∈ P α ℓ,
       ( α.isAtomic → δ = [α] )
-    ∧ ( ∀ β, α = (∗β) → δ = [] ∨ ∃ a, ∃ δ1n, δ = [(·a : Program)] ++ δ1n ++ [∗β] )
-    ∧ ( (¬ α.isAtomic ∧ ¬ α.isStar) → δ = [] ∨ ∃ a, ∃ δ1n, δ = [(·a : Program)] ++ δ1n )
+    ∧ ( ∀ β, α = (∗β) →
+          δ = []
+        ∨ ∃ a δ1n, (δ = [(·a : Program)] ++ δ1n ++ [∗β]
+                    ∧ ((·a : Program)::δ) ⊆ subprograms α) )
+    ∧ ( (¬ α.isAtomic ∧ ¬ α.isStar) →
+          δ = []
+        ∨ ∃ a δ1n, (δ = [(·a : Program)] ++ δ1n
+                    ∧ ((·a : Program)::δ) ⊆ subprograms α) )
     := by
   intro δ δ_in
   cases α
@@ -404,20 +407,33 @@ theorem boxHelperTermination α (ℓ : TP α) :
         rename _ => hyp2
         rcases hyp2 with ⟨a, α_def⟩
         cases α_def
-      · rw [Program.isAtomic_iff] at *
-        simp_all
+      case neg isAt notStar =>
+        rw [Program.isAtomic_iff] at isAt
+        rcases isAt with ⟨a, α_def⟩
+        use a
+        subst α_def
+        simp [subprograms]
       · rw [Program.isStar_iff] at *
         rename _ => hyp
         rcases hyp with ⟨γ, α_def⟩
         specialize IH γ
-        simp_all
-        rcases IH with ⟨a, δ1n, δ'_def⟩
+        simp_all [subprograms]
+        rcases IH with ⟨a, ⟨δ1n, δ'_def⟩, ⟨a_in, δ'_sub⟩⟩
+        use a
         subst δ'_def
-        simp
-      · rcases IH.2 with ⟨a, δ1n, δ'_def⟩
-        simp_all
+        simp at *
+        constructor
+        · left; exact a_in
+        · subst α_def
+          intro α α_in
+          have := δ'_sub.2 α_in
+          aesop
+      · rcases IH.2 with ⟨a, ⟨δ1n, δ'_def⟩, ⟨_, δ'_sub⟩⟩
+        subst δ'_def
+        simp [subprograms] at *
+        aesop
     · by_cases [] ∈ P α ℓ
-      · simp_all
+      · simp_all [subprograms]
         have IH := boxHelperTermination β ℓ δ δ_in
         simp_all
         by_cases β.isAtomic <;> by_cases β.isStar <;> simp_all
@@ -431,46 +447,64 @@ theorem boxHelperTermination α (ℓ : TP α) :
           rcases hyp2 with ⟨a, α_def⟩
           cases α_def
         · rw [Program.isAtomic_iff] at *
-          simp_all
+          cases IH
+          subst_eqs
+          simp_all [subprograms]
+          aesop
         · rw [Program.isStar_iff] at *
           rename _ => hyp
           rcases hyp with ⟨γ, α_def⟩
           specialize IH γ
           simp_all
           rcases IH with ⟨a, δ1n, δ'_def⟩ <;> aesop
+        · cases IH
+          simp_all [subprograms]
+          aesop
       · simp_all
   case union α β =>
     cases δ_in
     case inl δ_in =>
-      have IH := boxHelperTermination α ℓ δ δ_in
-      cases em α.isAtomic <;> cases em α.isStar <;> simp_all
-      all_goals
-        rw [Program.isAtomic_iff] at *
-        rw [Program.isStar_iff] at *
+      by_cases α.isAtomic <;> by_cases α.isStar <;>
+        simp_all [Program.isAtomic_iff, Program.isStar_iff, subprograms]
+      case pos hyp1 hyp2 =>
+        rcases hyp1 with ⟨γ, α_def⟩
+        rcases hyp2 with ⟨γ, α_def⟩
+        subst_eqs
+      case pos hyp1 hyp2 =>
+        rcases hyp2 with ⟨γ, α_def⟩
+        subst α_def
         simp_all
-      · rename _ => hyp
-        rcases hyp with ⟨γ, α_def⟩
-        specialize IH γ
-        simp_all
-        rcases IH with _ | ⟨a, δ1n, bla ⟩
-        · left; assumption
-        · right
-          use a, δ1n ++ [∗γ]
+        have IH := boxHelperTermination (∗γ) ℓ δ δ_in
+        aesop
+      case neg hyp1 hyp2 =>
+        rcases hyp1 with ⟨a, α_def⟩
+        subst α_def
+        have IH := boxHelperTermination (·a : Program) ℓ δ δ_in
+        simp_all [Program.isAtomic_iff, Program.isStar_iff, subprograms]
+      · have IH := boxHelperTermination (α) ℓ δ δ_in
+        simp_all [Program.isAtomic_iff, Program.isStar_iff, subprograms]
+        aesop
     case inr δ_in =>
-      have IH := boxHelperTermination β ℓ δ δ_in
-      cases em β.isAtomic <;> cases em β.isStar <;> simp_all
-      all_goals
-        try rw [Program.isAtomic_iff] at *
-        try simp_all
-      · try rw [Program.isStar_iff] at *
-        rename _ => hyp
-        rcases hyp with ⟨γ, α_def⟩
-        specialize IH γ
+      by_cases β.isAtomic <;> by_cases β.isStar <;>
+        simp_all [Program.isAtomic_iff, Program.isStar_iff, subprograms]
+      case pos hyp1 hyp2 =>
+        rcases hyp1 with ⟨γ, β_def⟩
+        rcases hyp2 with ⟨γ, β_def⟩
+        subst_eqs
+      case pos hyp1 hyp2 =>
+        rcases hyp2 with ⟨γ, β_def⟩
+        subst β_def
         simp_all
-        rcases IH with _ | ⟨a, δ1n, _⟩
-        · left; assumption
-        · right
-          use a, δ1n ++ [∗γ]
+        have IH := boxHelperTermination (∗γ) ℓ δ δ_in
+        aesop
+      case neg hyp1 hyp2 =>
+        rcases hyp1 with ⟨a, β_def⟩
+        subst β_def
+        have IH := boxHelperTermination (·a : Program) ℓ δ δ_in
+        simp_all [Program.isAtomic_iff, Program.isStar_iff, subprograms]
+      · have IH := boxHelperTermination (β) ℓ δ δ_in
+        simp_all [Program.isAtomic_iff, Program.isStar_iff, subprograms]
+        aesop
   case test τ =>
     cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩)
     · simp_all
@@ -485,25 +519,38 @@ theorem boxHelperTermination α (ℓ : TP α) :
       have IH := boxHelperTermination β ℓ δ' δ'_in
       cases em β.isAtomic <;> cases em β.isStar <;> simp_all
       all_goals
-        try rw [Program.isAtomic_iff] at *
-        try simp_all
-      · try rw [Program.isStar_iff] at *
-        rename _ => hyp
-        rcases hyp with ⟨γ, α_def⟩
-        specialize IH γ α_def
-        simp_all only [not_false_eq_true, implies_true]
-        rcases IH with ⟨a, δ1n, δ'_def⟩
+        simp_all [Program.isAtomic_iff, Program.isStar_iff]
+      · rename _ => hyp
+        rcases hyp with ⟨γ, β_def⟩
+        subst β_def
+        have := IH.2 γ rfl
+        simp_all [not_false_eq_true, implies_true]
+      · rename ∃ a, β = (·a : Program) => hyp
+        rcases hyp with ⟨a, β_def⟩
+        subst β_def
+        simp [subprograms]
+      · rename ∃ α, β = (∗α) => hyp
+        rcases hyp with ⟨α, β_def⟩
+        subst β_def
+        specialize IH α rfl
+        simp [subprograms] at *
+        rcases IH with ⟨a, ⟨δ1n, δ'_def⟩, ⟨a_in, δ'_sub⟩⟩
+        use a
+        constructor
+        · use δ1n ++ [∗ α]
+          subst δ'_def
+          simp
+        · aesop
+      · rcases IH with ⟨a, ⟨δ1n, δ'_def⟩, ⟨a_in, δ'_sub⟩⟩
         subst δ'_def
-        simp_all
-        use δ1n ++ [∗γ]
-        simp
-      · rcases IH.2 with ⟨a, δ1n, δ'_def⟩
-        simp_all
+        use a
+        constructor
+        · use δ1n
+          simp
+        · simp_all [subprograms]
 
 /-- Where formulas in the unfolding can come from.
-NOTE: the paper version says two things more which we omit here:
- - `φ ∈ fischerLadner [⌈α⌉ψ]`
- - `∀ γ ∈ (a::δ), γ ∈ subprograms α` (in the last conjunct) -/
+NOTE: the paper version also says `φ ∈ fischerLadner [⌈α⌉ψ]` which we omit here. -/
 theorem unfoldBoxContent α ψ :
     ∀ X ∈ (unfoldBox α ψ),
     ∀ φ ∈ X,
@@ -511,7 +558,7 @@ theorem unfoldBoxContent α ψ :
         -- ∧
         (  (φ = ψ)
          ∨ (∃ τ ∈ testsOfProgram α, φ = (~τ))
-         ∨ (∃ (a : Nat), ∃ δ, φ = (⌈·a⌉⌈⌈δ⌉⌉ψ) /- ∧ ∀ γ ∈ (a::δ), γ ∈ subprograms α -/))
+         ∨ (∃ (a : Nat), ∃ δ, φ = (⌈·a⌉⌈⌈δ⌉⌉ψ) ∧ ∀ γ ∈ ((·a : Program)::δ), γ ∈ subprograms α))
     := by
   intro X X_in φ φ_in_X
   simp [unfoldBox, Xset] at X_in
@@ -548,32 +595,49 @@ theorem unfoldBoxContent α ψ :
       case atom_prog a =>
         clear bht
         right
+        use a
         use []
         simp
       case sequence α β =>
-        rcases bht with _ | ⟨a, δ1n, δ_def⟩
+        rcases bht with _ | ⟨a, ⟨δ1n, δ_def⟩, ⟨a_in, δ_sub⟩⟩
         · subst_eqs; simp
         · subst δ_def
-          simp_all
+          simp_all -- FIXME: `simp_all?` gives wrong suggestion?
           right
+          use a
           use δ1n
+          simp_all [subprograms]
+          intro γ γ_in
+          specialize δ_sub γ_in
+          simp_all
       case union α β =>
-        rcases bht with _ | ⟨a, δ1n, δ_def⟩
+        rcases bht with _ | ⟨a, ⟨δ1n, δ_def⟩, ⟨a_in, δ_sub⟩⟩
         · subst_eqs; simp
         · subst δ_def
-          simp_all
+          simp_all -- FIXME: `simp_all?` gives wrong suggestion?
           right
-          use δ1n
+          use a, δ1n
+          simp
+          constructor
+          · assumption
+          · intro γ γ_in
+            specialize δ_sub γ_in
+            simp_all
       case star β =>
-        rcases bht with _ | ⟨a, δ1n, δ_def⟩
+        rcases bht with _ | ⟨a, ⟨δ1n, δ_def⟩, ⟨a_in, δ_sub⟩⟩
         · subst_eqs; simp
         · subst δ_def
           simp_all
           right
-          use δ1n ++ [∗β]
-      case test τ =>
-        simp only [allTP, List.mem_map, List.mem_sublists] at *
-        by_cases ℓ ⟨τ, (by simp : τ ∈ [τ])⟩ <;> simp_all
+          use a, δ1n ++ [∗β]
+          simp
+          constructor
+          · assumption
+          · intro γ γ_in
+            rcases γ_in with γ_in | γ_in
+            · specialize δ_sub γ_in
+              aesop
+            · aesop
 
 theorem boxHelperTP α (ℓ : TP α) :
     (∀ τ, (~τ.val) ∈ F α ℓ → ℓ τ = false)
@@ -611,7 +675,7 @@ theorem boxHelperTP α (ℓ : TP α) :
       · aesop
 
 theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
-    (x_notin_beta : Sum.inl x ∉ HasVocabulary.voc β)
+    (x_notin_beta : Sum.inl x ∉ β.voc)
     (beta_equiv : (⌈β⌉·x) ≡ (((·x) ⋀ χ0) ⋁ χ1))
     (rho_imp_repl : ρ ⊨ (repl_in_F x ρ) (χ0 ⋁ χ1))
     (rho_imp_psi : ρ ⊨ ψ)
@@ -1061,7 +1125,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
       exact left_to_right
     · -- Right to left, "more work is required"
       let x : Nat := freshVarProg β
-      have x_not_in_β : Sum.inl x ∉ HasVocabulary.voc β := by apply freshVarProg_is_fresh
+      have x_not_in_β : Sum.inl x ∉ β.voc := by apply freshVarProg_is_fresh
       let φ ℓ := Con ((P β ℓ).map (fun αs => ⌈⌈αs⌉⌉·x))
       let T0 := (allTP β).filter (fun ℓ => [] ∈ P β ℓ)
       let T1 := (allTP β).filter (fun ℓ => [] ∉ P β ℓ)

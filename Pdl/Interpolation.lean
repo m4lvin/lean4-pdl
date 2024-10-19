@@ -2,10 +2,10 @@ import Mathlib.Data.Finset.Basic
 
 import Pdl.PartInterpolation
 
-open HasVocabulary vDash HasSat
+open vDash HasSat
 
 def Interpolant (φ : Formula) (ψ : Formula) (θ : Formula) :=
-  voc θ ⊆ voc φ ∩ voc ψ  ∧  φ ⊨ θ  ∧  θ ⊨ ψ
+  θ.voc ⊆ φ.voc ∩ ψ.voc  ∧  φ ⊨ θ  ∧  θ ⊨ ψ
 
 theorem interpolation : ∀ (φ ψ : Formula), φ⊨ψ → ∃ θ : Formula, Interpolant φ ψ θ :=
   by
@@ -23,8 +23,8 @@ theorem interpolation : ∀ (φ ψ : Formula), φ⊨ψ → ∃ θ : Formula, Int
   use θ
   constructor
   · intro f f_in
-    simp [voc, jvoc, vocabOfFormula, Vocab.fromList] at pI_prop f_in
-    simp only [voc, Finset.mem_inter]
+    simp [jvoc, Formula.voc, Vocab.fromList] at pI_prop f_in
+    simp only [Finset.mem_inter]
     have := pI_prop.1 f_in
     aesop
   constructor

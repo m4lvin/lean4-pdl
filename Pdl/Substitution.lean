@@ -48,33 +48,32 @@ theorem repl_in_dis : repl_in_F x ψ (dis l) = dis (l.map (repl_in_F x ψ)) := b
       simp [dis]
       apply repl_in_dis
 
-open HasVocabulary
-
 mutual
 theorem repl_in_F_non_occ_eq {x φ ρ} :
-    (Sum.inl x) ∉ voc φ → repl_in_F x ρ φ = φ := by
+    (Sum.inl x) ∉ φ.voc → repl_in_F x ρ φ = φ := by
   intro x_notin_phi
   cases φ
   case bottom => simp
   case atom_prop c =>
     simp only [repl_in_F, beq_iff_eq, ite_eq_right_iff]
-    intro c_is_x; simp [voc,vocabOfFormula] at *; subst_eqs; tauto
+    intro c_is_x; simp [Formula.voc] at *; subst_eqs; tauto
   case neg φ0 =>
-    simp [voc,vocabOfFormula] at *
+    simp [Formula.voc] at *
     apply repl_in_F_non_occ_eq; tauto
   case and φ1 φ2 =>
-    simp [voc,vocabOfFormula] at *
+    simp [Formula.voc] at *
     constructor <;> (apply repl_in_F_non_occ_eq ; tauto)
   case box α φ0 =>
-    simp [voc,vocabOfFormula] at *
+    simp [Formula.voc] at *
     constructor
     · apply repl_in_P_non_occ_eq; tauto
     · apply repl_in_F_non_occ_eq; tauto
+
 theorem repl_in_P_non_occ_eq {x α ρ} :
-    (Sum.inl x) ∉ voc α → repl_in_P x ρ α = α := by
+    (Sum.inl x) ∉ α.voc → repl_in_P x ρ α = α := by
   intro x_notin_alpha
   cases α
-  all_goals simp [voc,vocabOfProgram] at *
+  all_goals simp [Program.voc] at *
   case sequence β γ =>
     constructor <;> (apply repl_in_P_non_occ_eq; tauto)
   case union β γ =>
@@ -86,7 +85,7 @@ theorem repl_in_P_non_occ_eq {x α ρ} :
 end
 
 theorem repl_in_boxes_non_occ_eq_neg (δ : List Program) :
-    (Sum.inl x) ∉ voc δ → repl_in_F x ψ (⌈⌈δ⌉⌉~·x) = ⌈⌈δ⌉⌉~ψ := by
+    (Sum.inl x) ∉ Vocab.fromList (δ.map Program.voc) → repl_in_F x ψ (⌈⌈δ⌉⌉~·x) = ⌈⌈δ⌉⌉~ψ := by
   intro nonOcc
   induction δ
   · simp
@@ -94,13 +93,13 @@ theorem repl_in_boxes_non_occ_eq_neg (δ : List Program) :
     simp only [Formula.boxes, List.foldr_cons, repl_in_F, Formula.box.injEq]
     constructor
     · apply repl_in_P_non_occ_eq
-      simp_all [voc, vocabOfProgram, Vocab.fromList]
+      simp_all [Program.voc, Vocab.fromList]
     · apply IH
       clear IH
-      simp_all [voc, vocabOfProgram, Vocab.fromList]
+      simp_all [Program.voc, Vocab.fromList]
 
 theorem repl_in_boxes_non_occ_eq_pos (δ : List Program) :
-    (Sum.inl x) ∉ voc δ → repl_in_F x ψ (⌈⌈δ⌉⌉·x) = ⌈⌈δ⌉⌉ψ := by
+    (Sum.inl x) ∉ Vocab.fromList (δ.map Program.voc) → repl_in_F x ψ (⌈⌈δ⌉⌉·x) = ⌈⌈δ⌉⌉ψ := by
   intro nonOcc
   induction δ
   · simp
@@ -108,13 +107,13 @@ theorem repl_in_boxes_non_occ_eq_pos (δ : List Program) :
     simp only [Formula.boxes, List.foldr_cons, repl_in_F, Formula.box.injEq]
     constructor
     · apply repl_in_P_non_occ_eq
-      simp_all [voc, vocabOfProgram, Vocab.fromList]
+      simp_all [Program.voc, Vocab.fromList]
     · apply IH
       clear IH
-      simp_all [voc, vocabOfProgram, Vocab.fromList]
+      simp_all [Program.voc, Vocab.fromList]
 
 theorem repl_in_list_non_occ_eq (F : List Formula) :
-     (Sum.inl x) ∉ voc F → F.map (repl_in_F x ρ) = F := by
+     (Sum.inl x) ∉ Vocab.fromList (F.map Formula.voc) → F.map (repl_in_F x ρ) = F := by
   intro nonOcc
   induction F
   · simp
@@ -122,11 +121,11 @@ theorem repl_in_list_non_occ_eq (F : List Formula) :
     simp only [List.map_cons, List.cons.injEq]
     constructor
     · apply repl_in_F_non_occ_eq
-      simp [voc, vocabOfProgram, Vocab.fromList] at *
+      simp [Program.voc, Vocab.fromList] at *
       exact nonOcc.left
     · apply IH
       clear IH
-      simp_all [voc, vocabOfProgram, Vocab.fromList]
+      simp_all [Program.voc, Vocab.fromList]
 
 /-- Overwrite the valuation of `x` with the current value of `ψ` in a model. -/
 def repl_in_model (x : Nat) (ψ : Formula) : KripkeModel W → KripkeModel W

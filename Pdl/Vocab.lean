@@ -14,32 +14,20 @@ def Vocab.atomProgs : Vocab → Finset Nat :=
 
 mutual
   @[simp]
-  def vocabOfProgram : Program → Vocab
+  def Program.voc : Program → Vocab
     | ·n => {.inr n}
-    | α;'β => vocabOfProgram α ∪ vocabOfProgram β
-    | α ⋓ β => vocabOfProgram α ∪ vocabOfProgram β
-    | ∗α => vocabOfProgram α
-    | ?' φ => vocabOfFormula φ
+    | α;'β => α.voc ∪ β.voc
+    | α ⋓ β => α.voc ∪ β.voc
+    | ∗α => α.voc
+    | ?' φ => φ.voc
   @[simp]
-  def vocabOfFormula : Formula → Vocab
+  def Formula.voc : Formula → Vocab
     | ⊥ => ∅
     | ·n => {.inl n}
-    | ~φ => vocabOfFormula φ
-    | φ⋀ψ => vocabOfFormula φ ∪ vocabOfFormula ψ
-    | ⌈α⌉ φ => vocabOfProgram α ∪ vocabOfFormula φ
+    | ~φ => φ.voc
+    | φ⋀ψ => φ.voc ∪ ψ.voc
+    | ⌈α⌉ φ => α.voc ∪ φ.voc
 end
-
--- avoid this, instead rename the above to Formula.voc and Program.voc ?
-class HasVocabulary (α : Type) where
-  voc : α → Vocab
-
-open HasVocabulary
-
-@[simp]
-instance formulaHasVocabulary : HasVocabulary Formula := ⟨vocabOfFormula⟩
-
-@[simp]
-instance programHasVocabulary : HasVocabulary Program := ⟨vocabOfProgram⟩
 
 -- rename to Vocab.join? or use `class Hadd`?
 -- QUESTION: Is there a List.join but for Finset?
@@ -49,6 +37,12 @@ def Vocab.fromList : (L : List Vocab) → Vocab
 | (v::vs) => v ∪ Vocab.fromList vs
 
 @[simp]
+abbrev List.fvoc (L : List Formula) := Vocab.fromList (L.map Formula.voc)
+
+@[simp]
+abbrev List.pvoc (L : List Program) := Vocab.fromList (L.map Program.voc)
+
+@[simp]
 theorem Vocab.fromList_singleton : Vocab.fromList [V] = V := by
   simp [Vocab.fromList]
 
@@ -56,17 +50,9 @@ theorem Vocab.fromList_singleton : Vocab.fromList [V] = V := by
 theorem Vocab.fromList_append : Vocab.fromList (L ++ R) = Vocab.fromList L ∪ Vocab.fromList R := by
   induction L <;> induction R <;> simp_all
 
-@[simp]
-instance [HasVocabulary α] : HasVocabulary (List α) :=
-  ⟨fun X => .fromList (X.map voc)⟩
-
--- delete this?
-instance [HasVocabulary α] : HasVocabulary (Finset α) :=
-  ⟨fun X => (X.biUnion (fun f => {voc f})).fold (fun x y => x ∪ y) {} id⟩
-
 theorem Vocab.fromListFormula_map_iff n (L : List Formula) :
-    n ∈ Vocab.fromList (L.map vocabOfFormula)
-    ↔ ∃ φ ∈ L, n ∈ vocabOfFormula φ := by
+    n ∈ Vocab.fromList (L.map Formula.voc)
+    ↔ ∃ φ ∈ L, n ∈ Formula.voc φ := by
   induction L
   · simp [fromList]
   case cons h t IH =>
@@ -82,27 +68,11 @@ theorem Vocab.fromListProgram_map_iff n (L : List Program) :
     simp only [fromList, Finset.mem_union, List.mem_cons, exists_eq_or_imp]
     rw [← IH]
 
-theorem inVocList {α} [HasVocabulary α] n (L : List α) :
-    n ∈ voc L
-    ↔ ∃ φ ∈ L, n ∈ voc φ := by
-  induction L
-  · simp [voc, Finset.mem_biUnion, List.mem_toFinset, Vocab.fromList]
-  case cons h t IH =>
-    simp only [voc, Vocab.fromList, Finset.mem_union, List.mem_cons, exists_eq_or_imp]
-    rw [← IH]
-    simp only [voc]
+@[simp]
+def LoadFormula.voc (lf : LoadFormula) : Vocab := (unload lf).voc
 
 @[simp]
-def vocabOfLoadFormula (lf : LoadFormula) : Vocab := vocabOfFormula (unload lf)
-
-@[simp]
-def vocabOfNegLoadFormula (nlf : NegLoadFormula) : Vocab := vocabOfFormula (negUnload nlf)
-
-@[simp]
-instance LoadFormula.instHasVocabulary : HasVocabulary LoadFormula := ⟨vocabOfLoadFormula⟩
-
-@[simp]
-instance NegLoadFormula.instHasVocabulary : HasVocabulary NegLoadFormula := ⟨vocabOfNegLoadFormula⟩
+def NegLoadFormula.voc (nlf : NegLoadFormula) : Vocab := (negUnload nlf).voc
 
 /-- Test(α) -/
 def testsOfProgram : Program → List Formula
@@ -119,3 +89,30 @@ def subprograms : Program → List Program
 | α;'β => [α;'β ] ++ subprograms α ++ subprograms β
 | α ⋓ β => [α ⋓ β] ++ subprograms α ++ subprograms β
 | ∗α => [∗α] ++ subprograms α
+
+@[simp]
+theorem subprograms.refl : α ∈ subprograms α := by
+  cases α <;> simp [subprograms]
+
+theorem testsOfProgram.voc α {τ} (τ_in : τ ∈ testsOfProgram α) : τ.voc ⊆ α.voc := by
+  cases α <;> simp_all [testsOfProgram]
+  case sequence α β =>
+    intro x x_in
+    rcases τ_in with hyp | hyp
+    all_goals
+      have := testsOfProgram.voc _ hyp
+      specialize this x_in
+      simp only [Finset.mem_union]
+      tauto
+  case union α β =>
+    intro x x_in
+    rcases τ_in with hyp | hyp
+    all_goals
+      have := testsOfProgram.voc _ hyp
+      specialize this x_in
+      simp only [Finset.mem_union]
+      tauto
+  case star α =>
+    intro x x_in
+    have := testsOfProgram.voc _ τ_in
+    exact this x_in

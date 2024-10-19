@@ -3,7 +3,7 @@ import Mathlib.Data.Finset.Basic
 import Pdl.Completeness
 import Pdl.Distance
 
-open HasVocabulary HasSat
+open HasSat
 
 def Olf.toForms : Olf → List Formula
 | none => []
@@ -17,24 +17,24 @@ def TNode.right (X : TNode) : List Formula := X.R ++ X.O.toForms
 
 /-- Joint vocabulary of all parts of a TNode. -/
 @[simp]
-def jvoc (X : TNode) : Vocab := voc (X.left) ∩ voc (X.right)
+def jvoc (X : TNode) : Vocab := (X.left).fvoc ∩ (X.right).fvoc
 
 def isPartInterpolant (X : TNode) (θ : Formula) :=
-  voc θ ⊆ jvoc X ∧ (¬ satisfiable ((~θ) :: X.left) ∧ ¬ satisfiable (θ :: X.right))
+  θ.voc ⊆ jvoc X ∧ (¬ satisfiable ((~θ) :: X.left) ∧ ¬ satisfiable (θ :: X.right))
 
 def PartInterpolant (N : TNode) := Subtype <| isPartInterpolant N
 
 -- TODO move elsewhere
-theorem Formula.voc_boxes : vocabOfFormula (⌈⌈δ⌉⌉φ) =
-    Vocab.fromList (δ.map vocabOfProgram) ∪ vocabOfFormula φ := by sorry
+theorem Formula.voc_boxes : (⌈⌈δ⌉⌉φ).voc = δ.pvoc ∪ φ.voc := by
+  sorry
 
 -- move to UnfoldBox.lean ?
 theorem unfoldBox_voc {x α φ} {L} (L_in : L ∈ unfoldBox α φ) {ψ} (ψ_in : ψ ∈ L)
-    (x_in_voc_ψ : x ∈ vocabOfFormula ψ) : x ∈ vocabOfProgram α ∨ x ∈ vocabOfFormula φ := by
-  rcases unfoldBoxContent _ _ _ L_in _ ψ_in with ψ_def | ⟨τ, τ_in, ψ_def⟩ | ⟨a, δ, ψ_def⟩
+    (x_in_voc_ψ : x ∈ ψ.voc) : x ∈ α.voc ∨ x ∈ φ.voc := by
+  rcases unfoldBoxContent _ _ _ L_in _ ψ_in with ψ_def | ⟨τ, τ_in, ψ_def⟩ | ⟨a, δ, ψ_def, _⟩
   all_goals subst ψ_def
   · right; exact x_in_voc_ψ
-  · simp only [vocabOfFormula] at x_in_voc_ψ
+  · simp only [Formula.voc] at x_in_voc_ψ
     left
     -- PROBLEM: here and in next case we need the stronger version of `unfoldBoxContent`.
     sorry
@@ -44,7 +44,7 @@ theorem unfoldBox_voc {x α φ} {L} (L_in : L ∈ unfoldBox α φ) {ψ} (ψ_in :
 
 -- move to UnfoldDia.lean ?
 theorem unfoldDiamond_voc {x α φ} {L} (L_in : L ∈ unfoldDiamond α φ) {ψ} (ψ_in : ψ ∈ L)
-    (x_in_voc_ψ : x ∈ vocabOfFormula ψ) : x ∈ vocabOfProgram α ∨ x ∈ vocabOfFormula φ := by
+    (x_in_voc_ψ : x ∈ ψ.voc) : x ∈ α.voc ∨ x ∈ φ.voc := by
   simp [unfoldDiamond, Yset] at L_in
   -- TODO use unfoldDiamondContent here instead?
   rcases L_in with ⟨Fs, δ, in_H, def_L⟩
@@ -56,12 +56,11 @@ theorem unfoldDiamond_voc {x α φ} {L} (L_in : L ∈ unfoldDiamond α φ) {ψ} 
     have := H_mem_test α ψ in_H hyp
     rcases this with ⟨τ, τ_in, ψ_def⟩
     subst ψ_def
-    -- need lemma that voc-of-testsOfProgram is subset of voc
-    sorry
+    exact testsOfProgram.voc α τ_in x_in_voc_ψ
   case inr ψ_def =>
     have := H_mem_sequence
     subst ψ_def
-    simp only [vocabOfFormula, Formula.voc_boxes, Finset.mem_union] at x_in_voc_ψ
+    simp only [Formula.voc, Formula.voc_boxes, Finset.mem_union] at x_in_voc_ψ
     cases x_in_voc_ψ
     case inl hyp =>
       left
@@ -73,7 +72,7 @@ theorem unfoldDiamond_voc {x α φ} {L} (L_in : L ∈ unfoldDiamond α φ) {ψ} 
       assumption
 
 theorem localRule_does_not_increase_vocab_L (rule : LocalRule (Lcond, Rcond, Ocond) ress) :
-    ∀ res ∈ ress, voc res.1 ⊆ voc Lcond := by
+    ∀ res ∈ ress, res.1.fvoc ⊆ Lcond.fvoc := by
   intro res ress_in_ress x x_in_res
   cases rule
   case oneSidedL ress orule =>
@@ -110,12 +109,12 @@ theorem localRule_does_not_increase_vocab_L (rule : LocalRule (Lcond, Rcond, Oco
   · aesop
 
 theorem localRule_does_not_increase_vocab_R (rule : LocalRule (Lcond, Rcond, Ocond) ress) :
-    ∀ res ∈ ress, voc res.2.1 ⊆ voc Rcond := by
+    ∀ res ∈ ress, res.2.1.fvoc ⊆ Rcond.fvoc := by
   -- should be dual to _L version
   sorry
 
 theorem localRule_does_not_increase_vocab_O (rule : LocalRule (Lcond, Rcond, Ocond) ress) :
-    ∀ res ∈ ress, voc res.2.2 ⊆ voc Ocond := by
+    ∀ res ∈ ress, res.2.2.voc ⊆ Ocond.voc := by
   sorry
 
 theorem localRuleApp_does_not_increase_jvoc (ruleA : LocalRuleApp X C) :

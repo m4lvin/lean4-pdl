@@ -223,26 +223,24 @@ theorem mapCon_mapForall (M : KripkeModel W) w φ
     · use a, b
     · rw [conEval]; intro f; tauto
 
-open HasVocabulary
-
 theorem in_voc_dis n (L : List Formula) :
-    n ∈ voc (dis L) ↔ ∃ φ ∈ L, n ∈ voc φ := by
+    n ∈ (dis L).voc ↔ ∃ φ ∈ L, n ∈ φ.voc := by
   induction L
-  · simp [voc, dis, vocabOfFormula]
+  · simp [dis, Formula.voc]
   case cons h t IH =>
     induction t -- needed to select case in `dis`
-    · simp [voc, dis, vocabOfFormula]
+    · simp [dis, Formula.voc]
     case cons h t IH =>
-      simp [voc, dis, vocabOfFormula] at *
+      simp [dis, Formula.voc] at *
       rw [← IH]
 
 theorem in_voc_con n (L : List Formula) :
-    n ∈ voc (Con L) ↔ ∃ φ ∈ L, n ∈ voc φ := by
+    n ∈ (Con L).voc ↔ ∃ φ ∈ L, n ∈ φ.voc := by
   induction L
-  · simp [voc, Con, vocabOfFormula]
+  · simp [Con, Formula.voc]
   case cons h t IH =>
     induction t -- needed to select case in `Con`
-    · simp [voc, Con, vocabOfFormula]
+    · simp [Con, Formula.voc]
     case cons h t IH =>
-      simp [voc, Con, vocabOfFormula] at *
+      simp [Con, Formula.voc] at *
       rw [← IH]
