@@ -18,10 +18,13 @@ import Pdl.UnfoldDia
 
 /-- A Kripke model where the relation and valuation are decidable.
 Moreover, to get computable composition and transitive closure we
-want the type of worlds to be finite and enumerable. -/
+want the type of worlds to be finite and enumerable.
+In fact, to avoid choice, we want a list of all worlds.
+-/
 structure DecidableKripkeModel (W :Type) where
   M : KripkeModel W
-  enum : FinEnum W -- alternatively, should we just restrict W to be a list?
+  allW : List W
+  h : ∀ w : W, w ∈ allW
   deceq : DecidableEq W
   decrel : ∀ n, DecidableRel (M.Rel n)
   decval : ∀ w n, Decidable (M.val w n)
@@ -42,31 +45,31 @@ instance evaluate.instDecidable (Mod : DecidableKripkeModel W) w φ
   case neg φ =>
     simp only [evaluate]
     have IH := evaluate.instDecidable Mod w φ
-    by_cases evaluate Mod.M w φ
+    by_cases decide (evaluate Mod.M w φ)
     · apply isFalse
-      simp only [Decidable.not_not]
+      simp [Decidable.not_not] at *
       assumption
     · apply isTrue
+      simp at *
       assumption
   case and φ1 φ2 =>
     have IH1 := evaluate.instDecidable Mod w φ1
-    have IH1 := evaluate.instDecidable Mod w φ2
-    by_cases evaluate Mod.M w φ1 <;> by_cases evaluate Mod.M w φ2
-    · apply isTrue; simp; tauto
+    have IH2 := evaluate.instDecidable Mod w φ2
+    by_cases @decide (evaluate Mod.M w φ1) IH1 <;> by_cases @decide (evaluate Mod.M w φ2) IH2
+    · apply isTrue; simp at *; tauto
     all_goals
-      apply isFalse; simp; tauto
+      apply isFalse; simp at *; tauto
   case box α φ =>
     simp only [evaluate]
-    let allW := Mod.enum.toList
-    let reachable := allW.filter
+    let reachable := Mod.allW.filter
       (fun v => @decide (relate Mod.M α w v) (relate.instDecidable Mod α w v))
     let hyp := reachable.all
       (fun v => @decide (evaluate Mod.M v φ) (evaluate.instDecidable Mod v φ))
-    by_cases hyp
+    by_cases decide hyp
     case pos yes =>
       apply isTrue
       intro v w_v
-      have : v ∈ allW := Mod.enum.mem_toList v
+      have : v ∈ Mod.allW := Mod.h v
       have : v ∈ reachable := by
         unfold_let reachable
         simp only [List.mem_filter, decide_eq_true_eq]
@@ -92,19 +95,16 @@ instance relate.instDecidable (Mod : DecidableKripkeModel W) α v w
   case sequence α β =>
     have IHα := relate.instDecidable Mod α
     have IHβ := relate.instDecidable Mod β
-    let allW := Mod.enum.toList
-    let α_img := allW.filter (fun x => @decide (relate Mod.M α v x) (IHα v x))
-    let α_β_fun := fun x => allW.filter (fun y => @decide (relate Mod.M β x y) (IHβ x y))
+    let α_img := Mod.allW.filter (fun x => @decide (relate Mod.M α v x) (IHα v x))
+    let α_β_fun := fun x => Mod.allW.filter (fun y => @decide (relate Mod.M β x y) (IHβ x y))
     let α_β_img := (α_img.map α_β_fun).join
     simp only [relate]
-    -- the following part works, but somehow relies on `Classical.propDecidable`???
-    sorry
-    /-
-    by_cases w ∈ α_β_img
+    -- FIXME: inferred `List.instDecidableMemOfLawfulBEq w α_β_img` leads to non-computable code?
+    by_cases @decide (w ∈ α_β_img) sorry
     case pos yes =>
       apply isTrue
       unfold_let α_β_img at yes
-      simp only [List.mem_join, List.mem_map, exists_exists_and_eq_and] at yes
+      simp only [List.mem_join, List.mem_map, exists_exists_and_eq_and, decide_eq_true_eq] at yes
       rcases yes with ⟨y, y_in, w_in⟩
       use y
       unfold_let α_img at y_in
@@ -113,19 +113,17 @@ instance relate.instDecidable (Mod : DecidableKripkeModel W) α v w
       tauto
     case neg no =>
       apply isFalse
-      push_neg
+      simp only [not_exists, not_and]
       intro y v_y
       unfold_let α_β_img at no
       unfold_let α_β_fun at no
       unfold_let α_img at no
-      unfold_let allW at no
-      simp only [List.mem_join, List.mem_map, List.mem_filter, FinEnum.mem_toList,
+      simp [List.mem_join, List.mem_map, List.mem_filter, FinEnum.mem_toList,
         decide_eq_true_eq, true_and, exists_exists_and_eq_and, not_exists, not_and] at no
-      exact no y v_y
-    -/
+      exact no y (Mod.h _) v_y (Mod.h _)
   case union α β =>
-    have IH1 := relate.instDecidable Mod α v w
-    have IH1 := relate.instDecidable Mod β v w
+    have IHα := relate.instDecidable Mod α v w
+    have IHβ := relate.instDecidable Mod β v w
     simp
     by_cases relate Mod.M α v w <;> by_cases relate Mod.M β v w
     · apply isTrue; tauto
@@ -144,15 +142,13 @@ instance relate.instDecidable (Mod : DecidableKripkeModel W) α v w
     sorry
   case test τ =>
     simp only [relate]
-    have := Mod.deceq v w
     have IHτ := evaluate.instDecidable Mod v τ
-    by_cases v = w <;> by_cases evaluate Mod.M v τ
-    · apply isTrue; tauto
+    by_cases @decide (v = w) (Mod.deceq v w) <;> by_cases decide (evaluate Mod.M v τ)
+    · apply isTrue; simp at *; tauto
     all_goals
-      apply isFalse; tauto
+      apply isFalse; simp at *; tauto
   termination_by
     sizeOf α
-
 end
 
 def distance {W} (Mod : DecidableKripkeModel W) (v w : W)
@@ -164,13 +160,12 @@ def distance {W} (Mod : DecidableKripkeModel W) (v w : W)
   exact (if v = w ∧ evaluate Mod.M v τ then some 0 else none)
 | α⋓β => min (distance Mod v w α) (distance Mod v w β)
 | α;'β =>
-    let allW := Mod.enum.toList
+
     let α_β_distOf := fun x => Nat.add <$> distance Mod v x α <*> distance Mod x w β
-    (allW.map α_β_distOf).reduceOption.minimum?
+    (Mod.allW.map α_β_distOf).reduceOption.minimum?
 | ∗α =>
-    let allW := Mod.enum.toList
     -- This will be ugly, but essentially we need something like the matrix method?
-    let maxN := allW.length
+    let maxN := Mod.allW.length
     sorry -- min { ... | u ∈ W } -- need map or enum over W here :-/
 termination_by
   α => sizeOf α
@@ -179,9 +174,8 @@ def distance_list {W} (Mod : DecidableKripkeModel W) (v w : W) : (δ : List Prog
 | [] => have := Mod.deceq v w
         if v = w then some 0 else none
 | (α::δ) => -- similar to α;'β case in `distance`
-    let allW := Mod.enum.toList
     let α_δ_distOf := fun x => Nat.add <$> distance Mod v x α <*> distance_list Mod x w δ
-    (allW.map α_δ_distOf).reduceOption.minimum?
+    (Mod.allW.map α_δ_distOf).reduceOption.minimum?
 
 theorem distance_iff_relate (Mod : DecidableKripkeModel W) :
     (distance Mod v w α).isSome ↔ relate Mod.M α v w := by
