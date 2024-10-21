@@ -34,6 +34,13 @@ structure DecidableKripkeModel (W :Type) where
 -- Journal of Applied Logic
 -- https://doi.org/10.1016/j.jal.2005.08.002
 
+/-
+-- TODO: use something like this for `case star` in `relate.instDecidable` below?
+instance decidableReflTransGen_of_decidableRel_on_finite [Fintype α] (r : α → α → Prop)
+    (h : DecidableRel r) : DecidableRel (Relation.ReflTransGen r) := by
+  sorry
+-/
+
 mutual
 instance evaluate.instDecidable (Mod : DecidableKripkeModel W) w φ
     : Decidable (evaluate Mod.M w φ) := by
@@ -93,34 +100,12 @@ instance relate.instDecidable (Mod : DecidableKripkeModel W) α v w
     simp only [relate]
     apply Mod.decrel
   case sequence α β =>
+    simp only [relate]
+    have : DecidableEq W := Mod.deceq
+    have : Fintype W := ⟨Mod.allW.toFinset, by have := Mod.h; simp_all [List.mem_toFinset]⟩
     have IHα := relate.instDecidable Mod α
     have IHβ := relate.instDecidable Mod β
-    let α_img := Mod.allW.filter (fun x => @decide (relate Mod.M α v x) (IHα v x))
-    let α_β_fun := fun x => Mod.allW.filter (fun y => @decide (relate Mod.M β x y) (IHβ x y))
-    let α_β_img := (α_img.map α_β_fun).join
-    simp only [relate]
-    -- FIXME: inferred `List.instDecidableMemOfLawfulBEq w α_β_img` leads to non-computable code?
-    by_cases @decide (w ∈ α_β_img) sorry
-    case pos yes =>
-      apply isTrue
-      unfold_let α_β_img at yes
-      simp only [List.mem_join, List.mem_map, exists_exists_and_eq_and, decide_eq_true_eq] at yes
-      rcases yes with ⟨y, y_in, w_in⟩
-      use y
-      unfold_let α_img at y_in
-      unfold_let α_β_fun at w_in
-      simp only [List.mem_filter, decide_eq_true_eq] at *
-      tauto
-    case neg no =>
-      apply isFalse
-      simp only [not_exists, not_and]
-      intro y v_y
-      unfold_let α_β_img at no
-      unfold_let α_β_fun at no
-      unfold_let α_img at no
-      simp [List.mem_join, List.mem_map, List.mem_filter, FinEnum.mem_toList,
-        decide_eq_true_eq, true_and, exists_exists_and_eq_and, not_exists, not_and] at no
-      exact no y (Mod.h _) v_y (Mod.h _)
+    apply @Fintype.decidableExistsFintype
   case union α β =>
     have IHα := relate.instDecidable Mod α v w
     have IHβ := relate.instDecidable Mod β v w
