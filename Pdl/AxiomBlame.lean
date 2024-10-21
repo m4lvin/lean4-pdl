@@ -1,13 +1,26 @@
--- Code by Kyle Miller from here:
--- https://leanprover.zulipchat.com/#narrow/stream/217875-Is-there-code-for-X.3F/topic/.E2.9C.94.20Finding.20usages.20of.20.60sorry.60.20in.20external.20code/near/430509619
-
 import Lean.Elab.Command
 import Lean.Util.FoldConsts
 
--- import Mathlib -- TODO: make this more specific to avoid clashes with e.g. our "Con"
+/-!
+# Find why something depends on which axioms
 
-import Pdl.Modelgraphs
-import Pdl.Interpolation
+This code is by Kyle Miller from here:
+https://leanprover.zulipchat.com/#narrow/stream/217875-Is-there-code-for-X.3F/topic/.E2.9C.94.20Finding.20usages.20of.20.60sorry.60.20in.20external.20code/near/430509619
+
+Importing this file provides a comment `#axiom_blame` that creates output like this:
+
+```
+#axiom_blame FinEnum.toList
+
+'FinEnum.toList' depends on axioms:
+
+* Quot.sound: FinEnum.toList → Equiv.instFunLike → Equiv.instFunLike.proof_1 → EquivLike.toFunLike → EquivLike.toFunLike.proof_1 → Function.LeftInverse.eq_rightInverse → Function.RightInverse.comp_eq_id → funext → Quot.sound
+
+* Classical.choice: FinEnum.toList → List.finRange → List.finRange.proof_1 → List.mem_range → Init.Data.List.Nat.Range._auxLemma.10 → List.mem_range'_1 → Init.Data.List.Nat.Range._auxLemma.9 → List.mem_range' → Init.Data.Nat.Lemmas._auxLemma.9 → Nat.self_eq_add_left → Classical.propDecidable → Classical.choice
+
+* propext: FinEnum.toList → List.finRange → List.finRange.proof_1 → List.mem_range → Init.Data.List.Nat.Range._auxLemma.10 → propext
+```
+-/
 
 section
 open Lean Elab Command
@@ -50,12 +63,8 @@ elab "#axiom_blame " id:ident : command => Elab.Command.liftTermElabM do
   else
     let mut msgs := #[]
     for (ax, decls) in s.axioms do
-      msgs := msgs.push m!"* {ax}: {MessageData.joinSep decls.reverse " → "}"
-    logInfo m!"'{n}' depends on axioms:\n\n{MessageData.joinSep msgs.toList "\n\n"}"
+      msgs := msgs.push m!"* {ax}: {MessageData.joinSep (decls.reverse.map toMessageData) " → "}"
+      logInfo m!"'{n}' depends on axioms:\n\n{MessageData.joinSep msgs.toList "\n\n"}"
   logInfo m!"{n}"
 
 end
-
-#axiom_blame truthLemma
-
-#axiom_blame interpolation
