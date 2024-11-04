@@ -1,5 +1,3 @@
-import Mathlib.Init.Data.Nat.Lemmas
-
 import Pdl.Semantics
 import Pdl.Vocab
 

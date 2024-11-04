@@ -1,8 +1,6 @@
 -- All copied from pdl/Discon.lean
 -- not all parts might make sense yet
 
-import Mathlib.Init.Data.Nat.Lemmas
-
 import Bml.Vocabulary
 import Bml.Semantics
 

@@ -55,7 +55,7 @@ https://leanprover.zulipchat.com/#narrow/stream/217875-Is-there-code-for-X.3F/to
 theorem allTP_mem (ℓ : TP α) : ℓ ∈ allTP α := by
   simp_rw [allTP, List.mem_map, List.mem_sublists]
   use (testsOfProgram α).filter (fun τ ↦ ∃ h : τ ∈ testsOfProgram α, ℓ ⟨τ, h⟩)
-  simp (config := {contextual := true}) [TP, List.mem_filter, Function.funext_iff]
+  simp (config := {contextual := true}) [TP, List.mem_filter, funext_iff]
 
 /-- σ^ℓ -/
 def signature (α : Program) (ℓ : TP α) : Formula :=
@@ -210,7 +210,7 @@ theorem P_monotone α (ℓ ℓ' : TP α) (h : ∀ τ, ℓ τ → ℓ' τ) δ : �
       use δ'
       simp_all
     case inr h' =>
-      split <;> split at h' <;> simp_all
+      simp_all
   case star α =>
     intro δ_in
     cases em (δ = [])
@@ -223,8 +223,6 @@ theorem P_monotone α (ℓ ℓ' : TP α) (h : ∀ τ, ℓ τ → ℓ' τ) δ : �
       simp_all
   case test τ =>
     simp_all [testsOfProgram, P]
-    intro h'
-    split <;> split at h' <;> simp_all
 
 -- prove this via boxHelperTermination instead?
 theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if α.isAtomic then γ = α else if α.isStar then lengthOfProgram γ ≤  lengthOfProgram α else lengthOfProgram γ < lengthOfProgram α) := by
@@ -280,10 +278,6 @@ theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if α.isAtomic then γ 
           rw [← def_δ] at γ_in; simp at γ_in; tauto
         subst_eqs
         simp
-  case test τ =>
-    cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩)
-    · simp_all
-    · simp_all
 
 theorem F_goes_down : φ ∈ F α ℓ → lengthOfFormula φ < lengthOfProgram α := by
   intro φ_in
@@ -340,8 +334,6 @@ theorem keepFreshP α ℓ (x_notin : x ∉ α.voc) : ∀ δ ∈ P α ℓ, x ∉ 
   cases α
   all_goals
     simp_all [P, Formula.voc, Program.voc, Vocab.fromList]
-  case test τ =>
-    cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩) <;> simp_all [Formula.voc, Vocab.fromList]
   case sequence α β =>
     have IHα := keepFreshP α ℓ x_notin.1
     have IHβ := keepFreshP β ℓ x_notin.2
@@ -505,10 +497,6 @@ theorem boxHelperTermination α (ℓ : TP α) :
       · have IH := boxHelperTermination (β) ℓ δ δ_in
         simp_all [Program.isAtomic_iff, Program.isStar_iff, subprograms]
         aesop
-  case test τ =>
-    cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩)
-    · simp_all
-    · simp_all
   case star β =>
     cases δ_in
     · left; assumption
@@ -585,9 +573,6 @@ theorem unfoldBoxContent α ψ :
         rw [F_mem_iff_neg] at φ_in_F
         rcases φ_in_F with (⟨τ, τ_in, φ_def, _⟩)
         simp_all
-      case test τ =>
-        simp only [allTP, List.mem_map, List.mem_sublists] at *
-        by_cases ℓ ⟨τ, (by simp : τ ∈ [τ])⟩ <;> simp_all
     · -- φ is made from some δ from P α ℓ
       have bht := boxHelperTermination α ℓ δ δ_in
       subst def_φ

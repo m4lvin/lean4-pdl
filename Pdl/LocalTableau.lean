@@ -56,8 +56,6 @@ theorem setEqTo_isLoaded_iff {X Y : TNode} (h : X.setEqTo Y) : X.isLoaded = Y.is
   rcases X with ⟨XL, XR, _|_⟩ <;> rcases Y with ⟨YL, YR, _|_⟩
   all_goals
     simp_all
-  all_goals
-    exfalso; rcases h with ⟨_,_,impossible⟩ ; exact (Bool.eq_not_self _).mp impossible
 
 /-! ## Semantics of a TNode -/
 
@@ -579,7 +577,6 @@ theorem lmOfFormula_lt_box_of_nonAtom (h : ¬ α.isAtomic) :
 instance : LT Formula := ⟨Nat.lt on lmOfFormula⟩
 
 instance Formula.WellFoundedLT : WellFoundedLT Formula := by
-  unfold WellFoundedLT
   constructor
   simp_all only [instLTFormula, Nat.lt_eq]
   exact @WellFounded.onFun Formula Nat Nat.lt lmOfFormula Nat.lt_wfRel.wf
@@ -882,9 +879,6 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ H α) {ψ} (i
           all_goals
             simp_all [H, testsOfProgram, lmOfFormula, List.attach_map_val]
             try linarith
-          all_goals
-            simp_all only [Function.comp_def, List.attach_map_val]
-            linarith
       · simp_all only [ite_false, List.mem_singleton, Prod.mk.injEq, testsOfProgram,
         List.attach_append, List.map_append, List.map_map, List.sum_append]
         rw [Function.comp_def, Function.comp_def, List.attach_map_val, List.attach_map_val]

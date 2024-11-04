@@ -629,7 +629,7 @@ theorem PathIn.rewind_zero {tab : Tableau Hist X} {p : PathIn tab} : p.rewind 0 
       rw [PathIn.loc_length_eq] at hyp
       have := @Fin.last_pos tail.toHistory.length
       omega
-    case neg hyp =>
+    case neg _ =>
       simp_all [Fin.lastCases, Fin.reverseInduction]
   case pdl Y Z X0 next r tail IH =>
     by_cases 0 = Fin.last (pdl r tail).toHistory.length
@@ -637,7 +637,7 @@ theorem PathIn.rewind_zero {tab : Tableau Hist X} {p : PathIn tab} : p.rewind 0 
       rw [PathIn.pdl_length_eq] at hyp
       have := @Fin.last_pos tail.toHistory.length
       omega
-    case neg hyp =>
+    case neg _ =>
       simp_all [Fin.lastCases, Fin.reverseInduction]
 
 theorem PathIn.rewind_le (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) : t.rewind k ≤ t := by
@@ -689,15 +689,15 @@ theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
       · simp [PathIn.toHistory, PathIn.rewind] at *
       case cast j =>
         specialize IH Z Z_in tail
-        simp only [List.get_eq_getElem, List.length_cons, toHistory, nodeAt_loc] at *
-        simp_all [PathIn.rewind]
-        have := @List.getElem_append _ (nodeAt tail :: tail.toHistory) [Y] j.val (by
-          rcases j with ⟨j,j_lt⟩
-          rw [List.length_cons]
-          rw [loc_length_eq] at j_lt
-          exact j_lt)
-        simp at this
-        rw [this]
+        simp_all only [List.get_eq_getElem, List.length_cons, rewind, toHistory,
+          Fin.lastCases_castSucc, Function.comp_apply, nodeAt_loc, Fin.coe_cast, Fin.coe_castSucc]
+        rcases j with ⟨j,j_lt⟩
+        rw [loc_length_eq] at j_lt
+        have := @List.getElem_append _ (nodeAt tail :: tail.toHistory) [Y] j ?_
+        · simp only [List.cons_append, List.length_cons, List.getElem_singleton] at this
+          simp_all only [dite_true]
+        · simp only [List.cons_append, List.length_cons, List.length_append]
+          exact Nat.lt_add_right 1 j_lt
   case pdl =>
     cases t
     case nil =>
@@ -708,14 +708,16 @@ theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
       case cast j =>
         specialize IH tail
         simp only [List.get_eq_getElem, List.length_cons, toHistory, nodeAt_pdl] at *
-        simp_all [PathIn.rewind]
-        have := @List.getElem_append _ (nodeAt tail :: tail.toHistory) [Z] j.val (by
-          rcases j with ⟨j,j_lt⟩
-          rw [List.length_cons]
-          rw [pdl_length_eq] at j_lt
-          exact j_lt)
-        simp at this
-        rw [this]
+        simp_all only [rewind, Fin.lastCases_castSucc, Function.comp_apply, nodeAt_pdl,
+          Fin.coe_cast, Fin.coe_castSucc]
+        rcases j with ⟨j,j_lt⟩
+        rw [pdl_length_eq] at j_lt
+        have := @List.getElem_append _ (nodeAt tail :: tail.toHistory) [Z] j ?_
+        · simp only [List.cons_append, List.length_cons, List.getElem_singleton] at this
+          rw [this]
+          simp_all
+        · simp only [List.cons_append, List.length_cons, List.length_append, List.length_singleton]
+          exact Nat.lt_add_right 1 j_lt
   case rep =>
     cases t
     simp_all [PathIn.toHistory, PathIn.rewind]
@@ -854,7 +856,7 @@ theorem eProp {X} (tab : Tableau .nil X) :
 -- Unused?
 theorem eProp2.a {tab : Tableau .nil X} (s t : PathIn tab) :
     s ⋖_ t → (s <ᶜ t) ∨ (t ≡ᶜ s) := by
-  simp_all [edge, cEdge, cEquiv, flip, before, companion]
+  simp_all only [edge, cEdge, cEquiv, flip, before, companion]
   intro t_childOf_s
   if Relation.TransGen cEdge t s
   then
