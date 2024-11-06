@@ -1,6 +1,9 @@
 
 import Mathlib.Data.FinEnum
 
+import Mathlib.Data.List.Basic
+import Mathlib.Data.Finset.Sups
+
 import Pdl.UnfoldDia
 
 -- Alternative to `Paths.lean` for the proof of `correctRightIP`.
@@ -20,6 +23,7 @@ import Pdl.UnfoldDia
 Moreover, to get computable composition and transitive closure we
 want the type of worlds to be finite and enumerable.
 In fact, to avoid choice, we want a list of all worlds.
+-- TODO: weaken List to Fintype, should still be possible to define distance?
 -/
 structure DecidableKripkeModel (W :Type) where
   M : KripkeModel W
@@ -34,12 +38,157 @@ structure DecidableKripkeModel (W :Type) where
 -- Journal of Applied Logic
 -- https://doi.org/10.1016/j.jal.2005.08.002
 
-/-
--- TODO: use something like this for `case star` in `relate.instDecidable` below?
-instance decidableReflTransGen_of_decidableRel_on_finite [Fintype α] (r : α → α → Prop)
-    (h : DecidableRel r) : DecidableRel (Relation.ReflTransGen r) := by
-  sorry
--/
+-- Helper theorem, mathlib this?
+theorem Finset.sdiff_ssubset_sdiff [DecidableEq α] {A B C : Finset α} (h1 : B ⊆ A) (h3 : C ⊂ B) :
+    A \ B ⊂ A \ C := by
+  rw [Finset.ssubset_iff] at h3
+  rcases h3 with ⟨x, x_nIn_C, xC_sub_B⟩
+  rw [Finset.ssubset_iff]
+  use x
+  constructor
+  · simp_all only [Finset.mem_sdiff, not_and, Decidable.not_not]
+    intro _in
+    apply xC_sub_B
+    simp_all
+  · intro y
+    simp only [Finset.mem_insert, Finset.mem_sdiff]
+    rintro (y_eq_x | ⟨y_in, y_nIn⟩)
+    · subst y_eq_x
+      simp_all only [not_false_eq_true, and_true]
+      apply h1
+      apply xC_sub_B
+      simp_all only [Finset.mem_insert, or_false]
+    · constructor
+      · exact y_in
+      · by_contra y_in_C
+        have : y ∈ insert x C := by aesop
+        specialize xC_sub_B this
+        tauto
+
+theorem reachableFrom_terminationHelper (r : α → α → Prop) [DecidableRel r] [DecidableEq α] [α_fin : Fintype α] (here : Finset α)
+    (h : (Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems).Nonempty)
+    :
+    (Fintype.elems \ (here ∪ Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems)).card <
+  (Fintype.elems \ here).card := by
+  apply Finset.card_lt_card
+  apply Finset.sdiff_ssubset_sdiff
+  · intro _ _
+    apply α_fin.complete
+  · rw [Finset.ssubset_def]
+    constructor
+    · intro x x_in
+      simp only [Finset.mem_union, Finset.mem_filter]
+      left
+      exact x_in
+    · rw [Finset.not_subset]
+      rw [Finset.filter_nonempty_iff] at h
+      rcases h with ⟨y, y_in, x, x_in, y_notIn, r_x_y⟩
+      use y
+      simp_all only [Finset.mem_union, Finset.mem_filter, not_false_eq_true, true_and, false_or,
+        and_true]
+      use x
+
+/-- Computable definition to close a finset under the reflexive transitive closure of a relation. -/
+def reachableFrom (r : α → α → Prop) [DecidableRel r] [DecidableEq α] [α_fin : Fintype α] (here : Finset α) :
+    Finset α :=
+  let nexts := α_fin.elems.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y)
+  if _h : nexts.Nonempty then reachableFrom r (here ∪ nexts) else here
+termination_by
+  (α_fin.elems \ here).card
+decreasing_by
+  unfold_let nexts at _h
+  apply reachableFrom_terminationHelper
+  exact _h
+
+theorem reachableFrom.subset (r : α → α → Prop) [DecidableRel r] [DecidableEq α] [α_fin : Fintype α] here :
+    here ⊆ reachableFrom r here := by
+  unfold reachableFrom
+  simp_all only [dite_eq_ite]
+  by_cases hyp : (Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems).Nonempty <;> simp_all
+  have IH := reachableFrom.subset r (here ∪ Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems)
+  intro x x_in
+  have : x ∈ here ∪ Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems := by aesop
+  exact IH this
+termination_by
+  (α_fin.elems \ here).card
+decreasing_by
+  apply reachableFrom_terminationHelper
+  exact hyp
+
+theorem reachableFrom.mem_iff (r : α → α → Prop) [DecidableRel r] [DecidableEq α] [α_fin : Fintype α] (here : Finset α) y :
+    y ∈ reachableFrom r here ↔ ∃ x ∈ here, Relation.ReflTransGen r x y := by
+  constructor
+  · intro y_in
+    unfold reachableFrom at y_in
+    simp at y_in
+    by_cases hyp : (Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems).Nonempty
+    case pos =>
+      simp only [hyp, reduceIte] at y_in
+      clear hyp
+      rw [reachableFrom.mem_iff] at y_in -- will need termination argument
+      rcases y_in with ⟨x, x_in, r_x_y⟩
+      simp at x_in
+      rcases x_in with (_ | ⟨x_in, z, z_in, x_notIn_here, r_z_x⟩ )
+      · use x
+      · refine ⟨z, z_in, ?_⟩
+        exact Relation.ReflTransGen.head r_z_x r_x_y
+    case neg =>
+      simp only [hyp, reduceIte] at y_in
+      clear hyp
+      use y
+  · rintro ⟨x, x_in_here, rr_x_y⟩
+    rw [Relation.ReflTransGen.cases_head_iff] at rr_x_y
+    cases rr_x_y
+    · subst_eqs
+      exact reachableFrom.subset r here x_in_here
+    case inr hyp =>
+      rcases hyp with ⟨w, r_x_w, rr_w_y⟩
+      by_cases w ∈ here
+      ·
+        -- not sure what to do here..
+        have : ∃ c ∈ ((here ∪ Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems)), Relation.ReflTransGen r c y :=
+          by sorry
+        rw [← reachableFrom.mem_iff] at this -- TERMINATION okay now?
+
+        -- exact this
+        sorry
+      ·
+        unfold reachableFrom
+        simp only [dite_eq_ite]
+        have : (Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems).Nonempty :=
+          ⟨w, by simp only [Finset.mem_filter]; refine ⟨Fintype.complete w, by use x⟩⟩
+        simp [this]
+        clear this
+        rw [reachableFrom.mem_iff] -- termination ok
+        use x
+        simp
+        constructor
+        · left
+          assumption
+        · exact Relation.ReflTransGen.head r_x_w rr_w_y
+termination_by
+  (α_fin.elems \ here).card
+decreasing_by
+  · simp_all
+    apply reachableFrom_terminationHelper
+    assumption
+  · simp_all
+    apply reachableFrom_terminationHelper
+    assumption
+
+/-- Used for `case star` in `relate.instDecidable` below. -/
+instance decidableReflTransGen_of_decidableRel_on_finite [DecidableEq α] [Fintype α]
+    (r : α → α → Prop) (h : DecidableRel r) : DecidableRel (Relation.ReflTransGen r) := by
+  intro x y
+  by_cases y ∈ reachableFrom r {x}
+  case pos hyp =>
+    rw [reachableFrom.mem_iff r {x} y] at hyp
+    simp only [Finset.mem_singleton, exists_eq_left] at hyp
+    exact isTrue hyp
+  case neg hyp =>
+    rw [reachableFrom.mem_iff r {x} y] at hyp
+    simp only [Finset.mem_singleton, exists_eq_left] at hyp
+    exact isFalse hyp
 
 mutual
 instance evaluate.instDecidable (Mod : DecidableKripkeModel W) w φ
@@ -116,15 +265,11 @@ instance relate.instDecidable (Mod : DecidableKripkeModel W) α v w
     · apply isTrue; tauto
     · apply isFalse; tauto
   case star α =>
-    simp
+    simp only [relate]
     have IHα := relate.instDecidable Mod α
-    -- PROBLEM: decidable relation does not imply that
-    --          its transitive closure is decidable!
-    -- QUESTION: would it be enough to have decidable
-    --           transitive closures of atomic programs
-    --           to then compute all other PDL stars?
-    -- FOR NOW: we have `FinEnum`, that should be enough.
-    sorry
+    have := Mod.deceq
+    have : Fintype W := ⟨Mod.allW.toFinset, by intro x; simp; apply Mod.h⟩
+    apply decidableReflTransGen_of_decidableRel_on_finite (relate Mod.M α) IHα
   case test τ =>
     simp only [relate]
     have IHτ := evaluate.instDecidable Mod v τ
@@ -147,7 +292,7 @@ def distance {W} (Mod : DecidableKripkeModel W) (v w : W)
 | α;'β =>
 
     let α_β_distOf := fun x => Nat.add <$> distance Mod v x α <*> distance Mod x w β
-    (Mod.allW.map α_β_distOf).reduceOption.minimum?
+    (Mod.allW.map α_β_distOf).reduceOption.min?
 | ∗α =>
     -- This will be ugly, but essentially we need something like the matrix method?
     let maxN := Mod.allW.length
@@ -160,7 +305,7 @@ def distance_list {W} (Mod : DecidableKripkeModel W) (v w : W) : (δ : List Prog
         if v = w then some 0 else none
 | (α::δ) => -- similar to α;'β case in `distance`
     let α_δ_distOf := fun x => Nat.add <$> distance Mod v x α <*> distance_list Mod x w δ
-    (Mod.allW.map α_δ_distOf).reduceOption.minimum?
+    (Mod.allW.map α_δ_distOf).reduceOption.min?
 
 theorem distance_iff_relate (Mod : DecidableKripkeModel W) :
     (distance Mod v w α).isSome ↔ relate Mod.M α v w := by
