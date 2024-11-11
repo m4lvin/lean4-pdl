@@ -124,11 +124,11 @@ theorem reachableFrom.mem_iff (r : α → α → Prop) [DecidableRel r] [Decidab
     by_cases hyp : (Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems).Nonempty
     case pos =>
       simp only [hyp, reduceIte] at y_in
+      rw [reachableFrom.mem_iff] at y_in -- needs termination argument
       clear hyp
-      rw [reachableFrom.mem_iff] at y_in -- will need termination argument
       rcases y_in with ⟨x, x_in, r_x_y⟩
       simp at x_in
-      rcases x_in with (_ | ⟨x_in, z, z_in, x_notIn_here, r_z_x⟩ )
+      rcases x_in with (_ | ⟨_, z, z_in, _, r_z_x⟩ )
       · use x
       · refine ⟨z, z_in, ?_⟩
         exact Relation.ReflTransGen.head r_z_x r_x_y
@@ -137,43 +137,32 @@ theorem reachableFrom.mem_iff (r : α → α → Prop) [DecidableRel r] [Decidab
       clear hyp
       use y
   · rintro ⟨x, x_in_here, rr_x_y⟩
-    rw [Relation.ReflTransGen.cases_head_iff] at rr_x_y
-    cases rr_x_y
-    · subst_eqs
-      exact reachableFrom.subset r here x_in_here
-    case inr hyp =>
-      rcases hyp with ⟨w, r_x_w, rr_w_y⟩
-      by_cases w ∈ here
-      ·
-        -- not sure what to do here..
-        have : ∃ c ∈ ((here ∪ Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems)), Relation.ReflTransGen r c y :=
-          by sorry
-        rw [← reachableFrom.mem_iff] at this -- TERMINATION okay now?
-
-        -- exact this
-        sorry
-      ·
-        unfold reachableFrom
+    induction rr_x_y using Relation.ReflTransGen.head_induction_on
+    · exact reachableFrom.subset r here x_in_here
+    case head a b r_a_b rr_b_y IH =>
+      by_cases b ∈ here
+      · apply IH
+        assumption
+      · unfold reachableFrom
         simp only [dite_eq_ite]
-        have : (Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems).Nonempty :=
-          ⟨w, by simp only [Finset.mem_filter]; refine ⟨Fintype.complete w, by use x⟩⟩
-        simp [this]
-        clear this
-        rw [reachableFrom.mem_iff] -- termination ok
-        use x
+        have nonEmp : (Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems).Nonempty :=
+          ⟨b, by simp; exact ⟨Fintype.complete b, by use a⟩⟩
+        simp [nonEmp]
+        rw [reachableFrom.mem_iff] -- needs termination argument
+        clear nonEmp
+        use a
         simp
         constructor
         · left
           assumption
-        · exact Relation.ReflTransGen.head r_x_w rr_w_y
+        · exact Relation.ReflTransGen.head r_a_b rr_b_y
 termination_by
   (α_fin.elems \ here).card
 decreasing_by
-  · simp_all
+  · simp only [gt_iff_lt]
     apply reachableFrom_terminationHelper
     assumption
-  · simp_all
-    apply reachableFrom_terminationHelper
+  · apply reachableFrom_terminationHelper
     assumption
 
 /-- Used for `case star` in `relate.instDecidable` below. -/
