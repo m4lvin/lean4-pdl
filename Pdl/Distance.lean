@@ -1,8 +1,7 @@
-
 import Mathlib.Data.FinEnum
-
-import Mathlib.Data.List.Basic
 import Mathlib.Data.Finset.Sups
+import Mathlib.Data.List.Basic
+import Mathlib.Tactic.Linarith
 
 import Pdl.UnfoldDia
 
@@ -270,24 +269,73 @@ instance relate.instDecidable (Mod : DecidableKripkeModel W) α v w
     sizeOf α
 end
 
+/-- In models of size `n` this is a strict upper bound for the distance.
+Used only for the termination proofs below. -/
+@[simp]
+def localMeasureOfProg (n : Nat) : Program → Nat
+  | ·_ => 1
+  | α;'β => 1 + localMeasureOfProg n α + localMeasureOfProg n β
+  | α⋓β => 1 + localMeasureOfProg n α + localMeasureOfProg n β
+  | ∗α => 1 + (1 + n) * localMeasureOfProg n α
+  | ?'_ => 1 -- tests do not contributed to distance
+
+theorem Program.nonZeroSize {α : Program} : localMeasureOfProg n α > 0 := by cases α <;> simp
+
+theorem distance_helper (x y k : Nat) (h : k ≤ y) (h2 : x ≠ 0) : x + y + k < 1 + x + y * x + y := by
+  apply Nat.add_lt_add_of_lt_of_le _ h
+  cases x
+  · tauto
+  · rw [mul_add]
+    simp
+    rw [← add_assoc]
+    rw [← add_assoc]
+    simp
+    omega
+
 def distance {W} (Mod : DecidableKripkeModel W) (v w : W)
     : (α : Program) → Option Nat
-| ·c => if @decide (Mod.M.Rel c w v) (Mod.decrel c w v) then some 1 else none
+| ·c => if @decide (Mod.M.Rel c v w) (Mod.decrel c v w) then some 1 else none
 | ?'τ => by
   have := evaluate.instDecidable Mod v τ
   have := Mod.deceq v w
   exact (if v = w ∧ evaluate Mod.M v τ then some 0 else none)
 | α⋓β => min (distance Mod v w α) (distance Mod v w β)
 | α;'β =>
-
-    let α_β_distOf := fun x => Nat.add <$> distance Mod v x α <*> distance Mod x w β
-    (Mod.allW.map α_β_distOf).reduceOption.min?
+    let α_β_distOf_via x := Nat.add <$> distance Mod v x α <*> distance Mod x w β
+    (Mod.allW.map α_β_distOf_via).reduceOption.min?
 | ∗α =>
-    -- This will be ugly, but essentially we need something like the matrix method?
-    let maxN := Mod.allW.length
-    sorry -- min { ... | u ∈ W } -- need map or enum over W here :-/
+    have := Mod.deceq
+    if v_eq_w : v == w
+    then some 0
+    else
+      let rec mdist k :=
+          if k == 0
+          then none
+          else
+            let distOf_step_via x := Nat.add <$> distance Mod v x α <*> mdist (k-1)
+            (Mod.allW.map distOf_step_via).reduceOption.min?
+          termination_by
+            localMeasureOfProg Mod.allW.length α + Mod.allW.length + k
+          decreasing_by
+            · cases k <;> simp_all
+            · simp_all [@Nat.pos_iff_ne_zero]
+      ((List.range Mod.allW.length).attach.map (fun k => mdist k.val)).reduceOption.min?
 termination_by
-  α => sizeOf α
+  α => localMeasureOfProg Mod.allW.length α + Mod.allW.length
+decreasing_by
+  · simp; linarith
+  · simp
+  · simp; linarith
+  · simp
+  · simp only [localMeasureOfProg, gt_iff_lt]
+    rw [@one_add_mul]
+    rw [← Nat.add_assoc]
+    apply distance_helper
+    · apply Nat.le_of_lt
+      rw [← List.mem_range]
+      exact k.prop
+    · have := @Program.nonZeroSize Mod.allW.length α
+      exact Nat.not_eq_zero_of_lt this
 
 def distance_list {W} (Mod : DecidableKripkeModel W) (v w : W) : (δ : List Program) → Option Nat
 | [] => have := Mod.deceq v w
@@ -296,12 +344,29 @@ def distance_list {W} (Mod : DecidableKripkeModel W) (v w : W) : (δ : List Prog
     let α_δ_distOf := fun x => Nat.add <$> distance Mod v x α <*> distance_list Mod x w δ
     (Mod.allW.map α_δ_distOf).reduceOption.min?
 
-theorem distance_iff_relate (Mod : DecidableKripkeModel W) :
+theorem distance_iff_relate (Mod : DecidableKripkeModel W) α v w :
     (distance Mod v w α).isSome ↔ relate Mod.M α v w := by
-  sorry
+  cases α <;> simp [distance]
+  case sequence α β =>
+    sorry
+  case union α β =>
+    constructor
+    · intro has_dist
+      rw [@Option.isSome_iff_exists] at has_dist
+      rcases has_dist with ⟨k, def_k⟩
+      sorry
+    · intro is_rel
+      rcases is_rel with (hyp | hyp)
+      · have := distance_iff_relate Mod α v w
+        sorry
+      · have := distance_iff_relate Mod β v w
+        sorry
+  case star α =>
+    sorry
 
-theorem relate_existsH_distance (Mod : DecidableKripkeModel W) (α : Program) :
-    relate Mod.M α v w → ∃ Fδ ∈ H α,
+theorem relate_existsH_distance (Mod : DecidableKripkeModel W) (α : Program)
+    (v_α_w : relate Mod.M α v w)
+    : ∃ Fδ ∈ H α,
         evaluate Mod.M v (Con Fδ.1)
       ∧ distance_list Mod v w Fδ.2 = distance Mod v w α  := by
   sorry
