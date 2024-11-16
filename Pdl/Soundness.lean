@@ -1049,7 +1049,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
   -- For this, we need to distinguish what happens at `t`.
   rcases tabAt_t_def : tabAt t with ⟨Hist, Z, tZ⟩
   -- applying a local or a pdl rule or being a repeat?
-  induction tZ generalizing t
+  induction tZ generalizing t α ξ
   case loc HistZ Z ltZ next IH =>
     -- local step(s), *may* work on the loaded formula
     have : ∃ Y ∈ endNodesOf ltZ, (M, v) ⊨ Y := by
@@ -1093,7 +1093,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
     -- NOTE
     -- seems weird here to apply the IH while still using the same program `α`
     -- after all, there may be a different loaded program now at node `s`.
-    specialize IH Y Y_in s v_s f_in tabAt_s_def
+    specialize IH Y Y_in α s v_s ξ f_in v_α_w w_nξ tabAt_s_def
     rcases IH with ⟨s1, s_c_s1, s1_property⟩
     refine ⟨s1, ?_, ?_⟩
     · exact Relation.TransGen.head (.inl t_s) s_c_s1
@@ -1194,25 +1194,121 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
           rw [tabAt_t_def]
 
     case modL L R a ξ' Y_def Y_isBasic =>
-      -- modal rule, so α must actually be atomic! (use `IH`)
-      have α_is_a : α = (·a : Program) := by sorry
-      rw [α_is_a] at negLoad_in
-      rw [α_is_a] at IH
-
+      have : ξ' = ξ := by
+        unfold nodeAt at negLoad_in
+        rw [tabAt_t_def] at negLoad_in
+        unfold AnyNegFormula_on_side_in_TNode at negLoad_in
+        cases side <;> simp_all
+      subst this
+      clear IH -- no longer needed in this case, at least not in notes.
+      -- modal rule, so α must actually be atomic!
+      have α_is_a : α = (·a : Program) := by
+        simp only [AnyNegFormula_on_side_in_TNode, nodeAt] at negLoad_in
+        rw [tabAt_t_def] at negLoad_in
+        rcases Y with ⟨_,_,O⟩
+        cases side
+        all_goals
+          simp only at negLoad_in
+          subst_eqs
+        rfl
+      subst α_is_a
+      simp at v_α_w
+      -- Let `s` be the unique child:
       let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.pdl (PdlRule.modL Y_def Y_isBasic) .nil)
       let s : PathIn tab := t.append t_to_s
-      specialize IH s
-      -- TODO: provide inputs for `IH`
-      refine ⟨s, ?_, ?_⟩ -- FIXME don't use `s`
-      · apply Relation.TransGen.single
-        left
+      -- ... it is then obvious that `s` satisfies the required properties:
+      refine ⟨s, ?_, Or.inr ⟨?_a, ?_b, ?_c⟩⟩
+      · constructor
+        constructor
         right
-        unfold_let s t_to_s
-        refine ⟨Hist', _, _, PdlRule.modL Y_def Y_isBasic, next, ?_⟩
-        simp [tabAt_t_def]
-      · right
-        -- ???
-        sorry
+        refine ⟨Hist', Y, _, (PdlRule.modL Y_def Y_isBasic), next, tabAt_t_def, ?_⟩
+        simp
+      · subst Y_def
+        cases ξ'
+        case normal φ =>
+          have nodeAt_s_def : nodeAt s = ((~φ) :: projection a L, projection a R, none) := by
+            unfold nodeAt
+            unfold_let s t_to_s
+            rw [tabAt_append]
+            -- only HEq business left here
+            simp at next
+            let tclean : PathIn (.pdl (PdlRule.modL (Eq.refl _) Y_isBasic) next) := .pdl (PdlRule.modL (Eq.refl _) Y_isBasic) .nil
+            have : (tabAt tclean).2.1 = ((~φ) :: projection a L, projection a R, none) := by
+              have : tabAt tclean = ⟨ _ :: Hist', ((~φ) :: projection a L, projection a R, none) , next⟩ := by unfold tabAt; rfl
+              rw [this]
+            convert this <;> (try rw [tabAt_t_def]) <;> simp
+          rw [nodeAt_s_def]
+          unfold AnyNegFormula_on_side_in_TNode
+          cases side
+          case LL => simp_all
+          case RR =>
+            absurd negLoad_in
+            unfold nodeAt
+            rw [tabAt_t_def]
+            unfold AnyNegFormula_on_side_in_TNode
+            simp
+        case loaded χ =>
+          have nodeAt_s_def : nodeAt s = (projection a L, projection a R, some (Sum.inl (~'χ))) := by
+            unfold nodeAt
+            unfold_let s t_to_s
+            rw [tabAt_append]
+            -- only HEq business left here
+            simp at next
+            let tclean :  PathIn (.pdl (PdlRule.modL (Eq.refl _) Y_isBasic) next) := .pdl (PdlRule.modL (Eq.refl _) Y_isBasic) .nil
+            have : (tabAt tclean).2.1 = (projection a L, projection a R, some (Sum.inl (~'χ))) := by
+              have : tabAt tclean = ⟨ _ :: Hist', (projection a L, projection a R, some (Sum.inl (~'χ))) , next⟩ := by unfold tabAt; rfl
+              rw [this]
+            convert this <;> (try rw [tabAt_t_def]) <;> simp
+          rw [nodeAt_s_def]
+          unfold AnyNegFormula_on_side_in_TNode
+          cases side
+          case LL => simp_all
+          case RR =>
+            absurd negLoad_in
+            unfold nodeAt
+            rw [tabAt_t_def]
+            unfold AnyNegFormula_on_side_in_TNode
+            simp
+      · -- (b)
+        cases ξ'
+        case normal φ =>
+          have nodeAt_s_def : nodeAt s = ((~φ) :: projection a L, projection a R, none) := by sorry -- same as in (a) ??
+          rw [nodeAt_s_def]
+          intro f f_in
+          simp at f_in
+          rcases f_in with (f_in|f_in|f_in)
+          · subst f_in
+            exact w_nξ
+          all_goals
+            have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
+            apply this
+            simp only [relate]
+            exact v_α_w
+        case loaded χ =>
+          have nodeAt_s_def : nodeAt s = (projection a L, projection a R, some (Sum.inl (~'χ))) := by sorry -- same as in (a) ??
+          rw [nodeAt_s_def]
+          intro f f_in
+          simp at f_in
+          rcases f_in with ((f_in|f_in)|f_in)
+          case inr =>
+            subst f_in
+            exact w_nξ
+          all_goals
+            have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
+            apply this
+            simp only [relate]
+            exact v_α_w
+      · -- (c)
+        cases ξ'
+        case normal φ =>
+          have nodeAt_s_def : nodeAt s = ((~φ) :: projection a L, projection a R, none) := by sorry -- same as in (a) ??
+          rw [nodeAt_s_def]
+          simp [TNode.isFree, TNode.isLoaded, TNode.without]
+        case loaded χ =>
+          have nodeAt_s_def : nodeAt s = (projection a L, projection a R, some (Sum.inl (~'χ))) := by sorry -- same as in (a) ??
+          rw [nodeAt_s_def]
+          simp [TNode.isFree, TNode.isLoaded, TNode.without]
+
     case modR =>
       -- should be analogous to `modL`
       sorry
