@@ -1,6 +1,8 @@
 import Mathlib.Data.FinEnum
 import Mathlib.Data.Finset.Sups
 import Mathlib.Data.List.Basic
+import Mathlib.Data.List.ReduceOption
+import Mathlib.Data.Nat.PartENat
 import Mathlib.Tactic.Linarith
 
 import Pdl.UnfoldDia
@@ -292,27 +294,30 @@ theorem distance_helper (x y k : Nat) (h : k ≤ y) (h2 : x ≠ 0) : x + y + k <
     simp
     omega
 
+-- QUESTION: Using `ℕ∞` here which is the same as `Option Nat` but can we avoid more internals?
+-- Or should we use `PartENat` here?
 def distance {W} (Mod : DecidableKripkeModel W) (v w : W)
-    : (α : Program) → Option Nat
-| ·c => if @decide (Mod.M.Rel c v w) (Mod.decrel c v w) then some 1 else none
+    : (α : Program) → ℕ∞
+| ·c => if @decide (Mod.M.Rel c v w) (Mod.decrel c v w) then 1 else ⊤
 | ?'τ => by
   have := evaluate.instDecidable Mod v τ
   have := Mod.deceq v w
-  exact (if v = w ∧ evaluate Mod.M v τ then some 0 else none)
+  exact (if v = w ∧ evaluate Mod.M v τ then 0 else ⊤)
 | α⋓β => min (distance Mod v w α) (distance Mod v w β)
 | α;'β =>
-    let α_β_distOf_via x := Nat.add <$> distance Mod v x α <*> distance Mod x w β
+    let α_β_distOf_via x := distance Mod v x α + distance Mod x w β
     (Mod.allW.map α_β_distOf_via).reduceOption.min?
 | ∗α =>
+    -- TODO when rewriting this to Finset, use `WithTop.sum_eq_top` here?
     have := Mod.deceq
     if v_eq_w : v == w
-    then some 0
+    then 0
     else
       let rec mdist k :=
           if k == 0
-          then none
+          then ⊤
           else
-            let distOf_step_via x := Nat.add <$> distance Mod v x α <*> mdist (k-1)
+            let distOf_step_via x := distance Mod v x α + mdist (k-1)
             (Mod.allW.map distOf_step_via).reduceOption.min?
           termination_by
             localMeasureOfProg Mod.allW.length α + Mod.allW.length + k
@@ -337,30 +342,71 @@ decreasing_by
     · have := @Program.nonZeroSize Mod.allW.length α
       exact Nat.not_eq_zero_of_lt this
 
-def distance_list {W} (Mod : DecidableKripkeModel W) (v w : W) : (δ : List Program) → Option Nat
+def distance_list {W} (Mod : DecidableKripkeModel W) (v w : W) : (δ : List Program) → ℕ∞
 | [] => have := Mod.deceq v w
-        if v = w then some 0 else none
+        if v = w then 0 else ⊤
 | (α::δ) => -- similar to α;'β case in `distance`
-    let α_δ_distOf := fun x => Nat.add <$> distance Mod v x α <*> distance_list Mod x w δ
+    let α_δ_distOf := fun x => distance Mod v x α + distance_list Mod x w δ
     (Mod.allW.map α_δ_distOf).reduceOption.min?
 
+-- mathlib this?
+theorem ENat.min_neq_top_iff {M N : ℕ∞} : min M N ≠ ⊤ ↔ (M ≠ ⊤) ∨ (N ≠ ⊤) := by
+  cases M <;> cases N <;> simp_all
+
+-- mathlib this?
+theorem ENat.add_neq_top_iff {M N : ℕ∞} : M + N ≠ ⊤ ↔ (M ≠ ⊤) ∧ (N ≠ ⊤) := by
+  cases M <;> cases N
+  case coe.coe =>
+    simp only [ne_eq, coe_ne_top, not_false_eq_true, and_self, iff_true]
+    exact coe_toNat_eq_self.mp rfl
+  all_goals
+    simp_all
+
 theorem distance_iff_relate (Mod : DecidableKripkeModel W) α v w :
-    (distance Mod v w α).isSome ↔ relate Mod.M α v w := by
-  cases α <;> simp [distance]
+    (distance Mod v w α) ≠ ⊤ ↔ relate Mod.M α v w := by
+  cases α
+  case atom_prog => simp [distance]
+  case test => simp [distance]
   case sequence α β =>
-    sorry
+    simp only [distance, relate]
+    constructor
+    · rw [WithTop.ne_top_iff_exists]
+      rintro ⟨k, def_k⟩
+      rw [← @WithTop.some_eq_coe, eq_comm, @List.min?_eq_some_iff''] at def_k
+      rcases def_k with ⟨k_in, k_is_min⟩
+      clear k_is_min
+      simp only [Option.map_eq_map, List.reduceOption_mem_iff, List.mem_map] at k_in
+      rcases k_in with ⟨x, x_in, def_k⟩
+      use x
+      rw [← distance_iff_relate, ← distance_iff_relate, ← ENat.add_neq_top_iff]
+      simp_all
+    · rintro ⟨x, v_α_x, x_β_w⟩
+      rw [← distance_iff_relate] at v_α_x x_β_w
+      rw [@WithTop.ne_top_iff_exists] at v_α_x x_β_w
+      rcases v_α_x with ⟨kα, def_kα⟩
+      rcases x_β_w with ⟨kβ, def_kβ⟩
+      rw [← WithTop.none_eq_top]
+      rw [Option.ne_none_iff_isSome]
+      apply @List.isSome_min?_of_mem _ _ _ (kα + kβ)
+      rw [List.reduceOption_mem_iff]
+      simp only [Option.map_eq_map, List.mem_map]
+      refine ⟨x, Mod.h x, ?_⟩
+      rw [← def_kα, ← def_kβ]
+      rfl
   case union α β =>
+    simp only [distance, relate]
     constructor
     · intro has_dist
-      rw [@Option.isSome_iff_exists] at has_dist
+      rw [WithTop.ne_top_iff_exists] at has_dist
       rcases has_dist with ⟨k, def_k⟩
-      sorry
+      rw [← @WithTop.some_eq_coe, eq_comm] at def_k
+      rw [← distance_iff_relate, ← distance_iff_relate]
+      rw [← ENat.min_neq_top_iff]
+      simp_all -- `simp_all?` bug here?
     · intro is_rel
-      rcases is_rel with (hyp | hyp)
-      · have := distance_iff_relate Mod α v w
-        sorry
-      · have := distance_iff_relate Mod β v w
-        sorry
+      rw [ENat.min_neq_top_iff]
+      rw [distance_iff_relate, distance_iff_relate]
+      exact is_rel
   case star α =>
     sorry
 

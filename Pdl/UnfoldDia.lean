@@ -268,7 +268,7 @@ theorem guardToStarDiamond (x : Nat)
     simp [modelCanSemImplyForm, evaluatePoint, formCanSemImplyForm, semImpliesLists] at *
     simp_all
 
-theorem helper : ∀ (p : List Formula × List Program → Formula) X,
+private theorem helper : ∀ (p : List Formula × List Program → Formula) X,
         (∃ f ∈ List.map p X, evaluate M w f)
       ↔ (∃ Fδ ∈ X, evaluate M w (p Fδ)) := by aesop
 
