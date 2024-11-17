@@ -29,11 +29,12 @@ def TNode := List Formula × List Formula × Olf -- ⟨L, R, o⟩
 -- - one formula may be loaded
 -- - each (loaded) formula can be on the left/right/both
 
-/-- We do not care about the order of the lists.
-TNodes are considered equal when their Finset versions are equal.
+/-- Two `TNode`s are set-equal when their components are finset-equal.
+That is, we do not care about the order of the lists, but we do care
+about the side of the formula and what formual is loaded.
 Hint: use `List.toFinset.ext_iff` with this. -/
 def TNode.setEqTo : TNode → TNode → Prop
-| (L,R,O), (L',R',O') => L.toFinset == L'.toFinset ∧ R.toFinset == R'.toFinset ∧ O == O'
+| (L,R,O), (L',R',O') => L.toFinset = L'.toFinset ∧ R.toFinset = R'.toFinset ∧ O = O'
 
 def TNode.toFinset : TNode → Finset Formula
 | (L,R,O) => (L.toFinset ∪ R.toFinset) ∪ (O.map (Sum.elim negUnload negUnload)).toFinset
@@ -60,11 +61,13 @@ theorem setEqTo_isLoaded_iff {X Y : TNode} (h : X.setEqTo Y) : X.isLoaded = Y.is
 /-! ## Semantics of a TNode -/
 
 instance modelCanSemImplyTNode : vDash (KripkeModel W × W) TNode :=
-  vDash.mk (λ ⟨M,w⟩ ⟨L, R, o⟩ => ∀ f ∈ L ∪ R ∪ (o.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
+  vDash.mk (λ ⟨M,w⟩ ⟨L, R, O⟩ =>
+    ∀ f ∈ L ∪ R ∪ (O.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
 
 -- silly but useful:
 instance modelCanSemImplyLLO : vDash (KripkeModel W × W) (List Formula × List Formula × Olf) :=
-  vDash.mk (λ ⟨M,w⟩ ⟨L, R, o⟩ => ∀ f ∈ L ∪ R ∪ (o.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
+  vDash.mk (λ ⟨M,w⟩ ⟨L, R, O⟩ =>
+    ∀ f ∈ L ∪ R ∪ (O.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
 
 instance tNodeHasSat : HasSat TNode :=
   HasSat.mk fun Δ => ∃ (W : Type) (M : KripkeModel W) (w : W), (M,w) ⊨ Δ
@@ -78,6 +81,17 @@ theorem tautImp_iff_TNodeUnsat {φ ψ} {X : TNode} :
   intro defX
   subst defX
   simp [satisfiable,evaluate,modelCanSemImplyTNode,formCanSemImplyForm,semImpliesLists] at *
+
+theorem vDash_setEqTo_iff {X Y : TNode} (h : X.setEqTo Y) (M : KripkeModel W) (w : W) :
+    (M,w) ⊨ X ↔ (M,w) ⊨ Y := by
+  rcases X with ⟨L, R, O⟩
+  rcases Y with ⟨L',R',O'⟩
+  simp only [TNode.setEqTo, modelCanSemImplyTNode, vDash]
+  unfold TNode.setEqTo at h
+  simp at h
+  rw [List.toFinset.ext_iff, List.toFinset.ext_iff] at h
+  rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
+  simp_all
 
 /-! ## Different kinds of formulas as elements of TNode -/
 

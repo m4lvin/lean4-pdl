@@ -98,6 +98,6 @@ inductive provable : Formula → Prop
 def inconsistent : TNode → Prop
   | LR => Nonempty (Tableau .nil LR)
 
-/-- A TNode is consistent iff it is not inconsistent. -/
+/-- A `TNode` is consistent iff it is not inconsistent. -/
 def consistent : TNode → Prop
   | LR => ¬inconsistent LR

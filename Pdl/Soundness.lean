@@ -743,6 +743,22 @@ theorem nodeAt_companionOf_eq_toHistory_get_lpr_val (s : PathIn tab) lpr h :
   rw [PathIn.nodeAt_rewind_eq_toHistory_get]
   simp
 
+theorem nodeAt_companionOf_setEq {tab : Tableau .nil X} (s : PathIn tab) lpr
+    (h : (tabAt s).2.2 = Tableau.rep lpr)
+    : (nodeAt (companionOf s lpr h)).setEqTo (nodeAt s) := by
+  rcases lpr with ⟨k, k_same, _⟩
+  unfold companionOf
+  rw [PathIn.nodeAt_rewind_eq_toHistory_get]
+  unfold nodeAt
+  simp only [List.get_eq_getElem, List.length_cons, Fin.val_succ, List.getElem_cons_succ]
+  convert k_same
+  simp only [List.get_eq_getElem]
+  have := PathIn.toHistory_eq_Hist s
+  have : (tabAt_fst_length_eq_toHistory_length s ▸ k).val = k.val := by
+    apply Fin.val_eq_val_of_heq
+    simp
+  simp_all
+
 /-- Any repeat and companion are both loaded. -/
 theorem companion_loaded : s ♥ t → (nodeAt s).isLoaded ∧ (nodeAt t).isLoaded := by
   intro s_comp_t
@@ -1026,6 +1042,17 @@ def AnyNegFormula_on_side_in_TNode : (anf : AnyNegFormula) → Side → (X : TNo
 | ⟨.loaded χ⟩, LL, ⟨_, _, O⟩ => O = some (Sum.inl (~'χ))
 | ⟨.loaded χ⟩, RR, ⟨_, _, O⟩ => O = some (Sum.inr (~'χ))
 
+theorem AnyNegFormula_on_side_in_TNode_setEqTo {X Y : TNode} (h : X.setEqTo Y) :
+    AnyNegFormula_on_side_in_TNode anf side X ↔ AnyNegFormula_on_side_in_TNode anf side Y := by
+  rcases X with ⟨L, R, O⟩
+  rcases Y with ⟨L',R',O'⟩
+  simp only [TNode.setEqTo, modelCanSemImplyTNode, vDash] at *
+  rw [List.toFinset.ext_iff, List.toFinset.ext_iff] at h
+  rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
+  subst O_eq_O'
+  unfold AnyNegFormula_on_side_in_TNode
+  cases side <;> rcases anf with ⟨(n|m)⟩ <;> simp_all
+
 theorem loadedDiamondPaths (α : Program) {X : TNode}
   (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
   (t : PathIn tab)
@@ -1194,13 +1221,13 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
           rw [tabAt_t_def]
 
     case modL L R a ξ' Y_def Y_isBasic =>
+      clear IH -- not needed in this case, also not in notes.
       have : ξ' = ξ := by
         unfold nodeAt at negLoad_in
         rw [tabAt_t_def] at negLoad_in
         unfold AnyNegFormula_on_side_in_TNode at negLoad_in
         cases side <;> simp_all
       subst this
-      clear IH -- no longer needed in this case, at least not in notes.
       -- modal rule, so α must actually be atomic!
       have α_is_a : α = (·a : Program) := by
         simp only [AnyNegFormula_on_side_in_TNode, nodeAt] at negLoad_in
@@ -1216,6 +1243,35 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       -- Let `s` be the unique child:
       let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.pdl (PdlRule.modL Y_def Y_isBasic) .nil)
       let s : PathIn tab := t.append t_to_s
+      -- used in multiple places below:
+      have helper : (∃ φ, ξ' = .normal φ ∧ nodeAt s = ((~φ) :: projection a L, projection a R, none))
+                  ∨ (∃ χ, ξ' = .loaded χ ∧ nodeAt s = (projection a L, projection a R, some (Sum.inl (~'χ)))) := by
+        subst Y_def
+        unfold nodeAt
+        unfold_let s t_to_s
+        rw [tabAt_append]
+        -- remains to deal with HEq business
+        let tclean : PathIn (.pdl (PdlRule.modL (Eq.refl _) Y_isBasic) next) :=
+          .pdl (PdlRule.modL (Eq.refl _) Y_isBasic) .nil
+        cases ξ'
+        case normal φ =>
+          left
+          use φ
+          simp only [true_and]
+          simp at next
+          have : (tabAt tclean).2.1 = ((~φ) :: projection a L, projection a R, none) := by
+            have : tabAt tclean = ⟨ _ :: Hist', ((~φ) :: projection a L, projection a R, none) , next⟩ := by unfold tabAt; rfl
+            rw [this]
+          convert this <;> (try rw [tabAt_t_def]) <;> simp
+        case loaded χ =>
+          right
+          use χ
+          simp only [true_and]
+          simp at next
+          have : (tabAt tclean).2.1 = (projection a L, projection a R, some (Sum.inl (~'χ))) := by
+            have : tabAt tclean = ⟨ _ :: Hist', (projection a L, projection a R, some (Sum.inl (~'χ))) , next⟩ := by unfold tabAt; rfl
+            rw [this]
+          convert this <;> (try rw [tabAt_t_def]) <;> simp
       -- ... it is then obvious that `s` satisfies the required properties:
       refine ⟨s, ?_, Or.inr ⟨?_a, ?_b, ?_c⟩⟩
       · constructor
@@ -1223,42 +1279,10 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
         right
         refine ⟨Hist', Y, _, (PdlRule.modL Y_def Y_isBasic), next, tabAt_t_def, ?_⟩
         simp
-      · subst Y_def
-        cases ξ'
-        case normal φ =>
-          have nodeAt_s_def : nodeAt s = ((~φ) :: projection a L, projection a R, none) := by
-            unfold nodeAt
-            unfold_let s t_to_s
-            rw [tabAt_append]
-            -- only HEq business left here
-            simp at next
-            let tclean : PathIn (.pdl (PdlRule.modL (Eq.refl _) Y_isBasic) next) := .pdl (PdlRule.modL (Eq.refl _) Y_isBasic) .nil
-            have : (tabAt tclean).2.1 = ((~φ) :: projection a L, projection a R, none) := by
-              have : tabAt tclean = ⟨ _ :: Hist', ((~φ) :: projection a L, projection a R, none) , next⟩ := by unfold tabAt; rfl
-              rw [this]
-            convert this <;> (try rw [tabAt_t_def]) <;> simp
-          rw [nodeAt_s_def]
-          unfold AnyNegFormula_on_side_in_TNode
-          cases side
-          case LL => simp_all
-          case RR =>
-            absurd negLoad_in
-            unfold nodeAt
-            rw [tabAt_t_def]
-            unfold AnyNegFormula_on_side_in_TNode
-            simp
-        case loaded χ =>
-          have nodeAt_s_def : nodeAt s = (projection a L, projection a R, some (Sum.inl (~'χ))) := by
-            unfold nodeAt
-            unfold_let s t_to_s
-            rw [tabAt_append]
-            -- only HEq business left here
-            simp at next
-            let tclean :  PathIn (.pdl (PdlRule.modL (Eq.refl _) Y_isBasic) next) := .pdl (PdlRule.modL (Eq.refl _) Y_isBasic) .nil
-            have : (tabAt tclean).2.1 = (projection a L, projection a R, some (Sum.inl (~'χ))) := by
-              have : tabAt tclean = ⟨ _ :: Hist', (projection a L, projection a R, some (Sum.inl (~'χ))) , next⟩ := by unfold tabAt; rfl
-              rw [this]
-            convert this <;> (try rw [tabAt_t_def]) <;> simp
+      · -- (a)
+        subst Y_def
+        rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
+        all_goals
           rw [nodeAt_s_def]
           unfold AnyNegFormula_on_side_in_TNode
           cases side
@@ -1270,28 +1294,25 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
             unfold AnyNegFormula_on_side_in_TNode
             simp
       · -- (b)
-        cases ξ'
-        case normal φ =>
-          have nodeAt_s_def : nodeAt s = ((~φ) :: projection a L, projection a R, none) := by sorry -- same as in (a) ??
-          rw [nodeAt_s_def]
+        rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
+        · rw [nodeAt_s_def]
           intro f f_in
           simp at f_in
           rcases f_in with (f_in|f_in|f_in)
-          · subst f_in
+          · subst_eqs
             exact w_nξ
           all_goals
             have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
             apply this
             simp only [relate]
             exact v_α_w
-        case loaded χ =>
-          have nodeAt_s_def : nodeAt s = (projection a L, projection a R, some (Sum.inl (~'χ))) := by sorry -- same as in (a) ??
-          rw [nodeAt_s_def]
+        · rw [nodeAt_s_def]
           intro f f_in
           simp at f_in
           rcases f_in with ((f_in|f_in)|f_in)
-          case inr =>
-            subst f_in
+          case inr.intro.intro.inr =>
+            subst_eqs
+            simp only [evaluate]
             exact w_nξ
           all_goals
             have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
@@ -1299,23 +1320,57 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
             simp only [relate]
             exact v_α_w
       · -- (c)
-        cases ξ'
-        case normal φ =>
-          have nodeAt_s_def : nodeAt s = ((~φ) :: projection a L, projection a R, none) := by sorry -- same as in (a) ??
+        rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
+        all_goals
           rw [nodeAt_s_def]
-          simp [TNode.isFree, TNode.isLoaded, TNode.without]
-        case loaded χ =>
-          have nodeAt_s_def : nodeAt s = (projection a L, projection a R, some (Sum.inl (~'χ))) := by sorry -- same as in (a) ??
-          rw [nodeAt_s_def]
-          simp [TNode.isFree, TNode.isLoaded, TNode.without]
+          simp_all [TNode.isFree, TNode.isLoaded, TNode.without]
 
     case modR =>
       -- should be analogous to `modL`
       sorry
 
   case rep lpr =>
-    -- need to go to companion, seems it will be hard to convince Lean of termination for this.
-    sorry
+    -- Here we need to go to the companion.
+    -- IDEA: make a recursive call, and for termination note that the path becomes shorter?
+    have h : (tabAt t).snd.snd = Tableau.rep (tabAt_t_def ▸ lpr) := by
+      -- rw [tabAt_t_def] -- motive is not type correct ???
+      sorry
+    -- Let `u` be the companion.
+    let u := companionOf t (tabAt_t_def ▸ lpr) h
+    have t_comp_u : t ♥ u:= ⟨(tabAt_t_def ▸ lpr), h, rfl⟩
+    -- Show that the companion fulfills the conditions:
+    have u_eq_t := nodeAt_companionOf_setEq t (tabAt_t_def ▸ lpr) h
+    have v_u : (M, v) ⊨ nodeAt u := by
+      rw [vDash_setEqTo_iff u_eq_t]
+      exact v_t
+    have negLoad_in_u : AnyNegFormula_on_side_in_TNode (~''(AnyFormula.loaded (⌊α⌋ξ))) side (nodeAt u) := by
+      rw [AnyNegFormula_on_side_in_TNode_setEqTo u_eq_t]
+      exact negLoad_in
+    -- Now prepare and make the recursive call:
+    have _forTermination : (companionOf t (tabAt_t_def ▸ lpr) h).length < t.length := by
+      -- TODO / Lemma?
+      sorry
+    have := loadedDiamondPaths α tab u v_u ξ negLoad_in_u v_α_w w_nξ
+    rcases this with ⟨s, u_s, (⟨s_sat, not_s_u⟩|reached)⟩
+    all_goals
+      refine ⟨s, ?_, ?_⟩
+      exact Relation.TransGen.head (Or.inr ⟨tabAt_t_def ▸ lpr, h, rfl⟩) u_s
+    · refine Or.inl ⟨s_sat, ?_⟩
+      -- Should this be a lemma in eProp2 here?
+      intro s_t
+      absurd not_s_u
+      apply (eProp tab).1.trans s_t
+      apply (eProp tab).1.symm
+      exact eProp2.b _ _ t_comp_u
+    · exact Or.inr reached
+
+termination_by
+  t.length
+decreasing_by
+  -- PROBLEM: why is the assumption about `t` but the goal about `t✝` here?
+  convert _forTermination
+  -- Where does the duplication of `t` come from?
+  sorry
 
   -- additional things used in notes:
     -- have := @eProp2 X tab
