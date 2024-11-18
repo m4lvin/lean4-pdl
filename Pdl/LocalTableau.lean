@@ -767,13 +767,13 @@ theorem node_to_multiset_of_precon {O Ocond Onew : Olf}
     linarith
 
 @[simp]
-def lt_TNode (X : TNode) (Y : TNode) := MultisetDMLT (node_to_multiset X) (node_to_multiset Y)
+def lt_TNode (X : TNode) (Y : TNode) := Multiset.IsDershowitzMannaLT (node_to_multiset X) (node_to_multiset Y)
 
 -- Needed for termination of endNOdesOf.
 -- Here we use `dm_wf` from MultisetOrder.lean.
 instance : WellFoundedRelation TNode where
   rel := lt_TNode
-  wf := InvImage.wf node_to_multiset (dmLT_wf Formula.WellFoundedLT)
+  wf := InvImage.wf node_to_multiset (Multiset.wellFounded_isDershowitzMannaLT)
 
 theorem LocalRule.cond_non_empty (rule : LocalRule (Lcond, Rcond, Ocond) X) :
     node_to_multiset (Lcond, Rcond, Ocond) ≠ ∅ :=
@@ -1093,7 +1093,7 @@ def MultisetLT' {α} [DecidableEq α] [Preorder α] (M : Multiset α) (N : Multi
 -- The definition used in the DM proof is equivalent to the standard definition.
 -- TODO: Move to MultisetOrder
 theorem MultisetDMLT.iff_MultisetLT' [DecidableEq α] [Preorder α] {M N : Multiset α} :
-    MultisetDMLT M N ↔ MultisetLT' M N := by
+    Multiset.IsDershowitzMannaLT M N ↔ MultisetLT' M N := by
   unfold MultisetLT'
   constructor
   · intro M_LT_N
@@ -1101,7 +1101,7 @@ theorem MultisetDMLT.iff_MultisetLT' [DecidableEq α] [Preorder α] {M N : Multi
     aesop
   · intro M_LT'_N
     rcases M_LT'_N with ⟨X,Y,Z,claim⟩
-    apply MultisetDMLT.DMLT X Y Z
+    constructor
     all_goals tauto
 
 theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
@@ -1139,7 +1139,7 @@ theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
   · exact (LocalRule.cond_non_empty rule : node_to_multiset (Lcond, Rcond, Ocond) ≠ ∅)
   · rw [Z_eq]
     apply Multiset.sub_add_of_subset_eq
-    -- This works but be cleaner with fewer non-terminal simp.
+    -- This works but should be cleaned up to avoid non-terminal simp.
     all_goals cases O <;> try (rename_i cond; cases cond)
     all_goals cases Onew <;> try (rename_i f; cases f)
     all_goals cases Ocond <;> try (rename_i cond; cases cond)
