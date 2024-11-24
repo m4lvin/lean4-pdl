@@ -18,6 +18,7 @@ import «Pdl».UnfoldDia
 import «Pdl».LocalTableau
 import «Pdl».Tableau
 import «Pdl».Soundness
+import «Pdl».Game
 import «Pdl».Completeness
 import «Pdl».Distance
 import «Pdl».PartInterpolation
