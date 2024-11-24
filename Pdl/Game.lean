@@ -20,12 +20,21 @@ theorem Player.ne_A_iff_eq_B : p ≠ A ↔ p = B := by cases p <;> simp
 @[simp]
 theorem Player.ne_B_iff_eq_A : p ≠ B ↔ p = A := by cases p <;> simp
 
-@[simp]
+theorem Player.eq_A_or_eq_B : p = A ∨ p = B := by cases p <;> simp
+
 def other : Player → Player
 | A => B
 | B => A
 
-theorem Player.eq_A_or_eq_B : p = A ∨ p = B := by cases p <;> simp
+@[simp]
+theorem other_A_eq_B : other A = B := by simp [other]
+
+@[simp]
+theorem other_B_eq_A : other B = A := by simp [other]
+
+@[simp]
+theorem other_other : other (other i) = i := by
+  cases i <;> simp [other]
 
 /-- Two-player game with
 - perfect information
@@ -58,8 +67,8 @@ A player wins if the opponent loses. -/
 def winner {g : Game} (sI : Strategy g i) (sJ : Strategy g (other i)) (p : g.Pos) : Player :=
   if h1 : (g.moves p).Nonempty
     then if h2 : g.turn p = i --
-      then winner sI sJ (sI p (by aesop) (by aesop))
-      else winner sI sJ (sJ p (by aesop) (by aesop))
+      then winner sI sJ (sI p (by cases i <;> simp_all) (Finset.nonempty_iff_ne_empty.mp h1))
+      else winner sI sJ (sJ p (by cases i <;> simp_all) (Finset.nonempty_iff_ne_empty.mp h1))
     else other (g.turn p) -- no more moves, the other player wins
 termination_by
   g.bound p
@@ -67,9 +76,59 @@ decreasing_by
   all_goals
     apply g.bound_h; simp
 
+/-- If there are no moves left, then the winner is the other player. -/
+-- unused?
+lemma winner_of_no_moves (g : Game) (p : g.Pos) (no_moves : g.moves p = ∅) :
+    ∀ i (sI : Strategy g i) sJ, winner sI sJ p = other (g.turn p) := by
+  unfold winner
+  simp_all
+
 /-- A strategy is winning at `p` if it wins against all strategies of the other player. -/
 def winning {g : Game} {i : Player} (p : g.Pos) (sI : Strategy g i) : Prop :=
   ∀ sJ : Strategy g (other i), winner sI sJ p = i
+
+/-- If there are no moves left, then any strategy of the other player is winning. -/
+-- unused?
+lemma winning_of_no_moves (g : Game) (p : g.Pos) (no_moves : g.moves p = ∅) :
+    ∀ sI : Strategy g (other (g.turn p)), winning p sI := by
+  intro sI
+  unfold winning
+  unfold winner
+  simp_all
+
+-- unused?
+lemma exists_other_winning_strategy_of_no_moves (g : Game) (p : g.Pos) (no_moves : g.moves p = ∅) :
+    ∃ s : Strategy g (other (g.turn p)), winning p s := by
+  have := winner_of_no_moves g p no_moves
+  refine ⟨Classical.choice Strategy.instNonempty, ?_⟩
+  unfold winning
+  apply this
+
+-- needed/useful?
+lemma exists_winning_iff_not_exists_winning (g : Game) (p : g.Pos) :
+    (∃ s : Strategy g A, winning p s) ↔ ¬ (∃ s : Strategy g B, winning p s) := by
+  sorry
+
+lemma winning_strategy_of_next_when_my_turn (g : Game) [DecidableEq g.Pos]
+    (p : g.Pos) (whose_turn : g.turn p = i)
+    (nextPos : g.moves p) (s : Strategy g i) (s_wins_next : winning nextPos s) :
+    ∃ s' : Strategy g i, winning p s' := by
+  -- Now we overwrite what s chooses at the current place.
+  let s' : Strategy g i :=
+    (fun pos turn_A has_moves => if h : pos = p then h ▸ nextPos else s pos (turn_A) has_moves)
+  use s'
+  unfold winning
+  unfold winner
+  intro sB
+  unfold_let s'
+  unfold winning at s_wins_next
+  specialize s_wins_next (whose_turn ▸ sB)
+  have : (Game.moves p).Nonempty := ⟨nextPos, nextPos.prop⟩
+  simp_all
+  -- PROBLEM: Need `s` instead of `s'` for the later winning?
+  convert s_wins_next
+  · sorry
+  · sorry
 
 /-- Generalized version of `gamedet` for the proof by induction on `g.bound p`. -/
 theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.Pos) n (h : n = g.bound p) :
@@ -112,26 +171,19 @@ theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.Pos) n (h : n = g.bound p
         cases whose_turn : g.turn p
         case A =>
           left
-          -- Now we overwrite what s chooses at the current place.
-          let s' : Strategy g A := (fun pos turn_A has_moves =>
-            if h : pos = p then ⟨pNext, h ▸ pNext_in⟩ else s pos (whose_turn ▸ turn_A) has_moves)
-          use s'
-          unfold winning
-          unfold winner
-          intro sB
-          unfold_let s'
-          unfold winning at s_winning
-          specialize s_winning (whose_turn ▸ sB)
-          simp_all
-          -- PROBLEM: Need `s` instead of `s'` for the later winning?
+          apply winning_strategy_of_next_when_my_turn g p whose_turn ⟨pNext, _⟩ (whose_turn ▸ s)
           convert s_winning
-          · rw [whose_turn]
-          · sorry
-          · simp
+          · simp_all
+          · exact eqRec_heq whose_turn s
+          · exact pNext_in
         case B =>
           right
-          -- Should be analogous to `case A`.
-          sorry
+          -- Analogous to `case A`.
+          apply winning_strategy_of_next_when_my_turn g p whose_turn ⟨pNext, _⟩ (whose_turn ▸ s)
+          convert s_winning
+          · simp_all
+          · exact eqRec_heq whose_turn s
+          · exact pNext_in
       case neg hyp =>
         push_neg at hyp
         -- Whose turn is it? The other player should have a winning strategy.
@@ -146,10 +198,11 @@ theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.Pos) n (h : n = g.bound p
           -- TODO:
           -- claim that B has a winning strategy
           -- show that the move by A does not matter
+          -- also use `winning_strategy_of_next_when_my_turn` here?
           sorry
         case B =>
           left
-          -- should be analogous
+          -- should be analogous to `case A`.
           sorry
     · -- No moves left, we have a winner by definition.
       unfold winning
