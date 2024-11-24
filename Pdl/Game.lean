@@ -104,10 +104,63 @@ lemma exists_other_winning_strategy_of_no_moves (g : Game) (p : g.Pos) (no_moves
   unfold winning
   apply this
 
--- needed/useful?
-lemma exists_winning_iff_not_exists_winning (g : Game) (p : g.Pos) :
-    (∃ s : Strategy g A, winning p s) ↔ ¬ (∃ s : Strategy g B, winning p s) := by
-  sorry
+/-- A _play_ is a list of positions connected by moves. Aka "match". -/
+def Game.Play (g : Game) : Type :=
+  { L // List.Chain' (fun p q => q ∈ g.moves p) (L : List g.Pos) }
+
+lemma Game.Play.decreasing {g : Game} (L : List g.Pos)
+    (h_L : List.Chain' (fun p q => q ∈ g.moves p) (L : List g.Pos)) :
+    List.Chain' (fun p q => g.bound q < g.bound p) L := by
+  induction L
+  · simp_all
+  case cons p rest IH =>
+    apply List.Chain'.cons'
+    · apply IH
+      have := List.Chain'.tail h_L
+      simp_all
+    · cases rest
+      · simp
+      · simp only [List.head?_cons, Option.mem_def, Option.some.injEq, forall_eq']
+        apply g.bound_h
+        simp_all
+
+-- Mathlib this?
+theorem List.Chain'.not_map_lt_of_mem {α: Type} (f : α → Nat)
+    {x : α} {rest : List α} (h : x ∈ rest)
+    : ¬ (List.Chain' (fun p q => f q < f p) (x :: rest)) := by
+  induction rest <;> simp_all only [mem_cons, chain'_cons, not_and, not_mem_nil]
+  intro fy_lt_fx
+  case cons y rest IH =>
+    rcases h with h|h
+    · subst_eqs; simp_all
+    · specialize IH h
+      rw [List.chain'_cons']
+      cases rest <;> simp_all
+      case cons z rest =>
+        cases h
+        · subst_eqs
+          intro fy_lt_fx
+          linarith
+        · intro fz_lt_fy
+          exact IH (Nat.lt_trans fz_lt_fy fy_lt_fx)
+
+/-- A play cannot have repeating states. -/
+lemma Game.Play.nodup {g : Game} (pl : g.Play) : pl.val.Nodup := by
+  by_contra hasDup
+  push_neg at hasDup
+  rcases pl with ⟨pl, pl_h⟩
+  induction pl
+  case nil =>
+    absurd hasDup
+    simp
+  case cons p rest IH =>
+    simp at IH
+    specialize IH (by apply List.Chain'.tail pl_h)
+    simp only [List.nodup_cons, not_and] at hasDup
+    suffices p ∉ rest by simp_all
+    clear hasDup IH
+    intro p_in_rest
+    exact List.Chain'.not_map_lt_of_mem g.bound p_in_rest (Game.Play.decreasing _ pl_h)
 
 lemma winning_strategy_of_next_when_my_turn (g : Game) [DecidableEq g.Pos]
     (p : g.Pos) (whose_turn : g.turn p = i)
@@ -124,9 +177,10 @@ lemma winning_strategy_of_next_when_my_turn (g : Game) [DecidableEq g.Pos]
   unfold winning at s_wins_next
   specialize s_wins_next (whose_turn ▸ sB)
   have : (Game.moves p).Nonempty := ⟨nextPos, nextPos.prop⟩
-  simp_all
+  simp_all only [ne_eq, dite_eq_ite, ite_true, dite_true]
   -- PROBLEM: Need `s` instead of `s'` for the later winning?
   convert s_wins_next
+  -- TODO: replace with Lemma "winning iff modified in older states is winning"??
   · sorry
   · sorry
 
