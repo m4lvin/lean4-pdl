@@ -425,6 +425,10 @@ instance : LT (PathIn tab) := ⟨Relation.TransGen edge⟩
 /-- Enable "≤" notation for reflexive transitive closure of ⋖_ -/
 instance : LE (PathIn tab) := ⟨Relation.ReflTransGen edge⟩
 
+/-- The "<" in a tableau is antisymmetric. -/
+instance edge.TransGen_isAsymm : IsAsymm (PathIn tab) (Relation.TransGen edge) :=
+  ⟨WellFounded.asymmetric (WellFounded.transGen wellFounded)⟩
+
 /-- An induction principle for `PathIn` that works by ... TODO EXPLAIN
 -- QUESTIONS:
 -- - Do I need any of these? @[induction_eliminator, elab_as_elim]
@@ -927,9 +931,8 @@ theorem eProp2.c_help {tab : Tableau .nil X} (s : PathIn tab) :
     induction hyp -- ((t_s | t_comp_s) | blu)
     case single u t_u =>
       rcases t_u with (t_u | t_comp_u )
-      · -- have := edge.isAsymm.1 _ _ t_u
-        -- use that TransGen edge is asymm!
-        sorry
+      · absurd edge.TransGen_isAsymm.1 _ _ t_path_s
+        exact Relation.TransGen.single t_u
       · have := (companion_loaded t_comp_u).2
         simp_all [TNode.isFree]
     case tail b s t_b b_s IH =>
@@ -1422,9 +1425,12 @@ theorem loadedDiamondPathsCOPY (α : Program) {X : TNode}
   -- inner induction is on the path
   induction' t_def : t using PathIn.init_inductionOn
   case root =>
+    subst t_def
     exfalso
-    -- TODO: show that `negLoad_in` and `root_free` contradict. -- easy?
-    sorry
+    unfold AnyNegFormula_on_side_in_TNode at negLoad_in
+    unfold TNode.isFree TNode.isLoaded at root_free
+    rcases X with ⟨L,R,O⟩
+    cases O <;> cases side <;> simp at *
   case step s IH t s_t =>
   -- TODO: indent
 
