@@ -162,27 +162,41 @@ lemma Game.Play.nodup {g : Game} (pl : g.Play) : pl.val.Nodup := by
     intro p_in_rest
     exact List.Chain'.not_map_lt_of_mem g.bound p_in_rest (Game.Play.decreasing _ pl_h)
 
+/-- Two strategies agree on all later states. -/
+def same_from_here {g : Game} (sI sI' : Strategy g i) (p : g.Pos) :=
+  ∀ (q : g.Pos), g.bound q ≤ g.bound p → sI q = sI' q
+
+lemma winner_eq_of_strategy_eq_from_here {g : Game} {sI sI' : Strategy g i}
+    (p : g.Pos) (h : same_from_here sI sI' p) (sJ : Strategy g (other i))
+    : winner sI sJ p = winner sI' sJ p := by
+  sorry
+
 lemma winning_strategy_of_next_when_my_turn (g : Game) [DecidableEq g.Pos]
     (p : g.Pos) (whose_turn : g.turn p = i)
-    (nextPos : g.moves p) (s : Strategy g i) (s_wins_next : winning nextPos s) :
-    ∃ s' : Strategy g i, winning p s' := by
+    (nextPos : g.moves p) (s : Strategy g i) (s_wins_next : winning nextPos s)
+    : ∃ s' : Strategy g i, winning p s' := by
   -- Now we overwrite what s chooses at the current place.
   let s' : Strategy g i :=
-    (fun pos turn_A has_moves => if h : pos = p then h ▸ nextPos else s pos (turn_A) has_moves)
+    (fun pos turn_i has_moves => if h : pos = p then h ▸ nextPos else s pos turn_i has_moves)
   use s'
-  unfold winning
-  unfold winner
-  intro sB
-  unfold_let s'
-  unfold winning at s_wins_next
-  specialize s_wins_next (whose_turn ▸ sB)
+  unfold winning winner
+  intro sJ
+  specialize s_wins_next (whose_turn ▸ sJ)
   have : (Game.moves p).Nonempty := ⟨nextPos, nextPos.prop⟩
   simp_all only [ne_eq, dite_eq_ite, ite_true, dite_true]
-  -- PROBLEM: Need `s` instead of `s'` for the later winning?
-  convert s_wins_next
-  -- TODO: replace with Lemma "winning iff modified in older states is winning"??
-  · sorry
-  · sorry
+  have : winner s sJ nextPos = winner s' sJ nextPos := by
+    apply winner_eq_of_strategy_eq_from_here
+    intro q q_lt_p
+    unfold s'
+    have : q ≠ p := by
+      by_contra q_eq_p
+      subst_eqs
+      have : g.bound nextPos.val < g.bound p := by apply g.bound_h _ _ nextPos.2
+      linarith
+    simp_all
+  unfold_let s'
+  subst whose_turn
+  simp_all
 
 /-- Generalized version of `gamedet` for the proof by induction on `g.bound p`. -/
 theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.Pos) n (h : n = g.bound p) :
