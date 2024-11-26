@@ -44,10 +44,13 @@ theorem other_other : other (other i) = i := by
 -/
 class Game where
   Pos : Type -- positions in the game
-  turn : Position → Player -- whose turn is it?
-  moves : Position → Finset Position -- what are the available moves?
-  bound : Position → Nat
-  bound_h : ∀ p next : Position, next ∈ moves p → bound next < bound p
+  turn : Pos → Player -- whose turn is it?
+  moves : Pos → Finset Pos -- what are the available moves?
+  bound : Pos → Nat
+  bound_h : ∀ p next : Pos, next ∈ moves p → bound next < bound p
+
+/-- Allow notation `p.moves` for `g.moves p`. -/
+abbrev Game.Pos.moves {g : Game} : g.Pos → Finset g.Pos := Game.moves
 
 /-- A strategy in `g` for `i`, whenever it is `i`'s turn, chooses a move, if there are any. -/
 def Strategy (g : Game) (i : Player) : Type := ∀ p : g.Pos, g.turn p = i → g.moves p ≠ ∅ → g.moves p
@@ -87,6 +90,11 @@ lemma winner_of_no_moves (g : Game) (p : g.Pos) (no_moves : g.moves p = ∅) :
 def winning {g : Game} {i : Player} (p : g.Pos) (sI : Strategy g i) : Prop :=
   ∀ sJ : Strategy g (other i), winner sI sJ p = i
 
+lemma winner_of_winning {g : Game} {i : Player} (p : g.Pos) (sI : Strategy g i) (h : winning p sI) :
+    ∀ sJ, winner sI sJ p = i := by
+  intro sJ
+  exact h sJ
+
 /-- If there are no moves left, then any strategy of the other player is winning. -/
 -- unused?
 lemma winning_of_no_moves (g : Game) (p : g.Pos) (no_moves : g.moves p = ∅) :
@@ -109,7 +117,7 @@ def Game.Play (g : Game) : Type :=
   { L // List.Chain' (fun p q => q ∈ g.moves p) (L : List g.Pos) }
 
 lemma Game.Play.decreasing {g : Game} (L : List g.Pos)
-    (h_L : List.Chain' (fun p q => q ∈ g.moves p) (L : List g.Pos)) :
+    (h_L : List.Chain' (fun p q => q ∈ p.moves) (L : List g.Pos)) :
     List.Chain' (fun p q => g.bound q < g.bound p) L := by
   induction L
   · simp_all
@@ -217,20 +225,95 @@ lemma winning_strategy_of_one_next_when_my_turn (g : Game) [DecidableEq g.Pos]
   subst whose_turn
   simp_all
 
-/-- Second helper for `gamedet'`. NOTE: might not be correct yet! -/
+/-- The cone of all positions reachable from `p` assuming that `i` plays `sI`. -/
+inductive inCone {g : Game} (sI : Strategy g i) (p : g.Pos) : g.Pos → Prop
+| nil : inCone sI p p
+| myStep : inCone sI p q → (has_moves : g.moves q ≠ ∅) → (h : g.turn q = i) → inCone sI p (sI q h has_moves)
+| oStep : inCone sI p q → g.turn q = other i → r ∈ g.moves q → inCone sI p r
+
+-- TODO: What Lemmas about inCone are needed?
+
+-- True, but not useful? Or is it useful when applied to pNext below?!
+lemma winning_here_then_winning_inCone {g : Game} (sI : Strategy g i) (p : g.Pos)
+    : winning p sI → ∀ q, inCone sI p q → winning q sI := by
+  sorry
+
+noncomputable def Exists.subtype {p : α → Prop} (h : ∃ x, p x) : { x // p x } := by
+  use (Classical.choose h)
+  apply Exists.choose_spec
+
+noncomputable def Exists.subtype_pair {motive : α → Prop} {p : (x : α) → motive x → Prop}
+    (h : ∃ x, ∃ mx : motive x, p x mx) : { xmx : { x // motive x } // p xmx.1 xmx.2 } := by
+  let x := Exists.choose h
+  let px := Exists.choose_spec h
+  let mx := Exists.choose px
+  let xmx : { x // motive x } := ⟨x, mx⟩
+  have := Exists.choose_spec px
+  use xmx
+
+/-- Second helper for `gamedet'`.
+TODO: Statement seems correct, but induction direction in proof seems wrong/stuck. -/
 theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.Pos]
     (p : g.Pos) (whose_turn : g.turn p = other i)
     (win_all_next : ∀ pNext ∈ Game.moves p, ∃ (s : Strategy g i), winning pNext s)
     : ∃ (s : Strategy g i), winning p s := by
-  -- We need to "stitch together" the strategies given by `win_all_next`.
+  wlog has_moves : (Game.moves p).Nonempty
+  · unfold winning winner
+    simp_all
+  -- We "stitch together" the (possibly overlapping) strategies given by `win_all_next`.
+  -- This needs a lot of choice.
+  have := Classical.dec -- needed to decide `is_relevant`.
   let s' : Strategy g i :=
-    (fun pos turn_i has_moves => if h : pos ∈ Game.moves p
-      then (Classical.choose (win_all_next pos h)) pos turn_i has_moves
-      else sorry) -- PROBLEM: how to choose later strategy without memory ???
+    (fun pos turn_i has_moves =>
+      if is_relevant : ∃ pNext, ∃ (h : pNext ∈ g.moves p),
+        inCone (Classical.choose (win_all_next pNext h)) pNext pos
+      then
+        let ⟨⟨pNext, pNext_in⟩, pos_inCone⟩ := Exists.subtype_pair is_relevant
+        Classical.choose (win_all_next pNext pNext_in) pos turn_i has_moves
+      else
+        Classical.choice Strategy.instNonempty pos turn_i has_moves -- should never be used
+    )
   use s'
   unfold winning winner
+  have : ¬ (Game.turn p = i) := by rw [whose_turn]; cases i <;> simp
+  simp_all
+  clear this
   intro sJ
-  sorry
+  -- Now need to show that `s'` is winning at the next step chosen by `sJ`.
+  let nextP := sJ p (by cases i <;> simp_all) (by aesop)
+  change winner s' sJ nextP.val = i
+  unfold winner
+  -- There are four cases.
+  by_cases (g.moves nextP).Nonempty <;> by_cases g.turn nextP = i <;> simp_all
+  · -- turn of i
+    apply winner_of_winning
+    apply winning_here_then_winning_inCone _ nextP -- NOT useful with `p` not with `nextP` !!!
+    · -- PROBLEM: no guarantee here that s' behaves as the one we know to be winning?
+
+      -- IDEA: use own induction principle on inCone?
+
+      -- IDEA: iterate same cases, use induction on bound of position?
+
+      sorry
+    · apply inCone.myStep inCone.nil
+  · -- turn of j
+    apply winner_of_winning
+    apply winning_here_then_winning_inCone _ nextP
+    · -- same problem
+      sorry
+    · apply inCone.oStep
+      · apply inCone.nil
+      · cases i <;> simp_all
+      · simp
+  -- remaining two cases are with no moves at nextP
+  · exfalso
+    -- no moves at nextP, and it is the turn of i, should contradict assumptions!
+    rcases win_all_next nextP (by aesop) with ⟨s2, winning_s2⟩
+    unfold winning winner at winning_s2
+    specialize winning_s2 sJ
+    simp_all
+    cases i <;> simp_all
+  · cases i <;> simp_all
 
 /-- Generalized version of `gamedet` for the proof by induction on `g.bound p`. -/
 theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.Pos) n (h : n = g.bound p) :
