@@ -166,10 +166,28 @@ lemma Game.Play.nodup {g : Game} (pl : g.Play) : pl.val.Nodup := by
 def same_from_here {g : Game} (sI sI' : Strategy g i) (p : g.Pos) :=
   ∀ (q : g.Pos), g.bound q ≤ g.bound p → sI q = sI' q
 
+/-- applying any strategy leads to a position with a lower bound. -/
+lemma bound_strat_lt {g : Game} {sI : Strategy g i} p ha hb :
+    g.bound (sI p ha hb).val < g.bound p := g.bound_h _ _ (sI p ha hb).prop
+
 lemma winner_eq_of_strategy_eq_from_here {g : Game} {sI sI' : Strategy g i}
     (p : g.Pos) (h : same_from_here sI sI' p) (sJ : Strategy g (other i))
     : winner sI sJ p = winner sI' sJ p := by
-  sorry
+  induction' def_n : g.bound p using Nat.strongRecOn generalizing p
+  case ind n IH =>
+    subst def_n
+    unfold winner
+    by_cases h1 : (Game.moves p).Nonempty <;> simp_all
+    unfold same_from_here at h
+    by_cases whose_turn : g.turn p = i <;> simp_all
+    all_goals
+    · apply IH (g.bound _) _ _ _ rfl
+      · apply bound_strat_lt
+      · intro q q_le
+        apply h
+        apply Nat.le_trans q_le
+        apply le_of_lt
+        apply bound_strat_lt
 
 lemma winning_strategy_of_next_when_my_turn (g : Game) [DecidableEq g.Pos]
     (p : g.Pos) (whose_turn : g.turn p = i)
