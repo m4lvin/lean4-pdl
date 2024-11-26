@@ -189,7 +189,8 @@ lemma winner_eq_of_strategy_eq_from_here {g : Game} {sI sI' : Strategy g i}
         apply le_of_lt
         apply bound_strat_lt
 
-lemma winning_strategy_of_next_when_my_turn (g : Game) [DecidableEq g.Pos]
+/-- First helper for `gamedet'`. -/
+lemma winning_strategy_of_one_next_when_my_turn (g : Game) [DecidableEq g.Pos]
     (p : g.Pos) (whose_turn : g.turn p = i)
     (nextPos : g.moves p) (s : Strategy g i) (s_wins_next : winning nextPos s)
     : ∃ s' : Strategy g i, winning p s' := by
@@ -215,6 +216,21 @@ lemma winning_strategy_of_next_when_my_turn (g : Game) [DecidableEq g.Pos]
   unfold_let s'
   subst whose_turn
   simp_all
+
+/-- Second helper for `gamedet'`. NOTE: might not be correct yet! -/
+theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.Pos]
+    (p : g.Pos) (whose_turn : g.turn p = other i)
+    (win_all_next : ∀ pNext ∈ Game.moves p, ∃ (s : Strategy g i), winning pNext s)
+    : ∃ (s : Strategy g i), winning p s := by
+  -- We need to "stitch together" the strategies given by `win_all_next`.
+  let s' : Strategy g i :=
+    (fun pos turn_i has_moves => if h : pos ∈ Game.moves p
+      then (Classical.choose (win_all_next pos h)) pos turn_i has_moves
+      else sorry) -- PROBLEM: how to choose later strategy without memory ???
+  use s'
+  unfold winning winner
+  intro sJ
+  sorry
 
 /-- Generalized version of `gamedet` for the proof by induction on `g.bound p`. -/
 theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.Pos) n (h : n = g.bound p) :
@@ -242,30 +258,23 @@ theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.Pos) n (h : n = g.bound p
     --
     -- If the bound still allows moves, distinguish cases if there are any.
     by_cases haveMoves : (g.moves p).Nonempty
-    · -- By IH, at all next states one of the players must have a winning strategy:
-      have claim : ∀ pNext ∈ g.moves p, (∃ (s : Strategy g A), winning pNext s)
-                                      ∨ ∃ (s : Strategy g B), winning pNext s := by
-        intro pNext pNext_in_moves_p
-        let m := g.bound pNext
-        have : m ≤ n := by apply Nat.le_of_lt_succ; rw [h]; exact g.bound_h _ _ pNext_in_moves_p
-        exact IH _ this pNext rfl
-      -- Is there a next state where the current player has a winning strategy?
+    · -- There is a move. Is there a next state where the current player has a winning strategy?
       by_cases ∃ pNext ∈ g.moves p, ∃ (s : Strategy g (g.turn p)), winning pNext s
       case pos hyp =>
         rcases hyp with ⟨pNext, pNext_in, s, s_winning⟩
         -- Whose turn is it? That player has a winning strategy!
         cases whose_turn : g.turn p
+        -- GOLF: merge/shorten?
         case A =>
           left
-          apply winning_strategy_of_next_when_my_turn g p whose_turn ⟨pNext, _⟩ (whose_turn ▸ s)
+          apply winning_strategy_of_one_next_when_my_turn g p whose_turn ⟨pNext, _⟩ (whose_turn ▸ s)
           convert s_winning
           · simp_all
           · exact eqRec_heq whose_turn s
           · exact pNext_in
         case B =>
           right
-          -- Analogous to `case A`.
-          apply winning_strategy_of_next_when_my_turn g p whose_turn ⟨pNext, _⟩ (whose_turn ▸ s)
+          apply winning_strategy_of_one_next_when_my_turn g p whose_turn ⟨pNext, _⟩ (whose_turn ▸ s)
           convert s_winning
           · simp_all
           · exact eqRec_heq whose_turn s
@@ -276,20 +285,32 @@ theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.Pos) n (h : n = g.bound p
         cases whose_turn : g.turn p
         case A =>
           right
-          rcases Classical.choice haveMoves.to_subtype with ⟨pNext, pNext_in⟩
-          -- Situation:
-          -- it is the turn of A
-          specialize hyp pNext pNext_in -- all A strategies here are NOT winning
-          specialize claim pNext pNext_in -- in the next position someone has a winning strategy
-          -- TODO:
-          -- claim that B has a winning strategy
-          -- show that the move by A does not matter
-          -- also use `winning_strategy_of_next_when_my_turn` here?
-          sorry
+          apply winning_strategy_of_all_next_when_others_turn _ _ (by simp_all)
+          -- By IH and `hyp` at all next states B must have a winning strategy:
+          intro pNext pNext_in_moves_p
+          let m := g.bound pNext
+          have : m ≤ n := by apply Nat.le_of_lt_succ; rw [h]; exact g.bound_h _ _ pNext_in_moves_p
+          have Awin_or_Bwin := IH _ this pNext rfl
+          have := hyp pNext pNext_in_moves_p
+          suffices ¬ (∃ (s : Strategy g _), winning pNext s) by tauto
+          push_neg
+          intro s
+          rw [whose_turn] at this
+          exact this s
         case B =>
           left
-          -- should be analogous to `case A`.
-          sorry
+          apply winning_strategy_of_all_next_when_others_turn _ _ (by simp_all)
+          -- By IH and `hyp` at all next states B must have a winning strategy:
+          intro pNext pNext_in_moves_p
+          let m := g.bound pNext
+          have : m ≤ n := by apply Nat.le_of_lt_succ; rw [h]; exact g.bound_h _ _ pNext_in_moves_p
+          have Awin_or_Bwin := IH _ this pNext rfl
+          have := hyp pNext pNext_in_moves_p
+          suffices ¬ (∃ (s : Strategy g _), winning pNext s) by tauto
+          push_neg
+          intro s
+          rw [whose_turn] at this
+          exact this s
     · -- No moves left, we have a winner by definition.
       unfold winning
       unfold winner
