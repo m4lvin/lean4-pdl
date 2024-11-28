@@ -346,7 +346,7 @@ theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.
   -- remaining two cases are with no moves at nextP
   · exfalso
     -- no moves at nextP, and it is the turn of i, should contradict assumptions!
-    rcases win_all_next nextP (by aesop) with ⟨s2, winning_s2⟩
+    rcases win_all_next nextP nextP.prop with ⟨s2, winning_s2⟩
     unfold winning winner at winning_s2
     specialize winning_s2 sJ
     simp_all
