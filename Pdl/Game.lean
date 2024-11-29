@@ -20,6 +20,12 @@ theorem Player.ne_A_iff_eq_B : p ≠ A ↔ p = B := by cases p <;> simp
 @[simp]
 theorem Player.ne_B_iff_eq_A : p ≠ B ↔ p = A := by cases p <;> simp
 
+@[simp]
+theorem Player.not_eq_A_iff_eq_B : (¬ p = A) ↔ p = B := by cases p <;> simp
+
+@[simp]
+theorem Player.not_eq_B_iff_eq_A : (¬ p = B) ↔ p = A := by cases p <;> simp
+
 theorem Player.eq_A_or_eq_B : p = A ∨ p = B := by cases p <;> simp
 
 def other : Player → Player
@@ -51,6 +57,17 @@ class Game where
 
 /-- Allow notation `p.moves` for `g.moves p`. -/
 abbrev Game.Pos.moves {g : Game} : g.Pos → Finset g.Pos := Game.moves
+
+instance {g : Game} : LT g.Pos := ⟨fun p q => g.bound p < g.bound q⟩
+
+/-- Induction on the bound of game positions. -/
+theorem Game.Pos.inductionOnLT {g : Game} (p : g.Pos) {motive : g.Pos → Prop}
+    (ind : (p : Pos) → (∀ q, q < p → motive q) → motive p) : motive p := by
+  induction' gb_def : g.bound p using Nat.strongRecOn generalizing p
+  case ind k IH =>
+    apply ind
+    intro q q_lt_p
+    apply IH (g.bound q) (by aesop) _ rfl
 
 /-- A strategy in `g` for `i`, whenever it is `i`'s turn, chooses a move, if there are any. -/
 def Strategy (g : Game) (i : Player) : Type := ∀ p : g.Pos, g.turn p = i → g.moves p ≠ ∅ → g.moves p
@@ -236,10 +253,35 @@ inductive inMyCone {g : Game} (sI : Strategy g i) (p : g.Pos) : g.Pos → Prop
 | myStep : inMyCone sI p q → (has_moves : g.moves q ≠ ∅) → (h : g.turn q = i) → inMyCone sI p (sI q h has_moves)
 | oStep : inMyCone sI p q → g.turn q = other i → r ∈ g.moves q → inMyCone sI p r
 
--- True, but not useful?
-lemma winning_here_then_winning_inCone {g : Game} (sI : Strategy g i) (p : g.Pos)
-    : winning p sI → ∀ q, inMyCone sI p q → winning q sI := by
-  sorry
+-- USED !
+lemma winning_here_then_winning_inMyCone {g : Game} [DecidableEq g.Pos] (sI : Strategy g i) (p : g.Pos)
+    (win_at_p : winning p sI) (q : g.Pos) (q_inMyCone : inMyCone sI p q)
+    : winning q sI := by
+  induction q_inMyCone
+  · assumption
+  case myStep r r_in has_moves turn_i IH =>
+    intro sJ
+    specialize IH sJ
+    unfold winner at IH
+    have := Finset.nonempty_iff_ne_empty.mpr has_moves
+    simp_all
+  case oStep q r q_in turn_other_i r_in IH =>
+    intro sJ
+    specialize IH sJ
+    unfold winner at IH
+    have : ¬ other i = i := by cases i <;> simp_all
+    have : (Game.moves q).Nonempty :=
+      by rw [Finset.nonempty_iff_ne_empty]; apply Finset.ne_empty_of_mem r_in
+    simp_all
+    clear this; clear this
+    convert IH using 1
+    -- Need to show that `sJ` chooses `r`.
+    -- Are we running into the same PROBLEM here as below?
+    -- Should we not specialize to `sJ` above but define our own strategy that choses `r`?
+    let sJ : Strategy g (other i) := fun x _ _ =>
+      if h : x = q then ⟨r, h ▸ r_in⟩ else sJ x (by assumption) (by assumption)
+    -- ...
+    sorry
 
 /-- In its cone from here, `sI` does what one of `sIset` would do. -/
 def subset_from_here {g : Game} [DecidableEq g.Pos]
@@ -249,12 +291,15 @@ def subset_from_here {g : Game} [DecidableEq g.Pos]
     → (has_moves : Game.moves q ≠ ∅)
     → sI q i_turn has_moves ∈ sIset.image (fun sI' => sI' q i_turn has_moves)
 
+-- Need something like a multi-strategy version of `winning_here_then_winning_inMyCone`?
+-- ?? If all those strategies are winning here, then they are winning in each others cone ??
+
+-- UNUSED
 /-- Version of `winner_eq_of_strategy_eq_from_here` generalized to a set of strategies. -/
 lemma winner_mem_of_subset_from_here {g : Game} [DecidableEq g.Pos]
     (p : g.Pos)
     {i} {sI : Strategy g i} {sIset : Finset (Strategy g i)}
     (h : subset_from_here sI sIset p)
-    -- maybe missing: `inMyCone sI p` is "covered" by sIset ???
     (sJ : Strategy g (other i))
     : winner sI sJ p ∈ sIset.image (fun sI' => winner sI' sJ p) := by
   induction' def_n : g.bound p using Nat.strongRecOn generalizing p
@@ -293,65 +338,76 @@ theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.
   have := Classical.dec -- needed to decide `is_relevant`.
   let stratFor (pNext : g.moves p) : { sI' : Strategy g i // winning pNext sI' } :=
     Exists.subtype (win_all_next pNext.val pNext.prop)
-  let s' : Strategy g i :=
+  let s : Strategy g i :=
     (fun pos turn_i has_moves =>
-      if is_relevant : ∃ pNext, ∃ (h : pNext ∈ g.moves p),
-        inMyCone (stratFor ⟨pNext,h⟩).val pNext pos
+      if is_relevant : ∃ pNext : g.moves p, inMyCone (stratFor pNext).val pNext pos
       then
-        let ⟨⟨pNext, pNext_in⟩, pos_inCone⟩ := Exists.subtype_pair is_relevant
-        (stratFor ⟨pNext, pNext_in⟩).val pos turn_i has_moves
+        let ⟨pNext, pos_inCone⟩ := Exists.subtype is_relevant
+        (stratFor pNext).val pos turn_i has_moves
       else
         Classical.choice Strategy.instNonempty pos turn_i has_moves -- should never be used
     )
-  use s'
+  use s
+  -- Need to show that s is winning at p.
   unfold winning winner
   have : ¬ (Game.turn p = i) := by rw [whose_turn]; cases i <;> simp
   simp_all
   clear this
   intro sJ
-  -- Now need to show that `s'` is winning at the next step chosen by `sJ`.
   let nextP := sJ p (by cases i <;> simp_all) (by aesop)
-  change winner s' sJ nextP.val = i
-
+  change winner s sJ nextP.val = i
+  -- Now suffices to show that `s'` is winning at `nextP` chosen by `sJ`.
   -- The set of all the strategies we used:
   let allStrats : Finset (Strategy g i) := (g.moves p).attach.image (fun q => stratFor q)
 
-  have : subset_from_here s' allStrats nextP := by sorry
-
-  -- LEMMA ?
-
-  unfold winner
-  -- There are four cases.
-  by_cases (g.moves nextP).Nonempty <;> by_cases g.turn nextP = i <;> simp_all
-  · -- turn of i
-    have : subset_from_here s' allStrats nextP := by sorry
-    -- have := winner_mem_of_strategy_eq_to_some_winning_inCone nextP this sJ
-    -- simp_all
-    -- rcases this with ⟨s_win, s_win_in, winner_eq⟩
-    -- TODO NEXT ?!
-    sorry
-
-      -- PROBLEM: no guarantee here that s' behaves as the one we know to be winning?
-      -- IDEA: use own induction principle on inCone?
-      -- IDEA: iterate same cases, use induction on bound of position?
-  · -- turn of j
-    apply winner_of_winning
-    apply winning_here_then_winning_inCone _ nextP
-    · -- same problem
-      sorry
-    · apply inMyCone.oStep
-      · apply inMyCone.nil
-      · cases i <;> simp_all
+  suffices claim : ∀ n, ∀ nextP : g.moves p, ∀ p,
+                inMyCone (stratFor nextP).val nextP p → g.bound p = n → winner s sJ p = i by
+    exact claim _ nextP nextP inMyCone.nil rfl
+  clear nextP
+  -- Remains to show the claim.
+  intro n
+  induction n using Nat.strongRecOn
+  case ind n IH =>
+    intro nextP q q_inMyCone def_n
+    unfold winner
+    -- Want to use `apply IH`, but not on `q`, only later!
+    -- Four cases:
+    by_cases has_moves : (Game.moves q).Nonempty <;> by_cases turn_i : Game.turn q = i <;> simp_all
+    · let nextQ := s q ?_ ?_
+      change winner s sJ nextQ = i
+      apply IH (g.bound nextQ) ?_ nextP.val ?_ nextQ ?_ rfl
+      · rw [← def_n]
+        exact g.bound_h q nextQ.val nextQ.prop
       · simp
-  -- remaining two cases are with no moves at nextP
-  · exfalso
-    -- no moves at nextP, and it is the turn of i, should contradict assumptions!
-    rcases win_all_next nextP nextP.prop with ⟨s2, winning_s2⟩
-    unfold winning winner at winning_s2
-    specialize winning_s2 sJ
-    simp_all
-    cases i <;> simp_all
-  · cases i <;> simp_all
+      · -- Use `myStep` because it is the turn of `i`.
+        have := inMyCone.myStep q_inMyCone (Finset.nonempty_iff_ne_empty.mp has_moves) turn_i
+        unfold_let nextQ
+        convert this using 1
+        -- PROBLEM
+        -- Need that `s` does the same as `stratFor nextP` at `q`.
+        unfold_let s
+        unfold stratFor Exists.subtype
+        -- simp -- times out ?
+        sorry
+    · let nextQ := sJ q ?_ ?_ -- sJ, not s here
+      change winner s sJ nextQ = i
+      apply IH (g.bound nextQ) ?_ nextP.val ?_ nextQ ?_ rfl
+      · rw [← def_n]
+        exact g.bound_h q nextQ.val nextQ.prop
+      · simp
+      · apply inMyCone.oStep q_inMyCone ?_ nextQ.prop
+        cases i <;> simp_all
+        · rw [not_eq_A_iff_eq_B] at turn_i
+          exact turn_i
+        · rw [not_eq_B_iff_eq_A] at turn_i
+          exact turn_i
+    · -- no moves and our turn, cannot be.
+      exfalso
+      have := winning_here_then_winning_inMyCone
+        (stratFor nextP).val nextP (stratFor nextP).prop q q_inMyCone
+      unfold winning winner at this
+      simp_all
+    · cases i <;> simp_all
 
 /-- Generalized version of `gamedet` for the proof by induction on `g.bound p`. -/
 theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.Pos) n (h : n = g.bound p) :
