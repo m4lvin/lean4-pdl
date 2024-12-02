@@ -417,22 +417,20 @@ noncomputable def Exists.subtype_pair {motive : α → Prop} {p : (x : α) → m
 /-- Second helper for `gamedet'`. -/
 theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.Pos]
     (p : g.Pos) (whose_turn : g.turn p = other i)
-    (win_all_next : ∀ pNext ∈ Game.moves p, ∃ (s : Strategy g i), winning pNext s)
+    (win_all_next : ∀ pNext : Game.moves p, ∃ (s : Strategy g i), winning pNext s)
     : ∃ (s : Strategy g i), winning p s := by
   wlog has_moves : (Game.moves p).Nonempty
   · unfold winning winner
     simp_all
-  -- We "stitch together" the (possibly overlapping) strategies given by `win_all_next`.
-  -- This needs a lot of choice.
+  -- We "stitch together" (possibly overlapping) strategies from `win_all_next` using choice.
+  rcases Classical.axiomOfChoice win_all_next with ⟨stratFor, stratFor_prop⟩
   have := Classical.dec -- needed to decide `is_relevant`.
-  let stratFor (pNext : g.moves p) : { sI' : Strategy g i // winning pNext sI' } :=
-    Exists.subtype (win_all_next pNext.val pNext.prop)
   let s : Strategy g i :=
     (fun pos turn_i has_moves =>
-      if is_relevant : ∃ pNext : g.moves p, inMyCone (stratFor pNext).val pNext pos
+      if is_relevant : ∃ pNext : g.moves p, inMyCone (stratFor pNext) pNext pos
       then
-        let ⟨pNext, pos_inCone⟩ := Exists.subtype is_relevant
-        (stratFor pNext).val pos turn_i has_moves
+        let pNext := Exists.choose is_relevant -- This additional choice breaks stuff below?
+        (stratFor pNext) pos turn_i has_moves
       else
         Classical.choice Strategy.instNonempty pos turn_i has_moves -- should never be used
     )
@@ -445,8 +443,8 @@ theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.
   let nextP := sJ p (by cases i <;> simp_all) (by aesop)
   change winner s sJ nextP.val = i
   -- Now suffices to show that `s'` is winning at `nextP` chosen by `sJ`.
-  suffices claim : ∀ n, ∀ nextP : g.moves p, ∀ p,
-                inMyCone (stratFor nextP).val nextP p → g.bound p = n → winner s sJ p = i by
+  suffices claim : ∀ n, ∀ nextP : g.moves p, ∀ q,
+                inMyCone (stratFor nextP) nextP q → g.bound q = n → winner s sJ q = i by
     exact claim _ nextP nextP inMyCone.nil rfl
   clear nextP
   -- Remains to show the claim.
@@ -460,29 +458,63 @@ theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.
     by_cases has_moves : (Game.moves q).Nonempty <;> by_cases turn_i : Game.turn q = i <;> simp_all
     · let nextQ := s q ?_ ?_
       change winner s sJ nextQ = i
-      apply IH (g.bound nextQ) ?_ nextP.val ?_ nextQ ?_ rfl
-      · rw [← def_n]
+      have lt_n : Game.bound ↑nextQ < n := by
+        rw [← def_n]
         exact g.bound_h q nextQ.val nextQ.prop
-      · simp
-      · -- Use `myStep` because it is the turn of `i`.
+
+      apply IH (g.bound nextQ) lt_n ?_ ?_ nextQ ?_ rfl -- don't commit to nextP as witness!
+
+      rotate_right
+
+      unfold_let nextQ s
+      simp only
+
+      have : ∃ pNext : g.moves p, inMyCone (stratFor pNext) pNext q := by
+            use nextP
+      simp [this]
+
+      -- Now we have not chosen a cone yet, but if we choose any other than nextP,
+      -- we don't have that q is in that cone??
+
+      -- Can we change the claim to allow different `nextP` witnesses?!?!
+      sorry
+
+/-
+      convert inMyCone.myStep this (Finset.nonempty_iff_ne_empty.mp has_moves) turn_i
+      unfold Exists.choose
+      simp
+-/
+      -- have := inMyCone.myStep q_inMyCone (Finset.nonempty_iff_ne_empty.mp has_moves) turn_i
+      -- convert this using 1
+
+      sorry
+
+      sorry
+
+        /-
+        -- Use `myStep` because it is the turn of `i`.
         have := inMyCone.myStep q_inMyCone (Finset.nonempty_iff_ne_empty.mp has_moves) turn_i
-        unfold_let nextQ
         convert this using 1
         -- PROBLEM
         -- Need that `s` does the same as `stratFor nextP` at `q`.
         unfold_let s
+
         -- unfold stratFor
         simp only
         -- simp -- times out, but `simp only` works a bit?
-        have : ∃ pNext : g.moves p, inMyCone (stratFor pNext).val pNext q := by
-          use nextP
         split
-        · unfold stratFor
+        ·
           convert rfl
           -- PROBLEM: need nextP = Exists.subtype.val ??? Avoid choice to repair this.
           sorry
         · exfalso
-          tauto
+          have : ∃ pNext : g.moves p, inMyCone (stratFor pNext) pNext q := by
+            use nextP
+          absurd this
+          assumption
+
+        -/
+
     · let nextQ := sJ q ?_ ?_ -- sJ, not s here
       change winner s sJ nextQ = i
       apply IH (g.bound nextQ) ?_ nextP.val ?_ nextQ ?_ rfl
@@ -494,7 +526,7 @@ theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.
     · -- no moves and our turn, cannot be.
       exfalso
       have := winning_here_then_winning_inMyCone
-        (stratFor nextP).val nextP (stratFor nextP).prop q q_inMyCone
+        (stratFor nextP) nextP (stratFor_prop nextP _) q q_inMyCone
       unfold winning winner at this
       simp_all
 
@@ -553,11 +585,11 @@ theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.Pos) n (h : n = g.bound p
           right
           apply winning_strategy_of_all_next_when_others_turn _ _ (by simp_all)
           -- By IH and `hyp` at all next states B must have a winning strategy:
-          intro pNext pNext_in_moves_p
+          intro pNext
           let m := g.bound pNext
-          have : m ≤ n := by apply Nat.le_of_lt_succ; rw [h]; exact g.bound_h _ _ pNext_in_moves_p
+          have : m ≤ n := by apply Nat.le_of_lt_succ; rw [h]; exact g.bound_h _ pNext pNext.prop
           have Awin_or_Bwin := IH _ this pNext rfl
-          have := hyp pNext pNext_in_moves_p
+          have := hyp pNext pNext.prop
           suffices ¬ (∃ (s : Strategy g _), winning pNext s) by tauto
           push_neg
           intro s
@@ -567,11 +599,11 @@ theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.Pos) n (h : n = g.bound p
           left
           apply winning_strategy_of_all_next_when_others_turn _ _ (by simp_all)
           -- By IH and `hyp` at all next states B must have a winning strategy:
-          intro pNext pNext_in_moves_p
+          intro pNext
           let m := g.bound pNext
-          have : m ≤ n := by apply Nat.le_of_lt_succ; rw [h]; exact g.bound_h _ _ pNext_in_moves_p
+          have : m ≤ n := by apply Nat.le_of_lt_succ; rw [h]; exact g.bound_h _ pNext pNext.prop
           have Awin_or_Bwin := IH _ this pNext rfl
-          have := hyp pNext pNext_in_moves_p
+          have := hyp pNext pNext.prop
           suffices ¬ (∃ (s : Strategy g _), winning pNext s) by tauto
           push_neg
           intro s
