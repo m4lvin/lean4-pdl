@@ -28,8 +28,8 @@ theorem completeness : ∀ X, consistent X → satisfiable X :=
   apply h
   aesop
 
-theorem consIffSat : ∀ X, consistent X ↔ satisfiable X :=
-  fun X => ⟨completeness X, correctness X⟩
+theorem consIffSat : ∀ X, X.isFree → (consistent X ↔ satisfiable X) :=
+  fun X X_isFree => ⟨completeness X, correctness X X_isFree⟩
 
 theorem singletonConsIffSat : ∀ φ, consistent ([φ],[],none) ↔ satisfiable φ :=
   by

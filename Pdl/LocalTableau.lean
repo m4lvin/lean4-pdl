@@ -52,6 +52,14 @@ def TNode.isLoaded : TNode → Bool
 
 def TNode.isFree (Γ : TNode) : Bool := ¬ Γ.isLoaded
 
+@[simp]
+theorem TNode.none_isFree L R : TNode.isFree (L, R, none) := by
+  simp [TNode.isFree, TNode.isLoaded]
+
+@[simp]
+theorem TNode.some_not_isFree L R olf : ¬ TNode.isFree (L, R, some olf) := by
+  simp [TNode.isFree, TNode.isLoaded]
+
 theorem setEqTo_isLoaded_iff {X Y : TNode} (h : X.setEqTo Y) : X.isLoaded = Y.isLoaded := by
   simp_all [TNode.setEqTo, TNode.isLoaded]
   rcases X with ⟨XL, XR, _|_⟩ <;> rcases Y with ⟨YL, YR, _|_⟩
@@ -174,14 +182,14 @@ inductive LoadRule : NegLoadFormula → List (List Formula × Option NegLoadForm
 
 /-- Given a LoadRule application, define the equivalent unloaded rule application.
 This allows re-using `oneSidedLocalRuleTruth` to prove `loadRuleTruth`. -/
-def LoadRule.unload : LoadRule (~'χ) B → OneSidedLocalRule [~(unload χ)] (B.map pairUnload)
-| @dia α χ notAtom => unfoldDiamondLoaded_eq α χ ▸ OneSidedLocalRule.dia α ((_root_.unload χ)) notAtom
+def LoadRule.unload : LoadRule (~'χ) B → OneSidedLocalRule [~χ.unload] (B.map pairUnload)
+| @dia α χ notAtom => unfoldDiamondLoaded_eq α χ ▸ OneSidedLocalRule.dia α χ.unload notAtom
 | @dia' α φ notAtom => unfoldDiamondLoaded'_eq α φ ▸ OneSidedLocalRule.dia α φ notAtom
 
 /-- The loaded unfold rule is sound and invertible.
 In the notes this is part of localRuleTruth. -/
 theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
-    (~(unload χ)) ≡ dis (B.map (Con ∘ pairUnload)) :=
+    (~χ.unload) ≡ dis (B.map (Con ∘ pairUnload)) :=
   by
   intro W M w
   have := oneSidedLocalRuleTruth (lr.unload) W M w
@@ -282,12 +290,10 @@ inductive LocalRuleApp : TNode → List TNode → Type
        : LocalRuleApp (L,R,O) C
 
 theorem localRuleTruth
-    {L R : List Formula}
-    {C : List TNode}
-    {O : Olf}
-    (lrA : LocalRuleApp (L,R,O) C) {W} (M : KripkeModel W) (w : W)
-  : (M,w) ⊨ (L,R,O) ↔ ∃ Ci ∈ C, (M,w) ⊨ Ci
+    (lrA : LocalRuleApp X C) {W} (M : KripkeModel W) (w : W)
+  : (M,w) ⊨ X ↔ ∃ Ci ∈ C, (M,w) ⊨ Ci
   := by
+  rcases X with ⟨L,R,O⟩
   rcases lrA with ⟨Lcond, Rcond, Ocond, rule, preconditionProof⟩
   cases rule
 
@@ -404,7 +410,7 @@ theorem localRuleTruth
     simp [modelCanSemImplyForm,modelCanSemImplyLLO] at *
     constructor
     · intro hyp
-      have hyp' := hyp (~unload χ)
+      have hyp' := hyp (~χ.unload)
       simp at hyp'
       rw [this] at hyp'
       rcases hyp' with ⟨f, ⟨X , O, in_ress, def_f⟩, w_f⟩
@@ -420,7 +426,7 @@ theorem localRuleTruth
         · intro g g_in
           subst def_f
           simp_all [pairUnload, negUnload, conEval]
-          have := w_f (~unload val.1)
+          have := w_f (~val.1.unload)
           aesop
     · rintro ⟨Ci, ⟨⟨X, O, ⟨in_ress, def_Ci⟩⟩, w_Ci⟩⟩
       intro f f_in
@@ -464,7 +470,7 @@ theorem localRuleTruth
     simp [modelCanSemImplyForm,modelCanSemImplyLLO] at *
     constructor
     · intro hyp
-      have hyp' := hyp (~unload χ)
+      have hyp' := hyp (~χ.unload)
       simp at hyp'
       rw [this] at hyp'
       rcases hyp' with ⟨f, ⟨X , O, in_ress, def_f⟩, w_f⟩
@@ -480,7 +486,7 @@ theorem localRuleTruth
         · intro g g_in
           subst def_f
           simp_all [pairUnload, negUnload, conEval]
-          have := w_f (~unload val.1)
+          have := w_f (~val.1.unload)
           aesop
     · rintro ⟨Ci, ⟨⟨X, O, ⟨in_ress, def_Ci⟩⟩, w_Ci⟩⟩
       intro f f_in
@@ -600,13 +606,13 @@ instance Formula.instPreorderFormula : Preorder Formula := Preorder.lift lmOfFor
 @[simp]
 def node_to_multiset : TNode → Multiset Formula
 | (L, R, none) => (L + R)
-| (L, R, some (Sum.inl (~'χ))) => (L + R + [~ unload χ])
-| (L, R, some (Sum.inr (~'χ))) => (L + R + [~ unload χ])
+| (L, R, some (Sum.inl (~'χ))) => (L + R + [~χ.unload])
+| (L, R, some (Sum.inr (~'χ))) => (L + R + [~χ.unload])
 
 def Olf.toForm : Olf → Multiset Formula
 | none => {}
-| some (Sum.inl (~'χ)) => {~ unload χ}
-| some (Sum.inr (~'χ)) => {~ unload χ}
+| some (Sum.inl (~'χ)) => {~χ.unload}
+| some (Sum.inr (~'χ)) => {~χ.unload}
 
 theorem node_to_multiset_eq : node_to_multiset (L, R, O) = Multiset.ofList L + Multiset.ofList R + O.toForm := by
   cases O

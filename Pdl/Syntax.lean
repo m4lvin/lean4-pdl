@@ -134,12 +134,12 @@ theorem boxes_first : (Formula.boxes (α :: δ) φ) = ⌈α⌉(Formula.boxes δ 
   simp [Formula.boxes, LoadFormula.boxes]
 
 @[simp]
-def unload : LoadFormula → Formula
+def LoadFormula.unload : LoadFormula → Formula
 | LoadFormula.box α (.normal φ) => ⌈α⌉φ
 | LoadFormula.box α (.loaded χ) => ⌈α⌉(unload χ)
 
 @[simp]
-theorem unload_loadMulti : unload (loadMulti δ α φ) = ⌈⌈δ⌉⌉⌈α⌉φ := by
+theorem unload_loadMulti : (loadMulti δ α φ).unload  = ⌈⌈δ⌉⌉⌈α⌉φ := by
   induction δ
   · simp [Formula.boxes, LoadFormula.boxes, loadMulti]
   · simpa [Formula.boxes, LoadFormula.boxes, loadMulti]
@@ -159,7 +159,7 @@ notation "~''" φ:arg => AnyNegFormula.neg φ
 
 @[simp]
 def negUnload : NegLoadFormula → Formula
-| NegLoadFormula.neg χ => ~(unload χ)
+| NegLoadFormula.neg χ => ~(χ.unload)
 
 example : NegLoadFormula := ~'(⌊((·1) ;' (·2))⌋(⊤ : Formula))
 example : NegLoadFormula := ~'(⌊⌊[·1, ·2]⌋⌋⌊·1⌋(⊤ : Formula))
@@ -173,15 +173,15 @@ theorem loadBoxes_last : (~'⌊a⌋LoadFormula.boxes (as ++ [c]) P) = (~'⌊a⌋
   induction as <;> simp [LoadFormula.boxes, loadBoxes_append]
 
 @[simp]
-theorem unload_boxes : unload (⌊⌊δ⌋⌋φ) = ⌈⌈δ⌉⌉(unload φ) := by
+theorem unload_boxes : (⌊⌊δ⌋⌋φ).unload = ⌈⌈δ⌉⌉φ.unload := by
   induction δ
   · simp only [LoadFormula.boxes, List.foldr_nil, Formula.boxes]
   · simpa [Formula.boxes, LoadFormula.boxes]
 
 @[simp]
-theorem unload_neg_loaded : unload (~'⌊α⌋(.loaded χ)).1 = ⌈α⌉(unload χ) := by
-  simp [unload]
+theorem unload_neg_loaded : (~'⌊α⌋(.loaded χ)).1.unload = ⌈α⌉(χ.unload) := by
+  simp [LoadFormula.unload]
 
 @[simp]
-theorem unload_neg_normal : unload (~'⌊α⌋(.normal φ)).1 = ⌈α⌉φ := by
-  simp [unload]
+theorem unload_neg_normal : (~'⌊α⌋(.normal φ)).1.unload = ⌈α⌉φ := by
+  simp [LoadFormula.unload]

@@ -7,8 +7,8 @@ open HasSat
 
 def Olf.toForms : Olf → List Formula
 | none => []
-| some (Sum.inl ⟨lf⟩) => [~ unload lf]
-| some (Sum.inr ⟨lf⟩) => [~ unload lf]
+| some (Sum.inl ⟨lf⟩) => [~ lf.unload]
+| some (Sum.inr ⟨lf⟩) => [~ lf.unload]
 
 @[simp]
 def TNode.left (X : TNode) : List Formula := X.L ++ X.O.toForms
