@@ -117,11 +117,11 @@ instance modelCanSemImplyList {W : Type} : vDash (KripkeModel W × W) (List Form
 instance modelCanSemImplyAnyFormula {W : Type} : vDash (KripkeModel W × W) AnyFormula :=
   ⟨fun (M,w) ξ => match ξ with
     | (AnyFormula.normal φ) => evaluate M w φ
-    | .loaded χ => evaluate M w (unload χ)⟩
+    | .loaded χ => evaluate M w χ.unload⟩
 instance modelCanSemImplyAnyNegFormula {W : Type} : vDash (KripkeModel W × W) AnyNegFormula :=
   vDash.mk (λ ⟨M,w⟩ anf => match anf with
    | ⟨.normal φ⟩ => ¬ evaluate M w φ
-   | ⟨.loaded χ⟩ => ¬ evaluate M w (unload χ) )
+   | ⟨.loaded χ⟩ => ¬ evaluate M w χ.unload)
 instance setCanSemImplySet : vDash (List Formula) (List Formula) := vDash.mk semImpliesLists
 instance setCanSemImplyForm : vDash (List Formula) Formula:= vDash.mk fun X ψ => semImpliesLists X [ψ]
 instance formCanSemImplySet : vDash Formula (List Formula) := vDash.mk fun φ X => semImpliesLists [φ] X
@@ -302,7 +302,7 @@ theorem evalBoxes (δ : List Program) φ :
 
 @[simp]
 theorem evaluate_unload_box :
-    evaluate M w (unload (⌊α⌋af)) ↔ ∀ v, relate M α w v → (M,v) ⊨ af := by
+    evaluate M w (⌊α⌋af).unload ↔ ∀ v, relate M α w v → (M,v) ⊨ af := by
   cases af <;> simp_all [modelCanSemImplyAnyFormula]
 
 theorem truthImply_then_satImply (X Y : List Formula) : X ⊨ Y → satisfiable X → satisfiable Y :=
