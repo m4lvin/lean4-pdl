@@ -14,7 +14,7 @@ theorem interpolation : ∀ (φ ψ : Formula), φ⊨ψ → ∃ θ : Formula, Int
   have ctX : Tableau .nil X :=
     by
     rw [tautImp_iff_TNodeUnsat rfl] at hyp
-    rw [← consIffSat] at hyp -- using completeness
+    rw [← consIffSat _ (by simp)] at hyp -- using completeness
     simp [consistent,inconsistent] at hyp
     exact Classical.choice hyp
   have partInt := tabToInt ctX -- using tableau interpolation
