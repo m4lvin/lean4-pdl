@@ -1,12 +1,8 @@
--- Section 6.2: Tableau Game
-
 import Mathlib.SetTheory.Game.State
 
-import Pdl.Tableau
+/-! # A General Theory for Determined Two-playerGames -/
 
-/-! # Two-player games (in general) -/
-
-/-- Two players, `A` and `B`. In the tableau game they will be "Prover" and "Builder". -/
+/-- Two players, `A` and `B`. -/
 inductive Player : Type
 | A : Player
 | B : Player
@@ -66,6 +62,15 @@ class Game where
 
 /-- Allow notation `p.moves` for `g.moves p`. -/
 abbrev Game.Pos.moves {g : Game} : g.Pos → Finset g.Pos := Game.moves
+
+/-- If the bound bound is zero then there are no more moves. -/
+lemma Game.no_moves_of_bound_zero {g : Game} {p : g.Pos}
+    (bound_zero : g.bound p = 0) : g.moves p = ∅ := by
+  suffices ¬ (g.moves p).Nonempty by simp_all
+  by_contra hyp
+  rcases Finset.Nonempty.exists_mem hyp with ⟨q, q_in⟩
+  have := g.bound_h _ q q_in
+  linarith
 
 instance {g : Game} : LT g.Pos := ⟨fun p q => g.bound p < g.bound q⟩
 
@@ -335,6 +340,8 @@ inductive inCone {g : Game} (p : g.Pos) : g.Pos → Prop
 | nil : inCone p p
 | step : inCone p q → r ∈ g.moves q → inCone p r
 
+-- FIXME everywhere: change `≠ ∅` to `.Nonempty`
+
 /-- The cone of all positions reachable from `p` assuming that `i` plays `sI`. -/
 inductive inMyCone {g : Game} (sI : Strategy g i) (p : g.Pos) : g.Pos → Prop
 | nil : inMyCone sI p p
@@ -380,6 +387,40 @@ def subset_from_here {g : Game} [DecidableEq g.Pos]
 
 -- Need something like a multi-strategy version of `winning_here_then_winning_inMyCone`?
 -- ?? If all those strategies are winning here, then they are winning in each others cone ??
+
+/-- If a strategy always (in its own cone) imitates winning strategies, then it is winning. -/
+lemma winning_if_imitating_some_winning {g : Game} (p : g.Pos) (s : Strategy g i)
+    (imitates_winning : ∀ x, inMyCone s p x → g.turn x = i → ∃ s', s x = s' x ∧ winning x s')
+    : winning p s := by
+  suffices claim : ∀ x, inMyCone s p x → winning x s by exact claim _ inMyCone.nil
+  intro x x_in
+  induction' bound_def : g.bound x using Nat.strongRecOn generalizing x
+  case ind k IH =>
+    unfold winning
+    intro sJ
+    unfold winner
+    -- Four cases: there are (no) moves × it is (not) my turn
+    by_cases (Game.moves x).Nonempty <;> by_cases g.turn x = i <;> simp_all
+    case pos has_moves turn_i =>
+      let nexts := s x turn_i (by aesop)
+      have := IH _ (by rw [← bound_def]; apply g.bound_h; simp) nexts ?_ rfl
+      · specialize this sJ
+        exact this
+      · unfold nexts
+        apply inMyCone.myStep x_in
+    case neg _ turn_other =>
+      simp_all
+      let nexts := sJ x turn_other (by aesop)
+      have := IH _ (by rw [← bound_def]; apply g.bound_h; simp) nexts ?_ rfl
+      · specialize this sJ
+        exact this
+      · unfold nexts
+        apply inMyCone.oStep x_in turn_other
+        simp
+    case pos no_moves turn_i =>
+      rcases imitates_winning x x_in turn_i with ⟨s', _, s'_winning⟩
+      specialize s'_winning sJ
+      simp_all [winner]
 
 /-
 -- UNUSED
@@ -583,29 +624,8 @@ theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.Pos) n (h : n = g.bound p
       simp_all
       apply Player.eq_A_or_eq_B
 
-/-- Zermelo's Theorem
+/-- Zermelo's Theorem: In every `Game` posiiton one of the two players has a winning strategy.
 https://en.wikipedia.org/wiki/Zermelo%27s_theorem_(game_theory)
 -/
 theorem gamedet (g : Game) [DecidableEq g.Pos] (p : g.Pos) :
     (∃ s : Strategy g A, winning p s) ∨ (∃ s : Strategy g B, winning p s) := gamedet' g p _ rfl
-
-/-! # The Tableau Game -/
-
-def Rule : Type := sorry
-
-def tableauGame : Game where
-  Pos := Sum TNode (TNode × Formula × Rule) -- probably not enough, also need history to check for repeats?
-  turn := sorry
-  moves := sorry
-  bound := sorry
-  bound_h := sorry
-
-/- ToDo list:
-
-- define "match"
-
-- translate winning strategy of Prover to Tableau
-
-- translate winning strategy of Builder to Kripke model
-
--/
