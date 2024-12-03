@@ -1,6 +1,8 @@
 import Pdl.Syntax
 import Mathlib.Tactic.Use
 
+-- TODO: move all this into Pdl.Syntax
+
 /-! ## Spliting of loaded formulas -/
 
 mutual
@@ -85,7 +87,7 @@ theorem LoadFormula.split_eq_loadMulti_nonEmpty' {δ φ} (lf : LoadFormula)
   rw [this]
 
 theorem loadMulti_nonEmpty_eq_loadMulti :
-    loadMulti_nonEmpty (δ ++ [α]) h φ = loadMulti δ α φ := by -- wrong ?
+    loadMulti_nonEmpty (δ ++ [α]) h φ = loadMulti δ α φ := by
   induction δ
   · simp
   case cons IH =>

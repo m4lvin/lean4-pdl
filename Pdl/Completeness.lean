@@ -1,6 +1,7 @@
 -- COMPLETENESS
 
 import Pdl.Soundness
+import Pdl.TableauGame
 import Pdl.Modelgraphs
 
 open HasSat
