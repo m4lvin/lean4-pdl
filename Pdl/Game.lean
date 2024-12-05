@@ -252,7 +252,7 @@ lemma winning_strategy_of_one_next_when_my_turn (g : Game) [DecidableEq g.Pos]
       have : g.bound nextPos.val < g.bound p := by apply g.bound_h _ _ nextPos.2
       linarith
     simp_all
-  unfold_let s'
+  unfold s'
   subst whose_turn
   simp_all
 
@@ -387,6 +387,38 @@ def subset_from_here {g : Game} [DecidableEq g.Pos]
 
 -- Need something like a multi-strategy version of `winning_here_then_winning_inMyCone`?
 -- ?? If all those strategies are winning here, then they are winning in each others cone ??
+
+/-- If a strategy in its own cone from `p` always goes to not-yet-lost states for which there
+exists some winning strategy, then it is winning at `p`. -/
+lemma winning_of_going_to_some_winning {g : Game} (p : g.Pos) (s : Strategy g i)
+    (goto_somewinning : ∀ x, inMyCone s p x → g.turn x = i →
+      g.moves x ≠ ∅ ∧ ∃ (s' : Strategy g i), ∀ h1 h2, winning (s x h1 h2) s')
+    : winning p s := by
+  suffices claim : ∀ x, inMyCone s p x → winning x s by exact claim _ inMyCone.nil
+  intro x x_in
+  induction' bound_def : g.bound x using Nat.strongRecOn generalizing x
+  case ind k IH =>
+    unfold winning
+    intro sJ
+    unfold winner
+    -- Four cases: there are (no) moves × it is (not) my turn
+    by_cases (Game.moves x).Nonempty <;> by_cases g.turn x = i <;> simp_all
+    case pos _ turn_i =>
+      let nexts := s x turn_i (by aesop)
+      have := IH _ (by rw [← bound_def]; apply g.bound_h; simp) nexts ?_ rfl
+      · specialize this sJ
+        exact this
+      · unfold nexts
+        apply inMyCone.myStep x_in
+    case neg _ turn_other =>
+      simp_all
+      let nexts := sJ x turn_other (by aesop)
+      have := IH _ (by rw [← bound_def]; apply g.bound_h; simp) nexts ?_ rfl
+      · specialize this sJ
+        exact this
+      · unfold nexts
+        apply inMyCone.oStep x_in turn_other
+        simp
 
 /-- If a strategy always (in its own cone) imitates winning strategies, then it is winning. -/
 lemma winning_if_imitating_some_winning {g : Game} (p : g.Pos) (s : Strategy g i)
@@ -570,11 +602,11 @@ theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.
       · simp
       · -- Use `myStep` because it is the turn of `i`.
         have := inMyCone.myStep q_inMyCone (Finset.nonempty_iff_ne_empty.mp has_moves) turn_i
-        unfold_let nextQ
+        unfold nextQ
         convert this using 1
         -- PROBLEM
         -- Need that `s` does the same as `stratFor nextP` at `q`.
-        unfold_let s
+        unfold s
         -- unfold stratFor
         simp only
         -- simp -- times out, but `simp only` works a bit?
