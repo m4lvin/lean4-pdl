@@ -952,6 +952,7 @@ theorem eProp2.b {tab : Tableau .nil X} (s t : PathIn tab) : s ♥ t → t ≡�
     apply Relation.ReflTransGen_or_right
     exact Relation.ReflTransGen.single comp
 
+-- TODO IMPORTANT
 theorem eProp2.c_help {tab : Tableau .nil X} (s : PathIn tab) :
     (nodeAt s).isFree → ∀ t, s < t → s <ᶜ t := by
   intro s_free t t_path_s
@@ -969,8 +970,12 @@ theorem eProp2.c_help {tab : Tableau .nil X} (s : PathIn tab) :
         simp_all [TNode.isFree]
     case tail b s t_b b_s IH =>
       rcases  b_s with (b_s | b_comp_s)
-      · have := edge.isAsymm.1 _ _ b_s -- not useful?
-        sorry
+      · apply IH
+        · -- PROBLEM: we do not have that `b` is free.
+          sorry
+        · unfold LT.lt instLTPathIn
+          simp
+          exact Relation.TransGen.head b_s t_path_s
       · have := (companion_loaded b_comp_s).2
         simp [TNode.isFree] at s_free
         simp_all
@@ -981,16 +986,26 @@ theorem eProp2.c {tab : Tableau .nil X} (s t : PathIn tab) :
   apply eProp2.c_help _ s_free
   apply Relation.TransGen.single; exact t_childOf_s
 
--- TODO IMPORTANT
 /-- A free node and a loaded node cannot be ≡ᶜ equivalent. -/
 theorem not_cEquiv_of_free_loaded (s t : PathIn tab)
     (s_free : (nodeAt s).isFree) (t_loaded: (nodeAt t).isLoaded) : ¬ s ≡ᶜ t := by
   rintro ⟨s_t, t_s⟩
-  induction s_t -- might not be the right strategy, not using t_s now.
+  induction s_t using Relation.ReflTransGen.head_induction_on
   · simp [TNode.isFree] at *
     simp_all
-  case tail u v s_u u_v IH =>
-    sorry
+  case head u v u_v v_t IH =>
+    cases u_v -- normal edge or companion edge?
+    case inl u_v =>
+      rcases eProp2.c u v s_free u_v with ⟨-, not_v_u⟩
+      absurd not_v_u
+      have := Relation.ReflTransGen.trans v_t t_s
+      rw [@Relation.reflTransGen_iff_eq_or_transGen] at this
+      cases this
+      · simp_all
+      · assumption
+    case inr u_comp_v =>
+      have := companion_loaded u_comp_v
+      simp_all [TNode.isFree]
 
 -- Unused?
 theorem eProp2.d {tab : Tableau .nil X} (s t : PathIn tab) :
