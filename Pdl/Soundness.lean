@@ -1036,14 +1036,40 @@ theorem eProp2.f {tab : Tableau .nil X} (s t : PathIn tab) :
     · exact Relation.TransGen.to_reflTransGen s_c_t
     · exact Relation.TransGen.to_reflTransGen t_c_s
 
+theorem eProp2.g {tab : Tableau .nil X} (s t : PathIn tab) :
+    (s <ᶜ t → ¬ s ≡ᶜ t) := by
+  intro s_lt_t
+  rintro ⟨-, t_to_s⟩
+  rcases s_lt_t with ⟨s_steps_t', not_t_steps_s⟩
+  absurd not_t_steps_s
+  by_cases s = t
+  · simp_all
+  · rw [@Relation.reflTransGen_iff_eq_or_transGen] at t_to_s
+    simp_all
+
+theorem eProp2.h {tab : Tableau .nil X} (s u t : PathIn tab) :
+    (s <ᶜ u  →  s ≡ᶜ t  →  t <ᶜ u) := by
+  rintro s_c_y s_equiv_t
+  rcases s_c_y with ⟨s_u, not_u_s⟩
+  rcases s_equiv_t with ⟨-, t_to_s⟩
+  constructor
+  · exact Relation.TransGen.trans_right t_to_s s_u
+  · intro u_to_t
+    absurd not_u_s
+    exact Relation.TransGen.trans_left u_to_t t_to_s
+
 theorem eProp2 {tab : Tableau .nil X} (s u t : PathIn tab) :
     (s ⋖_ t → (s <ᶜ t) ∨ (t ≡ᶜ s))
   ∧ (s ♥ t → t ≡ᶜ s)
   ∧ ((nodeAt s).isFree → s ⋖_ t → s <ᶜ t)
   ∧ ((nodeAt s).isLoaded → (nodeAt t).isFree → s ⋖_ t → s <ᶜ t)
   ∧ (t <ᶜ u → u <ᶜ s → t <ᶜ s)
-  ∧ (t ◃⁺ s  →  ¬ t ≡ᶜ s  →  t <ᶜ s) :=
-  ⟨eProp2.a _ _, eProp2.b _ _, eProp2.c _ _, eProp2.d _ _, eProp2.e _ _ _, eProp2.f _ _⟩
+  ∧ (t ◃⁺ s  →  ¬ t ≡ᶜ s  →  t <ᶜ s)
+  ∧ (s <ᶜ t → ¬ s ≡ᶜ t)
+  ∧ (s <ᶜ u  →  s ≡ᶜ t  →  t <ᶜ u)
+  :=
+  ⟨eProp2.a _ _, eProp2.b _ _, eProp2.c _ _, eProp2.d _ _
+  , eProp2.e _ _ _, eProp2.f _ _, eProp2.g s t, eProp2.h s u t⟩
 
 /-! ## Soundness -/
 
