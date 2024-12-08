@@ -685,57 +685,27 @@ theorem PathIn.rewind_le (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) : t
 theorem PathIn.rewind_lt_of_gt_zero {tab : Tableau Hist X}
     (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) (k_gt_zero : k > 0)
     : (t.rewind k).length < t.length := by
-  induction tab
-  case loc rest Y lt next IH =>
-    cases t
-    case nil =>
-      exfalso
-      rcases k with ⟨k, k_lt⟩
-      simp [PathIn.toHistory] at k_lt
-      simp_all
-    case loc Z Z_in tail =>
-      cases k using Fin.lastCases
-      · simp [PathIn.toHistory, PathIn.rewind] at *
-      case cast j =>
-        specialize IH Z Z_in tail
-        simp_all only [List.get_eq_getElem, List.length_cons, rewind, toHistory,
-          Fin.lastCases_castSucc, Function.comp_apply, nodeAt_loc, Fin.coe_cast, Fin.coe_castSucc]
-        rcases j with ⟨j,j_lt⟩
-        rw [loc_length_eq] at j_lt
-        have := @List.getElem_append _ (nodeAt tail :: tail.toHistory) [Y] j ?_
-        · simp only [List.cons_append, List.length_cons, List.getElem_singleton] at this
-          simp_all [dite_true]
-          sorry
-        · simp only [List.cons_append, List.length_cons, List.length_append]
-          exact Nat.lt_add_right 1 j_lt
-  case pdl =>
-    cases t
-    case nil =>
-      exfalso
-      rcases k with ⟨k, k_lt⟩
-      simp [PathIn.toHistory] at k_lt
-      simp_all
-    case pdl rest Y Z r tab IH tail =>
-      cases k using Fin.lastCases
-      · simp [PathIn.toHistory, PathIn.rewind] at *
-      case cast j =>
-        specialize IH tail
-        simp only [List.get_eq_getElem, List.length_cons, toHistory, nodeAt_pdl] at *
-        simp_all only [rewind, Fin.lastCases_castSucc, Function.comp_apply, nodeAt_pdl,
-          Fin.coe_cast, Fin.coe_castSucc]
-        rcases j with ⟨j,j_lt⟩
-        rw [pdl_length_eq] at j_lt
-        have := @List.getElem_append _ (nodeAt tail :: tail.toHistory) [Z] j ?_
-        · simp only [List.cons_append, List.length_cons, List.getElem_singleton] at this
-          sorry
-        · simp only [List.cons_append, List.length_cons, List.length_append, List.length_singleton]
-          exact Nat.lt_add_right 1 j_lt
-  case rep =>
-    exfalso
-    rcases k with ⟨k, k_lt⟩
+  induction t
+  · exfalso
+    rcases k with ⟨k, k_prop⟩
+    simp only [toHistory, List.length_nil, zero_add, Nat.lt_one_iff] at k_prop
+    subst k_prop
     simp_all
-    sorry
-
+  case loc H Z Y ltX next Y_in tail IH =>
+      cases k using Fin.lastCases
+      · simp [PathIn.toHistory, PathIn.rewind] at *
+      case cast j =>
+        specialize IH ⟨j, by rcases j with ⟨j,j_lt⟩; rw [loc_length_eq] at j_lt; simp_all⟩ k_gt_zero
+        simp only [rewind, Fin.lastCases_castSucc, Function.comp_apply, length,
+          add_lt_add_iff_right]
+        convert IH <;> simp [Fin.heq_ext_iff _]
+  case pdl Z Y H next r tail IH =>
+    cases k using Fin.lastCases
+    · simp [PathIn.toHistory, PathIn.rewind] at *
+    case cast j =>
+      specialize IH ⟨j, by rcases j with ⟨j,j_lt⟩; rw [pdl_length_eq] at j_lt; simp_all⟩ k_gt_zero
+      simp only [rewind, Fin.lastCases_castSucc, Function.comp_apply, length, add_lt_add_iff_right]
+      convert IH <;> simp [Fin.heq_ext_iff _]
 
 /-- The node we get from rewinding `k` steps is element `k+1` in the history. -/
 theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
