@@ -681,6 +681,62 @@ theorem PathIn.rewind_le (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) : t
     simp only [rewind]
     exact Relation.ReflTransGen.refl
 
+/-- If we rewind by `k > 0` steps then the length goes down. -/
+theorem PathIn.rewind_lt_of_gt_zero {tab : Tableau Hist X}
+    (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) (k_gt_zero : k > 0)
+    : (t.rewind k).length < t.length := by
+  induction tab
+  case loc rest Y lt next IH =>
+    cases t
+    case nil =>
+      exfalso
+      rcases k with ⟨k, k_lt⟩
+      simp [PathIn.toHistory] at k_lt
+      simp_all
+    case loc Z Z_in tail =>
+      cases k using Fin.lastCases
+      · simp [PathIn.toHistory, PathIn.rewind] at *
+      case cast j =>
+        specialize IH Z Z_in tail
+        simp_all only [List.get_eq_getElem, List.length_cons, rewind, toHistory,
+          Fin.lastCases_castSucc, Function.comp_apply, nodeAt_loc, Fin.coe_cast, Fin.coe_castSucc]
+        rcases j with ⟨j,j_lt⟩
+        rw [loc_length_eq] at j_lt
+        have := @List.getElem_append _ (nodeAt tail :: tail.toHistory) [Y] j ?_
+        · simp only [List.cons_append, List.length_cons, List.getElem_singleton] at this
+          simp_all [dite_true]
+          sorry
+        · simp only [List.cons_append, List.length_cons, List.length_append]
+          exact Nat.lt_add_right 1 j_lt
+  case pdl =>
+    cases t
+    case nil =>
+      exfalso
+      rcases k with ⟨k, k_lt⟩
+      simp [PathIn.toHistory] at k_lt
+      simp_all
+    case pdl rest Y Z r tab IH tail =>
+      cases k using Fin.lastCases
+      · simp [PathIn.toHistory, PathIn.rewind] at *
+      case cast j =>
+        specialize IH tail
+        simp only [List.get_eq_getElem, List.length_cons, toHistory, nodeAt_pdl] at *
+        simp_all only [rewind, Fin.lastCases_castSucc, Function.comp_apply, nodeAt_pdl,
+          Fin.coe_cast, Fin.coe_castSucc]
+        rcases j with ⟨j,j_lt⟩
+        rw [pdl_length_eq] at j_lt
+        have := @List.getElem_append _ (nodeAt tail :: tail.toHistory) [Z] j ?_
+        · simp only [List.cons_append, List.length_cons, List.getElem_singleton] at this
+          sorry
+        · simp only [List.cons_append, List.length_cons, List.length_append, List.length_singleton]
+          exact Nat.lt_add_right 1 j_lt
+  case rep =>
+    exfalso
+    rcases k with ⟨k, k_lt⟩
+    simp_all
+    sorry
+
+
 /-- The node we get from rewinding `k` steps is element `k+1` in the history. -/
 theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
     (t : PathIn tab) (k : Fin (t.toHistory.length + 1))
@@ -731,6 +787,7 @@ theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
 /-! ## Companion, cEdge, etc. -/
 
 /-- To get the companion of an LPR node we go as many steps back as the LPR says. -/
+-- TODO DOCUMENTATION: why is there a `succ` here?
 def companionOf {X} {tab : Tableau .nil X} (s : PathIn tab) lpr
   (_ : (tabAt s).2.2 = Tableau.rep lpr) : PathIn tab :=
     s.rewind ((tabAt_fst_length_eq_toHistory_length s ▸ lpr.val).succ)
@@ -782,8 +839,11 @@ theorem companion_loaded : s ♥ t → (nodeAt s).isLoaded ∧ (nodeAt t).isLoad
     simp
 
 /-- The companion is strictly before the the repeat. -/
-theorem companionOf_length_lt_length {t : PathIn tab} lpr h : (companionOf t lpr h).length < t.length := by
-  sorry
+theorem companionOf_length_lt_length {t : PathIn tab} lpr h :
+    (companionOf t lpr h).length < t.length := by
+  unfold companionOf
+  apply PathIn.rewind_lt_of_gt_zero
+  simp
 
 def cEdge {X} {ctX : Tableau .nil X} (s t : PathIn ctX) : Prop :=
   (s ⋖_ t) ∨ s ♥ t
