@@ -132,7 +132,7 @@ theorem disconEval {W M} {w : W} :
 
 @[simp]
 def pairunionList : List (List Formula) → List (List Formula) → List (List Formula)
-  | xls, yls => List.join (xls.map fun xl => yls.map fun yl => xl ++ yl)
+  | xls, yls => List.flatten (xls.map fun xl => yls.map fun yl => xl ++ yl)
 
 @[simp]
 def pairunionFinset : Finset (Finset Formula) → Finset (Finset Formula) → Finset (Finset Formula)

@@ -709,7 +709,7 @@ def endNodesOf : (Σ LR, LocalTableau LR) → List TNode
       have tc : LocalTableau c := subTabs c c_in
       have : lengthOfTNode c < lengthOfTNode LR := localRuleAppDecreasesLength ruleA c c_in
       endNodesOf ⟨c, tc⟩
-      ).join
+      ).flatten
   | ⟨LR, LocalTableau.fromSimple _⟩ => [LR]
 termination_by
   pair => lengthOf pair
@@ -733,7 +733,7 @@ noncomputable def endNodeIsEndNodeOfChild (ruleA)
 @[simp]
 theorem lrEndNodes {LR : TNode} {C : List TNode} {ruleA} {subTabs} :
     endNodesOf ⟨LR, LocalTableau.fromRule ruleA subTabs⟩
-    = (C.attach.map (fun ⟨c, c_in⟩ => endNodesOf ⟨c, subTabs c c_in⟩)).join :=
+    = (C.attach.map (fun ⟨c, c_in⟩ => endNodesOf ⟨c, subTabs c c_in⟩)).flatten :=
   by
   simp only [endNodesOf]
 

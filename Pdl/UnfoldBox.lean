@@ -137,7 +137,7 @@ theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α
     specialize hyp ℓ W M w
     simp at hyp
     apply hyp
-    unfold_let ℓ
+    unfold ℓ
     simp [signature, conEval]
     intro τ _
     split <;> simp_all
@@ -711,7 +711,7 @@ theorem localBoxTruth_connector γ ψ :
      -- get a test profile ℓ from the model:
     let ℓ : TP γ := fun ⟨τ,_⟩ => decide (evaluate M w τ)
     have ℓ_in : ℓ ∈ allTP γ := by
-      unfold_let ℓ;
+      unfold ℓ;
       simp [allTP];
       use ((testsOfProgram γ).filter (fun τ => evaluate M w τ))
       simp only [List.filter_sublist, true_and]
@@ -724,7 +724,7 @@ theorem localBoxTruth_connector γ ψ :
     simp_all
     refine ⟨ℓ, ℓ_in, ?_⟩
     apply this
-    unfold_let ℓ
+    unfold ℓ
     simp_all [signature, conEval]
     intro τ _
     split_ifs <;> simp_all
@@ -744,7 +744,7 @@ theorem localBoxTruth_connector γ ψ :
       case inl φ_in_Fℓ' =>
         simp only [F_mem_iff_neg _ ℓ' φ, exists_and_left] at φ_in_Fℓ'
         rcases φ_in_Fℓ' with ⟨τ, φ_def, τ_in, ℓ'_τ_false⟩
-        unfold_let ℓ' at ℓ'_τ_false
+        unfold ℓ' at ℓ'_τ_false
         simp_all
       case inr φ_in_Pℓ' =>
         rcases φ_in_Pℓ' with ⟨δ, δ_in_P, def_φ⟩
@@ -758,7 +758,7 @@ theorem localBoxTruth_connector γ ψ :
         by_contra hyp
         absurd ℓ_τ
         simp only [Bool.not_eq_true] at *
-        unfold_let ℓ'
+        unfold ℓ'
         simp only [decide_eq_false_iff_not]
         have := w_Xℓ (~τ)
         simp only [evaluate] at this
@@ -771,8 +771,7 @@ theorem localBoxTruth_connector γ ψ :
       simp only [evaluate]
       constructor
       · assumption
-      · unfold_let
-        simp_all [signature, conEval]
+      · simp_all [signature, conEval]
         aesop
     simp_all
 
@@ -951,7 +950,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         simp at lhs
         simp
         constructor
-        · unfold_let ρ at goal
+        · unfold ρ at goal
           have := goal.1 lhs.1
           rw [disEval] at this
           simp at this
@@ -1008,7 +1007,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         simp only [evaluate, relate]
         constructor
         · rw [goal]
-          unfold_let ρ
+          unfold ρ
           rw [disEval]
           use Con (Xset (∗β) ℓ ψ)
           simp_all only [List.mem_map, and_true]
@@ -1030,7 +1029,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         have := Classical.propDecidable
         let ℓ' : TP (∗β) := fun ⟨τ,_⟩ => decide (evaluate M w τ)
         intro w_bSpsi
-        unfold_let ρ
+        unfold ρ
         simp only [List.mem_singleton, forall_eq, disEval, List.mem_map, exists_exists_and_eq_and]
         use ℓ'
         constructor
@@ -1038,7 +1037,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         · simp [conEval, Xset]
           rintro f (f_in_F| ⟨δ, δ_in, def_f⟩)
           · simp [F_mem_iff_neg] at f_in_F
-            unfold_let ℓ' at f_in_F
+            unfold ℓ' at f_in_F
             aesop
           · subst def_f
             specialize step ℓ' W M w
@@ -1140,7 +1139,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
             · specialize w_Xβ (·x) (Or.inr ⟨[], empty_in_Pβ, by simp [Formula.boxes]⟩)
               simp only [evaluate] at w_Xβ
               exact w_Xβ
-            · unfold_let χ0 T0 φ'
+            · unfold χ0 T0 φ'
               simp [disEval, conEval]
               use ℓ
               simp_all [List.mem_filter]
@@ -1149,7 +1148,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
               right
               aesop
           · right -- choose χ1
-            unfold_let χ1 T1 φ'
+            unfold χ1 T1 φ'
             simp [disEval, conEval]
             use ℓ
             simp_all [List.mem_filter]
@@ -1158,7 +1157,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
             right
             aesop
         · rintro (⟨w_c, w_χ0⟩ | w_χ1)
-          · unfold_let χ0 T0 φ' at w_χ0
+          · unfold χ0 T0 φ' at w_χ0
             simp [disEval, conEval, List.mem_filter] at w_χ0
             rcases w_χ0 with ⟨ℓ, w_Xℓ⟩
             use ℓ
@@ -1171,7 +1170,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
               case inr δ_not_empty =>
                 apply w_Xℓ.2.2 _ _ δ_in δ_not_empty
                 simp [Formula.boxes]
-          · unfold_let χ1 T1 φ' at w_χ1
+          · unfold χ1 T1 φ' at w_χ1
             simp [disEval, conEval, List.mem_filter] at w_χ1
             rcases w_χ1 with ⟨ℓ, w_Xℓ⟩
             use ℓ
@@ -1188,12 +1187,12 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
       · -- ρ ⊨ (χ0⋁χ1) [ρ/x]
         simp only [List.mem_singleton, forall_eq]
         intro w_ρ
-        unfold_let ρ at w_ρ
+        unfold ρ at w_ρ
         simp [disEval] at w_ρ
         rcases w_ρ with ⟨ℓ, _, w_Xℓ⟩ -- here we get ℓ
         simp only [repl_in_or, evalDis]
         simp [conEval, conEval, Xset] at w_Xℓ
-        unfold_let χ0 χ1 T0 T1 φ φ'
+        unfold χ0 χ1 T0 T1 φ'
         clear χ0 χ1 T0 T1 φ φ'
         cases em ([] ∈ P β ℓ) -- based on this, go left or right
         case inl empty_in_Pβ =>
@@ -1262,7 +1261,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
               simp [evalBoxes]
               aesop
       · -- ρ ⊨ ψ
-        unfold_let ρ
+        unfold ρ
         simp [disEval, conEval, Xset, P]
         intro ℓ_whatever _ hyp
         apply hyp

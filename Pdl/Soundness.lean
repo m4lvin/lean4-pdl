@@ -1092,11 +1092,11 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
     let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ @PathIn.loc _ _ _ ltZ next Y_in .nil)
     let s : PathIn tab := t.append t_to_s
     have t_s : t ⋖_ s := by
-      unfold_let s t_to_s
+      unfold s t_to_s
       apply edge_append_loc_nil
       rw [tabAt_t_def]
     have tabAt_s_def : tabAt s = ⟨Z :: HistZ, ⟨Y, next Y Y_in⟩⟩ := by
-      unfold_let s t_to_s
+      unfold s t_to_s
       rw [tabAt_append]
       have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc ltZ next)))
            = ⟨Z :: HistZ, ⟨Y, next Y Y_in⟩⟩ := by simp_all
@@ -1108,7 +1108,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       have : (tabAt s).2.1 = Y := by rw [tabAt_s_def]
       simp_all
     have f_in : AnyNegFormula_on_side_in_TNode (~''(AnyFormula.loaded (⌊α⌋ξ))) side (nodeAt s) := by
-      unfold_let s t_to_s
+      unfold s t_to_s
       simp [AnyNegFormula_on_side_in_TNode, nodeAt]
       -- PROBLEM - how to get this (for possibly different α) from localTableauTruth?
       -- QUESTION - is this where ...
@@ -1149,7 +1149,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.pdl (PdlRule.freeL ) .nil)
       let s : PathIn tab := t.append t_to_s
       have tabAt_s_def : tabAt s = ⟨_, _, next⟩ := by
-        unfold_let s t_to_s
+        unfold s t_to_s
         rw [tabAt_append]
         -- Only some HEq business left here.
         have : tabAt (PathIn.pdl PdlRule.freeL PathIn.nil : PathIn (Tableau.pdl PdlRule.freeL next))
@@ -1164,7 +1164,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       · apply Relation.TransGen.single
         left
         right
-        unfold_let s t_to_s
+        unfold s t_to_s
         refine ⟨Hist', _, _, PdlRule.freeL, next, ?_⟩
         simp [tabAt_t_def]
       · use W, M, v
@@ -1188,7 +1188,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.pdl (PdlRule.freeR ) .nil)
       let s : PathIn tab := t.append t_to_s
       have tabAt_s_def : tabAt s = ⟨_, _, next⟩ := by
-        unfold_let s t_to_s
+        unfold s t_to_s
         rw [tabAt_append]
         -- Only some HEq business left here.
         have : tabAt (PathIn.pdl PdlRule.freeR PathIn.nil : PathIn (Tableau.pdl PdlRule.freeR next))
@@ -1203,7 +1203,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       · apply Relation.TransGen.single
         left
         right
-        unfold_let s t_to_s
+        unfold s t_to_s
         refine ⟨Hist', _, _, PdlRule.freeR, next, ?_⟩
         simp [tabAt_t_def]
       · use W, M, v
@@ -1248,7 +1248,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
                   ∨ (∃ χ, ξ' = .loaded χ ∧ nodeAt s = (projection a L, projection a R, some (Sum.inl (~'χ)))) := by
         subst Y_def
         unfold nodeAt
-        unfold_let s t_to_s
+        unfold s t_to_s
         rw [tabAt_append]
         -- remains to deal with HEq business
         let tclean : PathIn (.pdl (PdlRule.modL (Eq.refl _) Y_isBasic) next) :=
@@ -1430,12 +1430,12 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
       let t_to_s : PathIn _ := (@PathIn.loc _ _ _ lt next Y_in .nil)
       let s : PathIn tab := t.append (t_def ▸ t_to_s)
       have t_s : t ⋖_ s := by
-        unfold_let s t_to_s
+        unfold s t_to_s
         have := edge_append_loc_nil t next Y_in (by rw [← t_def])
         convert this
         rw [← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
       have : Y = nodeAt s := by
-        unfold_let s t_to_s
+        unfold s t_to_s
         simp
         apply Eq.symm
         convert nodeAt_loc_nil next Y_in
@@ -1452,10 +1452,10 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
       let t_to_s : PathIn _ := (@PathIn.pdl _ _ _ ctY r .nil)
       let s : PathIn tab := t.append (t_def ▸ t_to_s)
       have t_s : t ⋖_ s := by
-        unfold_let s t_to_s
+        unfold s t_to_s
         exact edge_append_pdl_nil t_def
       have : Y = nodeAt s := by
-        unfold_let s t_to_s
+        unfold s t_to_s
         simp only [nodeAt_append]
         apply Eq.symm
         convert nodeAt_pdl_nil ctY r

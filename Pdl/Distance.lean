@@ -97,7 +97,7 @@ def reachableFrom (r : α → α → Prop) [DecidableRel r] [DecidableEq α] [α
 termination_by
   (α_fin.elems \ here).card
 decreasing_by
-  unfold_let nexts at _h
+  unfold nexts at _h
   apply reachableFrom_terminationHelper
   exact _h
 
@@ -217,15 +217,15 @@ instance evaluate.instDecidable (Mod : DecidableKripkeModel W) w φ
       intro v w_v
       have : v ∈ Mod.allW := Mod.h v
       have : v ∈ reachable := by
-        unfold_let reachable
+        unfold reachable
         simp only [List.mem_filter, decide_eq_true_eq]
         tauto
-      unfold_let hyp at yes
+      unfold hyp at yes
       simp_all
     case neg no =>
       apply isFalse
       push_neg
-      unfold_let hyp at no
+      unfold hyp at no
       simp at no
       rcases no with ⟨v, v_in_r, not_v_φ⟩
       aesop

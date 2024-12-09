@@ -229,7 +229,7 @@ def PathIn.children : (p : PathIn tab) → List (PathIn tab) := sorry
 
 /-- C+ -/
 def plus_exits {X} {tab : Tableau .nil X} (C : List (PathIn tab)) : List (PathIn tab) :=
-  C ++ (C.map (fun p => p.children)).join
+  C ++ (C.map (fun p => p.children)).flatten
 
 /-- W.l.o.g version of `clusterInterpolation`. -/
 def clusterInterpolation_right {Hist L R nlf}

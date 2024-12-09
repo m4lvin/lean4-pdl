@@ -1118,7 +1118,7 @@ theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
   use Z
   -- claim that the other definition would have been the same:
   have Z_eq : Z = node_to_multiset RES - node_to_multiset (Lnew, Rnew, Onew) := by
-    unfold_let Z
+    unfold Z
     have : node_to_multiset RES = node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) + node_to_multiset (Lnew, Rnew, Onew) := by
       have lrOprop : O ≠ none → Ocond = none → Onew = none := by
         cases O <;> cases Ocond <;> cases Onew <;> cases rule <;> simp_all
@@ -1150,7 +1150,7 @@ theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
 
 @[simp]
 def endNodesOf : {X : _} → LocalTableau X → List TNode
-  | .(_), (@byLocalRule X B _lr next) => (B.attach.map (fun ⟨Y, h⟩ => endNodesOf (next Y h))).join
+  | .(_), (@byLocalRule X B _lr next) => (B.attach.map (fun ⟨Y, h⟩ => endNodesOf (next Y h))).flatten
   | .(_), (@sim X _) => [X]
 termination_by
   X => X -- pick up instance WellFoundedRelation TNode from above!

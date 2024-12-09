@@ -256,7 +256,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       let Z := YS.get 1
       have X_β_Z : relate MG.1 β X Z := by
         specialize relSteps 0
-        unfold_let Z
+        unfold Z
         convert relSteps
         aesop
       have := ((MG.2.1 X).1 φ φ (∗β)).right.right.right.left boxP_in_X
@@ -285,12 +285,10 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
         apply innerIH X φ boxP_in_X
         -- rest here is similar to same part in all_goals below.
         refine ⟨YS.tail, ?_, ?_, ?_⟩
-        · unfold_let Z
-          rw [← Mathlib.Vector.get_zero]
+        · rw [← Mathlib.Vector.get_zero]
           rw [Mathlib.Vector.get_tail_succ]
           aesop
-        · unfold_let Z
-          rw [Mathlib.Vector.last_def]
+        · rw [Mathlib.Vector.last_def]
           rw [Mathlib.Vector.get_tail_succ]
           aesop
         · intro i
@@ -340,12 +338,11 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
         clear innerIH
         simp_all
         refine ⟨YS.tail, ?_, ?_, ?_⟩
-        · unfold_let Z
+        · unfold Z
           rw [← Mathlib.Vector.get_zero]
           rw [Mathlib.Vector.get_tail_succ]
           rfl
-        · unfold_let Z
-          rw [Mathlib.Vector.last_def, Mathlib.Vector.last_def]
+        · rw [Mathlib.Vector.last_def, Mathlib.Vector.last_def]
           rw [Mathlib.Vector.get_tail_succ]
           rfl
         · intro i
@@ -469,13 +466,13 @@ theorem cp3a {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α : 
     have IHα := cp3a R α
     have IHβ := cp3a R β
     intro v_combo_w
-    simp only [H, List.mem_join, List.mem_map, Prod.exists] at in_H
+    simp only [H, List.mem_flatten, List.mem_map, Prod.exists] at in_H
     rcases in_H with ⟨L, ⟨F, δ, in_Hα, def_l⟩, in_L⟩
     simp only [Q, Relation.Comp]
     subst def_l
     by_cases δ = []
     · subst_eqs
-      simp only [reduceIte, List.mem_join, List.mem_map, Prod.exists] at in_L
+      simp only [reduceIte, List.mem_flatten, List.mem_map, Prod.exists] at in_L
       rcases in_L with ⟨l, ⟨F', δ', F'δ'_in_Hβ, def_l⟩, in_l⟩
       subst def_l
       simp only [List.mem_singleton, Prod.mk.injEq] at in_l
@@ -517,7 +514,7 @@ theorem cp3a {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α : 
   case star α =>
     have IHα := cp3a R α
     intro v_combo_w
-    simp [H, List.mem_join, List.mem_map, Prod.exists] at in_H
+    simp [H, List.mem_flatten, List.mem_map, Prod.exists] at in_H
     rcases in_H with ⟨F_nil, δ_nil⟩ | ⟨L, ⟨F, δ, in_Hα, def_l⟩, in_L⟩
     · subst_eqs
       simp [Qcombo, Relation.Comp, Qtests, Qsteps] at v_combo_w
@@ -528,7 +525,7 @@ theorem cp3a {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α : 
       subst def_l
       by_cases δ = []
       · subst_eqs
-        simp only [reduceIte, List.mem_join, List.mem_map, Prod.exists] at in_L
+        simp only [reduceIte, List.mem_flatten, List.mem_map, Prod.exists] at in_L
         absurd in_L
         exact List.not_mem_nil _
       case neg hyp =>

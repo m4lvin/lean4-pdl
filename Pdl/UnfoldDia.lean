@@ -14,10 +14,10 @@ def H : Program → List (List Formula × List Program)
 | α ⋓ β => H α ∪ H β
 | α;'β => ((H α).map (fun ⟨F,δ⟩ =>
             if δ = []
-              then ((H β).map (fun ⟨G,δ'⟩ => [⟨F ∪ G, δ'⟩])).join
+              then ((H β).map (fun ⟨G,δ'⟩ => [⟨F ∪ G, δ'⟩])).flatten
               else [⟨F, δ ++ [β]⟩])
-          ).join
-| ∗α => [ (∅,[]) ] ∪ ((H α).map (fun (F,δ) => if δ = [] then [] else [(F, δ ++ [∗α])])).join
+          ).flatten
+| ∗α => [ (∅,[]) ] ∪ ((H α).map (fun (F,δ) => if δ = [] then [] else [(F, δ ++ [∗α])])).flatten
 
 /-- A test formula coming from `H` comes from a test in the given program. -/
 theorem H_mem_test α φ {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ H α) (φ_in_Fs: φ ∈ Fs) :
@@ -35,12 +35,12 @@ theorem H_mem_test α φ {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ H α) (φ_in_Fs: φ �
     · have IHβ := H_mem_test β φ in_Hβ φ_in_Fs
       aesop
   case sequence α β =>
-    simp_all only [H, List.mem_join, List.mem_map, Prod.exists, testsOfProgram, List.mem_append,
+    simp_all only [H, List.mem_flatten, List.mem_map, Prod.exists, testsOfProgram, List.mem_append,
       exists_prop, exists_eq_right']
     rcases in_H with ⟨l, ⟨Fs', δ', in_Hα, def_l⟩ , in_l⟩
     subst def_l
     by_cases δ' = []
-    · simp_all only [List.nil_append, ite_true, List.mem_join, List.mem_map, Prod.exists]
+    · simp_all only [List.nil_append, ite_true, List.mem_flatten, List.mem_map, Prod.exists]
       subst_eqs
       rcases in_l with ⟨l', ⟨Fs'', δ'', in_Hβ, def_l'⟩ , in_l'⟩
       subst def_l'
@@ -59,7 +59,7 @@ theorem H_mem_test α φ {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ H α) (φ_in_Fs: φ �
       aesop
   case star β =>
     simp_all only [H, List.empty_eq, List.cons_union, List.nil_union, List.mem_insert_iff,
-      Prod.mk.injEq, List.mem_join, List.mem_map, Prod.exists, testsOfProgram, exists_prop,
+      Prod.mk.injEq, List.mem_flatten, List.mem_map, Prod.exists, testsOfProgram, exists_prop,
       exists_eq_right']
     rcases in_H with both_nil | ⟨l, ⟨Fs', δ', in_Hβ, def_l⟩, in_l⟩
     · exfalso; aesop
@@ -89,11 +89,11 @@ theorem H_mem_sequence α {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ H α) :
     · have IHβ := H_mem_sequence β in_Hβ
       aesop
   case sequence α β =>
-    simp_all only [H, List.mem_join, List.mem_map, Prod.exists]
+    simp_all only [H, List.mem_flatten, List.mem_map, Prod.exists]
     rcases in_H with ⟨l, ⟨Fs', δ', in_Hα, def_l⟩ , in_l⟩
     subst def_l
     by_cases δ' = []
-    · simp_all only [List.nil_append, ite_true, List.mem_join, List.mem_map, Prod.exists]
+    · simp_all only [List.nil_append, ite_true, List.mem_flatten, List.mem_map, Prod.exists]
       rcases in_l with ⟨l', ⟨Fs'', δ'', in_Hβ, def_l'⟩, in_l'⟩
       subst def_l'
       simp_all only [List.mem_singleton, Prod.mk.injEq]
@@ -103,7 +103,7 @@ theorem H_mem_sequence α {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ H α) :
       aesop
   case star β =>
     simp_all only [H, List.empty_eq, List.cons_union, List.nil_union, List.mem_insert_iff,
-      Prod.mk.injEq, List.mem_join, List.mem_map, Prod.exists]
+      Prod.mk.injEq, List.mem_flatten, List.mem_map, Prod.exists]
     rcases in_H with ⟨Fs_nil, δ_nil⟩ | ⟨l, ⟨Fs', δ', in_Hβ, def_l⟩ , in_l⟩
     · subst_eqs
       aesop
@@ -343,9 +343,9 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
         unfold H
         use ⟨Fs ∪ Gs, γ⟩
         constructor
-        · simp only [List.mem_join, List.mem_map, Prod.exists]
-          use ((H β).map (fun ⟨Gs',δ'⟩ => [⟨Fs ∪ Gs', δ'⟩])).join
-          simp only [List.mem_join, List.mem_map, Prod.exists]
+        · simp only [List.mem_flatten, List.mem_map, Prod.exists]
+          use ((H β).map (fun ⟨Gs',δ'⟩ => [⟨Fs ∪ Gs', δ'⟩])).flatten
+          simp only [List.mem_flatten, List.mem_map, Prod.exists]
           constructor
           · use Fs, []
             simp only [reduceIte, and_true]
@@ -425,7 +425,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
     have right_to_left_claim : ∀ W M (w : W), evaluate M w ρ → evaluate M w (~⌈∗β⌉ψ) := by
       -- Note that we are switching model now.
       clear W M w; intro W M w
-      unfold_let ρ
+      unfold ρ
       rw [disEval, helper]
       rintro ⟨⟨Fs,δ⟩, ⟨Fδ_in, w_Con⟩⟩
       rw [conEval] at w_Con
@@ -485,7 +485,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
           · subst_eqs
             simp [conEval, Yset] at w_
             left
-            unfold_let σ0
+            unfold σ0
             simp_all
             rw [disEval, helper]
             constructor
@@ -501,7 +501,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
               exact f_in
           · simp [conEval, Yset] at w_
             right
-            unfold_let σ1
+            unfold σ1
             simp_all
             rw [disEval, helper]
             use (Fs, δ)
@@ -516,7 +516,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
           rw [← or_iff_not_and_not] at rhs
           cases rhs
           case inl hyp =>
-            unfold_let σ0 at hyp
+            unfold σ0 at hyp
             simp at hyp
             rw [disEval, helper] at hyp
             rcases hyp with ⟨w_x, ⟨⟨Fs,δ⟩, w_⟩⟩
@@ -535,7 +535,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
               case inr δ_notEmpty => exfalso; simp_all
                 -- this case works because we used ⊥ above!
           case inr hyp =>
-            unfold_let σ1 at hyp
+            unfold σ1 at hyp
             simp at hyp
             rw [disEval, helper] at hyp
             rcases hyp with ⟨⟨Fs,δ⟩, ⟨Fδ_in, w_⟩⟩
@@ -554,7 +554,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
                 · apply w_.2; assumption
                 · subst_eqs; simp; exact w_.1
       · -- Lemma condition that is done last in notes.
-        unfold_let σ1
+        unfold σ1
         simp only [ne_eq, Formula.instBot, ite_not]
         have : (repl_in_F x ρ (dis ((H β).map
           (fun Fδ => if Fδ.2 = [] then Formula.bottom else Con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)) ))) =
@@ -597,7 +597,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
           simp [evalBoxes] at this
           rcases this with ⟨v, w_ρ_v, v_ρ⟩ -- used for v_notStarβψ below!
           -- We now do bottom-up what the notes do, first reasoning "at w" then "at v"
-          unfold_let ρ
+          unfold ρ
           -- unsure from here on
           simp_all [disEval, helper] -- affects v_notStarβψ :-/
           simp [H]
@@ -620,7 +620,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
               exact ⟨v, ⟨w_ρ_v, v_notStarβψ⟩⟩
       · -- Second Lemma condition
         intro w_nPsi
-        unfold_let ρ
+        unfold ρ
         rw [disEval, helper]
         simp [H, conEval, Yset]
         left

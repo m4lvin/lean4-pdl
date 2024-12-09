@@ -257,7 +257,7 @@ theorem endNodeOfChildIsEndNode
   : E ∈ endNodesOf ⟨LR, @LocalTableau.fromRule LR C lrApp subTabs⟩
   := by
   unfold endNodesOf
-  simp_all only [List.mem_join, List.mem_map, List.mem_attach, true_and, Subtype.exists]
+  simp_all only [List.mem_flatten, List.mem_map, List.mem_attach, true_and, Subtype.exists]
   refine ⟨endNodesOf ⟨x, subTabs x h⟩, ⟨x, h, by simp⟩ , E_in⟩
 
 def childNext
@@ -308,7 +308,7 @@ theorem endNodesOfChildSublistEndNodes
     lrApp
     : (endNodesOf ⟨cLR, subTabs cLR c_in_C⟩).Sublist (endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩) := by
   simp_all only [lrEndNodes]
-  apply List.sublist_join_of_mem
+  apply List.sublist_flatten_of_mem
   simp_all only [List.mem_map, List.mem_attach, true_and, Subtype.exists]
   use cLR, c_in_C
 
@@ -344,7 +344,7 @@ theorem map_sum_le_map_sum
     let gg := fun a ha => g ⟨a,ha⟩
     -- FIXME: There is probably a cleaner way to do this.
     have : (xs.pmap ff _).Sublist (ys.pmap gg _) :=
-      @Sublist.pmap _ _ _ _ ff gg xs ys (by simp) (by simp) h (fun x h1 h2 => by unfold_let ff; unfold_let gg; simp_all)
+      @Sublist.pmap _ _ _ _ ff gg xs ys (by simp) (by simp) h (fun x h1 h2 => by unfold ff; unfold gg; simp_all)
     rw [List.pmap_eq_map_attach] at this
     rw [List.pmap_eq_map_attach] at this
     aesop

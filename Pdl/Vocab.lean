@@ -30,7 +30,7 @@ mutual
 end
 
 -- rename to Vocab.join? or use `class Hadd`?
--- QUESTION: Is there a List.join but for Finset?
+-- QUESTION: Is there a List.flatten but for Finset?
 @[simp]
 def Vocab.fromList : (L : List Vocab) → Vocab
 | [] => {}
