@@ -8,7 +8,7 @@ import Pdl.Semantics
 import Pdl.Star
 import Pdl.UnfoldBox
 
-open Vector HasSat
+open HasSat
 
 -- some simple silly stuff
 theorem mytaut1 (p : Nat) : tautology ((·p) ↣ (·p)) :=

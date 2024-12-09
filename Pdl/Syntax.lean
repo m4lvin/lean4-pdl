@@ -1,4 +1,4 @@
-import Mathlib.Order.BoundedOrder
+import Mathlib.Order.BoundedOrder.Basic
 
 mutual
   inductive Formula : Type

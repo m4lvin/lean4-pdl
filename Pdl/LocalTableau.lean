@@ -750,13 +750,6 @@ theorem node_to_multiset_of_precon {O Ocond Onew : Olf}
     all_goals cases Ocond_Def : Ocond <;> try (cases Ocond_def2 : Ocond)
     all_goals cases Onew_Def : Onew <;> try (cases Onew_def2 : Onew)
     all_goals simp_all [Olf.toForm, Olf.change, Option.insHasSdiff]
-    all_goals
-      rcases precon with ⟨_Lpre, _Rpre, Opre⟩
-      subst_eqs
-    · rename_i lf
-      cases lf <;> simp
-    · rename_i lf1 lf2
-      cases lf1 <;> simp
   rw [claim]
   -- we now get 3 * 3 * 3 = 27 cases
   all_goals cases O <;> try (rename_i O; cases O)
@@ -867,12 +860,12 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ H α) {ψ} (i
   · simp_all [H]
   case sequence α β =>
     simp only [lmOfFormula]
-    simp only [H, List.mem_join, List.mem_map, Prod.exists] at in_H
+    simp only [H, List.mem_flatten, List.mem_map, Prod.exists] at in_H
     rcases in_H with ⟨l, ⟨Fs', δ', in_H, def_l⟩, in_l⟩
     · subst def_l
       by_cases δ' = []
       · subst_eqs
-        simp_all only [List.nil_append, ite_true, List.mem_join, List.mem_map, Prod.exists]
+        simp_all only [List.nil_append, ite_true, List.mem_flatten, List.mem_map, Prod.exists]
         rcases in_l with ⟨l, ⟨Fs'', δ'', in_Hβ, def_l⟩, in_l⟩
         subst def_l
         simp only [List.mem_singleton, Prod.mk.injEq] at in_l
