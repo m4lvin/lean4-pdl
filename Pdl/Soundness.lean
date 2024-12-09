@@ -1283,11 +1283,11 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
     let t_to_s1 : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ @PathIn.loc _ _ _ ltZ next Y_in .nil)
     let s1 : PathIn tab := t.append t_to_s1
     have t_s : t ⋖_ s1 := by
-      unfold_let s1 t_to_s1
+      unfold s1 t_to_s1
       apply edge_append_loc_nil
       rw [tabAt_t_def]
     have tabAt_s_def : tabAt s1 = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by
-      unfold_let s1 t_to_s1
+      unfold s1 t_to_s1
       rw [tabAt_append]
       have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc ltZ next)))
            = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by simp_all
@@ -1418,7 +1418,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.pdl (PdlRule.freeL ) .nil)
       let s : PathIn tab := t.append t_to_s
       have tabAt_s_def : tabAt s = ⟨_, _, next⟩ := by
-        unfold_let s t_to_s
+        unfold s t_to_s
         rw [tabAt_append]
         -- Only some HEq business left here.
         have : tabAt (PathIn.pdl PdlRule.freeL PathIn.nil : PathIn (Tableau.pdl PdlRule.freeL next))
@@ -1433,7 +1433,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       · apply Relation.TransGen.single
         left
         right
-        unfold_let s t_to_s
+        unfold s t_to_s
         refine ⟨_, _, _, PdlRule.freeL, next, ?_⟩
         simp [tabAt_t_def]
       · use W, M, v
@@ -1457,7 +1457,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.pdl (PdlRule.freeR ) .nil)
       let s : PathIn tab := t.append t_to_s
       have tabAt_s_def : tabAt s = ⟨_, _, next⟩ := by
-        unfold_let s t_to_s
+        unfold s t_to_s
         rw [tabAt_append]
         -- Only some HEq business left here.
         have : tabAt (PathIn.pdl PdlRule.freeR PathIn.nil : PathIn (Tableau.pdl PdlRule.freeR next))
@@ -1472,7 +1472,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       · apply Relation.TransGen.single
         left
         right
-        unfold_let s t_to_s
+        unfold s t_to_s
         refine ⟨_, _, _, PdlRule.freeR, next, ?_⟩
         simp [tabAt_t_def]
       · use W, M, v
@@ -1517,7 +1517,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
                   ∨ (∃ χ, ξ' = .loaded χ ∧ nodeAt s = (projection a L, projection a R, some (Sum.inl (~'χ)))) := by
         subst Z_def
         unfold nodeAt
-        unfold_let s t_to_s
+        unfold s t_to_s
         rw [tabAt_append]
         -- remains to deal with HEq business
         let tclean : PathIn (.pdl (PdlRule.modL (Eq.refl _) Z_isBasic) next) :=
@@ -1622,7 +1622,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
                   ∨ (∃ χ, ξ' = .loaded χ ∧ nodeAt s = (projection a L, projection a R, some (Sum.inr (~'χ)))) := by
         subst Z_def
         unfold nodeAt
-        unfold_let s t_to_s
+        unfold s t_to_s
         rw [tabAt_append]
         -- remains to deal with HEq business
         let tclean : PathIn (.pdl (PdlRule.modR (Eq.refl _) Z_isBasic) next) :=
