@@ -1327,21 +1327,70 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       -- Here is the interesting case: not leaving the cluster
 
       -- We get a sequence of worlds from the δ relation:
-      rcases (relateSeq_iff_exists_Vector M δ v w).mp v_seq_w with ⟨ws, v_def_, w_def, ws_rel⟩
+      rcases (relateSeq_iff_exists_Vector M δ v w).mp v_seq_w with ⟨ws, v_def, w_def, ws_rel⟩
 
       -- Claim for an inner induction on the list δ.
       have claim : ∀ k : Fin δ.length.succ, -- Note the succ here!
-        ∃ sk, t ◃⁺ sk ∧ ( ( satisfiable (nodeAt sk) ∧ ¬(sk ≡ᶜ t) )
-                        ∨ ( (~''(ξ.loadBoxes (δ.drop k.val))).in_side side (nodeAt sk)
-                          ∧ (M, ws[k]) ⊨ nodeAt sk
-                          ∧ ((nodeAt sk).without (~''ξ)).isFree ) )
-        := by
-        -- Here we will need to apply the outer induction hypothesis. to δ[k] or k+1 ??
-        -- NOTE: it is only applicable when α is not a star.
-        -- For the star case we need another induction! On the length of `ws`? See notes.
-        sorry
+          ∃ sk, t ◃⁺ sk ∧ ( ( satisfiable (nodeAt sk) ∧ ¬(sk ≡ᶜ t) )
+                          ∨ ( (~''(ξ.loadBoxes (δ.drop k.val))).in_side side (nodeAt sk)
+                            ∧ (M, ws[k]) ⊨ nodeAt sk
+                            ∧ ((nodeAt sk).without (~''(ξ.loadBoxes (δ.drop k.val)))).isFree)) := by
+        intro k
+        induction k using Fin.inductionOn
+        case zero =>
+          simp
+          refine ⟨s1, ?_, Or.inr ⟨?_, ?_, ?_⟩⟩
+          · exact Relation.TransGen.single (Or.inl t_s)
+          · unfold nodeAt
+            rw [tabAt_s_def]
+            exact anf_in_Y
+          · convert v_s1
+            rw [v_def]
+            -- ws[0] = ws.head -- should be obvious because ws length is a succ?
+            sorry
+          ·
+            sorry
+        case succ k inner_IH =>
+          -- Here we will need to apply the outer induction hypothesis. to δ[k] or k+1 ??
+          -- NOTE: it is only applicable when α is not a star.
+          -- For the star case we need another induction! On the length of `ws`? See notes.
 
-      -- remains to show that the claim suffices
+          rcases inner_IH with ⟨sk, t_sk, IH_cases⟩
+
+          rcases IH_cases with _ | ⟨_in_node_sk, wsk_sk, three⟩
+          · refine ⟨sk, t_sk, ?_⟩
+            left
+            assumption
+          ·
+            -- Prepare using outer IH for the program δ[k] (that must be simpler than α)
+            have _forTermination : lengthOfProgram δ[k] < lengthOfProgram α := by
+              -- TODO: Show that length went down.
+              -- ! Needs better `H_goes_down` similar to `P_goes_down`.
+              -- ! Only true when α is a test, union or semicolon ==> need separate case for star!
+              sorry
+
+            have outer_IH := @loadedDiamondPaths δ[k] _ tab root_free sk W M
+              ws[k.castSucc] ws[k.succ] wsk_sk
+              (ξ.loadBoxes (δ.drop k)) -- this is the new ξ
+              side
+              (by convert _in_node_sk; sorry)
+              (by sorry) -- use `ws_rel` for this!
+              (by sorry) -- hmm? should be doable. using what?
+
+            clear _forTermination
+
+            rcases outer_IH with ⟨sk2, sk_c_sk2, sk2_property⟩
+            rcases sk2_property with ⟨sk2_sat, sk2_nEquiv_blll⟩ | ⟨anf_in_sk2, u_sk2, sk2_almostFree⟩
+            · refine ⟨sk2, ?_, Or.inl ⟨sk2_sat, ?_⟩⟩  -- leaving cluster, easy?
+              · exact Relation.TransGen.trans t_sk sk_c_sk2
+              · sorry -- use something from eProp2 here?
+            · refine ⟨sk2, ?_, Or.inr ⟨?_, ?_, ?_⟩⟩
+              · exact Relation.TransGen.trans t_sk sk_c_sk2
+              · sorry
+              · exact u_sk2
+              · sorry -- something here seems off-by-one ??
+
+      -- It remains to show that the claim suffices.
       specialize claim δ.length
       rcases claim with ⟨sk, t_sk, sk_prop⟩
       have := List.drop_length δ
@@ -1350,69 +1399,6 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
         Fin.coe_eq_castSucc, Fin.natCast_eq_last, Fin.val_last, AnyFormula.boxes_nil,
         Fin.getElem_fin, List.drop_length, true_and]
       convert sk_prop
-
-      /-
-
-      induction δ -- generalizing α Y s1 w ξ t
-        -- FIXME : `generalizing` seems needed, but breaks _forTermination with duplicates ???
-
-      case nil =>
-        rw [relateSeq_nil] at v_seq_w -- we have v = w
-        subst v_seq_w
-        refine ⟨s1, Relation.TransGen.single (Or.inl t_s), Or.inr ⟨?_, v_s1, ?_⟩⟩
-        · convert anf_in_Y; unfold nodeAt; rw [tabAt_s_def]
-        · simp at anf_in_Y
-          unfold nodeAt
-          rw [tabAt_s_def]
-          simp
-          simp [TNode.isFree, TNode.isLoaded]
-          -- How do we know that there is no other loaded formula in `Y` now?
-          sorry
-
-      case cons γ1 γrest inner_list_IH => -- TODO indent!
-
-      simp only [relateSeq] at v_seq_w
-      rcases v_seq_w with ⟨v1, v_γ1_v1, v1_γrest_w⟩
-
-      -- prepare application of recursive call to γ1 (that must be simpler than α)
-      simp only [AnyFormula.boxes_cons] at anf_in_Y
-      have _forTermination : lengthOfProgram γ1 < lengthOfProgram α := by
-        -- TODO: Show that length went down.
-        -- ! Needs better `H_goes_down` similar to `P_goes_down`.
-        -- ! Only true when α is a test, union or semicolon ==> need separate case for star!
-        sorry
-
-      have s1_eq_Y : nodeAt s1 = Y := by unfold nodeAt; rw [tabAt_s_def]
-
-      have v1_γrestξ : (M, v1)⊨~''(AnyFormula.boxes γrest ξ) := by
-        -- easy?
-        sorry
-
-      have outer_IH := @loadedDiamondPathsCOPY γ1 _ tab root_free s1 W M v v1 v_s1
-        (AnyFormula.boxes γrest ξ) -- this is the new ξ
-        side
-        (s1_eq_Y ▸ anf_in_Y)
-        v_γ1_v1
-        v1_γrestξ
-
-      clear _forTermination
-
-      rcases outer_IH with ⟨s2, s1_c_s2, s2_property⟩
-
-      rcases s2_property with ⟨s2_sat, s2_nEquiv_blll⟩ | ⟨anf_in_s2, u_s2, s2_almostFree⟩
-      · refine ⟨s2, ?_, Or.inl ⟨s2_sat, ?_⟩⟩  -- leaving cluster, easy?
-        · exact Relation.TransGen.head (Or.inl t_s) s1_c_s2
-        · sorry -- use something from eProp2 here?
-
-      -/
-
-      -- now still need to use the inner_list_IH
-      /-
-      specialize @inner_list_IH γ1 s1 v1 v_s1 (AnyFormula.boxes γrest ξ) (s1_eq_Y ▸ anf_in_Y)
-        v_γ1_v1
-        v1_γrestξ
-        sorry -- s ⋖_ s1 but only have s s ⋖_ t ⋖_ s1 -- needs stronger induction claim for this
-      -/
 
   case pdl Y r next =>
     cases r -- six PDL rules
@@ -1756,7 +1742,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
 termination_by
   (⟨lengthOfProgram α, t.length⟩ : Nat ×ₗ Nat)
 decreasing_by
-  -- · exact Prod.Lex.left _ _ _forTermination -- broken by "generalizing" above
+  · exact Prod.Lex.left _ _ _forTermination
   · exact Prod.Lex.right (lengthOfProgram α) _forTermination
 
 theorem simpler_equiv_simpler {u s t : PathIn tab} :
