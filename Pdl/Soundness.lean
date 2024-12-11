@@ -1116,24 +1116,23 @@ def sideOf : Sum α α → Side
 | Sum.inl _ => LL
 | Sum.inr _ => RR
 
-def AnyNegFormula_on_side_in_TNode : (anf : AnyNegFormula) → Side → (X : TNode) → Prop
+def AnyNegFormula.in_side : (anf : AnyNegFormula) → Side → (X : TNode) → Prop
 | ⟨.normal φ⟩, LL, ⟨L, _, _⟩ => (~φ) ∈ L
 | ⟨.normal φ⟩, RR, ⟨_, R, _⟩ => (~φ) ∈ R
 | ⟨.loaded χ⟩, LL, ⟨_, _, O⟩ => O = some (Sum.inl (~'χ))
 | ⟨.loaded χ⟩, RR, ⟨_, _, O⟩ => O = some (Sum.inr (~'χ))
 
-theorem AnyNegFormula_on_side_in_TNode_setEqTo {X Y : TNode} (h : X.setEqTo Y) :
-    AnyNegFormula_on_side_in_TNode anf side X ↔ AnyNegFormula_on_side_in_TNode anf side Y := by
+theorem AnyNegFormula.in_side_of_setEqTo {X Y} (h : X.setEqTo Y) {anf : AnyNegFormula} :
+    anf.in_side side X ↔ anf.in_side side Y := by
   rcases X with ⟨L, R, O⟩
   rcases Y with ⟨L',R',O'⟩
   simp only [TNode.setEqTo, modelCanSemImplyTNode, vDash] at *
   rw [List.toFinset.ext_iff, List.toFinset.ext_iff] at h
   rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
   subst O_eq_O'
-  unfold AnyNegFormula_on_side_in_TNode
-  cases side <;> rcases anf with ⟨(n|m)⟩ <;> simp_all
+  cases side <;> rcases anf with ⟨(n|m)⟩ <;> simp_all [AnyNegFormula.in_side]
 
-/-- Load a posisbly already loaded formula χ with a sequence δ of boxes.
+/-- Load a possibly already loaded formula χ with a sequence δ of boxes.
 The result is loaded iff δ≠[] or χ was loaded. -/
 def AnyFormula.loadBoxes : List Program → AnyFormula → AnyFormula
 | δ, χ => List.foldr (fun β lf => LoadFormula.box β lf) χ δ
@@ -1158,12 +1157,12 @@ theorem localLoadedDiamond (α : Program) {X : TNode}
   (v_t : (M,v) ⊨ X)
   (ξ : AnyFormula)
   {side : Side}
-  (negLoad_in : AnyNegFormula_on_side_in_TNode (~''(⌊α⌋ξ)) side X)
+  (negLoad_in : (~''(⌊α⌋ξ)).in_side side X)
   (w_nξ : (M,w) ⊨ ~''ξ)
   : ∃ Y ∈ endNodesOf ltab, (M,v) ⊨ Y ∧
     (   ( Y.isFree ) -- means we left cluster
       ∨ ( ∃ (F : List Formula) (γ : List Program),
-            ( AnyNegFormula_on_side_in_TNode (~''(AnyFormula.loadBoxes γ ξ)) side Y
+            ( (~''(AnyFormula.loadBoxes γ ξ)).in_side side Y
             ∧ relateSeq M γ v w
             ∧ (M,v) ⊨ F
             ∧ (F,γ) ∈ H α -- "F,γ is a result from unfolding α"
@@ -1197,7 +1196,7 @@ theorem localLoadedDiamond (α : Program) {X : TNode}
     have : α.isAtomic := by
       rw [Program.isAtomic_iff]
       rcases X with ⟨L,R,O⟩
-      unfold AnyNegFormula_on_side_in_TNode at negLoad_in
+      unfold AnyNegFormula.in_side at negLoad_in
       rcases O with _|⟨lf|lf⟩
       · cases side <;> simp_all [Program.isAtomic]
       all_goals
@@ -1218,9 +1217,9 @@ theorem localLoadedDiamond (α : Program) {X : TNode}
     refine ⟨X, ?_, v_t, Or.inr ⟨[], [·a], negLoad_in,  ?_,  ?_,  ?_⟩ ⟩ <;> simp_all [H]
 
 lemma TNode.isLoaded_of_negAnyFormula_loaded {α ξ side} {X : TNode}
-    (negLoad_in : AnyNegFormula_on_side_in_TNode (~''(AnyFormula.loaded (⌊α⌋ξ))) side X)
+    (negLoad_in : (~''(AnyFormula.loaded (⌊α⌋ξ))).in_side side X)
     : X.isLoaded := by
-  unfold AnyNegFormula_on_side_in_TNode at negLoad_in
+  unfold AnyNegFormula.in_side at negLoad_in
   rcases X with ⟨L,R,O⟩
   rcases O with _|⟨lf|lf⟩
   · cases side <;> simp_all [Program.isAtomic]
@@ -1242,13 +1241,13 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
   (v_t : (M,v) ⊨ nodeAt t)
   (ξ : AnyFormula)
   {side : Side} -- NOT in notes but needed for partition
-  (negLoad_in : AnyNegFormula_on_side_in_TNode (~''(⌊α⌋ξ)) side (nodeAt t))
+  (negLoad_in : (~''(⌊α⌋ξ)).in_side side (nodeAt t))
   (v_α_w : relate M α v w)
   (w_nξ : (M,w) ⊨ ~''ξ)
   : ∃ s : PathIn tab, t ◃⁺ s ∧
     -- TODO: missing here: path from t to s is satisfiable!
-    (   ( satisfiable (nodeAt s) ∧ ¬ (s ≡ᶜ t) )
-      ∨ ( (AnyNegFormula_on_side_in_TNode (~''ξ) side (nodeAt s))
+    (   ( satisfiable (nodeAt s) ∧ ¬ (s ≡ᶜ t) )  -- FIXME: move satisfiable outside disjunction?
+      ∨ ( ((~''ξ).in_side side (nodeAt s))
         ∧ (M,w) ⊨ (nodeAt s)
         ∧ ((nodeAt s).without (~''ξ)).isFree
         )
@@ -1261,7 +1260,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
   case root =>
     subst t_def
     exfalso
-    unfold AnyNegFormula_on_side_in_TNode at negLoad_in
+    unfold AnyNegFormula.in_side at negLoad_in
     unfold TNode.isFree TNode.isLoaded at root_free
     rcases X with ⟨L,R,O⟩
     cases O <;> cases side <;> simp at *
@@ -1326,11 +1325,31 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
           rw [tabAt_s_def]
     ·
       -- Here is the interesting case: not leaving the cluster
-      -- We do an inner induction on the list δ.
 
-      -- TODO: define inner claim from the notes here!
-      have claim : ∀ k : Fin δ.length, True := by
+      -- We get a sequence of worlds from the δ relation:
+      rcases (relateSeq_iff_exists_Vector M δ v w).mp v_seq_w with ⟨ws, v_def_, w_def, ws_rel⟩
+
+      -- Claim for an inner induction on the list δ.
+      have claim : ∀ k : Fin δ.length.succ, -- Note the succ here!
+        ∃ sk, t ◃⁺ sk ∧ ( ( satisfiable (nodeAt sk) ∧ ¬(sk ≡ᶜ t) )
+                        ∨ ( (~''(ξ.loadBoxes (δ.drop k.val))).in_side side (nodeAt sk)
+                          ∧ (M, ws[k]) ⊨ nodeAt sk
+                          ∧ ((nodeAt sk).without (~''ξ)).isFree ) )
+        := by
+        -- Here we will need to apply the outer induction hypothesis. to δ[k] or k+1 ??
+        -- NOTE: it is only applicable when α is not a star.
+        -- For the star case we need another induction! On the length of `ws`? See notes.
         sorry
+
+      -- remains to show that the claim suffices
+      specialize claim δ.length
+      rcases claim with ⟨sk, t_sk, sk_prop⟩
+      have := List.drop_length δ
+      use sk
+      simp_all only [modelCanSemImplyList, List.get_eq_getElem, Nat.succ_eq_add_one,
+        Fin.coe_eq_castSucc, Fin.natCast_eq_last, Fin.val_last, AnyFormula.boxes_nil,
+        Fin.getElem_fin, List.drop_length, true_and]
+      convert sk_prop
 
       /-
 
@@ -1395,20 +1414,17 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
         sorry -- s ⋖_ s1 but only have s s ⋖_ t ⋖_ s1 -- needs stronger induction claim for this
       -/
 
-      all_goals
-        sorry
-
   case pdl Y r next =>
     cases r -- six PDL rules
     -- cannot apply (L+) because we already have a loaded formula
     case loadL =>
       exfalso
-      simp only [nodeAt, AnyNegFormula_on_side_in_TNode] at negLoad_in
+      simp only [nodeAt, AnyNegFormula.in_side] at negLoad_in
       rw [tabAt_t_def] at negLoad_in
       aesop
     case loadR =>
       exfalso
-      simp only [nodeAt, AnyNegFormula_on_side_in_TNode] at negLoad_in
+      simp only [nodeAt, AnyNegFormula.in_side] at negLoad_in
       rw [tabAt_t_def] at negLoad_in
       aesop
     case freeL L R δ β φ =>
@@ -1494,12 +1510,12 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       have : ξ' = ξ := by
         unfold nodeAt at negLoad_in
         rw [tabAt_t_def] at negLoad_in
-        unfold AnyNegFormula_on_side_in_TNode at negLoad_in
+        unfold AnyNegFormula.in_side at negLoad_in
         cases side <;> simp_all
       subst this
       -- modal rule, so α must actually be atomic!
       have α_is_a : α = (·a : Program) := by
-        simp only [AnyNegFormula_on_side_in_TNode, nodeAt] at negLoad_in
+        simp only [AnyNegFormula.in_side, nodeAt] at negLoad_in
         rw [tabAt_t_def] at negLoad_in
         subst Z_def
         cases side
@@ -1553,14 +1569,14 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
         rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
         all_goals
           rw [nodeAt_s_def]
-          unfold AnyNegFormula_on_side_in_TNode
+          unfold AnyNegFormula.in_side
           cases side
           case LL => simp_all
           case RR =>
             absurd negLoad_in
             unfold nodeAt
             rw [tabAt_t_def]
-            unfold AnyNegFormula_on_side_in_TNode
+            unfold AnyNegFormula.in_side
             simp
       · -- (b)
         rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
@@ -1599,12 +1615,12 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       have : ξ' = ξ := by
         unfold nodeAt at negLoad_in
         rw [tabAt_t_def] at negLoad_in
-        unfold AnyNegFormula_on_side_in_TNode at negLoad_in
+        unfold AnyNegFormula.in_side at negLoad_in
         cases side <;> simp_all
       subst this
       -- modal rule, so α must actually be atomic!
       have α_is_a : α = (·a : Program) := by
-        simp only [AnyNegFormula_on_side_in_TNode, nodeAt] at negLoad_in
+        simp only [AnyNegFormula.in_side, nodeAt] at negLoad_in
         rw [tabAt_t_def] at negLoad_in
         subst Z_def
         cases side
@@ -1658,14 +1674,14 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
         rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
         all_goals
           rw [nodeAt_s_def]
-          unfold AnyNegFormula_on_side_in_TNode
+          unfold AnyNegFormula.in_side
           cases side
           case RR => simp_all
           case LL =>
             absurd negLoad_in
             unfold nodeAt
             rw [tabAt_t_def]
-            unfold AnyNegFormula_on_side_in_TNode
+            unfold AnyNegFormula.in_side
             simp
       · -- (b)
         rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
@@ -1717,8 +1733,8 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
     have v_u : (M, v) ⊨ nodeAt u := by
       rw [vDash_setEqTo_iff u_eq_t]
       exact v_t
-    have negLoad_in_u : AnyNegFormula_on_side_in_TNode (~''(AnyFormula.loaded (⌊α⌋ξ))) side (nodeAt u) := by
-      rw [AnyNegFormula_on_side_in_TNode_setEqTo u_eq_t]
+    have negLoad_in_u : (~''(AnyFormula.loaded (⌊α⌋ξ))).in_side side (nodeAt u) := by
+      rw [AnyNegFormula.in_side_of_setEqTo u_eq_t]
       exact negLoad_in
     -- Now prepare and make the recursive call:
     have _forTermination : (companionOf t (tabAt_t_def ▸ lpr) h).length < t.length := by
@@ -1834,7 +1850,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
       -- Note that here it is too late to generalize whether loaded formula was left/right.
       case nil =>
         simp only [loadMulti, List.foldr_nil] at lf_def
-        have in_t : AnyNegFormula_on_side_in_TNode (~''(⌊α⌋φ)) _theSide (nodeAt t) := by
+        have in_t : (~''(⌊α⌋φ)).in_side _theSide (nodeAt t) := by
           simp_all [nodeAt]; aesop
         -- Let C be the cluster to which `t` belongs.
         -- We claim that any ◃-path of satisfiable nodes starting at t must remain in C.
@@ -1866,7 +1882,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
           · exact t_to_s
           · have : (nodeAt t).isLoaded := by
               unfold TNode.isLoaded
-              simp [AnyNegFormula_on_side_in_TNode] at in_t
+              simp [AnyNegFormula.in_side] at in_t
               aesop
             apply eProp2.d_help _ _ this rest_s_free t_to_s
       case cons β δ inner_IH =>
@@ -1884,7 +1900,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
         simp only [evaluate, not_forall, Classical.not_imp] at this
         -- We make one step with `loadedDiamondPaths` for β.
         rcases this with ⟨w, v_β_w, not_w_δαφ⟩
-        have in_t : AnyNegFormula_on_side_in_TNode (~''(⌊β⌋(⌊⌊δ⌋⌋⌊α⌋φ))) _theSide (nodeAt t) := by
+        have in_t : (~''(⌊β⌋(⌊⌊δ⌋⌋⌊α⌋φ))).in_side _theSide (nodeAt t) := by
           simp_all only [nodeAt, loadMulti_cons]
           subst lf_def
           exact O_def

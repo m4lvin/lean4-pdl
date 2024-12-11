@@ -1,4 +1,5 @@
 import Mathlib.Data.Finset.Basic
+import Mathlib.Data.Vector.Basic
 import Mathlib.Data.Set.Lattice
 import Mathlib.Logic.Relation
 import Mathlib.Order.CompleteLattice
@@ -270,6 +271,13 @@ theorem relateSeq_singelton (M : KripkeModel W) (α : Program) (w v : W) :
     relateSeq M [α] w v ↔ relate M α w v := by
   simp [relateSeq]
 
+theorem relateSeq_cons (M : KripkeModel W) (d : Program) (δ : List Program) (w v : W) :
+    relateSeq M (d :: δ) w v ↔ ∃ u, relate M d w u ∧ relateSeq M δ u v := by
+  induction δ generalizing w v
+  · simp [relateSeq]
+  case cons l l1 IH =>
+    simp [relateSeq]
+
 theorem relateSeq_append (M : KripkeModel W) (l1 l2 : List Program) (w v : W) :
     relateSeq M (l1 ++ l2) w v ↔ ∃ u, relateSeq M l1 w u ∧ relateSeq M l2 u v := by
   induction l1 generalizing w v
@@ -277,6 +285,76 @@ theorem relateSeq_append (M : KripkeModel W) (l1 l2 : List Program) (w v : W) :
   case cons l l1 IH =>
     simp [relateSeq]
     aesop
+
+theorem relateSeq_iff_exists_Vector (M : KripkeModel W) (δ : List Program) (w v : W) :
+  relateSeq M δ w v ↔
+   ∃ (ws : Mathlib.Vector W (δ.length).succ),
+      w = ws.head ∧ v = ws.last ∧ ∀ i, relate M (δ.get i) (ws.get i) (ws.get i.succ)
+    := by
+  induction δ generalizing w
+  · simp only [relateSeq_nil, List.length_nil, Nat.succ_eq_add_one, Nat.reduceAdd,
+    List.get_eq_getElem, Fin.coe_eq_castSucc, IsEmpty.forall_iff, and_true]
+    constructor <;> intro h
+    · use ⟨[w], by simp⟩
+      aesop
+    · rcases h with ⟨⟨ws, ws_len_eq_1⟩ , w_def, v_def⟩
+      rw [List.length_eq_one] at ws_len_eq_1
+      rcases ws_len_eq_1 with ⟨x, ws_def⟩
+      aesop
+  case cons d δ IH =>
+    simp only [relateSeq_cons, List.length_cons, Nat.succ_eq_add_one, List.get_eq_getElem,
+      Fin.coe_eq_castSucc]
+    constructor <;> intro h
+    · rcases h with ⟨u, w_u, u_v⟩
+      rw [IH] at u_v
+      clear IH
+      rcases u_v with ⟨ws, u_def, v_def, claim⟩
+      refine ⟨⟨w :: ws.val, by simp_all⟩, ?_, ?_, ?_⟩
+      · simp [Mathlib.Vector.head]
+      · rw [v_def]
+        simp [Mathlib.Vector.last_def, Mathlib.Vector.get]
+      · apply Fin.cases
+        · simp [Mathlib.Vector.head]
+          convert w_u
+          subst u_def
+          simp [Mathlib.Vector.last_def, Mathlib.Vector.get]
+          rcases ws with ⟨ws, ws_len⟩
+          have := List.exists_of_length_succ _ ws_len
+          aesop
+        · aesop
+    · rcases h with ⟨wws, w_def, v_def, claim⟩
+      let u := wws[1]
+      use wws[1]
+      constructor
+      · have := claim 0
+        simp at this
+        convert this
+      · specialize IH u
+        rw [IH]
+        clear IH
+        refine ⟨wws.tail, ?_ , ?_ , ?_ ⟩
+        · unfold u
+          rcases wws with ⟨wws, wws_len⟩
+          rcases List.exists_of_length_succ _ wws_len with ⟨x, t, wws_def⟩
+          subst wws_def
+          have := List.exists_of_length_succ t
+            (by simp at wws_len; assumption : t.length = δ.length + 1)
+          rcases this with ⟨y, tt, t_def⟩
+          subst t_def
+          aesop
+        · rw [v_def]
+          -- copied from previous case
+          rcases wws with ⟨wws, wws_len⟩
+          rcases List.exists_of_length_succ _ wws_len with ⟨x, t, wws_def⟩
+          subst wws_def
+          have := List.exists_of_length_succ t
+            (by simp at wws_len; assumption : t.length = δ.length + 1)
+          rcases this with ⟨y, tt, t_def⟩
+          subst t_def
+          aesop
+        · intro i
+          specialize claim i.succ
+          aesop
 
 theorem evalBoxes (δ : List Program) φ :
     evaluate M w (⌈⌈δ⌉⌉φ) ↔ (∀ v, relateSeq M δ w v → evaluate M v φ) := by
