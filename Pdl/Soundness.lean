@@ -1041,7 +1041,7 @@ theorem eProp2.e {tab : Tableau .nil X} (s u t : PathIn tab) :
     apply Relation.TransGen.trans t_s s_u
 
 theorem eProp2.f {tab : Tableau .nil X} (s t : PathIn tab) :
-    (t ◃⁺ s  →  ¬ t ≡ᶜ s  →  t <ᶜ s) := by
+    t ◃⁺ s  →  ¬ t ≡ᶜ s  →  t <ᶜ s := by
   rintro s_c_t s_nequiv_t
   constructor
   · exact s_c_t
@@ -1050,6 +1050,17 @@ theorem eProp2.f {tab : Tableau .nil X} (s t : PathIn tab) :
     constructor
     · exact Relation.TransGen.to_reflTransGen s_c_t
     · exact Relation.TransGen.to_reflTransGen t_c_s
+
+-- TODO: add in notes?
+theorem eProp2.f_tweak {tab : Tableau .nil X} (s u t : PathIn tab) :
+    s ◃⁺ u  →  u ◃⁺ t  →  ¬ t ≡ᶜ u → ¬ t ≡ᶜ s := by
+  intro s_u u_t not_t_u
+  intro t_s
+  absurd not_t_u
+  constructor
+  · apply @Relation.ReflTransGen.trans _ _ _ _ _ t_s.1
+    exact Relation.TransGen.to_reflTransGen s_u
+  · exact Relation.TransGen.to_reflTransGen u_t
 
 theorem eProp2.g {tab : Tableau .nil X} (s t : PathIn tab) :
     (s <ᶜ t → ¬ s ≡ᶜ t) := by
@@ -1380,10 +1391,10 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
             clear _forTermination
 
             rcases outer_IH with ⟨sk2, sk_c_sk2, sk2_property⟩
-            rcases sk2_property with ⟨sk2_sat, sk2_nEquiv_blll⟩ | ⟨anf_in_sk2, u_sk2, sk2_almostFree⟩
+            rcases sk2_property with ⟨sk2_sat, sk2_nEquiv_sk⟩ | ⟨anf_in_sk2, u_sk2, sk2_almostFree⟩
             · refine ⟨sk2, ?_, Or.inl ⟨sk2_sat, ?_⟩⟩  -- leaving cluster, easy?
               · exact Relation.TransGen.trans t_sk sk_c_sk2
-              · sorry -- use something from eProp2 here?
+              · apply eProp2.f_tweak _ _ _ t_sk sk_c_sk2 sk2_nEquiv_sk
             · refine ⟨sk2, ?_, Or.inr ⟨?_, ?_, ?_⟩⟩
               · exact Relation.TransGen.trans t_sk sk_c_sk2
               · sorry
@@ -1731,12 +1742,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       refine ⟨s, ?_, ?_⟩
       exact Relation.TransGen.head (Or.inr ⟨tabAt_t_def ▸ lpr, h, rfl⟩) u_s
     · refine Or.inl ⟨s_sat, ?_⟩
-      -- Should this be a lemma in eProp2 here?
-      intro s_t
-      absurd not_s_u
-      apply (eProp tab).1.trans s_t
-      apply (eProp tab).1.symm
-      exact eProp2.b _ _ t_comp_u
+      exact eProp2.f_tweak _ _ _ (Relation.TransGen.single (Or.inr t_comp_u)) u_s not_s_u
     · exact Or.inr reached
 
 termination_by
