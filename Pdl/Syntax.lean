@@ -185,3 +185,20 @@ theorem unload_neg_loaded : (~'⌊α⌋(.loaded χ)).1.unload = ⌈α⌉(χ.unlo
 @[simp]
 theorem unload_neg_normal : (~'⌊α⌋(.normal φ)).1.unload = ⌈α⌉φ := by
   simp [LoadFormula.unload]
+
+/-- Load a possibly already loaded formula χ with a sequence δ of boxes.
+The result is loaded iff δ≠[] or χ was loaded. -/
+def AnyFormula.loadBoxes : List Program → AnyFormula → AnyFormula
+| δ, χ => List.foldr (fun β lf => LoadFormula.box β lf) χ δ
+
+@[simp]
+lemma AnyFormula.boxes_nil : AnyFormula.loadBoxes [] ξ = ξ := by
+  simp [AnyFormula.loadBoxes]
+
+@[simp]
+lemma AnyFormula.loadBoxes_cons : AnyFormula.loadBoxes (α :: γ) ξ = ⌊α⌋ (AnyFormula.loadBoxes γ ξ) := by
+  simp [AnyFormula.loadBoxes]
+
+def AnyFormula.unload : AnyFormula → Formula
+  | .normal φ => φ
+  | .loaded χ => χ.unload

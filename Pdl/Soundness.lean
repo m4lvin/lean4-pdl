@@ -1151,23 +1151,6 @@ theorem TNode.without_loaded_in_side_isFree (LRO : TNode) ξ side :
     simp [TNode.without, isFree, isLoaded, AnyNegFormula.in_side]
     try aesop
 
-/-- Load a possibly already loaded formula χ with a sequence δ of boxes.
-The result is loaded iff δ≠[] or χ was loaded. -/
-def AnyFormula.loadBoxes : List Program → AnyFormula → AnyFormula
-| δ, χ => List.foldr (fun β lf => LoadFormula.box β lf) χ δ
-
-@[simp]
-lemma AnyFormula.boxes_nil : AnyFormula.loadBoxes [] ξ = ξ := by
-  simp [AnyFormula.loadBoxes]
-
-@[simp]
-lemma AnyFormula.loadBoxes_cons : AnyFormula.loadBoxes (α :: γ) ξ = ⌊α⌋ (AnyFormula.loadBoxes γ ξ) := by
-  simp [AnyFormula.loadBoxes]
-
-def AnyFormula.unload : AnyFormula → Formula
-  | .normal φ => φ
-  | .loaded χ => χ.unload
-
 -- Helper to deal with local tableau in `loadedDiamondPaths`
 theorem localLoadedDiamond (α : Program) {X : TNode}
   (ltab : LocalTableau X)
