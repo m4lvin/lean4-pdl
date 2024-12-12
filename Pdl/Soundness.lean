@@ -1348,6 +1348,8 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       -- We get a sequence of worlds from the δ relation:
       rcases (relateSeq_iff_exists_Vector M δ v w).mp v_seq_w with ⟨ws, v_def, w_def, ws_rel⟩
 
+      -- IDEA: already before claim we should have that Y without δ is free?
+
       -- Claim for an inner induction on the list δ.
       have claim : ∀ k : Fin δ.length.succ, -- Note the succ here!
           ∃ sk, t ◃⁺ sk ∧ ( ( satisfiable (nodeAt sk) ∧ ¬(sk ≡ᶜ t) )
@@ -1370,13 +1372,21 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
             aesop
           · unfold nodeAt
             rw [tabAt_s_def]
-            simp [TNode.isFree, TNode.isLoaded]
-            -- How do we know that there is no other loaded formula in `Y` now?
-            -- Should be easy if we have δ ≠ []
-            have := TNode.without_loaded_in_side_isFree Y
-            -- IDEA: by_cases δ = [] ???
-            sorry
-
+            simp
+            cases δ
+            · simp_all
+              -- v = w = ws.last
+              subst_eqs
+              cases ξ
+              · -- ξ was normal
+                -- How do we know that there is no other loaded formula in `Y` now?
+                sorry
+              · apply TNode.without_loaded_in_side_isFree
+                convert anf_in_Y
+            case cons d δ =>
+              simp
+              apply TNode.without_loaded_in_side_isFree
+              convert anf_in_Y
         case succ k inner_IH =>
           -- Here we will need to apply the outer induction hypothesis. to δ[k] or k+1 ??
           -- NOTE: it is only applicable when α is not a star.
