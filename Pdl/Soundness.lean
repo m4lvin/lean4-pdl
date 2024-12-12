@@ -1143,6 +1143,14 @@ theorem AnyNegFormula.in_side_of_setEqTo {X Y} (h : X.setEqTo Y) {anf : AnyNegFo
   subst O_eq_O'
   cases side <;> rcases anf with ⟨(n|m)⟩ <;> simp_all [AnyNegFormula.in_side]
 
+@[simp]
+theorem TNode.without_loaded_in_side_isFree (LRO : TNode) ξ side :
+    (~''(.loaded ξ)).in_side side LRO → (LRO.without (~''(.loaded ξ))).isFree := by
+  rcases LRO with ⟨L, R, _|(OL|OR)⟩ <;> cases side
+  all_goals
+    simp [TNode.without, isFree, isLoaded, AnyNegFormula.in_side]
+    try aesop
+
 /-- Load a possibly already loaded formula χ with a sequence δ of boxes.
 The result is loaded iff δ≠[] or χ was loaded. -/
 def AnyFormula.loadBoxes : List Program → AnyFormula → AnyFormula
@@ -1357,10 +1365,18 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
             exact anf_in_Y
           · convert v_s1
             rw [v_def]
-            -- ws[0] = ws.head -- should be obvious because ws length is a succ?
+            rcases ws with ⟨ws, ws_len⟩
+            have := List.exists_of_length_succ _ ws_len
+            aesop
+          · unfold nodeAt
+            rw [tabAt_s_def]
+            simp [TNode.isFree, TNode.isLoaded]
+            -- How do we know that there is no other loaded formula in `Y` now?
+            -- Should be easy if we have δ ≠ []
+            have := TNode.without_loaded_in_side_isFree Y
+            -- IDEA: by_cases δ = [] ???
             sorry
-          ·
-            sorry
+
         case succ k inner_IH =>
           -- Here we will need to apply the outer induction hypothesis. to δ[k] or k+1 ??
           -- NOTE: it is only applicable when α is not a star.
