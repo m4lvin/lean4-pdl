@@ -120,9 +120,7 @@ instance modelCanSemImplyAnyFormula {W : Type} : vDash (KripkeModel W × W) AnyF
     | (AnyFormula.normal φ) => evaluate M w φ
     | .loaded χ => evaluate M w χ.unload⟩
 instance modelCanSemImplyAnyNegFormula {W : Type} : vDash (KripkeModel W × W) AnyNegFormula :=
-  vDash.mk (λ ⟨M,w⟩ anf => match anf with
-   | ⟨.normal φ⟩ => ¬ evaluate M w φ
-   | ⟨.loaded χ⟩ => ¬ evaluate M w χ.unload)
+  vDash.mk (λ ⟨M,w⟩ ⟨ξ⟩ => ¬ SemImplies (M, w) ξ)
 instance setCanSemImplySet : vDash (List Formula) (List Formula) := vDash.mk semImpliesLists
 instance setCanSemImplyForm : vDash (List Formula) Formula:= vDash.mk fun X ψ => semImpliesLists X [ψ]
 instance formCanSemImplySet : vDash Formula (List Formula) := vDash.mk fun φ X => semImpliesLists [φ] X
@@ -404,3 +402,29 @@ theorem stepToStar : φ ⊨ (⌈α⌉φ) ⋀ ψ  →  φ ⊨ (⌈∗α⌉ψ) := 
     case tail s t _ s_α_t s_φ =>
       exact (hyp s s_φ).1 t s_α_t
   simp_all
+
+theorem SemImplyAnyNegFormula_loadBoxes_iff {M : KripkeModel W} {ξ : AnyFormula} :
+    (M, w) ⊨ ~''(ξ.loadBoxes δ) ↔ ∃ v, relateSeq M δ w v ∧ (M, v) ⊨ ~''ξ := by
+  induction δ generalizing w
+  · simp
+  case cons d δ IH =>
+    unfold modelCanSemImplyAnyNegFormula at IH
+    simp at IH
+    unfold SemImplies modelCanSemImplyAnyNegFormula modelCanSemImplyAnyFormula
+    simp
+    constructor
+    · rintro ⟨u, w_u, u_⟩
+      rw [IH] at u_
+      rcases u_ with ⟨z, u_z, z_⟩
+      use z
+      simp [relateSeq_cons]
+      constructor
+      · use u
+      · convert z_
+    · rintro ⟨v, w_v, v_⟩
+      simp [relateSeq_cons] at w_v
+      rcases w_v with ⟨u, w_u, u_v⟩
+      refine ⟨u, w_u, ?_⟩
+      rw [IH]
+      use v
+      tauto

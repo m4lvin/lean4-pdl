@@ -1377,7 +1377,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
 
           rcases inner_IH with ⟨sk, t_sk, IH_cases⟩
 
-          rcases IH_cases with _ | ⟨_in_node_sk, wsk_sk, three⟩
+          rcases IH_cases with _ | ⟨_in_node_sk, wsk_sk, anf_in_sk⟩
           · refine ⟨sk, t_sk, ?_⟩
             left
             assumption
@@ -1389,13 +1389,19 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
               -- ! Only true when α is a test, union or semicolon ==> need separate case for star!
               sorry
 
-            have outer_IH := @loadedDiamondPaths δ[k] _ tab root_free sk W M
-              ws[k.castSucc] ws[k.succ] wsk_sk
-              (ξ.loadBoxes (δ.drop k)) -- this is the new ξ
+            have outer_IH := @loadedDiamondPaths (δ.get k) _ tab root_free sk W M
+              (ws.get k.castSucc) (ws.get k.succ) wsk_sk
+              (ξ.loadBoxes (δ.drop k.succ)) -- This is the new ξ.
               side
-              (by convert _in_node_sk; sorry)
-              (by sorry) -- use `ws_rel` for this!
-              (by sorry) -- hmm? should be doable. using what?
+              (by convert _in_node_sk; rw [←AnyFormula.loadBoxes_cons]; convert rfl using 2; simp)
+              (by convert ws_rel k; simp)
+              (by
+                rw [SemImplyAnyNegFormula_loadBoxes_iff]
+                refine ⟨w, ?_, w_nξ⟩
+                rw [relateSeq_iff_exists_Vector]
+                use ⟨ws.val.drop k, sorry⟩
+                -- hmm? should be easy.
+                sorry)
 
             clear _forTermination
 
@@ -1404,11 +1410,8 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
             · refine ⟨sk2, ?_, Or.inl ⟨sk2_sat, ?_⟩⟩  -- leaving cluster, easy?
               · exact Relation.TransGen.trans t_sk sk_c_sk2
               · apply eProp2.f_tweak _ _ _ t_sk sk_c_sk2 sk2_nEquiv_sk
-            · refine ⟨sk2, ?_, Or.inr ⟨?_, ?_, ?_⟩⟩
+            · refine ⟨sk2, ?_, Or.inr ⟨anf_in_sk2, u_sk2, sk2_almostFree⟩⟩
               · exact Relation.TransGen.trans t_sk sk_c_sk2
-              · sorry
-              · exact u_sk2
-              · sorry -- something here seems off-by-one ??
 
       -- It remains to show that the claim suffices.
       specialize claim δ.length
@@ -1906,7 +1909,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
           subst lf_def
           exact O_def
         have := loadedDiamondPaths β tab Root_isFree t v_ (⌊⌊δ⌋⌋⌊α⌋φ) in_t v_β_w
-          (by rw [modelCanSemImplyAnyNegFormula]; simp; exact not_w_δαφ)
+          (by simp_all [modelCanSemImplyAnyNegFormula, modelCanSemImplyAnyFormula])
         rcases this with ⟨s, t_to_s, s_property⟩
         rcases s_property with ⟨s_sat, notequi⟩ | ⟨not_af_in_s, w_s, rest_s_free⟩
         · -- We left the cluster, use outer IH to get contradiction.
