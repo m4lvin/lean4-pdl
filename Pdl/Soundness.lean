@@ -1151,7 +1151,7 @@ theorem TNode.without_loaded_in_side_isFree (LRO : TNode) ξ side :
     simp [TNode.without, isFree, isLoaded, AnyNegFormula.in_side]
     try aesop
 
--- Helper to deal with local tableau in `loadedDiamondPaths`
+/-- Helper to deal with local tableau in `loadedDiamondPaths`. -/
 theorem localLoadedDiamond (α : Program) {X : TNode}
   (ltab : LocalTableau X)
   {W} {M : KripkeModel W} {v w : W}
@@ -1175,24 +1175,92 @@ theorem localLoadedDiamond (α : Program) {X : TNode}
   case byLocalRule X B lra next IH =>
     rcases X with ⟨L,R,O⟩
 
-    -- TODO: Distinguish which rule was applied: this gives at least six cases?!
-    -- rcases lra with ⟨Lcond, Rcond, Ocond, r, precons⟩
-    -- cases r
+    -- Soundness and invertibility of the local rule:
+    have locRulTru := @localRuleTruth (L,R,O) _ lra W M
 
-    -- use `existsDiamondH` when a `LoadRule` is applied!
-    have from_H := @existsDiamondH W M α _ _ v_α_w
-    rcases from_H with ⟨⟨F,δ⟩, _in_H, v_F, v_δ_w⟩
-    simp at *
-    -- Need induction on δ somewhere?
+    -- We distinguish which rule was applied.
+    rcases lra with ⟨Lcond, Rcond, Ocond, r, precons⟩
+    rename_i resNodes B_def_apply_r_LRO
+    cases r
 
-    -- IDEA: take apart δ in the same way as "rcases LoadFormula.exists_loadMulti lf with ⟨δ, α, φ, lf_def⟩" below?
+    -- All rules not affecting the loaded formula are easy to deal with.
+    case oneSidedL resNodes orule =>
+      simp_all only [applyLocalRule, List.empty_eq, List.diff_nil, List.map_map, List.mem_map,
+        Function.comp_apply, List.append_nil, Olf.change_none_none, modelCanSemImplyList,
+        forall_exists_index, exists_exists_and_eq_and, endNodesOf.eq_1, List.mem_flatten,
+        List.mem_attach, true_and, Subtype.exists] -- uses locRulTru
+      rcases v_t with ⟨res, res_in, v_⟩
+      specialize IH _ res ⟨res_in, rfl⟩ α v_α_w v_
+        (by cases side <;> simp_all [AnyNegFormula.in_side])
+      rcases IH with ⟨Y, Y_in, v_Y⟩
+      use Y
+      simp_all only [List.empty_eq, List.nil_subperm, Option.instHasSubsetOption, and_self,
+        and_true]
+      use endNodesOf (next (L.diff Lcond ++ res, R, O) (by aesop))
+      simp_all only [and_true]
+      use (L.diff Lcond ++ res, R, O)
+      simp_all only [exists_prop, and_true]
+      use res
+    case oneSidedR resNodes orule =>
+      -- analogous to oneSidedL
+      simp_all only [applyLocalRule, List.empty_eq, List.diff_nil, List.map_map, List.mem_map,
+        Function.comp_apply, List.append_nil, Olf.change_none_none, modelCanSemImplyList,
+        forall_exists_index, exists_exists_and_eq_and, endNodesOf.eq_1, List.mem_flatten,
+        List.mem_attach, true_and, Subtype.exists] -- uses locRulTru
+      rcases v_t with ⟨res, res_in, v_⟩
+      specialize IH _ res ⟨res_in, rfl⟩ α v_α_w v_
+        (by cases side <;> simp_all [AnyNegFormula.in_side])
+      rcases IH with ⟨Y, Y_in, v_Y⟩
+      use Y
+      simp_all only [List.empty_eq, List.nil_subperm, Option.instHasSubsetOption, and_self,
+        and_true]
+      use endNodesOf (next (L, R.diff Rcond ++ res, O) (by aesop))
+      simp_all only [and_true]
+      use (L, R.diff Rcond ++ res, O)
+      simp_all only [exists_prop, and_true]
+      use res
+    case LRnegL φ =>
+      simp_all
+    case LRnegR =>
+      simp_all
 
-    -- prepare IH application? (but it should be applied *within* the induction on δ)
-    rw [localRuleTruth lra M v] at v_t
-    rcases v_t with ⟨C, C_in_B, v_C⟩
-    specialize IH C C_in_B
+    case loadedL outputs χ lrule =>
+      -- Instead of localRuleTruth ...
+      clear locRulTru
+      -- here we use use `existsDiamondH` to imitate the relation v_α_w
+      have from_H := @existsDiamondH W M α _ _ v_α_w
+      rcases from_H with ⟨⟨F,δ⟩, _in_H, v_F, v_δ_w⟩
+      simp at *
+      cases lrule -- dia or dia' annoyance ;-)
+      case dia α' χ' α'_not_atomic =>
+        -- The rule application has its own α' that must be α, and χ' must be ξ.
+        have ⟨χ_eq_ξ,α_same⟩ : α = α' ∧ χ' = ξ := by
+          simp [AnyNegFormula.in_side] at negLoad_in
+          have := precons.2.2
+          simp at this
+          rw [← this] at negLoad_in
+          cases side <;> aesop
+        subst α_same
+        subst χ_eq_ξ
+        -- Now we have that this F,δ pair is also used for one result in `B`:
+        have claim : (L ++ F, R, some (Sum.inl (~'⌊⌊δ⌋⌋χ'))) ∈ B := by
+          simp [applyLocalRule, unfoldDiamondLoaded, YsetLoad] at B_def_apply_r_LRO
+          simp_all; use F, δ
 
-    sorry
+        -- PROBLEM: Cannot apply IH to node where α is gone and replaced by its unfolding.
+        -- Do we need an induction on δ here? And strengthen IH to work for other programs!
+        refine ⟨?_Y, ⟨ ⟨_, ⟨(L ++ F, R, some (Sum.inl (~'⌊⌊δ⌋⌋χ'))), claim, rfl⟩ , ?_⟩ , ?_⟩⟩
+        · sorry -- Do not know yet which end node to pick!
+        · sorry
+        · sorry
+
+      case dia' α' φ α'_not_atomic => -- analogous to `dia` case?
+        sorry
+
+    case loadedR =>
+      -- should be analogous to loadedL, but depending on `side`?
+      sorry
+
   case sim X X_isBasic =>
     -- If `X` is simple then `α` must be atomic.
     have : α.isAtomic := by
