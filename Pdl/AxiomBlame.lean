@@ -64,7 +64,7 @@ elab "#axiom_blame " id:ident : command => Elab.Command.liftTermElabM do
     let mut msgs := #[]
     for (ax, decls) in s.axioms do
       msgs := msgs.push m!"* {ax}: {MessageData.joinSep (decls.reverse.map toMessageData) " → "}"
-      logInfo m!"'{n}' depends on axioms:\n\n{MessageData.joinSep msgs.toList "\n\n"}"
+    logInfo m!"'{n}' depends on axioms:\n\n{MessageData.joinSep msgs.toList "\n\n"}"
   logInfo m!"{n}"
 
 end
