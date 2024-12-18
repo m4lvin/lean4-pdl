@@ -1345,6 +1345,9 @@ lemma Vector.drop_get_eq_get_add {n : Nat} (v : Mathlib.Vector α n) (k : Nat)
   rcases v with ⟨l, l_prop⟩
   simp [Mathlib.Vector.get, Mathlib.Vector.drop]
 
+-- Needed for `lake build` to succeed, but not in VSc apparently?
+set_option maxHeartbeats 2000000
+
 /-- Soundness of loading and repeats: a tableau can immitate all moves in a model. -/
 -- Note that we mix induction' tactic and recursive calls __O.o__
 theorem loadedDiamondPaths (α : Program) {X : TNode}
@@ -1524,11 +1527,13 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
                   by apply List.nonempty_drop_sub_succ; aesop
                 -- cool that Mathlib.Vector.drop exists!
                 refine ⟨drop_len_eq ▸ ws.drop (k + 1), ?_, ?_, ?_⟩
-                · simp_all
+                · simp_all only [modelCanSemImplyList, List.get_eq_getElem, Nat.succ_eq_add_one, Fin.coe_eq_castSucc,
+                    Fin.coe_castSucc, Fin.getElem_fin]
                   apply Vector.get_succ_eq_head_drop
                 · subst w_def
                   simp [Vector.drop_last_eq_last]
-                · simp_all
+                · simp_all only [modelCanSemImplyList, List.get_eq_getElem, Nat.succ_eq_add_one,
+                  Fin.coe_eq_castSucc, Fin.coe_castSucc, Fin.getElem_fin]
                   intro i
                   -- It remains to use `ws_rel`. Just dealing with Vector and Fin issues now.
                   have still_lt : ↑k + 1 + ↑i < δ.length := by
@@ -1537,18 +1542,18 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
                     simp at i_prop
                     omega
                   have still_rel := ws_rel ⟨↑k + 1 + ↑i, still_lt⟩
-                  simp at still_rel
+                  simp only [Fin.castSucc_mk, Fin.succ_mk] at still_rel
                   convert still_rel using 1
                   · have : (δ.drop (↑k + 1)).length + 1 = δ.length.succ - (↑k + 1) := by omega
                     have := Vector.drop_get_eq_get_add ws (↑k + 1) (this ▸ i) (by omega)
-                    simp at this
+                    simp only [Nat.succ_eq_add_one, Fin.coe_eq_castSucc] at this
                     convert this using 1
                     · rcases i with ⟨i_val, i_prop⟩ -- to remove casSucc
-                      simp
+                      simp only [Fin.castSucc_mk]
                       -- Almost rfl, how to deal with the ▸  here?
                       sorry
                     · rcases i with ⟨i_val, i_prop⟩ -- to remove casSucc
-                      simp
+                      simp only [Fin.castSucc_mk]
                       convert rfl using 4
                       -- Again, only ▸ left here, what to do?
                       sorry
