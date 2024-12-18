@@ -2,6 +2,10 @@ import Mathlib.SetTheory.Game.State
 
 /-! # A General Theory for Determined Two-playerGames -/
 
+-- Nothing here is specific about PDL, but we give a general
+-- definition of games and show that one of the two players
+-- must have a winning strategy: `gamedet` at the end.
+
 /-- Two players, `A` and `B`. -/
 inductive Player : Type
 | A : Player
@@ -340,7 +344,7 @@ inductive inCone {g : Game} (p : g.Pos) : g.Pos → Prop
 | nil : inCone p p
 | step : inCone p q → r ∈ g.moves q → inCone p r
 
--- FIXME everywhere: change `≠ ∅` to `.Nonempty`
+-- FIXME everywhere: change `≠ ∅` to `.Nonempty` if the latter is preferred by `simp`?
 
 /-- The cone of all positions reachable from `p` assuming that `i` plays `sI`. -/
 inductive inMyCone {g : Game} (sI : Strategy g i) (p : g.Pos) : g.Pos → Prop
@@ -467,7 +471,7 @@ noncomputable def Exists.subtype_pair {motive : α → Prop} {p : (x : α) → m
   have := Exists.choose_spec px
   use xmx
 
-/-- Second helper for `gamedet'`. -/
+/-- COPY to try an alternative proof via `winning_if_imitating_some_winning`. -/
 theorem winning_strategy_of_all_next_when_others_turnCOPY (g : Game) [DecidableEq g.Pos]
     (p : g.Pos) (whose_turn : g.turn p = other i)
     (win_all_next : ∀ pNext : Game.moves p, ∃ (s : Strategy g i), winning pNext s)
@@ -483,9 +487,7 @@ theorem winning_strategy_of_all_next_when_others_turnCOPY (g : Game) [DecidableE
     (sorry : ∀ q : { q : g.Pos // ∃ pNext, inMyCone (stratFor pNext) pNext q }
               , ∃ s_q : Strategy g i, winning q s_q )
   rcases this with ⟨stratForGen, stratForGen_h⟩
-
   have := Classical.dec -- needed to decide `is_relevant`
-
   let s : Strategy g i :=
     (fun pos turn_i has_moves =>
       if is_relevant : ∃ pNext : g.moves p, inMyCone (stratFor pNext) pNext pos
@@ -499,54 +501,38 @@ theorem winning_strategy_of_all_next_when_others_turnCOPY (g : Game) [DecidableE
   unfold winning winner
   have : ¬ (Game.turn p = i) := by rw [whose_turn]; cases i <;> simp
   simp_all
-
   intro sJ
   let nextP := sJ p (by cases i <;> simp_all) (by aesop)
   change winner s sJ nextP.val = i
   -- Remains to show  that `s` is winning at `nextP` chosen by `sJ`.
-
   apply winner_of_winning -- ignoring sJ
-
   apply winning_if_imitating_some_winning
-
   intro r r_in r_turn_i
-
   unfold s
-
   have sCone_sub : ∀ x, inMyCone s nextP x → inMyCone (stratFor nextP) nextP x := by
     -- BUT IS THIS ACTUALLY TRUE?
     -- What if s uses a different `nextPother` to leave `(stratFor nextP) nextP` again???
-
     sorry
-
   use stratForGen ⟨r, ?r_in_some_cone⟩ -- too specific, avoid choosing it yet?
-
   constructor
-
-  ·
-    apply stratForGen_h _ nextP nextP.prop -- NO, too specific!
+  · apply stratForGen_h _ nextP nextP.prop -- NO, too specific!
     apply sCone_sub
     -- have: r is in cone of s
     -- want: r is in cone of stratFor nextP
     assumption
-
   · intro h1 h2
-
     split
     · rfl
     · exfalso
       simp_all
-
       -- Should be a contradiction:
       -- r is in cone of s from nextP
       -- r is not in the cone of any stratFor
       -- ???
       sorry
-
   case r_in_some_cone =>
     -- want: r is in cone of some stratFor
     sorry
-
 
 /-- Second helper for `gamedet'`. -/
 theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.Pos]
@@ -619,7 +605,6 @@ theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.
           sorry
         · exfalso
           tauto
-
     · let nextQ := sJ q ?_ ?_ -- sJ, not s here
       change winner s sJ nextQ = i
       apply IH (g.bound nextQ) ?_ nextP.val ?_ nextQ ?_ rfl
