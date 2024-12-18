@@ -1318,13 +1318,32 @@ lemma List.nonempty_drop_sub_succ (δ_not_empty : δ ≠ []) (k : Fin δ.length)
   aesop
   aesop
 
--- Helper, move elsewhere?
--- Note: Mathlib.Vector is soon called List.Vector
-theorem Vector.get_succ_eq_head_drop {v : Mathlib.Vector α n.succ} (k : Fin n) (j : Nat)
+-- Some helper lemmas about Vectors, move elsewhere?
+-- Note: `Mathlib.Vector` is soon renamed to `List.Vector`.
+
+lemma Vector.get_succ_eq_head_drop {v : Mathlib.Vector α n.succ} (k : Fin n) (j : Nat)
     (h : (n.succ - (k.val + 1)) = j.succ) :
     v.get k.succ = (h ▸ v.drop (k.val + 1)).head
     := by
+  rcases v with ⟨l, l_prop⟩
+  simp [Mathlib.Vector.get, Mathlib.Vector.drop]
+  have := @List.head_drop _ l (k + 1) (by simp; omega)
+  apply Eq.symm
+  -- How can I get the `h` out? Should I use HEq here?
   sorry
+
+lemma Vector.drop_last_eq_last {v : Mathlib.Vector α n.succ} (k : Fin n) (j : Nat)
+    (h : (n.succ - (k + 1)) = j.succ) :
+    (h ▸ v.drop (k + 1)).last = v.last := by
+  sorry
+
+/-- A Vector analogue of `List.getElem_drop`. -/
+lemma Vector.drop_get_eq_get_add {n : Nat} (v : Mathlib.Vector α n) (k : Nat)
+    (i : Fin (n - k))
+    (still_lt : k + i.val < n) :
+    (v.drop k).get i = v.get ⟨k + i.val, still_lt⟩ := by
+  rcases v with ⟨l, l_prop⟩
+  simp [Mathlib.Vector.get, Mathlib.Vector.drop]
 
 /-- Soundness of loading and repeats: a tableau can immitate all moves in a model. -/
 -- Note that we mix induction' tactic and recursive calls __O.o__
@@ -1501,22 +1520,40 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
                 -- need a vector of length `δ.length - (k+1) + 1`
                 -- `ws` has length `δ.length + 1`
                 -- Hence we use `ws.drop (k + 1)`
-                have : (List.drop (↑k + 1) δ).length + 1 = δ.length.succ - (↑k + 1) :=
+                have drop_len_eq : (List.drop (↑k + 1) δ).length + 1 = δ.length.succ - (↑k + 1) :=
                   by apply List.nonempty_drop_sub_succ; aesop
                 -- cool that Mathlib.Vector.drop exists!
-                refine ⟨this ▸ ws.drop (k + 1), ?_, ?_, ?_⟩
+                refine ⟨drop_len_eq ▸ ws.drop (k + 1), ?_, ?_, ?_⟩
                 · simp_all
                   apply Vector.get_succ_eq_head_drop
                 · subst w_def
-                  -- Lemma: (v.drop _).last = v.last ???
-                  sorry
+                  simp [Vector.drop_last_eq_last]
                 · simp_all
                   intro i
-                  -- use `ws_rel` here somehow?
-                  have := ws_rel ⟨k.val + 1 + i.val, by sorry⟩
-                  convert this using 1
-                  · sorry
-                  · sorry
+                  -- It remains to use `ws_rel`. Just dealing with Vector and Fin issues now.
+                  have still_lt : ↑k + 1 + ↑i < δ.length := by
+                    rcases k with ⟨k_val, k_prop⟩
+                    rcases i with ⟨i_val, i_prop⟩
+                    simp at i_prop
+                    omega
+                  have still_rel := ws_rel ⟨↑k + 1 + ↑i, still_lt⟩
+                  simp at still_rel
+                  convert still_rel using 1
+                  · have : (δ.drop (↑k + 1)).length + 1 = δ.length.succ - (↑k + 1) := by omega
+                    have := Vector.drop_get_eq_get_add ws (↑k + 1) (this ▸ i) (by omega)
+                    simp at this
+                    convert this using 1
+                    · rcases i with ⟨i_val, i_prop⟩ -- to remove casSucc
+                      simp
+                      -- Almost rfl, how to deal with the ▸  here?
+                      sorry
+                    · rcases i with ⟨i_val, i_prop⟩ -- to remove casSucc
+                      simp
+                      convert rfl using 4
+                      -- Again, only ▸ left here, what to do?
+                      sorry
+                  · -- analogous to previous thing?
+                    sorry
                 )
 
             clear _forTermination
