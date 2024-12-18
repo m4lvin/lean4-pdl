@@ -1168,6 +1168,7 @@ theorem localLoadedDiamond (α : Program) {X : TNode}
             ∧ relateSeq M γ v w
             ∧ (M,v) ⊨ F
             ∧ (F,γ) ∈ H α -- "F,γ is a result from unfolding α"
+            ∧ (Y.without (~''(AnyFormula.loadBoxes γ ξ))).isFree
             )
         )
     ) := by
@@ -1285,6 +1286,7 @@ theorem localLoadedDiamond (α : Program) {X : TNode}
     subst α_def
     -- We can use X itself as the end node.
     refine ⟨X, ?_, v_t, Or.inr ⟨[], [·a], negLoad_in,  ?_,  ?_,  ?_⟩ ⟩ <;> simp_all [H]
+    exact TNode.without_loaded_in_side_isFree X (⌊·a⌋ξ) side negLoad_in
 
 lemma TNode.isLoaded_of_negAnyFormula_loaded {α ξ side} {X : TNode}
     (negLoad_in : (~''(AnyFormula.loaded (⌊α⌋ξ))).in_side side X)
@@ -1300,8 +1302,32 @@ lemma TNode.isLoaded_of_negAnyFormula_loaded {α ξ side} {X : TNode}
     all_goals
       simp_all [isLoaded]
 
--- Alternative attempt, induction on path instead of tz
--- and mixing induction' tactic and recursive call __O.o__
+-- Helper, move elsewhere?
+lemma List.nonempty_drop_sub_succ (δ_not_empty : δ ≠ []) (k : Fin δ.length) :
+  (List.drop (k.val + 1) δ).length + 1 = δ.length.succ - (k.val + 1) :=
+  by
+  simp
+  have : ∀ n, n ≠ 0 → (k.val < n) → n - (k.val + 1) + 1 = n - k.val := by
+    intro n n_no_zero k_lt_n
+    induction n
+    · simp_all
+    case succ j IH =>
+      simp_all
+      omega
+  apply this
+  aesop
+  aesop
+
+-- Helper, move elsewhere?
+-- Note: Mathlib.Vector is soon called List.Vector
+theorem Vector.get_succ_eq_head_drop {v : Mathlib.Vector α n.succ} (k : Fin n) (j : Nat)
+    (h : (n.succ - (k.val + 1)) = j.succ) :
+    v.get k.succ = (h ▸ v.drop (k.val + 1)).head
+    := by
+  sorry
+
+/-- Soundness of loading and repeats: a tableau can immitate all moves in a model. -/
+-- Note that we mix induction' tactic and recursive calls __O.o__
 theorem loadedDiamondPaths (α : Program) {X : TNode}
   (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
   (root_free : X.isFree) -- ADDED / not/implicit in Notes?
@@ -1369,7 +1395,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       simp_all
     -- Now distinguish the two cases coming from `localLoadedDiamond`:
     rcases free_or_newLoadform with Y_is_Free
-                                  | ⟨F, δ, anf_in_Y, v_seq_w, v_F, Fδ_in_H⟩
+                                  | ⟨F, δ, anf_in_Y, v_seq_w, v_F, Fδ_in_H, Y_almost_free⟩
     · -- Leaving the cluster, easy case.
       refine ⟨s1, ?_, Or.inl ⟨?_, ?_⟩⟩
       · apply Relation.TransGen.single
@@ -1393,13 +1419,24 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
         · convert Y_is_Free
           unfold nodeAt
           rw [tabAt_s_def]
-    ·
-      -- Here is the interesting case: not leaving the cluster
-
+    · -- Second case of `localLoadedDiamond`.
+      -- If δ is empty then we have found the node we want.
+      by_cases δ = []
+      · subst_eqs
+        simp_all only [modelCanSemImplyList, AnyFormula.boxes_nil, relateSeq_nil]
+        subst_eqs
+        refine ⟨s1, Relation.TransGen.single (Or.inl t_s), Or.inr ⟨?_, v_s1, ?_⟩⟩
+        · convert anf_in_Y
+          unfold nodeAt
+          rw [tabAt_s_def]
+        · convert Y_almost_free
+          unfold nodeAt
+          rw [tabAt_s_def]
+      -- Now we have that δ is not empty.
+      -- FIXME: indent rest or use wlog above?
+      -- Here is the interesting case: not leaving the cluster.
       -- We get a sequence of worlds from the δ relation:
       rcases (relateSeq_iff_exists_Vector M δ v w).mp v_seq_w with ⟨ws, v_def, w_def, ws_rel⟩
-
-      -- IDEA: already before claim we should have that Y without δ is free?
 
       -- Claim for an inner induction on the list δ.
       have claim : ∀ k : Fin δ.length.succ, -- Note the succ here!
@@ -1410,7 +1447,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
         intro k
         induction k using Fin.inductionOn
         case zero =>
-          simp
+          simp only [Nat.succ_eq_add_one, Fin.val_zero, List.drop_zero, Fin.getElem_fin]
           refine ⟨s1, ?_, Or.inr ⟨?_, ?_, ?_⟩⟩
           · exact Relation.TransGen.single (Or.inl t_s)
           · unfold nodeAt
@@ -1426,14 +1463,6 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
             simp
             cases δ
             · simp_all
-              -- v = w = ws.last
-              subst_eqs
-              cases ξ
-              · -- ξ was normal
-                -- How do we know that there is no other loaded formula in `Y` now?
-                sorry
-              · apply TNode.without_loaded_in_side_isFree
-                convert anf_in_Y
             case cons d δ =>
               simp
               apply TNode.without_loaded_in_side_isFree
@@ -1467,9 +1496,28 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
                 rw [SemImplyAnyNegFormula_loadBoxes_iff]
                 refine ⟨w, ?_, w_nξ⟩
                 rw [relateSeq_iff_exists_Vector]
-                use ⟨ws.val.drop k, sorry⟩
-                -- hmm? should be easy.
-                sorry)
+                simp only [Fin.val_succ, Nat.succ_eq_add_one, List.get_eq_getElem,
+                  List.getElem_drop, Fin.coe_eq_castSucc]
+                -- need a vector of length `δ.length - (k+1) + 1`
+                -- `ws` has length `δ.length + 1`
+                -- Hence we use `ws.drop (k + 1)`
+                have : (List.drop (↑k + 1) δ).length + 1 = δ.length.succ - (↑k + 1) :=
+                  by apply List.nonempty_drop_sub_succ; aesop
+                -- cool that Mathlib.Vector.drop exists!
+                refine ⟨this ▸ ws.drop (k + 1), ?_, ?_, ?_⟩
+                · simp_all
+                  apply Vector.get_succ_eq_head_drop
+                · subst w_def
+                  -- Lemma: (v.drop _).last = v.last ???
+                  sorry
+                · simp_all
+                  intro i
+                  -- use `ws_rel` here somehow?
+                  have := ws_rel ⟨k.val + 1 + i.val, by sorry⟩
+                  convert this using 1
+                  · sorry
+                  · sorry
+                )
 
             clear _forTermination
 
