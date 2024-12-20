@@ -1,3 +1,5 @@
+-- Syntax (Section 2.1)
+
 import Pdl.Syntax
 
 import Mathlib.Data.Finset.Basic

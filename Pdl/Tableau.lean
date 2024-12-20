@@ -1,4 +1,4 @@
--- TABLEAU
+-- PDL Tableau (Section 4)
 
 import Mathlib.Data.List.ReduceOption
 

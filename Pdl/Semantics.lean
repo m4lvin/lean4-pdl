@@ -1,3 +1,5 @@
+-- Semantics (Section 2.2)
+
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Vector.Basic
 import Mathlib.Data.Set.Lattice
@@ -208,7 +210,7 @@ theorem tautImp_iff_comboNotUnsat {φ ψ : Formula} :
   by
   simp [formCanSemImplyForm, semImpliesLists, satisfiable, evaluate]
 
-theorem relate_steps : ∀ x z, relate M (Program.steps (as ++ bs)) x z  ↔
+theorem relate_steps_append : ∀ x z, relate M (Program.steps (as ++ bs)) x z  ↔
   ∃ y, relate M (Program.steps as) x y ∧ relate M (Program.steps bs) y z :=
   by
   induction as

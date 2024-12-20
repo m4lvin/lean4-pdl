@@ -1,4 +1,4 @@
--- LOCAL TABLEAU
+-- LOCAL TABLEAU (Section 3)
 
 import Mathlib.Algebra.Order.BigOperators.Group.List
 

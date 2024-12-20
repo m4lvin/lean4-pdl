@@ -1,4 +1,4 @@
--- Local unfolding of diamonds
+-- Local unfolding of diamonds (Section 3.2)
 
 import Mathlib.Tactic.Linarith
 

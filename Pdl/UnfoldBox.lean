@@ -1,4 +1,4 @@
--- Local unfolding of boxes
+-- Local unfolding of boxes (Section 3.1)
 
 import Mathlib.Data.Fintype.Pi
 import Mathlib.Tactic.Linarith
