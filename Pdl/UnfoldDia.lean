@@ -1,6 +1,6 @@
 -- Local unfolding of diamonds
 
--- import Mathlib.Data.Fintype.Pi
+import Mathlib.Tactic.Linarith
 
 import Pdl.Substitution
 import Pdl.Fresh
@@ -197,6 +197,70 @@ theorem keepFreshH α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ H α → x ∉ F.f
       subst def_l
       have IHα := keepFreshH α x_notin F' δ' Fδ'_in_Hα
       cases em (δ' = []) <;> simp_all
+
+-- FIXME is this in the notes? implicit somewhere?
+theorem H_goes_down_prog (α : Program) {Fs δ} (in_H : (Fs, δ) ∈ H α) {γ} (in_δ: γ ∈ δ) :
+  (if α.isAtomic then γ = α else if α.isStar
+    then lengthOfProgram γ ≤ lengthOfProgram α
+    else lengthOfProgram γ < lengthOfProgram α) := by
+  cases α
+  · simp_all [H, Program.isAtomic]
+  case sequence α β =>
+    simp only [Program.isAtomic, Bool.false_eq_true, ↓reduceIte, Program.isStar, lengthOfProgram]
+    simp only [H, List.mem_flatten, List.mem_map, Prod.exists] at in_H
+    rcases in_H with ⟨l, ⟨Fs', δ', in_H, def_l⟩, in_l⟩
+    · subst def_l
+      by_cases δ' = []
+      · subst_eqs
+        simp_all only [List.nil_append, ite_true, List.mem_flatten, List.mem_map, Prod.exists]
+        rcases in_l with ⟨l, ⟨Fs'', δ'', in_Hβ, def_l⟩, in_l⟩
+        subst def_l
+        simp only [List.mem_singleton, Prod.mk.injEq] at in_l
+        cases in_l
+        subst_eqs
+        have IHβ := H_goes_down_prog β in_Hβ in_δ
+        cases β
+        all_goals
+          simp_all [H, lengthOfProgram, List.attach_map_val, Program.isAtomic, Program.isStar]
+          try linarith
+      · simp_all only [ite_false, List.mem_singleton, Prod.mk.injEq, List.mem_append]
+        cases in_l
+        subst_eqs
+        rcases in_δ with bla | γ_eq_β
+        · have IHα := H_goes_down_prog α in_H bla
+          cases α
+          all_goals
+            simp_all [H, lengthOfProgram, List.attach_map_val, Program.isAtomic, Program.isStar]
+            try linarith
+        · subst γ_eq_β
+          linarith
+  case union α β =>
+    simp only [Program.isAtomic, Bool.false_eq_true, ↓reduceIte, Program.isStar, lengthOfProgram]
+    simp only [H, List.mem_union_iff] at in_H
+    rcases in_H with hyp | hyp
+    · have IHα := H_goes_down_prog α hyp in_δ
+      by_cases α.isAtomic <;> by_cases α.isStar <;> simp_all <;> linarith
+    · have IHβ := H_goes_down_prog β hyp in_δ
+      by_cases β.isAtomic <;> by_cases β.isStar <;> simp_all <;> linarith
+  case star α =>
+    simp only [Program.isAtomic, Bool.false_eq_true, ↓reduceIte, Program.isStar, lengthOfProgram]
+    simp only [H, List.empty_eq, List.cons_union, List.nil_union, List.mem_insert_iff,
+      Prod.mk.injEq, List.mem_flatten, List.mem_map, Prod.exists] at in_H
+    rcases in_H with _ | ⟨l, ⟨Fs', δ', in_H', def_l⟩, in_l⟩
+    · simp_all only [List.not_mem_nil]
+    · subst def_l
+      by_cases δ' = []
+      · simp_all
+      · simp_all only [ite_false, List.mem_singleton, Prod.mk.injEq, List.mem_append]
+        cases in_l
+        subst_eqs
+        rcases in_δ with hyp | hyp
+        · have IHα := H_goes_down_prog α in_H' hyp
+          by_cases α.isAtomic <;> by_cases α.isStar <;> simp_all <;> linarith
+        · subst hyp
+          simp [lengthOfProgram]
+  case test τ =>
+    simp_all [H, testsOfProgram, List.attach_map_val]
 
 -- NOTE: this intermediate definition is no longer in the notes.
 def Yset : (List Formula × List Program) → Formula → List Formula
