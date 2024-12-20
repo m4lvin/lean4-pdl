@@ -1329,7 +1329,7 @@ lemma Vector.get_succ_eq_head_drop {v : Mathlib.Vector α n.succ} (k : Fin n) (j
   simp [Mathlib.Vector.get, Mathlib.Vector.drop]
   have := @List.head_drop _ l (k + 1) (by simp; omega)
   apply Eq.symm
-  -- How can I get the `h` out? Should I use HEq here?
+  -- How can I get the `h` out? Should I use HEq here? No!
   sorry
 
 lemma Vector.drop_last_eq_last {v : Mathlib.Vector α n.succ} (k : Fin n) (j : Nat)
@@ -1344,6 +1344,57 @@ lemma Vector.drop_get_eq_get_add {n : Nat} (v : Mathlib.Vector α n) (k : Nat)
     (v.drop k).get i = v.get ⟨k + i.val, still_lt⟩ := by
   rcases v with ⟨l, l_prop⟩
   simp [Mathlib.Vector.get, Mathlib.Vector.drop]
+
+theorem boxes_true_at_k_of_Vector_rel {W : Type} {M : KripkeModel W} (ξ : AnyFormula)
+    (δ : List Program) (h : ¬δ = [])
+    (ws : Mathlib.Vector W δ.length.succ)
+    (ws_rel : ∀ (i : Fin δ.length), relate M (δ.get i) (ws.get ↑↑i) (ws.get i.succ))
+    (k : Fin δ.length) (w_nξ : (M, ws.last)⊨~''ξ) :
+    (M, ws.get k.succ)⊨~''(AnyFormula.loadBoxes (List.drop (↑k.succ) δ) ξ) := by
+  rw [SemImplyAnyNegFormula_loadBoxes_iff]
+  refine ⟨ws.last, ?_, w_nξ⟩
+  rw [relateSeq_iff_exists_Vector]
+  simp only [Fin.val_succ, Nat.succ_eq_add_one, List.get_eq_getElem,
+    List.getElem_drop, Fin.coe_eq_castSucc]
+  -- need a vector of length `δ.length - (k+1) + 1`
+  -- `ws` has length `δ.length + 1`
+  -- Hence we use `ws.drop (k + 1)`
+  have drop_len_eq : (List.drop (↑k + 1) δ).length + 1 = δ.length.succ - (↑k + 1) :=
+    by apply List.nonempty_drop_sub_succ; aesop
+  -- cool that Mathlib.Vector.drop exists!
+  refine ⟨drop_len_eq ▸ ws.drop (k + 1), ?_, ?_, ?_⟩
+  · simp_all only [modelCanSemImplyList, List.get_eq_getElem, Nat.succ_eq_add_one, Fin.coe_eq_castSucc,
+      Fin.coe_castSucc, Fin.getElem_fin]
+    apply Vector.get_succ_eq_head_drop
+  · simp [Vector.drop_last_eq_last]
+  · simp_all only [modelCanSemImplyList, List.get_eq_getElem, Nat.succ_eq_add_one,
+    Fin.coe_eq_castSucc, Fin.coe_castSucc, Fin.getElem_fin]
+    intro i
+    -- It remains to use `ws_rel`. Just dealing with Vector and Fin issues now.
+    have still_lt : ↑k + 1 + ↑i < δ.length := by
+      rcases k with ⟨k_val, k_prop⟩
+      rcases i with ⟨i_val, i_prop⟩
+      simp at i_prop
+      omega
+    have still_rel := ws_rel ⟨↑k + 1 + ↑i, still_lt⟩
+    simp only [Fin.castSucc_mk, Fin.succ_mk] at still_rel
+    convert still_rel using 1
+    · have : (δ.drop (↑k + 1)).length + 1 = δ.length.succ - (↑k + 1) := by omega
+      have := Vector.drop_get_eq_get_add ws (↑k + 1) (this ▸ i) (by omega)
+      simp only [Nat.succ_eq_add_one, Fin.coe_eq_castSucc] at this
+      convert this using 1
+      · rcases i with ⟨i_val, i_prop⟩ -- to remove casSucc
+        simp only [Fin.castSucc_mk]
+        -- Almost rfl, how to deal with the ▸  here?
+        -- Note: this is NOT an HEq problem.
+        sorry
+      · rcases i with ⟨i_val, i_prop⟩ -- to remove casSucc
+        simp only [Fin.castSucc_mk]
+        convert rfl using 4
+        -- Again, only ▸ left here, what to do?
+        sorry
+    · -- analogous to previous thing?
+      sorry
 
 -- Needed for `lake build` to succeed, but not in VSc apparently?
 set_option maxHeartbeats 2000000
@@ -1388,12 +1439,12 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
   -- Notes first take care of cases where rule is applied to non-loaded formula.
   -- For this, we need to distinguish what happens at `t`.
   rcases tabAt_t_def : tabAt t with ⟨Hist, Z, tZ⟩
-  cases tZ -- generalizing α ξ -- TODO or use induction here instead of δ induction below? (???)
+  cases tZ
   -- applying a local or a pdl rule or being a repeat?
   case loc ltZ next =>
     clear IH -- not used here, that one is only for the repeats
     have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
-    have locLD := localLoadedDiamond α ltZ v_α_w (this ▸ v_t) _ (this ▸negLoad_in) w_nξ
+    have locLD := localLoadedDiamond α ltZ v_α_w (this ▸ v_t) _ (this ▸ negLoad_in) w_nξ
     clear this
     rcases locLD with ⟨Y, Y_in, w_Y, free_or_newLoadform⟩
     -- We are given end node, now define path to it
@@ -1506,7 +1557,25 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
               -- TODO: Show that length went down.
               -- ! Needs better `H_goes_down` similar to `P_goes_down`.
               -- ! Only true when α is a test, union or semicolon ==> need separate case for star!
-              sorry
+              have := H_goes_down_prog α Fδ_in_H (by aesop : δ.get k ∈ δ)
+              cases α
+              all_goals
+                simp [Program.isAtomic, Program.isStar, lengthOfProgram] at *
+                try linarith
+              case atom_prog =>
+                rw [this]
+                simp [Program.isAtomic, Program.isStar, lengthOfProgram] at *
+                -- PROBLEM
+                -- should length of atom be 0 or 1?
+                -- OR
+                -- can we argue here that k should not large? / reach a contradiction?
+                -- OR
+                -- do we want that `loc` or something else on the way to here should not be allowed for when α is atomic???
+                sorry
+              case star =>
+                -- Here is the **star case** that needs an additional induction and minimality.
+                -- See notes!
+                sorry
 
             have outer_IH := @loadedDiamondPaths (δ.get k) _ tab root_free sk W M
               (ws.get k.castSucc) (ws.get k.succ) wsk_sk
@@ -1514,52 +1583,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
               side
               (by convert _in_node_sk; rw [←AnyFormula.loadBoxes_cons]; convert rfl using 2; simp)
               (by convert ws_rel k; simp)
-              (by
-                rw [SemImplyAnyNegFormula_loadBoxes_iff]
-                refine ⟨w, ?_, w_nξ⟩
-                rw [relateSeq_iff_exists_Vector]
-                simp only [Fin.val_succ, Nat.succ_eq_add_one, List.get_eq_getElem,
-                  List.getElem_drop, Fin.coe_eq_castSucc]
-                -- need a vector of length `δ.length - (k+1) + 1`
-                -- `ws` has length `δ.length + 1`
-                -- Hence we use `ws.drop (k + 1)`
-                have drop_len_eq : (List.drop (↑k + 1) δ).length + 1 = δ.length.succ - (↑k + 1) :=
-                  by apply List.nonempty_drop_sub_succ; aesop
-                -- cool that Mathlib.Vector.drop exists!
-                refine ⟨drop_len_eq ▸ ws.drop (k + 1), ?_, ?_, ?_⟩
-                · simp_all only [modelCanSemImplyList, List.get_eq_getElem, Nat.succ_eq_add_one, Fin.coe_eq_castSucc,
-                    Fin.coe_castSucc, Fin.getElem_fin]
-                  apply Vector.get_succ_eq_head_drop
-                · subst w_def
-                  simp [Vector.drop_last_eq_last]
-                · simp_all only [modelCanSemImplyList, List.get_eq_getElem, Nat.succ_eq_add_one,
-                  Fin.coe_eq_castSucc, Fin.coe_castSucc, Fin.getElem_fin]
-                  intro i
-                  -- It remains to use `ws_rel`. Just dealing with Vector and Fin issues now.
-                  have still_lt : ↑k + 1 + ↑i < δ.length := by
-                    rcases k with ⟨k_val, k_prop⟩
-                    rcases i with ⟨i_val, i_prop⟩
-                    simp at i_prop
-                    omega
-                  have still_rel := ws_rel ⟨↑k + 1 + ↑i, still_lt⟩
-                  simp only [Fin.castSucc_mk, Fin.succ_mk] at still_rel
-                  convert still_rel using 1
-                  · have : (δ.drop (↑k + 1)).length + 1 = δ.length.succ - (↑k + 1) := by omega
-                    have := Vector.drop_get_eq_get_add ws (↑k + 1) (this ▸ i) (by omega)
-                    simp only [Nat.succ_eq_add_one, Fin.coe_eq_castSucc] at this
-                    convert this using 1
-                    · rcases i with ⟨i_val, i_prop⟩ -- to remove casSucc
-                      simp only [Fin.castSucc_mk]
-                      -- Almost rfl, how to deal with the ▸  here?
-                      sorry
-                    · rcases i with ⟨i_val, i_prop⟩ -- to remove casSucc
-                      simp only [Fin.castSucc_mk]
-                      convert rfl using 4
-                      -- Again, only ▸ left here, what to do?
-                      sorry
-                  · -- analogous to previous thing?
-                    sorry
-                )
+              (by apply boxes_true_at_k_of_Vector_rel <;> simp_all)
 
             clear _forTermination
 
