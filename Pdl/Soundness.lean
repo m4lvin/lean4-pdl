@@ -1302,40 +1302,72 @@ lemma TNode.isLoaded_of_negAnyFormula_loaded {α ξ side} {X : TNode}
     all_goals
       simp_all [isLoaded]
 
--- Helper, move elsewhere?
+-- Some helper lemmas about `List` and `Vector`, move elsewhere?
+
 lemma List.nonempty_drop_sub_succ (δ_not_empty : δ ≠ []) (k : Fin δ.length) :
   (List.drop (k.val + 1) δ).length + 1 = δ.length.succ - (k.val + 1) :=
   by
   simp
   have : ∀ n, n ≠ 0 → (k.val < n) → n - (k.val + 1) + 1 = n - k.val := by
     intro n n_no_zero k_lt_n
-    induction n
-    · simp_all
-    case succ j IH =>
-      simp_all
-      omega
-  apply this
-  aesop
-  aesop
+    induction n <;> simp_all
+    omega
+  apply this <;> aesop
 
--- Some helper lemmas about Vectors, move elsewhere?
 -- Note: `Mathlib.Vector` is soon renamed to `List.Vector`.
 
+lemma Vector.my_cast_head (n m : Nat) (v : Mathlib.Vector α n.succ) (h : n = m) :
+    (h ▸ v).head = v.head := by subst h; simp
+
+lemma Vector.my_cast_eq_val_head (n m : Nat) (v : Mathlib.Vector α n.succ) (h : n = m) h2 :
+    (h ▸ v).head = v.1.head h2 := by
+  rcases v with ⟨l,l_prop⟩
+  rw [Vector.my_cast_head]
+  induction l <;> simp_all
+  · exfalso; aesop
+  · aesop
+
+lemma Vector.my_drop_succ_cons {α} {m n : ℕ} (x : α) (t : List α) h (hyp : m < n) :
+    let help : (n + 1 - (m + 1)) = n - m := by omega
+    Mathlib.Vector.drop (m + 1) (⟨x :: t, h⟩ : Mathlib.Vector α n.succ)
+    = help ▸ Mathlib.Vector.drop m ⟨t, by simp at h; exact h⟩ := by
+  simp [Mathlib.Vector.drop]
+  ext k
+  rcases k with ⟨k, k_lt⟩
+  simp [Mathlib.Vector.get]
+  sorry
+
 lemma Vector.get_succ_eq_head_drop {v : Mathlib.Vector α n.succ} (k : Fin n) (j : Nat)
-    (h : (n.succ - (k.val + 1)) = j.succ) :
+    (h : (n + 1 - (k.val + 1)) = j + 1) :
     v.get k.succ = (h ▸ v.drop (k.val + 1)).head
     := by
   rcases v with ⟨l, l_prop⟩
-  simp [Mathlib.Vector.get, Mathlib.Vector.drop]
-  have := @List.head_drop _ l (k + 1) (by simp; omega)
-  apply Eq.symm
-  -- How can I get the `h` out? Should I use HEq here? No!
-  sorry
-
-lemma Vector.drop_last_eq_last {v : Mathlib.Vector α n.succ} (k : Fin n) (j : Nat)
-    (h : (n.succ - (k + 1)) = j.succ) :
-    (h ▸ v.drop (k + 1)).last = v.last := by
-  sorry
+  induction l generalizing n
+  · exfalso
+    aesop
+  case cons he ta IH =>
+    simp only [Nat.succ_eq_add_one] at IH
+    rw [← Mathlib.Vector.get_tail_succ]
+    simp only [Mathlib.Vector.tail]
+    cases n
+    · exfalso
+      cases k
+      linarith
+    case succ n =>
+      cases k using Fin.cases
+      · rw [Vector.my_drop_succ_cons]
+        · simp [Mathlib.Vector.drop]
+          convert rfl using 2 <;> simp_all
+        · simp
+      case succ k =>
+        specialize @IH n k (by simp_all) (by simp_all)
+        simp only [Nat.succ_eq_add_one, Nat.add_one_sub_one, Fin.val_succ]
+        rw [IH]
+        clear IH
+        rw [Vector.my_drop_succ_cons]
+        convert rfl
+        simp only [eqRec_heq_iff_heq, heq_eq_eq]
+        omega
 
 /-- A Vector analogue of `List.getElem_drop`. -/
 lemma Vector.drop_get_eq_get_add {n : Nat} (v : Mathlib.Vector α n) (k : Nat)
@@ -1344,6 +1376,28 @@ lemma Vector.drop_get_eq_get_add {n : Nat} (v : Mathlib.Vector α n) (k : Nat)
     (v.drop k).get i = v.get ⟨k + i.val, still_lt⟩ := by
   rcases v with ⟨l, l_prop⟩
   simp [Mathlib.Vector.get, Mathlib.Vector.drop]
+
+-- FIXME is this in mathlib?
+lemma Fin.my_cast_val (n m : Nat) (h : n = m) (j_lt : j < n) :
+    (h ▸ ( ⟨j, j_lt⟩ : Fin n)).val = j := by
+  aesop
+
+lemma Vector.drop_last_eq_last {v : Mathlib.Vector α n.succ} (k : Fin n) (j : Nat)
+    (h : (n.succ - (k + 1)) = j.succ) :
+    (h ▸ v.drop (k + 1)).last = v.last := by
+  unfold Mathlib.Vector.last
+  have := Vector.drop_get_eq_get_add v (k.val + 1) (h ▸ Fin.last j) (by omega)
+  convert this using 2
+  · linarith
+  · simp
+  · simp
+  · ext
+    unfold Fin.last
+    rcases k with ⟨k, k_lt⟩
+    simp only [Nat.succ_eq_add_one]
+    simp only [Nat.succ_eq_add_one, Nat.reduceSubDiff] at h
+    rw [Fin.my_cast_val (j + 1) (n + 1 - (k + 1)) (by linarith) (Nat.lt_succ_self j)]
+    omega
 
 theorem boxes_true_at_k_of_Vector_rel {W : Type} {M : KripkeModel W} (ξ : AnyFormula)
     (δ : List Program) (h : ¬δ = [])
