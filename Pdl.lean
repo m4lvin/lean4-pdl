@@ -2,7 +2,6 @@
 -- Import modules here that should be built as part of the library.
 import «Pdl».Syntax
 import «Pdl».Measures
-import «Pdl».LoadSplit
 -- import «Pdl».FischerLadner
 import «Pdl».Star
 import «Pdl».Semantics

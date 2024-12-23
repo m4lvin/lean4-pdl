@@ -1,12 +1,11 @@
--- SOUNDNESS
-
-import Pdl.Tableau
-import Pdl.LoadSplit
+-- Soundness (Section 6)
 
 import Mathlib.Logic.Relation
 import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Convert
 import Mathlib.Data.Prod.Lex
+
+import Pdl.Tableau
 
 open Classical
 
