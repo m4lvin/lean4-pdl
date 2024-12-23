@@ -6,7 +6,6 @@ import Mathlib.Data.Vector.Snoc
 
 import Pdl.Semantics
 import Pdl.Star
-import Pdl.UnfoldBox
 
 open HasSat
 
@@ -192,17 +191,3 @@ theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a
     · exact w_aS_u
     · exact IH
     · assumption
-
-/-! ### UnfoldBox example -/
-
--- 1 = a
--- 2 = b
--- 0 = p
-def myalpha : Program := ( (·1 : Program) ⋓ (?'(·0 : Formula)) ;' (∗(·2 : Program)))
-
-def myTP0 : TP myalpha := fun _ => False
-def myTP1 : TP myalpha := fun _ => True
-
--- #eval P myalpha myTP0 -- [[a, b*]]
-
--- #eval P myalpha myTP1 -- [[a, ∗b], [], [b, ∗b]]

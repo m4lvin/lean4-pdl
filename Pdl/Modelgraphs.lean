@@ -1,8 +1,8 @@
--- MODELGRAPHS
+-- Saturated sets and model graphs (Section 7.1)
+
 import Mathlib.Tactic.ClearExcept
 import Mathlib.Data.Vector.Basic
 
-import Pdl.Semantics
 import Pdl.UnfoldBox
 import Pdl.UnfoldDia
 

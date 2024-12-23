@@ -1,9 +1,8 @@
+-- Substitution and Helper Lemmas (Sections 2.1 and 2.2)
 
-import Pdl.Semantics
 import Pdl.Discon
 
--- ## Single-step replacing
--- For simultaneous substition, see below!
+/-! ## Single-step replacing -/
 
 mutual
   /-- Replace atomic proposition `x` by `ψ` in a formula. -/
@@ -220,8 +219,7 @@ theorem repl_in_disMap x ρ (L : List α) (p : α → Prop) (f : α → Formula)
   simp only [List.map_map]
   aesop
 
--- ## Substitutions
--- Simultaneous
+/-! ## Simultaneous Substitutions -/
 
 abbrev Substitution := Nat → Formula
 
@@ -306,7 +304,7 @@ theorem substitutionLemmaRel (σ : Substitution) α {W} (M : KripkeModel W) (w v
     exact IHφ
 end
 
--- ## Replacement of Equivalents and similar helpers
+/-! ## Semantic Equivalents -/
 
 /-
 -- This is *not* true because `frm` might be sneaky.
@@ -315,7 +313,7 @@ theorem wrong_equiv_repl φ1 φ2 (h : φ1 ≡ φ2) (frm : Formula → Formula) :
   sorry
 -/
 
--- if we replace `frm` with a special case then we get something true:
+/-- A true instance of `wrong_equiv_repl`, here we replaced `frm` with a special case. -/
 theorem equiv_con {φ1 φ2} (h : φ1 ≡ φ2) ψ :
     φ1 ⋀ ψ ≡ φ2 ⋀ ψ := by
   intro W M w

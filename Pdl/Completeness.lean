@@ -1,4 +1,4 @@
--- COMPLETENESS
+-- Completeness (Section 7)
 
 import Pdl.Soundness
 import Pdl.TableauGame
