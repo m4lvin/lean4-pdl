@@ -6,7 +6,6 @@ import Mathlib.Tactic.Linarith
 import Pdl.Substitution
 import Pdl.Fresh
 import Pdl.Star
--- import Pdl.FischerLadner
 
 -- ### Preparation for Boxes: Test Profiles
 
