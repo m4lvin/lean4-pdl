@@ -1,19 +1,23 @@
--- Completeness (Section 7)
+-- Completeness (Section 6)
 
 import Pdl.Soundness
 import Pdl.TableauGame
-import Pdl.Modelgraphs
 
 open HasSat
-
--- MB page 34
--- TODO: the type below is not correct, this may also be within / across a local tableau!?
-def relInTableau {H X} {ctX : Tableau H X} : PathIn ctX → PathIn ctX → Prop := sorry -- TODO
 
 theorem modelExistence: consistent X →
     ∃ (WS : Finset (Finset Formula)) (_ : ModelGraph WS) (W : WS), X.toFinset ⊆ W :=
   by
-  sorry
+  intro consX
+  have _ := Classical.decEq -- needed for DecidableEq as of now.
+  rcases gamedet tableauGame (Sum.inl X) with ProverHasWinningS | BuilderHasWinningS
+  · absurd consX
+    rcases ProverHasWinningS with ⟨sP, winning_sP⟩
+    simp_all [inconsistent]
+    exact gameP _ (sP) winning_sP
+  · rcases BuilderHasWinningS with ⟨sB, winning_sB⟩
+    rcases strmg X sB winning_sB with ⟨WS, mg, X_in_WS⟩
+    use WS, mg, ⟨X.toFinset, X_in_WS⟩
 
 theorem completeness : ∀ X, consistent X → satisfiable X :=
   by

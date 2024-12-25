@@ -149,6 +149,7 @@ inductive OneSidedLocalRule : List Formula → List (List Formula) → Type
   -- the two general local rules:
   | box (α φ) : (notAtom : ¬ α.isAtomic) → OneSidedLocalRule [ ⌈α⌉φ] (unfoldBox     α φ)
   | dia (α φ) : (notAtom : ¬ α.isAtomic) → OneSidedLocalRule [~⌈α⌉φ] (unfoldDiamond α φ)
+  deriving DecidableEq, Repr
 
 theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B :=
   by
@@ -179,6 +180,7 @@ theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B
 inductive LoadRule : NegLoadFormula → List (List Formula × Option NegLoadFormula) → Type
   | dia  {α χ} : (notAtom : ¬ α.isAtomic) → LoadRule (~'⌊α⌋(χ : LoadFormula)) (unfoldDiamondLoaded  α χ)
   | dia' {α φ} : (notAtom : ¬ α.isAtomic) → LoadRule (~'⌊α⌋(φ : Formula    )) (unfoldDiamondLoaded' α φ)
+  deriving DecidableEq, Repr
 
 /-- Given a LoadRule application, define the equivalent unloaded rule application.
 This allows re-using `oneSidedLocalRuleTruth` to prove `loadRuleTruth`. -/
@@ -227,6 +229,8 @@ inductive LocalRule : TNode → List TNode → Type
       LocalRule (∅, ∅, some (Sum.inl (~'χ))) $ ress.map $ λ (X, o) => (X, ∅, o.map Sum.inl)
   | loadedR (χ : LoadFormula) (lrule : LoadRule (~'χ) ress) :
       LocalRule (∅, ∅, some (Sum.inr (~'χ))) $ ress.map $ λ (X, o) => (∅, X, o.map Sum.inr)
+  deriving Repr
+  -- TODO -- deriving DecidableEq does not work with function in loadedL and loadedR
 
 -- mathlib this?
 @[simp]

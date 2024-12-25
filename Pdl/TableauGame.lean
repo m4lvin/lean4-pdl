@@ -1,13 +1,15 @@
 import Pdl.Game
 import Pdl.Tableau
+import Pdl.Modelgraphs
 
 /-! # The Tableau Game (Section 6.2) -/
 
-def Rule : Type := sorry
+def Rule : Type := Sum (Σ X B, LocalRuleApp X B) (Σ X Y, PdlRule X Y)
+  -- TODO deriving DecidableEq, Repr -- nice to have
 
 -- Renaming the players for the tableau game:
-def Prover : Player := Player.A
-def Builder : Player := Player.B
+notation "Prover" => Player.A
+notation "Builder" => Player.B
 
 def tableauGame : Game where
   Pos := Sum TNode (TNode × Formula × Rule) -- probably not enough, also need history to check for repeats?
@@ -16,12 +18,30 @@ def tableauGame : Game where
   bound := sorry
   bound_h := sorry
 
-/- ToDo list:
+-- TODO def strategy trees (or adjust already in `Game.lean`?)
 
-- define "match"
+-- TODO def pre-state
 
-- translate winning strategy of Prover to Tableau
+-- TODO cp1a
 
-- translate winning strategy of Builder to Kripke model
+-- TODO cp3
 
--/
+-- TODO cp1
+
+-- TODO cp2
+
+-- TODO cp4
+
+-- TODO cp5
+
+/-- If Prover has a winning strategy then there is a closed tableau. -/
+theorem gameP (X : TNode) (s : Strategy tableauGame Prover) (h : winning (Sum.inl X) s) :
+    Nonempty (Tableau [] X) := by
+  sorry
+
+/-! # From winning strategies to model graphs (Section 6.3) -/
+
+/-- If Builder has a winning strategy then there is a model graph. -/
+theorem strmg (X : TNode) (s : Strategy tableauGame Builder) (h : winning (Sum.inl X) s) :
+    ∃ (WS : Finset (Finset Formula)) (mg : ModelGraph WS), X.toFinset ∈ WS := by
+  sorry

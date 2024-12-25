@@ -1,4 +1,4 @@
--- Interpolation (Section 8)
+-- Interpolation (Section 7)
 
 import Mathlib.Data.Finset.Basic
 
