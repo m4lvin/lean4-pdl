@@ -1,3 +1,5 @@
+-- Interpolants for Partitions (big part of Section 7)
+
 import Mathlib.Data.Finset.Basic
 
 import Pdl.Completeness
@@ -23,10 +25,6 @@ def isPartInterpolant (X : TNode) (θ : Formula) :=
   θ.voc ⊆ jvoc X ∧ (¬ satisfiable ((~θ) :: X.left) ∧ ¬ satisfiable (θ :: X.right))
 
 def PartInterpolant (N : TNode) := Subtype <| isPartInterpolant N
-
--- TODO move elsewhere
-theorem Formula.voc_boxes : (⌈⌈δ⌉⌉φ).voc = δ.pvoc ∪ φ.voc := by
-  sorry
 
 -- move to UnfoldBox.lean ?
 theorem unfoldBox_voc {x α φ} {L} (L_in : L ∈ unfoldBox α φ) {ψ} (ψ_in : ψ ∈ L)
@@ -129,7 +127,7 @@ theorem localRuleApp_does_not_increase_jvoc (ruleA : LocalRuleApp X C) :
     sorry
 
 /-- Maehara's method for local rule applications.
-This is `easyItp` for singleton clusters in the notes, but not only. -/
+This is `itpLeaves` for singleton clusters in the notes, but not only. -/
 def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) C)
     (subθs : Π c ∈ C, PartInterpolant c)
     : PartInterpolant (L,R,o) := by
