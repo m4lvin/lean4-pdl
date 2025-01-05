@@ -35,13 +35,13 @@ def tableauGame : Game where
 -- TODO cp5
 
 /-- If Prover has a winning strategy then there is a closed tableau. -/
-theorem gameP (X : TNode) (s : Strategy tableauGame Prover) (h : winning (Sum.inl X) s) :
+theorem gameP (X : TNode) (s : Strategy tableauGame Prover) (h : winning [Sum.inl X] s) :
     Nonempty (Tableau [] X) := by
   sorry
 
 /-! # From winning strategies to model graphs (Section 6.3) -/
 
 /-- If Builder has a winning strategy then there is a model graph. -/
-theorem strmg (X : TNode) (s : Strategy tableauGame Builder) (h : winning (Sum.inl X) s) :
+theorem strmg (X : TNode) (s : Strategy tableauGame Builder) (h : winning [Sum.inl X] s) :
     ∃ (WS : Finset (Finset Formula)) (mg : ModelGraph WS), X.toFinset ∈ WS := by
   sorry
