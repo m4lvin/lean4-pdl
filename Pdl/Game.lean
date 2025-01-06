@@ -330,15 +330,13 @@ lemma winning_here_then_winning_inMyCone {g : Game} [DecidableEq g.Pos] (sI : St
     exact win_q_j
 
 /-- In its cone from here, `sI` does what one of `sIset` would do. -/
+-- unused, delete?
 def subset_from_here {g : Game} [DecidableEq g.Pos]
     (sI : Strategy g i) (sIset : Finset (Strategy g i)) (p : g.His) :=
   ∀ (q : g.His), inMyCone sI p q
     → (i_turn : Game.turn q = i)
     → (has_moves : Game.moves q ≠ ∅)
     → sI q i_turn has_moves ∈ sIset.image (fun sI' => sI' q i_turn has_moves)
-
--- Need something like a multi-strategy version of `winning_here_then_winning_inMyCone`?
--- ?? If all those strategies are winning here, then they are winning in each others cone ??
 
 /-- If a strategy in its own cone from `p` always goes to not-yet-lost states for which there
 exists some winning strategy, then it is winning at `p`. -/
@@ -481,9 +479,25 @@ noncomputable def combo (g : Game) [DecidableEq g.Pos] (p : g.His)
     let mys := sNext ⟨y, this.2⟩
     exact mys _ my_turn has_moves
 
--- TODO lemma that the combo strategy does the same as the stratFor when inMyCone
-    -- (whose_turn : g.turn p = other i)
-    -- (s_Next_winning : ∀ pNext, winning (pNext.val :: p) (sNext pNext : Strategy g i))
+/-- The combined strategy does the same as the chosen stratFor when inMyCone. -/
+lemma stratFor_does_same_as_combo {i : Player} (g : Game) [inst : DecidableEq Game.Pos]
+    (p q : g.His)
+    (whose_turn : g.turn p = other i)
+    (stratFor : { x // x ∈ Game.moves p } → Strategy g i)
+    (has_moves : g.moves q ≠ ∅)
+    (nextP : { x // x ∈ g.moves p })
+    (q_turn_i : g.turn q = i)
+    (q_in : inMyCone (stratFor nextP) (nextP.val :: p) ((stratFor nextP q q_turn_i has_moves).val :: q))
+    : stratFor nextP q q_turn_i has_moves = combo g p stratFor q q_turn_i has_moves := by
+  -- TODO
+  -- unfold combo -- bad idea
+  -- better need two separate lemmas:
+  -- 1. convert `inMyCone` to prefix
+  -- 2. combo does the same after prefix
+  -- oh, we already have poin 1. apparently?
+  have := inMyCone_then_exists_prefix q_in
+  rcases this with ⟨l, l_nextP_p__eq__stratFor_q⟩
+  sorry
 
 /-- Second helper for `gamedet'`. -/
 theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.Pos]
@@ -534,7 +548,7 @@ theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.
         unfold s
         convert rfl using 3
         -- remains to show that the combo strategy does the same as the stratFor when inMyCone
-        sorry
+        apply stratFor_does_same_as_combo <;> assumption
     · let nextQ := sJ q ?_ ?_ -- sJ, not s here
       change winner s sJ (nextQ :: q) = i
       apply IH (g.bound (nextQ :: q)) ?_ nextP.val ?_ (nextQ :: q) ?_ rfl
