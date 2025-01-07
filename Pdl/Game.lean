@@ -441,31 +441,32 @@ theorem splitter_def [DecidableEq α] {y : α} (def_l : (splitter xs y m) = some
       aesop
 
 /-- Split a list if it has one of the given non-empty suffixes that all have the same tail. -/
-def multi_splitter [DecidableEq α] : (xs : List α) → (ys : Finset α) → List α → Option (α × List α)
+def multi_splitter [DecidableEq α] : (xs : List α) → (ys : Finset α) → List α → Option (ys × List α)
 | [], _, _ => none
-| x::xs, ys, m => if x ∈ ys
-                  then (if xs = m then some (x,[]) else none)
-                  else match multi_splitter xs ys m with
-                    | none => none
-                    | some (y,rest) => (y, x :: rest)
+| x::xs, ys, m => if x_in : x ∈ ys
+                  then (if xs = m then some (⟨x,x_in⟩,[]) else none)
+                  else (multi_splitter xs ys m).elim none (fun (y,rest) => (y, x :: rest))
 
-theorem multi_splitter_def [DecidableEq α] {y : α}
+theorem multi_splitter_def [DecidableEq α] {ys : Finset α} {y : ys}
     (def_l : multi_splitter xs ys m = some (y, l))
-    : xs = l ++ y :: m ∧ y ∈ ys := by
+    : xs = l ++ y.val :: m := by
   induction xs generalizing l y m
   · simp_all [multi_splitter]
   case cons x xs IH =>
     by_cases h : x ∈ ys <;> simp_all [multi_splitter]
-    cases h : multi_splitter xs ys m
-    · simp_all
-    case neg.some not_n_ys yl2 =>
-      specialize @IH m yl2.2 yl2.1 h
-      constructor <;> aesop
+    · rcases def_l with ⟨_,_,_⟩
+      subst_eqs
+      simp
+    · cases h : multi_splitter xs ys m
+      · simp_all
+      case neg.some not_n_ys yl2 =>
+        specialize @IH m yl2.2 yl2.1.1 yl2.1.2 h
+        aesop
 
-theorem multi_splitter_of_first_match [DecidableEq α] {y : α}
-    (xs_def : xs = l ++ y :: m)
-    ys
-    (y_in : y ∈ ys)
+theorem multi_splitter_of_first_match [DecidableEq α]
+    {ys : Finset α}
+    (y : ys)
+    (xs_def : xs = l ++ y.val :: m)
     (not_in_l : ∀ k ∈ l, k ∉ ys)
     : multi_splitter xs ys m = some (y, l):= by
   induction xs generalizing l
@@ -480,7 +481,8 @@ theorem multi_splitter_of_first_match [DecidableEq α] {y : α}
         simp at xs_def
         cases xs_def
         subst_eqs
-        tauto
+        absurd h
+        simp
       case cons z zs =>
         unfold multi_splitter
         simp [h]
@@ -496,8 +498,7 @@ noncomputable def combo_OLD (g : Game) [DecidableEq g.Pos] (p : g.His)
     exact Classical.choice Strategy.instNonempty pos my_turn has_moves
   case some yl =>
     rcases yl with ⟨y,l⟩
-    have := multi_splitter_def sp_def
-    let mys := sNext ⟨y, this.2⟩
+    let mys := sNext y
     exact mys _ my_turn has_moves
 
 /-- Combine strategies depending on choice made at `p`.
@@ -506,9 +507,9 @@ noncomputable def combo (g : Game) [DecidableEq g.Pos] (p : g.His)
     (sNext : (pNext : Game.moves p) → Strategy g i)
     : Strategy g i :=
   fun pos my_turn has_moves =>
-  match sp_def : multi_splitter pos (g.moves p) p with
-  | none => Classical.choice Strategy.instNonempty pos my_turn has_moves
-  | some ⟨y, _⟩ => sNext ⟨y, (multi_splitter_def sp_def).2⟩ _ my_turn has_moves
+  (multi_splitter pos (g.moves p) p).elim
+    (Classical.choice Strategy.instNonempty pos my_turn has_moves)
+    (fun ⟨y, _⟩ => sNext y _ my_turn has_moves)
 
 /-- The combined strategy does the same as the chosen stratFor when inMyCone. -/
 lemma stratFor_does_same_as_combo {i : Player} (g : Game) [inst : DecidableEq Game.Pos]
@@ -521,20 +522,17 @@ lemma stratFor_does_same_as_combo {i : Player} (g : Game) [inst : DecidableEq Ga
     -- (q_next_in : inMyCone (stratFor nextP) (nextP.val :: p) ((stratFor nextP q q_turn_i has_moves).val :: q)) -- too late / far down?
     (q_in : inMyCone (stratFor nextP) (nextP.val :: p) (q))
     : stratFor nextP q q_turn_i has_moves = combo g p stratFor q q_turn_i has_moves := by
-  -- TODO
-  -- unfold combo -- bad idea
-  -- better need two separate lemmas:
-  -- 1. convert `inMyCone` to prefix
-  -- 2. combo does the same after prefix  // relating multi_splitter to prefix?
-  -- oh, we already have poin 1. apparently?
   have := inMyCone_then_exists_prefix q_in
   rcases this with ⟨l, q__eq__l_nextP_p⟩
-  have := multi_splitter_of_first_match q__eq__l_nextP_p (g.moves p) (by simp) ?_
-  ·
-    unfold combo
-    -- rw [this] -- motive not type correct
+  have := multi_splitter_of_first_match nextP q__eq__l_nextP_p ?_
+  · unfold combo
+    rw [this]
+    simp
+  · -- PROBLEM: Need to ensure that after `nextP` no other move available at `p` can occur?
+    -- Should a history carry more information than just a list? (Like `Play` before?)
+    -- Or can we prove a lemma about multi_splitter that if there are no repeats then
+    -- the selected `y` must be the first of the `ys`?
     sorry
-  · sorry
 
 /-- Second helper for `gamedet'`. -/
 theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.Pos]
