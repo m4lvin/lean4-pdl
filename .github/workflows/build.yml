@@ -1,4 +1,4 @@
-# based on https://github.com/leanprover-community/lean-liquid/blob/master/.github/workflow/build.yml
+# based on https://github.com/leanprover-community/lean-liquid/blob/master/.github/workflows/build.yml
 # with additions from https://github.com/PatrickMassot/leanblueprint
 
 on:
