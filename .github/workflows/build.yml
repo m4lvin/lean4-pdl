@@ -30,9 +30,6 @@ jobs:
           ~/.elan/bin/lean --version
           echo "$HOME/.elan/bin" >> $GITHUB_PATH
 
-      - name: make pdl
-        run: make pdl
-
       - name: Cache both .lake/build folders
         uses: actions/cache@v4
         with:
@@ -41,6 +38,12 @@ jobs:
             docbuild/.lake/build
           key: lakeBuild-${{ hashFiles('lake-manifest.json') }}
           restore-keys: lakeBuild-
+
+      - name: Build Pdl
+        run: make pdl
+
+      - name: Build Bml
+        run: make bml
 
       - name: Build documentation
         run: make doc
@@ -67,24 +70,6 @@ jobs:
         if: github.ref == 'ref/head/main'
         id: deployment
         uses: actions/deploy-pages@v4
-
-  bml:
-    name: Build BML
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: ${{ env.GIT_HISTORY_DEPTH }}
-
-      - name: install elan
-        run: |
-          set -o pipefail
-          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- --default-toolchain none -y
-          ~/.elan/bin/lean --version
-          echo "$HOME/.elan/bin" >> $GITHUB_PATH
-
-      - name: make bml
-        run: make bml
 
   stats:
     name: Stats
