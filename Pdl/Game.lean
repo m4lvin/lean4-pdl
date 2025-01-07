@@ -406,7 +406,7 @@ lemma winning_if_imitating_some_winning {g : Game} (p : g.His) (s : Strategy g i
 
 -- Maybe this should be data, not existential prop?
 theorem inMyCone_then_exists_prefix { g : Game } { p q : g.His } { sI : Strategy g i } :
-    inMyCone sI p q → ∃ l : List g.Pos, l ++ p = q := by
+    inMyCone sI p q → ∃ l : List g.Pos, q = l ++ p := by
   intro q_in_p
   induction q_in_p
   case nil => simp
@@ -440,8 +440,8 @@ theorem splitter_def [DecidableEq α] {y : α} (def_l : (splitter xs y m) = some
       simp at def_l
       aesop
 
--- Split a list if it has one of the given non-empty suffixes (that all have the same tail).
-def multi_splitter [DecidableEq α] : (xs : List α) → (ys : Finset α) → (m : List α) → Option (α × List α)
+/-- Split a list if it has one of the given non-empty suffixes that all have the same tail. -/
+def multi_splitter [DecidableEq α] : (xs : List α) → (ys : Finset α) → List α → Option (α × List α)
 | [], _, _ => none
 | x::xs, ys, m => if x ∈ ys
                   then (if xs = m then some (x,[]) else none)
@@ -449,8 +449,9 @@ def multi_splitter [DecidableEq α] : (xs : List α) → (ys : Finset α) → (m
                     | none => none
                     | some (y,rest) => (y, x :: rest)
 
-theorem multi_splitter_def [DecidableEq α] {y : α} (def_l : multi_splitter xs ys m = some (y, l)) :
-    xs = l ++ y :: m ∧ y ∈ ys := by
+theorem multi_splitter_def [DecidableEq α] {y : α}
+    (def_l : multi_splitter xs ys m = some (y, l))
+    : xs = l ++ y :: m ∧ y ∈ ys := by
   induction xs generalizing l y m
   · simp_all [multi_splitter]
   case cons x xs IH =>
@@ -461,23 +462,53 @@ theorem multi_splitter_def [DecidableEq α] {y : α} (def_l : multi_splitter xs 
       specialize @IH m yl2.2 yl2.1 h
       constructor <;> aesop
 
--- TODO: def to combine strategies
--- given `pos` and that it is in the cone
--- Written in tactic mode for now, term mode would be better?
-noncomputable def combo (g : Game) [DecidableEq g.Pos] (p : g.His)
+theorem multi_splitter_of_first_match [DecidableEq α] {y : α}
+    (xs_def : xs = l ++ y :: m)
+    ys
+    (y_in : y ∈ ys)
+    (not_in_l : ∀ k ∈ l, k ∉ ys)
+    : multi_splitter xs ys m = some (y, l):= by
+  induction xs generalizing l
+  · simp_all
+  case cons x xs IH =>
+    by_cases x ∈ ys
+    case pos h =>
+      cases l <;> simp_all [multi_splitter, h]
+    case neg h =>
+      cases l
+      · exfalso
+        simp at xs_def
+        cases xs_def
+        subst_eqs
+        tauto
+      case cons z zs =>
+        unfold multi_splitter
+        simp [h]
+        rw [@IH zs] <;> simp_all
+
+-- to be deleted
+noncomputable def combo_OLD (g : Game) [DecidableEq g.Pos] (p : g.His)
     (sNext : (pNext : Game.moves p) → Strategy g i)
     : Strategy g i := by
   intro pos my_turn has_moves
-  -- Are we in a relevant cone?
   cases sp_def : multi_splitter pos (g.moves p) p
   case none =>
-    -- Do whatever, this part makes the def noncomputable and should never be used.
     exact Classical.choice Strategy.instNonempty pos my_turn has_moves
   case some yl =>
     rcases yl with ⟨y,l⟩
     have := multi_splitter_def sp_def
     let mys := sNext ⟨y, this.2⟩
     exact mys _ my_turn has_moves
+
+/-- Combine strategies depending on choice made at `p`.
+Noncomputable because of choice in `none` case, but that part should never be used. -/
+noncomputable def combo (g : Game) [DecidableEq g.Pos] (p : g.His)
+    (sNext : (pNext : Game.moves p) → Strategy g i)
+    : Strategy g i :=
+  fun pos my_turn has_moves =>
+  match sp_def : multi_splitter pos (g.moves p) p with
+  | none => Classical.choice Strategy.instNonempty pos my_turn has_moves
+  | some ⟨y, _⟩ => sNext ⟨y, (multi_splitter_def sp_def).2⟩ _ my_turn has_moves
 
 /-- The combined strategy does the same as the chosen stratFor when inMyCone. -/
 lemma stratFor_does_same_as_combo {i : Player} (g : Game) [inst : DecidableEq Game.Pos]
@@ -487,17 +518,23 @@ lemma stratFor_does_same_as_combo {i : Player} (g : Game) [inst : DecidableEq Ga
     (has_moves : g.moves q ≠ ∅)
     (nextP : { x // x ∈ g.moves p })
     (q_turn_i : g.turn q = i)
-    (q_in : inMyCone (stratFor nextP) (nextP.val :: p) ((stratFor nextP q q_turn_i has_moves).val :: q))
+    -- (q_next_in : inMyCone (stratFor nextP) (nextP.val :: p) ((stratFor nextP q q_turn_i has_moves).val :: q)) -- too late / far down?
+    (q_in : inMyCone (stratFor nextP) (nextP.val :: p) (q))
     : stratFor nextP q q_turn_i has_moves = combo g p stratFor q q_turn_i has_moves := by
   -- TODO
   -- unfold combo -- bad idea
   -- better need two separate lemmas:
   -- 1. convert `inMyCone` to prefix
-  -- 2. combo does the same after prefix
+  -- 2. combo does the same after prefix  // relating multi_splitter to prefix?
   -- oh, we already have poin 1. apparently?
   have := inMyCone_then_exists_prefix q_in
-  rcases this with ⟨l, l_nextP_p__eq__stratFor_q⟩
-  sorry
+  rcases this with ⟨l, q__eq__l_nextP_p⟩
+  have := multi_splitter_of_first_match q__eq__l_nextP_p (g.moves p) (by simp) ?_
+  ·
+    unfold combo
+    -- rw [this] -- motive not type correct
+    sorry
+  · sorry
 
 /-- Second helper for `gamedet'`. -/
 theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.Pos]
@@ -544,10 +581,10 @@ theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.
         have := inMyCone.myStep q_inMyCone (Finset.nonempty_iff_ne_empty.mp has_moves) turn_i
         unfold nextQ
         convert this using 1
-        -- Now we need that `s` does the same as `stratFor nextP` at `q`.
+        clear this
         unfold s
         convert rfl using 3
-        -- remains to show that the combo strategy does the same as the stratFor when inMyCone
+        -- Remains to show that `combo ...` does the same as the `stratFor nextP` at `q`.
         apply stratFor_does_same_as_combo <;> assumption
     · let nextQ := sJ q ?_ ?_ -- sJ, not s here
       change winner s sJ (nextQ :: q) = i
