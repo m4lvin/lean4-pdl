@@ -46,29 +46,29 @@ jobs:
         run: make bml
 
       - name: Build documentation
-        if: github.ref == 'ref/head/main'
+        if: github.ref_name == 'main'
         run: make doc
 
       - name: Copy documentation to `home_page/docs`
-        if: github.ref == 'ref/head/main'
+        if: github.ref_name == 'main'
         run: |
           mkdir -p home_page
           cp -r docbuild/.lake/build/doc home_page/docs
 
       - name: Remove unnecessary lake files from documentation in `home_page/docs`
-        if: github.ref == 'ref/head/main'
+        if: github.ref_name == 'main'
         run: |
           find home_page/docs -name "*.trace" -delete
           find home_page/docs -name "*.hash" -delete
 
       - name: Upload website
-        if: github.ref == 'ref/head/main'
+        if: github.ref_name == 'main'
         uses: actions/upload-pages-artifact@v3
         with:
           path: 'home_page/'
 
       - name: Deploy to GitHub Pages
-        if: github.ref == 'ref/head/main'
+        if: github.ref_name == 'main'
         id: deployment
         uses: actions/deploy-pages@v4
 
