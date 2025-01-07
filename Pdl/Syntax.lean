@@ -1,6 +1,6 @@
--- Syntax (Section 2.1)
-
 import Mathlib.Order.BoundedOrder.Basic
+
+/-! # Syntax (Section 2.1) -/
 
 mutual
   inductive Formula : Type

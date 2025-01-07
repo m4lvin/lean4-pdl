@@ -1,9 +1,9 @@
--- Interpolants for Partitions (big part of Section 7)
-
 import Mathlib.Data.Finset.Basic
 
 import Pdl.Completeness
 import Pdl.Distance
+
+/-! # Interpolants for Partitions (big part of Section 7) -/
 
 open HasSat
 
@@ -17,7 +17,7 @@ def TNode.left (X : TNode) : List Formula := X.L ++ X.O.toForms
 @[simp]
 def TNode.right (X : TNode) : List Formula := X.R ++ X.O.toForms
 
-/-- Joint vocabulary of all parts of a TNode. -/
+/-- Joint vocabulary of all parts of a `TNode`. -/
 @[simp]
 def jvoc (X : TNode) : Vocab := (X.left).fvoc ∩ (X.right).fvoc
 

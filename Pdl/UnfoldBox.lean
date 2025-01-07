@@ -1,5 +1,3 @@
--- Local unfolding of boxes (Section 3.1)
-
 import Mathlib.Data.Fintype.Pi
 import Mathlib.Tactic.Linarith
 
@@ -7,10 +5,9 @@ import Pdl.Substitution
 import Pdl.Fresh
 import Pdl.Star
 
--- ### Preparation for Boxes: Test Profiles
+/-! # Local Box Unfolding (Section 3.1) -/
 
--- def TestProfile (α : Program) : Type := {L // L ∈ (testsOfProgram α).sublists}
--- NOTE: Replaced "TestProfile" with "List Formula".
+/-! ## Preparation for Boxes: Test Profiles -/
 
 /-- Type of test profiles for a given program. -/
 def TP (α : Program) : Type := {τ // τ ∈ testsOfProgram α} → Bool
@@ -141,9 +138,11 @@ theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α
     intro τ _
     split <;> simp_all
 
--- ### Boxes: F, P, X and unfoldBox
+/-!
+## Boxes: F, P, X and unfoldBox
 
--- NOTE: In P and Xset we use lists not sets, to eventually make formulas.
+Note: In P and Xset we use lists not sets, to eventually make formulas.
+-/
 
 def F : (α : Program) → (ℓ : TP α) → List Formula
 | ·_ , _ => ∅
@@ -537,7 +536,7 @@ theorem boxHelperTermination α (ℓ : TP α) :
         · simp_all [subprograms]
 
 /-- Where formulas in the unfolding can come from.
-NOTE: the paper version also says `φ ∈ fischerLadner [⌈α⌉ψ]` which we omit here. -/
+The article also says `φ ∈ fischerLadner [⌈α⌉ψ]` which we omit here. -/
 theorem unfoldBoxContent α ψ :
     ∀ X ∈ (unfoldBox α ψ),
     ∀ φ ∈ X,

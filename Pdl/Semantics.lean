@@ -1,5 +1,3 @@
--- Semantics (Section 2.2)
-
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Vector.Basic
 import Mathlib.Data.Set.Lattice
@@ -9,6 +7,10 @@ import Mathlib.Order.FixedPoints
 
 import Pdl.Syntax
 import Pdl.Measures
+
+/-! # Semantics (Section 2.2) -/
+
+/-! ## Models and Truth -/
 
 /-- Kripke Models, also known as Labelled Transition Systems -/
 structure KripkeModel (W : Type) : Type where
@@ -55,6 +57,8 @@ def tautology (φ : Formula) :=
 def contradiction (φ : Formula) :=
   ∀ (W : Type) (M : KripkeModel W) w, ¬evaluate M w φ
 
+/-! ## Satisfiability -/
+
 -- MB: Definition 5, page 9
 class HasSat (α : Type) where
   satisfiable : α → Prop
@@ -68,6 +72,8 @@ instance setHasSat : HasSat (Finset Formula) :=
 @[simp]
 instance listHasSat : HasSat (List Formula) :=
   HasSat.mk fun X => ∃ (W : _) (M : KripkeModel W) (w : _), ∀ φ ∈ X, evaluate M w φ
+
+/-! ## Semantic implication and vDash notation -/
 
 def semImpliesSets (X : Finset Formula) (Y : Finset Formula) :=
   ∀ (W : Type) (M : KripkeModel W) (w),
@@ -391,6 +397,7 @@ theorem truthImply_then_satImply (X Y : List Formula) : X ⊨ Y → satisfiable 
   specialize X_Y W M w v_X
   use W, M, w
 
+/-- Semantic induction rule for the Kleene star operator. -/
 theorem stepToStar : φ ⊨ (⌈α⌉φ) ⋀ ψ  →  φ ⊨ (⌈∗α⌉ψ) := by
   intro hyp
   intro W M w w_φ

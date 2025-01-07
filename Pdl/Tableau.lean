@@ -1,12 +1,12 @@
--- PDL Tableau (Section 4)
-
 import Mathlib.Data.List.ReduceOption
 
 import Pdl.LocalTableau
 
+/-! # PDL Tableau (Section 4) -/
+
 open HasLength
 
--- PROJECTIONS
+/-! ## Projections -/
 
 @[simp]
 def formProjection : Nat → Formula → Option Formula
@@ -78,13 +78,14 @@ inductive PdlRule : (Γ : TNode) → (Δ : TNode) → Type
                          | .normal φ => ⟨projection A L, (~φ) :: projection A R, none⟩
                          | .loaded χ => ⟨projection A L, projection A R, some (Sum.inr (~'χ))⟩ )
 
--- Tableau [parent, grandparent, ...] child
---
--- A closed tableau for X is either of:
--- - a local tableau for X followed by closed tableaux for all end nodes,
--- - a PDL rule application
--- - a successful loaded repeat (MB condition six)
+/--
+The `Tableau [parent, grandparent, ...] child` type.
 
+A closed tableau for X is either of:
+- a local tableau for X followed by closed tableaux for all end nodes,
+- a PDL rule application
+- a successful loaded repeat (MB condition six)
+-/
 inductive Tableau : History → TNode → Type
   | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf lt, Tableau (X :: Hist) Y) → Tableau Hist X
   | pdl {Δ Γ} : PdlRule Γ Δ → Tableau (Γ :: Hist) Δ → Tableau Hist Γ

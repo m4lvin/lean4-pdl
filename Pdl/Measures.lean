@@ -1,11 +1,9 @@
--- MEASURES
-
 import Mathlib.Algebra.BigOperators.Group.Finset
 import Mathlib.Data.Finset.Basic
 
 import Pdl.Syntax
 
--- LENGTH
+/-! # Measures -/
 
 mutual
   @[simp]
@@ -23,12 +21,6 @@ mutual
     | φ⋀ψ => 1 + lengthOfFormula φ + lengthOfFormula ψ
     | ⌈α⌉φ => 1 + lengthOfProgram α + lengthOfFormula φ
 end
-
--- mwah
-@[simp]
-def lengthOfEither : PSum Program Formula → Nat
-  | PSum.inl p => lengthOfProgram p
-  | PSum.inr f => lengthOfFormula f
 
 class HasLength (α : Type) where
   lengthOf : α → ℕ

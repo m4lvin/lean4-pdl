@@ -1,6 +1,10 @@
--- Substitution and Helper Lemmas (Sections 2.1 and 2.2)
-
 import Pdl.Discon
+
+/-!
+# Substitution and Helper Lemmas
+
+The lemmas here are mostly from Sections 2.1 and 2.2.
+-/
 
 /-! ## Single-step replacing -/
 

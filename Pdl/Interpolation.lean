@@ -1,8 +1,8 @@
--- Interpolation (Section 7)
-
 import Mathlib.Data.Finset.Basic
 
 import Pdl.PartInterpolation
+
+/-! # Interpolation (Section 7) -/
 
 open vDash HasSat
 

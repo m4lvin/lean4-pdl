@@ -1,12 +1,12 @@
--- Local unfolding of diamonds (Section 3.2)
-
 import Mathlib.Tactic.Linarith
 
 import Pdl.Substitution
 import Pdl.Fresh
 import Pdl.Star
 
--- ### Diamonds: H, Y and Φ_⋄
+/-! # Local Box Unfolding (Section 3.2) -/
+
+/-! ## Diamonds: H, Y and Φ_⋄ -/
 
 def H : Program → List (List Formula × List Program)
 | ·a => [ ([], [·a]) ]
@@ -810,9 +810,10 @@ theorem existsDiamondH (v_γ_w : relate M γ v w) :
           simp [relateSeq] at *
           tauto
 
--- ### Loaded Diamonds
+/-! ## Loaded Diamonds (Section 3.3)
 
--- The `Option` below is used because unfolding of tests can lead to free nodes.
+The `Option` is used here because unfolding of tests can lead to free nodes.
+-/
 
 def YsetLoad : (List Formula × List Program) → LoadFormula → (List Formula × Option NegLoadFormula)
 | ⟨F, δ⟩, χ => ⟨F , ~' (LoadFormula.boxes δ χ)⟩

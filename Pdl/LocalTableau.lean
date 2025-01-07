@@ -1,10 +1,10 @@
--- LOCAL TABLEAU (Section 3)
-
 import Mathlib.Algebra.Order.BigOperators.Group.List
 
 import Pdl.UnfoldBox
 import Pdl.UnfoldDia
 import Pdl.MultisetOrder
+
+/-! # Local Tableaux (Section 3) -/
 
 open HasLength
 
@@ -19,7 +19,7 @@ def Olf.voc : Olf → Vocab
 | some (Sum.inl nlf) => nlf.voc
 | some (Sum.inr nlf) => nlf.voc
 
-/-- A tableau node has two lists of formulas and an `Olf`. -/
+/-- A tableau node is labelled with two lists of formulas and an `Olf`. -/
 -- TODO: rename `TNode` to `Sequent`
 -- TODO: turn this into "abbrev" to avoid silly instance below.
 def TNode := List Formula × List Formula × Olf -- ⟨L, R, o⟩

@@ -1,9 +1,4 @@
 /-
-NOTE: This file is being upstreamed to Mathlib and can be removed
-from the lean4-pdl project once this PR has been merged:
-https://github.com/leanprover-community/mathlib4/pull/14411
--/
-/-
 Copyright (c) 2024 Haitian Wang. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Haitian Wang, Malvin Gattinger
@@ -13,6 +8,10 @@ import Mathlib.Data.Multiset.OrderedMonoid
 
 /-!
 # Dershowitz-Manna ordering
+
+NOTE: This file is being upstreamed to Mathlib and can be removed
+from the lean4-pdl project once this PR has been merged:
+https://github.com/leanprover-community/mathlib4/pull/14411
 
 In this file we define the _Dershowitz-Manna ordering_ on multisets. Specifically, for two multisets
 `M` and `N` in a partial order `(S, <)`, `M` is smaller than `N` in the Dershowitz-Manna ordering if

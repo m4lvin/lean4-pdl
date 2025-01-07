@@ -1,10 +1,10 @@
--- Saturated sets and model graphs (Section 7.1)
-
 import Mathlib.Tactic.ClearExcept
 import Mathlib.Data.Vector.Basic
 
 import Pdl.UnfoldBox
 import Pdl.UnfoldDia
+
+/-! # Model Graphs (Section 7.1) -/
 
 open Formula
 

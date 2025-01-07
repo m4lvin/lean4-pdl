@@ -1,10 +1,10 @@
--- Syntax (Section 2.1)
-
-import Pdl.Syntax
-
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Finset.Union
 import Mathlib.Data.Finset.Fold
+
+import Pdl.Syntax
+
+/-! # Syntax (Section 2.1) -/
 
 abbrev Vocab := Finset (Sum Nat Nat)
 

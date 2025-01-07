@@ -1,7 +1,7 @@
--- Completeness (Section 6)
-
 import Pdl.Soundness
 import Pdl.TableauGame
+
+/-! # Completeness (Section 6) -/
 
 open HasSat
 

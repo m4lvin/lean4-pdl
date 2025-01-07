@@ -2,7 +2,9 @@ import Pdl.Game
 import Pdl.Tableau
 import Pdl.Modelgraphs
 
-/-! # The Tableau Game (Section 6.2) -/
+/-! # The Tableau Game (Section 6.2 and 6.3) -/
+
+/-! ## Definting the Tableau Game (Section 6.2) -/
 
 def Rule : Type := Sum (Σ X B, LocalRuleApp X B) (Σ X Y, PdlRule X Y)
   -- TODO deriving DecidableEq, Repr -- nice to have
@@ -39,7 +41,7 @@ theorem gameP (X : TNode) (s : Strategy tableauGame Prover) (h : winning [Sum.in
     Nonempty (Tableau [] X) := by
   sorry
 
-/-! # From winning strategies to model graphs (Section 6.3) -/
+/-! ## From winning strategies to model graphs (Section 6.3) -/
 
 /-- If Builder has a winning strategy then there is a model graph. -/
 theorem strmg (X : TNode) (s : Strategy tableauGame Builder) (h : winning [Sum.inl X] s) :

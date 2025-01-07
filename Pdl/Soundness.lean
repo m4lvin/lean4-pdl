@@ -1,11 +1,11 @@
--- Soundness (Section 6)
-
 import Mathlib.Logic.Relation
 import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Convert
 import Mathlib.Data.Prod.Lex
 
 import Pdl.Tableau
+
+/-! # Soundness (Section 6) -/
 
 open Classical
 
