@@ -5,6 +5,10 @@
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/m4lvin/lean4-pdl?quickstart=1)
 
+## Documentation
+
+<https://m4lvin.github.io/lean4-pdl/docs/>
+
 ## Module dependency overview
 
 ![Dependency graph](./dependencies.svg)
