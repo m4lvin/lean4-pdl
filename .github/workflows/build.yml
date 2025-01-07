@@ -46,6 +46,7 @@ jobs:
         run: make bml
 
       - name: Build documentation
+        if: github.ref == 'ref/head/main'
         run: make doc
 
       - name: Copy documentation to `home_page/docs`
