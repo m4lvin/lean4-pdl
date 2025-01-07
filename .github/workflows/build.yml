@@ -1,9 +1,16 @@
 # based on https://github.com/leanprover-community/lean-liquid/blob/master/.github/workflow/build.yml
+# with additions from https://github.com/PatrickMassot/leanblueprint
 
 on:
   push:
 
 name: CI
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read  # Read access to repository contents
+  pages: write    # Write access to GitHub Pages
+  id-token: write # Write access to ID tokens
 
 jobs:
 
@@ -11,11 +18,12 @@ jobs:
     name: Build PDL
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout project
+        uses: actions/checkout@v4
         with:
           fetch-depth: ${{ env.GIT_HISTORY_DEPTH }}
 
-      - name: install elan
+      - name: Install elan
         run: |
           set -o pipefail
           curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- --default-toolchain none -y
@@ -24,6 +32,44 @@ jobs:
 
       - name: make pdl
         run: make pdl
+
+      - name: Cache mathlib API docs
+        uses: actions/cache@v4
+        with:
+          path: |
+            docbuild/.lake/build/doc/Init
+            docbuild/.lake/build/doc/Lake
+            docbuild/.lake/build/doc/Lean
+            docbuild/.lake/build/doc/Std
+            docbuild/.lake/build/doc/Mathlib
+            docbuild/.lake/build/doc/declarations
+            docbuild/.lake/build/doc/find
+            docbuild/.lake/build/doc/*.*
+            !docbuild/.lake/build/doc/declarations/declaration-data-Crap*
+          key: MathlibDoc-${{ hashFiles('lake-manifest.json') }}
+          restore-keys: MathlibDoc-
+
+      - name: Build documentation
+        run: make doc
+
+      - name: Move documentation to `home_page/docs`
+        run: |
+          mkdir -p home_page
+          cp -r docbuild/.lake/build/doc home_page/docs
+
+      - name: Remove unnecessary lake files from documentation in `home_page/docs`
+        run: |
+          find home_page/docs -name "*.trace" -delete
+          find home_page/docs -name "*.hash" -delete
+
+      - name: "Upload website"
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'home_page/'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   bml:
     name: Build BML

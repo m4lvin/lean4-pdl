@@ -1,7 +1,7 @@
 
 all: pdl bml
 
-.PHONY: all pdl bml
+.PHONY: all pdl bml doc
 
 pdl: .first-run-done
 	lake build Pdl
@@ -13,6 +13,9 @@ bml: .first-run-done
 .first-run-done:
 	lake exe cache get
 	touch .first-run-done
+
+doc:
+	cd docbuild && lake -Kenv=dev build Bml:docs Pdl:docs
 
 clean:
 	rm -rf .first-run-done lake-packages .lake build lakefile.olean
