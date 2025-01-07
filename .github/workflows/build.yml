@@ -33,41 +33,38 @@ jobs:
       - name: make pdl
         run: make pdl
 
-      - name: Cache mathlib API docs
+      - name: Cache both .lake/build folders
         uses: actions/cache@v4
         with:
           path: |
-            docbuild/.lake/build/doc/Init
-            docbuild/.lake/build/doc/Lake
-            docbuild/.lake/build/doc/Lean
-            docbuild/.lake/build/doc/Std
-            docbuild/.lake/build/doc/Mathlib
-            docbuild/.lake/build/doc/declarations
-            docbuild/.lake/build/doc/find
-            docbuild/.lake/build/doc/*.*
-            !docbuild/.lake/build/doc/declarations/declaration-data-Crap*
-          key: MathlibDoc-${{ hashFiles('lake-manifest.json') }}
-          restore-keys: MathlibDoc-
+            .lake/build
+            docbuild/.lake/build
+          key: lakeBuild-${{ hashFiles('lake-manifest.json') }}
+          restore-keys: lakeBuild-
 
       - name: Build documentation
         run: make doc
 
-      - name: Move documentation to `home_page/docs`
+      - name: Copy documentation to `home_page/docs`
+        if: github.ref == 'ref/head/main'
         run: |
           mkdir -p home_page
           cp -r docbuild/.lake/build/doc home_page/docs
 
       - name: Remove unnecessary lake files from documentation in `home_page/docs`
+        if: github.ref == 'ref/head/main'
         run: |
           find home_page/docs -name "*.trace" -delete
           find home_page/docs -name "*.hash" -delete
 
-      - name: "Upload website"
+      - name: Upload website
+        if: github.ref == 'ref/head/main'
         uses: actions/upload-pages-artifact@v3
         with:
           path: 'home_page/'
 
       - name: Deploy to GitHub Pages
+        if: github.ref == 'ref/head/main'
         id: deployment
         uses: actions/deploy-pages@v4
 
