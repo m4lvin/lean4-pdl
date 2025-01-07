@@ -42,6 +42,9 @@ theorem other_B_eq_A : other B = A := by simp [other]
 theorem Player.not_eq_i_eq_other : (¬ p = i) ↔ p = other i := by cases p <;> cases i <;> simp
 
 @[simp]
+theorem Player.not_eq_other_eq_i : (¬ p = other i) ↔ p = i := by cases p <;> cases i <;> simp
+
+@[simp]
 theorem Player.not_i_eq_other : ¬ i = other i := by cases i <;> simp
 
 @[simp]
@@ -58,40 +61,29 @@ theorem other_other : other (other i) = i := by
 - a decreasing bound on the number of remaining steps
 -/
 class Game where
-  Pos : Type -- Board positions
-  turn : List Pos → Player -- whose turn is it?
-  moves : List Pos → Finset Pos -- what are the available moves?
-  bound : List Pos → Nat
-  bound_h : ∀ (h : List Pos) (next : Pos), next ∈ moves h → bound (next :: h) < bound h
-
--- Open questions about the `Game` type:
--- - Need to forbid the empty List Pos maybe?
--- - How to fix the start? Just a singleton list?
-
--- Alternatve ideas for the `Game` type:
--- - Like above, but not using Lists (that seemed not strong enough to combine winning strategies)
--- - inductively, a move is choosing a new value, tree-like, a win is a leaf
-
-/-- A history is a list of positions, with the newest position first. -/
-abbrev Game.His {g : Game} : Type := List Game.Pos
+  Pos : Type -- positions in the game
+  turn : Pos → Player -- whose turn is it?
+  moves : Pos → Finset Pos -- what are the available moves?
+  bound : Pos → Nat
+  bound_h : ∀ (p next : Pos), next ∈ moves p → bound next < bound p
 
 /-- Allow notation `p.moves` for `g.moves p`. -/
-abbrev Game.His.moves {g : Game} : g.His → Finset g.Pos := Game.moves
+abbrev Game.Pos.moves {g : Game} : g.Pos → Finset g.Pos := Game.moves
 
 /-- If the bound bound is zero then there are no more moves. -/
-lemma Game.no_moves_of_bound_zero {g : Game} {h : g.His}
-    (bound_zero : g.bound h = 0) : g.moves h = ∅ := by
-  suffices ¬ (g.moves h).Nonempty by simp_all
+lemma Game.no_moves_of_bound_zero {g : Game} {p : g.Pos}
+    (bound_zero : g.bound p = 0) : g.moves p = ∅ := by
+  suffices ¬ (g.moves p).Nonempty by simp_all
   by_contra hyp
   rcases Finset.Nonempty.exists_mem hyp with ⟨q, q_in⟩
   have := g.bound_h _ q q_in
   linarith
 
-instance {g : Game} : LT g.His := ⟨fun p q => g.bound p < g.bound q⟩
+instance {g : Game} : LT g.Pos := ⟨fun p q => g.bound p < g.bound q⟩
 
-/-- Induction on the bound of histories. -/
-theorem Game.Pos.inductionOnLT {g : Game} (p : g.His) {motive : g.His → Prop}
-    (ind : (p : His) → (∀ q, q < p → motive q) → motive p) : motive p := by
+/-- Induction on the bound of game positions. -/
+theorem Game.Pos.inductionOnLT {g : Game} (p : g.Pos) {motive : g.Pos → Prop}
+    (ind : (p : Pos) → (∀ q, q < p → motive q) → motive p) : motive p := by
   induction' gb_def : g.bound p using Nat.strongRecOn generalizing p
   case ind k IH =>
     apply ind
@@ -99,25 +91,21 @@ theorem Game.Pos.inductionOnLT {g : Game} (p : g.His) {motive : g.His → Prop}
     apply IH (g.bound q) (by aesop) _ rfl
 
 /-- A strategy in `g` for `i`, whenever it is `i`'s turn, chooses a move, if there are any. -/
-def Strategy (g : Game) (i : Player) : Type := ∀ h : g.His, g.turn h = i → g.moves h ≠ ∅ → g.moves h
+def Strategy (g : Game) (i : Player) : Type := ∀ p : g.Pos, g.turn p = i → p.moves.Nonempty → p.moves
+
+noncomputable def choose_move {g : Game} {p : g.Pos} : p.moves.Nonempty → p.moves := Classical.choice ∘ Set.Nonempty.to_subtype
 
 /-- There is always some strategy. -/
-instance Strategy.instNonempty : Nonempty (Strategy g i) := by
-  constructor
-  intro p _ moves_ne_empty
-  simp at moves_ne_empty
-  rw [@Finset.eq_empty_iff_forall_not_mem] at moves_ne_empty
-  apply Classical.choice
-  aesop
+instance Strategy.instNonempty : Nonempty (Strategy g i) := ⟨fun _ _ => choose_move⟩
 
 /-- Winner of a game, if the given strategies are used.
 A player loses iff it is their turn and there are no moves.
 A player wins if the opponent loses. -/
-def winner {g : Game} (sI : Strategy g i) (sJ : Strategy g (other i)) (p : g.His) : Player :=
+def winner {g : Game} (sI : Strategy g i) (sJ : Strategy g (other i)) (p : g.Pos) : Player :=
   if h1 : (g.moves p).Nonempty
     then if h2 : g.turn p = i --
-      then winner sI sJ (sI p (by cases i <;> simp_all) (Finset.nonempty_iff_ne_empty.mp h1) :: p)
-      else winner sI sJ (sJ p (by cases i <;> simp_all) (Finset.nonempty_iff_ne_empty.mp h1) :: p)
+      then winner sI sJ (sI p h2 h1)
+      else winner sI sJ (sJ p (by cases i <;> simp_all) h1)
     else other (g.turn p) -- no more moves, the other player wins
 termination_by
   g.bound p
@@ -127,23 +115,23 @@ decreasing_by
 
 /-- If there are no moves left, then the winner is the other player. -/
 -- unused?
-lemma winner_of_no_moves (g : Game) (p : g.His) (no_moves : g.moves p = ∅) :
+lemma winner_of_no_moves (g : Game) (p : g.Pos) (no_moves : g.moves p = ∅) :
     ∀ i (sI : Strategy g i) sJ, winner sI sJ p = other (g.turn p) := by
   unfold winner
   simp_all
 
 /-- A strategy is winning at `p` if it wins against all strategies of the other player. -/
-def winning {g : Game} {i : Player} (p : g.His) (sI : Strategy g i) : Prop :=
+def winning {g : Game} {i : Player} (p : g.Pos) (sI : Strategy g i) : Prop :=
   ∀ sJ : Strategy g (other i), winner sI sJ p = i
 
-lemma winner_of_winning {g : Game} {i : Player} (p : g.His) (sI : Strategy g i) (h : winning p sI) :
+lemma winner_of_winning {g : Game} {i : Player} (p : g.Pos) (sI : Strategy g i) (h : winning p sI) :
     ∀ sJ, winner sI sJ p = i := by
   intro sJ
   exact h sJ
 
 /-- If there are no moves left, then any strategy of the other player is winning. -/
 -- unused?
-lemma winning_of_no_moves (g : Game) (p : g.His) (no_moves : g.moves p = ∅) :
+lemma winning_of_no_moves (g : Game) (p : g.Pos) (no_moves : g.moves p = ∅) :
     ∀ sI : Strategy g (other (g.turn p)), winning p sI := by
   intro sI
   unfold winning
@@ -151,23 +139,81 @@ lemma winning_of_no_moves (g : Game) (p : g.His) (no_moves : g.moves p = ∅) :
   simp_all
 
 -- unused?
-lemma exists_other_winning_strategy_of_no_moves (g : Game) (p : g.His) (no_moves : g.moves p = ∅) :
+lemma exists_other_winning_strategy_of_no_moves (g : Game) (p : g.Pos) (no_moves : g.moves p = ∅) :
     ∃ s : Strategy g (other (g.turn p)), winning p s := by
   have := winner_of_no_moves g p no_moves
   refine ⟨Classical.choice Strategy.instNonempty, ?_⟩
   unfold winning
   apply this
 
+/-- A _play_ is a list of positions connected by moves. Aka "match". -/
+def Game.Play (g : Game) : Type :=
+  { L // List.Chain' (fun p q => q ∈ g.moves p) (L : List g.Pos) }
+
+lemma Game.Play.decreasing {g : Game} (L : List g.Pos)
+    (h_L : List.Chain' (fun p q => q ∈ p.moves) (L : List g.Pos)) :
+    List.Chain' (fun p q => g.bound q < g.bound p) L := by
+  induction L
+  · simp_all
+  case cons p rest IH =>
+    apply List.Chain'.cons'
+    · apply IH
+      have := List.Chain'.tail h_L
+      simp_all
+    · cases rest
+      · simp
+      · simp only [List.head?_cons, Option.mem_def, Option.some.injEq, forall_eq']
+        apply g.bound_h
+        simp_all
+
+-- Mathlib this?
+theorem List.Chain'.not_map_lt_of_mem {α: Type} (f : α → Nat)
+    {x : α} {rest : List α} (h : x ∈ rest)
+    : ¬ (List.Chain' (fun p q => f q < f p) (x :: rest)) := by
+  induction rest <;> simp_all only [mem_cons, chain'_cons, not_and, not_mem_nil]
+  intro fy_lt_fx
+  case cons y rest IH =>
+    rcases h with h|h
+    · subst_eqs; simp_all
+    · specialize IH h
+      rw [List.chain'_cons']
+      cases rest <;> simp_all
+      case cons z rest =>
+        cases h
+        · subst_eqs
+          intro fy_lt_fx
+          linarith
+        · intro fz_lt_fy
+          exact IH (Nat.lt_trans fz_lt_fy fy_lt_fx)
+
+/-- A play cannot have repeating states. -/
+lemma Game.Play.nodup {g : Game} (pl : g.Play) : pl.val.Nodup := by
+  by_contra hasDup
+  push_neg at hasDup
+  rcases pl with ⟨pl, pl_h⟩
+  induction pl
+  case nil =>
+    absurd hasDup
+    simp
+  case cons p rest IH =>
+    simp at IH
+    specialize IH (by apply List.Chain'.tail pl_h)
+    simp only [List.nodup_cons, not_and] at hasDup
+    suffices p ∉ rest by simp_all
+    clear hasDup IH
+    intro p_in_rest
+    exact List.Chain'.not_map_lt_of_mem g.bound p_in_rest (Game.Play.decreasing _ pl_h)
+
 /-- Two strategies agree on all later states. -/
-def same_from_here {g : Game} (sI sI' : Strategy g i) (p : g.His) :=
-  ∀ (q : g.His), g.bound q ≤ g.bound p → sI q = sI' q
+def same_from_here {g : Game} (sI sI' : Strategy g i) (p : g.Pos) :=
+  ∀ (q : g.Pos), g.bound q ≤ g.bound p → sI q = sI' q
 
 /-- applying any strategy leads to a position with a lower bound. -/
 lemma bound_strat_lt {g : Game} {sI : Strategy g i} p ha hb :
-    g.bound ((sI p ha hb).val :: p) < g.bound p := g.bound_h _ _ (sI p ha hb).prop
+    g.bound (sI p ha hb).val < g.bound p := g.bound_h _ _ (sI p ha hb).prop
 
 lemma winner_eq_of_strategy_eq_from_here {g : Game} {sI sI' : Strategy g i}
-    (p : g.His) (h : same_from_here sI sI' p) (sJ : Strategy g (other i))
+    (p : g.Pos) (h : same_from_here sI sI' p) (sJ : Strategy g (other i))
     : winner sI sJ p = winner sI' sJ p := by
   induction' def_n : g.bound p using Nat.strongRecOn generalizing p
   case ind n IH =>
@@ -187,8 +233,8 @@ lemma winner_eq_of_strategy_eq_from_here {g : Game} {sI sI' : Strategy g i}
 
 /-- First helper for `gamedet'`. -/
 lemma winning_strategy_of_one_next_when_my_turn (g : Game) [DecidableEq g.Pos]
-    (p : g.His) (whose_turn : g.turn p = i)
-    (nextPos : g.moves p) (s : Strategy g i) (s_wins_next : winning (nextPos :: p) s)
+    (p : g.Pos) (whose_turn : g.turn p = i)
+    (nextPos : g.moves p) (s : Strategy g i) (s_wins_next : winning nextPos s)
     : ∃ s' : Strategy g i, winning p s' := by
   -- Now we overwrite what s chooses at the current place.
   let s' : Strategy g i :=
@@ -199,14 +245,14 @@ lemma winning_strategy_of_one_next_when_my_turn (g : Game) [DecidableEq g.Pos]
   specialize s_wins_next (whose_turn ▸ sJ)
   have : (Game.moves p).Nonempty := ⟨nextPos, nextPos.prop⟩
   simp_all only [ne_eq, dite_eq_ite, ite_true, dite_true]
-  have : winner s sJ (nextPos :: p) = winner s' sJ (nextPos :: p) := by
+  have : winner s sJ nextPos = winner s' sJ nextPos := by
     apply winner_eq_of_strategy_eq_from_here
     intro q q_lt_p
     unfold s'
     have : q ≠ p := by
       by_contra q_eq_p
       subst_eqs
-      have : g.bound (nextPos.val :: p) < g.bound p := by apply g.bound_h _ _ nextPos.2
+      have : g.bound nextPos.val < g.bound p := by apply g.bound_h _ _ nextPos.2
       linarith
     simp_all
   unfold s'
@@ -216,12 +262,12 @@ lemma winning_strategy_of_one_next_when_my_turn (g : Game) [DecidableEq g.Pos]
 /-- Variant of `winning_strategy_of_one_next_when_my_turn` not about winning
 but winner against specific other strategy. -/
 lemma winner_of_next_when_my_turn (g : Game) [DecidableEq g.Pos]
-    (p : g.His)
+    (p : g.Pos)
     (whose_turn : g.turn p = i)
     (nextPos : g.moves p)
     (sI : Strategy g i)
     (sJ : Strategy g (other i))
-    (s_wins_next : winner sI sJ (nextPos :: p) = i)
+    (s_wins_next : winner sI sJ nextPos = i)
     : ∃ s' : Strategy g i, winner s' sJ p = i := by
   -- Now we overwrite what s chooses at the current place.
   let s' : Strategy g i :=
@@ -230,14 +276,14 @@ lemma winner_of_next_when_my_turn (g : Game) [DecidableEq g.Pos]
   have : (Game.moves p).Nonempty := ⟨nextPos, nextPos.prop⟩
   unfold winner
   simp_all only [dite_true]
-  have : winner sI sJ (nextPos :: p) = winner s' sJ (nextPos :: p) := by
+  have : winner sI sJ nextPos = winner s' sJ nextPos := by
     apply winner_eq_of_strategy_eq_from_here
     intro q q_lt_p
     unfold s'
     have : q ≠ p := by
       by_contra q_eq_p
       subst_eqs
-      have : g.bound (nextPos.val :: p) < g.bound p := by apply g.bound_h _ _ nextPos.2
+      have : g.bound nextPos.val < g.bound p := by apply g.bound_h _ _ nextPos.2
       linarith
     simp_all
   unfold s'
@@ -245,7 +291,7 @@ lemma winner_of_next_when_my_turn (g : Game) [DecidableEq g.Pos]
 
 /-- DUAL COPY -/
 lemma winner_eq_of_strategy_eq_from_here_otherDual {g : Game} {sJ sJ' : Strategy g (other i)}
-    (p : g.His) (h : same_from_here sJ sJ' p) (sI : Strategy g i)
+    (p : g.Pos) (h : same_from_here sJ sJ' p) (sI : Strategy g i)
     : winner sI sJ p = winner sI sJ' p := by
   induction' def_n : g.bound p using Nat.strongRecOn generalizing p
   case ind n IH =>
@@ -265,12 +311,12 @@ lemma winner_eq_of_strategy_eq_from_here_otherDual {g : Game} {sJ sJ' : Strategy
 
 /-- DUAL COPY -/
 lemma winner_of_next_when_my_turn_otherDual (g : Game) [DecidableEq g.Pos]
-    (p : g.His)
+    (p : g.Pos)
     (whose_turn : g.turn p = other i)
     (nextPos : g.moves p)
     (sI : Strategy g i)
     (sJ : Strategy g (other i))
-    (s_wins_next : winner sI sJ (nextPos :: p) = other i)
+    (s_wins_next : winner sI sJ nextPos = other i)
     : ∃ s' : Strategy g (other i), winner sI s' p = other i := by
   -- Now we overwrite what sJ chooses at the current place.
   let s' : Strategy g (other i) :=
@@ -279,30 +325,33 @@ lemma winner_of_next_when_my_turn_otherDual (g : Game) [DecidableEq g.Pos]
   have : (Game.moves p).Nonempty := ⟨nextPos, nextPos.prop⟩
   unfold winner
   simp_all only [dite_true]
-  have : winner sI sJ (nextPos :: p) = winner sI s' (nextPos :: p) := by
+  have : winner sI sJ nextPos = winner sI s' nextPos := by
     apply winner_eq_of_strategy_eq_from_here_otherDual
     intro q q_lt_p
     unfold s'
     have : q ≠ p := by
       by_contra q_eq_p
       subst_eqs
-      have : g.bound (nextPos.val :: p) < g.bound p := by apply g.bound_h _ _ nextPos.2
+      have : g.bound nextPos.val < g.bound p := by apply g.bound_h _ _ nextPos.2
       linarith
     simp_all
   unfold s'
   simp_all
 
--- FIXME everywhere: change `≠ ∅` to `.Nonempty` if the latter is preferred by `simp`?
+/-- The cone of all positions reachable from `p`. -/
+inductive inCone {g : Game} (p : g.Pos) : g.Pos → Prop
+| nil : inCone p p
+| step : inCone p q → r ∈ g.moves q → inCone p r
 
 /-- The cone of all positions reachable from `p` assuming that `i` plays `sI`. -/
-inductive inMyCone {g : Game} (sI : Strategy g i) (p : g.His) : g.His → Prop
+inductive inMyCone {g : Game} (sI : Strategy g i) (p : g.Pos) : g.Pos → Prop
 | nil : inMyCone sI p p
-| myStep : inMyCone sI p q → (has_moves : g.moves q ≠ ∅) → (h : g.turn q = i) → inMyCone sI p (sI q h has_moves :: q)
-| oStep : inMyCone sI p q → g.turn q = other i → r ∈ g.moves q → inMyCone sI p (r :: q)
+| myStep : inMyCone sI p q → (has_moves : q.moves.Nonempty) → (h : g.turn q = i) → inMyCone sI p (sI q h has_moves)
+| oStep : inMyCone sI p q → g.turn q = other i → r ∈ g.moves q → inMyCone sI p r
 
 -- USED !
-lemma winning_here_then_winning_inMyCone {g : Game} [DecidableEq g.Pos] (sI : Strategy g i) (p : g.His)
-    (win_at_p : winning p sI) (q : g.His) (q_inMyCone : inMyCone sI p q)
+lemma winning_here_then_winning_inMyCone {g : Game} [DecidableEq g.Pos] (sI : Strategy g i) (p : g.Pos)
+    (win_at_p : winning p sI) (q : g.Pos) (q_inMyCone : inMyCone sI p q)
     : winning q sI := by
   induction q_inMyCone
   · assumption
@@ -310,7 +359,6 @@ lemma winning_here_then_winning_inMyCone {g : Game} [DecidableEq g.Pos] (sI : St
     intro sJ
     specialize IH sJ
     unfold winner at IH
-    have := Finset.nonempty_iff_ne_empty.mpr has_moves
     simp_all
   case oStep q r _ turn_other_i r_in IH =>
     -- Suppose sI is not winning at r.
@@ -322,7 +370,7 @@ lemma winning_here_then_winning_inMyCone {g : Game} [DecidableEq g.Pos] (sI : St
     simp at win_r_j
     -- Then there must be a strategy sJ' beating sI at q.
     have := @winner_of_next_when_my_turn_otherDual
-      i g _ q turn_other_i ⟨r, r_in⟩ sI sJ (by simp; exact win_r_j)
+      i g _ q turn_other_i ⟨r, r_in⟩ sI sJ win_r_j
     rcases this with ⟨sJ', win_q_j⟩
     -- But this means sI cannot be winning at q
     absurd IH sJ'
@@ -330,19 +378,21 @@ lemma winning_here_then_winning_inMyCone {g : Game} [DecidableEq g.Pos] (sI : St
     exact win_q_j
 
 /-- In its cone from here, `sI` does what one of `sIset` would do. -/
--- unused, delete?
 def subset_from_here {g : Game} [DecidableEq g.Pos]
-    (sI : Strategy g i) (sIset : Finset (Strategy g i)) (p : g.His) :=
-  ∀ (q : g.His), inMyCone sI p q
+    (sI : Strategy g i) (sIset : Finset (Strategy g i)) (p : g.Pos) :=
+  ∀ (q : g.Pos), inMyCone sI p q
     → (i_turn : Game.turn q = i)
-    → (has_moves : Game.moves q ≠ ∅)
+    → (has_moves : q.moves.Nonempty)
     → sI q i_turn has_moves ∈ sIset.image (fun sI' => sI' q i_turn has_moves)
+
+-- Need something like a multi-strategy version of `winning_here_then_winning_inMyCone`?
+-- ?? If all those strategies are winning here, then they are winning in each others cone ??
 
 /-- If a strategy in its own cone from `p` always goes to not-yet-lost states for which there
 exists some winning strategy, then it is winning at `p`. -/
-lemma winning_of_going_to_some_winning {g : Game} (p : g.His) (s : Strategy g i)
+lemma winning_of_going_to_some_winning {g : Game} (p : g.Pos) (s : Strategy g i)
     (goto_somewinning : ∀ x, inMyCone s p x → g.turn x = i →
-      g.moves x ≠ ∅ ∧ ∃ (s' : Strategy g i), ∀ h1 h2, winning (s x h1 h2 :: p) s')
+      g.moves x ≠ ∅ ∧ ∃ (s' : Strategy g i), ∀ h1 h2, winning (s x h1 h2) s')
     : winning p s := by
   suffices claim : ∀ x, inMyCone s p x → winning x s by exact claim _ inMyCone.nil
   intro x x_in
@@ -355,7 +405,7 @@ lemma winning_of_going_to_some_winning {g : Game} (p : g.His) (s : Strategy g i)
     by_cases (Game.moves x).Nonempty <;> by_cases g.turn x = i <;> simp_all
     case pos _ turn_i =>
       let nexts := s x turn_i (by aesop)
-      have := IH _ (by rw [← bound_def]; apply g.bound_h; simp) (nexts :: x) ?_ rfl
+      have := IH _ (by rw [← bound_def]; apply g.bound_h; simp) nexts ?_ rfl
       · specialize this sJ
         exact this
       · unfold nexts
@@ -363,7 +413,7 @@ lemma winning_of_going_to_some_winning {g : Game} (p : g.His) (s : Strategy g i)
     case neg _ turn_other =>
       simp_all
       let nexts := sJ x turn_other (by aesop)
-      have := IH _ (by rw [← bound_def]; apply g.bound_h; simp) (nexts :: x) ?_ rfl
+      have := IH _ (by rw [← bound_def]; apply g.bound_h; simp) nexts ?_ rfl
       · specialize this sJ
         exact this
       · unfold nexts
@@ -371,7 +421,7 @@ lemma winning_of_going_to_some_winning {g : Game} (p : g.His) (s : Strategy g i)
         simp
 
 /-- If a strategy always (in its own cone) imitates winning strategies, then it is winning. -/
-lemma winning_if_imitating_some_winning {g : Game} (p : g.His) (s : Strategy g i)
+lemma winning_if_imitating_some_winning {g : Game} (p : g.Pos) (s : Strategy g i)
     (imitates_winning : ∀ x, inMyCone s p x → g.turn x = i → ∃ s', winning x s' ∧ (∀ h1 h2, s x h1 h2 = s' x h1 h2))
     : winning p s := by
   suffices claim : ∀ x, inMyCone s p x → winning x s by exact claim _ inMyCone.nil
@@ -385,7 +435,7 @@ lemma winning_if_imitating_some_winning {g : Game} (p : g.His) (s : Strategy g i
     by_cases (Game.moves x).Nonempty <;> by_cases g.turn x = i <;> simp_all
     case pos has_moves turn_i =>
       let nexts := s x turn_i (by aesop)
-      have := IH _ (by rw [← bound_def]; apply g.bound_h; simp) (nexts :: x) ?_ rfl
+      have := IH _ (by rw [← bound_def]; apply g.bound_h; simp) nexts ?_ rfl
       · specialize this sJ
         exact this
       · unfold nexts
@@ -393,7 +443,7 @@ lemma winning_if_imitating_some_winning {g : Game} (p : g.His) (s : Strategy g i
     case neg _ turn_other =>
       simp_all
       let nexts := sJ x turn_other (by aesop)
-      have := IH _ (by rw [← bound_def]; apply g.bound_h; simp) (nexts :: x) ?_ rfl
+      have := IH _ (by rw [← bound_def]; apply g.bound_h; simp) nexts ?_ rfl
       · specialize this sJ
         exact this
       · unfold nexts
@@ -404,148 +454,43 @@ lemma winning_if_imitating_some_winning {g : Game} (p : g.His) (s : Strategy g i
       specialize s'_winning sJ
       simp_all [winner]
 
--- Maybe this should be data, not existential prop?
-theorem inMyCone_then_exists_prefix { g : Game } { p q : g.His } { sI : Strategy g i } :
-    inMyCone sI p q → ∃ l : List g.Pos, q = l ++ p := by
-  intro q_in_p
-  induction q_in_p
-  case nil => simp
-  case myStep r r_in has_moves turn_i IH =>
-    rcases IH with ⟨l, l_def⟩
-    use ↑(sI r turn_i has_moves) :: l
-    simp_all
-  case oStep q r q_in_p turn_other r_in_moves_q IH =>
-    rcases IH with ⟨l, l_def⟩
-    use r :: l
-    aesop
+noncomputable def Exists.subtype {p : α → Prop} (h : ∃ x, p x) : { x // p x } :=
+  ⟨h.choose, h.choose_spec⟩
 
--- Split a list if it has the given non-empty suffix.
-def splitter [DecidableEq α] : (xs : List α) → (y : α) → (m : List α) → Option (List α)
-| [], _, _ => none
-| x::xs, y, m => if x = y
-                  then (if xs = m then some [] else none)
-                  else match splitter xs y m with
-                    | none => none
-                    | some rest => x :: rest
+noncomputable def Exists.subtype_pair {motive : α → Prop} {p : (x : α) → motive x → Prop}
+    (h : ∃ x, ∃ mx : motive x, p x mx) : { xmx : { x // motive x } // p xmx.1 xmx.2 } := by
+  let x := Exists.choose h
+  let px := Exists.choose_spec h
+  let mx := Exists.choose px
+  let xmx : { x // motive x } := ⟨x, mx⟩
+  have := Exists.choose_spec px
+  use xmx
 
-theorem splitter_def [DecidableEq α] {y : α} (def_l : (splitter xs y m) = some l) :
-    xs = l ++ y :: m := by
-  induction xs generalizing l y m
-  · simp_all [splitter]
-  case cons x xs IH =>
-    by_cases x = y <;> simp_all [splitter]
-    cases h : splitter xs y m
-    · simp_all
-    · rw [h] at def_l
-      simp at def_l
-      aesop
-
-/-- Split a list if it has one of the given non-empty suffixes that all have the same tail. -/
-def multi_splitter [DecidableEq α] : (xs : List α) → (ys : Finset α) → List α → Option (ys × List α)
-| [], _, _ => none
-| x::xs, ys, m => if x_in : x ∈ ys
-                  then (if xs = m then some (⟨x,x_in⟩,[]) else none)
-                  else (multi_splitter xs ys m).elim none (fun (y,rest) => (y, x :: rest))
-
-theorem multi_splitter_def [DecidableEq α] {ys : Finset α} {y : ys}
-    (def_l : multi_splitter xs ys m = some (y, l))
-    : xs = l ++ y.val :: m := by
-  induction xs generalizing l y m
-  · simp_all [multi_splitter]
-  case cons x xs IH =>
-    by_cases h : x ∈ ys <;> simp_all [multi_splitter]
-    · rcases def_l with ⟨_,_,_⟩
-      subst_eqs
-      simp
-    · cases h : multi_splitter xs ys m
-      · simp_all
-      case neg.some not_n_ys yl2 =>
-        specialize @IH m yl2.2 yl2.1.1 yl2.1.2 h
-        aesop
-
-theorem multi_splitter_of_first_match [DecidableEq α]
-    {ys : Finset α}
-    (y : ys)
-    (xs_def : xs = l ++ y.val :: m)
-    (not_in_l : ∀ k ∈ l, k ∉ ys)
-    : multi_splitter xs ys m = some (y, l):= by
-  induction xs generalizing l
-  · simp_all
-  case cons x xs IH =>
-    by_cases x ∈ ys
-    case pos h =>
-      cases l <;> simp_all [multi_splitter, h]
-    case neg h =>
-      cases l
-      · exfalso
-        simp at xs_def
-        cases xs_def
-        subst_eqs
-        absurd h
-        simp
-      case cons z zs =>
-        unfold multi_splitter
-        simp [h]
-        rw [@IH zs] <;> simp_all
-
--- to be deleted
-noncomputable def combo_OLD (g : Game) [DecidableEq g.Pos] (p : g.His)
-    (sNext : (pNext : Game.moves p) → Strategy g i)
-    : Strategy g i := by
-  intro pos my_turn has_moves
-  cases sp_def : multi_splitter pos (g.moves p) p
-  case none =>
-    exact Classical.choice Strategy.instNonempty pos my_turn has_moves
-  case some yl =>
-    rcases yl with ⟨y,l⟩
-    let mys := sNext y
-    exact mys _ my_turn has_moves
-
-/-- Combine strategies depending on choice made at `p`.
-Noncomputable because of choice in `none` case, but that part should never be used. -/
-noncomputable def combo (g : Game) [DecidableEq g.Pos] (p : g.His)
-    (sNext : (pNext : Game.moves p) → Strategy g i)
-    : Strategy g i :=
-  fun pos my_turn has_moves =>
-  (multi_splitter pos (g.moves p) p).elim
-    (Classical.choice Strategy.instNonempty pos my_turn has_moves)
-    (fun ⟨y, _⟩ => sNext y _ my_turn has_moves)
-
-/-- The combined strategy does the same as the chosen stratFor when inMyCone. -/
-lemma stratFor_does_same_as_combo {i : Player} (g : Game) [inst : DecidableEq Game.Pos]
-    (p q : g.His)
-    (whose_turn : g.turn p = other i)
-    (stratFor : { x // x ∈ Game.moves p } → Strategy g i)
-    (has_moves : g.moves q ≠ ∅)
-    (nextP : { x // x ∈ g.moves p })
-    (q_turn_i : g.turn q = i)
-    -- (q_next_in : inMyCone (stratFor nextP) (nextP.val :: p) ((stratFor nextP q q_turn_i has_moves).val :: q)) -- too late / far down?
-    (q_in : inMyCone (stratFor nextP) (nextP.val :: p) (q))
-    : stratFor nextP q q_turn_i has_moves = combo g p stratFor q q_turn_i has_moves := by
-  have := inMyCone_then_exists_prefix q_in
-  rcases this with ⟨l, q__eq__l_nextP_p⟩
-  have := multi_splitter_of_first_match nextP q__eq__l_nextP_p ?_
-  · unfold combo
-    rw [this]
-    simp
-  · -- PROBLEM: Need to ensure that after `nextP` no other move available at `p` can occur?
-    -- Should a history carry more information than just a list? (Like `Play` before?)
-    -- Or can we prove a lemma about multi_splitter that if there are no repeats then
-    -- the selected `y` must be the first of the `ys`?
-    sorry
-
-/-- Second helper for `gamedet'`. -/
-theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.Pos]
-    (p : g.His) (whose_turn : g.turn p = other i)
-    (win_all_next : ∀ pNext : Game.moves p, ∃ (s : Strategy g i), winning (pNext :: p) s)
+/-- COPY to try an alternative proof via `winning_if_imitating_some_winning`. -/
+theorem winning_strategy_of_all_next_when_others_turnCOPY (g : Game) [DecidableEq g.Pos]
+    (p : g.Pos) (whose_turn : g.turn p = other i)
+    (win_all_next : ∀ pNext : Game.moves p, ∃ (s : Strategy g i), winning pNext s)
     : ∃ (s : Strategy g i), winning p s := by
-  wlog has_moves : (Game.moves p).Nonempty
+  wlog has_moves_p : (Game.moves p).Nonempty
   · unfold winning winner
     simp_all
   -- We "stitch together" the (possibly overlapping) strategies given by `win_all_next`.
-  -- This needs choice.
+  -- This needs a lot of choice.
   rcases Classical.axiomOfChoice win_all_next with ⟨stratFor, stratFor_h⟩
-  let s := combo g p stratFor
+  -- Would it be better to use choice on the later positions, not only the pNext positions?
+  have := Classical.axiomOfChoice
+    (sorry : ∀ q : { q : g.Pos // ∃ pNext, inMyCone (stratFor pNext) pNext q }
+              , ∃ s_q : Strategy g i, winning q s_q )
+  rcases this with ⟨stratForGen, stratForGen_h⟩
+  have := Classical.dec -- needed to decide `is_relevant`
+  let s : Strategy g i :=
+    (fun pos turn_i has_moves =>
+      if is_relevant : ∃ pNext : g.moves p, inMyCone (stratFor pNext) pNext pos
+      then
+        stratForGen ⟨pos, is_relevant⟩ pos turn_i has_moves -- new! better?
+      else
+        Classical.choice Strategy.instNonempty pos turn_i has_moves -- should never be used
+    )
   use s
   -- Need to show that s is winning at p.
   unfold winning winner
@@ -553,11 +498,73 @@ theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.
   simp_all
   intro sJ
   let nextP := sJ p (by cases i <;> simp_all) (by aesop)
-  change winner s sJ (nextP.val :: p) = i
+  change winner s sJ nextP.val = i
+  -- Remains to show  that `s` is winning at `nextP` chosen by `sJ`.
+  apply winner_of_winning -- ignoring sJ
+  apply winning_if_imitating_some_winning
+  intro r r_in r_turn_i
+  unfold s
+  have sCone_sub : ∀ x, inMyCone s nextP x → inMyCone (stratFor nextP) nextP x := by
+    -- BUT IS THIS ACTUALLY TRUE?
+    -- What if s uses a different `nextPother` to leave `(stratFor nextP) nextP` again???
+    sorry
+  use stratForGen ⟨r, ?r_in_some_cone⟩ -- too specific, avoid choosing it yet?
+  constructor
+  · apply stratForGen_h _ nextP nextP.prop -- NO, too specific!
+    apply sCone_sub
+    -- have: r is in cone of s
+    -- want: r is in cone of stratFor nextP
+    assumption
+  · intro h1 h2
+    split
+    · rfl
+    · exfalso
+      simp_all
+      -- Should be a contradiction:
+      -- r is in cone of s from nextP
+      -- r is not in the cone of any stratFor
+      -- ???
+      sorry
+  case r_in_some_cone =>
+    -- want: r is in cone of some stratFor
+    sorry
+
+/-- Second helper for `gamedet'`. -/
+theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.Pos]
+    (p : g.Pos) (whose_turn : g.turn p = other i)
+    (win_all_next : ∀ pNext : p.moves, ∃ (s : Strategy g i), winning pNext s)
+    : ∃ (s : Strategy g i), winning p s := by
+  wlog has_moves : (Game.moves p).Nonempty
+  · unfold winning winner
+    simp_all
+  -- We "stitch together" the (possibly overlapping) strategies given by `win_all_next`.
+  -- This needs a lot of choice.
+  rcases Classical.axiomOfChoice win_all_next with ⟨stratFor, stratFor_h⟩
+  have := Classical.dec -- needed to decide `is_relevant`.
+  -- let stratFor (pNext : g.moves p) : { sI' : Strategy g i // winning pNext sI' } :=
+  --   Exists.subtype (win_all_next pNext.val pNext.prop)
+  let s : Strategy g i :=
+    (fun pos turn_i has_moves =>
+      if is_relevant : ∃ pNext : p.moves, inMyCone (stratFor pNext) pNext pos
+      then
+        let pNext := WellFounded.min WellOrderingRel.isWellOrder.wf _ is_relevant
+        -- let ⟨pNext, pos_inCone⟩ := Exists.subtype is_relevant
+        (stratFor pNext) pos turn_i has_moves
+      else
+        Classical.choice Strategy.instNonempty pos turn_i has_moves -- should never be used
+    )
+  use s
+  -- Need to show that s is winning at p.
+  unfold winning winner
+  have : ¬ (Game.turn p = i) := by rw [whose_turn]; cases i <;> simp
+  simp_all
+  intro sJ
+  let nextP := sJ p (by cases i <;> simp_all) (by aesop)
+  change winner s sJ nextP.val = i
   -- Now suffices to show that `s'` is winning at `nextP` chosen by `sJ`.
-  suffices claim : ∀ n, ∀ nextP : g.moves p, ∀ q,
-                inMyCone (stratFor nextP) (nextP :: p) q → g.bound q = n → winner s sJ q = i by
-    exact claim _ nextP (nextP :: p) inMyCone.nil rfl
+  suffices claim : ∀ n, ∀ nextP : g.moves p, ∀ p,
+                inMyCone (stratFor nextP) nextP p → g.bound p = n → winner s sJ p = i by
+    exact claim _ nextP nextP inMyCone.nil rfl
   clear nextP
   -- Remains to show the claim.
   intro n
@@ -570,23 +577,33 @@ theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.
     by_cases has_moves : (Game.moves q).Nonempty <;> by_cases turn_i : Game.turn q = i <;> simp_all
     · -- tricky case: there are moves and it is my turn.
       let nextQ := s q ?_ ?_
-      change winner s sJ (nextQ :: _) = i
-      apply IH (g.bound (nextQ :: _)) ?_ nextP.val ?_ (nextQ :: _) ?_ rfl
+      change winner s sJ nextQ = i
+      apply IH (g.bound nextQ) ?_ nextP.val ?_ nextQ ?_ rfl
       · rw [← def_n]
         exact g.bound_h q nextQ.val nextQ.prop
       · simp
       · -- Use `myStep` because it is the turn of `i`.
-        have := inMyCone.myStep q_inMyCone (Finset.nonempty_iff_ne_empty.mp has_moves) turn_i
+        have := inMyCone.myStep q_inMyCone (has_moves) turn_i
         unfold nextQ
         convert this using 1
-        clear this
+        -- PROBLEM
+        -- Need that `s` does the same as `stratFor nextP` at `q`.
         unfold s
-        convert rfl using 3
-        -- Remains to show that `combo ...` does the same as the `stratFor nextP` at `q`.
-        apply stratFor_does_same_as_combo <;> assumption
+        -- unfold stratFor
+        simp only
+        -- simp -- times out, but `simp only` works a bit?
+        have : ∃ pNext : g.moves p, inMyCone (stratFor pNext) pNext q := by
+          use nextP
+        split
+        · -- unfold stratFor
+          convert rfl
+          -- PROBLEM: need nextP = Exists.subtype.val ??? Avoid choice to repair this.
+          sorry
+        · exfalso
+          tauto
     · let nextQ := sJ q ?_ ?_ -- sJ, not s here
-      change winner s sJ (nextQ :: q) = i
-      apply IH (g.bound (nextQ :: q)) ?_ nextP.val ?_ (nextQ :: q) ?_ rfl
+      change winner s sJ nextQ = i
+      apply IH (g.bound nextQ) ?_ nextP.val ?_ nextQ ?_ rfl
       · rw [← def_n]
         exact g.bound_h q nextQ.val nextQ.prop
       · simp
@@ -595,12 +612,12 @@ theorem winning_strategy_of_all_next_when_others_turn (g : Game) [DecidableEq g.
     · -- no moves and our turn, cannot be.
       exfalso
       have := winning_here_then_winning_inMyCone
-        (stratFor nextP) (nextP :: p) (stratFor_h nextP _) q q_inMyCone
+        (stratFor nextP) nextP (stratFor_h nextP _) q q_inMyCone
       unfold winning winner at this
       simp_all
 
 /-- Generalized version of `gamedet` for the proof by induction on `g.bound p`. -/
-theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.His) n (h : n = g.bound p) :
+theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.Pos) n (h : n = g.bound p) :
     (∃ s : Strategy g A, winning p s) ∨ (∃ s : Strategy g B, winning p s) := by
   induction n using Nat.caseStrongRecOn generalizing p
   case zero =>
@@ -626,7 +643,7 @@ theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.His) n (h : n = g.bound p
     -- If the bound still allows moves, distinguish cases if there are any.
     by_cases haveMoves : (g.moves p).Nonempty
     · -- There is a move. Is there a next state where the current player has a winning strategy?
-      by_cases ∃ pNext ∈ g.moves p, ∃ (s : Strategy g (g.turn p)), winning (pNext :: p) s
+      by_cases ∃ pNext ∈ g.moves p, ∃ (s : Strategy g (g.turn p)), winning pNext s
       case pos hyp =>
         rcases hyp with ⟨pNext, pNext_in, s, s_winning⟩
         -- Whose turn is it? That player has a winning strategy!
@@ -655,11 +672,11 @@ theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.His) n (h : n = g.bound p
           apply winning_strategy_of_all_next_when_others_turn _ _ (by simp_all)
           -- By IH and `hyp` at all next states B must have a winning strategy:
           rintro ⟨pNext,pNext_in_moves_p⟩
-          let m := g.bound (pNext :: p)
+          let m := g.bound pNext
           have : m ≤ n := by apply Nat.le_of_lt_succ; rw [h]; exact g.bound_h _ _ pNext_in_moves_p
-          have Awin_or_Bwin := IH _ this (pNext :: p) rfl
+          have Awin_or_Bwin := IH _ this pNext rfl
           have := hyp pNext pNext_in_moves_p
-          suffices ¬ (∃ (s : Strategy g _), winning (pNext :: p) s) by tauto
+          suffices ¬ (∃ (s : Strategy g _), winning pNext s) by tauto
           push_neg
           intro s
           rw [whose_turn] at this
@@ -669,11 +686,11 @@ theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.His) n (h : n = g.bound p
           apply winning_strategy_of_all_next_when_others_turn _ _ (by simp_all)
           -- By IH and `hyp` at all next states B must have a winning strategy:
           rintro ⟨pNext, pNext_in_moves_p⟩
-          let m := g.bound (pNext :: p)
+          let m := g.bound pNext
           have : m ≤ n := by apply Nat.le_of_lt_succ; rw [h]; exact g.bound_h _ _ pNext_in_moves_p
-          have Awin_or_Bwin := IH _ this (pNext :: p) rfl
+          have Awin_or_Bwin := IH _ this pNext rfl
           have := hyp pNext pNext_in_moves_p
-          suffices ¬ (∃ (s : Strategy g _), winning (pNext :: p) s) by tauto
+          suffices ¬ (∃ (s : Strategy g _), winning pNext s) by tauto
           push_neg
           intro s
           rw [whose_turn] at this
@@ -687,5 +704,161 @@ theorem gamedet' (g : Game) [DecidableEq g.Pos] (p : g.His) n (h : n = g.bound p
 /-- Zermelo's Theorem: In every `Game` posiiton one of the two players has a winning strategy.
 https://en.wikipedia.org/wiki/Zermelo%27s_theorem_(game_theory)
 -/
-theorem gamedet (g : Game) [DecidableEq g.Pos] (p : g.His) :
+theorem gamedet (g : Game) [DecidableEq g.Pos] (p : g.Pos) :
     (∃ s : Strategy g A, winning p s) ∨ (∃ s : Strategy g B, winning p s) := gamedet' g p _ rfl
+
+
+-- Strategy for specific height
+def NStrategy (g : Game) (n : ℕ) (i : Player) : Type := ∀ p, g.bound p = n → g.turn p = i → p.moves.Nonempty → p.moves
+
+-- -- Interpret Strategy as NStrategy
+-- instance Strategy_as_NStrategy : Coe (Strategy g i) (NStrategy g n i) := ⟨fun s p _ => s p⟩
+
+-- -- Winner of a game guided by the given n-strategies, starting from a position with bound <= n
+-- def Nwinner (sI : NStrategy g n i) (sJ : NStrategy g n (other i)) (p : g.Pos) (h : g.bound p <= n) : Player :=
+--   if h1 : (g.moves p).Nonempty
+--     then if h2 : g.turn p = i
+--       then Nwinner sI sJ (sI p h h2 h1) <| (le_of_lt <| g.bound_h _ _ (sI _ _ _ _).prop).trans h
+--       else Nwinner sI sJ (sJ p h _  h1) <| (le_of_lt <| g.bound_h _ _ (sJ _ _ (by cases i <;> simp_all) _).prop).trans h
+--     else other (g.turn p)
+-- termination_by
+--   g.bound p
+-- decreasing_by
+--   all_goals
+--     apply g.bound_h; simp
+
+-- -- Auxiliary theorem with n as variable for induction
+-- theorem Nwinner_eq_winner_aux {g : Game} (sI : Strategy g i) (sJ : Strategy g (other i)) (p : g.Pos)
+--     (h : g.bound p <= n) :
+--     @Nwinner _ _ i sI sJ p h = winner sI sJ p := by
+--   unfold Nwinner winner dite
+--   cases Finset.decidableNonempty with
+--   | isTrue h1 => cases instDecidableEqPlayer (g.turn p) i with
+--     | isTrue h2 => simp only [Nwinner_eq_winner_aux _ _ ((Strategy_as_NStrategy.coe sI) p ..)]
+--     | isFalse h2 => simp only [Nwinner_eq_winner_aux _ _ ((Strategy_as_NStrategy.coe sJ) p ..)]
+--   | isFalse h1 => rfl
+-- termination_by
+--   g.bound p
+-- decreasing_by
+--   all_goals
+--     apply g.bound_h; simp
+
+-- theorem Nwinner_eq_winner (sI : Strategy g i) (sJ : Strategy g (other i)) (p : g.Pos) :
+--     @Nwinner g (g.bound p) i sI sJ p rfl.le = winner sI sJ p :=
+--   Nwinner_eq_winner_aux ..
+
+-- /-- An n-strategy is winning at `p` (of height <= n) if it wins against all strategies of the other player. -/
+-- def Nwinning (sI : NStrategy g n i) (p : g.Pos) (h : g.bound p <= n) : Prop :=
+--   ∀ sJ : Strategy g (other i), Nwinner sI sJ p h = i
+
+-- noncomputable def bound_winning_strategies n i :
+--     ((p : g.Pos) → g.bound p = n → Prop) × NStrategy g n i :=
+--   Nat.strongRecOn n (fun _ ind =>
+--     let has_win p h : Prop := ∃ q h', (ind _ (lt_of_lt_of_eq (g.bound_h p _ h') h)).fst q rfl
+--     let other_lose p h : Prop := @has_win
+--     ⟨fun p h => (g.turn p = i ∧ has_win p h) ∨ (g.turn p = (other i) ∧ other_lose p h),
+--     have := Classical.dec
+--     fun p h _ nempty => if W : has_win p h
+--       then ⟨W.choose, W.choose_spec.choose⟩
+--       else choose_move nempty
+--     ⟩
+--   )
+
+noncomputable def good {g : Game} (i : Player) (p : g.Pos) : Prop :=
+  (g.turn p = i ∧ ∃ (q : g.Pos) (_ : q ∈ p.moves), good i q) ∨ (g.turn p = other i ∧ ∀ q (_ : q ∈ p.moves), good i q)
+termination_by g.bound p
+decreasing_by all_goals apply g.bound_h _ _; assumption
+
+theorem good_or_other {g : Game} (p : g.Pos) : good (g.turn p) p ∨ good (other (g.turn p)) p :=
+  Nat.strongRecMeasure (g.bound) (fun p ind =>
+    (exists_or_forall_not (fun q => ∃ (h : q ∈ p.moves), good _ q)).elim
+    (fun E => .inl <| by unfold good; apply Or.inl; exact ⟨rfl, E⟩)
+    (fun A => .inr <| by
+      unfold good; apply Or.inr; apply And.intro
+      . exact other_other.symm
+      . intro q h
+        have det := ind q (g.bound_h _ _ h)
+        have := A q
+        by_cases g.turn p = g.turn q <;> simp_all
+    )
+  ) p
+
+theorem good_A_or_B {g : Game} (p : g.Pos) : good A p ∨ good B p := by
+  have det := good_or_other p
+  cases i : g.turn p <;> cases det <;> simp_all
+
+noncomputable def good_strat (i : Player): Strategy g i := fun p turn nempty =>
+  have := Classical.dec
+  if W : good i p
+    then by
+      unfold good at W
+      have E := And.right <| W.resolve_right (not_and_of_not_left _ <| not_eq_other_eq_i.mpr turn)
+      exact ⟨E.choose, E.choose_spec.choose⟩
+    else choose_move nempty
+
+theorem sub_lt_sub_left' : ∀ {a b c : Nat}, b < c → c <= a → a - c < a - b := fun h₁ h₂ =>
+  Nat.sub_lt_sub_left (trans h₁ h₂) h₁
+
+theorem bound_le_in_cone {s : Strategy g i} : inMyCone s p q → g.bound q <= g.bound p := fun h =>
+  by induction h with
+  | nil => rfl
+  | myStep _ _ _ ih => exact le_of_lt (lt_of_lt_of_le (g.bound_h _ _ <| Subtype.mem _) ih)
+  | oStep _ _ h ih => exact le_of_lt (lt_of_lt_of_le (g.bound_h _ _ h) ih)
+
+theorem good_cone {g : Game} {p r : g.Pos} (W : good i p) (h : inMyCone (good_strat i) p r) : good i r := by
+  induction h with
+  | nil => exact W
+  | oStep _ turn h ih =>
+    unfold good at ih
+    exact (ih.resolve_left (not_and_of_not_left _ <| not_eq_i_eq_other.mpr turn)).right _ h
+  | @myStep q a nempty turn ih =>
+    unfold good_strat
+    if good i q
+      then
+        let E := good_strat.proof_1 i q turn ih
+        simp only [ih, ↓reduceDIte]
+        exact (good_strat.proof_1 i q turn (of_eq_true (eq_true ih))).choose_spec.choose_spec
+      else contradiction
+
+-- this is buggy for some reason:
+-- . unfold good at ih; exact (Exists.choose_spec (And.right <| Or.resolve_right _ (not_and_of_not_left _ <| not_eq_other_eq_i.mpr turn))).choose_spec
+-- . contradiction
+
+theorem good_is_surviving {g : Game} {p : g.Pos} : good i p → g.turn p = i → p.moves.Nonempty := by
+  intro W turn
+  unfold good at W
+  apply (Or.resolve_right . (not_and_of_not_left _ <| not_eq_other_eq_i.mpr turn)) at W
+  match W with | ⟨_, ⟨q, ⟨h, _⟩⟩⟩ => exact ⟨q,h⟩
+
+set_option pp.proofs true
+
+theorem cone_trans {p q r : g.Pos} {s : Strategy g i} : inMyCone s p q → inMyCone s q r → inMyCone s p r :=
+  fun a b => by induction b with
+  | nil => assumption
+  | myStep _ _ _ ih => exact .myStep ih ..
+  | oStep a turn h ih => exact .oStep ih turn h
+
+theorem surviving_is_winning {sI : Strategy g i} (surv : ∀ q, inMyCone sI p q → g.turn q = i → q.moves.Nonempty)
+    : winning p sI :=
+  fun sJ => by
+    unfold winner
+    split
+    case isFalse empty =>
+      by_contra turn
+      apply (not_eq_other_eq_i.mp ∘ Ne.symm) at turn
+      exact empty (surv _ .nil turn.symm)
+    split
+    . exact surviving_is_winning (surv . ∘ cone_trans (.myStep .nil _ _)) _
+    next _ turn =>
+      exact surviving_is_winning (surv . ∘ cone_trans (.oStep .nil (not_eq_i_eq_other.mp turn) <| Subtype.mem _)) _
+termination_by g.bound p
+decreasing_by all_goals apply g.bound_h; exact Subtype.mem _
+
+theorem good_strat_winning (W : good i p) : winning p (good_strat i) :=
+  surviving_is_winning fun _ => good_is_surviving ∘ (good_cone W)
+
+theorem gamedetCOPY (g : Game) [DecidableEq g.Pos] (p : g.Pos) :
+    (∃ s : Strategy g A, winning p s) ∨ (∃ s : Strategy g B, winning p s) := Or.imp
+    (⟨good_strat A, good_strat_winning .⟩)
+    (⟨good_strat B, good_strat_winning .⟩)
+    <| good_A_or_B p
