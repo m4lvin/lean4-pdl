@@ -9,7 +9,6 @@ theorem modelExistence: consistent X →
     ∃ (WS : Finset (Finset Formula)) (_ : ModelGraph WS) (W : WS), X.toFinset ⊆ W :=
   by
   intro consX
-  have _ := Classical.decEq -- needed for DecidableEq as of now.
   rcases gamedet tableauGame (Sum.inl X) with ProverHasWinningS | BuilderHasWinningS
   · absurd consX
     rcases ProverHasWinningS with ⟨sP, winning_sP⟩

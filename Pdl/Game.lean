@@ -150,13 +150,6 @@ noncomputable def good_strat (i : Player): Strategy g i := fun p turn nempty =>
       exact ⟨E.choose, E.choose_spec.choose⟩
     else choose_move nempty
 
--- Unused
-theorem bound_le_in_cone {s : Strategy g i} : inMyCone s p q → g.bound q <= g.bound p := fun h =>
-  by induction h with
-  | nil => rfl
-  | myStep _ _ _ ih => exact le_of_lt (lt_of_lt_of_le (g.bound_h _ _ <| Subtype.mem _) ih)
-  | oStep _ _ h ih => exact le_of_lt (lt_of_lt_of_le (g.bound_h _ _ h) ih)
-
 theorem good_cone {g : Game} {p r : g.Pos} (W : good i p) (h : inMyCone (good_strat i) p r) : good i r := by
   induction h with
   | nil => exact W
@@ -206,7 +199,7 @@ theorem good_strat_winning (W : good i p) : winning p (good_strat i) :=
 /-- Zermelo's Theorem: In every `Game` posiiton one of the two players has a winning strategy.
 https://en.wikipedia.org/wiki/Zermelo%27s_theorem_(game_theory)
 -/
-theorem gamedet (g : Game) [DecidableEq g.Pos] (p : g.Pos) :
+theorem gamedet (g : Game) (p : g.Pos) :
     (∃ s : Strategy g A, winning p s) ∨ (∃ s : Strategy g B, winning p s) := Or.imp
     (⟨good_strat A, good_strat_winning .⟩)
     (⟨good_strat B, good_strat_winning .⟩)
