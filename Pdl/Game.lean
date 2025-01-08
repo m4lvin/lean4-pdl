@@ -117,7 +117,7 @@ inductive inMyCone {g : Game} (sI : Strategy g i) (p : g.Pos) : g.Pos → Prop
 | myStep : inMyCone sI p q → (has_moves : q.moves.Nonempty) → (h : g.turn q = i) → inMyCone sI p (sI q h has_moves)
 | oStep : inMyCone sI p q → g.turn q = other i → r ∈ g.moves q → inMyCone sI p r
 
-noncomputable def good {g : Game} (i : Player) (p : g.Pos) : Prop :=
+def good {g : Game} (i : Player) (p : g.Pos) : Prop :=
     (g.turn p = i       ∧ ∃ (q : g.Pos) (_ : q ∈ p.moves), good i q)
   ∨ (g.turn p = other i ∧ ∀ (q : g.Pos) (_ : q ∈ p.moves), good i q)
 termination_by g.bound p
@@ -150,9 +150,7 @@ noncomputable def good_strat (i : Player): Strategy g i := fun p turn nempty =>
       exact ⟨E.choose, E.choose_spec.choose⟩
     else choose_move nempty
 
-theorem sub_lt_sub_left' : ∀ {a b c : Nat}, b < c → c <= a → a - c < a - b := fun h₁ h₂ =>
-  Nat.sub_lt_sub_left (trans h₁ h₂) h₁
-
+-- Unused
 theorem bound_le_in_cone {s : Strategy g i} : inMyCone s p q → g.bound q <= g.bound p := fun h =>
   by induction h with
   | nil => rfl
