@@ -117,10 +117,6 @@ inductive inMyCone {g : Game} (sI : Strategy g i) (p : g.Pos) : g.Pos → Prop
 | myStep : inMyCone sI p q → (has_moves : q.moves.Nonempty) → (h : g.turn q = i) → inMyCone sI p (sI q h has_moves)
 | oStep : inMyCone sI p q → g.turn q = other i → r ∈ g.moves q → inMyCone sI p r
 
-/-- Strategy for specific height -/
-def NStrategy (g : Game) (n : ℕ) (i : Player) : Type :=
-  ∀ p, g.bound p = n → g.turn p = i → p.moves.Nonempty → p.moves
-
 noncomputable def good {g : Game} (i : Player) (p : g.Pos) : Prop :=
     (g.turn p = i       ∧ ∃ (q : g.Pos) (_ : q ∈ p.moves), good i q)
   ∨ (g.turn p = other i ∧ ∀ (q : g.Pos) (_ : q ∈ p.moves), good i q)
