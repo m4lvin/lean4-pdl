@@ -1326,15 +1326,33 @@ lemma Vector.my_cast_eq_val_head (n m : Nat) (v : Mathlib.Vector α n.succ) (h :
   · exfalso; aesop
   · aesop
 
+lemma Vector.my_cast_toList (n m : ℕ) (t : List α) ht (h : n = m) :
+    t = Mathlib.Vector.toList (h ▸ (⟨t, ht⟩ : Mathlib.Vector α n)) := by subst h; simp
+
+lemma aux_simplify_vector_type {α} {q p : ℕ} (t : List α) h :
+    let help (n m : ℕ) : (n + 1 + 1 - (m + 1 + 1)) = n + 1 - (m + 1) := by omega
+    (⟨t, h⟩ : Mathlib.Vector α (q + 1 + 1 - (p + 1 + 1)))
+    = (help q p) ▸ ⟨t, by simp at h; simp; exact h⟩ := by
+    apply Mathlib.Vector.eq
+    simp
+    apply Vector.my_cast_toList
+
 lemma Vector.my_drop_succ_cons {α} {m n : ℕ} (x : α) (t : List α) h (hyp : m < n) :
     let help : (n + 1 - (m + 1)) = n - m := by omega
     Mathlib.Vector.drop (m + 1) (⟨x :: t, h⟩ : Mathlib.Vector α n.succ)
     = help ▸ Mathlib.Vector.drop m ⟨t, by simp at h; exact h⟩ := by
-  simp [Mathlib.Vector.drop]
-  ext k
-  rcases k with ⟨k, k_lt⟩
-  simp [Mathlib.Vector.get]
-  sorry
+    induction m generalizing t n h x with
+    | zero => simp [Mathlib.Vector.drop]
+    | succ p ih =>
+      cases t with
+      | nil => simp at h; omega
+      | cons head tail =>
+        cases n with
+        | zero => omega
+        | succ q =>
+        simp [Mathlib.Vector.drop] at ih
+        simp [Mathlib.Vector.drop]
+        rw [aux_simplify_vector_type]
 
 lemma Vector.get_succ_eq_head_drop {v : Mathlib.Vector α n.succ} (k : Fin n) (j : Nat)
     (h : (n + 1 - (k.val + 1)) = j + 1) :
