@@ -1386,13 +1386,19 @@ lemma Vector.get_succ_eq_head_drop {v : Mathlib.Vector α n.succ} (k : Fin n) (j
         simp only [eqRec_heq_iff_heq, heq_eq_eq]
         omega
 
+/-- Generalized vesrion of `Vector.drop_get_eq_get_add`. -/
+lemma Vector.drop_get_eq_get_add' (v : Mathlib.Vector α n) (l r : ℕ) {h : i = l + r} {hi hr} :
+    v.get ⟨i, hi⟩ = (Mathlib.Vector.drop l v).get ⟨r, hr⟩ := by
+  rcases v with ⟨t, t_prop⟩
+  simp [Mathlib.Vector.get, Mathlib.Vector.drop, h]
+
 /-- A Vector analogue of `List.getElem_drop`. -/
 lemma Vector.drop_get_eq_get_add {n : Nat} (v : Mathlib.Vector α n) (k : Nat)
     (i : Fin (n - k))
     (still_lt : k + i.val < n) :
     (v.drop k).get i = v.get ⟨k + i.val, still_lt⟩ := by
-  rcases v with ⟨l, l_prop⟩
-  simp [Mathlib.Vector.get, Mathlib.Vector.drop]
+  apply Eq.symm (Vector.drop_get_eq_get_add' ..)
+  rfl
 
 -- FIXME is this in mathlib?
 lemma Fin.my_cast_val (n m : Nat) (h : n = m) (j_lt : j < n) :
@@ -1415,6 +1421,10 @@ lemma Vector.drop_last_eq_last {v : Mathlib.Vector α n.succ} (k : Fin n) (j : N
     simp only [Nat.succ_eq_add_one, Nat.reduceSubDiff] at h
     rw [Fin.my_cast_val (j + 1) (n + 1 - (k + 1)) (by linarith) (Nat.lt_succ_self j)]
     omega
+
+lemma Vector.my_cast_heq (n m : Nat) (h : n = m) (v : Mathlib.Vector α n) :
+    HEq (h ▸ v : Mathlib.Vector α m) v := by
+  aesop
 
 theorem boxes_true_at_k_of_Vector_rel {W : Type} {M : KripkeModel W} (ξ : AnyFormula)
     (δ : List Program) (h : ¬δ = [])
@@ -1456,16 +1466,18 @@ theorem boxes_true_at_k_of_Vector_rel {W : Type} {M : KripkeModel W} (ξ : AnyFo
       convert this using 1
       · rcases i with ⟨i_val, i_prop⟩ -- to remove casSucc
         simp only [Fin.castSucc_mk]
-        -- Almost rfl, how to deal with the ▸  here?
-        -- Note: this is NOT an HEq problem.
-        sorry
+        congr!
+        · simp
+        · apply Eq.symm; apply Fin.my_cast_val
       · rcases i with ⟨i_val, i_prop⟩ -- to remove casSucc
         simp only [Fin.castSucc_mk]
         convert rfl using 4
-        -- Again, only ▸ left here, what to do?
-        sorry
+        apply Fin.my_cast_val
     · -- analogous to previous thing?
-      sorry
+      rw [Vector.drop_get_eq_get_add' ws (↑k + 1) (↑i + 1)] <;> try omega
+      congr
+      · apply Vector.my_cast_heq
+      · congr!
 
 -- Needed for `lake build` to succeed, but not in VSc apparently?
 set_option maxHeartbeats 2000000
