@@ -25,7 +25,7 @@ theorem completeness : ∀ X, consistent X → satisfiable X :=
   rcases X with ⟨L, R, O⟩
   have ⟨WS, M, w, h⟩ := modelExistence X_is_consistent
   use WS, M.val, w
-  simp [modelCanSemImplyTNode, TNode.toFinset] at *
+  simp [modelCanSemImplySequent, Sequent.toFinset] at *
   intro f f_in
   apply truthLemma M w f
   apply h
@@ -38,4 +38,4 @@ theorem singletonConsIffSat : ∀ φ, consistent ([φ],[],none) ↔ satisfiable 
   by
   intro φ
   have := consIffSat ⟨[φ], [], none⟩
-  simp [this,tNodeHasSat,modelCanSemImplyTNode]
+  simp [this, instSequentHasSat, modelCanSemImplySequent]

@@ -34,15 +34,15 @@ def boxesOf : Formula → List Program × Formula
 | (Formula.box prog nextf) => let (rest,endf) := boxesOf nextf; ⟨prog::rest, endf⟩
 | f => ([], f)
 
-/-- A history is a list of TNodes.
+/-- A history is a list of Sequents.
 This only tracks "big" steps, hoping we do not need steps within a local tableau.
-The head of the first list is the newest TNode. -/
-abbrev History : Type := List TNode
+The head of the first list is the newest Sequent. -/
+abbrev History : Type := List Sequent
 
 /-- A lpr means we can go `k` steps back in the history to
 reach an equal node, and all nodes on the way are loaded.
 Note: `k=0` means the first element of `Hist` is the companion. -/
-def LoadedPathRepeat (Hist : History) (X : TNode) : Type :=
+def LoadedPathRepeat (Hist : History) (X : Sequent) : Type :=
   Subtype (fun k => (Hist.get k).setEqTo X ∧ ∀ m ≤ k, (Hist.get m).isLoaded)
 
 theorem LoadedPathRepeat_comp_isLoaded (lpr : LoadedPathRepeat Hist X) : (Hist.get lpr.val).isLoaded := by
@@ -57,7 +57,7 @@ theorem LoadedPathRepeat_rep_isLoaded (lpr : LoadedPathRepeat Hist X) : X.isLoad
 /-! ## The PDL rules -/
 
 /-- A rule to go from Γ to Δ. Note the four variants of the modal rule. -/
-inductive PdlRule : (Γ : TNode) → (Δ : TNode) → Type
+inductive PdlRule : (Γ : Sequent) → (Δ : Sequent) → Type
   -- The (L+) rule:
   | loadL : (~⌈⌈δ⌉⌉⌈α⌉φ) ∈ L → PdlRule (L, R, none)
                                        (L.erase (~⌈⌈δ⌉⌉⌈α⌉φ), R, some (Sum.inl (~'(⌊⌊δ⌋⌋⌊α⌋φ))))
@@ -86,7 +86,7 @@ A closed tableau for X is either of:
 - a PDL rule application
 - a successful loaded repeat (MB condition six)
 -/
-inductive Tableau : History → TNode → Type
+inductive Tableau : History → Sequent → Type
   | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf lt, Tableau (X :: Hist) Y) → Tableau Hist X
   | pdl {Δ Γ} : PdlRule Γ Δ → Tableau (Γ :: Hist) Δ → Tableau Hist Γ
   | rep {X Hist} (lpr : LoadedPathRepeat Hist X) : Tableau Hist X
@@ -95,10 +95,10 @@ inductive provable : Formula → Prop
   | byTableauL {φ : Formula} : Tableau .nil ⟨[~φ], [], none⟩ → provable φ
   | byTableauR {φ : Formula} : Tableau .nil ⟨[], [~φ], none⟩ → provable φ
 
-/-- A TNode is inconsistent if there exists a closed tableau for it. -/
-def inconsistent : TNode → Prop
+/-- A Sequent is inconsistent if there exists a closed tableau for it. -/
+def inconsistent : Sequent → Prop
   | LR => Nonempty (Tableau .nil LR)
 
-/-- A `TNode` is consistent iff it is not inconsistent. -/
-def consistent : TNode → Prop
+/-- A `Sequent` is consistent iff it is not inconsistent. -/
+def consistent : Sequent → Prop
   | LR => ¬inconsistent LR

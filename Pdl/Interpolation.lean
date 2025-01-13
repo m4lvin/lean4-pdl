@@ -12,10 +12,10 @@ def Interpolant (φ : Formula) (ψ : Formula) (θ : Formula) :=
 theorem interpolation : ∀ (φ ψ : Formula), φ⊨ψ → ∃ θ : Formula, Interpolant φ ψ θ :=
   by
   intro φ ψ hyp
-  let X : TNode := ([φ], [~(ψ)], none)
+  let X : Sequent := ([φ], [~(ψ)], none)
   have ctX : Tableau .nil X :=
     by
-    rw [tautImp_iff_TNodeUnsat rfl] at hyp
+    rw [tautImp_iff_SequentUnsat rfl] at hyp
     rw [← consIffSat _ (by simp)] at hyp -- using completeness
     simp [consistent,inconsistent] at hyp
     exact Classical.choice hyp

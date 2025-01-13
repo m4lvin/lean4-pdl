@@ -20,55 +20,54 @@ def Olf.voc : Olf → Vocab
 | some (Sum.inr nlf) => nlf.voc
 
 /-- A tableau node is labelled with two lists of formulas and an `Olf`. -/
--- TODO: rename `TNode` to `Sequent`
 -- TODO: turn this into "abbrev" to avoid silly instance below.
-def TNode := List Formula × List Formula × Olf -- ⟨L, R, o⟩
+def Sequent := List Formula × List Formula × Olf -- ⟨L, R, o⟩
   deriving DecidableEq, Repr
 
--- Some thoughts about the TNode type:
+-- Some thoughts about the Sequent type:
 -- - one formula may be loaded
 -- - each (loaded) formula can be on the left/right/both
 
-/-- Two `TNode`s are set-equal when their components are finset-equal.
+/-- Two `Sequent`s are set-equal when their components are finset-equal.
 That is, we do not care about the order of the lists, but we do care
 about the side of the formula and what formual is loaded.
 Hint: use `List.toFinset.ext_iff` with this. -/
-def TNode.setEqTo : TNode → TNode → Prop
+def Sequent.setEqTo : Sequent → Sequent → Prop
 | (L,R,O), (L',R',O') => L.toFinset = L'.toFinset ∧ R.toFinset = R'.toFinset ∧ O = O'
 
-def TNode.toFinset : TNode → Finset Formula
+def Sequent.toFinset : Sequent → Finset Formula
 | (L,R,O) => (L.toFinset ∪ R.toFinset) ∪ (O.map (Sum.elim negUnload negUnload)).toFinset
 
 @[simp]
-def TNode.L : TNode → List Formula := λ⟨L,_,_⟩ => L
+def Sequent.L : Sequent → List Formula := λ⟨L,_,_⟩ => L
 @[simp]
-def TNode.R : TNode → List Formula := λ⟨_,R,_⟩ => R
+def Sequent.R : Sequent → List Formula := λ⟨_,R,_⟩ => R
 @[simp]
-def TNode.O : TNode → Olf := λ⟨_,_,O⟩ => O
+def Sequent.O : Sequent → Olf := λ⟨_,_,O⟩ => O
 
-def TNode.isLoaded : TNode → Bool
+def Sequent.isLoaded : Sequent → Bool
 | ⟨_, _, none  ⟩ => False
 | ⟨_, _, some _⟩ => True
 
-def TNode.isFree (Γ : TNode) : Bool := ¬ Γ.isLoaded
+def Sequent.isFree (Γ : Sequent) : Bool := ¬ Γ.isLoaded
 
 @[simp]
-theorem TNode.none_isFree L R : TNode.isFree (L, R, none) := by
-  simp [TNode.isFree, TNode.isLoaded]
+theorem Sequent.none_isFree L R : Sequent.isFree (L, R, none) := by
+  simp [Sequent.isFree, Sequent.isLoaded]
 
 @[simp]
-theorem TNode.some_not_isFree L R olf : ¬ TNode.isFree (L, R, some olf) := by
-  simp [TNode.isFree, TNode.isLoaded]
+theorem Sequent.some_not_isFree L R olf : ¬ Sequent.isFree (L, R, some olf) := by
+  simp [Sequent.isFree, Sequent.isLoaded]
 
-theorem setEqTo_isLoaded_iff {X Y : TNode} (h : X.setEqTo Y) : X.isLoaded = Y.isLoaded := by
-  simp_all [TNode.setEqTo, TNode.isLoaded]
+theorem setEqTo_isLoaded_iff {X Y : Sequent} (h : X.setEqTo Y) : X.isLoaded = Y.isLoaded := by
+  simp_all [Sequent.setEqTo, Sequent.isLoaded]
   rcases X with ⟨XL, XR, _|_⟩ <;> rcases Y with ⟨YL, YR, _|_⟩
   all_goals
     simp_all
 
-/-! ## Semantics of a TNode -/
+/-! ## Semantics of a Sequent -/
 
-instance modelCanSemImplyTNode : vDash (KripkeModel W × W) TNode :=
+instance modelCanSemImplySequent : vDash (KripkeModel W × W) Sequent :=
   vDash.mk (λ ⟨M,w⟩ ⟨L, R, O⟩ =>
     ∀ f ∈ L ∪ R ∪ (O.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
 
@@ -77,58 +76,58 @@ instance modelCanSemImplyLLO : vDash (KripkeModel W × W) (List Formula × List 
   vDash.mk (λ ⟨M,w⟩ ⟨L, R, O⟩ =>
     ∀ f ∈ L ∪ R ∪ (O.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
 
-instance tNodeHasSat : HasSat TNode :=
+instance instSequentHasSat : HasSat Sequent :=
   HasSat.mk fun Δ => ∃ (W : Type) (M : KripkeModel W) (w : W), (M,w) ⊨ Δ
 
 open HasSat
 
-theorem tautImp_iff_TNodeUnsat {φ ψ} {X : TNode} :
+theorem tautImp_iff_SequentUnsat {φ ψ} {X : Sequent} :
     X = ([φ], [~ψ], none) →
     (φ ⊨ ψ ↔ ¬ satisfiable X) :=
   by
   intro defX
   subst defX
-  simp [satisfiable,evaluate,modelCanSemImplyTNode,formCanSemImplyForm,semImpliesLists] at *
+  simp [satisfiable,evaluate,modelCanSemImplySequent,formCanSemImplyForm,semImpliesLists] at *
 
-theorem vDash_setEqTo_iff {X Y : TNode} (h : X.setEqTo Y) (M : KripkeModel W) (w : W) :
+theorem vDash_setEqTo_iff {X Y : Sequent} (h : X.setEqTo Y) (M : KripkeModel W) (w : W) :
     (M,w) ⊨ X ↔ (M,w) ⊨ Y := by
   rcases X with ⟨L, R, O⟩
   rcases Y with ⟨L',R',O'⟩
-  simp only [TNode.setEqTo, modelCanSemImplyTNode, vDash]
-  unfold TNode.setEqTo at h
+  simp only [Sequent.setEqTo, modelCanSemImplySequent, vDash]
+  unfold Sequent.setEqTo at h
   simp at h
   rw [List.toFinset.ext_iff, List.toFinset.ext_iff] at h
   rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
   simp_all
 
-/-! ## Different kinds of formulas as elements of TNode -/
+/-! ## Different kinds of formulas as elements of Sequent -/
 
 @[simp]
-instance : Membership Formula TNode := ⟨fun X φ => φ ∈ X.L ∨ φ ∈ X.R⟩
+instance : Membership Formula Sequent := ⟨fun X φ => φ ∈ X.L ∨ φ ∈ X.R⟩
 
 @[simp]
-def NegLoadFormula.mem_TNode (X : TNode) (nlf : NegLoadFormula) : Prop :=
+def NegLoadFormula.mem_Sequent (X : Sequent) (nlf : NegLoadFormula) : Prop :=
   X.O = some (Sum.inl nlf) ∨ X.O = some (Sum.inr nlf)
 
-instance : Decidable (NegLoadFormula.mem_TNode ⟨L,R,O⟩ nlf) := by
+instance : Decidable (NegLoadFormula.mem_Sequent ⟨L,R,O⟩ nlf) := by
   refine
     if h : O = some (Sum.inl nlf) then isTrue ?_
     else if h2 : O = some (Sum.inr nlf) then isTrue ?_ else isFalse ?_
   all_goals simp; tauto
 
-def TNode.without : (LRO : TNode) → (naf : AnyNegFormula) → TNode
+def Sequent.without : (LRO : Sequent) → (naf : AnyNegFormula) → Sequent
 | ⟨L,R,O⟩, ⟨.normal f⟩  => ⟨L \ {~f}, R \ {~f}, O⟩
-| ⟨L,R,O⟩, ⟨.loaded lf⟩ => if ((~'lf).mem_TNode ⟨L,R,O⟩) then ⟨L, R, none⟩ else ⟨L,R,O⟩
+| ⟨L,R,O⟩, ⟨.loaded lf⟩ => if ((~'lf).mem_Sequent ⟨L,R,O⟩) then ⟨L, R, none⟩ else ⟨L,R,O⟩
 
 @[simp]
-instance : Membership NegLoadFormula TNode := ⟨NegLoadFormula.mem_TNode⟩
+instance : Membership NegLoadFormula Sequent := ⟨NegLoadFormula.mem_Sequent⟩
 
-def AnyNegFormula.mem_TNode : (X : TNode) → (anf : AnyNegFormula) → Prop
+def AnyNegFormula.mem_Sequent : (X : Sequent) → (anf : AnyNegFormula) → Prop
 | X, ⟨.normal φ⟩ => (~φ) ∈ X
-| X, ⟨.loaded χ⟩ => (~'χ).mem_TNode X -- FIXME: ∈ not working here
+| X, ⟨.loaded χ⟩ => (~'χ).mem_Sequent X -- FIXME: ∈ not working here
 
 @[simp]
-instance : Membership AnyNegFormula TNode := ⟨AnyNegFormula.mem_TNode⟩
+instance : Membership AnyNegFormula Sequent := ⟨AnyNegFormula.mem_Sequent⟩
 
 /-! ## Local Tableaux -/
 
@@ -218,7 +217,7 @@ theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
 
 -- A LocalRule is a OneSidedLocalRule or a LoadRule.
 -- Formulas can be in four places now: left, right, loaded left, loaded right.
-inductive LocalRule : TNode → List TNode → Type
+inductive LocalRule : Sequent → List Sequent → Type
   | oneSidedL (orule : OneSidedLocalRule precond ress) : LocalRule (precond,∅,none) $ ress.map $ λ res => (res,∅,none)
   | oneSidedR (orule : OneSidedLocalRule precond ress) : LocalRule (∅,precond,none) $ ress.map $ λ res => (∅,res,none)
   | LRnegL (ϕ : Formula) : LocalRule ([ϕ], [~ϕ], none) ∅ --  ϕ occurs on the left side, ~ϕ on the right
@@ -275,16 +274,16 @@ theorem Olf.change_some: Olf.change oldO whatever (some wnlf) = some wnlf := by
     cases oldO <;> simp [Olf.change, Option.overwrite, Option.insHasSdiff]
 
 @[simp]
-def applyLocalRule (_ : LocalRule (Lcond, Rcond, Ocond) ress) : TNode → List TNode
+def applyLocalRule (_ : LocalRule (Lcond, Rcond, Ocond) ress) : Sequent → List Sequent
   | ⟨L, R, O⟩ => ress.map $
       fun (Lnew, Rnew, Onew) => ( L.diff Lcond ++ Lnew
                                 , R.diff Rcond ++ Rnew
                                 , Olf.change O Ocond Onew )
 
-inductive LocalRuleApp : TNode → List TNode → Type
+inductive LocalRuleApp : Sequent → List Sequent → Type
   | mk {L R : List Formula}
-       {C : List TNode}
-       {ress : List TNode}
+       {C : List Sequent}
+       {ress : List Sequent}
        {O : Olf}
        (Lcond Rcond : List Formula)
        (Ocond : Olf)
@@ -538,11 +537,11 @@ def isBasicSet : Finset Formula → Bool
   | X => ∀ P ∈ X, isBasicForm P
 
 /-- A sequent is _basic_ iff it only contains ⊥, ¬⊥, p, ¬p, [A]_ or ¬[A]_ formulas. -/
-def isBasic : TNode → Bool
+def isBasic : Sequent → Bool
   | (L, R, o) => ∀ f ∈ L ++ R ++ (o.map (Sum.elim negUnload negUnload)).toList, isBasicForm f
 
 /-- Local tableau for `X`, maximal by definition. -/
-inductive LocalTableau : (X : TNode) → Type
+inductive LocalTableau : (X : Sequent) → Type
   | byLocalRule {X B} (_ : LocalRuleApp X B) (next : ∀ Y ∈ B, LocalTableau Y) : LocalTableau X
   | sim {X} : isBasic X → LocalTableau X
 
@@ -608,7 +607,7 @@ instance Formula.WellFoundedLT : WellFoundedLT Formula := by
 instance Formula.instPreorderFormula : Preorder Formula := Preorder.lift lmOfFormula
 
 @[simp]
-def node_to_multiset : TNode → Multiset Formula
+def node_to_multiset : Sequent → Multiset Formula
 | (L, R, none) => (L + R)
 | (L, R, some (Sum.inl (~'χ))) => (L + R + [~χ.unload])
 | (L, R, some (Sum.inr (~'χ))) => (L + R + [~χ.unload])
@@ -770,12 +769,12 @@ theorem node_to_multiset_of_precon {O Ocond Onew : Olf}
     linarith
 
 @[simp]
-def lt_TNode (X : TNode) (Y : TNode) := Multiset.IsDershowitzMannaLT (node_to_multiset X) (node_to_multiset Y)
+def lt_Sequent (X : Sequent) (Y : Sequent) := Multiset.IsDershowitzMannaLT (node_to_multiset X) (node_to_multiset Y)
 
 -- Needed for termination of endNOdesOf.
 -- Here we use `dm_wf` from MultisetOrder.lean.
-instance : WellFoundedRelation TNode where
-  rel := lt_TNode
+instance : WellFoundedRelation Sequent where
+  rel := lt_Sequent
   wf := InvImage.wf node_to_multiset (Multiset.wellFounded_isDershowitzMannaLT)
 
 theorem LocalRule.cond_non_empty (rule : LocalRule (Lcond, Rcond, Ocond) X) :
@@ -1107,8 +1106,8 @@ theorem MultisetDMLT.iff_MultisetLT' [DecidableEq α] [Preorder α] {M N : Multi
     constructor
     all_goals tauto
 
-theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
-    (lrA : LocalRuleApp X B) : ∀ Y ∈ B, lt_TNode Y X :=
+theorem localRuleApp.decreases_DM {X : Sequent} {B : List Sequent}
+    (lrA : LocalRuleApp X B) : ∀ Y ∈ B, lt_Sequent Y X :=
   by
   rcases lrA with ⟨Lcond,Rcond,Ocond,rule,preconP⟩
   rename_i L R ress O B_def
@@ -1116,7 +1115,7 @@ theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
   intro RES RES_in
   simp [applyLocalRule] at RES_in
   rcases RES_in with ⟨⟨Lnew,Rnew,Onew⟩, Y_in_ress, def_RES⟩
-  unfold lt_TNode
+  unfold lt_Sequent
   simp at def_RES
   rw [MultisetDMLT.iff_MultisetLT']
   unfold MultisetLT'
@@ -1159,11 +1158,11 @@ theorem localRuleApp.decreases_DM {X : TNode} {B : List TNode}
   · exact LocalRule.Decreases rule _ Y_in_ress
 
 @[simp]
-def endNodesOf : {X : _} → LocalTableau X → List TNode
+def endNodesOf : {X : _} → LocalTableau X → List Sequent
   | .(_), (@byLocalRule X B _lr next) => (B.attach.map (fun ⟨Y, h⟩ => endNodesOf (next Y h))).flatten
   | .(_), (@sim X _) => [X]
 termination_by
-  X => X -- pick up instance WellFoundedRelation TNode from above!
+  X => X -- pick up instance WellFoundedRelation Sequent from above!
 decreasing_by
   simp_wf
   apply localRuleApp.decreases_DM _lr Y h
@@ -1173,7 +1172,7 @@ decreasing_by
 -- TODO Computable version possible?
 noncomputable def endNode_to_endNodeOfChildNonComp (lrA)
   (E_in: E ∈ endNodesOf (@LocalTableau.byLocalRule X _ lrA subTabs)) :
-  @Subtype TNode (fun x => ∃ h, E ∈ endNodesOf (subTabs x h)) := by
+  @Subtype Sequent (fun x => ∃ h, E ∈ endNodesOf (subTabs x h)) := by
   simp [endNodesOf] at E_in
   choose l h E_in using E_in
   choose c c_in l_eq using h
@@ -1189,14 +1188,14 @@ theorem endNodeIsEndNodeOfChild (lrA)
   aesop
 
 theorem endNodeOfChild_to_endNode
-    {X Y: TNode}
+    {X Y: Sequent}
     {ltX}
-    {C : List TNode}
+    {C : List Sequent}
     (lrA : LocalRuleApp X C)
     subTabs
     (h : ltX = LocalTableau.byLocalRule lrA subTabs)
     (Y_in : Y ∈ C)
-    {Z : TNode}
+    {Z : Sequent}
     (Z_in: Z ∈ endNodesOf (subTabs Y Y_in))
     : Z ∈ endNodesOf ltX :=
   by

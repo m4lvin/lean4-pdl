@@ -13,18 +13,18 @@ def Olf.toForms : Olf → List Formula
 | some (Sum.inr ⟨lf⟩) => [~ lf.unload]
 
 @[simp]
-def TNode.left (X : TNode) : List Formula := X.L ++ X.O.toForms
+def Sequent.left (X : Sequent) : List Formula := X.L ++ X.O.toForms
 @[simp]
-def TNode.right (X : TNode) : List Formula := X.R ++ X.O.toForms
+def Sequent.right (X : Sequent) : List Formula := X.R ++ X.O.toForms
 
-/-- Joint vocabulary of all parts of a `TNode`. -/
+/-- Joint vocabulary of all parts of a `Sequent`. -/
 @[simp]
-def jvoc (X : TNode) : Vocab := (X.left).fvoc ∩ (X.right).fvoc
+def jvoc (X : Sequent) : Vocab := (X.left).fvoc ∩ (X.right).fvoc
 
-def isPartInterpolant (X : TNode) (θ : Formula) :=
+def isPartInterpolant (X : Sequent) (θ : Formula) :=
   θ.voc ⊆ jvoc X ∧ (¬ satisfiable ((~θ) :: X.left) ∧ ¬ satisfiable (θ :: X.right))
 
-def PartInterpolant (N : TNode) := Subtype <| isPartInterpolant N
+def PartInterpolant (N : Sequent) := Subtype <| isPartInterpolant N
 
 -- move to UnfoldBox.lean ?
 theorem unfoldBox_voc {x α φ} {L} (L_in : L ∈ unfoldBox α φ) {ψ} (ψ_in : ψ ∈ L)
@@ -248,6 +248,6 @@ def clusterInterpolation {Hist L R snlf}
   case inr nlf =>
     exact @clusterInterpolation_right _ _ _ nlf tab exitIPs
 
-def tabToInt {X : TNode} (tab : Tableau .nil X) :
+def tabToInt {X : Sequent} (tab : Tableau .nil X) :
     PartInterpolant X := by
   sorry

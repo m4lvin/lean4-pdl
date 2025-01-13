@@ -21,27 +21,27 @@ theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := b
   -- the loading rules are easy, because loading never changes semantics
   case loadL =>
     use W, M, w
-    simp_all [modelCanSemImplyTNode]
+    simp_all [modelCanSemImplySequent]
     intro φ φ_in
     rcases φ_in with ((in_L | in_R) | φ_def)
     all_goals (apply w_; subst_eqs; try tauto)
     left; exact List.mem_of_mem_erase in_L
   case loadR =>
     use W, M, w
-    simp_all [modelCanSemImplyTNode]
+    simp_all [modelCanSemImplySequent]
     intro φ φ_in
     rcases φ_in with ((in_L | in_R) | φ_def)
     all_goals (apply w_; subst_eqs; try tauto)
     right; exact List.mem_of_mem_erase in_R
   case freeL =>
     use W, M, w
-    simp_all [modelCanSemImplyTNode]
+    simp_all [modelCanSemImplySequent]
     intro φ φ_in
     rcases φ_in with (φ_def | (in_L | in_R))
     all_goals (apply w_; tauto)
   case freeR =>
     use W, M, w
-    simp_all [modelCanSemImplyTNode]
+    simp_all [modelCanSemImplySequent]
     intro φ φ_in
     rcases φ_in with (φ_def | (in_L | in_R))
     all_goals (apply w_;  subst_eqs; try tauto)
@@ -193,7 +193,7 @@ theorem tabAt_loc : tabAt (.loc Y_in tail : PathIn _) = tabAt tail := by simp [t
 theorem tabAt_pdl : tabAt (.pdl r tail : PathIn _) = tabAt tail := by simp [tabAt]
 
 /-- Given a path to node `t`, this is its label Λ(t). -/
-def nodeAt {H X} {tab : (Tableau H X)} (p : PathIn tab) : TNode := (tabAt p).2.1
+def nodeAt {H X} {tab : (Tableau H X)} (p : PathIn tab) : Sequent := (tabAt p).2.1
 
 @[simp]
 theorem nodeAt_nil {tab : Tableau Hist X} : nodeAt (.nil : PathIn tab) = X := by
@@ -212,10 +212,10 @@ theorem nodeAt_append (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
   rw [tabAt_append p q]
 
 @[simp]
-def PathIn.head {tab : Tableau Hist X} (_ : PathIn tab) : TNode := X
+def PathIn.head {tab : Tableau Hist X} (_ : PathIn tab) : Sequent := X
 
 @[simp]
-def PathIn.last (t : PathIn tab) : TNode := (tabAt t).2.1
+def PathIn.last (t : PathIn tab) : Sequent := (tabAt t).2.1
 
 /-- The length of a path is the number of actual steps. -/
 @[simp]
@@ -231,7 +231,7 @@ theorem append_length {p : PathIn tab} q : (p.append q).length = p.length + q.le
 
 /-- The `Y_in` proof does not matter for a local path step. -/
 theorem PathIn.loc_Yin_irrel {lt : LocalTableau X}
-    {next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (X :: rest) Y} {Y : TNode}
+    {next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: rest) Y} {Y : Sequent}
     (Y_in1 Y_in2 : Y ∈ endNodesOf lt)
     {tail : PathIn (next Y Y_in1)}
     : (.loc Y_in1 tail : PathIn (.loc lt next)) = .loc Y_in2 tail := by
@@ -255,8 +255,8 @@ When using this, this may be helpful:
 `convert this; rw [← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]`.
 -/
 theorem edge_append_loc_nil {X} {Hist} {tab : Tableau X Hist} (s : PathIn tab)
-    {lt : LocalTableau sX} (next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (sX :: sHist) Y)
-    {Y : TNode} (Y_in : Y ∈ endNodesOf lt)
+    {lt : LocalTableau sX} (next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (sX :: sHist) Y)
+    {Y : Sequent} (Y_in : Y ∈ endNodesOf lt)
     (tabAt_s_def : tabAt s = ⟨sHist, sX, Tableau.loc lt next⟩ ) :
     edge s (s.append (tabAt_s_def ▸ PathIn.loc Y_in .nil)) := by
   unfold edge
@@ -279,8 +279,8 @@ theorem edge_append_pdl_nil (h : (tabAt s).2.2 = Tableau.pdl r next) :
 
 -- QUESTION: Does it actually have an effect to mark this with simp?
 @[simp]
-theorem nil_edge_loc_nil {Y X : TNode} {lt : LocalTableau X} {Y_in : Y ∈ endNodesOf lt}
-    {tail} {next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (X :: tail) Y}
+theorem nil_edge_loc_nil {Y X : Sequent} {lt : LocalTableau X} {Y_in : Y ∈ endNodesOf lt}
+    {tail} {next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: tail) Y}
     : (.nil : PathIn (.loc lt next)) ⋖_ (.loc Y_in .nil) := by
   left
   use tail, X, lt, next, Y, Y_in, rfl
@@ -288,7 +288,7 @@ theorem nil_edge_loc_nil {Y X : TNode} {lt : LocalTableau X} {Y_in : Y ∈ endNo
   rfl
 
 @[simp]
-theorem nil_edge_pdl_nil {X Y} {r : PdlRule X Y} {tail : List TNode} {next : Tableau (X :: tail) Y} :
+theorem nil_edge_pdl_nil {X Y} {r : PdlRule X Y} {tail : List Sequent} {next : Tableau (X :: tail) Y} :
   (.nil : PathIn (.pdl r next)) ⋖_ (.pdl r .nil) := by
   right
   use tail, X, Y, r, next
@@ -297,7 +297,7 @@ theorem nil_edge_pdl_nil {X Y} {r : PdlRule X Y} {tail : List TNode} {next : Tab
 
 @[simp]
 theorem loc_edge_loc_iff_edge {Y X} {lt : LocalTableau X} {Y_in : Y ∈ endNodesOf lt}
-    {tail} {next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (X :: tail) Y}
+    {tail} {next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: tail) Y}
     {t s : PathIn (next Y Y_in)}
     : (.loc Y_in t) ⋖_ (.loc Y_in s) ↔ (t ⋖_ s) := by
   constructor
@@ -324,7 +324,7 @@ theorem loc_edge_loc_iff_edge {Y X} {lt : LocalTableau X} {Y_in : Y ∈ endNodes
       rfl
 
 @[simp]
-theorem pdl_edge_pdl_iff_edge {X Y} {r : PdlRule X Y} {tail : List TNode}
+theorem pdl_edge_pdl_iff_edge {X Y} {r : PdlRule X Y} {tail : List Sequent}
     {a : Tableau (X :: tail) Y} {t s : PathIn a}
     : (.pdl r t) ⋖_ (.pdl r s) ↔ t ⋖_ s := by
   -- exact same proof as `loc_edge_loc_iff_edge` ;-)
@@ -371,8 +371,8 @@ theorem not_edge_nil (tab : Tableau Hist X) (t : PathIn tab) : ¬ edge t .nil :=
     subst hyp
     simp_all
 
-theorem nodeAt_loc_nil {H : List TNode} {lt : LocalTableau X}
-    (next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (X :: H) Y) (Y_in : Y ∈ endNodesOf lt) :
+theorem nodeAt_loc_nil {H : List Sequent} {lt : LocalTableau X}
+    (next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: H) Y) (Y_in : Y ∈ endNodesOf lt) :
     nodeAt (@PathIn.loc H X Y lt next Y_in .nil) = Y := by
   simp [nodeAt, tabAt]
 
@@ -553,7 +553,7 @@ def PathIn.toHistory {tab : Tableau Hist X} : (t : PathIn tab) → History
 
 /-- Convert a path to a list of nodes. Reverse of the history and does include the last node.
 The list of `.nil` is `[X]`. -/
-def PathIn.toList {tab : Tableau Hist X} : (t : PathIn tab) → List TNode
+def PathIn.toList {tab : Tableau Hist X} : (t : PathIn tab) → List Sequent
 | .nil => [X]
 | .pdl _ tail => X :: tail.toList
 | .loc _ tail => X :: tail.toList
@@ -574,7 +574,7 @@ theorem tabAt_fst_length_eq_toHistory_length {tab : Tableau [] X} (s : PathIn ta
 
 @[simp]
 theorem PathIn.loc_length_eq {X Y Hist} {lt : LocalTableau X} (Y_in)
-    {next : (Y : TNode) → Y ∈ endNodesOf lt → Tableau (X :: Hist) Y} (tail : PathIn (next Y Y_in))
+    {next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: Hist) Y} (tail : PathIn (next Y Y_in))
     : (loc Y_in tail).toHistory.length = tail.toHistory.length + 1 := by
   simp [PathIn.toHistory]
 
@@ -900,7 +900,7 @@ theorem eProp {X} (tab : Tableau .nil X) :
         use j
       case inr ll =>
         have := companion_loaded  ll
-        simp_all [TNode.isLoaded, TNode.isFree]
+        simp_all [Sequent.isLoaded, Sequent.isFree]
     case up l IH =>
       constructor
       intro k l_k
@@ -966,7 +966,7 @@ theorem eProp2.c_help {tab : Tableau .nil X} (s : PathIn tab) :
       · absurd edge.TransGen_isAsymm.1 _ _ t_path_s
         exact Relation.TransGen.single t_u
       · have := (companion_loaded t_comp_u).2
-        simp_all [TNode.isFree]
+        simp_all [Sequent.isFree]
     case tail b s t_b b_s IH =>
       rcases  b_s with (b_s | b_comp_s)
       · apply IH
@@ -976,7 +976,7 @@ theorem eProp2.c_help {tab : Tableau .nil X} (s : PathIn tab) :
           simp
           exact Relation.TransGen.head b_s t_path_s
       · have := (companion_loaded b_comp_s).2
-        simp [TNode.isFree] at s_free
+        simp [Sequent.isFree] at s_free
         simp_all
 
 theorem eProp2.c {tab : Tableau .nil X} (s t : PathIn tab) :
@@ -990,7 +990,7 @@ theorem not_cEquiv_of_free_loaded (s t : PathIn tab)
     (s_free : (nodeAt s).isFree) (t_loaded: (nodeAt t).isLoaded) : ¬ s ≡ᶜ t := by
   rintro ⟨s_t, t_s⟩
   induction s_t using Relation.ReflTransGen.head_induction_on
-  · simp [TNode.isFree] at *
+  · simp [Sequent.isFree] at *
     simp_all
   case head u v u_v v_t IH =>
     cases u_v -- normal edge or companion edge?
@@ -1004,7 +1004,7 @@ theorem not_cEquiv_of_free_loaded (s t : PathIn tab)
       · assumption
     case inr u_comp_v =>
       have := companion_loaded u_comp_v
-      simp_all [TNode.isFree]
+      simp_all [Sequent.isFree]
 
 -- Unused?
 theorem eProp2.d {tab : Tableau .nil X} (s t : PathIn tab) :
@@ -1099,14 +1099,14 @@ theorem eProp2 {tab : Tableau .nil X} (s u t : PathIn tab) :
 /-! ## Soundness -/
 
 @[simp]
-theorem TNode.without_normal_isFree_iff_isFree (LRO : TNode) :
+theorem Sequent.without_normal_isFree_iff_isFree (LRO : Sequent) :
     (LRO.without (~''(.normal φ))).isFree ↔ LRO.isFree := by
   rcases LRO with ⟨L, R, O⟩
-  simp [TNode.without, isFree, isLoaded]
+  simp [Sequent.without, isFree, isLoaded]
   aesop
 
 @[simp]
-theorem TNode.isFree_then_without_isFree (LRO : TNode) :
+theorem Sequent.isFree_then_without_isFree (LRO : Sequent) :
     LRO.isFree → ∀ anf, (LRO.without anf).isFree := by
   intro LRO_isFree anf
   rcases LRO with ⟨L, R, _|_⟩
@@ -1126,7 +1126,7 @@ def sideOf : Sum α α → Side
 | Sum.inl _ => LL
 | Sum.inr _ => RR
 
-def AnyNegFormula.in_side : (anf : AnyNegFormula) → Side → (X : TNode) → Prop
+def AnyNegFormula.in_side : (anf : AnyNegFormula) → Side → (X : Sequent) → Prop
 | ⟨.normal φ⟩, LL, ⟨L, _, _⟩ => (~φ) ∈ L
 | ⟨.normal φ⟩, RR, ⟨_, R, _⟩ => (~φ) ∈ R
 | ⟨.loaded χ⟩, LL, ⟨_, _, O⟩ => O = some (Sum.inl (~'χ))
@@ -1136,22 +1136,22 @@ theorem AnyNegFormula.in_side_of_setEqTo {X Y} (h : X.setEqTo Y) {anf : AnyNegFo
     anf.in_side side X ↔ anf.in_side side Y := by
   rcases X with ⟨L, R, O⟩
   rcases Y with ⟨L',R',O'⟩
-  simp only [TNode.setEqTo, modelCanSemImplyTNode, vDash] at *
+  simp only [Sequent.setEqTo, modelCanSemImplySequent, vDash] at *
   rw [List.toFinset.ext_iff, List.toFinset.ext_iff] at h
   rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
   subst O_eq_O'
   cases side <;> rcases anf with ⟨(n|m)⟩ <;> simp_all [AnyNegFormula.in_side]
 
 @[simp]
-theorem TNode.without_loaded_in_side_isFree (LRO : TNode) ξ side :
+theorem Sequent.without_loaded_in_side_isFree (LRO : Sequent) ξ side :
     (~''(.loaded ξ)).in_side side LRO → (LRO.without (~''(.loaded ξ))).isFree := by
   rcases LRO with ⟨L, R, _|(OL|OR)⟩ <;> cases side
   all_goals
-    simp [TNode.without, isFree, isLoaded, AnyNegFormula.in_side]
+    simp [Sequent.without, isFree, isLoaded, AnyNegFormula.in_side]
     try aesop
 
 /-- Helper to deal with local tableau in `loadedDiamondPaths`. -/
-theorem localLoadedDiamond (α : Program) {X : TNode}
+theorem localLoadedDiamond (α : Program) {X : Sequent}
   (ltab : LocalTableau X)
   {W} {M : KripkeModel W} {v w : W}
   (v_α_w : relate M α v w)
@@ -1285,9 +1285,9 @@ theorem localLoadedDiamond (α : Program) {X : TNode}
     subst α_def
     -- We can use X itself as the end node.
     refine ⟨X, ?_, v_t, Or.inr ⟨[], [·a], negLoad_in,  ?_,  ?_,  ?_⟩ ⟩ <;> simp_all [H]
-    exact TNode.without_loaded_in_side_isFree X (⌊·a⌋ξ) side negLoad_in
+    exact Sequent.without_loaded_in_side_isFree X (⌊·a⌋ξ) side negLoad_in
 
-lemma TNode.isLoaded_of_negAnyFormula_loaded {α ξ side} {X : TNode}
+lemma Sequent.isLoaded_of_negAnyFormula_loaded {α ξ side} {X : Sequent}
     (negLoad_in : (~''(AnyFormula.loaded (⌊α⌋ξ))).in_side side X)
     : X.isLoaded := by
   unfold AnyNegFormula.in_side at negLoad_in
@@ -1484,7 +1484,7 @@ set_option maxHeartbeats 2000000
 
 /-- Soundness of loading and repeats: a tableau can immitate all moves in a model. -/
 -- Note that we mix induction' tactic and recursive calls __O.o__
-theorem loadedDiamondPaths (α : Program) {X : TNode}
+theorem loadedDiamondPaths (α : Program) {X : Sequent}
   (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
   (root_free : X.isFree) -- ADDED / not/implicit in Notes?
   (t : PathIn tab)
@@ -1513,7 +1513,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
     subst t_def
     exfalso
     unfold AnyNegFormula.in_side at negLoad_in
-    unfold TNode.isFree TNode.isLoaded at root_free
+    unfold Sequent.isFree Sequent.isLoaded at root_free
     rcases X with ⟨L,R,O⟩
     cases O <;> cases side <;> simp at *
   case step s IH t0 s_t0 => -- NOTE: not indenting from here.
@@ -1561,7 +1561,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
       · -- using eProp2 here
         unfold cEquiv
         simp
-        have := eProp2.d t s1 (TNode.isLoaded_of_negAnyFormula_loaded negLoad_in) ?_ t_s
+        have := eProp2.d t s1 (Sequent.isLoaded_of_negAnyFormula_loaded negLoad_in) ?_ t_s
         · unfold before at this
           intro s1_t
           rw [Relation.ReflTransGen.cases_tail_iff] at s1_t
@@ -1621,7 +1621,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
             · simp_all
             case cons d δ =>
               simp
-              apply TNode.without_loaded_in_side_isFree
+              apply Sequent.without_loaded_in_side_isFree
               convert anf_in_Y
         case succ k inner_IH =>
           -- Here we will need to apply the outer induction hypothesis. to δ[k] or k+1 ??
@@ -1734,10 +1734,10 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
         aesop
       · apply not_cEquiv_of_free_loaded
         -- use lemma that load and free are never in same cluster
-        · simp only [TNode.isFree, TNode.isLoaded, nodeAt, decide_False, decide_True,
+        · simp only [Sequent.isFree, Sequent.isLoaded, nodeAt, decide_False, decide_True,
           Bool.not_eq_true, Bool.decide_eq_false, Bool.not_eq_true']
           rw [tabAt_s_def]
-        · simp only [TNode.isLoaded, nodeAt, decide_False, decide_True]
+        · simp only [Sequent.isLoaded, nodeAt, decide_False, decide_True]
           rw [tabAt_t_def]
 
     case freeR L R δ β φ =>
@@ -1773,10 +1773,10 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
         aesop
       · apply not_cEquiv_of_free_loaded
         -- use lemma that load and free are never in same cluster
-        · simp only [TNode.isFree, TNode.isLoaded, nodeAt, decide_False, decide_True,
+        · simp only [Sequent.isFree, Sequent.isLoaded, nodeAt, decide_False, decide_True,
           Bool.not_eq_true, Bool.decide_eq_false, Bool.not_eq_true']
           rw [tabAt_s_def]
-        · simp only [TNode.isLoaded, nodeAt, decide_False, decide_True]
+        · simp only [Sequent.isLoaded, nodeAt, decide_False, decide_True]
           rw [tabAt_t_def]
 
     case modL L R a ξ' Z_def Z_isBasic =>
@@ -1882,7 +1882,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
         rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
         all_goals
           rw [nodeAt_s_def]
-          simp_all [TNode.isFree, TNode.isLoaded, TNode.without]
+          simp_all [Sequent.isFree, Sequent.isLoaded, Sequent.without]
 
     case modR L R a ξ' Z_def Z_isBasic => -- COPY ADAPTATION from `modL`
       clear IH -- not needed in this case, also not in notes.
@@ -1991,7 +1991,7 @@ theorem loadedDiamondPaths (α : Program) {X : TNode}
         rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
         all_goals
           rw [nodeAt_s_def]
-          simp_all [TNode.isFree, TNode.isLoaded, TNode.without]
+          simp_all [Sequent.isFree, Sequent.isLoaded, Sequent.without]
 
   case rep lpr =>
     -- Here we need to go to the companion.
@@ -2049,14 +2049,14 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
   clear t
   intro t IH
   simp [flip] at IH
-  by_cases (TNode.isFree $ nodeAt t)
+  by_cases (Sequent.isFree $ nodeAt t)
   case pos t_is_free =>
     -- "First assume that t is free.""
     cases t_def : (tabAt t).2.2 -- Now consider what the tableau does at `t`.
     case rep lpr => -- Then t cannot be a LPR.
       exfalso
       have := LoadedPathRepeat_rep_isLoaded lpr
-      simp_all [TNode.isFree, nodeAt]
+      simp_all [Sequent.isFree, nodeAt]
     case loc lt next =>
       simp [nodeAt]
       rw [localTableauSat lt] -- using soundness of local tableaux here!
@@ -2101,10 +2101,10 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
       apply eProp2.c t _ t_is_free t_s
   -- "The interesting case is where t is loaded;"
   case neg not_free =>
-    simp [TNode.isFree] at not_free
+    simp [Sequent.isFree] at not_free
     rcases O_def : (tabAt t).2.1.2.2 with _ | snlf
     · -- "none" case is impossible because t is not free:
-      exfalso; simp_all [nodeAt, TNode.isLoaded]; split at not_free <;> simp_all
+      exfalso; simp_all [nodeAt, Sequent.isLoaded]; split at not_free <;> simp_all
     -- two goals remaining, but left and right case are almost the same :-)
     let _theSide := sideOf snlf -- Needed below in `all_goals` block.
     rcases snlf with (nlf | nlf)
@@ -2145,12 +2145,12 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
         · -- We now claim that we have a contradiction with the outer IH as we left the cluster:
           absurd IH s ?_
           exact ⟨W, M, w, w_s⟩
-          simp only [TNode.without_normal_isFree_iff_isFree] at rest_s_free
+          simp only [Sequent.without_normal_isFree_iff_isFree] at rest_s_free
           -- Remains to show that s is simpler than t. We use eProp2.
           constructor
           · exact t_to_s
           · have : (nodeAt t).isLoaded := by
-              unfold TNode.isLoaded
+              unfold Sequent.isLoaded
               simp [AnyNegFormula.in_side] at in_t
               aesop
             apply eProp2.d_help _ _ this rest_s_free t_to_s
@@ -2198,7 +2198,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
             simp_all
             assumption
 
-theorem correctness : ∀ LR : TNode, LR.isFree → satisfiable LR → consistent LR := by
+theorem correctness : ∀ LR : Sequent, LR.isFree → satisfiable LR → consistent LR := by
   intro LR LR_isFRee
   contrapose
   unfold consistent
