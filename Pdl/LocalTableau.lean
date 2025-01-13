@@ -537,7 +537,7 @@ def isBasicSet : Finset Formula → Bool
   | X => ∀ P ∈ X, isBasicForm P
 
 /-- A sequent is _basic_ iff it only contains ⊥, ¬⊥, p, ¬p, [A]_ or ¬[A]_ formulas. -/
-def isBasic : Sequent → Bool
+def isBasic : Sequent → Prop
   | (L, R, o) => ∀ f ∈ L ++ R ++ (o.map (Sum.elim negUnload negUnload)).toList, isBasicForm f
 
 /-- Local tableau for `X`, maximal by definition. -/

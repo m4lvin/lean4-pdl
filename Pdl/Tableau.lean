@@ -39,6 +39,9 @@ This only tracks "big" steps, hoping we do not need steps within a local tableau
 The head of the first list is the newest Sequent. -/
 abbrev History : Type := List Sequent
 
+/-- We have a repeat iff the history contains a node that is `setEqTo` the current node. -/
+def rep (Hist : History) (X : Sequent) : Prop := ∃ Y ∈ Hist, Y.setEqTo X
+
 /-- A lpr means we can go `k` steps back in the history to
 reach an equal node, and all nodes on the way are loaded.
 Note: `k=0` means the first element of `Hist` is the companion. -/
@@ -87,8 +90,10 @@ A closed tableau for X is either of:
 - a successful loaded repeat (MB condition six)
 -/
 inductive Tableau : History → Sequent → Type
-  | loc {X} (lt : LocalTableau X) : (∀ Y ∈ endNodesOf lt, Tableau (X :: Hist) Y) → Tableau Hist X
-  | pdl {Δ Γ} : PdlRule Γ Δ → Tableau (Γ :: Hist) Δ → Tableau Hist Γ
+  | loc {X} (nrep : ¬ rep Hist X) (nbas : ¬ isBasic X) (lt : LocalTableau X)
+            (next : ∀ Y ∈ endNodesOf lt, Tableau (X :: Hist) Y) : Tableau Hist X
+  | pdl {X Y} (nrep : ¬ rep Hist X) (bas : isBasic X) (r : PdlRule X Y)
+              (next : Tableau (X :: Hist) Y) : Tableau Hist X
   | rep {X Hist} (lpr : LoadedPathRepeat Hist X) : Tableau Hist X
 
 inductive provable : Formula → Prop

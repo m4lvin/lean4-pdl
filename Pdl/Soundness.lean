@@ -125,21 +125,24 @@ theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := b
 
 /-- A path in a tableau. Three constructors for the empty path, a local step or a pdl step.
 The `loc` ad `pdl` steps correspond to two out of three constructors of `Tableau`. -/
-inductive PathIn : ∀ {H X}, Tableau H X → Type
+inductive PathIn : ∀ {Hist X}, Tableau Hist X → Type
 | nil : PathIn _
-| loc {Y lt next} : (Y_in : Y ∈ endNodesOf lt) → (tail : PathIn (next Y Y_in)) → PathIn (Tableau.loc lt next)
-| pdl {Γ Δ Hist child} : (r : PdlRule Γ Δ) → PathIn (child : Tableau (Γ :: Hist) Δ) → PathIn (Tableau.pdl r child)
+| loc {nrep nbas lt next Y} (Y_in : Y ∈ endNodesOf lt) (tail : PathIn (next Y Y_in))
+    : PathIn (Tableau.loc nrep nbas lt next)
+| pdl {nrep bas} {r : PdlRule X Y} {next} (tail : PathIn next)
+    : PathIn (Tableau.pdl nrep bas r next)
 deriving DecidableEq
+-- TODO: which of the arguments above should be implicit???
 
 def tabAt : PathIn tab → Σ H X, Tableau H X
 | .nil => ⟨_,_,tab⟩
 | .loc _ tail => tabAt tail
-| .pdl _ p_child => tabAt p_child
+| .pdl tail => tabAt tail
 
 def PathIn.append (p : PathIn tab) (q : PathIn (tabAt p).2.2) : PathIn tab := match p with
   | .nil => q
   | .loc Y_in tail => .loc Y_in (PathIn.append tail q)
-  | .pdl r p_child => .pdl r (PathIn.append p_child q)
+  | .pdl tail => .pdl (PathIn.append tail q)
 
 @[simp]
 theorem append_eq_iff_eq (s : PathIn tab) p q : s.append p = s.append q ↔ p = q := by
@@ -187,10 +190,12 @@ theorem tabAt_nil {tab : Tableau Hist X} : tabAt (.nil : PathIn tab) = ⟨_, _, 
   simp [tabAt, tabAt]
 
 @[simp]
-theorem tabAt_loc : tabAt (.loc Y_in tail : PathIn _) = tabAt tail := by simp [tabAt]
+theorem tabAt_loc :
+    tabAt (.loc Y_in tail : PathIn (.loc nrep nbas lt next)) = tabAt tail := by simp [tabAt]
 
 @[simp]
-theorem tabAt_pdl : tabAt (.pdl r tail : PathIn _) = tabAt tail := by simp [tabAt]
+theorem tabAt_pdl :
+    tabAt (.pdl tail : PathIn (.pdl nrep bas r next)) = tabAt tail := by simp [tabAt]
 
 /-- Given a path to node `t`, this is its label Λ(t). -/
 def nodeAt {H X} {tab : (Tableau H X)} (p : PathIn tab) : Sequent := (tabAt p).2.1
@@ -200,10 +205,12 @@ theorem nodeAt_nil {tab : Tableau Hist X} : nodeAt (.nil : PathIn tab) = X := by
   simp [nodeAt, tabAt]
 
 @[simp]
-theorem nodeAt_loc : nodeAt (.loc Y_in tail : PathIn _) = nodeAt tail := by simp [nodeAt, tabAt]
+theorem nodeAt_loc :
+  nodeAt (.loc Y_in tail : PathIn (.loc nrep nbas lt next)) = nodeAt tail := by simp [nodeAt, tabAt]
 
 @[simp]
-theorem nodeAt_pdl : nodeAt (.pdl r tail : PathIn _) = nodeAt tail := by simp [nodeAt, tabAt]
+theorem nodeAt_pdl :
+  nodeAt (.pdl tail : PathIn (.pdl nrep bas r next)) = nodeAt tail := by simp [nodeAt, tabAt]
 
 @[simp]
 theorem nodeAt_append (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
@@ -221,7 +228,7 @@ def PathIn.last (t : PathIn tab) : Sequent := (tabAt t).2.1
 @[simp]
 def PathIn.length : (t : PathIn tab) → ℕ
 | .nil => 0
-| .pdl _ tail => tail.length + 1
+| .pdl tail => tail.length + 1
 | .loc _ tail => tail.length + 1
 
 theorem append_length {p : PathIn tab} q : (p.append q).length = p.length + q.length := by
@@ -229,23 +236,19 @@ theorem append_length {p : PathIn tab} q : (p.append q).length = p.length + q.le
   case loc IH => rw [IH]; linarith
   case pdl IH => rw [IH]; linarith
 
-/-- The `Y_in` proof does not matter for a local path step. -/
-theorem PathIn.loc_Yin_irrel {lt : LocalTableau X}
-    {next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: rest) Y} {Y : Sequent}
-    (Y_in1 Y_in2 : Y ∈ endNodesOf lt)
-    {tail : PathIn (next Y Y_in1)}
-    : (.loc Y_in1 tail : PathIn (.loc lt next)) = .loc Y_in2 tail := by
-  simp
-
 /-! ## Edge Relation -/
 
 /-- Relation `s ⋖_ t` says `t` is one more step than `s`. Two cases, both defined via `append`. -/
 def edge (s t : PathIn tab) : Prop :=
-  ( ∃ Hist X lt next Y, ∃ (Y_in : Y ∈ endNodesOf lt) (h : tabAt s = ⟨Hist, X, Tableau.loc lt next⟩),
+  ( ∃ Hist X nrep nbas lt next Y,
+    ∃ (Y_in : Y ∈ endNodesOf lt)
+      (h : tabAt s = ⟨Hist, X, (Tableau.loc nrep nbas lt next : Tableau _ X)⟩),
       t = s.append (h ▸ PathIn.loc Y_in .nil) )
   ∨
-  ( ∃ Hist X Y r, ∃ (next : Tableau (X :: Hist) Y) (h : tabAt s = ⟨Hist, X, Tableau.pdl r next⟩),
-      t = s.append (h ▸ PathIn.pdl r .nil) )
+  ( ∃ Hist X nrep bas Y r,
+    ∃ (next : Tableau (X :: Hist) Y)
+      (h : tabAt s = ⟨Hist, X, Tableau.pdl nrep bas r next⟩),
+      t = s.append (h ▸ PathIn.pdl .nil) )
 
 /-- Notation ⋖_ for `edge` (because ⋖ is taken in Mathlib). -/
 notation s:arg " ⋖_ " t:arg => edge s t
@@ -257,96 +260,104 @@ When using this, this may be helpful:
 theorem edge_append_loc_nil {X} {Hist} {tab : Tableau X Hist} (s : PathIn tab)
     {lt : LocalTableau sX} (next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (sX :: sHist) Y)
     {Y : Sequent} (Y_in : Y ∈ endNodesOf lt)
-    (tabAt_s_def : tabAt s = ⟨sHist, sX, Tableau.loc lt next⟩ ) :
+    (tabAt_s_def : tabAt s = ⟨sHist, sX, Tableau.loc nrep nbas lt next⟩ ) :
     edge s (s.append (tabAt_s_def ▸ PathIn.loc Y_in .nil)) := by
   unfold edge
   left
-  use sHist, sX, lt, next, (by assumption), Y_in
+  use sHist, sX, nrep, nbas, lt, next, (by assumption), Y_in
   constructor
   · rw [append_eq_iff_eq, ← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
     rw [← tabAt_s_def]
 
 /-- Appending a one-step `pdl` path is also a ⋖_ child. -/
 @[simp]
-theorem edge_append_pdl_nil (h : (tabAt s).2.2 = Tableau.pdl r next) :
-    edge s (s.append (h ▸ PathIn.pdl r .nil)) := by
+theorem edge_append_pdl_nil (h : (tabAt s).2.2 = Tableau.pdl nrep bas r next) :
+    edge s (s.append (h ▸ PathIn.pdl .nil)) := by
   simp only [edge, append_eq_iff_eq]
   right
-  use (tabAt s).1, (tabAt s).2.1, (by assumption), r, next
+  use (tabAt s).1, (tabAt s).2.1, nrep, bas, (by assumption), r, next
   constructor
   · rw [← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
     rw [← h]
 
 -- QUESTION: Does it actually have an effect to mark this with simp?
+-- FIXME: implicit `tail` argument?
 @[simp]
-theorem nil_edge_loc_nil {Y X : Sequent} {lt : LocalTableau X} {Y_in : Y ∈ endNodesOf lt}
-    {tail} {next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: tail) Y}
-    : (.nil : PathIn (.loc lt next)) ⋖_ (.loc Y_in .nil) := by
+theorem nil_edge_loc_nil {X Y : Sequent} {Hist : List Sequent} {nrep nbas}
+    {lt : LocalTableau X} {Y_in : Y ∈ endNodesOf lt}
+    {next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: Hist) Y}
+    : (.nil : PathIn (.loc nrep nbas lt next)) ⋖_ (.loc Y_in .nil) := by
   left
-  use tail, X, lt, next, Y, Y_in, rfl
+  use Hist, X, nrep, nbas, lt, next, Y, Y_in, rfl
   simp_all
   rfl
 
+-- same question and note as above
 @[simp]
-theorem nil_edge_pdl_nil {X Y} {r : PdlRule X Y} {tail : List Sequent} {next : Tableau (X :: tail) Y} :
-  (.nil : PathIn (.pdl r next)) ⋖_ (.pdl r .nil) := by
+theorem nil_edge_pdl_nil {Hist} {X} {nrep} {bas} {Y} {r : PdlRule X Y}
+    {next : Tableau (X :: Hist) Y}
+    : (.nil : PathIn (.pdl nrep bas r next)) ⋖_ (.pdl .nil) := by
   right
-  use tail, X, Y, r, next
+  use Hist, X, nrep, bas, Y, r, next
   simp_all
   rfl
 
 @[simp]
-theorem loc_edge_loc_iff_edge {Y X} {lt : LocalTableau X} {Y_in : Y ∈ endNodesOf lt}
-    {tail} {next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: tail) Y}
+theorem loc_edge_loc_iff_edge {Y X} {lt : LocalTableau X} {Y_in : Y ∈ endNodesOf lt} {tail}
+    {next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: tail) Y} {nrep nbas}
     {t s : PathIn (next Y Y_in)}
-    : (.loc Y_in t) ⋖_ (.loc Y_in s) ↔ (t ⋖_ s) := by
+    : (.loc Y_in t : PathIn (.loc nrep nbas lt next)) ⋖_ (.loc Y_in s) ↔ (t ⋖_ s) := by
   constructor
-  · rintro (⟨Hist, X, lt, next, Y, Y_in, tab_def, p_def⟩ | ⟨Hist, X, Y, r, next, tab_def, p_def⟩)
+  · rintro ( ⟨Hist, X, nrep, nbas, lt, next, Y, Y_in, tab_def, p_def⟩
+           | ⟨Hist, X, nrep, bas, Y, r, next, tab_def, p_def⟩ )
     · left
-      use Hist, X, lt, next, Y, Y_in, tab_def
+      use Hist, X, nrep, nbas, lt, next, Y, Y_in, tab_def
       simp [PathIn.append] at p_def
       exact p_def
     · right
-      use Hist, X, Y, r, next, tab_def
+      use Hist, X, nrep, bas, Y, r, next, tab_def
       simp [PathIn.append] at p_def
       exact p_def
   · intro t_s
-    rcases t_s with (⟨Hist, X, lt, next, Y, Y_in, tab_def, p_def⟩ | ⟨Hist, X, Y, r, next, tab_def, p_def⟩)
+    rcases t_s with ( ⟨Hist, X, nrep, nbas, lt, next, Y, Y_in, tab_def, p_def⟩
+                    | ⟨Hist, X, nrep, bas, Y, r, next, tab_def, p_def⟩ )
     · left
-      use Hist, X, lt, next, Y, Y_in, tab_def
+      use Hist, X, nrep, nbas, lt, next, Y, Y_in, tab_def
       simp [PathIn.append] at p_def
       rw [p_def]
       rfl
     · right
-      use Hist, X, Y, r, next, tab_def
+      use Hist, X, nrep, bas, Y, r, next, tab_def
       simp [PathIn.append] at p_def
       rw [p_def]
       rfl
 
 @[simp]
 theorem pdl_edge_pdl_iff_edge {X Y} {r : PdlRule X Y} {tail : List Sequent}
-    {a : Tableau (X :: tail) Y} {t s : PathIn a}
-    : (.pdl r t) ⋖_ (.pdl r s) ↔ t ⋖_ s := by
+    {next : Tableau (X :: tail) Y} {nrep bas} {t s : PathIn next}
+    : (.pdl t : PathIn (.pdl nrep bas r next)) ⋖_ (.pdl s) ↔ t ⋖_ s := by
   -- exact same proof as `loc_edge_loc_iff_edge` ;-)
   constructor
-  · rintro (⟨Hist, X, lt, next, Y, Y_in, tab_def, p_def⟩ | ⟨Hist, X, Y, r, next, tab_def, p_def⟩)
+  · rintro ( ⟨Hist, X, nrep, nbas, lt, next, Y, Y_in, tab_def, p_def⟩
+           | ⟨Hist, X, nrep, bas, Y, r, next, tab_def, p_def⟩ )
     · left
-      use Hist, X, lt, next, Y, Y_in, tab_def
+      use Hist, X, nrep, nbas, lt, next, Y, Y_in, tab_def
       simp [PathIn.append] at p_def
       exact p_def
     · right
-      use Hist, X, Y, r, next, tab_def
+      use Hist, X, nrep, bas, Y, r, next, tab_def
       simp [PathIn.append] at p_def
       exact p_def
   · intro t_s
-    rcases t_s with (⟨Hist, X, lt, next, Y, Y_in, tab_def, p_def⟩ | ⟨Hist, X, Y, r, next, tab_def, p_def⟩)
+    rcases t_s with ( ⟨Hist, X, nrep, nbas, lt, next, Y, Y_in, tab_def, p_def⟩
+                    | ⟨Hist, X, nrep, bas, Y, r, next, tab_def, p_def⟩ )
     · left
-      use Hist, X, lt, next, Y, Y_in, tab_def
+      use Hist, X, nrep, nbas, lt, next, Y, Y_in, tab_def
       simp [PathIn.append] at p_def
       rw [p_def]
       rfl
     · right
-      use Hist, X, Y, r, next, tab_def
+      use Hist, X, nrep, bas, Y, r, next, tab_def
       simp [PathIn.append] at p_def
       rw [p_def]
       rfl
@@ -354,8 +365,8 @@ theorem pdl_edge_pdl_iff_edge {X Y} {r : PdlRule X Y} {tail : List Sequent}
 /-- The root has no parent. Note this holds even when Hist ≠ []. -/
 theorem not_edge_nil (tab : Tableau Hist X) (t : PathIn tab) : ¬ edge t .nil := by
   intro t_nil
-  rcases t_nil with ( ⟨Hist, Z, lt, next, Y, Y_in, tabAt_s_def, t_def⟩
-                    | ⟨Hist, Z, Y, r, next, tabAt_s_def, t_def⟩ )
+  rcases t_nil with ( ⟨Hist, Z, nrep, nbas, lt, next, Y, Y_in, tabAt_s_def, t_def⟩
+                    | ⟨Hist, Z, nrep, bas, Y, r, next, tabAt_s_def, t_def⟩ )
   all_goals
     rw [PathIn.nil_eq_append_iff_both_eq_nil] at t_def
     rcases t_def with ⟨t_nil, loc_eq_nil⟩
@@ -371,23 +382,23 @@ theorem not_edge_nil (tab : Tableau Hist X) (t : PathIn tab) : ¬ edge t .nil :=
     subst hyp
     simp_all
 
-theorem nodeAt_loc_nil {H : List Sequent} {lt : LocalTableau X}
+theorem nodeAt_loc_nil {H : List Sequent} {lt : LocalTableau X} {nrep nbas}
     (next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: H) Y) (Y_in : Y ∈ endNodesOf lt) :
-    nodeAt (@PathIn.loc H X Y lt next Y_in .nil) = Y := by
+    nodeAt (@PathIn.loc H X nrep nbas lt next Y Y_in .nil) = Y := by
   simp [nodeAt, tabAt]
 
-theorem nodeAt_pdl_nil (child : Tableau (X :: Hist) Y) (r : PdlRule X Y) :
-    nodeAt (@PathIn.pdl X Y Hist child r .nil) = Y := by
+theorem nodeAt_pdl_nil {nrep bas} (child : Tableau (X :: Hist) Y) (r : PdlRule X Y) :
+    nodeAt (@PathIn.pdl Hist X Y nrep bas r child .nil) = Y := by
   simp [nodeAt, tabAt]
 
 /-- The length of `edge`-related paths differs by one. -/
 theorem length_succ_eq_length_of_edge {s t : PathIn tab} : s ⋖_ t → s.length + 1 = t.length := by
   intro s_t
-  rcases s_t with ( ⟨Hist', Z', lt', next', Y', Y'_in, tabAt_s_def, t_def⟩
-                  | ⟨Hist', Z', Y', r', next', tabAt_s_def, t_def⟩ )
+  rcases s_t with ( ⟨Hist', Z', nrep, nbas, lt', next', Y', Y'_in, tabAt_s_def, t_def⟩
+                  | ⟨Hist', Z', nrep, bas, Y', r', next', tabAt_s_def, t_def⟩ )
   · subst t_def
     rw [append_length, add_right_inj]
-    have : 1 = (PathIn.loc Y'_in PathIn.nil : PathIn (Tableau.loc lt' next')).length := by simp
+    have : 1 = (.loc Y'_in .nil : PathIn (Tableau.loc nrep nbas lt' next')).length := by simp
     convert this
     · simp_all only [PathIn.length, zero_add]
     · rw [tabAt_s_def]
@@ -395,7 +406,7 @@ theorem length_succ_eq_length_of_edge {s t : PathIn tab} : s ⋖_ t → s.length
     · subst_eqs; simp_all only [PathIn.length, zero_add, heq_eq_eq, eqRec_heq_iff_heq]
   · subst t_def
     rw [append_length, add_right_inj]
-    have : 1 = (PathIn.pdl r' PathIn.nil : PathIn (Tableau.pdl r' next')).length := by simp
+    have : 1 = (.pdl .nil : PathIn (Tableau.pdl nrep bas r' next')).length := by simp
     convert this
     · simp_all only [PathIn.length, zero_add]
     · rw [tabAt_s_def]
@@ -430,20 +441,22 @@ instance : LE (PathIn tab) := ⟨Relation.ReflTransGen edge⟩
 instance edge.TransGen_isAsymm : IsAsymm (PathIn tab) (Relation.TransGen edge) :=
   ⟨WellFounded.asymmetric (WellFounded.transGen wellFounded)⟩
 
-/-- An induction principle for `PathIn` that works by ... TODO EXPLAIN
--- QUESTIONS:
--- - Do I need any of these? @[induction_eliminator, elab_as_elim]
--- - Should it be a def or a theorem? (`motive` to `Prop` or to `Sort u`?)
+/-- An induction principle for `PathIn` with a base case at the root of the tableau and
+an induction step using the `edge` relation `⋖_`.
+
+QUESTIONS:
+- Do we need to add any of these attributes? @[induction_eliminator, elab_as_elim]
+- Should it be a def or a theorem? (`motive` to `Prop` or to `Sort u`?)
 -/
 theorem PathIn.init_inductionOn t {motive : PathIn tab → Prop}
     (root : motive .nil)
     (step : (t : PathIn tab) → motive t → ∀ {s}, (t_s : t ⋖_ s) → motive s)
     : motive t := by
   induction tab -- works only if motive goes to Prop!
-  case loc Hist X lt next IH =>
+  case loc Hist X nrep nbas lt next IH =>
     cases t
     · assumption
-    case loc Y Y_in rest =>
+    case loc Y nbas nrep Y_in rest =>
       specialize @IH Y Y_in rest (motive ∘ .loc Y_in)
       simp at IH
       apply IH <;> clear IH
@@ -454,18 +467,18 @@ theorem PathIn.init_inductionOn t {motive : PathIn tab → Prop}
         apply @step (.loc Y_in t) motive_t (.loc Y_in s)
         rw [loc_edge_loc_iff_edge]
         exact t_edge_s
-  case pdl Hist Y X r next IH =>
+  case pdl Hist Y X nrep bas r next IH =>
     cases t
     · assumption
     case pdl rest =>
-      specialize @IH rest (motive ∘ .pdl r)
+      specialize @IH rest (motive ∘ .pdl)
       simp at IH
       apply IH <;> clear IH
       case root =>
         exact step nil root nil_edge_pdl_nil
       case step =>
         intro t motive_t s t_edge_s
-        apply @step (.pdl r t) motive_t (.pdl r s)
+        apply @step (.pdl t) motive_t (.pdl s)
         rw [pdl_edge_pdl_iff_edge]
         exact t_edge_s
   case rep =>
@@ -480,7 +493,7 @@ theorem PathIn.nil_le_anything : PathIn.nil ≤ t := by
     apply Relation.ReflTransGen.tail nil_le_s s_edge_u
 
 theorem PathIn.loc_le_loc_of_le {t1 t2} (h : t1 ≤ t2) :
-  @loc Hist X Y lt next Z_in t1 ≤ @ loc Hist X Y lt next Z_in t2 := by
+  @loc Hist X Y nrep nbas lt next Z_in t1 ≤ @ loc Hist X Y nrep nbas lt next Z_in t2 := by
   induction h
   · exact Relation.ReflTransGen.refl
   case tail s t _ s_t IH =>
@@ -489,7 +502,7 @@ theorem PathIn.loc_le_loc_of_le {t1 t2} (h : t1 ≤ t2) :
     exact s_t
 
 theorem PathIn.pdl_le_pdl_of_le {t1 t2} (h : t1 ≤ t2) :
-  @pdl Hist X Y r Z_in t1 ≤ @pdl Hist X Y r Z_in t2 := by
+  @pdl Hist X Y nrep bas r Z_in t1 ≤ @pdl Hist X Y nrep bas r Z_in t2 := by
   induction h
   · exact Relation.ReflTransGen.refl
   case tail s t _ s_t IH =>
@@ -516,12 +529,12 @@ Note there are no mixed .loc and .pdl cases. -/
 def edgeRec : PathIn tab → PathIn tab → Prop
 | .nil, .nil => false
 | .nil, .loc Y_in tail => tail = .nil
-| .nil, .pdl _ tail => tail = .nil
-| .pdl _ _, .nil => false
-| .pdl _ tail, .pdl _ tail2 => edgeRec tail tail2
+| .nil, .pdl tail => tail = .nil
+| .pdl _ , .nil => false
+| .pdl tail, .pdl tail2 => edgeRec tail tail2
 | .loc _ _, .nil => false
-| @PathIn.loc _ _ Y1 _ _ _ tail1,
-  @PathIn.loc _ _ Y2 _ _ _ tail2 =>
+| @PathIn.loc _ _ _ _ _ _ Y1 _ tail1,
+  @PathIn.loc _ _ _ _ _ _ Y2 _ tail2 =>
   if h : Y1 = Y2 then edgeRec tail1 (h ▸ tail2) else false
 
 /-! ## Path Properties (UNUSED?) -/
@@ -529,16 +542,16 @@ def edgeRec : PathIn tab → PathIn tab → Prop
 def PathIn.isLoaded (t : PathIn tab) : Prop :=
 match t with
   | .nil => t.head.isLoaded
-  | .pdl _ tail => t.head.isLoaded ∧ tail.isLoaded
+  | .pdl tail => t.head.isLoaded ∧ tail.isLoaded
   | .loc _ tail => t.head.isLoaded ∧ tail.isLoaded
 
 /-- A path is critical iff the (M) rule is used on it. -/
 def PathIn.isCritical (t : PathIn tab) : Prop :=
 match t with
   | .nil => False
-  | .pdl (.modL _ _) _ => True
-  | .pdl (.modR _ _) _ => True
-  | .pdl _ tail => tail.isCritical
+  | @PathIn.pdl _ _ _ _ _ (.modL _ _) _ _ => True
+  | @PathIn.pdl _ _ _ _ _ (.modR _ _) _ _ => True
+  | .pdl tail => tail.isCritical
   | .loc _ tail => tail.isCritical
 
 /-! ## From Path to History -/
@@ -548,14 +561,14 @@ Does not include the last node.
 The history of `.nil` is `[]` because this will not go into `Hist`. -/
 def PathIn.toHistory {tab : Tableau Hist X} : (t : PathIn tab) → History
 | .nil => []
-| .pdl _ tail => tail.toHistory ++ [X]
+| .pdl tail => tail.toHistory ++ [X]
 | .loc _ tail => tail.toHistory ++ [X]
 
 /-- Convert a path to a list of nodes. Reverse of the history and does include the last node.
 The list of `.nil` is `[X]`. -/
 def PathIn.toList {tab : Tableau Hist X} : (t : PathIn tab) → List Sequent
 | .nil => [X]
-| .pdl _ tail => X :: tail.toList
+| .pdl tail => X :: tail.toList
 | .loc _ tail => X :: tail.toList
 
 /-- A path gives the same list of nodes as the history of its last node. -/
@@ -573,20 +586,22 @@ theorem tabAt_fst_length_eq_toHistory_length {tab : Tableau [] X} (s : PathIn ta
   simp
 
 @[simp]
-theorem PathIn.loc_length_eq {X Y Hist} {lt : LocalTableau X} (Y_in)
-    {next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: Hist) Y} (tail : PathIn (next Y Y_in))
-    : (loc Y_in tail).toHistory.length = tail.toHistory.length + 1 := by
+theorem PathIn.loc_length_eq {X Y Hist} {nrep nbas} {lt : LocalTableau X}
+    {next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: Hist) Y}
+    Y_in (tail : PathIn (next Y Y_in))
+    : (loc Y_in tail : PathIn (.loc nrep nbas lt next)).toHistory.length = tail.toHistory.length + 1 := by
   simp [PathIn.toHistory]
 
 @[simp]
-theorem PathIn.pdl_length_eq {X Y Hist} (r) {next : Tableau (X :: Hist) Y} (tail : PathIn next)
-    : (pdl r tail).toHistory.length = tail.toHistory.length + 1 := by
+theorem PathIn.pdl_length_eq {X Y Hist} {nrep bas} {next : Tableau (X :: Hist) Y} {r}
+    (tail : PathIn next)
+    : (pdl tail : PathIn (.pdl nrep bas r next)).toHistory.length = tail.toHistory.length + 1 := by
   simp [PathIn.toHistory]
 
 /-- Prefix of a path, taking only the first `k` steps. -/
 def PathIn.prefix {tab : Tableau Hist X} : (t : PathIn tab) → (k : Fin (t.length + 1)) → PathIn tab
 | .nil, _ => .nil
-| .pdl r tail, k => Fin.cases (.nil) (fun j => .pdl r (tail.prefix j)) k
+| .pdl tail, k => Fin.cases (.nil) (fun j => .pdl (tail.prefix j)) k
 | .loc Y_in tail, k => Fin.cases (.nil) (fun j => .loc Y_in (tail.prefix j)) k
 
 /-- The list of a prefix of a path is the same as the prefix of the list of the path. -/
@@ -622,22 +637,22 @@ def PathIn.rewind : (t : PathIn tab) → (k : Fin (t.toHistory.length + 1)) → 
 | .nil, _ => .nil
 | .loc Y_in tail, k => Fin.lastCases (.nil)
     (PathIn.loc Y_in ∘ tail.rewind ∘ Fin.cast (loc_length_eq Y_in tail)) k
-| .pdl r tail, k => Fin.lastCases (.nil)
-    (PathIn.pdl r ∘ tail.rewind ∘ Fin.cast (pdl_length_eq r tail)) k
+| .pdl tail, k => Fin.lastCases (.nil)
+    (PathIn.pdl ∘ tail.rewind ∘ Fin.cast (pdl_length_eq tail)) k
 
 /-- Rewinding 0 steps does nothing. -/
 theorem PathIn.rewind_zero {tab : Tableau Hist X} {p : PathIn tab} : p.rewind 0 = p := by
   induction p <;> simp only [rewind]
-  case loc Hist0 X0 lt next Y_in tail IH =>
-    by_cases 0 = Fin.last (loc Y_in tail).toHistory.length
+  case loc Hist0 X0 nrep nbas lt next Y Y_in tail IH =>
+    by_cases 0 = Fin.last (.loc Y_in tail : PathIn (.loc nrep nbas lt next)).toHistory.length
     case pos hyp =>
       rw [PathIn.loc_length_eq] at hyp
       have := @Fin.last_pos tail.toHistory.length
       omega
     case neg _ =>
       simp_all [Fin.lastCases, Fin.reverseInduction]
-  case pdl Y Z X0 next r tail IH =>
-    by_cases 0 = Fin.last (pdl r tail).toHistory.length
+  case pdl Y Z X0 nrep bas r next tail IH =>
+    by_cases 0 = Fin.last (.pdl tail : PathIn (.pdl nrep bas r next)).toHistory.length
     case pos hyp =>
       rw [PathIn.pdl_length_eq] at hyp
       have := @Fin.last_pos tail.toHistory.length
@@ -647,11 +662,11 @@ theorem PathIn.rewind_zero {tab : Tableau Hist X} {p : PathIn tab} : p.rewind 0 
 
 theorem PathIn.rewind_le (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) : t.rewind k ≤ t := by
   induction tab
-  case loc rest Y lt next IH =>
+  case loc rest Y nrep nbas lt next IH =>
     cases t <;> simp only [rewind]
     case nil =>
       exact Relation.ReflTransGen.refl
-    case loc Z Z_in tail =>
+    case loc Z nbas nrep Z_in tail =>
       specialize IH Z Z_in tail
       cases k using Fin.lastCases
       case last =>
@@ -665,7 +680,7 @@ theorem PathIn.rewind_le (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) : t
     cases t <;> simp only [rewind]
     case nil =>
       exact Relation.ReflTransGen.refl
-    case pdl rest Y Z r tab IH tail =>
+    case pdl rest Y Z r tab IH bas nrep tail =>
       specialize IH tail
       cases k using Fin.lastCases
       case last =>
@@ -711,11 +726,11 @@ theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
     (t : PathIn tab) (k : Fin (t.toHistory.length + 1))
     : nodeAt (t.rewind k) = (nodeAt t :: t.toHistory).get k := by
   induction tab
-  case loc rest Y lt next IH =>
+  case loc rest Y nrep nbas lt next IH =>
     cases t
     case nil =>
       simp [PathIn.toHistory, PathIn.rewind]
-    case loc Z Z_in tail =>
+    case loc Z nbas nrep Z_in tail =>
       cases k using Fin.lastCases
       · simp [PathIn.toHistory, PathIn.rewind] at *
       case cast j =>
@@ -733,7 +748,7 @@ theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
     cases t
     case nil =>
       simp_all [PathIn.toHistory, PathIn.rewind]
-    case pdl rest Y Z r tab IH tail =>
+    case pdl rest Z Y _ _ r tab IH bas nrep tail =>
       cases k using Fin.lastCases
       · simp [PathIn.toHistory, PathIn.rewind] at *
       case cast j =>
@@ -924,18 +939,17 @@ theorem eProp2.a {tab : Tableau .nil X} (s t : PathIn tab) :
       left
       exact t_childOf_s
   else
-    rcases t_childOf_s with ( ⟨Hist, Z, lt, next, Y, Y_in, tabAt_s_def, t_def⟩
-                            | ⟨Hist, Z, Y, r, next, tabAt_s_def, def_t_append⟩ )
+    rcases t_childOf_s with ( ⟨Hist, Z, nrep, nbas, lt, next, Y, Y_in, tabAt_s_def, t_def⟩
+                            | ⟨Hist, Z, nrep, bas, Y, r, next, tabAt_s_def, def_t_append⟩ )
     all_goals
-      subst_eqs
       left
       simp_all
       unfold cEdge
       apply Relation.TransGen.single
       left
       unfold edge
-    · left; use Hist, Z, lt, next, Y, Y_in, tabAt_s_def
-    · right; use Hist, Z, Y, r, next, tabAt_s_def
+    · left; use Hist, Z, nrep, nbas, lt, next, Y, Y_in, tabAt_s_def
+    · right; use Hist, Z, nrep, bas, Y, r, next, tabAt_s_def
 
 -- Unused?
 theorem eProp2.b {tab : Tableau .nil X} (s t : PathIn tab) : s ♥ t → t ≡ᶜ s := by
@@ -1519,14 +1533,14 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
   rcases tabAt_t_def : tabAt t with ⟨Hist, Z, tZ⟩
   cases tZ
   -- applying a local or a pdl rule or being a repeat?
-  case loc ltZ next =>
+  case loc nbas ltZ nrep next =>
     clear IH -- not used here, that one is only for the repeats
     have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
     have locLD := localLoadedDiamond α ltZ v_α_w (this ▸ v_t) _ (this ▸ negLoad_in) w_nξ
     clear this
     rcases locLD with ⟨Y, Y_in, w_Y, free_or_newLoadform⟩
     -- We are given end node, now define path to it
-    let t_to_s1 : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ @PathIn.loc _ _ _ ltZ next Y_in .nil)
+    let t_to_s1 : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.loc Y_in .nil)
     let s1 : PathIn tab := t.append t_to_s1
     have t_s : t ⋖_ s1 := by
       unfold s1 t_to_s1
@@ -1535,7 +1549,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
     have tabAt_s_def : tabAt s1 = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by
       unfold s1 t_to_s1
       rw [tabAt_append]
-      have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc ltZ next)))
+      have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc nrep nbas ltZ next)))
            = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by simp_all
       convert this <;> try rw [tabAt_t_def]
       rw [eqRec_heq_iff_heq]
@@ -1683,7 +1697,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         Fin.getElem_fin, List.drop_length, true_and]
       convert sk_prop
 
-  case pdl Y r next =>
+  case pdl Y bas r nrep next =>
     cases r -- six PDL rules
     -- cannot apply (L+) because we already have a loaded formula
     case loadL =>
@@ -1700,13 +1714,13 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       -- Leaving cluster, interesting that IH is not needed here.
       clear IH
       -- Define child node with path to to it:
-      let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.pdl (PdlRule.freeL ) .nil)
+      let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ .pdl .nil)
       let s : PathIn tab := t.append t_to_s
       have tabAt_s_def : tabAt s = ⟨_, _, next⟩ := by
         unfold s t_to_s
         rw [tabAt_append]
         -- Only some HEq business left here.
-        have : tabAt (PathIn.pdl PdlRule.freeL PathIn.nil : PathIn (Tableau.pdl PdlRule.freeL next))
+        have : tabAt (.pdl .nil : PathIn (Tableau.pdl nrep bas PdlRule.freeL next))
              = ⟨ (L, R, some (Sum.inl (~'⌊⌊δ⌋⌋⌊β⌋AnyFormula.normal φ))) :: _
                , ⟨(List.insert (~⌈⌈δ⌉⌉⌈β⌉φ) L, R, none), next⟩⟩ := by
           unfold tabAt
@@ -1719,7 +1733,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         left
         right
         unfold s t_to_s
-        refine ⟨_, _, _, PdlRule.freeL, next, ?_⟩
+        refine ⟨Hist, _, nrep, bas, _, PdlRule.freeL, next, ?_⟩
         simp [tabAt_t_def]
       · use W, M, v
         intro φ φ_in
@@ -1739,13 +1753,13 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       -- Leaving cluster, interesting that IH is not needed here.
       clear IH
       -- Define child node with path to to it:
-      let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.pdl (PdlRule.freeR ) .nil)
+      let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ .pdl .nil)
       let s : PathIn tab := t.append t_to_s
       have tabAt_s_def : tabAt s = ⟨_, _, next⟩ := by
         unfold s t_to_s
         rw [tabAt_append]
         -- Only some HEq business left here.
-        have : tabAt (PathIn.pdl PdlRule.freeR PathIn.nil : PathIn (Tableau.pdl PdlRule.freeR next))
+        have : tabAt (.pdl .nil : PathIn (.pdl nrep bas .freeR next))
              = ⟨ (L, R, some (Sum.inr (~'⌊⌊δ⌋⌋⌊β⌋AnyFormula.normal φ))) :: _
                , ⟨L, (List.insert (~⌈⌈δ⌉⌉⌈β⌉φ) R), none⟩, next⟩ := by
           unfold tabAt
@@ -1758,7 +1772,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         left
         right
         unfold s t_to_s
-        refine ⟨_, _, _, PdlRule.freeR, next, ?_⟩
+        refine ⟨Hist, _, nrep, bas, _, PdlRule.freeR, next, ?_⟩
         simp [tabAt_t_def]
       · use W, M, v
         intro φ φ_in
@@ -1795,7 +1809,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       subst α_is_a
       simp at v_α_w
       -- Let `s` be the unique child:
-      let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.pdl (PdlRule.modL Z_def Z_isBasic) .nil)
+      let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ .pdl .nil)
       let s : PathIn tab := t.append t_to_s
       -- used in multiple places below:
       have helper : (∃ φ, ξ' = .normal φ ∧ nodeAt s = ((~φ) :: projection a L, projection a R, none))
@@ -1805,8 +1819,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         unfold s t_to_s
         rw [tabAt_append]
         -- remains to deal with HEq business
-        let tclean : PathIn (.pdl (PdlRule.modL (Eq.refl _) Z_isBasic) next) :=
-          .pdl (PdlRule.modL (Eq.refl _) Z_isBasic) .nil
+        let tclean : PathIn (.pdl nrep bas (.modL (Eq.refl _) Z_isBasic) next) := .pdl .nil
         cases ξ'
         case normal φ =>
           left
@@ -1831,7 +1844,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       · constructor
         constructor
         right
-        refine ⟨Hist, _, _, (PdlRule.modL Z_def Z_isBasic), next, tabAt_t_def, ?_⟩
+        refine ⟨Hist, _, nrep, bas, _, (.modL Z_def Z_isBasic), next, tabAt_t_def, ?_⟩
         simp [s, t_to_s]
       · -- (a)
         subst Z_def
@@ -1900,7 +1913,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       subst α_is_a
       simp at v_α_w
       -- Let `s` be the unique child:
-      let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.pdl (PdlRule.modR Z_def Z_isBasic) .nil)
+      let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ .pdl .nil)
       let s : PathIn tab := t.append t_to_s
       -- used in multiple places below:
       have helper : (∃ φ, ξ' = .normal φ ∧ nodeAt s = (projection a L, (~φ) :: projection a R, none))
@@ -1910,8 +1923,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         unfold s t_to_s
         rw [tabAt_append]
         -- remains to deal with HEq business
-        let tclean : PathIn (.pdl (PdlRule.modR (Eq.refl _) Z_isBasic) next) :=
-          .pdl (PdlRule.modR (Eq.refl _) Z_isBasic) .nil
+        let tclean : PathIn (.pdl nrep bas (.modR (Eq.refl _) Z_isBasic) next) := .pdl .nil
         cases ξ'
         case normal φ =>
           left
@@ -1936,7 +1948,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       · constructor
         constructor
         right
-        refine ⟨Hist, _, _, (PdlRule.modR Z_def Z_isBasic), next, tabAt_t_def, ?_⟩
+        refine ⟨Hist, _, nrep, bas, _, (PdlRule.modR Z_def Z_isBasic), next, tabAt_t_def, ?_⟩
         simp [s, t_to_s]
       · -- (a)
         subst Z_def
@@ -2052,13 +2064,13 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
       exfalso
       have := LoadedPathRepeat_rep_isLoaded lpr
       simp_all [Sequent.isFree, nodeAt]
-    case loc lt next =>
+    case loc nbas lt nrep next =>
       simp [nodeAt]
       rw [localTableauSat lt] -- using soundness of local tableaux here!
       simp
       intro Y Y_in
       -- We are given an end node, now need to define a path leading to it.
-      let t_to_s : PathIn _ := (@PathIn.loc _ _ _ lt next Y_in .nil)
+      let t_to_s : PathIn (Tableau.loc nrep nbas lt next) := (.loc Y_in .nil)
       let s : PathIn tab := t.append (t_def ▸ t_to_s)
       have t_s : t ⋖_ s := by
         unfold s t_to_s
@@ -2074,13 +2086,13 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
       rw [this]
       apply IH
       apply eProp2.c t _ t_is_free t_s
-    case pdl Y r ctY =>
+    case pdl Y bas r nrep next =>
       simp [nodeAt]
       intro hyp
       have := pdlRuleSat r hyp -- using soundness of pdl rules here!
       absurd this
       -- As in `loc` case, it now remains to define a path leading to `Y`.
-      let t_to_s : PathIn _ := (@PathIn.pdl _ _ _ ctY r .nil)
+      let t_to_s : PathIn (Tableau.pdl nrep bas r next) := (.pdl .nil)
       let s : PathIn tab := t.append (t_def ▸ t_to_s)
       have t_s : t ⋖_ s := by
         unfold s t_to_s
@@ -2089,7 +2101,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
         unfold s t_to_s
         simp only [nodeAt_append]
         apply Eq.symm
-        convert nodeAt_pdl_nil ctY r
+        convert nodeAt_pdl_nil next r
         simp
       rw [this]
       apply IH
