@@ -9,7 +9,7 @@ theorem modelExistence: consistent X →
     ∃ (WS : Finset (Finset Formula)) (_ : ModelGraph WS) (W : WS), X.toFinset ⊆ W :=
   by
   intro consX
-  rcases gamedet tableauGame (Sum.inl X) with ProverHasWinningS | BuilderHasWinningS
+  rcases gamedet tableauGame (Sum.inl X, []) with ProverHasWinningS | BuilderHasWinningS
   · absurd consX
     rcases ProverHasWinningS with ⟨sP, winning_sP⟩
     simp_all [inconsistent]

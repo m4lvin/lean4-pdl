@@ -13,10 +13,26 @@ def Rule : Type := Sum (Σ X B, LocalRuleApp X B) (Σ X Y, PdlRule X Y)
 notation "Prover" => Player.A
 notation "Builder" => Player.B
 
+structure builderPos where
+  Γ : Sequent
+  φ : Formula
+  R : Rule
+
+  φ_nin_Γ : φ ∉ Γ
+  R_app : True := trivial
+  φ_principle : True := trivial
+
+def tableauPos := Sequent ⊕ builderPos
+
 def tableauGame : Game where
-  Pos := Sum Sequent (Sequent × Formula × Rule) -- probably not enough, also need history to check for repeats?
-  turn := sorry
+  Pos := tableauPos ×  List tableauPos
+
+  turn
+  | ⟨.inl _, _⟩ => Prover
+  | ⟨.inr _, _⟩ => Builder
+
   moves := sorry
+
   bound := sorry
   bound_h := sorry
 
