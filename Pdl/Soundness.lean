@@ -1113,6 +1113,25 @@ theorem eProp2 {tab : Tableau .nil X} (s u t : PathIn tab) :
 
 /-! ## Soundness -/
 
+/-- A rule is applied to the loaded formula at node s. -/
+def loadedPrincipal (s : PathIn tab) : Prop :=
+  sorry
+  -- must be one of
+  -- Tableau.loc with one of:
+  -- Tableau.pdl using one of: freeL, freeR, modL, modR
+
+theorem loadedSucc (α : Program) {X : Sequent}
+  (ltab : LocalTableau X)
+  {W} {M : KripkeModel W} {v : W}
+  (v_t : (M,v) ⊨ X)
+  (ξ : AnyFormula)
+  {side : Side}
+  (negLoad_in : (~''(⌊α⌋ξ)).in_side side X)
+  : ∃ s : PathIn tab, t ◃⁺ s ∧
+        satisfiable (nodeAt s)
+        ∧ loadedPrincipal s := by
+  sorry
+
 /-- Helper to deal with local tableau in `loadedDiamondPaths`. -/
 theorem localLoadedDiamond (α : Program) {X : Sequent}
   (ltab : LocalTableau X)
@@ -1438,6 +1457,8 @@ theorem boxes_true_at_k_of_Vector_rel {W : Type} {M : KripkeModel W} (ξ : AnyFo
       · apply Vector.my_cast_heq
       · congr!
 
+set_option maxHeartbeats 2000000
+
 /-- Soundness of loading and repeats: a tableau can immitate all moves in a model. -/
 -- Note that we mix induction' tactic and recursive calls __O.o__
 theorem loadedDiamondPaths (α : Program) {X : Sequent}
@@ -1580,59 +1601,94 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
               apply Sequent.without_loaded_in_side_isFree
               convert anf_in_Y
         case succ k inner_IH =>
-          -- Here we will need to apply the outer induction hypothesis. to δ[k] or k+1 ??
-          -- NOTE: it is only applicable when α is not a star.
-          -- For the star case we need another induction! On the length of `ws`? See notes.
-
           rcases inner_IH with ⟨sk, t_sk, IH_cases⟩
-
           rcases IH_cases with _ | ⟨_in_node_sk, wsk_sk, anf_in_sk⟩
           · refine ⟨sk, t_sk, ?_⟩
             left
             assumption
           ·
-            -- Prepare using outer IH for the program δ[k] (that must be simpler than α)
-            have _forTermination : lengthOfProgram δ[k] < lengthOfProgram α := by
-              -- TODO: Show that length went down.
-              -- ! Needs better `H_goes_down` similar to `P_goes_down`.
-              -- ! Only true when α is a test, union or semicolon ==> need separate case for star!
-              have := H_goes_down_prog α Fδ_in_H (by aesop : δ.get k ∈ δ)
-              cases α
-              all_goals
-                simp [Program.isAtomic, Program.isStar, lengthOfProgram] at *
-                try linarith
-              case atom_prog =>
-                rw [this]
-                simp [Program.isAtomic, Program.isStar, lengthOfProgram] at *
-                -- PROBLEM
-                -- should length of atom be 0 or 1?
-                -- OR
-                -- can we argue here that k should not large? / reach a contradiction?
-                -- OR
-                -- do we want that `loc` or something else on the way to here should not be allowed for when α is atomic???
+            -- Here we will need to apply the outer induction hypothesis. to δ[k] or k+1 ??
+            -- NOTE: it is only applicable when α is not a star.
+            -- For the star case we need another induction! On the length of `ws`? See notes.
+            have my_goes_down := H_goes_down_prog α Fδ_in_H (by aesop : δ.get k ∈ δ)
+
+            cases α_def : α
+
+            case atom_prog a =>
+              subst α_def
+              simp [Program.isAtomic, Program.isStar, lengthOfProgram] at my_goes_down
+              subst my_goes_down
+              simp at k
+              simp [Fin.eq_zero k] at *
+              -- PROBLEM
+              --
+              -- Here we want to continue with a *longer* path `sk` given by `next Y` ???
+              -- But we do not have an IH applicable there.
+              -- In fact, to make the `rep` case work we have an IH for *shorter* paths.
+              --
+              -- What do we need about `loc` here?
+              -- Now that `loc` is and should be allowed when `α` is atomic.
+              -- But we should have and use here that the same program is still in one of the end nodes.
+              --
+              -- And that there can only be one loc step, after which there must be a PDL rule applied?
+              --
+              -- Maybe we should have a separate lemma like `loadedSucc` in the notes?
+              --
+              sorry
+
+            -- Here is the **star case** that needs an additional induction and minimality.
+            case star β =>
+              subst α_def
+              simp [Program.isAtomic, Program.isStar, lengthOfProgram] at my_goes_down
+              simp at *
+              rcases ReflTransGen.to_finitelyManySteps v_α_w with
+                ⟨n, wws, v_eq_head, w_eq_last, stepRel⟩
+              -- See notes!
+              have claim : ∀ k : Fin n.succ, -- Note the succ here!
+                  ∃ sk, t ◃⁺ sk ∧ ( ( satisfiable (nodeAt sk) ∧ ¬(sk ≡ᶜ t) )
+                                  ∨ ( (~''(⌊∗β⌋ξ)).in_side side (nodeAt sk)
+                                    ∧ (M, wws[k]) ⊨ nodeAt sk
+                                    ∧ ((nodeAt sk).without (~''(⌊∗β⌋ξ))).isFree))
+                                    -- TODO: add that loaded formula is principal as in notes?
+                                    := by
+                intro k
+                induction k using Fin.inductionOn
+                case zero =>
+
+                  sorry
+                case succ k IH =>
+                  sorry
+              specialize claim wws.length
+              rcases claim with ⟨sk, t_sk, sk_prop⟩
+              use sk
+              simp_all
+              cases sk_prop
+              · tauto
+              · right --?
                 sorry
-              case star =>
-                -- Here is the **star case** that needs an additional induction and minimality.
-                -- See notes!
-                sorry
 
-            have outer_IH := @loadedDiamondPaths (δ.get k) _ tab root_free sk W M
-              (ws.get k.castSucc) (ws.get k.succ) wsk_sk
-              (ξ.loadBoxes (δ.drop k.succ)) -- This is the new ξ.
-              side
-              (by convert _in_node_sk; rw [←AnyFormula.loadBoxes_cons]; convert rfl using 2; simp)
-              (by convert ws_rel k; simp)
-              (by apply boxes_true_at_k_of_Vector_rel <;> simp_all)
-
-            clear _forTermination
-
-            rcases outer_IH with ⟨sk2, sk_c_sk2, sk2_property⟩
-            rcases sk2_property with ⟨sk2_sat, sk2_nEquiv_sk⟩ | ⟨anf_in_sk2, u_sk2, sk2_almostFree⟩
-            · refine ⟨sk2, ?_, Or.inl ⟨sk2_sat, ?_⟩⟩  -- leaving cluster, easy?
-              · exact Relation.TransGen.trans t_sk sk_c_sk2
-              · apply eProp2.f_tweak _ _ _ t_sk sk_c_sk2 sk2_nEquiv_sk
-            · refine ⟨sk2, ?_, Or.inr ⟨anf_in_sk2, u_sk2, sk2_almostFree⟩⟩
-              · exact Relation.TransGen.trans t_sk sk_c_sk2
+            -- The remaining easier cases are test, union and semicolon.
+            all_goals
+              -- Prepare using outer IH for program δ[k] by showing that length went down.
+              have _forTermination : lengthOfProgram δ[k] < lengthOfProgram α := by
+                subst α_def
+                simp [Program.isAtomic, Program.isStar, lengthOfProgram] at *
+                linarith
+              have outer_IH := @loadedDiamondPaths (δ.get k) _ tab root_free sk W M
+                (ws.get k.castSucc) (ws.get k.succ) wsk_sk
+                (ξ.loadBoxes (δ.drop k.succ)) -- This is the new ξ.
+                side
+                (by convert _in_node_sk; rw [←AnyFormula.loadBoxes_cons]; convert rfl using 2; simp)
+                (by convert ws_rel k; simp)
+                (by apply boxes_true_at_k_of_Vector_rel <;> simp_all)
+              clear _forTermination
+              rcases outer_IH with ⟨sk2, sk_c_sk2, sk2_property⟩
+              rcases sk2_property with ⟨sk2_sat, sk2_nEquiv_sk⟩ | ⟨anf_in_sk2, u_sk2, sk2_almostFree⟩
+              · refine ⟨sk2, ?_, Or.inl ⟨sk2_sat, ?_⟩⟩ -- leaving cluster, easy
+                · exact Relation.TransGen.trans t_sk sk_c_sk2
+                · apply eProp2.f_tweak _ _ _ t_sk sk_c_sk2 sk2_nEquiv_sk
+              · refine ⟨sk2, ?_, Or.inr ⟨anf_in_sk2, u_sk2, sk2_almostFree⟩⟩
+                · exact Relation.TransGen.trans t_sk sk_c_sk2
 
       -- It remains to show that the claim suffices.
       specialize claim δ.length
@@ -1979,6 +2035,8 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
 termination_by
   (⟨lengthOfProgram α, t.length⟩ : Nat ×ₗ Nat)
 decreasing_by
+  · exact Prod.Lex.left _ _ _forTermination
+  · exact Prod.Lex.left _ _ _forTermination
   · exact Prod.Lex.left _ _ _forTermination
   · exact Prod.Lex.right (lengthOfProgram α) _forTermination
 
