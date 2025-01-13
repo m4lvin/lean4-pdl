@@ -114,7 +114,7 @@ decreasing_by
     apply g.bound_h; simp
 
 /-- A strategy is winning at `p` if it wins against all strategies of the other player. -/
-def winning {g : Game} {i : Player} (p : g.Pos) (sI : Strategy g i) : Prop :=
+def winning {g : Game} {i : Player} (sI : Strategy g i) (p : g.Pos) : Prop :=
   ∀ sJ : Strategy g (other i), winner sI sJ p = i
 
 /-- The cone of all positions reachable from `p` assuming that `i` plays `sI`. -/
@@ -189,7 +189,7 @@ theorem cone_trans {p q r : g.Pos} {s : Strategy g i} : inMyCone s p q → inMyC
   | oStep a turn h ih => exact .oStep ih turn h
 
 theorem surviving_is_winning {sI : Strategy g i} (surv : ∀ q, inMyCone sI p q → g.turn q = i → q.moves.Nonempty)
-    : winning p sI :=
+    : winning sI p :=
   fun sJ => by
     unfold winner
     split
@@ -204,14 +204,14 @@ theorem surviving_is_winning {sI : Strategy g i} (surv : ∀ q, inMyCone sI p q 
 termination_by g.bound p
 decreasing_by all_goals apply g.bound_h; exact Subtype.mem _
 
-theorem good_strat_winning (W : good i p) : winning p (good_strat i) :=
+theorem good_strat_winning (W : good i p) : winning (good_strat i) p :=
   surviving_is_winning fun _ => good_is_surviving ∘ (good_cone W)
 
 /-- Zermelo's Theorem: In every `Game` posiiton one of the two players has a winning strategy.
 https://en.wikipedia.org/wiki/Zermelo%27s_theorem_(game_theory)
 -/
 theorem gamedet (g : Game) (p : g.Pos) :
-    (∃ s : Strategy g A, winning p s) ∨ (∃ s : Strategy g B, winning p s) := Or.imp
+    (∃ s : Strategy g A, winning s p) ∨ (∃ s : Strategy g B, winning s p) := Or.imp
     (⟨good_strat A, good_strat_winning .⟩)
     (⟨good_strat B, good_strat_winning .⟩)
     <| good_A_or_B p
