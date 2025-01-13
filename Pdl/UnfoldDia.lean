@@ -198,7 +198,7 @@ theorem keepFreshH α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ H α → x ∉ F.f
 
 -- FIXME is this in the notes? implicit somewhere?
 theorem H_goes_down_prog (α : Program) {Fs δ} (in_H : (Fs, δ) ∈ H α) {γ} (in_δ: γ ∈ δ) :
-  (if α.isAtomic then γ = α else if α.isStar
+  (if α.isAtomic then δ = [α] else if α.isStar
     then lengthOfProgram γ ≤ lengthOfProgram α
     else lengthOfProgram γ < lengthOfProgram α) := by
   cases α
