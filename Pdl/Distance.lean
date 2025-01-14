@@ -300,10 +300,10 @@ theorem distance_helper (x y k : Nat) (h : k ≤ y) (h2 : x ≠ 0) : x + y + k <
 noncomputable def distance {W} (Mod : DecidableKripkeModel W) (v w : W)
     : (α : Program) → ℕ∞
 | ·c => if @decide (Mod.M.Rel c v w) (Mod.decrel c v w) then 1 else ⊤
-| ?'τ => by
+| ?'τ =>
   have := evaluate.instDecidable Mod v τ
   have := Mod.deceq v w
-  exact (if v = w ∧ evaluate Mod.M v τ then 0 else ⊤)
+  if v = w ∧ evaluate Mod.M v τ then 0 else ⊤
 | α⋓β => min (distance Mod v w α) (distance Mod v w β)
 | α;'β =>
     let α_β_distOf_via x := distance Mod v x α + distance Mod x w β
@@ -349,6 +349,14 @@ noncomputable def distance_list {W} (Mod : DecidableKripkeModel W) (v w : W) : (
 
 -- similar to α;'β case in `distance`
 | (α::δ) => ⨅ (x : W), distance Mod v x α + distance_list Mod x w δ
+
+theorem distance_list_singleton (Mod : DecidableKripkeModel W) :
+    distance_list Mod v w [α] = distance Mod v w α :=
+  iInf_eq_of_forall_ge_of_forall_gt_exists_lt
+    (fun x => @dite _ (x = w) (Mod.deceq ..)
+      (by simp_all only [self_le_add_right, implies_true])
+      (by simp_all only [distance_list, ite_false, add_top, le_top, implies_true]))
+    (fun d => fun le => ⟨w, by simp_all only [distance_list, ite_true, add_zero]⟩)
 
 theorem ENat.min_neq_top_iff {M N : ℕ∞} : min M N ≠ ⊤ ↔ (M ≠ ⊤) ∨ (N ≠ ⊤) := min_eq_top.not.trans not_and_or
 
@@ -409,12 +417,20 @@ theorem distance_iff_relate (Mod : DecidableKripkeModel W) α v w :
         . simp only [ne_eq, ENat.zero_ne_top, not_false_eq_true]
         . sorry
 
+theorem List.exists_mem_singleton {p : α → Prop} : (∃ x ∈ [a], p x) ↔ p a :=
+  ⟨λ⟨_, ⟨x_in, px⟩⟩ ↦ mem_singleton.mp x_in ▸ px, (⟨_, ⟨mem_singleton_self _, .⟩⟩)⟩
+
 theorem relate_existsH_distance (Mod : DecidableKripkeModel W) (α : Program)
     (v_α_w : relate Mod.M α v w)
     : ∃ Fδ ∈ H α,
         evaluate Mod.M v (Con Fδ.1)
-      ∧ distance_list Mod v w Fδ.2 = distance Mod v w α  := by
-  sorry
+      ∧ distance_list Mod v w Fδ.2 = distance Mod v w α  :=
+  match α with
+  | ·_ => List.exists_mem_singleton.mpr ⟨id, distance_list_singleton _⟩
+  | ?'_ => List.exists_mem_singleton.mpr ⟨v_α_w.2, sorry⟩
+  | α ⋓ β => sorry
+  | ∗α => sorry
+  | α ;' β => sorry
 
 
 variable (M : KripkeModel W)
@@ -459,8 +475,7 @@ theorem KripkeModel.reachable_iff_star_relate (α : Program) (w v : W) :
     | refl => rfl
     | tail _ ha hr => exact Reachable.trans M hr ⟨Walk.cons ha Walk.nil⟩
 
-open Classical
-
+open Classical in
 noncomputable def distance' {W} (M : KripkeModel W) (w v : W) (α : Program): ℕ∞ :=
   match α with
   | ·_ => ite (relate M α w v) 1 ⊤
@@ -469,7 +484,7 @@ noncomputable def distance' {W} (M : KripkeModel W) (w v : W) (α : Program): �
   | ∗α => M.edist α w v
   | α ;' β => ⨅ u : W, distance' M w u α + distance' M u v β
 
-
+open Classical in
 theorem distance'_iff_relate (M : KripkeModel W) α w v : (distance' M w v α) ≠ ⊤ ↔ relate M α w v :=
   match α with
   | ·_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.one_ne_top).symm
