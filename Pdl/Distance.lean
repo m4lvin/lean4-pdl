@@ -346,9 +346,9 @@ decreasing_by
 noncomputable def distance_list {W} (Mod : DecidableKripkeModel W) (v w : W) : (δ : List Program) → ℕ∞
 | [] => have := Mod.deceq v w
         if v = w then 0 else ⊤
-| (α::δ) => -- similar to α;'β case in `distance`
-    let α_δ_distOf := fun x => distance Mod v x α + distance_list Mod x w δ
-    (Mod.allW.map α_δ_distOf).reduceOption.min?
+
+-- similar to α;'β case in `distance`
+| (α::δ) => ⨅ (x : W), distance Mod v x α + distance_list Mod x w δ
 
 theorem ENat.min_neq_top_iff {M N : ℕ∞} : min M N ≠ ⊤ ↔ (M ≠ ⊤) ∨ (N ≠ ⊤) := min_eq_top.not.trans not_and_or
 
