@@ -409,7 +409,16 @@ theorem distance_iff_relate (Mod : DecidableKripkeModel W) α v w :
       rw [distance_iff_relate, distance_iff_relate]
       exact is_rel
   case star α =>
-    sorry
+    constructor
+    . sorry
+    . intro R
+      induction R
+      . simp only [distance, beq_self_eq_true, ↓reduceDIte, ne_eq, ENat.zero_ne_top, not_false_eq_true]
+      . rename_i x y v_aS_x x_a_y fin_dis_x
+        simp only [distance]
+        split
+        . simp only [ne_eq, ENat.zero_ne_top, not_false_eq_true]
+        . sorry
 
 theorem relate_existsH_distance (Mod : DecidableKripkeModel W) (α : Program)
     (v_α_w : relate Mod.M α v w)
