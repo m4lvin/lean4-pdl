@@ -279,7 +279,7 @@ def localMeasureOfProg (n : Nat) : Program → Nat
   | α;'β => 1 + localMeasureOfProg n α + localMeasureOfProg n β
   | α⋓β => 1 + localMeasureOfProg n α + localMeasureOfProg n β
   | ∗α => 1 + (1 + n) * localMeasureOfProg n α
-  | ?'_ => 1 -- tests do not contributed to distance
+  | ?'_ => 1 -- tests do not contribute to distance
 
 theorem Program.nonZeroSize {α : Program} : localMeasureOfProg n α > 0 := by cases α <;> simp
 
@@ -426,3 +426,66 @@ theorem relate_existsH_distance (Mod : DecidableKripkeModel W) (α : Program)
         evaluate Mod.M v (Con Fδ.1)
       ∧ distance_list Mod v w Fδ.2 = distance Mod v w α  := by
   sorry
+
+
+variable (M : KripkeModel W)
+
+inductive KripkeModel.Walk : Program → W → W → Type
+| nil : Walk a w w
+| cons (h : relate M α w v) (p : Walk α v u) : Walk α w u
+  deriving DecidableEq
+
+def KripkeModel.Walk.length : M.Walk α w v → ℕ
+| .nil => 0
+| .cons _ p => p.length.succ
+
+attribute [refl] KripkeModel.Walk.nil
+
+@[trans]
+def KripkeModel.Walk.append {M : KripkeModel W} {w v u : W} : M.Walk α w v → M.Walk α v u → M.Walk α w u
+  | .nil, q => q
+  | .cons h p, q => .cons h (p.append q)
+
+noncomputable def KripkeModel.edist (α : Program) (w v : W) : ℕ∞ := ⨅ (p : M.Walk α w v), p.length
+
+def KripkeModel.Reachable (α : Program) (w v : W) : Prop := Nonempty (M.Walk α w v)
+
+@[refl]
+protected theorem KripkeModel.Reachable.refl (w : W) : M.Reachable α w w := ⟨.nil⟩
+
+@[trans]
+protected theorem KripkeModel.Reachable.trans {w v u : W} (hwv : M.Reachable α w v) (hvu : M.Reachable α v u) :
+    M.Reachable α w u :=
+  hwv.elim fun pwv => hvu.elim fun pvu => ⟨pwv.append pvu⟩
+
+theorem KripkeModel.reachable_iff_star_relate (α : Program) (w v : W) :
+    M.Reachable α w v ↔ relate M (∗α) w v := by
+  constructor
+  . rintro ⟨h⟩
+    induction h with
+    | nil => exact .refl
+    | cons h' _ ih => exact (Relation.ReflTransGen.single h').trans ih
+  . intro h
+    induction h with
+    | refl => rfl
+    | tail _ ha hr => exact Reachable.trans M hr ⟨Walk.cons ha Walk.nil⟩
+
+
+noncomputable def distance' {W} (M : KripkeModel W) (w v : W) (α : Program): ℕ∞ :=
+  have := Classical.dec
+  match α with
+  | ·_ => ite (relate M α w v) 1 ⊤
+  | ?'_ => ite (relate M α w v) 0 ⊤
+  | α ⋓ β => min (distance' M w v α) (distance' M w v β)
+  | ∗α => M.edist α w v
+  | α ;' β => ⨅ u : W, distance' M w u α + distance' M u v β
+
+
+theorem distance'_iff_relate (M : KripkeModel W) α w v : (distance' M w v α) ≠ ⊤ ↔ relate M α w v :=
+  have := Classical.dec
+  match α with
+  | ·_ => (@ite_ne_right_iff _ _ (Classical.dec _) ..).trans <| (iff_self_and.mpr fun _ => ENat.one_ne_top).symm
+  | ?'_ => (@ite_ne_right_iff _ _ (Classical.dec _) ..).trans <| (iff_self_and.mpr fun _ => ENat.zero_ne_top).symm
+  | _ ⋓ _ => ENat.min_neq_top_iff.trans <| or_congr (distance'_iff_relate ..) (distance'_iff_relate ..)
+  | _ ;' _ => iInf_eq_top.not.trans <| Classical.not_forall.trans <| exists_congr fun _ => WithTop.add_ne_top.trans <| and_congr (distance'_iff_relate ..) (distance'_iff_relate ..)
+  | ∗_ => ENat.iInf_coe_ne_top.trans <| M.reachable_iff_star_relate _ _ _
