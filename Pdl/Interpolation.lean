@@ -13,7 +13,7 @@ theorem interpolation : ∀ (φ ψ : Formula), φ⊨ψ → ∃ θ : Formula, Int
   by
   intro φ ψ hyp
   let X : Sequent := ([φ], [~(ψ)], none)
-  have ctX : Tableau .nil X :=
+  have ctX : Tableau .nil ([φ], [~(ψ)], none) :=
     by
     rw [tautImp_iff_SequentUnsat rfl] at hyp
     rw [← consIffSat _ (by simp)] at hyp -- using completeness
@@ -25,10 +25,10 @@ theorem interpolation : ∀ (φ ψ : Formula), φ⊨ψ → ∃ θ : Formula, Int
   use θ
   constructor
   · intro f f_in
-    simp [jvoc, Formula.voc, Vocab.fromList] at pI_prop f_in
-    simp only [Finset.mem_inter]
     have := pI_prop.1 f_in
-    aesop
+    clear pI_prop
+    simp only [Finset.mem_inter]
+    simpa [jvoc, Olf.toForms]
   constructor
   · have := pI_prop.2.1
     clear pI_prop

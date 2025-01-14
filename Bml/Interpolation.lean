@@ -24,6 +24,7 @@ theorem tautImp_iff_TNOdenotUnsat {φ ψ} {X : TNode} :
   · intro unsat
     intro W M w
     specialize unsat W M w
+    simp only [impl, Evaluate, not_and, not_not]
     tauto
 
 theorem interpolation {ϕ ψ} : Tautology (ϕ↣ψ) → ∃ θ, Interpolant ϕ ψ θ :=
@@ -44,9 +45,10 @@ theorem interpolation {ϕ ψ} : Tautology (ϕ↣ψ) → ∃ θ, Interpolant ϕ �
   -- using tableau interpolation!
   rcases partInt with ⟨θ, pI_prop⟩
   unfold isPartInterpolant at pI_prop
-  use θ
-  constructor
+  refine ⟨θ, ?_, ?_, ?_⟩
   · rw [tautImp_iff_comboNotUnsat]; tauto
-  constructor
-  · rw [tautImp_iff_comboNotUnsat]; simp at *; tauto
-  · cases pI_prop; simp at *; tauto
+  · rw [tautImp_iff_comboNotUnsat]
+    simp_all [Evaluate, X]
+  · intro c c_in
+    have := pI_prop.1 c_in
+    simp_all [X, jvoc]

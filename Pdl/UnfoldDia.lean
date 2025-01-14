@@ -336,13 +336,11 @@ private theorem helper : ∀ (p : List Formula × List Program → Formula) X,
         (∃ f ∈ List.map p X, evaluate M w f)
       ↔ (∃ Fδ ∈ X, evaluate M w (p Fδ)) := by aesop
 
-set_option maxHeartbeats 1000000 -- FIXME: added since Lean v4.10.0 -- how to speed up proof below?
-
 theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ => Con (Yset Fδ ψ)) ) := by
   intro W M w
   cases γ
   case atom_prog a =>
-    simp [H]
+    simp [H, conEval, Yset]
   case test τ =>
     simp [evaluate, H, Yset]
     rw [conEval]

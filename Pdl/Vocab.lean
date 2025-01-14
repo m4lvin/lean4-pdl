@@ -58,7 +58,7 @@ theorem Vocab.fromListFormula_map_iff n (L : List Formula) :
   induction L
   · simp [fromList]
   case cons h t IH =>
-    simp only [fromList, Finset.mem_union, List.mem_cons, exists_eq_or_imp]
+    simp only [List.map_cons, fromList, Finset.mem_union, List.mem_cons, exists_eq_or_imp]
     rw [← IH]
 
 theorem Vocab.fromListProgram_map_iff n (L : List Program) :
@@ -67,14 +67,14 @@ theorem Vocab.fromListProgram_map_iff n (L : List Program) :
   induction L
   · simp [fromList]
   case cons h t IH =>
-    simp only [fromList, Finset.mem_union, List.mem_cons, exists_eq_or_imp]
+    simp only [List.map_cons, fromList, Finset.mem_union, List.mem_cons, exists_eq_or_imp]
     rw [← IH]
 
 theorem Formula.voc_boxes : (⌈⌈δ⌉⌉φ).voc = δ.pvoc ∪ φ.voc := by
   induction δ
   · simp
   case cons α δ IH =>
-    simp only [List.pvoc, voc, Vocab.fromList, Finset.union_assoc] at *
+    simp only [List.map_cons, List.pvoc, voc, Vocab.fromList, Finset.union_assoc] at *
     rw [← IH]
     rfl
 

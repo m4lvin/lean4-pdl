@@ -25,7 +25,7 @@ dependencies.svg: Pdl/*.lean
 
 update-fix:
 	rm -rf .lake
-	echo "leanprover/lean4:v4.14.0" > lean-toolchain
+	echo "leanprover/lean4:v4.16.0-rc2" > lean-toolchain
 	echo "If next command fails, edit lakefile.lean manually."
-	grep v4.14.0 lakefile.lean
+	grep v4.16.0-rc2 lakefile.lean
 	lake update -R

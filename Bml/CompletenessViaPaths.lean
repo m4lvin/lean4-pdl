@@ -523,11 +523,12 @@ theorem modelExistence: Consistent (L,R) →
           aesop
         · -- notation: w_world for world, w for TNode, w' for ConsTNode
           intro ⟨w_world, w_world_in⟩ f nboxf_in_w
-          simp_all
-          choose w' w'_in w_world_eq using w_world_in
+          unfold WS at w_world_in
+          simp at w_world_in
+          rcases w_world_in with ⟨ w', w'_in, w_world_eq⟩
           subst w_world_eq
           let v' := endNodeOf (aPathOf w')
-          have v'_def : v' = endNodeOf (aPathOf w') := by simp
+          have v'_def : v' = endNodeOf (aPathOf w') := by aesop
           rcases v' with ⟨⟨vL, vR⟩, v_cons⟩
           have nboxf_in_v : ~(□f) ∈ vL ∪ vR := by
             have := pathDiamond (aPathOf w') nboxf_in_w
@@ -545,7 +546,7 @@ theorem modelExistence: Consistent (L,R) →
               simp (config := {zetaDelta := true}) only
               unfold diamondProjectTNode
               aesop
-            use toWorld u'
+            use ⟨toWorld u', ?_⟩
             constructor
             · calc
                 projection (toWorld w') = projection (pathToFinset (aPathOf w')) := by aesop
@@ -553,19 +554,18 @@ theorem modelExistence: Consistent (L,R) →
                 _ ⊆ projection (vL ∪ vR) := by rw[← v'_def]; simp
                 _ ⊆ u.1 ∪ u.2 := by rw[u_eq, projectionUnion]; simp
                 _ ⊆ toWorld u' := by apply LR_in_PathLR
-            constructor
-            · have h := M₀.inductiveL w' w'_in v'_def
-              simp at h
-              specialize h f nboxf_in
-              use u'
-              simp_all only [union_singleton_is_insert, and_true]
-              exact h
             · have nf_in : ~f ∈ u.1 ∪ u.2 := by
                 simp (config := {zetaDelta := true})
                 unfold diamondProjectTNode
                 split
                 all_goals simp_all
               apply (LR_in_PathLR _) nf_in
+            · have h := M₀.inductiveL w' w'_in v'_def
+              simp at h
+              specialize h f nboxf_in
+              use u'
+              simp_all only [union_singleton_is_insert, and_true]
+              exact h
           case inr nboxf_in =>
             let u := diamondProjectTNode (Sum.inr f) ⟨vL, vR⟩
             let u' : ConsTNode := ⟨u, (by apply consThenProjectRCons nboxf_in v_simp v_cons)⟩
@@ -574,7 +574,7 @@ theorem modelExistence: Consistent (L,R) →
               unfold diamondProjectTNode
               aesop
             have u_sub: u.1 ∪ u.2 ⊆ toWorld u' := by apply LR_in_PathLR
-            use toWorld u'
+            use ⟨toWorld u', ?_⟩
             constructor
             · calc
                 projection (toWorld w') = projection (pathToFinset (aPathOf w')) := by aesop
@@ -582,21 +582,20 @@ theorem modelExistence: Consistent (L,R) →
                 _ ⊆ projection (vL ∪ vR) := by rw[← v'_def]; simp
                 _ ⊆ u.1 ∪ u.2 := by rw[u_eq, projectionUnion]; simp
                 _ ⊆ toWorld u' := by apply LR_in_PathLR
-            constructor
-            · have h := M₀.inductiveR w' w'_in v'_def
-              specialize h f nboxf_in
-              use u'
-              simp_all only [union_singleton_is_insert, and_true]
-              exact h
             · have nf_in : ~f ∈ u.1 ∪ u.2 := by
                 simp (config := {zetaDelta := true})
                 unfold diamondProjectTNode
                 split
                 all_goals simp_all
               apply u_sub nf_in
+            · have h := M₀.inductiveR w' w'_in v'_def
+              specialize h f nboxf_in
+              use u'
+              simp_all only [union_singleton_is_insert, and_true]
+              exact h
   · use ⟨(L,R), LR_cons⟩
     unfold toWorld
-    simp
+    simp [pathLR]
     exact M₀.base
 
 -- Theorem 4, page 37

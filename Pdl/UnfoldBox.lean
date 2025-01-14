@@ -1,4 +1,5 @@
 import Mathlib.Data.Fintype.Pi
+import Mathlib.Data.List.Sublists
 import Mathlib.Tactic.Linarith
 
 import Pdl.Substitution
@@ -14,7 +15,7 @@ def TP (α : Program) : Type := {τ // τ ∈ testsOfProgram α} → Bool
 
 instance : Fintype (TP α) := by
   unfold TP
-  apply Pi.fintype
+  apply Pi.instFintype
 
 theorem TP_eq_iff {α} {ℓ ℓ' : TP α} : (ℓ = ℓ') ↔ ∀ τ ∈ (testsOfProgram α).attach, ℓ τ = ℓ' τ := by
   constructor
@@ -1126,7 +1127,6 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         rw [IHβ_thm]
         clear IHβ_thm
         simp only [Xset, evalDis, disEval, List.mem_map, exists_exists_and_eq_and, conEval, List.mem_append, evaluate]
-        rw [← @or_iff_not_and_not]
         constructor
         · rintro ⟨ℓ, ℓ_in, w_Xβ⟩
           -- now need to choose x⋀χ0 or χ1

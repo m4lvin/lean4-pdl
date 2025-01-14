@@ -294,7 +294,7 @@ theorem relateSeq_append (M : KripkeModel W) (l1 l2 : List Program) (w v : W) :
 
 theorem relateSeq_iff_exists_Vector (M : KripkeModel W) (δ : List Program) (w v : W) :
   relateSeq M δ w v ↔
-   ∃ (ws : Mathlib.Vector W (δ.length).succ),
+   ∃ (ws : List.Vector W (δ.length).succ),
       w = ws.head ∧ v = ws.last ∧ ∀ i, relate M (δ.get i) (ws.get i) (ws.get i.succ)
     := by
   induction δ generalizing w
@@ -316,14 +316,14 @@ theorem relateSeq_iff_exists_Vector (M : KripkeModel W) (δ : List Program) (w v
       clear IH
       rcases u_v with ⟨ws, u_def, v_def, claim⟩
       refine ⟨⟨w :: ws.val, by simp_all⟩, ?_, ?_, ?_⟩
-      · simp [Mathlib.Vector.head]
+      · simp [List.Vector.head]
       · rw [v_def]
-        simp [Mathlib.Vector.last_def, Mathlib.Vector.get]
+        simp [List.Vector.last_def, List.Vector.get]
       · apply Fin.cases
-        · simp [Mathlib.Vector.head]
+        · simp [List.Vector.head]
           convert w_u
           subst u_def
-          simp [Mathlib.Vector.last_def, Mathlib.Vector.get]
+          simp [List.Vector.last_def, List.Vector.get]
           rcases ws with ⟨ws, ws_len⟩
           have := List.exists_of_length_succ _ ws_len
           aesop

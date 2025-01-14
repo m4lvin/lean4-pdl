@@ -296,7 +296,8 @@ theorem distance_helper (x y k : Nat) (h : k ≤ y) (h2 : x ≠ 0) : x + y + k <
 
 -- QUESTION: Using `ℕ∞` here which is the same as `Option Nat` but can we avoid more internals?
 -- Or should we use `PartENat` here?
-def distance {W} (Mod : DecidableKripkeModel W) (v w : W)
+-- NOTE: made noncomputable when updating to v4.16.0-rc2
+noncomputable def distance {W} (Mod : DecidableKripkeModel W) (v w : W)
     : (α : Program) → ℕ∞
 | ·c => if @decide (Mod.M.Rel c v w) (Mod.decrel c v w) then 1 else ⊤
 | ?'τ => by
@@ -342,7 +343,7 @@ decreasing_by
     · have := @Program.nonZeroSize Mod.allW.length α
       exact Nat.not_eq_zero_of_lt this
 
-def distance_list {W} (Mod : DecidableKripkeModel W) (v w : W) : (δ : List Program) → ℕ∞
+noncomputable def distance_list {W} (Mod : DecidableKripkeModel W) (v w : W) : (δ : List Program) → ℕ∞
 | [] => have := Mod.deceq v w
         if v = w then 0 else ⊤
 | (α::δ) => -- similar to α;'β case in `distance`

@@ -1,8 +1,9 @@
 import Mathlib.Algebra.Order.BigOperators.Group.List
+import Mathlib.Data.Finset.Option
 
 import Pdl.UnfoldBox
 import Pdl.UnfoldDia
-import Pdl.MultisetOrder
+import Mathlib.Data.Multiset.DershowitzManna
 
 /-! # Local Tableaux (Section 3) -/
 
@@ -595,9 +596,9 @@ theorem lmOfFormula_lt_box_of_nonAtom (h : ¬ α.isAtomic) :
     lmOfFormula (~φ) < lmOfFormula (~⌈α⌉φ) := by
   cases α <;> simp_all [List.attach_map_val, Program.isAtomic, testsOfProgram] <;> linarith
 
--- FIXME Only need this here, be careful with exporting this?
+-- Only need this here, so don't export this.
 @[simp]
-instance : LT Formula := ⟨Nat.lt on lmOfFormula⟩
+private instance instLTFormula : LT Formula := ⟨fun φ1 φ2 => lmOfFormula φ1 < lmOfFormula φ2⟩
 
 instance Formula.WellFoundedLT : WellFoundedLT Formula := by
   constructor

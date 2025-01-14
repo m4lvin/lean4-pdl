@@ -244,7 +244,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
     induction n generalizing X φ -- not generalizing Y, but φ to be replaced φ with ⌈∗β⌉φ below!
     · rcases claim with ⟨YS, X_def, Y_def, _⟩
       have : YS.head = YS.last := by
-        have := Mathlib.Vector.exists_eq_cons YS
+        have := List.Vector.exists_eq_cons YS
         aesop
       rw [this] at X_def
       subst X_def Y_def
@@ -285,19 +285,19 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
         apply innerIH X φ boxP_in_X
         -- rest here is similar to same part in all_goals below.
         refine ⟨YS.tail, ?_, ?_, ?_⟩
-        · rw [← Mathlib.Vector.get_zero]
-          rw [Mathlib.Vector.get_tail_succ]
+        · rw [← List.Vector.get_zero]
+          rw [List.Vector.get_tail_succ]
           aesop
-        · rw [Mathlib.Vector.last_def]
-          rw [Mathlib.Vector.get_tail_succ]
+        · rw [List.Vector.last_def]
+          rw [List.Vector.get_tail_succ]
           aesop
         · intro i
           clear * -relSteps
           specialize relSteps i.succ
-          have : ((Mathlib.Vector.tail YS).get i.castSucc) = (YS.get ((Fin.succ i).castSucc)) := by
+          have : ((List.Vector.tail YS).get i.castSucc) = (YS.get ((Fin.succ i).castSucc)) := by
             aesop
           rw [this]; clear this
-          have : ((Mathlib.Vector.tail YS).get i.succ) = (YS.get ((Fin.succ i).succ)) := by
+          have : ((List.Vector.tail YS).get i.succ) = (YS.get ((Fin.succ i).succ)) := by
             aesop
           rw [this]; clear this
           exact relSteps
@@ -339,18 +339,18 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
         simp_all
         refine ⟨YS.tail, ?_, ?_, ?_⟩
         · unfold Z
-          rw [← Mathlib.Vector.get_zero]
-          rw [Mathlib.Vector.get_tail_succ]
+          rw [← List.Vector.get_zero]
+          rw [List.Vector.get_tail_succ]
           rfl
-        · rw [Mathlib.Vector.last_def, Mathlib.Vector.last_def]
-          rw [Mathlib.Vector.get_tail_succ]
+        · rw [List.Vector.last_def, List.Vector.last_def]
+          rw [List.Vector.get_tail_succ]
           rfl
         · intro i
           clear * -relSteps
           specialize relSteps i.succ
-          have : ((Mathlib.Vector.tail YS).get i.castSucc) = (YS.get i.succ.castSucc) := by aesop
+          have : ((List.Vector.tail YS).get i.castSucc) = (YS.get i.succ.castSucc) := by aesop
           rw [this]; clear this
-          have : ((Mathlib.Vector.tail YS).get i.succ) = (YS.get i.succ.succ) := by aesop
+          have : ((List.Vector.tail YS).get i.succ) = (YS.get i.succ.succ) := by aesop
           rw [this]; clear this
           exact relSteps
   -- remaining cases: sequence, union, test

@@ -1,5 +1,5 @@
 -- SYNTAX
-import Mathlib.Algebra.BigOperators.Group.Finset
+import Mathlib.Algebra.BigOperators.Group.Finset.Defs
 import Mathlib.Data.Finset.Basic
 
 -- Definition 1, page 4

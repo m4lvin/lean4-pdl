@@ -1313,12 +1313,10 @@ lemma List.nonempty_drop_sub_succ (δ_not_empty : δ ≠ []) (k : Fin δ.length)
     omega
   apply this <;> aesop
 
--- Note: `Mathlib.Vector` is soon renamed to `List.Vector`.
-
-lemma Vector.my_cast_head (n m : Nat) (v : Mathlib.Vector α n.succ) (h : n = m) :
+lemma Vector.my_cast_head (n m : Nat) (v : List.Vector α n.succ) (h : n = m) :
     (h ▸ v).head = v.head := by subst h; simp
 
-lemma Vector.my_cast_eq_val_head (n m : Nat) (v : Mathlib.Vector α n.succ) (h : n = m) h2 :
+lemma Vector.my_cast_eq_val_head (n m : Nat) (v : List.Vector α n.succ) (h : n = m) h2 :
     (h ▸ v).head = v.1.head h2 := by
   rcases v with ⟨l,l_prop⟩
   rw [Vector.my_cast_head]
@@ -1327,22 +1325,22 @@ lemma Vector.my_cast_eq_val_head (n m : Nat) (v : Mathlib.Vector α n.succ) (h :
   · aesop
 
 lemma Vector.my_cast_toList (n m : ℕ) (t : List α) ht (h : n = m) :
-    t = Mathlib.Vector.toList (h ▸ (⟨t, ht⟩ : Mathlib.Vector α n)) := by subst h; simp
+    t = List.Vector.toList (h ▸ (⟨t, ht⟩ : List.Vector α n)) := by subst h; simp
 
 lemma aux_simplify_vector_type {α} {q p : ℕ} (t : List α) h :
     let help (n m : ℕ) : (n + 1 + 1 - (m + 1 + 1)) = n + 1 - (m + 1) := by omega
-    (⟨t, h⟩ : Mathlib.Vector α (q + 1 + 1 - (p + 1 + 1)))
+    (⟨t, h⟩ : List.Vector α (q + 1 + 1 - (p + 1 + 1)))
     = (help q p) ▸ ⟨t, by simp at h; simp; exact h⟩ := by
-    apply Mathlib.Vector.eq
+    apply List.Vector.eq
     simp
     apply Vector.my_cast_toList
 
 lemma Vector.my_drop_succ_cons {α} {m n : ℕ} (x : α) (t : List α) h (hyp : m < n) :
     let help : (n + 1 - (m + 1)) = n - m := by omega
-    Mathlib.Vector.drop (m + 1) (⟨x :: t, h⟩ : Mathlib.Vector α n.succ)
-    = help ▸ Mathlib.Vector.drop m ⟨t, by simp at h; exact h⟩ := by
+    List.Vector.drop (m + 1) (⟨x :: t, h⟩ : List.Vector α n.succ)
+    = help ▸ List.Vector.drop m ⟨t, by simp at h; exact h⟩ := by
     induction m generalizing t n h x with
-    | zero => simp [Mathlib.Vector.drop]
+    | zero => simp [List.Vector.drop]
     | succ p ih =>
       cases t with
       | nil => simp at h; omega
@@ -1350,11 +1348,11 @@ lemma Vector.my_drop_succ_cons {α} {m n : ℕ} (x : α) (t : List α) h (hyp : 
         cases n with
         | zero => omega
         | succ q =>
-        simp [Mathlib.Vector.drop] at ih
-        simp [Mathlib.Vector.drop]
+        simp [List.Vector.drop] at ih
+        simp [List.Vector.drop]
         rw [aux_simplify_vector_type]
 
-lemma Vector.get_succ_eq_head_drop {v : Mathlib.Vector α n.succ} (k : Fin n) (j : Nat)
+lemma Vector.get_succ_eq_head_drop {v : List.Vector α n.succ} (k : Fin n) (j : Nat)
     (h : (n + 1 - (k.val + 1)) = j + 1) :
     v.get k.succ = (h ▸ v.drop (k.val + 1)).head
     := by
@@ -1364,8 +1362,8 @@ lemma Vector.get_succ_eq_head_drop {v : Mathlib.Vector α n.succ} (k : Fin n) (j
     aesop
   case cons he ta IH =>
     simp only [Nat.succ_eq_add_one] at IH
-    rw [← Mathlib.Vector.get_tail_succ]
-    simp only [Mathlib.Vector.tail]
+    rw [← List.Vector.get_tail_succ]
+    simp only [List.Vector.tail]
     cases n
     · exfalso
       cases k
@@ -1373,7 +1371,7 @@ lemma Vector.get_succ_eq_head_drop {v : Mathlib.Vector α n.succ} (k : Fin n) (j
     case succ n =>
       cases k using Fin.cases
       · rw [Vector.my_drop_succ_cons]
-        · simp [Mathlib.Vector.drop]
+        · simp [List.Vector.drop]
           convert rfl using 2 <;> simp_all
         · simp
       case succ k =>
@@ -1387,13 +1385,13 @@ lemma Vector.get_succ_eq_head_drop {v : Mathlib.Vector α n.succ} (k : Fin n) (j
         omega
 
 /-- Generalized vesrion of `Vector.drop_get_eq_get_add`. -/
-lemma Vector.drop_get_eq_get_add' (v : Mathlib.Vector α n) (l r : ℕ) {h : i = l + r} {hi hr} :
-    v.get ⟨i, hi⟩ = (Mathlib.Vector.drop l v).get ⟨r, hr⟩ := by
+lemma Vector.drop_get_eq_get_add' (v : List.Vector α n) (l r : ℕ) {h : i = l + r} {hi hr} :
+    v.get ⟨i, hi⟩ = (List.Vector.drop l v).get ⟨r, hr⟩ := by
   rcases v with ⟨t, t_prop⟩
-  simp [Mathlib.Vector.get, Mathlib.Vector.drop, h]
+  simp [List.Vector.get, List.Vector.drop, h]
 
 /-- A Vector analogue of `List.getElem_drop`. -/
-lemma Vector.drop_get_eq_get_add {n : Nat} (v : Mathlib.Vector α n) (k : Nat)
+lemma Vector.drop_get_eq_get_add {n : Nat} (v : List.Vector α n) (k : Nat)
     (i : Fin (n - k))
     (still_lt : k + i.val < n) :
     (v.drop k).get i = v.get ⟨k + i.val, still_lt⟩ := by
@@ -1405,10 +1403,10 @@ lemma Fin.my_cast_val (n m : Nat) (h : n = m) (j_lt : j < n) :
     (h ▸ ( ⟨j, j_lt⟩ : Fin n)).val = j := by
   aesop
 
-lemma Vector.drop_last_eq_last {v : Mathlib.Vector α n.succ} (k : Fin n) (j : Nat)
+lemma Vector.drop_last_eq_last {v : List.Vector α n.succ} (k : Fin n) (j : Nat)
     (h : (n.succ - (k + 1)) = j.succ) :
     (h ▸ v.drop (k + 1)).last = v.last := by
-  unfold Mathlib.Vector.last
+  unfold List.Vector.last
   have := Vector.drop_get_eq_get_add v (k.val + 1) (h ▸ Fin.last j) (by omega)
   convert this using 2
   · linarith
@@ -1422,13 +1420,13 @@ lemma Vector.drop_last_eq_last {v : Mathlib.Vector α n.succ} (k : Fin n) (j : N
     rw [Fin.my_cast_val (j + 1) (n + 1 - (k + 1)) (by linarith) (Nat.lt_succ_self j)]
     omega
 
-lemma Vector.my_cast_heq (n m : Nat) (h : n = m) (v : Mathlib.Vector α n) :
-    HEq (h ▸ v : Mathlib.Vector α m) v := by
+lemma Vector.my_cast_heq (n m : Nat) (h : n = m) (v : List.Vector α n) :
+    HEq (h ▸ v : List.Vector α m) v := by
   aesop
 
 theorem boxes_true_at_k_of_Vector_rel {W : Type} {M : KripkeModel W} (ξ : AnyFormula)
     (δ : List Program) (h : ¬δ = [])
-    (ws : Mathlib.Vector W δ.length.succ)
+    (ws : List.Vector W δ.length.succ)
     (ws_rel : ∀ (i : Fin δ.length), relate M (δ.get i) (ws.get ↑↑i) (ws.get i.succ))
     (k : Fin δ.length) (w_nξ : (M, ws.last)⊨~''ξ) :
     (M, ws.get k.succ)⊨~''(AnyFormula.loadBoxes (List.drop (↑k.succ) δ) ξ) := by
@@ -1442,7 +1440,7 @@ theorem boxes_true_at_k_of_Vector_rel {W : Type} {M : KripkeModel W} (ξ : AnyFo
   -- Hence we use `ws.drop (k + 1)`
   have drop_len_eq : (List.drop (↑k + 1) δ).length + 1 = δ.length.succ - (↑k + 1) :=
     by apply List.nonempty_drop_sub_succ; aesop
-  -- cool that Mathlib.Vector.drop exists!
+  -- cool that List.Vector.drop exists!
   refine ⟨drop_len_eq ▸ ws.drop (k + 1), ?_, ?_, ?_⟩
   · simp_all only [modelCanSemImplyList, List.get_eq_getElem, Nat.succ_eq_add_one, Fin.coe_eq_castSucc,
       Fin.coe_castSucc, Fin.getElem_fin]
@@ -1478,9 +1476,6 @@ theorem boxes_true_at_k_of_Vector_rel {W : Type} {M : KripkeModel W} (ξ : AnyFo
       congr
       · apply Vector.my_cast_heq
       · congr!
-
--- Needed for `lake build` to succeed, but not in VSc apparently?
-set_option maxHeartbeats 2000000
 
 /-- Soundness of loading and repeats: a tableau can immitate all moves in a model. -/
 -- Note that we mix induction' tactic and recursive calls __O.o__
@@ -1734,10 +1729,10 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         aesop
       · apply not_cEquiv_of_free_loaded
         -- use lemma that load and free are never in same cluster
-        · simp only [Sequent.isFree, Sequent.isLoaded, nodeAt, decide_False, decide_True,
+        · simp only [Sequent.isFree, Sequent.isLoaded, nodeAt, decide_false, decide_true,
           Bool.not_eq_true, Bool.decide_eq_false, Bool.not_eq_true']
           rw [tabAt_s_def]
-        · simp only [Sequent.isLoaded, nodeAt, decide_False, decide_True]
+        · simp only [Sequent.isLoaded, nodeAt, decide_false, decide_true]
           rw [tabAt_t_def]
 
     case freeR L R δ β φ =>
@@ -1773,10 +1768,10 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         aesop
       · apply not_cEquiv_of_free_loaded
         -- use lemma that load and free are never in same cluster
-        · simp only [Sequent.isFree, Sequent.isLoaded, nodeAt, decide_False, decide_True,
+        · simp only [Sequent.isFree, Sequent.isLoaded, nodeAt, decide_false, decide_true,
           Bool.not_eq_true, Bool.decide_eq_false, Bool.not_eq_true']
           rw [tabAt_s_def]
-        · simp only [Sequent.isLoaded, nodeAt, decide_False, decide_True]
+        · simp only [Sequent.isLoaded, nodeAt, decide_false, decide_true]
           rw [tabAt_t_def]
 
     case modL L R a ξ' Z_def Z_isBasic =>
@@ -1821,7 +1816,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
           have : (tabAt tclean).2.1 = ((~φ) :: projection a L, projection a R, none) := by
             have : tabAt tclean = ⟨ _ :: _, ((~φ) :: projection a L, projection a R, none) , next⟩ := by unfold tabAt; rfl
             rw [this]
-          convert this <;> (try rw [tabAt_t_def]) <;> simp
+          convert this <;> (try rw [tabAt_t_def]) <;> simp [tclean]
         case loaded χ =>
           right
           use χ
@@ -1830,14 +1825,14 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
           have : (tabAt tclean).2.1 = (projection a L, projection a R, some (Sum.inl (~'χ))) := by
             have : tabAt tclean = ⟨ _, (projection a L, projection a R, some (Sum.inl (~'χ))) , next⟩ := by unfold tabAt; rfl
             rw [this]
-          convert this <;> (try rw [tabAt_t_def]) <;> simp
+          convert this <;> (try rw [tabAt_t_def]) <;> simp [tclean]
       -- ... it is then obvious that `s` satisfies the required properties:
       refine ⟨s, ?_, Or.inr ⟨?_a, ?_b, ?_c⟩⟩
       · constructor
         constructor
         right
         refine ⟨Hist, _, _, (PdlRule.modL Z_def Z_isBasic), next, tabAt_t_def, ?_⟩
-        simp
+        simp [s, t_to_s]
       · -- (a)
         subst Z_def
         rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
@@ -1926,7 +1921,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
           have : (tabAt tclean).2.1 = (projection a L, (~φ) :: projection a R, none) := by
             have : tabAt tclean = ⟨ _ :: _, (projection a L, (~φ) :: projection a R, none) , next⟩ := by unfold tabAt; rfl
             rw [this]
-          convert this <;> (try rw [tabAt_t_def]) <;> simp
+          convert this <;> (try rw [tabAt_t_def]) <;> simp [tclean]
         case loaded χ =>
           right
           use χ
@@ -1935,14 +1930,14 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
           have : (tabAt tclean).2.1 = (projection a L, projection a R, some (Sum.inr (~'χ))) := by
             have : tabAt tclean = ⟨ _, (projection a L, projection a R, some (Sum.inr (~'χ))) , next⟩ := by unfold tabAt; rfl
             rw [this]
-          convert this <;> (try rw [tabAt_t_def]) <;> simp
+          convert this <;> (try rw [tabAt_t_def]) <;> simp [tclean]
       -- ... it is then obvious that `s` satisfies the required properties:
       refine ⟨s, ?_, Or.inr ⟨?_a', ?_b', ?_c'⟩⟩ -- annoying that ' are needed here?
       · constructor
         constructor
         right
         refine ⟨Hist, _, _, (PdlRule.modR Z_def Z_isBasic), next, tabAt_t_def, ?_⟩
-        simp
+        simp [s, t_to_s]
       · -- (a)
         subst Z_def
         rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)

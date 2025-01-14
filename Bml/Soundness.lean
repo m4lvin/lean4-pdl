@@ -152,8 +152,7 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
           simp at *
           exact all_pro_sat
         ·-- show that worlds are related in combined model (def above, case 2)
-          unfold combinedModel
-          simp
+          aesop
       case bottom => tauto
       case neg f =>
         rw [Finset.mem_union] at f_in_LR
