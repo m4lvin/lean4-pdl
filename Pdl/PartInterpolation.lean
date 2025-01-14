@@ -12,6 +12,8 @@ def Olf.toForms : Olf → List Formula
 | some (Sum.inl ⟨lf⟩) => [~ lf.unload]
 | some (Sum.inr ⟨lf⟩) => [~ lf.unload]
 
+-- BUG: Using `.toForms` below is wrong, because it ignores which side the Olf is on!
+
 @[simp]
 def Sequent.left (X : Sequent) : List Formula := X.L ++ X.O.toForms
 @[simp]

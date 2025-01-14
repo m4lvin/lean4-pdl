@@ -24,6 +24,9 @@ theorem mytaut2 (p : Nat) : tautology ((~~·p)↣·p) :=
   intro W M w
   simp
 
+/-- An infinite Kripke model with ℕ as the set of states.
+All atomic propositions alre true at all states, and all
+atomic programs lead from any state to state 1. -/
 def myModel : KripkeModel ℕ where
   val _ _ := True
   Rel _ _ v := HEq v 1

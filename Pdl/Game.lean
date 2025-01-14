@@ -63,10 +63,15 @@ theorem other_other : other (other i) = i := by
 - a decreasing bound on the number of remaining steps
 -/
 class Game where
-  Pos : Type -- positions in the game
-  turn : Pos → Player -- whose turn is it?
-  moves : Pos → Finset Pos -- what are the available moves?
+  /-- Positions in the game. -/
+  Pos : Type
+  /-- Whose turn is it? -/
+  turn : Pos → Player
+  /-- What are the available moves? -/
+  moves : Pos → Finset Pos
+  /-- Upper bound for the number of steps left. -/
   bound : Pos → Nat
+  /-- The step bound goes down with each move. -/
   bound_h : ∀ (p next : Pos), next ∈ moves p → bound next < bound p
 
 /-- Allow notation `p.moves` for `g.moves p`. -/
@@ -132,7 +137,7 @@ theorem good_or_other {g : Game} (p : g.Pos) : good (g.turn p) p ∨ good (other
       . exact other_other.symm
       . intro q h
         have det := ind q (g.bound_h _ _ h)
-        have := A q
+        specialize A q
         by_cases g.turn p = g.turn q <;> simp_all
     )
   ) p

@@ -45,10 +45,6 @@ abbrev List.fvoc (L : List Formula) := Vocab.fromList (L.map Formula.voc)
 abbrev List.pvoc (L : List Program) := Vocab.fromList (L.map Program.voc)
 
 @[simp]
-theorem Vocab.fromList_singleton : Vocab.fromList [V] = V := by
-  simp [Vocab.fromList]
-
-@[simp]
 theorem Vocab.fromList_append : Vocab.fromList (L ++ R) = Vocab.fromList L ∪ Vocab.fromList R := by
   induction L <;> induction R <;> simp_all
 

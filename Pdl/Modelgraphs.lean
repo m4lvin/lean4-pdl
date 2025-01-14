@@ -12,6 +12,10 @@ open HasLength
 
 /-! ## Definition of Model Graphs -/
 
+/-- A set of formulas is saturated if it is closed under:
+removing double negations, splitting (negated) conjunctions,
+unfolding boxes using any test profile, and unfolding diamonds using `H`.
+-/
 def saturated : Finset Formula → Prop
   -- TODO: change P Q notation to φ ψ
   | X => ∀ (P Q : Formula) (α : Program),
@@ -32,21 +36,19 @@ def Q {W : Finset (Finset Formula)} (R : Nat → W → W → Prop)
 | α ;' β => Relation.Comp (Q R α) (Q R β)
 | ∗ α    => Relation.ReflTransGen (Q R α)
 
--- Definition 19, page 31
+/-- A model graph is a Kripke model using sets of formulas as states and
+fulfilling conditions (i) to (iv). See MB Def 19, page 31.
+Note: In (ii) MB only has →. We follow BRV Def 4.18 and 4.84.
+Note: In (iii) "a" is atomic, but in iv "α" is any program.
+ -/
 def ModelGraph (W : Finset (Finset Formula)) :=
   let i := ∀ X : W, saturated X.val ∧ ⊥ ∉ X.val ∧ ∀ pp, (·pp : Formula) ∈ X.val → (~(·pp)) ∉ X.val
   let ii M := ∀ X p, (·p : Formula) ∈ X.val ↔ M.val X p
-  -- Note: Borzechowski only has → in ii. We follow BRV, Def 4.18 and 4.84.
   let iii M := ∀ X Y a P, M.Rel a X Y → (⌈·a⌉P) ∈ X.val → P ∈ Y.val
   let iv M := ∀ X α P, (~⌈α⌉P) ∈ X.val → ∃ Y, (Q M.Rel) α X Y ∧ (~P) ∈ Y.val
-  -- Note: In iii "a" is atomic, but in iv "α" is any program!
   Subtype fun M : KripkeModel W => i ∧ ii M ∧ iii M ∧ iv M
 
 /-! ## Truth Lemma -/
-
--- TODO: it seems default 200000 is not enough for mutual theorems below?!
-set_option maxHeartbeats 2000000
--- set_option trace.profiler true
 
 theorem get_eq_getzip {X Y : α} {i : Fin ((List.length (l ++ [Y])))} {h} :
   List.get (X :: (l ++ [Y])) (Fin.castSucc i) = (List.get ((x, X) :: List.zip δ (l ++ [Y])) ⟨i.val, h⟩).2 := by
@@ -104,11 +106,15 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
       convert lchain
       apply get_eq_getzip
 
+-- TODO: it seems default 200000 is not enough for mutual theorems below?!
+set_option maxHeartbeats 2000000
+-- set_option trace.profiler true
+
 -- Originally MB Lemma 9, page 32, stronger version for induction loading.
 -- Now also using Q relation to overwrite tests.
 mutual
 
--- C3 in notes
+/-- C3 in notes -/
 theorem Q_then_relate (MG : ModelGraph Worlds) α (X Y : Worlds) :
     Q MG.val.Rel α X Y → relate MG.val α X Y := by
   cases α
@@ -141,7 +147,7 @@ theorem Q_then_relate (MG : ModelGraph Worlds) α (X Y : Worlds) :
 termination_by
   lengthOf α
 
--- C1 and C2 in notes
+/-- C1 and C2 in notes -/
 theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
     ∀ P, (P ∈ X.val → evaluate MG.val X P) -- (+)
     ∧ ((~P) ∈ X.val → ¬evaluate MG.val X P) -- (-)
@@ -224,7 +230,7 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
 termination_by
   f => lengthOf f
 
--- C4 in notes
+/-- C4 in notes -/
 theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
     ∀ X φ, ((⌈α⌉φ) ∈ X.val → (∀ (Y : Worlds), relate MG.val α X Y → φ ∈ Y.val)) -- (0)
     := by

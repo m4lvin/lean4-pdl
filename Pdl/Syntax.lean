@@ -87,7 +87,8 @@ theorem Program.isStar_iff : α.isStar ↔ ∃ β, α = (∗β) := by
 theorem Formula.boxes_nil : Formula.boxes [] φ = φ := by simp [Formula.boxes]
 
 @[simp]
-theorem Formula.boxes_cons : Formula.boxes (β :: δ) φ = Formula.box β (Formula.boxes δ φ) := by simp [Formula.boxes]
+theorem Formula.boxes_cons : Formula.boxes (β :: δ) φ = ⌈β⌉(Formula.boxes δ φ) := by
+  simp [Formula.boxes]
 
 theorem boxes_last : Formula.boxes (δ ++ [α]) φ = Formula.boxes δ (⌈α⌉φ) :=
   by
@@ -130,10 +131,6 @@ theorem loadMulti_cons : loadMulti (β :: δ) α φ = LoadFormula.box β (loadMu
 
 def LoadFormula.boxes : List Program → LoadFormula → LoadFormula
 | δ, χ => List.foldr (fun β lf => LoadFormula.box β lf) χ δ
-
-@[simp]
-theorem boxes_first : (Formula.boxes (α :: δ) φ) = ⌈α⌉(Formula.boxes δ φ) := by
-  simp [Formula.boxes, LoadFormula.boxes]
 
 @[simp]
 def LoadFormula.unload : LoadFormula → Formula

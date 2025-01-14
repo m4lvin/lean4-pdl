@@ -155,8 +155,6 @@ theorem keepFreshH α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ H α → x ∉ F.f
     subst def_l
     cases em (δ' = []) <;> simp_all
     · subst_eqs
-      have IHα := keepFreshH α x_notin.1 F' [] Fδ'_in
-      simp_all [H, Formula.voc, Program.voc, Vocab.fromList]
       rcases Fδ_in_l with ⟨l', ⟨⟨a', b', ⟨a'b'_in_Hβ, def_l'⟩⟩, Fδ_in_l'⟩⟩
       subst_eqs
       simp_all
@@ -503,8 +501,6 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
         rcases this with ⟨γ, ⟨δ_def, _, Fγ_in⟩⟩
         subst δ_def
         simp only [Yset, List.mem_union_iff, List.mem_singleton] at w_Con
-        have := w_Con (~⌈⌈γ ++ [∗β]⌉⌉ψ)
-        simp at this
         suffices evaluate M w (~⌈β⌉⌈∗β⌉ψ) by
           simp at *
           rcases this with ⟨v, ⟨w_β_v, ⟨u, ⟨v_Sβ_u, u_nPsi⟩⟩⟩⟩

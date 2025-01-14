@@ -5,7 +5,7 @@ import Pdl.Semantics
 
 #print semEquiv
 
-def semEquiv.Equivalence : Equivalence semEquiv :=
+theorem semEquiv.Equivalence : Equivalence semEquiv :=
   ⟨ by convert semEquiv.refl
   , by convert semEquiv.symm
   , by convert semEquiv.trans ⟩
