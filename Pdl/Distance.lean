@@ -459,22 +459,22 @@ theorem KripkeModel.reachable_iff_star_relate (α : Program) (w v : W) :
     | refl => rfl
     | tail _ ha hr => exact Reachable.trans M hr ⟨Walk.cons ha Walk.nil⟩
 
+open Classical
 
 noncomputable def distance' {W} (M : KripkeModel W) (w v : W) (α : Program): ℕ∞ :=
-  have := Classical.dec
   match α with
   | ·_ => ite (relate M α w v) 1 ⊤
   | ?'_ => ite (relate M α w v) 0 ⊤
-  | α ⋓ β => min (distance' M w v α) (distance' M w v β)
+  | α ⋓ β => (distance' M w v α) ⊓ (distance' M w v β)
   | ∗α => M.edist α w v
   | α ;' β => ⨅ u : W, distance' M w u α + distance' M u v β
 
 
 theorem distance'_iff_relate (M : KripkeModel W) α w v : (distance' M w v α) ≠ ⊤ ↔ relate M α w v :=
-  have := Classical.dec
   match α with
-  | ·_ => (@ite_ne_right_iff _ _ (Classical.dec _) ..).trans <| (iff_self_and.mpr fun _ => ENat.one_ne_top).symm
-  | ?'_ => (@ite_ne_right_iff _ _ (Classical.dec _) ..).trans <| (iff_self_and.mpr fun _ => ENat.zero_ne_top).symm
-  | _ ⋓ _ => ENat.min_neq_top_iff.trans <| or_congr (distance'_iff_relate ..) (distance'_iff_relate ..)
-  | _ ;' _ => iInf_eq_top.not.trans <| Classical.not_forall.trans <| exists_congr fun _ => WithTop.add_ne_top.trans <| and_congr (distance'_iff_relate ..) (distance'_iff_relate ..)
-  | ∗_ => ENat.iInf_coe_ne_top.trans <| M.reachable_iff_star_relate _ _ _
+  | ·_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.one_ne_top).symm
+  | ?'_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.zero_ne_top).symm
+  | _ ⋓ _ => (min_eq_top.not.trans not_and_or).trans <| or_congr (distance'_iff_relate ..) (distance'_iff_relate ..)
+  | ∗_ => ENat.iInf_coe_ne_top.trans <| M.reachable_iff_star_relate ..
+  | _ ;' _ => iInf_eq_top.not.trans <| not_forall.trans <| exists_congr fun _ =>
+    WithTop.add_ne_top.trans <| and_congr (distance'_iff_relate ..) (distance'_iff_relate ..)
