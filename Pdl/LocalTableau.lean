@@ -275,8 +275,8 @@ theorem Olf.change_some: Olf.change oldO whatever (some wnlf) = some wnlf := by
     cases oldO <;> simp [Olf.change, Option.overwrite, Option.insHasSdiff]
 
 @[simp]
-def applyLocalRule (_ : LocalRule (Lcond, Rcond, Ocond) ress) : Sequent → List Sequent
-  | ⟨L, R, O⟩ => ress.map $
+def applyLocalRule : LocalRule (Lcond, Rcond, Ocond) ress → Sequent → List Sequent
+  | _, ⟨L, R, O⟩ => ress.map $
       fun (Lnew, Rnew, Onew) => ( L.diff Lcond ++ Lnew
                                 , R.diff Rcond ++ Rnew
                                 , Olf.change O Ocond Onew )
@@ -346,7 +346,6 @@ theorem localRuleTruth
       · apply w_LYRO; simp_all
   case oneSidedR ress orule hC =>
     -- based on oneSidedL case
-    have := oneSidedLocalRuleTruth orule W M w
     have osTruth := oneSidedLocalRuleTruth orule W M w
     subst hC
     simp [applyLocalRule] at *
@@ -632,7 +631,7 @@ theorem node_to_multiset_eq_of_three_eq (hL : L = L') (hR : R = R') (hO : O = O'
   aesop
 
 -- mathlib this?
-def List.Subperm.append {α : Type u_1} {l₁ l₂ r₁ r₂ : List α} :
+lemma List.Subperm.append {α : Type u_1} {l₁ l₂ r₁ r₂ : List α} :
     l₁.Subperm l₂ → r₁.Subperm r₂ → (l₁ ++ r₁).Subperm (l₂ ++ r₂) := by
   intro hl hr
   cases l₁
@@ -803,12 +802,11 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
       suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (α;'β)).attach).sum.succ by
         simp_all
         linarith
-      suffices ∃ τ' ∈ testsOfProgram (α;'β), lmOfFormula τ < 1 + lmOfFormula τ' by
-        rw [List.attach_map_val (testsOfProgram (α;'β)) (fun x => lmOfFormula (~↑x))]
-        rw [Nat.lt_succ]
-        -- TODO: use `List.le_sum_of_mem` from newer mathlib
-        exact List.single_le_sum (by simp) _ (by rw [List.mem_map]; use τ)
-      refine ⟨τ, τ_in, by linarith⟩
+      rw [List.attach_map_val (testsOfProgram (α;'β)) (fun x => lmOfFormula (~↑x))]
+      rw [Nat.lt_succ]
+      apply List.le_sum_of_mem
+      simp only [List.mem_map]
+      use τ
     · subst def_ψ
       simp [lmOfFormula]
   case union α β => -- based on sequence case
@@ -818,11 +816,9 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
       suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (α⋓β)).attach).sum.succ by
         simp_all
         linarith
-      suffices ∃ τ' ∈ testsOfProgram (α⋓β), lmOfFormula τ < 1 + lmOfFormula τ' by
-        rw [List.attach_map_val (testsOfProgram (α⋓β)) (fun x => lmOfFormula (~↑x))]
-        rw [Nat.lt_succ]
-        exact List.single_le_sum (by simp) _ (by rw [List.mem_map]; use τ)
-      refine ⟨τ, τ_in, by linarith⟩
+      rw [List.attach_map_val (testsOfProgram (α⋓β)) (fun x => lmOfFormula (~↑x))]
+      rw [Nat.lt_succ]
+      exact List.single_le_sum (by simp) _ (by rw [List.mem_map]; use τ)
     · subst def_ψ
       simp [lmOfFormula]
   case star β => -- based on sequence case
@@ -832,11 +828,9 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
       suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (∗β)).attach).sum.succ by
         simp_all
         linarith
-      suffices ∃ τ' ∈ testsOfProgram (∗β), lmOfFormula τ < 1 + lmOfFormula τ' by
-        rw [List.attach_map_val (testsOfProgram (∗β)) (fun x => lmOfFormula (~↑x))]
-        rw [Nat.lt_succ]
-        exact List.single_le_sum (by simp) _ (by rw [List.mem_map]; use τ)
-      refine ⟨τ, τ_in, by linarith⟩
+      rw [List.attach_map_val (testsOfProgram (∗β)) (fun x => lmOfFormula (~↑x))]
+      rw [Nat.lt_succ]
+      exact List.single_le_sum (by simp) _ (by rw [List.mem_map]; use τ)
     · subst def_ψ
       simp [lmOfFormula]
   case test τ0 => -- based on sequence case
@@ -846,11 +840,9 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
       suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (?'τ0)).attach).sum.succ by
         simp_all
         linarith
-      suffices ∃ τ' ∈ testsOfProgram (?'τ0), lmOfFormula τ < 1 + lmOfFormula τ' by
-        rw [List.attach_map_val (testsOfProgram (?'τ0)) (fun x => lmOfFormula (~↑x))]
-        rw [Nat.lt_succ]
-        exact List.single_le_sum (by simp) _ (by rw [List.mem_map]; use τ)
-      refine ⟨τ, τ_in, by linarith⟩
+      rw [List.attach_map_val (testsOfProgram (?'τ0)) (fun x => lmOfFormula (~↑x))]
+      rw [Nat.lt_succ]
+      exact List.single_le_sum (by simp) _ (by rw [List.mem_map]; use τ)
     · subst def_ψ
       simp [lmOfFormula]
 
@@ -1084,18 +1076,16 @@ theorem LocalRule.Decreases (rule : LocalRule X ress) :
         · subst Y_def
           cases o <;> simp_all [pairUnload]
 
--- This is standard definition of DM.
--- TODO: Move to MultisetOrder
-def MultisetLT' {α} [DecidableEq α] [Preorder α] (M : Multiset α) (N : Multiset α) : Prop :=
+-- An equivalent definition of DM.
+def MultisetLT' {α} [Preorder α] (M : Multiset α) (N : Multiset α) : Prop :=
   ∃ (X Y Z: Multiset α),
         Y ≠ ∅ ∧
         M = Z + X ∧
         N = Z + Y ∧
         (∀ x ∈ X, ∃ y ∈ Y, x < y)
 
--- The definition used in the DM proof is equivalent to the standard definition.
--- TODO: Move to MultisetOrder
-theorem MultisetDMLT.iff_MultisetLT' [DecidableEq α] [Preorder α] {M N : Multiset α} :
+-- The definition used in Multiset.IsDershowitzMannaLT is equivalent to ours.
+theorem MultisetDMLT.iff_MultisetLT' [Preorder α] {M N : Multiset α} :
     Multiset.IsDershowitzMannaLT M N ↔ MultisetLT' M N := by
   unfold MultisetLT'
   constructor
