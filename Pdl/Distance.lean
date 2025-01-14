@@ -350,18 +350,7 @@ noncomputable def distance_list {W} (Mod : DecidableKripkeModel W) (v w : W) : (
     let α_δ_distOf := fun x => distance Mod v x α + distance_list Mod x w δ
     (Mod.allW.map α_δ_distOf).reduceOption.min?
 
--- mathlib this?
-theorem ENat.min_neq_top_iff {M N : ℕ∞} : min M N ≠ ⊤ ↔ (M ≠ ⊤) ∨ (N ≠ ⊤) := by
-  cases M <;> cases N <;> simp_all
-
--- mathlib this?
-theorem ENat.add_neq_top_iff {M N : ℕ∞} : M + N ≠ ⊤ ↔ (M ≠ ⊤) ∧ (N ≠ ⊤) := by
-  cases M <;> cases N
-  case coe.coe =>
-    simp only [ne_eq, coe_ne_top, not_false_eq_true, and_self, iff_true]
-    exact coe_toNat_eq_self.mp rfl
-  all_goals
-    simp_all
+theorem ENat.min_neq_top_iff {M N : ℕ∞} : min M N ≠ ⊤ ↔ (M ≠ ⊤) ∨ (N ≠ ⊤) := min_eq_top.not.trans not_and_or
 
 theorem distance_iff_relate (Mod : DecidableKripkeModel W) α v w :
     (distance Mod v w α) ≠ ⊤ ↔ relate Mod.M α v w := by
@@ -379,7 +368,7 @@ theorem distance_iff_relate (Mod : DecidableKripkeModel W) α v w :
       simp only [Option.map_eq_map, List.reduceOption_mem_iff, List.mem_map] at k_in
       rcases k_in with ⟨x, x_in, def_k⟩
       use x
-      rw [← distance_iff_relate, ← distance_iff_relate, ← ENat.add_neq_top_iff]
+      rw [← distance_iff_relate, ← distance_iff_relate, ← WithTop.add_ne_top]
       simp_all
     · rintro ⟨x, v_α_x, x_β_w⟩
       rw [← distance_iff_relate] at v_α_x x_β_w
