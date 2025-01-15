@@ -62,6 +62,10 @@ jobs:
           find home_page/docs -name "*.trace" -delete
           find home_page/docs -name "*.hash" -delete
 
+      - name: List website content
+        if: github.ref_name == 'main'
+        run: find home_page
+
       - name: Upload website
         if: github.ref_name == 'main'
         uses: actions/upload-pages-artifact@v3
