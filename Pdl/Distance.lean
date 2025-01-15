@@ -6,6 +6,7 @@ import Mathlib.Data.Nat.PartENat
 import Mathlib.Tactic.Linarith
 
 import Pdl.UnfoldDia
+import Pdl.AxiomBlame
 
 -- Alternative to `Paths.lean` for the proof of `correctRightIP`.
 
@@ -26,13 +27,13 @@ want the type of worlds to be finite and enumerable.
 In fact, to avoid choice, we want a list of all worlds.
 -- TODO: weaken List to Fintype, should still be possible to define distance?
 -/
-structure DecidableKripkeModel (W :Type) where
-  M : KripkeModel W
-  allW : List W
-  h : ∀ w : W, w ∈ allW
-  deceq : DecidableEq W
-  decrel : ∀ n, DecidableRel (M.Rel n)
-  decval : ∀ w n, Decidable (M.val w n)
+structure DecidableKripkeModel (W : Type) extends KripkeModel W where
+  [finW : Fintype W]
+  [deceq : DecidableEq W]
+  [decrel : ∀ n, DecidableRel (Rel n)]
+  [decval : ∀ w n, Decidable (val w n)]
+
+instance : Coe (DecidableKripkeModel W) (KripkeModel W) := ⟨DecidableKripkeModel.toKripkeModel⟩
 
 -- Possibly useful reference:
 -- Martin Lange (2005): *Model checking propositional dynamic logic with all extras*
@@ -181,95 +182,53 @@ instance decidableReflTransGen_of_decidableRel_on_finite [DecidableEq α] [Finty
     exact isFalse hyp
 
 mutual
-instance evaluate.instDecidable (Mod : DecidableKripkeModel W) w φ
-    : Decidable (evaluate Mod.M w φ) := by
-  cases φ
-  · apply isFalse
-    simp only [evaluate, not_false_eq_true]
-  · simp only [evaluate]
-    apply Mod.decval
-  case neg φ =>
-    simp only [evaluate]
-    have IH := evaluate.instDecidable Mod w φ
-    by_cases decide (evaluate Mod.M w φ)
-    · apply isFalse
-      simp [Decidable.not_not] at *
-      assumption
-    · apply isTrue
-      simp at *
-      assumption
-  case and φ1 φ2 =>
-    have IH1 := evaluate.instDecidable Mod w φ1
-    have IH2 := evaluate.instDecidable Mod w φ2
-    by_cases @decide (evaluate Mod.M w φ1) IH1 <;> by_cases @decide (evaluate Mod.M w φ2) IH2
-    · apply isTrue; simp at *; tauto
-    all_goals
-      apply isFalse; simp at *; tauto
-  case box α φ =>
-    simp only [evaluate]
-    let reachable := Mod.allW.filter
-      (fun v => @decide (relate Mod.M α w v) (relate.instDecidable Mod α w v))
-    let hyp := reachable.all
-      (fun v => @decide (evaluate Mod.M v φ) (evaluate.instDecidable Mod v φ))
-    by_cases decide hyp
-    case pos yes =>
-      apply isTrue
-      intro v w_v
-      have : v ∈ Mod.allW := Mod.h v
-      have : v ∈ reachable := by
-        unfold reachable
-        simp only [List.mem_filter, decide_eq_true_eq]
-        tauto
-      unfold hyp at yes
-      simp_all
-    case neg no =>
-      apply isFalse
-      push_neg
-      unfold hyp at no
-      simp at no
-      rcases no with ⟨v, v_in_r, not_v_φ⟩
-      aesop
-  termination_by
-    sizeOf φ
+instance evaluate.instDecidable (M : DecidableKripkeModel W) (w : W) φ
+    : Decidable (evaluate M w φ) :=
+  match φ with
+  | ⊥ => instDecidableFalse
+  | ·_ => M.decval ..
+  | _ ⋀ _ => @instDecidableAnd _ _ (evaluate.instDecidable ..) (evaluate.instDecidable ..)
+  | ~_ => @instDecidableNot _ (evaluate.instDecidable ..)
+  | ⌈_⌉_ => @Fintype.decidableForallFintype _ _
+      (fun _ => @instDecidableForall _ _ (relate.instDecidable ..) (evaluate.instDecidable ..)) M.finW
 
-instance relate.instDecidable (Mod : DecidableKripkeModel W) α v w
-    : Decidable (relate Mod.M α v w) := by
+instance relate.instDecidable (M : DecidableKripkeModel W) α (v w : W)
+    : Decidable (relate M α v w) := by
   cases α
   case atom_prog a =>
     simp only [relate]
-    apply Mod.decrel
+    apply M.decrel
   case sequence α β =>
     simp only [relate]
-    have : DecidableEq W := Mod.deceq
-    have : Fintype W := ⟨Mod.allW.toFinset, by have := Mod.h; simp_all [List.mem_toFinset]⟩
-    have IHα := relate.instDecidable Mod α
-    have IHβ := relate.instDecidable Mod β
+    have : DecidableEq W := M.deceq
+    have : Fintype W := M.finW
+    have IHα := relate.instDecidable M α
+    have IHβ := relate.instDecidable M β
     apply @Fintype.decidableExistsFintype
   case union α β =>
-    have IHα := relate.instDecidable Mod α v w
-    have IHβ := relate.instDecidable Mod β v w
+    have IHα := relate.instDecidable M α v w
+    have IHβ := relate.instDecidable M β v w
     simp
-    by_cases relate Mod.M α v w <;> by_cases relate Mod.M β v w
+    by_cases relate M α v w <;> by_cases relate M β v w
     · apply isTrue; tauto
     · apply isTrue; tauto
     · apply isTrue; tauto
     · apply isFalse; tauto
   case star α =>
     simp only [relate]
-    have IHα := relate.instDecidable Mod α
-    have := Mod.deceq
-    have : Fintype W := ⟨Mod.allW.toFinset, by intro x; simp; apply Mod.h⟩
-    apply decidableReflTransGen_of_decidableRel_on_finite (relate Mod.M α) IHα
+    have IHα := relate.instDecidable M α
+    have := M.deceq
+    have : Fintype W := M.finW
+    apply decidableReflTransGen_of_decidableRel_on_finite _ IHα
   case test τ =>
     simp only [relate]
-    have IHτ := evaluate.instDecidable Mod v τ
-    by_cases @decide (v = w) (Mod.deceq v w) <;> by_cases decide (evaluate Mod.M v τ)
+    have IHτ := evaluate.instDecidable M v τ
+    by_cases @decide (v = w) (M.deceq v w) <;> by_cases decide (evaluate M v τ)
     · apply isTrue; simp at *; tauto
     all_goals
       apply isFalse; simp at *; tauto
-  termination_by
-    sizeOf α
 end
+
 
 /-- In models of size `n` this is a strict upper bound for the distance.
 Used only for the termination proofs below. -/
