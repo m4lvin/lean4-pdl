@@ -8,6 +8,7 @@ import Pdl.Star
 
 /-! ## Diamonds: H, Y and Φ_⋄ -/
 
+-- TODO: change map + flatten to flatmap
 def H : Program → List (List Formula × List Program)
 | ·a => [ ([], [·a]) ]
 | ?'τ => [ ([τ], []) ]
