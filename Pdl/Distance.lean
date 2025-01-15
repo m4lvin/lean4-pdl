@@ -253,144 +253,6 @@ theorem distance_helper (x y k : Nat) (h : k ≤ y) (h2 : x ≠ 0) : x + y + k <
     simp
     omega
 
--- QUESTION: Using `ℕ∞` here which is the same as `Option Nat` but can we avoid more internals?
--- Or should we use `PartENat` here?
--- NOTE: made noncomputable when updating to v4.16.0-rc2
-noncomputable def distance {W} (Mod : DecidableKripkeModel W) (v w : W)
-    : (α : Program) → ℕ∞
-| ·c => if @decide (Mod.M.Rel c v w) (Mod.decrel c v w) then 1 else ⊤
-| ?'τ =>
-  have := evaluate.instDecidable Mod v τ
-  have := Mod.deceq v w
-  if v = w ∧ evaluate Mod.M v τ then 0 else ⊤
-| α⋓β => min (distance Mod v w α) (distance Mod v w β)
-| α;'β =>
-    let α_β_distOf_via x := distance Mod v x α + distance Mod x w β
-    (Mod.allW.map α_β_distOf_via).reduceOption.min?
-| ∗α =>
-    -- TODO when rewriting this to Finset, use `WithTop.sum_eq_top` here?
-    have := Mod.deceq
-    if v_eq_w : v == w
-    then 0
-    else
-      let rec mdist k :=
-          if k == 0
-          then ⊤
-          else
-            let distOf_step_via x := distance Mod v x α + mdist (k-1)
-            (Mod.allW.map distOf_step_via).reduceOption.min?
-          termination_by
-            localMeasureOfProg Mod.allW.length α + Mod.allW.length + k
-          decreasing_by
-            · cases k <;> simp_all
-            · simp_all [@Nat.pos_iff_ne_zero]
-      ((List.range Mod.allW.length).attach.map (fun k => mdist k.val)).reduceOption.min?
-termination_by
-  α => localMeasureOfProg Mod.allW.length α + Mod.allW.length
-decreasing_by
-  · simp; linarith
-  · simp
-  · simp; linarith
-  · simp
-  · simp only [localMeasureOfProg, gt_iff_lt]
-    rw [@one_add_mul]
-    rw [← Nat.add_assoc]
-    apply distance_helper
-    · apply Nat.le_of_lt
-      rw [← List.mem_range]
-      exact k.prop
-    · have := @Program.nonZeroSize Mod.allW.length α
-      exact Nat.not_eq_zero_of_lt this
-
-noncomputable def distance_list {W} (Mod : DecidableKripkeModel W) (v w : W) : (δ : List Program) → ℕ∞
-| [] => have := Mod.deceq v w
-        if v = w then 0 else ⊤
-
--- similar to α;'β case in `distance`
-| (α::δ) => ⨅ (x : W), distance Mod v x α + distance_list Mod x w δ
-
-theorem distance_list_singleton (Mod : DecidableKripkeModel W) :
-    distance_list Mod v w [α] = distance Mod v w α :=
-  iInf_eq_of_forall_ge_of_forall_gt_exists_lt
-    (fun x => @dite _ (x = w) (Mod.deceq ..)
-      (by simp_all only [self_le_add_right, implies_true])
-      (by simp_all only [distance_list, ite_false, add_top, le_top, implies_true]))
-    (fun d => fun le => ⟨w, by simp_all only [distance_list, ite_true, add_zero]⟩)
-
-theorem ENat.min_neq_top_iff {M N : ℕ∞} : min M N ≠ ⊤ ↔ (M ≠ ⊤) ∨ (N ≠ ⊤) := min_eq_top.not.trans not_and_or
-
-theorem distance_iff_relate (Mod : DecidableKripkeModel W) α v w :
-    (distance Mod v w α) ≠ ⊤ ↔ relate Mod.M α v w := by
-  cases α
-  case atom_prog => simp [distance]
-  case test => simp [distance]
-  case sequence α β =>
-    simp only [distance, relate]
-    constructor
-    · rw [WithTop.ne_top_iff_exists]
-      rintro ⟨k, def_k⟩
-      rw [← @WithTop.some_eq_coe, eq_comm, @List.min?_eq_some_iff''] at def_k
-      rcases def_k with ⟨k_in, k_is_min⟩
-      clear k_is_min
-      simp only [Option.map_eq_map, List.reduceOption_mem_iff, List.mem_map] at k_in
-      rcases k_in with ⟨x, x_in, def_k⟩
-      use x
-      rw [← distance_iff_relate, ← distance_iff_relate, ← WithTop.add_ne_top]
-      simp_all
-    · rintro ⟨x, v_α_x, x_β_w⟩
-      rw [← distance_iff_relate] at v_α_x x_β_w
-      rw [@WithTop.ne_top_iff_exists] at v_α_x x_β_w
-      rcases v_α_x with ⟨kα, def_kα⟩
-      rcases x_β_w with ⟨kβ, def_kβ⟩
-      rw [← WithTop.none_eq_top]
-      rw [Option.ne_none_iff_isSome]
-      apply @List.isSome_min?_of_mem _ _ _ (kα + kβ)
-      rw [List.reduceOption_mem_iff]
-      simp only [Option.map_eq_map, List.mem_map]
-      refine ⟨x, Mod.h x, ?_⟩
-      rw [← def_kα, ← def_kβ]
-      rfl
-  case union α β =>
-    simp only [distance, relate]
-    constructor
-    · intro has_dist
-      rw [WithTop.ne_top_iff_exists] at has_dist
-      rcases has_dist with ⟨k, def_k⟩
-      rw [← @WithTop.some_eq_coe, eq_comm] at def_k
-      rw [← distance_iff_relate, ← distance_iff_relate]
-      rw [← ENat.min_neq_top_iff]
-      simp_all -- `simp_all?` bug here?
-    · intro is_rel
-      rw [ENat.min_neq_top_iff]
-      rw [distance_iff_relate, distance_iff_relate]
-      exact is_rel
-  case star α =>
-    constructor
-    . sorry
-    . intro R
-      induction R
-      . simp only [distance, beq_self_eq_true, ↓reduceDIte, ne_eq, ENat.zero_ne_top, not_false_eq_true]
-      . rename_i x y v_aS_x x_a_y fin_dis_x
-        simp only [distance]
-        split
-        . simp only [ne_eq, ENat.zero_ne_top, not_false_eq_true]
-        . sorry
-
-theorem List.exists_mem_singleton {p : α → Prop} : (∃ x ∈ [a], p x) ↔ p a :=
-  ⟨λ⟨_, ⟨x_in, px⟩⟩ ↦ mem_singleton.mp x_in ▸ px, (⟨_, ⟨mem_singleton_self _, .⟩⟩)⟩
-
-theorem relate_existsH_distance (Mod : DecidableKripkeModel W) (α : Program)
-    (v_α_w : relate Mod.M α v w)
-    : ∃ Fδ ∈ H α,
-        evaluate Mod.M v (Con Fδ.1)
-      ∧ distance_list Mod v w Fδ.2 = distance Mod v w α  :=
-  match α with
-  | ·_ => List.exists_mem_singleton.mpr ⟨id, distance_list_singleton _⟩
-  | ?'_ => List.exists_mem_singleton.mpr ⟨v_α_w.2, sorry⟩
-  | α ⋓ β => sorry
-  | ∗α => sorry
-  | α ;' β => sorry
-
 
 variable (M : KripkeModel W)
 
@@ -433,6 +295,59 @@ theorem KripkeModel.reachable_iff_star_relate (α : Program) (w v : W) :
     induction h with
     | refl => rfl
     | tail _ ha hr => exact Reachable.trans M hr ⟨Walk.cons ha Walk.nil⟩
+
+
+-- QUESTION: Using `ℕ∞` here which is the same as `Option Nat` but can we avoid more internals?
+-- Or should we use `PartENat` here?
+-- NOTE: made noncomputable when updating to v4.16.0-rc2
+noncomputable def distance {W} (M : DecidableKripkeModel W) (w v : W) (α : Program): ℕ∞ :=
+  match α with
+  | ·_ => ite (relate M α w v) 1 ⊤
+  | ?'_ => ite (relate M α w v) 0 ⊤
+  | α ⋓ β => (distance M w v α) ⊓ (distance M w v β)
+  | ∗α => M.edist α w v
+  | α ;' β => ⨅ u : W, distance M w u α + distance M u v β
+
+noncomputable def distance_list {W} (M : DecidableKripkeModel W) (v w : W) : (δ : List Program) → ℕ∞
+| [] => have := M.deceq
+        if v = w then 0 else ⊤
+
+-- similar to α;'β case in `distance`
+| (α::δ) => ⨅ (x : W), distance M v x α + distance_list M x w δ
+
+theorem distance_list_singleton (Mod : DecidableKripkeModel W) :
+    distance_list Mod v w [α] = distance Mod v w α :=
+  iInf_eq_of_forall_ge_of_forall_gt_exists_lt
+    (fun x => @dite _ (x = w) (Mod.deceq ..)
+      (by simp_all only [self_le_add_right, implies_true])
+      (by simp_all only [distance_list, ite_false, add_top, le_top, implies_true]))
+    (fun d => fun le => ⟨w, by simp_all only [distance_list, ite_true, add_zero]⟩)
+
+theorem ENat.min_neq_top_iff {M N : ℕ∞} : min M N ≠ ⊤ ↔ (M ≠ ⊤) ∨ (N ≠ ⊤) := min_eq_top.not.trans not_and_or
+
+theorem distance_iff_relate (M : DecidableKripkeModel W) α w v : (distance M w v α) ≠ ⊤ ↔ relate M α w v :=
+  match α with
+  | ·_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.one_ne_top).symm
+  | ?'_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.zero_ne_top).symm
+  | _ ⋓ _ => (min_eq_top.not.trans not_and_or).trans <| or_congr (distance_iff_relate ..) (distance_iff_relate ..)
+  | ∗_ => ENat.iInf_coe_ne_top.trans <| M.reachable_iff_star_relate ..
+  | _ ;' _ => iInf_eq_top.not.trans <| not_forall.trans <| exists_congr fun _ =>
+    WithTop.add_ne_top.trans <| and_congr (distance_iff_relate ..) (distance_iff_relate ..)
+
+theorem List.exists_mem_singleton {p : α → Prop} : (∃ x ∈ [a], p x) ↔ p a :=
+  ⟨λ⟨_, ⟨x_in, px⟩⟩ ↦ mem_singleton.mp x_in ▸ px, (⟨_, ⟨mem_singleton_self _, .⟩⟩)⟩
+
+theorem relate_existsH_distance (Mod : DecidableKripkeModel W) (α : Program)
+    (v_α_w : relate M α v w)
+    : ∃ Fδ ∈ H α,
+        evaluate M v (Con Fδ.1)
+      ∧ distance_list Mod v w Fδ.2 = distance Mod v w α  :=
+  match α with
+  | ·_ => List.exists_mem_singleton.mpr ⟨id, distance_list_singleton _⟩
+  | ?'_ => List.exists_mem_singleton.mpr ⟨v_α_w.2, sorry⟩
+  | α ⋓ β => sorry
+  | ∗α => sorry
+  | α ;' β => sorry
 
 open Classical in
 noncomputable def distance' {W} (M : KripkeModel W) (w v : W) (α : Program): ℕ∞ :=
