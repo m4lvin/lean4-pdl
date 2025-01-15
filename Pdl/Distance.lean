@@ -253,6 +253,7 @@ theorem distance_helper (x y k : Nat) (h : k ≤ y) (h2 : x ≠ 0) : x + y + k <
     simp
     omega
 
+section
 
 variable (M : KripkeModel W)
 
@@ -296,17 +297,29 @@ theorem KripkeModel.reachable_iff_star_relate (α : Program) (w v : W) :
     | refl => rfl
     | tail _ ha hr => exact Reachable.trans M hr ⟨Walk.cons ha Walk.nil⟩
 
+end
 
 -- QUESTION: Using `ℕ∞` here which is the same as `Option Nat` but can we avoid more internals?
 -- Or should we use `PartENat` here?
 -- NOTE: made noncomputable when updating to v4.16.0-rc2
-noncomputable def distance {W} (M : DecidableKripkeModel W) (w v : W) (α : Program): ℕ∞ :=
+open Classical in
+noncomputable def distance {W} (M : KripkeModel W) (w v : W) (α : Program): ℕ∞ :=
   match α with
   | ·_ => ite (relate M α w v) 1 ⊤
   | ?'_ => ite (relate M α w v) 0 ⊤
   | α ⋓ β => (distance M w v α) ⊓ (distance M w v β)
   | ∗α => M.edist α w v
   | α ;' β => ⨅ u : W, distance M w u α + distance M u v β
+
+open Classical in
+theorem distance_iff_relate : (distance M w v α) ≠ ⊤ ↔ relate M α w v :=
+  match α with
+  | ·_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.one_ne_top).symm
+  | ?'_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.zero_ne_top).symm
+  | _ ⋓ _ => (min_eq_top.not.trans not_and_or).trans <| or_congr (distance_iff_relate ..) (distance_iff_relate ..)
+  | ∗_ => ENat.iInf_coe_ne_top.trans <| M.reachable_iff_star_relate ..
+  | _ ;' _ => iInf_eq_top.not.trans <| not_forall.trans <| exists_congr fun _ =>
+    WithTop.add_ne_top.trans <| and_congr (distance_iff_relate ..) (distance_iff_relate ..)
 
 noncomputable def distance_list {W} (M : DecidableKripkeModel W) (w v : W) : (δ : List Program) → ℕ∞
 | [] => have := M.deceq
@@ -325,15 +338,6 @@ theorem distance_list_singleton (M : DecidableKripkeModel W) :
 
 theorem ENat.min_neq_top_iff {M N : ℕ∞} : min M N ≠ ⊤ ↔ (M ≠ ⊤) ∨ (N ≠ ⊤) := min_eq_top.not.trans not_and_or
 
-theorem distance_iff_relate (M : DecidableKripkeModel W) α w v : (distance M w v α) ≠ ⊤ ↔ relate M α w v :=
-  match α with
-  | ·_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.one_ne_top).symm
-  | ?'_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.zero_ne_top).symm
-  | _ ⋓ _ => (min_eq_top.not.trans not_and_or).trans <| or_congr (distance_iff_relate ..) (distance_iff_relate ..)
-  | ∗_ => ENat.iInf_coe_ne_top.trans <| M.reachable_iff_star_relate ..
-  | _ ;' _ => iInf_eq_top.not.trans <| not_forall.trans <| exists_congr fun _ =>
-    WithTop.add_ne_top.trans <| and_congr (distance_iff_relate ..) (distance_iff_relate ..)
-
 theorem List.exists_mem_singleton {p : α → Prop} : (∃ x ∈ [a], p x) ↔ p a :=
   ⟨λ⟨_, ⟨x_in, px⟩⟩ ↦ mem_singleton.mp x_in ▸ px, (⟨_, ⟨mem_singleton_self _, .⟩⟩)⟩
 
@@ -344,29 +348,21 @@ theorem relate_existsH_distance (M : DecidableKripkeModel W) (α : Program)
       ∧ distance_list M w v Fδ.2 = distance M w v α  :=
   match α with
   | ·_ => List.exists_mem_singleton.mpr ⟨id, distance_list_singleton _⟩
+
   | ?'_ => match w_α_v with | ⟨wv, wφ⟩ => List.exists_mem_singleton.mpr <|
-      ⟨wφ, by simp_all only [relate, true_and, distance_list, ite_true, distance, and_self]⟩
-  | α ⋓ β => (min_cases (distance M w v α) (distance M w v β)).elim
-      (fun h => _)
-      (fun h => _)
+    ⟨wφ, by simp_all only [relate, true_and, distance_list, ite_true, distance, and_self]⟩
+
+  | α ⋓ β =>
+    have min_ne_top : distance M w v α ⊓ distance M w v β ≠ ⊤ := distance_iff_relate.mpr w_α_v
+    Or.elim (min_cases (distance M w v α) (distance M w v β))
+    (fun ⟨min_eq, d_le⟩ =>
+      have ⟨Fδ, in_H, eval, dl_eq_d⟩:= relate_existsH_distance M α <| distance_iff_relate.mp <| ne_of_eq_of_ne min_eq.symm min_ne_top
+      ⟨Fδ, List.mem_union_iff.mpr <| .inl in_H, eval, dl_eq_d.trans min_eq.symm⟩
+    )
+    (fun ⟨min_eq, d_le⟩ =>
+      have ⟨Fδ, in_H, eval, dl_eq_d⟩:= relate_existsH_distance M β <| distance_iff_relate.mp <| ne_of_eq_of_ne min_eq.symm min_ne_top
+      ⟨Fδ, List.mem_union_iff.mpr <| .inr in_H, eval, dl_eq_d.trans min_eq.symm⟩
+    )
+
   | ∗α => sorry
   | α ;' β => sorry
-
-open Classical in
-noncomputable def distance' {W} (M : KripkeModel W) (w v : W) (α : Program): ℕ∞ :=
-  match α with
-  | ·_ => ite (relate M α w v) 1 ⊤
-  | ?'_ => ite (relate M α w v) 0 ⊤
-  | α ⋓ β => (distance' M w v α) ⊓ (distance' M w v β)
-  | ∗α => M.edist α w v
-  | α ;' β => ⨅ u : W, distance' M w u α + distance' M u v β
-
-open Classical in
-theorem distance'_iff_relate (M : KripkeModel W) α w v : (distance' M w v α) ≠ ⊤ ↔ relate M α w v :=
-  match α with
-  | ·_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.one_ne_top).symm
-  | ?'_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.zero_ne_top).symm
-  | _ ⋓ _ => (min_eq_top.not.trans not_and_or).trans <| or_congr (distance'_iff_relate ..) (distance'_iff_relate ..)
-  | ∗_ => ENat.iInf_coe_ne_top.trans <| M.reachable_iff_star_relate ..
-  | _ ;' _ => iInf_eq_top.not.trans <| not_forall.trans <| exists_congr fun _ =>
-    WithTop.add_ne_top.trans <| and_congr (distance'_iff_relate ..) (distance'_iff_relate ..)
