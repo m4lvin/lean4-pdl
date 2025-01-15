@@ -52,6 +52,7 @@ jobs:
       - name: Copy documentation to `home_page/docs`
         if: github.ref_name == 'main'
         run: |
+          rm -rf home_page
           mkdir -p home_page
           cp -r docbuild/.lake/build/doc home_page/docs
 
