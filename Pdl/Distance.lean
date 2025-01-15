@@ -308,20 +308,20 @@ noncomputable def distance {W} (M : DecidableKripkeModel W) (w v : W) (α : Prog
   | ∗α => M.edist α w v
   | α ;' β => ⨅ u : W, distance M w u α + distance M u v β
 
-noncomputable def distance_list {W} (M : DecidableKripkeModel W) (v w : W) : (δ : List Program) → ℕ∞
+noncomputable def distance_list {W} (M : DecidableKripkeModel W) (w v : W) : (δ : List Program) → ℕ∞
 | [] => have := M.deceq
-        if v = w then 0 else ⊤
+        if w = v then 0 else ⊤
 
 -- similar to α;'β case in `distance`
-| (α::δ) => ⨅ (x : W), distance M v x α + distance_list M x w δ
+| (α::δ) => ⨅ (x : W), distance M w x α + distance_list M x v δ
 
-theorem distance_list_singleton (Mod : DecidableKripkeModel W) :
-    distance_list Mod v w [α] = distance Mod v w α :=
+theorem distance_list_singleton (M : DecidableKripkeModel W) :
+    distance_list M w v [α] = distance M w v α :=
   iInf_eq_of_forall_ge_of_forall_gt_exists_lt
-    (fun x => @dite _ (x = w) (Mod.deceq ..)
+    (fun x => @dite _ (x = v) (M.deceq ..)
       (by simp_all only [self_le_add_right, implies_true])
       (by simp_all only [distance_list, ite_false, add_top, le_top, implies_true]))
-    (fun d => fun le => ⟨w, by simp_all only [distance_list, ite_true, add_zero]⟩)
+    (fun _ _ => ⟨v, by simp_all only [distance_list, ite_true, add_zero]⟩)
 
 theorem ENat.min_neq_top_iff {M N : ℕ∞} : min M N ≠ ⊤ ↔ (M ≠ ⊤) ∨ (N ≠ ⊤) := min_eq_top.not.trans not_and_or
 
@@ -337,15 +337,18 @@ theorem distance_iff_relate (M : DecidableKripkeModel W) α w v : (distance M w 
 theorem List.exists_mem_singleton {p : α → Prop} : (∃ x ∈ [a], p x) ↔ p a :=
   ⟨λ⟨_, ⟨x_in, px⟩⟩ ↦ mem_singleton.mp x_in ▸ px, (⟨_, ⟨mem_singleton_self _, .⟩⟩)⟩
 
-theorem relate_existsH_distance (Mod : DecidableKripkeModel W) (α : Program)
-    (v_α_w : relate M α v w)
+theorem relate_existsH_distance (M : DecidableKripkeModel W) (α : Program)
+    (w_α_v : relate M α w v)
     : ∃ Fδ ∈ H α,
-        evaluate M v (Con Fδ.1)
-      ∧ distance_list Mod v w Fδ.2 = distance Mod v w α  :=
+        evaluate M w (Con Fδ.1)
+      ∧ distance_list M w v Fδ.2 = distance M w v α  :=
   match α with
   | ·_ => List.exists_mem_singleton.mpr ⟨id, distance_list_singleton _⟩
-  | ?'_ => List.exists_mem_singleton.mpr ⟨v_α_w.2, sorry⟩
-  | α ⋓ β => sorry
+  | ?'_ => match w_α_v with | ⟨wv, wφ⟩ => List.exists_mem_singleton.mpr <|
+      ⟨wφ, by simp_all only [relate, true_and, distance_list, ite_true, distance, and_self]⟩
+  | α ⋓ β => (min_cases (distance M w v α) (distance M w v β)).elim
+      (fun h => _)
+      (fun h => _)
   | ∗α => sorry
   | α ;' β => sorry
 
