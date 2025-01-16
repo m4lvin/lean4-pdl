@@ -181,11 +181,12 @@ theorem Sequent.without_loaded_in_side_isFree (LRO : Sequent) ξ side :
 
 /-! ## Local Tableaux -/
 
-/-- A set is closed iff it contains `⊥` or contains a formula and its negation. -/
+/-- A set is *closed* iff it contains `⊥` or contains a formula and its negation. -/
 def closed : Finset Formula → Prop := fun X => ⊥ ∈ X ∨ ∃ f ∈ X, (~f) ∈ X
 
--- Local rules replace a given set of formulas by other sets, one for each branch.
--- (In Haskell this is "ruleFor" in Logic.PDL.Prove.Tree.)
+/-- Local rules replace a given set of formulas by other sets, one for each branch.
+The list of resulting branches can be empty, representing that the given set is closed.
+In the Haskell prover this is done in "ruleFor" in the Logic.PDL.Prove.Tree module. -/
 inductive OneSidedLocalRule : List Formula → List (List Formula) → Type
   -- PROP LOGIC
   -- closing rules:
@@ -219,13 +220,11 @@ theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B
     rw [localDiamondTruth α φ W M w, disEval, disconEval]
     apply mapCon_mapForall
 
--- LOADED rule applications
--- Only the local diamond rule may be applied to loaded formulas.
--- (In MB page 19 these were the rules ¬u, ¬; ¬* and ¬?).
--- Each rule replaces the loaded formula by:
--- - up to one loaded formula,
--- - and a set of normal formulas.
--- It's annoying to need the rule twice here due to the definition of LoadFormula.
+/-- The loaded diamond rule, given by `unfoldDiamondLoaded`.
+In MB page 19 these were multiple rules ¬u, ¬; ¬* and ¬?.
+It replaces the loaded formula by up to one loaded formula and a list of normal formulas.
+It's a bit annoying to need the rule twice here due to the definition of LoadFormula
+and the extra definition of `unfoldDiamondLoaded'`.  -/
 inductive LoadRule : NegLoadFormula → List (List Formula × Option NegLoadFormula) → Type
   | dia  {α χ} : (notAtom : ¬ α.isAtomic) → LoadRule (~'⌊α⌋(χ : LoadFormula)) (unfoldDiamondLoaded  α χ)
   | dia' {α φ} : (notAtom : ¬ α.isAtomic) → LoadRule (~'⌊α⌋(φ : Formula    )) (unfoldDiamondLoaded' α φ)
@@ -265,15 +264,18 @@ theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
     · use a, b
     · exact w_f
 
--- A LocalRule is a OneSidedLocalRule or a LoadRule.
--- Formulas can be in four places now: left, right, loaded left, loaded right.
+/-- A local rule is a `OneSidedLocalRule`, a left-right contradiction, or a `LoadRule`.
+Note that formulas can be in four places: left, right, loaded left, loaded right.
+
+We do *not* have neg/contradiction rules between loaded and unloaded formulas (i.e.
+between `({unload χ}, ∅, some (Sum.inl ~χ))` and `(∅, {unload χ}, some (Sum.inr ~χ))`)
+because in any such case we could also close the tableau before or without loading.
+-/
 inductive LocalRule : Sequent → List Sequent → Type
   | oneSidedL (orule : OneSidedLocalRule precond ress) : LocalRule (precond,∅,none) $ ress.map $ λ res => (res,∅,none)
   | oneSidedR (orule : OneSidedLocalRule precond ress) : LocalRule (∅,precond,none) $ ress.map $ λ res => (∅,res,none)
   | LRnegL (ϕ : Formula) : LocalRule ([ϕ], [~ϕ], none) ∅ --  ϕ occurs on the left side, ~ϕ on the right
   | LRnegR (ϕ : Formula) : LocalRule ([~ϕ], [ϕ], none) ∅ -- ~ϕ occurs on the left side,  ϕ on the right
-  -- NOTE: do we need neg rules for ({unload χ}, ∅, some (Sum.inl ~χ)) and (∅, {unload χ}, some (Sum.inr ~χ)), ..here?
-  -- Probably not, because then we could also have closed before/without loading!
   | loadedL (χ : LoadFormula) (lrule : LoadRule (~'χ) ress) :
       LocalRule (∅, ∅, some (Sum.inl (~'χ))) $ ress.map $ λ (X, o) => (X, ∅, o.map Sum.inl)
   | loadedR (χ : LoadFormula) (lrule : LoadRule (~'χ) ress) :
@@ -990,8 +992,7 @@ theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X 
         linarith
       suffices ∃ τ' ∈ testsOfProgram (α;'β), lmOfFormula ψ < 1 + lmOfFormula τ' by
         rw [Nat.lt_succ]
-        -- TODO: use `List.le_sum_of_mem` from newer mathlib also here?
-        apply List.single_le_sum (by simp) _
+        apply List.le_sum_of_mem
         simp_all [testsOfProgram]
         aesop
       simp_all [testsOfProgram]
@@ -1002,8 +1003,7 @@ theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X 
         linarith
       suffices ∃ τ' ∈ testsOfProgram (α;'β), lmOfFormula ψ < 1 + lmOfFormula τ' by
         rw [Nat.lt_succ]
-        -- TODO: use `List.le_sum_of_mem` from newer mathlib also here?
-        apply List.single_le_sum (by simp) _
+        apply List.le_sum_of_mem
         simp_all [testsOfProgram]
         aesop
       simp_all [testsOfProgram]
@@ -1014,8 +1014,7 @@ theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X 
         linarith
       suffices ∃ τ' ∈ testsOfProgram (∗β), lmOfFormula ψ < 1 + lmOfFormula τ' by
         rw [Nat.lt_succ]
-        -- TODO: use `List.le_sum_of_mem` from newer mathlib also here?
-        apply List.single_le_sum (by simp) _
+        apply List.le_sum_of_mem
         simp_all [testsOfProgram]
         aesop
       simp_all [testsOfProgram]
@@ -1207,7 +1206,7 @@ decreasing_by
   simp_wf
   apply localRuleApp.decreases_DM _lr Y h
 
-/-- ## Helper functions, relating end nodes and children -/
+/-! ## Helper functions, relating end nodes and children -/
 
 -- TODO Computable version possible?
 noncomputable def endNode_to_endNodeOfChildNonComp (lrA)

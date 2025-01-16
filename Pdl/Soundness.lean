@@ -116,15 +116,16 @@ theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := b
         simp only [evaluate]
         assumption
 
-/-! ## Navigating through tableaux with PathIn -/
+/-! ## Navigating through tableaux with PathIn
 
--- To define ancestor / decendant relations inside tableaux we need to
--- represent both the whole Tableau and a specific node in it.
--- For this we use the type `PathIn`.
--- Its values basically say "go to this child, then to this child, etc."
+To define relations between nodes in a tableau we need to represent the whole
+tableau and point to a specific node inside it. This is the `PathIn` type.
+Its values say "go to this child, then to this child, ... stop here."
+-/
 
 /-- A path in a tableau. Three constructors for the empty path, a local step or a pdl step.
-The `loc` ad `pdl` steps correspond to two out of three constructors of `Tableau`. -/
+The `loc` and `pdl` steps correspond to two out of three constructors of `Tableau`.
+A `PathIn` only goes downwards, it cannot use `LoadedPathRepeat`s. -/
 inductive PathIn : ∀ {Hist X}, Tableau Hist X → Type
 | nil : PathIn _
 | loc {nrep nbas lt next Y} (Y_in : Y ∈ endNodesOf lt) (tail : PathIn (next Y Y_in))
@@ -132,7 +133,6 @@ inductive PathIn : ∀ {Hist X}, Tableau Hist X → Type
 | pdl {nrep bas} {r : PdlRule X Y} {next} (tail : PathIn next)
     : PathIn (Tableau.pdl nrep bas r next)
 deriving DecidableEq
--- TODO: which of the arguments above should be implicit???
 
 def tabAt : PathIn tab → Σ H X, Tableau H X
 | .nil => ⟨_,_,tab⟩
@@ -770,13 +770,14 @@ theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
 
 /-! ## Companion, cEdge, etc. -/
 
-/-- To get the companion of an LPR node we go as many steps back as the LPR says. -/
--- TODO DOCUMENTATION: why is there a `succ` here?
+/-- To get the companion of a `LoadedPathRepeat` we rewind the path with the lpr value.
+The `succ` is there because the lpr values are indices of the history starting with 0, but
+`PathIn.rewind 0` would do nothing. -/
 def companionOf {X} {tab : Tableau .nil X} (s : PathIn tab) lpr
   (_ : (tabAt s).2.2 = Tableau.rep lpr) : PathIn tab :=
     s.rewind ((tabAt_fst_length_eq_toHistory_length s ▸ lpr.val).succ)
 
-/-- s ♥ t means s is a LPR and its companion is t -/
+/-- `s ♥ t` means `s` is a `LoadedPathRepeat` and the `companionOf s` is `t`. -/
 def companion {X} {tab : Tableau .nil X} (s t : PathIn tab) : Prop :=
   ∃ (lpr : _) (h : (tabAt s).2.2 = Tableau.rep lpr), t = companionOf s lpr h
 
