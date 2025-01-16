@@ -21,22 +21,44 @@ def H : Program → List (List Formula × List Program)
 | ∗α => [ (∅,[]) ] ∪ ((H α).map (fun (F,δ) => if δ = [] then [] else [(F, δ ++ [∗α])])).flatten
 
 theorem relateSeq_H_imp_relate {X : List Formula} {δ : List Program}
-  : (X, δ) ∈ H α → (M, w) ⊨ (Con X) →  relateSeq M δ w v → relate M α w v :=
-  let f := (relateSeq M . w v)
-  fun in_H eval rel => match α with
+  : (X, δ) ∈ H α → (M, w) ⊨ Con X →  relateSeq M δ w v → relate M α w v :=
+  let me := (evaluate M w <| Con .)
+  let mr := (relateSeq M . w v)
+  fun in_H ev rel => match α with
   | ·a =>
-    have := congr_arg f (Prod.eq_iff_fst_eq_snd_eq.mp (List.mem_singleton.mp in_H)).2
-    relateSeq_singleton.mp (cast this rel)
+    have hδ := congr_arg mr (Prod.eq_iff_fst_eq_snd_eq.mp (List.mem_singleton.mp in_H)).2
+    relateSeq_singleton.mp (cast hδ rel)
 
   | ?'τ =>
-    let ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp (List.mem_singleton.mp in_H)
-    ⟨cast (congr_arg f hδ) rel, cast (congr_arg ((M, w) ⊨ Con .) hX) eval⟩
+    let ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.mem_singleton.mp in_H
+    ⟨hδ.subst (motive := mr) rel, hX.subst (motive := me) ev⟩
 
   | α ⋓ β => (List.mem_union_iff.mp in_H).elim
-    (.inl <| relateSeq_H_imp_relate . eval rel)
-    (.inr <| relateSeq_H_imp_relate . eval rel)
+    (.inl <| relateSeq_H_imp_relate . ev rel)
+    (.inr <| relateSeq_H_imp_relate . ev rel)
 
-  | α;'β => sorry
+  | α;'β =>
+    let ⟨⟨Xα, δα⟩, in_Hα, h⟩ := List.exists_of_mem_flatMap in_H
+    -- let ⟨q,qq⟩ := List.exists_of_mem_flatMap h
+    -- let x := ite (δα = []) ((H β).map (fun ⟨G,δ'⟩ => [(Xα ∪ G, δ')])).flatten [(Xα, δα ++ [β])]
+    if c : δα = []
+      then
+        let h := (if_pos c).subst h
+        let ⟨⟨Xβ, δβ⟩, in_Hβ, hβ⟩ := List.exists_of_mem_flatMap h
+        have ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.mem_singleton.mp <| hβ
+        have relα := c.symm.subst (motive := (relateSeq M . w w)) <| relateSeq_nil.mpr rfl
+        have relβ := hδ.subst (motive := mr) rel
+        have ev := hX.subst (motive := me) ev
+        have evα := conEval.mpr (List.forall_mem_union.mp <| conEval.mp ev).1
+        have evβ := conEval.mpr (List.forall_mem_union.mp <| conEval.mp ev).2
+        ⟨w, relateSeq_H_imp_relate in_Hα evα relα, relateSeq_H_imp_relate in_Hβ evβ relβ⟩
+      else
+        let h := (if_neg c).subst h
+        have ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.mem_singleton.mp <| h
+        have ⟨u, relα, relβ⟩ :=  relateSeq_append.mp <| hδ.subst (motive := mr) rel
+        have evα := hX.subst (motive := me) ev
+        ⟨u, relateSeq_H_imp_relate in_Hα evα relα, relateSeq_singleton.mp relβ⟩
+
   | ∗α => sorry
 
 
