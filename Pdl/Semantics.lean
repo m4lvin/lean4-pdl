@@ -273,7 +273,7 @@ theorem relateSeq_nil (M : KripkeModel W) (w v : W) :
   simp [relateSeq]
 
 @[simp]
-theorem relateSeq_singelton (M : KripkeModel W) (α : Program) (w v : W) :
+theorem relateSeq_singleton {M : KripkeModel W} {α : Program} {w v : W} :
     relateSeq M [α] w v ↔ relate M α w v := by
   simp [relateSeq]
 

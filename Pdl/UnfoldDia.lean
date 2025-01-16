@@ -20,6 +20,26 @@ def H : Program → List (List Formula × List Program)
           ).flatten
 | ∗α => [ (∅,[]) ] ∪ ((H α).map (fun (F,δ) => if δ = [] then [] else [(F, δ ++ [∗α])])).flatten
 
+theorem relateSeq_H_imp_relate {X : List Formula} {δ : List Program}
+  : (X, δ) ∈ H α → (M, w) ⊨ (Con X) →  relateSeq M δ w v → relate M α w v :=
+  let f := (relateSeq M . w v)
+  fun in_H eval rel => match α with
+  | ·a =>
+    have := congr_arg f (Prod.eq_iff_fst_eq_snd_eq.mp (List.mem_singleton.mp in_H)).2
+    relateSeq_singleton.mp (cast this rel)
+
+  | ?'τ =>
+    let ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp (List.mem_singleton.mp in_H)
+    ⟨cast (congr_arg f hδ) rel, cast (congr_arg ((M, w) ⊨ Con .) hX) eval⟩
+
+  | α ⋓ β => (List.mem_union_iff.mp in_H).elim
+    (.inl <| relateSeq_H_imp_relate . eval rel)
+    (.inr <| relateSeq_H_imp_relate . eval rel)
+
+  | α;'β => sorry
+  | ∗α => sorry
+
+
 /-- A test formula coming from `H` comes from a test in the given program. -/
 theorem H_mem_test α φ {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ H α) (φ_in_Fs: φ ∈ Fs) :
     ∃ τ, ∃ (_ : τ ∈ testsOfProgram α), φ = τ := by
