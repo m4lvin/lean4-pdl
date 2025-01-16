@@ -130,6 +130,55 @@ def AnyNegFormula.mem_Sequent : (X : Sequent) → (anf : AnyNegFormula) → Prop
 @[simp]
 instance : Membership AnyNegFormula Sequent := ⟨AnyNegFormula.mem_Sequent⟩
 
+@[simp]
+theorem Sequent.without_normal_isFree_iff_isFree (LRO : Sequent) :
+    (LRO.without (~''(.normal φ))).isFree ↔ LRO.isFree := by
+  rcases LRO with ⟨L, R, O⟩
+  simp [Sequent.without, isFree, isLoaded]
+  aesop
+
+@[simp]
+theorem Sequent.isFree_then_without_isFree (LRO : Sequent) :
+    LRO.isFree → ∀ anf, (LRO.without anf).isFree := by
+  intro LRO_isFree anf
+  rcases LRO with ⟨L, R, _|_⟩
+  · rcases anf with ⟨_|_⟩ <;> simp [without, isFree, isLoaded]
+  · exfalso
+    simp [isFree, isLoaded] at *
+
+inductive Side
+| LL : Side
+| RR : Side
+
+@[simp]
+def sideOf : Sum α α → Side
+| Sum.inl _ => .LL
+| Sum.inr _ => .RR
+
+def AnyNegFormula.in_side : (anf : AnyNegFormula) → Side → (X : Sequent) → Prop
+| ⟨.normal φ⟩, .LL, ⟨L, _, _⟩ => (~φ) ∈ L
+| ⟨.normal φ⟩, .RR, ⟨_, R, _⟩ => (~φ) ∈ R
+| ⟨.loaded χ⟩, .LL, ⟨_, _, O⟩ => O = some (Sum.inl (~'χ))
+| ⟨.loaded χ⟩, .RR, ⟨_, _, O⟩ => O = some (Sum.inr (~'χ))
+
+theorem AnyNegFormula.in_side_of_setEqTo {X Y} (h : X.setEqTo Y) {anf : AnyNegFormula} :
+    anf.in_side side X ↔ anf.in_side side Y := by
+  rcases X with ⟨L, R, O⟩
+  rcases Y with ⟨L',R',O'⟩
+  simp only [Sequent.setEqTo, modelCanSemImplySequent, vDash] at *
+  rw [List.toFinset.ext_iff, List.toFinset.ext_iff] at h
+  rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
+  subst O_eq_O'
+  cases side <;> rcases anf with ⟨(n|m)⟩ <;> simp_all [AnyNegFormula.in_side]
+
+@[simp]
+theorem Sequent.without_loaded_in_side_isFree (LRO : Sequent) ξ side :
+    (~''(.loaded ξ)).in_side side LRO → (LRO.without (~''(.loaded ξ))).isFree := by
+  rcases LRO with ⟨L, R, _|(OL|OR)⟩ <;> cases side
+  all_goals
+    simp [Sequent.without, isFree, isLoaded, AnyNegFormula.in_side]
+    try aesop
+
 /-! ## Local Tableaux -/
 
 /-- A set is closed iff it contains `⊥` or contains a formula and its negation. -/
