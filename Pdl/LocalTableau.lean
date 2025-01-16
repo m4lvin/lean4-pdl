@@ -574,9 +574,12 @@ theorem localRuleTruth
             · apply w_Ci; simp_all
             · subst g_def; apply w_Ci; simp_all
 
+/-- A basic formula is of the form `¬⊥`, `p`, `¬p`, `[a]_` or `¬[a]_`.
+Note: in the article also `⊥` is basic, but not here because then
+`OneSidedLocalRule.bot` can be applied to it. -/
 @[simp]
 def isBasicForm : Formula → Bool
-  | ⊥ => True -- TODO: change to False, covered by bot rule?
+  | ⊥ => False
   | ~⊥ => True
   | ·_ => True
   | ~·_ => True
@@ -587,7 +590,7 @@ def isBasicForm : Formula → Bool
 def isBasicSet : Finset Formula → Bool
   | X => ∀ P ∈ X, isBasicForm P
 
-/-- A sequent is _basic_ iff it only contains ⊥, ¬⊥, p, ¬p, [A]_ or ¬[A]_ formulas. -/
+/-- A sequent is _basic_ iff it only contains basic formulas. -/
 def isBasic : Sequent → Prop
   | (L, R, o) => ∀ f ∈ L ++ R ++ (o.map (Sum.elim negUnload negUnload)).toList, isBasicForm f
 
