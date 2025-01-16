@@ -24,10 +24,10 @@ def dis : List Formula → Formula
   | f :: rest => f ⋁ dis rest
 
 @[simp]
-theorem disempty : dis ∅ = (⊥ : Formula) := by rfl
+theorem disempty : dis ∅ = (⊥ : Formula) := rfl
 
 @[simp]
-theorem dissingle {f : Formula} : dis [f] = f := by rfl
+theorem dissingle {f : Formula} : dis [f] = f := rfl
 
 theorem listEq_to_disEq : l1 = l2 → dis l1 = dis l2 := by
   aesop
