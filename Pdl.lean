@@ -14,6 +14,7 @@ import Pdl.UnfoldBox
 import Pdl.UnfoldDia
 import Pdl.LocalTableau
 import Pdl.Tableau
+import Pdl.TableauExamples
 import Pdl.Soundness
 import Pdl.Game
 import Pdl.Completeness
