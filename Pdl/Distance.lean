@@ -4,6 +4,8 @@ import Mathlib.Data.List.Basic
 import Mathlib.Data.List.ReduceOption
 import Mathlib.Data.Nat.PartENat
 import Mathlib.Tactic.Linarith
+import Mathlib.Algebra.Order.Group.CompleteLattice
+
 
 import Pdl.UnfoldDia
 import Pdl.AxiomBlame
@@ -329,20 +331,6 @@ noncomputable def distance_list {W} (M : KripkeModel W) (w v : W) : (δ : List P
 | (α::δ) => ⨅ x, distance M w x α + distance_list M x v δ
 
 open Classical in
-theorem distance_list_append (δ₁ δ₂)
-    : distance_list M w v (δ₁ ++ δ₂) = ⨅ x, distance_list M w x δ₁ + distance_list M x v δ₂ :=
-  match δ₁ with
-  | [] => Eq.symm <| iInf_eq_of_forall_ge_of_forall_gt_exists_lt
-    (fun x => dite (w = x)
-      (by simp_all only [List.nil_append, self_le_add_left, implies_true])
-      (fun h => le_of_le_of_eq le_top ((if_neg h : distance_list _ _ _ [] = _) ▸ (top_add (distance_list ..)).symm)))
-    fun _ _ => ⟨w, by simp_all only [List.nil_append, distance_list, ite_true, zero_add]⟩
-
-  | (α::δ₁') => by
-    simp only [List.cons_append, distance_list, distance_list_append δ₁' δ₂]
-    sorry
-
-open Classical in
 theorem distance_list_singleton (M : KripkeModel W) :
     distance_list M w v [α] = distance M w v α :=
   iInf_eq_of_forall_ge_of_forall_gt_exists_lt
@@ -374,6 +362,52 @@ theorem iInf_exists_eq_of_ne_top {f : ι → ℕ∞} (h : iInf f ≠ ⊤) : ∃ 
   have ⟨i, spec⟩ := Nat.find_spec (domain_nonempty_of_iInf_ne_top h)
   ⟨i, (ENat.iInf_eq_find_of_ne_top h).trans spec.symm⟩
 
+open Classical in
+theorem iInf_exists_eq [NE : Nonempty ι] (f : ι → ℕ∞) : ∃ i, iInf f = f i :=
+  dite (iInf f = ⊤) (fun h => ⟨choice NE, h.trans (iInf_eq_top.mp h _).symm⟩) iInf_exists_eq_of_ne_top
+
+theorem iInf_of_min {f : ι → ℕ∞} {i : ι} (h : ∀ j, f i ≤ f j) : iInf f = f i :=
+  iInf_eq_of_forall_ge_of_forall_gt_exists_lt h fun _ => (⟨i, .⟩)
+
+open Classical in
+theorem add_iInf {f : ι → ℕ∞} {a : ℕ∞} : a + ⨅ i, f i = ⨅ i, a + f i :=
+  if NE : Nonempty ι
+    then
+      let ⟨i, hi⟩ := iInf_exists_eq f
+      let h : ⨅ i, a + f i = a + f i := iInf_of_min fun _ => add_le_add_left (hi ▸ iInf_le ..) _
+      calc
+        _ = a + f i := congr_arg _ hi
+        _ = ⨅ i, a + f i := h.symm
+    else
+      have := not_nonempty_iff.mp NE
+      calc
+        _ = ⊤ := iInf_of_empty f ▸ add_top a
+        _ = _ := (iInf_of_empty _).symm
+
+theorem iInf_add {f : ι → ℕ∞} {a : ℕ∞} : (⨅ i, f i) + a = ⨅ i, f i + a := calc
+  _ = a + ⨅ i, f i := add_comm _ _
+  _ = ⨅ i, a + f i := add_iInf
+  _ = ⨅ i, f i + a := iInf_congr fun _ => add_comm ..
+
+open Classical in
+theorem distance_list_append (δ₁ δ₂)
+    : distance_list M w v (δ₁ ++ δ₂) = ⨅ x, distance_list M w x δ₁ + distance_list M x v δ₂ :=
+  match δ₁ with
+  | [] => Eq.symm <| iInf_eq_of_forall_ge_of_forall_gt_exists_lt
+    (fun x => dite (w = x)
+      (by simp_all only [List.nil_append, self_le_add_left, implies_true])
+      (fun h => le_of_le_of_eq le_top ((if_neg h : distance_list _ _ _ [] = _) ▸ (top_add (distance_list ..)).symm)))
+    fun _ _ => ⟨w, by simp_all only [List.nil_append, distance_list, ite_true, zero_add]⟩
+
+  | (α::δ₁') =>
+    let IH u := distance_list_append (M := M) (w := u) (v := v) δ₁' δ₂
+    calc
+      _ = _ := iInf_congr (congr_arg _ <| IH .)
+      _ = ⨅ u, ⨅ x, distance M w u α + distance_list M u x δ₁' + distance_list M x v δ₂ := by simp only [add_iInf, add_assoc]
+      _ = _ := iInf_comm
+      _ = ⨅ x, (⨅ u, distance M w u α + distance_list M u x δ₁') + distance_list M x v δ₂ := by simp only [add_assoc, iInf_add]
+      _ = _ := by simp only [distance_list]
+
 theorem relate_existsH_distance (M : KripkeModel W) (α : Program)
     (w_α_v : relate M α w v)
     : ∃ Fδ ∈ H α,
@@ -404,6 +438,9 @@ theorem relate_existsH_distance (M : KripkeModel W) (α : Program)
     if δ_empty : δ = []
       then sorry
       else ⟨⟨F, δ ++ [β]⟩, List.mem_flatMap_of_mem in_H <| (by simp only [δ_empty,
-        ↓reduceIte, List.mem_singleton]), eval, sorry⟩
+        ↓reduceIte, List.mem_singleton]), eval, calc
+          _ = _ := distance_list_append _ _
+          _ = _ := sorry
+        ⟩
 
   | ∗α => sorry
