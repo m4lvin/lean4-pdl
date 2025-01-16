@@ -268,7 +268,7 @@ def relateSeq {W} (M : KripkeModel W) (δ : List Program) (w v : W) : Prop :=
   | (α::as) => ∃ u, relate M α w u ∧ relateSeq M as u v
 
 @[simp]
-theorem relateSeq_nil (M : KripkeModel W) (w v : W) :
+theorem relateSeq_nil {M : KripkeModel W} {w v : W} :
     relateSeq M [] w v ↔ w = v := by
   simp [relateSeq]
 
@@ -277,14 +277,10 @@ theorem relateSeq_singleton {M : KripkeModel W} {α : Program} {w v : W} :
     relateSeq M [α] w v ↔ relate M α w v := by
   simp [relateSeq]
 
-theorem relateSeq_cons (M : KripkeModel W) (d : Program) (δ : List Program) (w v : W) :
-    relateSeq M (d :: δ) w v ↔ ∃ u, relate M d w u ∧ relateSeq M δ u v := by
-  induction δ generalizing w v
-  · simp [relateSeq]
-  case cons l l1 IH =>
-    simp [relateSeq]
+theorem relateSeq_cons {M : KripkeModel W} {d : Program} {δ : List Program} {w v : W} :
+    relateSeq M (d :: δ) w v ↔ ∃ u, relate M d w u ∧ relateSeq M δ u v := iff_of_eq rfl
 
-theorem relateSeq_append (M : KripkeModel W) (l1 l2 : List Program) (w v : W) :
+theorem relateSeq_append {M : KripkeModel W} {l1 l2 : List Program} {w v : W} :
     relateSeq M (l1 ++ l2) w v ↔ ∃ u, relateSeq M l1 w u ∧ relateSeq M l2 u v := by
   induction l1 generalizing w v
   · simp [relateSeq]
