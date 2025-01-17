@@ -45,7 +45,7 @@ theorem relateSeq_H_imp_relate {X : List Formula} {δ : List Program}
         let h := (if_pos c).subst h
         let ⟨_, in_Hβ, h⟩ := List.exists_of_mem_flatMap h
         let ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton <| h
-        let relα := c.symm.subst (motive := (relateSeq M . w w)) <| relateSeq_nil.mpr rfl
+        let relα := c.symm.subst (motive := (relateSeq _ . _ _)) <| relateSeq_nil.mpr rfl
         let relβ := hδ.subst (motive := mr) rel
         let ev := hX.subst (motive := me) ev
         let evα := conEval.mpr (List.forall_mem_union.mp <| conEval.mp ev).1
