@@ -11,7 +11,7 @@ example : provable (~⊥) := by
   apply provable.byTableauL
   apply Tableau.loc
   · simp [rep]
-  · simp [isBasic] -- works :-)
+  · simp [Sequent.basic] -- works :-)
   case a.lt =>
     apply LocalTableau.byLocalRule
       ⟨[~~⊥], [], none, LocalRule.oneSidedL (OneSidedLocalRule.neg ⊥), by simp⟩
@@ -38,7 +38,7 @@ example : provable (~(p ⋀ (~p))) :=
   apply provable.byTableauL
   apply Tableau.loc
   · simp [rep]
-  · simp [isBasic] -- works :-)
+  · simp [Sequent.basic] -- works :-)
   case a.lt =>
     apply LocalTableau.byLocalRule
       ⟨[ ~~(p ⋀ (~p))], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.neg (p ⋀ (~p)))), _⟩
@@ -62,13 +62,10 @@ example : Tableau [] ([·p, ~(·p)], [], none) :=
   by
   apply Tableau.loc
   · simp [rep]
-  · unfold isBasic
-    simp
-    -- PROBLEM: the formulas are all basic, BUT we
-    -- still want to do `loc` in order to close.
-    -- So the condition when `loc` is allowed must be tweaked.
-    -- It also seems that `def closed` is unused at the moment?
-    sorry
+  · simp [Sequent.basic, Sequent.closed]
+    -- Here is an example where all formulas are basic
+    -- but we still to do `loc` to close the tableau.
+    -- For this we made "not closed" part of `Sequent.basic`.
   case lt =>
     apply LocalTableau.byLocalRule
       ⟨[·p, ~(·p)], [], none, LocalRule.oneSidedL (OneSidedLocalRule.not (·p)), _⟩
@@ -95,16 +92,16 @@ abbrev a : Program := · atA
 def subTabForEx2 : Tableau [([r⋀(~⌈a⌉p), ~ r⋀(~⌈a⌉p⋀q)], [], none)] ([r, ~(⌈a⌉p), ⌈a⌉(p⋀q)], [], none) :=
   by
   have principal : (~(⌈a⌉p)) ∈ [r, ~(⌈a⌉p), ⌈a⌉(p⋀q)] := by simp
-  apply Tableau.pdl (by simp [rep, Sequent.setEqTo]; decide) (by simp [isBasic])
+  apply Tableau.pdl (by simp [rep, Sequent.setEqTo]; decide) (by simp [Sequent.basic, Sequent.closed])
     (@PdlRule.loadL _ [] _ _ _ principal)
   simp
-  apply Tableau.pdl (by simp [rep, Sequent.setEqTo]) (by simp [isBasic])
-    (.modL rfl (by simp [isBasic])) -- NOTE modL asking for basic is now redundant!?
+  apply Tableau.pdl (by simp [rep, Sequent.setEqTo]) (by simp [Sequent.basic, Sequent.closed])
+    (.modL rfl) -- Note: modL no longer needs to ask for basic.
   simp [projection]
   apply Tableau.loc
   · simp [rep, Sequent.setEqTo]
     decide
-  · simp [isBasic]
+  · simp [Sequent.basic, Sequent.closed]
   case lt =>
     apply LocalTableau.byLocalRule
       ⟨ [p⋀q], [], none, LocalRule.oneSidedL (OneSidedLocalRule.con p q), _⟩
@@ -125,7 +122,7 @@ example : Tableau [] ([r ⋀ (~(⌈a⌉p)), r ↣ ⌈a⌉(p ⋀ q)], [], none) :
   by
   apply Tableau.loc
   · simp [rep]
-  · simp [isBasic]
+  · simp [Sequent.basic, Sequent.closed]
   case lt =>
     apply LocalTableau.byLocalRule
       ⟨[r ⋀ (~(⌈a⌉p))], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.con r (~(⌈a⌉p)))), _⟩
@@ -155,7 +152,7 @@ example : Tableau [] ([r ⋀ (~(⌈a⌉p)), r ↣ ⌈a⌉(p ⋀ q)], [], none) :
       intro c c_in; simp at c_in; subst c_in -- unique child node
       -- ending local tableau with a simple node:
       apply LocalTableau.sim
-      simp [isBasic]
+      simp [Sequent.basic, Sequent.closed]
   case next =>
       intro Y Y_in
       simp (config := {decide := true}) at *

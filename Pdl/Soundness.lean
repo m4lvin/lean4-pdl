@@ -45,7 +45,7 @@ theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := b
     intro φ φ_in
     rcases φ_in with (φ_def | (in_L | in_R))
     all_goals (apply w_;  subst_eqs; try tauto)
-  case modL L R a χ X_def x_basic =>
+  case modL L R a χ X_def =>
     subst X_def
     use W, M -- but not the same world!
     have := w_ (negUnload (~'⌊·a⌋χ))
@@ -80,7 +80,7 @@ theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := b
       · subst φ_def
         simp only [evaluate]
         assumption
-  case modR L R a χ X_def x_basic =>
+  case modR L R a χ X_def =>
     subst X_def
     use W, M -- but not the same world!
     have := w_ (negUnload (~'⌊·a⌋χ))
@@ -549,8 +549,8 @@ match t with
 def PathIn.isCritical (t : PathIn tab) : Prop :=
 match t with
   | .nil => False
-  | @PathIn.pdl _ _ _ _ _ (.modL _ _) _ _ => True
-  | @PathIn.pdl _ _ _ _ _ (.modR _ _) _ _ => True
+  | @PathIn.pdl _ _ _ _ _ (.modL _) _ _ => True
+  | @PathIn.pdl _ _ _ _ _ (.modR _) _ _ => True
   | .pdl tail => tail.isCritical
   | .loc _ tail => tail.isCritical
 
@@ -1233,10 +1233,8 @@ theorem localLoadedDiamond (α : Program) {X : Sequent}
       rcases O with _|⟨lf|lf⟩
       · cases side <;> simp_all [Program.isAtomic]
       all_goals
-        unfold isBasic at *
-        simp at X_isBasic
-        specialize X_isBasic (~lf.1.unload)
-        simp at X_isBasic
+        have := X_isBasic.1 (~lf.1.unload)
+        simp at this
         cases side <;> simp [AnyFormula.unload] at negLoad_in
         subst negLoad_in
         cases ξ
@@ -1737,7 +1735,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         · simp only [Sequent.isLoaded, nodeAt, decide_false, decide_true]
           rw [tabAt_t_def]
 
-    case modL L R a ξ' Z_def Z_isBasic =>
+    case modL L R a ξ' Z_def =>
       clear IH -- not needed in this case, also not in notes.
       have : ξ' = ξ := by
         unfold nodeAt at negLoad_in
@@ -1768,7 +1766,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         unfold s t_to_s
         rw [tabAt_append]
         -- remains to deal with HEq business
-        let tclean : PathIn (.pdl nrep bas (.modL (Eq.refl _) Z_isBasic) next) := .pdl .nil
+        let tclean : PathIn (.pdl nrep bas (.modL (Eq.refl _)) next) := .pdl .nil
         cases ξ'
         case normal φ =>
           left
@@ -1793,7 +1791,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       · constructor
         constructor
         right
-        refine ⟨Hist, _, nrep, bas, _, (.modL Z_def Z_isBasic), next, tabAt_t_def, ?_⟩
+        refine ⟨Hist, _, nrep, bas, _, (.modL Z_def), next, tabAt_t_def, ?_⟩
         simp [s, t_to_s]
       · -- (a)
         subst Z_def
@@ -1841,7 +1839,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
           rw [nodeAt_s_def]
           simp_all [Sequent.isFree, Sequent.isLoaded, Sequent.without]
 
-    case modR L R a ξ' Z_def Z_isBasic => -- COPY ADAPTATION from `modL`
+    case modR L R a ξ' Z_def => -- COPY ADAPTATION from `modL`
       clear IH -- not needed in this case, also not in notes.
       have : ξ' = ξ := by
         unfold nodeAt at negLoad_in
@@ -1872,7 +1870,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         unfold s t_to_s
         rw [tabAt_append]
         -- remains to deal with HEq business
-        let tclean : PathIn (.pdl nrep bas (.modR (Eq.refl _) Z_isBasic) next) := .pdl .nil
+        let tclean : PathIn (.pdl nrep bas (.modR (Eq.refl _)) next) := .pdl .nil
         cases ξ'
         case normal φ =>
           left
@@ -1897,7 +1895,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       · constructor
         constructor
         right
-        refine ⟨Hist, _, nrep, bas, _, (PdlRule.modR Z_def Z_isBasic), next, tabAt_t_def, ?_⟩
+        refine ⟨Hist, _, nrep, bas, _, (PdlRule.modR Z_def), next, tabAt_t_def, ?_⟩
         simp [s, t_to_s]
       · -- (a)
         subst Z_def

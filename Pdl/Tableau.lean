@@ -72,11 +72,11 @@ inductive PdlRule : (Γ : Sequent) → (Δ : Sequent) → Type
   | freeR : PdlRule (L, R, some (Sum.inr (~'(⌊⌊δ⌋⌋⌊α⌋(φ : Formula)))))
                     (L, R.insert (~⌈⌈δ⌉⌉⌈α⌉φ), none)
   -- The (M) rule:
-  | modL   {A X ξ} : X = ⟨L, R, some (Sum.inl (~'⌊·A⌋(ξ : AnyFormula)))⟩ → isBasic X → PdlRule X
+  | modL   {A X ξ} : X = ⟨L, R, some (Sum.inl (~'⌊·A⌋(ξ : AnyFormula)))⟩ → PdlRule X
                          ( match ξ with
                          | .normal φ => ⟨(~φ) :: projection A L, projection A R, none⟩
                          | .loaded χ => ⟨projection A L, projection A R, some (Sum.inl (~'χ))⟩ )
-  | modR   {A X ξ} : X = ⟨L, R, some (Sum.inr (~'⌊·A⌋(ξ : AnyFormula)))⟩ → isBasic X → PdlRule X
+  | modR   {A X ξ} : X = ⟨L, R, some (Sum.inr (~'⌊·A⌋(ξ : AnyFormula)))⟩ → PdlRule X
                          ( match ξ with
                          | .normal φ => ⟨projection A L, (~φ) :: projection A R, none⟩
                          | .loaded χ => ⟨projection A L, projection A R, some (Sum.inr (~'χ))⟩ )
@@ -90,9 +90,9 @@ A closed tableau for X is either of:
 - a successful loaded repeat (MB condition six)
 -/
 inductive Tableau : History → Sequent → Type
-  | loc {X} (nrep : ¬ rep Hist X) (nbas : ¬ isBasic X) (lt : LocalTableau X)
+  | loc {X} (nrep : ¬ rep Hist X) (nbas : ¬ X.basic) (lt : LocalTableau X)
             (next : ∀ Y ∈ endNodesOf lt, Tableau (X :: Hist) Y) : Tableau Hist X
-  | pdl {X Y} (nrep : ¬ rep Hist X) (bas : isBasic X) (r : PdlRule X Y)
+  | pdl {X Y} (nrep : ¬ rep Hist X) (bas : X.basic) (r : PdlRule X Y)
               (next : Tableau (X :: Hist) Y) : Tableau Hist X
   | rep {X Hist} (lpr : LoadedPathRepeat Hist X) : Tableau Hist X
 

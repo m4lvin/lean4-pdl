@@ -181,9 +181,6 @@ theorem Sequent.without_loaded_in_side_isFree (LRO : Sequent) ξ side :
 
 /-! ## Local Tableaux -/
 
-/-- A set is *closed* iff it contains `⊥` or contains a formula and its negation. -/
-def closed : Finset Formula → Prop := fun X => ⊥ ∈ X ∨ ∃ f ∈ X, (~f) ∈ X
-
 /-- Local rules replace a given set of formulas by other sets, one for each branch.
 The list of resulting branches can be empty, representing that the given set is closed.
 In the Haskell prover this is done in "ruleFor" in the Logic.PDL.Prove.Tree module. -/
@@ -578,7 +575,7 @@ theorem localRuleTruth
 Note: in the article also `⊥` is basic, but not here because then
 `OneSidedLocalRule.bot` can be applied to it. -/
 @[simp]
-def isBasicForm : Formula → Bool
+def Formula.basic : Formula → Bool
   | ⊥ => False
   | ~⊥ => True
   | ·_ => True
@@ -587,17 +584,19 @@ def isBasicForm : Formula → Bool
   | ~⌈·_⌉_ => True
   | _ => False
 
-def isBasicSet : Finset Formula → Bool
-  | X => ∀ P ∈ X, isBasicForm P
+/-- A sequent is *closed* iff it contains `⊥` or contains a formula and its negation. -/
+def Sequent.closed (X : Sequent) : Prop :=
+  ⊥ ∈ X ∨ ∃ f ∈ X, (~f) ∈ X
 
-/-- A sequent is _basic_ iff it only contains basic formulas. -/
-def isBasic : Sequent → Prop
-  | (L, R, o) => ∀ f ∈ L ++ R ++ (o.map (Sum.elim negUnload negUnload)).toList, isBasicForm f
+/-- A sequent is *basic* iff it only contains basic formulas and is not closed. -/
+def Sequent.basic : Sequent → Prop
+  | (L, R, o) => (∀ f ∈ L ++ R ++ (o.map (Sum.elim negUnload negUnload)).toList, f.basic)
+               ∧ ¬ Sequent.closed (L, R, o)
 
 /-- Local tableau for `X`, maximal by definition. -/
 inductive LocalTableau : (X : Sequent) → Type
   | byLocalRule {X B} (_ : LocalRuleApp X B) (next : ∀ Y ∈ B, LocalTableau Y) : LocalTableau X
-  | sim {X} : isBasic X → LocalTableau X
+  | sim {X} : X.basic → LocalTableau X
 
 /-! ## Termination of LocalTableau -/
 
