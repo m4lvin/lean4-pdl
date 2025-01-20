@@ -255,40 +255,37 @@ theorem distance_helper (x y k : Nat) (h : k ≤ y) (h2 : x ≠ 0) : x + y + k <
     simp
     omega
 
-section
+inductive Walk : KripkeModel W → Program → W → W → Type
+| nil a : Walk M a w w
+| cons (h : relate M α w v) (p : Walk M α v u) : Walk M α w u
 
-variable (M : KripkeModel W)
+variable {M : KripkeModel W}
 
-inductive KripkeModel.Walk : Program → W → W → Type
-| nil : Walk a w w
-| cons (h : relate M α w v) (p : Walk α v u) : Walk α w u
-  deriving DecidableEq
+def Walk.flength : Walk M α w v → (W → W → ℕ) → ℕ
+| .nil α, _ => 0
+| .cons (w := w) (v := u) _ p, f => f w u + p.flength f
 
-def KripkeModel.Walk.length : M.Walk α w v → ℕ
-| .nil => 0
-| .cons _ p => p.length.succ
+attribute [refl] Walk.nil
 
-attribute [refl] KripkeModel.Walk.nil
-
-@[trans]
-def KripkeModel.Walk.append {M : KripkeModel W} {w v u : W} : M.Walk α w v → M.Walk α v u → M.Walk α w u
-  | .nil, q => q
+def Walk.append {M : KripkeModel W} {w v u : W} : Walk M α w v → Walk M α v u → Walk M α w u
+  | .nil α, q => q
   | .cons h p, q => .cons h (p.append q)
 
-noncomputable def KripkeModel.edist (α : Program) (w v : W) : ℕ∞ := ⨅ (p : M.Walk α w v), p.length
+noncomputable def fdist (M : KripkeModel W) (α : Program) (w v : W) (f : W → W → ℕ) : ℕ∞ :=
+  ⨅ (p : Walk M α w v), p.flength f
 
-def KripkeModel.Reachable (α : Program) (w v : W) : Prop := Nonempty (M.Walk α w v)
+def Reachable (M : KripkeModel W) (α : Program) (w v : W) : Prop := Nonempty (Walk M α w v)
 
 @[refl]
-protected theorem KripkeModel.Reachable.refl (w : W) : M.Reachable α w w := ⟨.nil⟩
+protected theorem Reachable.refl (w : W) : Reachable M α w w := ⟨.nil α⟩
 
 @[trans]
-protected theorem KripkeModel.Reachable.trans {w v u : W} (hwv : M.Reachable α w v) (hvu : M.Reachable α v u) :
-    M.Reachable α w u :=
+protected theorem Reachable.trans {w v u : W} (hwv : Reachable M α w v) (hvu : Reachable M α v u) :
+    Reachable M α w u :=
   hwv.elim fun pwv => hvu.elim fun pvu => ⟨pwv.append pvu⟩
 
-theorem KripkeModel.reachable_iff_star_relate (α : Program) (w v : W) :
-    M.Reachable α w v ↔ relate M (∗α) w v := by
+theorem reachable_iff_star_relate {M} {α : Program} {w v : W} :
+    Reachable M α w v ↔ relate M (∗α) w v := by
   constructor
   . rintro ⟨h⟩
     induction h with
@@ -297,44 +294,50 @@ theorem KripkeModel.reachable_iff_star_relate (α : Program) (w v : W) :
   . intro h
     induction h with
     | refl => rfl
-    | tail _ ha hr => exact Reachable.trans M hr ⟨Walk.cons ha Walk.nil⟩
+    | tail _ ha hr => exact Reachable.trans hr ⟨Walk.cons ha <| .nil α⟩
 
-end
+-- Unused
+theorem star_relate_of_Chain : List.Chain (relate M α) w (l ++ [v]) → relate M (∗α) w v :=
+  fun h => match l with
+  | .nil => .single <| List.Chain'.rel_head h
+  | .cons x xs => .head (b := x) (List.Chain'.rel_head h) <| star_relate_of_Chain (l := xs) <|
+      match h with | .cons _ h => h
 
--- QUESTION: Using `ℕ∞` here which is the same as `Option Nat` but can we avoid more internals?
--- Or should we use `PartENat` here?
--- NOTE: made noncomputable when updating to v4.16.0-rc2
 open Classical in
-noncomputable def distance {W} (M : KripkeModel W) (w v : W) (α : Program): ℕ∞ :=
+noncomputable def distance {W} (M : KripkeModel W) (α : Program) (w v : W) : ℕ∞ :=
   match α with
   | ·_ => ite (relate M α w v) 1 ⊤
   | ?'_ => ite (relate M α w v) 0 ⊤
-  | α ⋓ β => (distance M w v α) ⊓ (distance M w v β)
-  | ∗α => M.edist α w v
-  | α ;' β => ⨅ x, distance M w x α + distance M x v β
+  | α ⋓ β => (distance M α w v) ⊓ (distance M β w v)
+  | ∗α => fdist M α w v (ENat.toNat <| distance M α . .)
+  | α ;' β => ⨅ x, distance M α w x + distance M β x v
 
-open Classical in
-theorem distance_iff_relate : (distance M w v α) ≠ ⊤ ↔ relate M α w v :=
-  match α with
-  | ·_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.one_ne_top).symm
-  | ?'_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.zero_ne_top).symm
-  | _ ⋓ _ => (min_eq_top.not.trans not_and_or).trans <| or_congr (distance_iff_relate ..) (distance_iff_relate ..)
-  | ∗_ => ENat.iInf_coe_ne_top.trans <| M.reachable_iff_star_relate ..
-  | _ ;' _ => iInf_eq_top.not.trans <| not_forall.trans <| exists_congr fun _ =>
-    WithTop.add_ne_top.trans <| and_congr (distance_iff_relate ..) (distance_iff_relate ..)
+theorem distance_self_star : distance M (∗α) w w = 0 := ciInf_eq_bot_of_bot_mem ⟨.nil α, rfl⟩
 
 open Classical in
 noncomputable def distance_list {W} (M : KripkeModel W) (w v : W) : (δ : List Program) → ℕ∞
 | [] => ite (w = v) 0 ⊤
 
 -- similar to α;'β case in `distance`
-| (α::δ) => ⨅ x, distance M w x α + distance_list M x v δ
+| (α::δ) => ⨅ x, distance M α w x + distance_list M x v δ
+
+open Classical in
+theorem distance_iff_relate : (distance M α w v) ≠ ⊤ ↔ relate M α w v :=
+  match α with
+  | ·_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.one_ne_top).symm
+  | ?'_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.zero_ne_top).symm
+  | _ ⋓ _ => (min_eq_top.not.trans not_and_or).trans <| or_congr (distance_iff_relate ..) (distance_iff_relate ..)
+  | ∗_ => ENat.iInf_coe_ne_top.trans <| reachable_iff_star_relate ..
+  | _ ;' _ => iInf_eq_top.not.trans <| not_forall.trans <| exists_congr fun _ =>
+    WithTop.add_ne_top.trans <| and_congr (distance_iff_relate ..) (distance_iff_relate ..)
+
+theorem distance_list_nil_self : distance_list M w w [] = 0 := by simp only [distance_list, ↓reduceIte]
 
 open Classical in
 theorem eq_of_distance_nil (h : distance_list M w v [] ≠ ⊤) : w = v := (ite_ne_right_iff.mp h).1
 
 theorem distance_list_singleton :
-    distance_list M w v [α] = distance M w v α :=
+    distance_list M w v [α] = distance M α w v :=
   iInf_eq_of_forall_ge_of_forall_gt_exists_lt
     (fun x => by_cases
       (by simp_all only [self_le_add_right, implies_true] : x = v → _)
@@ -398,18 +401,33 @@ theorem distance_list_append (δ₁ δ₂ : List Program)
     fun _ _ => ⟨w, by simp_all only [List.nil_append, distance_list, ite_true, zero_add]⟩
 
   | (α::δ₁') =>
-    let IH u := distance_list_append (M := M) (w := u) (v := v) δ₁' δ₂
+    let IH u := distance_list_append δ₁' δ₂
     calc
       _ = _ := iInf_congr (congr_arg _ <| IH .)
-      _ = ⨅ u, ⨅ x, distance M w u α + distance_list M u x δ₁' + distance_list M x v δ₂ := by simp only [add_iInf, add_assoc]
+      _ = ⨅ u, ⨅ x, distance M α w u + distance_list M u x δ₁' + distance_list M x v δ₂ := by simp only [add_iInf, add_assoc]
       _ = _ := iInf_comm
-      _ = ⨅ x, (⨅ u, distance M w u α + distance_list M u x δ₁') + distance_list M x v δ₂ := by simp only [add_assoc, iInf_add]
+      _ = ⨅ x, (⨅ u, distance M α w u + distance_list M u x δ₁') + distance_list M x v δ₂ := by simp only [add_assoc, iInf_add]
       _ = _ := by simp only [distance_list]
 
-theorem distance_le_Hdistance (in_H : (X, δ) ∈ H α) : distance M w v α ≤ distance_list M w v δ :=
+theorem distance_star_le u : distance M (∗α) w v ≤ distance M α w u + distance M (∗α) u v :=
+  by_cases (p := distance M α w u + distance M (∗α) u v = ⊤) (. ▸ le_top) <|
+   (let ⟨hwu, huv⟩ := WithTop.add_ne_top.mp .
+    let ⟨p, h⟩ := iInf_exists_eq_of_ne_top huv
+    let rwu := distance_iff_relate.mp hwu
+    let p' : Walk M α w v := .cons rwu p
+    have : distance M (∗α) w v ≤ _ := iInf_le _ p'
+    calc
+    distance M (∗α) w v ≤ _ := iInf_le _ p'
+    _ = ↑((distance M α w u).toNat + p.flength _) := rfl
+    _ = _ := ENat.coe_add _ _
+    _ ≤ _ := add_le_add (ENat.coe_toNat_le_self _) <| le_of_eq h.symm
+   )
+
+open Classical in
+theorem distance_le_Hdistance (in_H : (X, δ) ∈ H α) :
+  (M, w) ⊨ Con X → distance M α w v ≤ distance_list M w v δ :=
   let me := (evaluate M w <| Con .)
-  let mr := (relateSeq M . w v)
-  match α with
+  fun ev => match α with
   | ·_ =>
     let ⟨_, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton in_H
     calc
@@ -418,22 +436,68 @@ theorem distance_le_Hdistance (in_H : (X, δ) ∈ H α) : distance M w v α ≤ 
 
   | ?'_ =>
     let ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton in_H
-    sorry
+    let d_eq_dl := ite_congr (propext ⟨And.left, (⟨., hX.subst (motive := me) ev⟩)⟩) (λ_ ↦ rfl) (λ_ => rfl)
+    le_of_eq <| hδ.symm.subst (motive := (_ = distance_list _ _ _ .)) d_eq_dl
 
-  | _⋓_ =>
-    sorry
+  | _⋓_ => (List.mem_union_iff.mp in_H).elim
+    (inf_le_left.trans <| distance_le_Hdistance . ev)
+    (inf_le_right.trans <| distance_le_Hdistance . ev)
 
   | _;'_ =>
-    sorry
+    let ⟨⟨_, δα⟩, in_Hα, h⟩ := List.exists_of_mem_flatMap in_H
+    if c : δα = []
+      then
+        let h := (if_pos c).subst h
+        let ⟨_, in_Hβ, h⟩ := List.exists_of_mem_flatMap h
+        let ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton <| h
+        let ev := hX.subst (motive := me) ev
+        let evα := conEval.mpr (List.forall_mem_union.mp <| conEval.mp ev).1
+        let evβ := conEval.mpr (List.forall_mem_union.mp <| conEval.mp ev).2
+        let dα := le_bot_iff.mp <| le_of_le_of_eq (distance_le_Hdistance in_Hα evα) (c ▸ if_pos rfl)
+        calc
+          _ ≤ _ := iInf_le _ w
+          _ = _ := dα ▸ zero_add _
+          _ ≤ _ := distance_le_Hdistance in_Hβ evβ
+          _ = _ := congr_arg _ hδ.symm
+      else
+        let h := (if_neg c).subst h
+        let ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton <| h
+        let evα := hX.subst (motive := me) ev
+        let IHα x := (distance_le_Hdistance (v := x) in_Hα evα)
+        calc
+          _ ≤ _ := le_iInf fun u => iInf_le _ u
+          _ ≤ _ := iInf_mono fun x => add_le_add (IHα x) <| le_of_eq distance_list_singleton.symm
+          _ = _ := (distance_list_append _ _).symm
+          _ = _ := congr_arg _ hδ.symm
 
   | ∗_ =>
-    sorry
+    (List.mem_union_iff.mp in_H).elim (
+      let ⟨_, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton .
+      dite (w = v)
+      (. ▸ calc
+        _ = _ := ENat.iInf_eq_zero.mpr ⟨.nil _, rfl⟩
+        -- _ = _ := sorry
+        _ ≤ _ := bot_le)
+      (fun c => calc
+        _ ≤ _ := le_top
+        _ = _ := Eq.symm <| hδ.symm.subst (motive := (distance_list _ _ _ . = _)) <| if_neg c)
+    ) (
+      let ⟨_, in_Hα, h⟩ := List.exists_of_mem_flatMap .
+      let ⟨_, h⟩ := List.mem_ite_nil_left.mp h
+      let ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton h
+      let hδ : δ = _ := hδ
+      let evα := hX.subst (motive := me) ev
+      calc
+        _ ≤ _ := le_iInf fun u => (distance_star_le u).trans <|
+          add_le_add (distance_le_Hdistance in_Hα evα) <| le_of_eq distance_list_singleton.symm
+        _ = _ := hδ ▸ (distance_list_append ..).symm
+    )
 
 theorem relate_existsH_distance (w_α_v : relate M α w v)
-    : ∃ Fδ ∈ H α,
-        evaluate M w (Con Fδ.1)
-      ∧ distance_list M w v Fδ.2 = distance M w v α  :=
-  have d_fin : distance M w v α ≠ ⊤ := distance_iff_relate.mpr w_α_v
+    : ∃ Xδ ∈ H α,
+        evaluate M w (Con Xδ.1)
+      ∧ distance_list M w v Xδ.2 = distance M α w v  :=
+  have d_fin : distance M α w v ≠ ⊤ := distance_iff_relate.mpr w_α_v
   match α with
   | ·_ => List.exists_mem_singleton.mpr ⟨id, distance_list_singleton⟩
 
@@ -441,7 +505,7 @@ theorem relate_existsH_distance (w_α_v : relate M α w v)
     ⟨wφ, by simp_all only [relate, true_and, distance_list, ite_true, distance, and_self]⟩
 
   | α⋓β =>
-    Or.elim (min_cases (distance M w v α) (distance M w v β))
+    Or.elim (min_cases (distance M α w v) (distance M β w v))
     (fun ⟨min_eq, d_le⟩ =>
       let ⟨Fδ, in_H, eval, dl_eq_d⟩:= relate_existsH_distance <| distance_iff_relate.mp <| ne_of_eq_of_ne min_eq.symm d_fin
       ⟨Fδ, List.mem_union_iff.mpr <| .inl in_H, eval, dl_eq_d.trans min_eq.symm⟩
@@ -459,8 +523,8 @@ theorem relate_existsH_distance (w_α_v : relate M α w v)
     if c : δα = []
       then
         let wu : w = u := eq_of_distance_nil <| ne_of_eq_of_ne (c ▸ dlα) dα_fin
-        let dα : distance M w u α = 0 := dlα.symm.trans <| c ▸ if_pos wu
-        let d : distance M w v (α;'β) = distance M w v β := min_u.trans (dα ▸ wu ▸ zero_add _)
+        let dα : distance M α w u = 0 := dlα.symm.trans <| c ▸ if_pos wu
+        let d : distance M (α;'β) w v = distance M β w v := min_u.trans (dα ▸ wu ▸ zero_add _)
         ⟨⟨Xα ∪ Xβ, δβ⟩, List.mem_flatMap_of_mem in_Hα (by aesop),
         conEval.mpr <| List.forall_mem_union.mpr ⟨conEval.mp evα, conEval.mp <| wu ▸ evβ⟩,
         d ▸ wu ▸ dlβ⟩
@@ -471,8 +535,8 @@ theorem relate_existsH_distance (w_α_v : relate M α w v)
           _ = _ := iInf_congr fun _ => congr_arg _ distance_list_singleton
           _ = _ := iInf_eq_of_forall_ge_of_forall_gt_exists_lt (
             fun _ => calc
-              _ ≤ _ := iInf_le (fun x => distance M w x α + distance M x v β) _
-              _ ≤ _ := add_le_add_right (distance_le_Hdistance in_Hα) _
+              _ ≤ _ := iInf_le (fun x => distance M α w x + distance M β x v) _
+              _ ≤ _ := add_le_add_right (distance_le_Hdistance in_Hα evα) _
             )
             fun _ => (⟨u, calc
               _ + _ = _ + _ := congr_arg (. + _) dlα
@@ -480,4 +544,27 @@ theorem relate_existsH_distance (w_α_v : relate M α w v)
             ⟩)
         ⟩
 
-  | ∗α => sorry
+  | ∗α =>
+  by_cases (p := w = v)
+    (fun wv => ⟨([],[]), List.mem_union_iff.mpr <| .inl <| List.mem_singleton_self _, id, calc
+      _ = 0 := wv ▸ distance_list_nil_self
+      _ = distance .. := wv ▸ distance_self_star.symm⟩)
+    (fun wv =>
+      let ⟨p, min_p⟩ := iInf_exists_eq_of_ne_top d_fin
+      match p with
+      | .nil α => absurd rfl wv
+      | .cons (v := x) rwx pxv =>
+        let ⟨⟨Xα, δα⟩, in_Hα, evα, dlα⟩ := relate_existsH_distance rwx
+        let dα_fin : distance_list M _ _ δα ≠ ⊤ := ne_of_eq_of_ne dlα <| distance_iff_relate.mpr rwx
+        -- by wlog
+        sorry
+    )
+    -- let ⟨p, min_p⟩ := iInf_exists_eq_of_ne_top d_fin
+    -- match p with
+    -- | .nil α => ⟨(∅,[]), List.mem_union_iff.mpr <| .inl <| List.mem_singleton_self _, id, calc
+    --   _ = 0 := distance_list_nil_self
+    --   _ = _ := distance_self_star.symm
+    --   ⟩
+    -- | .cons rwx pxv =>
+    --   let ⟨⟨Xα, δα⟩, in_Hα, evα, dlα⟩ := relate_existsH_distance rwx
+    --   sorry
