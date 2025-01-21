@@ -94,7 +94,7 @@ inductive Tableau : History → Sequent → Type
             (next : ∀ Y ∈ endNodesOf lt, Tableau (X :: Hist) Y) : Tableau Hist X
   | pdl {X Y} (nrep : ¬ rep Hist X) (bas : X.basic) (r : PdlRule X Y)
               (next : Tableau (X :: Hist) Y) : Tableau Hist X
-  | rep {X Hist} (lpr : LoadedPathRepeat Hist X) : Tableau Hist X
+  | lrep {X Hist} (lpr : LoadedPathRepeat Hist X) : Tableau Hist X
 
 inductive provable : Formula → Prop
   | byTableauL {φ : Formula} : Tableau .nil ⟨[~φ], [], none⟩ → provable φ

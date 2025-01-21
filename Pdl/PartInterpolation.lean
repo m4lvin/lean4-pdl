@@ -220,7 +220,7 @@ def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) 
 /-- The exits of a cluster: (C \ C+). -/
 -- IDEA: similar to endNodesOf?
 def exitsOf : (tab : Tableau Hist (L, R, some nlf)) → List (PathIn tab)
-| .rep lpr => [] -- a repeat is never an exit
+| .lrep lpr => [] -- a repeat is never an exit
 | .loc _ _ lt next => sorry -- TODO: can the exit be "inside" lt? Or can we filter `endNodesOf lt`?
 | .pdl _ _ _ next => sorry -- TODO: if (L-) then root of next is exit, also if (M) removes loading etc?
 

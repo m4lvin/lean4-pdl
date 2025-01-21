@@ -481,7 +481,7 @@ theorem PathIn.init_inductionOn t {motive : PathIn tab → Prop}
         apply @step (.pdl t) motive_t (.pdl s)
         rw [pdl_edge_pdl_iff_edge]
         exact t_edge_s
-  case rep =>
+  case lrep =>
     cases t -- path at rep must be nil
     exact root
 
@@ -623,7 +623,7 @@ theorem PathIn.prefix_toList_eq_toList_take {tab : Tableau Hist X}
     case pdl rest Y Z r tab IH tail =>
       simp [PathIn.toList, PathIn.prefix]
       induction k using Fin.inductionOn <;> simp_all [PathIn.toList, PathIn.prefix]
-  case rep =>
+  case lrep =>
     cases t
     simp_all [PathIn.toList, PathIn.prefix]
 
@@ -690,7 +690,7 @@ theorem PathIn.rewind_le (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) : t
         simp only [Fin.lastCases_castSucc, Function.comp_apply]
         apply PathIn.pdl_le_pdl_of_le
         apply IH
-  case rep =>
+  case lrep =>
     cases t
     simp only [rewind]
     exact Relation.ReflTransGen.refl
@@ -764,7 +764,7 @@ theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
           simp_all
         · simp only [List.cons_append, List.length_cons, List.length_append, List.length_singleton]
           exact Nat.lt_add_right 1 j_lt
-  case rep =>
+  case lrep =>
     cases t
     simp_all [PathIn.toHistory, PathIn.rewind]
 
@@ -774,12 +774,12 @@ theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
 The `succ` is there because the lpr values are indices of the history starting with 0, but
 `PathIn.rewind 0` would do nothing. -/
 def companionOf {X} {tab : Tableau .nil X} (s : PathIn tab) lpr
-  (_ : (tabAt s).2.2 = Tableau.rep lpr) : PathIn tab :=
+  (_ : (tabAt s).2.2 = .lrep lpr) : PathIn tab :=
     s.rewind ((tabAt_fst_length_eq_toHistory_length s ▸ lpr.val).succ)
 
 /-- `s ♥ t` means `s` is a `LoadedPathRepeat` and the `companionOf s` is `t`. -/
 def companion {X} {tab : Tableau .nil X} (s t : PathIn tab) : Prop :=
-  ∃ (lpr : _) (h : (tabAt s).2.2 = Tableau.rep lpr), t = companionOf s lpr h
+  ∃ (lpr : _) (h : (tabAt s).2.2 = .lrep lpr), t = companionOf s lpr h
 
 notation pa:arg " ♥ " pb:arg => companion pa pb
 
@@ -792,7 +792,7 @@ theorem nodeAt_companionOf_eq_toHistory_get_lpr_val (s : PathIn tab) lpr h :
   simp
 
 theorem nodeAt_companionOf_setEq {tab : Tableau .nil X} (s : PathIn tab) lpr
-    (h : (tabAt s).2.2 = Tableau.rep lpr)
+    (h : (tabAt s).2.2 = .lrep lpr)
     : (nodeAt (companionOf s lpr h)).setEqTo (nodeAt s) := by
   rcases lpr with ⟨k, k_same, _⟩
   unfold companionOf
@@ -1947,10 +1947,10 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
           rw [nodeAt_s_def]
           simp_all [Sequent.isFree, Sequent.isLoaded, Sequent.without]
 
-  case rep lpr =>
+  case lrep lpr =>
     -- Here we need to go to the companion.
     -- IDEA: make a recursive call, and for termination note that the path becomes shorter?
-    have h : (tabAt t).snd.snd = Tableau.rep (tabAt_t_def ▸ lpr) := by
+    have h : (tabAt t).snd.snd = .lrep (tabAt_t_def ▸ lpr) := by
       -- rw [tabAt_t_def] -- motive is not type correct ???
       sorry
     -- Let `u` be the companion.
@@ -2007,7 +2007,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
   case pos t_is_free =>
     -- "First assume that t is free.""
     cases t_def : (tabAt t).2.2 -- Now consider what the tableau does at `t`.
-    case rep lpr => -- Then t cannot be a LPR.
+    case lrep lpr => -- Then t cannot be a LPR.
       exfalso
       have := LoadedPathRepeat_rep_isLoaded lpr
       simp_all [Sequent.isFree, nodeAt]
