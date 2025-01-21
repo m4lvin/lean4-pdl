@@ -307,7 +307,10 @@ theorem edge_then_length_lt {s t : PathIn tab} (s_t : s ⋖_ t) : s.length < t.l
 def edge_natLT_relHom {Hist X tab} : RelHom (@edge Hist X tab) Nat.lt :=
   ⟨PathIn.length, edge_then_length_lt⟩
 
-/-- The ⋖_ relation in a tableau is well-founded. -/
+/-- The `⋖_` relation in a tableau is well-founded.
+Proven by lifting the relation to the length of histories.
+That length goes up with `⋖_`, so because `<` is wellfounded on `Nat`
+also `⋖_` is well-founded via `RelHomClass.wellFounded`. -/
 theorem edge.wellFounded : WellFounded (@edge Hist X tab) := by
   apply @RelHomClass.wellFounded _ Nat (@edge Hist X tab) Nat.lt _ _ _ edge_natLT_relHom
   have := instWellFoundedLTNat
@@ -674,9 +677,10 @@ theorem allPaths_loc_cases (s : PathIn _) : s ∈ allPaths (.loc nrep nbas lt ne
       s = PathIn.nil
     ∨ ∃ (Y : Sequent) (Y_in : Y ∈ endNodesOf lt) (t : allPaths (next Y Y_in)),
         s = PathIn.loc Y_in t := by
-  sorry
+  unfold allPaths
+  aesop
 
-theorem PathIn.elem_allPaths {Hist : History} {X : Sequent} {tab : Tableau Hist X} (p : PathIn tab) :
+theorem PathIn.elem_allPaths {Hist X} {tab : Tableau Hist X} (p : PathIn tab) :
     p ∈ allPaths tab := by
   induction tab
   case loc Hist X lt nexts IH =>
@@ -696,6 +700,21 @@ theorem PathIn.elem_allPaths {Hist : History} {X : Sequent} {tab : Tableau Hist 
     cases p
     simp_all [allPaths]
 
--- TODO: This shows that a Tableau is finite!? Use it for well-foundedness?
+/-- A Tableau is finite.
+Should be useful to get *converse* well-foundedness of `edge` -/
 instance PathIn.instFintype {tab : Tableau Hist X} : Fintype (PathIn tab) := by
   refine ⟨allPaths tab, PathIn.elem_allPaths⟩
+
+-- mathlib?
+theorem fintype_wellfounded_of_AntiSymmTransGen [Fintype α]
+    (r : α → α → Prop) (h : IsAntisymm α (Relation.TransGen r))
+    : WellFounded r := by
+  sorry
+
+/-- The `⋖_` relation in a tableau is *converse* well-founded. -/
+-- TODO: Better way to say this? Use `Function.swap` maybe?
+theorem edge.swap_wellFounded :
+  WellFounded (fun p q => @edge Hist X tab q p) := by
+  apply fintype_wellfounded_of_AntiSymmTransGen
+  -- IDEA: if the TransGen would have a loop that must be a repeat not allowed by `nrep`?
+  sorry
