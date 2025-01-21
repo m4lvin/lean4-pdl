@@ -15,6 +15,8 @@ import Pdl.UnfoldDia
 import Pdl.LocalTableau
 import Pdl.Tableau
 import Pdl.TableauExamples
+import Pdl.TableauPath
+import Pdl.Vector
 import Pdl.Soundness
 import Pdl.Game
 import Pdl.Completeness
