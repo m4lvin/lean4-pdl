@@ -4,17 +4,6 @@ import Pdl.UnfoldDia
 
 -- Alternative to `Paths.lean` for the proof of `correctRightIP`.
 
--- Currently unsure whether this is easier than doing world-paths.
--- Due to the general W type and M.Rel the distance may not be computable.
--- On the other hand, we *only need this for a proof* of correctness
--- of interpolants, not to define/compute the interpolant themselves.
--- So it may be fine to have noncomputable defs here.
--- Still leaves the map/enum problem though due to generality of W.
-
--- NOTE: it may be nice in general to have a Decidable evaluate.
-
--- TODO move parts from here to `Semantics.lean`?
-
 inductive Walk : KripkeModel W → Program → W → W → Type
 | nil a : Walk M a w w
 | cons (h : relate M α w x) (p : Walk M α x v) (wx : w ≠ x) : Walk M α w v
