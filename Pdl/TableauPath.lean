@@ -706,27 +706,16 @@ instance PathIn.instFintype {tab : Tableau Hist X} : Fintype (PathIn tab) := by
   refine ⟨allPaths tab, PathIn.elem_allPaths⟩
 
 -- mathlib?
-theorem fintype_wellfounded_of_AntiSymmTransGen [Fintype α]
-    (r : α → α → Prop) (i : IsIrrefl α (Relation.TransGen r)) (h : IsAntisymm α (Relation.TransGen r))
-    : WellFounded r := by
-    generalize p : Fintype.card α = n
-    induction n generalizing α r h i with
-    | zero => apply Fintype.card_eq_zero_iff.mp at p; apply wellFounded_of_isEmpty
-    | succ m ih =>
-      constructor
-      intro a
-      apply acc_transGen_iff.mp
-      have : DecidablePred fun x => Relation.TransGen r x a := sorry
-      have hyp : Fintype.card { x // Relation.TransGen r x a} ≤ Fintype.card α := by apply Fintype.card_subtype_le
-      sorry
-      --cases hyp
-      --apply Fintype.subtype_card.mpr at hh
+theorem Finite.wellfounded_of_irrefl_TC {α : Type} [Finite α] (r : α → α → Prop)
+    (h : IsIrrefl α (Relation.TransGen r)) : WellFounded r :=
+  let wf := Finite.wellFounded_of_trans_of_irrefl (Relation.TransGen r)
+  ⟨fun a => acc_transGen_iff.mp <| wf.apply a⟩
 
 
 /-- The `⋖_` relation in a tableau is *converse* well-founded. -/
 -- TODO: Better way to say this? Use `Function.swap` maybe?
 theorem edge.swap_wellFounded :
   WellFounded (fun p q => @edge Hist X tab q p) := by
-  apply fintype_wellfounded_of_AntiSymmTransGen
+  apply Finite.wellfounded_of_irrefl_TC
   -- IDEA: if the TransGen would have a loop that must be a repeat not allowed by `nrep`?
   sorry
