@@ -1,14 +1,6 @@
-import Mathlib.Data.FinEnum
-import Mathlib.Data.Finset.Sups
-import Mathlib.Data.List.Basic
-import Mathlib.Data.List.ReduceOption
-import Mathlib.Data.Nat.PartENat
-import Mathlib.Tactic.Linarith
-import Mathlib.Algebra.Order.Group.CompleteLattice
-
+import Mathlib.Data.ENat.Lattice
 
 import Pdl.UnfoldDia
-import Pdl.AxiomBlame
 
 -- Alternative to `Paths.lean` for the proof of `correctRightIP`.
 
@@ -27,7 +19,6 @@ import Pdl.AxiomBlame
 Moreover, to get computable composition and transitive closure we
 want the type of worlds to be finite and enumerable.
 In fact, to avoid choice, we want a list of all worlds.
--- TODO: weaken List to Fintype, should still be possible to define distance?
 -/
 structure DecidableKripkeModel (W : Type) extends KripkeModel W where
   [finW : Fintype W]
