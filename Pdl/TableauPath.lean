@@ -707,9 +707,21 @@ instance PathIn.instFintype {tab : Tableau Hist X} : Fintype (PathIn tab) := by
 
 -- mathlib?
 theorem fintype_wellfounded_of_AntiSymmTransGen [Fintype α]
-    (r : α → α → Prop) (h : IsAntisymm α (Relation.TransGen r))
+    (r : α → α → Prop) (i : IsIrrefl α (Relation.TransGen r)) (h : IsAntisymm α (Relation.TransGen r))
     : WellFounded r := by
-  sorry
+    generalize p : Fintype.card α = n
+    induction n generalizing α r h i with
+    | zero => apply Fintype.card_eq_zero_iff.mp at p; apply wellFounded_of_isEmpty
+    | succ m ih =>
+      constructor
+      intro a
+      apply acc_transGen_iff.mp
+      have : DecidablePred fun x => Relation.TransGen r x a := sorry
+      have hyp : Fintype.card { x // Relation.TransGen r x a} ≤ Fintype.card α := by apply Fintype.card_subtype_le
+      sorry
+      --cases hyp
+      --apply Fintype.subtype_card.mpr at hh
+
 
 /-- The `⋖_` relation in a tableau is *converse* well-founded. -/
 -- TODO: Better way to say this? Use `Function.swap` maybe?
