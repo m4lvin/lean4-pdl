@@ -1,24 +1,20 @@
-
 import Pdl.Semantics
 
-/-! ## Semantic Quotients -/
+/-! # Semantic Quotients -/
 
-#print semEquiv
+/-! # Defining the Quotient -/
 
 def semEquiv.Equivalence : Equivalence semEquiv :=
-  ⟨semEquiv.refl
-  , by convert semEquiv.symm
-  , by convert semEquiv.trans ⟩
-  -- (why) are the "by convert" needed here?
-  -- not for refl, seems it's an autoimplicit issue
-  -- probably because `Equivalence` is in core, whereas `Symmetric`, and `Transitive` are in Mathlib.
+  ⟨ semEquiv.refl
+  , fun xy => semEquiv.symm xy
+  , fun xy yz => semEquiv.trans xy yz ⟩
 
 instance Formula.instSetoid : Setoid Formula := ⟨semEquiv, semEquiv.Equivalence⟩
 
 -- How should I name this?
 abbrev SemProp := Quotient Formula.instSetoid
 
--- Now, can we lift connectives such as ~ and ⋀ to the quotient?
+/-! ## Lifting connectives to the quotient -/
 
 lemma Formula.neg_congr {φ ψ : Formula} (h : φ ≈ ψ) : Formula.neg φ ≈ Formula.neg ψ :=
   by simp [HasEquiv.Equiv, Setoid.r, semEquiv] at *
@@ -56,10 +52,9 @@ theorem neg_eq {φ ψ : Formula} (h : φ ≈ ψ) : SemProp.neg (Quotient.mk Form
   by apply Quotient.sound; apply Formula.neg_congr; exact h -- why does this work without using neg?
 
 theorem neg_neg_eq' (φ : Formula) : SemProp.neg (SemProp.neg <| Quotient.mk' φ) = Quotient.mk' φ :=
-  by sorry
-
-
-#check HEq
+  by apply Quotient.sound
+     intro W M w
+     simp [evaluate]
 
 theorem trans_calc {P Q R : Prop} (hpq : P ↔ Q) (hqr : Q ↔ R) : P ↔ R :=
   by calc
