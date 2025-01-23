@@ -125,7 +125,7 @@ theorem append_length {p : PathIn tab} q : (p.append q).length = p.length + q.le
 
 /-! ## Edge Relation -/
 
-/-- Relation `s ⋖_ t` says `t` is one more step than `s`. Two cases, both defined via `append`. -/
+/-- Relation `s ⋖_ t` says `t` is a child of `s`. Two cases, both defined via `append`. -/
 def edge (s t : PathIn tab) : Prop :=
   ( ∃ Hist X nrep nbas lt next Y,
     ∃ (Y_in : Y ∈ endNodesOf lt)
@@ -711,11 +711,27 @@ theorem Finite.wellfounded_of_irrefl_TC {α : Type} [Finite α] (r : α → α �
   let wf := Finite.wellFounded_of_trans_of_irrefl (Relation.TransGen r)
   ⟨fun a => acc_transGen_iff.mp <| wf.apply a⟩
 
-
-/-- The `⋖_` relation in a tableau is *converse* well-founded. -/
--- TODO: Better way to say this? Use `Function.swap` maybe?
-theorem edge.swap_wellFounded :
-  WellFounded (fun p q => @edge Hist X tab q p) := by
-  apply Finite.wellfounded_of_irrefl_TC
-  -- IDEA: if the TransGen would have a loop that must be a repeat not allowed by `nrep`?
+lemma edge_TransGen_then_mem_History :
+    Relation.TransGen edge p q → nodeAt q ∈ (tabAt p).1 := by
+  -- IDEA: induction on the path from p to q, i.e. on the TransGen?
   sorry
+
+lemma PathIn.no_mem_history_setEqTo_self (p : PathIn tab) :
+    ¬ ∃ X ∈ (tabAt p).1, X.setEqTo (nodeAt p) := by
+  -- IDEA: should be forbidden by `nrep`?
+  -- (and if we don't have `nrep` then we must have an `lrep` where the tableau ends?)
+  sorry
+
+instance flipEdge.instIsIrrefl : IsIrrefl (PathIn tab) (Relation.TransGen (flip edge)) := by
+  constructor
+  intro p p_p
+  rw [Relation.transGen_swap] at p_p
+  have p_in_Hist_p := edge_TransGen_then_mem_History p_p
+  absurd PathIn.no_mem_history_setEqTo_self p
+  use nodeAt p
+  simpa
+
+/-- The `flip edge` relation in a tableau is well-founded. -/
+theorem flipEdge.wellFounded :
+  WellFounded (flip (@edge _ _ tab)) := by
+  apply Finite.wellfounded_of_irrefl_TC _ flipEdge.instIsIrrefl

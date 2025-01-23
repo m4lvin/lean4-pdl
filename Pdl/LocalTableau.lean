@@ -36,6 +36,11 @@ Hint: use `List.toFinset.ext_iff` with this. -/
 def Sequent.setEqTo : Sequent → Sequent → Prop
 | (L,R,O), (L',R',O') => L.toFinset = L'.toFinset ∧ R.toFinset = R'.toFinset ∧ O = O'
 
+@[simp]
+lemma Sequent.setEqTo_refl (p: Sequent) : p.setEqTo p := by
+  rcases p with ⟨L,R,O⟩
+  simp [Sequent.setEqTo]
+
 def Sequent.toFinset : Sequent → Finset Formula
 | (L,R,O) => (L.toFinset ∪ R.toFinset) ∪ (O.map (Sum.elim negUnload negUnload)).toFinset
 
