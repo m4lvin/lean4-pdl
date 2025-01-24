@@ -158,3 +158,75 @@ example : Tableau [] ([r ⋀ (~(⌈a⌉p)), r ↣ ⌈a⌉(p ⋀ q)], [], none) :
       simp (config := {decide := true}) at *
       subst Y_in
       exact subTabForEx2
+
+/-- Example 4.7 involving a free repeat and thus open. -/
+example : ¬ provable ((⌈∗a⌉~⌈a⌉p) ↣ p) :=
+  by
+  sorry
+
+/-- Example 4.8 involving a loaded-path repeat but still open. -/
+example : ¬ provable ((⌈a⌉⌈∗a⌉p) ↣ (⌈a⌉⌈∗a⌉q)) :=
+  by
+  sorry
+
+/-- Example 4.18 involving a loaded-path repeat -/
+example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], none) :=
+  by
+  apply Tableau.loc
+  · simp [rep]
+  · simp [Sequent.basic, Sequent.closed]
+  case lt =>
+    -- (□)
+    apply LocalTableau.byLocalRule
+      ⟨_, _, _, (LocalRule.oneSidedL (OneSidedLocalRule.box (∗a) q (by decide))), by simp⟩
+    all_goals (try simp; try rfl)
+    intro Y Y_in
+    simp [unfoldBox, allTP, testsOfProgram, Xset, F, P, a] at *
+    subst Y_in
+    apply LocalTableau.sim
+    simp [Sequent.basic, Sequent.closed]
+  · intro Y Y_in
+    simp [unfoldBox, allTP, testsOfProgram, Xset, F, P, a] at Y_in
+    subst Y_in
+    have principal : (~⌈a⌉⌈∗(a)⋓(?'p)⌉q) ∈ [~⌈a⌉⌈∗(a)⋓(?'p)⌉q, q, ⌈a⌉⌈∗a⌉q] :=
+      by simp
+    -- (L+)
+    apply Tableau.pdl (by simp [rep, Sequent.setEqTo]; decide) (by simp [Sequent.basic, Sequent.closed])
+      (@PdlRule.loadL _ [a] _ _ _ principal)
+    clear principal
+    simp
+    -- (M)
+    apply Tableau.pdl (by simp [rep, Sequent.setEqTo]) (by simp [Sequent.basic, Sequent.closed])
+      (PdlRule.modL rfl)
+    simp [projection]
+    apply Tableau.loc
+    · simp [rep, Sequent.setEqTo]
+    · simp [Sequent.basic, Sequent.closed]
+    case lt =>
+      -- (□)
+      apply LocalTableau.byLocalRule
+        ⟨_, _, _, (LocalRule.oneSidedL (OneSidedLocalRule.box (∗a) q (by decide))), by simp⟩
+      all_goals (try simp; try rfl)
+      intro Y Y_in
+      simp [unfoldBox, allTP, testsOfProgram, Xset, F, P, a] at *
+      subst Y_in
+      -- (◇)
+      apply LocalTableau.byLocalRule
+        ⟨_, _, _, (LocalRule.loadedL _ (LoadRule.dia' (by simp [Program.isAtomic] : ¬ (∗((·atA)⋓(?'p))).isAtomic))), by simp; rfl⟩
+      all_goals (try simp; try rfl)
+      intro Y Y_in
+      simp [unfoldDiamondLoaded', YsetLoad', H, splitLast] at *
+      -- branching!
+      -- cases Y_in -- ERROR: type mismatch when assigning motive?!
+      sorry
+      -- left branch:
+      -- close with q and ~q
+      -- ...
+      -- right branch:
+      -- lpr
+      -- ...
+    case next =>
+      intro Y Y_in
+      simp [unfoldBox, allTP, testsOfProgram, unfoldDiamondLoaded', H] at *
+      -- Show that endNodesOf is empty.
+      sorry

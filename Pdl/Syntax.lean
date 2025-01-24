@@ -59,12 +59,13 @@ def Program.isAtomic : Program → Prop
 | ·_ => true
 | _ => false
 
-instance : DecidablePred Program.isAtomic := by
-  intro α
-  cases α <;> simp [Program.isAtomic] <;>
-  all_goals
-    try exact instDecidableTrue
-    try exact instDecidableFalse
+-- Note: to make `decide` work we use `decidable_of_decidable_of_iff`.
+instance : DecidablePred Program.isAtomic
+| ·_ => decidable_of_decidable_of_iff (by simp [Program.isAtomic] : True ↔ _)
+| _ ;' _ => decidable_of_decidable_of_iff (by simp [Program.isAtomic] : False ↔ _)
+| a ⋓ _ => decidable_of_decidable_of_iff (by simp [Program.isAtomic] : False ↔ _)
+| ∗_ => decidable_of_decidable_of_iff (by simp [Program.isAtomic] : False ↔ _)
+| ?'_ => decidable_of_decidable_of_iff (by simp [Program.isAtomic] : False ↔ _)
 
 theorem Program.isAtomic_iff : α.isAtomic ↔ ∃ a, α = (·a : Program) := by
   cases α <;> simp_all [isAtomic]
