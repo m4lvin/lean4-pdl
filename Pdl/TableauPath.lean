@@ -680,29 +680,15 @@ theorem Finite.wellfounded_of_irrefl_TC {α : Type} [Finite α] (r : α → α �
   ⟨fun a => acc_transGen_iff.mp <| wf.apply a⟩
 
 lemma nodeAt_mem_History_of_edge : p ⋖_ q → nodeAt p ∈ (tabAt q).1 := by
-  intro h
-  rcases h with ( ⟨Hist, XX, nrep, nbas, lt, next, Y, Y_in, tab_def, q_def⟩
-                | ⟨Hist, XX, nrep, bas, Y, r, next, tab_def, q_def⟩ )
-  · simp [nodeAt]
-    induction p
-    simp at tab_def
-    repeat aesop
-  · induction p
-    simp at tab_def
-    repeat aesop
+  rintro ( ⟨Hist, XX, nrep, nbas, lt, next, Y, Y_in, tab_def, q_def⟩
+         | ⟨Hist, XX, nrep, bas, Y, r, next, tab_def, q_def⟩ )
+  <;> induction p <;> (simp at tab_def; aesop)
 
 lemma mem_History_of_edge : p ⋖_ q → x ∈ (tabAt p).1 → x ∈ (tabAt q).1 := by
   intro hedge hmemp
   rcases hedge with ( ⟨Hist, XX, nrep, nbas, lt, next, Y, Y_in, tab_def, q_def⟩
                     | ⟨Hist, XX, nrep, bas, Y, r, next, tab_def, q_def⟩ )
-  · induction p
-    simp [PathIn.append] at q_def
-    simp at tab_def
-    repeat aesop
-  · induction p
-    simp [PathIn.append] at q_def
-    simp at tab_def
-    repeat aesop
+  <;> induction p <;> (simp at tab_def; aesop)
 
 lemma mem_History_append : X ∈ (tabAt p).1 → X ∈ (tabAt (p.append q)).1 := by
   intro h
@@ -716,12 +702,13 @@ lemma edge_TransGen_then_mem_History :
   | single h => apply (nodeAt_mem_History_of_edge h)
   | tail t h ih =>
     rcases h with ⟨_, _, _, _, _, _, _, _, _, p_def⟩ | ⟨_, _, _, _, _, _, _, _, p_def⟩
-    <;> rw [p_def] <;> apply (mem_History_append ih)
+    <;> subst p_def <;> apply (mem_History_append ih)
 
-lemma PathIn.no_mem_history_setEqTo_self (p : PathIn tab) :
-    ¬ ∃ X ∈ (tabAt p).1, X.setEqTo (nodeAt p) := by
+lemma PathIn.no_mem_history_setEqTo_self {tab : Tableau Hist X} (p : PathIn tab) :
+    ¬ ∃ Y ∈ (tabAt p).1, Y.setEqTo (nodeAt p) := by
   -- IDEA: should be forbidden by `nrep`?
   -- (and if we don't have `nrep` then we must have an `lrep` where the tableau ends?)
+  -- Must `Hist` here be `[]` as for many things in Soundness.lean?
   sorry
 
 instance flipEdge.instIsIrrefl : IsIrrefl (PathIn tab) (Relation.TransGen (flip edge)) := by
