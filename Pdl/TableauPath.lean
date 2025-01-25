@@ -412,38 +412,6 @@ theorem PathIn.edge_leaf_inductionOn {Hist X} {tab : Tableau Hist X}
   -- try `induction tab` as for init_inductionOn
 -/
 
-/-! ## Alternative definitions of `edge` -/
-
-/-- UNUSED definition of `edge` *recursively* by "going to the end" of the paths.
-Note there are no mixed .loc and .pdl cases. -/
-def edgeRec : PathIn tab → PathIn tab → Prop
-| .nil, .nil => false
-| .nil, .loc Y_in tail => tail = .nil
-| .nil, .pdl tail => tail = .nil
-| .pdl _ , .nil => false
-| .pdl tail, .pdl tail2 => edgeRec tail tail2
-| .loc _ _, .nil => false
-| @PathIn.loc _ _ _ _ _ _ Y1 _ tail1,
-  @PathIn.loc _ _ _ _ _ _ Y2 _ tail2 =>
-  if h : Y1 = Y2 then edgeRec tail1 (h ▸ tail2) else false
-
-/-! ## Path Properties (UNUSED?) -/
-
-def PathIn.isLoaded (t : PathIn tab) : Prop :=
-match t with
-  | .nil => t.head.isLoaded
-  | .pdl tail => t.head.isLoaded ∧ tail.isLoaded
-  | .loc _ tail => t.head.isLoaded ∧ tail.isLoaded
-
-/-- A path is critical iff the (M) rule is used on it. -/
-def PathIn.isCritical (t : PathIn tab) : Prop :=
-match t with
-  | .nil => False
-  | @PathIn.pdl _ _ _ _ _ (.modL _) _ _ => True
-  | @PathIn.pdl _ _ _ _ _ (.modR _) _ _ => True
-  | .pdl tail => tail.isCritical
-  | .loc _ tail => tail.isCritical
-
 /-! ## From Path to History -/
 
 /-- Convert a path to a History.
