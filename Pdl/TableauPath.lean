@@ -711,10 +711,44 @@ theorem Finite.wellfounded_of_irrefl_TC {α : Type} [Finite α] (r : α → α �
   let wf := Finite.wellFounded_of_trans_of_irrefl (Relation.TransGen r)
   ⟨fun a => acc_transGen_iff.mp <| wf.apply a⟩
 
+lemma nodeAt_mem_History_of_edge : p ⋖_ q → nodeAt p ∈ (tabAt q).1 := by
+  intro h
+  rcases h with ( ⟨Hist, XX, nrep, nbas, lt, next, Y, Y_in, tab_def, q_def⟩
+                | ⟨Hist, XX, nrep, bas, Y, r, next, tab_def, q_def⟩ )
+  · simp [nodeAt]
+    induction p
+    simp at tab_def
+    repeat aesop
+  · induction p
+    simp at tab_def
+    repeat aesop
+
+lemma mem_History_of_edge : p ⋖_ q → x ∈ (tabAt p).1 → x ∈ (tabAt q).1 := by
+  intro hedge hmemp
+  rcases hedge with ( ⟨Hist, XX, nrep, nbas, lt, next, Y, Y_in, tab_def, q_def⟩
+                    | ⟨Hist, XX, nrep, bas, Y, r, next, tab_def, q_def⟩ )
+  · induction p
+    simp [PathIn.append] at q_def
+    simp at tab_def
+    repeat aesop
+  · induction p
+    simp [PathIn.append] at q_def
+    simp at tab_def
+    repeat aesop
+
+lemma mem_History_append : X ∈ (tabAt p).1 → X ∈ (tabAt (p.append q)).1 := by
+  intro h
+  induction q using PathIn.init_inductionOn <;> simp_all
+  apply mem_History_of_edge <;> assumption
+
 lemma edge_TransGen_then_mem_History :
-    Relation.TransGen edge p q → nodeAt q ∈ (tabAt p).1 := by
-  -- IDEA: induction on the path from p to q, i.e. on the TransGen?
-  sorry
+    Relation.TransGen edge p q → nodeAt p ∈ (tabAt q).1 := by
+  intro h
+  induction h with
+  | single h => apply (nodeAt_mem_History_of_edge h)
+  | tail t h ih =>
+    rcases h with ⟨_, _, _, _, _, _, _, _, _, p_def⟩ | ⟨_, _, _, _, _, _, _, _, p_def⟩
+    <;> rw [p_def] <;> apply (mem_History_append ih)
 
 lemma PathIn.no_mem_history_setEqTo_self (p : PathIn tab) :
     ¬ ∃ X ∈ (tabAt p).1, X.setEqTo (nodeAt p) := by
