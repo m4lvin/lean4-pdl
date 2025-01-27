@@ -169,6 +169,11 @@ example : ¬ provable ((⌈a⌉⌈∗a⌉p) ↣ (⌈a⌉⌈∗a⌉q)) :=
   by
   sorry
 
+-- Should this be with @[simp] in `LocalTableau.lean`?
+lemma endNodesOf_cast_helper {h : X = Y} (ltX : LocalTableau X) :
+    endNodesOf (h ▸ ltX) = endNodesOf ltX := by
+  subst_eqs; simp
+
 /-- Example 4.18 involving a loaded-path repeat -/
 example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], none) :=
   by
@@ -215,11 +220,10 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
         ⟨_, _, _, (LocalRule.loadedL _ (LoadRule.dia' (by simp [Program.isAtomic] : ¬ (∗((·atA)⋓(?'p))).isAtomic))), by simp; rfl⟩
       all_goals (try simp; try rfl)
       intro Y Y_in
-      simp [unfoldDiamondLoaded', YsetLoad', H, splitLast] at *
+      by_cases Y = ([q, ⌈·atA⌉⌈∗·atA⌉q, ~q], [], none)
       -- branching!
       -- cases Y_in -- type mismatch when assigning motive, so work around that.
-      by_cases Y = ([q, ⌈·atA⌉⌈∗·atA⌉q, ~q], [], none)
-        <;> simp_all; subst_eqs; try clear Y_in
+        <;> simp_all [unfoldDiamondLoaded', YsetLoad', H, splitLast]; subst_eqs; try clear Y_in
       · apply LocalTableau.byLocalRule -- left branch: close with q and ~q
           ⟨ [q, ~(q)], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.not q)), _ ⟩
         all_goals (try simp; try rfl)
@@ -234,8 +238,18 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
         rcases Y_in with ⟨l, ⟨a, ⟨Z, Z_in, def_a⟩ , def_l⟩, Y_in_l⟩
         subst def_a
         subst def_l
-        -- hard / annoying casting going on here?
-        sorry
+        -- It seems annoying to deal with all the casting here.
+        simp [endNodesOf_cast_helper] at Y_in_l
+        rcases Y_in_l with ⟨l, ⟨a, ⟨Z, olf, Zolf_in, def_a⟩ , def_l⟩ , Y_in_l⟩
+        subst def_a
+        subst def_l
+        simp [unfoldDiamondLoaded', H, YsetLoad', splitLast] at Zolf_in
+        cases Zolf_in
+        · aesop
+        cases olf
+        · simp_all [Olf.change, Option.insHasSdiff]
+        · simp_all (config := {decide := true}) [Olf.change, Option.insHasSdiff]
+          aesop
       clear Y_in
       subst this
       -- Note: goal here shows the history in which we now find a loaded-path repeat.
