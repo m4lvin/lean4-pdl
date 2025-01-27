@@ -217,16 +217,43 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
       intro Y Y_in
       simp [unfoldDiamondLoaded', YsetLoad', H, splitLast] at *
       -- branching!
-      -- cases Y_in -- ERROR: type mismatch when assigning motive?!
-      sorry
-      -- left branch:
-      -- close with q and ~q
-      -- ...
-      -- right branch:
-      -- lpr
-      -- ...
+      -- cases Y_in -- type mismatch when assigning motive, so work around that.
+      by_cases Y = ([q, ⌈·atA⌉⌈∗·atA⌉q, ~q], [], none)
+        <;> simp_all; subst_eqs; try clear Y_in
+      · apply LocalTableau.byLocalRule -- left branch: close with q and ~q
+          ⟨ [q, ~(q)], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.not q)), _ ⟩
+        all_goals (try simp; try rfl)
+        · intro _ _; simp_all
+        · decide
+      · apply LocalTableau.sim -- right branch: simple
+        simp [Sequent.basic, Sequent.closed]
     case next =>
       intro Y Y_in
-      simp [unfoldBox, allTP, testsOfProgram, unfoldDiamondLoaded', H] at *
-      -- Show that endNodesOf is empty.
-      sorry
+      have : Y = ([q, ⌈a⌉⌈∗a⌉q], [], some (Sum.inl (~'⌊⌊[a]⌋⌋⌊∗a⋓(?'p)⌋AnyFormula.normal q)))  := by
+        simp [endNodesOf] at *
+        rcases Y_in with ⟨l, ⟨a, ⟨Z, Z_in, def_a⟩ , def_l⟩, Y_in_l⟩
+        subst def_a
+        subst def_l
+        -- hard / annoying casting going on here?
+        sorry
+      clear Y_in
+      subst this
+      -- Note: goal here shows the history in which we now find a loaded-path repeat.
+      apply Tableau.lrep
+      unfold LoadedPathRepeat
+      simp_all
+      use 1 -- go back two pdl steps, one of which makes two local steps
+      simp_all [Sequent.setEqTo, a]
+      constructor
+      · rfl
+      · intro m m_lt
+        cases m using Fin.cases
+        · simp_all [Sequent.isLoaded]
+        case succ m =>
+          cases m using Fin.cases
+          · simp_all [Sequent.isLoaded]
+          case succ m =>
+            simp_all
+            have := Fin.one_lt_succ_succ m
+            simp_all
+            omega
