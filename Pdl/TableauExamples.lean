@@ -197,7 +197,7 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
       by simp
     -- (L+)
     apply Tableau.pdl (by simp [rep, Sequent.setEqTo]; decide) (by simp [Sequent.basic, Sequent.closed])
-      (@PdlRule.loadL _ [a] _ _ _ principal)
+      (PdlRule.loadL (δ := [a]) principal)
     clear principal
     simp
     -- (M)
@@ -248,7 +248,7 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
         · aesop
         cases olf
         · simp_all [Olf.change, Option.insHasSdiff]
-        · simp_all (config := {decide := true}) [Olf.change, Option.insHasSdiff]
+        · simp_all (decide := true) [Olf.change, Option.insHasSdiff]
           aesop
       clear Y_in
       subst this
