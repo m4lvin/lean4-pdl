@@ -704,11 +704,12 @@ lemma edge_TransGen_then_mem_History :
     rcases h with ⟨_, _, _, _, _, _, _, _, _, p_def⟩ | ⟨_, _, _, _, _, _, _, _, p_def⟩
     <;> subst p_def <;> apply (mem_History_append ih)
 
-lemma PathIn.no_mem_history_setEqTo_self {tab : Tableau Hist X} (p : PathIn tab) :
-    ¬ ∃ Y ∈ (tabAt p).1, Y.setEqTo (nodeAt p) := by
+lemma PathIn.mem_history_setEqTo_then_lrep {tab : Tableau Hist X} (p : PathIn tab) :
+    (∃ Y ∈ (tabAt p).1, Y.setEqTo (nodeAt p)) → (tabAt p).2.2.isLrep := by
   -- IDEA: should be forbidden by `nrep`?
   -- (and if we don't have `nrep` then we must have an `lrep` where the tableau ends?)
-  -- Must `Hist` here be `[]` as for many things in Soundness.lean?
+  -- Note: first thought we need `Hist = []` as for many things in Soundness.lean, or
+  -- at least that `X` is not in `Hist`, but in fact that should not be needed.
   sorry
 
 instance flipEdge.instIsIrrefl : IsIrrefl (PathIn tab) (Relation.TransGen (flip edge)) := by
@@ -716,9 +717,9 @@ instance flipEdge.instIsIrrefl : IsIrrefl (PathIn tab) (Relation.TransGen (flip 
   intro p p_p
   rw [Relation.transGen_swap] at p_p
   have p_in_Hist_p := edge_TransGen_then_mem_History p_p
-  absurd PathIn.no_mem_history_setEqTo_self p
-  use nodeAt p
-  simpa
+  have := PathIn.mem_history_setEqTo_then_lrep p ⟨nodeAt p, by simpa⟩
+  -- Now need: lrep has no outgoing edges.
+  sorry
 
 /-- The `flip edge` relation in a tableau is well-founded. -/
 theorem flipEdge.wellFounded :

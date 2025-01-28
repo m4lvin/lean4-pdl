@@ -96,6 +96,11 @@ inductive Tableau : History → Sequent → Type
               (next : Tableau (X :: Hist) Y) : Tableau Hist X
   | lrep {X Hist} (lpr : LoadedPathRepeat Hist X) : Tableau Hist X
 
+def Tableau.isLrep : (Tableau Hist X) → Prop
+  | .loc .. => False
+  | .pdl .. => False
+  | .lrep .. => True
+
 inductive provable : Formula → Prop
   | byTableauL {φ : Formula} : Tableau .nil ⟨[~φ], [], none⟩ → provable φ
   | byTableauR {φ : Formula} : Tableau .nil ⟨[], [~φ], none⟩ → provable φ
