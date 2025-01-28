@@ -15,7 +15,7 @@ bml: .first-run-done
 	touch .first-run-done
 
 doc:
-	cd docbuild && lake -Kenv=dev build Bml:docs Pdl:docs
+	cd docbuild && lake -Kenv=dev build Pdl:docs
 
 clean:
 	rm -rf .first-run-done lake-packages .lake build lakefile.olean
