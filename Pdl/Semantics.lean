@@ -168,6 +168,13 @@ theorem forms_to_lists {φ ψ : Formula} : φ⊨ψ → ([φ] : List Formula)⊨(
   · tauto
   · aesop
 
+/-- The Local Deduction Theorem. -/
+theorem deduction (X : List Formula) (φ ψ : Formula) :
+    X ++ [φ] ⊨ ψ → (X ⊨ φ ↣ ψ) := by
+  intro Xφ_then_ψ
+  intro W M w w_X
+  aesop
+
 theorem notSat_iff_semImplies (X : List Formula) (φ : Formula):
     ¬ satisfiable (X ∪ [~φ]) ↔ X ⊨ ([φ] : List Formula) := by
   constructor
