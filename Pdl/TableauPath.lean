@@ -712,9 +712,9 @@ lemma PathIn.mem_history_setEqTo_then_lrep {tab : Tableau Hist X} (p : PathIn ta
   simp [nodeAt] at h2
   rw [h] at h2
   cases t
-  case loc nbas lt nrep next => exact nrep ⟨Y, by aesop⟩
-  case pdl S bas p nrep t    => exact nrep ⟨Y, by aesop⟩
-  case lrep                  => simp [Tableau.isLrep]
+  case loc _ _   nrep _ => exact nrep ⟨Y, by aesop⟩
+  case pdl _ _ _ nrep _ => exact nrep ⟨Y, by aesop⟩
+  case lrep             => simp [Tableau.isLrep]
 
 lemma single_of_transgen {α} {r} {a c: α} : Relation.TransGen r a c → ∃ b, r a b := by
   intro h
