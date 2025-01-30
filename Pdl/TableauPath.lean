@@ -400,18 +400,6 @@ theorem PathIn.pdl_le_pdl_of_le {t1 t2} (h : t1 ≤ t2) :
     simp
     exact s_t
 
-/-
--- not used YET ?
-theorem PathIn.edge_leaf_inductionOn {Hist X} {tab : Tableau Hist X}
-    (t : PathIn tab)
-    {motive : PathIn tab → Prop}
-    (leaf : ∀ {u}, (¬ ∃ s, u ⋖_ s) → motive u)
-    (up : ∀ {u}, (∀ {s}, (u_s : u ⋖_ s) → motive s) → motive u)
-    : motive t := by
-  sorry
-  -- try `induction tab` as for init_inductionOn
--/
-
 /-! ## From Path to History -/
 
 /-- Convert a path to a History.
@@ -735,3 +723,44 @@ instance flipEdge.instIsIrrefl : IsIrrefl (PathIn tab) (Relation.TransGen (flip 
 theorem flipEdge.wellFounded :
   WellFounded (flip (@edge _ _ tab)) := by
   apply Finite.wellfounded_of_irrefl_TC _ flipEdge.instIsIrrefl
+
+/-- Only used for termination of `edge_leaf_inductionOn`. -/
+private instance : WellFoundedRelation (PathIn tab) where
+  rel := flip edge
+  wf := flipEdge.wellFounded
+
+/-- Induction principle going from the leaves to the root.
+If the `motive` holds at any leaf, and whenever it holds at all
+children then it holds at the parent, then it holds at all nodes. -/
+theorem PathIn.edge_leaf_inductionOn {Hist X} {tab : Tableau Hist X}
+    {motive : PathIn tab → Prop}
+    (leaf : ∀ {u}, (¬ ∃ s, u ⋖_ s) → motive u)
+    (up : ∀ {u}, (∀ {s}, (u_s : u ⋖_ s) → motive s) → motive u)
+    (t : PathIn tab)
+    : motive t := by
+  -- Doing `induction tab` as in `init_inductionOn` is not what we want here.
+  rcases tabT_def : (tabAt t) with ⟨H,X,tabT⟩
+  cases tabT
+  case loc nbas lt nrep next =>
+    apply up
+    intro s t_s
+    apply PathIn.edge_leaf_inductionOn leaf up s
+  case pdl =>
+    apply up
+    intro s s_t
+    have _forTermination := edge_then_length_lt s_t
+    apply PathIn.edge_leaf_inductionOn leaf up s
+  case lrep =>
+    apply leaf
+    rintro ⟨s, t_s⟩
+    rcases t_s with ⟨_, _, _, _, _, _, _, _, tabAt_t_eq, _⟩
+                  | ⟨_, _, _, _, _, _, _, tabAt_t_eq, _⟩
+    · rw [tabT_def] at tabAt_t_eq
+      cases tabAt_t_eq
+    · rw [tabT_def] at tabAt_t_eq
+      cases tabAt_t_eq
+termination_by
+  t -- uses the `WellFoundedRelation` instance above
+decreasing_by
+  · simp [flip]; assumption
+  · simp [flip]; assumption
