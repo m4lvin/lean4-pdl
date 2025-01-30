@@ -724,11 +724,6 @@ theorem flipEdge.wellFounded :
   WellFounded (flip (@edge _ _ tab)) := by
   apply Finite.wellfounded_of_irrefl_TC _ flipEdge.instIsIrrefl
 
-/-- Only used for termination of `edge_leaf_inductionOn`. -/
-private instance : WellFoundedRelation (PathIn tab) where
-  rel := flip edge
-  wf := flipEdge.wellFounded
-
 /-- Induction principle going from the leaves to the root.
 If the `motive` holds at any leaf, and whenever it holds at all
 children then it holds at the parent, then it holds at all nodes. -/
@@ -739,17 +734,12 @@ theorem PathIn.edge_leaf_inductionOn {Hist X} {tab : Tableau Hist X}
     (t : PathIn tab)
     : motive t := by
   -- Doing `induction tab` as in `init_inductionOn` is not what we want here.
+  apply WellFounded.induction flipEdge.wellFounded t
+  intro t IH
   rcases tabT_def : (tabAt t) with ⟨H,X,tabT⟩
   cases tabT
-  case loc nbas lt nrep next =>
-    apply up
-    intro s t_s
-    apply PathIn.edge_leaf_inductionOn leaf up s
-  case pdl =>
-    apply up
-    intro s s_t
-    have _forTermination := edge_then_length_lt s_t
-    apply PathIn.edge_leaf_inductionOn leaf up s
+  case loc => exact up fun {s} t_s => IH s t_s
+  case pdl => exact up fun {s} t_s => IH s t_s
   case lrep =>
     apply leaf
     rintro ⟨s, t_s⟩
@@ -759,8 +749,3 @@ theorem PathIn.edge_leaf_inductionOn {Hist X} {tab : Tableau Hist X}
       cases tabAt_t_eq
     · rw [tabT_def] at tabAt_t_eq
       cases tabAt_t_eq
-termination_by
-  t -- uses the `WellFoundedRelation` instance above
-decreasing_by
-  · simp [flip]; assumption
-  · simp [flip]; assumption
