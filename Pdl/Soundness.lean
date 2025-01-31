@@ -219,18 +219,60 @@ def before {X} {tab : Tableau .nil X} (s t : PathIn tab) : Prop :=
 This means `t` is *simpler* to deal with first. -/
 notation s:arg " <ᶜ " t:arg => before s t
 
--- Needed, and tricky to show?
-theorem PathIn.before_leaf_inductionOn {tab : Tableau .nil X} (t : PathIn tab) {motive : PathIn tab → Prop}
-    (leaf : ∀ {u}, (nodeAt u).isFree → (¬ ∃ s, u ⋖_ s) → motive u)
-    (up : ∀ {u}, (∀ {s}, (u_s : u <ᶜ s) → motive s) → motive u)
-    : motive t := by
-  cases tab -- cannot do `induction tab` because of fixed `.nil` parameter.
-  case loc =>
-    sorry
-  case pdl =>
-    sorry
-  case lrep lpr =>
-    sorry
+/-- The `<ᶜ` relation is irreflexive. -/
+theorem before.irrefl :
+    IsIrrefl _ (@before X tab) := by
+  constructor
+  intro p
+  simp [before]
+
+/-- The `<ᶜ` relation is transitive. -/
+theorem before.trans :
+    Transitive (@before X tab) := by
+  intro p q r p_c_q q_c_r
+  rcases p_c_q with ⟨p_q, not_q_p⟩
+  rcases q_c_r with ⟨q_r, not_r_q⟩
+  constructor
+  · exact Relation.TransGen.trans p_q q_r
+  · intro r_p
+    absurd not_r_q
+    exact Relation.TransGen.trans r_p p_q
+
+/-- The transitive closure of `<ᶜ` (which in fact is the same as `<ᶜ`) is irreflexive. -/
+theorem trans_before.irrefl {X tab} :
+    IsIrrefl _ (Relation.TransGen (@before X tab)) := by
+  rw [Relation.transGen_eq_self before.trans]
+  exact before.irrefl
+
+/-- The `before` relation in a tableau is well-founded. -/
+theorem before.wellFounded :
+    WellFounded (@before X tab) :=
+  Finite.wellfounded_of_irrefl_TC _ trans_before.irrefl
+
+/-- The converse of `<ᶜ` is irreflexive. -/
+theorem flip_before.irrefl :
+    IsIrrefl _ (flip (@before X tab)) := by
+  constructor
+  intro p
+  simp [flip, before]
+
+-- maybe already in mathlib?
+lemma Relation.TransGen.flip_iff (α : Type) {r : α → α → Prop} {a b : α} :
+    (Relation.TransGen (flip r)) a b ↔ (Relation.TransGen r) b a := by
+  exact @Relation.transGen_swap α r a b
+
+/-- The transtive closure of the converse of `<ᶜ` is irreflexive. -/
+theorem trans_flip_before.irrefl :
+    IsIrrefl _ (Relation.TransGen (flip (@before X tab))) := by
+  constructor
+  intro p
+  rw [Relation.TransGen.flip_iff]
+  exact (@trans_before.irrefl X tab).1 p
+
+/-- The `before` relation in a tableau is converse well-founded. -/
+theorem flip_before.wellFounded :
+    WellFounded (flip (@before X tab)) :=
+  Finite.wellfounded_of_irrefl_TC _ trans_flip_before.irrefl
 
 /-- ≣ᶜ is an equivalence relation and <ᶜ is well-founded and converse well-founded.
 The converse well-founded is what we really need for induction proofs. -/
@@ -241,43 +283,19 @@ theorem eProp {X} (tab : Tableau .nil X) :
     ∧
     WellFounded (flip (@before X tab))
      := by
-  refine ⟨?_, ?_, ?_⟩
-  · constructor
-    · intro _
-      simp [cEquiv]
-      exact Relation.ReflTransGen.refl
-    · intro _ _
-      simp [cEquiv]
-      tauto
-    · intro s u t
-      simp [cEquiv]
-      intro s_u u_s u_t t_u
-      exact ⟨ Relation.ReflTransGen.trans s_u u_t
-            , Relation.ReflTransGen.trans t_u u_s ⟩
-  · sorry -- not important?
-  · constructor
-    intro s
-    -- Here we cannot do `induction s` because we fixed Hist = .nil
-    -- in `companionOf`. Hence, use our own induction principle.
-    induction s using PathIn.before_leaf_inductionOn
-    case leaf l l_isFree l_is_leaf =>
-      constructor
-      intro k ⟨l_k, not_k_l⟩
-      exfalso
-      rw [Relation.TransGen.head'_iff] at l_k
-      rcases l_k with ⟨j, l_j, _⟩
-      cases l_j
-      · absurd l_is_leaf
-        use j
-      case inr ll =>
-        have := companion_loaded  ll
-        simp_all [Sequent.isLoaded, Sequent.isFree]
-    case up l IH =>
-      constructor
-      intro k l_k
-      simp [flip] at *
-      apply IH
-      exact l_k
+  refine ⟨?_, before.wellFounded, flip_before.wellFounded⟩
+  constructor
+  · intro _
+    simp [cEquiv]
+    exact Relation.ReflTransGen.refl
+  · intro _ _
+    simp [cEquiv]
+    tauto
+  · intro s u t
+    simp [cEquiv]
+    intro s_u u_s u_t t_u
+    exact ⟨ Relation.ReflTransGen.trans s_u u_t
+          , Relation.ReflTransGen.trans t_u u_s ⟩
 
 -- Unused?
 theorem eProp2.a {tab : Tableau .nil X} (s t : PathIn tab) :
