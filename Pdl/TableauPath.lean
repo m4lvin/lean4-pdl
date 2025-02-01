@@ -724,12 +724,11 @@ theorem flipEdge.wellFounded :
   WellFounded (flip (@edge _ _ tab)) := by
   apply Finite.wellfounded_of_irrefl_TC _ flipEdge.instIsIrrefl
 
-/-- Induction principle going from the leaves to the root.
-If the `motive` holds at any leaf, and whenever it holds at all
-children then it holds at the parent, then it holds at all nodes. -/
-theorem PathIn.edge_leaf_inductionOn {Hist X} {tab : Tableau Hist X}
+/-- Induction principle going from the leaves (= childless nodes) to the root.
+Suppose whenever the `motive` holds at all children then it holds at the parent.
+Then it holds at all nodes. -/
+theorem PathIn.edge_upwards_inductionOn {Hist X} {tab : Tableau Hist X}
     {motive : PathIn tab → Prop}
-    (leaf : ∀ {u}, (¬ ∃ s, u ⋖_ s) → motive u)
     (up : ∀ {u}, (∀ {s}, (u_s : u ⋖_ s) → motive s) → motive u)
     (t : PathIn tab)
     : motive t := by
@@ -741,8 +740,8 @@ theorem PathIn.edge_leaf_inductionOn {Hist X} {tab : Tableau Hist X}
   case loc => exact up fun {s} t_s => IH s t_s
   case pdl => exact up fun {s} t_s => IH s t_s
   case lrep =>
-    apply leaf
-    rintro ⟨s, t_s⟩
+    apply up
+    rintro s t_s
     rcases t_s with ⟨_, _, _, _, _, _, _, _, tabAt_t_eq, _⟩
                   | ⟨_, _, _, _, _, _, _, tabAt_t_eq, _⟩
     · rw [tabT_def] at tabAt_t_eq

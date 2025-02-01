@@ -4,7 +4,6 @@ import Mathlib.Tactic.Convert
 import Mathlib.Data.Prod.Lex
 
 import Pdl.TableauPath
-import Pdl.Vector
 
 /-! # Soundness (Section 6) -/
 
