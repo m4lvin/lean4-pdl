@@ -10,6 +10,11 @@ def Formula.implicitlyDefines (φ : Formula) (p : Nat) : Prop :=
 def Formula.explicitlyDefines (ψ : Formula) (p : Nat) (φ : Formula) : Prop :=
   ψ.voc ⊆ φ.voc \ {Sum.inl p} ∧ φ ⊨ (·p) ⟷ ψ
 
+-- move to `Substitution.lean` after proving and using it
+lemma non_occ_taut_then_repl_in_taut (φ ψ : Formula) (p q : ℕ) : Sum.inl p ∉ ψ.voc →
+    tautology (φ ↣ ψ) → tautology (repl_in_F p (·q) φ ↣ ψ) := by
+  sorry
+
 theorem beth (φ : Formula) (h : φ.implicitlyDefines p) :
     ∃ (ψ : Formula), ψ.explicitlyDefines p φ := by
   -- Let p0 and p1 be fresh variables not in φ:
@@ -49,12 +54,15 @@ theorem beth (φ : Formula) (h : φ.implicitlyDefines p) :
       have p1_fresh : Sum.inl p1 ∉ _ := freshVarForm_is_fresh (φ ⋀ ·p0)
       simp at p1_fresh
       tauto
-  · clear ip_voc
-    -- show the semantic condition:
+  · -- show the semantic condition:
+    have ip_one_p : tautology ((φ ⋀ ·p) ↣ ψ) := by
+      -- idea: apply `non_occ_taut_then_repl_in_taut` to ip_one
+      sorry
+    have ip_two_p : tautology (ψ ↣ (φ ↣ ·p)) := by
+      -- idea: apply something like `non_occ_taut_then_repl_in_taut` to ip_two
+      sorry
     intro W M w w_φ
     simp at w_φ
-    specialize ip_one W M w
-    specialize ip_two W M w
-    simp at *
-    -- still need to use fresh variables here? do that in separate lemma?
-    sorry
+    specialize ip_one_p W M w
+    specialize ip_two_p W M w
+    simp_all
