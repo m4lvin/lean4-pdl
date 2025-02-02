@@ -130,6 +130,46 @@ theorem repl_in_list_non_occ_eq (F : List Formula) :
       clear IH
       simp_all [Program.voc, Vocab.fromList]
 
+mutual
+lemma repl_in_F_voc_def p φ ψ :
+    (repl_in_F p φ ψ).voc = (ψ.voc \ {Sum.inl p}) ∪ (if Sum.inl p ∈ ψ.voc then φ.voc else {}) := by
+  cases ψ <;> simp
+  case atom_prop q => by_cases q = p <;> aesop
+  case neg => apply repl_in_F_voc_def
+  case and ψ1 ψ2 =>
+    ext x
+    have := repl_in_F_voc_def p φ ψ1
+    have := repl_in_F_voc_def p φ ψ2
+    aesop
+  case box α ψ =>
+    ext x
+    have := repl_in_F_voc_def p φ ψ
+    have := repl_in_P_voc_def p φ α
+    aesop
+
+lemma repl_in_P_voc_def p φ α :
+    (repl_in_P p φ α).voc = (α.voc \ {Sum.inl p}) ∪ (if Sum.inl p ∈ α.voc then φ.voc else {}) := by
+  cases α <;> simp
+  case sequence α β =>
+    ext x
+    have := repl_in_P_voc_def p φ α
+    have := repl_in_P_voc_def p φ β
+    aesop
+  case union α β =>
+    ext x
+    have := repl_in_P_voc_def p φ α
+    have := repl_in_P_voc_def p φ β
+    aesop
+  case test τ =>
+    ext x
+    have := repl_in_F_voc_def p φ τ
+    simp_all
+  case star α =>
+    ext x
+    have := repl_in_P_voc_def p φ α
+    simp_all
+end
+
 /-- Overwrite the valuation of `x` with the current value of `ψ` in a model. -/
 def repl_in_model (x : Nat) (ψ : Formula) : KripkeModel W → KripkeModel W
 | M@⟨V,R⟩ => ⟨fun w c => if c == x then (M,w) ⊨ ψ else V w c,R⟩

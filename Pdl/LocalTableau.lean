@@ -89,11 +89,11 @@ open HasSat
 
 theorem tautImp_iff_SequentUnsat {φ ψ} {X : Sequent} :
     X = ([φ], [~ψ], none) →
-    (φ ⊨ ψ ↔ ¬ satisfiable X) :=
+    (tautology (φ ↣ ψ) ↔ ¬ satisfiable X) :=
   by
   intro defX
   subst defX
-  simp [satisfiable,evaluate,modelCanSemImplySequent,formCanSemImplyForm,semImpliesLists] at *
+  simp_all [tautology,satisfiable,modelCanSemImplySequent]
 
 theorem vDash_setEqTo_iff {X Y : Sequent} (h : X.setEqTo Y) (M : KripkeModel W) (w : W) :
     (M,w) ⊨ X ↔ (M,w) ⊨ Y := by

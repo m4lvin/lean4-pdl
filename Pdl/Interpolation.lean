@@ -9,11 +9,13 @@ open vDash HasSat
 /-- An interpolant θ for φ and ψ only uses the vocabulary
 in both, is implied by φ and implies ψ. -/
 def Interpolant (φ : Formula) (ψ : Formula) (θ : Formula) :=
-  θ.voc ⊆ φ.voc ∩ ψ.voc  ∧  φ ⊨ θ  ∧  θ ⊨ ψ
+  θ.voc ⊆ φ.voc ∩ ψ.voc  ∧  tautology (φ ↣ θ)  ∧  tautology (θ ↣ ψ)
 
-theorem interpolation : ∀ (φ ψ : Formula), φ⊨ψ → ∃ θ : Formula, Interpolant φ ψ θ :=
+theorem interpolation {φ ψ : Formula} :
+    tautology (φ ↣ ψ) → ∃ θ : Formula, Interpolant φ ψ θ :=
   by
-  intro φ ψ hyp
+  intro hyp
+
   let X : Sequent := ([φ], [~(ψ)], none)
   have ctX : Tableau .nil ([φ], [~(ψ)], none) :=
     by

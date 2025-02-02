@@ -219,9 +219,9 @@ theorem equiv_iff (φ ψ : Formula) (φ_eq_ψ : φ ≡ ψ) :
       tauto
 
 theorem tautImp_iff_comboNotUnsat {φ ψ : Formula} :
-    φ ⊨ ψ ↔ ¬ satisfiable ([φ, ~ψ]) :=
+    tautology (φ ↣ ψ) ↔ ¬ satisfiable ([φ, ~ψ]) :=
   by
-  simp [formCanSemImplyForm, semImpliesLists, satisfiable, evaluate]
+  simp [tautology, satisfiable, evaluate]
 
 theorem relate_steps_append : ∀ x z, relate M (Program.steps (as ++ bs)) x z  ↔
   ∃ y, relate M (Program.steps as) x y ∧ relate M (Program.steps bs) y z :=
