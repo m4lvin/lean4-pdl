@@ -45,8 +45,8 @@ instance Formula.insTop : Top Formula := ⟨Formula.neg Formula.bottom⟩
 
 infixr:66 "⋀" => Formula.and
 infixr:60 "⋁" => Formula.or
-notation:55 φ:56 " ↣ " ψ:55 => ~φ ⋀ (~ψ)
-notation:55 φ:56 " ⟷ " ψ:55 => (φ↣ψ) ⋀ (φ↣φ)
+notation:55 φ:56 " ↣ " ψ:55 => ~ (φ ⋀ (~ψ))
+notation:55 φ:56 " ⟷ " ψ:55 => (φ ↣ ψ) ⋀ (ψ ↣ φ)
 notation "⌈" α "⌉" P => Formula.box α P
 notation "⌈⌈" as "⌉⌉" P => Formula.boxes as P
 

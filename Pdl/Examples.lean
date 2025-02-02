@@ -71,52 +71,31 @@ set_option linter.unusedVariables false -- for `contrapose! rhs` below
 theorem A5 : tautology ((⌈a ⋓ b⌉X) ⟷ ((⌈a⌉X) ⋀ (⌈b⌉X))) :=
   by
   unfold tautology evaluate
-  intro W M w
-  constructor
-  · -- left to right
-    by_contra hyp
-    simp at *
-    cases' hyp with lhs rhs
-    contrapose! rhs
-    constructor
-    · -- show ⌈α⌉X
-      intro v
-      specialize lhs v
-      intro (w_a_v : relate M a w v)
-      apply lhs
-      left
-      exact w_a_v
-    · -- show ⌈β⌉X
-      intro v
-      specialize lhs v
-      intro (w_b_v : relate M b w v)
-      apply lhs
-      right
-      exact w_b_v
-  · -- right to left
-    simp only [evaluate]
-    tauto
+  aesop
 
-theorem A6 (a : Program) (X : Formula) : tautology ((⌈∗a⌉X) ⟷ (X ⋀ (⌈a⌉(⌈∗a⌉X)))) :=
+theorem A6 (a : Program) (φ : Formula) : tautology ((⌈∗a⌉φ) ⟷ (φ ⋀ (⌈a⌉(⌈∗a⌉φ)))) :=
   by
   unfold tautology evaluate
   intro W M w
   constructor
   · -- left to right
     simp
-    intro starAX
+    intro starAφ
     constructor
-    · -- show X using refl:
-      apply starAX
+    · -- show φ using refl:
+      apply starAφ
       exact Relation.ReflTransGen.refl
-    · -- show [α][α∗]X using cases_head_iff:
+    · -- show [α][α∗]φ using cases_head_iff:
       intro v w_a_v v_1 v_aS_v1
-      apply starAX
+      apply starAφ
       rw [Relation.ReflTransGen.cases_head_iff]
       right
       use v
   · -- right to left
-    simp
+    simp only [evaluate, relate, not_forall, Classical.not_imp, not_and, not_exists,
+      Decidable.not_not, and_imp]
+    intro w_φ hyp v w_aS_v
+    rcases Relation.ReflTransGen.cases_head w_aS_v <;> aesop
 
 example (a b : Program) (X : Formula) :
   (⌈∗((∗a) ⋓ b)⌉X) ≡ X ⋀ (⌈a⌉(⌈∗((∗a) ⋓ b)⌉ X)) ⋀ (⌈b⌉(⌈∗((∗a) ⋓ b)⌉ X)) :=
