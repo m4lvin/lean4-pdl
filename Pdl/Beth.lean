@@ -20,11 +20,45 @@ lemma taut_repl φ p q :
   rw [this]
   apply taut_φ
 
+mutual
 /-- Replacing `p` with a fresh `q` and then replacing `q` by `p` results in the original. -/
 @[simp]
-lemma repl_repl_cancel_via_non_occ φ p q : Sum.inl q ∉ φ.voc →
+lemma repl_in_F_cancel_via_non_occ φ p q : Sum.inl q ∉ φ.voc →
     repl_in_F q (·p) (repl_in_F p (·q) φ) = φ := by
-  sorry
+  intro q_not_in_ψ
+  cases φ <;> simp_all
+  case atom_prop q =>
+    by_cases q = p <;> aesop
+  case neg φ =>
+    have := repl_in_F_cancel_via_non_occ φ p q
+    aesop
+  case and φ1 φ2 =>
+    have := repl_in_F_cancel_via_non_occ φ1 p q
+    have := repl_in_F_cancel_via_non_occ φ2 p q
+    aesop
+  case box α φ =>
+    have := repl_in_F_cancel_via_non_occ φ p q
+    have := repl_in_P_cancel_via_non_occ α p q
+    aesop
+lemma repl_in_P_cancel_via_non_occ α p q : Sum.inl q ∉ α.voc →
+    repl_in_P q (·p) (repl_in_P p (·q) α) = α := by
+  intro q_not_in_α
+  cases α <;> simp_all
+  case sequence α1 α2 =>
+    have := repl_in_P_cancel_via_non_occ α1 p q
+    have := repl_in_P_cancel_via_non_occ α2 p q
+    aesop
+  case union α1 α2 =>
+    have := repl_in_P_cancel_via_non_occ α1 p q
+    have := repl_in_P_cancel_via_non_occ α2 p q
+    aesop
+  case test τ =>
+    have := repl_in_F_cancel_via_non_occ τ p q
+    aesop
+  case star α =>
+    have := repl_in_P_cancel_via_non_occ α p q
+    aesop
+end
 
 -- move to `Substitution.lean` after proving and using it
 lemma non_occ_taut_then_repl_in_taut (φ ψ : Formula) (p q : ℕ) :
@@ -89,7 +123,7 @@ theorem beth (φ : Formula) (h : φ.implicitlyDefines p) :
       clear ip_two
       have := non_occ_taut_then_repl_in_taut ((repl_in_F p (·p0) φ⋀·p0)) ψ p0 p
       simp only [repl_in_F, beq_self_eq_true, ↓reduceIte] at this
-      rw [repl_repl_cancel_via_non_occ _ p p0 ?_] at this
+      rw [repl_in_F_cancel_via_non_occ _ p p0 ?_] at this
       apply this
       · intro p0_in_ψ
         specialize ip_voc p0_in_ψ
@@ -100,7 +134,7 @@ theorem beth (φ : Formula) (h : φ.implicitlyDefines p) :
         specialize ip_voc p_in_ψ
         simp at ip_voc
         by_cases Sum.inl p ∈ φ.voc <;> simp_all [repl_in_F_voc_def]
-        aesop
+        omega
       · assumption
       · assumption
     have ip_two_p : tautology (ψ ↣ (φ ↣ ·p)) := by

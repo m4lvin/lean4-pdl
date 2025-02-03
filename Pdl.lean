@@ -23,3 +23,4 @@ import Pdl.Completeness
 import Pdl.Distance
 import Pdl.PartInterpolation
 import Pdl.Interpolation
+import Pdl.Beth
