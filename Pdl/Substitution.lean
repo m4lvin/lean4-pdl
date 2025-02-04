@@ -263,6 +263,86 @@ theorem repl_in_disMap x ρ (L : List α) (p : α → Prop) (f : α → Formula)
   simp only [List.map_map]
   aesop
 
+/-! ## Cancellation of replacements -/
+
+mutual
+/-- Replacing `p` with a fresh `q` and then replacing `q` by `p` results in the same formula. -/
+@[simp]
+lemma repl_in_F_cancel_via_non_occ φ p q : Sum.inl q ∉ φ.voc →
+    repl_in_F q (·p) (repl_in_F p (·q) φ) = φ := by
+  intro q_not_in_ψ
+  cases φ <;> simp_all
+  case atom_prop q =>
+    by_cases q = p <;> aesop
+  case neg φ =>
+    have := repl_in_F_cancel_via_non_occ φ p q
+    aesop
+  case and φ1 φ2 =>
+    have := repl_in_F_cancel_via_non_occ φ1 p q
+    have := repl_in_F_cancel_via_non_occ φ2 p q
+    aesop
+  case box α φ =>
+    have := repl_in_F_cancel_via_non_occ φ p q
+    have := repl_in_P_cancel_via_non_occ α p q
+    aesop
+/-- Replacing `p` with a fresh `q` and then replacing `q` by `p` results in the same program. -/
+lemma repl_in_P_cancel_via_non_occ α p q : Sum.inl q ∉ α.voc →
+    repl_in_P q (·p) (repl_in_P p (·q) α) = α := by
+  intro q_not_in_α
+  cases α <;> simp_all
+  case sequence α1 α2 =>
+    have := repl_in_P_cancel_via_non_occ α1 p q
+    have := repl_in_P_cancel_via_non_occ α2 p q
+    aesop
+  case union α1 α2 =>
+    have := repl_in_P_cancel_via_non_occ α1 p q
+    have := repl_in_P_cancel_via_non_occ α2 p q
+    aesop
+  case test τ =>
+    have := repl_in_F_cancel_via_non_occ τ p q
+    aesop
+  case star α =>
+    have := repl_in_P_cancel_via_non_occ α p q
+    aesop
+end
+
+/-! ## Replacement of atoms in tautologies -/
+
+/-- Replacing an atom in a tautology results in a tautology. -/
+lemma taut_repl φ p q :
+    tautology φ → tautology (repl_in_F p (·q) φ) := by
+  intro taut_φ
+  intro W M w
+  have := repl_in_model_sat_iff p (·q) φ M w
+  simp [vDash, vDash.SemImplies] at this
+  rw [this]
+  apply taut_φ
+
+/-- A special case of `taut_repl` for the proof of `beth`. -/
+lemma non_occ_taut_then_taut_repl_in_imp (φ ψ : Formula) (p q : ℕ) :
+    Sum.inl p ∉ ψ.voc → Sum.inl q ∉ ψ.voc →
+    tautology (φ ↣ ψ) → tautology (repl_in_F p (·q) φ ↣ ψ) := by
+  intro p_not_in_ψ q_not_in_ψ taut_imp
+  intro W M w; simp only [evaluate, not_and, not_not]; intro w_φ
+  have := taut_repl _ p q taut_imp W M w
+  clear taut_imp
+  simp only [repl_in_F, evaluate, not_and, not_not] at this
+  specialize this w_φ
+  clear w_φ
+  rw [repl_in_F_non_occ_eq] at this <;> assumption
+
+/-- Another special case of `taut_repl` for the proof of `beth`. -/
+lemma non_occ_taut_then_taut_imp_repl_in (φ ψ : Formula) (p q : ℕ) :
+    Sum.inl p ∉ ψ.voc → Sum.inl q ∉ ψ.voc →
+    tautology (ψ ↣ φ) → tautology (ψ ↣ repl_in_F p (·q) φ) := by
+  intro p_not_in_ψ q_not_in_ψ taut_imp
+  intro W M w; simp only [evaluate, not_and, not_not]; intro w_ψ
+  have := taut_repl _ p q taut_imp W M w
+  clear taut_imp
+  simp [repl_in_F, evaluate, not_and, not_not] at this
+  apply this
+  rw [repl_in_F_non_occ_eq] <;> assumption
+
 /-! ## Simultaneous Substitutions -/
 
 abbrev Substitution := Nat → Formula

@@ -4,77 +4,14 @@ import Pdl.Interpolation
 
 open vDash HasSat
 
-def Formula.implicitlyDefines (φ : Formula) (p : Nat) : Prop :=
+def Formula.impDef (φ : Formula) (p : Nat) : Prop :=
   ∀ p0 p1, repl_in_F p (·p0) φ ⋀ repl_in_F p (·p1) φ ⊨ (·p0) ⟷ (·p1)
 
-def Formula.explicitlyDefines (ψ : Formula) (p : Nat) (φ : Formula) : Prop :=
+def Formula.expDef (ψ : Formula) (p : Nat) (φ : Formula) : Prop :=
   ψ.voc ⊆ φ.voc \ {Sum.inl p} ∧ φ ⊨ (·p) ⟷ ψ
 
-/-- Replacing an atom in a tautology results in a tautology. -/
-lemma taut_repl φ p q :
-    tautology φ → tautology (repl_in_F p (·q) φ) := by
-  intro taut_φ
-  intro W M w
-  have := repl_in_model_sat_iff p (·q) φ M w
-  simp [vDash,SemImplies] at this
-  rw [this]
-  apply taut_φ
-
-mutual
-/-- Replacing `p` with a fresh `q` and then replacing `q` by `p` results in the original. -/
-@[simp]
-lemma repl_in_F_cancel_via_non_occ φ p q : Sum.inl q ∉ φ.voc →
-    repl_in_F q (·p) (repl_in_F p (·q) φ) = φ := by
-  intro q_not_in_ψ
-  cases φ <;> simp_all
-  case atom_prop q =>
-    by_cases q = p <;> aesop
-  case neg φ =>
-    have := repl_in_F_cancel_via_non_occ φ p q
-    aesop
-  case and φ1 φ2 =>
-    have := repl_in_F_cancel_via_non_occ φ1 p q
-    have := repl_in_F_cancel_via_non_occ φ2 p q
-    aesop
-  case box α φ =>
-    have := repl_in_F_cancel_via_non_occ φ p q
-    have := repl_in_P_cancel_via_non_occ α p q
-    aesop
-lemma repl_in_P_cancel_via_non_occ α p q : Sum.inl q ∉ α.voc →
-    repl_in_P q (·p) (repl_in_P p (·q) α) = α := by
-  intro q_not_in_α
-  cases α <;> simp_all
-  case sequence α1 α2 =>
-    have := repl_in_P_cancel_via_non_occ α1 p q
-    have := repl_in_P_cancel_via_non_occ α2 p q
-    aesop
-  case union α1 α2 =>
-    have := repl_in_P_cancel_via_non_occ α1 p q
-    have := repl_in_P_cancel_via_non_occ α2 p q
-    aesop
-  case test τ =>
-    have := repl_in_F_cancel_via_non_occ τ p q
-    aesop
-  case star α =>
-    have := repl_in_P_cancel_via_non_occ α p q
-    aesop
-end
-
--- move to `Substitution.lean` after proving and using it
-lemma non_occ_taut_then_repl_in_taut (φ ψ : Formula) (p q : ℕ) :
-    Sum.inl p ∉ ψ.voc → Sum.inl q ∉ ψ.voc →
-    tautology (φ ↣ ψ) → tautology (repl_in_F p (·q) φ ↣ ψ) := by
-  intro p_not_in_ψ q_not_in_ψ taut_imp
-  intro W M w; simp only [evaluate, not_and, not_not]; intro w_φ
-  have := taut_repl _ p q taut_imp W M w
-  clear taut_imp
-  simp only [repl_in_F, evaluate, not_and, not_not] at this
-  specialize this w_φ
-  clear w_φ
-  rw [repl_in_F_non_occ_eq] at this <;> assumption
-
-theorem beth (φ : Formula) (h : φ.implicitlyDefines p) :
-    ∃ (ψ : Formula), ψ.explicitlyDefines p φ := by
+theorem beth (φ : Formula) (h : φ.impDef p) :
+    ∃ (ψ : Formula), ψ.expDef p φ := by
   -- Let p0 and p1 be fresh variables not in φ:
   let p0 := freshVarForm φ
   have p0_not_in_φ : Sum.inl p0 ∉ φ.voc := freshVarForm_is_fresh φ
@@ -99,7 +36,7 @@ theorem beth (φ : Formula) (h : φ.implicitlyDefines p) :
   rcases interpolation this with ⟨ψ, ip_voc, ip_one, ip_two⟩
   clear this
   use ψ
-  unfold Formula.explicitlyDefines
+  unfold Formula.expDef
   constructor
   · clear ip_one ip_two h
     -- show the vocabulary condition:
@@ -121,7 +58,7 @@ theorem beth (φ : Formula) (h : φ.implicitlyDefines p) :
   · -- show the semantic condition:
     have ip_one_p : tautology ((φ ⋀ ·p) ↣ ψ) := by
       clear ip_two
-      have := non_occ_taut_then_repl_in_taut ((repl_in_F p (·p0) φ⋀·p0)) ψ p0 p
+      have := non_occ_taut_then_taut_repl_in_imp ((repl_in_F p (·p0) φ⋀·p0)) ψ p0 p
       simp only [repl_in_F, beq_self_eq_true, ↓reduceIte] at this
       rw [repl_in_F_cancel_via_non_occ _ p p0 ?_] at this
       apply this
@@ -139,8 +76,23 @@ theorem beth (φ : Formula) (h : φ.implicitlyDefines p) :
       · assumption
     have ip_two_p : tautology (ψ ↣ (φ ↣ ·p)) := by
       clear ip_one
-      -- idea: apply something like `non_occ_taut_then_repl_in_taut` to ip_two
-      sorry
+      have := non_occ_taut_then_taut_imp_repl_in (~ repl_in_F p (·p1) φ⋀(~·p1)) ψ p1 p
+      simp only [repl_in_F, beq_self_eq_true, ↓reduceIte] at this
+      rw [repl_in_F_cancel_via_non_occ _ p p1 ?_] at this
+      apply this
+      -- rest is same as in ip_one_p
+      · intro p1_in_ψ
+        specialize ip_voc p1_in_ψ
+        simp [p0_neq_p1] at ip_voc
+        rw [repl_in_F_voc_def] at ip_voc
+        aesop
+      · intro p_in_ψ
+        specialize ip_voc p_in_ψ
+        simp at ip_voc
+        by_cases Sum.inl p ∈ φ.voc <;> simp_all [repl_in_F_voc_def]
+        omega
+      · assumption
+      · assumption
     intro W M w w_φ
     simp at w_φ
     specialize ip_one_p W M w
