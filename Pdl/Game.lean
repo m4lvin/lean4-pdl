@@ -1,4 +1,5 @@
 import Mathlib.SetTheory.Game.State
+import Mathlib.Tactic.Linarith
 
 /-! # A General Theory for Determined Two-player Games
 

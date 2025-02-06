@@ -523,9 +523,12 @@ theorem cp3a {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α : 
     simp [H, List.mem_flatten, List.mem_map, Prod.exists] at in_H
     rcases in_H with ⟨F_nil, δ_nil⟩ | ⟨L, ⟨F, δ, in_Hα, def_l⟩, in_L⟩
     · subst_eqs
-      simp [Qcombo, Relation.Comp, Qtests, Qsteps] at v_combo_w
+      simp only [Qcombo, Relation.Comp, Qtests, Subtype.beq_iff, beq_iff_eq, List.not_mem_nil,
+        IsEmpty.forall_iff, implies_true, and_true, Qsteps, Subtype.exists, exists_and_left,
+        exists_prop, exists_eq_left', Finset.coe_mem, true_and] at v_combo_w
+      cases v
       subst v_combo_w
-      simp [Q]
+      simp only [Q, Subtype.coe_eta]
       exact Relation.ReflTransGen.refl
     · simp only [Q]
       subst def_l
