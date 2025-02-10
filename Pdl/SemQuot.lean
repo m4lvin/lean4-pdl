@@ -1,4 +1,5 @@
 import Pdl.Semantics
+import Pdl.Star
 
 /-! # Semantic Quotients -/
 
@@ -69,13 +70,23 @@ def SemProp.box : RelProp → SemProp → SemProp :=
 
 /-! ## Lifting program operators to the quotient -/
 
--- TODO: RelProp.sequence
+def RelProp.sequence : RelProp → RelProp → RelProp :=
+  Quotient.map₂ Program.sequence (congr_liftFun₂ $
+    fun _ _ _ _ hx hy W M v w => by specialize hx W M; specialize hy W M; simp_all)
 
--- TODO: RelProp.union
+def RelProp.union : RelProp → RelProp → RelProp :=
+  Quotient.map₂ Program.union (congr_liftFun₂ $
+    fun _ _ _ _ hx hy W M v w => by specialize hx W M; specialize hy W M; simp_all)
 
--- TODO: RelProp.star
+def RelProp.star : RelProp → RelProp :=
+  Quotient.map Program.star (congr_liftFun $
+    fun α β h W M v w => by
+      specialize h W M;
+      simp_all only [relate, @ReflTransGen.iff_finitelyManySteps, h])
 
--- TODO: RelProp.test
+def RelProp.test : SemProp → RelProp :=
+  Quotient.map Program.test (congr_liftFun $
+    fun τ₁ τ₂ h W M v w => by specialize h W M; simp_all)
 
 /-! ## Examples -/
 
