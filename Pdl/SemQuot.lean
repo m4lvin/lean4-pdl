@@ -2,7 +2,7 @@ import Pdl.Semantics
 
 /-! # Semantic Quotients -/
 
-/-! # Defining the Quotient -/
+/-! ## Defining the Quotient of Formulas -/
 
 def semEquiv.Equivalence : Equivalence semEquiv :=
   ⟨ semEquiv.refl
@@ -11,47 +11,85 @@ def semEquiv.Equivalence : Equivalence semEquiv :=
 
 instance Formula.instSetoid : Setoid Formula := ⟨semEquiv, semEquiv.Equivalence⟩
 
--- How should I name this?
+/-- A semantic property is an element of the quotient given by `semEquiv`. -/
 abbrev SemProp := Quotient Formula.instSetoid
 
-/-! ## Lifting connectives to the quotient -/
+/-! ## Defining the Quotient of Programs -/
 
-lemma Formula.neg_congr {φ ψ : Formula} (h : φ ≈ ψ) : Formula.neg φ ≈ Formula.neg ψ :=
-  by simp [HasEquiv.Equiv, Setoid.r, semEquiv] at *
-     intros W M w
-     simp_all only
+def relEquiv.Equivalence : Equivalence relEquiv :=
+  ⟨ relEquiv.refl
+  , fun xy => relEquiv.symm xy
+  , fun xy yz => relEquiv.trans xy yz ⟩
 
-lemma Formula.and_congr {φ₁ ψ₁ φ₂ ψ₂ : Formula} (h₁ : φ₁ ≈ φ₂) (h₂ : ψ₁ ≈ ψ₂) :
-  Formula.and φ₁ ψ₁ ≈ Formula.and φ₂ ψ₂ :=
-  by simp [HasEquiv.Equiv, Setoid.r, semEquiv] at *
-     intros W M w
-     simp_all only
+instance Program.instSetoid : Setoid Program := ⟨relEquiv, relEquiv.Equivalence⟩
+
+/-- A relational property is an element of the quotient given by `relEquiv`. -/
+abbrev RelProp := Quotient Program.instSetoid
+
+/-! ## Lifting congruent functions (in general)
+
+These two should maybe go in mathlib? Or they already exist somewhere?
+-/
+
 lemma congr_liftFun {α β : Type} {R : α → α → Prop} {S : β → β → Prop} {f : α → β}
     (h : ∀ x y, R x y → S (f x) (f y)) : ((R · ·) ⇒ (S · ·)) f f := h
--- This should maybe go in mathlib? or it exists there somewhere?
 
 lemma congr_liftFun₂ {α β : Type} [HasEquiv α] [HasEquiv β] [HasEquiv γ] {f : α → β → γ}
  (h : ∀ (x₁ x₂ : α) (y₁ y₂ : β), x₁ ≈ x₂ → y₁ ≈ y₂ → f x₁ y₁ ≈ f x₂ y₂) :
  ((· ≈ ·) ⇒ (· ≈ ·) ⇒ (· ≈ ·)) f f :=
   by intro x₁ x₂ hx y₁ y₂ hy; exact h x₁ x₂ y₁ y₂ hx hy
 
+/-! ## Lifting formula connectives to the quotient -/
+
+lemma Formula.neg_congr {φ ψ : Formula} (h : φ ≈ ψ) : Formula.neg φ ≈ Formula.neg ψ :=
+  by simp [HasEquiv.Equiv, Setoid.r, semEquiv] at *
+     intros W M w
+     simp_all only
 
 def SemProp.neg : SemProp → SemProp :=
-  Quotient.map Formula.neg (by apply congr_liftFun; apply Formula.neg_congr)
+  Quotient.map Formula.neg (congr_liftFun $ fun _ _ => Formula.neg_congr)
+
+lemma Formula.and_congr {φ₁ ψ₁ φ₂ ψ₂ : Formula} (h₁ : φ₁ ≈ φ₂) (h₂ : ψ₁ ≈ ψ₂) :
+  φ₁.and ψ₁ ≈ φ₂.and ψ₂ :=
+  by simp [HasEquiv.Equiv, Setoid.r, semEquiv] at *
+     intros W M w
+     simp_all only
 
 def SemProp.and : SemProp → SemProp → SemProp :=
-  Quotient.map₂ Formula.and (by apply congr_liftFun₂; intros x₁ x₂ y₁ y₂ hx hy; exact Formula.and_congr hx hy)
+  Quotient.map₂ Formula.and (congr_liftFun₂ $ fun _ _ _ _ hx hy => Formula.and_congr hx hy)
 
-example {φ ψ : Formula} (h : φ ≈ ψ) : Quotient.mk' φ = Quotient.mk' ψ :=
-  by apply Quotient.sound; exact h
+lemma Formula.box_congr {α β : Program} {φ ψ : Formula} (h₁ : α ≈ β) (h₂ : φ ≈ ψ) :
+  φ.box α ≈ ψ.box β :=
+  by simp [HasEquiv.Equiv, Setoid.r, semEquiv, relEquiv] at *
+     intros W M w
+     simp_all only
+
+def SemProp.box : RelProp → SemProp → SemProp :=
+  Quotient.map₂ Formula.box (fun _ _ hx _ _ hy => Formula.box_congr hx hy)
+
+/-! ## Lifting program operators to the quotient -/
+
+-- TODO: RelProp.sequence
+
+-- TODO: RelProp.union
+
+-- TODO: RelProp.star
+
+-- TODO: RelProp.test
+
+/-! ## Examples -/
+
+example {φ ψ : Formula} (h : φ ≈ ψ) : Quotient.mk' φ = Quotient.mk' ψ := Quotient.sound h
 
 example {φ ψ : Formula} (h : φ ≈ ψ) : Quotient.mk' (Formula.neg φ) = Quotient.mk' (Formula.neg ψ) :=
-  by apply Quotient.sound; apply Formula.neg_congr; exact h
+  Quotient.sound (Formula.neg_congr h)
 
-theorem neg_eq {φ ψ : Formula} (h : φ ≈ ψ) : SemProp.neg (Quotient.mk Formula.instSetoid φ) = SemProp.neg (Quotient.mk _ ψ) :=
-  by apply Quotient.sound; apply Formula.neg_congr; exact h -- why does this work without using neg?
+theorem neg_eq {φ ψ : Formula} (h : φ ≈ ψ) :
+    SemProp.neg (Quotient.mk Formula.instSetoid φ) = SemProp.neg (Quotient.mk _ ψ) :=
+  Quotient.sound (Formula.neg_congr h)
 
-theorem neg_neg_eq' (φ : Formula) : SemProp.neg (SemProp.neg <| Quotient.mk' φ) = Quotient.mk' φ :=
+theorem neg_neg_eq' (φ : Formula) :
+    SemProp.neg (SemProp.neg <| Quotient.mk' φ) = Quotient.mk' φ :=
   by apply Quotient.sound
      intro W M w
      simp [evaluate]
