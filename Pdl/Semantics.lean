@@ -114,6 +114,21 @@ theorem semEquiv.trans : Transitive semEquiv := by
   specialize hyp2 W M w
   tauto
 
+theorem relEquiv.refl : Reflexive relEquiv := by
+  tauto
+
+theorem relEquiv.symm : Symmetric relEquiv := by
+  intro α1 α2 hyp
+  intro W M w v
+  specialize hyp W M w v
+  tauto
+
+theorem relEquiv.trans : Transitive relEquiv := by
+  intro _ _ _ hyp1 hyp2 W M w v
+  specialize hyp1 W M w v
+  specialize hyp2 W M w v
+  tauto
+
 class vDash (α : Type) (β : Type) where
   SemImplies : α → β → Prop
 
