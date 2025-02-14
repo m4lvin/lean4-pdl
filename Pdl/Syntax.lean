@@ -34,8 +34,8 @@ def Program.steps : List Program → Program
   | [] => Program.test (Formula.neg Formula.bottom)
   | (p :: ps) => Program.sequence p (Program.steps ps)
 
-notation "·" c => Formula.atom_prop c
-notation "·" c => Program.atom_prog c
+prefix:70 "·" => Formula.atom_prop
+prefix:70 "·" => Program.atom_prog
 prefix:11 "~" => Formula.neg
 
 @[simp]
