@@ -307,7 +307,7 @@ theorem relateSeq_iff_exists_Vector (M : KripkeModel W) (δ : List Program) (w v
     · use ⟨[w], by simp⟩
       aesop
     · rcases h with ⟨⟨ws, ws_len_eq_1⟩ , w_def, v_def⟩
-      rw [List.length_eq_one] at ws_len_eq_1
+      rw [List.length_eq_one_iff] at ws_len_eq_1
       rcases ws_len_eq_1 with ⟨x, ws_def⟩
       aesop
   case cons d δ IH =>

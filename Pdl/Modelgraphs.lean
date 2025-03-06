@@ -335,8 +335,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
             specialize loadClaim (Fin.last _)
             simp [length_def] at loadClaim
             convert loadClaim
-            have := @List.get_last _ Z (X :: l) (Fin.last _)
-            simp_all
+            simp [← length_def]
           intro i
           exact loadClaimHelper length_def δβSφ_in_X lchain IHδ i
         -- lastly, apply innerIH on Z and Y:
@@ -402,10 +401,11 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       suffices loadClaim : ∀ i : Fin (X :: l ++ [Y]).length,
           (⌈⌈δ.drop i⌉⌉φ) ∈ ((X :: l ++ [Y]).get i).val by
         specialize loadClaim (Fin.last _)
-        simp [length_def] at loadClaim
+        simp only [List.cons_append, List.append_eq, List.get_eq_getElem, List.length_cons,
+          Fin.val_last, List.length_append, List.length_nil, zero_add, length_def, List.drop_length,
+          boxes_nil] at loadClaim
         convert loadClaim
-        have := @List.get_last _ Y (X :: l) (Fin.last _)
-        simp_all
+        simp [← length_def]
       intro i
       exact loadClaimHelper length_def δφ_in_X lchain IHδ i
 

@@ -130,6 +130,7 @@ theorem repl_in_list_non_occ_eq (F : List Formula) :
       clear IH
       simp_all [Program.voc, Vocab.fromList]
 
+set_option maxHeartbeats 2000000 in
 mutual
 lemma repl_in_F_voc_def p φ ψ :
     (repl_in_F p φ ψ).voc = (ψ.voc \ {Sum.inl p}) ∪ (if Sum.inl p ∈ ψ.voc then φ.voc else {}) := by
