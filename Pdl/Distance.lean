@@ -2,7 +2,12 @@ import Mathlib.Data.ENat.Lattice
 
 import Pdl.UnfoldDia
 
--- Alternative to `Paths.lean` for the proof of `correctRightIP`.
+/-! # Distance between states
+
+This is used for the correctness of cluster interpolants in Section 7.
+-/
+
+/-! ## Walks -/
 
 inductive Walk : KripkeModel W → Program → W → W → Type
 | nil a : Walk M a w w
@@ -71,6 +76,8 @@ theorem star_relate_of_Chain : List.Chain (relate M α) w (l ++ [v]) → relate 
   | .cons x xs => .head (b := x) (List.Chain'.rel_head h) <| star_relate_of_Chain (l := xs) <|
       match h with | .cons _ h => h
 
+/-! ## Distance -/
+
 open Classical in
 noncomputable def distance {W} (M : KripkeModel W) (α : Program) (w v : W) : ℕ∞ :=
   match α with
@@ -85,22 +92,21 @@ theorem distance_self_star : distance M (∗α) w w = 0 := ciInf_eq_bot_of_bot_m
 open Classical in
 noncomputable def distance_list {W} (M : KripkeModel W) (w v : W) : (δ : List Program) → ℕ∞
 | [] => ite (w = v) 0 ⊤
-
--- similar to α;'β case in `distance`
-| (α::δ) => ⨅ x, distance M α w x + distance_list M x v δ
+| (α::δ) => ⨅ x, distance M α w x + distance_list M x v δ -- similar to α;'β case in `distance`
 
 open Classical in
-theorem distance_iff_relate : (distance M α w v) ≠ ⊤ ↔ relate M α w v :=
+/-- 7.47 (a) -/
+theorem dist_iff_rel : (distance M α w v) ≠ ⊤ ↔ relate M α w v :=
   match α with
   | ·_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.one_ne_top).symm
   | ?'_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.zero_ne_top).symm
-  | _ ⋓ _ => (min_eq_top.not.trans not_and_or).trans <| or_congr (distance_iff_relate ..) (distance_iff_relate ..)
+  | _ ⋓ _ => (min_eq_top.not.trans not_and_or).trans <| or_congr (dist_iff_rel ..) (dist_iff_rel ..)
   | ∗_ => ENat.iInf_coe_ne_top.trans <| reachable_iff_star_relate ..
   | _ ;' _ => iInf_eq_top.not.trans <| not_forall.trans <| exists_congr fun _ =>
-    WithTop.add_ne_top.trans <| and_congr (distance_iff_relate ..) (distance_iff_relate ..)
+    WithTop.add_ne_top.trans <| and_congr (dist_iff_rel ..) (dist_iff_rel ..)
 
 theorem distance_cast : distance M (∗α) w v = fdist M α w v (distance M α . .) :=
-  Eq.symm <| fdist_cast distance_iff_relate.mpr
+  Eq.symm <| fdist_cast dist_iff_rel.mpr
 
 theorem distance_list_nil_self : distance_list M w w [] = 0 := by simp only [distance_list, ↓reduceIte]
 
@@ -180,6 +186,9 @@ theorem distance_list_append (δ₁ δ₂ : List Program)
       _ = ⨅ x, (⨅ u, distance M α w u + distance_list M u x δ₁') + distance_list M x v δ₂ := by simp only [add_assoc, iInf_add]
       _ = _ := by simp only [distance_list]
 
+theorem distance_list_cons : distance_list M w v (α :: δ) = ⨅ x, distance M α w x + distance_list M x v δ := by
+  simp only [distance_list]
+
 theorem distance_list_concat : distance_list M w v (δ ++ [α]) = ⨅ x, distance_list M w x δ + distance M α x v :=
   (distance_list_append δ [α]).trans <| iInf_congr fun _ => congr_arg _ distance_list_singleton
 
@@ -187,7 +196,7 @@ theorem distance_star_le x : distance M (∗α) w v ≤ distance M α w x + dist
   by_cases (p := distance M α w x + distance M (∗α) x v = ⊤) (. ▸ le_top) <|
    (let ⟨hwx, hxv⟩ := WithTop.add_ne_top.mp .
     let ⟨p, h⟩ := iInf_exists_eq_of_ne_top hxv
-    let rwx := distance_iff_relate.mp hwx
+    let rwx := dist_iff_rel.mp hwx
     by_cases (p := w = x) (fun _ => by simp_all only [ne_eq, self_le_add_left]) (
     let p' : Walk M α w v := .cons rwx p .
     calc
@@ -196,7 +205,13 @@ theorem distance_star_le x : distance M (∗α) w v ≤ distance M α w x + dist
     _ ≤ _ := add_le_add (ENat.coe_toNat_le_self _) <| le_of_eq h.symm)
    )
 
+/-! ## Distance of diamond unfoldings
+
+Here we relate `distance` to `H`.
+ -/
+
 open Classical in
+/-- 7.47 (d) -/
 theorem distance_le_Hdistance (in_H : (X, δ) ∈ H α) :
   (M, w) ⊨ Con X → distance M α w v ≤ distance_list M w v δ :=
   let me := (evaluate M w <| Con .)
@@ -265,11 +280,12 @@ theorem distance_le_Hdistance (in_H : (X, δ) ∈ H α) :
         _ = _ := hδ ▸ (distance_list_append ..).symm
     )
 
-theorem relate_existsH_distance (w_α_v : relate M α w v)
+/-- 7.47 (f) -/
+theorem rel_existsH_dist (w_α_v : relate M α w v)
     : ∃ Xδ ∈ H α,
         evaluate M w (Con Xδ.1)
-      ∧ distance_list M w v Xδ.2 = distance M α w v  :=
-  have d_fin : distance M α w v ≠ ⊤ := distance_iff_relate.mpr w_α_v
+      ∧ distance_list M w v Xδ.2 = distance M α w v :=
+  have d_fin : distance M α w v ≠ ⊤ := dist_iff_rel.mpr w_α_v
   match α with
   | ·_ => List.exists_mem_singleton.mpr ⟨id, distance_list_singleton⟩
 
@@ -279,19 +295,19 @@ theorem relate_existsH_distance (w_α_v : relate M α w v)
   | α⋓β =>
     Or.elim (min_cases (distance M α w v) (distance M β w v))
     (fun ⟨min_eq, d_le⟩ =>
-      let ⟨Fδ, in_H, eval, dl_eq_d⟩:= relate_existsH_distance <| distance_iff_relate.mp <| ne_of_eq_of_ne min_eq.symm d_fin
+      let ⟨Fδ, in_H, eval, dl_eq_d⟩:= rel_existsH_dist <| dist_iff_rel.mp <| ne_of_eq_of_ne min_eq.symm d_fin
       ⟨Fδ, List.mem_union_iff.mpr <| .inl in_H, eval, dl_eq_d.trans min_eq.symm⟩
     )
     (fun ⟨min_eq, d_le⟩ =>
-      let ⟨Fδ, in_H, eval, dl_eq_d⟩:= relate_existsH_distance <| distance_iff_relate.mp <| ne_of_eq_of_ne min_eq.symm d_fin
+      let ⟨Fδ, in_H, eval, dl_eq_d⟩:= rel_existsH_dist <| dist_iff_rel.mp <| ne_of_eq_of_ne min_eq.symm d_fin
       ⟨Fδ, List.mem_union_iff.mpr <| .inr in_H, eval, dl_eq_d.trans min_eq.symm⟩
     )
 
   | α;'β =>
     let ⟨u, min_u⟩ := iInf_exists_eq_of_ne_top d_fin
     let ⟨dα_fin, dβ_fin⟩:= WithTop.add_ne_top.mp <| ne_of_eq_of_ne min_u.symm d_fin
-    let ⟨⟨Xα, δα⟩, in_Hα, evα, dlα⟩ := relate_existsH_distance <| distance_iff_relate.mp dα_fin
-    let ⟨⟨Xβ, δβ⟩, in_Hβ, evβ, dlβ⟩ := relate_existsH_distance <| distance_iff_relate.mp dβ_fin
+    let ⟨⟨Xα, δα⟩, in_Hα, evα, dlα⟩ := rel_existsH_dist <| dist_iff_rel.mp dα_fin
+    let ⟨⟨Xβ, δβ⟩, in_Hβ, evβ, dlβ⟩ := rel_existsH_dist <| dist_iff_rel.mp dβ_fin
     if c : δα = []
       then
         let wu : w = u := eq_of_distance_nil <| ne_of_eq_of_ne (c ▸ dlα) dα_fin
@@ -326,8 +342,8 @@ theorem relate_existsH_distance (w_α_v : relate M α w v)
       match p with
       | .nil α => absurd rfl wv
       | .cons (x := x) rwx pxv wx =>
-        let ⟨⟨Xα, δα⟩, in_Hα, evα, dlα⟩ := relate_existsH_distance rwx
-        let dα_fin : distance_list M _ _ δα ≠ ⊤ := ne_of_eq_of_ne dlα <| distance_iff_relate.mpr rwx
+        let ⟨⟨Xα, δα⟩, in_Hα, evα, dlα⟩ := rel_existsH_dist rwx
+        let dα_fin : distance_list M _ _ δα ≠ ⊤ := ne_of_eq_of_ne dlα <| dist_iff_rel.mpr rwx
         let hδα : δα ≠ [] := mt (eq_of_distance_nil <| . ▸ dα_fin) wx
         ⟨(Xα, δα ++ [∗α]), List.mem_union_iff.mpr <| .inr <| List.mem_flatMap_of_mem in_Hα (by simp_all),
           evα, distance_list_concat ▸ iInf_eq_of_forall_ge_of_forall_gt_exists_lt
@@ -343,3 +359,75 @@ theorem relate_existsH_distance (w_α_v : relate M α w v)
           .⟩)
         ⟩
     )
+
+/-- 7.47 (b) -/
+lemma distance_list_eq_distance_steps :
+    (distance_list M w v δ) = (distance M (Program.steps δ) w v) := by
+  induction δ generalizing w v
+  · simp_all [distance_list, distance]
+    aesop
+  case cons α δ IH =>
+    simp_all [distance_list, distance]
+
+-- FIXME: move to Semantics
+lemma relate_steps_iff_relateSeq : relate M (Program.steps δ) w v ↔ relateSeq M δ w v := by
+  induction δ generalizing w v <;> simp_all [relateSeq]
+
+/-- like 7.47 (a) but for lists -/
+theorem distance_list_iff_relate_Seq : (distance_list M w v δ) ≠ ⊤ ↔ relateSeq M δ w v := by
+  have := @dist_iff_rel W M (Program.steps δ) w v
+  rw [distance_list_eq_distance_steps]
+  rw [this]
+  exact relate_steps_iff_relateSeq
+
+/-- 7.47 (c) -/
+lemma dist_le_of_distList_le (h : ∀ u, distance M α v u ≤ distance_list M v u δ) :
+    ∀ u, distance_list M v u (α :: γ) ≤ distance_list M v u (δ ++ γ) := by
+  sorry
+
+/-- 7.47 (e) -/
+lemma distList_le_of_Hsat {W} M (v w : W) α γ
+    (in_H : Xδ ∈ H α)
+    (v_X : evaluate M v (Con Xδ.1))
+    : distance_list M v w (α :: γ) ≤ distance_list M v w (Xδ.2 ++ γ) :=
+  dist_le_of_distList_le (fun _ => distance_le_Hdistance in_H v_X) w -- using (c) and (d)
+
+/-- 7.47 (g) -/
+theorem relateSeq_existsH_dist (v_αγ_w : relateSeq M (α :: γ) v w)
+    : ∃ Xδ ∈ H α,
+        evaluate M v (Con Xδ.1)
+      ∧ distance_list M v w (Xδ.2 ++ γ) = distance_list M v w (α :: γ) := by
+  have claim : ∃ u, relate M α v u ∧ relateSeq M γ u w ∧
+      distance_list M v w (α :: γ) = distance M α v u + distance_list M u w γ := by
+    have := distance_list_iff_relate_Seq.mpr v_αγ_w -- using (a) for lists
+    rw [@distance_list_cons] at this
+    -- simp_all ; rcases this with ⟨x, bla⟩
+    -- hmm?
+    sorry
+  rcases claim with ⟨u, v_α_u, u_w, αγ_eq_α_γ⟩
+  have := rel_existsH_dist v_α_u -- applying (f)
+  rcases this with ⟨⟨X,δ⟩, in_H, v_X, δ_eq_α⟩
+  simp only at δ_eq_α
+  use ⟨X,δ⟩
+  have one : distance_list M v w (α :: γ) ≥ distance_list M v w (δ ++ γ) := by
+    rw [αγ_eq_α_γ, ← δ_eq_α]
+    simp [distance_list_append]
+    apply iInf_le
+  have two : distance_list M v w (α :: γ) ≤ distance_list M v w (δ ++ γ) := by
+    have := fun u => @relateSeq_H_imp_relate α W M v u _ _ in_H v_X
+    have : ∀ (u : W), relateSeq M  (δ ++ γ) v u → relateSeq M (α :: γ) v u := by
+      intro u
+      rw [relateSeq_append]
+      rw [relateSeq_cons]
+      aesop
+    exact distList_le_of_Hsat M v _ α γ in_H v_X -- use (e)
+  exact ⟨in_H, v_X, eq_of_le_of_le one two⟩
+
+/-- 7.47 (h)
+In the article this uses loaded formulas, we just use normal boxes. -/
+theorem existsH_of_true_diamond (ψ : Formula) (v_ : evaluate M v (~⌈α⌉⌈⌈γ⌉⌉ψ))
+    : ∃ Xδ ∈ H α, evaluate M v (Con Xδ.1)
+                ∧ evaluate M v (~⌈⌈Xδ.2⌉⌉⌈⌈γ⌉⌉ψ)
+                ∧   ⨅ w : {w // evaluate M w (~ψ)}, distance_list M v w (Xδ.2 ++ γ)
+                  = ⨅ w : {w // evaluate M w (~ψ)}, distance_list M v w (α :: γ) := by
+  sorry
