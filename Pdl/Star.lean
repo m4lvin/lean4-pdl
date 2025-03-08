@@ -1,6 +1,12 @@
 import Mathlib.Data.Vector.Basic
 import Mathlib.Logic.Relation
 
+/-!
+# Helper Lemmas about the Kleene Star
+
+Useful results about the reflexive-transitive closure `ReflTransGen` and `TransGen`.
+-/
+
 /-- A version of `Relation.ReflTransGen.cases_tail` also giving (in)equalities. -/
 -- TODO: add/make this an ↔ maybe?
 theorem ReflTransGen.cases_tail_eq_neq {r : α → α → Prop} (h : Relation.ReflTransGen r x z) :
@@ -70,7 +76,7 @@ theorem ReflTransGen.from_finitelyManySteps (r : α → α → Prop) {n : ℕ} :
     rw [this]
   case succ n IH =>
     rintro x z ys ⟨x_is_head, z_is_last, steprel⟩
-    let y := ys.tail.head -- WAIT bad, tail may be empty?
+    let y := ys.tail.head
     rw [Relation.ReflTransGen.cases_head_iff]
     right
     use y

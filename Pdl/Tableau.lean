@@ -2,7 +2,7 @@ import Mathlib.Data.List.ReduceOption
 
 import Pdl.LocalTableau
 
-/-! # PDL Tableau (Section 4) -/
+/-! # PDL-Tableaux (Section 4) -/
 
 open HasLength
 
