@@ -3,7 +3,6 @@ import Mathlib.Data.List.Sublists
 import Mathlib.Tactic.Linarith
 
 import Pdl.Substitution
-import Pdl.Fresh
 import Pdl.Star
 
 /-! # Local Box Unfolding (Section 3.1) -/

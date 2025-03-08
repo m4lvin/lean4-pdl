@@ -5,7 +5,6 @@ import Pdl.Measures
 import Pdl.Star
 import Pdl.Semantics
 import Pdl.Vocab
-import Pdl.Fresh
 import Pdl.Substitution
 import Pdl.Examples
 import Pdl.Modelgraphs

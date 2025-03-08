@@ -1,10 +1,9 @@
 import Mathlib.Tactic.Linarith
 
 import Pdl.Substitution
-import Pdl.Fresh
 import Pdl.Star
 
-/-! # Local Box Unfolding (Section 3.2) -/
+/-! # Local Diamond Unfolding (Section 3.2 and 3.3) -/
 
 /-! ## Diamonds: H, Y and Φ_⋄ -/
 
