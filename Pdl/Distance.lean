@@ -394,7 +394,7 @@ lemma dist_le_of_distList_le (h : ∀ u, distance M α v u ≤ distance_list M v
     exact this u'
   intro u
   have := @iInf_exists_eq W ⟨v⟩ (fun u' => distance M β v u' + distance_list M u' u γ)
-  rcases this with ⟨u', u'_def⟩
+  rcases this with ⟨u', u'_minimizes⟩
   calc
     distance_list M v u (α :: γ)
       ≤ distance M α v u' + distance_list M u' u γ := by rw [distance_list]; apply iInf_le
@@ -403,7 +403,7 @@ lemma dist_le_of_distList_le (h : ∀ u, distance M α v u ≤ distance_list M v
           unfold β
           rw [← distance_list_eq_distance_steps] -- using (b)
           apply h
-    _ = distance_list M v u (β :: γ) := u'_def.symm
+    _ = distance_list M v u (β :: γ) := u'_minimizes.symm
 
 /-- 7.47 (e) -/
 lemma distList_le_of_Hsat {W} M (v w : W) α γ
@@ -419,11 +419,14 @@ theorem relateSeq_existsH_dist (v_αγ_w : relateSeq M (α :: γ) v w)
       ∧ distance_list M v w (Xδ.2 ++ γ) = distance_list M v w (α :: γ) := by
   have claim : ∃ u, relate M α v u ∧ relateSeq M γ u w ∧
       distance_list M v w (α :: γ) = distance M α v u + distance_list M u w γ := by
-    have := distance_list_iff_relate_Seq.mpr v_αγ_w -- using (a) for lists
-    rw [@distance_list_cons] at this
-    -- simp_all ; rcases this with ⟨x, bla⟩
-    -- hmm?
-    sorry
+    have αγ_not_inf := distance_list_iff_relate_Seq.mpr v_αγ_w -- using (a) for lists
+    have := @iInf_exists_eq W ⟨v⟩ (fun u => distance M α v u + distance_list M u w γ)
+    rcases this with ⟨u, u_minimizes⟩
+    rw [distance_list_cons] at αγ_not_inf
+    rw [distance_list_cons]
+    refine ⟨u, ?_, ?_, u_minimizes⟩
+    · rw [← dist_iff_rel]; aesop
+    · rw [← distance_list_iff_relate_Seq]; aesop
   rcases claim with ⟨u, v_α_u, u_w, αγ_eq_α_γ⟩
   have := rel_existsH_dist v_α_u -- applying (f)
   rcases this with ⟨⟨X,δ⟩, in_H, v_X, δ_eq_α⟩
@@ -445,9 +448,31 @@ theorem relateSeq_existsH_dist (v_αγ_w : relateSeq M (α :: γ) v w)
 
 /-- 7.47 (h)
 In the article this uses loaded formulas, we just use normal boxes. -/
-theorem existsH_of_true_diamond (ψ : Formula) (v_ : evaluate M v (~⌈α⌉⌈⌈γ⌉⌉ψ))
+theorem existsH_of_true_diamond (ψ : Formula) (v_ : evaluate M v (~⌈⌈α :: γ⌉⌉ψ))
     : ∃ Xδ ∈ H α, evaluate M v (Con Xδ.1)
                 ∧ evaluate M v (~⌈⌈Xδ.2⌉⌉⌈⌈γ⌉⌉ψ)
                 ∧   ⨅ w : {w // evaluate M w (~ψ)}, distance_list M v w (Xδ.2 ++ γ)
                   = ⨅ w : {w // evaluate M w (~ψ)}, distance_list M v w (α :: γ) := by
-  sorry
+  simp only [evaluate] at v_
+  rw [evalBoxes] at v_
+  push_neg at v_
+  rcases v_ with ⟨w1, v_αγ_w1, w1_not_ψ⟩
+  -- Let `w0` be the witness to minimize the `α :: γ` distance from `w0` to `~ψ`:
+  have := @iInf_exists_eq {w // evaluate M w (~ψ)} ⟨w1, w1_not_ψ⟩ (fun w => distance_list M v w (α :: γ))
+  rcases this with ⟨w0, w0_minimizes⟩
+  have v_αγ_w0 : relateSeq M (α :: γ) v w0 := by
+    rw [← distance_list_iff_relate_Seq, ← w0_minimizes]
+    simp only [evaluate, ne_eq, iInf_eq_top, Subtype.forall, not_forall, Classical.not_imp]
+    refine ⟨w1, w1_not_ψ, ?_⟩
+    rw [← @Ne.eq_def, distance_list_iff_relate_Seq]
+    exact v_αγ_w1
+  have g := relateSeq_existsH_dist v_αγ_w0 -- use (g)
+  rcases g with ⟨Xδ, in_H, v_X, same_dist⟩
+  refine ⟨Xδ, in_H, v_X, ?_, ?_⟩
+  · rw [← @boxes_append]
+    simp only [evaluate, evalBoxes, not_forall, Classical.not_imp]
+    refine ⟨w0, ?_, by cases w0; assumption⟩
+    rw [← distance_list_iff_relate_Seq, same_dist, distance_list_iff_relate_Seq]
+    exact v_αγ_w0
+  · have e := fun w => distList_le_of_Hsat M v w _ γ in_H v_X -- use (e)
+    sorry
