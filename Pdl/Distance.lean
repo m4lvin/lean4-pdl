@@ -474,5 +474,11 @@ theorem existsH_of_true_diamond (ψ : Formula) (v_ : evaluate M v (~⌈⌈α :: 
     refine ⟨w0, ?_, by cases w0; assumption⟩
     rw [← distance_list_iff_relate_Seq, same_dist, distance_list_iff_relate_Seq]
     exact v_αγ_w0
-  · have e := fun w => distList_le_of_Hsat M v w _ γ in_H v_X -- use (e)
-    sorry
+  · apply eq_of_le_of_le
+    · -- second ≤ and = in the article:
+      calc ⨅ w : {w // evaluate M w (~ψ)}, distance_list M v w (Xδ.2 ++ γ)
+           ≤ distance_list M v w0 (α :: γ) := by rw [← same_dist]; apply iInf_le -- It follows that ...
+         _ = ⨅ w : {w // evaluate M w (~ψ)}, distance_list M v w (α :: γ) := w0_minimizes.symm
+    · -- first ≤ in article:
+      have e := fun w : {w // evaluate M w (~ψ)} => distList_le_of_Hsat M v w _ γ in_H v_X -- use (e)
+      exact iInf_mono e
