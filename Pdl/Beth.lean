@@ -1,6 +1,6 @@
 import Pdl.Interpolation
 
-/-! # Beth Definability (Sections 2.3 and 7) -/
+/-! # Beth Definability (Corollary 7.5) -/
 
 open vDash HasSat
 
@@ -10,6 +10,7 @@ def Formula.impDef (φ : Formula) (p : Nat) : Prop :=
 def Formula.expDef (ψ : Formula) (p : Nat) (φ : Formula) : Prop :=
   ψ.voc ⊆ φ.voc \ {Sum.inl p} ∧ φ ⊨ (·p) ⟷ ψ
 
+/-- For any implicit definition there exists an explicit one. -/
 theorem beth (φ : Formula) (h : φ.impDef p) :
     ∃ (ψ : Formula), ψ.expDef p φ := by
   -- Let p0 and p1 be fresh variables not in φ:

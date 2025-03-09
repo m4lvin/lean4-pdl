@@ -7,9 +7,12 @@ import Mathlib.Data.Vector.Snoc
 import Pdl.Semantics
 import Pdl.Star
 
+/-! # Examples
+
+Easy *semantic* examples. Nothing here is about tableaux yet.
+-/
 open HasSat
 
--- some simple silly stuff
 theorem mytaut1 (p : Nat) : tautology ((·p) ↣ (·p)) :=
   by
   unfold tautology
@@ -159,7 +162,7 @@ example (a b : Program) (X : Formula) :
   · rintro ⟨w_X, aBox, bBox⟩ v w_aSubS_v
     aesop
 
-/-- The induction axiom is semantically valid. Example 1 in MB. -/
+/-- The induction axiom is semantically valid. Example 1 in [Bor88]. -/
 theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a⌉(φ ↣ (⌈a⌉φ))) ↣ (⌈∗a⌉φ)) :=
   by
   intro W M w

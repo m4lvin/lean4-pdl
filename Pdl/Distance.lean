@@ -361,9 +361,9 @@ theorem rel_existsH_dist (w_α_v : relate M α w v)
     )
 
 /-- 7.47 (b) -/
-lemma distance_list_eq_distance_steps :
-    (distance_list M w v δ) = (distance M (Program.steps δ) w v) := by
-  induction δ generalizing w v
+lemma distance_list_eq_distance_steps (M : KripkeModel W) (v w : W) δ :
+    (distance_list M v w δ) = (distance M (Program.steps δ) v w) := by
+  induction δ generalizing v w
   · simp_all [distance_list, distance]
     aesop
   case cons α δ IH =>
@@ -383,7 +383,27 @@ theorem distance_list_iff_relate_Seq : (distance_list M w v δ) ≠ ⊤ ↔ rela
 /-- 7.47 (c) -/
 lemma dist_le_of_distList_le (h : ∀ u, distance M α v u ≤ distance_list M v u δ) :
     ∀ u, distance_list M v u (α :: γ) ≤ distance_list M v u (δ ++ γ) := by
-  sorry
+  let β := Program.steps δ
+  suffices ∀ u, distance_list M v u (α :: γ) ≤ distance_list M v u (β :: γ) by
+    intro u
+    specialize this u
+    rw [distance_list_append, le_iInf_iff]
+    intro u'
+    rw [distance_list_eq_distance_steps M v u' δ] -- using (b)
+    rw [@distance_list_cons W M v u β, le_iInf_iff] at this
+    exact this u'
+  intro u
+  have := @iInf_exists_eq W ⟨v⟩ (fun u' => distance M β v u' + distance_list M u' u γ)
+  rcases this with ⟨u', u'_def⟩
+  calc
+    distance_list M v u (α :: γ)
+      ≤ distance M α v u' + distance_list M u' u γ := by rw [distance_list]; apply iInf_le
+    _ ≤ distance M β v u' + distance_list M u' u γ := by
+          refine add_le_add ?_ (Preorder.le_refl (distance_list M u' u γ))
+          unfold β
+          rw [← distance_list_eq_distance_steps] -- using (b)
+          apply h
+    _ = distance_list M v u (β :: γ) := u'_def.symm
 
 /-- 7.47 (e) -/
 lemma distList_le_of_Hsat {W} M (v w : W) α γ
