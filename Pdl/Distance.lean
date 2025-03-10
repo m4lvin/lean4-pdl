@@ -448,7 +448,7 @@ theorem relateSeq_existsH_dist (v_αγ_w : relateSeq M (α :: γ) v w)
 
 /-- 7.47 (h)
 In the article this uses loaded formulas, we just use normal boxes. -/
-theorem existsH_of_true_diamond (ψ : Formula) (v_ : evaluate M v (~⌈⌈α :: γ⌉⌉ψ))
+theorem existsH_of_true_diamond α γ (ψ : Formula) (v_ : evaluate M v (~⌈⌈α :: γ⌉⌉ψ))
     : ∃ Xδ ∈ H α, evaluate M v (Con Xδ.1)
                 ∧ evaluate M v (~⌈⌈Xδ.2⌉⌉⌈⌈γ⌉⌉ψ)
                 ∧   ⨅ w : {w // evaluate M w (~ψ)}, distance_list M v w (Xδ.2 ++ γ)
@@ -482,3 +482,33 @@ theorem existsH_of_true_diamond (ψ : Formula) (v_ : evaluate M v (~⌈⌈α :: 
     · -- first ≤ in article:
       have e := fun w : {w // evaluate M w (~ψ)} => distList_le_of_Hsat M v w _ γ in_H v_X -- use (e)
       exact iInf_mono e
+
+/-- Summary definition of Lemma 7.47 -/
+theorem distanceProps W M α {w v : W} δ :
+      (distance M α w v ≠ ⊤ ↔ relate M α w v) -- a
+    ∧ (distance_list M v w δ = distance M (Program.steps δ) v w) -- b
+    ∧ ((∀ (u : W), distance M α v u ≤ distance_list M v u δ) →
+        ∀ (u : W), distance_list M v u (α :: γ) ≤ distance_list M v u (δ ++ γ)) -- c
+    ∧ ((X, δ) ∈ H α → (M, w)⊨Con X → distance M α w v ≤ distance_list M w v δ) -- d
+    ∧ (Xδ ∈ H α → evaluate M v (Con Xδ.1) →
+        distance_list M v w (α :: γ) ≤ distance_list M v w (Xδ.2 ++ γ) ) -- e
+    ∧ (relate M α w v → ∃ Xδ ∈ H α,
+        evaluate M w (Con Xδ.1) ∧ distance_list M w v Xδ.2 = distance M α w v ) -- f
+    ∧ (relateSeq M (α :: γ) v w → ∃ Xδ ∈ H α,
+        evaluate M v (Con Xδ.1) ∧
+        distance_list M v w (Xδ.2 ++ γ) = distance_list M v w (α :: γ)) -- g
+    ∧ (evaluate M v (~⌈⌈α :: γ⌉⌉ψ) → ∃ Xδ ∈ H α,
+        evaluate M v (Con Xδ.1) ∧
+        evaluate M v (~⌈⌈Xδ.2⌉⌉⌈⌈γ⌉⌉ψ) ∧
+          ⨅ w : {w // evaluate M w (~ψ)}, distance_list M v (↑w) (Xδ.2 ++ γ)
+        = ⨅ w : {w // evaluate M w (~ψ)}, distance_list M v (↑w) (α :: γ) ) -- h
+     :=
+   ⟨ dist_iff_rel -- (a)
+   , distance_list_eq_distance_steps M v w δ --(b)
+   , dist_le_of_distList_le -- (c)
+   , distance_le_Hdistance -- (d)
+   , distList_le_of_Hsat M v w α γ -- (e)
+   , rel_existsH_dist -- (f)
+   , relateSeq_existsH_dist -- (g)
+   , existsH_of_true_diamond α γ ψ -- (h)
+   ⟩
