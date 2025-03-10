@@ -11,10 +11,11 @@ def isBisimulation {W W': Type} (Z : W → W' → Prop)
   ∧
   (∀ w w', Z w w' → ∀ v', M'.Rel w' v' → (∃ v, Z v v' ∧ M.Rel w v))
 
-
+/-- Two pointed models are bisimilar iff there exists a bisimulation connecting them. -/
 def bisimilar : (KripkeModel W × W) → (KripkeModel W' × W') → Prop
   | (M, w), (M', w') => ∃ Z, isBisimulation Z M M' ∧ Z w w'
 
+-- FIXME: move to Semantics.lean
 def modelEquiv (Mw : KripkeModel W × W) (Mw' : KripkeModel W' × W') : Prop :=
   ∀ (φ : Formula), Mw ⊨ φ ↔ Mw' ⊨ φ
 
@@ -25,38 +26,40 @@ theorem modelEquiv_iff_bisimilar {W : Type} (finW : Fintype W) (finW' : Fintype 
     ((M,w) ≣ (M',w')) ↔ bisimilar (M,w) (M',w') := by
   constructor
   · intro Mw_equiv_Mw
-    unfold bisimilar
-    simp
-    unfold isBisimulation
+    simp only [bisimilar, isBisimulation]
     refine ⟨?Z, ⟨⟨?_, ?_, ?_⟩, ?_⟩⟩
     · exact (fun v v' => (M,v) ≣ (M',v')) -- let Z be semantic equivalence
-    ·
-      intro v v' c hZ
-      -- unfold modelEquiv at hZ
-      -- simp at hZ
-      -- unfold Evaluate at hZ
+    · intro v v' c hZ -- agreement
       exact hZ (Formula.atom_prop c)
-    · intro w w' c v w_v
+    · intro w w' c v w_v -- showing the forth condition
       unfold modelEquiv at c
       unfold modelEquiv
-      simp
+      simp only [modelCanSemImplyForm]
       by_contra hyp
-      simp at hyp
+      simp only [not_exists, not_and] at hyp
       let S' := { u' : finW'.elems // M'.Rel w' u'  }
-      have claim : ∀ wᵢ' : S', ∃ (ψᵢ : Formula), (M,v) ⊨ ψᵢ ∧ ¬ (M',wᵢ'.val.val)⊨ ψᵢ := by
-        sorry
+      have claim : ∀ wᵢ' : S', ∃ (ψᵢ : Formula), (M,v) ⊨ ψᵢ ∧ ¬ (M', wᵢ'.val.val) ⊨ ψᵢ := by
+        rintro ⟨wᵢ', w'_wᵢ'⟩
+        simp only [modelCanSemImplyForm]
+        specialize hyp wᵢ'
+        rw [propext (not_iff_false_intro w'_wᵢ')] at hyp
+        simp only [imp_false, not_forall] at hyp
+        rcases hyp with ⟨ψ0, bla⟩
+        by_cases Evaluate (M, v) ψ0
+        · use ψ0; aesop
+        · use ~ψ0; aesop
       let φ := ~(□(~ BigConjunction (sorry /- idea: map using choice and claim -/)))
       have : (M,w) ⊨ φ := by sorry
       have : ¬ (M',w') ⊨ φ := by sorry
       absurd c
-      simp
+      simp only [modelCanSemImplyForm, not_forall]
       use φ
       tauto
-    ·
+    · intro w w' c v' w'_v' -- showing the back condition
+      -- should be analogous to forth direction
       sorry
     · exact Mw_equiv_Mw
   · intro Mw_bisim_Mw'
-    unfold modelEquiv
     intro φ
     induction φ generalizing w w' with
     | bottom =>
@@ -70,8 +73,6 @@ theorem modelEquiv_iff_bisimilar {W : Type} (finW : Fintype W) (finW' : Fintype 
     | And φ ψ ihφ ihψ =>
       specialize ihφ w w'
       specialize ihψ w w'
-      simp
-      rcases with ⟨ihφ,ihψ⟩
       aesop
     | box φ ih =>
       rcases Mw_bisim_Mw' with ⟨Z, ⟨⟨prop, forth, back⟩, w_Z_w'⟩ ⟩
@@ -83,6 +84,14 @@ theorem modelEquiv_iff_bisimilar {W : Type} (finW : Fintype W) (finW' : Fintype 
         rcases this with ⟨v, v_Z_v', w_v⟩
         simp at w_boxphi
         have := w_boxphi v w_v
-        specialize ih v v' ⟨Z, sorry⟩
+        specialize ih v v' ⟨Z, by tauto⟩
         tauto
-      · sorry
+      · intro w'_boxphi
+        simp
+        intro v w_v
+        have := forth _ _ w_Z_w' v w_v
+        rcases this with ⟨v', v_Z_v', w'_v'⟩
+        simp at w'_boxphi
+        have := w'_boxphi v' w'_v'
+        specialize ih v v' ⟨Z, by tauto⟩
+        tauto
