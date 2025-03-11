@@ -297,7 +297,7 @@ theorem eProp {X} (tab : Tableau .nil X) :
           , Relation.ReflTransGen.trans t_u u_s ⟩
 
 -- Unused?
-theorem eProp2.a {tab : Tableau .nil X} (s t : PathIn tab) :
+theorem ePropB.a {tab : Tableau .nil X} (s t : PathIn tab) :
     s ⋖_ t → (s <ᶜ t) ∨ (t ≡ᶜ s) := by
   simp_all only [edge, cEdge, cEquiv, flip, before, companion]
   intro t_childOf_s
@@ -325,7 +325,7 @@ theorem eProp2.a {tab : Tableau .nil X} (s t : PathIn tab) :
     · right; use Hist, Z, nrep, bas, Y, r, next, tabAt_s_def
 
 -- Unused?
-theorem eProp2.b {tab : Tableau .nil X} (s t : PathIn tab) : s ♥ t → t ≡ᶜ s := by
+theorem ePropB.b {tab : Tableau .nil X} (s t : PathIn tab) : s ♥ t → t ≡ᶜ s := by
   intro comp
   constructor
   · simp only [companion, companionOf, exists_prop] at comp
@@ -339,7 +339,7 @@ theorem eProp2.b {tab : Tableau .nil X} (s t : PathIn tab) : s ♥ t → t ≡�
     exact Relation.ReflTransGen.single comp
 
 -- TODO IMPORTANT
-theorem eProp2.c_help {tab : Tableau .nil X} (s : PathIn tab) :
+theorem ePropB.c_help {tab : Tableau .nil X} (s : PathIn tab) :
     (nodeAt s).isFree → ∀ t, s < t → s <ᶜ t := by
   intro s_free t t_path_s
   constructor
@@ -366,10 +366,10 @@ theorem eProp2.c_help {tab : Tableau .nil X} (s : PathIn tab) :
         simp [Sequent.isFree] at s_free
         simp_all
 
-theorem eProp2.c {tab : Tableau .nil X} (s t : PathIn tab) :
+theorem ePropB.c {tab : Tableau .nil X} (s t : PathIn tab) :
     (nodeAt s).isFree → s ⋖_ t → s <ᶜ t := by
   intro s_free t_childOf_s
-  apply eProp2.c_help _ s_free
+  apply ePropB.c_help _ s_free
   apply Relation.TransGen.single; exact t_childOf_s
 
 /-- A free node and a loaded node cannot be ≡ᶜ equivalent. -/
@@ -382,7 +382,7 @@ theorem not_cEquiv_of_free_loaded (s t : PathIn tab)
   case head u v u_v v_t IH =>
     cases u_v -- normal edge or companion edge?
     case inl u_v =>
-      rcases eProp2.c u v s_free u_v with ⟨-, not_v_u⟩
+      rcases ePropB.c u v s_free u_v with ⟨-, not_v_u⟩
       absurd not_v_u
       have := Relation.ReflTransGen.trans v_t t_s
       rw [@Relation.reflTransGen_iff_eq_or_transGen] at this
@@ -394,7 +394,7 @@ theorem not_cEquiv_of_free_loaded (s t : PathIn tab)
       simp_all [Sequent.isFree]
 
 -- Unused?
-theorem eProp2.d {tab : Tableau .nil X} (s t : PathIn tab) :
+theorem ePropB.d {tab : Tableau .nil X} (s t : PathIn tab) :
     (nodeAt s).isLoaded → (nodeAt t).isFree → s ⋖_ t → s <ᶜ t := by
   intro s_loaded t_free t_childOf_s
   constructor
@@ -408,7 +408,7 @@ theorem eProp2.d {tab : Tableau .nil X} (s t : PathIn tab) :
       assumption
 
 -- Added for loadedDiamondPaths
-theorem eProp2.d_help {tab : Tableau .nil X} (s t : PathIn tab) :
+theorem ePropB.d_help {tab : Tableau .nil X} (s t : PathIn tab) :
     (nodeAt t).isLoaded → (nodeAt s).isFree → t ◃⁺ s → ¬ (s ◃⁺ t) := by
   intro t_loaded s_free t_s
   intro s_t
@@ -417,7 +417,7 @@ theorem eProp2.d_help {tab : Tableau .nil X} (s t : PathIn tab) :
 
 -- Unused?
 /-- <ᶜ is transitive -/
-theorem eProp2.e {tab : Tableau .nil X} (s u t : PathIn tab) :
+theorem ePropB.e {tab : Tableau .nil X} (s u t : PathIn tab) :
     s <ᶜ u  →  u <ᶜ t  →  s <ᶜ t := by
   rintro ⟨s_u, _⟩ ⟨u_t, not_u_t⟩
   constructor
@@ -426,7 +426,7 @@ theorem eProp2.e {tab : Tableau .nil X} (s u t : PathIn tab) :
     absurd not_u_t
     apply Relation.TransGen.trans t_s s_u
 
-theorem eProp2.f {tab : Tableau .nil X} (s t : PathIn tab) :
+theorem ePropB.f {tab : Tableau .nil X} (s t : PathIn tab) :
     t ◃⁺ s  →  ¬ t ≡ᶜ s  →  t <ᶜ s := by
   rintro s_c_t s_nequiv_t
   constructor
@@ -438,7 +438,7 @@ theorem eProp2.f {tab : Tableau .nil X} (s t : PathIn tab) :
     · exact Relation.TransGen.to_reflTransGen t_c_s
 
 -- TODO: add in notes?
-theorem eProp2.f_tweak {tab : Tableau .nil X} (s u t : PathIn tab) :
+theorem ePropB.f_tweak {tab : Tableau .nil X} (s u t : PathIn tab) :
     s ◃⁺ u  →  u ◃⁺ t  →  ¬ t ≡ᶜ u → ¬ t ≡ᶜ s := by
   intro s_u u_t not_t_u
   intro t_s
@@ -448,7 +448,7 @@ theorem eProp2.f_tweak {tab : Tableau .nil X} (s u t : PathIn tab) :
     exact Relation.TransGen.to_reflTransGen s_u
   · exact Relation.TransGen.to_reflTransGen u_t
 
-theorem eProp2.g {tab : Tableau .nil X} (s t : PathIn tab) :
+theorem ePropB.g {tab : Tableau .nil X} (s t : PathIn tab) :
     (s <ᶜ t → ¬ s ≡ᶜ t) := by
   intro s_lt_t
   rintro ⟨-, t_to_s⟩
@@ -459,7 +459,7 @@ theorem eProp2.g {tab : Tableau .nil X} (s t : PathIn tab) :
   · rw [@Relation.reflTransGen_iff_eq_or_transGen] at t_to_s
     simp_all
 
-theorem eProp2.h {tab : Tableau .nil X} (s u t : PathIn tab) :
+theorem ePropB.h {tab : Tableau .nil X} (s u t : PathIn tab) :
     (s <ᶜ u  →  s ≡ᶜ t  →  t <ᶜ u) := by
   rintro s_c_y s_equiv_t
   rcases s_c_y with ⟨s_u, not_u_s⟩
@@ -470,7 +470,7 @@ theorem eProp2.h {tab : Tableau .nil X} (s u t : PathIn tab) :
     absurd not_u_s
     exact Relation.TransGen.trans_left u_to_t t_to_s
 
-theorem eProp2 {tab : Tableau .nil X} (s u t : PathIn tab) :
+theorem ePropB {tab : Tableau .nil X} (s u t : PathIn tab) :
     (s ⋖_ t → (s <ᶜ t) ∨ (t ≡ᶜ s))
   ∧ (s ♥ t → t ≡ᶜ s)
   ∧ ((nodeAt s).isFree → s ⋖_ t → s <ᶜ t)
@@ -480,8 +480,8 @@ theorem eProp2 {tab : Tableau .nil X} (s u t : PathIn tab) :
   ∧ (s <ᶜ t → ¬ s ≡ᶜ t)
   ∧ (s <ᶜ u  →  s ≡ᶜ t  →  t <ᶜ u)
   :=
-  ⟨eProp2.a _ _, eProp2.b _ _, eProp2.c _ _, eProp2.d _ _
-  , eProp2.e _ _ _, eProp2.f _ _, eProp2.g s t, eProp2.h s u t⟩
+  ⟨ePropB.a _ _, ePropB.b _ _, ePropB.c _ _, ePropB.d _ _
+  , ePropB.e _ _ _, ePropB.f _ _, ePropB.g s t, ePropB.h s u t⟩
 
 /-! ## Soundness -/
 
@@ -763,10 +763,10 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         left
         exact t_s
       · use W, M, v
-      · -- using eProp2 here
+      · -- using ePropB here
         unfold cEquiv
         simp
-        have := eProp2.d t s1 (Sequent.isLoaded_of_negAnyFormula_loaded negLoad_in) ?_ t_s
+        have := ePropB.d t s1 (Sequent.isLoaded_of_negAnyFormula_loaded negLoad_in) ?_ t_s
         · unfold before at this
           intro s1_t
           rw [Relation.ReflTransGen.cases_tail_iff] at s1_t
@@ -879,7 +879,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
             rcases sk2_property with ⟨sk2_sat, sk2_nEquiv_sk⟩ | ⟨anf_in_sk2, u_sk2, sk2_almostFree⟩
             · refine ⟨sk2, ?_, Or.inl ⟨sk2_sat, ?_⟩⟩  -- leaving cluster, easy?
               · exact Relation.TransGen.trans t_sk sk_c_sk2
-              · apply eProp2.f_tweak _ _ _ t_sk sk_c_sk2 sk2_nEquiv_sk
+              · apply ePropB.f_tweak _ _ _ t_sk sk_c_sk2 sk2_nEquiv_sk
             · refine ⟨sk2, ?_, Or.inr ⟨anf_in_sk2, u_sk2, sk2_almostFree⟩⟩
               · exact Relation.TransGen.trans t_sk sk_c_sk2
 
@@ -1222,7 +1222,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       refine ⟨s, ?_, ?_⟩
       exact Relation.TransGen.head (Or.inr ⟨tabAt_t_def ▸ lpr, h, rfl⟩) u_s
     · refine Or.inl ⟨s_sat, ?_⟩
-      exact eProp2.f_tweak _ _ _ (Relation.TransGen.single (Or.inr t_comp_u)) u_s not_s_u
+      exact ePropB.f_tweak _ _ _ (Relation.TransGen.single (Or.inr t_comp_u)) u_s not_s_u
     · exact Or.inr reached
 
 termination_by
@@ -1281,7 +1281,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
         simp
       rw [this]
       apply IH
-      apply eProp2.c t _ t_is_free t_s
+      apply ePropB.c t _ t_is_free t_s
     case pdl Y bas r nrep next =>
       simp [nodeAt]
       intro hyp
@@ -1301,7 +1301,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
         simp
       rw [this]
       apply IH
-      apply eProp2.c t _ t_is_free t_s
+      apply ePropB.c t _ t_is_free t_s
   -- "The interesting case is where t is loaded;"
   case neg not_free =>
     simp [Sequent.isFree] at not_free
@@ -1333,7 +1333,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
           absurd s_sat
           -- use IH and Lemma (f) to show claim
           apply IH
-          exact eProp2.f s t t_to_s hyp
+          exact ePropB.f s t t_to_s hyp
         -- Now assume for contradiction, that Λ(t) is satisfiable.
         rintro ⟨W, M, v, v_⟩
         have := v_ (~(loadMulti [] α φ).unload) (by simp; right; aesop)
@@ -1349,14 +1349,14 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
           absurd IH s ?_
           exact ⟨W, M, w, w_s⟩
           simp only [Sequent.without_normal_isFree_iff_isFree] at rest_s_free
-          -- Remains to show that s is simpler than t. We use eProp2.
+          -- Remains to show that s is simpler than t. We use ePropB.
           constructor
           · exact t_to_s
           · have : (nodeAt t).isLoaded := by
               unfold Sequent.isLoaded
               simp [AnyNegFormula.in_side] at in_t
               aesop
-            apply eProp2.d_help _ _ this rest_s_free t_to_s
+            apply ePropB.d_help _ _ this rest_s_free t_to_s
       case cons β δ inner_IH =>
         rintro ⟨W,M,v,v_⟩
         have := v_ (~(loadMulti (β :: δ) α φ).unload) (by
@@ -1381,7 +1381,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
         rcases this with ⟨s, t_to_s, s_property⟩
         rcases s_property with ⟨s_sat, notequi⟩ | ⟨not_af_in_s, w_s, rest_s_free⟩
         · -- We left the cluster, use outer IH to get contradiction.
-          absurd IH s (eProp2.f s t t_to_s (by rw [cEquiv.symm]; exact notequi))
+          absurd IH s (ePropB.f s t t_to_s (by rw [cEquiv.symm]; exact notequi))
           -- need that `s` is satisfiable
           exact s_sat
         · -- Here is the case where s is still loaded and in the same cluster.

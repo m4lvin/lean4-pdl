@@ -453,7 +453,7 @@ def Qcombo {W : Finset (Finset Formula)} (R : Nat → W → W → Prop)
   := Relation.Comp (Qtests R F) (Qsteps R δ)
 
 /-- Q_Fδ v w implies Q v w. -/
-theorem cp3a {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α : Program) :
+theorem cpHelpA {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α : Program) :
     ∀ Fδ ∈ H α, ∀ v w, Qcombo R Fδ.1 Fδ.2 v w → Q R α v w := by
   rintro ⟨F,δ⟩ in_H v w
   cases α
@@ -466,11 +466,11 @@ theorem cp3a {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α : 
     simp only [Q]
     simp only [H, List.mem_union_iff] at in_H
     rcases in_H with hyp|hyp
-    · left; exact cp3a R α (F, δ) hyp _ _ v_combo_w
-    · right; exact cp3a R β (F, δ) hyp _ _ v_combo_w
+    · left; exact cpHelpA R α (F, δ) hyp _ _ v_combo_w
+    · right; exact cpHelpA R β (F, δ) hyp _ _ v_combo_w
   case sequence α β =>
-    have IHα := cp3a R α
-    have IHβ := cp3a R β
+    have IHα := cpHelpA R α
+    have IHβ := cpHelpA R β
     intro v_combo_w
     simp only [H, List.mem_flatten, List.mem_map, Prod.exists] at in_H
     rcases in_H with ⟨L, ⟨F, δ, in_Hα, def_l⟩, in_L⟩
@@ -518,7 +518,7 @@ theorem cp3a {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α : 
       · rw [Qsteps_single] at u_w
         exact u_w
   case star α =>
-    have IHα := cp3a R α
+    have IHα := cpHelpA R α
     intro v_combo_w
     simp [H, List.mem_flatten, List.mem_map, Prod.exists] at in_H
     rcases in_H with ⟨F_nil, δ_nil⟩ | ⟨L, ⟨F, δ, in_Hα, def_l⟩, in_L⟩

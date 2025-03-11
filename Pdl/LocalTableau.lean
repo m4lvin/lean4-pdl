@@ -1029,7 +1029,7 @@ theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X 
   · simp only [lmOfFormula, gt_iff_lt]
     cases α <;> simp_all [Program.isAtomic]
 
-theorem LocalRule.Decreases (rule : LocalRule X ress) :
+theorem LocalRuleDecreases (rule : LocalRule X ress) :
     ∀ Y ∈ ress, ∀ y ∈ node_to_multiset Y, ∃ x ∈ node_to_multiset X, y < x :=
   by
     intro Y Y_in_ress y y_in_Y
@@ -1201,7 +1201,7 @@ theorem localRuleApp.decreases_DM {X : Sequent} {B : List Sequent}
       linarith
   · apply Multiset.sub_add_of_subset_eq
     exact preconP_to_submultiset preconP
-  · exact LocalRule.Decreases rule _ Y_in_ress
+  · exact LocalRuleDecreases rule _ Y_in_ress
 
 @[simp]
 def endNodesOf : {X : _} → LocalTableau X → List Sequent
