@@ -192,6 +192,12 @@ theorem distance_list_cons : distance_list M w v (α :: δ) = ⨅ x, distance M 
 theorem distance_list_concat : distance_list M w v (δ ++ [α]) = ⨅ x, distance_list M w x δ + distance M α x v :=
   (distance_list_append δ [α]).trans <| iInf_congr fun _ => congr_arg _ distance_list_singleton
 
+theorem distance_comp_eq_distList :
+    distance M (β;'β') w v = distance_list M w v [β, β'] := by
+  unfold distance
+  rw [distance_list_cons]
+  simp_rw [distance_list_singleton]
+
 theorem distance_star_le x : distance M (∗α) w v ≤ distance M α w x + distance M (∗α) x v :=
   by_cases (p := distance M α w x + distance M (∗α) x v = ⊤) (. ▸ le_top) <|
    (let ⟨hwx, hxv⟩ := WithTop.add_ne_top.mp .
@@ -271,27 +277,29 @@ theorem distance_le_Hdistance (in_H : (X, δ) ∈ H α) :
   | β ;' β' =>
     let ⟨⟨_, δα⟩, in_Hβ, h⟩ := List.exists_of_mem_flatMap in_H
     if c : δα = []
-      then
-        let h := (if_pos c).subst h
-        let ⟨Yγ, in_Hβ', h⟩ := List.exists_of_mem_flatMap h
-        let ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton <| h
-        let ev := hX.subst (motive := me) ev
+      then by
+        subst c
+        simp only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists] at h
+        rcases h with ⟨l, ⟨Y, γ, in_Hβ', def_l⟩ , in_l⟩; subst def_l
+        simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false] at in_l
+        cases in_l; subst_eqs
         let evα := conEval.mpr (List.forall_mem_union.mp <| conEval.mp ev).1
-        let evβ := conEval.mpr (List.forall_mem_union.mp <| conEval.mp ev).2
-        let dβ := le_bot_iff.mp <| le_of_le_of_eq (distance_le_Hdistance in_Hβ evα) (c ▸ if_pos rfl)
-        calc
-              distance M (β ;' β') w v
-            ≤ distance M β w w + distance M β' w v := iInf_le _ w
-          _ = distance M β' w v := dβ ▸ zero_add _
-          _ ≤ distance_list M w v Yγ.2 := distance_le_Hdistance in_Hβ' evβ
-          _ = distance_list M w v δ := congr_arg _ hδ.symm
+        have IHβ := fun u => @distance_le_Hdistance _ _ _ _ u in_Hβ evα
+        have c := @dist_le_of_distList_le W M β w _ [β'] IHβ v -- using (c) here
+        let evβ' := conEval.mpr (List.forall_mem_union.mp <| conEval.mp ev).2
+        have IHβ' := @distance_le_Hdistance _ _ _ _ v in_Hβ' evβ'
+        -- "From these two observations ..."
+        calc  distance M (β ;' β') w v
+            = distance_list M w v [β, β'] := distance_comp_eq_distList
+          _ ≤ distance_list M w v [β'] := c
+          _ = distance M β' w v := distance_list_singleton
+          _ ≤ distance_list M w v δ := IHβ'
       else
         let h := (if_neg c).subst h
         let ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton <| h
         let evα := hX.subst (motive := me) ev
         let IHβ x := (distance_le_Hdistance (v := x) in_Hβ evα)
-        calc
-              distance M (β ;' β') w v
+        calc  distance M (β ;' β') w v
           _ ≤ ⨅ i, distance M β w i + distance M β' i v := le_iInf (iInf_le _)
           _ ≤ ⨅ x, distance_list M w x δα + distance_list M x v [β']
               := iInf_mono fun x => add_le_add (IHβ x) <| le_of_eq distance_list_singleton.symm
