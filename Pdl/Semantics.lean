@@ -295,6 +295,10 @@ theorem relateSeq_append {M : KripkeModel W} {l1 l2 : List Program} {w v : W} :
     simp [relateSeq]
     aesop
 
+lemma relate_steps_iff_relateSeq (M : KripkeModel W) (δ : List Program) (w v : W) :
+    relate M (Program.steps δ) w v ↔ relateSeq M δ w v := by
+  induction δ generalizing w v <;> simp_all [relateSeq]
+
 theorem relateSeq_iff_exists_Vector (M : KripkeModel W) (δ : List Program) (w v : W) :
   relateSeq M δ w v ↔
    ∃ (ws : List.Vector W (δ.length).succ),
