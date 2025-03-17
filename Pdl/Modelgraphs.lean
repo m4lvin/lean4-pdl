@@ -321,7 +321,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
               ∀ φ', (⌈d⌉φ') ∈ X'.val → relate MG.val d X' Y' → φ' ∈ Y'.val := by
             intro d d_in_δ X' Y' φ' dφ_in_X' X'_d_Y'
             have _forTermination : lengthOf d < lengthOf (∗β) := by
-              have := P_goes_down d_in_δ δ_in_P
+              have := PgoesDown d_in_δ δ_in_P
               cases em β.isAtomic <;> cases em β.isStar
               all_goals
                 simp_all [P]
@@ -387,7 +387,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
         (⌈d⌉φ') ∈ X'.val → relate MG.val d X' Y' → φ' ∈ Y'.val := by
       intro d d_in_δ X' Y' φ' dφ_in_X' X'_d_Y'
       have _forTermination : lengthOf d < lengthOf α := by
-        have := P_goes_down d_in_δ δ_in_P
+        have := PgoesDown d_in_δ δ_in_P
         simp_all [Program.isAtomic, Program.isStar]
       exact loadedTruthLemmaProg MG d X' φ' dφ_in_X' Y' X'_d_Y'
     -- NOTE: tried `induction δ` before, but that yields a too weak/annoying IH.

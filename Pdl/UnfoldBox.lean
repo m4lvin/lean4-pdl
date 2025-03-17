@@ -223,7 +223,7 @@ theorem P_monotone α (ℓ ℓ' : TP α) (h : ∀ τ, ℓ τ → ℓ' τ) δ : �
     simp_all [testsOfProgram, P]
 
 -- prove this via boxHelperTermination instead?
-theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if α.isAtomic then γ = α else if α.isStar then lengthOfProgram γ ≤  lengthOfProgram α else lengthOfProgram γ < lengthOfProgram α) := by
+theorem PgoesDown : γ ∈ δ → δ ∈ P α ℓ → (if α.isAtomic then γ = α else if α.isStar then lengthOfProgram γ ≤  lengthOfProgram α else lengthOfProgram γ < lengthOfProgram α) := by
   intro γ_in δ_in
   cases α
   all_goals
@@ -236,7 +236,7 @@ theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if α.isAtomic then γ 
       simp_all
       cases γ_in
       case inl γ_in =>
-        have IH := P_goes_down γ_in αs_in.1
+        have IH := PgoesDown γ_in αs_in.1
         cases em α.isAtomic <;> cases em α.isStar
         all_goals (simp_all;try linarith)
       case inr γ_in =>
@@ -245,18 +245,18 @@ theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if α.isAtomic then γ 
     case inr δ_in =>
       cases em ([] ∈ P α ℓ)
       · simp_all
-        have IH := P_goes_down γ_in δ_in
+        have IH := PgoesDown γ_in δ_in
         cases em β.isAtomic <;> cases em β.isStar
         all_goals (simp_all;try linarith)
       · simp_all
   case union α β =>
     cases δ_in
     case inl δ_in =>
-      have IH := P_goes_down γ_in δ_in
+      have IH := PgoesDown γ_in δ_in
       cases em α.isAtomic <;> cases em α.isStar
       all_goals (simp_all;try linarith)
     case inr δ_in =>
-      have IH := P_goes_down γ_in δ_in
+      have IH := PgoesDown γ_in δ_in
       cases em β.isAtomic <;> cases em β.isStar
       all_goals (simp_all;try linarith)
   case star α =>
@@ -268,7 +268,7 @@ theorem P_goes_down : γ ∈ δ → δ ∈ P α ℓ → (if α.isAtomic then γ 
       rcases δ_in with ⟨αs, ⟨αs_in, αs_not_null⟩, def_δ⟩
       cases em (γ ∈ αs)
       case inl γ_in =>
-        have IH := P_goes_down γ_in αs_in
+        have IH := PgoesDown γ_in αs_in
         cases em (α.isAtomic) <;> cases em α.isStar
         all_goals (simp_all;try linarith)
       case inr γ_not_in =>

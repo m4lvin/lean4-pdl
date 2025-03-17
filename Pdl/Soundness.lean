@@ -849,7 +849,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
             -- Prepare using outer IH for the program δ[k] (that must be simpler than α)
             have _forTermination : lengthOfProgram δ[k] < lengthOfProgram α := by
               -- TODO: Show that length went down.
-              -- ! Needs better `H_goes_down` similar to `P_goes_down`.
+              -- ! Needs better `H_goes_down` similar to `PgoesDown`.
               -- ! Only true when α is a test, union or semicolon ==> need separate case for star!
               have := H_goes_down_prog α Fδ_in_H (by aesop : δ.get k ∈ δ)
               cases α
