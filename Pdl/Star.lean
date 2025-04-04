@@ -7,8 +7,8 @@ import Mathlib.Logic.Relation
 Useful results about the reflexive-transitive closure `ReflTransGen` and `TransGen`.
 -/
 
-/-- A version of `Relation.ReflTransGen.cases_tail` also giving (in)equalities. -/
--- TODO: add/make this an ↔ maybe?
+/-- A version of `Relation.ReflTransGen.cases_tail` also giving (in)equalities.
+TODO: strengthen this to an ↔ maybe? -/
 theorem ReflTransGen.cases_tail_eq_neq {r : α → α → Prop} (h : Relation.ReflTransGen r x z) :
     x = z ∨ (x ≠ z ∧ ∃ y, x ≠ y ∧ r x y ∧ Relation.ReflTransGen r y z) := by
   induction h using Relation.ReflTransGen.head_induction_on
@@ -42,7 +42,8 @@ theorem ReflTransGen.cases_tail_eq_neq {r : α → α → Prop} (h : Relation.Re
           · assumption
           · use b
 
-/-- `ReflTransGen r a b` implies `∃ x₀ ... xₙ, a = x₀ ∧ r x₀ x₁ ∧ ... ∧ xₙ = b` -/
+/-- `ReflTransGen r a b` implies `∃ x₀ ... xₙ, a = x₀ ∧ r x₀ x₁ ∧ ... ∧ xₙ = b`.
+Similar to `List.exists_chain_of_relationReflTransGen`. -/
 theorem ReflTransGen.to_finitelyManySteps {r : α → α → Prop} (h : Relation.ReflTransGen r x z) :
     ∃ (n : ℕ) (ys : List.Vector α n.succ),
       x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (ys.get i.castSucc) (ys.get (i.succ)) := by
@@ -62,7 +63,8 @@ theorem ReflTransGen.to_finitelyManySteps {r : α → α → Prop} (h : Relation
       induction i using Fin.induction
       all_goals aesop
 
-/-- `ReflTransGen r a b` implies that `∃ x₀ ... xₙ, a = x₀ ∧ r x₀ x₁ ∧ ... ∧ xₙ = b` -/
+/-- `a = x₀ ∧ r x₀ x₁ ∧ ... ∧ xₙ = b` implies `ReflTransGen r a b`.
+Similar to `List.relationReflTransGen_of_exists_chain` in mathlib. -/
 theorem ReflTransGen.from_finitelyManySteps (r : α → α → Prop) {n : ℕ} :
     ∀ (x z : α) (ys : List.Vector α (Nat.succ n)),
       (x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (ys.get i.castSucc) (ys.get (i.succ)))
