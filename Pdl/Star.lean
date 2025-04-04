@@ -42,7 +42,7 @@ theorem ReflTransGen.cases_tail_eq_neq {r : α → α → Prop} (h : Relation.Re
           · assumption
           · use b
 
-/-- `∃ x₀ ... xₙ, a = x₀ ∧ r x₀ x₁ ∧ ... ∧ xₙ = b` implies `ReflTransGen r a b` -/
+/-- `ReflTransGen r a b` implies `∃ x₀ ... xₙ, a = x₀ ∧ r x₀ x₁ ∧ ... ∧ xₙ = b` -/
 theorem ReflTransGen.to_finitelyManySteps {r : α → α → Prop} (h : Relation.ReflTransGen r x z) :
     ∃ (n : ℕ) (ys : List.Vector α n.succ),
       x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (ys.get i.castSucc) (ys.get (i.succ)) := by

@@ -345,9 +345,8 @@ theorem ePropB.c {X} {tab : Tableau .nil X} (s t : PathIn tab) :
   constructor
   · apply Relation.TransGen_or_left; exact t_path_s
   · unfold cEdge
-    intro hyp
-    -- alternative idea: induction t_path_s
-    induction hyp -- ((t_s | t_comp_s) | blu)
+    intro t_to_s
+    induction t_to_s -- ((t_s | t_comp_s) | blu)
     case single u t_u =>
       rcases t_u with (t_u | t_comp_u )
       · absurd edge.TransGen_isAsymm.1 _ _ t_path_s
@@ -589,7 +588,8 @@ theorem localLoadedDiamond (α : Program) {X : Sequent}
           simp_all; use F, δ
 
         -- PROBLEM: Cannot apply IH to node where α is gone and replaced by its unfolding.
-        -- Do we need an induction on δ here? And strengthen IH to work for other programs!
+        -- Do we need an induction on δ here?
+        -- Note: already strengthened IH to work for other programs.
         refine ⟨?_Y, ⟨ ⟨_, ⟨(L ++ F, R, some (Sum.inl (~'⌊⌊δ⌋⌋χ'))), claim, rfl⟩ , ?_⟩ , ?_⟩⟩
         · sorry -- Do not know yet which end node to pick!
         · sorry

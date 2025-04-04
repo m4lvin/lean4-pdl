@@ -73,10 +73,10 @@ theorem find_predecessor_of_leaf :
 
 -- Saying "s is above t" is possible, for that I have a definition of
 -- Paths, somewhat like this
-inductive PathIn : NiceTree H → Type
-| nil : PathIn ht
-| goLeft (c1 c2 : NiceTree (k :: rest)) (tail : PathIn c1) : PathIn (NiceTree.Node k c1 c2)
-| goRight (c1 c2 : NiceTree (k :: rest)) (tail : PathIn c2) : PathIn (NiceTree.Node k c1 c2)
+inductive PathIn' : NiceTree H → Type
+| nil : PathIn' ht
+| goLeft (c1 c2 : NiceTree (k :: rest)) (tail : PathIn' c1) : PathIn' (NiceTree.Node k c1 c2)
+| goRight (c1 c2 : NiceTree (k :: rest)) (tail : PathIn' c2) : PathIn' (NiceTree.Node k c1 c2)
 
 
 
@@ -105,7 +105,7 @@ abbrev History := List Nat
 inductive HisTree : History → Nat → Type
 | leaf : HisTree H 1
 | step : {ms : _} → (s : Step n ms) → (next : ∀ {m}, m ∈ ms → HisTree (n :: H) m) → HisTree H n
-| rep : (k : Nat) → some k = H.indexOf? m → HisTree H m
+| rep : (k : Nat) → some k = H.idxOf? m → HisTree H m
 -- TODO: deriving Repr -- not working?
 
 open Step HisTree
