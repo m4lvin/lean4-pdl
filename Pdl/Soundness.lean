@@ -2,7 +2,7 @@ import Mathlib.Logic.Relation
 import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Convert
 import Mathlib.Data.Prod.Lex
-
+import Mathlib.Data.Vector.Defs
 import Pdl.TableauPath
 
 /-! # Soundness (Section 6) -/
@@ -208,6 +208,9 @@ theorem cEquiv.symm (s t : PathIn tab) : s ≡ᶜ t ↔ t ≡ᶜ s := by
 def clusterOf {X} {tab : Tableau .nil X} (p : PathIn tab) :=
   Quot.mk cEquiv p
 
+
+-- MQuestion: why not use r-t closure like in notes?
+
 /-- We have `before s t` iff there is a path from s to t but not from t to s.
 This means the cluster of `s` comes before the cluster of `t` in `tab`.
 NB: The notes use ◃* here but we use ◃⁺. The definitions are equivalent. -/
@@ -338,8 +341,142 @@ theorem ePropB.b {tab : Tableau .nil X} (s t : PathIn tab) : s ♥ t → t ≡�
     apply Relation.ReflTransGen_or_right
     exact Relation.ReflTransGen.single comp
 
+theorem vector_tail_head {α : Type} {n : ℕ} (ys : List.Vector α n.succ) : ys.head = ys.get 0 := by sorry
+
+theorem vector_tail_get {α : Type} {n : ℕ} (k : Fin n) (ys : List.Vector α n.succ) : ys.tail.get k = ys.get (k+1)
+  := match ys with
+      | ⟨[], h⟩ => by simp [List.Vector.tail, List.Vector.get]
+                      rfl'
+      | ⟨head :: v, h⟩ => by simp [List.Vector.tail, List.Vector.get]
+
+theorem Vector.my_get_one_eq_tail_head (ys : List.Vector α (k + 1).succ) :
+    ys.get 1 = ys.tail.head := by
+  cases ys using List.Vector.inductionOn
+  case cons y ys =>
+    simp only [Nat.succ_eq_add_one, List.Vector.tail_cons]
+    -- Remaining proof found by asking `rw?` three times ;-)
+    rw [← @Fin.succ_zero_eq_one', @List.Vector.get_cons_succ, List.Vector.get_zero]
+
+theorem Vector.last_eq_tail_last {k : Nat} (ys : List.Vector α (k + 1).succ) :
+    ys.tail.last = ys.last := by
+  cases ys using List.Vector.inductionOn
+  case cons y ys => aesop
+
+theorem oneStep_free_loaded_back_path_no {a : Sequent} {tab : Tableau [] a}
+    (s t : PathIn tab)
+    (s_free : (nodeAt s).isFree)
+    (t_loaded : (nodeAt t).isLoaded)
+    (m : ℕ)
+    (single_rel : s ◃ t)
+    (vs : List.Vector (PathIn tab) m.succ)
+    (t_is_z0 : t = vs.head)
+    (s_is_zn : s = vs.last)
+    (v_rel : ∀ (i : Fin m), (vs.get i.castSucc) ◃ (vs.get i.succ))
+    : False := by
+    -- but is this easier to show now?!
+    induction m generalizing t s
+    · have : t = s := by
+        rcases vs with ⟨_|⟨v,vs⟩, vs_h⟩
+        · exfalso; cases vs_h
+        · rcases vs with (_|_)
+          · simp_all [List.Vector.head, List.Vector.last]
+          · cases vs_h
+      simp_all [Sequent.isFree]
+    case succ m ih =>
+      let l : PathIn tab := List.Vector.get vs 1
+      let us : List.Vector (PathIn tab) m.succ := vs.tail
+      have l_is_u0 : l = us.head := by apply Vector.my_get_one_eq_tail_head
+      have s_is_uk : s = us.last := by unfold us; simp [s_is_zn, Vector.last_eq_tail_last]
+      have u_rel : ∀ (i : Fin m), (us.get i.castSucc) ◃ (us.get i.succ) := by
+        intro i
+        unfold us
+        simp [us, vector_tail_get]
+        exact v_rel i.succ
+      sorry
+
+theorem not_cEquiv_of_free_loaded_helper {a : Sequent} {tab : Tableau [] a}
+    (s t : PathIn tab)
+    (s_free : (nodeAt s).isFree)
+    (t_loaded : (nodeAt t).isLoaded)
+    (n m : ℕ) :
+    ∀
+    (ys : List.Vector (PathIn tab) n.succ)
+    (s_is_y0 : s = ys.head)
+    (t_is_yn : t = ys.last)
+    (y_rel : ∀ (i : Fin n), (ys.get i.castSucc) ◃ (ys.get i.succ))
+    (zs : List.Vector (PathIn tab) m.succ)
+    (t_is_z0 : t = zs.head)
+    (s_is_zn : s = zs.last)
+    (z_rel : ∀ (i : Fin m), (zs.get i.castSucc) ◃ (zs.get i.succ)),
+    False := by
+  -- Madeleine: We dont need induction just cases? since we use strong induction anyways.
+  -- Malvin: Yes, rewritten with cases now, but also adding `n_def` to remember `n`.
+  cases n_def : n
+  <;> intro ys s_is_y0 t_is_yn y_rel zs t_is_z0 s_is_zn z_rel -- do it in both cases.
+  case zero =>
+    -- Madeleine: There has to be a shorter way of handling this case
+    -- Malvin: shortened a bit, avoid calc
+    have : ys.last = ys.head := by rw [List.Vector.last]; simp
+    simp_all [Sequent.isLoaded, Sequent.isFree]
+  case succ k =>
+    let l : PathIn tab := List.Vector.get ys 1
+    by_cases l_free : (nodeAt l).isFree
+    · let us : List.Vector (PathIn tab) k.succ := ys.tail
+      have l_is_u0 : l = us.head := by apply Vector.my_get_one_eq_tail_head
+      have t_is_uk : t = us.last := by unfold us; simp [t_is_yn, Vector.last_eq_tail_last]
+      have u_rel : ∀ (i : Fin k), (us.get i.castSucc) ◃ (us.get i.succ) := by
+        intro i
+        unfold us
+        simp [us, vector_tail_get]
+        exact y_rel i.succ
+      let vs : List.Vector (PathIn tab) (m + 1).succ := List.Vector.append zs (List.Vector.cons l List.Vector.nil)
+      have t_is_v0 : t = vs.head := by
+        -- Malvin: here is a solution for one of the easy cases.
+        -- This is "taking apart" the vector into a list and the proof of its length.
+        rcases zs with ⟨_|_, h⟩; exfalso; cases h; aesop
+      have l_is_vm1 : l = vs.last := by unfold vs --- same issue
+                                        sorry
+      have v_rel : ∀ (i : Fin (m + 1)), (vs.get i.castSucc) ◃ (vs.get i.succ) := by
+        subst_eqs
+        apply Fin.cases -- Malvin: does this help?
+        · simp [vs]
+          sorry
+        · sorry
+      -- Malvin: Instead of IH, make a recursive call here:
+      -- Malvin: Crucial is that we go down from   n = k + 1  to  k  here.
+      apply not_cEquiv_of_free_loaded_helper l t l_free t_loaded k (m + 1) us l_is_u0 t_is_uk u_rel vs t_is_v0 l_is_vm1 v_rel
+    · --- same idea as inl, so skipping until I work out inl
+      simp [Sequent.isFree] at l_free
+      rename (nodeAt l).isLoaded = true => l_loaded
+      have us : List.Vector (PathIn tab) 2 := by sorry
+      have s_is_u0 : s = us.head := by sorry
+      have l_is_uk : l = us.last := sorry
+      have u_rel : ∀ (i : Fin 1), (us.get i.castSucc) ◃ (us.get i.succ) := by sorry
+      have vs : List.Vector (PathIn tab) (m + k).succ := by sorry
+      have l_is_v0 : l = vs.head := by sorry
+      have s_is_vmk : s = vs.last := by sorry
+      have v_rel : ∀ (i : Fin (m + k)), (vs.get i.castSucc) ◃ (vs.get i.succ) := by sorry
+      -- Madeleine did convince Malvin: We want n=1 here.
+      -- Appeal to separate lemma for this, not recursion.
+      apply oneStep_free_loaded_back_path_no s l s_free l_loaded (m + k) ?_ vs l_is_v0 s_is_vmk v_rel
+      rw [s_is_u0, l_is_uk]
+      convert u_rel 0
+      simp
+-- no more termination hints needed then.
+
+/-- A free node and a loaded node cannot be ≡ᶜ equivalent. -/
+theorem not_cEquiv_of_free_loaded' (s t : PathIn tab)
+    (s_free : (nodeAt s).isFree) (t_loaded: (nodeAt t).isLoaded) :
+    ¬ s ≡ᶜ t := by
+rintro ⟨s_t, t_s⟩
+rcases ReflTransGen.to_finitelyManySteps s_t with ⟨n,ys,y0,yn,y_rel⟩
+rcases ReflTransGen.to_finitelyManySteps t_s with ⟨m,zs,z0,zn,z_rel⟩
+exact not_cEquiv_of_free_loaded_helper s t s_free t_loaded n m ys y0 yn y_rel zs z0 zn z_rel
+
+-- findme3
+
 -- TODO IMPORTANT
-theorem ePropB.c {X} {tab : Tableau .nil X} (s t : PathIn tab) :
+theorem ePropB.c' {X} {tab : Tableau .nil X} (s t : PathIn tab) :
     (nodeAt s).isFree → s < t → s <ᶜ t := by
   intro s_free t_path_s
   constructor
@@ -366,18 +503,257 @@ theorem ePropB.c {X} {tab : Tableau .nil X} (s t : PathIn tab) :
         simp [Sequent.isFree] at s_free
         simp_all
 
+
+-- START HERE
+lemma unique_paths {a : Sequent} {tab : Tableau [] a}
+    (t l : PathIn tab) (h : t < l) :
+    ∃! n, ∃! ys : List.Vector _ _,
+      t = ys.head ∧ l = ys.last ∧ ∀ (i : Fin n), (ys.get i.castSucc) ⋖_ (ys.get i.succ)
+      := by
+  sorry
+
+-- FIXME move to TableauPath.lean later
+lemma edge_revEuclidean (a b c : PathIn tab) :
+    a < c → b < c → (a < b ∨ b < a ∨ b = a) := by
+  sorry
+lemma edge_revEuclidean' (a b c : PathIn tab) :
+    a < c → b < c → (a ≤ b ∨ b ≤ a) := by
+  sorry
+
+theorem lpr_is_lt {a : Sequent} {tab : Tableau [] a}
+    (l c : PathIn tab)
+    (lpr : LoadedPathRepeat ((tabAt l).1) ((tabAt l).2.1))
+    (tabAt_l_def : (tabAt l).2.2 = Tableau.lrep lpr)
+    (c_def : c = companionOf l lpr tabAt_l_def)
+    : c < l := by
+  rw [c_def]
+  unfold companionOf
+  have := @PathIn.rewind_lt_of_gt_zero -- need something like that but without length
+  sorry
+
+theorem c_claim {a : Sequent} {tab : Tableau [] a}
+    (t l c : PathIn tab)
+    (t_above_l : t < l)
+    (t_free : (nodeAt t).isFree)
+    (lpr : LoadedPathRepeat ((tabAt l).1) ((tabAt l).2.1))
+    (tabAt_l_def : (tabAt l).2.2 = Tableau.lrep lpr)
+    (c_def : c = companionOf l lpr tabAt_l_def)
+    : t < c := by
+  by_contra hyp
+  have c_above_l : c < l := lpr_is_lt l c lpr _ c_def
+  have comp_le_t : c ≤ t := by
+    rcases edge_revEuclidean _ _ _ t_above_l c_above_l with h|h|h
+    · exact False.elim (hyp h)
+    · exact Relation.TransGen.to_reflTransGen h
+    · rw [h]
+      exact Relation.ReflTransGen.refl
+  have := unique_paths _ _ c_above_l
+  -- want to show: all elements of ys are loaded (because from lpr) -- needs better unique_paths
+  -- want: t is inside ys
+  sorry
+
+theorem ePropB.c {X} {tab : Tableau .nil X} (s t : PathIn tab) :
+    (nodeAt s).isFree → s < t → s <ᶜ t := by
+    intro s_free slt
+    constructor
+    · apply Relation.TransGen_or_left; exact slt
+    · intro con
+      unfold cEdge at con
+      induction con using Relation.TransGen.head_induction_on
+      case right.base t hyp => cases hyp with
+        | inl tes => absurd slt
+                     exact edge.TransGen_isAsymm.1 t s (Relation.TransGen.single tes)
+        | inr ths => have con := (companion_loaded ths).2
+                     simp [Sequent.isFree] at s_free
+                     rw [con] at s_free
+                     contradiction
+      case right.ih t k t_k k_s ih => cases t_k with
+        | inl tes => apply ih
+                     exact (Relation.TransGen.trans slt (Relation.TransGen.single tes))
+        | inr khs => apply ih
+                     unfold companion at khs
+                     have ⟨lpr, h, kch⟩ := khs
+                     apply c_claim s t k slt s_free
+                     · sorry --- something in statement of c_claim is clashing here?
+                     · exact lpr
+                     · exact h
+
+theorem free_or_loaded {a : Sequent} {tab : Tableau [] a} (s : PathIn tab) : (nodeAt s).isFree ∨ (nodeAt s).isLoaded
+  :=  by simp_all [Sequent.isFree]
+
+
+theorem TransGen.of_reflTransGen {α : Type} {r : α → α → Prop}
+  (a b : α) (h : Relation.ReflTransGen r a b) (hne : a ≠ b) : Relation.TransGen r a b :=
+  by
+   induction h with
+   | refl => contradiction
+   | tail a_b b_c ih => sorry -- variable names are innaccessible??
+
+theorem edge_is_strict_ordering {s t : PathIn tab} : s ⋖_ t → s ≠ t :=
+by
+  intro s_t set
+  have := edge_then_length_lt s_t
+  simp_all
+
+  theorem path_is_strict_ordering {s t : PathIn tab} : s < t → s ≠ t :=
+by
+  intro s_t seqt
+  induction s_t with
+  | single set => absurd seqt
+                  exact edge_is_strict_ordering set
+  | tail a b ih => sorry -- same issue? variable names are innaccessible??
+
+theorem not_cEquiv_of_free_loaded (s t : PathIn tab)
+    (s_free : (nodeAt s).isFree) (t_loaded: (nodeAt t).isLoaded) :
+    ¬ s ≡ᶜ t := by
+rintro ⟨s_t, t_s⟩
+unfold cEdge at s_t
+induction s_t using Relation.ReflTransGen.head_induction_on
+case intro.refl => simp [Sequent.isFree] at s_free
+                   rw [s_free] at t_loaded
+                   contradiction
+case intro.head s l s_l l_t ih => cases free_or_loaded l with
+  | inl l_free => exact ih l_free (Relation.ReflTransGen.tail t_s s_l)
+  | inr l_loaded => cases s_l with
+                    | inl sel => have scl : s <ᶜ l := by exact ePropB.c s l s_free (Relation.TransGen.single sel)
+                                 absurd scl.2
+                                 have l_s : l ◃* s := Relation.ReflTransGen.trans l_t t_s
+                                 cases eq_or_ne l s with
+                                 | inl les => have := edge_is_strict_ordering sel
+                                              simp_all
+                                 | inr lnes => exact TransGen.of_reflTransGen l s l_s lnes
+                    | inr shl => have con := (companion_loaded shl).1
+                                 simp [Sequent.isFree] at s_free
+                                 rw [con] at s_free
+                                 contradiction
+
+theorem ePropB.d {tab : Tableau .nil X} (s t : PathIn tab) : -- M
+    (nodeAt t).isFree → s < t → s <ᶜ t := by
+  intro t_free
+  intro slt
+  constructor
+  · apply Relation.TransGen_or_left; exact slt
+  · intro con
+    have t_neq_s : t ≠ s := by have := path_is_strict_ordering slt
+                               intro t_eq_s
+                               simp_all
+    have t_s : t ◃* s := Relation.TransGen.to_reflTransGen con
+    rcases ReflTransGen.to_finitelyManySteps t_s with ⟨n,ys,ys0,ysn,ys_rel⟩
+    have h : ∀ (i : Fin n), (ys.get i.castSucc) ⋖_ (ys.get i.succ) :=
+      by intro i
+         have y_y' := ys_rel i
+         cases y_y' with
+         | inl yey' => exact yey'
+         | inr yhy' => sorry -- this is so doable since we have t free, y loaded and t ◃⁺ y and y ◃⁺ t, so not_cEquiv_of_free_loaded2 gives contradiction
+    have t_patheq_s : t ≤ s := by apply ReflTransGen.from_finitelyManySteps edge t s ys ⟨ys0 ,⟨ysn, h⟩⟩
+    have t_path_s : t < s := TransGen.of_reflTransGen t s t_patheq_s t_neq_s
+    absurd slt
+    exact edge.TransGen_isAsymm.1 t s t_path_s
+
+-- END HERE
+
 theorem ePropB.c_single {X} {tab : Tableau .nil X} (s t : PathIn tab) :
     (nodeAt s).isFree → s ⋖_ t → s <ᶜ t := by
   intro s_free t_childOf_s
   apply ePropB.c _ t s_free
   apply Relation.TransGen.single; exact t_childOf_s
 
-theorem ePropB.d {tab : Tableau .nil X} (s t : PathIn tab) :
+
+theorem ePropB.d' {tab : Tableau .nil X} (s t : PathIn tab) : -- M
     (nodeAt t).isFree → s < t → s <ᶜ t := by
-  sorry
+  intro t_free
+  intro slt
+  constructor
+  · apply Relation.TransGen_or_left; exact slt
+  · intro con
+    unfold cEdge at con
+    induction con using Relation.TransGen.head_induction_on
+    case right.base t t_s => cases t_s with
+      | inl tes => absurd slt
+                   exact edge.TransGen_isAsymm.1 t s (Relation.TransGen.single tes)
+      | inr ths => have con := (companion_loaded ths).1
+                   simp [Sequent.isFree] at t_free
+                   rw [con] at t_free
+                   contradiction
+    case right.ih t k t_k k_s ih => cases t_k with
+      | inl kes => apply ih
+                   · sorry
+                   · exact (Relation.TransGen.trans slt (Relation.TransGen.single kes))
+      | inr khs => have con := (companion_loaded khs).1
+                   exfalso
+                   simp [Sequent.isFree] at t_free
+                   rw [con] at t_free
+                   contradiction
+
+
+theorem ePropB.d'' {tab : Tableau .nil X} (s t : PathIn tab) : -- M
+    (nodeAt t).isFree → s < t → s <ᶜ t := by
+  intro t_free
+  intro slt
+  constructor
+  · apply Relation.TransGen_or_left; exact slt
+  · intro con
+    unfold cEdge at con
+    induction con
+    case single s t_s => cases t_s with
+      | inl tes => absurd slt
+                   exact edge.TransGen_isAsymm.1 t s (Relation.TransGen.single tes)
+      | inr ths => have con := (companion_loaded ths).1
+                   simp [Sequent.isFree] at t_free
+                   rw [con] at t_free
+                   contradiction
+    case tail k s t_k k_s ih => cases k_s with
+      | inl kes => apply ih
+                   exact (Relation.TransGen.trans (Relation.TransGen.single kes) slt)
+      | inr khs => sorry
+
+-- theorem minduction
+--   {α : Sort u} {r : α → α → Prop} {a b : α}
+--   (P : ∀ b : α, Relation.TransGen r a b  → Prop)
+--   (h : Relation.TransGen r a b)
+--   (head : r a b → P b h)
+--   (tail : ∀ c (hs : r a c) (ht : Relation.TransGen r c b), P b (Relation.TransGen.trans (Relation.TransGen.single hs) ht) → P b h) : P b h :=
+-- by
+--   induction h
+--   case single b hyp =>
+--       exact head hyp
+--   case tail b c aRtb bRc ih =>
+--       apply ih
+--       · exact fun h ↦ tail h (single hbc) (base hbc)
+--       · exact fun hab hbc ↦ ih hab _
+
+-- theorem ePropB.dM {tab : Tableau .nil X} (s t : PathIn tab) : -- M
+--     (nodeAt t).isFree → s < t → s <ᶜ t := by
+--   intro t_free
+--   intro slt
+--   constructor
+--   · apply Relation.TransGen_or_left; exact slt
+--   · intro con
+--     have := minduction (fun b aRb ↦ False) (con) (by
+--       intro h1
+--       cases h1 with
+--         | inl tes => absurd slt
+--                      exact edge.TransGen_isAsymm.1 t s (Relation.TransGen.single tes)
+--         | inr ths => have con := (companion_loaded ths).1
+--                      simp [Sequent.isFree] at t_free
+--                      rw [con] at t_free
+--                      contradiction
+--     ) (by
+--       intro k t_k k_s ih
+--       cases t_k with
+--       | inl tek => absurd ih
+--                    exact Relation.TransGen.tail (slt) (tek)
+--       | inr thk => have con := (companion_loaded thk).1
+--                    simp [Sequent.isFree] at t_free
+--                    rw [con] at t_free
+--                    contradiction)
+--     absurd slt
+--     exact this
+
+
 
 /-- A free node and a loaded node cannot be ≡ᶜ equivalent. -/
-theorem not_cEquiv_of_free_loaded (s t : PathIn tab)
+theorem not_cEquiv_of_free_loaded'' (s t : PathIn tab)
     (s_free : (nodeAt s).isFree) (t_loaded: (nodeAt t).isLoaded) : ¬ s ≡ᶜ t := by
   rintro ⟨s_t, t_s⟩
   induction s_t using Relation.ReflTransGen.head_induction_on
@@ -695,7 +1071,17 @@ theorem boxes_true_at_k_of_Vector_rel {W : Type} {M : KripkeModel W} (ξ : AnyFo
 
 /-- Soundness of loading and repeats: a tableau can immitate all moves in a model. -/
 -- Note that we mix induction' tactic and recursive calls __O.o__
-theorem loadedDiamondPaths (α : Program) {X : Sequent}
+-- findme2
+
+-- MQuestion: π in notes
+-- MQuestion: what is side:Side about?
+-- M: Why is this called PathIn tab? t is a node.
+-- MQuestion: formulation is wrong?
+-- MQuestion: Where do we say [α] loaded?
+-- MQuestion: We need to say that the entire path is satisfiable
+-- MQuestion: Extended Induction Hypothesis
+
+theorem loadedDiamondPathsM (α : Program) {X : Sequent}
   (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
   (root_free : X.isFree) -- ADDED / not/implicit in Notes?
   (t : PathIn tab)
@@ -703,8 +1089,34 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
   {M : KripkeModel W} {v w : W}
   (v_t : (M,v) ⊨ nodeAt t)
   (ξ : AnyFormula)
-  {side : Side} -- NOT in notes but needed for partition
-  (negLoad_in : (~''(⌊α⌋ξ)).in_side side (nodeAt t))
+  {side : Side} -- NOT in notes but needed for partition.
+  (negLoad_in : (~''(⌊α⌋ξ)).in_side side (nodeAt t)) -- M: why two '' after ~?
+  (v_α_w : relate M α v w)
+  (w_nξ : (M,w) ⊨ ~''ξ)
+  : ∃ s : PathIn tab, t ◃⁺ s ∧ (satisfiable (nodeAt s)) ∧
+    ( ¬ (s ≡ᶜ t)
+      ∨ ( ((~''ξ).in_side side (nodeAt s))
+        ∧ (M,w) ⊨ (nodeAt s)
+        ∧ ((nodeAt s).without (~''ξ)).isFree
+        )
+    ) := by
+  sorry
+
+
+-- TODO: missing here: path from t to s is satisfiable!
+-- FIXME: move satisfiable outside disjunction?
+
+theorem loadedDiamondPaths (α : Program) {X : Sequent}
+  (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
+  (root_free : X.isFree) -- ADDED / not/implicit in Notes?
+  (t : PathIn tab)       -- M: Why is this called PathIn tab? t is a node.
+  {W}
+  {M : KripkeModel W} {v w : W}
+  (v_t : (M,v) ⊨ nodeAt t)
+  (ξ : AnyFormula)
+  {side : Side} -- NOT in notes but needed for partition. M: What is this?
+  (negLoad_in : (~''(⌊α⌋ξ)).in_side side (nodeAt t)) -- M: why two '' after ~?
+                                                     -- M: where do we say [α] loaded?
   (v_α_w : relate M α v w)
   (w_nξ : (M,w) ⊨ ~''ξ)
   : ∃ s : PathIn tab, t ◃⁺ s ∧
@@ -718,8 +1130,8 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
 
   -- outer induction on the program (do it with recursive calls!)
 
-  -- inner induction is on the path (in Notes this is a separate Lemma , going from t to t')
-  induction' t_def : t using PathIn.init_inductionOn
+  -- inner induction is on the path (in Notes this is a separate Lemma , going from t to t') M: Lemma 5.2
+  induction' t_def : t using PathIn.init_inductionOn -- MQuestion: I don't understand this induction
   case root =>
     subst t_def
     exfalso
@@ -805,7 +1217,8 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       -- We get a sequence of worlds from the δ relation:
       rcases (relateSeq_iff_exists_Vector M δ v w).mp v_seq_w with ⟨ws, v_def, w_def, ws_rel⟩
 
-      -- Claim for an inner induction on the list δ.
+      -- Claim for an inner induction on the list δ. -- Extended Induction Hypothesis is herre
+
       have claim : ∀ k : Fin δ.length.succ, -- Note the succ here!
           ∃ sk, t ◃⁺ sk ∧ ( ( satisfiable (nodeAt sk) ∧ ¬(sk ≡ᶜ t) )
                           ∨ ( (~''(ξ.loadBoxes (δ.drop k.val))).in_side side (nodeAt sk)
