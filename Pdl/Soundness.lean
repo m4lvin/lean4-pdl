@@ -362,195 +362,195 @@ theorem Vector.last_eq_tail_last {k : Nat} (ys : List.Vector α (k + 1).succ) :
   cases ys using List.Vector.inductionOn
   case cons y ys => aesop
 
-theorem oneStep_free_loaded_back_path_no {a : Sequent} {tab : Tableau [] a}
-    (s t : PathIn tab)
-    (s_free : (nodeAt s).isFree)
-    (t_loaded : (nodeAt t).isLoaded)
-    (m : ℕ)
-    (single_rel : s ◃ t)
-    (vs : List.Vector (PathIn tab) m.succ)
-    (t_is_z0 : t = vs.head)
-    (s_is_zn : s = vs.last)
-    (v_rel : ∀ (i : Fin m), (vs.get i.castSucc) ◃ (vs.get i.succ))
-    : False := by
-    -- but is this easier to show now?!
-    induction m generalizing t s
-    · have : t = s := by
-        rcases vs with ⟨_|⟨v,vs⟩, vs_h⟩
-        · exfalso; cases vs_h
-        · rcases vs with (_|_)
-          · simp_all [List.Vector.head, List.Vector.last]
-          · cases vs_h
-      simp_all [Sequent.isFree]
-    case succ m ih =>
-      let l : PathIn tab := List.Vector.get vs 1
-      let us : List.Vector (PathIn tab) m.succ := vs.tail
-      have l_is_u0 : l = us.head := by apply Vector.my_get_one_eq_tail_head
-      have s_is_uk : s = us.last := by unfold us; simp [s_is_zn, Vector.last_eq_tail_last]
-      have u_rel : ∀ (i : Fin m), (us.get i.castSucc) ◃ (us.get i.succ) := by
-        intro i
-        unfold us
-        simp [us, vector_tail_get]
-        exact v_rel i.succ
-      sorry
+theorem TransGen.of_reflTransGen {α : Type} {r : α → α → Prop}
+  {a b : α} (h : Relation.ReflTransGen r a b) (hne : a ≠ b) : Relation.TransGen r a b :=
+  by induction h
+     case refl => contradiction
+     case tail c b a_c c_b ih => cases eq_or_ne a c with
+      | inl a_eq_c => apply Relation.TransGen.single
+                      simp_all
+      | inr a_ne_c => apply Relation.TransGen.tail (ih a_ne_c) c_b
 
-theorem not_cEquiv_of_free_loaded_helper {a : Sequent} {tab : Tableau [] a}
-    (s t : PathIn tab)
-    (s_free : (nodeAt s).isFree)
-    (t_loaded : (nodeAt t).isLoaded)
-    (n m : ℕ) :
-    ∀
-    (ys : List.Vector (PathIn tab) n.succ)
-    (s_is_y0 : s = ys.head)
-    (t_is_yn : t = ys.last)
-    (y_rel : ∀ (i : Fin n), (ys.get i.castSucc) ◃ (ys.get i.succ))
-    (zs : List.Vector (PathIn tab) m.succ)
-    (t_is_z0 : t = zs.head)
-    (s_is_zn : s = zs.last)
-    (z_rel : ∀ (i : Fin m), (zs.get i.castSucc) ◃ (zs.get i.succ)),
-    False := by
-  -- Madeleine: We dont need induction just cases? since we use strong induction anyways.
-  -- Malvin: Yes, rewritten with cases now, but also adding `n_def` to remember `n`.
-  cases n_def : n
-  <;> intro ys s_is_y0 t_is_yn y_rel zs t_is_z0 s_is_zn z_rel -- do it in both cases.
-  case zero =>
-    -- Madeleine: There has to be a shorter way of handling this case
-    -- Malvin: shortened a bit, avoid calc
-    have : ys.last = ys.head := by rw [List.Vector.last]; simp
-    simp_all [Sequent.isLoaded, Sequent.isFree]
-  case succ k =>
-    let l : PathIn tab := List.Vector.get ys 1
-    by_cases l_free : (nodeAt l).isFree
-    · let us : List.Vector (PathIn tab) k.succ := ys.tail
-      have l_is_u0 : l = us.head := by apply Vector.my_get_one_eq_tail_head
-      have t_is_uk : t = us.last := by unfold us; simp [t_is_yn, Vector.last_eq_tail_last]
-      have u_rel : ∀ (i : Fin k), (us.get i.castSucc) ◃ (us.get i.succ) := by
-        intro i
-        unfold us
-        simp [us, vector_tail_get]
-        exact y_rel i.succ
-      let vs : List.Vector (PathIn tab) (m + 1).succ := List.Vector.append zs (List.Vector.cons l List.Vector.nil)
-      have t_is_v0 : t = vs.head := by
-        -- Malvin: here is a solution for one of the easy cases.
-        -- This is "taking apart" the vector into a list and the proof of its length.
-        rcases zs with ⟨_|_, h⟩; exfalso; cases h; aesop
-      have l_is_vm1 : l = vs.last := by unfold vs --- same issue
-                                        sorry
-      have v_rel : ∀ (i : Fin (m + 1)), (vs.get i.castSucc) ◃ (vs.get i.succ) := by
-        subst_eqs
-        apply Fin.cases -- Malvin: does this help?
-        · simp [vs]
-          sorry
-        · sorry
-      -- Malvin: Instead of IH, make a recursive call here:
-      -- Malvin: Crucial is that we go down from   n = k + 1  to  k  here.
-      apply not_cEquiv_of_free_loaded_helper l t l_free t_loaded k (m + 1) us l_is_u0 t_is_uk u_rel vs t_is_v0 l_is_vm1 v_rel
-    · --- same idea as inl, so skipping until I work out inl
-      simp [Sequent.isFree] at l_free
-      rename (nodeAt l).isLoaded = true => l_loaded
-      have us : List.Vector (PathIn tab) 2 := by sorry
-      have s_is_u0 : s = us.head := by sorry
-      have l_is_uk : l = us.last := sorry
-      have u_rel : ∀ (i : Fin 1), (us.get i.castSucc) ◃ (us.get i.succ) := by sorry
-      have vs : List.Vector (PathIn tab) (m + k).succ := by sorry
-      have l_is_v0 : l = vs.head := by sorry
-      have s_is_vmk : s = vs.last := by sorry
-      have v_rel : ∀ (i : Fin (m + k)), (vs.get i.castSucc) ◃ (vs.get i.succ) := by sorry
-      -- Madeleine did convince Malvin: We want n=1 here.
-      -- Appeal to separate lemma for this, not recursion.
-      apply oneStep_free_loaded_back_path_no s l s_free l_loaded (m + k) ?_ vs l_is_v0 s_is_vmk v_rel
-      rw [s_is_u0, l_is_uk]
-      convert u_rel 0
-      simp
--- no more termination hints needed then.
+theorem length_append_greater_1 {b : PathIn tab} {a : PathIn (tabAt b).snd.snd} (h : b ≠ PathIn.nil) : List.length ((b.append a).toHistory) ≥ 1 := by
+induction b <;> simp [PathIn.append]
+case nil => contradiction
 
-/-- A free node and a loaded node cannot be ≡ᶜ equivalent. -/
-theorem not_cEquiv_of_free_loaded' (s t : PathIn tab)
-    (s_free : (nodeAt s).isFree) (t_loaded: (nodeAt t).isLoaded) :
-    ¬ s ≡ᶜ t := by
-rintro ⟨s_t, t_s⟩
-rcases ReflTransGen.to_finitelyManySteps s_t with ⟨n,ys,y0,yn,y_rel⟩
-rcases ReflTransGen.to_finitelyManySteps t_s with ⟨m,zs,z0,zn,z_rel⟩
-exact not_cEquiv_of_free_loaded_helper s t s_free t_loaded n m ys y0 yn y_rel zs z0 zn z_rel
-
--- findme3
-
--- TODO IMPORTANT
-theorem ePropB.c' {X} {tab : Tableau .nil X} (s t : PathIn tab) :
-    (nodeAt s).isFree → s < t → s <ᶜ t := by
-  intro s_free t_path_s
-  constructor
-  · apply Relation.TransGen_or_left; exact t_path_s
-  · unfold cEdge
-    intro hyp
-    -- alternative idea: induction t_path_s
-    induction hyp -- ((t_s | t_comp_s) | blu)
-    case single u t_u =>
-      rcases t_u with (t_u | t_comp_u )
-      · absurd edge.TransGen_isAsymm.1 _ _ t_path_s
-        exact Relation.TransGen.single t_u
-      · have := (companion_loaded t_comp_u).2
-        simp_all [Sequent.isFree]
-    case tail b s t_b b_s IH =>
-      rcases  b_s with (b_s | b_comp_s)
-      · apply IH
-        · -- PROBLEM: we do not have that `b` is free.
-          sorry
-        · unfold LT.lt instLTPathIn
-          simp
-          exact Relation.TransGen.head b_s t_path_s
-      · have := (companion_loaded b_comp_s).2
-        simp [Sequent.isFree] at s_free
-        simp_all
-
-
--- START HERE
-lemma unique_paths {a : Sequent} {tab : Tableau [] a}
-    (t l : PathIn tab) (h : t < l) :
-    ∃! n, ∃! ys : List.Vector _ _,
-      t = ys.head ∧ l = ys.last ∧ ∀ (i : Fin n), (ys.get i.castSucc) ⋖_ (ys.get i.succ)
-      := by
+theorem append_rewind_1_cancels {b : PathIn tab} {a : PathIn (tabAt b).snd.snd} : (b.append a).rewind 1 = b := by
+induction b
+case nil => -- cases a (doesn't work)
+            simp [PathIn.append]
+            have h : a = PathIn.nil := by sorry -- not sure how to convince lean, because when I do (cases a) I get an error
+            rw [h]
+            simp [PathIn.rewind]
+case loc Hist0 X0 nrep nbas lt next Y Y_in tail IH =>
+  have h : ¬(1 = Fin.last (List.length (PathIn.loc Y_in (tail.append a) : PathIn (.loc nrep nbas lt next)).toHistory)) := by
+    simp [PathIn.toHistory] -- i have no clue what List.length isn't distributing over the ++ here!, if it did then we would hopefully be able to finish proof with length_append_greater_1
+    sorry
+  simp_all [PathIn.append, PathIn.rewind, Fin.lastCases, Fin.reverseInduction]
+  try exact (@IH a) -- casting issues?
+  sorry
+case pdl Y Z X0 nrep bas r next tail IH =>
+  have h : ¬(1 = Fin.last (List.length (PathIn.pdl (tail.append a) : PathIn (.pdl nrep bas r next)).toHistory)) := by sorry -- this proof would be same as loc case
+  simp_all [PathIn.append, PathIn.rewind, Fin.lastCases, Fin.reverseInduction]
+  try exact (@IH a) -- casting issues?
   sorry
 
--- FIXME move to TableauPath.lean later
-lemma edge_revEuclidean (a b c : PathIn tab) :
+theorem rewind_of_edge_is_eq {a b : PathIn tab} (a_b : a ⋖_ b) : b.rewind 1 = a := by  --- could make a nice iff statement
+  rcases a_b with ( ⟨Hista, Xa, nrepa, nbasa, lta, nexta, Ya, Y_ina, tab_defa, p_defa⟩
+                  | ⟨Hista, Xa, nrepa, basa, Ya, ra, nexta, tab_defa, p_defa⟩ )
+  · rw [p_defa]
+    simp [append_rewind_1_cancels]
+  · rw [p_defa]
+    simp [append_rewind_1_cancels]
+
+lemma edge_leftInjective {tab : Tableau Hist X} (a b c : PathIn tab) : a ⋖_ c → b ⋖_ c → a = b := by
+  intro a_c b_c
+  apply rewind_of_edge_is_eq at a_c
+  apply rewind_of_edge_is_eq at b_c
+  simp_all
+
+lemma edge_revEuclideanHelper (a b c : PathIn tab) : a ⋖_ c → b < c → b ≤ a := by
+  intro a_c b_c
+  cases b_c
+  case single c b_c => have a_eq_c := edge_leftInjective a b c a_c b_c
+                       simp_all
+                       exact Relation.ReflTransGen.refl
+  case tail d b_d d_c => have a_eq_d := edge_leftInjective a d c a_c d_c
+                         rw [a_eq_d]
+                         exact Relation.TransGen.to_reflTransGen b_d
+
+lemma path_revEuclidean (a b c : PathIn tab) :
     a < c → b < c → (a < b ∨ b < a ∨ b = a) := by
-  sorry
-lemma edge_revEuclidean' (a b c : PathIn tab) :
-    a < c → b < c → (a ≤ b ∨ b ≤ a) := by
-  sorry
+  intro a_lt_c b_lt_c
+  induction a_lt_c
+  case single c a_ed_b => have b_le_a := edge_revEuclideanHelper a b c a_ed_b b_lt_c
+                          cases eq_or_ne b a
+                          case inl b_eq_a => exact Or.inr (Or.inr b_eq_a)
+                          case inr b_ne_a => exact Or.inr (Or.inl (TransGen.of_reflTransGen b_le_a b_ne_a))
+  case tail d c a_d d_c ih => have b_le_d : b ≤ d := edge_revEuclideanHelper d b c d_c b_lt_c
+                              cases eq_or_ne b d
+                              case inl b_eq_d => rw [←b_eq_d] at a_d
+                                                 exact Or.inl a_d
+                              case inr b_ne_d => have b_lt_d := TransGen.of_reflTransGen b_le_d b_ne_d
+                                                 exact ih b_lt_d
 
-theorem lpr_is_lt {a : Sequent} {tab : Tableau [] a}
-    (l c : PathIn tab)
-    (lpr : LoadedPathRepeat ((tabAt l).1) ((tabAt l).2.1))
-    (tabAt_l_def : (tabAt l).2.2 = Tableau.lrep lpr)
-    (c_def : c = companionOf l lpr tabAt_l_def)
-    : c < l := by
+lemma path_revEuclidean' (a b c : PathIn tab) :
+    a < c → b < c → (a ≤ b ∨ b ≤ a) := by
+    intro a_c b_c
+    rcases (path_revEuclidean a b c a_c b_c) with a_b | b_a | a_eq_b
+    case inl => exact Or.inl (Relation.TransGen.to_reflTransGen a_b)
+    case inr => have a_a : a ≤ a := by exact Relation.ReflTransGen.refl
+                left
+                simp_all
+    case inr.inl => exact Or.inr (Relation.TransGen.to_reflTransGen b_a)
+
+theorem PathIn.rewind_lt_of_gt_zero' {tab : Tableau Hist X} -- naming isnt good, see original PathIn.rewind_lt_of_gt_zero which has to do with length
+    (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) (k_gt_zero : k > 0)
+    : (t.rewind k) < t := by
+  have h : t.rewind k ≤ t := PathIn.rewind_le t k
+  apply TransGen.of_reflTransGen h
+  intro con
+  have length_lt : (t.rewind k).length < t.length := PathIn.rewind_lt_of_gt_zero t k k_gt_zero
+  have length_eq : (t.rewind k).length = t.length := by simp [con]
+  simp_all
+
+theorem lpr_is_lt {l c : PathIn tab} : l ♥ c → c < l := by
+  intro l_hearts_c
+  have ⟨lpr, tabAt_l_def, c_def⟩ := l_hearts_c
   rw [c_def]
   unfold companionOf
-  have := @PathIn.rewind_lt_of_gt_zero -- need something like that but without length
-  sorry
+  apply PathIn.rewind_lt_of_gt_zero' l _ _
+  simp
 
-theorem c_claim {a : Sequent} {tab : Tableau [] a}
-    (t l c : PathIn tab)
-    (t_above_l : t < l)
-    (t_free : (nodeAt t).isFree)
-    (lpr : LoadedPathRepeat ((tabAt l).1) ((tabAt l).2.1))
-    (tabAt_l_def : (tabAt l).2.2 = Tableau.lrep lpr)
-    (c_def : c = companionOf l lpr tabAt_l_def)
-    : t < c := by
+theorem rewind_hom {b : PathIn tab} : ∀ n m : Fin (b.toHistory.length + 1), (b.rewind m).rewind n = b.rewind (m + n) := by
+  intro n m
+  induction n using Fin.induction
+  case zero => simp [PathIn.rewind_zero]
+               sorry -- casting issues
+  case succ k ih => sorry
+
+theorem exists_rewind_of_lt {a b : PathIn tab} (h : a < b) : ∃ k, b.rewind k = a := by -- we could combine this with PathIn.rewind_le to get a nice iff statement.
+  induction h
+  case single b a_b => use 1
+                       exact rewind_of_edge_is_eq a_b
+  case tail c b a_c c_b ih => have ⟨k, c_re_k_is_a⟩ := ih
+                              use k + 1
+                              have b_re_1_is_c := rewind_of_edge_is_eq c_b
+                              have b_re_is_a : (b.rewind 1).rewind k = a := by rw [b_re_1_is_c]
+                                                                               simp_all
+                              try simp [rewind_hom] at b_re_is_a  -- we need something like rewind_hom, but actually rewind_hom is not good enough because of casting issues
+                              rw [←b_re_is_a]
+                              try rfl
+                              sorry
+
+theorem exists_rewinds_middle {a b c : PathIn tab} (h : a < b) (h' : b < c)
+: ∃ k k', c.rewind k = a ∧ c.rewind k' = b ∧ k' < k := by
+ have ⟨k', c_re_k'_is_b⟩ := exists_rewind_of_lt h'
+ induction h using Relation.TransGen.head_induction_on
+ case base a a_b => have b_re_1_is_a := rewind_of_edge_is_eq a_b
+                    use k'.succ
+                    use k'
+                    constructor
+                    · rw [←c_re_k'_is_b] at b_re_1_is_a
+                      sorry -- (*) ISSUE
+                    · constructor
+                      · exact c_re_k'_is_b
+                      · have ⟨k'_val, k'_hyp⟩ := k'
+                        simp_all [Fin.lt_def]
+                        sorry -- i believe this isnt working because the way + 1 is defined on Fin is a wrap around, so we aren't guarenteed <
+ case ih a d a_d d_b ih => have ⟨n, ⟨n', ⟨c_re_n_is_d, ⟨c_re_n'_is_b, n'_lt_n⟩⟩⟩⟩ := ih
+                           use n.succ
+                           use n'
+                           constructor
+                           · have d_re_1_is_a := rewind_of_edge_is_eq a_d
+                             rw [←c_re_n_is_d] at d_re_1_is_a
+                             sorry -- (*) ISSUE
+                           · constructor
+                             · exact c_re_n'_is_b
+                             · try simp [n'_lt_n, Fin.lt_def] -- same isssue as case above
+                               sorry
+
+
+theorem companion_to_repeat_all_loaded {t : PathIn tab} lpr (h : (tabAt t).snd.snd = Tableau.lrep lpr)
+  : ∀ k : Fin (tabAt t).1.length, (k ≤ lpr.1) → (nodeAt (t.rewind k)).isLoaded
+     := by
+  intro k hyp
+  have rewind_to_hist := PathIn.nodeAt_rewind_eq_toHistory_get t k
+  rw [rewind_to_hist]
+  unfold LoadedPathRepeat at lpr
+  have ⟨k', ⟨eq_con, loaded_con⟩⟩ := lpr
+  have hyp2 := loaded_con k hyp
+  rw [←hyp2] -- feels obvious but something not working?
+  try rfl
+  sorry
+  -- might not be working for same reason types aren't working in c_claim?
+
+  theorem c_claim {a : Sequent} {tab : Tableau [] a} (t l c : PathIn tab) :
+    (nodeAt t).isFree → t < l → l ♥ c → t < c := by
+  intro t_free t_above_l l_hearts_c
+  have ⟨lpr, tabAt_l_def, c_def⟩ := l_hearts_c
   by_contra hyp
-  have c_above_l : c < l := lpr_is_lt l c lpr _ c_def
-  have comp_le_t : c ≤ t := by
-    rcases edge_revEuclidean _ _ _ t_above_l c_above_l with h|h|h
+  have c_above_l : c < l := lpr_is_lt l_hearts_c
+  have comp_leq_t : c ≤ t := by
+    rcases path_revEuclidean _ _ _ t_above_l c_above_l with h|h|h
     · exact False.elim (hyp h)
     · exact Relation.TransGen.to_reflTransGen h
     · rw [h]
       exact Relation.ReflTransGen.refl
-  have := unique_paths _ _ c_above_l
-  -- want to show: all elements of ys are loaded (because from lpr) -- needs better unique_paths
-  -- want: t is inside ys
-  sorry
+  have comp_lt_t : c < t := by apply TransGen.of_reflTransGen comp_leq_t
+                               intro c_eq_t
+                               have c_loaded := (companion_loaded l_hearts_c).2
+                               simp [Sequent.isFree] at t_free
+                               rw [←c_eq_t, c_loaded] at t_free
+                               contradiction
+  have ⟨k, ⟨k', def_c, def_t, k'_lt_k⟩⟩ := exists_rewinds_middle comp_lt_t t_above_l
+  have t_loaded : (nodeAt t).isLoaded := by
+    let k'_casted : Fin (List.length (tabAt l).fst) := sorry
+    have := companion_to_repeat_all_loaded lpr tabAt_l_def k'_casted -- shorten this up later once types match
+    sorry
+  simp [Sequent.isFree] at t_free
+  rw [t_loaded] at t_free
+  contradiction
 
 theorem ePropB.c {X} {tab : Tableau .nil X} (s t : PathIn tab) :
     (nodeAt s).isFree → s < t → s <ᶜ t := by
@@ -567,27 +567,13 @@ theorem ePropB.c {X} {tab : Tableau .nil X} (s t : PathIn tab) :
                      simp [Sequent.isFree] at s_free
                      rw [con] at s_free
                      contradiction
-      case right.ih t k t_k k_s ih => cases t_k with
-        | inl tes => apply ih
-                     exact (Relation.TransGen.trans slt (Relation.TransGen.single tes))
-        | inr khs => apply ih
-                     unfold companion at khs
-                     have ⟨lpr, h, kch⟩ := khs
-                     apply c_claim s t k slt s_free
-                     · sorry --- something in statement of c_claim is clashing here?
-                     · exact lpr
-                     · exact h
+      case right.ih t k t_k k_s ih => apply ih
+                                      cases t_k with
+        | inl tes => exact (Relation.TransGen.trans slt (Relation.TransGen.single tes))
+        | inr khs => exact c_claim s t k s_free slt khs
 
 theorem free_or_loaded {a : Sequent} {tab : Tableau [] a} (s : PathIn tab) : (nodeAt s).isFree ∨ (nodeAt s).isLoaded
   :=  by simp_all [Sequent.isFree]
-
-
-theorem TransGen.of_reflTransGen {α : Type} {r : α → α → Prop}
-  (a b : α) (h : Relation.ReflTransGen r a b) (hne : a ≠ b) : Relation.TransGen r a b :=
-  by
-   induction h with
-   | refl => contradiction
-   | tail a_b b_c ih => sorry -- variable names are innaccessible??
 
 theorem edge_is_strict_ordering {s t : PathIn tab} : s ⋖_ t → s ≠ t :=
 by
@@ -595,13 +581,15 @@ by
   have := edge_then_length_lt s_t
   simp_all
 
-  theorem path_is_strict_ordering {s t : PathIn tab} : s < t → s ≠ t :=
+theorem path_is_strict_ordering {s t : PathIn tab} : s < t → s ≠ t :=
 by
   intro s_t seqt
-  induction s_t with
-  | single set => absurd seqt
-                  exact edge_is_strict_ordering set
-  | tail a b ih => sorry -- same issue? variable names are innaccessible??
+  induction s_t
+  case single set => absurd seqt
+                     exact edge_is_strict_ordering set
+  case tail k t s_k k_t ih => apply edge.TransGen_isAsymm.1 s k s_k
+                              rw [seqt]
+                              apply Relation.TransGen.single k_t
 
 theorem not_cEquiv_of_free_loaded (s t : PathIn tab)
     (s_free : (nodeAt s).isFree) (t_loaded: (nodeAt t).isLoaded) :
@@ -621,13 +609,13 @@ case intro.head s l s_l l_t ih => cases free_or_loaded l with
                                  cases eq_or_ne l s with
                                  | inl les => have := edge_is_strict_ordering sel
                                               simp_all
-                                 | inr lnes => exact TransGen.of_reflTransGen l s l_s lnes
+                                 | inr lnes => exact TransGen.of_reflTransGen l_s lnes
                     | inr shl => have con := (companion_loaded shl).1
                                  simp [Sequent.isFree] at s_free
                                  rw [con] at s_free
                                  contradiction
 
-theorem ePropB.d {tab : Tableau .nil X} (s t : PathIn tab) : -- M
+theorem ePropB.d {tab : Tableau .nil X} (s t : PathIn tab) :
     (nodeAt t).isFree → s < t → s <ᶜ t := by
   intro t_free
   intro slt
@@ -644,134 +632,39 @@ theorem ePropB.d {tab : Tableau .nil X} (s t : PathIn tab) : -- M
          have y_y' := ys_rel i
          cases y_y' with
          | inl yey' => exact yey'
-         | inr yhy' => sorry -- this is so doable since we have t free, y loaded and t ◃⁺ y and y ◃⁺ t, so not_cEquiv_of_free_loaded2 gives contradiction
+         | inr yhy' => exfalso
+                       let yi := ys.get i.castSucc  -- this is so doable since we have t free, y loaded and t ◃⁺ y and y ◃⁺ t, so not_cEquiv_of_free_loaded gives contradiction
+                       have t_yi : t ◃* yi := by let zs : List.Vector (PathIn tab) i.succ := by have := ys.take i.succ
+                                                                                                have h : Eq (i.succ ⊓ n.succ) i.succ := by apply min_eq_left
+                                                                                                                                           have ⟨i_num , i_num_lt_n⟩ := i
+                                                                                                                                           have hyp : i_num.succ < n.succ := by simp_all
+                                                                                                                                           rw [Fin.succ, Fin.mk_le_mk]
+                                                                                                                                           sorry
+
+                                                                                                simp [h] at this
+                                                                                                exact this
+                                                 have zs0 : t = zs.head := by sorry
+                                                 have zsi : yi = zs.last := by sorry
+                                                 have zs_rel : ∀ (j : Fin i), (zs.get j.castSucc) ◃ (zs.get j.succ) := by sorry
+                                                 exact ReflTransGen.from_finitelyManySteps _ t yi zs ⟨zs0, zsi, zs_rel⟩
+                       have yi_t : yi ◃* t := by let zs : List.Vector (PathIn tab) (n - i).succ := sorry
+                                                 have zs0 : yi = zs.head := by sorry
+                                                 have zsi : t = zs.last := by sorry
+                                                 have zs_rel : ∀ (j : Fin (n - i)), (zs.get j.castSucc) ◃ (zs.get j.succ) := by sorry
+                                                 exact ReflTransGen.from_finitelyManySteps _ yi t zs ⟨zs0, zsi, zs_rel⟩
+                       have yi_loaded : (nodeAt yi).isLoaded = true := (companion_loaded yhy').1
+                       exact (not_cEquiv_of_free_loaded t yi t_free yi_loaded) (And.intro t_yi yi_t)
     have t_patheq_s : t ≤ s := by apply ReflTransGen.from_finitelyManySteps edge t s ys ⟨ys0 ,⟨ysn, h⟩⟩
-    have t_path_s : t < s := TransGen.of_reflTransGen t s t_patheq_s t_neq_s
+    have t_path_s : t < s := TransGen.of_reflTransGen t_patheq_s t_neq_s
     absurd slt
     exact edge.TransGen_isAsymm.1 t s t_path_s
 
--- END HERE
-
+-- do we still need this?
 theorem ePropB.c_single {X} {tab : Tableau .nil X} (s t : PathIn tab) :
     (nodeAt s).isFree → s ⋖_ t → s <ᶜ t := by
   intro s_free t_childOf_s
   apply ePropB.c _ t s_free
   apply Relation.TransGen.single; exact t_childOf_s
-
-
-theorem ePropB.d' {tab : Tableau .nil X} (s t : PathIn tab) : -- M
-    (nodeAt t).isFree → s < t → s <ᶜ t := by
-  intro t_free
-  intro slt
-  constructor
-  · apply Relation.TransGen_or_left; exact slt
-  · intro con
-    unfold cEdge at con
-    induction con using Relation.TransGen.head_induction_on
-    case right.base t t_s => cases t_s with
-      | inl tes => absurd slt
-                   exact edge.TransGen_isAsymm.1 t s (Relation.TransGen.single tes)
-      | inr ths => have con := (companion_loaded ths).1
-                   simp [Sequent.isFree] at t_free
-                   rw [con] at t_free
-                   contradiction
-    case right.ih t k t_k k_s ih => cases t_k with
-      | inl kes => apply ih
-                   · sorry
-                   · exact (Relation.TransGen.trans slt (Relation.TransGen.single kes))
-      | inr khs => have con := (companion_loaded khs).1
-                   exfalso
-                   simp [Sequent.isFree] at t_free
-                   rw [con] at t_free
-                   contradiction
-
-
-theorem ePropB.d'' {tab : Tableau .nil X} (s t : PathIn tab) : -- M
-    (nodeAt t).isFree → s < t → s <ᶜ t := by
-  intro t_free
-  intro slt
-  constructor
-  · apply Relation.TransGen_or_left; exact slt
-  · intro con
-    unfold cEdge at con
-    induction con
-    case single s t_s => cases t_s with
-      | inl tes => absurd slt
-                   exact edge.TransGen_isAsymm.1 t s (Relation.TransGen.single tes)
-      | inr ths => have con := (companion_loaded ths).1
-                   simp [Sequent.isFree] at t_free
-                   rw [con] at t_free
-                   contradiction
-    case tail k s t_k k_s ih => cases k_s with
-      | inl kes => apply ih
-                   exact (Relation.TransGen.trans (Relation.TransGen.single kes) slt)
-      | inr khs => sorry
-
--- theorem minduction
---   {α : Sort u} {r : α → α → Prop} {a b : α}
---   (P : ∀ b : α, Relation.TransGen r a b  → Prop)
---   (h : Relation.TransGen r a b)
---   (head : r a b → P b h)
---   (tail : ∀ c (hs : r a c) (ht : Relation.TransGen r c b), P b (Relation.TransGen.trans (Relation.TransGen.single hs) ht) → P b h) : P b h :=
--- by
---   induction h
---   case single b hyp =>
---       exact head hyp
---   case tail b c aRtb bRc ih =>
---       apply ih
---       · exact fun h ↦ tail h (single hbc) (base hbc)
---       · exact fun hab hbc ↦ ih hab _
-
--- theorem ePropB.dM {tab : Tableau .nil X} (s t : PathIn tab) : -- M
---     (nodeAt t).isFree → s < t → s <ᶜ t := by
---   intro t_free
---   intro slt
---   constructor
---   · apply Relation.TransGen_or_left; exact slt
---   · intro con
---     have := minduction (fun b aRb ↦ False) (con) (by
---       intro h1
---       cases h1 with
---         | inl tes => absurd slt
---                      exact edge.TransGen_isAsymm.1 t s (Relation.TransGen.single tes)
---         | inr ths => have con := (companion_loaded ths).1
---                      simp [Sequent.isFree] at t_free
---                      rw [con] at t_free
---                      contradiction
---     ) (by
---       intro k t_k k_s ih
---       cases t_k with
---       | inl tek => absurd ih
---                    exact Relation.TransGen.tail (slt) (tek)
---       | inr thk => have con := (companion_loaded thk).1
---                    simp [Sequent.isFree] at t_free
---                    rw [con] at t_free
---                    contradiction)
---     absurd slt
---     exact this
-
-
-
-/-- A free node and a loaded node cannot be ≡ᶜ equivalent. -/
-theorem not_cEquiv_of_free_loaded'' (s t : PathIn tab)
-    (s_free : (nodeAt s).isFree) (t_loaded: (nodeAt t).isLoaded) : ¬ s ≡ᶜ t := by
-  rintro ⟨s_t, t_s⟩
-  induction s_t using Relation.ReflTransGen.head_induction_on
-  · simp [Sequent.isFree] at *
-    simp_all
-  case head u v u_v v_t IH =>
-    cases u_v -- normal edge or companion edge?
-    case inl u_v =>
-      rcases ePropB.c_single u v s_free u_v with ⟨-, not_v_u⟩
-      absurd not_v_u
-      have := Relation.ReflTransGen.trans v_t t_s
-      rw [@Relation.reflTransGen_iff_eq_or_transGen] at this
-      cases this
-      · simp_all
-      · assumption
-    case inr u_comp_v =>
-      have := companion_loaded u_comp_v
-      simp_all [Sequent.isFree]
 
 -- Unused?
 theorem ePropB.e {tab : Tableau .nil X} (s t : PathIn tab) :
