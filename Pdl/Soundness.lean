@@ -464,6 +464,7 @@ theorem rewind_hom {b : PathIn tab} : ∀ n m : Fin (b.toHistory.length + 1), (b
                sorry -- casting issues
   case succ k ih => sorry
 
+-- unique existence?
 theorem exists_rewind_of_lt {a b : PathIn tab} (h : a < b) : ∃ k, b.rewind k = a := by -- we could combine this with PathIn.rewind_le to get a nice iff statement.
   induction h
   case single b a_b => use 1
@@ -478,6 +479,7 @@ theorem exists_rewind_of_lt {a b : PathIn tab} (h : a < b) : ∃ k, b.rewind k =
                               try rfl
                               sorry
 
+-- unique existence?
 theorem exists_rewinds_middle {a b c : PathIn tab} (h : a < b) (h' : b < c)
 : ∃ k k', c.rewind k = a ∧ c.rewind k' = b ∧ k' ≤ k := by
  have ⟨k', c_re_k'_is_b⟩ := exists_rewind_of_lt h'
@@ -505,11 +507,32 @@ theorem exists_rewinds_middle {a b c : PathIn tab} (h : a < b) (h' : b < c)
                              · simp_all [n'_lt_n, Fin.lt_def.2] -- same isssue as case above
                                sorry
 
-theorem companion_to_repeat_all_loaded {t : PathIn tab} (lpr : _) (h : (tabAt t).snd.snd = Tableau.lrep lpr)
-  : ∀ k : Fin (t.toHistory.length + 1), (k ≤ lpr.1) → (nodeAt (t.rewind k)).isLoaded
-     := by sorry
+theorem companion_to_repeat_all_loaded -- rewrite using hearts notation?
+{l c : PathIn tab}
+(lpr : LoadedPathRepeat (tabAt l).fst (tabAt l).snd.fst)
+(tabAt_l_def : (tabAt l).snd.snd = Tableau.lrep lpr)
+(c_def : c = companionOf l lpr tabAt_l_def)
+: ∀ (k : Fin (List.length l.toHistory + 1)), (k.1 ≤ lpr.1.1.succ) → (nodeAt (l.rewind k)).isLoaded := by
+  intro ⟨k, k_lt_l_len⟩ k_lt_lpr
+  simp only [PathIn.nodeAt_rewind_eq_toHistory_get]
+  cases k
+  case zero => exact (companion_loaded ⟨lpr, tabAt_l_def, c_def⟩).1
+  case succ k => have hist_eq_path : l.toHistory = (tabAt l).fst := by
+                    have := PathIn.toHistory_eq_Hist l
+                    simp_all
+                 simp [hist_eq_path]
+                 have ⟨⟨lpr_len, lpr_len_pf⟩, ⟨eq_con, loaded_con⟩⟩ := lpr
+                 have h1 : k < List.length (tabAt l).fst := by simp [←hist_eq_path]
+                                                               exact Nat.lt_of_succ_lt_succ k_lt_l_len
+                 have h2 : k ≤ lpr_len := by simp [Fin.lt_def] at k_lt_lpr
+                                             exact k_lt_lpr
+                 exact loaded_con ⟨k, h1⟩ h2
 
-  theorem c_claim {a : Sequent} {tab : Tableau [] a} (t l c : PathIn tab) :
+-- this is exactly the proof that (b ≤ a) → ∃! k, a.rewind k = b, so maybe we just focus on that
+theorem rewind_is_inj {t : PathIn tab} {k k'} (h1 : t.rewind k = c) (h2 : t.rewind k' = c) : k.1 = k'.1 := by
+sorry
+
+theorem c_claim {a : Sequent} {tab : Tableau [] a} (t l c : PathIn tab) :
     (nodeAt t).isFree → t < l → l ♥ c → t < c := by
   intro t_free t_above_l l_hearts_c
   have ⟨lpr, tabAt_l_def, c_def⟩ := l_hearts_c
@@ -529,8 +552,16 @@ theorem companion_to_repeat_all_loaded {t : PathIn tab} (lpr : _) (h : (tabAt t)
                                contradiction
   have ⟨k, ⟨k', def_c, def_t, k'_lt_k⟩⟩ := exists_rewinds_middle comp_lt_t t_above_l
   have t_loaded : (nodeAt t).isLoaded := by rw [←def_t]
-                                            have lpr1_is_k : lpr.1 = k := by sorry
-                                            apply companion_to_repeat_all_loaded lpr tabAt_l_def k'
+                                            apply companion_to_repeat_all_loaded lpr tabAt_l_def c_def k'
+                                            apply Fin.le_def.1 at k'_lt_k
+                                            have k_is_lpr_succ : k.1 = lpr.1.1.succ := by
+                                              unfold companionOf at c_def
+                                              have := rewind_is_inj (Eq.symm c_def) (def_c)
+                                              simp [Eq.rec_eq_cast] at this
+                                              rw [←this]
+                                              simp
+                                              try rfl
+                                              sorry -- very close
                                             simp_all
   simp [Sequent.isFree] at t_free
   rw [t_loaded] at t_free
