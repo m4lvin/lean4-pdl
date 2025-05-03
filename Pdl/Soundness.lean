@@ -171,6 +171,10 @@ constructor
   simp only [List.append_nil] at this
   convert lpr.2.2 lpr.val (by simp)
   exact (Fin.heq_ext_iff (congrArg List.length this)).mpr rfl
+  simp at this
+  have := lpr.2.2 lpr.val (by simp)
+  convert this
+  simp_all [Fin.cast_eq_cast]
 
 /-- The companion is strictly before the the repeat. -/
 theorem companionOf_length_lt_length {t : PathIn tab} lpr h :
