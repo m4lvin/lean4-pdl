@@ -168,11 +168,9 @@ constructor
 · subst t_def
   rw [nodeAt_companionOf_eq_toHistory_get_lpr_val]
   have := PathIn.toHistory_eq_Hist s
-  simp at this
-  have := lpr.2.2 lpr.val (by simp)
-  convert this
-  simp_all
-  sorry -- CASTING.
+  simp only [List.append_nil] at this
+  convert lpr.2.2 lpr.val (by simp)
+  exact (Fin.heq_ext_iff (congrArg List.length this)).mpr rfl
 
 /-- The companion is strictly before the the repeat. -/
 theorem companionOf_length_lt_length {t : PathIn tab} lpr h :
@@ -393,6 +391,14 @@ induction k
 case zero => simp_all
 case succ n ih => simp
 
+lemma PathIn.loc_injective :
+    @PathIn.loc Hist X nrep nbas lt next Y Y_in ta = PathIn.loc Y_in tb → ta = tb := by
+  simp
+
+lemma PathIn.pdl_injective r ta tb :
+    @PathIn.pdl Hist X Y nrep bas r next ta = PathIn.pdl tb → ta = tb := by
+  simp
+
 theorem rewind_of_edge_is_eq {a b : PathIn tab} (a_b : a ⋖_ b) : b.rewind 1 = a := by
 induction tab
 case loc rest Y nrep nbas lt next IH =>
@@ -402,11 +408,16 @@ case loc rest Y nrep nbas lt next IH =>
     cases a
     case nil =>
       have t_nil : tail = PathIn.nil := by -- idea here is that a is nil so rewinding 1 gets to nil
-        rcases a_b with ( ⟨_, _, _, _, _, _, _, _, _, p_def⟩ | ⟨_, _, _, _, _, _, _, _, p_def⟩ )
-        all_goals
-        simp [PathIn.append] at p_def
-        try convert p_def -- CASTING: p_def should simplify to something similar to what we want but there is issues with casting
-        sorry
+        rcases a_b with ( ⟨_, _, _, _, _, _, _, _, tabAt_def, p_def⟩
+                        | ⟨_, _, _, _, _, _, _, tabAt_def, p_def⟩ )
+        · simp [PathIn.append] at p_def
+          apply PathIn.loc_injective
+          rw [p_def]
+          unfold tabAt at tabAt_def
+          aesop
+        · exfalso
+          unfold tabAt at tabAt_def
+          aesop
       subst t_nil
       simp [Fin.lastCases, Fin.reverseInduction, PathIn.toHistory]
     case loc X nbas'' nrep'' X_in tail' =>
@@ -450,11 +461,16 @@ case pdl rest Y X nrep bas r tab IH =>
     cases a
     case nil =>
       have t_nil : tail = PathIn.nil := by
-        rcases a_b with ( ⟨_, _, _, _, _, _, _, _, _, p_def⟩ | ⟨_, _, _, _, _, _, _, _, p_def⟩ )
-        all_goals
-        simp [PathIn.append] at p_def
-        -- try convert p_def. CASTING: same issue as loc case.
-        sorry
+        rcases a_b with ( ⟨_, _, _, _, _, _, _, _, tabAt_def, p_def⟩
+                        | ⟨_, _, _, _, _, _, _, tabAt_def, p_def⟩ )
+        · exfalso
+          unfold tabAt at tabAt_def
+          aesop
+        · simp [PathIn.append] at p_def
+          apply PathIn.pdl_injective
+          rw [p_def]
+          unfold tabAt at tabAt_def
+          aesop
       subst t_nil
       simp [Fin.lastCases, Fin.reverseInduction, PathIn.toHistory]
     case pdl bas'' nrep'' tail' =>
