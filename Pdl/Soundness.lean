@@ -687,8 +687,7 @@ case pdl rest Y X nrep bas r tab IH =>
       apply one_is_one_helper
       by_contra con
       simp_all
-case lrep => cases b
-             simp_all [not_edge_nil]
+case lrep => cases b ; simp [not_edge_nil] at a_b
 
 theorem one_is_one_rewind_helper {b : PathIn tab} {k : Fin (List.length b.toHistory + 1)} (h : (b.rewind k) ⋖_ b) : k = (1 : Fin (List.length b.toHistory + 1)) := by
 have := rewind_of_edge_is_eq h
@@ -758,22 +757,7 @@ unfold companionOf
 apply PathIn.rewind_lt_of_gt_zero' l _ _
 simp
 
-theorem rewind_helper {b : PathIn tab} (k : ℕ)
-  (h : k + 1 < List.length b.toHistory + 1)
-  (h' : k < List.length (b.rewind 1).toHistory + 1) :
-  b.rewind (⟨k + 1, h⟩) = (b.rewind 1).rewind ⟨k, h'⟩ := by
-induction tab
-case loc rest Y nrep nbas lt next IH =>
-  cases b <;> simp_all only [PathIn.rewind]
-  case loc Z nbas nrep Z_in tail =>
-    cases (⟨k + 1, h⟩ : Fin (List.length (PathIn.loc Z_in tail).toHistory + 1)) using Fin.lastCases
-    sorry
-    sorry
-case pdl => sorry -- this will be same as loc case
-case lrep =>
-  cases b; simp only [PathIn.rewind]
-
-theorem edge_inc_length_by_one {a b : PathIn tab} (a_b : edge a b) : List.length b.toHistory = List.length a.toHistory + 1 := by
+theorem edge_inc_length_by_one {a b : PathIn tab} (a_b : edge a b) : List.length a.toHistory + 1 + 1 = List.length b.toHistory + 1 := by
 have a_is_b_re_1 := rewind_of_edge_is_eq a_b
 subst a_is_b_re_1
 induction b
@@ -817,6 +801,96 @@ case pdl Hist X Y nrep bas r next tail IH => -- will be same as loc case
     rw [this] at *
     exact IH a_b
 
+-- note to self, do not do induction on k, rewind does not decrease k, it will not work
+theorem rewind_helper {a b : PathIn tab} {k : Fin (List.length a.toHistory + 1)} (a_b : a ⋖_ b)
+ : b.rewind (Fin.cast (edge_inc_length_by_one a_b) (k.succ)) = a.rewind k := by
+induction tab
+case loc rest Y nrep nbas lt next IH =>
+  cases b
+  case nil => simp [not_edge_nil] at a_b
+  case loc Z nbas' nrep' Z_in tail =>
+    cases a
+    case nil =>
+      have t_nil : tail = PathIn.nil := by
+        rcases a_b with ( ⟨_, _, _, _, _, _, _, _, tabAt_def, p_def⟩
+                       | ⟨_, _, _, _, _, _, _, tabAt_def, p_def⟩ )
+        · simp [PathIn.append] at p_def
+          apply PathIn.loc_injective
+          rw [p_def]
+          unfold tabAt at tabAt_def
+          aesop
+        · exfalso
+          unfold tabAt at tabAt_def
+          aesop
+      subst t_nil
+      simp_all [PathIn.rewind, Fin.lastCases, Fin.reverseInduction, PathIn.toHistory]
+      have ⟨k_val, k_pf⟩ := k
+      simp [PathIn.toHistory] at k_pf
+      simp_all
+    case loc X nbas'' nrep'' X_in tail' =>
+      have Z_X : Z = X := by
+        rcases a_b with ( ⟨_, _, _, _, _, _, _, _, _, p_def⟩ | ⟨_, _, _, _, _, _, _, _, p_def⟩ )
+        all_goals
+        simp [PathIn.append] at p_def
+        exact p_def.1
+      have Z_in_X_in : HEq Z_in X_in := by simp_all
+      subst Z_X
+      subst Z_in_X_in
+      have t'_t : tail' ⋖_ tail := by simp_all
+      simp only [PathIn.rewind]
+      cases k using Fin.lastCases
+      case last => simp
+      case cast i =>
+        have h : ¬ (Fin.cast (Nat.succ.inj (edge_inc_length_by_one a_b)) i.castSucc).succ
+          = Fin.last (List.length (PathIn.loc Z_in tail).toHistory) := by
+          intro con
+          have ⟨i_val, i_pf⟩ := i
+          simp_all [Fin.last]
+          simp [PathIn.toHistory] at i_pf
+          have := edge_inc_length_by_one t'_t
+          linarith
+        simp [Fin.lastCases, Fin.reverseInduction, h]
+        exact @IH Z Z_in tail' tail (Fin.cast (PathIn.loc_length_eq Z_in tail') i) t'_t
+case pdl rest Y X nrep bas r tab IH =>
+  cases b
+  case nil => simp [not_edge_nil] at a_b
+  case pdl Z bas' nrep' tail =>
+    cases a
+    case nil =>
+      have t_nil : tail = PathIn.nil := by
+        rcases a_b with ( ⟨_, _, _, _, _, _, _, _, tabAt_def, p_def⟩
+                       | ⟨_, _, _, _, _, _, _, tabAt_def, p_def⟩ )
+        · exfalso
+          unfold tabAt at tabAt_def
+          aesop
+        · simp [PathIn.append] at p_def
+          apply PathIn.pdl_injective
+          rw [p_def]
+          unfold tabAt at tabAt_def
+          aesop
+      subst t_nil
+      simp_all [PathIn.rewind, Fin.lastCases, Fin.reverseInduction, PathIn.toHistory]
+      have ⟨k_val, k_pf⟩ := k
+      simp [PathIn.toHistory] at k_pf
+      simp_all
+    case pdl bas'' nrep'' tail' =>
+      have t'_t : tail' ⋖_ tail := by simp_all
+      simp only [PathIn.rewind]
+      cases k using Fin.lastCases
+      case last => simp
+      case cast i =>
+        have h : ¬ (Fin.cast (Nat.succ.inj (edge_inc_length_by_one a_b)) i.castSucc).succ
+          = Fin.last (List.length (PathIn.pdl tail).toHistory) := by
+          intro con
+          have ⟨i_val, i_pf⟩ := i
+          simp_all [Fin.last]
+          simp [PathIn.toHistory] at i_pf
+          have := edge_inc_length_by_one t'_t
+          linarith
+        simp [Fin.lastCases, Fin.reverseInduction, h]
+        exact @IH tail' tail (Fin.cast (PathIn.pdl_length_eq tail') i) t'_t
+case lrep => cases b ; simp [not_edge_nil] at a_b
+
 -- unique existence?
 theorem exists_rewind_of_le {a b : PathIn tab} (h : a ≤ b) : ∃ k, b.rewind k = a := by
 induction h
@@ -824,22 +898,11 @@ case refl b a_b =>
   use 0
   exact PathIn.rewind_zero
 case tail c b a_c c_b ih =>
-  have ⟨⟨k_val, k_pf⟩, c_re_k_is_a⟩ := ih
-  have k_pf' : k_val + 1 < List.length b.toHistory + 1 := by
-    have := edge_inc_length_by_one c_b
-    simp_all
-  use ⟨k_val + 1, k_pf'⟩
-  have b_re_1_is_c := rewind_of_edge_is_eq c_b
-  have k_pf'' : k_val < List.length (b.rewind 1).toHistory + 1 := by
-    have h : List.length (b.rewind 1).toHistory = List.length c.toHistory := by
-      have := edge_inc_length_by_one c_b
-      simp_all
-    linarith
-  have b_re_is_a : (b.rewind 1).rewind ⟨k_val, k_pf''⟩ = a := by
-    subst b_re_1_is_c -- eq_of_heq was actually not necessary
-    simp_all
-  subst b_re_is_a
-  exact (rewind_helper k_val k_pf' k_pf'')
+  have ⟨k, c_re_k_is_a⟩ := ih
+  use (Fin.cast (edge_inc_length_by_one c_b) (k.succ))
+  have := (@rewind_helper _ _ _ c b k c_b)
+  rw [c_re_k_is_a] at this
+  exact this
 
 theorem not_path_nil {a : PathIn tab} : ¬(a < PathIn.nil) := by
 intro con
