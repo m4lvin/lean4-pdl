@@ -171,10 +171,6 @@ constructor
   simp only [List.append_nil] at this
   convert lpr.2.2 lpr.val (by simp)
   exact (Fin.heq_ext_iff (congrArg List.length this)).mpr rfl
-  simp at this
-  have := lpr.2.2 lpr.val (by simp)
-  convert this
-  simp_all [Fin.cast_eq_cast]
 
 /-- The companion is strictly before the the repeat. -/
 theorem companionOf_length_lt_length {t : PathIn tab} lpr h :
@@ -212,9 +208,6 @@ theorem cEquiv.symm (s t : PathIn tab) : s ≡ᶜ t ↔ t ≡ᶜ s := by
 
 def clusterOf {X} {tab : Tableau .nil X} (p : PathIn tab) :=
   Quot.mk cEquiv p
-
-
--- MQuestion: why not use r-t closure like in notes?
 
 /-- We have `before s t` iff there is a path from s to t but not from t to s.
 This means the cluster of `s` comes before the cluster of `t` in `tab`.
@@ -411,7 +404,7 @@ case loc rest Y nrep nbas lt next IH =>
   case loc Z nbas' nrep' Z_in tail =>
     cases a
     case nil =>
-      have t_nil : tail = PathIn.nil := by -- idea here is that a is nil so rewinding 1 gets to nil
+      have t_nil : tail = PathIn.nil := by
         rcases a_b with ( ⟨_, _, _, _, _, _, _, _, tabAt_def, p_def⟩
                         | ⟨_, _, _, _, _, _, _, tabAt_def, p_def⟩ )
         · simp [PathIn.append] at p_def
@@ -1341,14 +1334,6 @@ theorem boxes_true_at_k_of_Vector_rel {W : Type} {M : KripkeModel W} (ξ : AnyFo
 -- Note that we mix induction' tactic and recursive calls __O.o__
 -- findme2
 
--- MQuestion: π in notes
--- MQuestion: what is side:Side about?
--- M: Why is this called PathIn tab? t is a node.
--- MQuestion: formulation is wrong?
--- MQuestion: Where do we say [α] loaded?
--- MQuestion: We need to say that the entire path is satisfiable
--- MQuestion: Extended Induction Hypothesis
-
 theorem loadedDiamondPathsM (α : Program) {X : Sequent}
   (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
   (root_free : X.isFree) -- ADDED / not/implicit in Notes?
@@ -1369,7 +1354,6 @@ theorem loadedDiamondPathsM (α : Program) {X : Sequent}
         )
     ) := by
   sorry
-
 
 -- TODO: missing here: path from t to s is satisfiable!
 -- FIXME: move satisfiable outside disjunction?
