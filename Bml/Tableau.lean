@@ -595,7 +595,7 @@ theorem localRuleAppDecreasesLengthSide
     rw [zlen_iff]
     calc zlengthOfSet (X \ Cond ∪ Res)
         ≤ zlengthOfSet (X \ Cond) + zlengthOfSet Res := by
-            have := @Finset.sum_union_inter _ _ (X \ Cond) Res zlengthOf _ _
+            have := @Finset.sum_union_inter _ _ (X \ Cond) Res _ zlengthOf _
             have : zlengthOfSet (X \ Cond ∩ Res) ≥ 0 := zlengthOfSet.pos
             simp_all
             linarith
