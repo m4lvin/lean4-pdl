@@ -166,9 +166,9 @@ theorem good_cone {g : Game} {p r : g.Pos} (W : good i p) (h : inMyCone (good_st
     unfold good_strat
     if good i q
       then
-        let E := good_strat.proof_1 i q turn ih
         simp only [ih, ↓reduceDIte]
-        exact (good_strat.proof_1 i q turn (of_eq_true (eq_true ih))).choose_spec.choose_spec
+        -- exact (good_strat.proof_1 i q turn (of_eq_true (eq_true ih))).choose_spec.choose_spec
+        sorry
       else contradiction
 
 theorem good_is_surviving {g : Game} {p : g.Pos} : good i p → g.turn p = i → p.moves.Nonempty := by

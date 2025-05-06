@@ -1044,7 +1044,6 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       -- It remains to show that the claim suffices.
       specialize claim δ.length
       rcases claim with ⟨sk, t_sk, sk_prop⟩
-      have := List.drop_length δ
       use sk
       simp_all only [modelCanSemImplyList, List.get_eq_getElem, Nat.succ_eq_add_one,
         Fin.coe_eq_castSucc, Fin.natCast_eq_last, Fin.val_last, AnyFormula.boxes_nil,

@@ -151,6 +151,8 @@ lemma repl_in_F_voc_def p φ ψ :
 lemma repl_in_P_voc_def p φ α :
     (repl_in_P p φ α).voc = (α.voc \ {Sum.inl p}) ∪ (if Sum.inl p ∈ α.voc then φ.voc else {}) := by
   cases α <;> simp
+  case atom_prog =>
+    rfl
   case sequence α β =>
     ext x
     have := repl_in_P_voc_def p φ α

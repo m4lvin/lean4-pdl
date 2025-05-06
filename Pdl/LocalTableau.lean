@@ -860,7 +860,7 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
       suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (α;'β)).attach).sum.succ by
         simp_all
         linarith
-      rw [List.attach_map_val (testsOfProgram (α;'β)) (fun x => lmOfFormula (~↑x))]
+      rw [@List.attach_map_val _ _ (testsOfProgram (α;'β)) (fun x => lmOfFormula (~↑x))]
       rw [Nat.lt_succ]
       apply List.le_sum_of_mem
       simp only [List.mem_map]
@@ -874,7 +874,7 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
       suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (α⋓β)).attach).sum.succ by
         simp_all
         linarith
-      rw [List.attach_map_val (testsOfProgram (α⋓β)) (fun x => lmOfFormula (~↑x))]
+      rw [@List.attach_map_val _ _ (testsOfProgram (α⋓β)) (fun x => lmOfFormula (~↑x))]
       rw [Nat.lt_succ]
       exact List.single_le_sum (by simp) _ (by rw [List.mem_map]; use τ)
     · subst def_ψ
@@ -886,7 +886,7 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
       suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (∗β)).attach).sum.succ by
         simp_all
         linarith
-      rw [List.attach_map_val (testsOfProgram (∗β)) (fun x => lmOfFormula (~↑x))]
+      rw [@List.attach_map_val _ _ (testsOfProgram (∗β)) (fun x => lmOfFormula (~↑x))]
       rw [Nat.lt_succ]
       exact List.single_le_sum (by simp) _ (by rw [List.mem_map]; use τ)
     · subst def_ψ
@@ -898,7 +898,7 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
       suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (?'τ0)).attach).sum.succ by
         simp_all
         linarith
-      rw [List.attach_map_val (testsOfProgram (?'τ0)) (fun x => lmOfFormula (~↑x))]
+      rw [@List.attach_map_val _ _ (testsOfProgram (?'τ0)) (fun x => lmOfFormula (~↑x))]
       rw [Nat.lt_succ]
       exact List.single_le_sum (by simp) _ (by rw [List.mem_map]; use τ)
     · subst def_ψ

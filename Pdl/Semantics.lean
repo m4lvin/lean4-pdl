@@ -2,7 +2,7 @@ import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Vector.Basic
 import Mathlib.Data.Set.Lattice
 import Mathlib.Logic.Relation
-import Mathlib.Order.CompleteLattice
+import Mathlib.Order.CompleteLattice.Basic
 import Mathlib.Order.FixedPoints
 
 import Pdl.Syntax
