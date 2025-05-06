@@ -165,3 +165,16 @@ theorem Relation.TransGen_imp {r r' : α → α → Prop} {a b : α} :
   induction a_b
   case single => apply TransGen.single; apply hyp; assumption
   case tail _ b_c IH => exact TransGen.tail IH (hyp _ _ b_c)
+
+theorem Relation.TransGen_of_ReflTransGen {α : Type} {r : α → α → Prop}
+  {a b : α} (h : Relation.ReflTransGen r a b) (hne : a ≠ b) : Relation.TransGen r a b :=
+  by induction h
+     case refl => contradiction
+     case tail c b a_c c_b ih => cases eq_or_ne a c with
+      | inl a_eq_c => apply Relation.TransGen.single
+                      simp_all
+      | inr a_ne_c => apply Relation.TransGen.tail (ih a_ne_c) c_b
+
+lemma Relation.TransGen.flip_iff (α : Type) {r : α → α → Prop} {a b : α} :
+    (Relation.TransGen (flip r)) a b ↔ (Relation.TransGen r) b a := by
+  exact @Relation.transGen_swap α r a b

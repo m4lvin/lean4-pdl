@@ -156,6 +156,11 @@ noncomputable def good_strat (i : Player): Strategy g i := fun p turn nempty =>
       exact ⟨E.choose, E.choose_spec.choose⟩
     else choose_move nempty
 
+-- To find the magic `_proof_20` below, uncomment this:
+-- set_option pp.proofs true
+-- #print good_strat
+-- (With Lean 4.19.0 it changed from `proof_1` to `_proof_20`.)
+
 theorem good_cone {g : Game} {p r : g.Pos} (W : good i p) (h : inMyCone (good_strat i) p r) : good i r := by
   induction h with
   | nil => exact W
@@ -166,9 +171,8 @@ theorem good_cone {g : Game} {p r : g.Pos} (W : good i p) (h : inMyCone (good_st
     unfold good_strat
     if good i q
       then
-        let E := good_strat.proof_1 i q turn ih
         simp only [ih, ↓reduceDIte]
-        exact (good_strat.proof_1 i q turn (of_eq_true (eq_true ih))).choose_spec.choose_spec
+        exact (good_strat._proof_20 i q turn (of_eq_true (eq_true ih))).choose_spec.choose_spec
       else contradiction
 
 theorem good_is_surviving {g : Game} {p : g.Pos} : good i p → g.turn p = i → p.moves.Nonempty := by

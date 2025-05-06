@@ -536,7 +536,7 @@ theorem cpHelpA {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α
       · subst_eqs
         simp only [reduceIte, List.mem_flatten, List.mem_map, Prod.exists] at in_L
         absurd in_L
-        exact List.not_mem_nil _
+        exact List.not_mem_nil
       case neg hyp =>
         simp only [hyp, reduceIte, List.mem_singleton, Prod.mk.injEq] at in_L
         cases in_L
