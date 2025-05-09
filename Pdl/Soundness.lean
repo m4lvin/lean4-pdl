@@ -615,6 +615,8 @@ theorem ePropB {tab : Tableau .nil X} (s u t : PathIn tab) :
 
 /-! ## Soundness -/
 
+-- Other Lemma idea: if α is atomic, and ~''(⌊α⌋ξ) is in t, then if we make a local tableau for t, the loaded diamond must still be in all endNodesOf it.
+
 /-- Helper to deal with local tableau in `loadedDiamondPaths`. -/
 theorem localLoadedDiamond (α : Program) {X : Sequent}
   (ltab : LocalTableau X)
@@ -846,22 +848,24 @@ theorem loadedDiamondPathsM (α : Program) {X : Sequent}
 -- TODO: missing here: path from t to s is satisfiable!
 -- FIXME: move satisfiable outside disjunction?
 
+-- UGLY
+set_option maxHeartbeats 1000000
+
 theorem loadedDiamondPaths (α : Program) {X : Sequent}
   (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
   (root_free : X.isFree) -- ADDED / not/implicit in Notes?
-  (t : PathIn tab)       -- M: Why is this called PathIn tab? t is a node.
+  (t : PathIn tab)
   {W}
   {M : KripkeModel W} {v w : W}
   (v_t : (M,v) ⊨ nodeAt t)
   (ξ : AnyFormula)
-  {side : Side} -- NOT in notes but needed for partition. M: What is this?
-  (negLoad_in : (~''(⌊α⌋ξ)).in_side side (nodeAt t)) -- M: why two '' after ~?
-                                                     -- M: where do we say [α] loaded?
+  {side : Side} -- not in notes but needed for partition
+  (negLoad_in : (~''(⌊α⌋ξ)).in_side side (nodeAt t))
   (v_α_w : relate M α v w)
   (w_nξ : (M,w) ⊨ ~''ξ)
   : ∃ s : PathIn tab, t ◃⁺ s ∧
-    -- TODO: missing here: path from t to s is satisfiable!
-    (   ( satisfiable (nodeAt s) ∧ ¬ (s ≡ᶜ t) )  -- FIXME: move satisfiable outside disjunction?
+    -- maybe TODO: missing here: path from t to s is satisfiable!
+    (   ( satisfiable (nodeAt s) ∧ ¬ (s ≡ᶜ t) )  -- maybe: move satisfiable outside disjunction?
       ∨ ( ((~''ξ).in_side side (nodeAt s))
         ∧ (M,w) ⊨ (nodeAt s)
         ∧ ((nodeAt s).without (~''ξ)).isFree
@@ -870,8 +874,11 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
 
   -- outer induction on the program (do it with recursive calls!)
 
-  -- inner induction is on the path (in Notes this is a separate Lemma , going from t to t') M: Lemma 5.2
-  induction' t_def : t using PathIn.init_inductionOn -- MQuestion: I don't understand this induction
+  -- We do not really need induction, but use `PathIn.init_inductionOn`
+  -- to first distinguish whether we are the rooot, and in the step case
+  -- we look at what happens at the *end* of the path.
+  -- (This is similar to the separate Lemma 5.2, going from t to t'.)
+  cases t_def : t using PathIn.init_inductionOn
   case root =>
     subst t_def
     exfalso
@@ -879,16 +886,15 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
     unfold Sequent.isFree Sequent.isLoaded at root_free
     rcases X with ⟨L,R,O⟩
     cases O <;> cases side <;> simp at *
-  case step s IH t0 s_t0 => -- NOTE: not indenting from here.
+  case step s t0 IH s_t0 => -- NOTE: not indenting from here.
+  clear IH -- not needed
   subst t_def
-
   -- Notes first take care of cases where rule is applied to non-loaded formula.
-  -- For this, we need to distinguish what happens at `t`.
+  -- For this, we need to distinguish what happens at the *end* of `t`.
   rcases tabAt_t_def : tabAt t with ⟨Hist, Z, tZ⟩
   cases tZ
-  -- applying a local or a pdl rule or being a repeat?
+  -- making a local tableau, applying a pdl rule, or being a repeat?
   case loc nbas ltZ nrep next =>
-    clear IH -- not used here, that one is only for the repeats
     have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
     have locLD := localLoadedDiamond α ltZ v_α_w (this ▸ v_t) _ (this ▸ negLoad_in) w_nξ
     clear this
@@ -957,7 +963,15 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       -- We get a sequence of worlds from the δ relation:
       rcases (relateSeq_iff_exists_Vector M δ v w).mp v_seq_w with ⟨ws, v_def, w_def, ws_rel⟩
 
-      -- Claim for an inner induction on the list δ. -- Extended Induction Hypothesis is herre
+      -- Claim for an inner induction on the list δ. -- Extended Induction Hypothesis
+
+      -- IDEA: already deal with the case when α is atomic here!?
+      -- In this case we annot user the outer IH for a simpler program,
+      -- because α is suriving the local tableau.
+      -- BUT we do know that the tableau cannot make another `loc` step,
+      -- because the element in endNodesOf has to be basic.
+      -- Hence we have either an `lrep` or a `pdl` step next, both of which
+      -- we should be able to deal with.
 
       have claim : ∀ k : Fin δ.length.succ, -- Note the succ here!
           ∃ sk, t ◃⁺ sk ∧ ( ( satisfiable (nodeAt sk) ∧ ¬(sk ≡ᶜ t) )
@@ -1013,11 +1027,11 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
                 rw [this]
                 simp [Program.isAtomic, Program.isStar, lengthOfProgram] at *
                 -- PROBLEM
-                -- should length of atom be 0 or 1?
+                -- should length of atom be 0 or 1? --> NOT a solution
                 -- OR
-                -- can we argue here that k should not large? / reach a contradiction?
+                -- argue that k should not be large? / reach contradiction? --> NOT a solution
                 -- OR
-                -- do we want that `loc` or something else on the way to here should not be allowed for when α is atomic???
+                -- do we want that `loc` or something else on the way to here should not be allowed when α is atomic???
                 sorry
               case star =>
                 -- Here is the **star case** that needs an additional induction and minimality.
@@ -1066,7 +1080,6 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       aesop
     case freeL L R δ β φ =>
       -- Leaving cluster, interesting that IH is not needed here.
-      clear IH
       -- Define child node with path to to it:
       let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ .pdl .nil)
       let s : PathIn tab := t.append t_to_s
@@ -1105,7 +1118,6 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
 
     case freeR L R δ β φ =>
       -- Leaving cluster, interesting that IH is not needed here.
-      clear IH
       -- Define child node with path to to it:
       let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ .pdl .nil)
       let s : PathIn tab := t.append t_to_s
@@ -1143,7 +1155,6 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
           rw [tabAt_t_def]
 
     case modL L R a ξ' Z_def =>
-      clear IH -- not needed in this case, also not in notes.
       have : ξ' = ξ := by
         unfold nodeAt at negLoad_in
         rw [tabAt_t_def] at negLoad_in
@@ -1247,7 +1258,6 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
           simp_all [Sequent.isFree, Sequent.isLoaded, Sequent.without]
 
     case modR L R a ξ' Z_def => -- COPY ADAPTATION from `modL`
-      clear IH -- not needed in this case, also not in notes.
       have : ξ' = ξ := by
         unfold nodeAt at negLoad_in
         rw [tabAt_t_def] at negLoad_in
