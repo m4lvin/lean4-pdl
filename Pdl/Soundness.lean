@@ -617,6 +617,81 @@ theorem ePropB {tab : Tableau .nil X} (s u t : PathIn tab) :
 
 -- Other Lemma idea: if α is atomic, and ~''(⌊α⌋ξ) is in t, then if we make a local tableau for t, the loaded diamond must still be in all endNodesOf it.
 
+theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
+  (ltab : LocalTableau X)
+  (α_atom : α.isAtomic)
+  (ξ : AnyFormula)
+  {side : Side}
+  (negLoad_in : (~''(⌊α⌋ξ)).in_side side X)
+  : ∀ Y ∈ endNodesOf ltab, (~''(⌊α⌋ξ)).in_side side Y := by
+  intro Y Y_in
+  induction ltab
+  case byLocalRule X B lra next IH =>
+    rcases X with ⟨L, R, O⟩
+    rcases lra with ⟨Lcond, Rcond, Ocond, r, precons⟩
+    rename_i resNodes B_def_apply_r_LRO
+    cases r
+    case oneSidedL resNodes orule =>
+      simp_all
+      have ⟨A, ⟨⟨Z, ⟨⟨Γ, ⟨Γ_in, Z_def⟩⟩, A_def⟩⟩, Y_in_A⟩⟩ := Y_in
+      apply IH Z Γ ⟨Γ_in, Z_def⟩
+      · subst Z_def
+        cases side
+        all_goals
+        simp [AnyNegFormula.in_side] at *
+        exact negLoad_in
+      · simp [Y_in_A, A_def]
+    case oneSidedR resNodes orule =>
+      simp_all
+      have ⟨A, ⟨⟨Z, ⟨⟨Γ, ⟨Γ_in, Z_def⟩⟩, A_def⟩⟩, Y_in_A⟩⟩ := Y_in
+      apply IH Z Γ ⟨Γ_in, Z_def⟩
+      · subst Z_def
+        cases side
+        all_goals
+        simp [AnyNegFormula.in_side] at *
+        exact negLoad_in
+      · simp [Y_in_A, A_def]
+    case LRnegL φ => simp_all
+    case LRnegR φ => simp_all
+    case loadedL outputs χ lrule =>
+      simp_all
+      have ⟨A, ⟨⟨Z, ⟨⟨Γ, ⟨Δ, ⟨cond, Z_def⟩⟩⟩, A_def⟩⟩, Y_in_A⟩⟩ := Y_in
+      apply IH Z Γ Δ ⟨cond, Z_def⟩
+      · subst Z_def
+        cases side
+        case LL =>
+          simp [AnyNegFormula.in_side]
+          simp [AnyNegFormula.in_side] at negLoad_in
+          simp [negLoad_in] at precons
+          subst precons
+          cases lrule <;> simp_all
+        case RR =>
+          simp [AnyNegFormula.in_side] at *
+          rw [negLoad_in]
+          simp_all
+      · simp [Y_in_A, A_def]
+    case loadedR outputs χ lrule =>
+      simp_all
+      have ⟨A, ⟨⟨Z, ⟨⟨Γ, ⟨Δ, ⟨cond, Z_def⟩⟩⟩, A_def⟩⟩, Y_in_A⟩⟩ := Y_in
+      apply IH Z Γ Δ ⟨cond, Z_def⟩
+      · subst Z_def
+        cases side
+        case LL =>
+          simp [AnyNegFormula.in_side] at *
+          rw [negLoad_in]
+          simp_all [Olf.change, Option.overwrite, Option.map, sdiff]
+        case RR =>
+          simp [AnyNegFormula.in_side]
+          simp [AnyNegFormula.in_side] at negLoad_in
+          simp [negLoad_in] at precons
+          subst precons
+          cases lrule <;> simp_all
+      · simp [Y_in_A, A_def]
+  case sim X X_isBasic =>
+    simp [endNodesOf] at Y_in
+    subst Y_in
+    exact negLoad_in
+
 /-- Helper to deal with local tableau in `loadedDiamondPaths`. -/
 theorem localLoadedDiamond (α : Program) {X : Sequent}
   (ltab : LocalTableau X)
@@ -820,37 +895,11 @@ theorem boxes_true_at_k_of_Vector_rel {W : Type} {M : KripkeModel W} (ξ : AnyFo
       · apply Vector.my_cast_heq
       · congr!
 
-/-- Soundness of loading and repeats: a tableau can immitate all moves in a model. -/
+/- Soundness of loading and repeats: a tableau can immitate all moves in a model. -/
 -- Note that we mix induction' tactic and recursive calls __O.o__
--- findme2
-
-theorem loadedDiamondPathsM (α : Program) {X : Sequent}
-  (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
-  (root_free : X.isFree) -- ADDED / not/implicit in Notes?
-  (t : PathIn tab)
-  {W}
-  {M : KripkeModel W} {v w : W}
-  (v_t : (M,v) ⊨ nodeAt t)
-  (ξ : AnyFormula)
-  {side : Side} -- NOT in notes but needed for partition.
-  (negLoad_in : (~''(⌊α⌋ξ)).in_side side (nodeAt t)) -- M: why two '' after ~?
-  (v_α_w : relate M α v w)
-  (w_nξ : (M,w) ⊨ ~''ξ)
-  : ∃ s : PathIn tab, t ◃⁺ s ∧ (satisfiable (nodeAt s)) ∧
-    ( ¬ (s ≡ᶜ t)
-      ∨ ( ((~''ξ).in_side side (nodeAt s))
-        ∧ (M,w) ⊨ (nodeAt s)
-        ∧ ((nodeAt s).without (~''ξ)).isFree
-        )
-    ) := by
-  sorry
-
 -- TODO: missing here: path from t to s is satisfiable!
 -- FIXME: move satisfiable outside disjunction?
-
--- UGLY
 set_option maxHeartbeats 1000000
-
 theorem loadedDiamondPaths (α : Program) {X : Sequent}
   (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
   (root_free : X.isFree) -- ADDED / not/implicit in Notes?
@@ -887,14 +936,55 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
     rcases X with ⟨L,R,O⟩
     cases O <;> cases side <;> simp at *
   case step s t0 IH s_t0 => -- NOTE: not indenting from here.
-  clear IH -- not needed
   subst t_def
+
   -- Notes first take care of cases where rule is applied to non-loaded formula.
-  -- For this, we need to distinguish what happens at the *end* of `t`.
+  -- For this, we need to distinguish what happens at `t`.
   rcases tabAt_t_def : tabAt t with ⟨Hist, Z, tZ⟩
   cases tZ
-  -- making a local tableau, applying a pdl rule, or being a repeat?
+  -- applying a local or a pdl rule or being a repeat?
   case loc nbas ltZ nrep next =>
+    clear IH
+    by_cases α.isAtomic
+    case pos α_atom =>
+      have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
+      have locLD := localLoadedDiamond α ltZ v_α_w (this ▸ v_t) _ (this ▸ negLoad_in) w_nξ
+      rcases locLD with ⟨Y, Y_in, w_Y, free_or_newLoadform⟩
+      have alocLD := atomicLocalLoadedDiamond α ltZ α_atom ξ (this ▸ negLoad_in) Y Y_in
+      clear this
+      let t_to_s1 : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.loc Y_in .nil)
+      let s1 : PathIn tab := t.append t_to_s1
+      have t_s : t ⋖_ s1 := by
+        unfold s1 t_to_s1
+        apply edge_append_loc_nil
+        rw [tabAt_t_def]
+      have tabAt_s_def : tabAt s1 = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by
+        unfold s1 t_to_s1
+        rw [tabAt_append]
+        have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc nrep nbas ltZ next)))
+            = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by simp_all
+        convert this <;> try rw [tabAt_t_def]
+        rw [eqRec_heq_iff_heq]
+      have v_s1 : (M,v) ⊨ nodeAt s1 := by
+        intro φ φ_in
+        apply w_Y
+        have : (tabAt s1).2.1 = Y := by rw [tabAt_s_def]
+        simp_all
+      have α_in_s1 : (~''(AnyFormula.loaded (⌊α⌋ξ))).in_side side (nodeAt s1) := by
+        unfold nodeAt ; rw [tabAt_s_def]
+        simp_all
+      have ⟨sn, prop⟩ := @loadedDiamondPaths α X tab root_free s1 W M v w v_s1 ξ side α_in_s1 v_α_w w_nξ
+      refine ⟨sn, ⟨Relation.TransGen.trans (Relation.TransGen_or_left (Relation.TransGen.single t_s)) prop.1, ?_⟩⟩
+      rcases prop.2 with sat | s
+      · left
+        refine ⟨sat.1, ?_⟩
+        intro ⟨sn_t, t_sn⟩
+        apply sat.2
+        refine ⟨?_, Relation.TransGen.to_reflTransGen prop.1⟩
+        · apply Relation.ReflTransGen.trans sn_t (Relation.ReflTransGen_or_left (Relation.ReflTransGen.single t_s))
+      · right
+        exact s
+    case neg α_natom =>
     have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
     have locLD := localLoadedDiamond α ltZ v_α_w (this ▸ v_t) _ (this ▸ negLoad_in) w_nξ
     clear this
@@ -963,15 +1053,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       -- We get a sequence of worlds from the δ relation:
       rcases (relateSeq_iff_exists_Vector M δ v w).mp v_seq_w with ⟨ws, v_def, w_def, ws_rel⟩
 
-      -- Claim for an inner induction on the list δ. -- Extended Induction Hypothesis
-
-      -- IDEA: already deal with the case when α is atomic here!?
-      -- In this case we annot user the outer IH for a simpler program,
-      -- because α is suriving the local tableau.
-      -- BUT we do know that the tableau cannot make another `loc` step,
-      -- because the element in endNodesOf has to be basic.
-      -- Hence we have either an `lrep` or a `pdl` step next, both of which
-      -- we should be able to deal with.
+      -- Claim for an inner induction on the list δ. -- Extended Induction Hypothesis is herre
 
       have claim : ∀ k : Fin δ.length.succ, -- Note the succ here!
           ∃ sk, t ◃⁺ sk ∧ ( ( satisfiable (nodeAt sk) ∧ ¬(sk ≡ᶜ t) )
@@ -1023,16 +1105,16 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
               all_goals
                 simp [Program.isAtomic, Program.isStar, lengthOfProgram] at *
                 try linarith
-              case atom_prog =>
-                rw [this]
-                simp [Program.isAtomic, Program.isStar, lengthOfProgram] at *
-                -- PROBLEM
-                -- should length of atom be 0 or 1? --> NOT a solution
-                -- OR
-                -- argue that k should not be large? / reach contradiction? --> NOT a solution
-                -- OR
-                -- do we want that `loc` or something else on the way to here should not be allowed when α is atomic???
-                sorry
+              -- case atom_prog =>
+              --   rw [this]
+              --   simp [Program.isAtomic, Program.isStar, lengthOfProgram] at *
+              --   -- PROBLEM
+              --   -- should length of atom be 0 or 1?
+              --   -- OR
+              --   -- can we argue here that k should not large? / reach a contradiction?
+              --   -- OR
+              --   -- do we want that `loc` or something else on the way to here should not be allowed for when α is atomic???
+              --   sorry
               case star =>
                 -- Here is the **star case** that needs an additional induction and minimality.
                 -- See notes!
@@ -1046,7 +1128,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
               (by convert ws_rel k; simp)
               (by apply boxes_true_at_k_of_Vector_rel <;> simp_all)
 
-            clear _forTermination
+            clear _forTermination -- M: why cleared?
 
             rcases outer_IH with ⟨sk2, sk_c_sk2, sk2_property⟩
             rcases sk2_property with ⟨sk2_sat, sk2_nEquiv_sk⟩ | ⟨anf_in_sk2, u_sk2, sk2_almostFree⟩
@@ -1064,6 +1146,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         Fin.coe_eq_castSucc, Fin.natCast_eq_last, Fin.val_last, AnyFormula.boxes_nil,
         Fin.getElem_fin, List.drop_length, true_and]
       convert sk_prop
+
 
   case pdl Y bas r nrep next =>
     cases r -- six PDL rules
@@ -1393,11 +1476,15 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       exact ePropB.g_tweak _ _ _ (Relation.TransGen.single (Or.inr t_comp_u)) u_s not_s_u
     · exact Or.inr reached
 
-termination_by
-  (⟨lengthOfProgram α, t.length⟩ : Nat ×ₗ Nat)
-decreasing_by
-  · exact Prod.Lex.left _ _ _forTermination
-  · exact Prod.Lex.right (lengthOfProgram α) _forTermination
+    termination_by
+      (⟨lengthOfProgram α, t.length⟩ : Nat ×ₗ Nat)
+    decreasing_by
+      · try exact Prod.Lex.left _ _ _forTermination
+        sorry
+      · try exact Prod.Lex.right (lengthOfProgram α) _forTermination
+        sorry
+      · sorry -- a third goal was made?????
+
 
 theorem simpler_equiv_simpler {u s t : PathIn tab} :
     s <ᶜ u → s ≡ᶜ t → t <ᶜ u := by
