@@ -1427,10 +1427,13 @@ theorem loadedDiamondPaths' (α : Program) {X : Sequent}
       -- Here we need to go to the companion.
       -- IDEA: make a recursive call, and for termination note that the path becomes shorter?
       have h : (tabAt t).snd.snd = .lrep (tabAt_t_def ▸ lpr) := by
+        apply heq_iff_eq.1
+        have ⟨t1, t2⟩ := Sigma.mk.inj_iff.1 tabAt_t_def
         sorry
+
       -- Let `u` be the companion.
       let u := companionOf t (tabAt_t_def ▸ lpr) h
-      have t_comp_u : t ♥ u:= ⟨(tabAt_t_def ▸ lpr), h, rfl⟩
+      have t_comp_u : t ♥ u := ⟨(tabAt_t_def ▸ lpr), h, rfl⟩
       -- Show that the companion fulfills the conditions:
       have u_eq_t := nodeAt_companionOf_setEq t (tabAt_t_def ▸ lpr) h
       have v_u : (M, v) ⊨ nodeAt u := by
@@ -1440,7 +1443,7 @@ theorem loadedDiamondPaths' (α : Program) {X : Sequent}
         rw [AnyNegFormula.in_side_of_setEqTo u_eq_t]
         exact negLoad_in
       -- Now prepare and make the recursive call:
-      have _forTermination : (companionOf t (tabAt_t_def ▸ lpr) h).length < t.length := by
+      have _forTermination : u.length < t.length := by
         apply companionOf_length_lt_length
       have := loadedDiamondPaths' α tab root_free u v_u ξ negLoad_in_u v_α_w w_nξ
       rcases this with ⟨s, u_s, (⟨s_sat, not_s_u⟩|reached)⟩
@@ -1451,13 +1454,13 @@ theorem loadedDiamondPaths' (α : Program) {X : Sequent}
         exact ePropB.g_tweak _ _ _ (Relation.TransGen.single (Or.inr t_comp_u)) u_s not_s_u
       · exact Or.inr reached
 
-    termination_by
-      (⟨lengthOfProgram α, t.length⟩ : Nat ×ₗ Nat)
-    decreasing_by
-      · exact Prod.Lex.left _ _ _forTermination
-      · apply Prod.Lex.right (lengthOfProgram α)
-        try exact _forTermination
-        sorry
+termination_by
+  (⟨lengthOfProgram α, t.length⟩ : Nat ×ₗ Nat)
+decreasing_by
+  · exact Prod.Lex.left _ _ _forTermination
+  · apply Prod.Lex.right (lengthOfProgram α)
+    try convert _forTermination
+    sorry
 
 /- Soundness of loading and repeats: a tableau can immitate all moves in a model. -/
 -- Note that we mix induction' tactic and recursive calls __O.o__
@@ -1513,7 +1516,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       rcases locLD with ⟨Y, Y_in, w_Y, free_or_newLoadform⟩
       have alocLD := atomicLocalLoadedDiamond α ltZ α_atom ξ (this ▸ negLoad_in) Y Y_in
       clear this
-      let t_to_s1 : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.loc Y_in .nil)
+      let t_to_s1 : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ .loc Y_in .nil)
       let s1 : PathIn tab := t.append t_to_s1
       have t_s : t ⋖_ s1 := by
         unfold s1 t_to_s1
@@ -1531,21 +1534,243 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         apply w_Y
         have : (tabAt s1).2.1 = Y := by rw [tabAt_s_def]
         simp_all
-      have α_in_s1 : (~''(AnyFormula.loaded (⌊α⌋ξ))).in_side side (nodeAt s1) := by
+      have negLoad_in_s : (~''(AnyFormula.loaded (⌊α⌋ξ))).in_side side (nodeAt s1) := by
         unfold nodeAt ; rw [tabAt_s_def]
         simp_all
-      have ⟨sn, prop⟩ := @loadedDiamondPaths α X tab root_free s1 W M v w v_s1 ξ side α_in_s1 v_α_w w_nξ
-      refine ⟨sn, ⟨Relation.TransGen.trans (Relation.TransGen_or_left (Relation.TransGen.single t_s)) prop.1, ?_⟩⟩
-      rcases prop.2 with sat | s
-      · left
-        refine ⟨sat.1, ?_⟩
-        intro ⟨sn_t, t_sn⟩
-        apply sat.2
-        refine ⟨?_, Relation.TransGen.to_reflTransGen prop.1⟩
-        · apply Relation.ReflTransGen.trans sn_t (Relation.ReflTransGen_or_left (Relation.ReflTransGen.single t_s))
-      · right
-        exact s
- --     have _forTermination : lengthOfProgram δ[k] < lengthOfProgram α := by sorry
+      -- NOW: do cases on s1, s1 can NOT be a local tableau,
+      cases next_def : (next Y Y_in)
+      case loc => exfalso -- cant step from loc to loc
+                  sorry
+      case pdl Y' bas' r' nrep' next' =>
+        rename' tabAt_t_def => tabAt_t'_def
+        rename' t => t'
+        rename' t_s => t'_s
+        rename' s1 => t
+        rename' tabAt_s_def => tabAt_t_def
+        rename' negLoad_in => negLoad_in_t
+        rename' negLoad_in_s => negLoad_in
+        rename' v_s1 => v_t
+        rename' Y' => Y
+        rename' bas' => bas
+        rename' r' => r
+        rename' nrep' => nrep
+        rename' next => next_prev
+        rename' next' => next
+
+-- findme
+        cases r -- six PDL rules
+        -- cannot apply (L+) because we already have a loaded formula
+        case loadL =>
+          exfalso
+          simp only [nodeAt, AnyNegFormula.in_side] at negLoad_in
+          rw [tabAt_t_def] at negLoad_in
+          aesop
+        case loadR =>
+          exfalso
+          simp only [nodeAt, AnyNegFormula.in_side] at negLoad_in
+          rw [tabAt_t_def] at negLoad_in
+          aesop
+        case freeL L R δ β φ =>
+          -- Leaving cluster, interesting that IH is not needed here.
+          -- Define child node with path to to it:
+          --let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ next'' (L, R, some (Sum.inl (~'⌊⌊δ⌋⌋⌊β⌋AnyFormula.normal φ))) Y_in)
+         --have h : next_prev  := by sorry
+          let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ next_def ▸ PathIn.pdl PathIn.nil)
+          let s : PathIn tab := t.append t_to_s
+          have tabAt_s_def : tabAt s = ⟨_, _, next⟩ := by
+            unfold s t_to_s
+            rw [tabAt_append]
+         --   Only some HEq business left here.
+            have : tabAt (.pdl .nil : PathIn (Tableau.pdl nrep bas PdlRule.freeL next))
+                = ⟨ (L, R, some (Sum.inl (~'⌊⌊δ⌋⌋⌊β⌋AnyFormula.normal φ))) :: _
+                  , ⟨(List.insert (~⌈⌈δ⌉⌉⌈β⌉φ) L, R, none), next⟩⟩ := by
+              unfold tabAt
+              unfold tabAt
+              rfl
+            convert this <;> try rw [tabAt_t_def]
+            simp [next_def]
+            sorry
+          refine ⟨s, ?_, Or.inl ⟨?_, ?_⟩ ⟩
+          · apply Relation.TransGen.tail (Relation.TransGen_or_left (Relation.TransGen.single t'_s))
+            left
+            right
+            unfold s t_to_s
+            refine ⟨Z :: Hist, _, ?_, bas, _, PdlRule.freeL, next, ?_⟩
+            · simp_all [tabAt_t_def]
+            · rw [next_def] at tabAt_t_def
+              use tabAt_t_def
+              convert rfl
+              sorry -- same issue as above
+          · use W, M, v
+            intro φ φ_in
+            rw [tabAt_s_def] at φ_in
+            apply v_t -- Let's use that t and s are equivalent if they only differ in loading
+            rw [tabAt_t_def]
+            aesop
+          · apply not_cEquiv_of_free_loaded
+            -- use lemma that load and free are never in same cluster
+            · simp only [Sequent.isFree, Sequent.isLoaded, nodeAt, decide_false, decide_true,
+              Bool.not_eq_true, Bool.decide_eq_false, Bool.not_eq_true']
+              rw [tabAt_s_def]
+            · simp [Sequent.isLoaded, nodeAt, decide_false, decide_true]
+              rw [tabAt_t'_def]
+              sorry -- cases Z, need to take Z apart to show
+
+
+        case freeR L R δ β φ => sorry -- copy in freeL
+
+        case modL L R a ξ' Z_def =>
+          have : ξ' = ξ := by
+            unfold nodeAt at negLoad_in
+            rw [tabAt_t_def] at negLoad_in
+            unfold AnyNegFormula.in_side at negLoad_in
+            cases side <;> simp_all
+          subst this
+          -- modal rule, so α must actually be atomic!
+          have α_is_a : α = (·a : Program) := by
+            simp only [AnyNegFormula.in_side, nodeAt] at negLoad_in
+            rw [tabAt_t_def] at negLoad_in
+            subst Z_def
+            cases side
+            all_goals
+              simp only at negLoad_in
+              subst_eqs
+            rfl
+          subst α_is_a
+          simp at v_α_w
+          -- Let `s` be the unique child:
+          let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ next_def ▸ PathIn.pdl PathIn.nil)
+          let s : PathIn tab := t.append t_to_s
+          -- used in multiple places below:
+          have helper : (∃ φ, ξ' = .normal φ ∧ nodeAt s = ((~φ) :: projection a L, projection a R, none))
+                      ∨ (∃ χ, ξ' = .loaded χ ∧ nodeAt s = (projection a L, projection a R, some (Sum.inl (~'χ)))) := by
+            subst Z_def
+            unfold nodeAt
+            unfold s t_to_s
+            rw [tabAt_append]
+            -- remains to deal with HEq business
+            let tclean : PathIn (.pdl nrep bas (.modL (Eq.refl _)) next) := .pdl .nil
+            cases ξ'
+            case normal φ =>
+              left
+              use φ
+              simp only [true_and]
+              simp at next
+              have : (tabAt tclean).2.1 = ((~φ) :: projection a L, projection a R, none) := by
+                have : tabAt tclean = ⟨ _ :: _, ((~φ) :: projection a L, projection a R, none) , next⟩ := by unfold tabAt; rfl
+                rw [this]
+              convert this <;> (try rw [tabAt_t_def, next_def]) <;> simp [tclean]
+            case loaded χ =>
+              right
+              use χ
+              simp only [true_and]
+              simp at next
+              have : (tabAt tclean).2.1 = (projection a L, projection a R, some (Sum.inl (~'χ))) := by
+                have : tabAt tclean = ⟨ _, (projection a L, projection a R, some (Sum.inl (~'χ))) , next⟩ := by unfold tabAt; rfl
+                rw [this]
+              convert this <;> (try rw [tabAt_t_def, next_def]) <;> simp [tclean]
+          -- ... it is then obvious that `s` satisfies the required properties:
+          refine ⟨s, ?_, Or.inr ⟨?_a, ?_b, ?_c⟩⟩
+          · have t_s : t ⋖_ s := by
+              right
+              refine ⟨Z :: Hist, _, nrep, bas, _, (.modL Z_def), next, next_def ▸ tabAt_t_def, ?_⟩
+              simp [s, t_to_s]
+              convert rfl
+              sorry -- same issue
+            exact Relation.TransGen.trans (Relation.TransGen_or_left (Relation.TransGen.single t'_s)) (Relation.TransGen_or_left (Relation.TransGen.single t_s)) -- theres a shorter way
+          · -- (a)
+            subst Z_def
+            rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
+            all_goals
+              rw [nodeAt_s_def]
+              unfold AnyNegFormula.in_side
+              cases side
+              case LL => simp_all
+              case RR =>
+                absurd negLoad_in
+                unfold nodeAt
+                rw [tabAt_t_def]
+                unfold AnyNegFormula.in_side
+                simp
+          · -- (b)
+            rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
+            · rw [nodeAt_s_def]
+              intro f f_in
+              simp at f_in
+              rcases f_in with (f_in|f_in|f_in)
+              · subst_eqs
+                exact w_nξ
+              all_goals
+                have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
+                apply this
+                simp only [relate]
+                exact v_α_w
+            · rw [nodeAt_s_def]
+              intro f f_in
+              simp at f_in
+              rcases f_in with ((f_in|f_in)|f_in)
+              case inr.intro.intro.inr =>
+                subst_eqs
+                simp only [evaluate]
+                exact w_nξ
+              all_goals
+                have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
+                apply this
+                simp only [relate]
+                exact v_α_w
+          · -- (c)
+            rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
+            all_goals
+              rw [nodeAt_s_def]
+              simp_all [Sequent.isFree, Sequent.isLoaded, Sequent.without]
+
+        case modR L R a ξ' Z_def => sorry -- COPY ADAPTATION from `modL`
+
+
+          -- Here we need to go to the companion.
+    -- IDEA: make a recursive call, and for termination note that the path becomes shorter?
+      case lrep lpr =>
+        rename' tabAt_t_def => tabAt_t'_def
+        rename' t => t'
+        rename' t_s => t'_s
+        rename' s1 => t
+        rename' tabAt_s_def => tabAt_t_def
+        rename' negLoad_in => negLoad_in_t
+        rename' negLoad_in_s => negLoad_in
+        rename' v_s1 => v_t
+        have h : (tabAt t).snd.snd = .lrep (tabAt_t_def ▸ next_def ▸ lpr) := by
+          --rw [tabAt_t_def] -- motive is not type correct ???
+          sorry
+        -- Let `u` be the companion.
+        let u := companionOf t (tabAt_t_def ▸ next_def ▸ lpr) h
+        have t_comp_u : t ♥ u:= ⟨(tabAt_t_def ▸ next_def ▸ lpr), h, rfl⟩
+        -- Show that the companion fulfills the conditions:
+        have u_eq_t := nodeAt_companionOf_setEq t (tabAt_t_def ▸ next_def ▸ lpr) h
+        have v_u : (M, v) ⊨ nodeAt u := by
+          rw [vDash_setEqTo_iff u_eq_t]
+          exact v_t
+        have negLoad_in_u : (~''(AnyFormula.loaded (⌊α⌋ξ))).in_side side (nodeAt u) := by
+          rw [AnyNegFormula.in_side_of_setEqTo u_eq_t]
+          exact negLoad_in
+        -- Now prepare and make the recursive call:
+        have _forTermination : (companionOf t (tabAt_t_def ▸ next_def ▸ lpr) h).length < t'.length := by
+          have help : (companionOf t (tabAt_t_def ▸ next_def ▸ lpr) h).length < t.length := by
+            apply companionOf_length_lt_length
+          have help2 : t'.length + 1 = t.length := by sorry
+          have help3 : (companionOf t (tabAt_t_def ▸ next_def ▸ lpr) h).length ≤ t'.length := by linarith
+          have help4 : (companionOf t (tabAt_t_def ▸ next_def ▸ lpr) h).length ≠ t'.length := by
+            intro con
+            sorry
+          sorry -- this should be something provable from ePropB stuff
+        have := loadedDiamondPaths α tab root_free u v_u ξ negLoad_in_u v_α_w w_nξ
+        rcases this with ⟨s, u_s, (⟨s_sat, not_s_u⟩|reached)⟩
+        all_goals
+          refine ⟨s, ?_, ?_⟩ -- write a have statement for below line
+          exact Relation.TransGen.trans (Relation.TransGen.trans (Relation.TransGen_or_left (Relation.TransGen.single t'_s)) (Relation.TransGen_or_right (Relation.TransGen.single t_comp_u))) u_s
+        · refine Or.inl ⟨s_sat, ?_⟩
+          refine ePropB.g_tweak t' u s ?_ u_s not_s_u -- ePropB stuf??? exact ePropB.g_tweak _ _ _ (Relation.TransGen.single (Or.inr t_comp_u)) u_s not_s_u
+          · exact Relation.TransGen.trans (Relation.TransGen_or_left (Relation.TransGen.single t'_s)) (Relation.TransGen_or_right (Relation.TransGen.single t_comp_u))
+        · exact Or.inr reached
     case neg α_natom =>
     have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
     have locLD := localLoadedDiamond α ltZ v_α_w (this ▸ v_t) _ (this ▸ negLoad_in) w_nξ
@@ -1850,57 +2075,60 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
             rw [this]
           convert this <;> (try rw [tabAt_t_def]) <;> simp [tclean]
       -- ... it is then obvious that `s` satisfies the required properties:
-      refine ⟨s, ?_, Or.inr ⟨?_a, ?_b, ?_c⟩⟩
+      use s-- refine ⟨s , ?_, Or.inr ⟨?_a, ?_b, ?_c⟩⟩ -- FIXME: change back to refine if possible, see other cases
+      constructor
       · constructor
         constructor
         right
         refine ⟨Hist, _, nrep, bas, _, (.modL Z_def), next, tabAt_t_def, ?_⟩
         simp [s, t_to_s]
-      · -- (a)
-        subst Z_def
-        rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
-        all_goals
-          rw [nodeAt_s_def]
-          unfold AnyNegFormula.in_side
-          cases side
-          case LL => simp_all
-          case RR =>
-            absurd negLoad_in
-            unfold nodeAt
-            rw [tabAt_t_def]
+      · apply Or.inr -- (a)
+        constructor
+        · subst Z_def
+          rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
+          all_goals
+            rw [nodeAt_s_def]
             unfold AnyNegFormula.in_side
-            simp
-      · -- (b)
-        rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
-        · rw [nodeAt_s_def]
-          intro f f_in
-          simp at f_in
-          rcases f_in with (f_in|f_in|f_in)
-          · subst_eqs
-            exact w_nξ
-          all_goals
-            have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
-            apply this
-            simp only [relate]
-            exact v_α_w
-        · rw [nodeAt_s_def]
-          intro f f_in
-          simp at f_in
-          rcases f_in with ((f_in|f_in)|f_in)
-          case inr.intro.intro.inr =>
-            subst_eqs
-            simp only [evaluate]
-            exact w_nξ
-          all_goals
-            have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
-            apply this
-            simp only [relate]
-            exact v_α_w
-      · -- (c)
-        rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
-        all_goals
-          rw [nodeAt_s_def]
-          simp_all [Sequent.isFree, Sequent.isLoaded, Sequent.without]
+            cases side
+            case LL => simp_all
+            case RR =>
+              absurd negLoad_in
+              unfold nodeAt
+              rw [tabAt_t_def]
+              unfold AnyNegFormula.in_side
+              simp
+        · constructor
+          · -- (b)
+            rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
+            · rw [nodeAt_s_def]
+              intro f f_in
+              simp at f_in
+              rcases f_in with (f_in|f_in|f_in)
+              · subst_eqs
+                exact w_nξ
+              all_goals
+                have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
+                apply this
+                simp only [relate]
+                exact v_α_w
+            · rw [nodeAt_s_def]
+              intro f f_in
+              simp at f_in
+              rcases f_in with ((f_in|f_in)|f_in)
+              case inr.intro.intro.inr =>
+                subst_eqs
+                simp only [evaluate]
+                exact w_nξ
+              all_goals
+                have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
+                apply this
+                simp only [relate]
+                exact v_α_w
+          · -- (c)
+            rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
+            all_goals
+              rw [nodeAt_s_def]
+              simp_all [Sequent.isFree, Sequent.isLoaded, Sequent.without]
 
     case modR L R a ξ' Z_def => -- COPY ADAPTATION from `modL`
       have : ξ' = ξ := by
@@ -2041,9 +2269,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
     termination_by
       (⟨lengthOfProgram α, t.length⟩ : Nat ×ₗ Nat)
     decreasing_by
-      · apply Prod.Lex.right
-      --  apply WellFounded.induction flipEdge.wellFounded t
-        sorry
+      · exact Prod.Lex.right (lengthOfProgram α) _forTermination
       · exact Prod.Lex.left _ _ _forTermination
       · exact Prod.Lex.right (lengthOfProgram α) _forTermination
 
