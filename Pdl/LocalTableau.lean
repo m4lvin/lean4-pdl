@@ -609,6 +609,23 @@ inductive LocalTableau : (X : Sequent) → Type
   | byLocalRule {X B} (_ : LocalRuleApp X B) (next : ∀ Y ∈ B, LocalTableau Y) : LocalTableau X
   | sim {X} : X.basic → LocalTableau X
 
+-- Should be easier to do, or in mathlib already?
+theorem mem_of_two_subperm {α} {l : List α} {a b : α}  [DecidableEq α] :
+    [a,b].Subperm l → a ∈ l ∧ b ∈ l := by
+  intro subl
+  have := List.subperm_ext_iff.1 subl
+  simp at this
+  rw [← List.count_pos_iff, ← List.count_pos_iff]
+  constructor
+  · linarith
+  · rcases this with ⟨al, bl⟩
+    by_cases a = b
+    · subst_eqs
+      simp_all [-List.count_pos_iff]
+      rw [@List.subperm_ext_iff] at subl
+      linarith
+    · aesop
+
 /-- If we can apply a local rule to a sequent then it cannot be basic. -/
 lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
   rcases X with ⟨L,R,o⟩
@@ -617,13 +634,60 @@ lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
     Option.map_eq_some', Sum.exists, Sum.elim_inl, negUnload, Sum.elim_inr]
   rw [and_iff_not_or_not]
   simp only [not_not]
-
   rcases lrA with ⟨Lcond, Rcond, Ocond, rule, preconditionProof⟩
   cases rule
-  case oneSidedL =>
-    sorry
-  case oneSidedR =>
-    sorry
+  case oneSidedL ress orule hC =>
+    cases orule
+    case bot => right; simp_all [Sequent.closed]
+    case not φ =>
+      right; simp_all [Sequent.closed]; right
+      have := mem_of_two_subperm preconditionProof
+      refine ⟨φ, Or.inl ?_, Or.inl ?_⟩ <;> tauto
+    case neg φ =>
+      left; push_neg
+      refine ⟨~~φ, Or.inl (by simp_all), by simp⟩
+    case con φ1 φ2 =>
+      left; push_neg
+      refine ⟨φ1 ⋀ φ2, Or.inl (by simp_all), by simp⟩
+    case nCo φ1 φ2 =>
+      left; push_neg
+      refine ⟨~(φ1 ⋀ φ2), Or.inl (by simp_all), by simp⟩
+    case box α φ α_nonAtom =>
+      left; push_neg
+      refine ⟨⌈α⌉φ, Or.inl (by simp_all), ?_⟩
+      cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
+    case dia α φ α_nonAtom =>
+      left; push_neg
+      refine ⟨~⌈α⌉φ, Or.inl ?_, ?_⟩
+      · rw [List.singleton_subperm_iff] at preconditionProof
+        exact preconditionProof.1
+      · cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
+  case oneSidedR ress orule hC => -- analogous to oneSidedL
+    cases orule
+    case bot => right; simp_all [Sequent.closed]
+    case not φ =>
+      right; simp_all [Sequent.closed]; right
+      have := mem_of_two_subperm preconditionProof
+      refine ⟨φ, Or.inr ?_, Or.inr ?_⟩ <;> tauto
+    case neg φ =>
+      left; push_neg
+      refine ⟨~~φ, Or.inr (by simp_all), by simp⟩
+    case con φ1 φ2 =>
+      left; push_neg
+      refine ⟨φ1 ⋀ φ2, Or.inr (by simp_all), by simp⟩
+    case nCo φ1 φ2 =>
+      left; push_neg
+      refine ⟨~(φ1 ⋀ φ2), Or.inr (by simp_all), by simp⟩
+    case box α φ α_nonAtom =>
+      left; push_neg
+      refine ⟨⌈α⌉φ, Or.inr (by simp_all), ?_⟩
+      cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
+    case dia α φ α_nonAtom =>
+      left; push_neg
+      refine ⟨~⌈α⌉φ, Or.inr (Or.inl ?_), ?_⟩
+      · rw [List.singleton_subperm_iff] at preconditionProof
+        exact preconditionProof.2.1
+      · cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
   case LRnegL =>
     right
     simp [Sequent.closed]
@@ -632,9 +696,21 @@ lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
     right
     simp [Sequent.closed]
     aesop
-  case loadedL =>
-    sorry
-  case loadedR =>
+  case loadedL ress χ lrule hC =>
+    left
+    push_neg
+    cases lrule
+    case dia α χ α_nonAtom =>
+      refine ⟨(⌊α⌋AnyFormula.loaded χ).unload, Or.inr (Or.inr ?_), ?_⟩
+      · sorry
+      · cases α <;> simp_all
+        simp [Program.isAtomic] at α_nonAtom
+    case dia' α φ α_nonAtom =>
+      refine ⟨(⌊α⌋AnyFormula.normal φ).unload, Or.inr (Or.inr ?_), ?_⟩
+      · sorry
+      · cases α <;> simp_all
+        simp [Program.isAtomic] at α_nonAtom
+  case loadedR => -- should be analogous to loadedL
     sorry
 
 /-! ## Termination of LocalTableau -/
