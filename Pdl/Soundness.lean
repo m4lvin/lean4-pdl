@@ -896,54 +896,6 @@ theorem boxes_true_at_k_of_Vector_rel {W : Type} {M : KripkeModel W} (ξ : AnyFo
       · apply Vector.my_cast_heq
       · congr!
 
--- fixme delete me
-theorem one_is_one_helper2 (h : (1 : ℕ) = (1 : Fin (k + 1)).1) : k > 0 := by
-  cases k <;> simp_all
-
-lemma endNodesOf_basic {X Z} {ltZ : LocalTableau Z} : X ∈ endNodesOf ltZ → X.basic := by
-  induction ltZ
-  case byLocalRule B lrA next IH =>
-    intro X_in
-    simp [endNodesOf] at X_in
-    aesop
-  case sim X =>
-    simp_all
-
-theorem endNodesOf_nonbasic_lt_Sequent {X Y} (lt : LocalTableau X) (X_nonbas : ¬ X.basic) :
-    Y ∈ endNodesOf lt → lt_Sequent Y X := by
-  induction lt
-  case byLocalRule B lrA next IH =>
-    intro Y_in
-    simp at Y_in
-    rcases Y_in with ⟨l, ⟨Z, Z_in_B, def_l⟩ , Y_in_l⟩
-    subst def_l
-    have := IH Z Z_in_B (by sorry) Y_in_l
-    -- PROBLEM: Z might actually be basic?! Ah, but then it will be an end node and we are done?!
-    -- cases Z.basic or so ?
-    -- Here maybe use that lt_Sequent is transitive???
-    apply @Multiset.IsDershowitzMannaLT.trans _ _ _ (node_to_multiset Z)
-    · exact this
-    · exact localRuleApp.decreases_DM lrA _ Z_in_B
-  case sim =>
-    exfalso
-    tauto
-
-lemma non_eq_of_ltSequent : lt_Sequent X Y → X ≠ Y := by
-  intro lt X_eq_Y
-  subst X_eq_Y
-  absurd lt
-  -- This us easy, because DM ordering is irreflexive.
-  have := WellFounded.isIrrefl (instWellFoundedRelationSequent.2)
-  apply this.1
-
-theorem endNodesOf_nonbasic_non_eq {X Y} (lt : LocalTableau X) (X_nonbas : ¬ X.basic) :
-    Y ∈ endNodesOf lt → Y ≠ X := by
-  intro Y_in
-  apply non_eq_of_ltSequent
-  apply endNodesOf_nonbasic_lt_Sequent lt X_nonbas Y_in
-
-lemma non_setEqTo_of_ltSequent : lt_Sequent X Y → ¬ Y.setEqTo X := by sorry
-
 lemma not_edge_and_heart {b : PathIn tab} : ¬ (a ⋖_ b ∧ b ♥ a) := by
   intro ⟨aeb, bha⟩
   have node_eq : Sequent.setEqTo (nodeAt a) (nodeAt b) := by
@@ -973,6 +925,7 @@ lemma not_edge_and_heart {b : PathIn tab} : ¬ (a ⋖_ b ∧ b ♥ a) := by
         unfold nodeAt at *; rw [tabAt_b_def]
       subst nodeAt_a_def
       subst nodeAt_b_def
+      rw [Sequent.setEqTo_symm]
       exact non_setEqTo_of_ltSequent (@endNodesOf_nonbasic_lt_Sequent (nodeAt a) (nodeAt b) lt nbas Y_in)
     · intro con
       rcases X with ⟨LX, RX, OX⟩
@@ -1017,7 +970,7 @@ lemma not_edge_and_heart {b : PathIn tab} : ¬ (a ⋖_ b ∧ b ♥ a) := by
           simp only [help] at con
           have := con.2.2
           simp at this
-          sorry -- `this` should be a contradiction?
+          cases this
       case modR LX' RX' n ξ X_def =>  -- same as modL
         rw [X_def] at con
         cases ξ
@@ -1032,7 +985,7 @@ lemma not_edge_and_heart {b : PathIn tab} : ¬ (a ⋖_ b ∧ b ♥ a) := by
           simp only [help] at con
           have := con.2.2
           simp at this
-          sorry -- same as above case
+          cases this
   exact node_ne node_eq
 
 /- Soundness of loading and repeats: a tableau can immitate all moves in a model. -/

@@ -37,9 +37,15 @@ def Sequent.setEqTo : Sequent → Sequent → Prop
 | (L,R,O), (L',R',O') => L.toFinset = L'.toFinset ∧ R.toFinset = R'.toFinset ∧ O = O'
 
 @[simp]
-lemma Sequent.setEqTo_refl (p: Sequent) : p.setEqTo p := by
-  rcases p with ⟨L,R,O⟩
+lemma Sequent.setEqTo_refl (X : Sequent) : X.setEqTo X := by
+  rcases X with ⟨L,R,O⟩
   simp [Sequent.setEqTo]
+
+lemma Sequent.setEqTo_symm (X Y : Sequent) : X.setEqTo Y ↔ Y.setEqTo X := by
+  rcases X with ⟨L,R,O⟩
+  rcases Y with ⟨L',R',O'⟩
+  unfold setEqTo
+  tauto
 
 def Sequent.toFinset : Sequent → Finset Formula
 | (L,R,O) => (L.toFinset ∪ R.toFinset) ∪ (O.map (Sum.elim negUnload negUnload)).toFinset
@@ -602,6 +608,34 @@ def Sequent.basic : Sequent → Prop
 inductive LocalTableau : (X : Sequent) → Type
   | byLocalRule {X B} (_ : LocalRuleApp X B) (next : ∀ Y ∈ B, LocalTableau Y) : LocalTableau X
   | sim {X} : X.basic → LocalTableau X
+
+/-- If we can apply a local rule to a sequent then it cannot be basic. -/
+lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
+  rcases X with ⟨L,R,o⟩
+  unfold Sequent.basic
+  simp only [List.append_assoc, List.mem_append, Option.mem_toList, Option.mem_def,
+    Option.map_eq_some', Sum.exists, Sum.elim_inl, negUnload, Sum.elim_inr]
+  rw [and_iff_not_or_not]
+  simp only [not_not]
+
+  rcases lrA with ⟨Lcond, Rcond, Ocond, rule, preconditionProof⟩
+  cases rule
+  case oneSidedL =>
+    sorry
+  case oneSidedR =>
+    sorry
+  case LRnegL =>
+    right
+    simp [Sequent.closed]
+    aesop
+  case LRnegR =>
+    right
+    simp [Sequent.closed]
+    aesop
+  case loadedL =>
+    sorry
+  case loadedR =>
+    sorry
 
 /-! ## Termination of LocalTableau -/
 
@@ -1285,3 +1319,72 @@ theorem localTableauSat {X} (lt : LocalTableau X) :
     use W, M, w
     apply (localTableauTruth lt M w).2
     use Y
+
+/-! ## Local Tableaux make progress
+
+These lemmas are used to show soundness, in particular `loadedDiamondPaths`.
+-/
+
+/-- End nodes of any local tableau are basic. -/
+lemma endNodesOf_basic {X Z} {ltZ : LocalTableau Z} : X ∈ endNodesOf ltZ → X.basic := by
+  induction ltZ
+  case byLocalRule B lrA next IH =>
+    intro X_in
+    simp [endNodesOf] at X_in
+    aesop
+  case sim X =>
+    simp_all
+
+/-- If `X` is not basic, then all end nodes `Y` of a local tableau `lt` for `X`
+are strictly lower than `X` according to the DM-ordering of their multisets. -/
+theorem endNodesOf_nonbasic_lt_Sequent {X Y} (lt : LocalTableau X) (X_nonbas : ¬ X.basic) :
+    Y ∈ endNodesOf lt → lt_Sequent Y X := by
+  induction lt
+  case byLocalRule X B lrA next IH =>
+    intro Y_in
+    simp at Y_in
+    rcases Y_in with ⟨l, ⟨Z, Z_in_B, def_l⟩ , Y_in_l⟩
+    subst def_l
+    by_cases Z.basic
+    case pos Z_basic =>
+      have next_Z_is_end : endNodesOf (next Z Z_in_B) = [Z] := by
+        cases next Z Z_in_B <;> simp
+        case byLocalRule lrA =>
+          absurd nonbasic_of_localRuleApp lrA
+          exact Z_basic
+      have Z_eq_Y : Z = Y := by aesop
+      subst Z_eq_Y
+      exact localRuleApp.decreases_DM lrA _ Z_in_B
+    case neg Z_nonbas =>
+      -- We use that lt_Sequent is transitive.
+      apply @Multiset.IsDershowitzMannaLT.trans _ _ _ (node_to_multiset Z)
+      · exact IH Z Z_in_B Z_nonbas Y_in_l
+      · exact localRuleApp.decreases_DM lrA _ Z_in_B
+  case sim =>
+    exfalso
+    tauto
+
+/-- If a sequent is lower according the DM-ordering, then it is different. -/
+lemma non_eq_of_ltSequent : lt_Sequent X Y → X ≠ Y := by
+  intro lt X_eq_Y
+  subst X_eq_Y
+  absurd lt
+  -- This us easy, because DM ordering is irreflexive.
+  have := WellFounded.isIrrefl (instWellFoundedRelationSequent.2)
+  apply this.1
+
+/-- If `X` is not basic, then for all end nodes `Y` of a
+local tableau `lt` for `X` we have that `Y ≠ X`. -/
+theorem endNodesOf_nonbasic_non_eq {X Y} (lt : LocalTableau X) (X_nonbas : ¬ X.basic) :
+    Y ∈ endNodesOf lt → Y ≠ X := by
+  intro Y_in
+  apply non_eq_of_ltSequent
+  apply endNodesOf_nonbasic_lt_Sequent lt X_nonbas Y_in
+
+/-- If a sequent is lower according to the DM-ordering, then they are finset-different. -/
+lemma non_setEqTo_of_ltSequent : lt_Sequent X Y → ¬ X.setEqTo Y := by
+  intro lt X_eq_Y
+  absurd lt
+  have := (WellFounded.isIrrefl (instWellFoundedRelationSequent.2)).1
+  -- PROBLEM fin/multi-set-equality worries here
+  sorry
