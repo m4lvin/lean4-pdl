@@ -1100,14 +1100,12 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         case freeL L R δ β φ =>
           -- Leaving cluster, interesting that IH is not needed here.
           -- Define child node with path to to it:
-          --let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ next'' (L, R, some (Sum.inl (~'⌊⌊δ⌋⌋⌊β⌋AnyFormula.normal φ))) Y_in)
-         --have h : next_prev  := by sorry
           let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ next_def ▸ PathIn.pdl PathIn.nil)
           let s : PathIn tab := t.append t_to_s
           have tabAt_s_def : tabAt s = ⟨_, _, next⟩ := by
             unfold s t_to_s
             rw [tabAt_append]
-         --   Only some HEq business left here.
+            -- Only some HEq business left here.
             have : tabAt (.pdl .nil : PathIn (Tableau.pdl nrep bas PdlRule.freeL next))
                 = ⟨ (L, R, some (Sum.inl (~'⌊⌊δ⌋⌋⌊β⌋AnyFormula.normal φ))) :: _
                   , ⟨(List.insert (~⌈⌈δ⌉⌉⌈β⌉φ) L, R, none), next⟩⟩ := by
@@ -1406,8 +1404,8 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
               rw [nodeAt_s_def]
               simp_all [Sequent.isFree, Sequent.isLoaded, Sequent.without]
 
-          -- Here we need to go to the companion.
-    -- IDEA: make a recursive call, and for termination note that the path becomes shorter?
+      -- Here we need to go to the companion.
+      -- IDEA: make a recursive call, and for termination note that the path becomes shorter?
       case lrep lpr =>
         rename' tabAt_t_def => tabAt_t'_def
         rename' t => t'
@@ -1418,8 +1416,20 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         rename' negLoad_in_s => negLoad_in
         rename' v_s1 => v_t
         have h : (tabAt t).snd.snd = .lrep (tabAt_t_def ▸ next_def ▸ lpr) := by
-          --rw [tabAt_t_def] -- motive is not type correct ???
-          sorry
+          -- rw [tabAt_t_def] -- motive is not type correct :-(
+          rw [← heq_iff_eq]
+          -- The trick here still is to use extensionality for Σ types, twice.
+          have tabAt_t_snd_def : (tabAt t).snd = ⟨Y, tabAt_t_def ▸ Tableau.lrep lpr⟩ := by
+            ext
+            · simp
+              rw [tabAt_t_def]
+            · simp
+              rw [tabAt_t_def]
+              simp
+              exact next_def
+          have := (Sigma.ext_iff.1 tabAt_t_snd_def).2
+          simp at this
+          convert this <;> simp_all
         -- Let `u` be the companion.
         let u := companionOf t (tabAt_t_def ▸ next_def ▸ lpr) h
         have t_comp_u : t ♥ u := ⟨(tabAt_t_def ▸ next_def ▸ lpr), h, rfl⟩
@@ -1911,18 +1921,15 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
     -- Here we need to go to the companion.
     -- IDEA: make a recursive call, and for termination note that the path becomes shorter?
     have h : (tabAt t).snd.snd = .lrep (tabAt_t_def ▸ lpr) := by
-      -- rw [tabAt_t_def] -- motive is not type correct ???
+      clear IH
+      -- rw [tabAt_t_def] -- motive is not type correct :-(
       rw [← heq_iff_eq]
-     --rw [← heq_iff_eq] at tabAt_t_def
-      have := (Sigma.ext_iff.1 tabAt_t_def).2
-      sorry
-      -- have g : (tabAt t).snd = ⟨Z, .lrep (tabAt_t_def ▸ lpr)⟩ := by
-      --   apply heq_iff_eq.1
-      --   convert this using 1
-
-
-
-
+      -- The trick here is to use extensionality for Σ types, twice.
+      have tabAt_t_snd_def : (tabAt t).snd = ⟨Z, tabAt_t_def ▸ Tableau.lrep lpr⟩ := by
+        ext <;> (simp ; rw [tabAt_t_def])
+      have := (Sigma.ext_iff.1 tabAt_t_snd_def).2
+      simp at this
+      convert this <;> simp_all
     -- Let `u` be the companion.
     let u := companionOf t (tabAt_t_def ▸ lpr) h
     have t_comp_u : t ♥ u:= ⟨(tabAt_t_def ▸ lpr), h, rfl⟩
