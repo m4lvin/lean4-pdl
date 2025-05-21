@@ -1247,8 +1247,8 @@ lemma edge_TransGen_then_mem_History :
     rcases h with ⟨_, _, _, _, _, _, _, _, _, p_def⟩ | ⟨_, _, _, _, _, _, _, _, p_def⟩
     <;> subst p_def <;> apply (mem_History_append ih)
 
-lemma PathIn.mem_history_setEqTo_then_lrep {tab : Tableau Hist X} (p : PathIn tab) :
-    (∃ Y ∈ (tabAt p).1, Y.setEqTo (nodeAt p)) → (tabAt p).2.2.isLrep := by
+lemma PathIn.mem_history_multisetEqTo_then_lrep {tab : Tableau Hist X} (p : PathIn tab) :
+    (∃ Y ∈ (tabAt p).1, Y.multisetEqTo (nodeAt p)) → (tabAt p).2.2.isLrep := by
   rintro ⟨Y, h1, h2⟩
   generalize h : tabAt p = tp
   rcases tp with ⟨H, Z, t⟩
@@ -1270,7 +1270,7 @@ instance flipEdge.instIsIrrefl : IsIrrefl (PathIn tab) (Relation.TransGen (flip 
   intro p p_p
   rw [Relation.transGen_swap] at p_p
   have p_in_Hist_p := edge_TransGen_then_mem_History p_p
-  have := PathIn.mem_history_setEqTo_then_lrep p ⟨nodeAt p, by simpa⟩
+  have := PathIn.mem_history_multisetEqTo_then_lrep p ⟨nodeAt p, by simpa⟩
   rcases (single_of_transgen p_p)
   with ⟨_, ⟨_, _, _, _, _, _, _, _, h, _⟩ | ⟨_, _, _, _, _, _, _, h, _⟩⟩ <;> rw [h] at this <;> contradiction
 

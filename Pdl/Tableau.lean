@@ -40,13 +40,13 @@ The head of the first list is the newest Sequent. -/
 abbrev History : Type := List Sequent
 
 /-- We have a repeat iff the history contains a node that is `setEqTo` the current node. -/
-def rep (Hist : History) (X : Sequent) : Prop := ∃ Y ∈ Hist, Y.setEqTo X
+def rep (Hist : History) (X : Sequent) : Prop := ∃ Y ∈ Hist, Y.multisetEqTo X
 
 /-- A lpr means we can go `k` steps back in the history to
 reach an equal node, and all nodes on the way are loaded.
 Note: `k=0` means the first element of `Hist` is the companion. -/
 def LoadedPathRepeat (Hist : History) (X : Sequent) : Type :=
-  Subtype (fun k => (Hist.get k).setEqTo X ∧ ∀ m ≤ k, (Hist.get m).isLoaded)
+  Subtype (fun k => (Hist.get k).multisetEqTo X ∧ ∀ m ≤ k, (Hist.get m).isLoaded)
 
 theorem LoadedPathRepeat_comp_isLoaded (lpr : LoadedPathRepeat Hist X) : (Hist.get lpr.val).isLoaded := by
   rcases lpr with ⟨j, claim⟩
@@ -54,7 +54,7 @@ theorem LoadedPathRepeat_comp_isLoaded (lpr : LoadedPathRepeat Hist X) : (Hist.g
 
 theorem LoadedPathRepeat_rep_isLoaded (lpr : LoadedPathRepeat Hist X) : X.isLoaded := by
   rcases lpr with ⟨k, claim⟩
-  rw [← setEqTo_isLoaded_iff claim.1]
+  rw [← multisetEqTo_isLoaded_iff claim.1]
   exact claim.2 k (le_refl k)
 
 /-! ## The PDL rules -/

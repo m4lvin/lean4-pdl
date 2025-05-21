@@ -51,6 +51,17 @@ lemma Sequent.setEqTo_symm (X Y : Sequent) : X.setEqTo Y ↔ Y.setEqTo X := by
   unfold setEqTo
   tauto
 
+@[simp]
+lemma Sequent.multisetEqTo_refl (X : Sequent) : X.multisetEqTo X := by
+  rcases X with ⟨L,R,O⟩
+  simp [Sequent.multisetEqTo]
+
+lemma Sequent.multisetEqTo_symm (X Y : Sequent) : X.multisetEqTo Y ↔ Y.multisetEqTo X := by
+  rcases X with ⟨L,R,O⟩
+  rcases Y with ⟨L',R',O'⟩
+  unfold multisetEqTo
+  tauto
+
 def Sequent.toFinset : Sequent → Finset Formula
 | (L,R,O) => (L.toFinset ∪ R.toFinset) ∪ (O.map (Sum.elim negUnload negUnload)).toFinset
 
@@ -75,8 +86,15 @@ theorem Sequent.none_isFree L R : Sequent.isFree (L, R, none) := by
 theorem Sequent.some_not_isFree L R olf : ¬ Sequent.isFree (L, R, some olf) := by
   simp [Sequent.isFree, Sequent.isLoaded]
 
+-- delete me later?
 theorem setEqTo_isLoaded_iff {X Y : Sequent} (h : X.setEqTo Y) : X.isLoaded = Y.isLoaded := by
   simp_all [Sequent.setEqTo, Sequent.isLoaded]
+  rcases X with ⟨XL, XR, _|_⟩ <;> rcases Y with ⟨YL, YR, _|_⟩
+  all_goals
+    simp_all
+
+theorem multisetEqTo_isLoaded_iff {X Y : Sequent} (h : X.multisetEqTo Y) : X.isLoaded = Y.isLoaded := by
+  simp_all [Sequent.multisetEqTo, Sequent.isLoaded]
   rcases X with ⟨XL, XR, _|_⟩ <;> rcases Y with ⟨YL, YR, _|_⟩
   all_goals
     simp_all
@@ -115,6 +133,20 @@ theorem vDash_setEqTo_iff {X Y : Sequent} (h : X.setEqTo Y) (M : KripkeModel W) 
   rw [List.toFinset.ext_iff, List.toFinset.ext_iff] at h
   rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
   simp_all
+
+theorem vDash_multisetEqTo_iff {X Y : Sequent} (h : X.multisetEqTo Y) (M : KripkeModel W) (w : W) :
+    (M,w) ⊨ X ↔ (M,w) ⊨ Y := by
+  rcases X with ⟨L, R, O⟩
+  rcases Y with ⟨L',R',O'⟩
+  simp only [Sequent.multisetEqTo, modelCanSemImplySequent, vDash]
+  unfold Sequent.multisetEqTo at h
+  simp at h
+  rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
+  simp_all
+  subst O_eq_O'
+  have : ∀ f, f ∈ L ↔ f ∈ L' := fun f => List.Perm.mem_iff L_iff
+  have : ∀ f, f ∈ R ↔ f ∈ R' := fun f => List.Perm.mem_iff R_iff
+  aesop
 
 /-! ## Different kinds of formulas as elements of Sequent -/
 
@@ -185,6 +217,18 @@ theorem AnyNegFormula.in_side_of_setEqTo {X Y} (h : X.setEqTo Y) {anf : AnyNegFo
   rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
   subst O_eq_O'
   cases side <;> rcases anf with ⟨(n|m)⟩ <;> simp_all [AnyNegFormula.in_side]
+
+theorem AnyNegFormula.in_side_of_multisetEqTo {X Y} (h : X.multisetEqTo Y) {anf : AnyNegFormula} :
+    anf.in_side side X ↔ anf.in_side side Y := by
+  rcases X with ⟨L, R, O⟩
+  rcases Y with ⟨L',R',O'⟩
+  simp only [Sequent.multisetEqTo, modelCanSemImplySequent, vDash] at *
+  -- rw [List.toFinset.ext_iff, List.toFinset.ext_iff] at h
+  rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
+  subst O_eq_O'
+  cases side <;> rcases anf with ⟨(n|m)⟩ <;> simp_all [AnyNegFormula.in_side]
+  · exact List.Perm.mem_iff L_iff
+  · exact List.Perm.mem_iff R_iff
 
 @[simp]
 theorem Sequent.without_loaded_in_side_isFree (LRO : Sequent) ξ side :

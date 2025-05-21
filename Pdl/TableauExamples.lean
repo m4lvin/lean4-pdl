@@ -92,14 +92,14 @@ abbrev a : Program := · atA
 def subTabForEx2 : Tableau [([r⋀(~⌈a⌉p), ~ r⋀(~⌈a⌉p⋀q)], [], none)] ([r, ~(⌈a⌉p), ⌈a⌉(p⋀q)], [], none) :=
   by
   have principal : (~(⌈a⌉p)) ∈ [r, ~(⌈a⌉p), ⌈a⌉(p⋀q)] := by simp
-  apply Tableau.pdl (by simp [rep, Sequent.setEqTo]; decide) (by simp [Sequent.basic, Sequent.closed])
+  apply Tableau.pdl (by simp [rep, Sequent.multisetEqTo]; decide) (by simp [Sequent.basic, Sequent.closed])
     (@PdlRule.loadL _ [] _ _ _ principal)
   simp
-  apply Tableau.pdl (by simp [rep, Sequent.setEqTo]) (by simp [Sequent.basic, Sequent.closed])
+  apply Tableau.pdl (by simp [rep, Sequent.multisetEqTo]) (by simp [Sequent.basic, Sequent.closed])
     (.modL rfl) -- Note: modL no longer needs to ask for basic.
   simp [projection]
   apply Tableau.loc
-  · simp [rep, Sequent.setEqTo]
+  · simp [rep, Sequent.multisetEqTo]
     decide
   · simp [Sequent.basic, Sequent.closed]
   case lt =>
@@ -196,16 +196,16 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
     have principal : (~⌈a⌉⌈∗(a)⋓(?'p)⌉q) ∈ [~⌈a⌉⌈∗(a)⋓(?'p)⌉q, q, ⌈a⌉⌈∗a⌉q] :=
       by simp
     -- (L+)
-    apply Tableau.pdl (by simp [rep, Sequent.setEqTo]; decide) (by simp [Sequent.basic, Sequent.closed])
+    apply Tableau.pdl (by simp [rep, Sequent.multisetEqTo]; decide) (by simp [Sequent.basic, Sequent.closed])
       (PdlRule.loadL (δ := [a]) principal)
     clear principal
     simp
     -- (M)
-    apply Tableau.pdl (by simp [rep, Sequent.setEqTo]) (by simp [Sequent.basic, Sequent.closed])
+    apply Tableau.pdl (by simp [rep, Sequent.multisetEqTo]) (by simp [Sequent.basic, Sequent.closed])
       (PdlRule.modL rfl)
     simp [projection]
     apply Tableau.loc
-    · simp [rep, Sequent.setEqTo]
+    · simp [rep, Sequent.multisetEqTo]
     · simp [Sequent.basic, Sequent.closed]
     case lt =>
       -- (□)
@@ -257,7 +257,7 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
       unfold LoadedPathRepeat
       simp_all
       use 1 -- go back two pdl steps, one of which makes two local steps
-      simp_all [Sequent.setEqTo, a]
+      simp_all [Sequent.multisetEqTo, a]
       constructor
       · rfl
       · intro m m_lt
