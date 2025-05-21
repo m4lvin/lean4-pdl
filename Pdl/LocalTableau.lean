@@ -36,6 +36,10 @@ Hint: use `List.toFinset.ext_iff` with this. -/
 def Sequent.setEqTo : Sequent → Sequent → Prop
 | (L,R,O), (L',R',O') => L.toFinset = L'.toFinset ∧ R.toFinset = R'.toFinset ∧ O = O'
 
+def Sequent.multisetEqTo : Sequent → Sequent → Prop
+| (L,R,O), (L',R',O') =>
+  Multiset.ofList L = Multiset.ofList L' ∧ Multiset.ofList R = Multiset.ofList R' ∧ O = O'
+
 @[simp]
 lemma Sequent.setEqTo_refl (X : Sequent) : X.setEqTo X := by
   rcases X with ⟨L,R,O⟩
@@ -1457,10 +1461,27 @@ theorem endNodesOf_nonbasic_non_eq {X Y} (lt : LocalTableau X) (X_nonbas : ¬ X.
   apply non_eq_of_ltSequent
   apply endNodesOf_nonbasic_lt_Sequent lt X_nonbas Y_in
 
-/-- If a sequent is lower according to the DM-ordering, then they are finset-different. -/
-lemma non_setEqTo_of_ltSequent : lt_Sequent X Y → ¬ X.setEqTo Y := by
+-- upstream me / Haitian? ;-)
+lemma IsDershowitzMannaLT.irrefl [Preorder α] [WellFoundedLT α] (X : Multiset α) :
+    ¬ Multiset.IsDershowitzMannaLT X X := by
+  apply (WellFounded.isIrrefl (?_)).1
+  exact (@Multiset.instWellFoundedisDershowitzMannaLT α _ _).2
+
+/-- If a sequent is lower according to the DM-ordering, then they are multiset-different.
+(The analogue with finset instead of multiset does not hold.) -/
+lemma non_multisetEqTo_of_ltSequent : lt_Sequent X Y → ¬ X.multisetEqTo Y := by
   intro lt X_eq_Y
-  absurd lt
-  have := (WellFounded.isIrrefl (instWellFoundedRelationSequent.2)).1
-  -- PROBLEM fin/multi-set-equality worries here
-  sorry
+  unfold lt_Sequent at lt
+  have : node_to_multiset X ≠ node_to_multiset Y := by
+    intro hyp
+    rw [hyp] at lt
+    absurd lt
+    apply IsDershowitzMannaLT.irrefl
+  clear lt
+  rcases X with ⟨L,R,_|(lfl|lfr)⟩ <;> rcases Y with ⟨L',R',_|(lfl'|lfr')⟩
+  <;> simp [Sequent.multisetEqTo, node_to_multiset] at *
+  · sorry
+  · simp_all
+    sorry
+  · simp_all
+    sorry
