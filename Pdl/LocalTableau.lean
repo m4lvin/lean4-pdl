@@ -749,17 +749,57 @@ lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
     push_neg
     cases lrule
     case dia α χ α_nonAtom =>
-      refine ⟨(⌊α⌋AnyFormula.loaded χ).unload, Or.inr (Or.inr ?_), ?_⟩
-      · sorry
-      · cases α <;> simp_all
-        simp [Program.isAtomic] at α_nonAtom
+      rcases o with _|⟨⟨α',χ'⟩|⟨α',χ'⟩⟩
+      · simp_all
+      · refine ⟨~(~'⌊α'⌋χ').1.unload, Or.inr (Or.inr (Or.inl ⟨~'⌊α'⌋χ', ⟨Eq.refl _, Eq.refl _⟩⟩)), ?_⟩
+        · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
+          subst h1 h2
+          cases α <;> simp_all
+          simp [Program.isAtomic] at α_nonAtom
+      · refine ⟨~(~'⌊α'⌋χ').1.unload, Or.inr (Or.inr (Or.inr ⟨~'⌊α'⌋χ', ⟨Eq.refl _, Eq.refl _⟩⟩)), ?_⟩
+        · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
+          subst h1 h2
+          cases α <;> simp_all
     case dia' α φ α_nonAtom =>
-      refine ⟨(⌊α⌋AnyFormula.normal φ).unload, Or.inr (Or.inr ?_), ?_⟩
-      · sorry
-      · cases α <;> simp_all
-        simp [Program.isAtomic] at α_nonAtom
-  case loadedR => -- should be analogous to loadedL
-    sorry
+      rcases o with _|⟨⟨α',φ'⟩|⟨α',φ'⟩⟩
+      · simp_all
+      · refine ⟨~(~'⌊α'⌋φ').1.unload, Or.inr (Or.inr (Or.inl ⟨~'⌊α'⌋φ', ⟨Eq.refl _, Eq.refl _⟩⟩)), ?_⟩
+        · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
+          subst h1 h2
+          cases α <;> simp_all
+          simp [Program.isAtomic] at α_nonAtom
+      · refine ⟨~(~'⌊α'⌋φ').1.unload, Or.inr (Or.inr (Or.inr ⟨~'⌊α'⌋φ', ⟨Eq.refl _, Eq.refl _⟩⟩)), ?_⟩
+        · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
+          subst h1 h2
+          cases α <;> simp_all
+  case loadedR ress χ lrule hC => -- analogous to loadedL
+    left
+    push_neg
+    cases lrule
+    case dia α χ α_nonAtom =>
+      rcases o with _|⟨⟨α',χ'⟩|⟨α',χ'⟩⟩
+      · simp_all
+      · refine ⟨~(~'⌊α'⌋χ').1.unload, Or.inr (Or.inr (Or.inl ⟨~'⌊α'⌋χ', ⟨Eq.refl _, Eq.refl _⟩⟩)), ?_⟩
+        · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
+          subst h1 h2
+          cases α <;> simp_all
+      · refine ⟨~(~'⌊α'⌋χ').1.unload, Or.inr (Or.inr (Or.inr ⟨~'⌊α'⌋χ', ⟨Eq.refl _, Eq.refl _⟩⟩)), ?_⟩
+        · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
+          subst h1 h2
+          cases α <;> simp_all
+          simp [Program.isAtomic] at α_nonAtom
+    case dia' α φ α_nonAtom =>
+      rcases o with _|⟨⟨α',φ'⟩|⟨α',φ'⟩⟩
+      · simp_all
+      · refine ⟨~(~'⌊α'⌋φ').1.unload, Or.inr (Or.inr (Or.inl ⟨~'⌊α'⌋φ', ⟨Eq.refl _, Eq.refl _⟩⟩)), ?_⟩
+        · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
+          subst h1 h2
+          cases α <;> simp_all
+      · refine ⟨~(~'⌊α'⌋φ').1.unload, Or.inr (Or.inr (Or.inr ⟨~'⌊α'⌋φ', ⟨Eq.refl _, Eq.refl _⟩⟩)), ?_⟩
+        · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
+          subst h1 h2
+          cases α <;> simp_all
+          simp [Program.isAtomic] at α_nonAtom
 
 /-! ## Termination of LocalTableau -/
 
@@ -1524,8 +1564,8 @@ lemma non_multisetEqTo_of_ltSequent : lt_Sequent X Y → ¬ X.multisetEqTo Y := 
   clear lt
   rcases X with ⟨L,R,_|(lfl|lfr)⟩ <;> rcases Y with ⟨L',R',_|(lfl'|lfr')⟩
   <;> simp [Sequent.multisetEqTo, node_to_multiset] at *
-  · sorry
+  · exact this (List.Perm.append X_eq_Y.1 X_eq_Y.2)
   · simp_all
-    sorry
+    exact this (List.Perm.append X_eq_Y.1 X_eq_Y.2.1)
   · simp_all
-    sorry
+    exact this (List.Perm.append X_eq_Y.1 X_eq_Y.2.1)
