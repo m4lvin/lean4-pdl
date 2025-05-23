@@ -49,12 +49,18 @@ jobs:
         if: github.ref_name == 'main'
         run: make doc
 
+      - name: Setup Graphviz
+        uses: ts-graphviz/setup-graphviz@v2
+
+      - name: Build dependencies graph
+        run: make dependencies.svg
+
       - name: Copy documentation to `home_page/docs`
         if: github.ref_name == 'main'
         run: |
           rm -rf home_page
           mkdir -p home_page
-          cp -r docbuild/.lake/build/doc home_page/docs
+          cp -r dependencies.svg docbuild/.lake/build/doc home_page/docs
 
       - name: Remove unnecessary lake files from documentation in `home_page/docs`
         if: github.ref_name == 'main'
