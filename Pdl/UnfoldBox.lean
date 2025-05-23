@@ -552,7 +552,7 @@ theorem unfoldBoxContent α ψ :
   subst def_X
   simp only [List.mem_append, List.mem_map] at φ_in_X
   -- constructor
-  -- · sorry -- φ ∈ fischerLadner [⌈α⌉ψ]
+  -- · -- φ ∈ fischerLadner [⌈α⌉ψ]
   · rcases φ_in_X with φ_in_F | ⟨δ, δ_in, def_φ⟩
     · -- φ is in F so it must be a test
       right

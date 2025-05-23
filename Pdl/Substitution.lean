@@ -431,13 +431,10 @@ theorem substitutionLemmaRel (σ : Substitution) α {W} (M : KripkeModel W) (w v
     exact IHφ
 end
 
-/-! ## Semantic Equivalents -/
+/-! ## Semantic Equivalents
 
-/-
--- This is *not* true because `frm` might be sneaky.
-theorem wrong_equiv_repl φ1 φ2 (h : φ1 ≡ φ2) (frm : Formula → Formula) :
-    frm φ1 ≡ frm φ2 := by
-  sorry
+The following does *not* hold in general, because `frm` might be sneaky:
+`theorem wrong_equiv_repl φ1 φ2 (h : φ1 ≡ φ2) (frm : Formula → Formula) : frm φ1 ≡ frm φ2 := by ...`
 -/
 
 /-- A true instance of `wrong_equiv_repl`, here we replaced `frm` with a special case. -/
