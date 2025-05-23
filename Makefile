@@ -20,8 +20,23 @@ doc:
 clean:
 	rm -rf .first-run-done lake-packages .lake build lakefile.olean
 
-dependencies.svg: Pdl/*.lean
-	(echo "digraph {"; (grep -nr "import Pdl" Pdl/*.lean | awk -F[./] '{print $$4 " -> " $$2}'); echo "}") | dot -Tsvg > dependencies.svg
+PDL_LEAN_FILES := $(wildcard Pdl/*.lean)
+
+BASE = https://m4lvin.github.io/lean4-pdl/docs/Pdl/
+
+dependencies.svg: dependencies.dot
+	dot -Tsvg dependencies.dot > $@
+
+dependencies.dot: $(PDL_LEAN_FILES)
+	@echo "digraph {" > $@
+	@$(foreach file, $^ ,\
+		if grep -q "sorry" "$(file)"; then \
+			echo "$(basename $(notdir $(file))) [ label = \"$(basename $(notdir $(file)))?\", color="red", href = \"$(BASE)$(basename $(notdir $(file))).html\" ]" >> $@; \
+		else \
+			echo "$(basename $(notdir $(file))) [ label = \"$(basename $(notdir $(file)))✓\", color="green", href = \"$(BASE)$(basename $(notdir $(file))).html\" ]" >> $@; \
+		fi;)
+	@(grep -nr "import Pdl" Pdl/*.lean | awk -F '[./]' '{print $$4 " -> " $$2}') >> $@
+	@echo "}" >> $@
 
 update-fix:
 	rm -rf .lake

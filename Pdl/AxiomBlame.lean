@@ -4,8 +4,7 @@ import Lean.Util.FoldConsts
 /-!
 # Find why something depends on which axioms
 
-This code is by Kyle Miller from here:
-https://leanprover.zulipchat.com/#narrow/stream/217875-Is-there-code-for-X.3F/topic/.E2.9C.94.20Finding.20usages.20of.20.60sorry.60.20in.20external.20code/near/430509619
+This code is by Kyle Miller from https://is.gd/Ug5sXu
 
 Importing this file provides a comment `#axiom_blame` that creates output like this:
 

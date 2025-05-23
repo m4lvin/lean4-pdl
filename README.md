@@ -25,9 +25,9 @@ There is no separate blueprint.
 
 ## Module dependency overview
 
-![Dependency graph](./dependencies.svg)
+![Dependency graph](https://m4lvin.github.io/lean4-pdl/docs/dependencies.svg)
 
-(Run `make dependencies.svg` to update this.)
+(This shows the status of the `main` branch at the last successful CI run.)
 
 ## Other References
 

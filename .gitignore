@@ -3,3 +3,4 @@
 /lake-packages/*
 .first-run-done
 .lake
+dependencies.*
