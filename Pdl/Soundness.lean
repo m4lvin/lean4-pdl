@@ -1036,12 +1036,14 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
   cases tZ
   -- applying a local or a pdl rule or being a repeat?
   case loc nbas ltZ nrep next =>
-    by_cases α.isAtomic
-    case pos α_atom =>
+    cases α_def : α
+    case atom_prog a =>
+      subst α_def
+      have α_atom : (·a : Program).isAtomic := by simp [Program.isAtomic]
       have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
-      have locLD := localLoadedDiamond α ltZ v_α_w (this ▸ v_t) _ (this ▸ negLoad_in) w_nξ
+      have locLD := localLoadedDiamond (·a) ltZ v_α_w (this ▸ v_t) _ (this ▸ negLoad_in) w_nξ
       rcases locLD with ⟨Y, Y_in, w_Y, free_or_newLoadform⟩
-      have alocLD := atomicLocalLoadedDiamond α ltZ α_atom ξ (this ▸ negLoad_in) Y Y_in
+      have alocLD := atomicLocalLoadedDiamond (·a) ltZ α_atom ξ (this ▸ negLoad_in) Y Y_in
       clear this
       let t_to_s1 : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ .loc Y_in .nil)
       let s1 : PathIn tab := t.append t_to_s1
@@ -1061,7 +1063,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         apply w_Y
         have : (tabAt s1).2.1 = Y := by rw [tabAt_s_def]
         simp_all
-      have negLoad_in_s : (~''(AnyFormula.loaded (⌊α⌋ξ))).in_side side (nodeAt s1) := by
+      have negLoad_in_s : (~''(AnyFormula.loaded (⌊·a⌋ξ))).in_side side (nodeAt s1) := by
         unfold nodeAt ; rw [tabAt_s_def]
         simp_all
       -- NOW: do cases on s1, s1 can NOT be a local tableau,
@@ -1191,15 +1193,15 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
                 rw [tabAt_s_def]
               · simp only [Sequent.isLoaded, nodeAt, decide_false, decide_true]
                 rw [tabAt_t_def]
-        case modL L R a ξ' Z_def =>
+        case modL L R a' ξ' Z_def =>
           have : ξ' = ξ := by
             unfold nodeAt at negLoad_in
             rw [tabAt_t_def] at negLoad_in
             unfold AnyNegFormula.in_side at negLoad_in
             cases side <;> simp_all
           subst this
-          -- modal rule, so α must actually be atomic!
-          have α_is_a : α = (·a : Program) := by
+        --  modal rule, so α must actually be atomic!
+          have a_is_a' : a = a' := by
             simp only [AnyNegFormula.in_side, nodeAt] at negLoad_in
             rw [tabAt_t_def] at negLoad_in
             subst Z_def
@@ -1208,7 +1210,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
               simp only at negLoad_in
               subst_eqs
             rfl
-          subst α_is_a
+          subst a_is_a'
           simp at v_α_w
           -- Let `s` be the unique child:
           let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ next_def ▸ PathIn.pdl PathIn.nil)
@@ -1295,7 +1297,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
             all_goals
               rw [nodeAt_s_def]
               simp_all [Sequent.isFree, Sequent.isLoaded, Sequent.without]
-        case modR L R a ξ' Z_def => -- COPY ADAPTATION from `modL`
+        case modR L R a' ξ' Z_def => -- COPY ADAPTATION from `modL`
           have : ξ' = ξ := by
             unfold nodeAt at negLoad_in
             rw [tabAt_t_def] at negLoad_in
@@ -1303,7 +1305,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
             cases side <;> simp_all
           subst this
           -- modal rule, so α must actually be atomic!
-          have α_is_a : α = (·a : Program) := by
+          have a_is_a' : a = a' := by
             simp only [AnyNegFormula.in_side, nodeAt] at negLoad_in
             rw [tabAt_t_def] at negLoad_in
             subst Z_def
@@ -1312,7 +1314,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
               simp only at negLoad_in
               subst_eqs
             rfl
-          subst α_is_a
+          subst a_is_a'
           simp at v_α_w
           -- Let `s` be the unique child:
           let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ next_def ▸ .pdl .nil)
@@ -1438,7 +1440,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         have v_u : (M, v) ⊨ nodeAt u := by
           rw [vDash_multisetEqTo_iff u_eq_t]
           exact v_t
-        have negLoad_in_u : (~''(AnyFormula.loaded (⌊α⌋ξ))).in_side side (nodeAt u) := by
+        have negLoad_in_u : (~''(AnyFormula.loaded (⌊·a⌋ξ))).in_side side (nodeAt u) := by
           rw [AnyNegFormula.in_side_of_multisetEqTo u_eq_t]
           exact negLoad_in
         -- Now prepare and make the recursive call:
@@ -1450,7 +1452,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
             unfold u at t_comp_u
             rw [con] at t_comp_u
             exact not_edge_and_heart (And.intro t'_s t_comp_u)
-        have := loadedDiamondPaths α tab root_free u v_u ξ negLoad_in_u v_α_w w_nξ
+        have := loadedDiamondPaths (·a) tab root_free u v_u ξ negLoad_in_u v_α_w w_nξ
         rcases this with ⟨s, u_s, (⟨s_sat, not_s_u⟩|reached)⟩
         all_goals
           refine ⟨s, ?_, ?_⟩ -- write a have statement for below line
@@ -1459,7 +1461,112 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
           refine ePropB.g_tweak t' u s ?_ u_s not_s_u -- ePropB stuf??? exact ePropB.g_tweak _ _ _ (Relation.TransGen.single (Or.inr t_comp_u)) u_s not_s_u
           · exact Relation.TransGen.trans (Relation.TransGen_or_left (Relation.TransGen.single t'_s)) (Relation.TransGen_or_right (Relation.TransGen.single t_comp_u))
         · exact Or.inr reached
-    case neg α_natom =>
+
+    -- STAR CASE
+    case star β =>
+      clear IH
+      subst α_def
+      unfold relate at v_α_w
+      have ⟨n, ⟨ws, ⟨v_head, ⟨w_tail, rel⟩⟩⟩⟩:= ReflTransGen.to_finitelyManySteps v_α_w
+      have claim : ∀ k : Fin n.succ, -- Note the succ here!
+          ∃ sk, t ◃⁺ sk ∧ ( ( satisfiable (nodeAt sk) ∧ ¬(sk ≡ᶜ t) )
+                          ∨ ( (~''(AnyFormula.loaded (⌊∗β⌋ξ))).in_side side (nodeAt sk)
+                            ∧ (M, ws[k]) ⊨ nodeAt sk
+                            ∧ ((nodeAt sk).without (~''(AnyFormula.loaded (⌊∗β⌋ξ)))).isFree
+                            ∧ True )) := by -- this needs to be replaced with something saying ⌊∗β⌋ξ is principal at sk
+        intro k
+        induction k using Fin.inductionOn
+        case zero =>
+          have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
+          have locLD := localLoadedDiamond (∗β) ltZ v_α_w (this ▸ v_t) _ (this ▸ negLoad_in) w_nξ
+          clear this
+          rcases locLD with ⟨Y, Y_in, w_Y, free_or_newLoadform⟩
+          -- We are given end node, now define path to it
+          let t_to_s1 : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.loc Y_in .nil)
+          let s1 : PathIn tab := t.append t_to_s1
+          have t_s : t ⋖_ s1 := by
+            unfold s1 t_to_s1
+            apply edge_append_loc_nil
+            rw [tabAt_t_def]
+          have tabAt_s_def : tabAt s1 = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by
+            unfold s1 t_to_s1
+            rw [tabAt_append]
+            have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc nrep nbas ltZ next)))
+                = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by simp_all
+            convert this <;> try rw [tabAt_t_def]
+            rw [eqRec_heq_iff_heq]
+          have v_s1 : (M,v) ⊨ nodeAt s1 := by
+            intro φ φ_in
+            apply w_Y
+            have : (tabAt s1).2.1 = Y := by rw [tabAt_s_def]
+            simp_all
+          rcases free_or_newLoadform with Y_is_Free
+                                        | ⟨F, δ, anf_in_Y, v_seq_w, v_F, Fδ_in_H, Y_almost_free⟩
+          · -- Leaving the cluster, easy case.
+            refine ⟨s1, ?_, Or.inl ⟨?_, ?_⟩⟩
+            · apply Relation.TransGen.single
+              left
+              exact t_s
+            · use W, M, v
+            · -- using ePropB here
+              unfold cEquiv
+              simp
+              have := ePropB.e t s1 (Sequent.isLoaded_of_negAnyFormula_loaded negLoad_in) ?_ t_s
+              · unfold before at this
+                intro s1_t
+                rw [Relation.ReflTransGen.cases_tail_iff] at s1_t
+                rcases s1_t with t_def|⟨u,s1_u,u_t⟩
+                · rw [t_def] at this
+                  exfalso
+                  tauto
+                · exfalso
+                  absurd this.2
+                  exact Relation.TransGen.tail' s1_u u_t
+              · convert Y_is_Free
+                unfold nodeAt
+                rw [tabAt_s_def]
+          · have h : (∗β) ∈ δ := by sorry
+            refine ⟨s1, ?_, Or.inr ⟨?_, ?_, ?_, ?_⟩⟩
+            · apply Relation.TransGen.single
+              left
+              exact t_s
+            · convert anf_in_Y
+              · sorry
+              · unfold nodeAt ; rw [tabAt_s_def]
+            · sorry -- some sort of invertibility in loc??
+            · convert Y_almost_free
+              · unfold nodeAt ; rw [tabAt_s_def]
+              · sorry
+            · simp -- ⌊∗β⌋ξ is principal at sk
+        case succ k ih =>
+          by_cases ws[k.castSucc] = ws[k.succ]
+          case pos eq => rw [eq] at ih; exact ih
+          case neg ne => -- we need this distinction to show δ ≠ ε (see notes)
+            have ⟨sk, t_sk, sk_hyp⟩ := ih
+            rcases sk_hyp with ⟨sk_sat, sk_ne_t⟩ | _
+            · exact ⟨sk, ⟨t_sk, Or.inl ⟨sk_sat, sk_ne_t⟩⟩⟩
+            · have claim : ∀ j : Fin k.succ, ∃ sk, t ◃⁺ sk  -- this claim is in notes (see if needed)
+                          ∧ (( (~''(AnyFormula.loaded (⌊∗β⌋ξ))).in_side side (nodeAt sk)
+                          ∧ (M, ws[k]) ⊨ nodeAt sk
+                          ∧ ((nodeAt sk).without (~''(AnyFormula.loaded (⌊∗β⌋ξ)))).isFree)) := by sorry -- this should be provable with some strong induction and some ePropB stuff, but lets see if needed first
+              have ⟨⟨F,δ⟩, ⟨Fδ_in, ⟨wk_F, wk_δ_wk1⟩⟩⟩:= @existsDiamondH W M β ws[k.castSucc] ws[k.succ] (rel k)
+              have δ_ne : δ ≠ [] := by
+                intro δ_em
+                simp [δ_em] at wk_δ_wk1
+                exact ne wk_δ_wk1
+              have Hβstar_prop : (F, δ ++ [∗β]) ∈ H (∗β) := by  -- this may be wrong? see triple on bottom of page 43
+                simp [H]
+                refine ⟨[(F, δ ++ [∗β])], ⟨⟨F, ⟨δ, ⟨Fδ_in, by simp [δ_ne]⟩⟩⟩, by simp⟩⟩
+              -- PRINCIPAL: since ⌊∗β⌋ξ is principal, there must be a succesor with desired properties
+              sorry
+
+      have h : ws[Fin.last n] = w := by rw [w_tail] ; unfold List.Vector.last ; exact Eq.refl _
+      have ⟨sn, ⟨t_sn, sn_hyp⟩⟩ := claim (Fin.last n)
+      rw [h] at sn_hyp
+      -- PRINCIPAL: because ⌊∗β⌋ξ is principal at sn, we can find child s with desired properties
+      sorry
+
+    all_goals -- all other cases for α!
       have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
       have locLD := localLoadedDiamond α ltZ v_α_w (this ▸ v_t) _ (this ▸ negLoad_in) w_nξ
       clear this
@@ -1580,10 +1687,6 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
                 all_goals
                   simp [Program.isAtomic, Program.isStar, lengthOfProgram] at *
                   try linarith
-                case star =>
-                  -- Here is the **star case** that needs an additional induction and minimality.
-                  -- See notes!
-                  sorry
 
               have outer_IH := @loadedDiamondPaths (δ.get k) _ tab root_free sk W M
                 (ws.get k.castSucc) (ws.get k.succ) wsk_sk
@@ -1956,7 +2059,10 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
     termination_by
       (⟨lengthOfProgram α, t.length⟩ : Nat ×ₗ Nat)
     decreasing_by
-      · exact Prod.Lex.right (lengthOfProgram α) _forTermination
+      · subst α_def
+        apply Prod.Lex.right (lengthOfProgram _) _forTermination
+      · exact Prod.Lex.left _ _ _forTermination
+      · exact Prod.Lex.left _ _ _forTermination
       · exact Prod.Lex.left _ _ _forTermination
       · exact Prod.Lex.right (lengthOfProgram α) _forTermination
 
