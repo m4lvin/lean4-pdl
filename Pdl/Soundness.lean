@@ -994,6 +994,25 @@ lemma not_edge_and_heart {b : PathIn tab} : ¬ (a ⋖_ b ∧ b ♥ a) := by
 -- FIXME: move satisfiable outside disjunction?
 set_option maxHeartbeats 10000000
 
+lemma idea (α : Program) {X : Sequent}
+  (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
+  (root_free : X.isFree) -- ADDED / not/implicit in Notes?
+  (t : PathIn tab)
+  {W}
+  {M : KripkeModel W} {v : W}
+  (v_t : (M,v) ⊨ nodeAt t)
+  (ξ : AnyFormula)
+  {side : Side} -- not in notes but needed for partition
+  (negLoad_in : (~''(⌊α⌋ξ)).in_side side (nodeAt t))
+  (α_natom : ¬α.isAtomic):
+  ∃ s : PathIn tab, (edge t s) ∧ ∀ Fδ ∈ H α,
+    if side = .LL then (if ξ = .loaded χ then
+                        nodeAt s = ⟨(nodeAt s).1 ++ Fδ.1, (nodeAt s).2.1, some (Sum.inl (~'⌊⌊Fδ.2⌋⌋ χ))⟩ else
+                        nodeAt s = ⟨(nodeAt s).1 ++ Fδ.1, (nodeAt s).2.1, some (Sum.inl (~'⌊⌊Fδ.2⌋⌋ χ))⟩)
+                  else (if ξ = .loaded χ then
+                        nodeAt s = ⟨(nodeAt s).1, (nodeAt s).2.1 ++ Fδ.1, some (Sum.inr (~'⌊⌊Fδ.2⌋⌋ χ))⟩ else
+                        nodeAt s = ⟨(nodeAt s).1, (nodeAt s).2.1 ++ Fδ.1, some (Sum.inr (~'⌊⌊Fδ.2⌋⌋ χ))⟩) := by sorry -- ++ the weird boxes thing
+
 theorem loadedDiamondPaths (α : Program) {X : Sequent}
   (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
   (root_free : X.isFree) -- ADDED / not/implicit in Notes?
@@ -1466,105 +1485,144 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
     case star β =>
       clear IH
       subst α_def
-      unfold relate at v_α_w
-      have ⟨n, ⟨ws, ⟨v_head, ⟨w_tail, rel⟩⟩⟩⟩:= ReflTransGen.to_finitelyManySteps v_α_w
-      have claim : ∀ k : Fin n.succ, -- Note the succ here!
-          ∃ sk, t ◃⁺ sk ∧ ( ( satisfiable (nodeAt sk) ∧ ¬(sk ≡ᶜ t) )
-                          ∨ ( (~''(AnyFormula.loaded (⌊∗β⌋ξ))).in_side side (nodeAt sk)
-                            ∧ (M, ws[k]) ⊨ nodeAt sk
-                            ∧ ((nodeAt sk).without (~''(AnyFormula.loaded (⌊∗β⌋ξ)))).isFree
-                            ∧ True )) := by -- this needs to be replaced with something saying ⌊∗β⌋ξ is principal at sk
-        intro k
-        induction k using Fin.inductionOn
-        case zero =>
-          have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
-          have locLD := localLoadedDiamond (∗β) ltZ v_α_w (this ▸ v_t) _ (this ▸ negLoad_in) w_nξ
-          clear this
-          rcases locLD with ⟨Y, Y_in, w_Y, free_or_newLoadform⟩
-          -- We are given end node, now define path to it
-          let t_to_s1 : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.loc Y_in .nil)
-          let s1 : PathIn tab := t.append t_to_s1
-          have t_s : t ⋖_ s1 := by
-            unfold s1 t_to_s1
-            apply edge_append_loc_nil
-            rw [tabAt_t_def]
-          have tabAt_s_def : tabAt s1 = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by
-            unfold s1 t_to_s1
-            rw [tabAt_append]
-            have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc nrep nbas ltZ next)))
-                = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by simp_all
-            convert this <;> try rw [tabAt_t_def]
-            rw [eqRec_heq_iff_heq]
-          have v_s1 : (M,v) ⊨ nodeAt s1 := by
-            intro φ φ_in
-            apply w_Y
-            have : (tabAt s1).2.1 = Y := by rw [tabAt_s_def]
-            simp_all
-          rcases free_or_newLoadform with Y_is_Free
-                                        | ⟨F, δ, anf_in_Y, v_seq_w, v_F, Fδ_in_H, Y_almost_free⟩
-          · -- Leaving the cluster, easy case.
-            refine ⟨s1, ?_, Or.inl ⟨?_, ?_⟩⟩
-            · apply Relation.TransGen.single
-              left
-              exact t_s
-            · use W, M, v
-            · -- using ePropB here
-              unfold cEquiv
-              simp
-              have := ePropB.e t s1 (Sequent.isLoaded_of_negAnyFormula_loaded negLoad_in) ?_ t_s
-              · unfold before at this
-                intro s1_t
-                rw [Relation.ReflTransGen.cases_tail_iff] at s1_t
-                rcases s1_t with t_def|⟨u,s1_u,u_t⟩
-                · rw [t_def] at this
-                  exfalso
-                  tauto
-                · exfalso
-                  absurd this.2
-                  exact Relation.TransGen.tail' s1_u u_t
-              · convert Y_is_Free
-                unfold nodeAt
-                rw [tabAt_s_def]
-          · have h : (∗β) ∈ δ := by sorry
-            refine ⟨s1, ?_, Or.inr ⟨?_, ?_, ?_, ?_⟩⟩
-            · apply Relation.TransGen.single
-              left
-              exact t_s
-            · convert anf_in_Y
-              · sorry
-              · unfold nodeAt ; rw [tabAt_s_def]
-            · sorry -- some sort of invertibility in loc??
-            · convert Y_almost_free
-              · unfold nodeAt ; rw [tabAt_s_def]
-              · sorry
-            · simp -- ⌊∗β⌋ξ is principal at sk
-        case succ k ih =>
-          by_cases ws[k.castSucc] = ws[k.succ]
-          case pos eq => rw [eq] at ih; exact ih
-          case neg ne => -- we need this distinction to show δ ≠ ε (see notes)
-            have ⟨sk, t_sk, sk_hyp⟩ := ih
-            rcases sk_hyp with ⟨sk_sat, sk_ne_t⟩ | _
-            · exact ⟨sk, ⟨t_sk, Or.inl ⟨sk_sat, sk_ne_t⟩⟩⟩
-            · have claim : ∀ j : Fin k.succ, ∃ sk, t ◃⁺ sk  -- this claim is in notes (see if needed)
-                          ∧ (( (~''(AnyFormula.loaded (⌊∗β⌋ξ))).in_side side (nodeAt sk)
-                          ∧ (M, ws[k]) ⊨ nodeAt sk
-                          ∧ ((nodeAt sk).without (~''(AnyFormula.loaded (⌊∗β⌋ξ)))).isFree)) := by sorry -- this should be provable with some strong induction and some ePropB stuff, but lets see if needed first
-              have ⟨⟨F,δ⟩, ⟨Fδ_in, ⟨wk_F, wk_δ_wk1⟩⟩⟩:= @existsDiamondH W M β ws[k.castSucc] ws[k.succ] (rel k)
-              have δ_ne : δ ≠ [] := by
-                intro δ_em
-                simp [δ_em] at wk_δ_wk1
-                exact ne wk_δ_wk1
-              have Hβstar_prop : (F, δ ++ [∗β]) ∈ H (∗β) := by  -- this may be wrong? see triple on bottom of page 43
-                simp [H]
-                refine ⟨[(F, δ ++ [∗β])], ⟨⟨F, ⟨δ, ⟨Fδ_in, by simp [δ_ne]⟩⟩⟩, by simp⟩⟩
-              -- PRINCIPAL: since ⌊∗β⌋ξ is principal, there must be a succesor with desired properties
-              sorry
+      have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
+      have locLD := localLoadedDiamond (∗β) ltZ v_α_w (this ▸ v_t) _ (this ▸ negLoad_in) w_nξ
+      clear this
+      rcases locLD with ⟨Y, Y_in, w_Y, free_or_newLoadform⟩
+      -- We are given end node, now define path to it
+      let t_to_s1 : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.loc Y_in .nil)
+      let s1 : PathIn tab := t.append t_to_s1
+      have t_s : t ⋖_ s1 := by
+        unfold s1 t_to_s1
+        apply edge_append_loc_nil
+        rw [tabAt_t_def]
+      have tabAt_s_def : tabAt s1 = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by
+        unfold s1 t_to_s1
+        rw [tabAt_append]
+        have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc nrep nbas ltZ next)))
+            = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by simp_all
+        convert this <;> try rw [tabAt_t_def]
+        rw [eqRec_heq_iff_heq]
+      have v_s1 : (M,v) ⊨ nodeAt s1 := by
+        intro φ φ_in
+        apply w_Y
+        have : (tabAt s1).2.1 = Y := by rw [tabAt_s_def]
+        simp_all
+      rcases free_or_newLoadform with Y_is_Free
+                                    | ⟨F, δ, anf_in_Y, v_seq_w, v_F, Fδ_in_H, Y_almost_free⟩
+      · -- Leaving the cluster, easy case.
+        refine ⟨s1, ?_, Or.inl ⟨?_, ?_⟩⟩
+        · apply Relation.TransGen.single
+          left
+          exact t_s
+        · use W, M, v
+        · -- using ePropB here
+          unfold cEquiv
+          simp
+          have := ePropB.e t s1 (Sequent.isLoaded_of_negAnyFormula_loaded negLoad_in) ?_ t_s
+          · unfold before at this
+            intro s1_t
+            rw [Relation.ReflTransGen.cases_tail_iff] at s1_t
+            rcases s1_t with t_def|⟨u,s1_u,u_t⟩
+            · rw [t_def] at this
+              exfalso
+              tauto
+            · exfalso
+              absurd this.2
+              exact Relation.TransGen.tail' s1_u u_t
+          · convert Y_is_Free
+            unfold nodeAt
+            rw [tabAt_s_def]
+      by_cases δ = []
+      case pos δ_em =>
+        subst δ_em
+        simp_all
+        refine ⟨s1, Relation.TransGen.single (Or.inl t_s), Or.inr ⟨?_, v_s1, ?_⟩⟩
+        · convert anf_in_Y
+          unfold nodeAt ; rw [tabAt_s_def]
+        · convert Y_almost_free
+          unfold nodeAt ; rw [tabAt_s_def]
+      case neg δ_ne =>
+        unfold relate at v_α_w
+        have ⟨n, ⟨ws, ⟨v_head, ⟨w_tail, rel⟩⟩⟩⟩:= ReflTransGen.to_finitelyManySteps v_α_w
+        have claim : ∀ k : Fin n.succ, -- Note the succ here!
+            ∃ sk, t ◃⁺ sk ∧ ( ( satisfiable (nodeAt sk) ∧ ¬(sk ≡ᶜ t) )
+                            ∨ ∃ γ, ((~''(AnyFormula.loaded (⌊⌊γ⌋⌋⌊∗β⌋ξ))).in_side side (nodeAt sk)
+                                ∧ (M, ws[k]) ⊨ nodeAt sk
+                                ∧ ((nodeAt sk).without (~''(AnyFormula.loaded (⌊⌊γ⌋⌋⌊∗β⌋ξ)))).isFree
+                                ∧ True  )) := by -- this needs to be replaced with something saying ⌊∗β⌋ξ is principal at sk
+          intro k
+          induction k using Fin.inductionOn
+          case zero =>
+            have βstar_last : List.getLast δ δ_ne = (∗β) := by  -- move me to a helper
+              unfold H at Fδ_in_H
+              rcases List.mem_union_iff.1 Fδ_in_H with inl | inr
+              · simp at inl ; exfalso ; exact δ_ne inl.2
+              · induction Hβ_def : H β
+                case nil =>
+                  rw [Hβ_def] at inr
+                  simp at inr
+                case cons x xs ih =>
+                  rw [Hβ_def] at inr
+                  simp at inr
+                  rcases inr with h | h
+                  · have δ_def := h.2.2
+                    subst δ_def
+                    simp
+                  · have ⟨l, ⟨⟨a, ⟨b, ⟨ab_in, pr⟩⟩⟩, Fδ_in⟩⟩ := h
+                    by_cases b = []
+                    · simp_all
+                    · simp_all
+                      rw [←pr] at Fδ_in
+                      simp at Fδ_in
+                      have δ_def := Fδ_in.2
+                      subst δ_def
+                      simp
+            let γ := List.take (δ.length - 1) δ
+            have help : AnyFormula.loaded (⌊⌊γ⌋⌋⌊∗β⌋ξ) = AnyFormula.loadBoxes δ ξ := by -- this can also become a helper
+              have help : δ = γ ++ [∗β] := by unfold γ; rw [←βstar_last] ; simp
+              rw [help]
+              simp [AnyFormula.loadBoxes, LoadFormula.boxes]
+              induction γ <;> simp_all
 
-      have h : ws[Fin.last n] = w := by rw [w_tail] ; unfold List.Vector.last ; exact Eq.refl _
-      have ⟨sn, ⟨t_sn, sn_hyp⟩⟩ := claim (Fin.last n)
-      rw [h] at sn_hyp
-      -- PRINCIPAL: because ⌊∗β⌋ξ is principal at sn, we can find child s with desired properties
-      sorry
+            · refine ⟨s1, Relation.TransGen.single (Or.inl t_s), Or.inr ⟨γ, ?_, ?_, ?_, ?_⟩⟩
+              · convert anf_in_Y
+                · unfold nodeAt ; rw [tabAt_s_def]
+              · convert v_s1
+                subst v_head
+                exact List.Vector.get_zero _
+              · convert Y_almost_free
+                · unfold nodeAt ; rw [tabAt_s_def]
+              · simp -- this is the principal condition, currently is (True)
+
+          case succ k ih =>
+            by_cases ws[k.castSucc] = ws[k.succ]
+            case pos eq => rw [eq] at ih; exact ih
+            case neg ne => -- we need this distinction to show δ ≠ ε (see notes)
+              have ⟨sk, t_sk, sk_hyp⟩ := ih
+              rcases sk_hyp with ⟨sk_sat, sk_ne_t⟩ | ⟨γ, inside_con, wk_sk, loaded_con, principal_con⟩
+              · exact ⟨sk, ⟨t_sk, Or.inl ⟨sk_sat, sk_ne_t⟩⟩⟩
+              · have ⟨⟨F,δ⟩, ⟨Fδ_in, ⟨wk_F, wk_δ_wk1⟩⟩⟩:= @existsDiamondH W M β ws[k.castSucc] ws[k.succ] (rel k)
+                have δ_ne : δ ≠ [] := by
+                  intro δ_em
+                  simp [δ_em] at wk_δ_wk1
+                  exact ne wk_δ_wk1
+                have Hβstar_prop : (F, δ ++ [∗β]) ∈ H (∗β) := by  -- this may be wrong? see triple on bottom of page 43
+                  simp [H]
+                  refine ⟨[(F, δ ++ [∗β])], ⟨⟨F, ⟨δ, ⟨Fδ_in, by simp [δ_ne]⟩⟩⟩, by simp⟩⟩
+                -- PRINCIPAL: since ⌊∗β⌋ξ is principal, there must be a succesor with desired properties
+                sorry
+
+        have h : ws[Fin.last n] = w := by rw [w_tail] ; unfold List.Vector.last ; exact Eq.refl _
+        have ⟨sn, ⟨t_sn, sn_hyp⟩⟩ := claim (Fin.last n)
+        rw [h] at *
+        rcases sn_hyp with left | ⟨loaded_con, ⟨w_sn, without_con⟩⟩
+        · refine ⟨sn, ⟨t_sn, Or.inl left⟩⟩
+
+        -- PRINCIPAL: because ⌊∗β⌋ξ is principal at sn, we can find child s with desired properties
+        · have α_natom : ¬(∗β).isAtomic := by simp [Program.isAtomic]
+          sorry
+
 
     all_goals -- all other cases for α!
       have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
