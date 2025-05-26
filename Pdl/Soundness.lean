@@ -700,6 +700,64 @@ def Hl : List Program → List (List Formula × List Program)
               then ((Hl rest).flatMap (fun ⟨G,δ'⟩ => [⟨F ∪ G, δ'⟩]))
               else [⟨F, δ ++ rest⟩])
 
+@[simp]
+lemma Hl_singleton : Hl [α] = H α := by simp [Hl]
+
+@[simp]
+lemma Hl_atomic_cons : Hl (·a :: αs) =  [ ([], ((·a : Program) :: αs)) ] := by
+  unfold Hl
+  cases αs <;> simp_all [H]
+
+@[simp]
+lemma next_exists_avoid_def_l {B : List Sequent} (next : (Y : Sequent) → Y ∈ B → LocalTableau Y) :
+    (∃ l, (∃ a, ∃ (h : a ∈ B), endNodesOf (next a h) = l) ∧ Y ∈ l)
+    ↔ ∃ Z, ∃ Z_in : Z ∈ B, Y ∈ endNodesOf (next Z Z_in) := by
+  aesop
+
+lemma lra_preserves_free (lra : LocalRuleApp X B) (Z_in : Z ∈ B) (X_free : X.isFree) :
+    Z.isFree := by
+  -- We distinguish which rule was applied.
+  rcases X with ⟨L,R,O⟩
+  rcases lra with ⟨Lcond, Rcond, Ocond, r, precons⟩
+  rename_i resNodes B_def_apply_r_LRO
+  unfold Sequent.isFree Sequent.isLoaded
+  rcases Z with ⟨ZL, ZR, _|(nlf|nlf)⟩ <;> rcases O with (_|(nlf|nlf)) <;> simp_all
+  all_goals
+    cases r
+    case oneSidedR resNodes orule =>
+      cases orule <;> simp_all <;> subst_eqs
+      · cases Z_in <;> rename_i h <;> cases h
+      · rcases Z_in with ⟨q, _, h⟩; cases h
+      · rcases Z_in with ⟨q, _, h⟩; cases h
+    case oneSidedL resNodes orule =>
+      cases orule <;> simp_all <;> subst_eqs
+      · cases Z_in <;> rename_i h <;> cases h
+      · rcases Z_in with ⟨q, _, h⟩; cases h
+      · rcases Z_in with ⟨q, _, h⟩; cases h
+    all_goals
+      simp_all
+
+lemma endNodesOf_free_are_free {X Y} (ltX : LocalTableau X) (h : X.isFree)
+    (Y_in : Y ∈ endNodesOf ltX) : Y.isFree := by
+  induction ltX
+  case byLocalRule X B lra next IH =>
+    rcases X with ⟨L,R,O⟩
+    simp_all
+    rcases Y_in with ⟨Z, Z_in_B, Y_in⟩
+    apply IH Z Z_in_B ?_ Y_in
+    -- remains to show that Z is free
+    apply lra_preserves_free lra Z_in_B h
+  case sim =>
+    simp_all
+
+-- TODO find better home
+@[simp]
+lemma whatever :
+      (~(⌊α⌋  AnyFormula.loadBoxes αs (AnyFormula.normal φ)).unload)
+    = (~ ⌈α⌉((AnyFormula.loadBoxes αs (AnyFormula.normal φ)).unload)) := by
+  cases αs <;> simp_all [AnyFormula.loadBoxes, AnyFormula.unload]
+
+-- set_option maxHeartbeats 10000000 in
 /-- NEW ATTEMPT. Helper to deal with local tableau in `loadedDiamondPaths`.
 Takes a *list* of programs and φ, i.e. we want access to all loaded boxes. -/
 theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
@@ -710,9 +768,10 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
   (φ : Formula) -- must not be loaded
   {side : Side}
   (negLoad_in : (~''(AnyFormula.loadBoxes αs φ)).in_side side X)
+  (no_other_loading : (X.without (~''(AnyFormula.loadBoxes αs φ))).isFree)
   (w_nξ : (M,w) ⊨ ~''φ)
   : ∃ Y ∈ endNodesOf ltab, (M,v) ⊨ Y ∧
-    (   ( Y.isFree ) -- means we left cluster
+    (   Y.isFree -- means we left cluster
       ∨ ( ∃ (F : List Formula) (γ : List Program),
             ( (~''(AnyFormula.loadBoxes γ φ)).in_side side Y
             ∧ relateSeq M γ v w
@@ -722,8 +781,137 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             )
         )
     ) := by
-  induction ltab generalizing αs
-  <;> sorry
+
+  cases αs -- maybe `cases` is enough here?
+
+  case nil => -- We can pick any end node.
+    simp_all
+    rcases (localTableauTruth ltab M w).1 v_t with ⟨Y, Y_in, w_Y⟩
+    refine ⟨Y, Y_in, w_Y, Or.inl ?_⟩
+    apply endNodesOf_free_are_free ltab no_other_loading Y_in
+
+  case cons α αs =>
+
+    induction ltab generalizing α v w
+
+    case byLocalRule X B lra next IH =>
+      rcases X with ⟨L,R,O⟩
+
+      -- Soundness and invertibility of the local rule:
+      have locRulTru := @localRuleTruth (L,R,O) _ lra W M
+
+      -- We distinguish which rule was applied.
+      rcases lra with ⟨Lcond, Rcond, Ocond, r, precons⟩
+      rename_i resNodes B_def_apply_r_LRO
+      cases r
+
+      -- Rules not affecting the loaded formula are easy by using the IH.
+      case oneSidedL resNodes orule =>
+        simp_all [applyLocalRule] -- uses locRulTru
+        rcases v_t with ⟨res, res_in, v_⟩
+        specialize IH _ res ⟨res_in, rfl⟩ v_ w_nξ _ v_αs_w
+          (by cases side <;> simp_all [AnyNegFormula.in_side])
+          (by apply Sequent.without_loaded_in_side_isFree _ _ side; clear IH
+              cases side
+              all_goals
+                simp [AnyNegFormula.in_side]
+                simp [AnyNegFormula.in_side] at negLoad_in
+                exact negLoad_in)
+        rcases IH with ⟨Y, Y_in, v_Y⟩
+        use Y
+        simp_all only [List.empty_eq, List.nil_subperm, Option.instHasSubsetOption, and_self, and_true]
+        use endNodesOf (next (L.diff Lcond ++ res, R, O) (by aesop))
+        simp_all only [and_true]
+        use (L.diff Lcond ++ res, R, O)
+        simp_all only [exists_prop, and_true]
+        use res
+      case oneSidedR resNodes orule => -- analogous to oneSidedL
+        simp_all [applyLocalRule] -- uses locRulTru
+        rcases v_t with ⟨res, res_in, v_⟩
+        specialize IH _ res ⟨res_in, rfl⟩ v_ w_nξ _ v_αs_w
+          (by cases side <;> simp_all [AnyNegFormula.in_side])
+          (by apply Sequent.without_loaded_in_side_isFree _ _ side; clear IH
+              cases side
+              all_goals
+                simp [AnyNegFormula.in_side]
+                simp [AnyNegFormula.in_side] at negLoad_in
+                exact negLoad_in)
+        rcases IH with ⟨Y, Y_in, v_Y⟩
+        use Y
+        simp_all only [List.empty_eq, List.nil_subperm, Option.instHasSubsetOption, and_self, and_true]
+        use endNodesOf (next (L, R.diff Rcond ++ res, O) (by aesop))
+        simp_all only [and_true]
+        use (L, R.diff Rcond ++ res, O)
+        simp_all only [exists_prop, and_true]
+        use res
+
+      case LRnegL φ =>
+        simp_all
+      case LRnegR =>
+        simp_all
+
+      case loadedL outputs χ lrule =>
+        -- Instead of localRuleTruth ...
+        clear locRulTru IH -- FIXME: really not needing this IH here?
+        rw [@relateSeq_cons] at v_αs_w
+        rcases v_αs_w with ⟨u, v_α_u, u_αs_w⟩
+        -- ... here we use use `existsDiamondH` to imitate the relation v_α_u
+        have from_H := @existsDiamondH W M α _ _ v_α_u
+        rcases from_H with ⟨⟨F,δ⟩, _in_H, v_F, v_δ_w⟩
+        -- TODO: how to work with `u` now?
+        -- TODO have outer_IH := localLoadedDiamondList -- with shorter list?!
+
+        -- simp at *
+        cases lrule -- dia or dia' annoyance ;-)
+        case dia α' χ' α'_not_atomic =>
+          -- The rule application has its own α' that must be α, and χ' must be ξ.
+          have ⟨α_same, χ_def⟩ : α = α' ∧ χ' = (AnyFormula.loadBoxes αs (AnyFormula.normal φ)) := by
+            simp [AnyNegFormula.in_side] at negLoad_in
+            have := precons.2.2
+            simp at this
+            rw [← this] at negLoad_in
+            cases side <;> aesop
+          subst α_same
+          -- subst χ_eq_ξ -- no longer possible
+
+          -- Now we have that this F,δ pair is also used for one result in `B`:
+          have claim : (L ++ F, R, some (Sum.inl (~'⌊⌊δ⌋⌋χ'))) ∈ B := by
+            simp [applyLocalRule, unfoldDiamondLoaded, YsetLoad] at B_def_apply_r_LRO
+            rw [B_def_apply_r_LRO]
+            simp
+            use F, δ
+
+          sorry
+
+        case dia' α' φ α'_not_atomic => -- analogous to `dia` case?
+          sorry
+
+      case loadedR =>
+        -- should be analogous to loadedL, but depending on `side`?
+        sorry
+
+    case sim X X_isBasic =>
+      clear no_other_loading
+      -- If `X` is basic then `α` must be atomic.
+      have : α.isAtomic := by
+        rw [Program.isAtomic_iff]
+        rcases X with ⟨L,R,O⟩
+        unfold AnyNegFormula.in_side at negLoad_in
+        rcases O with _|⟨lf|lf⟩
+        · cases side <;> simp_all [Program.isAtomic]
+        all_goals
+          have := X_isBasic.1 (~lf.1.unload)
+          simp at this
+          cases side <;> simp [AnyFormula.unload] at negLoad_in
+          subst negLoad_in
+          all_goals
+            cases α <;> simp_all
+      rw [Program.isAtomic_iff] at this
+      rcases this with ⟨a, α_def⟩
+      subst α_def
+      -- We can use X itself as the end node.
+      refine ⟨X, ?_, v_t, Or.inr ⟨[], ·a :: αs, negLoad_in,  ?_,  ?_,  ?_⟩ ⟩ <;> simp_all [H]
+      exact Sequent.without_loaded_in_side_isFree X _ side negLoad_in
 
 /-- NOT SOUND. Helper to deal with local tableau in `loadedDiamondPaths`. -/
 theorem localLoadedDiamond (α : Program) {X : Sequent}
@@ -825,7 +1013,7 @@ theorem localLoadedDiamond (α : Program) {X : Sequent}
         -- PROBLEM: Cannot apply IH to node where α is gone and replaced by its unfolding.
         -- Do we need an induction on δ here?
         -- Note: already strengthened IH to work for other programs.
-        refine ⟨?_Y, ⟨ ⟨_, ⟨(L ++ F, R, some (Sum.inl (~'⌊⌊δ⌋⌋χ'))), claim, rfl⟩ , ?_⟩ , ?_⟩⟩
+        refine ⟨?_Y, ⟨(L ++ F, R, some (Sum.inl (~'⌊⌊δ⌋⌋χ'))), claim, ?_⟩, ?_⟩
         ·
           sorry -- Do not know yet which end node to pick!
         · sorry
