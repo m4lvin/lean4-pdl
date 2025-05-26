@@ -691,8 +691,41 @@ theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
     subst Y_in
     exact negLoad_in
 
+-- TODO: move to UnfoldDia.lean later
+def Hl : List Program → List (List Formula × List Program)
+| [] => [([],[])]
+| [α] => H α
+| α :: rest => (H α).flatMap (fun ⟨F,δ⟩ => -- inspired by `;` case of `H`
+            if δ = []
+              then ((Hl rest).flatMap (fun ⟨G,δ'⟩ => [⟨F ∪ G, δ'⟩]))
+              else [⟨F, δ ++ rest⟩])
 
-/-- Helper to deal with local tableau in `loadedDiamondPaths`. -/
+/-- NEW ATTEMPT. Helper to deal with local tableau in `loadedDiamondPaths`.
+Takes a *list* of programs and φ, i.e. we want access to all loaded boxes. -/
+theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
+  (ltab : LocalTableau X)
+  {W} {M : KripkeModel W} {v w : W}
+  (v_αs_w : relateSeq M αs v w)
+  (v_t : (M,v) ⊨ X)
+  (φ : Formula) -- must not be loaded
+  {side : Side}
+  (negLoad_in : (~''(AnyFormula.loadBoxes αs φ)).in_side side X)
+  (w_nξ : (M,w) ⊨ ~''φ)
+  : ∃ Y ∈ endNodesOf ltab, (M,v) ⊨ Y ∧
+    (   ( Y.isFree ) -- means we left cluster
+      ∨ ( ∃ (F : List Formula) (γ : List Program),
+            ( (~''(AnyFormula.loadBoxes γ φ)).in_side side Y
+            ∧ relateSeq M γ v w
+            ∧ (M,v) ⊨ F
+            ∧ (F,γ) ∈ Hl αs -- "F,γ is a result from unfolding the αs"
+            ∧ (Y.without (~''(AnyFormula.loadBoxes γ φ))).isFree
+            )
+        )
+    ) := by
+  induction ltab generalizing αs
+  <;> sorry
+
+/-- NOT SOUND. Helper to deal with local tableau in `loadedDiamondPaths`. -/
 theorem localLoadedDiamond (α : Program) {X : Sequent}
   (ltab : LocalTableau X)
   {W} {M : KripkeModel W} {v w : W}
