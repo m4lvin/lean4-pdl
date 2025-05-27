@@ -1616,13 +1616,14 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         have h : ws[Fin.last n] = w := by rw [w_tail] ; unfold List.Vector.last ; exact Eq.refl _
         have ⟨sn, ⟨t_sn, sn_hyp⟩⟩ := claim (Fin.last n)
         rw [h] at *
-        rcases sn_hyp with left | ⟨loaded_con, ⟨w_sn, without_con⟩⟩
+        rcases sn_hyp with left | ⟨δ, ⟨loaded_con, ⟨w_sn, without_con⟩⟩⟩
         · refine ⟨sn, ⟨t_sn, Or.inl left⟩⟩
 
         -- PRINCIPAL: because ⌊∗β⌋ξ is principal at sn, we can find child s with desired properties
         · have α_natom : ¬(∗β).isAtomic := by simp [Program.isAtomic]
-          sorry
+-- the idea here is we have to go to a child which removes the (∗β) star via the principal condition
 
+          sorry
 
     all_goals -- all other cases for α!
       have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
