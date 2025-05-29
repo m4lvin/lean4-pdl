@@ -134,6 +134,14 @@ def LoadFormula.boxes : List Program → LoadFormula → LoadFormula
 | δ, χ => List.foldr (fun β lf => LoadFormula.box β lf) χ δ
 
 @[simp]
+lemma LoadFormula.boxes_nil : LoadFormula.boxes [] χ = χ := by simp [LoadFormula.boxes]
+
+lemma LoadFormula.boxes_cons :
+    LoadFormula.boxes (b :: bs) φ = LoadFormula.box b (LoadFormula.boxes bs φ) :=
+  by
+  induction bs <;> simp [LoadFormula.boxes]
+
+@[simp]
 def LoadFormula.unload : LoadFormula → Formula
 | LoadFormula.box α (.normal φ) => ⌈α⌉φ
 | LoadFormula.box α (.loaded χ) => ⌈α⌉(unload χ)
@@ -198,6 +206,20 @@ lemma AnyFormula.boxes_nil : AnyFormula.loadBoxes [] ξ = ξ := by
 @[simp]
 lemma AnyFormula.loadBoxes_cons : AnyFormula.loadBoxes (α :: γ) ξ = ⌊α⌋ (AnyFormula.loadBoxes γ ξ) := by
   simp [AnyFormula.loadBoxes]
+
+theorem AnyFormula.loadBoxes_append :
+    AnyFormula.loadBoxes (as ++ bs) φ = AnyFormula.loadBoxes as (AnyFormula.loadBoxes bs φ) :=
+  by
+  induction as <;> simp [AnyFormula.loadBoxes]
+
+lemma AnyFormula.loadBoxes_loaded_eq_loaded_boxes :
+    AnyFormula.loadBoxes δ (AnyFormula.loaded χ) = AnyFormula.loaded (⌊⌊δ⌋⌋χ) := by
+  induction δ
+  · simp
+  case cons IH =>
+    simp
+    rw [IH]
+    rfl
 
 def AnyFormula.unload : AnyFormula → Formula
   | .normal φ => φ

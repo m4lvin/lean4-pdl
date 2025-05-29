@@ -760,7 +760,17 @@ lemma whatever :
 lemma any_loaded_helper
     (h : AnyFormula.loaded χ' = AnyFormula.loadBoxes αs (AnyFormula.normal φ))
     : (⌊d⌋AnyFormula.loadBoxes (δ ++ αs) (AnyFormula.normal φ)) = ⌊⌊d :: δ⌋⌋χ' := by
-  sorry
+  cases αs
+  · exfalso
+    simp_all
+  case cons α αs =>
+    simp at h
+    subst h
+    rw [LoadFormula.boxes_cons]
+    rw [AnyFormula.loadBoxes_append]
+    rw [AnyFormula.loadBoxes_cons]
+    simp -- d gone
+    apply AnyFormula.loadBoxes_loaded_eq_loaded_boxes
 
 set_option maxHeartbeats 10000000 in
 /-- NEW ATTEMPT. Helper to deal with local tableau in `loadedDiamondPaths`.
@@ -925,13 +935,15 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
               · -- Not fully sure here.
                 refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
-                refine ⟨F, γs, in_Y, v_γs_w, v_F, ?_, Y_almost_free⟩
+                refine ⟨F ∪ G, γs, in_Y, v_γs_w, ?_, ?_, Y_almost_free⟩
+                · intro f f_in
+                  simp at f_in; cases f_in
+                  · apply v_F; assumption
+                  · apply v_G; assumption
                 simp [Hl]
-                refine ⟨_, _, _in_H, ?_⟩ -- here the [] comes ...
+                refine ⟨_, _, _in_H, ?_⟩
                 simp
-                refine ⟨G, in_Hl, ?_⟩
-                -- F = F ∪ G  -- ... and leads to the PROBLEM here.
-                sorry
+                refine ⟨G, in_Hl, rfl⟩
 
           case cons d δs =>
             -- A non-empty δ came from α, so tableau has not actually made the step to `u` yet!
@@ -968,14 +980,16 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             rcases IH with ⟨Y, Y_in, v_Y, ( Y_free
                                           | ⟨G, γs, in_Y, v_γs_w, v_G, in_Hl, Y_almost_free⟩ )⟩
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
-            ·
-              -- Not fully sure here.
+            · -- Not fully sure here.
               refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
               refine ⟨F, _, in_Y, v_γs_w, v_F, ?_, Y_almost_free⟩
               simp [Hl]
               refine ⟨F, d :: δs, _in_H, ?_⟩ -- here now the `d : δs` comes ...
               simp
               -- γs = d :: (δs ++ αs)  -- ... and leads to the PROBLEM here.
+              -- IDEA
+              -- `d` should be atomic, because it resulted from `H α`.
+              -- Hence `Hl (d :: ...)` should actually not do anything but give us the goal!?
               sorry
 
         case dia' α' φ α'_not_atomic => -- __only somewhat__ analogous to `dia` case??
