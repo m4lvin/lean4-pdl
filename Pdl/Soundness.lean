@@ -757,6 +757,24 @@ lemma whatever :
     = (~ ⌈α⌉((AnyFormula.loadBoxes αs (AnyFormula.normal φ)).unload)) := by
   cases αs <;> simp_all [AnyFormula.loadBoxes, AnyFormula.unload]
 
+-- TODO find better home
+lemma loaded_eq_to_unload_eq χ αs φ
+    (h : AnyFormula.loaded χ = AnyFormula.loadBoxes αs (AnyFormula.normal φ))
+    : χ.unload = ⌈⌈αs⌉⌉φ
+    := by
+  cases αs
+  · simp_all
+  case cons α1 αs =>
+    cases αs
+    · simp_all
+    case cons α2 αs =>
+      simp only [Formula.boxes_cons]
+      rcases χ with  ⟨β, af⟩
+      simp only [AnyFormula.loadBoxes_cons, AnyFormula.loaded.injEq, LoadFormula.box.injEq] at h
+      rcases h with ⟨β_eq_α1, af_def⟩
+      have := loaded_eq_to_unload_eq ((⌊α2⌋AnyFormula.loadBoxes αs (.normal φ))) (α2 :: αs) _ rfl
+      aesop
+
 lemma any_loaded_helper
     (h : AnyFormula.loaded χ' = AnyFormula.loadBoxes αs (AnyFormula.normal φ))
     : (⌊d⌋AnyFormula.loadBoxes (δ ++ αs) (AnyFormula.normal φ)) = ⌊⌊d :: δ⌋⌋χ' := by
@@ -921,7 +939,14 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                 · exact v_F _ f_in
                 · apply v_t; simp_all
                 · subst f_def
-                  sorry -- should be easy
+                  rw [loaded_eq_to_unload_eq χ' _ _ χ_def]
+                  simp only [evaluate, Formula.boxes_cons, not_forall, Classical.not_imp]
+                  rcases u_αs_w with ⟨x, v_α_x, bla⟩
+                  use x, v_α_x
+                  rw [evalBoxes]
+                  push_neg
+                  use w
+                  tauto
               · rw [← χ_def]
                 cases side
                 · simp [AnyNegFormula.in_side, LoadFormula.boxes]
@@ -961,7 +986,10 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                 rw [@relateSeq_cons] at v_δ_u
                 rcases v_δ_u with ⟨x, v_d_x, x_δs_u⟩
                 refine ⟨x, v_d_x, ⟨u, x_δs_u, ?_⟩⟩
-                sorry -- should be easy
+                rw [loaded_eq_to_unload_eq χ' _ _ χ_def, evalBoxes]
+                push_neg
+                use w
+                tauto
             · clear IH
               simp_rw [relateSeq_cons, relateSeq_append]
               rw [relateSeq_cons] at v_δ_u
