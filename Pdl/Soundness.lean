@@ -1018,7 +1018,15 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               -- IDEA
               -- `d` should be atomic, because it resulted from `H α`.
               -- Hence `Hl (d :: ...)` should actually not do anything but give us the goal!?
-              sorry
+              have ⟨a, d_atom⟩ : ∃ a, d = ((·a) : Program) := by
+                have := H_mem_sequence α _in_H
+                rcases this with inl | ⟨a, ⟨δ, list_prop⟩⟩
+                · exfalso ; simp_all
+                · refine ⟨a, by simp_all⟩
+              subst d_atom
+              simp [Hl] at in_Hl
+              exact in_Hl.2
+
 
         case dia' α' φ α'_not_atomic => -- __only somewhat__ analogous to `dia` case??
           sorry
