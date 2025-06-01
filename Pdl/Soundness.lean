@@ -827,55 +827,54 @@ lemma loadMulti_eq_of_some (h : δ.head? = some d) :
   cases δ
   <;> simp_all
 
-lemma loadMulti_of_splitLast_cons {d δs δ_β φ} (h : splitLast (d :: δs) = some δ_β) :
-    loadMulti δ_β.1 δ_β.2 φ = ⌊d⌋AnyFormula.loadBoxes δs (AnyFormula.normal φ) := by
-  rcases δ_β with ⟨δ, β⟩
-  simp at *
-  cases δs
+lemma splitLast_inj (h : splitLast αs = splitLast βs) :
+    αs = βs := by
+  induction αs using List.reverseRecOn <;> induction βs using List.reverseRecOn
+  · rfl
+  · exfalso
+    simp_all
+  · exfalso
+    simp_all
+  aesop
+
+lemma loadMulti_of_splitLast_cons {α αs βs β φ} (h : splitLast (α :: αs) = some ⟨βs, β⟩) :
+    loadMulti βs β φ = ⌊α⌋AnyFormula.loadBoxes αs (AnyFormula.normal φ) := by
+  have : (α :: αs) = βs ++ [β] := by
+    rw [← @splitLast_append_singleton] at h
+    exact splitLast_inj h
+  cases αs
   · unfold splitLast at h
     simp at h
     cases h
     subst_eqs
     simp at *
-  case cons d2 δs =>
-    have ⟨δβ2, new_h⟩ : ∃ δ2_β2, splitLast (d2 :: δs) = some δ2_β2 := by
-      unfold splitLast
-      simp
-    simp
-    have IH := @loadMulti_of_splitLast_cons d2 δs δβ2 φ new_h
+  case cons α2 αs =>
+    have ⟨δβ2, new_h⟩ : ∃ δ2_β2, splitLast (α2 :: αs) = some δ2_β2 := by simp [splitLast]
+    rw [AnyFormula.loadBoxes_cons]
+    have IH := @loadMulti_of_splitLast_cons α2 αs _ _ φ new_h
     rw [← IH]; clear IH
-    cases δ
+    cases βs
     · exfalso
-      have help := splitLast_undo_of_some h
+      unfold splitLast at h
+      simp at h
+      cases h
+    case cons β2 βs =>
       simp_all
-    case cons d' δ' =>
-      have : d' = d := by
-        rw [splitLast_cons_eq_some d (d2 :: δs)] at h
-        aesop
-      subst this
-      rw [@loadMulti_eq_of_some d' _ β φ _]
-      have help := splitLast_undo_of_some h
-      have new_help := splitLast_undo_of_some new_h
-      simp at *
-      convert rfl
-      -- This is getting longer than it should be. Is there an easier way?
-      -- Can we `splitLast_cons_eq_some` earlier or so?
-      · sorry
-      · sorry
-      simp
+      subst new_h
+      simp_all
 
 lemma Sequent.without_loadMulti_isFree_of_splitLast_cons_inl {L R δs} {φ : Formula}
     (h : splitLast (d :: δs) = some δ_β)
     : (Sequent.without (L, R, some (Sum.inl (~'loadMulti δ_β.1 δ_β.2 φ)))
       (~''(AnyFormula.loadBoxes (d :: δs) (AnyFormula.normal φ)))).isFree := by
-  rw [@loadMulti_of_splitLast_cons _ _ _ φ h]
+  rw [@loadMulti_of_splitLast_cons _ _ _ _ φ h]
   simp [Sequent.without]
 
 lemma Sequent.without_loadMulti_isFree_of_splitLast_cons_inr {L R δs} {φ : Formula}
     (h : splitLast (d :: δs) = some δ_β)
     : (Sequent.without (L, R, some (Sum.inr (~'loadMulti δ_β.1 δ_β.2 φ)))
       (~''(AnyFormula.loadBoxes (d :: δs) (AnyFormula.normal φ)))).isFree := by
-  rw [@loadMulti_of_splitLast_cons _ _ _ φ h]
+  rw [@loadMulti_of_splitLast_cons _ _ _ _ φ h]
   simp [Sequent.without]
 
 set_option maxHeartbeats 1000000 in
@@ -1468,7 +1467,6 @@ lemma localLoadedDiamondSingleton
     cases side <;> simp [AnyNegFormula.in_side] at negLoad_in
     all_goals
     simp [negLoad_in]
-
 
 /-- NOT SOUND. Helper to deal with local tableau in `loadedDiamondPaths`. -/
 theorem localLoadedDiamond (α : Program) {X : Sequent}
