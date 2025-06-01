@@ -822,24 +822,61 @@ lemma splitLast_undo_of_some (h : splitLast αs = some βs_b) :
   simp
   apply List.dropLast_append_getLast_eq_cons
 
-lemma loadMulti_of_splitLast_cons (h : splitLast (d :: δs) = some δ_β) :
+lemma loadMulti_eq_of_some (h : δ.head? = some d) :
+    loadMulti δ β φ = ⌊d⌋AnyFormula.loaded (loadMulti δ.tail β φ) := by
+  cases δ
+  <;> simp_all
+
+lemma loadMulti_of_splitLast_cons {d δs δ_β φ} (h : splitLast (d :: δs) = some δ_β) :
     loadMulti δ_β.1 δ_β.2 φ = ⌊d⌋AnyFormula.loadBoxes δs (AnyFormula.normal φ) := by
-  have := splitLast_undo_of_some h
-  sorry
+  rcases δ_β with ⟨δ, β⟩
+  simp at *
+  cases δs
+  · unfold splitLast at h
+    simp at h
+    cases h
+    subst_eqs
+    simp at *
+  case cons d2 δs =>
+    have ⟨δβ2, new_h⟩ : ∃ δ2_β2, splitLast (d2 :: δs) = some δ2_β2 := by
+      unfold splitLast
+      simp
+    simp
+    have IH := @loadMulti_of_splitLast_cons d2 δs δβ2 φ new_h
+    rw [← IH]; clear IH
+    cases δ
+    · exfalso
+      have help := splitLast_undo_of_some h
+      simp_all
+    case cons d' δ' =>
+      have : d' = d := by
+        rw [splitLast_cons_eq_some d (d2 :: δs)] at h
+        aesop
+      subst this
+      rw [@loadMulti_eq_of_some d' _ β φ _]
+      have help := splitLast_undo_of_some h
+      have new_help := splitLast_undo_of_some new_h
+      simp at *
+      convert rfl
+      -- This is getting longer than it should be. Is there an easier way?
+      -- Can we `splitLast_cons_eq_some` earlier or so?
+      · sorry
+      · sorry
+      simp
 
 lemma Sequent.without_loadMulti_isFree_of_splitLast_cons_inl {L R δs} {φ : Formula}
     (h : splitLast (d :: δs) = some δ_β)
     : (Sequent.without (L, R, some (Sum.inl (~'loadMulti δ_β.1 δ_β.2 φ)))
       (~''(AnyFormula.loadBoxes (d :: δs) (AnyFormula.normal φ)))).isFree := by
   rw [@loadMulti_of_splitLast_cons _ _ _ φ h]
-  sorry
+  simp [Sequent.without]
 
 lemma Sequent.without_loadMulti_isFree_of_splitLast_cons_inr {L R δs} {φ : Formula}
     (h : splitLast (d :: δs) = some δ_β)
     : (Sequent.without (L, R, some (Sum.inr (~'loadMulti δ_β.1 δ_β.2 φ)))
       (~''(AnyFormula.loadBoxes (d :: δs) (AnyFormula.normal φ)))).isFree := by
   rw [@loadMulti_of_splitLast_cons _ _ _ φ h]
-  sorry
+  simp [Sequent.without]
 
 set_option maxHeartbeats 1000000 in
 /-- NEW ATTEMPT. Helper to deal with local tableau in `loadedDiamondPaths`.
