@@ -996,8 +996,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             rcases IH with ⟨Y, Y_in, v_Y, ( Y_free
                                           | ⟨G, γs, in_Y, v_γs_w, v_G, in_Hl, Y_almost_free⟩ )⟩
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
-            · -- Not fully sure here.
-              refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
+            · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
               refine ⟨F, _, in_Y, v_γs_w, v_F, ?_, Y_almost_free⟩
               have αs_nonEmpty : αs ≠ [] := by cases αs <;> simp_all [χ_def]
               simp only [Hl, List.mem_flatMap, Prod.exists] -- uses `αs_nonEmpty`
@@ -1063,8 +1062,78 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             apply endNodesOf_free_are_free (next _ in_B) ?_ Y_in
             simp
           case cons d δs =>
-            -- TODO use splitLat here?
-            sorry
+            rw [@relateSeq_cons] at v_δ_u
+            rcases v_δ_u with ⟨x, v_d_x, x_δs_u⟩
+            let δ_β := match h : splitLast (d :: δs) with
+              | some this => this
+              | none => by exfalso; simp_all [splitLast]
+            have split_def : splitLast (d :: δs) = some δ_β := by rfl
+            -- This F,δ pair is also used for one result in `B`:
+            have in_B : (L ++ F, R, some (Sum.inl (~'loadMulti δ_β.1 δ_β.2 φ))) ∈ B := by
+              simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at B_def_apply_r_LRO
+              rw [B_def_apply_r_LRO]
+              simp
+              use F, (d :: δs), _in_H
+              rw [split_def]
+              simp
+            -- Rest based on non-empty δ case in `dia` above; changed to work with `loadMulti`.
+            -- A non-empty δ came from α, so we have not actually made the step to `u` yet.
+            -- Again we prepare to use IH, but now for `d` and `δs` instead.
+            specialize @IH _ in_B v u ?_ w_nξ d δs ?_ ?_ ?_
+            · intro f f_in
+              simp only [Option.map_some', Sum.elim_inl, negUnload, unload_loadMulti,
+                Option.toList_some, List.mem_union_iff, List.mem_append, List.mem_cons,
+                List.not_mem_nil, or_false] at f_in
+              rcases f_in with (((f_in|f_in)|f_in)|f_def)
+              · apply v_t; simp_all
+              · exact v_F _ f_in
+              · apply v_t; simp_all
+              · subst f_def
+                rw [← @boxes_last]
+                have : δ_β.1 ++ [δ_β.2] = d :: δs := by
+                  clear IH
+                  unfold δ_β
+                  have := @splitLast_cons_eq_some _ d δs
+                  split -- rewriting leads to incorrect motive, but this works :-)
+                  case h_1 res split_other_def =>
+                    rw [this] at split_other_def
+                    cases split_other_def
+                    simp only
+                    exact List.dropLast_append_getLast_eq_cons d δs
+                  · exfalso
+                    aesop
+                rw [this]
+                simp only [evaluate, Formula.boxes_cons, evalBoxes, not_forall, Classical.not_imp]
+                refine ⟨x, v_d_x, ⟨u, x_δs_u, ?_⟩⟩
+                exact w_nξ
+            · simp_rw [relateSeq_cons]
+              exact ⟨x, v_d_x, x_δs_u⟩
+            · cases side
+              · simp [AnyFormula.loadBoxes_cons, AnyNegFormula.in_side]
+                -- should be easy
+                sorry
+              · exfalso
+                simp_all [AnyNegFormula.in_side, LoadFormula.boxes]
+            · -- apply Sequent.without_loadBoxes_isFree_of_eq
+              -- should be doable
+              sorry
+            -- Now actually get the IH result.
+            rcases IH with ⟨Y, Y_in, v_Y, ( Y_free
+                                          | ⟨G, γs, in_Y, v_γs_w, v_G, in_Hl, Y_almost_free⟩ )⟩
+            · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
+            · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
+              refine ⟨F, _, in_Y, v_γs_w, v_F, ?_, Y_almost_free⟩
+              -- Now show that `d` is atomic, because it resulted from `H α`.
+              have ⟨a, d_atom⟩ : ∃ a, d = ((·a) : Program) := by
+                have := H_mem_sequence α _in_H
+                rcases this with inl | ⟨a, ⟨δ, list_prop⟩⟩
+                · exfalso ; simp_all
+                · refine ⟨a, by simp_all⟩
+              subst d_atom
+              -- Hence `Hl (d :: ...)` does not actually unfold anything.
+              simp [Hl] at in_Hl
+              rw [in_Hl.2]
+              exact _in_H
 
       case loadedR =>
         -- should be analogous to loadedL, modulo the value of `side`
