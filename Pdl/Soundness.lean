@@ -825,7 +825,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
         )
     ) := by
 
-  cases αs -- maybe `cases` is enough here?
+  cases αs
 
   case nil => -- We can pick any end node.
     simp_all
@@ -1014,8 +1014,57 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               simp [Hl] at in_Hl
               exact in_Hl.2
 
-        case dia' α' φ α'_not_atomic => -- __only somewhat__ analogous to `dia` case??
-          sorry
+        case dia' α' φ' α'_not_atomic => -- only *somewhat* analogous to `dia` case.
+          -- The rule application has its own α' that must be α,
+          -- also has its own φ' that must be φ, (this is new/easier here)
+          -- and αs must be [], there is no more χ.
+          have ⟨α_same, φ_same, αs_empty⟩ : α = α' ∧ φ = φ' ∧ αs = [] := by
+            simp [AnyNegFormula.in_side] at negLoad_in
+            have := precons.2.2
+            simp at this
+            rw [← this] at negLoad_in
+            cases side
+            · simp at *
+              rcases negLoad_in with ⟨α_same, φ_def⟩
+              cases αs <;> simp_all
+            · aesop
+          -- It seems this is actually easier than the `dia` case, we can `subst` more here.
+          subst α_same
+          subst φ_same
+          subst αs_empty
+          simp [relateSeq] at u_αs_w
+          subst u_αs_w -- We now have u = w.
+          -- Note: we now do `in_B` *after* distinguishing whether δ = [].
+          simp
+          cases δ
+          case nil => -- δ is empty, so we should have a free result?
+            simp at v_δ_u v_F -- Here we have v = u.
+            subst v_δ_u
+            -- This F,δ pair is also used for one result in `B`:
+            have in_B : (L ++ (F ∪ [~φ]), R, none) ∈ B := by
+              simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at B_def_apply_r_LRO
+              rw [B_def_apply_r_LRO]
+              simp
+              refine ⟨F, [], _in_H, ?_, ?_⟩
+              · simp
+              · clear IH
+                cases O <;> cases side
+                all_goals
+                  simp [splitLast, Olf.change, Option.insHasSdiff, AnyNegFormula.in_side] at *
+                · exact negLoad_in
+                · exfalso; aesop
+            -- No IH needed because we reach a free node.
+            clear IH
+            -- We do not know `Y` yet because ltab may continue after `(L ++ F ++ [~φ], R, none)`.
+            -- So let's use localTableauTruth to find a free end node, similar to αs = [] case.
+            have v_Z : (M, v) ⊨ ((L ++ (F ∪ [~φ]), R, none) : Sequent) := by intro f f_in; aesop
+            rcases (localTableauTruth (next _ in_B) M v).1 v_Z with ⟨Y, Y_in, v_Y⟩
+            refine ⟨Y, ⟨(L ++ (F ∪ [~φ]), R, none), in_B, Y_in⟩, ⟨v_Y, Or.inl ?Y_free⟩⟩
+            apply endNodesOf_free_are_free (next _ in_B) ?_ Y_in
+            simp
+          case cons d δs =>
+            -- TODO use splitLat here?
+            sorry
 
       case loadedR =>
         -- should be analogous to loadedL, modulo the value of `side`
