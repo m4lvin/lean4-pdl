@@ -790,6 +790,16 @@ lemma any_loaded_helper
     simp -- d gone
     apply AnyFormula.loadBoxes_loaded_eq_loaded_boxes
 
+lemma Sequent.without_loadBoxes_isFree_of_eq {L R δs} {χ : LoadFormula} {φ : Formula}
+    (h : χ = AnyFormula.loadBoxes αs φ)
+    : (Sequent.without (L, R, some (Sum.inl (~'⌊⌊d :: δs⌋⌋χ)))
+      (~''(AnyFormula.loadBoxes (d :: (δs ++ αs)) (AnyFormula.normal φ)))).isFree := by
+  unfold Sequent.without
+  simp
+  suffices (⌊⌊d :: δs⌋⌋χ) = ⌊d⌋AnyFormula.loadBoxes (δs ++ αs) (AnyFormula.normal φ) by simp_all
+  rw [any_loaded_helper]
+  exact h
+
 set_option maxHeartbeats 10000000 in
 /-- NEW ATTEMPT. Helper to deal with local tableau in `loadedDiamondPaths`.
 Takes a *list* of programs and φ, i.e. we want access to all loaded boxes. -/
@@ -1001,9 +1011,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                 apply any_loaded_helper χ_def
               · exfalso
                 simp_all [AnyNegFormula.in_side, LoadFormula.boxes]
-            · -- should hold, also need something like `any_loaded_helper` here?
-              -- apply Sequent.without_loaded_in_side_isFree ??
-              sorry
+            · exact Sequent.without_loadBoxes_isFree_of_eq χ_def
             -- Now actually get the IH result.
             rcases IH with ⟨Y, Y_in, v_Y, ( Y_free
                                           | ⟨G, γs, in_Y, v_γs_w, v_G, in_Hl, Y_almost_free⟩ )⟩
@@ -1012,21 +1020,18 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
               refine ⟨F, _, in_Y, v_γs_w, v_F, ?_, Y_almost_free⟩
               simp [Hl]
-              refine ⟨F, d :: δs, _in_H, ?_⟩ -- here now the `d : δs` comes ...
+              refine ⟨F, d :: δs, _in_H, ?_⟩
               simp
-              -- γs = d :: (δs ++ αs)  -- ... and leads to the PROBLEM here.
-              -- IDEA
-              -- `d` should be atomic, because it resulted from `H α`.
-              -- Hence `Hl (d :: ...)` should actually not do anything but give us the goal!?
+              -- Now show that `d` is atomic, because it resulted from `H α`.
               have ⟨a, d_atom⟩ : ∃ a, d = ((·a) : Program) := by
                 have := H_mem_sequence α _in_H
                 rcases this with inl | ⟨a, ⟨δ, list_prop⟩⟩
                 · exfalso ; simp_all
                 · refine ⟨a, by simp_all⟩
               subst d_atom
+              -- Hence `Hl (d :: ...)` does not actually unfold anything.
               simp [Hl] at in_Hl
               exact in_Hl.2
-
 
         case dia' α' φ α'_not_atomic => -- __only somewhat__ analogous to `dia` case??
           sorry
