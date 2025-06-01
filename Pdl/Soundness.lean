@@ -905,6 +905,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
         simp at v_δ_u
 
         cases lrule -- dia or dia' annoyance ;-)
+
         case dia α' χ' α'_not_atomic =>
           -- The rule application has its own α' that must be α, and χ' must be ⌊αs⌋φ.
           have ⟨α_same, χ_def⟩ : α = α' ∧ χ' = (AnyFormula.loadBoxes αs (AnyFormula.normal φ)) := by
@@ -913,24 +914,14 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             simp at this
             rw [← this] at negLoad_in
             cases side <;> aesop
-          subst α_same
-          -- subst χ_eq_ξ -- no longer possible
-
-          have αs_nonEmpty : αs ≠ [] := by -- needed?
-            clear IH
-            cases αs
-            · simp_all [χ_def]
-            · simp
-
+          subst α_same -- But cannot do `subst χ_def`.
           -- This F,δ pair is also used for one result in `B`:
           have in_B : (L ++ F, R, some (Sum.inl (~'⌊⌊δ⌋⌋χ'))) ∈ B := by
             simp [applyLocalRule, unfoldDiamondLoaded, YsetLoad] at B_def_apply_r_LRO
             rw [B_def_apply_r_LRO]
             simp
             use F, δ
-
           simp
-
           cases δ
           case nil => -- δ is empty, is this the easy or the hard case? ;-)
             simp at v_δ_u v_F -- Here we have v = u.
@@ -952,18 +943,10 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                   rw [loaded_eq_to_unload_eq χ' _ _ χ_def]
                   simp only [evaluate, Formula.boxes_cons, not_forall, Classical.not_imp]
                   rcases u_αs_w with ⟨x, v_α_x, bla⟩
-                  use x, v_α_x
-                  rw [evalBoxes]
-                  push_neg
-                  use w
-                  tauto
-              · rw [← χ_def]
-                cases side
-                · simp [AnyNegFormula.in_side, LoadFormula.boxes]
-                · exfalso
-                  simp_all [AnyNegFormula.in_side, LoadFormula.boxes]
-              · rw [← χ_def]
-                simp_all [Sequent.without, LoadFormula.boxes]
+                  use x, v_α_x; rw [evalBoxes]
+                  push_neg; use w; tauto
+              · rw [← χ_def]; cases side <;> simp_all [AnyNegFormula.in_side, LoadFormula.boxes]
+              · rw [← χ_def]; simp_all [Sequent.without, LoadFormula.boxes]
               -- Now actually get the IH result.
               rcases IH with ⟨Y, Y_in, v_Y, ( Y_free
                                             | ⟨G, γs, in_Y, v_γs_w, v_G, in_Hl, Y_almost_free⟩ )⟩
@@ -979,29 +962,26 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                 refine ⟨_, _, _in_H, ?_⟩
                 simp
                 refine ⟨G, in_Hl, rfl⟩
-
           case cons d δs =>
-            -- A non-empty δ came from α, so tableau has not actually made the step to `u` yet!
-            -- - use something like H_contents but then for Hl ?????????
-            -- Again prepare to use IH, but now with d and δs ++ αs instead.
+            -- A non-empty δ came from α, so we have not actually made the step to `u` yet.
+            -- Again we prepare to use IH, but now for `d` and `δs ++ αs` instead.
             specialize @IH _ in_B v w ?_ w_nξ d (δs ++ αs) ?_ ?_ ?_
             · intro f f_in
-              simp at f_in
+              simp only [Option.map_some', Sum.elim_inl, negUnload, unload_boxes,
+                Formula.boxes_cons, Option.toList_some, List.mem_union_iff, List.mem_append,
+                List.mem_cons, List.not_mem_nil, or_false] at f_in
               rcases f_in with (((f_in|f_in)|f_in)|f_def)
               · apply v_t; simp_all
               · exact v_F _ f_in
               · apply v_t; simp_all
-              · subst f_def; clear IH
-                simp [evalBoxes]
+              · subst f_def
+                simp only [evaluate, evalBoxes, not_forall, Classical.not_imp]
                 rw [@relateSeq_cons] at v_δ_u
                 rcases v_δ_u with ⟨x, v_d_x, x_δs_u⟩
                 refine ⟨x, v_d_x, ⟨u, x_δs_u, ?_⟩⟩
                 rw [loaded_eq_to_unload_eq χ' _ _ χ_def, evalBoxes]
-                push_neg
-                use w
-                tauto
-            · clear IH
-              simp_rw [relateSeq_cons, relateSeq_append]
+                push_neg; use w; tauto
+            · simp_rw [relateSeq_cons, relateSeq_append]
               rw [relateSeq_cons] at v_δ_u
               rcases v_δ_u with ⟨x, v_d_x, x_δ_u⟩
               refine ⟨x, v_d_x, ⟨u, x_δ_u, u_αs_w⟩⟩
@@ -1019,7 +999,8 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             · -- Not fully sure here.
               refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
               refine ⟨F, _, in_Y, v_γs_w, v_F, ?_, Y_almost_free⟩
-              simp [Hl]
+              have αs_nonEmpty : αs ≠ [] := by cases αs <;> simp_all [χ_def]
+              simp only [Hl, List.mem_flatMap, Prod.exists] -- uses `αs_nonEmpty`
               refine ⟨F, d :: δs, _in_H, ?_⟩
               simp
               -- Now show that `d` is atomic, because it resulted from `H α`.
