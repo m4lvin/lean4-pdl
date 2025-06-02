@@ -2400,10 +2400,10 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
 
         have claim : ∀ k : Fin n.succ, -- Note the succ here!
             ∃ sk, t ◃⁺ sk ∧ ( ( satisfiable (nodeAt sk) ∧ ¬(sk ≡ᶜ t) )
-                            ∨ ∃ γ, ((~''(AnyFormula.loaded (⌊⌊γ⌋⌋⌊∗β⌋ξ))).in_side side (nodeAt sk) -- in then notes this is `¬[∗β]ξ ∈ sₖ` but we cannot do this based on our `LocalLoadedDiamond` version of `Lemma 5.2` which uses a list, things are less explicit in this case because we have this whole γ to work with so how can we say `¬[∗β]` is prinicipal?
+                            ∨ ((~''(AnyFormula.loaded (⌊∗β⌋ξ))).in_side side (nodeAt sk) --  OLD: in then notes this is `¬[∗β]ξ ∈ sₖ` but we cannot do this based on our `LocalLoadedDiamond` version of `Lemma 5.2` which uses a list, things are less explicit in this case because we have this whole γ to work with so how can we say `¬[∗β]` is prinicipal?
                                 ∧ (M, ws[k]) ⊨ nodeAt sk
-                                ∧ ((nodeAt sk).without (~''(AnyFormula.loaded (⌊⌊γ⌋⌋⌊∗β⌋ξ)))).isFree
-                                ∧ True  )) := by -- this (True) needs to be replaced with something saying ⌊∗β⌋ξ is principal at sk, see comment above about difficulties
+                                ∧ ((nodeAt sk).without (~''(AnyFormula.loaded (⌊∗β⌋ξ)))).isFree
+                                ∧ True  )) := by -- this (True) needs to be replaced with something saying ⌊∗β⌋ξ is principal at sk
 
           intro k
           induction k using Fin.inductionOn
@@ -2433,21 +2433,91 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
                       subst δ_def
                       simp
             let γ := List.take (δ.length - 1) δ
-            have help : AnyFormula.loaded (⌊⌊γ⌋⌋⌊∗β⌋ξ) = AnyFormula.loadBoxes δ ξ := by -- this can also become a helper
-              have help : δ = γ ++ [∗β] := by unfold γ; rw [←βstar_last] ; simp
-              rw [help]
+            have δ_def : δ = γ ++ [∗β] := by unfold γ; rw [←βstar_last] ; simp
+            have help : AnyFormula.loaded (⌊⌊γ⌋⌋⌊∗β⌋ξ) = AnyFormula.loadBoxes δ ξ := by -- this can also become a helper, dont know if we will use
+              rw [δ_def]
               simp [AnyFormula.loadBoxes, LoadFormula.boxes]
               induction γ <;> simp_all
 
-            · refine ⟨s1, Relation.TransGen.single (Or.inl t_s), Or.inr ⟨γ, ?_, ?_, ?_, ?_⟩⟩
-              · convert anf_in_Y
-                · unfold nodeAt ; rw [tabAt_s_def]
-              · convert v_s1
-                subst v_head
-                exact List.Vector.get_zero _
-              · convert Y_almost_free
-                · unfold nodeAt ; rw [tabAt_s_def]
-              · simp -- this is the principal condition, currently is (True)
+            rw [δ_def] at v_seq_w
+            have ⟨u, ⟨M_v_γ_u, M_u_β_v⟩⟩ := relateSeq_append.1 v_seq_w
+            rcases (relateSeq_iff_exists_Vector M γ v u).mp M_v_γ_u with ⟨ws', v_def, w_def, ws'_rel⟩
+
+            have claim : ∀ k : Fin γ.length.succ, -- Note the succ here!
+              ∃ sk, t ◃⁺ sk ∧ ( ( satisfiable (nodeAt sk) ∧ ¬(sk ≡ᶜ t) )
+                              ∨ ( (~''(⌊⌊γ.drop k.val⌋⌋⌊∗β⌋ξ)).in_side side (nodeAt sk) -- ⌊⌊γ.drop k.val⌋⌋⌊∗β⌋ξ
+                                ∧ (M, ws'[k]) ⊨ nodeAt sk
+                                ∧ ((nodeAt sk).without (~''(⌊⌊γ.drop k.val⌋⌋⌊∗β⌋ξ))).isFree)) := by
+              intro k
+              induction k using Fin.inductionOn
+              case zero =>
+                simp only [Nat.succ_eq_add_one, Fin.val_zero, List.drop_zero, Fin.getElem_fin]
+                refine ⟨s1, ?_, Or.inr ⟨?_, ?_, ?_⟩⟩
+                · exact Relation.TransGen.single (Or.inl t_s)
+                · unfold nodeAt
+                  rw [tabAt_s_def]
+                  convert anf_in_Y
+                · convert v_s1
+                  rw [v_def]
+                  rcases ws with ⟨ws, ws_len⟩
+                  exact List.Vector.get_zero _
+                · unfold nodeAt
+                  rw [tabAt_s_def]
+                  convert Y_almost_free
+
+              case succ k inner_IH =>
+                -- Here we will need to apply the outer induction hypothesis. to δ[k] or k+1 ??
+                -- NOTE: it is only applicable when α is not a star.
+                -- For the star case we need another induction! On the length of `ws`? See notes.
+
+                rcases inner_IH with ⟨sk, t_sk, IH_cases⟩
+
+                rcases IH_cases with _ | ⟨_in_node_sk, wsk'_sk, anf_in_sk⟩
+                · refine ⟨sk, t_sk, ?_⟩
+                  left
+                  assumption
+                ·
+                  -- Prepare using outer IH for the program δ[k] (that must be simpler than α)
+                  have _forTermination : lengthOfProgram γ[k] < lengthOfProgram (∗β) := by sorry         -- TALK TO MALVIN ABOUT THIS, I THINK MIGHT BE TRUE
+                    -- TODO: Show that length went down.
+                    -- ! Needs better `H_goes_down` similar to `PgoesDown`.
+                    -- ! Only true when α is a test, union or semicolon ==> need separate case for star!
+                    -- have := H_goes_down_prog (∗β) Fδ_in_H (by aesop : γ.get k ∈ δ)
+                    -- cases α
+                    -- all_goals
+                    --   simp [Program.isAtomic, Program.isStar, lengthOfProgram] at *
+                    --   try linarith
+
+                  have h : γ ≠ [] := by sorry -- to do later : move this outside and do cases γ, if γ = [] this whole induction is immediate and then do this in the cons case
+
+                  have h' : (M, ws'.last)⊨~''(AnyFormula.loaded (⌊∗β⌋ξ)) := by sorry -- THIS SHOULD BE DOABLE
+
+                  have h3 : (M, ws'.get k.succ)⊨~''(AnyFormula.loaded (⌊⌊List.drop (k.val) γ⌋⌋⌊∗β⌋ξ)) := by
+                    have := @boxes_true_at_k_of_Vector_rel W M (⌊∗β⌋ξ) γ (by simp [h]) ws' ws'_rel k h'
+                    have eq : (AnyFormula.loadBoxes (List.drop (k.succ.val) γ) (AnyFormula.loaded (⌊∗β⌋ξ))) = (AnyFormula.loaded (⌊⌊List.drop (k.val) γ⌋⌋⌊∗β⌋ξ)) := by sorry
+                    simp_all
+                  -- to do later : this isnt right but needs to be adapted to second sorry below
+
+                  have outer_IH := @loadedDiamondPaths (γ.get k) _ tab root_free sk W M
+                    (ws'.get k.castSucc) (ws'.get k.succ) wsk'_sk
+                    ((⌊⌊γ.drop k.succ.val⌋⌋⌊∗β⌋ξ)) -- This is the new ξ.
+                    side
+                    (by sorry) -- to do later : fix these sorrys
+                    (by convert ws'_rel k; simp)
+                    (by sorry)
+                    --(by convert _in_node_sk; rw [←AnyFormula.loadBoxes_cons]; convert rfl using 2; simp)
+
+                  clear _forTermination
+
+                  rcases outer_IH with ⟨sk2, sk_c_sk2, sk2_property⟩
+                  rcases sk2_property with ⟨sk2_sat, sk2_nEquiv_sk⟩ | ⟨anf_in_sk2, u_sk2, sk2_almostFree⟩
+                  · refine ⟨sk2, ?_, Or.inl ⟨sk2_sat, ?_⟩⟩  -- leaving cluster, easy?
+                    · exact Relation.TransGen.trans t_sk sk_c_sk2
+                    · apply ePropB.g_tweak _ _ _ t_sk sk_c_sk2 sk2_nEquiv_sk
+                  · refine ⟨sk2, ?_, Or.inr ⟨anf_in_sk2, u_sk2, sk2_almostFree⟩⟩
+                    · exact Relation.TransGen.trans t_sk sk_c_sk2
+
+            sorry -- to do later : now we use the claimw with largest possible k to finish the proof this should be very easy
 
           case succ k ih =>
             by_cases ws[k.castSucc] = ws[k.succ]
@@ -2681,6 +2751,8 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         apply Prod.Lex.right (lengthOfProgram _) _forTermination
       · exact Prod.Lex.left _ _ _forTermination
       · exact Prod.Lex.left _ _ _forTermination
+      · subst α_def
+        apply Prod.Lex.left _ _ _forTermination
       · exact Prod.Lex.left _ _ _forTermination
       · exact Prod.Lex.right (lengthOfProgram α) _forTermination
 
