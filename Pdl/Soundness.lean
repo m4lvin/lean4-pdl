@@ -2239,10 +2239,8 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       subst α_def
       have α_atom : (·a : Program).isAtomic := by simp [Program.isAtomic]
       have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
-
-    -- needs attention : rewrite to localLoadedDiamondSingleton OR don't use localLoadedDiamond at all ?
-      have locLD := localLoadedDiamond (·a) ltZ v_α_w (this ▸ v_t) _ (this ▸ negLoad_in) w_nξ -- i dont think we need localLoadedDiamond here
-      rcases locLD with ⟨Y, Y_in, w_Y, free_or_newLoadform⟩
+      -- No recursive call or IH needed, just use localTableauTruth to get any end node.
+      rcases (localTableauTruth ltZ M v).1 (this ▸ v_t) with ⟨Y, Y_in, w_Y⟩
       have alocLD := atomicLocalLoadedDiamond (·a) ltZ α_atom ξ (this ▸ negLoad_in) Y Y_in
       clear this
       let t_to_s1 : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ .loc Y_in .nil)
