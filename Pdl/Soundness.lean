@@ -1968,28 +1968,31 @@ lemma list_drop_eq_get :
   case nil => exfalso; have ⟨k, k_pf⟩ := k; simp_all
   case cons => induction k using Fin.inductionOn <;> simp
 
-theorem loadedDiamondPaths (α : Program) {X : Sequent}
+-- List version now
+theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
   (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
   (root_free : X.isFree) -- ADDED / not/implicit in Notes?
   (t : PathIn tab)
   {W}
   {M : KripkeModel W} {v w : W}
   (v_t : (M,v) ⊨ nodeAt t)
-  (ξ : AnyFormula)
+  (φ : Formula)
   {side : Side} -- not in notes but needed for partition
-  (negLoad_in : (~''(⌊α⌋ξ)).in_side side (nodeAt t))
-  (v_α_w : relate M α v w)
-  (w_nξ : (M,w) ⊨ ~''ξ)
+  (negLoad_in : (~''(⌊α⌋AnyFormula.loadBoxes αs φ)).in_side side (nodeAt t))
+  (v_α_w : relateSeq M (α :: αs) v w)
+  (w_nξ : (M,w) ⊨ (~φ))
   : ∃ s : PathIn tab, t ◃⁺ s ∧
     -- maybe TODO: missing here: path from t to s is satisfiable!
     (   ( satisfiable (nodeAt s) ∧ ¬ (s ≡ᶜ t) )  -- maybe: move satisfiable outside disjunction?
-      ∨ ( ((~''ξ).in_side side (nodeAt s))
+      ∨ ( ((~''(AnyFormula.normal φ)).in_side side (nodeAt s))
         ∧ (M,w) ⊨ (nodeAt s)
-        ∧ ((nodeAt s).without (~''ξ)).isFree
+        ∧ (nodeAt s).isFree -- hmm
         )
     ) := by
 
-  -- outer induction on the program (do it with recursive calls!)
+  -- outer induction (do it with recursive calls!)
+  -- - lenght of list
+  -- - the first program in the list
 
   -- We do not really need induction, but use `PathIn.init_inductionOn`
   -- to first distinguish whether we are the rooot, and in the step case
@@ -2017,7 +2020,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
       have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
       -- No recursive call or IH needed, just use localTableauTruth to get any end node.
       rcases (localTableauTruth ltZ M v).1 (this ▸ v_t) with ⟨Y, Y_in, w_Y⟩
-      have alocLD := atomicLocalLoadedDiamond (·a) ltZ α_atom ξ (this ▸ negLoad_in) Y Y_in
+      have alocLD := atomicLocalLoadedDiamond (·a) ltZ α_atom (AnyFormula.loadBoxes αs φ) (this ▸ negLoad_in) Y Y_in
       clear this
       let t_to_s1 : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ .loc Y_in .nil)
       let s1 : PathIn tab := t.append t_to_s1
@@ -2037,7 +2040,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         apply w_Y
         have : (tabAt s1).2.1 = Y := by rw [tabAt_s_def]
         simp_all
-      have negLoad_in_s : (~''(AnyFormula.loaded (⌊·a⌋ξ))).in_side side (nodeAt s1) := by
+      have negLoad_in_s : (~''(AnyFormula.loaded (⌊·a⌋AnyFormula.loadBoxes αs φ))).in_side side (nodeAt s1) := by
         unfold nodeAt ; rw [tabAt_s_def]
         simp_all
       -- NOW: do cases on s1, s1 can NOT be a local tableau,
@@ -2047,11 +2050,14 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         exact nbas' (endNodesOf_basic Y_in)
 
       case pdl Y' bas' r' nrep' next' =>
-        have ⟨s, ⟨s1_s, s1_cases⟩⟩ := loadedDiamondPathsPDL (·a) _ _ s1 v_s1 ξ negLoad_in_s v_α_w w_nξ bas' r' nrep' next' (next_def ▸ tabAt_s_def)
+        sorry -- first adapt loadedDiamondPathsPDL to list
+        /-
+        have ⟨s, ⟨s1_s, s1_cases⟩⟩ := loadedDiamondPathsPDL (·a) _ _ s1 v_s1 (AnyFormula.loadBoxes αs φ) (negLoad_in_s) v_α_w w_nξ bas' r' nrep' next' (next_def ▸ tabAt_s_def)
         rcases s1_cases with inl | inr
         · refine ⟨s, ⟨Relation.TransGen.head (Or.inl t_s) s1_s, Or.inl ⟨inl.1, ?_⟩⟩⟩
           · exact ePropB.g_tweak _ _ _ (Relation.TransGen.single (Or.inl t_s)) s1_s inl.2
         · refine ⟨s, ⟨Relation.TransGen.head (Or.inl t_s) s1_s, Or.inr inr⟩⟩
+        -/
 
       -- Here we need to go to the companion.
       -- IDEA: make a recursive call, and for termination note that the path becomes shorter?
@@ -2087,7 +2093,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         have v_u : (M, v) ⊨ nodeAt u := by
           rw [vDash_multisetEqTo_iff u_eq_t]
           exact v_t
-        have negLoad_in_u : (~''(AnyFormula.loaded (⌊·a⌋ξ))).in_side side (nodeAt u) := by
+        have negLoad_in_u : (~''(AnyFormula.loaded (⌊·a⌋AnyFormula.loadBoxes αs φ))).in_side side (nodeAt u) := by
           rw [AnyNegFormula.in_side_of_multisetEqTo u_eq_t]
           exact negLoad_in
         -- Now prepare and make the recursive call:
@@ -2099,7 +2105,7 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
             unfold u at t_comp_u
             rw [con] at t_comp_u
             exact not_edge_and_heart (And.intro t'_s t_comp_u)
-        have := loadedDiamondPaths (·a) tab root_free u v_u ξ negLoad_in_u v_α_w w_nξ
+        have := loadedDiamondPaths (·a) αs tab root_free u v_u φ negLoad_in_u v_α_w w_nξ
         rcases this with ⟨s, u_s, (⟨s_sat, not_s_u⟩|reached)⟩
         all_goals
           refine ⟨s, ?_, ?_⟩ -- write a have statement for below line
@@ -2111,6 +2117,8 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
 
     -- STAR CASE
     case star β =>
+      sorry
+      /-
       clear IH
       subst α_def
       have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
@@ -2346,15 +2354,14 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
         -- PRINCIPAL: because ⌊∗β⌋ξ is principal at sn, we can find child s with desired properties
         · have α_natom : ¬(∗β).isAtomic := by simp [Program.isAtomic]
           sorry
-
+    -/
 
     all_goals -- all other cases for α!
-      have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
-      cases ξ_def : ξ
-      case normal φ =>
-      -- we could rewrite this back to localLoadedDiamond based on meeting
-        have locLD := localLoadedDiamondSingleton ltZ v_α_w (this ▸ v_t) φ (ξ_def ▸ this ▸ negLoad_in) (ξ_def ▸ w_nξ)
+        have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
+
+        have locLD := localLoadedDiamondList (α :: αs) ltZ v_α_w (this ▸ v_t) φ (this ▸ negLoad_in) (by sorry) w_nξ
         clear this
+
         rcases locLD with ⟨Y, Y_in, w_Y, free_or_newLoadform⟩
         -- We are given end node, now define path to it
         let t_to_s1 : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ PathIn.loc Y_in .nil)
@@ -2411,9 +2418,10 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
             · convert anf_in_Y
               unfold nodeAt
               rw [tabAt_s_def]
-            · convert Y_almost_free
-              unfold nodeAt
+            · unfold nodeAt
+              convert Y_almost_free
               rw [tabAt_s_def]
+              sorry
           -- Now we have that δ is not empty.
           -- FIXME: indent rest or use wlog above?
           -- Here is the interesting case: not leaving the cluster.
@@ -2422,6 +2430,8 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
 
           -- Claim for an inner induction on the list δ. -- Extended Induction Hypothesis is herre
 
+          sorry
+          /-
           have claim : ∀ k : Fin δ.length.succ, -- Note the succ here!
               ∃ sk, t ◃⁺ sk ∧ ( ( satisfiable (nodeAt sk) ∧ ¬(sk ≡ᶜ t) )
                               ∨ ( (~''(ξ.loadBoxes (δ.drop k.val))).in_side side (nodeAt sk)
@@ -2501,10 +2511,11 @@ theorem loadedDiamondPaths (α : Program) {X : Sequent}
             Fin.coe_eq_castSucc, Fin.natCast_eq_last, Fin.val_last, AnyFormula.boxes_nil,
             Fin.getElem_fin, List.drop_length, true_and]
           convert sk_prop
-      case loaded χ => sorry -- discuss in meeting
+          -/
 
   case pdl Y bas r nrep next => -- handled by helper
-    exact loadedDiamondPathsPDL α X tab t v_t ξ negLoad_in v_α_w w_nξ bas r nrep next tabAt_t_def
+    -- exact loadedDiamondPathsPDL α X tab t v_t ξ negLoad_in v_α_w w_nξ bas r nrep next tabAt_t_def
+    sorry
 
   case lrep lpr =>
     -- Here we need to go to the companion.
@@ -2641,8 +2652,8 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
       -- Now we take apart the loaded formula to get all loaded boxes from the front at once,
       -- so that we can do induction on δ for multiple `loadedDiamondPaths` applications.
       rcases LoadFormula.exists_loadMulti lf with ⟨δ, α, φ, lf_def⟩
+      cases δ
       -- Start the induction before `rintro` so the inner IH is about satisfiability.
-      induction δ generalizing lf t -- amazing that this does not give a wrong motive ;-)
       -- Note that here it is too late to generalize whether loaded formula was left/right.
       case nil =>
         simp only [loadMulti, List.foldr_nil] at lf_def
@@ -2662,9 +2673,10 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
         rintro ⟨W, M, v, v_⟩
         have := v_ (~(loadMulti [] α φ).unload) (by simp; right; aesop)
         rw [unload_loadMulti] at this
-        simp only [Formula.boxes_nil, evaluate, not_forall, Classical.not_imp] at this
+        simp [Formula.boxes_nil, evaluate, not_forall, Classical.not_imp] at this
         rcases this with ⟨w, v_α_w, not_w_φ⟩
-        have := loadedDiamondPaths α tab Root_isFree t v_ φ in_t v_α_w (not_w_φ)
+        have := loadedDiamondPaths α [] tab Root_isFree t v_ φ in_t
+          (by simp; exact v_α_w) (not_w_φ)
         rcases this with ⟨s, t_to_s, (⟨s_sat, notequi⟩ | ⟨in_s, w_s, rest_s_free⟩)⟩
         · -- "Together wit the observation ..."
           absurd notequi
@@ -2672,7 +2684,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
         · -- We now claim that we have a contradiction with the outer IH as we left the cluster:
           absurd IH s ?_
           exact ⟨W, M, w, w_s⟩
-          simp only [Sequent.without_normal_isFree_iff_isFree] at rest_s_free
+          -- simp only [Sequent.without_normal_isFree_iff_isFree] at rest_s_free
           -- Remains to show that s is simpler than t. We use ePropB.
           constructor
           · exact t_to_s
@@ -2681,7 +2693,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
               simp [AnyNegFormula.in_side] at in_t
               aesop
             apply ePropB.e_help _ _ this rest_s_free t_to_s
-      case cons β δ inner_IH =>
+      case cons β δ =>
         rintro ⟨W,M,v,v_⟩
         have := v_ (~(loadMulti (β :: δ) α φ).unload) (by
           simp
@@ -2693,15 +2705,20 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
           )
         simp only [unload_loadMulti] at this
         rw [Formula.boxes_cons] at this
-        simp only [evaluate, not_forall, Classical.not_imp] at this
-        -- We make one step with `loadedDiamondPaths` for β.
-        rcases this with ⟨w, v_β_w, not_w_δαφ⟩
-        have in_t : (~''(⌊β⌋(⌊⌊δ⌋⌋⌊α⌋φ))).in_side _theSide (nodeAt t) := by
+        simp [evaluate, not_forall, Classical.not_imp] at this
+        rw [← @boxes_last] at this
+        simp_rw [evalBoxes] at this
+        push_neg at this
+        rcases this with ⟨w, v_β_w, u, w_δα_u, u_not_φ⟩
+        have v_βδα_u : relateSeq M (β :: (δ ++ [α])) v u := by
+          -- use v_β_w, u, w_δα_u
+          sorry -- should be easy
+        -- We make all the steps with `loadedDiamondPaths` now (not just for β as before).
+        have in_t : (~''(AnyFormula.loaded (⌊β⌋AnyFormula.loadBoxes (δ ++ [α]) (AnyFormula.normal φ)))).in_side _theSide (nodeAt t) := by
           simp_all only [nodeAt, loadMulti_cons]
           subst lf_def
-          exact O_def
-        have := loadedDiamondPaths β tab Root_isFree t v_ (⌊⌊δ⌋⌋⌊α⌋φ) in_t v_β_w
-          (by simp_all [modelCanSemImplyAnyNegFormula, modelCanSemImplyAnyFormula])
+          sorry -- exact O_def
+        have := loadedDiamondPaths β (δ ++ [α]) tab Root_isFree t v_ φ in_t v_βδα_u u_not_φ
         rcases this with ⟨s, t_to_s, s_property⟩
         rcases s_property with ⟨s_sat, notequi⟩ | ⟨not_af_in_s, w_s, rest_s_free⟩
         · -- We left the cluster, use outer IH to get contradiction.
@@ -2709,21 +2726,17 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
           -- need that `s` is satisfiable
           exact s_sat
         · -- Here is the case where s is still loaded and in the same cluster.
-          -- We apply the *inner* IH to s and then the outer IH to get a contradiction
-          have := inner_IH s ?_ (loadMulti δ α φ) ?_ rfl
-          · absurd this
-            use W, M, w, w_s
-          · intro u ⟨u_to_s, not_s_to_u⟩
-            apply IH
-            constructor
-            · exact Relation.TransGen.trans t_to_s u_to_s
-            · intro hyp
-              absurd not_s_to_u
-              exact Relation.TransGen.trans hyp t_to_s
-          · simp only [nodeAt] at not_af_in_s
-            subst lf_def
-            simp_all
-            assumption
+          absurd IH s ?_
+          exact ⟨W, M, u, w_s⟩
+          -- simp only [Sequent.without_normal_isFree_iff_isFree] at rest_s_free
+          -- Remains to show that s is simpler than t. We use ePropB.
+          constructor
+          · exact t_to_s
+          · have : (nodeAt t).isLoaded := by
+              unfold Sequent.isLoaded
+              simp [AnyNegFormula.in_side] at in_t
+              aesop
+            apply ePropB.e_help _ _ this rest_s_free t_to_s
 
 theorem correctness : ∀ LR : Sequent, LR.isFree → satisfiable LR → consistent LR := by
   intro LR LR_isFRee
