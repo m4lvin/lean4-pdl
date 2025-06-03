@@ -1979,7 +1979,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
   (φ : Formula)
   {side : Side} -- not in notes but needed for partition
   (negLoad_in : (~''(⌊α⌋AnyFormula.loadBoxes αs φ)).in_side side (nodeAt t))
-  (v_α_w : relateSeq M (α :: αs) v w)
+  (v_α_w : relateSeq M (α :: αs) v w) -- FIXME rename
   (w_nξ : (M,w) ⊨ (~φ))
   : ∃ s : PathIn tab, t ◃⁺ s ∧
     -- maybe TODO: missing here: path from t to s is satisfiable!
@@ -2117,12 +2117,11 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
 
     -- STAR CASE
     case star β =>
-      sorry
-      /-
       clear IH
       subst α_def
       have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
-
+      sorry
+      /-
     -- needs attention : rewrite to localLoadedDiamondSingleton OR don't use localLoadedDiamond at all ?
       have locLD := localLoadedDiamond (∗β) ltZ v_α_w (this ▸ v_t) _ (this ▸ negLoad_in) w_nξ
       clear this
@@ -2359,7 +2358,9 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
     all_goals -- all other cases for α!
         have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
 
-        have locLD := localLoadedDiamondList (α :: αs) ltZ v_α_w (this ▸ v_t) φ (this ▸ negLoad_in) (by sorry) w_nξ
+        have Z_free := Z.without_loaded_in_side_isFree (⌊α⌋AnyFormula.loadBoxes αs φ) side (this ▸ negLoad_in)
+        have locLD := localLoadedDiamondList (α :: αs) ltZ v_α_w (this ▸ v_t) φ (this ▸ negLoad_in) Z_free
+          w_nξ
         clear this
 
         rcases locLD with ⟨Y, Y_in, w_Y, free_or_newLoadform⟩
@@ -2412,7 +2413,8 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
           -- If δ is empty then we have found the node we want.
           by_cases δ = []
           · subst_eqs
-            simp_all only [modelCanSemImplyList, AnyFormula.boxes_nil, relateSeq_nil]
+            simp_all only [modelCanSemImplyList, AnyFormula.boxes_nil, relateSeq_nil,
+              Sequent.without_normal_isFree_iff_isFree]
             subst_eqs
             refine ⟨s1, Relation.TransGen.single (Or.inl t_s), Or.inr ⟨?_, v_s1, ?_⟩⟩
             · convert anf_in_Y
@@ -2421,7 +2423,6 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
             · unfold nodeAt
               convert Y_almost_free
               rw [tabAt_s_def]
-              sorry
           -- Now we have that δ is not empty.
           -- FIXME: indent rest or use wlog above?
           -- Here is the interesting case: not leaving the cluster.
@@ -2430,8 +2431,12 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
 
           -- Claim for an inner induction on the list δ. -- Extended Induction Hypothesis is herre
 
-          sorry
-          /-
+          -- NEW: tempting here to just not do this claim / the inner induction,
+          -- but then we would need a different termination argument that compares whole lists?!
+          -- For now I will keep the induction and try to repair the old proof.
+
+          let ξ : AnyFormula := AnyFormula.normal φ -- no αs here?!
+
           have claim : ∀ k : Fin δ.length.succ, -- Note the succ here!
               ∃ sk, t ◃⁺ sk ∧ ( ( satisfiable (nodeAt sk) ∧ ¬(sk ≡ᶜ t) )
                               ∨ ( (~''(ξ.loadBoxes (δ.drop k.val))).in_side side (nodeAt sk)
@@ -2445,8 +2450,8 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
               · exact Relation.TransGen.single (Or.inl t_s)
               · unfold nodeAt
                 rw [tabAt_s_def]
-                convert anf_in_Y -- exact wont work here but convert will
-
+                simp only
+                exact anf_in_Y
               · convert v_s1
                 rw [v_def]
                 rcases ws with ⟨ws, ws_len⟩
@@ -2461,7 +2466,6 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
                   simp
                   apply Sequent.without_loaded_in_side_isFree
                   convert anf_in_Y
-                  simp [AnyFormula.loadBoxes, ξ_def]
             case succ k inner_IH =>
               -- Here we will need to apply the outer induction hypothesis. to δ[k] or k+1 ??
               -- NOTE: it is only applicable when α is not a star.
@@ -2475,43 +2479,52 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
                 assumption
               ·
                 -- Prepare using outer IH for the program δ[k] (that must be simpler than α)
-                have _forTermination : lengthOfProgram δ[k] < lengthOfProgram α := by
-                  -- TODO: Show that length went down.
-                  -- ! Needs better `H_goes_down` similar to `PgoesDown`.
+                have _forTermination_all : lengthOfProgram δ[k] < lengthOfProgram α := by
+                  -- Here we show that the length goes down to get the outer_IH.
+                  -- For this we use `H_goes_down_prog` that is similar to `PgoesDown`.
                   -- ! Only true when α is a test, union or semicolon ==> need separate case for star!
-                  have := H_goes_down_prog α Fδ_in_H (by aesop : δ.get k ∈ δ)
+                  -- NEW: maybe here we need something like `Hl_goes_down_prog`?
+                  -- simp [Hl] at Fδ_in_H
+                  -- have := H_goes_down_prog α Fδ_in_H (by aesop : δ.get k ∈ δ)
                   cases α
                   all_goals
                     simp [Program.isAtomic, Program.isStar, lengthOfProgram] at *
                     try linarith
+                  all_goals
+                    sorry
 
-                have outer_IH := @loadedDiamondPaths (δ.get k) _ tab root_free sk W M
+                have outer_IH := @loadedDiamondPaths (δ.get k) (δ.drop k.succ) _ tab root_free sk W M
                   (ws.get k.castSucc) (ws.get k.succ) wsk_sk
-                  (ξ.loadBoxes (δ.drop k.succ)) -- This is the new ξ.
+                  φ -- Still the same φ here!
                   side
                   (by convert _in_node_sk; rw [←AnyFormula.loadBoxes_cons]; convert rfl using 2; simp)
-                  (by convert ws_rel k; simp)
-                  (by apply boxes_true_at_k_of_Vector_rel <;> simp_all)
+                  (by sorry /- convert ws_rel k; simp -/)
+                  (by sorry /- apply boxes_true_at_k_of_Vector_rel <;> simp_all -/)
 
-                clear _forTermination
+                clear _forTermination_all
 
                 rcases outer_IH with ⟨sk2, sk_c_sk2, sk2_property⟩
                 rcases sk2_property with ⟨sk2_sat, sk2_nEquiv_sk⟩ | ⟨anf_in_sk2, u_sk2, sk2_almostFree⟩
                 · refine ⟨sk2, ?_, Or.inl ⟨sk2_sat, ?_⟩⟩  -- leaving cluster, easy?
                   · exact Relation.TransGen.trans t_sk sk_c_sk2
                   · apply ePropB.g_tweak _ _ _ t_sk sk_c_sk2 sk2_nEquiv_sk
-                · refine ⟨sk2, ?_, Or.inr ⟨anf_in_sk2, u_sk2, sk2_almostFree⟩⟩
+                · refine ⟨sk2, ?_, Or.inr ⟨?_, u_sk2, ?_⟩⟩
                   · exact Relation.TransGen.trans t_sk sk_c_sk2
+                  · -- PROBLEM HERE?!
+                    -- anf_in_sk2
+                    sorry
+                  · apply Sequent.isFree_then_without_isFree _ sk2_almostFree
 
           -- It remains to show that the claim suffices.
           specialize claim δ.length
           rcases claim with ⟨sk, t_sk, sk_prop⟩
           use sk
-          simp_all only [modelCanSemImplyList, List.get_eq_getElem, Nat.succ_eq_add_one,
+          simp_all [modelCanSemImplyList, List.get_eq_getElem, Nat.succ_eq_add_one,
             Fin.coe_eq_castSucc, Fin.natCast_eq_last, Fin.val_last, AnyFormula.boxes_nil,
             Fin.getElem_fin, List.drop_length, true_and]
-          convert sk_prop
-          -/
+          -- UNSURE here
+          convert sk_prop using 3
+          sorry
 
   case pdl Y bas r nrep next => -- handled by helper
     -- exact loadedDiamondPathsPDL α X tab t v_t ξ negLoad_in v_α_w w_nξ bas r nrep next tabAt_t_def
@@ -2538,13 +2551,13 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
     have v_u : (M, v) ⊨ nodeAt u := by
       rw [vDash_multisetEqTo_iff u_eq_t]
       exact v_t
-    have negLoad_in_u : (~''(AnyFormula.loaded (⌊α⌋ξ))).in_side side (nodeAt u) := by
+    have negLoad_in_u : (~''(AnyFormula.loaded (⌊α⌋AnyFormula.loadBoxes αs φ))).in_side side (nodeAt u) := by
       rw [AnyNegFormula.in_side_of_multisetEqTo u_eq_t]
       exact negLoad_in
     -- Now prepare and make the recursive call:
-    have _forTermination : (companionOf t (tabAt_t_def ▸ lpr) h).length < t.length := by
+    have _forTermination_lrep : (companionOf t (tabAt_t_def ▸ lpr) h).length < t.length := by
       apply companionOf_length_lt_length
-    have := loadedDiamondPaths α tab root_free u v_u ξ negLoad_in_u v_α_w w_nξ
+    have := loadedDiamondPaths α αs tab root_free u v_u φ negLoad_in_u v_α_w w_nξ
     rcases this with ⟨s, u_s, (⟨s_sat, not_s_u⟩|reached)⟩
     all_goals
       refine ⟨s, ?_, ?_⟩
@@ -2558,12 +2571,14 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
     decreasing_by
       · subst α_def
         apply Prod.Lex.right (lengthOfProgram _) _forTermination
-      · exact Prod.Lex.left _ _ _forTermination
-      · exact Prod.Lex.left _ _ _forTermination
+      /-
       · subst α_def
         apply Prod.Lex.left _ _ _forTermination
-      · exact Prod.Lex.left _ _ _forTermination
-      · exact Prod.Lex.right (lengthOfProgram α) _forTermination
+      -/
+      · exact Prod.Lex.left _ _ _forTermination_all
+      · exact Prod.Lex.left _ _ _forTermination_all
+      · exact Prod.Lex.left _ _ _forTermination_all
+      · exact Prod.Lex.right (lengthOfProgram α) _forTermination_lrep
 
 
 theorem simpler_equiv_simpler {u s t : PathIn tab} :
