@@ -2908,6 +2908,23 @@ theorem simpler_equiv_simpler {u s t : PathIn tab} :
     absurd not_u_c_s
     exact Relation.TransGen.trans_left u_c_t t_s
 
+-- FIXME rename and move
+lemma in_side_of_lf_inl {X} (lf : LoadFormula)
+    (O_def : X.2.2 = some (Sum.inl (~'lf))) :
+    (~''(AnyFormula.loaded lf)).in_side Side.LL X := by
+  rcases X with ⟨L,R,O⟩
+  simp_all [nodeAt, loadMulti_cons, AnyNegFormula.in_side]
+
+lemma in_side_of_lf_inr {X} (lf : LoadFormula)
+    (O_def : X.2.2 = some (Sum.inr (~'lf))) :
+    (~''(AnyFormula.loaded lf)).in_side Side.RR X := by
+  rcases X with ⟨L,R,O⟩
+  simp_all [nodeAt, loadMulti_cons, AnyNegFormula.in_side]
+
+lemma loadMulti_eq_loadBoxes :
+    AnyFormula.loaded (loadMulti δ α φ) = AnyFormula.loadBoxes (δ ++ [α]) φ := by
+  induction δ <;> aesop
+
 /-- Any node in a closed tableau with a free root is not satisfiable.
 This is the main argument for soundness. -/
 theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) (t : PathIn tab) :
@@ -3042,13 +3059,15 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
         push_neg at this
         rcases this with ⟨w, v_β_w, u, w_δα_u, u_not_φ⟩
         have v_βδα_u : relateSeq M (β :: (δ ++ [α])) v u := by
-          -- use v_β_w, u, w_δα_u
-          sorry -- should be easy
+          rw [@relateSeq_cons]
+          use w
         -- We make all the steps with `loadedDiamondPaths` now (not just for β as before).
         have in_t : (~''(AnyFormula.loaded (⌊β⌋AnyFormula.loadBoxes (δ ++ [α]) (AnyFormula.normal φ)))).in_side _theSide (nodeAt t) := by
-          simp_all only [nodeAt, loadMulti_cons]
-          subst lf_def
-          sorry -- exact O_def
+          unfold _theSide
+          try apply in_side_of_lf_inl
+          try apply in_side_of_lf_inr
+          simp_all [nodeAt, loadMulti_cons]
+          apply loadMulti_eq_loadBoxes
         have := loadedDiamondPaths β (δ ++ [α]) tab Root_isFree t v_ φ in_t v_βδα_u u_not_φ
         rcases this with ⟨s, t_to_s, s_property⟩
         rcases s_property with ⟨s_sat, notequi⟩ | ⟨not_af_in_s, w_s, rest_s_free⟩
