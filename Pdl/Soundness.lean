@@ -4,6 +4,8 @@ import Mathlib.Tactic.Convert
 import Mathlib.Data.Prod.Lex
 import Mathlib.Data.Vector.Defs
 import Pdl.TableauPath
+import Mathlib.Data.ENat.Defs
+import Pdl.Distance
 
 /-! # Soundness (Section 6) -/
 
@@ -2196,7 +2198,7 @@ lemma loadedDiamondPathsPDL_Other
           simp
           have ⟨o, u_α_o, o_αs_w⟩ := u_α_w
           refine ⟨o, u_α_o, ?_⟩
-          sorry -- DOABLE: just need a helper for this
+          sorry -- ignore this, might delete this theorem
 
       have in_s : (~''(AnyFormula.loaded (⌊α⌋AnyFormula.loadBoxes αs (AnyFormula.normal φ)))).in_side side (nodeAt s) := by
         rw [nodeAt_s_def]
@@ -2207,7 +2209,7 @@ lemma loadedDiamondPathsPDL_Other
       rw [AnyFormula.loadBoxes_cons] at next
       simp at next
       cases next
-      case loc nbas lt nrep next =>  -- ISSUE: is there some way to ensure that we do not go into a local tableau
+      case loc nbas lt nrep next =>  -- ignore this, might delete this theorem
         sorry
 
 
@@ -2221,11 +2223,10 @@ lemma loadedDiamondPathsPDL_Other
         · refine ⟨s1, ?_, Or.inr inr⟩
           · exact Relation.TransGen.head (Or.inl t_s) s_s1
 
-      case lrep => sorry -- ISSUE: is there some way to ensure that we do not repeat
+      case lrep => sorry -- ignore this, might delete this theorem
 
   case modR L R a ξ' Z_def => -- COPY ADAPTATION from `modL`
-    sorry -- just copy modL when done
-
+    sorry -- ignore this, might delete this theorem
 
 lemma list_drop_eq_get :
     List.drop k.val xs = (xs.get k) :: (List.drop (k.val + 1) xs) := by
@@ -2349,7 +2350,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
           · refine ⟨s, ⟨?_, Or.inl ⟨sat_con, ?_⟩⟩⟩
             · exact Relation.TransGen.head (Or.inl t_s) s1_s
             · exact ePropB.g_tweak _ _ _ (Relation.TransGen.single (Or.inl t_s)) s1_s eq_con
-          · have _forTermination_loc_atom_pdl : βs.length < αs.length := by subst αs_def; simp
+          · have _forTermination_loc_atom_pdl : distance_list M u w (β :: βs) < distance_list M v w (·a :: αs) := by subst αs_def; simp [distance_list] ; sorry  -- ISSUE: doable
             have ⟨k, ⟨s_k, k_props⟩⟩ := loadedDiamondPaths β βs tab root_free s u_s φ (αs_def ▸ in_con) (αs_def ▸ u_αs_w) w_nξ
             clear _forTermination_loc_atom_pdl
             rcases k_props with ⟨sat_con, eq_con⟩ | inr
@@ -2711,7 +2712,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
               rw [tabAt_s_def]
         · -- Second case of `localLoadedDiamondList`.
           -- If δ is empty then we have found the node we want.
-          by_cases δ = []
+          cases δ
           · subst_eqs
             simp_all only [modelCanSemImplyList, AnyFormula.boxes_nil, relateSeq_nil,
               Sequent.without_normal_isFree_iff_isFree]
@@ -2727,105 +2728,17 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
           -- FIXME: indent rest or use wlog above?
           -- Here is the interesting case: not leaving the cluster.
           -- We get a sequence of worlds from the δ relation:
-          rcases (relateSeq_iff_exists_Vector M δ v w).mp v_seq_w with ⟨ws, v_def, w_def, ws_rel⟩
-
-          -- Claim for an inner induction on the list δ. -- Extended Induction Hypothesis is herre
-
-          -- NEW: tempting here to just not do this claim / the inner induction,
-          -- but then we would need a different termination argument that compares whole lists?!
-          -- For now I will keep the induction and try to repair the old proof.
-
-          let ξ : AnyFormula := AnyFormula.normal φ -- no αs here?!
-
-          have claim : ∀ k : Fin δ.length.succ, -- Note the succ here!
-              ∃ sk, t ◃⁺ sk ∧ ( ( satisfiable (nodeAt sk) ∧ ¬(sk ≡ᶜ t) )
-                              ∨ ( (~''(ξ.loadBoxes (δ.drop k.val))).in_side side (nodeAt sk)
-                                ∧ (M, ws[k]) ⊨ nodeAt sk
-                                ∧ ((nodeAt sk).without (~''(ξ.loadBoxes (δ.drop k.val)))).isFree)) := by
-            intro k
-            induction k using Fin.inductionOn
-            case zero =>
-              simp only [Nat.succ_eq_add_one, Fin.val_zero, List.drop_zero, Fin.getElem_fin]
-              refine ⟨s1, ?_, Or.inr ⟨?_, ?_, ?_⟩⟩
-              · exact Relation.TransGen.single (Or.inl t_s)
-              · unfold nodeAt
-                rw [tabAt_s_def]
-                simp only
-                exact anf_in_Y
-              · convert v_s1
-                rw [v_def]
-                rcases ws with ⟨ws, ws_len⟩
-                have := List.exists_of_length_succ _ ws_len
-                aesop
-              · unfold nodeAt
-                rw [tabAt_s_def]
-                simp
-                cases δ
-                · simp_all
-                case cons d δ =>
-                  simp
-                  apply Sequent.without_loaded_in_side_isFree
-                  convert anf_in_Y
-            case succ k inner_IH =>
-              -- Here we will need to apply the outer induction hypothesis. to δ[k] or k+1 ??
-              -- NOTE: it is only applicable when α is not a star.
-              -- For the star case we need another induction! On the length of `ws`? See notes.
-
-              rcases inner_IH with ⟨sk, t_sk, IH_cases⟩
-
-              rcases IH_cases with _ | ⟨_in_node_sk, wsk_sk, anf_in_sk⟩
-              · refine ⟨sk, t_sk, ?_⟩
-                left
-                assumption
-              ·
-                -- Prepare using outer IH for the program δ[k] (that must be simpler than α)
-                have _forTermination_all : lengthOfProgram δ[k] < lengthOfProgram α := by
-                  -- Here we show that the length goes down to get the outer_IH.
-                  -- For this we use `H_goes_down_prog` that is similar to `PgoesDown`.
-                  -- ! Only true when α is a test, union or semicolon ==> need separate case for star!
-                  -- NEW: maybe here we need something like `Hl_goes_down_prog`?
-                  -- simp [Hl] at Fδ_in_H
-                  -- have := H_goes_down_prog α Fδ_in_H (by aesop : δ.get k ∈ δ)
-                  cases α
-                  all_goals
-                    simp [Program.isAtomic, Program.isStar, lengthOfProgram] at *
-                    try linarith
-                  all_goals
-                    sorry
-
-                have outer_IH := @loadedDiamondPaths (δ.get k) (δ.drop k.succ) _ tab root_free sk W M
-                  (ws.get k.castSucc) (ws.get k.succ) wsk_sk
-                  φ -- Still the same φ here!
-                  side
-                  (by convert _in_node_sk; rw [←AnyFormula.loadBoxes_cons]; convert rfl using 2; simp)
-                  (by sorry /- convert ws_rel k; simp -/)
-                  (by sorry /- apply boxes_true_at_k_of_Vector_rel <;> simp_all -/)
-
-                clear _forTermination_all
-
-                rcases outer_IH with ⟨sk2, sk_c_sk2, sk2_property⟩
-                rcases sk2_property with ⟨sk2_sat, sk2_nEquiv_sk⟩ | ⟨anf_in_sk2, u_sk2, sk2_almostFree⟩
-                · refine ⟨sk2, ?_, Or.inl ⟨sk2_sat, ?_⟩⟩  -- leaving cluster, easy?
-                  · exact Relation.TransGen.trans t_sk sk_c_sk2
-                  · apply ePropB.g_tweak _ _ _ t_sk sk_c_sk2 sk2_nEquiv_sk
-                · refine ⟨sk2, ?_, Or.inr ⟨?_, u_sk2, ?_⟩⟩
-                  · exact Relation.TransGen.trans t_sk sk_c_sk2
-                  · -- PROBLEM HERE?!
-                    -- anf_in_sk2
-                    sorry
-                  · apply Sequent.isFree_then_without_isFree _ sk2_almostFree
-
-          -- It remains to show that the claim suffices.
-          specialize claim δ.length
-          rcases claim with ⟨sk, t_sk, sk_prop⟩
-          use sk
-          simp_all [modelCanSemImplyList, List.get_eq_getElem, Nat.succ_eq_add_one,
-            Fin.coe_eq_castSucc, Fin.natCast_eq_last, Fin.val_last, AnyFormula.boxes_nil,
-            Fin.getElem_fin, List.drop_length, true_and]
-          -- UNSURE here
-          convert sk_prop using 3
-          sorry
-
+          case cons β βs =>
+            have anf_in_s1 : (~''(AnyFormula.loaded (⌊β⌋AnyFormula.loadBoxes βs (AnyFormula.normal φ)))).in_side side (nodeAt s1) := by sorry
+            have _for_termination_all : distance_list M v w (β :: βs) ≤ distance_list M v w (α :: αs) := by sorry -- ISSUE: IDK, maybe in Distance.lean
+            have _for_termination_all_2 : lengthOfProgram β < lengthOfProgram α := by sorry -- ISSUE: this is doable because β comes from δ, just need to find lemma
+            have ⟨s, s1_s, s_cons⟩ := loadedDiamondPaths β βs tab root_free s1 v_s1 φ anf_in_s1 v_seq_w w_nξ
+            rcases s_cons with ⟨sat_con, ne_con⟩ | inr
+            · refine ⟨s, ?_, Or.inl ⟨sat_con, ?_⟩⟩
+              · exact Relation.TransGen.head (Or.inl t_s) s1_s
+              · exact ePropB.g_tweak _ _ _ (Relation.TransGen.single (Or.inl t_s)) s1_s ne_con
+            · refine ⟨s, ?_, Or.inr inr⟩
+              · exact Relation.TransGen.head (Or.inl t_s) s1_s
   case pdl Y bas r nrep next => -- handled mainly by helper
  --   exact loadedDiamondPathsPDL α αs X tab t v_t φ negLoad_in v_α_w w_nξ bas r nrep next tabAt_t_def
     have ⟨u, ⟨v_α_u, u_αs_w⟩⟩ := v_α_w
@@ -2840,7 +2753,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
       have ⟨s1, ⟨t_s1, s1_props⟩⟩ := lDPDL
       rcases s1_props with inl | ⟨in_con, u_s1, free_con⟩
       · refine ⟨s1, ⟨t_s1, Or.inl inl⟩⟩
-      · have _forTermination_pdl : βs.length < αs.length := by subst αs_def; simp
+      · have _forTermination_pdl : distance_list M u w (β :: βs) < distance_list M v w (α :: αs) := by subst αs_def; sorry -- ISSUE: doable
         have ⟨s, ⟨s1_s, s_props⟩⟩ := loadedDiamondPaths β βs tab root_free s1 u_s1 φ (αs_def ▸ in_con) (αs_def ▸ u_αs_w) w_nξ
         clear _forTermination_pdl
         rcases s_props with ⟨sat_con, eq_con⟩ | inr
@@ -2887,19 +2800,29 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
     · exact Or.inr reached
 
     termination_by
-      (⟨αs.length, lengthOfProgram α, t.length⟩ : Nat ×ₗ Nat ×ₗ Nat)
+      (⟨distance_list M v w (α :: αs), lengthOfProgram α, t.length⟩ : ℕ∞ ×ₗ Nat ×ₗ Nat)
     decreasing_by
-      · apply Prod.Lex.left _ _ _forTermination_loc_atom_pdl
+      · subst α_def
+        exact Prod.Lex.left _ _ _forTermination_loc_atom_pdl
       · subst α_def
         apply Prod.Lex.right _ (Prod.Lex.right _ _forTermination)
       /-
       · subst α_def
         apply Prod.Lex.left _ _ _forTermination
       -/
-      · sorry -- exact Prod.Lex.left _ _ _forTermination_all
-      · sorry -- exact Prod.Lex.left _ _ _forTermination_all
-      · sorry -- exact Prod.Lex.left _ _ _forTermination_all
-      · apply Prod.Lex.left _ _ _forTermination_pdl
+      · rcases LE.le.lt_or_eq_dec _for_termination_all with lt | eq
+        · exact Prod.Lex.left _ _ lt
+        · rw [eq]
+          apply Prod.Lex.right _ (Prod.Lex.left _ _ _for_termination_all_2)
+      · rcases LE.le.lt_or_eq_dec _for_termination_all with lt | eq
+        · exact Prod.Lex.left _ _ lt
+        · rw [eq]
+          apply Prod.Lex.right _ (Prod.Lex.left _ _ _for_termination_all_2)
+      · rcases LE.le.lt_or_eq_dec _for_termination_all with lt | eq
+        · exact Prod.Lex.left _ _ lt
+        · rw [eq]
+          apply Prod.Lex.right _ (Prod.Lex.left _ _ _for_termination_all_2)
+      · exact Prod.Lex.left _ _ _forTermination_pdl
       · apply Prod.Lex.right _ (Prod.Lex.right _ _forTermination_lrep)
 
 
