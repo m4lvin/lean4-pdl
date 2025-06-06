@@ -712,7 +712,12 @@ lemma Hl_atomic_cons : Hl (·a :: αs) =  [ ([], ((·a : Program) :: αs)) ] := 
 lemma next_exists_avoid_def_l {B : List Sequent} (next : (Y : Sequent) → Y ∈ B → LocalTableau Y) :
     (∃ l, (∃ a, ∃ (h : a ∈ B), endNodesOf (next a h) = l) ∧ Y ∈ l)
     ↔ ∃ Z, ∃ Z_in : Z ∈ B, Y ∈ endNodesOf (next Z Z_in) := by
-  aesop
+  constructor
+  · rintro ⟨w, ⟨⟨w_1, ⟨w_2, h⟩⟩, right⟩⟩
+    subst h
+    exact ⟨_, _, right⟩
+  · rintro ⟨Z, Z_in, Y_in⟩
+    exact ⟨_, ⟨Z, Z_in, rfl⟩, Y_in⟩
 
 lemma lra_preserves_free (lra : LocalRuleApp X B) (Z_in : Z ∈ B) (X_free : X.isFree) :
     Z.isFree := by
@@ -773,7 +778,8 @@ lemma loaded_eq_to_unload_eq χ αs φ
       simp only [AnyFormula.loadBoxes_cons, AnyFormula.loaded.injEq, LoadFormula.box.injEq] at h
       rcases h with ⟨β_eq_α1, af_def⟩
       have := loaded_eq_to_unload_eq ((⌊α2⌋AnyFormula.loadBoxes αs (.normal φ))) (α2 :: αs) _ rfl
-      aesop
+      subst_eqs
+      simp_all
 
 lemma any_loaded_helper
     (h : AnyFormula.loaded χ' = AnyFormula.loadBoxes αs (AnyFormula.normal φ))
