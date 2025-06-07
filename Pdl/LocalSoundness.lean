@@ -1,3 +1,4 @@
+import Pdl.Distance
 import Pdl.LocalTableau
 
 /-! # Local Lemmas for Soundness (part of Section 6) -/
@@ -143,6 +144,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
       ∨ ( ∃ (F : List Formula) (γ : List Program),
             ( (~''(AnyFormula.loadBoxes γ φ)).in_side side Y
             ∧ relateSeq M γ v w
+            ∧ distance_list M v w γ = distance_list M v w αs
             ∧ (M,v) ⊨ F
             ∧ (F,γ) ∈ Hl αs -- "F,γ is a result from unfolding the αs"
             ∧ (Y.without (~''(AnyFormula.loadBoxes γ φ))).isFree
@@ -224,10 +226,17 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
         clear locRulTru
         rw [@relateSeq_cons] at v_αs_w
         rcases v_αs_w with ⟨u, v_α_u, u_αs_w⟩
-        -- ... here we use use `existsDiamondH` to imitate the relation v_α_u
-        have from_H := @existsDiamondH W M α _ _ v_α_u
-        rcases from_H with ⟨⟨F,δ⟩, _in_H, v_F, v_δ_u⟩
-        simp at v_δ_u
+        -- Previously here we used `existsDiamondH` to imitate the relation `v_α_u`.
+        -- have from_H := @existsDiamondH W M α _ _ v_α_u
+        -- Now we use `rel_existsH_dist` to also get the same distance.
+        have from_H := rel_existsH_dist v_α_u
+        rcases from_H with ⟨⟨F,δ⟩, _in_H, v_F, same_dist⟩
+        simp at same_dist
+        have v_δ_u : relateSeq M δ v u := by
+          rw [← distance_list_iff_relate_Seq]
+          rw [same_dist, dist_iff_rel]
+          exact v_α_u
+        simp [conEval] at v_F
         cases lrule -- dia or dia' annoyance ;-)
         case dia α' χ' α'_not_atomic =>
           -- The rule application has its own α' that must be α, and χ' must be ⌊αs⌋φ.
@@ -272,11 +281,12 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               · rw [← χ_def]; simp_all [Sequent.without, LoadFormula.boxes]
               -- Now actually get the IH result.
               rcases IH with ⟨Y, Y_in, v_Y, ( Y_free
-                                            | ⟨G, γs, in_Y, v_γs_w, v_G, in_Hl, Y_almost_free⟩ )⟩
+                                            | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Hl, Y_almost_free⟩ )⟩
               · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
-              · -- Not fully sure here.
-                refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
-                refine ⟨F ∪ G, γs, in_Y, v_γs_w, ?_, ?_, Y_almost_free⟩
+              · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
+                refine ⟨F ∪ G, γs, in_Y, v_γs_w, ?_, ?_, ?_, Y_almost_free⟩
+                · rw [dist_eq]
+                  sorry -- exact dist_eq -- IDEA use that δ is [] and thus α has distance 0
                 · intro f f_in
                   simp at f_in; cases f_in
                   · apply v_F; assumption
@@ -317,10 +327,13 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             · exact Sequent.without_loadBoxes_isFree_of_eq_inl χ_def
             -- Now actually get the IH result.
             rcases IH with ⟨Y, Y_in, v_Y, ( Y_free
-                                          | ⟨G, γs, in_Y, v_γs_w, v_G, in_Hl, Y_almost_free⟩ )⟩
+                                          | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Hl, Y_almost_free⟩ )⟩
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
-              refine ⟨F, _, in_Y, v_γs_w, v_F, ?_, Y_almost_free⟩
+              refine ⟨F, _, in_Y, v_γs_w, ?_, v_F, ?_, Y_almost_free⟩
+              · rw [dist_eq]
+                -- TRICKY PROBLEM - how do we know that `u` is chosen to minimze distance?
+                sorry
               have αs_nonEmpty : αs ≠ [] := by cases αs <;> simp_all [χ_def]
               simp only [Hl, List.mem_flatMap, Prod.exists] -- uses `αs_nonEmpty`
               refine ⟨F, d :: δs, _in_H, ?_⟩
@@ -426,10 +439,11 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             · exact Sequent.without_loadMulti_isFree_of_splitLast_cons_inl split_def
             -- Now actually get the IH result.
             rcases IH with ⟨Y, Y_in, v_Y, ( Y_free
-                                          | ⟨G, γs, in_Y, v_γs_w, v_G, in_Hl, Y_almost_free⟩ )⟩
+                                          | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Hl, Y_almost_free⟩ )⟩
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
-              refine ⟨F, _, in_Y, v_γs_w, v_F, ?_, Y_almost_free⟩
+              refine ⟨F, _, in_Y, v_γs_w, ?_, v_F, ?_, Y_almost_free⟩
+              · rw [dist_eq,same_dist,distance_list_singleton]
               -- Now show that `d` is atomic, because it resulted from `H α`.
               have ⟨a, d_atom⟩ : ∃ a, d = ((·a) : Program) := by
                 have := H_mem_sequence α _in_H
@@ -447,10 +461,17 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
         clear locRulTru
         rw [@relateSeq_cons] at v_αs_w
         rcases v_αs_w with ⟨u, v_α_u, u_αs_w⟩
-        -- ... here we use use `existsDiamondH` to imitate the relation v_α_u
-        have from_H := @existsDiamondH W M α _ _ v_α_u
-        rcases from_H with ⟨⟨F,δ⟩, _in_H, v_F, v_δ_u⟩
-        simp at v_δ_u
+        -- Previously here we used `existsDiamondH` to imitate the relation `v_α_u`.
+        -- have from_H := @existsDiamondH W M α _ _ v_α_u
+        -- Now we use `rel_existsH_dist` to also get the same distance.
+        have from_H := rel_existsH_dist v_α_u
+        rcases from_H with ⟨⟨F,δ⟩, _in_H, v_F, same_dist⟩
+        simp at same_dist
+        have v_δ_u : relateSeq M δ v u := by
+          rw [← distance_list_iff_relate_Seq]
+          rw [same_dist, dist_iff_rel]
+          exact v_α_u
+        simp [conEval] at v_F
         cases lrule -- dia or dia' annoyance ;-)
         case dia α' χ' α'_not_atomic =>
           -- The rule application has its own α' that must be α, and χ' must be ⌊αs⌋φ.
@@ -495,11 +516,13 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               · rw [← χ_def]; simp_all [Sequent.without, LoadFormula.boxes]
               -- Now actually get the IH result.
               rcases IH with ⟨Y, Y_in, v_Y, ( Y_free
-                                            | ⟨G, γs, in_Y, v_γs_w, v_G, in_Hl, Y_almost_free⟩ )⟩
+                                            | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Hl, Y_almost_free⟩ )⟩
               · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
               · -- Not fully sure here.
                 refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
-                refine ⟨F ∪ G, γs, in_Y, v_γs_w, ?_, ?_, Y_almost_free⟩
+                refine ⟨F ∪ G, γs, in_Y, v_γs_w, ?_, ?_, ?_, Y_almost_free⟩
+                · rw [dist_eq]
+                  sorry -- exact dist_eq -- IDEA use that δ is [] and thus α has distance 0
                 · intro f f_in
                   simp at f_in; cases f_in
                   · apply v_F; assumption
@@ -540,10 +563,13 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             · exact Sequent.without_loadBoxes_isFree_of_eq_inr χ_def
             -- Now actually get the IH result.
             rcases IH with ⟨Y, Y_in, v_Y, ( Y_free
-                                          | ⟨G, γs, in_Y, v_γs_w, v_G, in_Hl, Y_almost_free⟩ )⟩
+                                          | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Hl, Y_almost_free⟩ )⟩
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
-              refine ⟨F, _, in_Y, v_γs_w, v_F, ?_, Y_almost_free⟩
+              refine ⟨F, _, in_Y, v_γs_w, ?_, v_F, ?_, Y_almost_free⟩
+              · rw [dist_eq]
+                -- TRICKY PROBLEM - how do we know that `u` is chosen to minimze distance?
+                sorry
               have αs_nonEmpty : αs ≠ [] := by cases αs <;> simp_all [χ_def]
               simp only [Hl, List.mem_flatMap, Prod.exists] -- uses `αs_nonEmpty`
               refine ⟨F, d :: δs, _in_H, ?_⟩
@@ -650,10 +676,11 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             · exact Sequent.without_loadMulti_isFree_of_splitLast_cons_inr split_def
             -- Now actually get the IH result.
             rcases IH with ⟨Y, Y_in, v_Y, ( Y_free
-                                          | ⟨G, γs, in_Y, v_γs_w, v_G, in_Hl, Y_almost_free⟩ )⟩
+                                          | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Hl, Y_almost_free⟩ )⟩
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
-              refine ⟨F, _, in_Y, v_γs_w, v_F, ?_, Y_almost_free⟩
+              refine ⟨F, _, in_Y, v_γs_w, ?_, v_F, ?_, Y_almost_free⟩
+              · rw [dist_eq,same_dist,distance_list_singleton]
               -- Now show that `d` is atomic, because it resulted from `H α`.
               have ⟨a, d_atom⟩ : ∃ a, d = ((·a) : Program) := by
                 have := H_mem_sequence α _in_H
@@ -703,15 +730,18 @@ lemma localLoadedDiamondSingleton
       ∨ ( ∃ (F : List Formula) (γ : List Program),
             ( (~''(AnyFormula.loadBoxes γ φ)).in_side side Y
             ∧ relateSeq M γ v w
+            -- ADD HERE TOO, iff needed, then remove aesop below...
+            -- ∧ distance_list M v w γ = distance_list M v w αs
             ∧ (M,v) ⊨ F
             ∧ (F,γ) ∈ Hl [α] -- "F,γ is a result from unfolding α"
             ∧ (Y.without (~''(AnyFormula.loadBoxes γ φ))).isFree
             )
         )
     ) := by
-  refine localLoadedDiamondList [α] ltab ⟨w, ⟨v_α_w, by simp⟩⟩ v_t φ negLoad_in ?_ w_nφ
+  have := localLoadedDiamondList [α] ltab ⟨w, ⟨v_α_w, by simp⟩⟩ v_t φ negLoad_in ?_ w_nφ
+  · aesop
   · rcases X with ⟨L,R,O⟩
     simp [AnyFormula.loadBoxes, Sequent.without]
     cases side <;> simp [AnyNegFormula.in_side] at negLoad_in
     all_goals
-    simp [negLoad_in]
+      simp [negLoad_in]

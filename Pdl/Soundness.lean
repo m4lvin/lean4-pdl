@@ -1829,7 +1829,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
           simp_all
         -- Now distinguish the two cases coming from `localLoadedDiamondList`:
         rcases free_or_newLoadform with Y_is_Free
-                                      | ⟨F, δ, anf_in_Y, v_seq_w, v_F, Fδ_in_H, Y_almost_free⟩
+                                      | ⟨F, δ, anf_in_Y, v_seq_w, dist_eq, v_F, Fδ_in_H, Y_almost_free⟩
         · -- Leaving the cluster, easy case.
           refine ⟨s1, ?_, Or.inl ⟨?_, ?_⟩⟩
           · apply Relation.TransGen.single
@@ -1873,8 +1873,10 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
           -- We get a sequence of worlds from the δ relation:
           case cons β βs =>
             have anf_in_s1 : (~''(AnyFormula.loaded (⌊β⌋AnyFormula.loadBoxes βs (AnyFormula.normal φ)))).in_side side (nodeAt s1) := by sorry
-            have _for_termination_all : distance_list M v w (β :: βs) ≤ distance_list M v w (α :: αs) := by sorry -- ISSUE: IDK, maybe in Distance.lean
-            have _for_termination_all_2 : lengthOfProgram β < lengthOfProgram α := by sorry -- ISSUE: this is doable because β comes from δ, just need to find lemma
+            have _for_termination_all : distance_list M v w (β :: βs) ≤ distance_list M v w (α :: αs) := by
+              exact le_of_eq dist_eq -- here was the IDK ISSUE
+            have _for_termination_all_2 : lengthOfProgram β < lengthOfProgram α := by
+              sorry -- ISSUE: this is doable because β comes from δ, just need to find lemma
             have ⟨s, s1_s, s_cons⟩ := loadedDiamondPaths β βs tab root_free s1 v_s1 φ anf_in_s1 v_seq_w w_nξ
             rcases s_cons with ⟨sat_con, ne_con⟩ | inr
             · refine ⟨s, ?_, Or.inl ⟨sat_con, ?_⟩⟩
@@ -1943,7 +1945,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
     · exact Or.inr reached
 
     termination_by
-      (⟨distance_list M v w (α :: αs), lengthOfProgram α, t.length⟩ : ℕ∞ ×ₗ Nat ×ₗ Nat)
+      (⟨distance_list M v w (α :: αs), lengthOfProgram α, t.length⟩ : ℕ∞ × Nat × Nat)
     decreasing_by
       · subst α_def
         exact Prod.Lex.left _ _ _forTermination_loc_atom_pdl
