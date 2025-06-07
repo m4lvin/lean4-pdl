@@ -225,6 +225,45 @@ def AnyFormula.unload : AnyFormula → Formula
   | .normal φ => φ
   | .loaded χ => χ.unload
 
+lemma box_loadBoxes_append_eq_of_loaded_eq_loadBoxes
+    (h : AnyFormula.loaded χ' = AnyFormula.loadBoxes αs (AnyFormula.normal φ))
+    : (⌊d⌋AnyFormula.loadBoxes (δ ++ αs) (AnyFormula.normal φ)) = ⌊⌊d :: δ⌋⌋χ' := by
+  cases αs
+  · exfalso
+    simp_all
+  case cons α αs =>
+    simp at h
+    subst h
+    rw [LoadFormula.boxes_cons]
+    rw [AnyFormula.loadBoxes_append]
+    rw [AnyFormula.loadBoxes_cons]
+    simp -- d gone
+    apply AnyFormula.loadBoxes_loaded_eq_loaded_boxes
+
+@[simp]
+lemma neg_AnyFormulaBoxBoxes_eq_FormulaBoxLoadBoxes_inside_unload :
+      (~(⌊α⌋  AnyFormula.loadBoxes αs (AnyFormula.normal φ)).unload)
+    = (~ ⌈α⌉((AnyFormula.loadBoxes αs (AnyFormula.normal φ)).unload)) := by
+  cases αs <;> simp_all [AnyFormula.loadBoxes, AnyFormula.unload]
+
+lemma loaded_eq_to_unload_eq χ αs φ
+    (h : AnyFormula.loaded χ = AnyFormula.loadBoxes αs (AnyFormula.normal φ))
+    : χ.unload = ⌈⌈αs⌉⌉φ
+    := by
+  cases αs
+  · simp_all
+  case cons α1 αs =>
+    cases αs
+    · simp_all
+    case cons α2 αs =>
+      simp only [Formula.boxes_cons]
+      rcases χ with  ⟨β, af⟩
+      simp only [AnyFormula.loadBoxes_cons, AnyFormula.loaded.injEq, LoadFormula.box.injEq] at h
+      rcases h with ⟨β_eq_α1, af_def⟩
+      have := loaded_eq_to_unload_eq ((⌊α2⌋AnyFormula.loadBoxes αs (.normal φ))) (α2 :: αs) _ rfl
+      subst_eqs
+      simp_all
+
 /-! ## Spliting of loaded formulas -/
 
 mutual
@@ -344,3 +383,8 @@ theorem LoadFormula.exists_loadMulti (lf : LoadFormula) :
   cases lfs_def : lf.split
   rw [lfs_def] at split1_def
   simp_all
+
+lemma loadMulti_eq_of_some (h : δ.head? = some d) :
+    loadMulti δ β φ = ⌊d⌋AnyFormula.loaded (loadMulti δ.tail β φ) := by
+  cases δ
+  <;> simp_all

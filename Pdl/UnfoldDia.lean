@@ -19,6 +19,23 @@ def H : Program → List (List Formula × List Program)
           ).flatten
 | ∗α => [ (∅,[]) ] ∪ ((H α).map (fun (F,δ) => if δ = [] then [] else [(F, δ ++ [∗α])])).flatten
 
+/-- Like `H`, but applied to a whole list of programs.
+This is used to deal with loaded diamonds. -/
+def Hl : List Program → List (List Formula × List Program)
+| [] => [([],[])]
+| [α] => H α
+| α :: rest => (H α).flatMap (fun ⟨F,δ⟩ => -- inspired by `;` case of `H`
+            if δ = []
+              then ((Hl rest).flatMap (fun ⟨G,δ'⟩ => [⟨F ∪ G, δ'⟩]))
+              else [⟨F, δ ++ rest⟩])
+
+@[simp]
+lemma Hl_singleton : Hl [α] = H α := by simp [Hl]
+
+@[simp]
+lemma Hl_atomic_cons : Hl (·a :: αs) =  [ ([], ((·a : Program) :: αs)) ] := by
+  unfold Hl
+  cases αs <;> simp_all [H]
 
 theorem relateSeq_H_imp_relate {X : List Formula} {δ : List Program}
   : (X, δ) ∈ H α → (M, w) ⊨ Con X →  relateSeq M δ w v → relate M α w v :=
@@ -858,15 +875,9 @@ theorem existsDiamondH (v_γ_w : relate M γ v w) :
           simp [relateSeq] at *
           tauto
 
-/-! ## Loaded Diamonds (Section 3.3)
+/-! ## splitLast -/
 
-The `Option` is used here because unfolding of tests can lead to free nodes.
--/
-
-def YsetLoad : (List Formula × List Program) → LoadFormula → (List Formula × Option NegLoadFormula)
-| ⟨F, δ⟩, χ => ⟨F , ~' (LoadFormula.boxes δ χ)⟩
-
-/-- Helper function for YsetLoad' to get last list element. -/
+/-- Helper function for `YsetLoad'` to get last list element. -/
 def splitLast : List α → Option (List α × α)
 | [] => none
 | (x :: xs) => some $ match splitLast xs with
@@ -875,15 +886,6 @@ def splitLast : List α → Option (List α × α)
 
 @[simp]
 theorem splitLast_nil : splitLast [] = (none : Option (List α × α)) := by simp [splitLast]
-
-/-- Maybe upstream a version of this to Mathlib? -/
-theorem List.dropLast_append_getLast_eq_cons (x : α) (xs : List α) :
-    (x :: xs).dropLast ++ [(x :: xs).getLast (List.cons_ne_nil x xs)] = x :: xs := by
-  cases xs
-  · simp
-  case cons y ys =>
-    simp at *
-    apply List.dropLast_append_getLast_eq_cons
 
 theorem splitLast_cons_eq_some (x : α) (xs : List α) :
     (splitLast (x :: xs)) = some ((x :: xs).dropLast, (x :: xs).getLast (List.cons_ne_nil x xs)) := by
@@ -902,6 +904,62 @@ theorem splitLast_append_singleton : splitLast (xs ++ [x]) = some (xs, x) := by
   case cons IH =>
     simp [splitLast]
     rw [IH]
+
+lemma splitLast_inj (h : splitLast αs = splitLast βs) :
+    αs = βs := by
+  induction αs using List.reverseRecOn <;> induction βs using List.reverseRecOn
+  · rfl
+  · exfalso
+    simp_all
+  · exfalso
+    simp_all
+  aesop
+
+lemma splitLast_undo_of_some (h : splitLast αs = some βs_b) :
+    βs_b.1 ++ [βs_b.2] = αs := by
+  rcases αs with _ |⟨α,αs⟩
+  · exfalso
+    simp_all
+  have := @splitLast_cons_eq_some _ α αs
+  rw [h] at this
+  simp at this
+  subst this
+  simp
+  apply List.dropLast_append_getLast
+
+lemma loadMulti_of_splitLast_cons {α αs βs β φ} (h : splitLast (α :: αs) = some ⟨βs, β⟩) :
+    loadMulti βs β φ = ⌊α⌋AnyFormula.loadBoxes αs (AnyFormula.normal φ) := by
+  have : (α :: αs) = βs ++ [β] := by
+    rw [← @splitLast_append_singleton] at h
+    exact splitLast_inj h
+  cases αs
+  · unfold splitLast at h
+    simp at h
+    cases h
+    subst_eqs
+    simp at *
+  case cons α2 αs =>
+    have ⟨δβ2, new_h⟩ : ∃ δ2_β2, splitLast (α2 :: αs) = some δ2_β2 := by simp [splitLast]
+    rw [AnyFormula.loadBoxes_cons]
+    have IH := @loadMulti_of_splitLast_cons α2 αs _ _ φ new_h
+    rw [← IH]; clear IH
+    cases βs
+    · exfalso
+      unfold splitLast at h
+      simp at h
+      cases h
+    case cons β2 βs =>
+      simp_all
+      subst new_h
+      simp_all
+
+/-! ## Loaded Diamonds (Section 3.3)
+
+The `Option` is used here because unfolding of tests can lead to free nodes.
+-/
+
+def YsetLoad : (List Formula × List Program) → LoadFormula → (List Formula × Option NegLoadFormula)
+| ⟨F, δ⟩, χ => ⟨F , ~' (LoadFormula.boxes δ χ)⟩
 
 def YsetLoad' : (List Formula × List Program) → Formula → (List Formula × Option NegLoadFormula)
 | ⟨F, δ⟩, φ => match splitLast δ with
@@ -933,5 +991,5 @@ theorem unfoldDiamondLoaded'_eq α φ : (unfoldDiamondLoaded' α φ).map pairUnl
     have := (@boxes_append (x :: xs).dropLast [(x :: xs).getLast (List.cons_ne_nil x xs)] φ).symm
     simp only [Formula.boxes_cons, Formula.boxes_nil] at this
     rw [this]
-    rw [List.dropLast_append_getLast_eq_cons]
+    rw [List.dropLast_append_getLast]
     simp_all

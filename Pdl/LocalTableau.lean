@@ -193,6 +193,40 @@ theorem Sequent.isFree_then_without_isFree (LRO : Sequent) :
   · exfalso
     simp [isFree, isLoaded] at *
 
+lemma Sequent.without_loadBoxes_isFree_of_eq_inl {L R δs} {χ : LoadFormula} {φ : Formula}
+    (h : χ = AnyFormula.loadBoxes αs φ)
+    : (Sequent.without (L, R, some (Sum.inl (~'⌊⌊d :: δs⌋⌋χ)))
+      (~''(AnyFormula.loadBoxes (d :: (δs ++ αs)) (AnyFormula.normal φ)))).isFree := by
+  unfold Sequent.without
+  simp
+  suffices (⌊⌊d :: δs⌋⌋χ) = ⌊d⌋AnyFormula.loadBoxes (δs ++ αs) (AnyFormula.normal φ) by simp_all
+  rw [box_loadBoxes_append_eq_of_loaded_eq_loadBoxes]
+  exact h
+
+lemma Sequent.without_loadBoxes_isFree_of_eq_inr {L R δs} {χ : LoadFormula} {φ : Formula}
+    (h : χ = AnyFormula.loadBoxes αs φ)
+    : (Sequent.without (L, R, some (Sum.inr (~'⌊⌊d :: δs⌋⌋χ)))
+      (~''(AnyFormula.loadBoxes (d :: (δs ++ αs)) (AnyFormula.normal φ)))).isFree := by
+  unfold Sequent.without
+  simp
+  suffices (⌊⌊d :: δs⌋⌋χ) = ⌊d⌋AnyFormula.loadBoxes (δs ++ αs) (AnyFormula.normal φ) by simp_all
+  rw [box_loadBoxes_append_eq_of_loaded_eq_loadBoxes]
+  exact h
+
+lemma Sequent.without_loadMulti_isFree_of_splitLast_cons_inl {L R δs} {φ : Formula}
+    (h : splitLast (d :: δs) = some δ_β)
+    : (Sequent.without (L, R, some (Sum.inl (~'loadMulti δ_β.1 δ_β.2 φ)))
+      (~''(AnyFormula.loadBoxes (d :: δs) (AnyFormula.normal φ)))).isFree := by
+  rw [@loadMulti_of_splitLast_cons _ _ _ _ φ h]
+  simp [Sequent.without]
+
+lemma Sequent.without_loadMulti_isFree_of_splitLast_cons_inr {L R δs} {φ : Formula}
+    (h : splitLast (d :: δs) = some δ_β)
+    : (Sequent.without (L, R, some (Sum.inr (~'loadMulti δ_β.1 δ_β.2 φ)))
+      (~''(AnyFormula.loadBoxes (d :: δs) (AnyFormula.normal φ)))).isFree := by
+  rw [@loadMulti_of_splitLast_cons _ _ _ _ φ h]
+  simp [Sequent.without]
+
 inductive Side
 | LL : Side
 | RR : Side
