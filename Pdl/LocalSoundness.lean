@@ -126,7 +126,8 @@ lemma endNodesOf_free_are_free {X Y} (ltX : LocalTableau X) (h : X.isFree)
   case sim =>
     simp_all
 
-set_option maxHeartbeats 1000000 in
+
+set_option maxHeartbeats 2000000 in
 /-- NEW ATTEMPT. Helper to deal with local tableau in `loadedDiamondPaths`.
 Takes a *list* of programs and φ, i.e. we want access to all loaded boxes. -/
 theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
@@ -144,7 +145,9 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
       ∨ ( ∃ (F : List Formula) (γ : List Program),
             ( (~''(AnyFormula.loadBoxes γ φ)).in_side side Y
             ∧ relateSeq M γ v w
-            ∧ distance_list M v w γ = distance_list M v w αs
+            ∧ (  distance_list M v w γ < distance_list M v w αs
+               ∨ distance_list M v w γ ≤ distance_list M v w αs
+                  ∧ ∀ (αs_ne : αs ≠ []), ∃ Fδ, Fδ ∈ H (αs.head αs_ne) ∧ Fδ.2 ≠ [] ∧ Fδ.1 ⊆ F ∧ ∃ k, γ.take k = Fδ.2) -- this will give us that α is a subprogram in `lDP`
             ∧ (M,v) ⊨ F
             ∧ (F,γ) ∈ Hl αs -- "F,γ is a result from unfolding the αs"
             ∧ (Y.without (~''(AnyFormula.loadBoxes γ φ))).isFree
@@ -285,8 +288,13 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
               · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
                 refine ⟨F ∪ G, γs, in_Y, v_γs_w, ?_, ?_, ?_, Y_almost_free⟩
-                · rw [dist_eq]
-                  sorry -- exact dist_eq -- IDEA use that δ is [] and thus α has distance 0
+                · rcases dist_eq with lt | ⟨eq, con⟩
+                  · left -- we need left here because we in_H is empty
+                    apply lt_trans lt
+                    sorry
+                  · left -- contradiction here
+                    --rw [eq.1]
+                    sorry
                 · intro f f_in
                   simp at f_in; cases f_in
                   · apply v_F; assumption
@@ -331,9 +339,9 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
               refine ⟨F, _, in_Y, v_γs_w, ?_, v_F, ?_, Y_almost_free⟩
-              · rw [dist_eq]
+              · --rw [dist_eq]
                 -- TRICKY PROBLEM - how do we know that `u` is chosen to minimze distance?
-                sorry
+                sorry -- in this case we can pick left or right since we have the desired prop
               have αs_nonEmpty : αs ≠ [] := by cases αs <;> simp_all [χ_def]
               simp only [Hl, List.mem_flatMap, Prod.exists] -- uses `αs_nonEmpty`
               refine ⟨F, d :: δs, _in_H, ?_⟩
@@ -443,7 +451,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
               refine ⟨F, _, in_Y, v_γs_w, ?_, v_F, ?_, Y_almost_free⟩
-              · rw [dist_eq,same_dist,distance_list_singleton]
+              · sorry -- rw [same_dist,distance_list_singleton]
               -- Now show that `d` is atomic, because it resulted from `H α`.
               have ⟨a, d_atom⟩ : ∃ a, d = ((·a) : Program) := by
                 have := H_mem_sequence α _in_H
@@ -521,8 +529,12 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               · -- Not fully sure here.
                 refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
                 refine ⟨F ∪ G, γs, in_Y, v_γs_w, ?_, ?_, ?_, Y_almost_free⟩
-                · rw [dist_eq]
-                  sorry -- exact dist_eq -- IDEA use that δ is [] and thus α has distance 0
+                · rcases dist_eq with lt | eq
+                  · left -- we need left here because we in_H is empty
+                    apply lt_trans lt
+                    sorry
+                  · left
+                    sorry
                 · intro f f_in
                   simp at f_in; cases f_in
                   · apply v_F; assumption
@@ -567,9 +579,9 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
               refine ⟨F, _, in_Y, v_γs_w, ?_, v_F, ?_, Y_almost_free⟩
-              · rw [dist_eq]
+              · --rw [dist_eq]
                 -- TRICKY PROBLEM - how do we know that `u` is chosen to minimze distance?
-                sorry
+                sorry -- we can pick either side because we have what we need
               have αs_nonEmpty : αs ≠ [] := by cases αs <;> simp_all [χ_def]
               simp only [Hl, List.mem_flatMap, Prod.exists] -- uses `αs_nonEmpty`
               refine ⟨F, d :: δs, _in_H, ?_⟩
@@ -680,7 +692,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
               refine ⟨F, _, in_Y, v_γs_w, ?_, v_F, ?_, Y_almost_free⟩
-              · rw [dist_eq,same_dist,distance_list_singleton]
+              · sorry --rw [dist_eq,same_dist,distance_list_singleton]
               -- Now show that `d` is atomic, because it resulted from `H α`.
               have ⟨a, d_atom⟩ : ∃ a, d = ((·a) : Program) := by
                 have := H_mem_sequence α _in_H
@@ -714,7 +726,8 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
       subst α_def
       -- We can use X itself as the end node.
       refine ⟨X, ?_, v_t, Or.inr ⟨[], ·a :: αs, negLoad_in,  ?_,  ?_,  ?_⟩ ⟩ <;> simp_all [H]
-      exact Sequent.without_loaded_in_side_isFree X _ side negLoad_in
+      · use 1; simp
+      · exact Sequent.without_loaded_in_side_isFree X _ side negLoad_in
 
 lemma localLoadedDiamondSingleton
   (ltab : LocalTableau X)
