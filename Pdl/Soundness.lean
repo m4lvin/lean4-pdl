@@ -1389,6 +1389,27 @@ lemma SemImply_loadedNormal_ofSeqAndNormal {M u}
     refine ⟨v, ⟨u_β_v, ?_⟩⟩
     exact ih w_nφ v_βs_w
 
+lemma sad (β α : Program) (βs αs : List Program) (F : List Formula)
+  (in_con : (F, β :: βs) ∈ Hl (α :: αs))
+    : ∃ F1 βs1, (F1, β :: βs1) ∈ H α := by
+induction αs generalizing α
+case nil =>
+  simp at in_con
+  refine ⟨F, βs, in_con⟩
+case cons h t =>
+  rw [Hl] at in_con
+  simp at in_con
+  have ⟨F1, δ1, props⟩ := in_con
+  cases δ1
+  case nil =>
+    simp at props
+    sorry
+  case cons h t =>
+    simp at props
+    refine ⟨F1, t, (by convert props.1; exact props.2.2.1)⟩
+  all_goals
+  simp
+
 -- List version now
 theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
   (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
@@ -1803,8 +1824,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
         have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
 
         have Z_free := Z.without_loaded_in_side_isFree (⌊α⌋AnyFormula.loadBoxes αs φ) side (this ▸ negLoad_in)
-        have locLD := localLoadedDiamondList (α :: αs) ltZ v_α_w (this ▸ v_t) φ (this ▸ negLoad_in) Z_free
-          w_nξ
+        have locLD := localLoadedDiamondList (α :: αs) ltZ v_α_w (this ▸ v_t) φ (this ▸ negLoad_in) Z_free w_nξ
         clear this
 
         rcases locLD with ⟨Y, Y_in, w_Y, free_or_newLoadform⟩
@@ -1829,7 +1849,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
           simp_all
         -- Now distinguish the two cases coming from `localLoadedDiamondList`:
         rcases free_or_newLoadform with Y_is_Free
-                                      | ⟨F, δ, anf_in_Y, v_seq_w, dist_eq, v_F, Fδ_in_H, Y_almost_free⟩
+                                      | ⟨F, δ, anf_in_Y, v_seq_w, dist_con, v_F, Fδ_in_H, Y_almost_free⟩
         · -- Leaving the cluster, easy case.
           refine ⟨s1, ?_, Or.inl ⟨?_, ?_⟩⟩
           · apply Relation.TransGen.single
@@ -1867,23 +1887,42 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
             · unfold nodeAt
               convert Y_almost_free
               rw [tabAt_s_def]
+
           -- Now we have that δ is not empty.
           -- FIXME: indent rest or use wlog above?
           -- Here is the interesting case: not leaving the cluster.
           -- We get a sequence of worlds from the δ relation:
           case cons β βs =>
-            have anf_in_s1 : (~''(AnyFormula.loaded (⌊β⌋AnyFormula.loadBoxes βs (AnyFormula.normal φ)))).in_side side (nodeAt s1) := by sorry
-            have _for_termination_all : distance_list M v w (β :: βs) ≤ distance_list M v w (α :: αs) := by
-              exact le_of_eq dist_eq -- here was the IDK ISSUE
-            have _for_termination_all_2 : lengthOfProgram β < lengthOfProgram α := by
-              sorry -- ISSUE: this is doable because β comes from δ, just need to find lemma
-            have ⟨s, s1_s, s_cons⟩ := loadedDiamondPaths β βs tab root_free s1 v_s1 φ anf_in_s1 v_seq_w w_nξ
-            rcases s_cons with ⟨sat_con, ne_con⟩ | inr
-            · refine ⟨s, ?_, Or.inl ⟨sat_con, ?_⟩⟩
-              · exact Relation.TransGen.head (Or.inl t_s) s1_s
-              · exact ePropB.g_tweak _ _ _ (Relation.TransGen.single (Or.inl t_s)) s1_s ne_con
-            · refine ⟨s, ?_, Or.inr inr⟩
-              · exact Relation.TransGen.head (Or.inl t_s) s1_s
+            have anf_in_s1 : (~''(AnyFormula.loaded (⌊β⌋AnyFormula.loadBoxes βs (AnyFormula.normal φ)))).in_side side (nodeAt s1) := by
+              convert anf_in_Y; unfold nodeAt; rw [tabAt_s_def]
+            rcases dist_con with _for_termination | ⟨_for_termination_1, _for_termination_2_helper⟩
+            · have ⟨s, s1_s, s_cons⟩ := loadedDiamondPaths β βs tab root_free s1 v_s1 φ anf_in_s1 v_seq_w w_nξ
+              rcases s_cons with ⟨sat_con, ne_con⟩ | inr
+              · refine ⟨s, ?_, Or.inl ⟨sat_con, ?_⟩⟩
+                · exact Relation.TransGen.head (Or.inl t_s) s1_s
+                · exact ePropB.g_tweak _ _ _ (Relation.TransGen.single (Or.inl t_s)) s1_s ne_con
+              · refine ⟨s, ?_, Or.inr inr⟩
+                · exact Relation.TransGen.head (Or.inl t_s) s1_s
+            · have _for_termination_2 : lengthOfProgram β < lengthOfProgram α := by
+                have ⟨⟨F1, δ1⟩, _in_H, con_1, ⟨k, con_2⟩⟩ := _for_termination_2_helper (by simp)
+                simp at _in_H
+                have β_in : β ∈ δ1 := by
+                  simp at con_1
+                  cases k <;> simp at con_2 <;> rw [con_2]
+                  · exfalso; exact con_1 con_2
+                  · simp [List.mem_cons]
+                have := @H_goes_down_prog α F1 _ _in_H β β_in
+                subst α_def
+                simp [Program.isAtomic, Program.isStar] at this
+                exact this
+              have ⟨s, s1_s, s_cons⟩ := loadedDiamondPaths β βs tab root_free s1 v_s1 φ anf_in_s1 v_seq_w w_nξ
+              rcases s_cons with ⟨sat_con, ne_con⟩ | inr
+              · refine ⟨s, ?_, Or.inl ⟨sat_con, ?_⟩⟩
+                · exact Relation.TransGen.head (Or.inl t_s) s1_s
+                · exact ePropB.g_tweak _ _ _ (Relation.TransGen.single (Or.inl t_s)) s1_s ne_con
+              · refine ⟨s, ?_, Or.inr inr⟩
+                · exact Relation.TransGen.head (Or.inl t_s) s1_s
+
   case pdl Y bas r nrep next => -- handled mainly by helper
  --   exact loadedDiamondPathsPDL α αs X tab t v_t φ negLoad_in v_α_w w_nξ bas r nrep next tabAt_t_def
     have ⟨u, ⟨v_α_u, u_αs_w⟩⟩ := v_α_w
@@ -1951,24 +1990,27 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
         exact Prod.Lex.left _ _ _forTermination_loc_atom_pdl
       · subst α_def
         apply Prod.Lex.right _ (Prod.Lex.right _ _forTermination)
-      /-
+      /- STAR CASE
       · subst α_def
         apply Prod.Lex.left _ _ _forTermination
       -/
-      · rcases LE.le.lt_or_eq_dec _for_termination_all with lt | eq
+      · exact Prod.Lex.left _ _ _for_termination
+      · rcases (le_iff_lt_or_eq.1 _for_termination_1) with lt | eq  -- rw [dist_eq]
         · exact Prod.Lex.left _ _ lt
         · rw [eq]
-          apply Prod.Lex.right _ (Prod.Lex.left _ _ _for_termination_all_2)
-      · rcases LE.le.lt_or_eq_dec _for_termination_all with lt | eq
+          apply Prod.Lex.right _ (Prod.Lex.left _ _ _for_termination_2)
+      · exact Prod.Lex.left _ _ _for_termination
+      · rcases (le_iff_lt_or_eq.1 _for_termination_1) with lt | eq  -- rw [dist_eq]
         · exact Prod.Lex.left _ _ lt
         · rw [eq]
-          apply Prod.Lex.right _ (Prod.Lex.left _ _ _for_termination_all_2)
-      · rcases LE.le.lt_or_eq_dec _for_termination_all with lt | eq
+          apply Prod.Lex.right _ (Prod.Lex.left _ _ _for_termination_2)
+      · exact Prod.Lex.left _ _ _for_termination
+      · rcases (le_iff_lt_or_eq.1 _for_termination_1) with lt | eq  -- rw [dist_eq]
         · exact Prod.Lex.left _ _ lt
         · rw [eq]
-          apply Prod.Lex.right _ (Prod.Lex.left _ _ _for_termination_all_2)
+          apply Prod.Lex.right _ (Prod.Lex.left _ _ _for_termination_2)
       · exact Prod.Lex.left _ _ _forTermination_pdl
-      · apply Prod.Lex.right _ (Prod.Lex.right _ _forTermination_lrep)
+      · exact Prod.Lex.right _ (Prod.Lex.right _ _forTermination_lrep)
 
 
 theorem simpler_equiv_simpler {u s t : PathIn tab} :

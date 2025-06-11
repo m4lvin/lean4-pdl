@@ -147,7 +147,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             ∧ relateSeq M γ v w
             ∧ (  distance_list M v w γ < distance_list M v w αs
                ∨ distance_list M v w γ ≤ distance_list M v w αs
-                  ∧ ∀ (αs_ne : αs ≠ []), ∃ Fδ, Fδ ∈ H (αs.head αs_ne) ∧ Fδ.2 ≠ [] ∧ Fδ.1 ⊆ F ∧ ∃ k, γ.take k = Fδ.2) -- this will give us that α is a subprogram in `lDP`
+                  ∧ ∀ (αs_ne : αs ≠ []), ∃ Fδ, Fδ ∈ H (αs.head αs_ne) ∧ Fδ.2 ≠ [] ∧ ∃ k, Fδ.2 = γ.take k) -- this will give us that α is a subprogram in `lDP`
             ∧ (M,v) ⊨ F
             ∧ (F,γ) ∈ Hl αs -- "F,γ is a result from unfolding the αs"
             ∧ (Y.without (~''(AnyFormula.loadBoxes γ φ))).isFree
