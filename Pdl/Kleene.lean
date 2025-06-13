@@ -1,0 +1,234 @@
+
+import Mathlib.Algebra.Order.Kleene
+import Pdl.SemQuot
+import Pdl.Syntax
+
+instance : KStar Program :=
+  { kstar := λ (α : Program) ↦ ∗α }
+
+instance : KStar RelProp :=
+  { kstar := RelProp.star }
+
+instance : Add RelProp :=
+  { add := RelProp.union }
+
+instance : AddSemigroup RelProp where
+  add_assoc := by
+    apply Quotient.ind
+    intro α
+    apply Quotient.ind
+    intro β
+    apply Quotient.ind -- Maybe a better way than repeating 3 times
+    intro γ
+    simp [HAdd.hAdd, Add.add, RelProp.union, Program.instSetoid, relEquiv]
+    aesop
+
+instance : Zero RelProp :=
+  { zero := ⟦?'⊥⟧ }
+
+instance : AddZeroClass RelProp where
+  add_zero := by
+    apply Quotient.ind
+    intro α
+    simp [HAdd.hAdd, Add.add, OfNat.ofNat, Zero.zero, RelProp.union, Program.instSetoid, relEquiv]
+  zero_add := by
+    apply Quotient.ind
+    intro α
+    simp [HAdd.hAdd, Add.add, OfNat.ofNat, Zero.zero, RelProp.union, Program.instSetoid, relEquiv]
+
+def Program.Repeat : ℕ → Program → Program
+  | 0     , _ => ?'⊥
+  | n + 1 , α => α ;' (Program.Repeat n α)
+
+def RelProp.Repeat : ℕ → RelProp → RelProp
+  | 0     , _ => 0
+  | n + 1 , a => RelProp.Repeat n a + a
+
+instance : AddMonoid RelProp where
+  nsmul := RelProp.Repeat
+  nsmul_zero := by simp [RelProp.Repeat]
+  nsmul_succ := by simp [RelProp.Repeat]
+  zero_add := instAddZeroClassRelProp.zero_add -- idk why I have to add these since AddMonoid extends AddZeroClass??
+  add_zero := instAddZeroClassRelProp.add_zero
+
+instance : Mul RelProp where
+  mul := RelProp.sequence
+
+instance : MulZeroClass RelProp where
+  zero_mul := by
+    apply Quotient.ind
+    intro α
+    simp [OfNat.ofNat, Zero.zero, HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid, relEquiv]
+  mul_zero := by
+    apply Quotient.ind
+    intro α
+    simp [OfNat.ofNat, Zero.zero, HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid, relEquiv]
+
+instance : Distrib RelProp where
+  left_distrib := by
+    apply Quotient.ind
+    intro α
+    apply Quotient.ind
+    intro β
+    apply Quotient.ind
+    intro γ
+    simp [HAdd.hAdd, Add.add, HMul.hMul, Mul.mul, RelProp.sequence, RelProp.union, Program.instSetoid, relEquiv]
+    aesop
+  right_distrib := by
+    apply Quotient.ind
+    intro α
+    apply Quotient.ind
+    intro β
+    apply Quotient.ind
+    intro γ
+    simp [HAdd.hAdd, Add.add, HMul.hMul, Mul.mul, RelProp.sequence, RelProp.union, Program.instSetoid, relEquiv]
+    aesop
+
+instance : AddCommMonoid RelProp where
+  add_comm := by
+    apply Quotient.ind
+    intro α
+    apply Quotient.ind
+    intro β
+    simp [HAdd.hAdd, Add.add, RelProp.union, Program.instSetoid, relEquiv]
+    aesop
+
+instance : NonUnitalNonAssocSemiring RelProp where
+  left_distrib := instDistribRelProp.left_distrib
+  right_distrib := instDistribRelProp.right_distrib
+  zero_mul := instMulZeroClassRelProp.zero_mul
+  mul_zero := instMulZeroClassRelProp.mul_zero
+
+instance : NonUnitalSemiring RelProp where
+  mul_assoc := by
+    apply Quotient.ind
+    intro α
+    apply Quotient.ind
+    intro β
+    apply Quotient.ind
+    intro γ
+    simp [HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid, relEquiv]
+    aesop
+
+instance : One RelProp :=
+  { one := ⟦?'⊤⟧ }
+
+instance : Semiring RelProp where
+  one_mul := by
+    apply Quotient.ind
+    intro α
+    simp [HMul.hMul, Mul.mul, OfNat.ofNat, One.one, RelProp.sequence, Program.instSetoid, relEquiv]
+  mul_one := by
+    apply Quotient.ind
+    intro α
+    simp [HMul.hMul, Mul.mul, OfNat.ofNat, One.one, RelProp.sequence, Program.instSetoid, relEquiv]
+
+def relImp (α β : Program) := ∀ (W : Type) (M : KripkeModel W) v w, relate M α v w → relate M β v w
+
+def relImp_strict (α β : Program) := (∀ (W : Type) (M : KripkeModel W) v w, relate M α v w → relate M β v w)
+                                  ∧ ¬(∀ (W : Type) (M : KripkeModel W) v w, relate M β v w → relate M α v w)
+
+def RelProp.le : RelProp → RelProp → Prop := Quotient.lift₂ relImp (by
+  intro α₁ β₁ α₂ β₂ hα hβ
+  simp_all [relImp, HasEquiv.Equiv, Program.instSetoid, relEquiv])
+
+def RelProp.lt : RelProp → RelProp → Prop := Quotient.lift₂ relImp_strict (by
+  intro α₁ β₁ α₂ β₂ hα hβ
+  simp_all [relImp_strict, HasEquiv.Equiv, Program.instSetoid, relEquiv])
+
+instance : LE RelProp where
+  le := RelProp.le
+
+instance : Preorder RelProp where
+  le_refl := by
+    apply Quotient.ind
+    intro α
+    simp [LE.le, RelProp.le, relImp]
+  le_trans := by
+    apply Quotient.ind
+    intro α
+    apply Quotient.ind
+    intro β
+    apply Quotient.ind
+    intro γ
+    simp_all [LE.le, RelProp.le, relImp]
+
+instance : PartialOrder RelProp where
+  le_antisymm := by
+    apply Quotient.ind
+    intro α
+    apply Quotient.ind
+    intro β
+    simp [LE.le, RelProp.le, relImp, Program.instSetoid, relEquiv]
+    aesop
+
+instance : SemilatticeSup RelProp where
+  sup := RelProp.union
+  le_sup_left := by
+    apply Quotient.ind
+    intro α
+    apply Quotient.ind
+    intro β
+    simp [LE.le, RelProp.le, RelProp.union, relImp]
+    aesop
+  le_sup_right := by
+    apply Quotient.ind
+    intro α
+    apply Quotient.ind
+    intro β
+    simp [LE.le, RelProp.le, RelProp.union, relImp]
+    aesop
+  sup_le := by
+    apply Quotient.ind
+    intro α
+    apply Quotient.ind
+    intro β
+    apply Quotient.ind
+    intro γ
+    simp [LE.le, RelProp.le, relImp, RelProp.union]
+    aesop
+
+instance : IdemSemiring RelProp where
+  bot_le := by
+    apply Quotient.ind
+    intro α
+    simp [OfNat.ofNat, Zero.toOfNat0, Zero.zero, LE.le, RelProp.le, relImp]
+
+instance : KleeneAlgebra RelProp where
+  one_le_kstar := by
+    apply Quotient.ind
+    intro α
+    simp [OfNat.ofNat, One.one, LE.le, RelProp.le, KStar.kstar, RelProp.star, relImp,
+          Relation.ReflTransGen.refl]
+  mul_kstar_le_kstar := by
+    apply Quotient.ind
+    intro α
+    simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le, relImp]
+    intro W M v w x v_α_x x_αs_w
+    exact Relation.ReflTransGen.head v_α_x x_αs_w
+  kstar_mul_le_kstar := by
+    apply Quotient.ind
+    intro α
+    simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le, relImp]
+    intro W M v w x v_αs_x x_α_w
+    exact Relation.ReflTransGen.tail v_αs_x x_α_w
+  mul_kstar_le_self := by
+    apply Quotient.ind
+    intro α
+    apply Quotient.ind
+    intro β
+    simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le, relImp]
+    intro h W M v w x v_β_x x_αs_w
+    induction x_αs_w
+    case a.a.refl => exact v_β_x
+    case a.a.tail y z x_αs_y y_α_z ih => exact h W M v z y ih y_α_z
+  kstar_mul_le_self := by
+    apply Quotient.ind
+    intro α
+    apply Quotient.ind
+    intro β
+    simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le, relImp]
+    intro h W M v w x v_αs_x x_β_w
+    induction v_αs_x
+    case a.a.refl => exact x_β_w
+    case a.a.tail y z x_αs_y y_α_z ih => exact ih (h W M y w z y_α_z x_β_w)
