@@ -4,6 +4,8 @@ import Pdl.Syntax
 import Pdl.Measures
 import Pdl.Star
 import Pdl.Semantics
+import Pdl.SemQuot
+import Pdl.Kleene
 import Pdl.Vocab
 import Pdl.Substitution
 import Pdl.Examples

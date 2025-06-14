@@ -32,6 +32,8 @@ abbrev RelProp := Quotient Program.instSetoid
 These two should maybe go in mathlib? Or they already exist somewhere?
 -/
 
+open Relator -- to use ⇒ notation
+
 lemma congr_liftFun {α β : Type} {R : α → α → Prop} {S : β → β → Prop} {f : α → β}
     (h : ∀ x y, R x y → S (f x) (f y)) : ((R · ·) ⇒ (S · ·)) f f := h
 
