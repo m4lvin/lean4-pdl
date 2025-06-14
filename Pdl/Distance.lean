@@ -510,3 +510,35 @@ theorem distanceProps W M α {w v : W} δ :
    , relateSeq_existsH_dist -- (g)
    , existsH_of_true_diamond α γ ψ -- (h)
    ⟩
+
+theorem exists_same_distance_of_relateSeq_cons (w_αδ_v : relateSeq M (α :: δ) w v) :
+    ∃ x, relate M α w x
+       ∧ relateSeq M δ x v
+       ∧ distance_list M w v (α :: δ) = distance M α w x + distance_list M x v δ := by
+  have := @distance_list_iff_relate_Seq.mpr w_αδ_v
+  have := iInf_exists_eq_of_ne_top this
+  rcases this with ⟨x, same_dist⟩
+  refine ⟨x, ?_, ?_, same_dist⟩
+  · rw [← dist_iff_rel]
+    intro hyp
+    rw [← distance_list_cons] at same_dist
+    simp_all
+  · rw [← distance_list_iff_relate_Seq]
+    intro hyp
+    rw [← distance_list_cons] at same_dist
+    simp_all
+
+theorem exists_same_distance_list_relateSeq_concat (w_δα_v : relateSeq M (δ ++ [α]) w v) :
+    ∃ x, relateSeq M δ w x
+       ∧ relate M α x v
+       ∧ distance_list M w v (δ ++ [α]) = distance_list M w x δ + distance M α x v := by
+  rw[distance_list_concat]
+  have := @distance_list_iff_relate_Seq.mpr w_δα_v
+  rw[distance_list_concat] at this
+  have := iInf_exists_eq_of_ne_top this
+  rcases this with ⟨x, same_dist⟩
+  refine ⟨x, ?_, ?_, same_dist⟩
+  · rw [← distance_list_iff_relate_Seq]
+    aesop
+  · rw [← dist_iff_rel]
+    aesop

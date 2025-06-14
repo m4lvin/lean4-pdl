@@ -224,8 +224,10 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
       case loadedL outputs χ lrule =>
         -- Instead of localRuleTruth ...
         clear locRulTru
-        rw [@relateSeq_cons] at v_αs_w
-        rcases v_αs_w with ⟨u, v_α_u, u_αs_w⟩
+        -- Note: using `relateSeq_cons` here was too weak.
+        -- We also need the info that `u` is picked minimally / witnesses the distance.
+        have := exists_same_distance_of_relateSeq_cons v_αs_w
+        rcases this with ⟨u, v_α_u, u_αs_w, u_picked_minimally⟩
         -- Previously here we used `existsDiamondH` to imitate the relation `v_α_u`.
         -- have from_H := @existsDiamondH W M α _ _ v_α_u
         -- Now we use `rel_existsH_dist` to also get the same distance.
@@ -286,7 +288,12 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
                 refine ⟨F ∪ G, γs, in_Y, v_γs_w, ?_, ?_, ?_, Y_almost_free⟩
                 · rw [dist_eq]
-                  sorry -- exact dist_eq -- IDEA use that δ is [] and thus α has distance 0
+                  rw [u_picked_minimally]
+                  have : distance M α v v = 0 := by
+                    -- Here δ is [] and thus α can have distance 0
+                    rw [distance_list_nil_self] at same_dist
+                    exact same_dist.symm
+                  aesop
                 · intro f f_in
                   simp at f_in; cases f_in
                   · apply v_F; assumption
@@ -332,7 +339,10 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
               refine ⟨F, _, in_Y, v_γs_w, ?_, v_F, ?_, Y_almost_free⟩
               · rw [dist_eq]
-                -- TRICKY PROBLEM - how do we know that `u` is chosen to minimze distance?
+                -- was: TRICKY PROBLEM - how do we know that `u` is chosen to minimze distance?
+                rw [u_picked_minimally] -- now we DO have that :-)
+                rw [← same_dist]
+                -- ALMOST THERE?
                 sorry
               have αs_nonEmpty : αs ≠ [] := by cases αs <;> simp_all [χ_def]
               simp only [Hl, List.mem_flatMap, Prod.exists] -- uses `αs_nonEmpty`
@@ -459,8 +469,10 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
       case loadedR outputs χ lrule => -- COPY-PASTA from loadedL, modulo the value of `side`
         -- Instead of localRuleTruth ...
         clear locRulTru
-        rw [@relateSeq_cons] at v_αs_w
-        rcases v_αs_w with ⟨u, v_α_u, u_αs_w⟩
+        -- Note: using `relateSeq_cons` here was too weak.
+        -- We also need the info that `u` is picked minimally / witnesses the distance.
+        have := exists_same_distance_of_relateSeq_cons v_αs_w
+        rcases this with ⟨u, v_α_u, u_αs_w, u_picked_minimally⟩
         -- Previously here we used `existsDiamondH` to imitate the relation `v_α_u`.
         -- have from_H := @existsDiamondH W M α _ _ v_α_u
         -- Now we use `rel_existsH_dist` to also get the same distance.
@@ -522,7 +534,12 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                 refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
                 refine ⟨F ∪ G, γs, in_Y, v_γs_w, ?_, ?_, ?_, Y_almost_free⟩
                 · rw [dist_eq]
-                  sorry -- exact dist_eq -- IDEA use that δ is [] and thus α has distance 0
+                  rw [u_picked_minimally]
+                  have : distance M α v v = 0 := by
+                    -- Here δ is [] and thus α can have distance 0
+                    rw [distance_list_nil_self] at same_dist
+                    exact same_dist.symm
+                  aesop
                 · intro f f_in
                   simp at f_in; cases f_in
                   · apply v_F; assumption
@@ -568,7 +585,10 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
               refine ⟨F, _, in_Y, v_γs_w, ?_, v_F, ?_, Y_almost_free⟩
               · rw [dist_eq]
-                -- TRICKY PROBLEM - how do we know that `u` is chosen to minimze distance?
+                -- was: TRICKY PROBLEM - how do we know that `u` is chosen to minimze distance?
+                rw [u_picked_minimally] -- now we DO have that :-)
+                rw [← same_dist]
+                -- ALMOST THERE?
                 sorry
               have αs_nonEmpty : αs ≠ [] := by cases αs <;> simp_all [χ_def]
               simp only [Hl, List.mem_flatMap, Prod.exists] -- uses `αs_nonEmpty`
