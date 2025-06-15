@@ -340,10 +340,15 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               refine ⟨F, _, in_Y, v_γs_w, ?_, v_F, ?_, Y_almost_free⟩
               · rw [dist_eq]
                 -- was: TRICKY PROBLEM - how do we know that `u` is chosen to minimze distance?
-                rw [u_picked_minimally] -- now we DO have that :-)
-                rw [← same_dist]
-                -- ALMOST THERE?
-                sorry
+                rw [← List.cons_append, u_picked_minimally] -- now we DO have that :-)
+                rw [← same_dist, distance_list_append]
+                apply iInf_of_min
+                intro y
+                -- Idea: y cannot provide a shorter distance than u.
+                rw [same_dist, ← u_picked_minimally, distance_list_cons]
+                apply le_add_of_le_add_right ?_ (distance_le_Hdistance _in_H ?_)
+                · exact iInf_le_iff.mpr fun b a => a y
+                · simp [vDash.SemImplies, conEval]; assumption
               have αs_nonEmpty : αs ≠ [] := by cases αs <;> simp_all [χ_def]
               simp only [Hl, List.mem_flatMap, Prod.exists] -- uses `αs_nonEmpty`
               refine ⟨F, d :: δs, _in_H, ?_⟩
@@ -586,10 +591,15 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               refine ⟨F, _, in_Y, v_γs_w, ?_, v_F, ?_, Y_almost_free⟩
               · rw [dist_eq]
                 -- was: TRICKY PROBLEM - how do we know that `u` is chosen to minimze distance?
-                rw [u_picked_minimally] -- now we DO have that :-)
-                rw [← same_dist]
-                -- ALMOST THERE?
-                sorry
+                rw [← List.cons_append, u_picked_minimally] -- now we DO have that :-)
+                rw [← same_dist, distance_list_append]
+                apply iInf_of_min
+                intro y
+                -- Idea: y cannot provide a shorter distance than u.
+                rw [same_dist, ← u_picked_minimally, distance_list_cons]
+                apply le_add_of_le_add_right ?_ (distance_le_Hdistance _in_H ?_)
+                · exact iInf_le_iff.mpr fun b a => a y
+                · simp [vDash.SemImplies, conEval]; assumption
               have αs_nonEmpty : αs ≠ [] := by cases αs <;> simp_all [χ_def]
               simp only [Hl, List.mem_flatMap, Prod.exists] -- uses `αs_nonEmpty`
               refine ⟨F, d :: δs, _in_H, ?_⟩
