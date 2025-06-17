@@ -1418,10 +1418,24 @@ induction αs generalizing v w
 case nil => simp_all ; use ⟨w :: [], by simp⟩ ; simp [List.Vector.head, List.Vector.last]
 case cons α αs ih =>
   have ⟨u, v_α_u, u_αs_w⟩ := h
-  have ⟨⟨u_w, u_w_pf⟩, props⟩ := ih u_αs_w
-  use ⟨v :: u_w, by sorry⟩
-  simp [List.Vector.head, List.Vector.last]
-  sorry
+  have ⟨⟨u_w, u_w_pf⟩, ⟨u_head, w_last, u_w_rel⟩⟩ := ih u_αs_w
+  use ⟨v :: u_w, by simp [u_w_pf]⟩
+  simp [List.Vector.head, List.Vector.last,
+        List.Vector.get_eq_get_toList]
+  constructor
+  · rw [w_last]
+    simp [List.Vector.last, List.Vector.get_eq_get_toList,
+               List.Vector.toList, u_w_pf]
+  · intro i
+    cases i using Fin.inductionOn
+    · simp ; convert v_α_u ; rw [u_head] ; cases u_w
+      · exfalso ; simp at u_w_pf
+      · simp [List.Vector.head]
+    case succ k ih =>
+      clear ih
+      simp
+      have := u_w_rel k
+      exact this
 
 theorem relateSeq.of_finitelyManySteps {αs : List Program} {W} {M : KripkeModel W} {v w : W}
   (v_w : List.Vector W αs.length.succ)
@@ -1429,7 +1443,31 @@ theorem relateSeq.of_finitelyManySteps {αs : List Program} {W} {M : KripkeModel
   (w_last : w = v_w.last)
   (v_w_rel : ∀ i : Fin αs.length, relate M (αs.get i) (v_w.get i.castSucc) (v_w.get (i.succ))) :
     relateSeq M αs v w := by
-  sorry -- doable by induction will come back to
+  induction αs generalizing v w
+  case nil =>
+    simp [v_head, w_last, List.Vector.last_def]
+  case cons α αs ih =>
+    refine ⟨v_w[1], ⟨?_, ?_⟩⟩
+    · have := v_w_rel ⟨0, by simp⟩
+      simp at this
+      convert this
+    · apply ih (List.Vector.tail v_w)
+      · have ⟨v_w_list, v_w_pf⟩ := v_w
+        cases v_w_list
+        case nil => simp at v_w_pf
+        case cons x xs =>
+          simp only [getElem, List.Vector.get_eq_get_toList,
+                    List.Vector.toList, List.Vector.tail, Fin.cast, List.get]
+          cases xs
+          case nil => simp at v_w_pf
+          case cons => simp [List.Vector.head]
+      · simp [v_head, w_last, List.Vector.last_def]
+      · intro ⟨i_val, i_pf⟩
+        have := v_w_rel ⟨i_val.succ, by simp [i_pf]⟩
+        cases v_w using List.Vector.inductionOn
+        simp
+        simp [List.Vector.get] at this
+        convert this
 
 -- List version now
 theorem loadedDiamondPaths_exists (α : Program) (αs : List Program) {X : Sequent}
