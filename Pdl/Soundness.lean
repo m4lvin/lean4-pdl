@@ -2040,6 +2040,13 @@ theorem loadedDiamondPaths_exists (α : Program) (αs : List Program) {X : Seque
       -/
       · exact Prod.Lex.right _ _forTermination_lrep
 
+theorem List.Vector.head_eq_head_toList {n : ℕ} {xs : Vector α n.succ} {h : xs.toList ≠ []} :
+    List.Vector.head xs = List.head (xs.toList) h := by
+  have ⟨xs_list, xs_pf⟩ := xs
+  cases xs_list
+  · simp at h
+  · simp [List.Vector.head]
+
 theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
   (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
   (root_free : X.isFree) -- ADDED / not/implicit in Notes?
@@ -2086,7 +2093,32 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
       have ⟨s, t_s, s_cons⟩ := lDP_pt1
       rcases s_cons with inl | ⟨in_con, models_con, without_con⟩
       · refine ⟨s, t_s, Or.inl inl⟩
-      · have rel_drop : relateSeq M (β :: βs) v_w[k] w := by sorry
+      · have rel_drop : relateSeq M (β :: βs) v_w[k] w := by
+          have ⟨v_w_list, v_w_pf⟩ := v_w
+          let list_drop := v_w_list.drop k
+          have helper : list_drop.length = (β :: βs).length.succ := by
+            unfold list_drop
+            rw [←drop_def]
+            simp [v_w_pf]
+            omega
+          have list_drop_ne : list_drop ≠ [] := by
+            apply List.length_pos_iff.1
+            simp [helper]
+          apply relateSeq.of_finitelyManySteps (⟨list_drop, helper⟩)
+          · simp only [getElem, List.Vector.get_eq_get_toList, List.Vector.toList, Fin.cast]
+            have := @List.Vector.head_eq_head_toList W _ ⟨list_drop, helper⟩ (by simp [list_drop_ne])
+            rw [this]
+            simp only [List.Vector.toList, list_drop]
+            convert Eq.symm (@List.head_drop W v_w_list k list_drop_ne)
+          · subst w_last
+            simp [List.Vector.last_def, List.Vector.get_eq_get_toList, list_drop]
+            apply congrArg (List.length) at drop_def
+            simp at drop_def
+            simp only [←drop_def, getElem]
+            apply congrArg
+            simp
+            omega
+          · sorry
         have ⟨s', s_s', s'_cons⟩ := loadedDiamondPaths β βs tab root_free s models_con φ in_con rel_drop w_nξ
         rcases s'_cons with ⟨sat_con, eq_con⟩ | inr
         · refine ⟨s', t_s.trans s_s', Or.inl ⟨sat_con, ?_⟩⟩
