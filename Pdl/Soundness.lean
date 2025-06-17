@@ -2118,7 +2118,27 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
             apply congrArg
             simp
             omega
-          · sorry
+          · intro i
+            simp [List.Vector.get_eq_get_toList]
+            have helper : k.val + i.val < (α :: αs).length := by
+              have k_pf := k.2
+              have i_pf := i.2
+              apply congrArg (List.length) at drop_def
+              simp at drop_def
+              simp [←drop_def] at i_pf
+              have := (add_lt_add_iff_left ↑k).2 i_pf
+              have helper : ↑k + (αs.length + 1 - ↑k) = αs.length + 1 := by omega
+              simp [helper] at this
+              exact this
+            have := v_w_rel ⟨k.val + i.val, helper⟩
+            simp [List.Vector.get_eq_get_toList] at this
+            unfold list_drop
+            simp
+            have h : (α :: αs)[k.val + i.val]'helper = (β :: βs)[↑i] := by
+              simp [←drop_def]
+              apply Eq.symm List.getElem_drop
+            rw [h] at this
+            exact this
         have ⟨s', s_s', s'_cons⟩ := loadedDiamondPaths β βs tab root_free s models_con φ in_con rel_drop w_nξ
         rcases s'_cons with ⟨sat_con, eq_con⟩ | inr
         · refine ⟨s', t_s.trans s_s', Or.inl ⟨sat_con, ?_⟩⟩
