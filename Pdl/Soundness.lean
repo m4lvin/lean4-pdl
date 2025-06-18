@@ -1389,6 +1389,30 @@ lemma SemImply_loadedNormal_ofSeqAndNormal {M u}
     refine ⟨v, ⟨u_β_v, ?_⟩⟩
     exact ih w_nφ v_βs_w
 
+-- TODO move to Syntax, replace `neg_` version of it ;-)
+@[simp]
+lemma AnyFormulaBoxBoxes_eq_FormulaBoxLoadBoxes_inside_unload :
+      ((⌊α⌋  AnyFormula.loadBoxes αs (AnyFormula.normal φ)).unload)
+    = ( ⌈α⌉((AnyFormula.loadBoxes αs (AnyFormula.normal φ)).unload)) := by
+  cases αs <;> simp_all [AnyFormula.loadBoxes, AnyFormula.unload]
+
+lemma firstBox_isAtomic_of_basic (Y_bas : Y.basic)
+    (anf_in_Y : (~''(AnyFormula.loadBoxes (β :: βs) (AnyFormula.normal φ))).in_side side Y) :
+    β.isAtomic := by
+  rcases Y with ⟨L,R,O⟩
+  cases side
+  · sorry -- all_goals
+  unfold Sequent.basic at Y_bas
+  simp at Y_bas
+  have := fun h => Y_bas.1 (~⌈β⌉⌈⌈βs⌉⌉φ) (Or.inr (Or.inr h))
+  unfold AnyNegFormula.in_side at anf_in_Y
+  simp at *
+  subst anf_in_Y
+  simp [neg_AnyFormulaBoxBoxes_eq_FormulaBoxLoadBoxes_inside_unload] at *
+  specialize this ?_
+  · sorry
+  cases β <;> simp_all [Program.isAtomic]
+
 -- List version now
 theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
   (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
@@ -1472,7 +1496,8 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
 
       case pdl Y' bas' r' nrep' next' =>
         -- first adapt loadedDiamondPathsPDL to list
-        have ⟨u, ⟨v_α_u, u_αs_w⟩⟩ := v_α_w
+        have := exists_same_distance_of_relateSeq_cons v_α_w
+        rcases this with ⟨u, ⟨v_α_u, u_αs_w, u_minimal⟩⟩
         have u_nαsφ : (M, u)⊨~''(AnyFormula.loadBoxes αs (AnyFormula.normal φ)) := by
           apply SemImply_loadedNormal_ofSeqAndNormal w_nξ u_αs_w
 
@@ -1493,7 +1518,11 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
           · refine ⟨s, ⟨?_, Or.inl ⟨sat_con, ?_⟩⟩⟩
             · exact Relation.TransGen.head (Or.inl t_s) s1_s
             · exact ePropB.g_tweak _ _ _ (Relation.TransGen.single (Or.inl t_s)) s1_s eq_con
-          · have _forTermination_loc_atom_pdl : distance_list M u w (β :: βs) < distance_list M v w (·a :: αs) := by subst αs_def; simp [distance_list] ; sorry  -- ISSUE: doable
+          · have _forTermination_loc_atom_pdl : distance_list M u w (β :: βs) < distance_list M v w (·a :: αs) := by
+                rw [← αs_def]
+                rw [u_minimal]
+                simp_all [relate, distance]
+                sorry  -- ISSUE: doable
             have ⟨k, ⟨s_k, k_props⟩⟩ := loadedDiamondPaths β βs tab root_free s u_s φ (αs_def ▸ in_con) (αs_def ▸ u_αs_w) w_nξ
             clear _forTermination_loc_atom_pdl
             rcases k_props with ⟨sat_con, eq_con⟩ | inr
@@ -1876,7 +1905,14 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
             have _for_termination_all : distance_list M v w (β :: βs) ≤ distance_list M v w (α :: αs) := by
               exact le_of_eq dist_eq -- here was the IDK ISSUE
             have _for_termination_all_2 : lengthOfProgram β < lengthOfProgram α := by
-              sorry -- ISSUE: this is doable because β comes from δ, just need to find lemma
+              have := endNodesOf_basic Y_in
+              have : β.isAtomic := firstBox_isAtomic_of_basic this anf_in_Y
+              rw [Program.isAtomic_iff] at this
+              rcases this with ⟨b, β_def⟩
+              subst α_def β_def
+              simp
+              -- still need that lenghtOfBla is never 0
+              sorry
             have ⟨s, s1_s, s_cons⟩ := loadedDiamondPaths β βs tab root_free s1 v_s1 φ anf_in_s1 v_seq_w w_nξ
             rcases s_cons with ⟨sat_con, ne_con⟩ | inr
             · refine ⟨s, ?_, Or.inl ⟨sat_con, ?_⟩⟩
@@ -1898,7 +1934,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
       have ⟨s1, ⟨t_s1, s1_props⟩⟩ := lDPDL
       rcases s1_props with inl | ⟨in_con, u_s1, free_con⟩
       · refine ⟨s1, ⟨t_s1, Or.inl inl⟩⟩
-      · have _forTermination_pdl : distance_list M u w (β :: βs) < distance_list M v w (α :: αs) := by subst αs_def; sorry -- ISSUE: doable
+      · have _forTermination_pdl : distance_list M u w (β :: βs) < distance_list M v w (α :: αs) := by subst αs_def; sorry -- ISSUE: doable, same as above probably
         have ⟨s, ⟨s1_s, s_props⟩⟩ := loadedDiamondPaths β βs tab root_free s1 u_s1 φ (αs_def ▸ in_con) (αs_def ▸ u_αs_w) w_nξ
         clear _forTermination_pdl
         rcases s_props with ⟨sat_con, eq_con⟩ | inr
