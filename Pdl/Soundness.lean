@@ -1119,45 +1119,6 @@ lemma list_drop_eq_get :
   case nil => exfalso; have ⟨k, k_pf⟩ := k; simp_all
   case cons => induction k using Fin.inductionOn <;> simp
 
-lemma distance_zero_iff_equal : distance M α v u = 0 → v = u := by
-  intro mp
-  cases α_def : α <;> rw [α_def] at mp
-  case atom_prog a => exfalso; by_cases M.Rel a v u <;> simp_all [distance]
-  case sequence α₁ α₂ =>
-    simp [distance] at mp
-    have ⟨w, eq1, eq2⟩ := mp
-    have := distance_zero_iff_equal eq1
-    have := distance_zero_iff_equal eq2
-    simp_all
-  case union α₁ α₂ =>
-    apply min_eq_iff.1 at mp
-    rcases mp with ⟨eq1, bla⟩ | ⟨eq2, bla⟩
-    · have := distance_zero_iff_equal eq1
-      exact this
-    · have := distance_zero_iff_equal eq2
-      exact this
-  case star β =>
-    simp [distance_cast, fdist] at mp
-    have ⟨walk, prop⟩ := mp
-    unfold Walk.flength at prop
-    induction walk
-    case nil => rfl
-    case cons α u w v u_α_w walk u_ne_w g =>
-      clear g
-      simp at prop
-      have := distance_zero_iff_equal prop.1
-      exfalso ; exact u_ne_w this
-  case test τ => simp_all [distance]
-   termination_by
-      (lengthOfProgram α : Nat)
-    decreasing_by
-    · sorry
-    · sorry
-    · sorry
-    · sorry
-    · sorry
-
-
 lemma SemImply_loadedNormal_ofSeqAndNormal {M u}
   (w_nφ : (M,w) ⊨ (~φ))
   (u_αs_w : relateSeq M αs u w) :
