@@ -126,3 +126,9 @@ lemma Vector.drop_last_eq_last {v : List.Vector α n.succ} (k : Fin n) (j : Nat)
 lemma Vector.my_cast_heq (n m : Nat) (h : n = m) (v : List.Vector α n) :
     HEq (h ▸ v : List.Vector α m) v := by
   aesop
+
+lemma list_drop_eq_get :
+    List.drop k.val xs = (xs.get k) :: (List.drop (k.val + 1) xs) := by
+  induction xs
+  case nil => exfalso; have ⟨k, k_pf⟩ := k; simp_all
+  case cons => induction k using Fin.inductionOn <;> simp

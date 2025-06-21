@@ -241,10 +241,14 @@ lemma box_loadBoxes_append_eq_of_loaded_eq_loadBoxes
     apply AnyFormula.loadBoxes_loaded_eq_loaded_boxes
 
 @[simp]
-lemma neg_AnyFormulaBoxBoxes_eq_FormulaBoxLoadBoxes_inside_unload :
-      (~(⌊α⌋  AnyFormula.loadBoxes αs (AnyFormula.normal φ)).unload)
-    = (~ ⌈α⌉((AnyFormula.loadBoxes αs (AnyFormula.normal φ)).unload)) := by
+lemma AnyFormulaBoxBoxes_eq_FormulaBoxLoadBoxes_inside_unload :
+      ((⌊α⌋  AnyFormula.loadBoxes αs (AnyFormula.normal φ)).unload)
+    = ( ⌈α⌉((AnyFormula.loadBoxes αs (AnyFormula.normal φ)).unload)) := by
   cases αs <;> simp_all [AnyFormula.loadBoxes, AnyFormula.unload]
+
+lemma AnyFormula.loadBoxes_unload_eq_boxes : (AnyFormula.loadBoxes βs (AnyFormula.normal φ)).unload = ⌈⌈βs⌉⌉φ := by
+  induction βs <;> simp [unload]
+  case cons ih => exact ih
 
 lemma loaded_eq_to_unload_eq χ αs φ
     (h : AnyFormula.loaded χ = AnyFormula.loadBoxes αs (AnyFormula.normal φ))

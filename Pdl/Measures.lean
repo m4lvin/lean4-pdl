@@ -22,6 +22,9 @@ mutual
     | ⌈α⌉φ => 1 + lengthOfProgram α + lengthOfFormula φ
 end
 
+lemma lengthOfProgram_gt_zero (α : Program) : 0 < lengthOfProgram α := by
+  cases α <;> simp <;> omega
+
 class HasLength (α : Type) where
   lengthOf : α → ℕ
 

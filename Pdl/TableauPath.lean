@@ -336,6 +336,22 @@ theorem not_path_nil {a : PathIn tab} : ¬(a < PathIn.nil) := by
   intro con
   cases con <;> simp_all [not_edge_nil]
 
+theorem edge_is_strict_ordering {s t : PathIn tab} : s ⋖_ t → s ≠ t := by
+  intro s_t set
+  have := edge_then_length_lt s_t
+  simp_all
+
+theorem path_is_strict_ordering {s t : PathIn tab} : s < t → s ≠ t := by
+intro s_t seqt
+induction s_t
+case single set =>
+  absurd seqt
+  exact edge_is_strict_ordering set
+case tail k t s_k k_t ih =>
+  apply edge.TransGen_isAsymm.1 s k s_k
+  rw [seqt]
+  apply Relation.TransGen.single k_t
+
 /-- An induction principle for `PathIn` with a base case at the root of the tableau and
 an induction step using the `edge` relation `⋖_`.
 
