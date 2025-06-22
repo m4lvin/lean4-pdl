@@ -24,7 +24,7 @@ import Pdl.PartInterpolation
 import Pdl.Interpolation
 import Pdl.Beth
 
-/-! # Proposiitonal Dynamic Logic
+/-! # Propositional Dynamic Logic
 
 This module serves as the root of the `Pdl` library, importing all its modules.
 
