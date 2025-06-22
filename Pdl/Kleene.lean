@@ -1,7 +1,12 @@
-
 import Mathlib.Algebra.Order.Kleene
+
 import Pdl.SemQuot
-import Pdl.Syntax
+
+/-! # PDL programs form a Kleene Algebra
+
+This file provides `RelProp.kleeneAlgebra`.
+It shows that the semantic quotient of PDL `Program`s as `RelProp`s forms a `KleeneAlgebra`.
+-/
 
 instance : KStar Program :=
   { kstar := λ (α : Program) ↦ ∗α }
@@ -14,13 +19,9 @@ instance : Add RelProp :=
 
 instance : AddSemigroup RelProp where
   add_assoc := by
-    apply Quotient.ind
-    intro α
-    apply Quotient.ind
-    intro β
-    apply Quotient.ind -- Maybe a better way than repeating 3 times
-    intro γ
-    simp [HAdd.hAdd, Add.add, RelProp.union, Program.instSetoid, relEquiv]
+    refine (Quotient.ind (fun α => Quotient.ind (fun β => Quotient.ind (fun γ => ?_))))
+    simp only [HAdd.hAdd, Add.add, RelProp.union, Program.instSetoid, Quotient.map₂_mk, Quotient.eq,
+      relEquiv, relate]
     aesop
 
 instance : Zero RelProp :=
@@ -44,14 +45,14 @@ def RelProp.Repeat : ℕ → RelProp → RelProp
   | 0     , _ => 0
   | n + 1 , a => RelProp.Repeat n a + a
 
-instance : AddMonoid RelProp where
+instance RelProp.addMonoid : AddMonoid RelProp where
   nsmul := RelProp.Repeat
   nsmul_zero := by simp [RelProp.Repeat]
   nsmul_succ := by simp [RelProp.Repeat]
   zero_add := instAddZeroClassRelProp.zero_add -- idk why I have to add these since AddMonoid extends AddZeroClass??
   add_zero := instAddZeroClassRelProp.add_zero
 
-instance : Mul RelProp where
+instance RelProp.mul : Mul RelProp where
   mul := RelProp.sequence
 
 instance : MulZeroClass RelProp where
@@ -72,7 +73,8 @@ instance : Distrib RelProp where
     intro β
     apply Quotient.ind
     intro γ
-    simp [HAdd.hAdd, Add.add, HMul.hMul, Mul.mul, RelProp.sequence, RelProp.union, Program.instSetoid, relEquiv]
+    simp only [HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid, HAdd.hAdd, Add.add,
+      RelProp.union, Quotient.map₂_mk, Quotient.eq, relEquiv, relate]
     aesop
   right_distrib := by
     apply Quotient.ind
@@ -81,7 +83,8 @@ instance : Distrib RelProp where
     intro β
     apply Quotient.ind
     intro γ
-    simp [HAdd.hAdd, Add.add, HMul.hMul, Mul.mul, RelProp.sequence, RelProp.union, Program.instSetoid, relEquiv]
+    simp only [HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid, HAdd.hAdd, Add.add,
+      RelProp.union, Quotient.map₂_mk, Quotient.eq, relEquiv, relate]
     aesop
 
 instance : AddCommMonoid RelProp where
@@ -90,7 +93,8 @@ instance : AddCommMonoid RelProp where
     intro α
     apply Quotient.ind
     intro β
-    simp [HAdd.hAdd, Add.add, RelProp.union, Program.instSetoid, relEquiv]
+    simp only [HAdd.hAdd, Add.add, RelProp.union, Program.instSetoid, Quotient.map₂_mk, Quotient.eq,
+      relEquiv, relate]
     aesop
 
 instance : NonUnitalNonAssocSemiring RelProp where
@@ -110,18 +114,22 @@ instance : NonUnitalSemiring RelProp where
     simp [HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid, relEquiv]
     aesop
 
-instance : One RelProp :=
+instance RelProp.instOne : One RelProp :=
   { one := ⟦?'⊤⟧ }
 
-instance : Semiring RelProp where
+instance RelProp.semiring : Semiring RelProp where
   one_mul := by
     apply Quotient.ind
     intro α
-    simp [HMul.hMul, Mul.mul, OfNat.ofNat, One.one, RelProp.sequence, Program.instSetoid, relEquiv]
+    simp only [HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid, OfNat.ofNat, One.one,
+      Formula.insTop, Quotient.map₂_mk, Quotient.eq, relEquiv, relate, evaluate, not_false_eq_true,
+      and_true, exists_eq_left', implies_true]
   mul_one := by
     apply Quotient.ind
     intro α
-    simp [HMul.hMul, Mul.mul, OfNat.ofNat, One.one, RelProp.sequence, Program.instSetoid, relEquiv]
+    simp only [HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid, OfNat.ofNat, One.one,
+      Formula.insTop, Quotient.map₂_mk, Quotient.eq, relEquiv, relate, evaluate, not_false_eq_true,
+      and_true, exists_eq_right, implies_true]
 
 def relImp (α β : Program) := ∀ (W : Type) (M : KripkeModel W) v w, relate M α v w → relate M β v w
 
@@ -136,10 +144,10 @@ def RelProp.lt : RelProp → RelProp → Prop := Quotient.lift₂ relImp_strict 
   intro α₁ β₁ α₂ β₂ hα hβ
   simp_all [relImp_strict, HasEquiv.Equiv, Program.instSetoid, relEquiv])
 
-instance : LE RelProp where
+instance RelProp.instLE : LE RelProp where
   le := RelProp.le
 
-instance : Preorder RelProp where
+instance RelProp.instPreorder : Preorder RelProp where
   le_refl := by
     apply Quotient.ind
     intro α
@@ -153,7 +161,7 @@ instance : Preorder RelProp where
     intro γ
     simp_all [LE.le, RelProp.le, relImp]
 
-instance : PartialOrder RelProp where
+instance RelProp.partialOrder : PartialOrder RelProp where
   le_antisymm := by
     apply Quotient.ind
     intro α
@@ -162,7 +170,7 @@ instance : PartialOrder RelProp where
     simp [LE.le, RelProp.le, relImp, Program.instSetoid, relEquiv]
     aesop
 
-instance : SemilatticeSup RelProp where
+instance RelProp.semilatticeSup : SemilatticeSup RelProp where
   sup := RelProp.union
   le_sup_left := by
     apply Quotient.ind
@@ -188,13 +196,13 @@ instance : SemilatticeSup RelProp where
     simp [LE.le, RelProp.le, relImp, RelProp.union]
     aesop
 
-instance : IdemSemiring RelProp where
+instance RelProp.idemSemiring : IdemSemiring RelProp where
   bot_le := by
     apply Quotient.ind
     intro α
     simp [OfNat.ofNat, Zero.toOfNat0, Zero.zero, LE.le, RelProp.le, relImp]
 
-instance : KleeneAlgebra RelProp where
+instance RelProp.kleeneAlgebra : KleeneAlgebra RelProp where
   one_le_kstar := by
     apply Quotient.ind
     intro α

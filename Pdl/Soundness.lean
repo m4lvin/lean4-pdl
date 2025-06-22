@@ -664,16 +664,17 @@ theorem ePropB.h {tab : Tableau .nil X} (s t : PathIn tab) :
   · rw [@Relation.reflTransGen_iff_eq_or_transGen] at t_to_s
     simp_all
 
+/-- Previously called `simpler_equiv_simpler`. -/
 theorem ePropB.i {tab : Tableau .nil X} (s u t : PathIn tab) :
     (s <ᶜ u  →  s ≡ᶜ t  →  t <ᶜ u) := by
-  rintro s_c_y s_equiv_t
-  rcases s_c_y with ⟨s_u, not_u_s⟩
-  rcases s_equiv_t with ⟨-, t_to_s⟩
+  intro u_simpler_s s_equiv_t
+  rcases u_simpler_s with ⟨s_c_u, not_u_c_s⟩
+  rcases s_equiv_t with ⟨_, t_s⟩
   constructor
-  · exact Relation.TransGen.trans_right t_to_s s_u
-  · intro u_to_t
-    absurd not_u_s
-    exact Relation.TransGen.trans_left u_to_t t_to_s
+  · exact Relation.TransGen.trans_right t_s s_c_u
+  · intro u_c_t
+    absurd not_u_c_s
+    exact Relation.TransGen.trans_left u_c_t t_s
 
 theorem ePropB {tab : Tableau .nil X} (s u t : PathIn tab) :
     (s ⋖_ t → (s <ᶜ t) ∨ (t ≡ᶜ s)) -- a
@@ -692,27 +693,8 @@ theorem ePropB {tab : Tableau .nil X} (s u t : PathIn tab) :
 
 /-! ## Soundness -/
 
-lemma Sequent.isLoaded_of_negAnyFormula_loaded {α ξ side} {X : Sequent}
-    (negLoad_in : (~''(AnyFormula.loaded (⌊α⌋ξ))).in_side side X)
-    : X.isLoaded := by
-  unfold AnyNegFormula.in_side at negLoad_in
-  rcases X with ⟨L,R,O⟩
-  rcases O with _|⟨lf|lf⟩
-  · cases side <;> simp_all [Program.isAtomic]
-  all_goals
-    cases side <;> simp [AnyFormula.unload] at negLoad_in
-    subst negLoad_in
-    cases ξ
-    all_goals
-      simp_all [isLoaded]
-
-/- Soundness of loading and repeats: a tableau can immitate all moves in a model. -/
--- Note that we mix induction' tactic and recursive calls __O.o__
--- TODO: missing here: path from t to s is satisfiable!
--- FIXME: move satisfiable outside disjunction?
-set_option maxHeartbeats 10000000
-
--- TODO adapt to list
+/-! Specific case of `loadedDiamondPaths` for `Tableau.pdl`. -/
+set_option maxHeartbeats 10000000 in
 lemma loadedDiamondPathsPDL
   (α : Program)
   (X : Sequent)
@@ -1072,7 +1054,22 @@ lemma firstBox_isAtomic_of_basic (Y_bas : Y.basic)
     · exact AnyFormula.loadBoxes_unload_eq_boxes
     cases β <;> simp_all [Program.isAtomic]
 
-/-- List version of loadedDiamondPaths -/
+/- Key helper lemma to show the soundness of loading and repeats.
+Intutively, it says that a tableau starting with a loaded diamond can immitate all
+possible ways in which a Kripke model can satisfy that diamond.
+
+The lemma statement differs slightly from the paper version:
+
+- Our paths cannot stop "inside" a `LocalTableau` and they may take apart more than one loaded box,
+  hence we need access to *all* of the boxes `αs` in front of the normal formula `φ`.
+- We do _not_ say that the from `t` to `s` has to be satisfiable.
+- We only demand `s` to be satisfiable in the free case. For the other disjunct this is implied.
+
+The paper proof uses three nested induction levels, one of them only in the star case.
+Instead of that here we use recursive calls and show that they terminate via the lexicographic order
+on the `ℕ∞ × Nat × Nat` triple `⟨distance_list M v w (α :: αs), lengthOfProgram α, t.length⟩`.
+The star case is then actually handled just like the other connectives.
+-/
 theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
   (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
   (root_free : X.isFree) -- ADDED / not/implicit in Notes?
@@ -1086,23 +1083,15 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
   (v_α_αs_w : relateSeq M (α :: αs) v w)
   (w_nφ : (M,w) ⊨ (~φ))
   : ∃ s : PathIn tab, t ◃⁺ s ∧
-    -- maybe TODO: missing here: path from t to s is satisfiable!
-    (   ( satisfiable (nodeAt s) ∧ ¬ (s ≡ᶜ t) )  -- maybe: move satisfiable outside disjunction?
+    -- Paper also says here: path from t to s is satisfiable.
+    (   ( satisfiable (nodeAt s) ∧ ¬ (s ≡ᶜ t) )  -- Paper has satisfiable outside disjunction.
       ∨ ( ((~''(AnyFormula.normal φ)).in_side side (nodeAt s))
         ∧ (M,w) ⊨ (nodeAt s)
         ∧ (nodeAt s).isFree
         )
     ) := by
-
-  -- outer induction (do it with recursive calls!) on
-    -- (1) distance of list
-    -- (2) length of first program in the list
-    -- (3) length of node in tableau
-
-  -- We do not really need induction, but use `PathIn.init_inductionOn`
-  -- to first distinguish whether we are the rooot, and in the step case
-  -- we look at what happens at the *end* of the path.
-  -- (This is similar to the separate Lemma 5.2, going from t to t'.)
+  -- We do not need induction, but use `PathIn.init_inductionOn` to first distinguish whether we
+  -- are the rooot, and in the step case we look at what happens at the *end* of the path.
   cases t using PathIn.init_inductionOn
   case root =>
     exfalso
@@ -1110,8 +1099,8 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
     unfold Sequent.isFree Sequent.isLoaded at root_free
     rcases X with ⟨L,R,O⟩
     cases O <;> cases side <;> simp at *
-  case step t0 IH s_t0 => -- NOTE: not indenting from here. why do we get this IH???
-  clear IH
+  case step t0 IH s_t0 => -- NOTE: not indenting from here.
+  clear IH -- Not needed, came from `PathIn.init_inductionOn`.
   -- Notes first take care of cases where rule is applied to non-loaded formula.
   -- For this, we need to distinguish what happens at `t`.
   rcases tabAt_t_def : tabAt t with ⟨Hist, Z, tZ⟩
@@ -1197,7 +1186,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
               · exact Relation.TransGen.head (Or.inl t_s) (Relation.TransGen.trans s1_s s_k)
 
       -- Here we need to go to the companion.
-      -- IDEA: make a recursive call, and for termination note that the path becomes shorter?
+      -- We will make a recursive call, and for termination note that the path becomes shorter.
       case lrep lpr =>
         rename' tabAt_t_def => tabAt_t'_def
         rename' t => t'
@@ -1245,7 +1234,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
         have := loadedDiamondPaths (·a) αs tab root_free u v_u φ negLoad_in_u v_α_αs_w w_nφ
         rcases this with ⟨s, u_s, (⟨s_sat, not_s_u⟩|reached)⟩
         all_goals
-          refine ⟨s, ?_, ?_⟩ -- write a have statement for below line
+          refine ⟨s, ?_, ?_⟩
           exact Relation.TransGen.trans (Relation.TransGen.trans (Relation.TransGen_or_left (Relation.TransGen.single t'_s)) (Relation.TransGen_or_right (Relation.TransGen.single t_comp_u))) u_s
         · refine Or.inl ⟨s_sat, ?_⟩
           refine ePropB.g_tweak t' u s ?_ u_s not_s_u
@@ -1320,7 +1309,6 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
               convert Y_almost_free
               rw [tabAt_s_def]
           -- Now we have that δ is not empty.
-          -- FIXME: indent rest or use wlog above?
           -- Here is the interesting case: not leaving the cluster.
           -- We get a sequence of worlds from the δ relation:
           case cons β βs =>
@@ -1390,7 +1378,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
 
   case lrep lpr =>
     -- Here we need to go to the companion.
-    -- IDEA: make a recursive call, and for termination note that the path becomes shorter?
+    -- We will make a recursive call, and for termination note that the path becomes shorter.
     have h : (tabAt t).snd.snd = .lrep (tabAt_t_def ▸ lpr) := by
       -- rw [tabAt_t_def] -- motive is not type correct :-(
       rw [← heq_iff_eq]
@@ -1440,35 +1428,6 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
         exact Prod.Lex.right _ (Prod.Lex.left _ _ _for_termination_all)
       · exact Prod.Lex.left _ _ _forTermination_pdl
       · exact Prod.Lex.right _ (Prod.Lex.right _ _forTermination_lrep)
-
-
-theorem simpler_equiv_simpler {u s t : PathIn tab} :
-    s <ᶜ u → s ≡ᶜ t → t <ᶜ u := by
-  intro u_simpler_s s_equiv_t
-  rcases u_simpler_s with ⟨s_c_u, not_u_c_s⟩
-  rcases s_equiv_t with ⟨_, t_s⟩
-  constructor
-  · exact Relation.TransGen.trans_right t_s s_c_u
-  · intro u_c_t
-    absurd not_u_c_s
-    exact Relation.TransGen.trans_left u_c_t t_s
-
--- FIXME rename and move
-lemma in_side_of_lf_inl {X} (lf : LoadFormula)
-    (O_def : X.2.2 = some (Sum.inl (~'lf))) :
-    (~''(AnyFormula.loaded lf)).in_side Side.LL X := by
-  rcases X with ⟨L,R,O⟩
-  simp_all [nodeAt, loadMulti_cons, AnyNegFormula.in_side]
-
-lemma in_side_of_lf_inr {X} (lf : LoadFormula)
-    (O_def : X.2.2 = some (Sum.inr (~'lf))) :
-    (~''(AnyFormula.loaded lf)).in_side Side.RR X := by
-  rcases X with ⟨L,R,O⟩
-  simp_all [nodeAt, loadMulti_cons, AnyNegFormula.in_side]
-
-lemma loadMulti_eq_loadBoxes :
-    AnyFormula.loaded (loadMulti δ α φ) = AnyFormula.loadBoxes (δ ++ [α]) φ := by
-  induction δ <;> aesop
 
 /-- Any node in a closed tableau with a free root is not satisfiable.
 This is the main argument for soundness. -/
@@ -1557,9 +1516,10 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
         have claim : ∀ s, t ◃⁺ s → satisfiable (nodeAt s) → s ≡ᶜ t := by
           intro s t_to_s s_sat
           rw [cEquiv.symm]
-          by_contra hyp
+          apply Classical.by_contradiction
+          intro hyp
           absurd s_sat
-          -- use IH and Lemma (f) to show claim
+          -- use IH and Lemma to show claim
           apply IH
           exact ePropB.g s t t_to_s hyp
         -- Now assume for contradiction, that Λ(t) is satisfiable.
@@ -1609,8 +1569,8 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
         -- We make all the steps with `loadedDiamondPaths` now (not just for β as before).
         have in_t : (~''(AnyFormula.loaded (⌊β⌋AnyFormula.loadBoxes (δ ++ [α]) (AnyFormula.normal φ)))).in_side _theSide (nodeAt t) := by
           unfold _theSide
-          try apply in_side_of_lf_inl
-          try apply in_side_of_lf_inr
+          try apply LoadFormula.in_side_of_lf_inl
+          try apply LoadFormula.in_side_of_lf_inr
           simp_all [nodeAt, loadMulti_cons]
           apply loadMulti_eq_loadBoxes
         have := loadedDiamondPaths β (δ ++ [α]) tab Root_isFree t v_ φ in_t v_βδα_u u_not_φ

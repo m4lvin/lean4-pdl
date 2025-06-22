@@ -1,5 +1,3 @@
--- This module serves as the root of the `Pdl` library.
--- Import modules here that should be built as part of the library.
 import Pdl.Syntax
 import Pdl.Measures
 import Pdl.Star
@@ -25,3 +23,15 @@ import Pdl.Distance
 import Pdl.PartInterpolation
 import Pdl.Interpolation
 import Pdl.Beth
+
+/-! # Proposiitonal Dynamic Logic
+
+This module serves as the root of the `Pdl` library, importing all its modules.
+
+Source repository: <https://github.com/m4lvin/lean4-pdl>
+
+Dependency graph:
+
+![Dependency graph](https://m4lvin.github.io/lean4-pdl/docs/dependencies.svg)
+
+--/

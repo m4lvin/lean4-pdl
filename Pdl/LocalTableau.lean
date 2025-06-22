@@ -264,6 +264,32 @@ theorem AnyNegFormula.in_side_of_multisetEqTo {X Y} (h : X.multisetEqTo Y) {anf 
   · exact List.Perm.mem_iff L_iff
   · exact List.Perm.mem_iff R_iff
 
+lemma LoadFormula.in_side_of_lf_inl {X} (lf : LoadFormula)
+    (O_def : X.2.2 = some (Sum.inl (~'lf))) :
+    (~''(AnyFormula.loaded lf)).in_side Side.LL X := by
+  rcases X with ⟨L,R,O⟩
+  simp_all [loadMulti_cons, AnyNegFormula.in_side]
+
+lemma LoadFormula.in_side_of_lf_inr {X} (lf : LoadFormula)
+    (O_def : X.2.2 = some (Sum.inr (~'lf))) :
+    (~''(AnyFormula.loaded lf)).in_side Side.RR X := by
+  rcases X with ⟨L,R,O⟩
+  simp_all [loadMulti_cons, AnyNegFormula.in_side]
+
+lemma Sequent.isLoaded_of_negAnyFormula_loaded {α ξ side} {X : Sequent}
+    (negLoad_in : (~''(AnyFormula.loaded (⌊α⌋ξ))).in_side side X)
+    : X.isLoaded := by
+  unfold AnyNegFormula.in_side at negLoad_in
+  rcases X with ⟨L,R,O⟩
+  rcases O with _|⟨lf|lf⟩
+  · cases side <;> simp_all [Program.isAtomic]
+  all_goals
+    cases side <;> simp [AnyFormula.unload] at negLoad_in
+    subst negLoad_in
+    cases ξ
+    all_goals
+      simp_all [isLoaded]
+
 @[simp]
 theorem Sequent.without_loaded_in_side_isFree (LRO : Sequent) ξ side :
     (~''(.loaded ξ)).in_side side LRO → (LRO.without (~''(.loaded ξ))).isFree := by

@@ -392,3 +392,7 @@ lemma loadMulti_eq_of_some (h : δ.head? = some d) :
     loadMulti δ β φ = ⌊d⌋AnyFormula.loaded (loadMulti δ.tail β φ) := by
   cases δ
   <;> simp_all
+
+lemma loadMulti_eq_loadBoxes :
+    AnyFormula.loaded (loadMulti δ α φ) = AnyFormula.loadBoxes (δ ++ [α]) φ := by
+  induction δ <;> aesop
