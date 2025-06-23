@@ -2,7 +2,6 @@ import Mathlib.Data.Finset.Lattice.Fold
 import Mathlib.Logic.Relation
 
 import Pdl.Tableau
-import Pdl.Vector
 
 /-! # Navigating through tableaux with PathIn
 

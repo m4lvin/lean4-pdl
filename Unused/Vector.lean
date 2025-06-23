@@ -3,7 +3,7 @@ import Mathlib.Tactic.Linarith
 
 /-! # Helper Lemmas about Vector
 
-These are used in `Soundness.lean`.
+These were previously used in `Soundness.lean`.
 -/
 
 lemma List.nonempty_drop_sub_succ (δ_not_empty : δ ≠ []) (k : Fin δ.length) :

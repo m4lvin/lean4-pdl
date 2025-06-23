@@ -434,14 +434,8 @@ theorem relateSeq_existsH_dist (v_αγ_w : relateSeq M (α :: γ) v w)
     rw [αγ_eq_α_γ, ← δ_eq_α]
     simp [distance_list_append]
     apply iInf_le
-  have two : distance_list M v w (α :: γ) ≤ distance_list M v w (δ ++ γ) := by
-    have := fun u => @relateSeq_H_imp_relate α W M v u _ _ in_H v_X
-    have : ∀ (u : W), relateSeq M  (δ ++ γ) v u → relateSeq M (α :: γ) v u := by
-      intro u
-      rw [relateSeq_append]
-      rw [relateSeq_cons]
-      aesop
-    exact distList_le_of_Hsat M v _ α γ in_H v_X -- use (e)
+  have two : distance_list M v w (α :: γ) ≤ distance_list M v w (δ ++ γ) :=
+    distList_le_of_Hsat M v _ α γ in_H v_X -- use (e)
   exact ⟨in_H, v_X, eq_of_le_of_le one two⟩
 
 /-- 7.47 (h)

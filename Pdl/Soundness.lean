@@ -5,9 +5,8 @@ import Mathlib.Data.Prod.Lex
 import Mathlib.Data.Vector.Defs
 import Pdl.TableauPath
 import Mathlib.Data.ENat.Defs
+
 import Pdl.LocalSoundness
-import Pdl.Distance
-import Pdl.Measures
 
 /-! # Soundness (Section 6) -/
 
@@ -164,9 +163,6 @@ theorem nodeAt_companionOf_multisetEq {tab : Tableau .nil X} (s : PathIn tab) lp
   convert k_same
   simp only [List.get_eq_getElem]
   have := PathIn.toHistory_eq_Hist s
-  have : (tabAt_fst_length_eq_toHistory_length s ▸ k).val = k.val := by
-    apply Fin.val_eq_val_of_heq
-    simp
   simp_all
 
 /-- Any repeat and companion are both loaded. -/
@@ -465,41 +461,34 @@ theorem ePropB.b {tab : Tableau .nil X} (s t : PathIn tab) :
     exact Relation.ReflTransGen.single comp
 
 theorem c_claim {a : Sequent} {tab : Tableau [] a} (t l c : PathIn tab) :
-  (nodeAt t).isFree → t < l → l ♥ c → t < c := by
-intro t_free t_above_l l_hearts_c
-have ⟨lpr, tabAt_l_def, c_def⟩ := l_hearts_c
-by_contra hyp
-have c_above_l : c < l := companion_lt l_hearts_c
-have comp_leq_t : c ≤ t := by
-  rcases path_revEuclidean _ _ _ t_above_l c_above_l with h|h|h
-  · exact False.elim (hyp h)
-  · exact Relation.TransGen.to_reflTransGen h
-  · rw [h]
-    exact Relation.ReflTransGen.refl
-have comp_lt_t : c < t := by
-  apply Relation.TransGen_of_ReflTransGen comp_leq_t
-  intro c_eq_t
-  have c_loaded := (companion_loaded l_hearts_c).2
+    (nodeAt t).isFree → t < l → l ♥ c → t < c := by
+  intro t_free t_above_l l_hearts_c
+  have ⟨lpr, tabAt_l_def, c_def⟩ := l_hearts_c
+  by_contra hyp
+  have c_above_l : c < l := companion_lt l_hearts_c
+  have comp_leq_t : c ≤ t := by
+    rcases path_revEuclidean _ _ _ t_above_l c_above_l with h|h|h
+    · exact False.elim (hyp h)
+    · exact Relation.TransGen.to_reflTransGen h
+    · rw [h]
+      exact Relation.ReflTransGen.refl
+  have ⟨k, k', def_c, def_t, k'_le_k⟩ := exists_rewinds_middle comp_leq_t (Relation.TransGen.to_reflTransGen t_above_l)
+  have t_loaded : (nodeAt t).isLoaded := by
+    rw [←def_t]
+    apply companion_to_repeat_all_loaded lpr tabAt_l_def c_def k'
+    apply Fin.le_def.1 at k'_le_k
+    have k_is_lpr_succ : k.1 = lpr.1.1.succ := by
+      have ⟨k_val, k_def⟩ := k
+      have ⟨⟨lpr_len, lpr_len_pf⟩, ⟨eq_con, loaded_con⟩⟩ := lpr
+      unfold companionOf at c_def
+      rw [c_def] at def_c
+      have := rewind_is_inj def_c
+      simp [Fin.cast] at this
+      exact this
+    simp_all
   simp [Sequent.isFree] at t_free
-  rw [←c_eq_t, c_loaded] at t_free
-  contradiction
-have ⟨k, k', def_c, def_t, k'_le_k⟩ := exists_rewinds_middle comp_leq_t (Relation.TransGen.to_reflTransGen t_above_l)
-have t_loaded : (nodeAt t).isLoaded := by
-  rw [←def_t]
-  apply companion_to_repeat_all_loaded lpr tabAt_l_def c_def k'
-  apply Fin.le_def.1 at k'_le_k
-  have k_is_lpr_succ : k.1 = lpr.1.1.succ := by
-    have ⟨k_val, k_def⟩ := k
-    have ⟨⟨lpr_len, lpr_len_pf⟩, ⟨eq_con, loaded_con⟩⟩ := lpr
-    unfold companionOf at c_def
-    rw [c_def] at def_c
-    have := rewind_is_inj def_c
-    simp [Fin.cast] at this
-    exact this
-  simp_all
-simp [Sequent.isFree] at t_free
-rw [t_loaded] at t_free
-contradiction
+  rw [t_loaded] at t_free
+  cases t_free
 
 theorem ePropB.c {X} {tab : Tableau .nil X} (s t : PathIn tab) :
     (nodeAt s).isFree → s < t → s <ᶜ t := by
@@ -546,7 +535,6 @@ theorem not_cEquiv_of_free_loaded (s t : PathIn tab)
         have l_s : l ◃* s := Relation.ReflTransGen.trans l_t t_s
         cases eq_or_ne l s
         case inl les =>
-          have := edge_is_strict_ordering sel
           simp_all
         case inr lnes => exact Relation.TransGen_of_ReflTransGen l_s lnes
       case inr shl =>

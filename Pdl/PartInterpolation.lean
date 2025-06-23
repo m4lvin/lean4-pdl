@@ -1,7 +1,6 @@
 import Mathlib.Data.Finset.Basic
 
 import Pdl.Completeness
-import Pdl.Distance
 
 /-! # Interpolants for Partitions (big part of Section 7) -/
 
