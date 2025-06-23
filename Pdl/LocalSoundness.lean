@@ -3,8 +3,10 @@ import Pdl.LocalTableau
 
 /-! # Local Lemmas for Soundness (part of Section 6) -/
 
-/-- Other Lemma idea: if α is atomic, and ~''(⌊α⌋ξ) is in t, then if we make a local tableau for t, the loaded diamond must still be in all endNodesOf it.
-FIXME: is this still used? -/
+set_option maxHeartbeats 2000000 in
+/-- Helper for `loadedDiamondPaths`.
+If `α` is atomic, and `~''(⌊α⌋ξ)` is in `X`, then for any local tableau `ltab` for `X`,
+the same loaded diamond must still be in all `endNodesOf ltab`, on the same side. -/
 theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
   (ltab : LocalTableau X)
   (α_atom : α.isAtomic)
@@ -126,8 +128,8 @@ lemma endNodesOf_free_are_free {X Y} (ltX : LocalTableau X) (h : X.isFree)
   case sim =>
     simp_all
 
-set_option maxHeartbeats 1000000 in
-/-- NEW ATTEMPT. Helper to deal with local tableau in `loadedDiamondPaths`.
+set_option maxHeartbeats 2000000 in
+/-- Helper to deal with local tableau in `loadedDiamondPaths`.
 Takes a *list* of programs and φ, i.e. we want access to all loaded boxes. -/
 theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
   (ltab : LocalTableau X)
@@ -266,7 +268,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               -- Let's prepare the IH application now.
               specialize @IH _ in_B v w ?_ w_nξ new_α new_αs u_αs_w ?_ ?_
               · intro f f_in; clear IH
-                simp only [Option.map_some', Sum.elim_inl, negUnload, unload_boxes,
+                simp only [Option.map_some, Sum.elim_inl, negUnload, unload_boxes,
                   Formula.boxes_nil, Option.toList_some, List.mem_union_iff, List.mem_append,
                   List.mem_cons, List.not_mem_nil, or_false] at f_in
                 rcases f_in with (((f_in|f_in)|f_in)|f_def)
@@ -307,7 +309,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             -- Again we prepare to use IH, but now for `d` and `δs ++ αs` instead.
             specialize @IH _ in_B v w ?_ w_nξ d (δs ++ αs) ?_ ?_ ?_
             · intro f f_in
-              simp only [Option.map_some', Sum.elim_inl, negUnload, unload_boxes,
+              simp only [Option.map_some, Sum.elim_inl, negUnload, unload_boxes,
                 Formula.boxes_cons, Option.toList_some, List.mem_union_iff, List.mem_append,
                 List.mem_cons, List.not_mem_nil, or_false] at f_in
               rcases f_in with (((f_in|f_in)|f_in)|f_def)
@@ -432,7 +434,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             -- Again we prepare to use IH, but now for `d` and `δs` instead.
             specialize @IH _ in_B v u ?_ w_nξ d δs ?_ ?_ ?_
             · intro f f_in
-              simp only [Option.map_some', Sum.elim_inl, negUnload, unload_loadMulti,
+              simp only [Option.map_some, Sum.elim_inl, negUnload, unload_loadMulti,
                 Option.toList_some, List.mem_union_iff, List.mem_append, List.mem_cons,
                 List.not_mem_nil, or_false] at f_in
               rcases f_in with (((f_in|f_in)|f_in)|f_def)
@@ -516,7 +518,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               -- Let's prepare the IH application now.
               specialize @IH _ in_B v w ?_ w_nξ new_α new_αs u_αs_w ?_ ?_
               · intro f f_in; clear IH
-                simp only [LoadFormula.boxes_nil, Option.map_some', Sum.elim_inr, negUnload,
+                simp only [LoadFormula.boxes_nil, Option.map_some, Sum.elim_inr, negUnload,
                   Option.toList_some, List.mem_union_iff, List.mem_append, List.mem_cons,
                   List.not_mem_nil, or_false] at f_in
                 rcases f_in with ((f_in|(f_in|f_in))|f_def)
@@ -558,7 +560,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             -- Again we prepare to use IH, but now for `d` and `δs ++ αs` instead.
             specialize @IH _ in_B v w ?_ w_nξ d (δs ++ αs) ?_ ?_ ?_
             · intro f f_in
-              simp only [Option.map_some', Sum.elim_inr, negUnload, unload_boxes,
+              simp only [Option.map_some, Sum.elim_inr, negUnload, unload_boxes,
                 Formula.boxes_cons, Option.toList_some, List.mem_union_iff, List.mem_append,
                 List.mem_cons, List.not_mem_nil, or_false] at f_in
               rcases f_in with ((f_in|(f_in|f_in))|f_def)
@@ -683,7 +685,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             -- Again we prepare to use IH, but now for `d` and `δs` instead.
             specialize @IH _ in_B v u ?_ w_nξ d δs ?_ ?_ ?_
             · intro f f_in
-              simp only [Option.map_some', Sum.elim_inr, negUnload, unload_loadMulti,
+              simp only [Option.map_some, Sum.elim_inr, negUnload, unload_loadMulti,
                 Option.toList_some, List.mem_union_iff, List.mem_append, List.mem_cons,
                 List.not_mem_nil, or_false] at f_in
               clear IH

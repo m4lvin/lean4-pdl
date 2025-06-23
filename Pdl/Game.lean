@@ -160,6 +160,7 @@ noncomputable def good_strat (i : Player): Strategy g i := fun p turn nempty =>
 -- set_option pp.proofs true
 -- #print good_strat
 -- (With Lean 4.19.0 it changed from `proof_1` to `_proof_20`.)
+-- With Lean 4.20.1 it became `_proof_21`.
 
 theorem good_cone {g : Game} {p r : g.Pos} (W : good i p) (h : inMyCone (good_strat i) p r) : good i r := by
   induction h with
@@ -172,7 +173,7 @@ theorem good_cone {g : Game} {p r : g.Pos} (W : good i p) (h : inMyCone (good_st
     if good i q
       then
         simp only [ih, ↓reduceDIte]
-        exact (good_strat._proof_20 i q turn (of_eq_true (eq_true ih))).choose_spec.choose_spec
+        exact (good_strat._proof_21 i q turn (of_eq_true (eq_true ih))).choose_spec.choose_spec
       else contradiction
 
 theorem good_is_surviving {g : Game} {p : g.Pos} : good i p → g.turn p = i → p.moves.Nonempty := by

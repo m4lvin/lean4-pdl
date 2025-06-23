@@ -67,32 +67,19 @@ instance : MulZeroClass RelProp where
 
 instance : Distrib RelProp where
   left_distrib := by
-    apply Quotient.ind
-    intro α
-    apply Quotient.ind
-    intro β
-    apply Quotient.ind
-    intro γ
+    refine (Quotient.ind (fun α => Quotient.ind (fun β => Quotient.ind (fun γ => ?_))))
     simp only [HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid, HAdd.hAdd, Add.add,
       RelProp.union, Quotient.map₂_mk, Quotient.eq, relEquiv, relate]
     aesop
   right_distrib := by
-    apply Quotient.ind
-    intro α
-    apply Quotient.ind
-    intro β
-    apply Quotient.ind
-    intro γ
+    refine (Quotient.ind (fun α => Quotient.ind (fun β => Quotient.ind (fun γ => ?_))))
     simp only [HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid, HAdd.hAdd, Add.add,
       RelProp.union, Quotient.map₂_mk, Quotient.eq, relEquiv, relate]
     aesop
 
 instance : AddCommMonoid RelProp where
   add_comm := by
-    apply Quotient.ind
-    intro α
-    apply Quotient.ind
-    intro β
+    refine (Quotient.ind (fun α => Quotient.ind (fun β => ?_)))
     simp only [HAdd.hAdd, Add.add, RelProp.union, Program.instSetoid, Quotient.map₂_mk, Quotient.eq,
       relEquiv, relate]
     aesop
@@ -105,12 +92,7 @@ instance : NonUnitalNonAssocSemiring RelProp where
 
 instance : NonUnitalSemiring RelProp where
   mul_assoc := by
-    apply Quotient.ind
-    intro α
-    apply Quotient.ind
-    intro β
-    apply Quotient.ind
-    intro γ
+    refine (Quotient.ind (fun α => Quotient.ind (fun β => Quotient.ind (fun γ => ?_))))
     simp [HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid, relEquiv]
     aesop
 
@@ -153,46 +135,27 @@ instance RelProp.instPreorder : Preorder RelProp where
     intro α
     simp [LE.le, RelProp.le, relImp]
   le_trans := by
-    apply Quotient.ind
-    intro α
-    apply Quotient.ind
-    intro β
-    apply Quotient.ind
-    intro γ
+    refine (Quotient.ind (fun α => Quotient.ind (fun β => Quotient.ind (fun γ => ?_))))
     simp_all [LE.le, RelProp.le, relImp]
 
 instance RelProp.partialOrder : PartialOrder RelProp where
   le_antisymm := by
-    apply Quotient.ind
-    intro α
-    apply Quotient.ind
-    intro β
+    refine (Quotient.ind (fun α => Quotient.ind (fun β => ?_)))
     simp [LE.le, RelProp.le, relImp, Program.instSetoid, relEquiv]
     aesop
 
 instance RelProp.semilatticeSup : SemilatticeSup RelProp where
   sup := RelProp.union
   le_sup_left := by
-    apply Quotient.ind
-    intro α
-    apply Quotient.ind
-    intro β
+    refine (Quotient.ind (fun α => Quotient.ind (fun β => ?_)))
     simp [LE.le, RelProp.le, RelProp.union, relImp]
     aesop
   le_sup_right := by
-    apply Quotient.ind
-    intro α
-    apply Quotient.ind
-    intro β
+    refine (Quotient.ind (fun α => Quotient.ind (fun β => ?_)))
     simp [LE.le, RelProp.le, RelProp.union, relImp]
     aesop
   sup_le := by
-    apply Quotient.ind
-    intro α
-    apply Quotient.ind
-    intro β
-    apply Quotient.ind
-    intro γ
+    refine (Quotient.ind (fun α => Quotient.ind (fun β => Quotient.ind (fun γ => ?_))))
     simp [LE.le, RelProp.le, relImp, RelProp.union]
     aesop
 
@@ -221,22 +184,16 @@ instance RelProp.kleeneAlgebra : KleeneAlgebra RelProp where
     intro W M v w x v_αs_x x_α_w
     exact Relation.ReflTransGen.tail v_αs_x x_α_w
   mul_kstar_le_self := by
-    apply Quotient.ind
-    intro α
-    apply Quotient.ind
-    intro β
+    refine (Quotient.ind (fun α => Quotient.ind (fun β => ?_)))
     simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le, relImp]
     intro h W M v w x v_β_x x_αs_w
     induction x_αs_w
-    case a.a.refl => exact v_β_x
-    case a.a.tail y z x_αs_y y_α_z ih => exact h W M v z y ih y_α_z
+    case refl => exact v_β_x
+    case tail y z x_αs_y y_α_z ih => exact h W M v z y ih y_α_z
   kstar_mul_le_self := by
-    apply Quotient.ind
-    intro α
-    apply Quotient.ind
-    intro β
+    refine (Quotient.ind (fun α => Quotient.ind (fun β => ?_)))
     simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le, relImp]
     intro h W M v w x v_αs_x x_β_w
     induction v_αs_x
-    case a.a.refl => exact x_β_w
-    case a.a.tail y z x_αs_y y_α_z ih => exact ih (h W M y w z y_α_z x_β_w)
+    case refl => exact x_β_w
+    case tail y z x_αs_y y_α_z ih => exact ih (h W M y w z y_α_z x_β_w)

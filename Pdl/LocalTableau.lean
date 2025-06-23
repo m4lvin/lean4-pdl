@@ -587,12 +587,12 @@ theorem localRuleTruth
       cases O
       · use (L ++ X, R, none)
         constructor
-        · use X, none; simp only [Option.map_none', Olf.change_some_some_none, and_true]; exact in_ress
+        · use X, none; simp only [Option.map_none, Olf.change_some_some_none, and_true]; exact in_ress
         · intro g; subst def_f; rw [conEval] at w_f; specialize hyp g; aesop
       case some val =>
         use (L ++ X, R, some (Sum.inl val))
         constructor
-        · use X, some val; simp only [Option.map_some', Olf.change_some, and_true]; exact in_ress
+        · use X, some val; simp only [Option.map_some, Olf.change_some, and_true]; exact in_ress
         · intro g g_in
           subst def_f
           simp_all [pairUnload, negUnload, conEval]
@@ -647,12 +647,12 @@ theorem localRuleTruth
       cases O
       · use (L, R ++ X, none)
         constructor
-        · use X, none; simp only [Option.map_none', Olf.change_some_some_none, and_true]; exact in_ress
+        · use X, none; simp only [Option.map_none, Olf.change_some_some_none, and_true]; exact in_ress
         · intro g; subst def_f; rw [conEval] at w_f; specialize hyp g; aesop
       case some val =>
         use (L, R ++ X, some (Sum.inr val))
         constructor
-        · use X, some val; simp only [Option.map_some', Olf.change_some, and_true]; exact in_ress
+        · use X, some val; simp only [Option.map_some, Olf.change_some, and_true]; exact in_ress
         · intro g g_in
           subst def_f
           simp_all [pairUnload, negUnload, conEval]
@@ -739,7 +739,7 @@ lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
   rcases X with ⟨L,R,o⟩
   unfold Sequent.basic
   simp only [List.append_assoc, List.mem_append, Option.mem_toList, Option.mem_def,
-    Option.map_eq_some', Sum.exists, Sum.elim_inl, negUnload, Sum.elim_inr]
+    Option.map_eq_some_iff, Sum.exists, Sum.elim_inl, negUnload, Sum.elim_inr]
   rw [and_iff_not_or_not]
   simp only [not_not]
   rcases lrA with ⟨Lcond, Rcond, Ocond, rule, preconditionProof⟩
@@ -1033,7 +1033,7 @@ theorem List.count_eq_diff_of_subperm [DecidableEq α] {L M : List α} (h : M.Su
     List.count φ L = List.count φ (L.diff M) + List.count φ M := by
   suffices L.Perm (L.diff M ++ M) by
     rw [← count_append]
-    have := @List.perm_iff_count _ _ L (L.diff M ++ M)
+    have := @List.perm_iff_count _ _ _ L (L.diff M ++ M)
     tauto
   apply List.Perm_diff_append_of_Subperm h
 

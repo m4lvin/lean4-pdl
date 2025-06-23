@@ -353,10 +353,11 @@ theorem keepFreshP α ℓ (x_notin : x ∉ α.voc) : ∀ δ ∈ P α ℓ, x ∉ 
     have IHα := keepFreshP α ℓ x_notin
     rcases δ_in with (_ | ⟨δ', δ'_in, def_δ⟩)
     · subst_eqs
-      simp_all [Vocab.fromList, Finset.not_mem_empty, not_false_eq_true]
+      simp_all
     · subst def_δ
       rw [Vocab.fromListProgram_map_iff]
-      simp_all [Vocab.fromList, Finset.not_mem_empty, not_false_eq_true]
+      simp_all only [List.pvoc, List.mem_append, List.mem_cons, List.not_mem_nil, or_false,
+        not_exists, not_and]
       rintro γ (γ_in_δ' | γ_def)
       · have := IHα _ δ'_in.1
         simp_all [Vocab.fromListProgram_map_iff]
@@ -364,6 +365,7 @@ theorem keepFreshP α ℓ (x_notin : x ∉ α.voc) : ∀ δ ∈ P α ℓ, x ∉ 
         simp [Program.voc]
         aesop
 
+set_option maxHeartbeats 2000000 in
 /-- Depending on α we know what can occur inside `δ ∈ P α ℓ` for unfoldBox. -/
 theorem boxHelperTermination α (ℓ : TP α) :
   ∀ δ ∈ P α ℓ,
@@ -773,9 +775,7 @@ theorem localBoxTruth_connector γ ψ :
         aesop
     simp_all
 
--- TODO: it seems default 200000 is not enough for theorem below?!
-set_option maxHeartbeats 2000000
-
+set_option maxHeartbeats 2000000 in
 /-- Induction claim for `localBoxTruth`. -/
 theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Xset γ ℓ ψ) ⋀ signature γ ℓ := by
