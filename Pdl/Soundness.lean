@@ -1042,7 +1042,7 @@ lemma firstBox_isAtomic_of_basic (Y_bas : Y.basic)
     · exact AnyFormula.loadBoxes_unload_eq_boxes
     cases β <;> simp_all [Program.isAtomic]
 
-/- Key helper lemma to show the soundness of loading and repeats.
+/-- Key helper lemma to show the soundness of loading and repeats.
 Intutively, it says that a tableau starting with a loaded diamond can immitate all
 possible ways in which a Kripke model can satisfy that diamond.
 
