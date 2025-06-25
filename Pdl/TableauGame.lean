@@ -4,6 +4,77 @@ import Pdl.Modelgraphs
 
 /-! # The Tableau Game (Section 6.2 and 6.3) -/
 
+/-! ## Decidability Helpers -- FIXME move elsewhere -/
+
+-- FIXME move
+instance {H X} : Decidable (Nonempty (LoadedPathRepeat H X)) := by
+  by_cases ∃ k, (H.get k).multisetEqTo X ∧ ∀ m ≤ k, (H.get m).isLoaded
+  case pos h =>
+    apply isTrue
+    rcases h with ⟨k, same, all_le_loaded⟩
+    exact ⟨k, same, all_le_loaded⟩
+  case neg h =>
+    apply isFalse
+    simp only [not_nonempty_iff]
+    constructor
+    rintro ⟨k, same, all_le_loaded⟩
+    push_neg at h
+    specialize h k same
+    aesop
+
+-- FIXME move
+instance {φ : Formula} {X :Sequent} : Decidable (φ ∈ X) := by
+  rcases X with ⟨L,R,o⟩
+  simp
+  infer_instance
+
+/-- Easy, but this is only for a list `L`, we want this for some Sequent `X`. -/
+example {p : α → Prop} [DecidablePred p] {L : List α} : Decidable (∃ x ∈ L, p x) := by infer_instance
+
+/-- A variant of `Fintype.decidableExistsFintype`. -/
+instance Fintype.decidableExistsImpliesFintype {α : Type u_1} {p q : α → Prop} [DecidablePred p] [DecidablePred q] [Fintype (Subtype p)] : Decidable (∃ (a : α), p a ∧ q a) := by
+  by_cases ∃ x : Subtype p, q x -- This uses the Fintype instance.
+  · apply isTrue
+    aesop
+  · apply isFalse
+    aesop
+
+instance instFintypeSubtypeMemSequent {X : Sequent} : Fintype (Subtype (fun x => x ∈ X)) := by
+  rcases X with ⟨L,R,o⟩
+  simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R]
+  apply Fintype.subtype (L.toFinset ∪ R.toFinset)
+  aesop
+
+instance {X : Sequent} : Decidable (X.closed) := by
+  unfold Sequent.closed
+  by_cases ⊥ ∈ X
+  · apply isTrue
+    tauto
+  · have := @Fintype.decidableExistsImpliesFintype _ (· ∈ X) (fun f => (~f) ∈ X) _ _ instFintypeSubtypeMemSequent
+    by_cases ∃ f, f ∈ X ∧ (~f) ∈ X
+    · apply isTrue
+      aesop
+    · apply isFalse
+      aesop
+
+instance {X : Sequent} : Decidable (X.basic) := by
+  by_cases X.closed
+  · apply isFalse
+    rcases X with ⟨L,R,o⟩
+    unfold Sequent.basic
+    aesop
+  case neg h =>
+    rcases X with ⟨L,R,o⟩
+    unfold Sequent.basic
+    simp only [h, not_false_eq_true, and_true]
+    by_cases ∃ f ∈ L ++ R ++ (Option.map (Sum.elim negUnload negUnload) o).toList, f.basic ≠ true
+    · apply isFalse
+      push_neg
+      assumption
+    · apply isTrue
+      push_neg at *
+      assumption
+
 /-! ## Defining the Tableau Game (Section 6.2) -/
 
 -- Renaming the players for the tableau game:
@@ -14,20 +85,48 @@ inductive ProverPos (H : History) (X : Sequent) : Type where
   | nlpRep : ¬ Nonempty (LoadedPathRepeat H X) → rep H X → ProverPos H X -- Prover loses
   | bas : ¬ rep H x → X.basic → ProverPos H X -- Prover must make a local LocalTableau
   | nbas : ¬ rep H x → ¬ X.basic → ProverPos H X -- Prover must apply a PDL rule
--- FIXME maye merge bas and nbas?
+  -- FIXME maye merge bas and nbas?
+  deriving DecidableEq
+
+instance {H X} : DecidableEq (LoadedPathRepeat H X) := by
+  intro lpr1 lpr2
+  rcases lpr1 with ⟨k1, same1, load1⟩
+  rcases lpr2 with ⟨k2, same2, load2⟩
+  by_cases k1 = k2
+  · apply isTrue
+    aesop
+  · apply isFalse
+    -- Actually, this case should be impossible, but that would be harder to show!
+    rw [Subtype.ext_iff]
+    simp
+    assumption
 
 def BuilderPos (H : History) (X : Sequent) : Type :=
   LoadedPathRepeat H X -- no moves, Prover wins.
   ⊕
   LocalTableau X -- Builder must pick from endNodesOf
 
-def GamePos := Σ H X, (ProverPos H X ⊕ BuilderPos H X)
-instance : DecidableEq GamePos := sorry
+instance {H X} : DecidableEq (BuilderPos H X) := by
+  rintro (_|_) (_|_) <;> try (simp; exact instDecidableFalse)
+  · rename_i lr1 lr2
+    by_cases lr1 = lr2
+    · apply isTrue
+      aesop
+    · apply isFalse
+      intro hyp
+      cases hyp
+      aesop
+  · rename_i lt1 lt2
+    by_cases lt1 = lt2
+    · apply isTrue
+      aesop
+    · apply isFalse
+      intro hyp
+      cases hyp
+      aesop
 
--- TODO
-instance {H X} : Decidable (rep H X) := sorry
-instance {H X} : Decidable (Nonempty (LoadedPathRepeat H X)) := sorry
-instance {X : Sequent} : Decidable (X.basic) := sorry
+def GamePos := Σ H X, (ProverPos H X ⊕ BuilderPos H X)
+  deriving DecidableEq
 
 -- FIXME can we avoid Nonempty and choice here?
 -- `LoadedPathRepeat H X` should be computable, intuitively.

@@ -42,6 +42,14 @@ abbrev History : Type := List Sequent
 /-- We have a repeat iff the history contains a node that is `setEqTo` the current node. -/
 def rep (Hist : History) (X : Sequent) : Prop := ∃ Y ∈ Hist, Y.multisetEqTo X
 
+instance {H X} : Decidable (rep H X) := by
+  unfold rep
+  induction H
+  · apply isFalse; simp_all
+  case cons Y YS IH =>
+    simp only [List.mem_cons, exists_eq_or_imp]
+    exact instDecidableOr
+
 /-- A lpr means we can go `k` steps back in the history to
 reach an equal node, and all nodes on the way are loaded.
 Note: `k=0` means the first element of `Hist` is the companion. -/

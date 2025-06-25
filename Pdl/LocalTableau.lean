@@ -40,6 +40,11 @@ def Sequent.multisetEqTo : Sequent → Sequent → Prop
 | (L,R,O), (L',R',O') =>
   Multiset.ofList L = Multiset.ofList L' ∧ Multiset.ofList R = Multiset.ofList R' ∧ O = O'
 
+instance : DecidableRel Sequent.multisetEqTo := by
+  unfold Sequent.multisetEqTo DecidableRel
+  rintro ⟨L,R,O⟩ ⟨L',R',O'⟩
+  exact instDecidableAnd
+
 @[simp]
 lemma Sequent.setEqTo_refl (X : Sequent) : X.setEqTo X := by
   rcases X with ⟨L,R,O⟩
@@ -397,7 +402,15 @@ inductive LocalRule : Sequent → List Sequent → Type
   | loadedR (χ : LoadFormula) (lrule : LoadRule (~'χ) ress) :
       LocalRule (∅, ∅, some (Sum.inr (~'χ))) $ ress.map $ λ (X, o) => (∅, X, o.map Sum.inr)
   deriving Repr
-  -- TODO -- deriving DecidableEq does not work with function in loadedL and loadedR
+
+instance : DecidableEq (LocalRule X YS) := by
+  intro lr1 lr2
+  rcases X with ⟨L,R,O⟩
+  cases lr1
+  -- cases lr2 -- FIXME dependent elimination failed
+  -- Problem because of the function in loadedL and loadedR ???
+  all_goals
+    sorry
 
 -- mathlib this?
 @[simp]
@@ -459,6 +472,7 @@ inductive LocalRuleApp : Sequent → List Sequent → Type
        {hC : C = applyLocalRule rule (L,R,O)}
        (preconditionProof : List.Subperm Lcond L ∧ List.Subperm Rcond R ∧ Ocond ⊆ O)
        : LocalRuleApp (L,R,O) C
+  deriving DecidableEq
 
 theorem localRuleTruth
     (lrA : LocalRuleApp X C) {W} (M : KripkeModel W) (w : W)
@@ -716,6 +730,31 @@ def Sequent.basic : Sequent → Prop
 inductive LocalTableau : (X : Sequent) → Type
   | byLocalRule {X B} (_ : LocalRuleApp X B) (next : ∀ Y ∈ B, LocalTableau Y) : LocalTableau X
   | sim {X} : X.basic → LocalTableau X
+
+instance LocalTableau.instDecidableEq {lt1 lt2 : LocalTableau X} : Decidable (lt1 = lt2) := by
+  rcases lt1 with (⟨lra1,next1⟩|Xbas1); rename_i B1
+  all_goals
+    rcases lt2 with (⟨lra2,next2⟩|Xbas2); rename_i B2
+  · by_cases B1 = B2
+    · subst_eqs
+      simp_all
+      by_cases lra1 = lra2
+      · subst_eqs
+        simp only [true_and]
+        have := fun (X : Sequent) (X_in : X ∈ B1) => @LocalTableau.instDecidableEq _ (next1 X X_in) (next2 X X_in)
+        by_cases ∃ Z ∈ B1, ∀ h, next1 Z h ≠ next2 Z h
+        · apply isFalse
+          aesop
+        · apply isTrue
+          aesop
+      · apply isFalse
+        aesop
+    · apply isFalse
+      aesop
+  all_goals
+    try simp_all
+    try exact instDecidableFalse
+    try exact instDecidableTrue
 
 -- Should be easier to do, or in mathlib already?
 theorem mem_of_two_subperm {α} {l : List α} {a b : α}  [DecidableEq α] :
