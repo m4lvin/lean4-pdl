@@ -128,16 +128,29 @@ instance {H X} : DecidableEq (BuilderPos H X) := by
 def GamePos := Σ H X, (ProverPos H X ⊕ BuilderPos H X)
   deriving DecidableEq
 
--- FIXME can we avoid Nonempty and choice here?
--- `LoadedPathRepeat H X` should be computable, intuitively.
+-- There's probably a more elegant way to fully avoid Nonempty and choice here?
+-- Something like: def isLPR (H : History) (X : Sequent) : Prop := sorry
+
+def LoadedPathRepeat.choice {H X} (ne : Nonempty (LoadedPathRepeat H X)) : LoadedPathRepeat H X := by
+  let somek := @Fin.find (H.length)
+    (fun k => (H.get k).multisetEqTo X ∧ ∀ m ≤ k, (H.get m).isLoaded = true) _
+  rcases find_def : somek with _|⟨k⟩
+  · exfalso
+    rw [Fin.find_eq_none_iff] at find_def
+    rcases ne with ⟨⟨k,bla⟩⟩
+    specialize find_def k
+    aesop
+  · refine ⟨k, ?_⟩
+    rw [Fin.find_eq_some_iff] at find_def
+    aesop
 
 /-- If we reach this sequent, what is the next game position? Includes winning positions. -/
 def posOf (H : History) (X : Sequent) : ProverPos H X ⊕ BuilderPos H X :=
-  if nlp : Nonempty (LoadedPathRepeat H X)
-  then .inr (.inl sorry) -- FIXME choice?! -- BuilderPos with no moves to let Prover win at lpr
+  if neNlp : Nonempty (LoadedPathRepeat H X)
+  then .inr (.inl (.choice neNlp)) -- BuilderPos with no moves to let Prover win at lpr
   else
     if rep : rep H X
-    then .inl (.nlpRep nlp rep) -- ProverPos with no moves to let Builder win at (non-lp) repeat
+    then .inl (.nlpRep neNlp rep) -- ProverPos with no moves to let Builder win at (non-lp) repeat
     else
       if bas : X.basic
       then .inl (.bas rep bas) -- actual ProverPos to make LocalTab
@@ -165,6 +178,8 @@ def tableauGame : Game where
   | ⟨H, X, .inr (.inr ltab)⟩ =>
       ((endNodesOf ltab).map (fun Y => ⟨(X :: H), Y, posOf (X :: H) Y⟩)).toFinset
 
+  -- NOTE / WORRY: defining this bound will be tricky.
+  -- Consider redefining games to only demand some well-founded relation, not a decreasing Nat?
   bound := sorry
   bound_h := sorry
 
