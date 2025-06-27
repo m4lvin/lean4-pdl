@@ -411,49 +411,26 @@ instance instDecidableHEqLocalRule (lr1: LocalRule X1 YS1) (lr2: LocalRule X2 YS
     all_goals
       subst_eqs
     -- 8 goals remaining
-    case pos.oneSidedL.oneSidedR.refl ress1 ress2 same orule1 orule2 =>
-      apply isFalse -- mixed case
-      intro hyp
-      by_cases hr : ress1 = ress2 <;> by_cases hor : HEq orule1 orule2
-      · simp_all
-        subst hr
-        cases hor
-        have : ∀ fs ∈ ress1, fs = [] := by
-          intro fs fs_in
-          specialize same fs fs_in
-          cases same
-          rfl
-        have : ress1.map (fun res => (([], res, none) : Sequent))
-             = ress1.map (fun res => (res, [], none)) := by aesop
-        -- Now I would like to give `this` as helper to `cases` ???
-        have : LocalRule ([], [], none) (List.map (fun res => ([], res, none)) ress1)
-             = LocalRule ([], [], none) (List.map (fun res => (res, [], none)) ress1) := by rw [this]
-        -- cases hyp -- dependent elimination failed -- Can I get it to pick up assumptions?
-        sorry
-      · sorry
-      · sorry
-      · sorry
-    ·
-      sorry
-    · apply isFalse -- mixed case
-      sorry
-    ·
-      sorry
-    · apply isTrue
-      simp
-    · apply isTrue
-      simp
-    ·
-      sorry
-    ·
-      sorry
+    case pos.oneSidedL.oneSidedR.refl ress1 ress2 same orule1 orule2 => cases orule1
+    case pos.oneSidedL.oneSidedL.refl ress1 orule1 ress2 same orule2 =>
+      apply isTrue
+      cases orule1 <;> cases orule2 <;> simp_all
+    case pos.oneSidedR.oneSidedL.refl ress1 ress2 same orule1 orule2 => cases orule1
+    case pos.oneSidedR.oneSidedR.refl ress1 orule1 ress2 same orule2 =>
+      apply isTrue
+      cases orule1 <;> cases orule2 <;> simp_all
+    case pos.LRnegL.LRnegL.refl.refl => apply isTrue; simp
+    case pos.LRnegR.LRnegR.refl.refl => apply isTrue; simp
+    case pos.loadedL.loadedL.refl ress1 χ lrule1 ress2 same lrule2 =>
+      cases lrule1 <;> cases lrule2 <;> apply isTrue <;> simp
+    case pos.loadedR.loadedR.refl ress1 χ lrule1 ress2 same lrule2 =>
+      cases lrule1 <;> cases lrule2 <;> apply isTrue <;> simp
   all_goals
     apply isFalse
-    intro lr1_heq_lr2
-
+    intro con
     sorry
 
-instance instDecidableEqLocalRule : DecidableEq  (LocalRule X YS) := by
+instance instDecidableEqLocalRule : DecidableEq (LocalRule X YS) := by
   intro lr1 lr2
   -- cases lr1 <;> cases lr2 -- dependent elimination failed
   rw [← heq_iff_eq]
