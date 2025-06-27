@@ -156,6 +156,8 @@ def posOf (H : History) (X : Sequent) : ProverPos H X ⊕ BuilderPos H X :=
       then .inl (.bas rep bas) -- actual ProverPos to make LocalTab
       else .inl (.nbas rep bas) -- actual ProverPos to choose a PDL rule
 
+instance : Fintype (LocalTableau X) := sorry -- PROBLEM - can we have this?!
+
 def tableauGame : Game where
   Pos := GamePos
   turn
@@ -164,15 +166,51 @@ def tableauGame : Game where
   moves
   -- ProverPos:
   | ⟨H, X, .inl (.nlpRep _ _)⟩ => ∅ -- no moves ⇒ Builder wins
-  | ⟨H, X, .inl (.bas _ _)⟩  =>
-      -- need to choose PDL rule application
-      -- (L+) if X is not loaded  << choice of formula
-      -- (L-) if X is loaded (deterministic)
-      -- (M) if loaded (deterministic)
-      sorry
+  | ⟨H, X, .inl (.bas _ Xbasic)⟩ =>
+      -- need to choose PDL rule application:
+      match X with
+      | ⟨L, R, none⟩ => -- (L+) if X is not loaded, choice of formula
+            (L.map (fun φ => match boxesOf φ with -- need ALL the boxes.
+              | (δ@h:(_::_), ψ) =>
+                [ ⟨_,_,posOf (X::H) (L.erase (~⌈⌈δ⌉⌉φ), R, some (Sum.inl (~'(⌊⌊δ⌋⌋⌊δ.getLast (by subst h; simp)⌋φ))))⟩ ]
+              | ([],_) => [] ) ).flatten.toFinset
+            ∪
+            (R.map (fun φ => match boxesOf φ with -- need ALL the boxes.
+              | (δ@h:(_::_), ψ) =>
+                [ ⟨_,_,posOf (X::H) (L, R.erase (~⌈⌈δ⌉⌉φ), some (Sum.inr (~'(⌊⌊δ⌋⌋⌊δ.getLast (by subst h; simp)⌋φ))))⟩ ]
+              | ([],_) => [] ) ).flatten.toFinset
+      | ⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩ => (
+              -- (M) rule, deterministic:
+              ( match ξ with
+              | .normal φ => [⟨_,_,posOf (X::H) ⟨(~φ) :: projection a L, projection a R, none⟩⟩]
+              | .loaded χ => [⟨_,_,posOf (X::H) ⟨projection a L, projection a R, some (Sum.inl (~'χ))⟩⟩] )
+              ++
+              -- (L-) rule, deterministic:
+              [⟨_, _, posOf (X::H) ((L.insert (⌊·a⌋ξ).unload, R, none))⟩]
+          ).toFinset -- can we avoid the list, make Finset directly?
+      | ⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩ => (
+              -- (M) rule, deterministic:
+              ( match ξ with
+              | .normal φ => [⟨_,_,posOf (X::H) ⟨projection a L, (~φ) :: projection a R, none⟩⟩]
+              | .loaded χ => [⟨_,_,posOf (X::H) ⟨projection a L, projection a R, some (Sum.inr (~'χ))⟩⟩] )
+              ++
+              -- (L-) rule, deterministic:
+              [⟨_, _, posOf (X::H) ((L, R.insert (⌊·a⌋ξ).unload, none))⟩]
+          ).toFinset -- can we avoid the list, make Finset directly?
+      | ⟨L, R, some (.inl (~'⌊α;'β⌋χ))⟩ => by
+          exfalso
+          simp [ Sequent.basic] at Xbasic
+          have := Xbasic.1 (~(⌊α;'β⌋χ).unload)
+          -- need Lemma about LoadFormula.unload here?
+          sorry
+      -- similar for all other non-atomic cases.
+      | ⟨L, R, some (.inl (~'⌊α⌋χ))⟩ => by exfalso; sorry
+      | ⟨L, R, some (.inr (~'⌊α⌋χ))⟩ => by exfalso; sorry
+
   | ⟨H, X, .inl (.nbas _ _)⟩ =>
-      -- pick an `ltab : LocalTableau x`, then map `posOf` over `endNodesOf ltab`
-      sorry
+      -- pick an `ltab : LocalTableau X`, then map `posOf` over `endNodesOf ltab`
+      let allLTabs : Finset (LocalTableau X) := sorry -- QUESTION how to get **set of all** ltab ?
+      allLTabs.image (fun ltab => ⟨H, X, .inr (.inr ltab)⟩)
   -- BuilderPos:
   | ⟨H, X, .inr (.inl lpr)⟩ => ∅ -- no moves ⇒ Prover wins
   | ⟨H, X, .inr (.inr ltab)⟩ =>
