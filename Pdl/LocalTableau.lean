@@ -403,14 +403,61 @@ inductive LocalRule : Sequent → List Sequent → Type
       LocalRule (∅, ∅, some (Sum.inr (~'χ))) $ ress.map $ λ (X, o) => (∅, X, o.map Sum.inr)
   deriving Repr
 
-instance : DecidableEq (LocalRule X YS) := by
-  intro lr1 lr2
-  rcases X with ⟨L,R,O⟩
-  cases lr1
-  -- cases lr2 -- FIXME dependent elimination failed
-  -- Problem because of the function in loadedL and loadedR ???
+/-- Helper for `instDecidableEqLocalRule`. -/
+instance instDecidableHEqLocalRule (lr1: LocalRule X1 YS1) (lr2: LocalRule X2 YS2) : Decidable (HEq lr1 lr2) := by
+  by_cases X1 = X2 <;> by_cases YS1 = YS2
+  · cases lr1 <;> cases lr2
+    -- 36 goals ;-)
+    all_goals
+      subst_eqs
+    -- 8 goals remaining
+    case pos.oneSidedL.oneSidedR.refl ress1 ress2 same orule1 orule2 =>
+      apply isFalse -- mixed case
+      intro hyp
+      by_cases hr : ress1 = ress2 <;> by_cases hor : HEq orule1 orule2
+      · simp_all
+        subst hr
+        cases hor
+        have : ∀ fs ∈ ress1, fs = [] := by
+          intro fs fs_in
+          specialize same fs fs_in
+          cases same
+          rfl
+        have : ress1.map (fun res => (([], res, none) : Sequent))
+             = ress1.map (fun res => (res, [], none)) := by aesop
+        -- Now I would like to give `this` as helper to `cases` ???
+        have : LocalRule ([], [], none) (List.map (fun res => ([], res, none)) ress1)
+             = LocalRule ([], [], none) (List.map (fun res => (res, [], none)) ress1) := by rw [this]
+        -- cases hyp -- dependent elimination failed -- Can I get it to pick up assumptions?
+        sorry
+      · sorry
+      · sorry
+      · sorry
+    ·
+      sorry
+    · apply isFalse -- mixed case
+      sorry
+    ·
+      sorry
+    · apply isTrue
+      simp
+    · apply isTrue
+      simp
+    ·
+      sorry
+    ·
+      sorry
   all_goals
+    apply isFalse
+    intro lr1_heq_lr2
+
     sorry
+
+instance instDecidableEqLocalRule : DecidableEq  (LocalRule X YS) := by
+  intro lr1 lr2
+  -- cases lr1 <;> cases lr2 -- dependent elimination failed
+  rw [← heq_iff_eq]
+  apply instDecidableHEqLocalRule
 
 -- mathlib this?
 @[simp]
