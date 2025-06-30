@@ -268,11 +268,12 @@ def tableauGame : Game where
   | ⟨H, X, .inr (.inr ltab)⟩ =>
       ((endNodesOf ltab).map (fun Y => ⟨(X :: H), Y, posOf (X :: H) Y⟩)).toFinset
 
-  -- NOTE / WORRY: defining this bound will be tricky.
-  -- Consider redefining games to only demand some well-founded relation, not a decreasing Nat?
-  bound := sorry
-  bound_h := sorry
-
+  -- QUESTION: What is a wellfounded relation that goes down at each game step?
+  wf := ⟨fun p q => sorry, by sorry⟩
+  move_rel := by
+    intro p next next_in
+    simp_wf
+    sorry
 
 -- TODO Definition 6.9 Strategy Tree fro Prover (or adjust already in `Game.lean`?)
 

@@ -70,24 +70,27 @@ class Game where
   turn : Pos → Player
   /-- What are the available moves? -/
   moves : Pos → Finset Pos
-  /-- Upper bound for the number of steps left. -/
-  bound : Pos → Nat
-  /-- The step bound goes down with each move. -/
-  bound_h : ∀ (p next : Pos), next ∈ moves p → bound next < bound p
+  /-- A wellfounded relation on positions. -/
+  wf : WellFoundedRelation Pos
+  /-- Every move goes a step down in the relation. -/
+  move_rel : ∀ (p next : Pos), next ∈ moves p → wf.rel next p
+
+-- This seems a bit hacky.
+instance {g : Game} : WellFoundedRelation Game.Pos := g.wf
 
 /-- Allow notation `p.moves` for `g.moves p`. -/
 abbrev Game.Pos.moves {g : Game} : g.Pos → Finset g.Pos := Game.moves
 
 /-- If the bound bound is zero then there are no more moves. -/
-lemma Game.no_moves_of_bound_zero {g : Game} {p : g.Pos}
-    (bound_zero : g.bound p = 0) : g.moves p = ∅ := by
+lemma Game.no_moves_of_no_rel {g : Game} {p : g.Pos}
+    (no_rel : ∀ q, ¬ g.wf.rel q p) : g.moves p = ∅ := by
   suffices ¬ (g.moves p).Nonempty by simp_all
   by_contra hyp
   rcases Finset.Nonempty.exists_mem hyp with ⟨q, q_in⟩
-  have := g.bound_h _ q q_in
-  linarith
+  have := g.move_rel _ q q_in
+  simp_all
 
-instance {g : Game} : LT g.Pos := ⟨fun p q => g.bound p < g.bound q⟩
+instance {g : Game} : LT g.Pos := ⟨fun p q => g.wf.rel q p⟩
 
 /-- A strategy in `g` for `i`, whenever it is `i`'s turn, chooses a move, if there are any. -/
 def Strategy (g : Game) (i : Player) : Type := ∀ p : g.Pos, g.turn p = i → p.moves.Nonempty → p.moves
@@ -108,10 +111,10 @@ def winner {g : Game} (sI : Strategy g i) (sJ : Strategy g (other i)) (p : g.Pos
       else winner sI sJ (sJ p (by cases i <;> simp_all) h1)
     else other (g.turn p) -- no more moves, the other player wins
 termination_by
-  g.bound p
+  p
 decreasing_by
   all_goals
-    apply g.bound_h; simp
+    apply g.move_rel; simp
 
 /-- A strategy is winning at `p` if it wins against all strategies of the other player. -/
 def winning {g : Game} {i : Player} (sI : Strategy g i) (p : g.Pos) : Prop :=
@@ -126,22 +129,26 @@ inductive inMyCone {g : Game} (sI : Strategy g i) (p : g.Pos) : g.Pos → Prop
 def good {g : Game} (i : Player) (p : g.Pos) : Prop :=
     (g.turn p = i       ∧ ∃ (q : g.Pos) (_ : q ∈ p.moves), good i q)
   ∨ (g.turn p = other i ∧ ∀ (q : g.Pos) (_ : q ∈ p.moves), good i q)
-termination_by g.bound p
-decreasing_by all_goals apply g.bound_h _ _; assumption
+termination_by p
+decreasing_by all_goals apply g.move_rel _ _; assumption
 
-theorem good_or_other {g : Game} (p : g.Pos) : good (g.turn p) p ∨ good (other (g.turn p)) p :=
-  Nat.strongRecMeasure (g.bound) (fun p ind =>
-    (exists_or_forall_not (fun q => ∃ (h : q ∈ p.moves), good _ q)).elim
-    (fun E => .inl <| by unfold good; apply Or.inl; exact ⟨rfl, E⟩)
-    (fun A => .inr <| by
-      unfold good; apply Or.inr; apply And.intro
-      . exact other_other.symm
-      . intro q h
-        have det := ind q (g.bound_h _ _ h)
-        specialize A q
-        by_cases g.turn p = g.turn q <;> simp_all
-    )
-  ) p
+theorem good_or_other {g : Game} (p : g.Pos) : good (g.turn p) p ∨ good (other (g.turn p)) p := by
+  apply WellFounded.induction g.wf.2 p
+  intro r IH
+  by_cases ∃ q ∈ r.moves, good (g.turn r) q
+  case pos E =>
+    apply Or.inl
+    unfold good
+    apply Or.inl
+    simp only [exists_prop, true_and]
+    exact E
+  case neg A =>
+    apply Or.inr
+    unfold good
+    refine Or.inr (And.intro other_other.symm ?_)
+    intro q h
+    specialize IH q (g.move_rel _ _ h)
+    by_cases g.turn r = g.turn q <;> simp_all
 
 theorem good_A_or_B {g : Game} (p : g.Pos) : good A p ∨ good B p := by
   have det := good_or_other p
@@ -201,8 +208,8 @@ theorem surviving_is_winning {sI : Strategy g i} (surv : ∀ q, inMyCone sI p q 
     . exact surviving_is_winning (surv . ∘ cone_trans (.myStep .nil _ _)) _
     next _ turn =>
       exact surviving_is_winning (surv . ∘ cone_trans (.oStep .nil (not_eq_i_eq_other.mp turn) <| Subtype.mem _)) _
-termination_by g.bound p
-decreasing_by all_goals apply g.bound_h; exact Subtype.mem _
+termination_by p
+decreasing_by all_goals apply g.move_rel; exact Subtype.mem _
 
 theorem good_strat_winning (W : good i p) : winning (good_strat i) p :=
   surviving_is_winning fun _ => good_is_surviving ∘ (good_cone W)
