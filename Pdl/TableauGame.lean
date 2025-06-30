@@ -156,7 +156,43 @@ def posOf (H : History) (X : Sequent) : ProverPos H X ⊕ BuilderPos H X :=
       then .inl (.bas rep bas) -- actual ProverPos to make LocalTab
       else .inl (.nbas rep bas) -- actual ProverPos to choose a PDL rule
 
-instance : Fintype (LocalTableau X) := sorry -- PROBLEM - can we have this?!
+def LocalRuleApp.all X : List (Σ B, LocalRuleApp X B) := sorry
+
+lemma LocalRuleApp.all_spec X B lra : ⟨B, lra⟩ ∈ LocalRuleApp.all X := by
+  sorry
+
+instance LocalRuleApp.fintype {X} : Fintype (LocalRuleApp X B) := by
+  refine ⟨((LocalRuleApp.all X).filterMap
+    (fun Zlra => if h : Zlra.1 = B then some (h ▸ Zlra.2) else none)).toFinset, ?_⟩
+  intro lra
+  rw [List.mem_toFinset]
+  simp only [List.mem_filterMap, Option.dite_none_right_eq_some, Option.some.injEq, Sigma.exists]
+  use B
+  simp only [exists_const, exists_eq_right]
+  apply LocalRuleApp.all_spec
+
+-- def comobo : (List (List α)) → (List (List α)) -- hmm
+
+def LocalTableau.all : (X : Sequent) → List (LocalTableau X) := fun X =>
+  if bas : X.basic
+  then [ .sim bas ]
+  else do
+    let ⟨B, (lra : LocalRuleApp X B)⟩ <- LocalRuleApp.all X
+    let tabsFor (Y : Sequent) (h : Y ∈ B) : List (LocalTableau Y) := sorry -- LocalTableau.all Y
+    let nexts : List ((Y : Sequent) → Y ∈ B → LocalTableau Y) := by
+      sorry
+    let next <- nexts
+    return @byLocalRule X B lra next
+
+lemma LocalTableau.all_spec : ltX ∈ LocalTableau.all X := by
+  sorry
+
+instance LocalTableau.fintype {X} : Fintype (LocalTableau X) := by
+  refine ⟨(LocalTableau.all X).toFinset, ?_⟩
+  intro ltX
+  rw [List.mem_toFinset]
+  exact LocalTableau.all_spec
+
 
 def tableauGame : Game where
   Pos := GamePos
@@ -197,20 +233,36 @@ def tableauGame : Game where
               -- (L-) rule, deterministic:
               [⟨_, _, posOf (X::H) ((L, R.insert (⌊·a⌋ξ).unload, none))⟩]
           ).toFinset -- can we avoid the list, make Finset directly?
+
+      -- Somewhat repetitive here. Is there pattern matching with "did not match before" proofs?
       | ⟨L, R, some (.inl (~'⌊α;'β⌋χ))⟩ => by
-          exfalso
-          simp [ Sequent.basic] at Xbasic
-          have := Xbasic.1 (~(⌊α;'β⌋χ).unload)
-          -- need Lemma about LoadFormula.unload here?
-          sorry
-      -- similar for all other non-atomic cases.
-      | ⟨L, R, some (.inl (~'⌊α⌋χ))⟩ => by exfalso; sorry
-      | ⟨L, R, some (.inr (~'⌊α⌋χ))⟩ => by exfalso; sorry
+          exfalso; have := Xbasic.1 (~(⌊α;'β⌋χ).unload)
+          cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
+      | ⟨L, R, some (.inl (~'⌊?'τ⌋χ))⟩ => by
+          exfalso; have := Xbasic.1 (~(⌊?'τ⌋χ).unload)
+          cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
+      | ⟨L, R, some (.inl (~'⌊α ⋓ β⌋χ))⟩ => by
+          exfalso; have := Xbasic.1 (~(⌊α ⋓ β⌋χ).unload)
+          cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
+      | ⟨L, R, some (.inl (~'⌊∗α⌋χ))⟩ => by
+          exfalso; have := Xbasic.1 (~(⌊∗α⌋χ).unload)
+          cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
+      | ⟨L, R, some (.inr (~'⌊α;'β⌋χ))⟩ => by
+          exfalso; have := Xbasic.1 (~(⌊α;'β⌋χ).unload)
+          cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
+      | ⟨L, R, some (.inr (~'⌊?'τ⌋χ))⟩ => by
+          exfalso; have := Xbasic.1 (~(⌊?'τ⌋χ).unload)
+          cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
+      | ⟨L, R, some (.inr (~'⌊α ⋓ β⌋χ))⟩ => by
+          exfalso; have := Xbasic.1 (~(⌊α ⋓ β⌋χ).unload)
+          cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
+      | ⟨L, R, some (.inr (~'⌊∗α⌋χ))⟩ => by
+          exfalso; have := Xbasic.1 (~(⌊∗α⌋χ).unload)
+          cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
 
   | ⟨H, X, .inl (.nbas _ _)⟩ =>
-      -- pick an `ltab : LocalTableau X`, then map `posOf` over `endNodesOf ltab`
-      let allLTabs : Finset (LocalTableau X) := sorry -- QUESTION how to get **set of all** ltab ?
-      allLTabs.image (fun ltab => ⟨H, X, .inr (.inr ltab)⟩)
+      -- If not basic, let prover pick any `ltab : LocalTableau X` as new position.
+      LocalTableau.fintype.1.image (fun ltab => ⟨H, X, .inr (.inr ltab)⟩)
   -- BuilderPos:
   | ⟨H, X, .inr (.inl lpr)⟩ => ∅ -- no moves ⇒ Prover wins
   | ⟨H, X, .inr (.inr ltab)⟩ =>
