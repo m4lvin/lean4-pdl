@@ -568,7 +568,7 @@ theorem localRuleNoOverlap
 @[simp]
 def zlengthOf : Formula → Int := fun f => ((lengthOfFormula f : Nat) : Int)
 
-theorem zlengthOf.pos : 0 ≤ zlengthOf φ := Int.ofNat_nonneg (lengthOfFormula φ)
+theorem zlengthOf.pos : 0 ≤ zlengthOf φ := Int.natCast_nonneg (lengthOfFormula φ)
 
 @[simp]
 def zlengthOfSet : Finset Formula → Int := fun X => X.sum zlengthOf

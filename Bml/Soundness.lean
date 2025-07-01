@@ -274,7 +274,7 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
       -- it remains to show that the new big model satisfies X
       intro R f f_inpro_or_notr
       cases' R with R notrbox_in_LR
-      simp only [Finset.mem_union, Finset.mem_insert, Finset.mem_singleton, Subtype.coe_mk] at *
+      simp only [Finset.mem_union, Finset.mem_singleton] at *
       specialize this_pro_sat R notrbox_in_LR
       cases' f_inpro_or_notr with f_inpro f_is_notboxR
       · -- if f is in the projection
@@ -444,14 +444,13 @@ theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
   case atmL LR φ notBoxPhiInY Y_is_simple ltProYnPhi notSatProj =>
     let (L,R) := LR
     rw [Lemma1_simple_sat_iff_all_projections_sat Y_is_simple]
-    simp only [TNodeHasSat, Finset.mem_union, not_exists, not_forall, exists_prop]
     simp only [f_in_TNode, Finset.mem_union, union_singleton_is_insert, not_and, not_forall, exists_prop]
     intro nClo
     use φ
     constructor
     · tauto
     · convert notSatProj
-      simp only [diamondProjectTNode, setHasSat, projectTNode, Finset.mem_union, Finset.mem_insert, forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
+      simp only [diamondProjectTNode, setHasSat, Finset.mem_union, Finset.mem_insert, forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
       constructor
       · rintro ⟨W,M,w,claim⟩
         use W, M, w
@@ -464,14 +463,13 @@ theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
   case atmR LR φ notBoxPhiInY Y_is_simple ltProYnPhi notSatProj =>
     let (L,R) := LR
     rw [Lemma1_simple_sat_iff_all_projections_sat Y_is_simple]
-    simp only [TNodeHasSat, Finset.mem_union, not_exists, not_forall, exists_prop]
     simp only [f_in_TNode, Finset.mem_union, union_singleton_is_insert, not_and, not_forall, exists_prop]
     intro _
     use φ
     constructor
     · tauto
     · convert notSatProj
-      simp only [diamondProjectTNode, setHasSat, projectTNode, Finset.mem_union, Finset.mem_insert, forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
+      simp only [diamondProjectTNode, setHasSat, Finset.mem_union, Finset.mem_insert, forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
       constructor <;>
       ( rintro ⟨W,M,w,claim⟩
         use W, M, w)
@@ -488,7 +486,7 @@ theorem correctness : ∀LR : TNode, Satisfiable LR → Consistent LR :=
     contrapose
     unfold Consistent
     unfold Inconsistent
-    simp only [not_nonempty_iff, not_isEmpty_iff, not_exists, not_forall, exists_prop, Nonempty.forall]
+    simp only [not_nonempty_iff, not_isEmpty_iff, Nonempty.forall]
     intro hyp
     apply tableauThenNotSat LR hyp
 
