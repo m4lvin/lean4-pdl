@@ -14,7 +14,7 @@ theorem tautImp_iff_TNOdenotUnsat {φ ψ} {X : TNode} :
   by
   intro defX
   subst defX
-  simp only [Tautology, Evaluate, not_and, not_not, HasSat.Satisfiable, union_singleton_is_insert,
+  simp only [Tautology, Evaluate, not_and, HasSat.Satisfiable, union_singleton_is_insert,
     Finset.mem_singleton, Finset.mem_insert, forall_eq_or_imp, forall_eq, not_exists] at *
   constructor
   · intro taut

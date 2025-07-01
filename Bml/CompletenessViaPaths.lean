@@ -15,7 +15,20 @@ def formulasInNegBox (X: Finset Formula): Finset Formula :=
 @[simp]
 theorem formulasInNegBoxIff: α ∈ formulasInNegBox X ↔  ~(□α) ∈ X := by
   rw[formulasInNegBox]
-  aesop
+  -- was: aesop
+  simp_all only [Finset.mem_biUnion]
+  apply Iff.intro
+  · intro a
+    obtain ⟨w, h⟩ := a
+    obtain ⟨left, right⟩ := h
+    split at right
+    next α_1 f => simp_all only [Finset.mem_singleton]
+    next α_1 x => simp_all only [imp_false, Finset.notMem_empty]
+  · intro a
+    apply Exists.intro
+    · apply And.intro
+      · exact a
+      · simp_all only [Finset.mem_singleton]
 
 def ConsTNode := Subtype fun Y => Consistent Y
 
@@ -43,10 +56,9 @@ def pathToFinset: Path ⟨(L,R), cons⟩  → Finset Formula
 @[simp]
 theorem LR_in_PathLR (path : Path ⟨(L,R),LR_cons⟩) : L ∪ R ⊆ (pathToFinset path) := by
   cases path
-  case endNode => simp [instTNodeHasSubset]
+  case endNode => simp
   case interNode Y C C_in tail appTab =>
-    simp_all only [instTNodeHasSubset,instHasSubsetProdFinsetFormula, pathToFinset, instTNodeUnion,
-      instUnionProdFinsetFormula, Finset.subset_union_left, and_self]
+    simp_all only [pathToFinset, Finset.subset_union_left]
 
 @[simp]
 def endNodeOf: Path ⟨LR,LR_cons⟩ → ConsTNode
@@ -615,5 +627,4 @@ theorem singletonCompleteness : ∀ φ, Consistent ({φ},{}) ↔ Satisfiable φ 
   by
   intro f
   have := completeness ({f},{})
-  simp only [singletonSat_iff_sat] at *
-  aesop
+  simp_all!
