@@ -408,13 +408,13 @@ theorem localTableauAndEndNodesUnsatThenNotSat (LR : TNode) {ltLR : LocalTableau
     have someChildSat : ∃c ∈ C, Satisfiable c :=
       @ruleImpliesChildSat C LR ruleA satLR
     rcases ruleA with ⟨ress, Lcond, Rcond, lrule, preproofL, preproofR⟩
-    have prepf : Lcond ⊆ _ ∧ Rcond ⊆ _ := And.intro preproofL preproofR
+    rename_i L R hC
+    have prepf : Lcond ⊆ L ∧ Rcond ⊆ R := And.intro preproofL preproofR
     cases' someChildSat with c c_sat
     set ltc := next c c_sat.left
-    rename_i hC
     have endNodesInclusion :
       ∀ Z, Z ∈ endNodesOf ⟨c, ltc⟩
-      → Z ∈ endNodesOf ⟨_, LocalTableau.fromRule (@LocalRuleApp.mk _ _ C ress Lcond Rcond lrule hC prepf) next⟩ :=
+      → Z ∈ endNodesOf ⟨(L,R), LocalTableau.fromRule (@LocalRuleApp.mk _ _ C ress Lcond Rcond lrule hC prepf) next⟩ :=
       by
         simp
         intro Z Z_endOF_c
