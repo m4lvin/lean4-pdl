@@ -94,7 +94,9 @@ theorem consistentThenConsistentChild
     clear LR'_in
     rcases this with ⟨c, LR'_in⟩
     choose c_in_C LR'_in2 using LR'_in
-    simp [closedToLocal] at *
+    -- was: simp [closedToLocal] at * -- mysteriously broken with Lean v4.22.0-rc2
+    simp at *
+    unfold closedToLocal at *
     cases def_c : c_to_cTab c_in_C
     case loc lt_c next =>
       rw [def_c] at LR'_in2
