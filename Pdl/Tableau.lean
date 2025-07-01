@@ -65,6 +65,21 @@ theorem LoadedPathRepeat_rep_isLoaded (lpr : LoadedPathRepeat Hist X) : X.isLoad
   rw [← multisetEqTo_isLoaded_iff claim.1]
   exact claim.2 k (le_refl k)
 
+instance {H X} : Decidable (Nonempty (LoadedPathRepeat H X)) := by
+  by_cases ∃ k, (H.get k).multisetEqTo X ∧ ∀ m ≤ k, (H.get m).isLoaded
+  case pos h =>
+    apply isTrue
+    rcases h with ⟨k, same, all_le_loaded⟩
+    exact ⟨k, same, all_le_loaded⟩
+  case neg h =>
+    apply isFalse
+    simp only [not_nonempty_iff]
+    constructor
+    rintro ⟨k, same, all_le_loaded⟩
+    push_neg at h
+    specialize h k same
+    aesop
+
 /-! ## The PDL rules -/
 
 /-- A rule to go from Γ to Δ. Note the four variants of the modal rule. -/

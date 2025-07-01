@@ -156,7 +156,18 @@ theorem vDash_multisetEqTo_iff {X Y : Sequent} (h : X.multisetEqTo Y) (M : Kripk
 /-! ## Different kinds of formulas as elements of Sequent -/
 
 @[simp]
-instance : Membership Formula Sequent := ⟨fun X φ => φ ∈ X.L ∨ φ ∈ X.R⟩
+instance instMembershipFormulaSequent : Membership Formula Sequent := ⟨fun X φ => φ ∈ X.L ∨ φ ∈ X.R⟩
+
+instance instDecidableMemFormulaSequent {φ : Formula} {X :Sequent} : Decidable (φ ∈ X) := by
+  rcases X with ⟨L,R,o⟩
+  simp only [instMembershipFormulaSequent]
+  infer_instance
+
+instance instFintypeSubtypeMemSequent {X : Sequent} : Fintype (Subtype (fun x => x ∈ X)) := by
+  rcases X with ⟨L,R,o⟩
+  simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R]
+  apply Fintype.subtype (L.toFinset ∪ R.toFinset)
+  aesop
 
 @[simp]
 def NegLoadFormula.mem_Sequent (X : Sequent) (nlf : NegLoadFormula) : Prop :=
@@ -722,10 +733,49 @@ def Formula.basic : Formula → Bool
 def Sequent.closed (X : Sequent) : Prop :=
   ⊥ ∈ X ∨ ∃ f ∈ X, (~f) ∈ X
 
+/-- Used by `instDecidableClosed`, a variant of `Fintype.decidableExistsFintype`. -/
+instance Fintype.decidableExistsImpliesFintype {α : Type u_1} {p q : α → Prop}
+    [DecidablePred p] [DecidablePred q] [Fintype (Subtype p)]
+    : Decidable (∃ (a : α), p a ∧ q a) := by
+  by_cases ∃ x : Subtype p, q x -- This uses the Fintype instance.
+  · apply isTrue
+    aesop
+  · apply isFalse
+    aesop
+
+instance instDecidableClosed {X : Sequent} : Decidable (X.closed) := by
+  unfold Sequent.closed
+  by_cases ⊥ ∈ X
+  · apply isTrue
+    tauto
+  · by_cases ∃ f, f ∈ X ∧ (~f) ∈ X
+    · apply isTrue
+      aesop
+    · apply isFalse
+      aesop
+
 /-- A sequent is *basic* iff it only contains basic formulas and is not closed. -/
 def Sequent.basic : Sequent → Prop
   | (L, R, o) => (∀ f ∈ L ++ R ++ (o.map (Sum.elim negUnload negUnload)).toList, f.basic)
                ∧ ¬ Sequent.closed (L, R, o)
+
+instance instDecidableBasic {X : Sequent} : Decidable (X.basic) := by
+  by_cases X.closed
+  · apply isFalse
+    rcases X with ⟨L,R,o⟩
+    unfold Sequent.basic
+    aesop
+  case neg h =>
+    rcases X with ⟨L,R,o⟩
+    unfold Sequent.basic
+    simp only [h, not_false_eq_true, and_true]
+    by_cases ∃ f ∈ L ++ R ++ (Option.map (Sum.elim negUnload negUnload) o).toList, f.basic ≠ true
+    · apply isFalse
+      push_neg
+      assumption
+    · apply isTrue
+      push_neg at *
+      assumption
 
 /-- Local tableau for `X`, maximal by definition. -/
 inductive LocalTableau : (X : Sequent) → Type
