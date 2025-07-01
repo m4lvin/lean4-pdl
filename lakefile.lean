@@ -4,7 +4,7 @@ open Lake DSL
 package «pdl»
 
 require mathlib from git
-  "https://github.com/leanprover-community/mathlib4.git"@"v4.20.1"
+  "https://github.com/leanprover-community/mathlib4.git"@"v4.22.0-rc2"
 
 @[default_target]
 lean_lib «Pdl»

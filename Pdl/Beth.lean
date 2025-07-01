@@ -84,7 +84,7 @@ theorem beth (φ : Formula) (h : φ.impDef p) :
       -- rest is same as in ip_one_p
       · intro p1_in_ψ
         specialize ip_voc p1_in_ψ
-        simp [p0_neq_p1] at ip_voc
+        simp at ip_voc
         rw [repl_in_F_voc_def] at ip_voc
         aesop
       · intro p_in_ψ

@@ -84,7 +84,7 @@ def RelProp.star : RelProp → RelProp :=
   Quotient.map Program.star (congr_liftFun $
     fun α β h W M v w => by
       specialize h W M;
-      simp_all only [relate, @ReflTransGen.iff_finitelyManySteps, h])
+      simp_all only [relate, @ReflTransGen.iff_finitelyManySteps])
 
 def RelProp.test : SemProp → RelProp :=
   Quotient.map Program.test (congr_liftFun $

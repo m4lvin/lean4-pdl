@@ -149,7 +149,7 @@ def LoadFormula.unload : LoadFormula → Formula
 @[simp]
 theorem unload_loadMulti : (loadMulti δ α φ).unload  = ⌈⌈δ⌉⌉⌈α⌉φ := by
   induction δ
-  · simp [Formula.boxes, LoadFormula.boxes, loadMulti]
+  · simp [Formula.boxes, loadMulti]
   · simpa [Formula.boxes, LoadFormula.boxes, loadMulti]
 
 inductive NegLoadFormula : Type -- ¬χ
@@ -178,7 +178,7 @@ theorem loadBoxes_append : LoadFormula.boxes (as ++ bs) P = LoadFormula.boxes as
 
 theorem loadBoxes_last : (~'⌊a⌋LoadFormula.boxes (as ++ [c]) P) = (~'⌊a⌋LoadFormula.boxes as (⌊c⌋P)) :=
   by
-  induction as <;> simp [LoadFormula.boxes, loadBoxes_append]
+  induction as <;> simp [LoadFormula.boxes]
 
 @[simp]
 theorem unload_boxes : (⌊⌊δ⌋⌋φ).unload = ⌈⌈δ⌉⌉φ.unload := by

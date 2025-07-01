@@ -454,7 +454,7 @@ theorem existsH_of_true_diamond α γ (ψ : Formula) (v_ : evaluate M v (~⌈⌈
   rcases this with ⟨w0, w0_minimizes⟩
   have v_αγ_w0 : relateSeq M (α :: γ) v w0 := by
     rw [← distance_list_iff_relate_Seq, ← w0_minimizes]
-    simp only [evaluate, ne_eq, iInf_eq_top, Subtype.forall, not_forall, Classical.not_imp]
+    simp only [evaluate, ne_eq, iInf_eq_top, Subtype.forall, not_forall]
     refine ⟨w1, w1_not_ψ, ?_⟩
     rw [← @Ne.eq_def, distance_list_iff_relate_Seq]
     exact v_αγ_w1
@@ -462,7 +462,7 @@ theorem existsH_of_true_diamond α γ (ψ : Formula) (v_ : evaluate M v (~⌈⌈
   rcases g with ⟨Xδ, in_H, v_X, same_dist⟩
   refine ⟨Xδ, in_H, v_X, ?_, ?_⟩
   · rw [← @boxes_append]
-    simp only [evaluate, evalBoxes, not_forall, Classical.not_imp]
+    simp only [evaluate, evalBoxes, not_forall]
     refine ⟨w0, ?_, by cases w0; assumption⟩
     rw [← distance_list_iff_relate_Seq, same_dist, distance_list_iff_relate_Seq]
     exact v_αγ_w0

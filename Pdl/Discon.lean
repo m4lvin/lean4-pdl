@@ -47,7 +47,7 @@ theorem in_voc_con n (L : List Formula) :
   · simp [Con, Formula.voc]
   case cons h t IH =>
     induction t -- needed to select case in `Con`
-    · simp [Con, Formula.voc]
+    · simp [Con]
     case cons h t IH =>
       simp [Con, Formula.voc] at *
       rw [← IH]
@@ -91,7 +91,7 @@ theorem in_voc_dis n (L : List Formula) :
   · simp [dis, Formula.voc]
   case cons h t IH =>
     induction t -- needed to select case in `dis`
-    · simp [dis, Formula.voc]
+    · simp [dis]
     case cons h t IH =>
       simp [dis, Formula.voc] at *
       rw [← IH]

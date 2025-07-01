@@ -10,6 +10,7 @@ tableau and point to a specific node inside it. This is the `PathIn` type.
 Its values say "go to this child, then to this child, ... stop here."
 -/
 
+-- set_option maxHeartbeats 20000000 in
 /-- A path in a tableau. Three constructors for the empty path, a local step or a pdl step.
 The `loc` and `pdl` steps correspond to two out of three constructors of `Tableau`.
 A `PathIn` only goes downwards, it cannot use `LoadedPathRepeat`s. -/
@@ -19,7 +20,9 @@ inductive PathIn : ∀ {Hist X}, Tableau Hist X → Type
     : PathIn (Tableau.loc nrep nbas lt next)
 | pdl {nrep bas} {r : PdlRule X Y} {next} (tail : PathIn next)
     : PathIn (Tableau.pdl nrep bas r next)
-deriving DecidableEq
+-- deriving DecidableEq -- BROKEN since Lean v4.22.0-rc2 ???
+
+instance : DecidableEq (PathIn tab) := sorry
 
 def tabAt : PathIn tab → Σ H X, Tableau H X
 | .nil => ⟨_,_,tab⟩
@@ -210,12 +213,12 @@ theorem loc_edge_loc_iff_edge {Y X} {lt : LocalTableau X} {Y_in : Y ∈ endNodes
                     | ⟨Hist, X, nrep, bas, Y, r, next, tab_def, p_def⟩ )
     · left
       use Hist, X, nrep, nbas, lt, next, Y, Y_in, tab_def
-      simp [PathIn.append] at p_def
+      simp at p_def
       rw [p_def]
       rfl
     · right
       use Hist, X, nrep, bas, Y, r, next, tab_def
-      simp [PathIn.append] at p_def
+      simp at p_def
       rw [p_def]
       rfl
 
@@ -240,12 +243,12 @@ theorem pdl_edge_pdl_iff_edge {X Y} {r : PdlRule X Y} {tail : List Sequent}
                     | ⟨Hist, X, nrep, bas, Y, r, next, tab_def, p_def⟩ )
     · left
       use Hist, X, nrep, nbas, lt, next, Y, Y_in, tab_def
-      simp [PathIn.append] at p_def
+      simp at p_def
       rw [p_def]
       rfl
     · right
       use Hist, X, nrep, bas, Y, r, next, tab_def
-      simp [PathIn.append] at p_def
+      simp at p_def
       rw [p_def]
       rfl
 
@@ -290,7 +293,7 @@ theorem length_succ_eq_length_of_edge {s t : PathIn tab} : s ⋖_ t → s.length
     · simp_all only [PathIn.length, zero_add]
     · rw [tabAt_s_def]
     · rw [tabAt_s_def]
-    · subst_eqs; simp_all only [PathIn.length, zero_add, heq_eq_eq, eqRec_heq_iff_heq]
+    · subst_eqs; simp_all only [heq_eq_eq, eqRec_heq_iff_heq]
   · subst t_def
     rw [append_length, add_right_inj]
     have : 1 = (.pdl .nil : PathIn (Tableau.pdl nrep bas r' next')).length := by simp
@@ -298,7 +301,7 @@ theorem length_succ_eq_length_of_edge {s t : PathIn tab} : s ⋖_ t → s.length
     · simp_all only [PathIn.length, zero_add]
     · rw [tabAt_s_def]
     · rw [tabAt_s_def]
-    · subst_eqs; simp_all only [PathIn.length, zero_add, heq_eq_eq, eqRec_heq_iff_heq]
+    · subst_eqs; simp_all only [heq_eq_eq, eqRec_heq_iff_heq]
 
 theorem edge_then_length_lt {s t : PathIn tab} (s_t : s ⋖_ t) : s.length < t.length := by
   have := length_succ_eq_length_of_edge s_t
@@ -481,14 +484,14 @@ theorem PathIn.prefix_toList_eq_toList_take {tab : Tableau Hist X}
       simp [PathIn.toList, PathIn.prefix]
     case loc Z Z_in tail =>
       simp [PathIn.toList, PathIn.prefix]
-      induction k using Fin.inductionOn <;> simp_all [PathIn.toList, PathIn.prefix]
+      induction k using Fin.inductionOn <;> simp_all [PathIn.toList]
   case pdl =>
     cases t
     case nil =>
       simp_all [PathIn.toList, PathIn.prefix]
     case pdl rest Y Z r tab IH tail =>
       simp [PathIn.toList, PathIn.prefix]
-      induction k using Fin.inductionOn <;> simp_all [PathIn.toList, PathIn.prefix]
+      induction k using Fin.inductionOn <;> simp_all [PathIn.toList]
   case lrep =>
     cases t
     simp_all [PathIn.toList, PathIn.prefix]
@@ -641,7 +644,7 @@ theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
         · simp only [List.cons_append, List.length_cons, List.getElem_singleton] at this
           rw [this]
           simp_all
-        · simp only [List.cons_append, List.length_cons, List.length_append, List.length_singleton]
+        · simp only [List.cons_append, List.length_cons, List.length_append]
           exact Nat.lt_add_right 1 j_lt
   case lrep =>
     cases t
@@ -705,7 +708,7 @@ theorem rewind_order_reversing {t : PathIn tab} {k k' : Fin (List.length t.toHis
           rw [Fin.lastCases_last]
           exact PathIn.nil_le_anything
         case cast j' =>
-          simp only [Fin.lastCases_castSucc, Function.comp_apply, Fin.lastCases_last]
+          simp only [Fin.lastCases_castSucc, Function.comp_apply]
           apply PathIn.loc_le_loc_of_le
           apply IH
           · simp_all
@@ -733,7 +736,7 @@ theorem rewind_order_reversing {t : PathIn tab} {k k' : Fin (List.length t.toHis
           rw [Fin.lastCases_last]
           exact PathIn.nil_le_anything
         case cast j' =>
-          simp only [Fin.lastCases_castSucc, Function.comp_apply, Fin.lastCases_last]
+          simp only [Fin.lastCases_castSucc, Function.comp_apply]
           apply PathIn.pdl_le_pdl_of_le
           apply IH
           · simp_all
@@ -761,7 +764,7 @@ theorem PathIn.pdl_lt_pdl_of_lt {t1 t2} (h : t1 < t2) :
 -- needs a better name
 theorem one_is_one_helper {h : k > 0} :
     (1 : ℕ) = (1 : Fin (k + 1)).1 := by
-  simp [Fin.eq_of_val_eq]
+  simp
   induction k
   case zero => simp_all
   case succ n ih => simp
@@ -898,7 +901,7 @@ theorem rewind_order_reversing_if_not_nil {t : PathIn tab}
         case cast j' =>
           have ⟨j'_val, j'_pf⟩ := j'
           have ⟨j_val, j_pf⟩ := j
-          simp only [Fin.lastCases_castSucc, Function.comp_apply, Fin.lastCases_last]
+          simp only [Fin.lastCases_castSucc, Function.comp_apply]
           apply PathIn.loc_lt_loc_of_lt
           apply IH
           · simp_all
@@ -933,7 +936,7 @@ theorem rewind_order_reversing_if_not_nil {t : PathIn tab}
         case cast j' =>
           have ⟨j'_val, j'_pf⟩ := j'
           have ⟨j_val, j_pf⟩ := j
-          simp only [Fin.lastCases_castSucc, Function.comp_apply, Fin.lastCases_last]
+          simp only [Fin.lastCases_castSucc, Function.comp_apply]
           apply PathIn.pdl_lt_pdl_of_lt
           apply IH
           · simp_all

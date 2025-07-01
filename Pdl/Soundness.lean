@@ -209,7 +209,7 @@ theorem companion_to_repeat_all_loaded
       simp [←hist_eq_path]
       exact Nat.lt_of_succ_lt_succ k_lt_l_len
     have h2 : k ≤ lpr_len := by
-      simp [Fin.lt_def] at k_lt_lpr
+      simp at k_lt_lpr
       exact k_lt_lpr
     exact loaded_con ⟨k, h1⟩ h2
 
@@ -421,7 +421,7 @@ theorem eProp {X} (tab : Tableau .nil X) :
 -- Unused?
 theorem ePropB.a {tab : Tableau .nil X} (s t : PathIn tab) :
     s ⋖_ t → (s <ᶜ t) ∨ (t ≡ᶜ s) := by
-  simp_all only [edge, cEdge, cEquiv, flip, before, companion]
+  simp_all only [edge, cEquiv, before]
   intro t_childOf_s
   if Relation.TransGen cEdge t s
   then
@@ -454,7 +454,7 @@ theorem ePropB.b {tab : Tableau .nil X} (s t : PathIn tab) :
     rcases comp with ⟨lpr, _, t_def⟩
     subst t_def
     have := PathIn.rewind_le s ((Fin.cast (tabAt_fst_length_eq_toHistory_length s) lpr.val).succ)
-    simp only [LE.le, instLEPathIn] at this
+    simp only [LE.le] at this
     exact Relation.ReflTransGen_or_left this
   · unfold cEdge
     apply Relation.ReflTransGen_or_right
@@ -1311,7 +1311,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
               rcases this with ⟨b, β_def⟩
               subst α_def β_def
               have := lengthOfProgram_gt_zero
-              simp only [lengthOfProgram, this]
+              simp only [lengthOfProgram]
               try rw [add_assoc]
               try simp only [lt_add_iff_pos_right]
               simp [this]

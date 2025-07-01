@@ -110,7 +110,7 @@ theorem signature_contradiction_of_neq_TPs {ℓ ℓ' : TP α} :
     · simp
       assumption
   · specialize ℓ_conform (~τ) τ τ_in
-    simp_all only [Bool.not_eq_true, ite_false, evaluate, forall_true_left]
+    simp_all only [Bool.not_eq_true, evaluate]
     use τ
     constructor
     · use τ, τ_in
@@ -312,7 +312,7 @@ theorem keepFreshF α ℓ (x_notin : x ∉ α.voc) : ∀ φ ∈ F α ℓ, x ∉ 
   intro φ φ_in
   cases α
   all_goals
-    simp [F, Formula.voc, Program.voc, Vocab.fromList] at *
+    simp [F, Program.voc] at *
   case test τ =>
     cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩) <;> simp_all [Formula.voc]
   case sequence α β =>
@@ -331,23 +331,23 @@ theorem keepFreshP α ℓ (x_notin : x ∉ α.voc) : ∀ δ ∈ P α ℓ, x ∉ 
   intro δ δ_in
   cases α
   all_goals
-    simp_all [P, Formula.voc, Program.voc, Vocab.fromList]
+    simp_all [P, Program.voc, Vocab.fromList]
   case sequence α β =>
     have IHα := keepFreshP α ℓ x_notin.1
     have IHβ := keepFreshP β ℓ x_notin.2
-    simp_all [P, Formula.voc, Program.voc, Vocab.fromList, List.mem_filter, Vocab.fromListProgram_map_iff]
+    simp_all [Vocab.fromListProgram_map_iff]
     rcases δ_in with (⟨δ', δ'_in, def_δ⟩ | δ_in)
     · subst def_δ
       have := IHα _ δ'_in.1
-      simp_all [Vocab.fromListProgram_map_iff]
+      simp_all
       aesop
     · cases em ([] ∈ P α ℓ) <;> simp_all
       have := IHβ _ δ_in
-      simp_all [Vocab.fromListProgram_map_iff]
+      simp_all
   case union α β =>
     have IHα := keepFreshP α ℓ x_notin.1
     have IHβ := keepFreshP β ℓ x_notin.2
-    simp_all [P, Formula.voc, Program.voc, Vocab.fromList, List.mem_filter]
+    simp_all
     aesop
   case star α =>
     have IHα := keepFreshP α ℓ x_notin
@@ -474,7 +474,7 @@ theorem boxHelperTermination α (ℓ : TP α) :
         have IH := boxHelperTermination (·a : Program) ℓ δ δ_in
         simp_all [Program.isAtomic_iff, Program.isStar_iff, subprograms]
       · have IH := boxHelperTermination (α) ℓ δ δ_in
-        simp_all [Program.isAtomic_iff, Program.isStar_iff, subprograms]
+        simp_all [Program.isAtomic_iff, Program.isStar_iff]
         aesop
     case inr δ_in =>
       by_cases β.isAtomic <;> by_cases β.isStar <;>
@@ -495,7 +495,7 @@ theorem boxHelperTermination α (ℓ : TP α) :
         have IH := boxHelperTermination (·a : Program) ℓ δ δ_in
         simp_all [Program.isAtomic_iff, Program.isStar_iff, subprograms]
       · have IH := boxHelperTermination (β) ℓ δ δ_in
-        simp_all [Program.isAtomic_iff, Program.isStar_iff, subprograms]
+        simp_all [Program.isAtomic_iff, Program.isStar_iff]
         aesop
   case star β =>
     cases δ_in
@@ -512,7 +512,7 @@ theorem boxHelperTermination α (ℓ : TP α) :
         rcases hyp with ⟨γ, β_def⟩
         subst β_def
         have := IH.2 γ rfl
-        simp_all [not_false_eq_true, implies_true]
+        simp_all
       · rename ∃ a, β = (·a : Program) => hyp
         rcases hyp with ⟨a, β_def⟩
         subst β_def
@@ -591,7 +591,7 @@ theorem unfoldBoxContent α ψ :
           right
           use a
           use δ1n
-          simp_all [subprograms]
+          simp_all
           intro γ γ_in
           specialize δ_sub γ_in
           simp_all
@@ -634,7 +634,7 @@ theorem boxHelperTP α (ℓ : TP α) :
     have := F_mem_iff_neg α ℓ (~τ)
     aesop
   · intro W M w
-    simp [conEval, signature, F]
+    simp [conEval, signature]
     intro w_ℓ
     intro φ φ_in
     have := F_mem_iff_neg α ℓ φ
@@ -654,7 +654,7 @@ theorem boxHelperTP α (ℓ : TP α) :
       · rw [F_mem_iff_neg α ℓ φ] at φ_in_F
         rcases φ_in_F with ⟨τ, τ_in, φ_def, not_ℓ_τ⟩
         subst φ_def
-        simp_all [signature, conEval, F]
+        simp_all [signature, conEval]
         specialize w_sign (~τ) τ
         aesop
       · aesop
@@ -673,7 +673,7 @@ theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
       have by_ass : (M,w) ⊨ (repl_in_F x ρ) (χ0 ⋁ χ1) := by apply rho_imp_repl; simp; exact w_rho; simp
       have obvious : (M,w) ⊨ (repl_in_F x ρ) (·x) := by simp; exact w_rho
       have : (M,w) ⊨ (repl_in_F x ρ) (((·x) ⋀ χ0) ⋁ χ1) := by
-        simp [evaluate,relate,modelCanSemImplyForm] at *
+        simp [evaluate, modelCanSemImplyForm] at *
         tauto
       -- Now we want to "rewrite" with beta_equiv.
       have := repl_in_F_equiv x ρ beta_equiv
@@ -683,7 +683,7 @@ theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
       rw [equiv_iff _ _ this]
       simp_all
     -- It is then immediate...
-    simp [evaluate,relate,modelCanSemImplyForm] at this
+    simp [evaluate, modelCanSemImplyForm] at this
     exact this v w_β_v -- This finishes the proof of (46).
   -- To see how the Lemma follows from this...
   intro W M w
@@ -782,11 +782,11 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
   intro W M w
   cases γ
   case atom_prog a =>
-    simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
+    simp_all [testsOfProgram, signature, Xset, P, F]
   case test τ =>
     cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩ )
-    · simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
-    · simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
+    · simp_all [testsOfProgram, signature, Xset, P, F]
+    · simp_all [testsOfProgram, signature, Xset, P, F]
   case union α β =>
     have IHα := localBoxTruthI α ψ ℓ W M w
     have IHβ := localBoxTruthI β ψ ℓ W M w
@@ -804,7 +804,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     clear this IHα IHβ
     -- signature is true, so we can add it for free:
     have : ∀ φ, evaluate M w φ
-              ↔ evaluate M w (φ ⋀ signature (α⋓β) ℓ) := by simp_all [conEval]
+              ↔ evaluate M w (φ ⋀ signature (α⋓β) ℓ) := by simp_all
     rw [this (Con (Xset (α⋓β) ℓ ψ))]
     clear this
     -- using part (3) of Lemma:
@@ -885,7 +885,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
     constructor
     · intro lhs
       rw [conEval]
-      simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
+      simp_all [testsOfProgram, signature, conEval, Xset, P, F]
       rintro φ ((φ_in_Fα|φ_in_Fβ) | ⟨δ, ⟨(δ_from_Pα|δ_from_Pβ), def_φ⟩⟩)
       · tauto
       · rw [F_mem_iff_neg β ℓ φ] at φ_in_Fβ
@@ -902,7 +902,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         rcases δ_from_Pα with ⟨δ_α, bla, def_δ⟩
         use δ_α
         subst def_δ
-        simp_all [boxes_append, List.mem_filter]
+        simp_all [boxes_append]
       · subst def_φ
         cases em ([] ∈ P α ℓ)
         · simp_all
@@ -916,12 +916,12 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         · simp_all
     · intro rhs
       rw [conEval]
-      simp_all [TP, testsOfProgram, signature, conEval, Xset, P, F]
+      simp_all [testsOfProgram, signature, conEval, Xset, P, F]
       rintro φ (φ_in_Fα|⟨δ, φ_in_Pα, def_φ⟩)
       · tauto
       · subst def_φ
         cases em (δ = [])
-        · simp_all only [Formula.boxes_nil, evaluate, ite_true] -- uses IHβ
+        · simp_all only [Formula.boxes_nil, evaluate] -- uses IHβ
           clear IHβ
           rintro φ ((φ_in_Fβ) | ⟨δ, ⟨(δ_from_Pβ), def_φ⟩⟩)
           · apply rhs
@@ -976,7 +976,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
             · cases em (δ = [])
               · subst_eqs
                 simp_all
-              · simp_all only [bne_iff_ne, ne_eq, not_false_eq_true, and_true]
+              · simp_all only [not_false_eq_true, and_true]
                 have := P_monotone β ℓ ℓ' -- or flip order?
                 simp only [Subtype.forall] at this
                 apply this _ _ δ_in
@@ -1039,7 +1039,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
             aesop
           · subst def_f
             specialize step ℓ' W M w
-            simp only [List.mem_singleton, forall_eq, and_imp] at step
+            simp only [List.mem_singleton, forall_eq] at step
             rw [conEval] at step
             simp [evaluate, relate, signature,conEval] at step
             apply step <;> aesop
@@ -1139,7 +1139,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
             · unfold χ0 T0 φ'
               simp [disEval, conEval]
               use ℓ
-              simp_all [List.mem_filter]
+              simp_all
               intro f δ δ_in _ def_f
               apply w_Xβ
               right
@@ -1148,7 +1148,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
             unfold χ1 T1 φ'
             simp [disEval, conEval]
             use ℓ
-            simp_all [List.mem_filter]
+            simp_all
             intro f δ δ_in _ def_f
             apply w_Xβ
             right
@@ -1196,7 +1196,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
           left
           simp_all [disEval, conEval, repl_in_dis, repl_in_Con]
           use ℓ
-          simp_all [List.mem_filter]
+          simp_all
           constructor
           · apply allTP_mem
           · constructor
@@ -1229,7 +1229,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
           -- exactly the same as inl case!
           simp_all [disEval, conEval, repl_in_dis, repl_in_Con]
           use ℓ
-          simp_all [List.mem_filter]
+          simp_all
           constructor
           · apply allTP_mem
           · constructor
@@ -1280,7 +1280,7 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M,v) 
     rcases v_γ_w with ⟨v_is_w, v_τ⟩
     cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩ )
     all_goals
-      simp_all [modelCanSemImplyForm, evaluatePoint, F, P, relateSeq, TP, testsOfProgram]
+      simp_all [modelCanSemImplyForm, evaluatePoint, F, P, relateSeq, testsOfProgram]
   case union α β =>
     simp at v_γ_w
     cases v_γ_w

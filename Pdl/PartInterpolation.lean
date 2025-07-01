@@ -101,7 +101,7 @@ theorem localRule_does_not_increase_vocab_L (rule : LocalRule (Lcond, Rcond, Oco
     simp only [List.mem_map, Prod.exists] at *
     rcases ress_in_ress with ⟨L, lnf, in_ress, def_res⟩
     subst def_res
-    simp [Vocab.fromListProgram_map_iff, Vocab.fromListFormula_map_iff] at *
+    simp [Vocab.fromListFormula_map_iff] at *
     rcases x_in_res with ⟨φ, φ_in_L, bla⟩
     -- wait, where should a contradiction come from now?
     -- PROBLEM: theorem is not true. The loadedL case here *does* add voc in "L" part, coming "O".
@@ -183,9 +183,9 @@ def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) 
       subst_eqs
       absurd w_.1
       have := w_.2 φ
-      simp_all [evaluate]
+      simp_all
     · rintro ⟨W, M, w, w_⟩
-      simp only [List.empty_eq, List.mem_cons, forall_eq_or_imp, evaluate] at *
+      simp only [List.empty_eq, List.mem_cons, forall_eq_or_imp] at *
       subst_eqs
       absurd w_.1
       have := w_.2 (~φ)
@@ -208,7 +208,7 @@ def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) 
       subst_eqs
       absurd w_.1
       have := w_.2 φ
-      simp_all [evaluate]
+      simp_all
 
   case loadedL =>
     -- keep interpolant the same

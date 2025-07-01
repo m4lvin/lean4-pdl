@@ -163,7 +163,7 @@ instance RelProp.idemSemiring : IdemSemiring RelProp where
   bot_le := by
     apply Quotient.ind
     intro α
-    simp [OfNat.ofNat, Zero.toOfNat0, Zero.zero, LE.le, RelProp.le, relImp]
+    simp [OfNat.ofNat, Zero.zero, LE.le, RelProp.le, relImp]
 
 instance RelProp.kleeneAlgebra : KleeneAlgebra RelProp where
   one_le_kstar := by

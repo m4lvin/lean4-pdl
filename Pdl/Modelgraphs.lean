@@ -73,7 +73,7 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
   induction i using Fin.inductionOn
   case zero =>
     simp_all only [instBot, insTop, List.cons_append, List.zip_cons_cons, Subtype.forall,
-      List.length_cons, Nat.succ_eq_add_one, Fin.val_zero, List.drop_zero, List.get_cons_zero]
+      List.length_cons, Fin.val_zero, List.drop_zero, List.get_cons_zero]
       -- uses δφ_in_X
   case succ i IH =>
     simp_all only [List.cons_append, List.length_cons, List.append_eq, Fin.val_succ, List.get_cons_succ']
@@ -86,23 +86,23 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
         simp only [List.get_eq_getElem, Fin.coe_cast, List.append_eq, List.getElem_cons_drop]
         cases i
         simp_all only [instBot, insTop, List.zip_cons_cons, Subtype.forall, List.append_eq,
-          Fin.castSucc_mk, Fin.cast_mk]
+          Fin.castSucc_mk]
         rw [Formula.boxes_cons]
       rw [this]
       exact IH
-    · simp [relate]
+    · simp
       -- It now remains to make lchain usable
       rw [List.chain'_iff_get] at lchain
       specialize lchain i ?_
       · rcases i with ⟨val, hyp⟩
         simp_all only [insTop, List.zip_cons_cons, List.length_cons, List.length_zip,
-          List.length_append, List.length_singleton, min_self, add_tsub_cancel_right, instBot,
+          List.length_append, min_self, add_tsub_cancel_right, instBot,
           List.get_eq_getElem, List.getElem_cons_succ, List.getElem_zip, Subtype.forall,
           List.append_eq, Fin.castSucc_mk]
         rw [← length_def]
         simp at hyp
         exact hyp
-      simp [pairRel, instBot, insTop, List.cons_append, List.zip_cons_cons, List.length_cons, List.append_eq, List.get_cons_succ, List.getElem_zip] at lchain
+      simp [pairRel, instBot, insTop, List.zip_cons_cons, List.length_cons, List.append_eq, List.getElem_zip] at lchain
       convert lchain
       apply get_eq_getzip
 
@@ -138,7 +138,7 @@ theorem Q_then_relate (MG : ModelGraph Worlds) α (X Y : Worlds) :
     exact Q_then_relate MG α a b Qab
   case test φ =>
     have := loadedTruthLemma MG X φ
-    simp [Q, relate, Relation.Comp] at *
+    simp [Q, relate] at *
     intro X_is_Y phi_in_X
     subst X_is_Y
     constructor
@@ -162,7 +162,7 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
       have ⟨_,⟨i,_,_,_⟩⟩ := MG
       specialize i X
       tauto
-    · simp only [instBot, evaluate, not_false_eq_true, implies_true]
+    · simp only [evaluate, not_false_eq_true, implies_true]
   case atom_prop pp =>
     have ⟨M,⟨i,ii,_,_⟩⟩ := MG
     repeat' constructor
@@ -393,7 +393,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
     -- NOTE: tried `induction δ` before, but that yields a too weak/annoying IH.
     -- Instead, check if δ is empty, and in non-empty case use `relateSeq_toChain'`.
     cases em (δ = [])
-    · simp_all [relateSeq] -- uses δφ_in_X from above.
+    · simp_all -- uses δφ_in_X from above.
     case inr δ_notEmpty =>
       have := relateSeq_toChain' X_δ_Y δ_notEmpty
       rcases this with ⟨l, length_def, lchain⟩
@@ -458,7 +458,7 @@ theorem cpHelpA {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α
   rintro ⟨F,δ⟩ in_H v w
   cases α
   case atom_prog =>
-    simp_all [Qtests, Qsteps, Qcombo, Relation.Comp, H]
+    simp_all [Qtests, Qcombo, Relation.Comp, H]
   case test =>
     simp_all [Qtests, Qsteps, Qcombo, Relation.Comp, H]
   case union α β =>
@@ -484,8 +484,7 @@ theorem cpHelpA {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α
       simp only [List.mem_singleton, Prod.mk.injEq] at in_l
       cases in_l
       subst_eqs
-      simp_all only [Qcombo, Relation.Comp, Qtests, beq_iff_eq, List.mem_union_iff, Qsteps,
-        exists_eq_right, and_imp, forall_exists_index]
+      simp_all only [Qcombo, Relation.Comp, Qtests, beq_iff_eq, List.mem_union_iff, and_imp, forall_exists_index]
       rcases v_combo_w with ⟨z, ⟨def_z, F_hyp⟩, z_w⟩
       subst def_z
       use v
@@ -534,7 +533,7 @@ theorem cpHelpA {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α
       subst def_l
       by_cases δ = []
       · subst_eqs
-        simp only [reduceIte, List.mem_flatten, List.mem_map, Prod.exists] at in_L
+        simp only [reduceIte] at in_L
         absurd in_L
         exact List.not_mem_nil
       case neg hyp =>

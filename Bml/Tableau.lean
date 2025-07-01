@@ -111,8 +111,9 @@ def projectTNode : TNode → TNode
 
 @[simp]
 theorem projectionUnion: projection (X ∪ Y) = projection X ∪ projection Y := by
-  unfold projection
-  aesop
+  ext φ
+  simp [projection]
+  grind
 
 -- TODO @[simp]
 theorem proj {g : Formula} {X : Finset Formula} : g ∈ projection X ↔ □g ∈ X :=

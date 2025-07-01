@@ -95,7 +95,7 @@ theorem A6 (a : Program) (φ : Formula) : tautology ((⌈∗a⌉φ) ⟷ (φ ⋀ 
       right
       use v
   · -- right to left
-    simp only [evaluate, relate, not_forall, Classical.not_imp, not_and, not_exists,
+    simp only [evaluate, relate, not_forall, not_and, not_exists,
       Decidable.not_not, and_imp]
     intro w_φ hyp v w_aS_v
     rcases Relation.ReflTransGen.cases_head w_aS_v <;> aesop

@@ -43,6 +43,7 @@ jobs:
         run: make pdl
 
       - name: Build Bml
+        if: always()
         run: make bml
 
       - name: Build documentation

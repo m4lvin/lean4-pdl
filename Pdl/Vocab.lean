@@ -70,7 +70,7 @@ theorem Formula.voc_boxes : (⌈⌈δ⌉⌉φ).voc = δ.pvoc ∪ φ.voc := by
   induction δ
   · simp
   case cons α δ IH =>
-    simp only [List.map_cons, List.pvoc, voc, Vocab.fromList, Finset.union_assoc] at *
+    simp only [List.map_cons, List.pvoc, Vocab.fromList, Finset.union_assoc] at *
     rw [← IH]
     rfl
 
@@ -145,7 +145,7 @@ end
 mutual
 theorem freshVarForm_is_larger (φ) : ∀ n ∈ φ.voc.atomProps, n < freshVarForm φ := by
   cases φ
-  all_goals simp [freshVarForm, Formula.voc, not_or, Vocab.atomProps]
+  all_goals simp [freshVarForm, Formula.voc, Vocab.atomProps]
   case neg φ =>
     have IH := freshVarForm_is_larger φ
     simp [Vocab.atomProps] at *
@@ -186,7 +186,7 @@ end
 
 theorem freshVarForm_is_fresh (φ) : Sum.inl (freshVarForm φ) ∉ φ.voc := by
   have := freshVarForm_is_larger φ
-  simp [freshVarForm, Formula.voc, Vocab.atomProps] at *
+  simp [Vocab.atomProps] at *
   by_contra hyp
   specialize this (freshVarForm φ)
   have := Nat.lt_irrefl (freshVarForm φ)
@@ -194,7 +194,7 @@ theorem freshVarForm_is_fresh (φ) : Sum.inl (freshVarForm φ) ∉ φ.voc := by
 
 theorem freshVarProg_is_fresh (α) : Sum.inl (freshVarProg α) ∉ α.voc := by
   have := freshVarProg_is_larger α
-  simp [freshVarProg, Formula.voc, Vocab.atomProps] at *
+  simp [Vocab.atomProps] at *
   by_contra hyp
   specialize this (freshVarProg α)
   have := Nat.lt_irrefl (freshVarProg α)

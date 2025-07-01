@@ -96,10 +96,10 @@ theorem repl_in_boxes_non_occ_eq_neg (δ : List Program) :
     simp only [Formula.boxes, List.foldr_cons, repl_in_F, Formula.box.injEq]
     constructor
     · apply repl_in_P_non_occ_eq
-      simp_all [Program.voc, Vocab.fromList]
+      simp_all [Vocab.fromList]
     · apply IH
       clear IH
-      simp_all [Program.voc, Vocab.fromList]
+      simp_all [Vocab.fromList]
 
 theorem repl_in_boxes_non_occ_eq_pos (δ : List Program) :
     (Sum.inl x) ∉ Vocab.fromList (δ.map Program.voc) → repl_in_F x ψ (⌈⌈δ⌉⌉·x) = ⌈⌈δ⌉⌉ψ := by
@@ -110,10 +110,10 @@ theorem repl_in_boxes_non_occ_eq_pos (δ : List Program) :
     simp only [Formula.boxes, List.foldr_cons, repl_in_F, Formula.box.injEq]
     constructor
     · apply repl_in_P_non_occ_eq
-      simp_all [Program.voc, Vocab.fromList]
+      simp_all [Vocab.fromList]
     · apply IH
       clear IH
-      simp_all [Program.voc, Vocab.fromList]
+      simp_all [Vocab.fromList]
 
 theorem repl_in_list_non_occ_eq (F : List Formula) :
      (Sum.inl x) ∉ Vocab.fromList (F.map Formula.voc) → F.map (repl_in_F x ρ) = F := by
@@ -124,11 +124,11 @@ theorem repl_in_list_non_occ_eq (F : List Formula) :
     simp only [List.map_cons, List.cons.injEq]
     constructor
     · apply repl_in_F_non_occ_eq
-      simp [Program.voc, Vocab.fromList] at *
+      simp [Vocab.fromList] at *
       exact nonOcc.left
     · apply IH
       clear IH
-      simp_all [Program.voc, Vocab.fromList]
+      simp_all [Vocab.fromList]
 
 set_option maxHeartbeats 2000000 in
 mutual
@@ -317,7 +317,7 @@ lemma taut_repl φ p q :
   intro taut_φ
   intro W M w
   have := repl_in_model_sat_iff p (·q) φ M w
-  simp [vDash, vDash.SemImplies] at this
+  simp [vDash.SemImplies] at this
   rw [this]
   apply taut_φ
 

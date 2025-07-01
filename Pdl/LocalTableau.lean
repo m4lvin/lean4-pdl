@@ -132,7 +132,7 @@ theorem vDash_setEqTo_iff {X Y : Sequent} (h : X.setEqTo Y) (M : KripkeModel W) 
     (M,w) ⊨ X ↔ (M,w) ⊨ Y := by
   rcases X with ⟨L, R, O⟩
   rcases Y with ⟨L',R',O'⟩
-  simp only [Sequent.setEqTo, modelCanSemImplySequent, vDash]
+  simp only [modelCanSemImplySequent]
   unfold Sequent.setEqTo at h
   simp at h
   rw [List.toFinset.ext_iff, List.toFinset.ext_iff] at h
@@ -143,7 +143,7 @@ theorem vDash_multisetEqTo_iff {X Y : Sequent} (h : X.multisetEqTo Y) (M : Kripk
     (M,w) ⊨ X ↔ (M,w) ⊨ Y := by
   rcases X with ⟨L, R, O⟩
   rcases Y with ⟨L',R',O'⟩
-  simp only [Sequent.multisetEqTo, modelCanSemImplySequent, vDash]
+  simp only [modelCanSemImplySequent]
   unfold Sequent.multisetEqTo at h
   simp at h
   rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
@@ -262,7 +262,7 @@ theorem AnyNegFormula.in_side_of_setEqTo {X Y} (h : X.setEqTo Y) {anf : AnyNegFo
     anf.in_side side X ↔ anf.in_side side Y := by
   rcases X with ⟨L, R, O⟩
   rcases Y with ⟨L',R',O'⟩
-  simp only [Sequent.setEqTo, modelCanSemImplySequent, vDash] at *
+  simp only [Sequent.setEqTo] at *
   rw [List.toFinset.ext_iff, List.toFinset.ext_iff] at h
   rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
   subst O_eq_O'
@@ -272,7 +272,7 @@ theorem AnyNegFormula.in_side_of_multisetEqTo {X Y} (h : X.multisetEqTo Y) {anf 
     anf.in_side side X ↔ anf.in_side side Y := by
   rcases X with ⟨L, R, O⟩
   rcases Y with ⟨L',R',O'⟩
-  simp only [Sequent.multisetEqTo, modelCanSemImplySequent, vDash] at *
+  simp only [Sequent.multisetEqTo] at *
   -- rw [List.toFinset.ext_iff, List.toFinset.ext_iff] at h
   rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
   subst O_eq_O'
@@ -284,13 +284,13 @@ lemma LoadFormula.in_side_of_lf_inl {X} (lf : LoadFormula)
     (O_def : X.2.2 = some (Sum.inl (~'lf))) :
     (~''(AnyFormula.loaded lf)).in_side Side.LL X := by
   rcases X with ⟨L,R,O⟩
-  simp_all [loadMulti_cons, AnyNegFormula.in_side]
+  simp_all [AnyNegFormula.in_side]
 
 lemma LoadFormula.in_side_of_lf_inr {X} (lf : LoadFormula)
     (O_def : X.2.2 = some (Sum.inr (~'lf))) :
     (~''(AnyFormula.loaded lf)).in_side Side.RR X := by
   rcases X with ⟨L,R,O⟩
-  simp_all [loadMulti_cons, AnyNegFormula.in_side]
+  simp_all [AnyNegFormula.in_side]
 
 lemma Sequent.isLoaded_of_negAnyFormula_loaded {α ξ side} {X : Sequent}
     (negLoad_in : (~''(AnyFormula.loaded (⌊α⌋ξ))).in_side side X)
@@ -298,9 +298,9 @@ lemma Sequent.isLoaded_of_negAnyFormula_loaded {α ξ side} {X : Sequent}
   unfold AnyNegFormula.in_side at negLoad_in
   rcases X with ⟨L,R,O⟩
   rcases O with _|⟨lf|lf⟩
-  · cases side <;> simp_all [Program.isAtomic]
+  · cases side <;> simp_all
   all_goals
-    cases side <;> simp [AnyFormula.unload] at negLoad_in
+    cases side <;> simp at negLoad_in
     subst negLoad_in
     cases ξ
     all_goals
@@ -348,7 +348,7 @@ theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B
     · rintro ⟨l,hyp⟩; use l; rw [conEval]; tauto
   case dia α φ notAtom =>
     rw [conEval]
-    simp only [List.mem_singleton, forall_eq, discon, unfoldDiamond]
+    simp only [List.mem_singleton, forall_eq, unfoldDiamond]
     rw [localDiamondTruth α φ W M w, disEval, disconEval]
     apply mapCon_mapForall
 
@@ -460,7 +460,7 @@ theorem Olf.change_some_some_none : Olf.change (some wnlf) (some wnlf) none = no
 
 @[simp]
 theorem Olf.change_some: Olf.change oldO whatever (some wnlf) = some wnlf := by
-    cases oldO <;> simp [Olf.change, Option.overwrite, Option.insHasSdiff]
+    cases oldO <;> simp [Olf.change, Option.overwrite]
 
 @[simp]
 def applyLocalRule : LocalRule (Lcond, Rcond, Ocond) ress → Sequent → List Sequent
@@ -500,7 +500,7 @@ theorem localRuleTruth
       have : evaluate M w (discon ress) := by
         rw [← osTruth, conEval]
         intro f f_in; apply w_LRO
-        simp only [List.mem_union_iff, List.mem_append]
+        simp only [List.mem_union_iff]
         exact Or.inl $ Or.inl $ List.Subperm.subset preconditionProof f_in
       rw [disconEval] at this
       rcases this with ⟨Y, Y_in, claim⟩
@@ -510,16 +510,16 @@ theorem localRuleTruth
       · intro f f_in
         simp only [List.mem_union_iff, List.mem_append] at f_in
         rcases f_in with (((f_in_L | f_in_Y) | f_in_R) | f_in_O)
-        · apply w_LRO f; simp only [List.mem_union_iff, List.mem_append]
+        · apply w_LRO f; simp only [List.mem_union_iff]
           exact Or.inl $ Or.inl $ List.diff_subset L Lcond f_in_L
         · exact claim f f_in_Y
-        · apply w_LRO f; simp only [List.mem_union_iff, List.mem_append]
+        · apply w_LRO f; simp only [List.mem_union_iff]
           tauto
-        · apply w_LRO f; simp only [List.mem_union_iff, List.mem_append]
+        · apply w_LRO f; simp only [List.mem_union_iff]
           exact Or.inr f_in_O
     · rintro ⟨Y, Y_in, w_LYRO⟩
       intro f f_in
-      simp only [List.mem_union_iff, List.mem_append] at f_in
+      simp only [List.mem_union_iff] at f_in
       rcases f_in with ((f_in_L | f_in_R) | f_in_O)
       · rcases em (f ∈ Lcond) with f_in_cond | f_notin_cond
         · have : ∀ f ∈ Lcond, evaluate M w f := by
@@ -545,7 +545,7 @@ theorem localRuleTruth
       have : evaluate M w (discon ress) := by
         rw [← osTruth, conEval]
         intro f f_in; apply w_LRO
-        simp only [List.mem_union_iff, List.mem_append]
+        simp only [List.mem_union_iff]
         exact Or.inl $ Or.inr $ List.Subperm.subset preconditionProof f_in
       rw [disconEval] at this
       rcases this with ⟨Y, Y_in, claim⟩
@@ -555,16 +555,16 @@ theorem localRuleTruth
       · intro f f_in
         simp only [List.mem_union_iff, List.mem_append] at f_in
         rcases f_in with ((f_in_L | (f_in_R | f_in_Y)) | f_in_O)
-        · apply w_LRO f; simp only [List.mem_union_iff, List.mem_append]
+        · apply w_LRO f; simp only [List.mem_union_iff]
           exact Or.inl $ Or.inl f_in_L
-        · apply w_LRO f; simp only [List.mem_union_iff, List.mem_append]
+        · apply w_LRO f; simp only [List.mem_union_iff]
           exact Or.inl $ Or.inr $ List.diff_subset R Rcond f_in_R
         · exact claim f f_in_Y
-        · apply w_LRO f; simp only [List.mem_union_iff, List.mem_append]
+        · apply w_LRO f; simp only [List.mem_union_iff]
           exact Or.inr f_in_O
     · rintro ⟨Y, Y_in, w_LYRO⟩
       intro f f_in
-      simp only [List.mem_union_iff, List.mem_append] at f_in
+      simp only [List.mem_union_iff] at f_in
       rcases f_in with ((f_in_L | f_in_R) | f_in_O)
       · apply w_LYRO; simp_all
       · rcases em (f ∈ Rcond) with f_in_cond | f_notin_cond
@@ -602,7 +602,7 @@ theorem localRuleTruth
     subst hC
     simp at preconditionProof
     subst preconditionProof
-    simp [modelCanSemImplyForm,modelCanSemImplyLLO] at *
+    simp at *
     constructor
     · intro hyp
       have hyp' := hyp (~χ.unload)
@@ -663,7 +663,7 @@ theorem localRuleTruth
     subst hC
     simp at preconditionProof
     subst preconditionProof
-    simp [modelCanSemImplyForm,modelCanSemImplyLLO] at *
+    simp at *
     constructor
     · intro hyp
       have hyp' := hyp (~χ.unload)
@@ -828,7 +828,7 @@ theorem mem_of_two_subperm {α} {l : List α} {a b : α}  [DecidableEq α] :
 lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
   rcases X with ⟨L,R,o⟩
   unfold Sequent.basic
-  simp only [List.append_assoc, List.mem_append, Option.mem_toList, Option.mem_def,
+  simp only [List.append_assoc, List.mem_append, Option.mem_toList,
     Option.map_eq_some_iff, Sum.exists, Sum.elim_inl, negUnload, Sum.elim_inr]
   rw [and_iff_not_or_not]
   simp only [not_not]
@@ -999,7 +999,7 @@ decreasing_by
 
 theorem lmOfFormula_lt_box_of_nonAtom (h : ¬ α.isAtomic) :
     lmOfFormula (~φ) < lmOfFormula (~⌈α⌉φ) := by
-  cases α <;> simp_all [List.attach_map_val, Program.isAtomic, testsOfProgram] <;> linarith
+  cases α <;> simp_all [Program.isAtomic, testsOfProgram] <;> linarith
 
 -- Only need this here, so don't export this.
 @[simp]
@@ -1007,7 +1007,7 @@ private instance instLTFormula : LT Formula := ⟨fun φ1 φ2 => lmOfFormula φ1
 
 instance Formula.WellFoundedLT : WellFoundedLT Formula := by
   constructor
-  simp_all only [instLTFormula, Nat.lt_eq]
+  simp_all only [instLTFormula]
   exact @WellFounded.onFun Formula Nat Nat.lt lmOfFormula Nat.lt_wfRel.wf
 
 instance Formula.instPreorderFormula : Preorder Formula := Preorder.lift lmOfFormula
@@ -1164,13 +1164,13 @@ theorem node_to_multiset_of_precon {O Ocond Onew : Olf}
     all_goals cases O_Def : O <;> try (cases O_def2 : O)
     all_goals cases Ocond_Def : Ocond <;> try (cases Ocond_def2 : Ocond)
     all_goals cases Onew_Def : Onew <;> try (cases Onew_def2 : Onew)
-    all_goals simp_all [Olf.toForm, Olf.change, Option.insHasSdiff]
+    all_goals simp_all [Olf.toForm, Option.insHasSdiff]
   rw [claim]
   -- we now get 3 * 3 * 3 = 27 cases
   all_goals cases O <;> try (rename_i O; cases O)
   all_goals cases Onew <;> try (rename_i Onew; cases Onew)
   all_goals cases Ocond <;> try (rename_i cond; cases cond)
-  all_goals simp_all [Olf.toForm, Olf.change] -- solve 23 out of 27 cases, of which 4 use O_extracon
+  all_goals simp_all [Olf.toForm] -- solve 23 out of 27 cases, of which 4 use O_extracon
   all_goals
     linarith
 
@@ -1253,12 +1253,12 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
       simp [lmOfFormula]
 
 theorem lmOfFormula.le_union_left α β φ : lmOfFormula (~⌈α⌉φ) ≤ lmOfFormula (~⌈α⋓β⌉φ) := by
-  cases α <;> simp [lmOfFormula, List.attach_map_val]
+  cases α <;> simp [lmOfFormula]
   all_goals
     simp [testsOfProgram]
 
 theorem lmOfFormula.le_union_right α β φ : lmOfFormula (~⌈β⌉φ) ≤ lmOfFormula (~⌈α⋓β⌉φ) := by
-  cases β <;> simp [lmOfFormula, List.attach_map_val]
+  cases β <;> simp [lmOfFormula]
   all_goals
     simp [testsOfProgram]
 
@@ -1287,12 +1287,12 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ H α) {ψ} (i
             simp [lmOfFormula] at IHα
           all_goals
             simp only [List.attach_map_val, testsOfProgram] at *
-            simp_all [lmOfFormula]
+            simp_all
             try linarith
         · have IHβ := H_goes_down β φ in_Hβ in_Fs''
           cases β
           all_goals
-            simp_all [H, testsOfProgram, lmOfFormula, List.attach_map_val]
+            simp_all [H, testsOfProgram, lmOfFormula]
             try linarith
       · simp_all only [ite_false, List.mem_singleton, Prod.mk.injEq, testsOfProgram,
         List.attach_append, List.map_append, List.map_map, List.sum_append]
@@ -1302,7 +1302,7 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ H α) {ψ} (i
         have IHα := H_goes_down α φ in_H in_Fs
         cases α
         all_goals
-          simp_all [H, testsOfProgram, lmOfFormula, List.attach_map_val]
+          simp_all [H, testsOfProgram, lmOfFormula]
         all_goals
           try rw [Function.comp_def, Function.comp_def, List.attach_map_val, List.attach_map_val] at IHα
           try linarith
@@ -1329,21 +1329,20 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ H α) {ψ} (i
         have IHα := H_goes_down α φ in_H' in_Fs
         cases α <;> simp_all only [lmOfFormula, not_lt_zero']
   case test τ =>
-    simp_all [H, testsOfProgram, List.attach_map_val]
+    simp_all [H, testsOfProgram]
 
 theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : List Formula}
     (α_non_atomic : ¬ α.isAtomic)
     (X_in : X ∈ unfoldDiamond α φ)
     (ψ_in_X : ψ ∈ X)
-    : lmOfFormula ψ < lmOfFormula (~⌈α⌉φ) :=
-  by
+    : lmOfFormula ψ < lmOfFormula (~⌈α⌉φ) := by
   have udc := unfoldDiamondContent _ _ _ X_in _ ψ_in_X
   rcases udc with ψ_def | ⟨τ, τ_in, ψ_def⟩ | ⟨a, δ, ψ_def⟩ <;> subst ψ_def
   · exact lmOfFormula_lt_box_of_nonAtom α_non_atomic
-  · cases α <;> simp_all [Program.isAtomic, testsOfProgram, List.attach_map_val]
+  · cases α <;> simp_all [Program.isAtomic, testsOfProgram]
     case sequence α β =>
       suffices lmOfFormula ψ < (List.map lmOfFormula (testsOfProgram (α;'β))).sum.succ by
-        simp_all [testsOfProgram, Function.comp_def, List.attach_map_val]
+        simp_all [testsOfProgram]
         linarith
       suffices ∃ τ' ∈ testsOfProgram (α;'β), lmOfFormula ψ < 1 + lmOfFormula τ' by
         rw [Nat.lt_succ]
@@ -1354,7 +1353,7 @@ theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X 
       aesop
     case union α β =>
       suffices lmOfFormula ψ < (List.map lmOfFormula (testsOfProgram (α⋓β))).sum.succ by
-        simp_all [testsOfProgram, Function.comp_def, List.attach_map_val]
+        simp_all [testsOfProgram]
         linarith
       suffices ∃ τ' ∈ testsOfProgram (α;'β), lmOfFormula ψ < 1 + lmOfFormula τ' by
         rw [Nat.lt_succ]
@@ -1421,12 +1420,12 @@ theorem LocalRuleDecreases (rule : LocalRule X ress) :
       case dia α φ notAtom =>
         rcases Y_in_ress with ⟨E, E_in, E_def⟩
         subst E_def
-        simp_all only [List.append_nil, Multiset.mem_coe]
+        simp_all only [Multiset.mem_coe]
         exact unfoldDiamond.decreases_lmOf_nonAtomic notAtom  E_in y_in_Y
       case box α φ notAtom =>
         rcases Y_in_ress with ⟨E, E_in, E_def⟩
         subst E_def
-        simp_all only [List.append_nil, Multiset.mem_coe]
+        simp_all only [Multiset.mem_coe]
         exact unfoldBox.decreases_lmOf_nonAtomic notAtom E_in y_in_Y
 
     case loadedL lrule ress_def =>

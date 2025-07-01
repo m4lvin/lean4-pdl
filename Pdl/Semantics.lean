@@ -193,14 +193,14 @@ theorem deduction (X : List Formula) (φ ψ : Formula) :
 theorem notSat_iff_semImplies (X : List Formula) (φ : Formula):
     ¬ satisfiable (X ∪ [~φ]) ↔ X ⊨ ([φ] : List Formula) := by
   constructor
-  · simp only [satisfiable, not_exists, not_forall, exists_prop, setCanSemImplySet, semImpliesSets, forall_eq]
+  · simp only [satisfiable, not_exists, not_forall, exists_prop, setCanSemImplySet]
     intro nSat W M w satX
     specialize nSat W M w
     rcases nSat with ⟨φ, phi_in, not_phi⟩
     aesop
   · intro X_φ
     by_contra hyp
-    simp only [satisfiable, setCanSemImplySet, semImpliesSets] at hyp
+    simp only [satisfiable] at hyp
     rcases hyp with ⟨W, M, w, w_⟩
     specialize X_φ W M w
     cases X
@@ -317,11 +317,11 @@ lemma relate_steps_iff_relateSeq (M : KripkeModel W) (δ : List Program) (w v : 
 theorem relateSeq_iff_exists_Vector (M : KripkeModel W) (δ : List Program) (w v : W) :
   relateSeq M δ w v ↔
    ∃ (ws : List.Vector W (δ.length).succ),
-      w = ws.head ∧ v = ws.last ∧ ∀ i, relate M (δ.get i) (ws.get i) (ws.get i.succ)
+      w = ws.head ∧ v = ws.last ∧ ∀ i, relate M (δ.get i) (ws.get i.castSucc) (ws.get i.succ)
     := by
   induction δ generalizing w
   · simp only [relateSeq_nil, List.length_nil, Nat.succ_eq_add_one, Nat.reduceAdd,
-    List.get_eq_getElem, Fin.coe_eq_castSucc, IsEmpty.forall_iff, and_true]
+    List.get_eq_getElem, IsEmpty.forall_iff, and_true]
     constructor <;> intro h
     · use ⟨[w], by simp⟩
       aesop
@@ -330,8 +330,7 @@ theorem relateSeq_iff_exists_Vector (M : KripkeModel W) (δ : List Program) (w v
       rcases ws_len_eq_1 with ⟨x, ws_def⟩
       aesop
   case cons d δ IH =>
-    simp only [relateSeq_cons, List.length_cons, Nat.succ_eq_add_one, List.get_eq_getElem,
-      Fin.coe_eq_castSucc]
+    simp only [relateSeq_cons, List.length_cons, Nat.succ_eq_add_one, List.get_eq_getElem]
     constructor <;> intro h
     · rcases h with ⟨u, w_u, u_v⟩
       rw [IH] at u_v
@@ -345,7 +344,7 @@ theorem relateSeq_iff_exists_Vector (M : KripkeModel W) (δ : List Program) (w v
         · simp [List.Vector.head]
           convert w_u
           subst u_def
-          simp [List.Vector.last_def, List.Vector.get]
+          simp [List.Vector.get]
           rcases ws with ⟨ws, ws_len⟩
           have := List.exists_of_length_succ _ ws_len
           aesop
