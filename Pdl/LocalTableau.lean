@@ -391,50 +391,23 @@ Note that formulas can be in four places: left, right, loaded left, loaded right
 We do *not* have neg/contradiction rules between loaded and unloaded formulas (i.e.
 between `({unload χ}, ∅, some (Sum.inl ~χ))` and `(∅, {unload χ}, some (Sum.inr ~χ))`)
 because in any such case we could also close the tableau before or without loading.
+
+The `YS_def` arguments in non-terminal rules enables deriving `DecidableEq` for `LocalRule`.
 -/
 inductive LocalRule : Sequent → List Sequent → Type
-  | oneSidedL (orule : OneSidedLocalRule precond ress) : LocalRule (precond,∅,none) $ ress.map $ λ res => (res,∅,none)
-  | oneSidedR (orule : OneSidedLocalRule precond ress) : LocalRule (∅,precond,none) $ ress.map $ λ res => (∅,res,none)
-  | LRnegL (ϕ : Formula) : LocalRule ([ϕ], [~ϕ], none) ∅ --  ϕ occurs on the left side, ~ϕ on the right
-  | LRnegR (ϕ : Formula) : LocalRule ([~ϕ], [ϕ], none) ∅ -- ~ϕ occurs on the left side,  ϕ on the right
-  | loadedL (χ : LoadFormula) (lrule : LoadRule (~'χ) ress) :
-      LocalRule (∅, ∅, some (Sum.inl (~'χ))) $ ress.map $ λ (X, o) => (X, ∅, o.map Sum.inl)
-  | loadedR (χ : LoadFormula) (lrule : LoadRule (~'χ) ress) :
-      LocalRule (∅, ∅, some (Sum.inr (~'χ))) $ ress.map $ λ (X, o) => (∅, X, o.map Sum.inr)
-  deriving Repr
-
-/-- Helper for `instDecidableEqLocalRule`. -/
-instance instDecidableHEqLocalRule (lr1: LocalRule X1 YS1) (lr2: LocalRule X2 YS2) : Decidable (HEq lr1 lr2) := by
-  by_cases X1 = X2 <;> by_cases YS1 = YS2
-  · cases lr1 <;> cases lr2
-    -- 36 goals ;-)
-    all_goals
-      subst_eqs
-    -- 8 goals remaining
-    case pos.oneSidedL.oneSidedR.refl ress1 ress2 same orule1 orule2 => cases orule1
-    case pos.oneSidedL.oneSidedL.refl ress1 orule1 ress2 same orule2 =>
-      apply isTrue
-      cases orule1 <;> cases orule2 <;> simp_all
-    case pos.oneSidedR.oneSidedL.refl ress1 ress2 same orule1 orule2 => cases orule1
-    case pos.oneSidedR.oneSidedR.refl ress1 orule1 ress2 same orule2 =>
-      apply isTrue
-      cases orule1 <;> cases orule2 <;> simp_all
-    case pos.LRnegL.LRnegL.refl.refl => apply isTrue; simp
-    case pos.LRnegR.LRnegR.refl.refl => apply isTrue; simp
-    case pos.loadedL.loadedL.refl ress1 χ lrule1 ress2 same lrule2 =>
-      cases lrule1 <;> cases lrule2 <;> apply isTrue <;> simp
-    case pos.loadedR.loadedR.refl ress1 χ lrule1 ress2 same lrule2 =>
-      cases lrule1 <;> cases lrule2 <;> apply isTrue <;> simp
-  all_goals
-    apply isFalse
-    intro con
-    sorry
-
-instance instDecidableEqLocalRule : DecidableEq (LocalRule X YS) := by
-  intro lr1 lr2
-  -- cases lr1 <;> cases lr2 -- dependent elimination failed
-  rw [← heq_iff_eq]
-  apply instDecidableHEqLocalRule
+  | oneSidedL (orule : OneSidedLocalRule precond ress)
+      (YS_def : YS = ress.map λ res => (res,∅,none)) : LocalRule (precond,∅,none) YS
+  | oneSidedR (orule : OneSidedLocalRule precond ress)
+      (YS_def : YS = ress.map λ res => (∅,res,none)) : LocalRule (∅,precond,none) YS
+  | LRnegL (ϕ : Formula) : LocalRule ([ϕ], [~ϕ], none) ∅ --  ϕ on left side, ~ϕ on the right
+  | LRnegR (ϕ : Formula) : LocalRule ([~ϕ], [ϕ], none) ∅ -- ~ϕ on left side,  ϕ on the right
+  | loadedL (χ : LoadFormula) (lrule : LoadRule (~'χ) ress)
+      (YS_def : YS =  ress.map λ (X, o) => (X, ∅, o.map Sum.inl))
+      : LocalRule (∅, ∅, some (Sum.inl (~'χ))) YS
+  | loadedR (χ : LoadFormula) (lrule : LoadRule (~'χ) ress)
+      (YS_def : YS = ress.map λ (X, o) => (∅, X, o.map Sum.inr))
+      : LocalRule (∅, ∅, some (Sum.inr (~'χ))) YS
+  deriving Repr, DecidableEq
 
 -- mathlib this?
 @[simp]
@@ -506,7 +479,8 @@ theorem localRuleTruth
   rcases lrA with ⟨Lcond, Rcond, Ocond, rule, preconditionProof⟩
   cases rule
 
-  case oneSidedL ress orule hC =>
+  case oneSidedL ress orule ress_def hC =>
+    subst ress_def
     have osTruth := oneSidedLocalRuleTruth orule W M w
     subst hC
     simp [applyLocalRule] at *
@@ -549,7 +523,8 @@ theorem localRuleTruth
           exact Or.inl $ Or.inl $ Or.inl $ List.mem_diff_of_mem f_in_L f_notin_cond
       · apply w_LYRO; simp_all
       · apply w_LYRO; simp_all
-  case oneSidedR ress orule hC =>
+  case oneSidedR ress orule ress_def hC =>
+    subst ress_def
     -- based on oneSidedL case
     have osTruth := oneSidedLocalRuleTruth orule W M w
     subst hC
@@ -609,7 +584,8 @@ theorem localRuleTruth
     have := hyp (~φ)
     aesop
 
-  case loadedL ress χ lrule hC  =>
+  case loadedL ress χ lrule ress_def hC  =>
+    subst ress_def
     have := loadRuleTruth lrule W M w
     rw [disEval] at this
     subst hC
@@ -668,7 +644,8 @@ theorem localRuleTruth
             · apply w_Ci; simp_all
             · subst g_def; apply w_Ci; simp_all
 
-  case loadedR ress χ lrule hC =>
+  case loadedR ress χ lrule ress_def hC =>
+    subst ress_def
     -- based on loadedL case
     have := loadRuleTruth lrule W M w
     rw [disEval] at this
@@ -807,7 +784,7 @@ lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
   simp only [not_not]
   rcases lrA with ⟨Lcond, Rcond, Ocond, rule, preconditionProof⟩
   cases rule
-  case oneSidedL ress orule hC =>
+  case oneSidedL ress orule ress_def hC =>
     cases orule
     case bot => right; simp_all [Sequent.closed]
     case not φ =>
@@ -833,7 +810,7 @@ lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
       · rw [List.singleton_subperm_iff] at preconditionProof
         exact preconditionProof.1
       · cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
-  case oneSidedR ress orule hC => -- analogous to oneSidedL
+  case oneSidedR ress orule ress_def hC => -- analogous to oneSidedL
     cases orule
     case bot => right; simp_all [Sequent.closed]
     case not φ =>
@@ -867,7 +844,7 @@ lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
     right
     simp [Sequent.closed]
     aesop
-  case loadedL ress χ lrule hC =>
+  case loadedL ress χ lrule ress_def hC =>
     left
     push_neg
     cases lrule
@@ -895,7 +872,7 @@ lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
         · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
           subst h1 h2
           cases α <;> simp_all
-  case loadedR ress χ lrule hC => -- analogous to loadedL
+  case loadedR ress χ lrule ress_def hC => -- analogous to loadedL
     left
     push_neg
     cases lrule
@@ -1161,8 +1138,8 @@ theorem LocalRule.cond_non_empty (rule : LocalRule (Lcond, Rcond, Ocond) X) :
   by
   cases rule
   all_goals simp [node_to_multiset]
-  case oneSidedL _ orule => cases orule <;> simp
-  case oneSidedR _ orule => cases orule <;> simp
+  case oneSidedL _ orule X_def => cases orule <;> simp
+  case oneSidedR _ orule X_def => cases orule <;> simp
 
 theorem Multiset.sub_add_of_subset_eq [DecidableEq α] {M : Multiset α} (h : X ≤ M):
     M = M - X + X := (tsub_add_cancel_of_le h).symm
@@ -1358,7 +1335,8 @@ theorem LocalRuleDecreases (rule : LocalRule X ress) :
     case LRnegL => simp at *
     case LRnegR => simp at *
 
-    case oneSidedL orule =>
+    case oneSidedL orule ress_def =>
+      subst ress_def
       cases orule
       all_goals
         simp [node_to_multiset] at *
@@ -1379,7 +1357,8 @@ theorem LocalRuleDecreases (rule : LocalRule X ress) :
         simp_all only [List.append_nil, Multiset.mem_coe]
         exact unfoldBox.decreases_lmOf_nonAtomic notAtom E_in y_in_Y
 
-    case oneSidedR orule =>
+    case oneSidedR orule ress_def =>
+      subst ress_def
       cases orule
       all_goals
         simp [node_to_multiset] at *
@@ -1400,7 +1379,7 @@ theorem LocalRuleDecreases (rule : LocalRule X ress) :
         simp_all only [List.append_nil, Multiset.mem_coe]
         exact unfoldBox.decreases_lmOf_nonAtomic notAtom E_in y_in_Y
 
-    case loadedL lrule =>
+    case loadedL lrule ress_def =>
       simp [node_to_multiset]
       cases lrule
       all_goals
@@ -1426,7 +1405,7 @@ theorem LocalRuleDecreases (rule : LocalRule X ress) :
         · subst Y_def
           cases o <;> simp_all [pairUnload]
 
-    case loadedR lrule =>
+    case loadedR lrule ress_def =>
       simp [node_to_multiset]
       cases lrule
       all_goals

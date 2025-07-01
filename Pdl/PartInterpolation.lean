@@ -74,7 +74,7 @@ theorem localRule_does_not_increase_vocab_L (rule : LocalRule (Lcond, Rcond, Oco
     ∀ res ∈ ress, res.1.fvoc ⊆ Lcond.fvoc := by
   intro res ress_in_ress x x_in_res
   cases rule
-  case oneSidedL ress orule =>
+  case oneSidedL ress orule ress_def =>
     cases orule <;> simp_all
     case nCo =>
       aesop
@@ -96,7 +96,9 @@ theorem localRule_does_not_increase_vocab_L (rule : LocalRule (Lcond, Rcond, Oco
   all_goals
     simp at *
   · aesop
-  case loadedL ress χ lrule =>
+  case loadedL ress χ lrule ress_def =>
+    subst ress_def
+    simp only [List.mem_map, Prod.exists] at *
     rcases ress_in_ress with ⟨L, lnf, in_ress, def_res⟩
     subst def_res
     simp [Vocab.fromListProgram_map_iff, Vocab.fromListFormula_map_iff] at *

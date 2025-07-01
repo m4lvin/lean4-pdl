@@ -21,7 +21,7 @@ theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
     rcases lra with ⟨Lcond, Rcond, Ocond, r, precons⟩
     rename_i resNodes B_def_apply_r_LRO
     cases r
-    case oneSidedL resNodes orule =>
+    case oneSidedL =>
       simp_all
       have ⟨A, ⟨⟨Z, ⟨⟨Γ, ⟨Γ_in, Z_def⟩⟩, A_def⟩⟩, Y_in_A⟩⟩ := Y_in
       apply IH Z Γ ⟨Γ_in, Z_def⟩
@@ -31,7 +31,7 @@ theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
         simp [AnyNegFormula.in_side] at *
         exact negLoad_in
       · simp [Y_in_A, A_def]
-    case oneSidedR resNodes orule =>
+    case oneSidedR =>
       simp_all
       have ⟨A, ⟨⟨Z, ⟨⟨Γ, ⟨Γ_in, Z_def⟩⟩, A_def⟩⟩, Y_in_A⟩⟩ := Y_in
       apply IH Z Γ ⟨Γ_in, Z_def⟩
@@ -43,7 +43,7 @@ theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
       · simp [Y_in_A, A_def]
     case LRnegL φ => simp_all
     case LRnegR φ => simp_all
-    case loadedL outputs χ lrule =>
+    case loadedL outputs χ lrule resNodes_def =>
       simp_all
       have ⟨A, ⟨⟨Z, ⟨⟨Γ, ⟨Δ, ⟨cond, Z_def⟩⟩⟩, A_def⟩⟩, Y_in_A⟩⟩ := Y_in
       apply IH Z Γ Δ ⟨cond, Z_def⟩
@@ -59,7 +59,7 @@ theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
           rw [negLoad_in]
           simp_all
       · simp [Y_in_A, A_def]
-    case loadedR outputs χ lrule =>
+    case loadedR outputs χ lrule resNodes_def =>
       simp_all
       have ⟨A, ⟨⟨Z, ⟨⟨Γ, ⟨Δ, ⟨cond, Z_def⟩⟩⟩, A_def⟩⟩, Y_in_A⟩⟩ := Y_in
       apply IH Z Γ Δ ⟨cond, Z_def⟩
@@ -102,12 +102,12 @@ lemma lra_preserves_free (lra : LocalRuleApp X B) (Z_in : Z ∈ B) (X_free : X.i
   rcases Z with ⟨ZL, ZR, _|(nlf|nlf)⟩ <;> rcases O with (_|(nlf|nlf)) <;> simp_all
   all_goals
     cases r
-    case oneSidedR resNodes orule =>
+    case oneSidedR resNodes orule resNodes_def =>
       cases orule <;> simp_all <;> subst_eqs
       · cases Z_in <;> rename_i h <;> cases h
       · rcases Z_in with ⟨q, _, h⟩; cases h
       · rcases Z_in with ⟨q, _, h⟩; cases h
-    case oneSidedL resNodes orule =>
+    case oneSidedL resNodes orule resNodes_def =>
       cases orule <;> simp_all <;> subst_eqs
       · cases Z_in <;> rename_i h <;> cases h
       · rcases Z_in with ⟨q, _, h⟩; cases h
@@ -223,7 +223,8 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
       case LRnegR =>
         simp_all
 
-      case loadedL outputs χ lrule =>
+      case loadedL outputs χ lrule resNodes_def =>
+        subst resNodes_def
         -- Instead of localRuleTruth ...
         clear locRulTru
         -- Note: using `relateSeq_cons` here was too weak.
@@ -473,7 +474,8 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               rw [in_Hl.2]
               exact _in_H
 
-      case loadedR outputs χ lrule => -- COPY-PASTA from loadedL, modulo the value of `side`
+      case loadedR outputs χ lrule resNodes_def => -- COPY-PASTA from loadedL, modulo the value of `side`
+        subst resNodes_def
         -- Instead of localRuleTruth ...
         clear locRulTru
         -- Note: using `relateSeq_cons` here was too weak.

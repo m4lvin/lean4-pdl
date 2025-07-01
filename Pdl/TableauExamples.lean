@@ -14,7 +14,7 @@ example : provable (~⊥) := by
   · simp [Sequent.basic] -- works :-)
   case a.lt =>
     apply LocalTableau.byLocalRule
-      ⟨[~~⊥], [], none, LocalRule.oneSidedL (OneSidedLocalRule.neg ⊥), by simp⟩
+      ⟨[~~⊥], [], none, LocalRule.oneSidedL (OneSidedLocalRule.neg ⊥) rfl, by simp⟩
       ?_
     · exact [([⊥], [], none)]
     · simp
@@ -23,7 +23,7 @@ example : provable (~⊥) := by
       simp at c_in
       subst c_in
       apply LocalTableau.byLocalRule
-        ⟨[⊥], [], none, LocalRule.oneSidedL (OneSidedLocalRule.bot), by simp⟩
+        ⟨[⊥], [], none, LocalRule.oneSidedL (OneSidedLocalRule.bot) rfl, by simp⟩
         ?_
       · exact []
       · simp
@@ -41,16 +41,16 @@ example : provable (~(p ⋀ (~p))) :=
   · simp [Sequent.basic] -- works :-)
   case a.lt =>
     apply LocalTableau.byLocalRule
-      ⟨[ ~~(p ⋀ (~p))], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.neg (p ⋀ (~p)))), _⟩
+      ⟨[ ~~(p ⋀ (~p))], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.neg (p ⋀ (~p))) rfl), _⟩
       ?_
     all_goals (try simp; try rfl)
     intro c c_in; simp at c_in; subst c_in
     apply LocalTableau.byLocalRule
-      ⟨[p ⋀ (~p)], [], none, LocalRule.oneSidedL (OneSidedLocalRule.con p (~p)), _⟩
+      ⟨[p ⋀ (~p)], [], none, LocalRule.oneSidedL (OneSidedLocalRule.con p (~p)) rfl, _⟩
     all_goals (try simp; try rfl)
     intro c c_in; simp at c_in; subst c_in -- unique child node
     apply LocalTableau.byLocalRule
-      ⟨[p, ~p], [], none, LocalRule.oneSidedL (OneSidedLocalRule.not p), _⟩
+      ⟨[p, ~p], [], none, LocalRule.oneSidedL (OneSidedLocalRule.not p) rfl, _⟩
     all_goals (try simp; try rfl)
     intro c c_in; simp at c_in
   case a.next =>
@@ -68,7 +68,7 @@ example : Tableau [] ([·p, ~(·p)], [], none) :=
     -- For this we made "not closed" part of `Sequent.basic`.
   case lt =>
     apply LocalTableau.byLocalRule
-      ⟨[·p, ~(·p)], [], none, LocalRule.oneSidedL (OneSidedLocalRule.not (·p)), _⟩
+      ⟨[·p, ~(·p)], [], none, LocalRule.oneSidedL (OneSidedLocalRule.not (·p)) rfl, _⟩
     all_goals (try simp; try rfl)
     intro c c_in; simp at c_in
   case next =>
@@ -104,11 +104,11 @@ def subTabForEx2 : Tableau [([r⋀(~⌈a⌉p), ~ r⋀(~⌈a⌉p⋀q)], [], none)
   · simp [Sequent.basic, Sequent.closed]
   case lt =>
     apply LocalTableau.byLocalRule
-      ⟨ [p⋀q], [], none, LocalRule.oneSidedL (OneSidedLocalRule.con p q), _⟩
+      ⟨ [p⋀q], [], none, LocalRule.oneSidedL (OneSidedLocalRule.con p q) rfl, _⟩
     all_goals (try simp; try rfl)
     · intro c c_in; simp at c_in; subst c_in -- unique child node
       apply LocalTableau.byLocalRule
-        ⟨ [p, (~p)], [], none, LocalRule.oneSidedL (OneSidedLocalRule.not p), _⟩
+        ⟨ [p, (~p)], [], none, LocalRule.oneSidedL (OneSidedLocalRule.not p) rfl, _⟩
       all_goals (try simp; try rfl)
       · intro c c_in; simp at c_in
       · decide -- This works because p and q are concrete values, not variables :-)
@@ -125,12 +125,12 @@ example : Tableau [] ([r ⋀ (~(⌈a⌉p)), r ↣ ⌈a⌉(p ⋀ q)], [], none) :
   · simp [Sequent.basic, Sequent.closed]
   case lt =>
     apply LocalTableau.byLocalRule
-      ⟨[r ⋀ (~(⌈a⌉p))], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.con r (~(⌈a⌉p)))), _⟩
+      ⟨[r ⋀ (~(⌈a⌉p))], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.con r (~(⌈a⌉p)))) rfl, _⟩
     all_goals (try simp; try rfl)
     intro c c_in; simp at c_in; subst c_in -- unique child node
     apply LocalTableau.byLocalRule
       ⟨[(~(r ⋀ (~(⌈a⌉(p ⋀ q)))))], [], none,
-        (LocalRule.oneSidedL (OneSidedLocalRule.nCo r (~(⌈a⌉(p ⋀ q))))), _⟩
+        (LocalRule.oneSidedL (OneSidedLocalRule.nCo r (~(⌈a⌉(p ⋀ q))))) rfl, _⟩
     all_goals (try simp; try rfl)
     intro c c_in; simp at *
     -- now branching!
@@ -139,7 +139,7 @@ example : Tableau [] ([r ⋀ (~(⌈a⌉p)), r ↣ ⌈a⌉(p ⋀ q)], [], none) :
       subst c_def
       -- first branch, apply "not"
       apply LocalTableau.byLocalRule
-        ⟨ [r, ~(r)], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.not r)), _ ⟩
+        ⟨ [r, ~(r)], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.not r)) rfl, _ ⟩
       all_goals (try simp; try rfl)
       · intro c c_in; simp at *
       · decide
@@ -147,7 +147,7 @@ example : Tableau [] ([r ⋀ (~(⌈a⌉p)), r ↣ ⌈a⌉(p ⋀ q)], [], none) :
       subst c_in
       -- second branch, apply "neg" and then modal step!
       apply LocalTableau.byLocalRule
-        ⟨ [~~(⌈a⌉( p ⋀q))], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.neg (⌈a⌉(p⋀q)))), _ ⟩
+        ⟨ [~~(⌈a⌉( p ⋀q))], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.neg (⌈a⌉(p⋀q)))) rfl, _ ⟩
       all_goals (try simp; try rfl)
       intro c c_in; simp at c_in; subst c_in -- unique child node
       -- ending local tableau with a simple node:
@@ -183,7 +183,7 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
   case lt =>
     -- (□)
     apply LocalTableau.byLocalRule
-      ⟨_, _, _, (LocalRule.oneSidedL (OneSidedLocalRule.box (∗a) q (by decide))), by simp⟩
+      ⟨_, _, _, (LocalRule.oneSidedL (OneSidedLocalRule.box (∗a) q (by decide))) rfl, by simp⟩
     all_goals (try simp; try rfl)
     intro Y Y_in
     simp [unfoldBox, allTP, testsOfProgram, Xset, F, P, a] at *
@@ -210,14 +210,14 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
     case lt =>
       -- (□)
       apply LocalTableau.byLocalRule
-        ⟨_, _, _, (LocalRule.oneSidedL (OneSidedLocalRule.box (∗a) q (by decide))), by simp⟩
+        ⟨_, _, _, (LocalRule.oneSidedL (OneSidedLocalRule.box (∗a) q (by decide))) rfl, by simp⟩
       all_goals (try simp; try rfl)
       intro Y Y_in
       simp [unfoldBox, allTP, testsOfProgram, Xset, F, P, a] at *
       subst Y_in
       -- (◇)
       apply LocalTableau.byLocalRule
-        ⟨_, _, _, (LocalRule.loadedL _ (LoadRule.dia' (by simp [Program.isAtomic] : ¬ (∗((·atA)⋓(?'p))).isAtomic))), by simp; rfl⟩
+        ⟨_, _, _, (LocalRule.loadedL _ (LoadRule.dia' (by simp [Program.isAtomic] : ¬ (∗((·atA)⋓(?'p))).isAtomic))) rfl, by simp; rfl⟩
       all_goals (try simp; try rfl)
       intro Y Y_in
       by_cases Y = ([q, ⌈·atA⌉⌈∗·atA⌉q, ~q], [], none)
@@ -225,7 +225,7 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
       -- cases Y_in -- type mismatch when assigning motive, so work around that.
         <;> simp_all [unfoldDiamondLoaded', YsetLoad', H, splitLast]; subst_eqs; try clear Y_in
       · apply LocalTableau.byLocalRule -- left branch: close with q and ~q
-          ⟨ [q, ~(q)], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.not q)), _ ⟩
+          ⟨ [q, ~(q)], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.not q)) rfl, _ ⟩
         all_goals (try simp; try rfl)
         · intro _ _; simp_all
         · decide
