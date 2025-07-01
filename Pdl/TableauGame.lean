@@ -193,7 +193,11 @@ instance LocalTableau.fintype {X} : Fintype (LocalTableau X) := by
   rw [List.mem_toFinset]
   exact LocalTableau.all_spec
 
-
+/-- WORK-IN-PROGRESS. This is the game defined in Section 6.2 in the paper.
+In particular `tableauGame.wf` and `tableauGame.move_rel` together are Lemma 6.10: because the
+wellfounded relation decreases with every move of the game, all matches must be finite.
+Note that the paper does not prove Lemma 6.10 but says it is similar to Lemma 4.10 which uses the
+Fischer-Ladner closure. -/
 def tableauGame : Game where
   Pos := GamePos
   turn
@@ -215,26 +219,19 @@ def tableauGame : Game where
               | (δ@h:(_::_), ψ) =>
                 [ ⟨_,_,posOf (X::H) (L, R.erase (~⌈⌈δ⌉⌉φ), some (Sum.inr (~'(⌊⌊δ⌋⌋⌊δ.getLast (by subst h; simp)⌋φ))))⟩ ]
               | ([],_) => [] ) ).flatten.toFinset
-      | ⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩ => (
-              -- (M) rule, deterministic:
-              ( match ξ with
-              | .normal φ => [⟨_,_,posOf (X::H) ⟨(~φ) :: projection a L, projection a R, none⟩⟩]
-              | .loaded χ => [⟨_,_,posOf (X::H) ⟨projection a L, projection a R, some (Sum.inl (~'χ))⟩⟩] )
-              ++
-              -- (L-) rule, deterministic:
-              [⟨_, _, posOf (X::H) ((L.insert (⌊·a⌋ξ).unload, R, none))⟩]
-          ).toFinset -- can we avoid the list, make Finset directly?
-      | ⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩ => (
-              -- (M) rule, deterministic:
-              ( match ξ with
-              | .normal φ => [⟨_,_,posOf (X::H) ⟨projection a L, (~φ) :: projection a R, none⟩⟩]
-              | .loaded χ => [⟨_,_,posOf (X::H) ⟨projection a L, projection a R, some (Sum.inr (~'χ))⟩⟩] )
-              ++
-              -- (L-) rule, deterministic:
-              [⟨_, _, posOf (X::H) ((L, R.insert (⌊·a⌋ξ).unload, none))⟩]
-          ).toFinset -- can we avoid the list, make Finset directly?
-
-      -- Somewhat repetitive here. Is there pattern matching with "did not match before" proofs?
+      | ⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩ =>
+              ( match ξ with -- (M) rule, deterministic:
+              | .normal φ => { ⟨_,_,posOf (X::H) ⟨(~φ) :: projection a L, projection a R, none⟩⟩ }
+              | .loaded χ => { ⟨_,_,posOf (X::H) ⟨projection a L, projection a R, some (Sum.inl (~'χ))⟩⟩ } )
+              ∪ -- (L-) rule, deterministic:
+              { ⟨_, _, posOf (X::H) (L.insert (⌊·a⌋ξ).unload, R, none)⟩ }
+      | ⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩ =>
+              ( match ξ with -- (M) rule, deterministic:
+              | .normal φ => { ⟨_,_,posOf (X::H) ⟨projection a L, (~φ) :: projection a R, none⟩⟩ }
+              | .loaded χ => { ⟨_,_,posOf (X::H) ⟨projection a L, projection a R, some (Sum.inr (~'χ))⟩⟩ } )
+              ∪ -- (L-) rule, deterministic:
+              { ⟨_, _, posOf (X::H) (L, R.insert (⌊·a⌋ξ).unload, none)⟩ }
+      -- Somewhat repetitive. Is there pattern matching with "did not match before" proofs?
       | ⟨L, R, some (.inl (~'⌊α;'β⌋χ))⟩ => by
           exfalso; have := Xbasic.1 (~(⌊α;'β⌋χ).unload)
           cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
@@ -271,11 +268,20 @@ def tableauGame : Game where
   -- QUESTION: What is a wellfounded relation that goes down at each game step?
   wf := ⟨fun p q => sorry, by sorry⟩
   move_rel := by
-    intro p next next_in
-    simp_wf
-    sorry
+    rintro ⟨H, ⟨L,R,_|olf⟩, ProvPo|BuildPo⟩ nextP nextP_in <;> simp_wf
+    -- `none` cases without loaded formula in X:
+    · cases ProvPo <;> simp at *
+      · sorry
+      · sorry
+    · cases BuildPo
+      · exfalso; simp at * -- cannot have an lpr when not loaded
+      · simp at *
+        sorry
+    -- `some olf` cases with loaded formula in X:
+    · sorry
+    · sorry
 
--- TODO Definition 6.9 Strategy Tree fro Prover (or adjust already in `Game.lean`?)
+-- TODO Definition 6.9 Strategy Tree for Prover (or adjust already in `Game.lean`?)
 
 -- TODO Definition 6.13 initial, pre-state
 

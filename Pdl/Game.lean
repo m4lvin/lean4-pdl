@@ -75,7 +75,8 @@ class Game where
   /-- Every move goes a step down in the relation. -/
   move_rel : ∀ (p next : Pos), next ∈ moves p → wf.rel next p
 
--- This seems a bit hacky.
+/-- This seems a bit hacky, but makes `termination_by (p : g.Pos)` work in `winner` and elsewhere.
+If the instance causes trouble, change to `termination_by g.wf.2.wrap p` via `WellFounded.wrap`. -/
 instance {g : Game} : WellFoundedRelation Game.Pos := g.wf
 
 /-- Allow notation `p.moves` for `g.moves p`. -/
