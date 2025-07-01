@@ -704,16 +704,17 @@ instance localTableauHasLength : HasLength (Σ LR, LocalTableau LR) :=
   ⟨fun ⟨(L, R), _⟩ => lengthOfTNode (L, R)⟩
 
 /-- Open end nodes of a given `LocalTableau`. -/
-def endNodesOf : (Σ LR, LocalTableau LR) → List TNode
+def endNodesOf : (Σ (LR : TNode), LocalTableau (LR.1, LR.2)) → List TNode
   | ⟨LR, @LocalTableau.fromRule _ C ruleA subTabs⟩ =>
-    (C.attach.map fun ⟨c, c_in⟩ =>
-      have tc : LocalTableau c := subTabs c c_in
-      have : lengthOfTNode c < lengthOfTNode LR := localRuleAppDecreasesLength ruleA c c_in
+    (C.attach.map fun ⟨c, (c_in : (c.1, c.2) ∈ C)⟩ =>
+      have tc : LocalTableau (c.1,c.2) := subTabs c c_in
+      have forTermination : lengthOfTNode (c.1, c.2) < lengthOfTNode (LR.1, LR.2) :=
+        localRuleAppDecreasesLength ruleA (c.1, c.2) c_in -- false positive "unused variable"
       endNodesOf ⟨c, tc⟩
       ).flatten
   | ⟨LR, LocalTableau.fromSimple _⟩ => [LR]
 termination_by
-  pair => lengthOf pair
+  pair => @lengthOf _ localTableauHasLength pair
 
 @[simp]
 theorem endNodesOfSimple : endNodesOf ⟨ LR, LocalTableau.fromSimple hyp ⟩ = [LR] :=
