@@ -610,10 +610,11 @@ theorem localRuleAppDecreasesLengthSide
             linarith
 
 theorem localRuleAppDecreasesLength
-  {L R : Finset Formula}
-  (lrApp : @LocalRuleApp (L,R) C) :
-  ∀c ∈ C, lengthOfTNode c < lengthOfTNode (L,R) :=
+  {LR : TNode}
+  (lrApp : @LocalRuleApp LR C) :
+  ∀c ∈ C, lengthOfTNode c < lengthOfTNode LR :=
   by
+    rcases LR with ⟨L,R⟩
     intro c c_child
     let ⟨ress, Lcond, Rcond, rule, precondProofL, precondProofR⟩ := lrApp
     rename_i C_def
@@ -704,12 +705,12 @@ instance localTableauHasLength : HasLength (Σ LR, LocalTableau LR) :=
   ⟨fun ⟨(L, R), _⟩ => lengthOfTNode (L, R)⟩
 
 /-- Open end nodes of a given `LocalTableau`. -/
-def endNodesOf : (Σ (LR : TNode), LocalTableau (LR.1, LR.2)) → List TNode
+def endNodesOf : (Σ (LR : TNode), LocalTableau LR) → List TNode
   | ⟨LR, @LocalTableau.fromRule _ C ruleA subTabs⟩ =>
-    (C.attach.map fun ⟨c, (c_in : (c.1, c.2) ∈ C)⟩ =>
-      have tc : LocalTableau (c.1,c.2) := subTabs c c_in
-      have : lengthOfTNode (c.1, c.2) < lengthOfTNode (LR.1, LR.2) :=
-        localRuleAppDecreasesLength ruleA (c.1, c.2) c_in
+    (C.attach.map fun ⟨c, (c_in : c ∈ C)⟩ =>
+      have tc : LocalTableau c := subTabs c c_in
+      have : lengthOfTNode c < lengthOfTNode (LR) :=
+        localRuleAppDecreasesLength ruleA c c_in
       endNodesOf ⟨c, tc⟩
       ).flatten
   | ⟨LR, LocalTableau.fromSimple _⟩ => [LR]

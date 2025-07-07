@@ -362,8 +362,7 @@ theorem childNext_lt
     <
     (ClosedTableau.loc (LocalTableau.fromRule lrApp subTabs) next).length := by
   have := childNext_eq subTabs next cLR c_in_C
-  -- FIXME BROKEN: failed to construct new type correct motive for `Eq.ndrec` while creating splitter/eliminator theorem [...]
-  -- simp_all [ClosedTableau.length, endNodesOf, LocalTableau.length]
+  simp_all [ClosedTableau.length, LocalTableau.length]
   have : (subTabs cLR c_in_C).length ≤ (List.map (fun x => (subTabs x.1 x.2).length) C.attach).sum := by
     have := List.mem_attach _ ⟨_, c_in_C⟩
     have := elem_lt_map_sum this (fun x => (subTabs x.1 x.2).length)
@@ -378,8 +377,7 @@ theorem childNext_lt
       (endNodesOfChildSublistEndNodes subTabs c_in_C lrApp)
     intro _ _ _
     rw [childNext_eq]
-  sorry -- linarith
-
+  linarith
 
 theorem simple_lt
   (isSimple : Simple LR)
@@ -387,10 +385,10 @@ theorem simple_lt
   (h : cLR ∈ endNodesOf ⟨LR, LocalTableau.fromSimple isSimple⟩)
   :
   (next cLR h).length < (ClosedTableau.loc (LocalTableau.fromSimple isSimple) next).length :=  by
-  -- BROKEN simp_all [ClosedTableau.length, endNodesOf, LocalTableau.length]
+  simp_all [ClosedTableau.length, LocalTableau.length]
   have := List.mem_attach _ ⟨_, h⟩
   have := elem_lt_map_sum this (fun x => (next x.1 x.2).length)
-  sorry -- linarith
+  linarith
 
 -- NOTE for doing this in PDL some day, it seems better to split things:
 -- first do only the definition of the interpolant and then the proof that it is one.
@@ -410,6 +408,7 @@ def tabToInt {LR : TNode} (tab : ClosedTableau LR) : PartInterpolant LR :=
     constructor
     · -- voc property
       intro ℓ ℓ_in_θ
+      rcases LR' with ⟨L',R'⟩
       exact diamondproj_does_not_increase_vocab_L nBoxφ_in_L (pθ.property.left ℓ_in_θ)
     · constructor -- implication property
       · rw [sat_double_neq_invariant]
@@ -422,21 +421,16 @@ def tabToInt {LR : TNode} (tab : ClosedTableau LR) : PartInterpolant LR :=
     constructor
     · -- voc property
       intro ℓ ℓ_in_θ
+      rcases LR' with ⟨L',R'⟩
       exact diamondproj_does_not_increase_vocab_R nBoxφ_in_R (pθ.property.left ℓ_in_θ)
     · constructor -- implication property
       · exact projection_reflects_unsat_R_L nBoxφ_in_R pθ.2.2.1
       · exact projection_reflects_unsat_R_R nBoxφ_in_R pθ.2.2.2
-termination_by 1 -- tab.length -- BROKEN
+termination_by tab.length
 decreasing_by
 all_goals
-  sorry
-  /-
-· simp_wf
-  exact childNext_lt subTabs next cLR c_in_C
-· simp_wf
-  apply simple_lt isSimple next
-· simp_wf
-  sorry -- simp [ClosedTableau.length]
-· simp_wf
-  sorry -- simp [ClosedTableau.length]
-  -/
+  subst_eqs
+  simp_wf
+  simp [ClosedTableau.length]
+· exact childNext_lt subTabs next cLR c_in_C
+· apply simple_lt isSimple next
