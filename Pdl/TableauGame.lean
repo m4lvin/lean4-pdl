@@ -17,19 +17,6 @@ inductive ProverPos (H : History) (X : Sequent) : Type where
   -- FIXME maye merge bas and nbas?
   deriving DecidableEq
 
-instance {H X} : DecidableEq (LoadedPathRepeat H X) := by
-  intro lpr1 lpr2
-  rcases lpr1 with ⟨k1, same1, load1⟩
-  rcases lpr2 with ⟨k2, same2, load2⟩
-  by_cases k1 = k2
-  · apply isTrue
-    aesop
-  · apply isFalse
-    -- Actually, this case should be impossible, but that would be harder to show!
-    rw [Subtype.ext_iff]
-    simp
-    assumption
-
 def BuilderPos (H : History) (X : Sequent) : Type :=
   LoadedPathRepeat H X -- no moves, Prover wins.
   ⊕

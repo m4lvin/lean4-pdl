@@ -93,10 +93,10 @@ def subTabForEx2 : Tableau [([r⋀(~⌈a⌉p), ~ r⋀(~⌈a⌉p⋀q)], [], none)
   by
   have principal : (~(⌈a⌉p)) ∈ [r, ~(⌈a⌉p), ⌈a⌉(p⋀q)] := by simp
   apply Tableau.pdl (by simp [rep, Sequent.multisetEqTo]; decide) (by simp [Sequent.basic, Sequent.closed])
-    (@PdlRule.loadL _ [] _ _ _ principal)
+    (@PdlRule.loadL _ [] _ _ _ _ principal rfl)
   simp
   apply Tableau.pdl (by simp [rep, Sequent.multisetEqTo]) (by simp [Sequent.basic, Sequent.closed])
-    (.modL rfl) -- Note: modL no longer needs to ask for basic.
+    (.modL rfl rfl) -- Note: modL no longer needs to ask for basic.
   simp [projection]
   apply Tableau.loc
   · simp [rep, Sequent.multisetEqTo]
@@ -197,12 +197,12 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
       by simp
     -- (L+)
     apply Tableau.pdl (by simp [rep, Sequent.multisetEqTo]; decide) (by simp [Sequent.basic, Sequent.closed])
-      (PdlRule.loadL (δ := [a]) principal)
+      (PdlRule.loadL (δ := [a]) principal rfl)
     clear principal
     simp
     -- (M)
     apply Tableau.pdl (by simp [rep, Sequent.multisetEqTo]) (by simp [Sequent.basic, Sequent.closed])
-      (PdlRule.modL rfl)
+      (PdlRule.modL rfl rfl)
     simp [projection]
     apply Tableau.loc
     · simp [rep, Sequent.multisetEqTo]

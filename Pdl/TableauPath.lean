@@ -10,7 +10,6 @@ tableau and point to a specific node inside it. This is the `PathIn` type.
 Its values say "go to this child, then to this child, ... stop here."
 -/
 
--- set_option maxHeartbeats 20000000 in
 /-- A path in a tableau. Three constructors for the empty path, a local step or a pdl step.
 The `loc` and `pdl` steps correspond to two out of three constructors of `Tableau`.
 A `PathIn` only goes downwards, it cannot use `LoadedPathRepeat`s. -/
@@ -20,8 +19,12 @@ inductive PathIn : ∀ {Hist X}, Tableau Hist X → Type
     : PathIn (Tableau.loc nrep nbas lt next)
 | pdl {nrep bas} {r : PdlRule X Y} {next} (tail : PathIn next)
     : PathIn (Tableau.pdl nrep bas r next)
--- deriving DecidableEq -- BROKEN since Lean v4.22.0-rc2 ???
 
+/-- Maybe useful? If so, move to Tableau.lean -/
+instance : DecidableEq ((Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X:: Hist) Y) := by
+  sorry
+
+/-- This was erroneously derivable in Lean 4.20 ;-) -/
 instance : DecidableEq (PathIn tab) := sorry
 
 def tabAt : PathIn tab → Σ H X, Tableau H X

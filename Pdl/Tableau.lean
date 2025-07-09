@@ -56,6 +56,8 @@ Note: `k=0` means the first element of `Hist` is the companion. -/
 def LoadedPathRepeat (Hist : History) (X : Sequent) : Type :=
   Subtype (fun k => (Hist.get k).multisetEqTo X ∧ ∀ m ≤ k, (Hist.get m).isLoaded)
 
+instance : DecidableEq (LoadedPathRepeat Hist X) := Subtype.instDecidableEq
+
 theorem LoadedPathRepeat_comp_isLoaded (lpr : LoadedPathRepeat Hist X) : (Hist.get lpr.val).isLoaded := by
   rcases lpr with ⟨j, claim⟩
   apply claim.2 j (le_refl j)
@@ -82,27 +84,34 @@ instance {H X} : Decidable (Nonempty (LoadedPathRepeat H X)) := by
 
 /-! ## The PDL rules -/
 
-/-- A rule to go from Γ to Δ. Note the four variants of the modal rule. -/
-inductive PdlRule : (Γ : Sequent) → (Δ : Sequent) → Type
+/-- A rule to go from `X` to `Y`. Note the four variants of the modal rule. -/
+inductive PdlRule : (X : Sequent) → (Y : Sequent) → Type
   -- The (L+) rule:
-  | loadL : (~⌈⌈δ⌉⌉⌈α⌉φ) ∈ L → PdlRule (L, R, none)
-                                       (L.erase (~⌈⌈δ⌉⌉⌈α⌉φ), R, some (Sum.inl (~'(⌊⌊δ⌋⌋⌊α⌋φ))))
-  | loadR : (~⌈⌈δ⌉⌉⌈α⌉φ) ∈ R → PdlRule (L, R, none)
-                                       (L, R.erase (~⌈⌈δ⌉⌉⌈α⌉φ), some (Sum.inr (~'(⌊⌊δ⌋⌋⌊α⌋φ))))
+  | loadL : (~⌈⌈δ⌉⌉⌈α⌉φ) ∈ L
+      → Y = (L.erase (~⌈⌈δ⌉⌉⌈α⌉φ), R, some (Sum.inl (~'(⌊⌊δ⌋⌋⌊α⌋φ)))) → PdlRule (L, R, none) Y
+  | loadR : (~⌈⌈δ⌉⌉⌈α⌉φ) ∈ R
+      → Y = (L, R.erase (~⌈⌈δ⌉⌉⌈α⌉φ), some (Sum.inr (~'(⌊⌊δ⌋⌋⌊α⌋φ)))) → PdlRule (L, R, none) Y
   -- The (L-) rule:
-  | freeL : PdlRule (L, R, some (Sum.inl (~'(⌊⌊δ⌋⌋⌊α⌋(φ : Formula)))))
-                    (L.insert (~⌈⌈δ⌉⌉⌈α⌉φ), R, none)
-  | freeR : PdlRule (L, R, some (Sum.inr (~'(⌊⌊δ⌋⌋⌊α⌋(φ : Formula)))))
-                    (L, R.insert (~⌈⌈δ⌉⌉⌈α⌉φ), none)
+  | freeL :
+        X = (L, R, some (Sum.inl (~'(⌊⌊δ⌋⌋⌊α⌋(φ : Formula)))))
+      → Y = (L.insert (~⌈⌈δ⌉⌉⌈α⌉φ), R, none)
+      → PdlRule X Y
+  | freeR :
+        X = (L, R, some (Sum.inr (~'(⌊⌊δ⌋⌋⌊α⌋(φ : Formula)))))
+      → Y = (L, R.insert (~⌈⌈δ⌉⌉⌈α⌉φ), none)
+      → PdlRule X Y
   -- The (M) rule:
-  | modL   {A X ξ} : X = ⟨L, R, some (Sum.inl (~'⌊·A⌋(ξ : AnyFormula)))⟩ → PdlRule X
-                         ( match ξ with
-                         | .normal φ => ⟨(~φ) :: projection A L, projection A R, none⟩
-                         | .loaded χ => ⟨projection A L, projection A R, some (Sum.inl (~'χ))⟩ )
-  | modR   {A X ξ} : X = ⟨L, R, some (Sum.inr (~'⌊·A⌋(ξ : AnyFormula)))⟩ → PdlRule X
-                         ( match ξ with
-                         | .normal φ => ⟨projection A L, (~φ) :: projection A R, none⟩
-                         | .loaded χ => ⟨projection A L, projection A R, some (Sum.inr (~'χ))⟩ )
+  | modL   {A X ξ} :
+        X = ⟨L, R, some (Sum.inl (~'⌊·A⌋(ξ : AnyFormula)))⟩
+      → Y = ( match ξ with | .normal φ => ⟨(~φ) :: projection A L, projection A R, none⟩
+                           | .loaded χ => ⟨projection A L, projection A R, some (Sum.inl (~'χ))⟩ )
+      → PdlRule X Y
+  | modR   {A X ξ} :
+        X = ⟨L, R, some (Sum.inr (~'⌊·A⌋(ξ : AnyFormula)))⟩
+      → Y = ( match ξ with | .normal φ => ⟨projection A L, (~φ) :: projection A R, none⟩
+                           | .loaded χ => ⟨projection A L, projection A R, some (Sum.inr (~'χ))⟩ )
+      → PdlRule X Y
+deriving DecidableEq
 
 /--
 The `Tableau [parent, grandparent, ...] child` type.
@@ -118,6 +127,71 @@ inductive Tableau : History → Sequent → Type
   | pdl {X Y} (nrep : ¬ rep Hist X) (bas : X.basic) (r : PdlRule X Y)
               (next : Tableau (X :: Hist) Y) : Tableau Hist X
   | lrep {X Hist} (lpr : LoadedPathRepeat Hist X) : Tableau Hist X
+
+def Tableau.size : Tableau Hist X → Nat := sorry
+
+lemma Tableau.size_next_lt_of_loc (h : tab = Tableau.loc nrep nbas lt next) Y Y_in
+    : (next Y Y_in).size < tab.size := by
+  sorry
+
+lemma Tableau.size_next_lt_of_pdl (h : tab = Tableau.pdl nrep bas r next)
+    : next.size < tab.size := by
+  sorry
+
+instance instDecidableExistsEndNodeOf {lt : LocalTableau X}
+    {f : (Y : Sequent) → Y ∈ endNodesOf lt → Prop}
+    {dec : (Y : Sequent) → (Y_in : Y ∈ endNodesOf lt) → Decidable (f Y Y_in)} :
+    Decidable (∃ Y, ∃ Y_in : Y ∈ endNodesOf lt, f Y Y_in) := by
+  if h : ((endNodesOf lt).attach.map (fun ⟨Y,Y_in⟩ => decide (f Y Y_in))).or then
+    apply isTrue
+    simp at h
+    sorry
+  else
+    apply isFalse
+    sorry
+
+instance Tableau.instDecidableEq {tab1 tab2 : Tableau Hist X} : Decidable (tab1 = tab2) := by
+  rcases tab1_def : tab1 with (⟨nrep1,nbas1,lt1,next1⟩|@⟨_,X2,Y2,nrep2,bas2,r2,next2⟩|_)
+  all_goals
+    rcases tab2 with (⟨nrep2,nbas2,lt2,next2⟩|@⟨_,X1,Y1,nrep1,bas1,r1,next1⟩|_)
+  · by_cases h : lt1 = lt2
+    · subst h
+      simp
+      have := fun (Y : Sequent) (Y_in : Y ∈ endNodesOf lt1) =>
+        @Tableau.instDecidableEq _ _ (next1 Y Y_in) (next2 Y Y_in)
+      have : Decidable (∃ Y, ∃ Y_in : Y ∈ endNodesOf lt1, next1 Y Y_in ≠ next2 Y Y_in) := by
+        apply instDecidableExistsEndNodeOf
+        intro Y Y_in
+        simp only [ne_eq]
+        exact @instDecidableNot _ (this Y Y_in)
+      by_cases ∃ Y, ∃ Y_in : Y ∈ endNodesOf lt1, next1 Y Y_in ≠ next2 Y Y_in
+      · apply isFalse; aesop
+      · apply isTrue; aesop
+    · apply isFalse; aesop
+  all_goals
+    try simp_all
+    try exact instDecidableFalse
+    try exact instDecidableTrue
+    try infer_instance
+  case pdl.pdl =>
+    by_cases h : Y1 = Y2
+    · subst h
+      simp_all
+      by_cases h : r2 = r1
+      · subst h
+        simp
+        apply Tableau.instDecidableEq
+      · apply isFalse
+        tauto
+    · apply isFalse
+      tauto
+termination_by
+  -- Note: cannot use DM ordering here, because PDL rules (L+) and (L-) do not decrease it.
+  tab1.size
+decreasing_by
+  · exact Tableau.size_next_lt_of_loc tab1_def Y Y_in
+  · exact Tableau.size_next_lt_of_pdl tab1_def
+
 
 def Tableau.isLrep : (Tableau Hist X) → Prop
   | .loc .. => False

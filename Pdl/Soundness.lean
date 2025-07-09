@@ -48,8 +48,8 @@ theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := b
     intro φ φ_in
     rcases φ_in with (φ_def | (in_L | in_R))
     all_goals (apply w_;  subst_eqs; try tauto)
-  case modL L R a χ X_def =>
-    subst X_def
+  case modL L R a χ X_def Y_def =>
+    subst X_def Y_def
     use W, M -- but not the same world!
     have := w_ (negUnload (~'⌊·a⌋χ))
     cases χ
@@ -83,8 +83,8 @@ theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := b
       · subst φ_def
         simp only [evaluate]
         assumption
-  case modR L R a χ X_def =>
-    subst X_def
+  case modR L R a χ X_def Y_def =>
+    subst X_def Y_def
     use W, M -- but not the same world!
     have := w_ (negUnload (~'⌊·a⌋χ))
     cases χ
@@ -265,15 +265,20 @@ lemma not_edge_and_heart {b : PathIn tab} : ¬ (a ⋖_ b ∧ b ♥ a) := by
       cases r
       case loadL => simp [Sequent.isLoaded] at a_loaded
       case loadR => simp [Sequent.isLoaded] at a_loaded
-      case freeL δ α φ =>
+      case freeL δ α φ X_def Y_def =>
+        cases X_def
+        subst Y_def
         have help : (tabAt b).snd.fst = (List.insert (~⌈⌈δ⌉⌉⌈α⌉φ) LX, RX, none) := by rw [tabAt_b_def]
         simp only [help] at con
         simp_all
-      case freeR δ α φ =>
+      case freeR δ α φ X_def Y_def =>
+        cases X_def
+        subst Y_def
         have help : (tabAt b).snd.fst = (LX, List.insert (~⌈⌈δ⌉⌉⌈α⌉φ) RX, none) := by rw [tabAt_b_def]
         simp only [help] at con
         simp_all
-      case modL LX' RX' n ξ X_def =>
+      case modL LX' RX' n ξ X_def Y_def =>
+        subst Y_def
         rw [X_def] at con
         cases ξ
         case normal φ =>
@@ -288,7 +293,8 @@ lemma not_edge_and_heart {b : PathIn tab} : ¬ (a ⋖_ b ∧ b ♥ a) := by
           have := con.2.2
           simp at this
           cases this
-      case modR LX' RX' n ξ X_def =>  -- same as modL
+      case modR LX' RX' n ξ X_def Y_def =>  -- same as modL
+        subst Y_def
         rw [X_def] at con
         cases ξ
         case normal φ =>
@@ -720,7 +726,8 @@ lemma loadedDiamondPathsPDL
     simp only [nodeAt, AnyNegFormula.in_side] at negLoad_in
     rw [tabAt_t_def] at negLoad_in
     aesop
-  case freeL L R δ β φ =>
+  case freeL L R δ β φ Z_def Y_def =>
+    subst Z_def Y_def
     -- Leaving cluster, interesting that IH is not needed here.
     -- Define child node with path to to it:
     let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ .pdl .nil)
@@ -729,7 +736,7 @@ lemma loadedDiamondPathsPDL
       unfold s t_to_s
       rw [tabAt_append]
       -- Only some HEq business left here.
-      have : tabAt (.pdl .nil : PathIn (Tableau.pdl nrep bas PdlRule.freeL next))
+      have : tabAt (.pdl .nil : PathIn (Tableau.pdl nrep bas (PdlRule.freeL rfl rfl) next))
             = ⟨ (L, R, some (Sum.inl (~'⌊⌊δ⌋⌋⌊β⌋AnyFormula.normal φ))) :: _
               , ⟨(List.insert (~⌈⌈δ⌉⌉⌈β⌉φ) L, R, none), next⟩⟩ := by
         unfold tabAt
@@ -742,7 +749,7 @@ lemma loadedDiamondPathsPDL
       left
       right
       unfold s t_to_s
-      refine ⟨Hist, _, nrep, bas, _, PdlRule.freeL, next, ?_⟩
+      refine ⟨Hist, _, nrep, bas, _, (PdlRule.freeL rfl rfl), next, ?_⟩
       simp [tabAt_t_def]
     · use W, M, v
       intro φ φ_in
@@ -758,7 +765,8 @@ lemma loadedDiamondPathsPDL
       · simp only [Sequent.isLoaded, nodeAt, decide_false, decide_true]
         rw [tabAt_t_def]
 
-  case freeR L R δ β φ =>
+  case freeR L R δ β φ Z_def Y_def =>
+    subst Z_def Y_def
     -- Leaving cluster, interesting that IH is not needed here.
     -- Define child node with path to to it:
     let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ .pdl .nil)
@@ -767,7 +775,7 @@ lemma loadedDiamondPathsPDL
       unfold s t_to_s
       rw [tabAt_append]
       -- Only some HEq business left here.
-      have : tabAt (.pdl .nil : PathIn (.pdl nrep bas .freeR next))
+      have : tabAt (.pdl .nil : PathIn (.pdl nrep bas (.freeR rfl rfl) next))
             = ⟨ (L, R, some (Sum.inr (~'⌊⌊δ⌋⌋⌊β⌋AnyFormula.normal φ))) :: _
               , ⟨L, (List.insert (~⌈⌈δ⌉⌉⌈β⌉φ) R), none⟩, next⟩ := by
         unfold tabAt
@@ -780,7 +788,7 @@ lemma loadedDiamondPathsPDL
       left
       right
       unfold s t_to_s
-      refine ⟨Hist, _, nrep, bas, _, PdlRule.freeR, next, ?_⟩
+      refine ⟨Hist, _, nrep, bas, _, (.freeR rfl rfl), next, ?_⟩
       simp [tabAt_t_def]
     · use W, M, v
       intro φ φ_in
@@ -796,7 +804,8 @@ lemma loadedDiamondPathsPDL
       · simp only [Sequent.isLoaded, nodeAt, decide_false, decide_true]
         rw [tabAt_t_def]
 
-  case modL L R a ξ' Z_def =>
+  case modL L R a ξ' Z_def Y_def =>
+    subst Y_def
     have : ξ' = ξ := by
       unfold nodeAt at negLoad_in
       rw [tabAt_t_def] at negLoad_in
@@ -826,7 +835,7 @@ lemma loadedDiamondPathsPDL
       unfold s t_to_s
       rw [tabAt_append]
       -- remains to deal with HEq business
-      let tclean : PathIn (.pdl nrep bas (.modL (Eq.refl _)) next) := .pdl .nil
+      let tclean : PathIn (.pdl nrep bas (.modL (Eq.refl _) rfl) next) := .pdl .nil
       cases ξ'
       case normal φ =>
         left
@@ -852,7 +861,7 @@ lemma loadedDiamondPathsPDL
     · constructor
       constructor
       right
-      refine ⟨Hist, _, nrep, bas, _, (.modL Z_def), next, tabAt_t_def, ?_⟩
+      refine ⟨Hist, _, nrep, bas, _, (.modL Z_def rfl), next, tabAt_t_def, ?_⟩
       simp [s, t_to_s]
     · apply Or.inr -- (a)
       constructor
@@ -902,7 +911,8 @@ lemma loadedDiamondPathsPDL
             rw [nodeAt_s_def]
             simp_all [Sequent.isFree, Sequent.isLoaded, Sequent.without]
 
-  case modR L R a ξ' Z_def => -- COPY ADAPTATION from `modL`
+  case modR L R a ξ' Z_def Y_def => -- COPY ADAPTATION from `modL`
+    subst Y_def
     have : ξ' = ξ := by
       unfold nodeAt at negLoad_in
       rw [tabAt_t_def] at negLoad_in
@@ -932,7 +942,7 @@ lemma loadedDiamondPathsPDL
       unfold s t_to_s
       rw [tabAt_append]
       -- remains to deal with HEq business
-      let tclean : PathIn (.pdl nrep bas (.modR (Eq.refl _)) next) := .pdl .nil
+      let tclean : PathIn (.pdl nrep bas (.modR (Eq.refl _) rfl) next) := .pdl .nil
       cases ξ'
       case normal φ =>
         left
@@ -958,7 +968,7 @@ lemma loadedDiamondPathsPDL
     · constructor
       constructor
       right
-      refine ⟨Hist, _, nrep, bas, _, (PdlRule.modR Z_def), next, tabAt_t_def, ?_⟩
+      refine ⟨Hist, _, nrep, bas, _, (PdlRule.modR Z_def rfl), next, tabAt_t_def, ?_⟩
       simp [s, t_to_s]
     · right
       constructor
