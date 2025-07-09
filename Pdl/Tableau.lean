@@ -128,15 +128,25 @@ inductive Tableau : History → Sequent → Type
               (next : Tableau (X :: Hist) Y) : Tableau Hist X
   | lrep {X Hist} (lpr : LoadedPathRepeat Hist X) : Tableau Hist X
 
-def Tableau.size : Tableau Hist X → Nat := sorry
+def Tableau.size : Tableau Hist X → Nat
+  | .loc _ _ lt next => 1 + ((endNodesOf lt).attach.map (fun ⟨Y, Y_in⟩ => (next Y Y_in).size)).sum
+  | .pdl _ _ _ next => 1 + next.size
+  | .lrep _ => 1
 
-lemma Tableau.size_next_lt_of_loc (h : tab = Tableau.loc nrep nbas lt next) Y Y_in
+lemma Tableau.size_next_lt_of_loc
+    (tab_def : tab = Tableau.loc nrep nbas lt next) Y Y_in
     : (next Y Y_in).size < tab.size := by
-  sorry
+  subst tab_def
+  simp [Tableau.size]
+  rw [@Nat.lt_one_add_iff]
+  apply List.le_sum_of_mem
+  simp
+  use Y, Y_in
 
-lemma Tableau.size_next_lt_of_pdl (h : tab = Tableau.pdl nrep bas r next)
+lemma Tableau.size_next_lt_of_pdl
+    (tab_def : tab = Tableau.pdl nrep bas r next)
     : next.size < tab.size := by
-  sorry
+  simp_all [Tableau.size]
 
 instance instDecidableExistsEndNodeOf {lt : LocalTableau X}
     {f : (Y : Sequent) → Y ∈ endNodesOf lt → Prop}
