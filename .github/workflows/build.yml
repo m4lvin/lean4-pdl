@@ -46,6 +46,13 @@ jobs:
         if: always()
         run: make bml
 
+      - name: Check environment with lean4checker
+        run: |
+          : Check Environment with lean4checker
+          chmod +x ./scripts/run_lean4checker.sh
+          ./scripts/run_lean4checker.sh
+        shell: bash
+
       - name: Build documentation
         if: github.ref_name == 'main'
         run: make doc

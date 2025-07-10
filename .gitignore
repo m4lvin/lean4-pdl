@@ -4,3 +4,4 @@
 .first-run-done
 .lake
 dependencies.*
+lean4checker
