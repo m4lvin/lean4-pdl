@@ -12,11 +12,11 @@ notation "Builder" => Player.B
 
 inductive ProverPos (H : History) (X : Sequent) : Type where
   | nlpRep : ¬ Nonempty (LoadedPathRepeat H X) → rep H X → ProverPos H X -- Prover loses
-  | bas : ¬ rep H x → X.basic → ProverPos H X -- Prover must make a local LocalTableau
-  | nbas : ¬ rep H x → ¬ X.basic → ProverPos H X -- Prover must apply a PDL rule
-  -- FIXME maye merge bas and nbas?
+  | bas : ¬ rep H X → X.basic → ProverPos H X -- Prover must apply a PDL rule
+  | nbas : ¬ rep H X → ¬ X.basic → ProverPos H X -- Prover must make a local LocalTableau
   deriving DecidableEq
 
+-- TODO add proofs here that we have no rep and we only do ltX for X being nbasic
 def BuilderPos (H : History) (X : Sequent) : Type :=
   LoadedPathRepeat H X -- no moves, Prover wins.
   ⊕
@@ -69,14 +69,88 @@ def posOf (H : History) (X : Sequent) : ProverPos H X ⊕ BuilderPos H X :=
     then .inl (.nlpRep neNlp rep) -- ProverPos with no moves to let Builder win at (non-lp) repeat
     else
       if bas : X.basic
-      then .inl (.bas rep bas) -- actual ProverPos to make LocalTab
-      else .inl (.nbas rep bas) -- actual ProverPos to choose a PDL rule
+      then .inl (.bas rep bas) -- actual ProverPos to choose a PDL rule
+      else .inl (.nbas rep bas) -- actual ProverPos to make LocalTab
 
-def LocalRuleApp.all X : List (Σ B, LocalRuleApp X B) := sorry
+-- TODO turn these below into Fintype instances? Move to LocalTableau.lean?
+
+def OneSidedLocalRule.all : (L : List Formula) → Option (Σ B, OneSidedLocalRule L B)
+  | [⊥]       =>  some ⟨∅, bot⟩
+  | [φ1, ~φ2] => if h : φ1 = φ2 then h ▸ some ⟨∅, not φ1⟩ else none -- hmm else is ok?
+  | [~(~(φ))] => some ⟨[[φ]], neg φ⟩
+  | [φ ⋀ ψ]   => some ⟨[[φ,ψ]], con φ ψ⟩
+  | [~(φ⋀ψ)]  => some ⟨[[~φ], [~ψ]], nCo φ ψ⟩
+  | [⌈α⌉φ]    => if notAtm : ¬ α.isAtomic then some ⟨unfoldBox α φ, box _ _ notAtm ⟩ else none
+  | [~⌈α⌉φ]   => if notAtm : ¬ α.isAtomic then some ⟨(unfoldDiamond α φ), dia α φ notAtm⟩ else none
+  | _ => none
+
+def OneSidedLocalRule.all_spec (osr : OneSidedLocalRule L B)
+    : ⟨B, osr⟩ ∈ OneSidedLocalRule.all L := by
+  cases osr
+  all_goals
+    simp [OneSidedLocalRule.all]
+    try assumption
+
+/-
+def LoadRule.the : (χ : LoadFormula) → (Σ ress, LoadRule (~'χ) ress)
+  | (~'⌊α⌋(χ)) => dia  {α χ} : (notAtom : ¬ α.isAtomic) → LoadRule  (unfoldDiamondLoaded  α χ)
+  | (~'⌊α⌋(φ)) => dia' {α φ} : (notAtom : ¬ α.isAtomic) → LoadRule  (unfoldDiamondLoaded' α φ)
+sorry
+
+def LoadRule.the_spec (lor : LoadRule (~'χ) ress) : ⟨ress, lor⟩ = LoadRule.the χ := by
+  cases lor
+  all_goals
+    simp [LoadRule.all]
+    try sorry
+-/
+
+-- Note that `X` here is still only the conditions / active/principal part, not a full sequent.
+def LocalRule.all : (X : Sequent) → Option (Σ B, LocalRule X B)
+  | ⟨L, [], none⟩ =>
+      (OneSidedLocalRule.all L).map (fun ⟨_,orule⟩ => ⟨_, LocalRule.oneSidedL orule rfl⟩)
+  | ⟨[], R, none⟩ =>
+      (OneSidedLocalRule.all R).map (fun ⟨_,orule⟩ => ⟨_, LocalRule.oneSidedR orule rfl⟩)
+  | ([φ1], [~φ2], none) => if h : φ1 = φ2 then some ⟨_, by convert LRnegL φ2⟩ else none
+  | ([~φ1], [φ2], none) => if h : φ1 = φ2 then some ⟨_, by convert LRnegR φ2⟩ else none
+  | ⟨[], [], some (Sum.inl (~'⌊α⌋(.loaded χ)))⟩ =>
+      if notAtm : ¬ α.isAtomic then some ⟨_, .loadedL _ (@LoadRule.dia  α _ notAtm) rfl⟩ else none
+  | ⟨[], [], some (Sum.inl (~'⌊α⌋(.normal φ)))⟩ =>
+      if notAtm : ¬ α.isAtomic then some ⟨_, .loadedL _ (@LoadRule.dia' α _ notAtm) rfl⟩ else none
+  | ⟨[], [], some (Sum.inr (~'⌊α⌋(.loaded χ)))⟩ =>
+      if notAtm : ¬ α.isAtomic then some ⟨_, .loadedR _ (@LoadRule.dia  α _ notAtm) rfl⟩ else none
+  | ⟨[], [], some (Sum.inr (~'⌊α⌋(.normal φ)))⟩ =>
+      if notAtm : ¬ α.isAtomic then some ⟨_, .loadedR _ (@LoadRule.dia' α _ notAtm) rfl⟩ else none
+  | _ => none
+
+def LocalRule.all_spec (lr : LocalRule L B) : ⟨B, lr⟩ ∈ LocalRule.all L := by
+  cases lr <;> simp [LocalRule.all]
+  case oneSidedL precond ress osr B_def =>
+    have := OneSidedLocalRule.all_spec osr
+    aesop
+  case oneSidedR precond ress osr B_def =>
+    -- Less simp'd here because we do not know L ≠ [] yet.
+    have := OneSidedLocalRule.all_spec osr
+    cases osr
+    <;> aesop
+  case LRnegR =>
+    -- how to get that the LRnegL pattern will not match?
+    sorry
+  case loadedL αχ lrule YS_def =>
+    rcases αχ with ⟨α,φ|χ⟩ <;> cases lrule <;> aesop
+  case loadedR αχ lrule YS_def =>
+    rcases αχ with ⟨α,φ|χ⟩ <;> cases lrule <;> aesop
+
+def LocalRuleApp.all : (X : _) → List (Σ B, LocalRuleApp X B)
+  | ⟨L, R, o⟩ =>
+      -- use LocalRule.all
+      -- but how? apply it to all sublists of L, R and o?
+      sorry
 
 lemma LocalRuleApp.all_spec X B lra : ⟨B, lra⟩ ∈ LocalRuleApp.all X := by
+  -- use LocalRule.all_spec
   sorry
 
+/-- Note: weaker than "only finitely many local rules apply to `X`, because each `B` gives a different type. -/
 instance LocalRuleApp.fintype {X} : Fintype (LocalRuleApp X B) := by
   refine ⟨((LocalRuleApp.all X).filterMap
     (fun Zlra => if h : Zlra.1 = B then some (h ▸ Zlra.2) else none)).toFinset, ?_⟩
@@ -172,7 +246,6 @@ def tableauGame : Game where
       | ⟨L, R, some (.inr (~'⌊∗α⌋χ))⟩ => by
           exfalso; have := Xbasic.1 (~(⌊∗α⌋χ).unload)
           cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
-
   | ⟨H, X, .inl (.nbas _ _)⟩ =>
       -- If not basic, let prover pick any `ltab : LocalTableau X` as new position.
       LocalTableau.fintype.1.image (fun ltab => ⟨H, X, .inr (.inr ltab)⟩)
@@ -197,6 +270,30 @@ def tableauGame : Game where
     · sorry
     · sorry
 
+@[simp]
+lemma tableauGame_turn_Prover {Hist X lpr} :
+    tableauGame.turn ⟨Hist, X, .inl lpr⟩ = Prover := by
+  unfold Game.turn
+  unfold tableauGame
+  simp
+
+@[simp]
+lemma tableauGame_turn_Builder {Hist X lpr} :
+    tableauGame.turn ⟨Hist, X, .inr lpr⟩ = Builder := by
+  unfold Game.turn tableauGame
+  simp
+
+@[simp]
+lemma tableauGame_winner_nlpRep_eq_Builder :
+    @winner i tableauGame sI sJ ⟨Hist, X, .inl (.nlpRep h1 h2)⟩ = Builder := by
+  simp [winner, tableauGame]
+
+@[simp]
+lemma tableauGame_winner_lpr_eq_Prover :
+    @winner i tableauGame sI sJ ⟨Hist, X, .inr (.inl lpr)⟩ = Prover := by
+  simp [winner, tableauGame]
+
+
 -- TODO Definition 6.9 Strategy Tree for Prover (or adjust already in `Game.lean`?)
 
 -- TODO Definition 6.13 initial, pre-state
@@ -215,12 +312,68 @@ def tableauGame : Game where
 
 -- TODO Lemma 6.20
 
+/-- After history `Hist`, if Prover has a winning strategy then there is a closed tableau.
+This is the induction loading for `gameP`. -/
+theorem gameP_general Hist (X : Sequent) (s : Strategy tableauGame Prover)
+  (h : winning s ⟨Hist, X, posOf Hist X⟩) :
+    Nonempty (Tableau Hist X) := by
+  rcases pos_def : posOf Hist X with proPos|builPos
+  -- ProverPos:
+  · cases proPos
+    · -- free repeat, but then Prover loses, which contradicts h.
+      absurd h
+      simp [pos_def,winning]
+    · -- basic, Prover should choose PDL rule
+      rw [pos_def] at h
+      -- get `sJ` to say which rule?
+      sorry
+    case nbas nrep X_nbas =>
+      -- not basic, Prover should make a local tableau
+      constructor
+      apply Tableau.loc nrep X_nbas
+      -- IDEA: now `sJ` should give us `lt`
+      -- and applying an IH should give us `next` ???
+      all_goals
+        sorry
+  -- BuilderPos:
+  · rcases builPos with lpr|ltX
+    · use Tableau.lrep lpr
+    · -- We have a local tableau and it is the turn of Builder.
+      -- IDEA: for each `Y : endNodesOf lt` there is an `sJ : Strategy _ Prover` that picks `Y`.
+      -- Because `s` wins against all those `sJ`, we can use `s` to define `next`.
+      -- For now we do this non-constructively via Nonempty.
+      have next' : ∀ (Y : Sequent) (Y_in : Y ∈ endNodesOf ltX), Nonempty (Tableau (X :: Hist) Y) := by
+        intro Y Y_in
+        apply gameP_general (X :: Hist) Y s -- Here we apply an IH.
+        -- use `h`
+        unfold winning at h
+        -- NOTE: maybe external lemma like "winning of winning at next step chosen by other" ..
+        -- Is there something like this in `Game.lean` already?
+        let sJ : Strategy tableauGame Builder := sorry -- some strategy that chooses `Y` ???
+        specialize h sJ
+        unfold winner at h
+        rw [pos_def] at h
+        simp at h
+        -- Hmmmmm
+        unfold winning
+        sorry
+      have next := fun Y Y_in => Classical.choice (next' Y Y_in)
+      use Tableau.loc ?_ ?_ ltX next
+      -- Do the remaing two things follow from Prover winning? Or add proof fields to buildPos???
+      · sorry -- need nrep
+      · sorry -- need nbas
+termination_by
+  tableauGame.wf.2.wrap ⟨Hist, X, posOf Hist X⟩
+decreasing_by
+  · apply tableauGame.move_rel
+    -- Need to show that a valid move was made. How to simp away the "wrap"?
+    sorry
+
 def startPos (X : Sequent) : GamePos := ⟨[], X, posOf [] X⟩
 
 /-- If Prover has a winning strategy then there is a closed tableau. -/
 theorem gameP (X : Sequent) (s : Strategy tableauGame Prover) (h : winning s (startPos X)) :
-    Nonempty (Tableau [] X) := by
-  sorry
+    Nonempty (Tableau [] X) := gameP_general [] X s h
 
 /-! ## From winning strategies to model graphs (Section 6.3) -/
 
