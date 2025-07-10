@@ -20,12 +20,40 @@ inductive PathIn : ∀ {Hist X}, Tableau Hist X → Type
 | pdl {nrep bas} {r : PdlRule X Y} {next} (tail : PathIn next)
     : PathIn (Tableau.pdl nrep bas r next)
 
-/-- Maybe useful? If so, move to Tableau.lean -/
-instance : DecidableEq ((Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X:: Hist) Y) := by
-  sorry
-
+--              default:  200000
+-- set_option maxHeartbeats 1000000 in
+-- set_option diagnostics true in
 /-- This was erroneously derivable in Lean 4.20 ;-) -/
-instance : DecidableEq (PathIn tab) := sorry
+def PathIn.instDecidableEq_helper : (p q : PathIn tab) → Decidable (p = q)
+  | .nil, .nil => isTrue rfl
+  | .pdl tail1, .pdl tail2 => by
+      rw [pdl.injEq]
+      rename_i Y nrep bas r next
+      have _forTermination : next.size < (Tableau.pdl nrep bas r next).size :=
+        Tableau.size_next_lt_of_pdl rfl
+      exact PathIn.instDecidableEq_helper tail1 tail2
+  | .loc Y1_in tail1, .loc Y2_in tail2 => by
+    rename_i Y1 Y2
+    by_cases h : Y1 = Y2
+    · subst_eqs
+      simp only [true_and, loc.injEq, heq_eq_eq]
+      rename_i nrep nbas lt next
+      have _forTermination : (next Y1 Y1_in).size < (Tableau.loc nrep nbas lt next).size := by
+        apply Tableau.size_next_lt_of_loc rfl
+      exact PathIn.instDecidableEq_helper tail1 tail2
+    · apply isFalse
+      simp_all
+  | .nil , .pdl _ => isFalse (by simp)
+  | .nil , .loc _ _ => isFalse (by simp)
+  | .loc _ _, .nil  => isFalse (by simp)
+  | .pdl _ , .nil => isFalse (by simp)
+termination_by
+  tab.size -- Cannot use PathIn.length, that is only defined later.
+decreasing_by
+  · exact _forTermination
+  · exact _forTermination
+
+instance PathIn.instDecidableEq : DecidableEq (PathIn tab) := PathIn.instDecidableEq_helper
 
 def tabAt : PathIn tab → Σ H X, Tableau H X
 | .nil => ⟨_,_,tab⟩
