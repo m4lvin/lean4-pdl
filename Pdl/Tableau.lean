@@ -152,13 +152,12 @@ instance instDecidableExistsEndNodeOf {lt : LocalTableau X}
     {f : (Y : Sequent) → Y ∈ endNodesOf lt → Prop}
     {dec : (Y : Sequent) → (Y_in : Y ∈ endNodesOf lt) → Decidable (f Y Y_in)} :
     Decidable (∃ Y, ∃ Y_in : Y ∈ endNodesOf lt, f Y Y_in) := by
-  if h : ((endNodesOf lt).attach.map (fun ⟨Y,Y_in⟩ => decide (f Y Y_in))).or then
+  if h : (endNodesOf lt).attach.any (fun ⟨Y,Y_in⟩ => decide (f Y Y_in)) then
     apply isTrue
-    simp at h
-    sorry
+    aesop
   else
     apply isFalse
-    sorry
+    aesop
 
 instance Tableau.instDecidableEq {tab1 tab2 : Tableau Hist X} : Decidable (tab1 = tab2) := by
   rcases tab1_def : tab1 with (⟨nrep1,nbas1,lt1,next1⟩|@⟨_,X2,Y2,nrep2,bas2,r2,next2⟩|_)
