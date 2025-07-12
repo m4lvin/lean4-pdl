@@ -91,27 +91,26 @@ def OneSidedLocalRule.all_spec (osr : OneSidedLocalRule L B)
     simp [OneSidedLocalRule.all]
     try assumption
 
-/-
-def LoadRule.the : (χ : LoadFormula) → (Σ ress, LoadRule (~'χ) ress)
-  | (~'⌊α⌋(χ)) => dia  {α χ} : (notAtom : ¬ α.isAtomic) → LoadRule  (unfoldDiamondLoaded  α χ)
-  | (~'⌊α⌋(φ)) => dia' {α φ} : (notAtom : ¬ α.isAtomic) → LoadRule  (unfoldDiamondLoaded' α φ)
-sorry
+/-- Given a negated loaded formula, is there a LoadRule applicable to it? -/
+def LoadRule.the : (nχ : NegLoadFormula) → Option (Σ ress, LoadRule nχ ress)
+  | (~'⌊α⌋(.loaded _)) => if notAtom : ¬ α.isAtomic then some ⟨_, dia  notAtom⟩ else none
+  | (~'⌊α⌋(.normal _)) => if notAtom : ¬ α.isAtomic then some ⟨_, dia' notAtom⟩ else none
 
-def LoadRule.the_spec (lor : LoadRule (~'χ) ress) : ⟨ress, lor⟩ = LoadRule.the χ := by
+def LoadRule.the_spec (lor : LoadRule (~'χ) ress) : some ⟨ress, lor⟩ = LoadRule.the (~'χ) := by
   cases lor
   all_goals
-    simp [LoadRule.all]
-    try sorry
--/
+    simp [LoadRule.the]
+    assumption
 
--- Note that `X` here is still only the conditions / active/principal part, not a full sequent.
-def LocalRule.all : (X : Sequent) → Option (Σ B, LocalRule X B)
+/-- Given a subsequent `cond` to be replaced, is there an applicable local rule?
+Note that `cond` are only the principal formulas, not the whole sequent. -/
+def LocalRule.all : (cond : Sequent) → Option (Σ ress, LocalRule cond ress)
   | ⟨L, [], none⟩ =>
       (OneSidedLocalRule.all L).map (fun ⟨_,orule⟩ => ⟨_, LocalRule.oneSidedL orule rfl⟩)
   | ⟨[], R, none⟩ =>
       (OneSidedLocalRule.all R).map (fun ⟨_,orule⟩ => ⟨_, LocalRule.oneSidedR orule rfl⟩)
-  | ([φ1], [~φ2], none) => if h : φ1 = φ2 then some ⟨_, by convert LRnegL φ2⟩ else none
-  | ([~φ1], [φ2], none) => if h : φ1 = φ2 then some ⟨_, by convert LRnegR φ2⟩ else none
+  | ([φ1], [φ2], none) => if h : φ2 = (~φ1) then some ⟨_, by convert LRnegL φ1⟩ else
+                          if h : φ1 = (~φ2) then some ⟨_, by convert LRnegR φ2⟩ else none
   | ⟨[], [], some (Sum.inl (~'⌊α⌋(.loaded χ)))⟩ =>
       if notAtm : ¬ α.isAtomic then some ⟨_, .loadedL _ (@LoadRule.dia  α _ notAtm) rfl⟩ else none
   | ⟨[], [], some (Sum.inl (~'⌊α⌋(.normal φ)))⟩ =>
@@ -133,31 +132,53 @@ def LocalRule.all_spec (lr : LocalRule L B) : ⟨B, lr⟩ ∈ LocalRule.all L :=
     cases osr
     <;> aesop
   case LRnegR =>
-    -- how to get that the LRnegL pattern will not match?
-    sorry
+    intro h
+    cases h
   case loadedL αχ lrule YS_def =>
     rcases αχ with ⟨α,φ|χ⟩ <;> cases lrule <;> aesop
   case loadedR αχ lrule YS_def =>
     rcases αχ with ⟨α,φ|χ⟩ <;> cases lrule <;> aesop
 
-def LocalRuleApp.all : (X : _) → List (Σ B, LocalRuleApp X B)
+/-- Given a sequent, return a list of all possible local rule applications. -/
+def LocalRuleApp.all : (X : Sequent) → List (Σ C, LocalRuleApp X C)
   | ⟨L, R, o⟩ =>
       -- use LocalRule.all
       -- but how? apply it to all sublists of L, R and o?
-      sorry
+      let Lconds := L.sublists
+      let Rconds := R.sublists
+      let Oconds := [ none, o ] -- might be a duplicate, but so what?
+      let conds : List Sequent :=
+        (Lconds.flatMap
+          (fun Lcond => Rconds.flatMap
+            (fun Rcond => Oconds.map
+              (fun Ocond => (Lcond,Rcond,Ocond)))))
+      (conds.attach.map (fun ⟨⟨Lcond,Rcond,Ocond⟩, cond_in⟩ =>
+        (LocalRule.all ⟨Lcond,Rcond,Ocond⟩).map
+          (fun ⟨B,lr⟩  => ⟨_,
+            @LocalRuleApp.mk _ _ _ _ _ Lcond Rcond Ocond lr rfl (by sorry)⟩))).reduceOption
 
-lemma LocalRuleApp.all_spec X B lra : ⟨B, lra⟩ ∈ LocalRuleApp.all X := by
+lemma LocalRuleApp.all_spec X C (lrA : LocalRuleApp X C) : ⟨C, lrA⟩ ∈ LocalRuleApp.all X := by
+  rcases X with ⟨L,R,O⟩
+  rcases lrA with ⟨Lcond, Rcond, Ocond, rule, preconditionProof⟩
+  have := LocalRule.all_spec rule
+  cases rule
+  · sorry
   -- use LocalRule.all_spec
-  sorry
+  · sorry
+  · sorry
+  · sorry
+  · sorry
+  · sorry
 
-/-- Note: weaker than "only finitely many local rules apply to `X`, because each `B` gives a different type. -/
-instance LocalRuleApp.fintype {X} : Fintype (LocalRuleApp X B) := by
+/-- At most finitely many local rule applications lead from `X` and to `B`. Note this is weaker
+than "only finitely many local rules apply to `X`, because each `B` gives a different type. -/
+instance LocalRuleApp.fintype {X} {C} : Fintype (LocalRuleApp X C) := by
   refine ⟨((LocalRuleApp.all X).filterMap
-    (fun Zlra => if h : Zlra.1 = B then some (h ▸ Zlra.2) else none)).toFinset, ?_⟩
+    (fun ⟨C', lra⟩  => if h : C' = C then some (h ▸ lra) else none)).toFinset, ?_⟩
   intro lra
   rw [List.mem_toFinset]
   simp only [List.mem_filterMap, Option.dite_none_right_eq_some, Option.some.injEq, Sigma.exists]
-  use B
+  use C
   simp only [exists_const, exists_eq_right]
   apply LocalRuleApp.all_spec
 

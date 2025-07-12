@@ -413,7 +413,7 @@ inductive LocalRule : Sequent → List Sequent → Type
   | LRnegL (ϕ : Formula) : LocalRule ([ϕ], [~ϕ], none) ∅ --  ϕ on left side, ~ϕ on the right
   | LRnegR (ϕ : Formula) : LocalRule ([~ϕ], [ϕ], none) ∅ -- ~ϕ on left side,  ϕ on the right
   | loadedL (χ : LoadFormula) (lrule : LoadRule (~'χ) ress)
-      (YS_def : YS =  ress.map λ (X, o) => (X, ∅, o.map Sum.inl))
+      (YS_def : YS = ress.map λ (X, o) => (X, ∅, o.map Sum.inl))
       : LocalRule (∅, ∅, some (Sum.inl (~'χ))) YS
   | loadedR (χ : LoadFormula) (lrule : LoadRule (~'χ) ress)
       (YS_def : YS = ress.map λ (X, o) => (∅, X, o.map Sum.inr))
@@ -469,6 +469,10 @@ def applyLocalRule : LocalRule (Lcond, Rcond, Ocond) ress → Sequent → List S
                                 , R.diff Rcond ++ Rnew
                                 , Olf.change O Ocond Onew )
 
+/-- A local rule application going from `⟨L,R,O⟩` to `C` consists of a
+local rule `lr` replacing `⟨Lcond, Rcond, Ocond⟩` by `ress` and
+proofs that `⟨Lcond, Rcond, Ocond⟩` is a subsequent of `⟨L,R,O⟩`
+and that `C` are the results of applying `lr` to `⟨L,R,O⟩`. -/
 inductive LocalRuleApp : Sequent → List Sequent → Type
   | mk {L R : List Formula}
        {C : List Sequent}
@@ -476,8 +480,8 @@ inductive LocalRuleApp : Sequent → List Sequent → Type
        {O : Olf}
        (Lcond Rcond : List Formula)
        (Ocond : Olf)
-       (rule : LocalRule (Lcond, Rcond, Ocond) ress)
-       {hC : C = applyLocalRule rule (L,R,O)}
+       (lr : LocalRule (Lcond, Rcond, Ocond) ress)
+       {hC : C = applyLocalRule lr (L,R,O)}
        (preconditionProof : List.Subperm Lcond L ∧ List.Subperm Rcond R ∧ Ocond ⊆ O)
        : LocalRuleApp (L,R,O) C
   deriving DecidableEq
