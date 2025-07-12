@@ -221,6 +221,9 @@ def tableauGame : Game where
       -- need to choose PDL rule application:
       match X with
       | ⟨L, R, none⟩ => -- (L+) if X is not loaded, choice of formula
+
+      -- ERROR here: mixing up  φ ∈ L  with  ~φ ∈ L - negation must be there already to load!
+
             (L.map (fun φ => match boxesOf φ with -- need ALL the boxes.
               | (δ@h:(_::_), ψ) =>
                 [ ⟨_,_,posOf (X::H) (L.erase (~⌈⌈δ⌉⌉φ), R, some (Sum.inl (~'(⌊⌊δ⌋⌋⌊δ.getLast (by subst h; simp)⌋φ))))⟩ ]
@@ -335,8 +338,8 @@ lemma tableauGame_winner_lpr_eq_Prover :
 
 /-- After history `Hist`, if Prover has a winning strategy then there is a closed tableau.
 This is the induction loading for `gameP`. -/
-theorem gameP_general Hist (X : Sequent) (s : Strategy tableauGame Prover)
-  (h : winning s ⟨Hist, X, posOf Hist X⟩) :
+theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover)
+  (h : winning sP ⟨Hist, X, posOf Hist X⟩) :
     Nonempty (Tableau Hist X) := by
   rcases pos_def : posOf Hist X with proPos|builPos
   -- ProverPos:
@@ -344,10 +347,46 @@ theorem gameP_general Hist (X : Sequent) (s : Strategy tableauGame Prover)
     · -- free repeat, but then Prover loses, which contradicts h.
       absurd h
       simp [pos_def,winning]
-    · -- basic, Prover should choose PDL rule
+    case bas nrep Xbas =>
+      -- basic, Prover should choose PDL rule
       rw [pos_def] at h
-      -- get `sJ` to say which rule?
-      sorry
+
+      have P_turn : tableauGame.turn ⟨Hist, ⟨X, posOf Hist X⟩⟩ = Prover := by
+        rw [pos_def]
+        simp
+      -- Ask `sP` say which move to make / what rule to apply.
+      let the_move := sP ⟨_ ,_, posOf Hist X⟩ ?_ ?_
+      case refine_1 => rw [pos_def]; unfold Game.turn tableauGame; simp
+      case refine_2 => by_contra hyp; exfalso; unfold winning winner at h; simp_all
+
+
+      rcases the_move with ⟨nextPos, nextPosIn⟩
+      rcases nextPos with ⟨newHist, newX, newPos⟩
+
+      have IH := gameP_general newHist newX sP (by sorry) -- okay ??
+
+      unfold Game.Pos.moves Game.moves tableauGame at nextPosIn
+      simp [pos_def] at nextPosIn
+      rcases X with ⟨L,R,_|(⟨⟨χ⟩⟩|⟨⟨χ⟩⟩)⟩
+      <;> simp at *
+      · rcases nextPosIn with ⟨φ, φ_in⟩|_
+        · rcases boxesOf_def : boxesOf φ with ⟨_|⟨δ,αs⟩, ψ⟩
+          · exfalso; aesop
+          · simp_all
+            rcases φ_in with ⟨φ_in, new_def⟩
+            cases new_def
+            have φ_def : φ = ⌈δ⌉⌈⌈αs⌉⌉ ψ := by sorry
+            -- leaving Prop
+            constructor
+            -- apply Tableau.pdl nrep Xbas (.loadL (φ_def ▸ φ_in) _)  -- see ERROR above!
+            sorry
+        ·
+
+          sorry
+      · sorry
+      · sorry
+
+
     case nbas nrep X_nbas =>
       -- not basic, Prover should make a local tableau
       constructor
@@ -360,12 +399,12 @@ theorem gameP_general Hist (X : Sequent) (s : Strategy tableauGame Prover)
   · rcases builPos with lpr|ltX
     · use Tableau.lrep lpr
     · -- We have a local tableau and it is the turn of Builder.
-      -- IDEA: for each `Y : endNodesOf lt` there is an `sJ : Strategy _ Prover` that picks `Y`.
-      -- Because `s` wins against all those `sJ`, we can use `s` to define `next`.
+      -- IDEA: for each `Y : endNodesOf lt` there is an `sB : Strategy _ Prover` that picks `Y`.
+      -- Because `sP` wins against all those `sB`, we can use `sP` to define `next`.
       -- For now we do this non-constructively via Nonempty.
       have next' : ∀ (Y : Sequent) (Y_in : Y ∈ endNodesOf ltX), Nonempty (Tableau (X :: Hist) Y) := by
         intro Y Y_in
-        apply gameP_general (X :: Hist) Y s -- Here we apply an IH.
+        apply gameP_general (X :: Hist) Y sP -- Here we apply an IH.
         -- use `h`
         unfold winning at h
         -- NOTE: maybe external lemma like "winning of winning at next step chosen by other" ..
@@ -386,8 +425,14 @@ theorem gameP_general Hist (X : Sequent) (s : Strategy tableauGame Prover)
 termination_by
   tableauGame.wf.2.wrap ⟨Hist, X, posOf Hist X⟩
 decreasing_by
-  · apply tableauGame.move_rel
-    -- Need to show that a valid move was made. How to simp away the "wrap"?
+  all_goals
+    apply tableauGame.move_rel
+    simp [WellFounded.wrap]
+  -- Need to show that a valid move was made
+  · convert nextPosIn
+    -- hmm??
+    sorry
+  · -- hmm?
     sorry
 
 def startPos (X : Sequent) : GamePos := ⟨[], X, posOf [] X⟩
