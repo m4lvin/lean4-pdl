@@ -1,3 +1,6 @@
+import Mathlib.Data.List.Permutation
+import Mathlib.Data.List.Perm.Subperm
+
 import Pdl.Game
 import Pdl.Tableau
 import Pdl.Modelgraphs
@@ -142,10 +145,14 @@ def LocalRule.all_spec (lr : LocalRule L B) : ⟨B, lr⟩ ∈ LocalRule.all L :=
 /-- Given a sequent, return a list of all possible local rule applications. -/
 def LocalRuleApp.all : (X : Sequent) → List (Σ C, LocalRuleApp X C)
   | ⟨L, R, o⟩ =>
-      -- use LocalRule.all
-      -- but how? apply it to all sublists of L, R and o?
-      let Lconds := L.sublists
-      let Rconds := R.sublists
+      -- The idea here is to apply `LocalRule.all` to all sublists of L, R.
+      -- But `List.sublists` would not be enough, because the `preconditionProof`
+      -- in `LocalRuleApp` uses `List.Subperm`, not sublists.
+      -- We thus consider all permutations and then their sublists.
+      -- (Alternative would be to consider all sublists and then their permutations.) ???
+      -- Maybe somethimg like `List.subpermutations` should be added to Mathlib?
+      let Lconds := L.permutations.flatMap List.sublists
+      let Rconds := R.permutations.flatMap List.sublists
       let Oconds := [ none, o ] -- might be a duplicate, but so what?
       let conds : List Sequent :=
         (Lconds.flatMap
@@ -154,20 +161,73 @@ def LocalRuleApp.all : (X : Sequent) → List (Σ C, LocalRuleApp X C)
               (fun Ocond => (Lcond,Rcond,Ocond)))))
       (conds.attach.map (fun ⟨⟨Lcond,Rcond,Ocond⟩, cond_in⟩ =>
         (LocalRule.all ⟨Lcond,Rcond,Ocond⟩).map
-          (fun ⟨B,lr⟩  => ⟨_,
-            @LocalRuleApp.mk _ _ _ _ _ Lcond Rcond Ocond lr rfl (by sorry)⟩))).reduceOption
+          (fun ⟨B,lr⟩  => ⟨applyLocalRule lr (L, R, o),
+            have h : Lcond.Subperm L ∧ Rcond.Subperm R ∧ Ocond ⊆ o := by
+              simp only [List.map_cons, List.map_nil, List.mem_flatMap, List.mem_permutations,
+                List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false, conds, Oconds, Rconds,
+                Lconds] at cond_in
+              rcases cond_in with ⟨Lc,Lc_sub,Rc,Rc_sub,cdef|cdef⟩ <;> cases cdef <;> simp_all
+              · constructor
+                · rcases Lc_sub with ⟨L0, L0_sub_L, Lcond_perm_of_L0⟩
+                  rw [@List.subperm_iff]
+                  use L0
+                · rcases Rc_sub with ⟨R0, R0_sub_R, Rcond_perm_of_R0⟩
+                  rw [@List.subperm_iff]
+                  use R0
+              · refine ⟨?_, ?_, ?_⟩
+                · rcases Lc_sub with ⟨L0, L0_sub_L, Lcond_perm_of_L0⟩
+                  rw [@List.subperm_iff]
+                  use L0
+                · rcases Rc_sub with ⟨R0, R0_sub_R, Rcond_perm_of_R0⟩
+                  rw [@List.subperm_iff]
+                  use R0
+                · cases o <;> simp_all
+            @LocalRuleApp.mk L R _ B o Lcond Rcond Ocond lr rfl h⟩))).reduceOption
 
 lemma LocalRuleApp.all_spec X C (lrA : LocalRuleApp X C) : ⟨C, lrA⟩ ∈ LocalRuleApp.all X := by
   rcases X with ⟨L,R,O⟩
   rcases lrA with ⟨Lcond, Rcond, Ocond, rule, preconditionProof⟩
+  rcases preconditionProof with ⟨subpermL, subpermR, subO⟩
+  rw [List.subperm_iff] at subpermL
+  rw [List.subperm_iff] at subpermR
   have := LocalRule.all_spec rule
   cases rule
-  · sorry
-  -- use LocalRule.all_spec
-  · sorry
-  · sorry
-  · sorry
-  · sorry
+  · simp only [all, List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
+    List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
+    List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
+    use ⟨Lcond,[],none⟩
+    aesop
+  · simp only [all, List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
+    List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
+    List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
+    use ⟨[],Rcond,none⟩
+    aesop
+  case LRnegL φ _ _ hC =>
+    simp [all, List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
+    List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
+    List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
+    use ⟨[φ],[~φ],none⟩
+    aesop
+  case LRnegR φ _ _ hC =>
+    simp [all, List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
+    List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
+    List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
+    use ⟨[~φ],[φ],none⟩
+    aesop
+  case loadedL lor _ _ _ C_def =>
+    have := LoadRule.the_spec lor
+    -- unsure from here
+    simp_all only [List.empty_eq, List.nil_sublist, and_true, Option.mem_def, all, List.map_cons,
+      List.map_nil, applyLocalRule, List.map_attach_eq_pmap, List.reduceOption_mem_iff,
+      List.mem_pmap, List.mem_flatMap, List.mem_permutations, List.mem_sublists, List.mem_cons,
+      List.not_mem_nil, or_false]
+    use ⟨[],[],O⟩ --- hmmm - what is O actually? before or after?
+    cases O
+    · simp
+
+      sorry
+    · simp
+      sorry
   · sorry
 
 /-- At most finitely many local rule applications lead from `X` and to `B`. Note this is weaker
@@ -278,7 +338,7 @@ def tableauGame : Game where
   | ⟨H, X, .inr (.inr ltab)⟩ =>
       ((endNodesOf ltab).map (fun Y => ⟨(X :: H), Y, posOf (X :: H) Y⟩)).toFinset
 
-  -- QUESTION: What is a wellfounded relation that goes down at each game step?
+  -- QUESTION: What is a wellfounded relation that holds for each game step?
   wf := ⟨fun p q => sorry, by sorry⟩
   move_rel := by
     rintro ⟨H, ⟨L,R,_|olf⟩, ProvPo|BuildPo⟩ nextP nextP_in <;> simp_wf
