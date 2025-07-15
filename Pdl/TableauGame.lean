@@ -290,21 +290,46 @@ instance LocalRuleApp.fintype {X} {C} : Fintype (LocalRuleApp X C) := by
   simp only [exists_const, exists_eq_right]
   apply LocalRuleApp.all_spec
 
--- def comobo : (List (List α)) → (List (List α)) -- hmm
+def comobo_helper {α : Type} {p : α → Prop} {q : α → Type} :
+       (f : (x : α) → p x → List (q x))
+    → List ((x : α) → p x → q x) :=
+  -- hmm, how to define this actually?
+  -- Maybe need more assumptions? Fintype { x : α // p x } or so?
+  sorry
 
 def LocalTableau.all : (X : Sequent) → List (LocalTableau X) := fun X =>
   if bas : X.basic
   then [ .sim bas ]
   else do
     let ⟨B, (lra : LocalRuleApp X B)⟩ <- LocalRuleApp.all X
-    let tabsFor (Y : Sequent) (h : Y ∈ B) : List (LocalTableau Y) := sorry -- LocalTableau.all Y
-    let nexts : List ((Y : Sequent) → Y ∈ B → LocalTableau Y) := by
-      sorry
+    let tabsFor (Y : Sequent) (h : Y ∈ B) : List (LocalTableau Y) := by
+      have _forTermination := localRuleApp.decreases_DM lra _ h
+      apply LocalTableau.all
+    let nexts : List ((Y : Sequent) → Y ∈ B → LocalTableau Y) := comobo_helper tabsFor
     let next <- nexts
     return @byLocalRule X B lra next
+termination_by
+  X => X
+decreasing_by
+  exact _forTermination
 
 lemma LocalTableau.all_spec : ltX ∈ LocalTableau.all X := by
-  sorry
+  by_cases Xbas : X.basic
+  · unfold LocalTableau.all
+    cases ltX
+    case pos.byLocalRule lra =>
+      absurd Xbas
+      exact nonbasic_of_localRuleApp lra
+    · simp_all
+  · unfold LocalTableau.all
+    simp_all
+    cases ltX
+    case neg.byLocalRule lra =>
+      refine ⟨_, lra, LocalRuleApp.all_spec _ _ _, ?_⟩
+      -- need def and lemma about comobo_helper here
+      sorry
+    case neg.sim =>
+      simp_all
 
 instance LocalTableau.fintype {X} : Fintype (LocalTableau X) := by
   refine ⟨(LocalTableau.all X).toFinset, ?_⟩
