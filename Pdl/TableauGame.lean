@@ -184,6 +184,7 @@ def LocalRuleApp.all : (X : Sequent) → List (Σ C, LocalRuleApp X C)
                 · cases o <;> simp_all
             @LocalRuleApp.mk L R _ B o Lcond Rcond Ocond lr rfl h⟩))).reduceOption
 
+set_option maxHeartbeats 10000000 in
 lemma LocalRuleApp.all_spec X C (lrA : LocalRuleApp X C) : ⟨C, lrA⟩ ∈ LocalRuleApp.all X := by
   rcases X with ⟨L,R,O⟩
   rcases lrA with ⟨Lcond, Rcond, Ocond, rule, preconditionProof⟩
@@ -214,21 +215,68 @@ lemma LocalRuleApp.all_spec X C (lrA : LocalRuleApp X C) : ⟨C, lrA⟩ ∈ Loca
     List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
     use ⟨[~φ],[φ],none⟩
     aesop
-  case loadedL lor _ _ _ C_def =>
+  case loadedL χ lor _ _ _ C_def =>
     have := LoadRule.the_spec lor
-    -- unsure from here
-    simp_all only [List.empty_eq, List.nil_sublist, and_true, Option.mem_def, all, List.map_cons,
-      List.map_nil, applyLocalRule, List.map_attach_eq_pmap, List.reduceOption_mem_iff,
-      List.mem_pmap, List.mem_flatMap, List.mem_permutations, List.mem_sublists, List.mem_cons,
-      List.not_mem_nil, or_false]
-    use ⟨[],[],O⟩ --- hmmm - what is O actually? before or after?
-    cases O
-    · simp
+    rcases χ  with ⟨α, ξ⟩
+    rcases ξ with (φ|χ) <;> simp only [LoadRule.the, dite_not, Option.some_eq_dite_none_left,
+      Option.some.injEq, Sigma.mk.injEq, exists_and_left] at this
+    case normal =>
+      rcases this with ⟨ress_def, ⟨α_notAtomic, lor_heq_def⟩⟩
+      -- `O` comes from `X`, so it is the old/before olf. The `o` is the new one.
+      cases O <;> cases lor
+      · -- imposible, if O = none then we cannot apply a loadedL rule.
+        exfalso
+        simp_all
+      · unfold LocalRuleApp.all
+        -- // aesop from here
+        simp [List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
+          List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
+          List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
+        use (∅, ∅, some (Sum.inl (~'⌊α⌋AnyFormula.normal φ)))
+        aesop
+    case loaded =>
+      rcases this with ⟨ress_def, ⟨α_notAtomic, lor_heq_def⟩⟩
+      -- `O` comes from `X`, so it is the old/before olf. The `o` is the new one.
+      cases O <;> cases lor
+      · -- imposible, if O = none then we cannot apply a loadedL rule.
+        exfalso
+        simp_all
+      · unfold LocalRuleApp.all
+        -- // aesop from here
+        simp [List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
+          List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
+          List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
+        use (∅, ∅, some (Sum.inl (~'⌊α⌋AnyFormula.loaded χ)))
+        aesop
 
-      sorry
-    · simp
-      sorry
-  · sorry
+  case loadedR χ lor _ _ _ C_def =>
+    -- COPY-PASTA from loadedL case, changed inl to inr.
+    have := LoadRule.the_spec lor
+    rcases χ  with ⟨α, ξ⟩
+    rcases ξ with (φ|χ) <;> simp only [LoadRule.the, dite_not, Option.some_eq_dite_none_left,
+      Option.some.injEq, Sigma.mk.injEq, exists_and_left] at this
+    case normal =>
+      rcases this with ⟨ress_def, ⟨α_notAtomic, lor_heq_def⟩⟩
+      cases O <;> cases lor
+      · exfalso
+        simp_all
+      · unfold LocalRuleApp.all
+        simp only [List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
+          List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
+          List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
+        use (∅, ∅, some (Sum.inr (~'⌊α⌋AnyFormula.normal φ)))
+        aesop
+    case loaded =>
+      rcases this with ⟨ress_def, ⟨α_notAtomic, lor_heq_def⟩⟩
+      cases O <;> cases lor
+      · exfalso
+        simp_all
+      · unfold LocalRuleApp.all
+        simp only [List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
+          List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
+          List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
+        use (∅, ∅, some (Sum.inr (~'⌊α⌋AnyFormula.loaded χ)))
+        aesop
 
 /-- At most finitely many local rule applications lead from `X` and to `B`. Note this is weaker
 than "only finitely many local rules apply to `X`, because each `B` gives a different type. -/
