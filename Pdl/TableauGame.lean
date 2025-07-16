@@ -377,30 +377,30 @@ def tableauGame : Game where
       -- need to choose PDL rule application:
       match X with
       | ⟨L, R, none⟩ => -- (L+) if X is not loaded, choice of formula
-
-      -- ERROR here: mixing up  φ ∈ L  with  ~φ ∈ L - negation must be there already to load!
-
-            (L.map (fun φ => match boxesOf φ with -- need ALL the boxes.
-              | (δ@h:(_::_), ψ) =>
-                [ ⟨_,_,posOf (X::H) (L.erase (~⌈⌈δ⌉⌉φ), R, some (Sum.inl (~'(⌊⌊δ⌋⌋⌊δ.getLast (by subst h; simp)⌋φ))))⟩ ]
-              | ([],_) => [] ) ).flatten.toFinset
+            -- We want to catch a negation and all boxes (≥ 1) after it to be loaded.
+            (L.map (fun | ~φ => match boxesOf φ with
+                            | (δ@h:(_::_), ψ) =>
+                              [ ⟨_,_,posOf (X::H) (L.erase (~φ), R, some (Sum.inl (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by subst h; simp)⌋ψ))))⟩ ]
+                            | ([],_) => []
+                        | _ => [] )).flatten.toFinset
             ∪
-            (R.map (fun φ => match boxesOf φ with -- need ALL the boxes.
-              | (δ@h:(_::_), ψ) =>
-                [ ⟨_,_,posOf (X::H) (L, R.erase (~⌈⌈δ⌉⌉φ), some (Sum.inr (~'(⌊⌊δ⌋⌋⌊δ.getLast (by subst h; simp)⌋φ))))⟩ ]
-              | ([],_) => [] ) ).flatten.toFinset
+            (R.map (fun | ~φ => match boxesOf φ with
+                            | (δ@h:(_::_), ψ) =>
+                              [ ⟨_,_,posOf (X::H) (L, R.erase (~φ), some (Sum.inr (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by subst h; simp)⌋ψ))))⟩ ]
+                            | ([],_) => []
+                        | _ => [] )).flatten.toFinset
       | ⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩ =>
               ( match ξ with -- (M) rule, deterministic:
               | .normal φ => { ⟨_,_,posOf (X::H) ⟨(~φ) :: projection a L, projection a R, none⟩⟩ }
               | .loaded χ => { ⟨_,_,posOf (X::H) ⟨projection a L, projection a R, some (Sum.inl (~'χ))⟩⟩ } )
               ∪ -- (L-) rule, deterministic:
-              { ⟨_, _, posOf (X::H) (L.insert (⌊·a⌋ξ).unload, R, none)⟩ }
+              { ⟨_, _, posOf (X::H) (L.insert (~(⌊·a⌋ξ).unload), R, none)⟩ }
       | ⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩ =>
               ( match ξ with -- (M) rule, deterministic:
               | .normal φ => { ⟨_,_,posOf (X::H) ⟨projection a L, (~φ) :: projection a R, none⟩⟩ }
               | .loaded χ => { ⟨_,_,posOf (X::H) ⟨projection a L, projection a R, some (Sum.inr (~'χ))⟩⟩ } )
               ∪ -- (L-) rule, deterministic:
-              { ⟨_, _, posOf (X::H) (L, R.insert (⌊·a⌋ξ).unload, none)⟩ }
+              { ⟨_, _, posOf (X::H) (L, R.insert (~(⌊·a⌋ξ).unload), none)⟩ }
       -- Somewhat repetitive. Is there pattern matching with "did not match before" proofs?
       | ⟨L, R, some (.inl (~'⌊α;'β⌋χ))⟩ => by
           exfalso; have := Xbasic.1 (~(⌊α;'β⌋χ).unload)
@@ -474,6 +474,16 @@ lemma tableauGame_winner_lpr_eq_Prover :
   simp [winner, tableauGame]
 
 
+lemma def_of_boxesOf_def (h : boxesOf φ = (αs, ψ)) : φ = ⌈⌈αs⌉⌉ψ := by
+  induction αs generalizing φ
+  · unfold boxesOf at h
+    cases φ <;> simp_all
+  case cons α αs IH =>
+    simp
+    cases φ <;> simp_all [boxesOf]
+    case box β φ =>
+      apply IH
+      grind
 
 /-- After history `Hist`, if Prover has a winning strategy then there is a closed tableau.
 Note: we skip Definition 6.9 (Strategy Tree for Prover) and just use the `Strategy` type.
@@ -490,7 +500,6 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover)
     case bas nrep Xbas =>
       -- basic, Prover should choose PDL rule
       rw [pos_def] at h
-
       have P_turn : tableauGame.turn ⟨Hist, ⟨X, posOf Hist X⟩⟩ = Prover := by
         rw [pos_def]
         simp
@@ -498,33 +507,95 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover)
       let the_move := sP ⟨_ ,_, posOf Hist X⟩ ?_ ?_
       case refine_1 => rw [pos_def]; unfold Game.turn tableauGame; simp
       case refine_2 => by_contra hyp; exfalso; unfold winning winner at h; simp_all
-
-
       rcases the_move with ⟨nextPos, nextPosIn⟩
       rcases nextPos with ⟨newHist, newX, newPos⟩
-
+      -- Now use IH to get the remaining tableau.
+      -- FIXME need lemma here about "if sP is winning here then sP is still winning after sP moves"
       have IH := gameP_general newHist newX sP (by sorry) -- okay ??
-
+      rcases IH with ⟨new_tab_from_IH⟩
       unfold Game.Pos.moves Game.moves tableauGame at nextPosIn
       simp [pos_def] at nextPosIn
-      rcases X with ⟨L,R,_|(⟨⟨χ⟩⟩|⟨⟨χ⟩⟩)⟩
-      <;> simp at *
-      · rcases nextPosIn with ⟨φ, φ_in⟩|_
-        · rcases boxesOf_def : boxesOf φ with ⟨_|⟨δ,αs⟩, ψ⟩
-          · exfalso; aesop
-          · simp_all
-            rcases φ_in with ⟨φ_in, new_def⟩
-            cases new_def
-            have φ_def : φ = ⌈δ⌉⌈⌈αs⌉⌉ ψ := by sorry
-            -- leaving Prop
-            constructor
-            -- apply Tableau.pdl nrep Xbas (.loadL (φ_def ▸ φ_in) _)  -- see ERROR above!
-            sorry
-        ·
+      rcases X with ⟨L,R,_|(⟨⟨χ⟩⟩|⟨⟨χ⟩⟩)⟩ <;> simp at *
+      · -- no loaded formula yet, the only PDL rule we can apply is (L+)
+        rcases nextPosIn with ⟨χ, χ_in⟩|⟨χ, χ_in⟩
+        · cases χ
+          case neg φ =>
+            rcases boxesOf_def : boxesOf φ with ⟨_|⟨δ,αs⟩, ψ⟩
+            · exfalso; simp [boxesOf_def] at χ_in
+            · simp_all only [tableauGame_turn_Prover, List.mem_cons, List.not_mem_nil, or_false]
+              rcases χ_in with ⟨ψ_in, ⟨_⟩⟩
+              have : φ = ⌈⌈δ :: αs⌉⌉ψ := def_of_boxesOf_def boxesOf_def
+              subst this
+              constructor -- leaving Prop
+              apply Tableau.pdl nrep Xbas
+                (@PdlRule.loadL _ ((δ :: αs).dropLast) ((δ :: αs).getLast (by simp)) ψ _ _ ?_ ?_)
+                new_tab_from_IH
+              · rw [← boxes_last]
+                rw [@List.dropLast_append_getLast]
+                simp_all only [Formula.boxes_cons]
+              · rw [← boxes_last]
+                rw [@List.dropLast_append_getLast]
+          all_goals -- other formulas, cannot have empty boxesOf
+            exfalso
+            simp at χ_in
+        -- COPY-PASTA only change loadL to loadR
+        · cases χ
+          case neg φ =>
+            rcases boxesOf_def : boxesOf φ with ⟨_|⟨δ,αs⟩, ψ⟩
+            · exfalso; simp [boxesOf_def] at χ_in
+            · simp_all only [tableauGame_turn_Prover, List.mem_cons, List.not_mem_nil, or_false]
+              rcases χ_in with ⟨ψ_in, ⟨_⟩⟩
+              have : φ = ⌈⌈δ :: αs⌉⌉ψ := def_of_boxesOf_def boxesOf_def
+              subst this
+              constructor -- leaving Prop
+              apply Tableau.pdl nrep Xbas
+                (@PdlRule.loadR _ ((δ :: αs).dropLast) ((δ :: αs).getLast (by simp)) ψ _ _ _ _)
+                new_tab_from_IH
+              · rw [← boxes_last]
+                rw [@List.dropLast_append_getLast]
+                simp_all only [Formula.boxes_cons]
+              · rw [← boxes_last]
+                rw [@List.dropLast_append_getLast]
+          all_goals -- other formulas, cannot have empty boxesOf
+            exfalso
+            simp at χ_in
 
-          sorry
-      · sorry
-      · sorry
+      · -- already have loaded formula in left, PDL rule must be (M) or (L-)
+        -- need to distinguish χ to furhter simplify nextPosIn
+        rcases χ with ⟨α,ψ⟩  -- note: ψ is anyForm now
+        cases α <;> simp_all
+        case atom_prog a =>
+          -- rule here could be (M) or (L-)
+          rcases nextPosIn with nextPosIn|nextPosIn
+          · -- applying (M) on the left
+            cases ψ <;> simp at nextPosIn <;> cases nextPosIn
+            all_goals
+              constructor -- leaving Prop
+              apply Tableau.pdl nrep Xbas (by apply PdlRule.modL <;> rfl)
+              exact new_tab_from_IH
+
+          · cases nextPosIn
+            constructor -- leaving Prop -- FIXME maybe delay this more?
+            apply Tableau.pdl nrep Xbas ?_ new_tab_from_IH
+            cases ψ -- needed?
+            case normal φ0 =>
+              apply @PdlRule.freeL _ L R [] _ φ0
+              · rfl
+              · simp
+            case loaded =>
+              -- TRICKY here: `AnyFormula.loaded ...` makes it hard to access the last box.
+              apply @PdlRule.freeL _ L R sorry _
+              all_goals
+                sorry
+
+        all_goals
+          -- non-atomic program is impossible, X would not have been basic then
+          exfalso
+          grind
+
+
+      · -- already have loaded formula in right, analogous?
+        sorry
 
 
     case nbas nrep X_nbas =>
