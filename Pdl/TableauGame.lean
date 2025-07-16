@@ -290,12 +290,33 @@ instance LocalRuleApp.fintype {X} {C} : Fintype (LocalRuleApp X C) := by
   simp only [exists_const, exists_eq_right]
   apply LocalRuleApp.all_spec
 
-def comobo_helper {α : Type} {p : α → Prop} {q : α → Type} :
-       (f : (x : α) → p x → List (q x))
-    → List ((x : α) → p x → q x) :=
-  -- hmm, how to define this actually?
-  -- Maybe need more assumptions? Fintype { x : α // p x } or so?
-  sorry
+/-- Convert a function returning lists into a list of functions. Helper for `LocalTableau.all`. -/
+def combo {α : Type} [DecidableEq α] {q : α → Type} : {L : List α}
+    → (f : (x : α) → x ∈ L → List (q x))
+    → List ((x : α) → x ∈ L → q x)
+  | [], f => [ fun x x_in => by exfalso; cases x_in ]
+  | (x :: xs), f =>
+      let IH : (y : α) → y ∈ xs → List (q y) := fun y y_in => f y (by aesop)
+      let fx_choices := f x (by simp)
+      (combo IH).flatMap (fun g =>
+        fx_choices.map (fun fx =>
+          fun y y_in =>
+            if h : y = x then h ▸ fx else g y (by aesop)))
+
+/-- Characterization of members of `combo` result. Could be strengthened to ↔ later. -/
+lemma combo_mem_of_forall_in {α : Type} [DecidableEq α] {q : α → Type} {L : List α}
+    (f : (x : α) → x ∈ L → List (q x))
+    (g : (x : α) → x ∈ L → q x)
+    : (∀ x x_in, g x x_in ∈ f x x_in) → g ∈ combo f := by
+  intro hyp
+  induction L
+  · simp only [List.not_mem_nil, combo, List.mem_cons, or_false]
+    ext x x_in
+    cases x_in
+  case cons x xs IH =>
+    simp only [combo, List.mem_flatMap, List.mem_map]
+    specialize IH (fun y y_in => f y (by aesop))
+    exact ⟨fun y y_in => g _ (by simp_all), IH _ (by grind), (by grind)⟩
 
 def LocalTableau.all : (X : Sequent) → List (LocalTableau X) := fun X =>
   if bas : X.basic
@@ -305,7 +326,7 @@ def LocalTableau.all : (X : Sequent) → List (LocalTableau X) := fun X =>
     let tabsFor (Y : Sequent) (h : Y ∈ B) : List (LocalTableau Y) := by
       have _forTermination := localRuleApp.decreases_DM lra _ h
       apply LocalTableau.all
-    let nexts : List ((Y : Sequent) → Y ∈ B → LocalTableau Y) := comobo_helper tabsFor
+    let nexts : List ((Y : Sequent) → Y ∈ B → LocalTableau Y) := combo tabsFor
     let next <- nexts
     return @byLocalRule X B lra next
 termination_by
@@ -324,10 +345,12 @@ lemma LocalTableau.all_spec : ltX ∈ LocalTableau.all X := by
   · unfold LocalTableau.all
     simp_all
     cases ltX
-    case neg.byLocalRule lra =>
+    case neg.byLocalRule B next lra =>
       refine ⟨_, lra, LocalRuleApp.all_spec _ _ _, ?_⟩
-      -- need def and lemma about comobo_helper here
-      sorry
+      simp only [byLocalRule.injEq, heq_eq_eq, true_and, exists_eq_right']
+      apply combo_mem_of_forall_in
+      intro Y Y_in
+      apply LocalTableau.all_spec -- IH
     case neg.sim =>
       simp_all
 
@@ -451,25 +474,9 @@ lemma tableauGame_winner_lpr_eq_Prover :
   simp [winner, tableauGame]
 
 
--- TODO Definition 6.9 Strategy Tree for Prover (or adjust already in `Game.lean`?)
-
--- TODO Definition 6.13 initial, pre-state
-
--- TODO Lemma 6.14
-
--- TODO Lemma 6.15
-
--- TODO Lemma 6.16 pre-states are locally consistent and saturated, last node basic.
-
--- TODO Definition 6.18 to get model graph from strategy tree.
-
--- TODO Lemma 6.18
-
--- TODO Lemma 6.19
-
--- TODO Lemma 6.20
 
 /-- After history `Hist`, if Prover has a winning strategy then there is a closed tableau.
+Note: we skip Definition 6.9 (Strategy Tree for Prover) and just use the `Strategy` type.
 This is the induction loading for `gameP`. -/
 theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover)
   (h : winning sP ⟨Hist, X, posOf Hist X⟩) :
@@ -576,7 +583,25 @@ theorem gameP (X : Sequent) (s : Strategy tableauGame Prover) (h : winning s (st
 
 /-! ## From winning strategies to model graphs (Section 6.3) -/
 
-/-- If Builder has a winning strategy then there is a model graph. -/
+-- See also Bml/CompletenessViaPaths.lean for the things needed here.
+
+-- TODO Definition 6.13 initial, pre-state
+
+-- TODO Lemma 6.14: how to collect formulas in a pre-state
+
+-- TODO Lemma 6.15
+
+-- TODO Lemma 6.16 pre-states are locally consistent and saturated, last node basic.
+
+-- TODO Definition 6.18 to get model graph from strategy tree.
+
+-- TODO Lemma 6.18
+
+-- TODO Lemma 6.19: for any diamond we can go to a pre-state where that diamond is loaded
+
+-- TODO Lemma 6.20: diamond existence lemma for pre-states
+
+/-- Theorem 6.21: If Builder has a winning strategy then there is a model graph. -/
 theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (startPos X)) :
     ∃ (WS : Finset (Finset Formula)) (mg : ModelGraph WS), X.toFinset ∈ WS := by
   sorry
