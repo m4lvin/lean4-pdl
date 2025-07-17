@@ -121,6 +121,23 @@ decreasing_by
 def winning {g : Game} {i : Player} (sI : Strategy g i) (p : g.Pos) : Prop :=
   ∀ sJ : Strategy g (other i), winner sI sJ p = i
 
+lemma winning_has_moves {g : Game} {i : Player} {sI : Strategy g i} {p : g.Pos}
+    (h : g.turn p = i) (sI_wins_p : winning sI p) :
+    (g.moves p).Nonempty := by
+  specialize sI_wins_p (Classical.choice Strategy.instNonempty)
+  unfold winner at sI_wins_p
+  by_contra hyp
+  simp_all
+
+lemma winning_of_winning_move {g : Game} {i : Player} {sI : Strategy g i} {p : g.Pos}
+    (h : g.turn p = i) (sI_wins_p : winning sI p) :
+    winning sI (sI p h (winning_has_moves h sI_wins_p)).val := by
+  intro sJ
+  have := winning_has_moves h sI_wins_p
+  specialize sI_wins_p sJ
+  unfold winner at sI_wins_p
+  simp_all
+
 /-- The cone of all positions reachable from `p` assuming that `i` plays `sI`. -/
 inductive inMyCone {g : Game} (sI : Strategy g i) (p : g.Pos) : g.Pos → Prop
 | nil : inMyCone sI p p
