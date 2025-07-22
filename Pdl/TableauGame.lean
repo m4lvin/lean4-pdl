@@ -14,16 +14,14 @@ notation "Prover" => Player.A
 notation "Builder" => Player.B
 
 inductive ProverPos (H : History) (X : Sequent) : Type where
-  | nlpRep : ¬ Nonempty (LoadedPathRepeat H X) → rep H X → ProverPos H X -- Prover loses
+  | nlpRep : ¬ Nonempty (LoadedPathRepeat H X) → ProverPos H X -- Prover loses
   | bas : ¬ rep H X → X.basic → ProverPos H X -- Prover must apply a PDL rule
   | nbas : ¬ rep H X → ¬ X.basic → ProverPos H X -- Prover must make a local LocalTableau
   deriving DecidableEq
 
--- TODO add proofs here that we have no rep and we only do ltX for X being nbasic
-def BuilderPos (H : History) (X : Sequent) : Type :=
-  LoadedPathRepeat H X -- no moves, Prover wins.
-  ⊕
-  LocalTableau X -- Builder must pick from endNodesOf
+inductive BuilderPos (H : History) (X : Sequent) : Type where
+  | lpr : LoadedPathRepeat H X → BuilderPos H X -- no moves, Prover wins.
+  | ltab : ¬ rep H X → ¬ X.basic → LocalTableau X → BuilderPos H X -- Builder must pick endNodesOf
 
 instance {H X} : DecidableEq (BuilderPos H X) := by
   rintro (_|_) (_|_) <;> try (simp; exact instDecidableFalse)
@@ -35,7 +33,7 @@ instance {H X} : DecidableEq (BuilderPos H X) := by
       intro hyp
       cases hyp
       aesop
-  · rename_i lt1 lt2
+  · rename_i lt1 _ _ lt2
     by_cases lt1 = lt2
     · apply isTrue
       aesop
@@ -66,10 +64,10 @@ def LoadedPathRepeat.choice {H X} (ne : Nonempty (LoadedPathRepeat H X)) : Loade
 /-- If we reach this sequent, what is the next game position? Includes winning positions. -/
 def posOf (H : History) (X : Sequent) : ProverPos H X ⊕ BuilderPos H X :=
   if neNlp : Nonempty (LoadedPathRepeat H X)
-  then .inr (.inl (.choice neNlp)) -- BuilderPos with no moves to let Prover win at lpr
+  then .inr (.lpr (.choice neNlp)) -- BuilderPos with no moves to let Prover win at lpr
   else
     if rep : rep H X
-    then .inl (.nlpRep neNlp rep) -- ProverPos with no moves to let Builder win at (non-lp) repeat
+    then .inl (.nlpRep neNlp) -- ProverPos with no moves to let Builder win at (non-lp) repeat
     else
       if bas : X.basic
       then .inl (.bas rep bas) -- actual ProverPos to choose a PDL rule
@@ -360,11 +358,10 @@ instance LocalTableau.fintype {X} : Fintype (LocalTableau X) := by
   rw [List.mem_toFinset]
   exact LocalTableau.all_spec
 
-/-- WORK-IN-PROGRESS. This is the game defined in Section 6.2 in the paper.
-In particular `tableauGame.wf` and `tableauGame.move_rel` together are Lemma 6.10: because the
-wellfounded relation decreases with every move of the game, all matches must be finite.
-Note that the paper does not prove Lemma 6.10 but says it is similar to Lemma 4.10 which uses the
-Fischer-Ladner closure. -/
+/-- The game defined in Section 6.2.
+Still TODO: Lemma 6.10 should be built-in as `tableauGame.wf` and `tableauGame.move_rel`: because
+the wellfounded relation holds at every move, all matches must be finite. Note that the paper does
+not prove Lemma 6.10 but says it is similar to Lemma 4.10 which uses the Fischer-Ladner closure. -/
 def tableauGame : Game where
   Pos := GamePos
   turn
@@ -372,7 +369,7 @@ def tableauGame : Game where
   | ⟨_, _, .inr _⟩ => Builder
   moves
   -- ProverPos:
-  | ⟨H, X, .inl (.nlpRep _ _)⟩ => ∅ -- no moves ⇒ Builder wins
+  | ⟨H, X, .inl (.nlpRep _)⟩ => ∅ -- no moves ⇒ Builder wins
   | ⟨H, X, .inl (.bas _ Xbasic)⟩ =>
       -- need to choose PDL rule application:
       match X with
@@ -426,12 +423,12 @@ def tableauGame : Game where
       | ⟨L, R, some (.inr (~'⌊∗α⌋χ))⟩ => by
           exfalso; have := Xbasic.1 (~(⌊∗α⌋χ).unload)
           cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
-  | ⟨H, X, .inl (.nbas _ _)⟩ =>
+  | ⟨H, X, .inl (.nbas nrep nbas)⟩ =>
       -- If not basic, let prover pick any `ltab : LocalTableau X` as new position.
-      LocalTableau.fintype.1.image (fun ltab => ⟨H, X, .inr (.inr ltab)⟩)
+      LocalTableau.fintype.1.image (fun ltab => ⟨H, X, .inr (.ltab nrep nbas ltab)⟩)
   -- BuilderPos:
-  | ⟨H, X, .inr (.inl lpr)⟩ => ∅ -- no moves ⇒ Prover wins
-  | ⟨H, X, .inr (.inr ltab)⟩ =>
+  | ⟨H, X, .inr (.lpr lpr)⟩ => ∅ -- no moves ⇒ Prover wins
+  | ⟨H, X, .inr (.ltab _ _ ltab)⟩ =>
       ((endNodesOf ltab).map (fun Y => ⟨(X :: H), Y, posOf (X :: H) Y⟩)).toFinset
 
   -- QUESTION: What is a wellfounded relation that holds for each game step?
@@ -465,12 +462,12 @@ lemma tableauGame_turn_Builder {Hist X lpr} :
 
 @[simp]
 lemma tableauGame_winner_nlpRep_eq_Builder :
-    @winner i tableauGame sI sJ ⟨Hist, X, .inl (.nlpRep h1 h2)⟩ = Builder := by
+    @winner i tableauGame sI sJ ⟨Hist, X, .inl (.nlpRep h1)⟩ = Builder := by
   simp [winner, tableauGame]
 
 @[simp]
 lemma tableauGame_winner_lpr_eq_Prover :
-    @winner i tableauGame sI sJ ⟨Hist, X, .inr (.inl lpr)⟩ = Prover := by
+    @winner i tableauGame sI sJ ⟨Hist, X, .inr (.lpr lpr)⟩ = Prover := by
   simp [winner, tableauGame]
 
 
@@ -489,9 +486,10 @@ lemma def_of_boxesOf_def (h : boxesOf φ = (αs, ψ)) : φ = ⌈⌈αs⌉⌉ψ :
 Note: we skip Definition 6.9 (Strategy Tree for Prover) and just use the `Strategy` type.
 This is the induction loading for `gameP`. -/
 theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover)
-  (h : winning sP ⟨Hist, X, posOf Hist X⟩) :
+  (pos : _)
+  (h : winning sP ⟨Hist, X, pos⟩) :
     Nonempty (Tableau Hist X) := by
-  rcases pos_def : posOf Hist X with proPos|builPos
+  rcases pos_def : pos with proPos|builPos
   -- ProverPos:
   · cases proPos
     · -- free repeat, but then Prover loses, which contradicts h.
@@ -500,21 +498,21 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover)
     case bas nrep Xbas =>
       -- basic, Prover should choose PDL rule
       rw [pos_def] at h
-      have P_turn : tableauGame.turn ⟨Hist, ⟨X, posOf Hist X⟩⟩ = Prover := by
+      have P_turn : tableauGame.turn ⟨Hist, ⟨X, pos⟩⟩ = Prover := by
         rw [pos_def]
         simp
       -- Ask `sP` say which move to make / what rule to apply.
-      let the_move := sP ⟨_ ,_, posOf Hist X⟩ ?_ ?_
+      let the_move := sP ⟨_ ,_, pos⟩ ?_ ?_
       case refine_1 => rw [pos_def]; unfold Game.turn tableauGame; simp
       case refine_2 => by_contra hyp; exfalso; unfold winning winner at h; simp_all
-      rcases the_move with ⟨nextPos, nextPosIn⟩
-      rcases nextPos with ⟨newHist, newX, newPos⟩
+      -- Using lemma that if sP is winning here then sP is still winning after sP moves.
+      have still_winning : winning sP the_move := winning_of_winning_move P_turn (pos_def ▸ h)
       -- Now use IH to get the remaining tableau.
-      -- FIXME need lemma here about "if sP is winning here then sP is still winning after sP moves"
-      have IH := gameP_general newHist newX sP (by sorry) -- okay ??
+      have IH := gameP_general _ _ sP _ still_winning -- okay ??
       rcases IH with ⟨new_tab_from_IH⟩
-      unfold Game.Pos.moves Game.moves tableauGame at nextPosIn
-      simp [pos_def] at nextPosIn
+      rcases the_move with ⟨⟨newHist, newX, newPos⟩, nextPosIn⟩
+      simp at new_tab_from_IH
+      simp only [tableauGame, Game.Pos.moves, pos_def, Game.moves] at nextPosIn
       rcases X with ⟨L,R,_|(⟨⟨χ⟩⟩|⟨⟨χ⟩⟩)⟩ <;> simp at *
       · -- no loaded formula yet, the only PDL rule we can apply is (L+)
         rcases nextPosIn with ⟨χ, χ_in⟩|⟨χ, χ_in⟩
@@ -538,7 +536,7 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover)
           all_goals -- other formulas, cannot have empty boxesOf
             exfalso
             simp at χ_in
-        -- COPY-PASTA only change loadL to loadR
+        -- COPY-PASTA only changed loadL to loadR
         · cases χ
           case neg φ =>
             rcases boxesOf_def : boxesOf φ with ⟨_|⟨δ,αs⟩, ψ⟩
@@ -559,44 +557,64 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover)
           all_goals -- other formulas, cannot have empty boxesOf
             exfalso
             simp at χ_in
-
       · -- already have loaded formula in left, PDL rule must be (M) or (L-)
-        -- need to distinguish χ to furhter simplify nextPosIn
-        rcases χ with ⟨α,ψ⟩  -- note: ψ is anyForm now
+        rcases χ with ⟨α, (ψ : AnyFormula)⟩
         cases α <;> simp_all
-        case atom_prog a =>
+        case atom_prog a in_moves =>
           -- rule here could be (M) or (L-)
           rcases nextPosIn with nextPosIn|nextPosIn
-          · -- applying (M) on the left
+          · -- applying (M)
             cases ψ <;> simp at nextPosIn <;> cases nextPosIn
             all_goals
-              constructor -- leaving Prop
-              apply Tableau.pdl nrep Xbas (by apply PdlRule.modL <;> rfl)
-              exact new_tab_from_IH
-
-          · cases nextPosIn
-            constructor -- leaving Prop -- FIXME maybe delay this more?
-            apply Tableau.pdl nrep Xbas ?_ new_tab_from_IH
-            cases ψ -- needed?
+              exact ⟨Tableau.pdl nrep Xbas (by apply PdlRule.modL <;> rfl) new_tab_from_IH⟩
+          · -- applying (L-)
+            cases nextPosIn
+            cases ψ
             case normal φ0 =>
-              apply @PdlRule.freeL _ L R [] _ φ0
-              · rfl
-              · simp
-            case loaded =>
-              -- TRICKY here: `AnyFormula.loaded ...` makes it hard to access the last box.
-              apply @PdlRule.freeL _ L R sorry _
-              all_goals
-                sorry
-
+              constructor
+              apply Tableau.pdl nrep Xbas ?_ new_tab_from_IH
+              apply @PdlRule.freeL _ L R [] _ φ0 _ _ rfl
+              simp
+            case loaded χ =>
+              rcases LoadFormula.exists_loadMulti χ with ⟨δ,α,φ,χ_def⟩
+              subst χ_def
+              constructor
+              apply Tableau.pdl nrep Xbas ?_ new_tab_from_IH
+              apply @PdlRule.freeL _ L R (·a :: δ) _ _ _ rfl
+              simp
         all_goals
           -- non-atomic program is impossible, X would not have been basic then
           exfalso
           grind
-
-
-      · -- already have loaded formula in right, analogous?
-        sorry
-
+      · -- COPY PASTA only changed L to R
+        rcases χ with ⟨α, (ψ : AnyFormula)⟩
+        cases α <;> simp_all
+        case atom_prog a in_moves =>
+          -- rule here could be (M) or (L-)
+          rcases nextPosIn with nextPosIn|nextPosIn
+          · -- applying (M)
+            cases ψ <;> simp at nextPosIn <;> cases nextPosIn
+            all_goals
+              exact ⟨Tableau.pdl nrep Xbas (by apply PdlRule.modR <;> rfl) new_tab_from_IH⟩
+          · -- applying (L-)
+            cases nextPosIn
+            cases ψ
+            case normal φ0 =>
+              constructor
+              apply Tableau.pdl nrep Xbas ?_ new_tab_from_IH
+              apply @PdlRule.freeR _ L R [] _ φ0 _ _ rfl
+              simp
+            case loaded χ =>
+              rcases LoadFormula.exists_loadMulti χ with ⟨δ,α,φ,χ_def⟩
+              subst χ_def
+              constructor
+              apply Tableau.pdl nrep Xbas ?_ new_tab_from_IH
+              apply @PdlRule.freeR _ L R (·a :: δ) _ _ _ rfl
+              simp
+        all_goals
+          -- non-atomic program is impossible, X would not have been basic then
+          exfalso
+          grind
 
     case nbas nrep X_nbas =>
       -- not basic, Prover should make a local tableau
@@ -606,8 +624,9 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover)
       -- and applying an IH should give us `next` ???
       all_goals
         sorry
+
   -- BuilderPos:
-  · rcases builPos with lpr|ltX
+  · rcases builPos with ⟨lpr⟩|⟨nrep, nbas, ltX⟩
     · use Tableau.lrep lpr
     · -- We have a local tableau and it is the turn of Builder.
       -- IDEA: for each `Y : endNodesOf lt` there is an `sB : Strategy _ Prover` that picks `Y`.
@@ -615,7 +634,8 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover)
       -- For now we do this non-constructively via Nonempty.
       have next' : ∀ (Y : Sequent) (Y_in : Y ∈ endNodesOf ltX), Nonempty (Tableau (X :: Hist) Y) := by
         intro Y Y_in
-        apply gameP_general (X :: Hist) Y sP -- Here we apply an IH.
+        -- Now we get an IH.
+        apply gameP_general (X :: Hist) Y sP (by apply posOf)
         -- use `h`
         unfold winning at h
         -- NOTE: maybe external lemma like "winning of winning at next step chosen by other" ..
@@ -629,10 +649,7 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover)
         unfold winning
         sorry
       have next := fun Y Y_in => Classical.choice (next' Y Y_in)
-      use Tableau.loc ?_ ?_ ltX next
-      -- Do the remaing two things follow from Prover winning? Or add proof fields to buildPos???
-      · sorry -- need nrep
-      · sorry -- need nbas
+      use Tableau.loc nrep nbas ltX next
 termination_by
   tableauGame.wf.2.wrap ⟨Hist, X, posOf Hist X⟩
 decreasing_by
@@ -640,8 +657,7 @@ decreasing_by
     apply tableauGame.move_rel
     simp [WellFounded.wrap]
   -- Need to show that a valid move was made
-  · convert nextPosIn
-    -- hmm??
+  · -- hmm?
     sorry
   · -- hmm?
     sorry
@@ -650,7 +666,7 @@ def startPos (X : Sequent) : GamePos := ⟨[], X, posOf [] X⟩
 
 /-- If Prover has a winning strategy then there is a closed tableau. -/
 theorem gameP (X : Sequent) (s : Strategy tableauGame Prover) (h : winning s (startPos X)) :
-    Nonempty (Tableau [] X) := gameP_general [] X s h
+    Nonempty (Tableau [] X) := gameP_general [] X s _ h
 
 /-! ## From winning strategies to model graphs (Section 6.3) -/
 

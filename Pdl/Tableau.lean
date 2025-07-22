@@ -56,6 +56,11 @@ Note: `k=0` means the first element of `Hist` is the companion. -/
 def LoadedPathRepeat (Hist : History) (X : Sequent) : Type :=
   Subtype (fun k => (Hist.get k).multisetEqTo X ∧ ∀ m ≤ k, (Hist.get m).isLoaded)
 
+lemma LoadedPathRepeat.to_rep (lpr : LoadedPathRepeat Hist X) : rep Hist X := by
+  rcases lpr with ⟨k, same, all_loaded⟩
+  use List.get Hist k
+  simp_all
+
 instance : DecidableEq (LoadedPathRepeat Hist X) := Subtype.instDecidableEq
 
 theorem LoadedPathRepeat_comp_isLoaded (lpr : LoadedPathRepeat Hist X) : (Hist.get lpr.val).isLoaded := by
