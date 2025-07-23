@@ -48,14 +48,18 @@ abbrev List.pvoc (L : List Program) := Vocab.fromList (L.map Program.voc)
 theorem Vocab.fromList_append : Vocab.fromList (L ++ R) = Vocab.fromList L ∪ Vocab.fromList R := by
   induction L <;> induction R <;> simp_all
 
-theorem Vocab.fromListFormula_map_iff n (L : List Formula) :
-    n ∈ Vocab.fromList (L.map Formula.voc)
-    ↔ ∃ φ ∈ L, n ∈ Formula.voc φ := by
+theorem Vocab.fromList_map_iff n (L : List α) f :
+    n ∈ Vocab.fromList (L.map f)
+    ↔ ∃ x ∈ L, n ∈ f x := by
   induction L
   · simp [fromList]
   case cons h t IH =>
     simp only [List.map_cons, fromList, Finset.mem_union, List.mem_cons, exists_eq_or_imp]
     rw [← IH]
+
+theorem Vocab.fromListFormula_map_iff n (L : List Formula) :
+    n ∈ Vocab.fromList (L.map Formula.voc)
+    ↔ ∃ φ ∈ L, n ∈ Formula.voc φ := by apply fromList_map_iff
 
 theorem Vocab.fromListProgram_map_iff n (L : List Program) :
     n ∈ Vocab.fromList (L.map vocabOfProgram)
@@ -99,6 +103,25 @@ def subprograms : Program → List Program
 @[simp]
 theorem subprograms.refl : α ∈ subprograms α := by
   cases α <;> simp [subprograms]
+
+lemma subprograms_voc {α β} : β ∈ subprograms α → β.voc ⊆ α.voc := by
+  cases α <;> simp [subprograms, Program.voc]
+  · simp_all
+  case sequence α1 α2  =>
+    rintro (β_def|β_in|β_in)
+    · simp_all
+    · have := @subprograms_voc α1 β; intro x x_in; aesop
+    · have := @subprograms_voc α2 β; intro x x_in; aesop
+  case union α1 α2  =>
+    rintro (β_def|β_in|β_in)
+    · simp_all
+    · have := @subprograms_voc α1 β; intro x x_in; aesop
+    · have := @subprograms_voc α2 β; intro x x_in; aesop
+  case star α1  =>
+    rintro (β_def|β_in)
+    · simp_all
+    · have := @subprograms_voc α1 β; intro x x_in; aesop
+  · simp_all
 
 theorem testsOfProgram.voc α {τ} (τ_in : τ ∈ testsOfProgram α) : τ.voc ⊆ α.voc := by
   cases α <;> simp_all [testsOfProgram]

@@ -12,10 +12,8 @@ def Interpolant (φ : Formula) (ψ : Formula) (θ : Formula) :=
   θ.voc ⊆ φ.voc ∩ ψ.voc  ∧  tautology (φ ↣ θ)  ∧  tautology (θ ↣ ψ)
 
 theorem interpolation {φ ψ : Formula} :
-    tautology (φ ↣ ψ) → ∃ θ : Formula, Interpolant φ ψ θ :=
-  by
+    tautology (φ ↣ ψ) → ∃ θ : Formula, Interpolant φ ψ θ := by
   intro hyp
-
   let X : Sequent := ([φ], [~(ψ)], none)
   have ctX : Tableau .nil ([φ], [~(ψ)], none) :=
     by
@@ -31,8 +29,7 @@ theorem interpolation {φ ψ : Formula} :
   · intro f f_in
     have := pI_prop.1 f_in
     clear pI_prop
-    simp only [Finset.mem_inter]
-    simpa [jvoc, Olf.toForms]
+    simpa
   constructor
   · have := pI_prop.2.1
     clear pI_prop

@@ -624,6 +624,28 @@ theorem unfoldBoxContent α ψ :
               aesop
             · aesop
 
+theorem unfoldBox_voc {x α φ} {L} (L_in : L ∈ unfoldBox α φ) {ψ} (ψ_in : ψ ∈ L)
+    (x_in_voc_ψ : x ∈ ψ.voc) : x ∈ α.voc ∨ x ∈ φ.voc := by
+  rcases unfoldBoxContent _ _ _ L_in _ ψ_in with ψ_def | ⟨τ, τ_in, ψ_def⟩ | ⟨a, δ, ψ_def, sub_α⟩
+  all_goals subst ψ_def
+  · right; exact x_in_voc_ψ
+  · simp only [Formula.voc] at x_in_voc_ψ
+    left
+    have := testsOfProgram.voc _ τ_in
+    tauto
+  · simp at *
+    simp only [Formula.voc_boxes, List.pvoc, Finset.mem_union] at x_in_voc_ψ
+    rcases x_in_voc_ψ with (x_def|x_in|x_in)
+    · subst x_def
+      left
+      apply subprograms_voc sub_α.1
+      simp
+    · left
+      rw [Vocab.fromListProgram_map_iff] at x_in
+      rcases x_in with ⟨β, β_in, x_in_βvoc⟩
+      exact subprograms_voc (sub_α.2 β β_in) x_in_βvoc
+    · exact Or.inr x_in
+
 theorem boxHelperTP α (ℓ : TP α) :
     (∀ τ, (~τ.val) ∈ F α ℓ → ℓ τ = false)
   ∧ (Con (F α ℓ) ⋀ signature α ℓ ≡ signature α ℓ)

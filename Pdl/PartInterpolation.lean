@@ -6,17 +6,30 @@ import Pdl.Completeness
 
 open HasSat
 
-def Olf.toForms : Olf → List Formula
+def Olf.L : Olf → List Formula
 | none => []
 | some (Sum.inl ⟨lf⟩) => [~ lf.unload]
+| some (Sum.inr _) => []
+
+@[simp]
+lemma Olf.L_none : Olf.L none = [] := by rfl
+@[simp]
+lemma Olf.L_inr : Olf.L (some (Sum.inr lf)) = [] := by rfl
+
+def Olf.R : Olf → List Formula
+| none => []
+| some (Sum.inl _) => []
 | some (Sum.inr ⟨lf⟩) => [~ lf.unload]
 
--- BUG: Using `.toForms` below is wrong, because it ignores which side the Olf is on!
+@[simp]
+lemma Olf.R_none : Olf.R none = [] := by rfl
+@[simp]
+lemma Olf.R_inl : Olf.R (some (Sum.inl lf)) = [] := by rfl
 
 @[simp]
-def Sequent.left (X : Sequent) : List Formula := X.L ++ X.O.toForms
+def Sequent.left (X : Sequent) : List Formula := X.L ++ X.O.L
 @[simp]
-def Sequent.right (X : Sequent) : List Formula := X.R ++ X.O.toForms
+def Sequent.right (X : Sequent) : List Formula := X.R ++ X.O.R
 
 /-- Joint vocabulary of all parts of a `Sequent`. -/
 @[simp]
@@ -27,96 +40,126 @@ def isPartInterpolant (X : Sequent) (θ : Formula) :=
 
 def PartInterpolant (N : Sequent) := Subtype <| isPartInterpolant N
 
--- move to UnfoldBox.lean ?
-theorem unfoldBox_voc {x α φ} {L} (L_in : L ∈ unfoldBox α φ) {ψ} (ψ_in : ψ ∈ L)
-    (x_in_voc_ψ : x ∈ ψ.voc) : x ∈ α.voc ∨ x ∈ φ.voc := by
-  rcases unfoldBoxContent _ _ _ L_in _ ψ_in with ψ_def | ⟨τ, τ_in, ψ_def⟩ | ⟨a, δ, ψ_def, _⟩
-  all_goals subst ψ_def
-  · right; exact x_in_voc_ψ
-  · simp only [Formula.voc] at x_in_voc_ψ
-    left
-    -- PROBLEM: here and in next case we need the stronger version of `unfoldBoxContent`.
-    sorry
-  · simp at *
-    rw [Formula.voc_boxes] at x_in_voc_ψ
-    sorry
+def lfovoc (L : List (List Formula × Option NegLoadFormula)) : Vocab :=
+  Vocab.fromList $ L.map (fun ⟨fs,o⟩ => fs.fvoc ∪ (o.map NegLoadFormula.voc).getD ∅)
 
--- move to UnfoldDia.lean ?
-theorem unfoldDiamond_voc {x α φ} {L} (L_in : L ∈ unfoldDiamond α φ) {ψ} (ψ_in : ψ ∈ L)
-    (x_in_voc_ψ : x ∈ ψ.voc) : x ∈ α.voc ∨ x ∈ φ.voc := by
-  simp [unfoldDiamond, Yset] at L_in
-  -- TODO use unfoldDiamondContent here instead?
-  rcases L_in with ⟨Fs, δ, in_H, def_L⟩
-  subst def_L
-  simp at ψ_in
-  cases ψ_in
-  case inl hyp =>
-    left
-    have := H_mem_test α ψ in_H hyp
-    rcases this with ⟨τ, τ_in, ψ_def⟩
-    subst ψ_def
-    exact testsOfProgram.voc α τ_in x_in_voc_ψ
-  case inr ψ_def =>
-    have := H_mem_sequence
-    subst ψ_def
-    simp only [Formula.voc, Formula.voc_boxes, Finset.mem_union] at x_in_voc_ψ
-    cases x_in_voc_ψ
-    case inl hyp =>
-      left
-      rw [Vocab.fromListProgram_map_iff] at *
-      rcases hyp with ⟨α', α'_in, x_in⟩
-      -- need lemma that vocabOf in (H α) is subset of vocabOf α
-      sorry
-    · right
-      assumption
+lemma LoadRule_voc (lr : LoadRule (~'χ) ress) : lfovoc ress ⊆ χ.voc := by
+  intro x x_in
+  unfold lfovoc at *
+  cases lr <;> simp_all
+  -- TODO is there a more ergonomic way to define `lfovoc`?
+  · sorry
+  · sorry
 
-theorem localRule_does_not_increase_vocab_L (rule : LocalRule (Lcond, Rcond, Ocond) ress) :
-    ∀ res ∈ ress, res.1.fvoc ⊆ Lcond.fvoc := by
-  intro res ress_in_ress x x_in_res
+theorem localRule_does_not_increase_vocab_L {Lcond Rcond Ocond B}
+    (rule : LocalRule (Lcond, Rcond, Ocond) B) :
+    ∀ res ∈ B, res.L.fvoc ∪ res.O.L.fvoc ⊆ Lcond.fvoc ∪ Ocond.L.fvoc := by
+  intro res res_in_B x x_in_res
   cases rule
-  case oneSidedL ress orule ress_def =>
-    cases orule <;> simp_all
-    case nCo =>
-      aesop
-    case box α φ =>
-      rw [Vocab.fromListFormula_map_iff] at x_in_res
-      rcases x_in_res with ⟨ψ, ψ_in, x_in_voc_ψ⟩
-      rcases ress_in_ress with ⟨L, L_in, def_res⟩
-      subst def_res
-      simp at *
-      exact unfoldBox_voc L_in ψ_in x_in_voc_ψ
-    case dia =>
-      rw [Vocab.fromListFormula_map_iff] at x_in_res
-      rcases x_in_res with ⟨ψ, ψ_in, x_in_voc_ψ⟩
-      rcases ress_in_ress with ⟨L, L_in, def_res⟩
-      subst def_res
-      simp at *
-      exact unfoldDiamond_voc L_in ψ_in x_in_voc_ψ
-  -- other cases *should be* trivial (as in Bml)
+  case oneSidedL ress orule B_def =>
+    subst B_def
+    simp at res_in_B
+    rcases res_in_B with ⟨L, L_in, def_res⟩
+    subst def_res
+    simp at *
+    rw [Vocab.fromListFormula_map_iff] at x_in_res
+    rcases x_in_res with ⟨ψ, ψ_in, x_in_voc_ψ⟩
+    cases orule
+    case nCo => aesop
+    case box α φ α_notAt => have := unfoldBox_voc L_in ψ_in x_in_voc_ψ; simp_all
+    case dia => have := unfoldDiamond_voc L_in ψ_in x_in_voc_ψ; simp_all
+    all_goals aesop
+  case loadedL ress χ lrule B_def =>
+    subst B_def
+    simp at res_in_B
+    rcases res_in_B with ⟨L, lnf, in_ress, def_res⟩
+    subst def_res
+    simp at *
+    simp only [Vocab.fromListFormula_map_iff] at x_in_res
+    rcases x_in_res with ⟨φ, φ_in_L, x_in_φvoc⟩|⟨φ, φ_in_OlfL, x_in_φvoc⟩
+    all_goals
+      rw [Vocab.fromListFormula_map_iff]
+      simp only [Olf.L, List.mem_cons, List.not_mem_nil, or_false, exists_eq_left, Formula.voc]
+      have := LoadRule_voc lrule
+      unfold lfovoc at *
+      simp only [List.fvoc, LoadFormula.voc] at *
+      apply this; clear this
+      rw [Vocab.fromList_map_iff]
+      refine ⟨(L, lnf), in_ress, ?_⟩
+      simp
+    · left; rw [Vocab.fromListFormula_map_iff]; use φ
+    · right
+      cases lnf <;> simp [Olf.L] at *
+      subst φ_in_OlfL
+      exact x_in_φvoc
+  case loadedR B_def =>
+    simp only [List.fvoc, Finset.mem_union] at x_in_res
+    subst B_def
+    simp at res_in_B
+    rcases res_in_B with ⟨L, lnf, in_ress, def_res⟩
+    subst def_res
+    rcases x_in_res with _|x_in
+    · aesop
+    · simp [Olf.L] at *; absurd x_in; aesop
+  -- other cases are all trivial (as in Bml)
   all_goals
     simp at *
   · aesop
-  case loadedL ress χ lrule ress_def =>
-    subst ress_def
-    simp only [List.mem_map, Prod.exists] at *
-    rcases ress_in_ress with ⟨L, lnf, in_ress, def_res⟩
-    subst def_res
-    simp [Vocab.fromListFormula_map_iff] at *
-    rcases x_in_res with ⟨φ, φ_in_L, bla⟩
-    -- wait, where should a contradiction come from now?
-    -- PROBLEM: theorem is not true. The loadedL case here *does* add voc in "L" part, coming "O".
-    -- SOLUTION: Do not have separate theorems for vocab_L, vocab_R and vocab_O.
-    sorry
-  · aesop
 
 theorem localRule_does_not_increase_vocab_R (rule : LocalRule (Lcond, Rcond, Ocond) ress) :
-    ∀ res ∈ ress, res.2.1.fvoc ⊆ Rcond.fvoc := by
-  -- should be dual to _L version
-  sorry
-
-theorem localRule_does_not_increase_vocab_O (rule : LocalRule (Lcond, Rcond, Ocond) ress) :
-    ∀ res ∈ ress, res.2.2.voc ⊆ Ocond.voc := by
-  sorry
+    ∀ res ∈ ress, res.R.fvoc ∪ res.O.R.fvoc ⊆ Rcond.fvoc ∪ Ocond.R.fvoc := by
+  -- should be analogous to _L version
+  intro res res_in_B x x_in_res
+  cases rule
+  case oneSidedR ress orule B_def =>
+    subst B_def
+    simp at res_in_B
+    rcases res_in_B with ⟨L, L_in, def_res⟩
+    subst def_res
+    simp at *
+    rw [Vocab.fromListFormula_map_iff] at x_in_res
+    rcases x_in_res with ⟨ψ, ψ_in, x_in_voc_ψ⟩
+    cases orule
+    case nCo => aesop
+    case box α φ α_notAt => have := unfoldBox_voc L_in ψ_in x_in_voc_ψ; simp_all
+    case dia => have := unfoldDiamond_voc L_in ψ_in x_in_voc_ψ; simp_all
+    all_goals aesop
+  case loadedR ress χ lrule B_def =>
+    subst B_def
+    simp at res_in_B
+    rcases res_in_B with ⟨L, lnf, in_ress, def_res⟩
+    subst def_res
+    simp at *
+    simp only [Vocab.fromListFormula_map_iff] at x_in_res
+    rcases x_in_res with ⟨φ, φ_in_L, x_in_φvoc⟩|⟨φ, φ_in_OlfR, x_in_φvoc⟩
+    all_goals
+      rw [Vocab.fromListFormula_map_iff]
+      simp only [Olf.R, List.mem_cons, List.not_mem_nil, or_false, exists_eq_left, Formula.voc]
+      have := LoadRule_voc lrule
+      unfold lfovoc at *
+      simp only [List.fvoc, LoadFormula.voc] at *
+      apply this; clear this
+      rw [Vocab.fromList_map_iff]
+      refine ⟨(L, lnf), in_ress, ?_⟩
+      simp
+    · left; rw [Vocab.fromListFormula_map_iff]; use φ
+    · right
+      cases lnf <;> simp [Olf.R] at *
+      subst φ_in_OlfR
+      exact x_in_φvoc
+  case loadedL B_def =>
+    simp only [List.fvoc, Finset.mem_union] at x_in_res
+    subst B_def
+    simp at res_in_B
+    rcases res_in_B with ⟨L, lnf, in_ress, def_res⟩
+    subst def_res
+    rcases x_in_res with _|x_in
+    · aesop
+    · simp [Olf.R] at *; absurd x_in; aesop
+  -- other cases are all trivial (as in Bml)
+  all_goals
+    simp at *
+  · aesop
 
 theorem localRuleApp_does_not_increase_jvoc (ruleA : LocalRuleApp X C) :
     ∀ Y ∈ C, jvoc Y ⊆ jvoc X := by
@@ -125,6 +168,7 @@ theorem localRuleApp_does_not_increase_jvoc (ruleA : LocalRuleApp X C) :
     rintro ⟨cL, cR, cO⟩ C_in x x_in_voc_C
     simp [jvoc] at x_in_voc_C
     have := localRule_does_not_increase_vocab_L lrule
+    have := localRule_does_not_increase_vocab_R lrule
     subst hC
     -- See Bml?
     sorry
@@ -150,10 +194,14 @@ def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) 
       apply localRuleApp_does_not_increase_jvoc ruleA Y Y_in
       subst def_φ
       exact (subθs Y Y_in).prop.1 n_in_voc_φ
-    · constructor
-      · intro L_and_nθ_sat
+    · have locSound := @localRuleTruth _ _ ruleA
+      constructor
+      all_goals
+        rintro ⟨W,M,w,w_⟩
+        specialize locSound M w
+      ·
         sorry -- See Bml?
-      · intro R_and_θ_sat
+      ·
         sorry -- See Bml?
   case oneSidedR orule =>
     let interList :=  (C.attach).map $ λ⟨c, cinC⟩ => (subθs c cinC).1

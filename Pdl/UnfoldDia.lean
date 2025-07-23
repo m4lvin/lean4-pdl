@@ -363,6 +363,38 @@ theorem unfoldDiamondContent α ψ :
     have := H_mem_sequence α in_H
     aesop
 
+theorem unfoldDiamond_voc {x α φ} {L} (L_in : L ∈ unfoldDiamond α φ) {ψ} (ψ_in : ψ ∈ L)
+    (x_in_voc_ψ : x ∈ ψ.voc) : x ∈ α.voc ∨ x ∈ φ.voc := by
+  simp [unfoldDiamond, Yset] at L_in
+  rcases L_in with ⟨Fs, δ, in_H, def_L⟩
+  subst def_L
+  simp at ψ_in
+  cases ψ_in
+  case inl hyp =>
+    left
+    have := H_mem_test α ψ in_H hyp
+    rcases this with ⟨τ, τ_in, ψ_def⟩
+    subst ψ_def
+    exact testsOfProgram.voc α τ_in x_in_voc_ψ
+  case inr ψ_def =>
+    have := H_mem_sequence
+    subst ψ_def
+    simp only [Formula.voc, Formula.voc_boxes, Finset.mem_union] at x_in_voc_ψ
+    cases x_in_voc_ψ
+    case inl hyp =>
+      left
+      rw [Vocab.fromListProgram_map_iff] at *
+      rcases hyp with ⟨α', α'_in, x_in⟩
+      by_contra hyp
+      have := (keepFreshH α hyp Fs δ in_H).2
+      unfold List.pvoc at this
+      rw [Vocab.fromListProgram_map_iff] at this
+      push_neg at this
+      specialize this _ α'_in
+      tauto
+    · right
+      assumption
+
 theorem guardToStarDiamond (x : Nat)
     (x_notin_beta : Sum.inl x ∉ β.voc)
     (beta_equiv : (~⌈β⌉~·x) ≡ (((·x) ⋀ σ0) ⋁ σ1))
