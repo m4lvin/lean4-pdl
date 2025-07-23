@@ -63,6 +63,23 @@ lemma LoadedPathRepeat.to_rep (lpr : LoadedPathRepeat Hist X) : rep Hist X := by
 
 instance : DecidableEq (LoadedPathRepeat Hist X) := Subtype.instDecidableEq
 
+/-- If there is any loaded path repeat, then we can compute one.
+FIXME There is probably a more elegant way, avoiding `Nonempty` and `Fin.find`.
+Something like: def getLPR (H : History) (X : Sequent) : Option ... := ...
+that might also give us uniqueness of LPRs? -/
+def LoadedPathRepeat.choice {H X} (ne : Nonempty (LoadedPathRepeat H X)) : LoadedPathRepeat H X := by
+  let somek := @Fin.find (H.length)
+    (fun k => (H.get k).multisetEqTo X ∧ ∀ m ≤ k, (H.get m).isLoaded = true) _
+  rcases find_def : somek with _|⟨k⟩
+  · exfalso
+    rw [Fin.find_eq_none_iff] at find_def
+    rcases ne with ⟨⟨k,bla⟩⟩
+    specialize find_def k
+    aesop
+  · refine ⟨k, ?_⟩
+    rw [Fin.find_eq_some_iff] at find_def
+    aesop
+
 theorem LoadedPathRepeat_comp_isLoaded (lpr : LoadedPathRepeat Hist X) : (Hist.get lpr.val).isLoaded := by
   rcases lpr with ⟨j, claim⟩
   apply claim.2 j (le_refl j)
