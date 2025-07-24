@@ -335,7 +335,7 @@ theorem keepFreshP α ℓ (x_notin : x ∉ α.voc) : ∀ δ ∈ P α ℓ, x ∉ 
   case sequence α β =>
     have IHα := keepFreshP α ℓ x_notin.1
     have IHβ := keepFreshP β ℓ x_notin.2
-    simp_all [Vocab.fromListProgram_map_iff]
+    simp_all
     rcases δ_in with (⟨δ', δ'_in, def_δ⟩ | δ_in)
     · subst def_δ
       have := IHα _ δ'_in.1
@@ -345,25 +345,24 @@ theorem keepFreshP α ℓ (x_notin : x ∉ α.voc) : ∀ δ ∈ P α ℓ, x ∉ 
       have := IHβ _ δ_in
       simp_all
   case union α β =>
-    have IHα := keepFreshP α ℓ x_notin.1
-    have IHβ := keepFreshP β ℓ x_notin.2
-    simp_all
-    aesop
+    intro y y_in
+    rcases δ_in with δ_in|δ_in
+    · have IHα := keepFreshP α ℓ x_notin.1 _ δ_in
+      simp_all
+    · have IHβ := keepFreshP β ℓ x_notin.2 _ δ_in
+      simp_all
   case star α =>
     have IHα := keepFreshP α ℓ x_notin
     rcases δ_in with (_ | ⟨δ', δ'_in, def_δ⟩)
     · subst_eqs
       simp_all
     · subst def_δ
-      rw [Vocab.fromListProgram_map_iff]
-      simp_all only [List.pvoc, List.mem_append, List.mem_cons, List.not_mem_nil, or_false,
-        not_exists, not_and]
+      simp_all only [List.pvoc, Vocab.fromList, Finset.mem_sup, List.mem_toFinset, List.mem_map,
+        id_eq, exists_exists_and_eq_and, not_exists, not_and, List.mem_append, List.mem_cons,
+        List.not_mem_nil, or_false]
       rintro γ (γ_in_δ' | γ_def)
-      · have := IHα _ δ'_in.1
-        simp_all [Vocab.fromListProgram_map_iff]
-      · subst γ_def
-        simp [Program.voc]
-        aesop
+      · exact IHα _ δ'_in.1 _ γ_in_δ'
+      · subst_eqs; assumption
 
 set_option maxHeartbeats 2000000 in
 /-- Depending on α we know what can occur inside `δ ∈ P α ℓ` for unfoldBox. -/

@@ -194,12 +194,11 @@ theorem keepFreshH α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ H α → x ∉ F.f
   case atom_prog a =>
     cases Fδ_in_H
     subst_eqs
-    simp [Program.voc, Vocab.fromList]
+    simp [Program.voc]
     assumption
   case test =>
     cases Fδ_in_H
     subst_eqs
-    simp [Vocab.fromList]
     aesop
   all_goals
     constructor -- FIXME: delay this to shorten the proof?
@@ -212,13 +211,13 @@ theorem keepFreshH α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ H α → x ∉ F.f
       simp_all [Vocab.fromList]
       rcases Fδ_in_l with ⟨l', ⟨⟨a', b', ⟨a'b'_in_Hβ, def_l'⟩⟩, Fδ_in_l'⟩⟩
       subst_eqs
-      simp_all [Vocab.fromListFormula_map_iff]
+      simp_all
       intro y y_in
       cases y_in
       · apply IHα
         assumption
       · have IHβ := keepFreshH β x_notin.2 a' b' a'b'_in_Hβ
-        simp_all [Vocab.fromListFormula_map_iff]
+        simp_all
     · have := keepFreshH α x_notin.1 F' δ' Fδ'_in
       simp_all
   case sequence.right α β =>
@@ -231,13 +230,11 @@ theorem keepFreshH α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ H α → x ∉ F.f
       simp_all
       have IHβ := keepFreshH β x_notin.2 a' b' a'b'_in_Hβ
       simp_all
-    · rw [Vocab.fromListProgram_map_iff]
-      simp only [not_exists, not_and]
-      intro y y_in
+    · intro y y_in
       cases Fδ_in_l
       subst_eqs
       have IHα := keepFreshH α x_notin.1 F δ' Fδ'_in
-      simp_all [Vocab.fromListFormula_map_iff, Vocab.fromListProgram_map_iff]
+      aesop
   case union.left α β =>
     cases Fδ_in_H
     · have IHα := keepFreshH α x_notin.1 F δ
@@ -252,7 +249,7 @@ theorem keepFreshH α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ H α → x ∉ F.f
       simp_all
   case star.left α =>
     cases Fδ_in_H
-    · simp_all [Vocab.fromList]
+    · simp_all
     case inr hyp =>
       rcases hyp with ⟨l, ⟨⟨F', δ', ⟨Fδ'_in_Hα, def_l⟩⟩, Fδ_in_l⟩⟩
       subst def_l
@@ -260,12 +257,12 @@ theorem keepFreshH α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ H α → x ∉ F.f
       cases em (δ' = []) <;> simp_all
   case star.right α =>
     cases Fδ_in_H
-    · simp_all [Vocab.fromList]
+    · simp_all
     case inr hyp =>
       rcases hyp with ⟨l, ⟨⟨F', δ', ⟨Fδ'_in_Hα, def_l⟩⟩, Fδ_in_l⟩⟩
       subst def_l
       have IHα := keepFreshH α x_notin F' δ' Fδ'_in_Hα
-      cases em (δ' = []) <;> simp_all
+      cases em (δ' = []) <;> aesop
 
 -- FIXME is this in the notes? implicit somewhere?
 theorem H_goes_down_prog (α : Program) {Fs δ} (in_H : (Fs, δ) ∈ H α) {γ} (in_δ: γ ∈ δ) :

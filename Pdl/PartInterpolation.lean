@@ -40,16 +40,40 @@ def isPartInterpolant (X : Sequent) (θ : Formula) :=
 
 def PartInterpolant (N : Sequent) := Subtype <| isPartInterpolant N
 
+/-- This is like `Olf.voc` but without the ⊕ inside. -/
+def onlfvoc : Option NegLoadFormula → Vocab
+| none => ∅
+| some nlf => NegLoadFormula.voc nlf
+
 def lfovoc (L : List (List Formula × Option NegLoadFormula)) : Vocab :=
-  Vocab.fromList $ L.map (fun ⟨fs,o⟩ => fs.fvoc ∪ (o.map NegLoadFormula.voc).getD ∅)
+  L.toFinset.sup (fun ⟨fs,o⟩ => fs.fvoc ∪ (onlfvoc o))
 
 lemma LoadRule_voc (lr : LoadRule (~'χ) ress) : lfovoc ress ⊆ χ.voc := by
   intro x x_in
-  unfold lfovoc at *
-  cases lr <;> simp_all
-  -- TODO is there a more ergonomic way to define `lfovoc`?
-  · sorry
-  · sorry
+  unfold lfovoc at x_in
+  simp at x_in
+  rcases x_in with ⟨fs, onlf, in_ress, x_in_V⟩
+  cases lr
+  case dia α χ notAtom =>
+    have unfvoc := @unfoldDiamond_voc x α χ.unload
+    rw [← unfoldDiamondLoaded_eq α χ] at unfvoc
+    specialize @unfvoc (pairUnload (fs, onlf)) (by simp only [List.mem_map]; use (fs,onlf))
+    rcases onlf with _ | ⟨⟨lf⟩⟩  <;> simp [onlfvoc] at *
+    · rcases x_in_V with ⟨f, f_in_fs, x_in⟩
+      specialize unfvoc f_in_fs
+      aesop
+    · simp [pairUnload] at unfvoc
+      rcases x_in_V with ⟨f, f_in_fs, x_in⟩|_ <;> aesop
+  case dia' α φ notAtom =>
+    have unfvoc := @unfoldDiamond_voc x α φ
+    rw [← unfoldDiamondLoaded'_eq α φ] at unfvoc
+    specialize @unfvoc (pairUnload (fs, onlf)) (by simp only [List.mem_map]; use (fs,onlf))
+    rcases onlf with _ | ⟨⟨lf⟩⟩  <;> simp [onlfvoc] at *
+    · rcases x_in_V with ⟨f, f_in_fs, x_in⟩
+      specialize unfvoc f_in_fs
+      aesop
+    · simp [pairUnload] at unfvoc
+      rcases x_in_V with ⟨f, f_in_fs, x_in⟩|_ <;> aesop
 
 theorem localRule_does_not_increase_vocab_L {Lcond Rcond Ocond B}
     (rule : LocalRule (Lcond, Rcond, Ocond) B) :
@@ -62,7 +86,6 @@ theorem localRule_does_not_increase_vocab_L {Lcond Rcond Ocond B}
     rcases res_in_B with ⟨L, L_in, def_res⟩
     subst def_res
     simp at *
-    rw [Vocab.fromListFormula_map_iff] at x_in_res
     rcases x_in_res with ⟨ψ, ψ_in, x_in_voc_ψ⟩
     cases orule
     case nCo => aesop
@@ -75,19 +98,17 @@ theorem localRule_does_not_increase_vocab_L {Lcond Rcond Ocond B}
     rcases res_in_B with ⟨L, lnf, in_ress, def_res⟩
     subst def_res
     simp at *
-    simp only [Vocab.fromListFormula_map_iff] at x_in_res
     rcases x_in_res with ⟨φ, φ_in_L, x_in_φvoc⟩|⟨φ, φ_in_OlfL, x_in_φvoc⟩
     all_goals
-      rw [Vocab.fromListFormula_map_iff]
       simp only [Olf.L, List.mem_cons, List.not_mem_nil, or_false, exists_eq_left, Formula.voc]
       have := LoadRule_voc lrule
       unfold lfovoc at *
       simp only [List.fvoc, LoadFormula.voc] at *
       apply this; clear this
-      rw [Vocab.fromList_map_iff]
-      refine ⟨(L, lnf), in_ress, ?_⟩
-      simp
-    · left; rw [Vocab.fromListFormula_map_iff]; use φ
+      simp [onlfvoc]
+      refine ⟨L, lnf, in_ress, ?_⟩
+    · left
+      use φ
     · right
       cases lnf <;> simp [Olf.L] at *
       subst φ_in_OlfL
@@ -117,7 +138,6 @@ theorem localRule_does_not_increase_vocab_R (rule : LocalRule (Lcond, Rcond, Oco
     rcases res_in_B with ⟨L, L_in, def_res⟩
     subst def_res
     simp at *
-    rw [Vocab.fromListFormula_map_iff] at x_in_res
     rcases x_in_res with ⟨ψ, ψ_in, x_in_voc_ψ⟩
     cases orule
     case nCo => aesop
@@ -130,19 +150,17 @@ theorem localRule_does_not_increase_vocab_R (rule : LocalRule (Lcond, Rcond, Oco
     rcases res_in_B with ⟨L, lnf, in_ress, def_res⟩
     subst def_res
     simp at *
-    simp only [Vocab.fromListFormula_map_iff] at x_in_res
     rcases x_in_res with ⟨φ, φ_in_L, x_in_φvoc⟩|⟨φ, φ_in_OlfR, x_in_φvoc⟩
     all_goals
-      rw [Vocab.fromListFormula_map_iff]
       simp only [Olf.R, List.mem_cons, List.not_mem_nil, or_false, exists_eq_left, Formula.voc]
       have := LoadRule_voc lrule
       unfold lfovoc at *
       simp only [List.fvoc, LoadFormula.voc] at *
       apply this; clear this
-      rw [Vocab.fromList_map_iff]
-      refine ⟨(L, lnf), in_ress, ?_⟩
-      simp
-    · left; rw [Vocab.fromListFormula_map_iff]; use φ
+      simp [onlfvoc]
+      refine ⟨L, lnf, in_ress, ?_⟩
+    · left
+      use φ
     · right
       cases lnf <;> simp [Olf.R] at *
       subst φ_in_OlfR
@@ -224,7 +242,6 @@ def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) 
     use φ
     refine ⟨?_, ?_, ?_⟩
     · intro n n_in_φ
-      simp [Vocab.fromListFormula_map_iff] at *
       aesop
     · rintro ⟨W, M, w, w_⟩
       simp only [List.empty_eq, List.mem_cons, forall_eq_or_imp, evaluate] at *
@@ -243,7 +260,6 @@ def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) 
     use ~φ
     refine ⟨?_, ?_, ?_⟩
     · intro n n_in_φ
-      simp [Vocab.fromListFormula_map_iff] at *
       aesop
     · rintro ⟨W, M, w, w_⟩
       simp only [List.empty_eq, List.mem_cons, forall_eq_or_imp, evaluate] at *

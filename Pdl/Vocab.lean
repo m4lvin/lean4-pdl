@@ -1,6 +1,7 @@
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Finset.Union
 import Mathlib.Data.Finset.Fold
+import Mathlib.Data.Finset.Lattice.Fold
 
 import Pdl.Syntax
 
@@ -34,9 +35,7 @@ end
 -- rename to Vocab.join? or use `class Hadd`?
 -- QUESTION: Is there a List.flatten but for Finset?
 @[simp]
-def Vocab.fromList : (L : List Vocab) → Vocab
-| [] => {}
-| (v::vs) => v ∪ Vocab.fromList vs
+def Vocab.fromList (L : List Vocab) : Vocab := L.toFinset.sup id
 
 @[simp]
 abbrev List.fvoc (L : List Formula) := Vocab.fromList (L.map Formula.voc)
@@ -51,11 +50,7 @@ theorem Vocab.fromList_append : Vocab.fromList (L ++ R) = Vocab.fromList L ∪ V
 theorem Vocab.fromList_map_iff n (L : List α) f :
     n ∈ Vocab.fromList (L.map f)
     ↔ ∃ x ∈ L, n ∈ f x := by
-  induction L
-  · simp [fromList]
-  case cons h t IH =>
-    simp only [List.map_cons, fromList, Finset.mem_union, List.mem_cons, exists_eq_or_imp]
-    rw [← IH]
+  simp
 
 theorem Vocab.fromListFormula_map_iff n (L : List Formula) :
     n ∈ Vocab.fromList (L.map Formula.voc)
@@ -64,19 +59,10 @@ theorem Vocab.fromListFormula_map_iff n (L : List Formula) :
 theorem Vocab.fromListProgram_map_iff n (L : List Program) :
     n ∈ Vocab.fromList (L.map vocabOfProgram)
     ↔ ∃ α ∈ L, n ∈ vocabOfProgram α := by
-  induction L
-  · simp [fromList]
-  case cons h t IH =>
-    simp only [List.map_cons, fromList, Finset.mem_union, List.mem_cons, exists_eq_or_imp]
-    rw [← IH]
+  simp
 
 theorem Formula.voc_boxes : (⌈⌈δ⌉⌉φ).voc = δ.pvoc ∪ φ.voc := by
-  induction δ
-  · simp
-  case cons α δ IH =>
-    simp only [List.map_cons, List.pvoc, Vocab.fromList, Finset.union_assoc] at *
-    rw [← IH]
-    rfl
+  induction δ <;> simp_all
 
 @[simp]
 def LoadFormula.voc (lf : LoadFormula) : Vocab := (unload lf).voc
