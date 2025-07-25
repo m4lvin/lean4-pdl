@@ -1,0 +1,13 @@
+name = "pdl"
+defaultTargets = ["Pdl"]
+
+[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4.git"
+rev = "v4.22.0-rc4"
+
+[[lean_lib]]
+name = "Pdl"
+
+[[lean_lib]]
+name = "Bml"

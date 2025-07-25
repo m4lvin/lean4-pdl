@@ -19,12 +19,9 @@ inductive PathIn : ∀ {Hist X}, Tableau Hist X → Type
     : PathIn (Tableau.loc nrep nbas lt next)
 | pdl {nrep bas} {r : PdlRule X Y} {next} (tail : PathIn next)
     : PathIn (Tableau.pdl nrep bas r next)
+-- deriving DecidableEq
 
-/-- Maybe useful? If so, move to Tableau.lean -/
-instance : DecidableEq ((Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X:: Hist) Y) := by
-  sorry
-
-/-- This was erroneously derivable in Lean 4.20 ;-) -/
+/-- FIXME This was derivable in Lean 4.20 and 4.21 but no longer in 4.22 ??? -/
 instance : DecidableEq (PathIn tab) := sorry
 
 def tabAt : PathIn tab → Σ H X, Tableau H X
