@@ -20,13 +20,6 @@ inductive PathIn : ∀ {Hist X}, Tableau Hist X → Type
 | pdl {nrep bas} {r : PdlRule X Y} {next} (tail : PathIn next)
     : PathIn (Tableau.pdl nrep bas r next)
 
-/-- Maybe useful? If so, move to Tableau.lean -/
-instance : DecidableEq ((Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X:: Hist) Y) := by
-  sorry
-
-/-- This was erroneously derivable in Lean 4.20 ;-) -/
-instance : DecidableEq (PathIn tab) := sorry
-
 def tabAt : PathIn tab → Σ H X, Tableau H X
 | .nil => ⟨_,_,tab⟩
 | .loc _ tail => tabAt tail
@@ -128,6 +121,41 @@ theorem append_length {p : PathIn tab} q : (p.append q).length = p.length + q.le
   induction p <;> simp [PathIn.append]
   case loc IH => rw [IH]; linarith
   case pdl IH => rw [IH]; linarith
+
+-- Maybe useful? If so, move to Tableau.lean
+-- instance : DecidableEq ((Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X:: Hist) Y) := by
+-- sorry
+
+set_option diagnostics true in
+set_option maxHeartbeats 1000000 in
+/-- This was erroneously derivable in Lean 4.20. -/
+instance instDecEqPathIn : DecidableEq (PathIn tab) := by
+  intro p q
+  cases tab
+  · cases p <;> cases q <;>
+    simp_all only [PathIn.loc.injEq, reduceCtorEq]
+    · exact instDecidableTrue
+    · exact instDecidableFalse
+    · exact instDecidableFalse
+    case loc.loc.loc Y1 _ _ _ tail1 Y2 _ _ _ tail2 =>
+      by_cases h : Y1 = Y2 <;> simp [h]
+      · have := instDecEqPathIn tail1 (h ▸ tail2)
+        aesop
+      · exact instDecidableFalse
+  · cases p <;> cases q <;>
+    simp_all only [PathIn.pdl.injEq, reduceCtorEq]
+    · exact instDecidableTrue
+    · exact instDecidableFalse
+    · exact instDecidableFalse
+    · apply instDecEqPathIn
+  · cases p ; cases q
+    simp_all
+    exact instDecidableTrue
+termination_by
+  p q => p.length
+decreasing_by
+  · sorry
+  · sorry
 
 /-! ## Edge Relation -/
 
