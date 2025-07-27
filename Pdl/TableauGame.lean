@@ -313,12 +313,30 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover)
 
     case nbas nrep X_nbas =>
       -- not basic, Prover should make a local tableau
+      -- COPY PASTA from bas case ...
+      rw [pos_def] at h
+      have P_turn : tableauGame.turn ⟨Hist, ⟨X, pos⟩⟩ = Prover := by
+        rw [pos_def]
+        simp
+      -- Ask `sP` say which move to make / what rule to apply.
+      let the_move := sP ⟨_ ,_, pos⟩ ?_ ?_
+      case refine_1 => rw [pos_def]; unfold Game.turn tableauGame; simp
+      case refine_2 => by_contra hyp; exfalso; unfold winning winner at h; simp_all
+      -- Using lemma that if sP is winning here then sP is still winning after sP moves.
+      have still_winning : winning sP the_move := winning_of_winning_move P_turn (pos_def ▸ h)
+      -- Now use IH to get the remaining tableau.
+      have IH := gameP_general _ _ sP _ still_winning -- okay ??
+      rcases IH with ⟨new_tab_from_IH⟩
+      rcases the_move with ⟨⟨newHist, newX, newPos⟩, nextPosIn⟩
+      simp at new_tab_from_IH
+      simp only [tableauGame, Game.Pos.moves, pos_def, Game.moves] at nextPosIn
+      --- ... until here
+      -- No need to look into `lt` here, we just use the IH for the `BuilderPos` case!
+      simp at nextPosIn
+      rcases nextPosIn with ⟨lt, lt_in, same⟩
+      cases same
       constructor
-      apply Tableau.loc nrep X_nbas
-      -- IDEA: now `sJ` should give us `lt`
-      -- and applying an IH should give us `next` ???
-      all_goals
-        sorry
+      exact new_tab_from_IH
 
   -- BuilderPos:
   · rcases builPos with ⟨lpr⟩|⟨nrep, nbas, ltX⟩
@@ -352,6 +370,8 @@ decreasing_by
     apply tableauGame.move_rel
     simp [WellFounded.wrap]
   -- Need to show that a valid move was made
+  · -- hmm?
+    sorry
   · -- hmm?
     sorry
   · -- hmm?
