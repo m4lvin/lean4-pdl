@@ -342,25 +342,18 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover)
   · rcases builPos with ⟨lpr⟩|⟨nrep, nbas, ltX⟩
     · use Tableau.lrep lpr
     · -- We have a local tableau and it is the turn of Builder.
-      -- IDEA: for each `Y : endNodesOf lt` there is an `sB : Strategy _ Prover` that picks `Y`.
-      -- Because `sP` wins against all those `sB`, we can use `sP` to define `next`.
-      -- For now we do this non-constructively via Nonempty.
+      -- Now each `Y : endNodesOf lt` is a possible move.
+      -- Because `sP` wins against all moves by Builder we can use `sP` to define `next`.
+      -- Note that all is non-constructive here via Nonempty.
       have next' : ∀ (Y : Sequent) (Y_in : Y ∈ endNodesOf ltX), Nonempty (Tableau (X :: Hist) Y) := by
         intro Y Y_in
-        -- Now we get an IH.
-        apply gameP_general (X :: Hist) Y sP (by apply posOf)
-        -- use `h`
-        unfold winning at h
-        -- NOTE: maybe external lemma like "winning of winning at next step chosen by other" ..
-        -- Is there something like this in `Game.lean` already?
-        let sJ : Strategy tableauGame Builder := sorry -- some strategy that chooses `Y` ???
-        specialize h sJ
-        unfold winner at h
-        rw [pos_def] at h
-        simp at h
-        -- Hmmmmm
-        unfold winning
-        sorry
+        -- Maybe here TODO have forTermination : ??? := sorry
+        apply gameP_general (X :: Hist) Y sP (by apply posOf) -- the IH
+        subst pos_def
+        -- The main work is done by the following lemma
+        have := winning_of_whatever_other_move (by simp) h
+        simp [tableauGame, Game.moves] at this
+        exact this _ Y_in
       have next := fun Y Y_in => Classical.choice (next' Y Y_in)
       use Tableau.loc nrep nbas ltX next
 termination_by

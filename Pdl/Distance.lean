@@ -400,7 +400,7 @@ theorem rel_existsH_dist (w_α_v : relate M α w v)
           (fun y => (distance_star_le y).trans <| add_le_add_right (distance_le_Hdistance in_Hα evα) _)
           fun _ => (⟨x, lt_of_eq_of_lt (calc
             _ = distance M α w x + fdist .. := congr_arg₂ (. + .) dlα distance_cast
-            _ = _ := eq_of_le_of_le (add_le_add_left (iInf_le _ _) _) <| calc
+            _ = _ := eq_of_le_of_ge (add_le_add_left (iInf_le _ _) _) <| calc
               _ = _ := min_p.symm
               _ ≤ _ := le_iInf (iInf_le _ <| .cons rwx . wx)
               _ = _ := add_iInf.symm
@@ -436,7 +436,7 @@ theorem relateSeq_existsH_dist (v_αγ_w : relateSeq M (α :: γ) v w)
     apply iInf_le
   have two : distance_list M v w (α :: γ) ≤ distance_list M v w (δ ++ γ) :=
     distList_le_of_Hsat M v _ α γ in_H v_X -- use (e)
-  exact ⟨in_H, v_X, eq_of_le_of_le one two⟩
+  exact ⟨in_H, v_X, eq_of_le_of_ge one two⟩
 
 /-- 7.47 (h)
 In the article this uses loaded formulas, we just use normal boxes. -/
@@ -466,7 +466,7 @@ theorem existsH_of_true_diamond α γ (ψ : Formula) (v_ : evaluate M v (~⌈⌈
     refine ⟨w0, ?_, by cases w0; assumption⟩
     rw [← distance_list_iff_relate_Seq, same_dist, distance_list_iff_relate_Seq]
     exact v_αγ_w0
-  · apply eq_of_le_of_le
+  · apply eq_of_le_of_ge
     · -- second ≤ and = in the article:
       calc ⨅ w : {w // evaluate M w (~ψ)}, distance_list M v w (Xδ.2 ++ γ)
            ≤ distance_list M v w0 (α :: γ) := by rw [← same_dist]; apply iInf_le -- It follows that ...

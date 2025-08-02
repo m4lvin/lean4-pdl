@@ -9,6 +9,8 @@ must have a winning strategy: `gamedet` at the end.
 
 -/
 
+/-! ## Games -/
+
 /-- Two players, `A` and `B`. -/
 inductive Player : Type
 | A : Player
@@ -93,6 +95,8 @@ lemma Game.no_moves_of_no_rel {g : Game} {p : g.Pos}
 
 instance {g : Game} : LT g.Pos := ⟨fun p q => g.wf.rel q p⟩
 
+/-! ## Strategies -/
+
 /-- A strategy in `g` for `i`, whenever it is `i`'s turn, chooses a move, if there are any. -/
 def Strategy (g : Game) (i : Player) : Type := ∀ p : g.Pos, g.turn p = i → p.moves.Nonempty → p.moves
 
@@ -121,34 +125,20 @@ decreasing_by
 def winning {g : Game} {i : Player} (sI : Strategy g i) (p : g.Pos) : Prop :=
   ∀ sJ : Strategy g (other i), winner sI sJ p = i
 
-lemma winning_has_moves {g : Game} {i : Player} {sI : Strategy g i} {p : g.Pos}
-    (h : g.turn p = i) (sI_wins_p : winning sI p) :
-    (g.moves p).Nonempty := by
-  specialize sI_wins_p (Classical.choice Strategy.instNonempty)
-  unfold winner at sI_wins_p
-  by_contra hyp
-  simp_all
-
-lemma winning_of_winning_move {g : Game} {i : Player} {sI : Strategy g i} {p : g.Pos}
-    (h : g.turn p = i) (sI_wins_p : winning sI p) :
-    winning sI (sI p h (winning_has_moves h sI_wins_p)).val := by
-  intro sJ
-  have := winning_has_moves h sI_wins_p
-  specialize sI_wins_p sJ
-  unfold winner at sI_wins_p
-  simp_all
-
-/-- The cone of all positions reachable from `p` assuming that `i` plays `sI`. -/
-inductive inMyCone {g : Game} (sI : Strategy g i) (p : g.Pos) : g.Pos → Prop
-| nil : inMyCone sI p p
-| myStep : inMyCone sI p q → (has_moves : q.moves.Nonempty) → (h : g.turn q = i) → inMyCone sI p (sI q h has_moves)
-| oStep : inMyCone sI p q → g.turn q = other i → r ∈ g.moves q → inMyCone sI p r
+/-! ## Good positions -/
 
 def good {g : Game} (i : Player) (p : g.Pos) : Prop :=
     (g.turn p = i       ∧ ∃ (q : g.Pos) (_ : q ∈ p.moves), good i q)
   ∨ (g.turn p = other i ∧ ∀ (q : g.Pos) (_ : q ∈ p.moves), good i q)
 termination_by p
 decreasing_by all_goals apply g.move_rel _ _; assumption
+
+theorem good_is_surviving {g : Game} {p : g.Pos} :
+    good i p → g.turn p = i → p.moves.Nonempty := by
+  intro W turn
+  unfold good at W
+  apply (Or.resolve_right . (not_and_of_not_left _ <| not_eq_other_eq_i.mpr turn)) at W
+  match W with | ⟨_, ⟨q, ⟨h, _⟩⟩⟩ => exact ⟨q,h⟩
 
 theorem good_or_other {g : Game} (p : g.Pos) : good (g.turn p) p ∨ good (other (g.turn p)) p := by
   apply WellFounded.induction g.wf.2 p
@@ -188,7 +178,24 @@ noncomputable def good_strat (i : Player): Strategy g i := fun p turn nempty =>
 -- With Lean 4.20.1 it became `_proof_21`.
 -- With Lean 4.22.0-rc2 it became `_proof_1`.
 
-theorem good_cone {g : Game} {p r : g.Pos} (W : good i p) (h : inMyCone (good_strat i) p r) : good i r := by
+/-! ## Cones -/
+
+/-- The cone of all positions reachable from `p` assuming that `i` plays `sI`. -/
+inductive inMyCone {g : Game} (sI : Strategy g i) (p : g.Pos) : g.Pos → Prop
+| nil : inMyCone sI p p
+| myStep : inMyCone sI p q → (has_moves : q.moves.Nonempty) → (h : g.turn q = i) → inMyCone sI p (sI q h has_moves)
+| oStep : inMyCone sI p q → g.turn q = other i → r ∈ g.moves q → inMyCone sI p r
+
+theorem inMyCone_trans {p q r : g.Pos} {s : Strategy g i} :
+    inMyCone s p q → inMyCone s q r → inMyCone s p r :=
+  fun a b => by induction b with
+  | nil => assumption
+  | myStep _ _ _ ih => exact .myStep ih ..
+  | oStep a turn h ih => exact .oStep ih turn h
+
+/-- The cone of the `good_strat` stays inside `good` positions. -/
+theorem good_cone {g : Game} {p r : g.Pos} (W : good i p) (h : inMyCone (good_strat i) p r) :
+    good i r := by
   induction h with
   | nil => exact W
   | oStep _ turn h ih =>
@@ -202,19 +209,10 @@ theorem good_cone {g : Game} {p r : g.Pos} (W : good i p) (h : inMyCone (good_st
         exact (good_strat._proof_1 i q turn (of_eq_true (eq_true ih))).choose_spec.choose_spec
       else contradiction
 
-theorem good_is_surviving {g : Game} {p : g.Pos} : good i p → g.turn p = i → p.moves.Nonempty := by
-  intro W turn
-  unfold good at W
-  apply (Or.resolve_right . (not_and_of_not_left _ <| not_eq_other_eq_i.mpr turn)) at W
-  match W with | ⟨_, ⟨q, ⟨h, _⟩⟩⟩ => exact ⟨q,h⟩
+/-! ## Zermelo's Theorem -/
 
-theorem cone_trans {p q r : g.Pos} {s : Strategy g i} : inMyCone s p q → inMyCone s q r → inMyCone s p r :=
-  fun a b => by induction b with
-  | nil => assumption
-  | myStep _ _ _ ih => exact .myStep ih ..
-  | oStep a turn h ih => exact .oStep ih turn h
-
-theorem surviving_is_winning {sI : Strategy g i} (surv : ∀ q, inMyCone sI p q → g.turn q = i → q.moves.Nonempty)
+theorem surviving_is_winning {sI : Strategy g i}
+    (surv : ∀ q, inMyCone sI p q → g.turn q = i → q.moves.Nonempty)
     : winning sI p :=
   fun sJ => by
     unfold winner
@@ -224,16 +222,17 @@ theorem surviving_is_winning {sI : Strategy g i} (surv : ∀ q, inMyCone sI p q 
       apply (not_eq_other_eq_i.mp ∘ Ne.symm) at turn
       exact empty (surv _ .nil turn.symm)
     split
-    . exact surviving_is_winning (surv . ∘ cone_trans (.myStep .nil _ _)) _
+    . exact surviving_is_winning (surv . ∘ inMyCone_trans (.myStep .nil _ _)) _
     next _ turn =>
-      exact surviving_is_winning (surv . ∘ cone_trans (.oStep .nil (not_eq_i_eq_other.mp turn) <| Subtype.mem _)) _
+      exact surviving_is_winning
+        (surv . ∘ inMyCone_trans (.oStep .nil (not_eq_i_eq_other.mp turn) <| Subtype.mem _)) _
 termination_by p
 decreasing_by all_goals apply g.move_rel; exact Subtype.mem _
 
 theorem good_strat_winning (W : good i p) : winning (good_strat i) p :=
   surviving_is_winning fun _ => good_is_surviving ∘ (good_cone W)
 
-/-- Zermelo's Theorem: In every `Game` posiiton one of the two players has a winning strategy.
+/-- Zermelo's Theorem: In every `Game` position one of the two players has a winning strategy.
 https://en.wikipedia.org/wiki/Zermelo%27s_theorem_(game_theory)
 -/
 theorem gamedet (g : Game) (p : g.Pos) :
@@ -241,3 +240,104 @@ theorem gamedet (g : Game) (p : g.Pos) :
     (⟨good_strat A, good_strat_winning .⟩)
     (⟨good_strat B, good_strat_winning .⟩)
     <| good_A_or_B p
+
+/-! ## Additional Helper Theorems -/
+
+lemma winning_has_moves {g : Game} {i : Player} {sI : Strategy g i} {p : g.Pos}
+    (h : g.turn p = i) (sI_wins_p : winning sI p) :
+    (g.moves p).Nonempty := by
+  specialize sI_wins_p (Classical.choice Strategy.instNonempty)
+  unfold winner at sI_wins_p
+  by_contra hyp
+  simp_all
+
+lemma winning_of_winning_move {g : Game} {i : Player} {sI : Strategy g i} {p : g.Pos}
+    (h : g.turn p = i) (sI_wins_p : winning sI p) :
+    winning sI (sI p h (winning_has_moves h sI_wins_p)).val := by
+  intro sJ
+  have := winning_has_moves h sI_wins_p
+  specialize sI_wins_p sJ
+  unfold winner at sI_wins_p
+  simp_all
+
+lemma game_wf_rel_of_cone {g : Game} {p r : g.Pos} (sI : Strategy g i) (r_in : inMyCone sI p r) :
+    Relation.ReflTransGen g.wf.rel r p := by
+  induction r_in
+  · exact Relation.ReflTransGen.refl
+  case myStep q q_in q_has_moves turn IH =>
+    apply Relation.ReflTransGen.head _ IH
+    apply g.move_rel
+    simp
+  case oStep IH =>
+    apply Relation.ReflTransGen.head _ IH
+    apply g.move_rel
+    assumption
+
+lemma not_in_cone_of_move {g : Game} {p q : g.Pos} (q_in : q ∈ g.moves p) (sI : Strategy g i) :
+    ¬ @inMyCone _ g sI q p := by
+  intro hyp
+  have claim : Relation.TransGen g.wf.rel p p := by
+    have m_to_p := g.move_rel _ q q_in
+    have := game_wf_rel_of_cone _ hyp
+    rw [Relation.reflTransGen_iff_eq_or_transGen] at this
+    cases this
+    · subst_eqs
+      absurd m_to_p
+      exact WellFoundedRelation.asymmetric m_to_p
+    · apply Relation.TransGen.trans _ (Relation.TransGen.single m_to_p)
+      aesop
+  absurd claim
+  exact IsAsymm.asymm p p claim
+
+lemma same_winner_of_same_in_cone {g : Game} {sI : Strategy g i} {sJ sJ' : Strategy g (other i)}
+    {p : g.Pos}
+    (same_cone : ∀ r, inMyCone sJ p r → sJ r = sJ' r)
+    : winner sI sJ p = winner sI sJ' p := by
+  unfold winner
+  by_cases (Game.moves p).Nonempty <;> simp_all
+  by_cases (Game.turn p = i) <;> simp_all
+  case pos p_has_moves turn =>
+    apply same_winner_of_same_in_cone
+    intro r r_in
+    apply same_cone r
+    apply @inMyCone_trans g (other i) p (sI p turn p_has_moves) r sJ ?_ r_in
+    apply @inMyCone.oStep (other i) g sJ _ p _ inMyCone.nil (by simp_all) (by simp)
+  case neg p_has_moves not_turn turn =>
+    have := @same_winner_of_same_in_cone _ g sI sJ sJ' (sJ' p turn p_has_moves).val ?_
+    · convert this using 2
+      rw [same_cone p inMyCone.nil]
+    · intro r r_in
+      apply same_cone r
+      apply @inMyCone_trans g (other i) p (sJ' p turn p_has_moves) r sJ ?_ r_in
+      have : (sJ p turn p_has_moves) = (sJ' p turn p_has_moves) := by rw [same_cone p .nil]
+      rw [← this]
+      apply @inMyCone.myStep _ g sJ _ p inMyCone.nil
+termination_by p
+decreasing_by all_goals apply g.move_rel; exact Subtype.mem _
+
+/-- Helper for `gameP_general`. -/
+theorem winning_of_whatever_other_move {g : Game} {i : Player} {sI : Strategy g i}
+    {p : g.Pos} (h : g.turn p = other i) (sI_wins_p : winning sI p) (m : g.moves p)
+    : winning sI m.val := by
+  have : DecidableEq g.Pos := by exact Classical.typeDecidableEq Game.Pos
+  unfold winning
+  intro sJ
+  let sJ_m : Strategy g (other i) := fun npos npos_Bui_turn nonE =>
+    -- At `p` we use the given `m`, otherwise d othe same as `sJ`.
+    if same_p : npos = p then same_p ▸ m else  sJ _ npos_Bui_turn nonE
+  specialize sI_wins_p sJ_m
+  unfold sJ_m winner at sI_wins_p
+  have : (Game.moves p).Nonempty := ⟨m.1,m.2⟩
+  have : ¬ Game.turn p = i := by aesop
+  simp [*] at sI_wins_p
+  convert sI_wins_p using 1 -- because rw [← sI_wins_p] does not work
+  apply same_winner_of_same_in_cone
+  -- Remains to show that sJ and sJ_m will agree on all remaining moves.
+  -- In those lemmas we also use use the well-founded order, not used so far.
+  intro r r_in
+  have : r ≠ p := by
+    intro hyp
+    subst hyp
+    absurd r_in
+    exact not_in_cone_of_move m.2 sJ
+  aesop
