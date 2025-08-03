@@ -18,25 +18,7 @@ inductive ProverPos (H : History) (X : Sequent) : Type where
 inductive BuilderPos (H : History) (X : Sequent) : Type where
   | lpr : LoadedPathRepeat H X → BuilderPos H X -- no moves, Prover wins.
   | ltab : ¬ rep H X → ¬ X.basic → LocalTableau X → BuilderPos H X -- Builder must pick endNodesOf
-
-instance {H X} : DecidableEq (BuilderPos H X) := by
-  rintro (_|_) (_|_) <;> try (simp; exact instDecidableFalse)
-  · rename_i lr1 lr2
-    by_cases lr1 = lr2
-    · apply isTrue
-      aesop
-    · apply isFalse
-      intro hyp
-      cases hyp
-      aesop
-  · rename_i lt1 _ _ lt2
-    by_cases lt1 = lt2
-    · apply isTrue
-      aesop
-    · apply isFalse
-      intro hyp
-      cases hyp
-      aesop
+  deriving DecidableEq
 
 def GamePos := Σ H X, (ProverPos H X ⊕ BuilderPos H X)
   deriving DecidableEq
@@ -180,10 +162,9 @@ lemma def_of_boxesOf_def (h : boxesOf φ = (αs, ψ)) : φ = ⌈⌈αs⌉⌉ψ :
 /-- After history `Hist`, if Prover has a winning strategy then there is a closed tableau.
 Note: we skip Definition 6.9 (Strategy Tree for Prover) and just use the `Strategy` type.
 This is the induction loading for `gameP`. -/
-theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover)
-  (pos : _)
-  (h : winning sP ⟨Hist, X, pos⟩) :
-    Nonempty (Tableau Hist X) := by
+theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos : _)
+    (h : winning sP ⟨Hist, X, pos⟩)
+    : Nonempty (Tableau Hist X) := by
   rcases pos_def : pos with proPos|builPos
   -- ProverPos:
   · cases proPos
@@ -310,7 +291,6 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover)
           -- non-atomic program is impossible, X would not have been basic then
           exfalso
           grind
-
     case nbas nrep X_nbas =>
       -- not basic, Prover should make a local tableau
       -- COPY PASTA from bas case ...
@@ -337,7 +317,6 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover)
       cases same
       constructor
       exact new_tab_from_IH
-
   -- BuilderPos:
   · rcases builPos with ⟨lpr⟩|⟨nrep, nbas, ltX⟩
     · use Tableau.lrep lpr
@@ -357,18 +336,14 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover)
       have next := fun Y Y_in => Classical.choice (next' Y Y_in)
       use Tableau.loc nrep nbas ltX next
 termination_by
-  tableauGame.wf.2.wrap ⟨Hist, X, posOf Hist X⟩
+  tableauGame.wf.2.wrap ⟨Hist, X, pos⟩ -- note: given `pos`, not `posOf` here!?
 decreasing_by
   all_goals
     apply tableauGame.move_rel
     simp [WellFounded.wrap]
-  -- Need to show that a valid move was made
-  · -- hmm?
-    sorry
-  · -- hmm?
-    sorry
-  · -- hmm?
-    sorry
+  · subst pos_def
+    simp [tableauGame, Game.moves]
+    use Y
 
 def startPos (X : Sequent) : GamePos := ⟨[], X, posOf [] X⟩
 
