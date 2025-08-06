@@ -26,21 +26,21 @@ See also Definition 4.79 and Exercise 4.8.2 in [BRV2001].
 def Formula.fischerLadnerStep : Formula → List Formula
 | ⊥ => []
 | ·_ => []
-| φ⋀ψ => [~(φ⋀ψ), φ, ψ]
+| φ⋀ψ => [φ, ψ]
 | ⌈·_⌉φ => [φ]
 | ⌈α;'β⌉φ => [ ⌈α⌉⌈β⌉φ ]
 | ⌈α⋓β⌉φ => [ ⌈α⌉φ, ⌈β⌉φ ]
 | ⌈∗α⌉φ => [ φ, ⌈α⌉⌈∗α⌉φ ]
-| ⌈?'τ⌉φ => [ τ, φ ]
+| ⌈?'τ⌉φ => [ τ, φ ] -- hmm?
 | ~~φ => [~φ]
 | ~⊥ => []
 | ~(·_) => []
-| ~(φ⋀ψ) => [φ⋀ψ]
-| ~⌈·_⌉φ => [~φ]
+| ~(φ⋀ψ) => [ ~φ, ~ψ ]
+| ~⌈·_⌉φ => [ ~φ]
 | ~⌈α;'β⌉φ => [ ~⌈α⌉⌈β⌉φ ]
 | ~⌈α⋓β⌉φ => [ ~⌈α⌉φ, ~⌈β⌉φ ]
 | ~⌈∗α⌉φ => [ ~φ, ~⌈α⌉⌈∗α⌉φ ]
-| ~⌈?'τ⌉φ => [ ~τ, ~φ ]
+| ~⌈?'τ⌉φ => [ ~τ, ~φ ] -- hmm?
 
 /-! ## PreFormulas
 
@@ -84,15 +84,15 @@ def PreForm.fischerLadnerStep : PreForm → List PreForm
 | ⟨b, α;'β, Sum.inl φ⟩ => [ ⟨b, α, Sum.inr (⌈β⌉φ)⟩, ⟨b, β, Sum.inl φ⟩ ]
 | ⟨b, α⋓β, Sum.inl φ⟩ => [ ⟨b, α, Sum.inr φ⟩, ⟨b, β, Sum.inr φ⟩, ⟨b, none, Sum.inl φ⟩ ]
 | ⟨b, ∗α, Sum.inl φ⟩ => [ ⟨b, none, Sum.inl φ⟩, ⟨b, α, Sum.inr (⌈∗α⌉φ)⟩ ]
-| ⟨true, ?'τ, Sum.inl φ⟩ => [ ⟨false, none, Sum.inl τ⟩, ⟨true, none, Sum.inl φ⟩ ]
-| ⟨false, ?'τ, Sum.inl φ⟩ => [ ⟨true, none, Sum.inl τ⟩, ⟨true, none, Sum.inl φ⟩ ]
+| ⟨true, ?'τ, Sum.inl φ⟩ => [ ⟨true, none, Sum.inl τ⟩, ⟨true, none, Sum.inl φ⟩ ]
+| ⟨false, ?'τ, Sum.inl φ⟩ => [ ⟨false, none, Sum.inl τ⟩, ⟨false, none, Sum.inl φ⟩ ]
 -- Boxes before blocked formulas:
 | ⟨b, ·_, Sum.inr φ⟩ => [ ⟨b, none, Sum.inr φ⟩ ]
 | ⟨b, α;'β, Sum.inr φ⟩ => [ ⟨b, α, Sum.inr (⌈β⌉φ)⟩, ⟨b, β, Sum.inr φ⟩ ]
 | ⟨b, α⋓β, Sum.inr φ⟩ => [ ⟨b, α, Sum.inr (φ)⟩, ⟨b, β, Sum.inr (φ)⟩, ⟨b, none, Sum.inr φ⟩ ]
 | ⟨b, ∗α, Sum.inr φ⟩ => [ ⟨b, none, Sum.inr φ⟩, ⟨b, α, Sum.inr (⌈∗α⌉φ)⟩ ]
-| ⟨true, ?'τ, Sum.inr φ⟩ => [ ⟨false, none, Sum.inr τ⟩, ⟨true, none, Sum.inr φ⟩ ]
-| ⟨false, ?'τ, Sum.inr φ⟩ => [ ⟨true, none, Sum.inr τ⟩, ⟨true, none, Sum.inr φ⟩ ]
+| ⟨true, ?'τ, Sum.inr φ⟩ => [ ⟨true, none, Sum.inr τ⟩, ⟨true, none, Sum.inr φ⟩ ]
+| ⟨false, ?'τ, Sum.inr φ⟩ => [ ⟨false, none, Sum.inr τ⟩, ⟨false, none, Sum.inr φ⟩ ]
 
 /-- Unused, weaker than `PreForm.fischerLadnerStep_sum_down`. -/
 lemma PreForm.fischerLadnerStep_down {pφ pψ : PreForm} :
@@ -149,7 +149,7 @@ def PreForm.fischerLadnerClosure (pfs : List PreForm) : List PreForm :=
     if _forTermination : pφ.2.2.isRight then [] else
         let toAdd := PreForm.fischerLadnerStep pφ
         let newer := PreForm.fischerLadnerClosure toAdd
-        toAdd ++ newer)
+        newer)
   pfs ++ new
 termination_by
   (pfs.map PreForm.length).sum
@@ -164,5 +164,80 @@ decreasing_by
 def fischerLadnerClosure (fs : List Formula) : List Formula :=
   (fs.flatMap (fun φ => PreForm.fischerLadnerClosure [ PreForm.ofFormula φ ])).map PreForm.toForm
 
+lemma fLC_closed_under_step (φ : Formula) :
+    φ.fischerLadnerStep ⊆ fischerLadnerClosure [φ] := by
+  cases φ <;> simp [Formula.fischerLadnerStep]
+  case neg φ =>
+    cases φ <;> try simp
+    case neg φ =>
+      simp [fischerLadnerClosure,PreForm.ofFormula]
+      unfold PreForm.fischerLadnerClosure
+      unfold PreForm.fischerLadnerClosure
+      unfold PreForm.fischerLadnerClosure
+      simp [PreForm.toForm, PreForm.fischerLadnerStep]
+    case and φ1 φ2 =>
+      simp [fischerLadnerClosure,PreForm.ofFormula]
+      unfold PreForm.fischerLadnerClosure
+      unfold PreForm.fischerLadnerClosure
+      unfold PreForm.fischerLadnerClosure
+      simp [PreForm.toForm, PreForm.fischerLadnerStep]
+    case box α φ =>
+      cases α
+      all_goals
+        simp [fischerLadnerClosure,PreForm.ofFormula]
+        unfold PreForm.fischerLadnerClosure
+        simp [PreForm.toForm, PreForm.fischerLadnerStep]
+      case atom_prog a =>
+        unfold PreForm.fischerLadnerClosure
+        unfold PreForm.fischerLadnerClosure
+        unfold PreForm.fischerLadnerClosure
+        simp [PreForm.fischerLadnerStep]
+      case sequence α β =>
+        right
+        · unfold PreForm.fischerLadnerClosure
+          unfold PreForm.fischerLadnerClosure
+          unfold PreForm.fischerLadnerClosure
+          simp [PreForm.fischerLadnerStep]
+      all_goals -- union, star and test
+        constructor <;> right
+        · unfold PreForm.fischerLadnerClosure
+          unfold PreForm.fischerLadnerClosure
+          unfold PreForm.fischerLadnerClosure
+          simp [PreForm.fischerLadnerStep]
+        · unfold PreForm.fischerLadnerClosure
+          unfold PreForm.fischerLadnerClosure
+          unfold PreForm.fischerLadnerClosure
+          simp [PreForm.fischerLadnerStep]
+  case and φ1 φ2 =>
+    simp [fischerLadnerClosure,PreForm.ofFormula]
+    unfold PreForm.fischerLadnerClosure
+    simp [PreForm.toForm, PreForm.fischerLadnerStep]
+    unfold PreForm.fischerLadnerClosure
+    simp [PreForm.fischerLadnerStep]
+  case box α φ =>
+    cases α
+    all_goals
+      simp [fischerLadnerClosure,PreForm.ofFormula]
+      unfold PreForm.fischerLadnerClosure
+      simp [PreForm.toForm, PreForm.fischerLadnerStep]
+    case atom_prog a =>
+      unfold PreForm.fischerLadnerClosure
+      unfold PreForm.fischerLadnerClosure -- twice, but not inf. often!
+      simp [PreForm.fischerLadnerStep]
+    case sequence α β =>
+      right
+      · unfold PreForm.fischerLadnerClosure
+        unfold PreForm.fischerLadnerClosure
+        simp [PreForm.fischerLadnerStep]
+    all_goals -- union, star and test
+      constructor <;> right
+      · unfold PreForm.fischerLadnerClosure
+        unfold PreForm.fischerLadnerClosure
+        simp [PreForm.fischerLadnerStep]
+      · unfold PreForm.fischerLadnerClosure
+        unfold PreForm.fischerLadnerClosure
+        simp [PreForm.fischerLadnerStep]
+
 -- TODO NEXT
--- lemma that says it is closed under `Formula.fischerLadnerStep` etc.?
+
+-- lemma that fischerLadnerClosure is "transitive" ...
