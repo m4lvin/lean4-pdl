@@ -17,6 +17,10 @@ bml: .first-run-done
 doc:
 	cd docbuild && lake -Kenv=dev build Pdl:docs
 
+show-doc: doc
+	(sleep 2 && firefox http://127.0.0.1:8000/Pdl.html) &
+	cd docbuild/.lake/build/doc && python -m http.server --bind 127.0.0.1
+
 clean:
 	rm -rf .first-run-done lake-packages .lake build lakefile.olean
 
