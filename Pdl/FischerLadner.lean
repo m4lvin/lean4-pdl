@@ -55,7 +55,7 @@ In particular, we define
 def PreForm : Type := Bool × Option Program × Sum Formula Formula
 
 /-- No negation, empty list of boxes and to still be taken apart. -/
-def PreForm.ofFormula (ψ : Formula) : PreForm := ⟨True, none, Sum.inl ψ⟩
+def PreForm.ofFormula (ψ : Formula) : PreForm := ⟨true, none, Sum.inl ψ⟩
 
 -- instance : Coe Formula (PreForm) := ⟨PreForm.ofFormula⟩ -- unused.
 
@@ -125,8 +125,8 @@ lemma PreForm.fischerLadnerStep_down {pφ pψ : PreForm} :
     case star => cases ψ_def <;> (subst_eqs; simp; try omega)
     case test => cases b <;> simp_all <;> cases ψ_def <;> simp_all
 
-/-- With `fresherLadnerStepPre` the (sum of) `PreForm.length` goes down.
-Here `h` is needed to exclude the .inr case (wher we would claim 0 < 0). -/
+/-- With `PreForm.fischerLadnerStep` the (sum of) `PreForm.length` goes down.
+Here `h` is needed to exclude the .inr case (where we would claim 0 < 0). -/
 lemma PreForm.fischerLadnerStep_sum_down (pφ : PreForm) (h : ¬ pφ.2.2.isRight):
     ((PreForm.fischerLadnerStep pφ).map PreForm.length).sum < PreForm.length pφ := by
   rcases pφ with ⟨b, _|α, φ|φ⟩
@@ -142,7 +142,7 @@ lemma PreForm.fischerLadnerStep_sum_down (pφ : PreForm) (h : ¬ pφ.2.2.isRight
     cases α <;> simp [PreForm.fischerLadnerStep]
     case test => cases b <;> simp_all
 
-/-! ## Single Step -/
+/-! ## Closure for PreFormulas -/
 
 def PreForm.fischerLadnerClosure (pfs : List PreForm) : List PreForm :=
   let new := pfs.flatMap (fun pφ =>
@@ -162,9 +162,9 @@ decreasing_by
 /-! ## Closure for normal Formulas -/
 
 def fischerLadnerClosure (fs : List Formula) : List Formula :=
-  (fs.flatMap (fun φ => PreForm.fischerLadnerClosure [ PreForm.ofFormula φ ])).map PreForm.toForm
+  (PreForm.fischerLadnerClosure (fs.map PreForm.ofFormula)).map PreForm.toForm
 
-lemma fLC_closed_under_step (φ : Formula) :
+lemma fLC_contains_step (φ : Formula) :
     φ.fischerLadnerStep ⊆ fischerLadnerClosure [φ] := by
   cases φ <;> simp [Formula.fischerLadnerStep]
   case neg φ =>
@@ -238,6 +238,34 @@ lemma fLC_closed_under_step (φ : Formula) :
         unfold PreForm.fischerLadnerClosure
         simp [PreForm.fischerLadnerStep]
 
--- TODO NEXT
+/-- The `fischerLadnerClosure` still contains the given formulas. -/
+lemma fLC_self (fs : List Formula) :
+    fs ⊆ fischerLadnerClosure fs := by
+  unfold fischerLadnerClosure
+  intro φ φ_in
+  simp
+  use (true, none, Sum.inl φ)
+  simp [PreForm.toForm]
+  unfold PreForm.fischerLadnerClosure
+  simp
+  left
+  use φ
+  simp_all [PreForm.ofFormula]
 
--- lemma that fischerLadnerClosure is "transitive" ...
+/-- Easy direction. The other one does not hold! -/
+lemma PreForm.toForm_ofFormula_cancel {φ} : (PreForm.ofFormula φ).toForm = φ := by
+  simp [ofFormula,toForm]
+
+lemma fLC_closed_under_step {fs : List Formula} (φ : Formula) :
+    φ ∈ fischerLadnerClosure fs → φ ∈ fischerLadnerClosure fs := by
+  sorry
+
+/-- The `fischerLadnerClosure` is idempotent / transitive. -/
+lemma fLC_idem (fs : List Formula) φ :
+    φ ∈ fischerLadnerClosure (fischerLadnerClosure fs) ↔ φ ∈ fischerLadnerClosure fs := by
+  constructor
+  · intro φ_in
+    unfold fischerLadnerClosure at φ_in
+    simp at *
+    sorry
+  · apply fLC_self

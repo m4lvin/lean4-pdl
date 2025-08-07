@@ -3,6 +3,9 @@ import Pdl.Tableau
 import Pdl.Modelgraphs
 import Pdl.LocalAll
 
+import Pdl.TransFinWF
+import Pdl.FischerLadner
+
 /-! # The Tableau Game (Section 6.2 and 6.3) -/
 
 -- Renaming the players for the tableau game:
@@ -35,16 +38,9 @@ def posOf (H : History) (X : Sequent) : ProverPos H X ⊕ BuilderPos H X :=
       then .inl (.bas rep bas) -- actual ProverPos to choose a PDL rule
       else .inl (.nbas rep bas) -- actual ProverPos to make LocalTab
 
-/-- The game defined in Section 6.2.
-Still TODO: Lemma 6.10 should be built-in as `tableauGame.wf` and `tableauGame.move_rel`: because
-the wellfounded relation holds at every move, all matches must be finite. Note that the paper does
-not prove Lemma 6.10 but says it is similar to Lemma 4.10 which uses the Fischer-Ladner closure. -/
-def tableauGame : Game where
-  Pos := GamePos
-  turn
-  | ⟨_, _, .inl _⟩ => Prover
-  | ⟨_, _, .inr _⟩ => Builder
-  moves
+/-- The moves for the `tableauGame`. -/
+@[simp]
+def theMoves : GamePos → Finset GamePos
   -- ProverPos:
   | ⟨H, X, .inl (.nlpRep _)⟩ => ∅ -- no moves ⇒ Builder wins
   | ⟨H, X, .inl (.bas _ Xbasic)⟩ =>
@@ -108,21 +104,40 @@ def tableauGame : Game where
   | ⟨H, X, .inr (.ltab _ _ ltab)⟩ =>
       ((endNodesOf ltab).map (fun Y => ⟨(X :: H), Y, posOf (X :: H) Y⟩)).toFinset
 
-  -- QUESTION: What is a wellfounded relation that holds for each game step?
-  wf := ⟨fun p q => sorry, by sorry⟩
-  move_rel := by
-    rintro ⟨H, ⟨L,R,_|olf⟩, ProvPo|BuildPo⟩ nextP nextP_in <;> simp_wf
-    -- `none` cases without loaded formula in X:
-    · cases ProvPo <;> simp at *
-      · sorry
-      · sorry
-    · cases BuildPo
-      · exfalso; simp at * -- cannot have an lpr when not loaded
-      · simp at *
-        sorry
-    -- `some olf` cases with loaded formula in X:
-    · sorry
-    · sorry
+def move next p := next ∈ theMoves p
+
+lemma no_moves_of_rep (h : rep Hist X) :
+    theMoves ⟨Hist, X, pos⟩ = ∅ := by
+  sorry
+
+def GamePos.toList : GamePos → List Formula := sorry
+
+-- QUESTION: is `toList` maybe too forgetful? Is every `List Formula` repeat also a `rep`?
+-- Note that `rep` uses `multisetEqTo` which respects the L/R/o split.
+
+lemma move_inside_flc : move next p → next.toList ⊆ fischerLadnerClosure p.toList := by
+  sorry
+
+/-- Lemma 6.10, sort of. Because the move relation is wellfounded, all matches must be finite.
+Note that the paper does not prove this, only says it is similar to the proof that PDL-tableaux
+are finite, i.e. Lemma 4.10 which uses the Fischer-Ladner closure. -/
+lemma move.wf : WellFounded move := by
+  apply @wf_of_finTransInvImage_of_transIrrefl
+  · -- To show: only finitely many moves are reachable
+    -- Use `move_inside_flc` for this.
+    sorry
+  · -- To show: (TransGen move) is irreflexive, i.e. no repeats.
+    -- Use `no_moves_of_rep` here maybe?
+    sorry
+
+/-- The game defined in Section 6.2.-/
+def tableauGame : Game where
+  Pos := GamePos
+  turn | ⟨_, _, .inl _⟩ => Prover
+       | ⟨_, _, .inr _⟩ => Builder
+  moves := theMoves
+  wf := ⟨move, move.wf⟩
+  move_rel := by simp [move]
 
 @[simp]
 lemma tableauGame_turn_Prover {Hist X lpr} :
