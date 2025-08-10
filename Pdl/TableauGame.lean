@@ -106,9 +106,14 @@ def theMoves : GamePos → Finset GamePos
 
 def move next p := next ∈ theMoves p
 
-lemma no_moves_of_rep (h : rep Hist X) :
+lemma no_moves_of_rep {Hist X pos} (h : rep Hist X) :
     theMoves ⟨Hist, X, pos⟩ = ∅ := by
-  sorry
+  by_contra hyp
+  rw [Finset.eq_empty_iff_forall_notMem] at hyp
+  push_neg at hyp
+  rcases hyp with ⟨p, p_in⟩
+  unfold theMoves at p_in
+  rcases X with ⟨L,R,_|o⟩ <;> rcases pos with (_|_|_)|(_|_) <;> aesop
 
 def GamePos.toList : GamePos → List Formula := sorry
 
@@ -341,7 +346,6 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
       -- Note that all is non-constructive here via Nonempty.
       have next' : ∀ (Y : Sequent) (Y_in : Y ∈ endNodesOf ltX), Nonempty (Tableau (X :: Hist) Y) := by
         intro Y Y_in
-        -- Maybe here TODO have forTermination : ??? := sorry
         apply gameP_general (X :: Hist) Y sP (by apply posOf) -- the IH
         subst pos_def
         -- The main work is done by the following lemma
@@ -351,7 +355,7 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
       have next := fun Y Y_in => Classical.choice (next' Y Y_in)
       use Tableau.loc nrep nbas ltX next
 termination_by
-  tableauGame.wf.2.wrap ⟨Hist, X, pos⟩ -- note: given `pos`, not `posOf` here!?
+  tableauGame.wf.2.wrap ⟨Hist, X, pos⟩ -- note `pos`, not `posOf` here.
 decreasing_by
   all_goals
     apply tableauGame.move_rel
