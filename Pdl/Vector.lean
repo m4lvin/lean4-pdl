@@ -1,7 +1,7 @@
 import Mathlib.Data.Vector.Basic
 import Mathlib.Tactic.Linarith
 
-/-! # Helper Lemmas about Vector
+/-! # Helper Lemmas about List.Vector
 
 These were previously used in `Soundness.lean`.
 -/
@@ -16,18 +16,21 @@ lemma List.nonempty_drop_sub_succ (δ_not_empty : δ ≠ []) (k : Fin δ.length)
     omega
   apply this <;> aesop
 
-lemma Vector.my_cast_head (n m : Nat) (v : List.Vector α n.succ) (h : n = m) :
+lemma List.Vector.my_cast_head (n m : Nat) (v : List.Vector α n.succ) (h : n = m) :
     (h ▸ v).head = v.head := by subst h; simp
 
-lemma Vector.my_cast_eq_val_head (n m : Nat) (v : List.Vector α n.succ) (h : n = m) h2 :
+lemma List.Vector.my_cast_getElem (n m : Nat) (v : List.Vector α n.succ) (h : n = m) (i : Fin n):
+    (h ▸ v)[i] = v[i] := by subst h; simp
+
+lemma List.Vector.my_cast_eq_val_head (n m : Nat) (v : List.Vector α n.succ) (h : n = m) h2 :
     (h ▸ v).head = v.1.head h2 := by
   rcases v with ⟨l,l_prop⟩
-  rw [Vector.my_cast_head]
+  rw [List.Vector.my_cast_head]
   induction l <;> simp_all
   · exfalso; aesop
   · aesop
 
-lemma Vector.my_cast_toList (n m : ℕ) (t : List α) ht (h : n = m) :
+lemma List.Vector.my_cast_toList (n m : ℕ) (t : List α) ht (h : n = m) :
     t = List.Vector.toList (h ▸ (⟨t, ht⟩ : List.Vector α n)) := by subst h; simp
 
 lemma aux_simplify_vector_type {α} {q p : ℕ} (t : List α) h :
@@ -36,9 +39,9 @@ lemma aux_simplify_vector_type {α} {q p : ℕ} (t : List α) h :
     = (help q p) ▸ ⟨t, by simp at h; simp; exact h⟩ := by
     apply List.Vector.eq
     simp
-    apply Vector.my_cast_toList
+    apply List.Vector.my_cast_toList
 
-lemma Vector.my_drop_succ_cons {α} {m n : ℕ} (x : α) (t : List α) h (hyp : m < n) :
+lemma List.Vector.my_drop_succ_cons {α} {m n : ℕ} (x : α) (t : List α) h (hyp : m < n) :
     let help : (n + 1 - (m + 1)) = n - m := by omega
     List.Vector.drop (m + 1) (⟨x :: t, h⟩ : List.Vector α n.succ)
     = help ▸ List.Vector.drop m ⟨t, by simp at h; exact h⟩ := by
@@ -55,7 +58,7 @@ lemma Vector.my_drop_succ_cons {α} {m n : ℕ} (x : α) (t : List α) h (hyp : 
         simp [List.Vector.drop]
         rw [aux_simplify_vector_type]
 
-lemma Vector.get_succ_eq_head_drop {v : List.Vector α n.succ} (k : Fin n) (j : Nat)
+lemma List.Vector.get_succ_eq_head_drop {v : List.Vector α n.succ} (k : Fin n) (j : Nat)
     (h : (n + 1 - (k.val + 1)) = j + 1) :
     v.get k.succ = (h ▸ v.drop (k.val + 1)).head
     := by
@@ -88,17 +91,17 @@ lemma Vector.get_succ_eq_head_drop {v : List.Vector α n.succ} (k : Fin n) (j : 
         omega
 
 /-- Generalized vesrion of `Vector.drop_get_eq_get_add`. -/
-lemma Vector.drop_get_eq_get_add' (v : List.Vector α n) (l r : ℕ) {h : i = l + r} {hi hr} :
+lemma List.Vector.drop_get_eq_get_add' (v : List.Vector α n) (l r : ℕ) {h : i = l + r} {hi hr} :
     v.get ⟨i, hi⟩ = (List.Vector.drop l v).get ⟨r, hr⟩ := by
   rcases v with ⟨t, t_prop⟩
   simp [List.Vector.get, List.Vector.drop, h]
 
 /-- A Vector analogue of `List.getElem_drop`. -/
-lemma Vector.drop_get_eq_get_add {n : Nat} (v : List.Vector α n) (k : Nat)
+lemma List.Vector.drop_get_eq_get_add {n : Nat} (v : List.Vector α n) (k : Nat)
     (i : Fin (n - k))
     (still_lt : k + i.val < n) :
     (v.drop k).get i = v.get ⟨k + i.val, still_lt⟩ := by
-  apply Eq.symm (Vector.drop_get_eq_get_add' ..)
+  apply Eq.symm (List.Vector.drop_get_eq_get_add' ..)
   rfl
 
 -- FIXME is this in mathlib?
@@ -106,11 +109,11 @@ lemma Fin.my_cast_val (n m : Nat) (h : n = m) (j_lt : j < n) :
     (h ▸ ( ⟨j, j_lt⟩ : Fin n)).val = j := by
   aesop
 
-lemma Vector.drop_last_eq_last {v : List.Vector α n.succ} (k : Fin n) (j : Nat)
+lemma List.Vector.drop_last_eq_last {v : List.Vector α n.succ} (k : Fin n) (j : Nat)
     (h : (n.succ - (k + 1)) = j.succ) :
     (h ▸ v.drop (k + 1)).last = v.last := by
   unfold List.Vector.last
-  have := Vector.drop_get_eq_get_add v (k.val + 1) (h ▸ Fin.last j) (by omega)
+  have := List.Vector.drop_get_eq_get_add v (k.val + 1) (h ▸ Fin.last j) (by omega)
   convert this using 2
   · linarith
   · simp
@@ -123,7 +126,7 @@ lemma Vector.drop_last_eq_last {v : List.Vector α n.succ} (k : Fin n) (j : Nat)
     rw [Fin.my_cast_val (j + 1) (n + 1 - (k + 1)) (by linarith) (Nat.lt_succ_self j)]
     omega
 
-lemma Vector.my_cast_heq (n m : Nat) (h : n = m) (v : List.Vector α n) :
+lemma List.Vector.my_cast_heq (n m : Nat) (h : n = m) (v : List.Vector α n) :
     HEq (h ▸ v : List.Vector α m) v := by
   aesop
 
@@ -132,3 +135,33 @@ lemma list_drop_eq_get :
   induction xs
   case nil => exfalso; have ⟨k, k_pf⟩ := k; simp_all
   case cons => induction k using Fin.inductionOn <;> simp
+
+-- Analogue of `List.getElem_zero_eq_head` for `List.Vector`.
+lemma List.Vector.getElem_zero_eq_head {α : Type} {k : Nat} (l : List.Vector α k.succ) :
+    l[0] = l.head := by
+  rcases l with ⟨l, h_l⟩
+  cases l with
+  | nil => simp at h_l
+  | cons => rfl
+
+lemma List.Vector.head_eq_last_of_one {α : Type} (l : List.Vector α 1) :
+    l.head = l.last := by
+  rcases l with ⟨l, h_l⟩
+  cases l with
+  | nil => simp at h_l
+  | cons => rfl
+
+-- Like `List.Vector.get_tail_succ` but for `getElem`
+lemma List.Vector.tail_getElem_eq_getElem_succ {k : Nat} (l : List.Vector α k.succ) (i : Fin k) :
+    l.tail[i] = l[i.succ] := by
+  rcases l with ⟨l, h_l⟩
+  cases l with
+  | nil => simp at h_l
+  | cons => rfl
+
+lemma List.Vector.tail_last_eq_last {k : Nat} (l : List.Vector α k.succ.succ) :
+    l.tail.last = l.last := by
+  rcases l with ⟨l, h_l⟩
+  cases l with
+  | nil => simp at h_l
+  | cons => rfl
