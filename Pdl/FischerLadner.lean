@@ -274,20 +274,55 @@ lemma PreForm.fischerLadnerClosure_idem :
     rw [PreForm.fischerLadnerClosure_mem_iff_chain] at l_head_in
     rcases l_head_in with ⟨k', l', l'_head_in, def_l_head, steps'⟩
     rw [PreForm.fischerLadnerClosure_mem_iff_chain]
+    -- FIXME maybe the rest here should be a separate (more general) lemma about lists/chains.
     -- Now we need to concatenate the two vectors and their properties.
-    use (k.succ + k')
-    have : (k'.succ + k.succ) = (k.succ + k').succ := by omega
-    refine ⟨this ▸ (l' ++ l), ?_, ?_, ?_⟩
+    -- Note that we have l'.last = l.head (and not have an ∈ FL stel there)
+    -- so we only use l.tail instead of l.
+    use (k + k') -- yes!
+    have : (k'.succ + (k.succ - 1)) = (k + k').succ := by omega
+    refine ⟨this ▸ (l' ++ l.tail), ?_, ?_, ?_⟩
     · convert l'_head_in using 1
-      rw [← List.Vector.getElem_zero_eq_head]
-      rw [← List.Vector.getElem_zero_eq_head]
-      -- Why is this so hard?
-      sorry
-    · -- Similar?
-      sorry
+      apply cast_append_head_eq_head
+    · convert def_pφ using 1
+      apply cast_append_last_eq_last
     · intro i
-      -- IDEA: case split whether i ≤ k.succ or so, then use steps or steps' ??
-      sorry
+      -- IDEA: case split whether i ≤ k.succ or so, then use steps or steps'.
+      by_cases i_low : i.val < k'
+      · specialize steps' ⟨i.val, i_low⟩
+        simp only [Nat.succ_eq_add_one, Fin.getElem_fin, Fin.val_succ, Fin.succ_mk] at *
+        convert steps' <;> apply cast_append_getElem_eq_getElem_of_lt
+      · simp at i_low
+        by_cases i_eq_k' : i = k' -- We treat the special case i = k' separately.
+        · -- Here use the that newlist[k'] = l'.last = l.head has a `steps` to l[1].
+          -- Also note that the last element of l' isLeft because it is the first of l.
+          simp
+          specialize steps ⟨0, by omega⟩
+          convert steps
+          · have := @cast_append_getElem_eq_getElem_of_lt _ k l.tail k' l' (by omega) i.val (by omega)
+            convert this
+            convert def_l_head.symm
+            · apply List.Vector.getElem_zero_eq_head
+            · simp_all [List.Vector.getElem_max_eq_last]
+          · have := @cast_append_getElem_eq_getElem_of_lt _ k l.tail k' l' (by omega) i.val (by omega)
+            convert this
+            convert def_l_head.symm
+            · apply List.Vector.getElem_zero_eq_head
+            · simp_all [List.Vector.getElem_max_eq_last]
+          · rcases i with ⟨i,i_lt⟩
+            have := @cast_append_getElem_eq_getElem_of_ge _ _ l _ l' this (k' + 1) (by simp) (by omega)
+            simp at this
+            convert this
+        · specialize steps ⟨i - k', by omega⟩
+          simp only [Nat.succ_eq_add_one, Fin.getElem_fin, Fin.val_succ, Fin.succ_mk,
+            Nat.add_one_sub_one] at *
+          convert steps
+          · apply cast_append_getElem_eq_getElem_of_ge; omega
+          · apply cast_append_getElem_eq_getElem_of_ge; omega
+          · have := @cast_append_getElem_eq_getElem_of_ge _ _ l _ l' this i.succ
+              (by simp at *; omega) (by omega)
+            convert this using 2
+            simp
+            omega
   · apply PreForm.fischerLadnerClosure_self
 
 -- other idea: induction principle

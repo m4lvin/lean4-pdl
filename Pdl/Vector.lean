@@ -144,6 +144,13 @@ lemma List.Vector.getElem_zero_eq_head {α : Type} {k : Nat} (l : List.Vector α
   | nil => simp at h_l
   | cons => rfl
 
+lemma List.Vector.getElem_max_eq_last {α : Type} {k : Nat} (l : List.Vector α k.succ) :
+    l[k] = l.last := by
+  rcases l with ⟨l, h_l⟩
+  cases l with
+  | nil => simp at h_l
+  | cons => rfl
+
 lemma List.Vector.head_eq_last_of_one {α : Type} (l : List.Vector α 1) :
     l.head = l.last := by
   rcases l with ⟨l, h_l⟩
@@ -165,3 +172,45 @@ lemma List.Vector.tail_last_eq_last {k : Nat} (l : List.Vector α k.succ.succ) :
   cases l with
   | nil => simp at h_l
   | cons => rfl
+
+lemma cast_append_getElem_eq_getElem_of_lt {α : Type}
+    (k : ℕ) (l : List.Vector α k)
+    (k' : ℕ) (l' : List.Vector α k'.succ)
+    (this : k'.succ + k = (k + k').succ)
+    i
+    (i_low : i < k'.succ)
+    : (this ▸ (l' ++ l))[↑i] = l'[↑i] := by
+  sorry
+
+lemma cast_append_getElem_eq_getElem_of_ge {α : Type}
+    (k : ℕ) (l : List.Vector α k.succ)
+    (k' : ℕ) (l' : List.Vector α k'.succ)
+    (this : k'.succ + (k.succ - 1) = (k + k').succ)
+    i
+    (i_high : i ≥ k'.succ)
+    (i_in_bound : i < (k + k').succ)
+    : (this ▸ (l' ++ l.tail))[i] = l[i - k'] := by
+  sorry
+
+/-- Special case of `cast_append_getElem_eq_getElem_of_lt`.
+Slightly more general compared to `cast_append_last_eq_last`, this takes `l` instead of `l.tail`. -/
+lemma cast_append_head_eq_head {α : Type}
+    (k : ℕ) (l : List.Vector α k)
+    (k' : ℕ) (l' : List.Vector α k'.succ)
+    (this : k'.succ + k = (k + k').succ)
+    : (this ▸ (l' ++ l)).head = l'.head := by
+  convert cast_append_getElem_eq_getElem_of_lt k l k' l' this 0 (by omega)
+  · have := List.Vector.getElem_zero_eq_head (this ▸ (l' ++ l))
+    rw [← this]
+  · have := List.Vector.getElem_zero_eq_head l'
+    rw [← this]
+
+/-- Special case of `cast_append_getElem_eq_getElem_of_ge` -/
+lemma cast_append_last_eq_last {α : Type}
+    (k : ℕ) (l : List.Vector α k.succ)
+    (k' : ℕ) (l' : List.Vector α k'.succ)
+    (this : k'.succ + (k.succ - 1) = (k + k').succ)
+    : (this ▸ (l' ++ l.tail)).last = l.last := by
+  -- have := cast_append_getElem_eq_getElem_of_ge k l k' l' this (k' + k) (by omega) -- hmm
+  -- use List.Vector.getElem_max_eq_last here?
+  sorry
