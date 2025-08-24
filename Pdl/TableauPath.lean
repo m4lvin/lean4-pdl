@@ -516,21 +516,26 @@ def PathIn.rewind : (t : PathIn tab) → (k : Fin (t.toHistory.length + 1)) → 
 theorem PathIn.rewind_zero {tab : Tableau Hist X} {p : PathIn tab} : p.rewind 0 = p := by
   induction p <;> simp only [rewind]
   case loc Hist0 X0 nrep nbas lt next Y Y_in tail IH =>
-    by_cases 0 = Fin.last (.loc Y_in tail : PathIn (.loc nrep nbas lt next)).toHistory.length
-    case pos hyp =>
-      rw [PathIn.loc_length_eq] at hyp
-      have := @Fin.last_pos tail.toHistory.length
-      omega
-    case neg _ =>
-      simp_all [Fin.lastCases, Fin.reverseInduction]
+    -- TODO
+    -- The rest here would be nice as a lemma, a variant of `Fin.lastCases_castSucc`
+    -- and maybe it could be called `Fin.lastCases_castSucc_of_ne_last`.
+    have : 0 ≠ Fin.last (.loc Y_in tail : PathIn (.loc nrep nbas lt next)).toHistory.length := by
+      simp_all
+    rw [← Fin.exists_castSucc_eq] at this
+    rcases this with ⟨k,kdef⟩
+    simp only [← kdef, Fin.lastCases_castSucc, Function.comp_apply, loc.injEq, heq_eq_eq, true_and]
+    convert IH
+    cases k
+    simp_all
   case pdl Y Z X0 nrep bas r next tail IH =>
-    by_cases 0 = Fin.last (.pdl tail : PathIn (.pdl nrep bas r next)).toHistory.length
-    case pos hyp =>
-      rw [PathIn.pdl_length_eq] at hyp
-      have := @Fin.last_pos tail.toHistory.length
-      omega
-    case neg _ =>
-      simp_all [Fin.lastCases, Fin.reverseInduction]
+    have : 0 ≠ Fin.last (.pdl tail : PathIn (.pdl nrep bas r next)).toHistory.length := by
+      simp_all
+    rw [← Fin.exists_castSucc_eq] at this
+    rcases this with ⟨k,kdef⟩
+    simp [← kdef, Fin.lastCases_castSucc, Function.comp_apply, pdl.injEq]
+    convert IH
+    cases k
+    simp_all
 
 theorem PathIn.rewind_le (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) : t.rewind k ≤ t := by
   induction tab
@@ -789,7 +794,7 @@ theorem rewind_of_edge_is_eq {a b : PathIn tab} (a_b : a ⋖_ b) : b.rewind 1 = 
             unfold tabAt at tabAt_def
             aesop
         subst t_nil
-        simp [Fin.lastCases, Fin.reverseInduction, PathIn.toHistory]
+        rfl
       case loc X nbas'' nrep'' X_in tail' =>
         have Z_X : Z = X := by
           rcases a_b with ( ⟨_, _, _, _, _, _, _, _, _, p_def⟩ | ⟨_, _, _, _, _, _, _, _, p_def⟩ )
@@ -797,33 +802,28 @@ theorem rewind_of_edge_is_eq {a b : PathIn tab} (a_b : a ⋖_ b) : b.rewind 1 = 
           simp [PathIn.append] at p_def
           exact p_def.1
         have Z_in_X_in : HEq Z_in X_in := by simp_all
-        subst Z_X
-        subst Z_in_X_in
+        subst Z_X Z_in_X_in
         simp at a_b
-        have t_nil : tail ≠ PathIn.nil := by
-          intro con
-          subst con
-          exact not_edge_nil _ _ a_b
-        have := IH Z Z_in a_b
-        simp [Fin.lastCases, Fin.reverseInduction, PathIn.toHistory]
+        specialize IH Z Z_in a_b
         have hyp' : List.length (tail.toHistory) + 1 ≠ 1 := by
+          have t_ne_nil : tail ≠ PathIn.nil := by
+            intro con
+            subst con
+            exact not_edge_nil _ _ a_b
           simp
           by_contra con
           have t_nil := nil_iff_length_zero.2 con
           simp_all
-        have hyp : ¬ (1 = Fin.last (List.length (tail.toHistory ++ [Y]))) := by
-          have hyp : ¬ (1 = (List.length tail.toHistory + 1)) := by
-            simp
-            intro con
-            have := nil_iff_length_zero.2 con
-            simp_all
-          intro con
+        have hyp : 1 ≠ Fin.last (List.length (tail.toHistory ++ [Y])) := by
           simp_all [Fin.last, Fin.eq_mk_iff_val_eq]
-        simp_all
-        convert this
-        apply one_is_one_helper
-        by_contra con
-        simp_all
+        rw [← Fin.exists_castSucc_eq] at hyp
+        rcases hyp with ⟨k,kdef⟩
+        simp [← kdef, Fin.lastCases_castSucc, Function.comp_apply]
+        rw [← IH]
+        convert rfl
+        simp [Fin.ext_iff] at *
+        rw [kdef, @Nat.one_mod_eq_one]
+        aesop
   case pdl rest Y X nrep bas r tab IH =>
     cases b <;> simp_all only [PathIn.rewind]
     case nil => simp_all [not_edge_nil]
@@ -842,33 +842,29 @@ theorem rewind_of_edge_is_eq {a b : PathIn tab} (a_b : a ⋖_ b) : b.rewind 1 = 
             unfold tabAt at tabAt_def
             aesop
         subst t_nil
-        simp [Fin.lastCases, Fin.reverseInduction, PathIn.toHistory]
+        rfl
       case pdl bas'' nrep'' tail' =>
         simp at a_b
-        have t_nil : tail ≠ PathIn.nil := by
-          intro con
-          subst con
-          exact not_edge_nil _ _ a_b
-        have := IH a_b
-        simp [Fin.lastCases, Fin.reverseInduction, PathIn.toHistory]
+        specialize IH a_b
         have hyp' : List.length (tail.toHistory) + 1 ≠ 1 := by
+          have t_ne_nil : tail ≠ PathIn.nil := by
+            intro con
+            subst con
+            exact not_edge_nil _ _ a_b
           simp
           by_contra con
           have t_nil := nil_iff_length_zero.2 con
           simp_all
-        have hyp : ¬ (1 = Fin.last (List.length (tail.toHistory ++ [Y]))) := by
-          have hyp : ¬ (1 = (List.length tail.toHistory + 1)) := by
-            simp
-            intro con
-            have := nil_iff_length_zero.2 con
-            simp_all
-          intro con
+        have hyp : 1 ≠ Fin.last (List.length (tail.toHistory ++ [Y])) := by
           simp_all [Fin.last, Fin.eq_mk_iff_val_eq]
-        simp_all
-        convert this
-        apply one_is_one_helper
-        by_contra con
-        simp_all
+        rw [← Fin.exists_castSucc_eq] at hyp
+        rcases hyp with ⟨k,kdef⟩
+        simp only [← kdef, Fin.lastCases_castSucc, Function.comp_apply, PathIn.pdl.injEq]
+        rw [← IH]
+        convert rfl
+        simp [Fin.ext_iff] at *
+        rw [kdef, @Nat.one_mod_eq_one]
+        aesop
   case lrep => cases b ; simp [not_edge_nil] at a_b
 
 theorem rewind_order_reversing_if_not_nil {t : PathIn tab}
@@ -1030,36 +1026,46 @@ theorem edge_inc_length_by_one {a b : PathIn tab} (a_b : edge a b) :
     by_cases tail = PathIn.nil
     case pos tail_eq_nil =>
       subst tail_eq_nil
-      simp [PathIn.toHistory, PathIn.rewind, Fin.lastCases, Fin.reverseInduction]
+      rfl
     case neg tail_ne_nil =>
-      have helper : ¬ (1 = Fin.last (List.length (tail.toHistory ++ [X]))) := by
+      have helper : 1 ≠ Fin.last (List.length (tail.toHistory ++ [X])) := by
         have hyp : ¬ (1 = (List.length tail.toHistory + 1)) := by
-          simp
+          simp only [Nat.right_eq_add, List.length_eq_zero_iff]
           intro con
           have := nil_iff_length_zero.2 con
           simp_all
         intro con
         simp_all [Fin.last, Fin.eq_mk_iff_val_eq]
-      simp_all [PathIn.toHistory, PathIn.rewind, Fin.lastCases, Fin.reverseInduction, PathIn.rewind]
+      simp only [Nat.add_right_cancel_iff, PathIn.rewind, PathIn.loc_length_eq] at *
+      -- similar to something above, should be same lemma?
+      rw [← Fin.exists_castSucc_eq] at helper
+      rcases helper with ⟨k, kdef⟩
+      rw [← kdef] at a_b
+      simp only [Fin.lastCases_castSucc, Function.comp_apply, loc_edge_loc_iff_edge] at a_b
       have := one_is_one_rewind_helper a_b
-      simp_all
+      simp_all [← kdef]
   case pdl Hist X Y nrep bas r next tail IH => -- exactly the same as loc case
     by_cases tail = PathIn.nil
     case pos tail_eq_nil =>
       subst tail_eq_nil
-      simp [PathIn.toHistory, PathIn.rewind, Fin.lastCases, Fin.reverseInduction]
+      rfl
     case neg tail_ne_nil =>
-      have helper : ¬ (1 = Fin.last (List.length (tail.toHistory ++ [X]))) := by
+      have helper : 1 ≠ Fin.last (List.length (tail.toHistory ++ [X])) := by
         have hyp : ¬ (1 = (List.length tail.toHistory + 1)) := by
-          simp
+          simp only [Nat.right_eq_add, List.length_eq_zero_iff]
           intro con
           have := nil_iff_length_zero.2 con
           simp_all
         intro con
         simp_all [Fin.last, Fin.eq_mk_iff_val_eq]
-      simp_all [PathIn.toHistory, PathIn.rewind, Fin.lastCases, Fin.reverseInduction, PathIn.rewind]
+      simp only [Nat.add_right_cancel_iff, PathIn.rewind, PathIn.pdl_length_eq] at *
+      -- similar to something above, should be same lemma?
+      rw [← Fin.exists_castSucc_eq] at helper
+      rcases helper with ⟨k, kdef⟩
+      rw [← kdef] at a_b
+      simp only [Fin.lastCases_castSucc, Function.comp_apply, pdl_edge_pdl_iff_edge] at a_b
       have := one_is_one_rewind_helper a_b
-      simp_all
+      simp_all [← kdef]
 
 theorem rewind_helper {a b : PathIn tab} {k : Fin (List.length a.toHistory + 1)} (a_b : a ⋖_ b) :
     b.rewind (Fin.cast (edge_inc_length_by_one a_b) (k.succ)) = a.rewind k := by
@@ -1082,10 +1088,11 @@ theorem rewind_helper {a b : PathIn tab} {k : Fin (List.length a.toHistory + 1)}
             unfold tabAt at tabAt_def
             aesop
         subst t_nil
-        simp_all [PathIn.rewind, Fin.lastCases, Fin.reverseInduction, PathIn.toHistory]
+        simp_all [PathIn.rewind, Fin.lastCases, PathIn.toHistory]
         have ⟨k_val, k_pf⟩ := k
         simp [PathIn.toHistory] at k_pf
         simp_all
+        rfl
       case loc X nbas'' nrep'' X_in tail' =>
         have Z_X : Z = X := by
           rcases a_b with ( ⟨_, _, _, _, _, _, _, _, _, p_def⟩ | ⟨_, _, _, _, _, _, _, _, p_def⟩ )
@@ -1100,16 +1107,24 @@ theorem rewind_helper {a b : PathIn tab} {k : Fin (List.length a.toHistory + 1)}
         cases k using Fin.lastCases
         case last => simp
         case cast i =>
-          have h : ¬ (Fin.cast (Nat.succ.inj (edge_inc_length_by_one a_b)) i.castSucc).succ
-            = Fin.last (List.length (PathIn.loc Z_in tail).toHistory) := by
+          -- TODO same lemma?
+          have h : (Fin.cast (Nat.succ.inj (edge_inc_length_by_one a_b)) i.castSucc).succ
+                  ≠ Fin.last (List.length (PathIn.loc Z_in tail).toHistory) := by
             intro con
             have ⟨i_val, i_pf⟩ := i
             simp_all [Fin.last]
             simp [PathIn.toHistory] at i_pf
             have := edge_inc_length_by_one t'_t
             linarith
-          simp [Fin.lastCases, Fin.reverseInduction, h]
-          exact @IH Z Z_in tail' tail (Fin.cast (PathIn.loc_length_eq Z_in tail') i) t'_t
+          rw [← Fin.exists_castSucc_eq] at h
+          rcases h with ⟨k, kdef⟩
+          simp [← kdef]
+          have := @IH Z Z_in tail' tail (Fin.cast (PathIn.loc_length_eq Z_in tail') i) t'_t
+          rcases k with ⟨k, k_lt⟩
+          convert this
+          simp at *
+          cases kdef
+          simp
   case pdl rest Y X nrep bas r tab IH =>
     cases b
     case nil => simp [not_edge_nil] at a_b
@@ -1128,26 +1143,35 @@ theorem rewind_helper {a b : PathIn tab} {k : Fin (List.length a.toHistory + 1)}
             unfold tabAt at tabAt_def
             aesop
         subst t_nil
-        simp_all [PathIn.rewind, Fin.lastCases, Fin.reverseInduction, PathIn.toHistory]
+        simp_all [PathIn.rewind, PathIn.toHistory]
         have ⟨k_val, k_pf⟩ := k
         simp [PathIn.toHistory] at k_pf
         simp_all
+        rfl
       case pdl bas'' nrep'' tail' =>
         have t'_t : tail' ⋖_ tail := by simp_all
         simp only [PathIn.rewind]
         cases k using Fin.lastCases
         case last => simp
         case cast i =>
-          have h : ¬ (Fin.cast (Nat.succ.inj (edge_inc_length_by_one a_b)) i.castSucc).succ
-            = Fin.last (List.length (PathIn.pdl tail).toHistory) := by
+          -- TODO same lemma?
+          have h : (Fin.cast (Nat.succ.inj (edge_inc_length_by_one a_b)) i.castSucc).succ
+                  ≠ Fin.last (List.length (PathIn.pdl tail).toHistory) := by
             intro con
             have ⟨i_val, i_pf⟩ := i
             simp_all [Fin.last]
             simp [PathIn.toHistory] at i_pf
             have := edge_inc_length_by_one t'_t
             linarith
-          simp [Fin.lastCases, Fin.reverseInduction, h]
-          exact @IH tail' tail (Fin.cast (PathIn.pdl_length_eq tail') i) t'_t
+          rw [← Fin.exists_castSucc_eq] at h
+          rcases h with ⟨k, kdef⟩
+          simp [← kdef]
+          have := @IH tail' tail (Fin.cast (PathIn.pdl_length_eq tail') i) t'_t
+          rcases k with ⟨k, k_lt⟩
+          convert this
+          simp at *
+          cases kdef
+          simp
   case lrep => cases b ; simp [not_edge_nil] at a_b
 
 -- unique existence?

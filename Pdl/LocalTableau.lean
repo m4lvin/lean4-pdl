@@ -1704,7 +1704,7 @@ theorem endNodesOf_nonbasic_non_eq {X Y} (lt : LocalTableau X) (X_nonbas : ¬ X.
 lemma IsDershowitzMannaLT.irrefl [Preorder α] [WellFoundedLT α] (X : Multiset α) :
     ¬ Multiset.IsDershowitzMannaLT X X := by
   apply (WellFounded.isIrrefl (?_)).1
-  exact (@Multiset.instWellFoundedisDershowitzMannaLT α _ _).2
+  exact (@Multiset.instWellFoundedIsDershowitzMannaLT α _ _).2
 
 /-- If a sequent is lower according to the DM-ordering, then they are multiset-different.
 (The analogue with finset instead of multiset does not hold.) -/

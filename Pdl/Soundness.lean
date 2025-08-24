@@ -504,7 +504,7 @@ theorem ePropB.c {X} {tab : Tableau .nil X} (s t : PathIn tab) :
   · intro con
     unfold cEdge at con
     induction con using Relation.TransGen.head_induction_on
-    case right.base t hyp =>
+    case right.single t hyp =>
       cases hyp
       case inl tes =>
         absurd slt
@@ -514,7 +514,7 @@ theorem ePropB.c {X} {tab : Tableau .nil X} (s t : PathIn tab) :
         simp [Sequent.isFree] at s_free
         rw [con] at s_free
         contradiction
-    case right.ih t k t_k k_s ih =>
+    case right.head t k t_k k_s ih =>
       apply ih
       cases t_k
       case inl tes => exact (Relation.TransGen.trans slt (Relation.TransGen.single tes))
@@ -558,7 +558,7 @@ constructor
 · intro con
   unfold cEdge at con
   induction con using Relation.TransGen.head_induction_on
-  case right.base t hyp =>
+  case right.single t hyp =>
     cases hyp
     case inl tes =>
       absurd slt
@@ -568,7 +568,7 @@ constructor
       simp [Sequent.isFree] at t_free
       rw [con] at t_free
       contradiction
-  case right.ih t k t_k k_s ih =>
+  case right.head t k t_k k_s ih =>
     by_cases (nodeAt k).isFree
     case pos k_free =>
       cases t_k

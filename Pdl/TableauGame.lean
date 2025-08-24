@@ -255,14 +255,11 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
             simp at χ_in
       · -- already have loaded formula in left, PDL rule must be (M) or (L-)
         rcases χ with ⟨α, (ψ : AnyFormula)⟩
-        cases α <;> simp_all
+        cases α
         case atom_prog a in_moves =>
+          simp_all only [tableauGame_turn_Prover, Finset.mem_insert]
           -- rule here could be (M) or (L-)
           rcases nextPosIn with nextPosIn|nextPosIn
-          · -- applying (M)
-            cases ψ <;> simp at nextPosIn <;> cases nextPosIn
-            all_goals
-              exact ⟨Tableau.pdl nrep Xbas (by apply PdlRule.modL <;> rfl) new_tab_from_IH⟩
           · -- applying (L-)
             cases nextPosIn
             cases ψ
@@ -278,20 +275,21 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
               apply Tableau.pdl nrep Xbas ?_ new_tab_from_IH
               apply @PdlRule.freeL _ L R (·a :: δ) _ _ _ rfl
               simp
+          · -- applying (M)
+            cases ψ <;> simp at nextPosIn <;> cases nextPosIn
+            all_goals
+              exact ⟨Tableau.pdl nrep Xbas (PdlRule.modL rfl rfl) new_tab_from_IH⟩
         all_goals
           -- non-atomic program is impossible, X would not have been basic then
           exfalso
           grind
       · -- COPY PASTA only changed L to R
         rcases χ with ⟨α, (ψ : AnyFormula)⟩
-        cases α <;> simp_all
+        cases α
         case atom_prog a in_moves =>
+          simp_all only [tableauGame_turn_Prover, Finset.mem_insert]
           -- rule here could be (M) or (L-)
           rcases nextPosIn with nextPosIn|nextPosIn
-          · -- applying (M)
-            cases ψ <;> simp at nextPosIn <;> cases nextPosIn
-            all_goals
-              exact ⟨Tableau.pdl nrep Xbas (by apply PdlRule.modR <;> rfl) new_tab_from_IH⟩
           · -- applying (L-)
             cases nextPosIn
             cases ψ
@@ -307,6 +305,10 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
               apply Tableau.pdl nrep Xbas ?_ new_tab_from_IH
               apply @PdlRule.freeR _ L R (·a :: δ) _ _ _ rfl
               simp
+          · -- applying (M)
+            cases ψ <;> simp at nextPosIn <;> cases nextPosIn
+            all_goals
+              exact ⟨Tableau.pdl nrep Xbas (by apply PdlRule.modR <;> rfl) new_tab_from_IH⟩
         all_goals
           -- non-atomic program is impossible, X would not have been basic then
           exfalso

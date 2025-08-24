@@ -136,16 +136,18 @@ theorem sat_double_neq_invariant
   · intro φ' is_in
     simp at is_in
     cases is_in
+    · specialize satX (~~φ)
+      aesop
     · specialize satX φ'
       apply satX
-      aesop
-    · specialize satX (~~φ)
+      simp at satX
+      simp
       aesop
   · intro φ' is_in
     simp at is_in
     cases is_in
+    · specialize satX φ
+      aesop
     · specialize satX φ'
       apply satX
-      aesop
-    · specialize satX φ
       aesop
