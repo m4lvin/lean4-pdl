@@ -23,7 +23,7 @@ def Olf.voc : Olf → Vocab
 /-- A tableau node is labelled with two lists of formulas and an `Olf`. -/
 -- TODO: turn this into "abbrev" to avoid silly instance below.
 def Sequent := List Formula × List Formula × Olf -- ⟨L, R, o⟩
-  deriving DecidableEq, Repr
+  deriving DecidableEq
 
 -- Some thoughts about the Sequent type:
 -- - one formula may be loaded
@@ -331,7 +331,7 @@ inductive OneSidedLocalRule : List Formula → List (List Formula) → Type
   -- the two general local rules:
   | box (α φ) : (notAtom : ¬ α.isAtomic) → OneSidedLocalRule [ ⌈α⌉φ] (unfoldBox     α φ)
   | dia (α φ) : (notAtom : ¬ α.isAtomic) → OneSidedLocalRule [~⌈α⌉φ] (unfoldDiamond α φ)
-  deriving DecidableEq, Repr
+  deriving DecidableEq
 
 theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B :=
   by
@@ -360,7 +360,7 @@ and the extra definition of `unfoldDiamondLoaded'`.  -/
 inductive LoadRule : NegLoadFormula → List (List Formula × Option NegLoadFormula) → Type
   | dia  {α χ} : (notAtom : ¬ α.isAtomic) → LoadRule (~'⌊α⌋(χ : LoadFormula)) (unfoldDiamondLoaded  α χ)
   | dia' {α φ} : (notAtom : ¬ α.isAtomic) → LoadRule (~'⌊α⌋(φ : Formula    )) (unfoldDiamondLoaded' α φ)
-  deriving DecidableEq, Repr
+  deriving DecidableEq
 
 /-- Given a LoadRule application, define the equivalent unloaded rule application.
 This allows re-using `oneSidedLocalRuleTruth` to prove `loadRuleTruth`. -/
@@ -418,7 +418,7 @@ inductive LocalRule : Sequent → List Sequent → Type
   | loadedR (χ : LoadFormula) (lrule : LoadRule (~'χ) ress)
       (YS_def : YS = ress.map λ (X, o) => (∅, X, o.map Sum.inr))
       : LocalRule (∅, ∅, some (Sum.inr (~'χ))) YS
-  deriving Repr, DecidableEq
+  deriving DecidableEq
 
 -- mathlib this?
 @[simp]

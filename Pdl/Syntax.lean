@@ -9,14 +9,14 @@ mutual
     | neg : Formula → Formula
     | and : Formula → Formula → Formula
     | box : Program → Formula → Formula
-  deriving Repr,DecidableEq
+  deriving Lean.ToExpr, DecidableEq
   inductive Program : Type
     | atom_prog : Nat → Program
     | sequence : Program → Program → Program
     | union : Program → Program → Program
     | star : Program → Program
     | test : Formula → Program
-  deriving Repr,DecidableEq
+  deriving Lean.ToExpr, DecidableEq
 end
 
 /-! ## Abbreviations and Notation  -/
@@ -108,11 +108,11 @@ mutual
 inductive AnyFormula : Type
   | normal : Formula → AnyFormula -- φ
   | loaded : LoadFormula → AnyFormula -- χ
-  deriving Repr, DecidableEq
+  deriving Lean.ToExpr, DecidableEq
 
 inductive LoadFormula : Type
   | box : Program → AnyFormula → LoadFormula -- ⌊α⌋χ
-  deriving Repr, DecidableEq
+  deriving Lean.ToExpr, DecidableEq
 end
 
 instance : Coe Formula AnyFormula := ⟨AnyFormula.normal⟩
@@ -154,7 +154,7 @@ theorem unload_loadMulti : (loadMulti δ α φ).unload  = ⌈⌈δ⌉⌉⌈α⌉
 
 inductive NegLoadFormula : Type -- ¬χ
   | neg : LoadFormula → NegLoadFormula
-  deriving Repr, DecidableEq
+  deriving Lean.ToExpr, DecidableEq
 
 -- FIXME: find some nice short notation for this and get Lean to use it?
 -- notation "n:" φ:arg => AnyFormula.normal φ

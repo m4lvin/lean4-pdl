@@ -9,7 +9,7 @@ inductive Formula : Type
   | neg : Formula → Formula
   | And : Formula → Formula → Formula
   | box : Formula → Formula
-  deriving DecidableEq
+  deriving DecidableEq, Lean.ToExpr
 
 -- Predefined atomic propositions for convenience
 def p := Formula.atom_prop 'p'
@@ -60,9 +60,6 @@ def formToString : Formula → ℕ → Lean.Format
   | ~ϕ, n => "~" ++ formToString ϕ n
   | ϕ⋀ψ, n => "(" ++ formToString ϕ n ++ " ⋀ " ++ formToString ψ n ++ ")"
   | □ϕ, n => "(□ " ++ formToString ϕ n ++ ")"
-
-instance : Repr Formula :=
-   ⟨formToString⟩
 
 -- COMPLEXITY
 -- this should later be the measure from Lemma 2, page 20
