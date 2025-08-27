@@ -133,7 +133,7 @@ lemma PreForm.fischerLadnerStep_down {pφ pψ : PreForm} :
 
 /-- With `PreForm.fischerLadnerStep` the (sum of) `PreForm.length` goes down.
 Here `h` is needed to exclude the .inr case (where we would claim 0 < 0). -/
-lemma PreForm.fischerLadnerStep_sum_down (pφ : PreForm) (h : ¬ pφ.2.2.isRight):
+lemma PreForm.fischerLadnerStep_sum_down (pφ : PreForm) (h : pφ.2.1.isSome ∨ pφ.2.2.isLeft) :
     ((PreForm.fischerLadnerStep pφ).map PreForm.length).sum < PreForm.length pφ := by
   rcases pφ with ⟨b, _|α, φ|φ⟩
   case none.inl =>
@@ -152,8 +152,9 @@ lemma PreForm.fischerLadnerStep_sum_down (pφ : PreForm) (h : ¬ pφ.2.2.isRight
 
 def PreForm.fischerLadnerClosure (pfs : List PreForm) : List PreForm :=
   pfs ++ pfs.flatMap (fun pφ =>
-    if _forTermination : pφ.2.2.isRight then [] else
-        PreForm.fischerLadnerClosure (PreForm.fischerLadnerStep pφ))
+    if _forTermination : pφ.2.1.isSome ∨ pφ.2.2.isLeft
+      then PreForm.fischerLadnerClosure (PreForm.fischerLadnerStep pφ)
+      else [])
 termination_by
   (pfs.map PreForm.length).sum
 decreasing_by
@@ -165,17 +166,19 @@ decreasing_by
 lemma PreForm.fischerLadnerClosure_mem_def :
     pφ ∈ PreForm.fischerLadnerClosure pfs
     ↔   pφ ∈ pfs
-      ∨ (∃ pf ∈ pfs, pf.2.2.isLeft ∧ pφ ∈ PreForm.fischerLadnerClosure (PreForm.fischerLadnerStep pf)) := by
+      ∨ (∃ pf ∈ pfs, (pf.2.1.isSome ∨ pf.2.2.isLeft)
+          ∧ pφ ∈ PreForm.fischerLadnerClosure (PreForm.fischerLadnerStep pf)) := by
   constructor
   · intro pφ_in
     unfold PreForm.fischerLadnerClosure at pφ_in
-    aesop
+    simp only [dite_eq_ite, List.mem_append, List.mem_flatMap, List.mem_ite_nil_right] at pφ_in
+    rcases pφ_in with _|⟨pf,pf_in,bla⟩ <;> aesop
   · intro pφ_in
     unfold PreForm.fischerLadnerClosure
     aesop
 
-lemma PreForm.fischerLadnerClosure_all_right_then_id {pfs}
-    (h : ∀ pf ∈ pfs, pf.2.2.isRight) : PreForm.fischerLadnerClosure pfs = pfs := by
+lemma PreForm.fischerLadnerClosure_all_noneright_then_id {pfs}
+    (h : ∀ pf ∈ pfs, pf.2.1 = none ∧ pf.2.2.isRight) : PreForm.fischerLadnerClosure pfs = pfs := by
   unfold PreForm.fischerLadnerClosure
   simp
   grind
@@ -215,19 +218,21 @@ lemma PreForm.fischerLadnerStep_stays_right {pf : PreForm}
   · cases φ <;> simp at *
   · cases α <;> aesop
 
-lemma PreForm.fischerLadnerClosure_cons pf pfs :
+lemma PreForm.fischerLadnerClosure_cons pf pfs {pφ} :
     pφ ∈ PreForm.fischerLadnerClosure (pf :: pfs)
     ↔ pφ = pf
-      ∨ (pf.2.2.isLeft ∧ pφ ∈ PreForm.fischerLadnerClosure (PreForm.fischerLadnerStep pf))
+      ∨ ( (pf.2.1.isSome = true ∨ pf.2.2.isLeft = true)
+        ∧ pφ ∈ PreForm.fischerLadnerClosure (PreForm.fischerLadnerStep pf))
       ∨ pφ ∈ PreForm.fischerLadnerClosure pfs := by
   constructor
   · intro pφ_in
     unfold fischerLadnerClosure at pφ_in
     simp at pφ_in
-    rcases pφ_in with _|pφ_in|_|⟨_,_,_,_⟩ <;> try simp_all
+    rcases pφ_in with _|pφ_in|_|⟨_,_,_,_⟩
+    · simp_all
     · right; right; exact PreForm.fischerLadnerClosure_self pfs pφ_in
-    unfold fischerLadnerClosure
-    aesop
+    · right; left; aesop
+    · right; right; unfold fischerLadnerClosure; aesop
   · rintro (_|_|_) <;> unfold fischerLadnerClosure
     · aesop
     · aesop
@@ -240,13 +245,12 @@ lemma PreForm.fischerLadnerClosure_mem_iff_chain :
     ∃ k : Nat, ∃ l : List.Vector PreForm k.succ,
         l.head ∈ pfs
       ∧ l.last = pφ
-      ∧ ∀ i : Fin k, l[i].2.2.isLeft ∧ l[i.succ] ∈ PreForm.fischerLadnerStep l[i] := by
+      ∧ ∀ i : Fin k, (l[i].2.1.isSome ∨ l[i].2.2.isLeft) ∧ l[i.succ] ∈ PreForm.fischerLadnerStep l[i] := by
   constructor
   · intro pφ_in
     unfold PreForm.fischerLadnerClosure at pφ_in
-    simp only [dite_eq_ite, List.mem_append, List.mem_flatMap, List.mem_ite_nil_left,
-      Bool.not_eq_true, Sum.isRight_eq_false, Nat.succ_eq_add_one, Fin.getElem_fin,
-      Fin.val_succ] at *
+    simp only [dite_eq_ite, List.mem_append, List.mem_flatMap, List.mem_ite_nil_right,
+      Nat.succ_eq_add_one, Fin.getElem_fin, Fin.val_succ] at *
     rcases pφ_in with pf_in | ⟨qf, qf_in, qf_left, pf_from_qf⟩
     · use 0, ⟨[pφ], by simp⟩
       aesop
@@ -269,17 +273,13 @@ lemma PreForm.fischerLadnerClosure_mem_iff_chain :
     case succ k =>
       unfold PreForm.fischerLadnerClosure
       simp
-      have _forTermination : ¬ l.head.2.2.isRight := by
-        simp
-        convert (steps 0).1
-        rw [← List.Vector.getElem_zero_eq_head]; rfl
+      have _forTermination : l.head.2.1.isSome ∨ l.head.2.2.isLeft := by
+        convert (steps 0).1 <;> rw [← List.Vector.getElem_zero_eq_head] <;> rfl
       have IH := @PreForm.fischerLadnerClosure_mem_iff_chain (l.head.fischerLadnerStep) pφ
       right
       refine ⟨l.head, by assumption, ?_⟩
       constructor
-      · convert (steps 0).1
-        rw [← List.Vector.getElem_zero_eq_head]
-        rfl
+      · exact _forTermination
       · rw [IH]
         refine ⟨k, l.tail, ?_, ?_, ?_⟩  -- hmm??
         · convert (steps 0).2
@@ -293,6 +293,8 @@ lemma PreForm.fischerLadnerClosure_mem_iff_chain :
           exact def_pφ
         · intro i
           convert steps i.succ
+          · have := @List.Vector.tail_getElem_eq_getElem_succ _ _ l i.castSucc
+            convert this using 1
           · have := @List.Vector.tail_getElem_eq_getElem_succ _ _ l i.castSucc
             convert this using 1
           · have := @List.Vector.tail_getElem_eq_getElem_succ _ _ l i.castSucc
@@ -355,6 +357,11 @@ lemma PreForm.fischerLadnerClosure_idem :
             convert def_l_head.symm
             · apply List.Vector.getElem_zero_eq_head
             · simp_all [List.Vector.getElem_max_eq_last]
+          · have := @cast_append_getElem_eq_getElem_of_lt _ k l.tail k' l' (by omega) i.val (by omega)
+            convert this
+            convert def_l_head.symm
+            · apply List.Vector.getElem_zero_eq_head
+            · simp_all [List.Vector.getElem_max_eq_last]
           · rcases i with ⟨i,i_lt⟩
             have := @cast_append_getElem_eq_getElem_of_ge _ _ l _ l' this (k' + 1) (by simp) (by omega)
             simp at this
@@ -363,6 +370,7 @@ lemma PreForm.fischerLadnerClosure_idem :
           simp only [Nat.succ_eq_add_one, Fin.getElem_fin, Fin.val_succ, Fin.succ_mk,
             Nat.add_one_sub_one] at *
           convert steps
+          · apply cast_append_getElem_eq_getElem_of_ge; omega
           · apply cast_append_getElem_eq_getElem_of_ge; omega
           · apply cast_append_getElem_eq_getElem_of_ge; omega
           · have := @cast_append_getElem_eq_getElem_of_ge _ _ l _ l' this i.succ
@@ -385,6 +393,13 @@ lemma PreForm.fischerLadnerClosure_idem :
 def fischerLadnerClosure (fs : List Formula) : List Formula :=
   (PreForm.fischerLadnerClosure (fs.map PreForm.ofFormula)).map PreForm.toForm
 
+-- Examples. Is the duplication annoying? (Comes from "staying the same" cases above.)
+--
+-- #eval fischerLadnerClosure [⌈(∗(·1))⌉ ·9]
+-- #eval fischerLadnerClosure [⌈(∗(·1 ⋓ ·2))⌉ ·9] -- was wrong with older fLC def
+-- #eval List.dedup $ fischerLadnerClosure [⌈(∗(·1 ⋓ ·2))⌉ ·9]
+
+-- TODO how to say that it contains any number of steps?
 lemma fLC_contains_step (φ : Formula) :
     φ.fischerLadnerStep ⊆ fischerLadnerClosure [φ] := by
   cases φ <;> simp [Formula.fischerLadnerStep]
@@ -482,17 +497,46 @@ lemma fLC_sub (fs gs : List Formula) :
     (by intro φ; aesop)
   aesop
 
-
--- helper
-def mark_done : PreForm → PreForm := fun ⟨b,αs,lrφ⟩ => ⟨b,αs,Sum.inr (lrφ.elim id id)⟩
-
--- helper
-lemma PreForm.flC_mark_done_toForm_eq_toForm pfs :
-      ((PreForm.fischerLadnerClosure pfs).map mark_done).map toForm
-    = ((PreForm.fischerLadnerClosure pfs)).map toForm := by
-  ext k φ
-  simp_all
-  aesop
+/-- This probably does not hold in general. -/
+lemma speculation :
+    PreForm.fischerLadnerClosure
+      (List.map (PreForm.ofFormula ∘ PreForm.toForm)
+        (PreForm.fischerLadnerClosure (List.map PreForm.ofFormula fs)))
+    ⊆ PreForm.fischerLadnerClosure (List.map PreForm.ofFormula fs) := by
+  intro pf pf_in
+  induction fs
+  · simp_all
+  case cons f fs IH =>
+    simp [List.map_cons] at *
+    rw [PreForm.fischerLadnerClosure_mem_def] at pf_in
+    simp at pf_in
+    rcases pf_in with ⟨pφ, pφ_in, def_pf⟩|⟨pφ, pφ_in, _, pf_in⟩
+    · subst def_pf
+      rw [PreForm.fischerLadnerClosure_cons]
+      rw [PreForm.fischerLadnerClosure_cons] at pφ_in
+      rcases pφ_in with _|⟨_,pφ_in⟩ |_
+      · left; simp_all
+      · -- coming from f
+        clear IH -- probably useless here?
+        right
+        left
+        simp_all
+        -- pφ is in it, but its to-normal-to-pre variant might not be?
+        -- NOTE: the whole lemma here might be wrong!
+        unfold PreForm.ofFormula at *
+        rw [PreForm.fischerLadnerClosure_mem_def] at pφ_in
+        sorry
+      case inr h =>
+        -- coming from fs
+        right
+        right
+        -- use IH here (which assumes we already solved the issue??)
+        apply IH
+        clear IH
+        -- unsure here
+        rw [← PreForm.fischerLadnerClosure_idem] at h
+        sorry
+    · sorry
 
 /-- The `fischerLadnerClosure` is idempotent / transitive. -/
 lemma fLC_idem (fs : List Formula) φ :
@@ -502,6 +546,46 @@ lemma fLC_idem (fs : List Formula) φ :
   · intro φ_in
     simp at *
     rcases φ_in with ⟨pf, pf_in, pf_is_φ⟩
+    -- exact ⟨pf, speculation pf_in, pf_is_φ⟩ -- but UNSURE about that lemma!!
+    -- use pf -- NO, might not have the same witness / do not know this yet?
+
+    unfold PreForm.fischerLadnerClosure at pf_in
+    simp at *
+    rcases pf_in with ⟨qf, qf_in, def_pf⟩ | ⟨qf, qf_in, qf_inl, pf_in⟩
+    · subst def_pf
+      use qf -- yes!?!?
+      aesop
+    ·
+
+      use pf -- not sure
+      constructor
+      · unfold PreForm.fischerLadnerClosure
+        simp
+        right -- hmm?
+        unfold PreForm.fischerLadnerClosure at qf_in
+        simp at qf_in
+        -- STUCK, would `PreForm.fischerLadnerClosure_idem` be useful here?
+        sorry
+      · assumption
+  · apply fLC_self
+
+/-- The `fischerLadnerClosure` is idempotent / transitive. -/
+lemma fLC_idem' (fs : List Formula) φ :
+    φ ∈ fischerLadnerClosure (fischerLadnerClosure fs) ↔ φ ∈ fischerLadnerClosure fs := by
+  induction fs
+  · unfold fischerLadnerClosure
+    simp
+  case cons f fs IH =>
+
+  unfold fischerLadnerClosure at *
+
+  constructor
+  · intro φ_in
+    simp at *
+    rcases φ_in with ⟨pf, pf_in, pf_is_φ⟩
+
+    -- refine ⟨pf, ?_, pf_is_φ⟩ -- UNSURE from here!
+    --exact speculation pf_in
     -- use pf -- NO, might not have the same witness / not know this yet.
     unfold PreForm.fischerLadnerClosure at pf_in
     simp at *
