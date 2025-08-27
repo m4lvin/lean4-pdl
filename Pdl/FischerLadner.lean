@@ -64,6 +64,7 @@ def PreForm.toForm : PreForm → Formula
 
 /-- Converting `Formula` to `PreForm` and back to `Formula` is the identity. Note that the other
 direction does not hold, because two different `PreForm`s can encode the same `Formula`. -/
+@[simp]
 lemma PreForm.toForm_ofFormula_cancel {φ} : (PreForm.ofFormula φ).toForm = φ := by
   simp [ofFormula,toForm]
 
@@ -161,6 +162,24 @@ decreasing_by
   simp
   use pφ
 
+lemma PreForm.fischerLadnerClosure_mem_def :
+    pφ ∈ PreForm.fischerLadnerClosure pfs
+    ↔   pφ ∈ pfs
+      ∨ (∃ pf ∈ pfs, pf.2.2.isLeft ∧ pφ ∈ PreForm.fischerLadnerClosure (PreForm.fischerLadnerStep pf)) := by
+  constructor
+  · intro pφ_in
+    unfold PreForm.fischerLadnerClosure at pφ_in
+    aesop
+  · intro pφ_in
+    unfold PreForm.fischerLadnerClosure
+    aesop
+
+lemma PreForm.fischerLadnerClosure_all_right_then_id {pfs}
+    (h : ∀ pf ∈ pfs, pf.2.2.isRight) : PreForm.fischerLadnerClosure pfs = pfs := by
+  unfold PreForm.fischerLadnerClosure
+  simp
+  grind
+
 @[simp]
 lemma PreForm.fischerLadnerClosure_empty : fischerLadnerClosure [] = [] := by
   unfold PreForm.fischerLadnerClosure
@@ -185,6 +204,34 @@ lemma PreForm.fischerLadnerClosure_sub pfs pgs :
   intro pφ pφ_in
   simp_all
   aesop
+
+lemma PreForm.fischerLadnerStep_stays_right {pf : PreForm}
+    (h : pf.2.2.isRight) : ∀ pφ ∈ pf.fischerLadnerStep, pφ.2.2.isRight := by
+  intro pφ pφ_in
+  unfold fischerLadnerStep at pφ_in
+  rcases pf with ⟨b, _|α, φ|φ⟩
+  case none.inl => exfalso; aesop
+  case some.inl => exfalso; aesop
+  · cases φ <;> simp at *
+  · cases α <;> aesop
+
+lemma PreForm.fischerLadnerClosure_cons pf pfs :
+    pφ ∈ PreForm.fischerLadnerClosure (pf :: pfs)
+    ↔ pφ = pf
+      ∨ (pf.2.2.isLeft ∧ pφ ∈ PreForm.fischerLadnerClosure (PreForm.fischerLadnerStep pf))
+      ∨ pφ ∈ PreForm.fischerLadnerClosure pfs := by
+  constructor
+  · intro pφ_in
+    unfold fischerLadnerClosure at pφ_in
+    simp at pφ_in
+    rcases pφ_in with _|pφ_in|_|⟨_,_,_,_⟩ <;> try simp_all
+    · right; right; exact PreForm.fischerLadnerClosure_self pfs pφ_in
+    unfold fischerLadnerClosure
+    aesop
+  · rintro (_|_|_) <;> unfold fischerLadnerClosure
+    · aesop
+    · aesop
+    next h => unfold fischerLadnerClosure at h; aesop
 
 -- maybe use  ∃ l, List.Chain pflR pf l ∧ l.last  but "last" is annoying.
 -- for Chain: def pflR (pf pg : PreForm) : Prop := pg ∈ PreForm.fischerLadnerStep pf
