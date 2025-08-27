@@ -2,6 +2,7 @@ import Mathlib.Algebra.Order.BigOperators.Group.List
 
 import Pdl.Measures
 import Pdl.Vector
+import Pdl.SyntaxPretty -- experimental but useful for #eval examples
 
 /-! # Fischer-Ladner Closure
 
@@ -396,7 +397,7 @@ def fischerLadnerClosure (fs : List Formula) : List Formula :=
 -- Examples. Is the duplication annoying? (Comes from "staying the same" cases above.)
 --
 -- #eval fischerLadnerClosure [⌈(∗(·1))⌉ ·9]
--- #eval fischerLadnerClosure [⌈(∗(·1 ⋓ ·2))⌉ ·9] -- was wrong with older fLC def
+#eval fischerLadnerClosure [⌈(∗(·1 ⋓ ·2 ;' · 3))⌉ ·4] -- was wrong with older fLC def
 -- #eval List.dedup $ fischerLadnerClosure [⌈(∗(·1 ⋓ ·2))⌉ ·9]
 
 -- TODO how to say that it contains any number of steps?
