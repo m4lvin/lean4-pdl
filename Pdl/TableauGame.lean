@@ -115,12 +115,19 @@ lemma no_moves_of_rep {Hist X pos} (h : rep Hist X) :
   unfold theMoves at p_in
   rcases X with ⟨L,R,_|o⟩ <;> rcases pos with (_|_|_)|(_|_) <;> aesop
 
+lemma move_then_no_rep {next} {p : (ProverPos Hist X ⊕ BuilderPos Hist X)} :
+    move next ⟨Hist, X, p⟩ → ¬ rep Hist X := by
+  intro next_p hyp
+  have := @no_moves_of_rep _ _ p hyp
+  unfold move at next_p
+  aesop
+
 def GamePos.toList : GamePos → List Formula := sorry
 
 -- QUESTION: is `toList` maybe too forgetful? Is every `List Formula` repeat also a `rep`?
 -- Note that `rep` uses `multisetEqTo` which respects the L/R/o split.
 
-lemma move_inside_flc : move next p → next.toList ⊆ fischerLadnerClosure p.toList := by
+lemma move_inside_flc : move next p → next.toList ⊆ FLL p.toList := by
   sorry
 
 /-- Lemma 6.10, sort of. Because the move relation is wellfounded, all matches must be finite.
