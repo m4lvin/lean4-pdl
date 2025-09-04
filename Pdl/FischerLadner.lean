@@ -1,7 +1,7 @@
 import Mathlib.Algebra.Order.BigOperators.Group.List
 
 import Pdl.Measures
-import Pdl.Vector
+import Pdl.Vocab
 
 /-! # Fischer-Ladner Closure (alternative)
 
@@ -173,3 +173,56 @@ lemma FL_box_star {φ α ψ} :
 
 @[simp]
 def FLL (L : List Formula) : List Formula := L.flatMap FL
+
+/-! ## FL stays in the Vocabulary -/
+
+mutual
+
+lemma FL_stays_in_voc {φ ψ} (ψ_in_FL : ψ ∈ FL φ) : ψ.voc ⊆ φ.voc := by
+  cases φ <;> simp_all [FL]
+  case neg φ =>
+    rcases ψ_in_FL with _|h <;> subst_eqs
+    · simp at *
+    · exact FL_stays_in_voc h
+  case and φ1 φ2 =>
+    rcases ψ_in_FL with h|h|h
+    · subst_eqs
+      simp
+    · have IH := FL_stays_in_voc h
+      grind
+    · have IH := FL_stays_in_voc h
+      grind
+  case box α φ =>
+    rcases ψ_in_FL with h|h
+    · exact FLb_stays_in_voc h
+    · have IH := FL_stays_in_voc h
+      grind
+
+lemma FLb_stays_in_voc {α φ ψ} (ψ_in_FLb : ψ ∈ FLb α φ) : ψ.voc ⊆ α.voc ∪ φ.voc := by
+  cases α <;> simp_all [FLb]
+  case sequence α1 α2 =>
+    rcases ψ_in_FLb with h|h|h
+    · subst_eqs; simp
+    · have IH := FLb_stays_in_voc h
+      aesop
+    · have IH := FLb_stays_in_voc h
+      grind
+  case union α1 α2 =>
+    rcases ψ_in_FLb with h|h|h
+    · subst_eqs; simp
+    · have IH := FLb_stays_in_voc h
+      grind
+    · have IH := FLb_stays_in_voc h
+      grind
+  case test τ =>
+    rcases ψ_in_FLb with h|h
+    · subst_eqs; simp
+    · have IH := FL_stays_in_voc h
+      grind
+  case star α =>
+    rcases ψ_in_FLb with h|h
+    · subst_eqs; simp
+    · have IH := FLb_stays_in_voc h
+      aesop
+
+end

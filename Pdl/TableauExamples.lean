@@ -89,7 +89,7 @@ abbrev r : Formula := · atR
 abbrev a : Program := · atA
 
 /-- Preparation for Example 2 from MB. -/
-def subTabForEx2 : Tableau [([r⋀(~⌈a⌉p), ~ r⋀(~⌈a⌉p⋀q)], [], none)] ([r, ~(⌈a⌉p), ⌈a⌉(p⋀q)], [], none) :=
+def subTabForEx2 : Tableau [([r⋀(~⌈a⌉p), ~ (r ⋀ (~⌈a⌉p⋀q))], [], none)] ([r, ~(⌈a⌉p), ⌈a⌉(p⋀q)], [], none) :=
   by
   have principal : (~(⌈a⌉p)) ∈ [r, ~(⌈a⌉p), ⌈a⌉(p⋀q)] := by simp
   apply Tableau.pdl (by simp [rep, Sequent.multisetEqTo]; decide) (by simp [Sequent.basic, Sequent.closed])

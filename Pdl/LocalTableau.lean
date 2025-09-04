@@ -29,11 +29,9 @@ def Sequent := List Formula × List Formula × Olf -- ⟨L, R, o⟩
 -- - one formula may be loaded
 -- - each (loaded) formula can be on the left/right/both
 
-/-- Two `Sequent`s are set-equal when their components are finset-equal.
-That is, we do not care about the order of the lists, but we do care
-about the side of the formula and what formual is loaded.
-Hint: use `List.toFinset.ext_iff` with this. -/
-
+/-- Two `Sequent`s are multiset-equal when their components are multiset-equal.
+That is, we do not care about the order of the lists, but we do care about the side
+on which the formula is, whether it is loaded or not, and how often it occurs. -/
 def Sequent.multisetEqTo : Sequent → Sequent → Prop
 | (L,R,O), (L',R',O') =>
   Multiset.ofList L = Multiset.ofList L' ∧ Multiset.ofList R = Multiset.ofList R' ∧ O = O'
@@ -42,7 +40,6 @@ instance : DecidableRel Sequent.multisetEqTo := by
   unfold Sequent.multisetEqTo DecidableRel
   rintro ⟨L,R,O⟩ ⟨L',R',O'⟩
   exact instDecidableAnd
-
 
 @[simp]
 lemma Sequent.multisetEqTo_refl (X : Sequent) : X.multisetEqTo X := by

@@ -39,7 +39,7 @@ This only tracks "big" steps, hoping we do not need steps within a local tableau
 The head of the first list is the newest Sequent. -/
 abbrev History : Type := List Sequent
 
-/-- We have a repeat iff the history contains a node that is `setEqTo` the current node. -/
+/-- We have a repeat iff the history contains a node that is `multisetEqTo` the current node. -/
 def rep (Hist : History) (X : Sequent) : Prop := ∃ Y ∈ Hist, Y.multisetEqTo X
 
 instance {H X} : Decidable (rep H X) := by

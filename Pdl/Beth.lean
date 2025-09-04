@@ -77,7 +77,8 @@ theorem beth (φ : Formula) (h : φ.impDef p) :
       · assumption
     have ip_two_p : tautology (ψ ↣ (φ ↣ ·p)) := by
       clear ip_one
-      have := non_occ_taut_then_taut_imp_repl_in (~ repl_in_F p (·p1) φ⋀(~·p1)) ψ p1 p
+      have := non_occ_taut_then_taut_imp_repl_in
+        (~ (repl_in_F p (·p1) φ ⋀ (~·p1))) ψ p1 p
       simp only [repl_in_F, beq_self_eq_true, ↓reduceIte] at this
       rw [repl_in_F_cancel_via_non_occ _ p p1 ?_] at this
       apply this

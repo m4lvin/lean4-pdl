@@ -14,7 +14,7 @@ mutual
   def repl_in_F (x : Nat) (ψ : Formula) : Formula → Formula
     | ⊥ => ⊥
     | ·c => if c == x then ψ else ·c
-    | ~φ => ~(repl_in_F x ψ φ)
+    | ~φ => ~ repl_in_F x ψ φ
     | φ1⋀φ2 => (repl_in_F x ψ) φ1 ⋀ (repl_in_F x ψ) φ2
     | ⌈α⌉ φ => ⌈repl_in_P x ψ α⌉ (repl_in_F x ψ φ)
   /-- Replace atomic proposition `x` by `ψ` in a program. -/

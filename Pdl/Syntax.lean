@@ -36,7 +36,7 @@ def Program.steps : List Program → Program
 
 prefix:70 "·" => Formula.atom_prop
 prefix:70 "·" => Program.atom_prog
-prefix:11 "~" => Formula.neg
+prefix:69 "~" => Formula.neg
 
 @[simp]
 instance Formula.instBot : Bot Formula := ⟨Formula.bottom⟩
@@ -167,7 +167,7 @@ notation "~''" φ:arg => AnyNegFormula.neg φ
 
 @[simp]
 def negUnload : NegLoadFormula → Formula
-| NegLoadFormula.neg χ => ~(χ.unload)
+| NegLoadFormula.neg χ => ~ χ.unload
 
 example : NegLoadFormula := ~'(⌊((·1) ;' (·2))⌋(⊤ : Formula))
 example : NegLoadFormula := ~'(⌊⌊[·1, ·2]⌋⌋⌊·1⌋(⊤ : Formula))
