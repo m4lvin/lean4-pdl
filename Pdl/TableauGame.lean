@@ -104,7 +104,7 @@ def theMoves : GamePos → Finset GamePos
   | ⟨H, X, .inr (.ltab _ _ ltab)⟩ =>
       ((endNodesOf ltab).map (fun Y => ⟨(X :: H), Y, posOf (X :: H) Y⟩)).toFinset
 
-def move next p := next ∈ theMoves p
+def move (next p : GamePos) := next ∈ theMoves p
 
 lemma no_moves_of_rep {Hist X pos} (h : rep Hist X) :
     theMoves ⟨Hist, X, pos⟩ = ∅ := by
@@ -121,6 +121,15 @@ lemma move_then_no_rep {next} {p : (ProverPos Hist X ⊕ BuilderPos Hist X)} :
   have := @no_moves_of_rep _ _ p hyp
   unfold move at next_p
   aesop
+
+lemma move.hist (mov : move next ⟨Hist, X, pos⟩) :
+      (∃ newPos, next = ⟨Hist, X, newPos⟩) -- this is an annoying case ;-)
+    ∨ (∃ Y newPos, next = ⟨X :: Hist, Y, newPos⟩)  := by
+  unfold move theMoves at mov
+  simp at mov
+  rcases X with ⟨L,R,_|o⟩ <;> rcases pos with (_|_|_)|(_|_) <;> simp at mov
+  all_goals
+    grind
 
 def GamePos.toList : GamePos → List Formula := sorry
 
