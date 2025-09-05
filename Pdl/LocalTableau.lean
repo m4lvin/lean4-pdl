@@ -36,6 +36,11 @@ Hint: use `List.toFinset.ext_iff` with this. -/
 def Sequent.setEqTo : Sequent → Sequent → Prop
 | (L,R,O), (L',R',O') => L.toFinset = L'.toFinset ∧ R.toFinset = R'.toFinset ∧ O = O'
 
+instance : DecidableRel Sequent.setEqTo := by
+  unfold Sequent.setEqTo DecidableRel
+  rintro ⟨L,R,O⟩ ⟨L',R',O'⟩
+  exact instDecidableAnd
+
 /-- Two `Sequent`s are multiset-equal when their components are multiset-equal.
 That is, we do not care about the order of the lists, but we do care about the side
 on which the formula is, whether it is loaded or not, and how often it occurs. -/
@@ -47,6 +52,15 @@ instance : DecidableRel Sequent.multisetEqTo := by
   unfold Sequent.multisetEqTo DecidableRel
   rintro ⟨L,R,O⟩ ⟨L',R',O'⟩
   exact instDecidableAnd
+
+@[grind]
+lemma Sequent.setEqTo_of_multisetEqTo (X Y : Sequent) :
+    X.multisetEqTo Y → X.setEqTo Y := by
+  rcases X with ⟨L,R,O⟩
+  rcases Y with ⟨L',R',O'⟩
+  intro hyp
+  simp_all [multisetEqTo,setEqTo]
+  grind [List.toFinset_eq_of_perm]
 
 @[simp]
 lemma Sequent.setEqTo_refl (X : Sequent) : X.setEqTo X := by

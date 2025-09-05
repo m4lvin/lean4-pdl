@@ -39,8 +39,8 @@ This only tracks "big" steps, hoping we do not need steps within a local tableau
 The head of the first list is the newest Sequent. -/
 abbrev History : Type := List Sequent
 
-/-- We have a repeat iff the history contains a node that is `multisetEqTo` the current node. -/
-def rep (Hist : History) (X : Sequent) : Prop := ∃ Y ∈ Hist, Y.multisetEqTo X
+/-- We have a repeat iff the history contains a node that is `setEqTo` the current node. -/
+def rep (Hist : History) (X : Sequent) : Prop := ∃ Y ∈ Hist, Y.setEqTo X
 
 instance {H X} : Decidable (rep H X) := by
   unfold rep
@@ -59,7 +59,8 @@ def LoadedPathRepeat (Hist : History) (X : Sequent) : Type :=
 lemma LoadedPathRepeat.to_rep (lpr : LoadedPathRepeat Hist X) : rep Hist X := by
   rcases lpr with ⟨k, same, all_loaded⟩
   use List.get Hist k
-  simp_all
+  simp_all only [List.get_eq_getElem, List.getElem_mem, true_and]
+  exact Sequent.setEqTo_of_multisetEqTo _ _ same
 
 instance : DecidableEq (LoadedPathRepeat Hist X) := Subtype.instDecidableEq
 

@@ -1297,8 +1297,8 @@ lemma PathIn.mem_history_multisetEqTo_then_lrep {tab : Tableau Hist X} (p : Path
   simp [nodeAt] at h2
   rw [h] at h2
   cases t
-  case loc _ _   nrep _ => exact nrep ⟨Y, by aesop⟩
-  case pdl _ _ _ nrep _ => exact nrep ⟨Y, by aesop⟩
+  case loc _ _   nrep _ => exact nrep ⟨Y, by have := Sequent.setEqTo_of_multisetEqTo; aesop⟩
+  case pdl _ _ _ nrep _ => exact nrep ⟨Y, by have := Sequent.setEqTo_of_multisetEqTo; aesop⟩
   case lrep             => simp [Tableau.isLrep]
 
 lemma single_of_transgen {α} {r} {a c: α} : Relation.TransGen r a c → ∃ b, r a b := by
