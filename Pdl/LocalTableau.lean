@@ -29,6 +29,13 @@ def Sequent := List Formula × List Formula × Olf -- ⟨L, R, o⟩
 -- - one formula may be loaded
 -- - each (loaded) formula can be on the left/right/both
 
+/-- Two `Sequent`s are set-equal when their components are finset-equal.
+That is, we do not care about the order of the lists, but we do care
+about the side of the formula and what formual is loaded.
+Hint: use `List.toFinset.ext_iff` with this. -/
+def Sequent.setEqTo : Sequent → Sequent → Prop
+| (L,R,O), (L',R',O') => L.toFinset = L'.toFinset ∧ R.toFinset = R'.toFinset ∧ O = O'
+
 /-- Two `Sequent`s are multiset-equal when their components are multiset-equal.
 That is, we do not care about the order of the lists, but we do care about the side
 on which the formula is, whether it is loaded or not, and how often it occurs. -/
@@ -40,6 +47,17 @@ instance : DecidableRel Sequent.multisetEqTo := by
   unfold Sequent.multisetEqTo DecidableRel
   rintro ⟨L,R,O⟩ ⟨L',R',O'⟩
   exact instDecidableAnd
+
+@[simp]
+lemma Sequent.setEqTo_refl (X : Sequent) : X.setEqTo X := by
+  rcases X with ⟨L,R,O⟩
+  simp [Sequent.setEqTo]
+
+lemma Sequent.setEqTo_symm (X Y : Sequent) : X.setEqTo Y ↔ Y.setEqTo X := by
+  rcases X with ⟨L,R,O⟩
+  rcases Y with ⟨L',R',O'⟩
+  unfold setEqTo
+  tauto
 
 @[simp]
 lemma Sequent.multisetEqTo_refl (X : Sequent) : X.multisetEqTo X := by
@@ -76,6 +94,12 @@ theorem Sequent.none_isFree L R : Sequent.isFree (L, R, none) := by
 theorem Sequent.some_not_isFree L R olf : ¬ Sequent.isFree (L, R, some olf) := by
   simp [Sequent.isFree, Sequent.isLoaded]
 
+-- delete me later?
+theorem setEqTo_isLoaded_iff {X Y : Sequent} (h : X.setEqTo Y) : X.isLoaded = Y.isLoaded := by
+  simp_all [Sequent.setEqTo, Sequent.isLoaded]
+  rcases X with ⟨XL, XR, _|_⟩ <;> rcases Y with ⟨YL, YR, _|_⟩
+  all_goals
+    simp_all
 
 theorem multisetEqTo_isLoaded_iff {X Y : Sequent} (h : X.multisetEqTo Y) : X.isLoaded = Y.isLoaded := by
   simp_all [Sequent.multisetEqTo, Sequent.isLoaded]
@@ -107,6 +131,16 @@ theorem tautImp_iff_SequentUnsat {φ ψ} {X : Sequent} :
   subst defX
   simp_all [tautology,satisfiable,modelCanSemImplySequent]
 
+theorem vDash_setEqTo_iff {X Y : Sequent} (h : X.setEqTo Y) (M : KripkeModel W) (w : W) :
+    (M,w) ⊨ X ↔ (M,w) ⊨ Y := by
+  rcases X with ⟨L, R, O⟩
+  rcases Y with ⟨L',R',O'⟩
+  simp only [modelCanSemImplySequent]
+  unfold Sequent.setEqTo at h
+  simp at h
+  rw [List.toFinset.ext_iff, List.toFinset.ext_iff] at h
+  rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
+  simp_all
 
 theorem vDash_multisetEqTo_iff {X Y : Sequent} (h : X.multisetEqTo Y) (M : KripkeModel W) (w : W) :
     (M,w) ⊨ X ↔ (M,w) ⊨ Y := by
@@ -226,6 +260,16 @@ def AnyNegFormula.in_side : (anf : AnyNegFormula) → Side → (X : Sequent) →
 | ⟨.normal φ⟩, .RR, ⟨_, R, _⟩ => (~φ) ∈ R
 | ⟨.loaded χ⟩, .LL, ⟨_, _, O⟩ => O = some (Sum.inl (~'χ))
 | ⟨.loaded χ⟩, .RR, ⟨_, _, O⟩ => O = some (Sum.inr (~'χ))
+
+theorem AnyNegFormula.in_side_of_setEqTo {X Y} (h : X.setEqTo Y) {anf : AnyNegFormula} :
+    anf.in_side side X ↔ anf.in_side side Y := by
+  rcases X with ⟨L, R, O⟩
+  rcases Y with ⟨L',R',O'⟩
+  simp only [Sequent.setEqTo] at *
+  rw [List.toFinset.ext_iff, List.toFinset.ext_iff] at h
+  rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
+  subst O_eq_O'
+  cases side <;> rcases anf with ⟨(n|m)⟩ <;> simp_all [AnyNegFormula.in_side]
 
 theorem AnyNegFormula.in_side_of_multisetEqTo {X Y} (h : X.multisetEqTo Y) {anf : AnyNegFormula} :
     anf.in_side side X ↔ anf.in_side side Y := by
