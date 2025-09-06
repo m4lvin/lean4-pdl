@@ -8,6 +8,8 @@ import Pdl.FischerLadner
 
 /-! # The Tableau Game (Section 6.2 and 6.3) -/
 
+/-! ## Prover and Builder positions -/
+
 -- Renaming the players for the tableau game:
 notation "Prover" => Player.A
 notation "Builder" => Player.B
@@ -37,6 +39,8 @@ def posOf (H : History) (X : Sequent) : ProverPos H X ⊕ BuilderPos H X :=
       if bas : X.basic
       then .inl (.bas rep bas) -- actual ProverPos to choose a PDL rule
       else .inl (.nbas rep bas) -- actual ProverPos to make LocalTab
+
+/-! ## Moves -/
 
 /-- The moves for the `tableauGame`. -/
 @[simp]
@@ -131,18 +135,74 @@ lemma move.hist (mov : move next ⟨Hist, X, pos⟩) :
   all_goals
     grind
 
-def GamePos.toList : GamePos → List Formula := sorry
+/-! ## Termination -/
 
--- QUESTION: is `toList` maybe too forgetful? Is every `List Formula` repeat also a `rep`?
--- Note that `rep` uses `multisetEqTo` which respects the L/R/o split.
+/-- Sequent `X` is a component-wise subset of the FL-closure of `Y`.
+!!! TODO also need to take into account X.O and Y.O on both sides each !! -/
+def Sequent.subseteq_FL (X : Sequent) (Y : Sequent) : Prop :=
+    X.R ⊆ FLL Y.R  ∧  X.L ⊆ FLL Y.L  ∧  true
 
-lemma move_inside_flc : move next p → next.toList ⊆ FLL p.toList := by
+@[simp]
+lemma Sequent.subseteq_FL_refl (X : Sequent) : X.subseteq_FL X := by sorry
+
+@[simp]
+lemma Sequent.subseteq_FL_trans (X Y Z: Sequent) :
+    X.subseteq_FL Y → Y.subseteq_FL Z → X.subseteq_FL Z := by
   sorry
+
+/-- Helper for `LocalRule.stays_in_FL` -/
+lemma LoadRule.stays_in_FL (lr : LoadRule (~'χ) ress) :
+    ∀ Y ∈ ress, (Y.1) ⊆ FL (~ χ.unload) := by -- PROBLEM: also need to cover Y.2
+  sorry
+
+/-- Helper for `move_inside_FL` -/
+theorem LocalRule.stays_in_FL {Lcond Rcond Ocond B}
+    (rule : LocalRule (Lcond, Rcond, Ocond) B) :
+    ∀ Y ∈ B, Y.subseteq_FL ⟨Lcond, Rcond, Ocond⟩ := by
+  -- intro res res_in_B x x_in_res
+  cases rule
+  <;> sorry
+
+
+lemma move_inside_FL : move next p → next.2.1.subseteq_FL p.2.1 := by
+  -- This will be many case distinctions and extra lemmas.
+  sorry
+
+-- QUESTION: Given (X : Sequent) how to say
+-- "there are only finitely many "sequents modulo `setEq`" that are subseteq_FL Y X
+-- ???
 
 /-- Lemma 6.10, sort of. Because the move relation is wellfounded, all matches must be finite.
 Note that the paper does not prove this, only says it is similar to the proof that PDL-tableaux
 are finite, i.e. Lemma 4.10 which uses the Fischer-Ladner closure. -/
 lemma move.wf : WellFounded move := by
+  -- If it's not wellfounded, then there must be an infinite sequence of moves.
+  rw [WellFounded.wellFounded_iff_no_descending_seq]
+  by_contra hyp
+  simp at hyp
+  rcases hyp with ⟨f, f_rel⟩
+
+  have all_moves_inside : ∀ n, ((f n).2.1).subseteq_FL (f 0).2.1 := by
+    intro k
+    induction k
+    · simp
+    case succ k IH =>
+      apply Sequent.subseteq_FL_trans _ _ _ ?_ IH
+      apply move_inside_FL (f_rel k)
+
+  -- TODO: state that the history of all `f k` must be shared, proven via `move.hist`?
+
+  -- IDEA from here onwards: the Hist and X stays inside FL, but they also must all be different?!
+  -- Well, almost all must be different. Single steps that keep `Hist` and `X` are sometimes
+  -- allowed, in the annyong case in `move.hist`.
+
+  have no_repeats : ∀ n, ¬ rep (f n).1 (f n).2.1 := fun k => move_then_no_rep (f_rel k)
+
+  unfold rep at *
+
+  sorry
+
+  /- OLD IDEA for `move.wf`
   apply @wf_of_finTransInvImage_of_transIrrefl
   · -- To show: only finitely many moves are reachable
     -- Use `move_inside_flc` for this.
@@ -150,6 +210,9 @@ lemma move.wf : WellFounded move := by
   · -- To show: (TransGen move) is irreflexive, i.e. no repeats.
     -- Use `no_moves_of_rep` here maybe?
     sorry
+  -/
+
+/-! ## Actual Game Definition -/
 
 /-- The game defined in Section 6.2.-/
 def tableauGame : Game where
@@ -194,6 +257,8 @@ lemma def_of_boxesOf_def (h : boxesOf φ = (αs, ψ)) : φ = ⌈⌈αs⌉⌉ψ :
     case box β φ =>
       apply IH
       grind
+
+/-! ## From Prover winning strategies to tableau -/
 
 /-- After history `Hist`, if Prover has a winning strategy then there is a closed tableau.
 Note: we skip Definition 6.9 (Strategy Tree for Prover) and just use the `Strategy` type.
@@ -382,13 +447,15 @@ decreasing_by
     simp [tableauGame, Game.moves]
     use Y
 
+/-- The starting position for the given sequent.
+With an empty history and using `posOf` to determine the first `GamePos`. -/
 def startPos (X : Sequent) : GamePos := ⟨[], X, posOf [] X⟩
 
 /-- If Prover has a winning strategy then there is a closed tableau. -/
 theorem gameP (X : Sequent) (s : Strategy tableauGame Prover) (h : winning s (startPos X)) :
     Nonempty (Tableau [] X) := gameP_general [] X s _ h
 
-/-! ## From winning strategies to model graphs (Section 6.3) -/
+/-! ## From Builder winning strategies to model graphs (Section 6.3) -/
 
 -- See also Bml/CompletenessViaPaths.lean for the things needed here.
 
