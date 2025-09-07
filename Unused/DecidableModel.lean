@@ -2,7 +2,6 @@ import Mathlib.Data.Finset.Card
 
 import Pdl.Semantics
 
-
 /-- A Kripke model where the relation and valuation are decidable.
 Moreover, to get computable composition and transitive closure we
 want the type of worlds to be finite and enumerable.
@@ -204,3 +203,27 @@ instance relate.instDecidable (M : DecidableKripkeModel W) α (v w : W)
     all_goals
       apply isFalse; simp at *; tauto
 end
+
+/-- Alternative to avoid `.toKripkeModel`. -/
+@[simp]
+instance decidableModelCanSemImplyForm {W : Type} :
+  vDash (DecidableKripkeModel W × W) Formula := ⟨ fun (DM, w) => (evaluate ⟨DM.val, DM.Rel⟩ w) ⟩
+
+def myModel : DecidableKripkeModel Bool where
+  val := fun b k => if b then k < 6 else k > 10
+  Rel := fun a b1 b2 => if a < 1 then b1 == b2 else b1 == true
+  -- dec parts:
+  -- finW := -- easy
+  -- deceq := sorry -- easy
+  -- decrel := sorry -- also easy?
+  -- decval := sorry -- ∀ w n, Decidable (val w n)] -- also inferred
+
+open vDash
+
+example : (myModel, true) ⊨ (⊤ : Formula) := by
+  simp -- too easy
+
+example : (myModel.toKripkeModel, true) ⊨ ~(⌈·1⌉(·5) : Formula) := by
+  unfold vDash.SemImplies
+  simp only [modelCanSemImplyForm, evaluatePoint]
+  decide
