@@ -1,3 +1,4 @@
+import Mathlib.Data.List.Induction
 import Mathlib.Order.BoundedOrder.Basic
 
 /-! # Syntax (Section 2.1) -/
@@ -396,3 +397,81 @@ lemma loadMulti_eq_of_some (h : δ.head? = some d) :
 lemma loadMulti_eq_loadBoxes :
     AnyFormula.loaded (loadMulti δ α φ) = AnyFormula.loadBoxes (δ ++ [α]) φ := by
   induction δ <;> aesop
+
+/-! ## splitLast -/
+
+/-- Helper function for `YsetLoad'` to get last list element. -/
+def splitLast : List α → Option (List α × α)
+| [] => none
+| (x :: xs) => some $ match splitLast xs with
+  | none => ([], x)
+  | some (ys, y) => (x::ys, y)
+
+@[simp]
+theorem splitLast_nil : splitLast [] = (none : Option (List α × α)) := by simp [splitLast]
+
+theorem splitLast_cons_eq_some (x : α) (xs : List α) :
+    (splitLast (x :: xs)) = some ((x :: xs).dropLast, (x :: xs).getLast (List.cons_ne_nil x xs)) := by
+  cases xs
+  · simp [splitLast]
+  case cons y ys =>
+    have := splitLast_cons_eq_some y ys -- recursion!
+    unfold splitLast
+    rw [this]
+    simp
+
+@[simp]
+theorem splitLast_append_singleton : splitLast (xs ++ [x]) = some (xs, x) := by
+  induction xs
+  · simp [splitLast]
+  case cons IH =>
+    simp [splitLast]
+    rw [IH]
+
+lemma splitLast_inj (h : splitLast αs = splitLast βs) :
+    αs = βs := by
+  induction αs using List.reverseRecOn <;> induction βs using List.reverseRecOn
+  · rfl
+  · exfalso
+    simp_all
+  · exfalso
+    simp_all
+  aesop
+
+lemma splitLast_undo_of_some (h : splitLast αs = some βs_b) :
+    βs_b.1 ++ [βs_b.2] = αs := by
+  rcases αs with _ |⟨α,αs⟩
+  · exfalso
+    simp_all
+  have := @splitLast_cons_eq_some _ α αs
+  rw [h] at this
+  simp at this
+  subst this
+  simp
+  apply List.dropLast_append_getLast
+
+lemma loadMulti_of_splitLast_cons {α αs βs β φ} (h : splitLast (α :: αs) = some ⟨βs, β⟩) :
+    loadMulti βs β φ = ⌊α⌋AnyFormula.loadBoxes αs (AnyFormula.normal φ) := by
+  have : (α :: αs) = βs ++ [β] := by
+    rw [← @splitLast_append_singleton] at h
+    exact splitLast_inj h
+  cases αs
+  · unfold splitLast at h
+    simp at h
+    cases h
+    subst_eqs
+    simp at *
+  case cons α2 αs =>
+    have ⟨δβ2, new_h⟩ : ∃ δ2_β2, splitLast (α2 :: αs) = some δ2_β2 := by simp [splitLast]
+    rw [AnyFormula.loadBoxes_cons]
+    have IH := @loadMulti_of_splitLast_cons α2 αs _ _ φ new_h
+    rw [← IH]; clear IH
+    cases βs
+    · exfalso
+      unfold splitLast at h
+      simp at h
+      cases h
+    case cons β2 βs =>
+      simp_all
+      subst new_h
+      simp_all

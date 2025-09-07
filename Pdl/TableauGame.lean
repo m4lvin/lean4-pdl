@@ -137,6 +137,18 @@ lemma move.hist (mov : move next ⟨Hist, X, pos⟩) :
 
 /-! ## Termination -/
 
+-- Quick reminder how ≤ and ⊆ work on multisets.
+example : ¬ {2,2,1} ≤ ({1,2} : Multiset Nat) := by decide -- cares about multiplicity
+example :   {2,2,1} ⊆ ({1,2} : Multiset Nat) := by simp_all -- set-like / only cares about support
+
+/-- `X` is a component-wise *multi*subset of the FL-closure of `Y`.
+This implies `Sequent.subseteq_FL` but not vice versa, because infinitely
+many multisets yield the same set.
+!!! TODO also need to take into account X.O and Y.O on both sides each !! -/
+def Sequent.multisubseteq_FL (X : Sequent) (Y : Sequent) : Prop :=
+    Multiset.ofList X.R < Multiset.ofList (FLL Y.R)
+  ∧ Multiset.ofList X.L ⊆ Multiset.ofList (FLL Y.L)
+
 /-- Sequent `X` is a component-wise subset of the FL-closure of `Y`.
 !!! TODO also need to take into account X.O and Y.O on both sides each !! -/
 def Sequent.subseteq_FL (X : Sequent) (Y : Sequent) : Prop :=
