@@ -130,6 +130,7 @@ theorem Option.some_subseteq {O : Option α} : (some x ⊆ O) ↔ some x = O := 
   cases O
   all_goals simp
 
+-- mathlib this?
 /-- Instance that is used to say `(O : Olf) \ (O' : Olf)`. -/
 instance Option.insHasSdiff [DecidableEq α] : SDiff (Option α) := SDiff.mk
   λ o1 del =>
@@ -137,6 +138,24 @@ instance Option.insHasSdiff [DecidableEq α] : SDiff (Option α) := SDiff.mk
   | none, _ => none
   | some f, none => some f
   | some f, some g => if f = g then none else some f
+
+@[simp]
+lemma Option.insHasSdiff_none [DecidableEq α] :
+    (none : Option α) \ o = none := by
+  unfold Option.insHasSdiff
+  grind
+
+@[simp]
+lemma Option.insHasSdiff_remove_none_cancel [DecidableEq α] :
+    o \ (none : Option α) = o := by
+  unfold Option.insHasSdiff
+  grind
+
+@[simp]
+lemma Option.insHasSdiff_remove_sem_eq_none [DecidableEq α] :
+    (some x) \ (some x : Option α) = none := by
+  unfold Option.insHasSdiff
+  grind
 
 @[simp]
 def Option.overwrite : Option α → Option α → Option α

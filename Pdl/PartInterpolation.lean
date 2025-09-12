@@ -1,6 +1,6 @@
 import Mathlib.Data.Finset.Basic
 
-import Pdl.Completeness
+import Pdl.TableauPath
 
 /-! # Interpolants for Partitions (big part of Section 7) -/
 
@@ -75,9 +75,10 @@ lemma LoadRule_voc (lr : LoadRule (~'χ) ress) : lfovoc ress ⊆ χ.voc := by
     · simp [pairUnload] at unfvoc
       rcases x_in_V with ⟨f, f_in_fs, x_in⟩|_ <;> aesop
 
-theorem localRule_does_not_increase_vocab_L {Lcond Rcond Ocond B}
-    (rule : LocalRule (Lcond, Rcond, Ocond) B) :
-    ∀ res ∈ B, res.L.fvoc ∪ res.O.L.fvoc ⊆ Lcond.fvoc ∪ Ocond.L.fvoc := by
+theorem localRule_does_not_increase_vocab_L {Cond B}
+    (rule : LocalRule Cond B) :
+    ∀ res ∈ B, res.left.fvoc ⊆ Cond.left.fvoc := by
+  rcases Cond with ⟨Lcond, Rcond, Ocond⟩
   intro res res_in_B x x_in_res
   cases rule
   case oneSidedL ress orule B_def =>
@@ -97,13 +98,15 @@ theorem localRule_does_not_increase_vocab_L {Lcond Rcond Ocond B}
     simp at res_in_B
     rcases res_in_B with ⟨L, lnf, in_ress, def_res⟩
     subst def_res
-    simp at *
-    rcases x_in_res with ⟨φ, φ_in_L, x_in_φvoc⟩|⟨φ, φ_in_OlfL, x_in_φvoc⟩
+    simp only [List.fvoc, Vocab.fromList, Sequent.left, Sequent.L, Sequent.O, List.map_append,
+      List.toFinset_append, Finset.mem_sup, Finset.mem_union, List.mem_toFinset, List.mem_map,
+      id_eq, List.empty_eq, List.nil_append, exists_exists_and_eq_and] at *
+    rcases x_in_res with ⟨φvoc, ⟨φ, φ_in_L, def_φvoc⟩|⟨φ, φ_in_OlfL, def_φvoc⟩, x_in_φvoc⟩
     all_goals
+      subst def_φvoc
       simp only [Olf.L, List.mem_cons, List.not_mem_nil, or_false, exists_eq_left, Formula.voc]
       have := LoadRule_voc lrule
-      unfold lfovoc at *
-      simp only [List.fvoc, LoadFormula.voc] at *
+      simp only [lfovoc, List.fvoc, Vocab.fromList, LoadFormula.voc] at this
       apply this; clear this
       simp [onlfvoc]
       refine ⟨L, lnf, in_ress, ?_⟩
@@ -114,22 +117,19 @@ theorem localRule_does_not_increase_vocab_L {Lcond Rcond Ocond B}
       subst φ_in_OlfL
       exact x_in_φvoc
   case loadedR B_def =>
-    simp only [List.fvoc, Finset.mem_union] at x_in_res
-    subst B_def
-    simp at res_in_B
-    rcases res_in_B with ⟨L, lnf, in_ress, def_res⟩
-    subst def_res
-    rcases x_in_res with _|x_in
-    · aesop
-    · simp [Olf.L] at *; absurd x_in; aesop
+    simp [List.fvoc, Olf.L] at *
+    subst_eqs
+    rcases x_in_res with ⟨φ, φ_in_Olf, x_in_φvoc⟩
+    absurd x_in_φvoc
+    aesop
   -- other cases are all trivial (as in Bml)
   all_goals
     simp at *
   · aesop
 
-theorem localRule_does_not_increase_vocab_R (rule : LocalRule (Lcond, Rcond, Ocond) ress) :
-    ∀ res ∈ ress, res.R.fvoc ∪ res.O.R.fvoc ⊆ Rcond.fvoc ∪ Ocond.R.fvoc := by
-  -- should be analogous to _L version
+theorem localRule_does_not_increase_vocab_R (rule : LocalRule Cond B) :
+    ∀ res ∈ B, res.right.fvoc ⊆ Cond.right.fvoc := by
+  rcases Cond with ⟨Lcond, Rcond, Ocond⟩
   intro res res_in_B x x_in_res
   cases rule
   case oneSidedR ress orule B_def =>
@@ -149,13 +149,15 @@ theorem localRule_does_not_increase_vocab_R (rule : LocalRule (Lcond, Rcond, Oco
     simp at res_in_B
     rcases res_in_B with ⟨L, lnf, in_ress, def_res⟩
     subst def_res
-    simp at *
-    rcases x_in_res with ⟨φ, φ_in_L, x_in_φvoc⟩|⟨φ, φ_in_OlfR, x_in_φvoc⟩
+    simp only [List.fvoc, Vocab.fromList, Sequent.right, Sequent.R, Sequent.O, List.map_append,
+      List.toFinset_append, Finset.mem_sup, Finset.mem_union, List.mem_toFinset, List.mem_map,
+      id_eq, List.empty_eq, List.nil_append, exists_exists_and_eq_and] at *
+    rcases x_in_res with ⟨φvoc, ⟨φ, φ_in_L, def_φvoc⟩|⟨φ, φ_in_OlfR, def_φvoc⟩, x_in_φvoc⟩
     all_goals
+      subst def_φvoc
       simp only [Olf.R, List.mem_cons, List.not_mem_nil, or_false, exists_eq_left, Formula.voc]
       have := LoadRule_voc lrule
-      unfold lfovoc at *
-      simp only [List.fvoc, LoadFormula.voc] at *
+      simp only [lfovoc, List.fvoc, Vocab.fromList, LoadFormula.voc] at this
       apply this; clear this
       simp [onlfvoc]
       refine ⟨L, lnf, in_ress, ?_⟩
@@ -166,30 +168,119 @@ theorem localRule_does_not_increase_vocab_R (rule : LocalRule (Lcond, Rcond, Oco
       subst φ_in_OlfR
       exact x_in_φvoc
   case loadedL B_def =>
-    simp only [List.fvoc, Finset.mem_union] at x_in_res
-    subst B_def
-    simp at res_in_B
-    rcases res_in_B with ⟨L, lnf, in_ress, def_res⟩
-    subst def_res
-    rcases x_in_res with _|x_in
-    · aesop
-    · simp [Olf.R] at *; absurd x_in; aesop
+    simp [List.fvoc, Olf.R] at *
+    subst_eqs
+    rcases x_in_res with ⟨φ, φ_in_Olf, x_in_φvoc⟩
+    absurd x_in_φvoc
+    aesop
   -- other cases are all trivial (as in Bml)
   all_goals
     simp at *
   · aesop
 
+lemma jvoc_sub_of_voc_sub {Y X : Sequent}
+    (hl : Y.left.fvoc ⊆ X.left.fvoc)
+    (hr : Y.right.fvoc ⊆ X.right.fvoc)
+    : jvoc Y ⊆ jvoc X := by
+  intro x x_in_jY
+  simp only [jvoc, Finset.mem_inter] at x_in_jY
+  specialize @hl x x_in_jY.1
+  specialize @hr x x_in_jY.2
+  simp only [jvoc, Finset.mem_inter]
+  tauto
+
 theorem localRuleApp_does_not_increase_jvoc (ruleA : LocalRuleApp X C) :
     ∀ Y ∈ C, jvoc Y ⊆ jvoc X := by
   match ruleA with
   | @LocalRuleApp.mk L R C ress O Lcond Rcond Ocond lrule hC preconditionProof =>
-    rintro ⟨cL, cR, cO⟩ C_in x x_in_voc_C
-    simp [jvoc] at x_in_voc_C
-    have := localRule_does_not_increase_vocab_L lrule
-    have := localRule_does_not_increase_vocab_R lrule
     subst hC
-    -- See Bml?
-    sorry
+    rintro ⟨cL, cR, cO⟩ C_in
+    simp [applyLocalRule] at C_in
+    rcases C_in with ⟨⟨Lres, Rres, Ores⟩ , res_in, cLRO_def⟩
+    simp at cLRO_def
+    cases cLRO_def
+    apply jvoc_sub_of_voc_sub -- hhmmm?
+    · intro x x_in
+      simp at * -- only
+      rcases x_in with ⟨φvoc, ⟨φ, φ_nocon, d_φvoc⟩|⟨φ, φ_L, d_φvoc⟩|⟨φ, φ_O, d_φvoc⟩, x_in_φvoc⟩
+      all_goals subst d_φvoc
+      · refine ⟨φ.voc, Or.inl ?_, x_in_φvoc⟩
+        exact ⟨φ, List.diff_subset L Lcond φ_nocon, rfl⟩
+      all_goals
+        have Lsub := @localRule_does_not_increase_vocab_L _ _ lrule _ res_in x
+        simp at Lsub
+      · specialize Lsub φ.voc (Or.inl ⟨_, φ_L, rfl⟩) x_in_φvoc
+        rcases Lsub with ⟨ψvoc, h_ψvoc, x_in_ψvoc⟩
+        refine ⟨ψvoc, ?_, x_in_ψvoc⟩
+        rcases h_ψvoc with (⟨ψ, ψ_in_Lcond, d_ψvoc⟩ | ⟨ψ, ψ_in_Ocond, d_ψvoc⟩) <;> subst d_ψvoc
+        · exact Or.inl ⟨ψ, preconditionProof.1.subset ψ_in_Lcond, rfl⟩
+        · refine Or.inr ⟨ψ, ?_, rfl⟩; aesop
+      · -- whether to use φ.voc depends on whether the localRuleApp changes the O here.
+        rcases O with _|χ <;> rcases Ocond with _|cχ <;> rcases Ores with _|resχ
+        all_goals
+          simp [Olf.change] at * -- already treats 3 cases
+        · specialize Lsub φ.voc (Or.inr ⟨φ, φ_O, rfl⟩) x_in_φvoc
+          rcases Lsub with ⟨ψ, ψ_in_Lcond, x_in_φvoc⟩
+          exact ⟨ψ, preconditionProof.1.subset ψ_in_Lcond, x_in_φvoc⟩
+        · rcases χ with ⟨⟨χ⟩⟩|⟨χ⟩ <;> simp [Olf.L] at *
+          subst φ_O
+          aesop
+        · rcases resχ with ⟨⟨resχ⟩⟩|⟨⟨resχ⟩⟩ <;> simp [Olf.L] at φ_O Lsub
+          subst φ_O
+          simp at x_in_φvoc
+          specialize Lsub (resχ.unload).voc (Or.inr rfl) x_in_φvoc
+          rcases Lsub with ⟨ψ, ψ_in_Lcond, x_in_φvoc⟩
+          exact ⟨ψ.voc, Or.inl ⟨ψ, preconditionProof.1.subset ψ_in_Lcond, rfl⟩, x_in_φvoc⟩
+        · rcases preconditionProof with ⟨Lin, Rin, same_form⟩
+          subst same_form
+          simp at φ_O
+        · specialize Lsub φ.voc (Or.inr ⟨φ, φ_O, rfl⟩) x_in_φvoc
+          rcases Lsub with ⟨ψvoc, ψ_defs, x_in_ψvoc⟩
+          rcases ψ_defs with ⟨ψ, ψ_in, ψvoc_def⟩|⟨ψ, ψ_in, ψvoc_def⟩ <;> subst ψvoc_def
+          · exact ⟨ψ.voc, Or.inl ⟨ψ, preconditionProof.1.subset ψ_in, rfl⟩, x_in_ψvoc⟩
+          · refine ⟨ψ.voc, Or.inr ⟨ψ, ?_, rfl⟩, x_in_ψvoc⟩
+            simp_all
+    · -- analogous to L side, but quite some modifications
+      intro x x_in
+      simp at * -- only
+      rcases x_in with ⟨φvoc, ⟨φ, φ_nocon, d_φvoc⟩|⟨φ, φ_L, d_φvoc⟩|⟨φ, φ_O, d_φvoc⟩, x_in_φvoc⟩
+      all_goals subst d_φvoc
+      · refine ⟨φ.voc, Or.inl ?_, x_in_φvoc⟩
+        exact ⟨φ, List.diff_subset R Rcond φ_nocon, rfl⟩
+      all_goals
+        have Rsub := @localRule_does_not_increase_vocab_R _ _ lrule _ res_in x
+        simp at Rsub
+      · specialize Rsub φ.voc (Or.inl ⟨_, φ_L, rfl⟩) x_in_φvoc
+        rcases Rsub with ⟨ψvoc, h_ψvoc, x_in_ψvoc⟩
+        refine ⟨ψvoc, ?_, x_in_ψvoc⟩
+        rcases h_ψvoc with (⟨ψ, ψ_in_Rcond, d_ψvoc⟩ | ⟨ψ, ψ_in_Ocond, d_ψvoc⟩) <;> subst d_ψvoc
+        · exact Or.inl ⟨ψ, preconditionProof.2.1.subset ψ_in_Rcond, rfl⟩
+        · refine Or.inr ⟨ψ, ?_, rfl⟩; aesop
+      · -- whether to use φ.voc depends on whether the localRuleApp changes the O here.
+        rcases O with _|χ <;> rcases Ocond with _|cχ <;> rcases Ores with _|resχ
+        all_goals
+          simp [Olf.change] at * -- already treats 3 cases
+        · specialize Rsub φ.voc (Or.inr ⟨φ, φ_O, rfl⟩) x_in_φvoc
+          rcases Rsub with ⟨ψ, ψ_in_Rcond, x_in_φvoc⟩
+          exact ⟨ψ, preconditionProof.2.subset ψ_in_Rcond, x_in_φvoc⟩
+        · rcases χ with ⟨⟨χ⟩⟩|⟨χ⟩ <;> simp [Olf.R] at *
+          subst φ_O
+          aesop
+        · rcases resχ with ⟨⟨resχ⟩⟩|⟨⟨resχ⟩⟩ <;> simp [Olf.R] at φ_O Rsub
+          subst φ_O
+          simp at x_in_φvoc
+          specialize Rsub (resχ.unload).voc (Or.inr rfl) x_in_φvoc
+          rcases Rsub with ⟨ψ, ψ_in_Rcond, x_in_φvoc⟩
+          exact ⟨ψ.voc, Or.inl ⟨ψ, preconditionProof.2.subset ψ_in_Rcond, rfl⟩, x_in_φvoc⟩
+        · rcases preconditionProof with ⟨Lin, Rin, same_form⟩
+          subst same_form
+          simp at φ_O
+        · specialize Rsub φ.voc (Or.inr ⟨φ, φ_O, rfl⟩) x_in_φvoc
+          rcases Rsub with ⟨ψvoc, ψ_defs, x_in_ψvoc⟩
+          rcases ψ_defs with ⟨ψ, ψ_in, ψvoc_def⟩|⟨ψ, ψ_in, ψvoc_def⟩ <;> subst ψvoc_def
+          · refine ⟨ψ.voc, Or.inl ⟨ψ, preconditionProof.2.1.subset ψ_in, rfl⟩, x_in_ψvoc⟩
+          · refine ⟨ψ.voc, Or.inr ⟨ψ, ?_, rfl⟩, x_in_ψvoc⟩
+            simp_all
 
 /-- Maehara's method for local rule applications.
 This is `itpLeaves` for singleton clusters in the notes, but not only. -/
