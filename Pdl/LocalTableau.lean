@@ -188,6 +188,104 @@ lemma oneSidedR_sat_down (LRO : Sequent)
   have := List.diff_subset R Rcond
   rcases φ_in with (φ_in_LnoCond | φ_in_L') | φ_in_O <;> aesop
 
+-- Following four lemmas are almost the same, but then for the loaded diamond rules.
+
+/-- Applying a `LoadRule` on the left will leave the right unchanged. -/
+lemma loadedL_preserves_right {LRO : Sequent}
+    (χ : LoadFormula) (Opreproof : LRO.O = some (Sum.inl (~'χ)))
+    {ress} (lrule : LoadRule (~'χ) ress)
+    {YS : List Sequent} (YS_def : YS = ress.map λ (X, o) => (X, ∅, o.map Sum.inl))
+    : ∀ c ∈ applyLocalRule (LocalRule.loadedL χ lrule YS_def) LRO, c.right = LRO.right := by
+  rcases LRO with ⟨L,R,O⟩
+  cases Opreproof
+  rintro ⟨L',R',O'⟩
+  subst YS_def
+  simp at *
+  rintro _ olnlf _in_ress ⟨⟩
+  rcases olnlf with _|⟨_⟩ <;> simp
+
+/-- Applying a `LoadRule` on the right will leave the left unchanged. -/
+lemma loadedR_preserves_left {LRO : Sequent}
+    (χ : LoadFormula) (Opreproof : LRO.O = some (Sum.inr (~'χ)))
+    {ress} (lrule : LoadRule (~'χ) ress)
+    {YS : List Sequent} (YS_def : YS = ress.map λ (X, o) => (∅, X, o.map Sum.inr))
+    : ∀ c ∈ applyLocalRule (LocalRule.loadedR χ lrule YS_def) LRO, c.left = LRO.left := by
+  rcases LRO with ⟨L,R,O⟩
+  cases Opreproof
+  rintro ⟨L',R',O'⟩
+  subst YS_def
+  simp at *
+  rintro _ olnlf _in_ress ⟨⟩
+  rcases olnlf with _|⟨_⟩ <;> simp
+
+/-- Applying a `LoadRule` on the left preserves satisfiability of the left,
+even together with any other list of formulas as context. -/
+lemma loadedL_sat_down (LRO : Sequent)
+    (χ : LoadFormula) (Opreproof : LRO.O = some (Sum.inl (~'χ)))
+    {ress} (lrule : LoadRule (~'χ) ress)
+    {YS : List Sequent} (YS_def : YS = ress.map λ (X, o) => (X, ∅, o.map Sum.inl))
+    {X : List Formula} (LX_sat : satisfiable (Sequent.left LRO ∪ X))
+    : ∃ c ∈ applyLocalRule (LocalRule.loadedL χ lrule YS_def) LRO, satisfiable (c.left ∪ X) := by
+  rcases LRO with ⟨L,R,O⟩
+  cases Opreproof
+  subst YS_def
+  rcases LX_sat with ⟨W, M, w, satM⟩
+  have w_nχ : evaluate M w (~χ.unload) := by apply satM; simp [Olf.L]
+  have := (loadRuleTruth lrule W M w).1 w_nχ; clear w_nχ
+  simp only [disEval, List.mem_map, Function.comp_apply, Prod.exists] at this
+  rcases this with ⟨φ, ⟨ψs, φ0, _in_ress, def_φ⟩ , w_φ⟩
+  use (L ++ ψs, R, φ0.map Sum.inl)
+  subst def_φ
+  simp
+  constructor
+  · use ψs, φ0, _in_ress
+  · use W, M, w
+    intro φ φ_in
+    specialize @satM φ
+    rcases φ_in with (φ_in_L | φ_in_ψs | φ_in_OL) | φ_in_X
+    · aesop
+    · simp [conEval, pairUnload] at w_φ; aesop
+    · simp [Olf.L] at φ_in_OL
+      cases φ0 <;> simp [conEval, pairUnload] at *
+      subst φ_in_OL
+      apply w_φ
+      simp
+    · aesop
+
+/-- Applying a `LoadRule` on the right preserves satisfiability of the right,
+even together with any other list of formulas as context. -/
+lemma loadedR_sat_down (LRO : Sequent)
+    (χ : LoadFormula) (Opreproof : LRO.O = some (Sum.inr (~'χ)))
+    {ress} (lrule : LoadRule (~'χ) ress)
+    {YS : List Sequent} (YS_def : YS = ress.map λ (X, o) => (∅, X, o.map Sum.inr))
+    {X : List Formula} (RX_sat : satisfiable (Sequent.right LRO ∪ X))
+    : ∃ c ∈ applyLocalRule (LocalRule.loadedR χ lrule YS_def) LRO, satisfiable (c.right ∪ X) := by
+  rcases LRO with ⟨L,R,O⟩
+  cases Opreproof
+  subst YS_def
+  rcases RX_sat with ⟨W, M, w, satM⟩
+  have w_nχ : evaluate M w (~χ.unload) := by apply satM; simp [Olf.R]
+  have := (loadRuleTruth lrule W M w).1 w_nχ; clear w_nχ
+  simp [disEval, List.mem_map, Function.comp_apply, Prod.exists] at this
+  rcases this with ⟨φ, ⟨ψs, φ0, _in_ress, def_φ⟩ , w_φ⟩
+  use (L, R ++ ψs, φ0.map Sum.inr)
+  subst def_φ
+  simp
+  constructor
+  · use ψs, φ0, _in_ress
+  · use W, M, w
+    intro φ φ_in
+    specialize @satM φ
+    rcases φ_in with (φ_in_L | φ_in_ψs | φ_in_OL) | φ_in_X
+    · aesop
+    · simp [conEval, pairUnload] at w_φ; aesop
+    · simp [Olf.R] at φ_in_OL
+      cases φ0 <;> simp [conEval, pairUnload] at *
+      subst φ_in_OL
+      apply w_φ
+      simp
+    · aesop
+
 /-- A local rule application going from `⟨L,R,O⟩` to `C` consists of a
 local rule `lr` replacing `⟨Lcond, Rcond, Ocond⟩` by `ress` and
 proofs that `⟨Lcond, Rcond, Ocond⟩` is a subsequent of `⟨L,R,O⟩`
@@ -439,6 +537,7 @@ theorem localRuleTruth
             · apply w_Ci; simp_all
             · subst g_def; apply w_Ci; simp_all
 
+-- TODO: move to Sequent.lean maybe? What does it need?
 instance instDecidableBasic {X : Sequent} : Decidable (X.basic) := by
   by_cases X.closed
   · apply isFalse

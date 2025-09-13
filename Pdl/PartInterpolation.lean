@@ -267,7 +267,7 @@ theorem localRuleApp_does_not_increase_jvoc (ruleA : LocalRuleApp X C) :
 This covers easy cases without any loaded path repeats.
 We do *not* use `localRuleTruth` to prove this,
 but the more specific lemmas `oneSidedL_sat_down` and `oneSidedL_sat_down`. -/
-def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) C)
+def localInterpolantStep L R o C (ruleA : LocalRuleApp (L,R,o) C)
     (subθs : ∀ c ∈ C, PartInterpolant c)
     : PartInterpolant (L,R,o) := by
   -- UNPACKING TERMS
@@ -310,7 +310,6 @@ def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) 
       have same_R : c.right = Sequent.right (L,R,o) :=
         @oneSidedL_preserves_right (L,R,o) _ precondProof.1.subset _ orule _ YS_def c (hc ▸ c_in)
       rw [same_R]; simp; grind
-
   case oneSidedR ress orule YS_def => -- rule applied in second component R
     -- Only somewhat analogous to oneSidedR. Part 2 and 3 are flipped around in a way.
     let interList := C.attach.map $ fun c => (subθs c.1 c.2).1
@@ -343,7 +342,6 @@ def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) 
       intro φ φ_in; simp at φ_in
       simp [interList] at *
       grind
-
   case LRnegL φ =>
     use φ
     refine ⟨?_, ?_, ?_⟩
@@ -361,7 +359,6 @@ def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) 
       absurd w_.1
       have := w_.2 (~φ)
       simp_all [evaluate]
-
   case LRnegR φ =>
     use ~φ
     refine ⟨?_, ?_, ?_⟩
@@ -379,21 +376,80 @@ def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) 
       absurd w_.1
       have := w_.2 φ
       simp_all
-
   case loadedL ress χ lrule YS_def =>
-    -- keep interpolant the same
-    -- but for that we first need to get it out of the subθs
-    subst_eqs --hmm?
-    simp at *
-    cases precondProof
-    have := loadRuleTruth lrule
-    simp at subθs
-    -- simp_rw [Olf.change_some_some_eq] at subθs
-    sorry
-
-  case loadedR =>
-    -- analogous?
-    sorry
+    -- similar to oneSidedL case
+    simp at YS_def
+    let interList := C.attach.map $ fun c => (subθs c.1 c.2).1
+    have O_is_some : Sequent.O (L, R, o) = some (Sum.inl (~'χ)) := by
+        have := precondProof.2.2; simp at this; simp; exact this.symm
+    refine ⟨dis interList, ?_, ?_, ?_⟩ -- disjunction here
+    · intro n n_in_inter
+      rw [in_voc_dis] at n_in_inter
+      rcases n_in_inter with ⟨φ, φ_in, n_in_voc_φ⟩
+      simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists, interList] at φ_in
+      rcases φ_in with ⟨Y, Y_in, def_φ⟩
+      apply localRuleApp_does_not_increase_jvoc ruleA Y Y_in
+      subst def_φ
+      exact (subθs Y Y_in).prop.1 n_in_voc_φ
+    · rintro nInter_L_sat
+      have LI_sat : satisfiable (Sequent.left (L, R, o) ∪ (interList.map Formula.neg)) := by
+        rcases nInter_L_sat with ⟨W, M, w, w_nInter_L⟩
+        use W, M, w
+        simp only [Sequent.left, Sequent.L, Sequent.O, List.mem_cons, List.mem_append,
+          forall_eq_or_imp, evaluate, disEval, not_exists, not_and] at w_nInter_L
+        simp only [Sequent.left, Sequent.L, Sequent.O, List.mem_union_iff, List.mem_append,
+          List.mem_map]
+        rintro φ (φ_in | ⟨θi,θi_in, φ_def⟩)
+        · apply w_nInter_L.2; assumption
+        · subst φ_def; apply w_nInter_L.1; assumption
+      have := loadedL_sat_down ⟨L,R,o⟩ χ O_is_some lrule YS_def LI_sat
+      rcases this with ⟨⟨L', R', o'⟩, c_in, W, M, w, w_⟩
+      refine (subθs ⟨L', R', o'⟩ (hc ▸ def_rule ▸ c_in)).2.2.1 ⟨W, M, w, ?_⟩ -- given IP property
+      intro φ φ_in; simp at φ_in
+      apply w_; simp [interList]; grind
+    · rintro ⟨W, M, w, w_⟩
+      simp only [Sequent.right, Sequent.R, Sequent.O, List.mem_cons, List.mem_append,
+        forall_eq_or_imp, disEval, List.mem_map, List.mem_attach, true_and, Subtype.exists,
+        interList] at w_
+      rcases w_ with ⟨⟨θi, ⟨c, c_in, def_θi⟩, w_θi⟩, w_R⟩
+      refine (subθs c (hc ▸ c_in)).2.2.2 ⟨W, M, w, ?_⟩ -- given IP property
+      have same_R : c.right = Sequent.right (L,R,o) :=
+        @loadedL_preserves_right ⟨L,R,o⟩ χ O_is_some ress lrule YS YS_def c (hc ▸ c_in)
+      rw [same_R]; simp; grind
+  case loadedR ress χ lrule YS_def =>
+    -- based on oneSidedR case
+    let interList := C.attach.map $ fun c => (subθs c.1 c.2).1
+    have O_is_some : Sequent.O (L, R, o) = some (Sum.inr (~'χ)) := by
+      have := precondProof.2.2; simp at this; simp; exact this.symm
+    refine ⟨Con interList, ?_, ?_, ?_⟩ -- using conjunction here
+    · intro n n_in_inter
+      rw [in_voc_con] at n_in_inter
+      rcases n_in_inter with ⟨φ, φ_in, n_in_voc_φ⟩
+      simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists, interList] at φ_in
+      rcases φ_in with ⟨Y, Y_in, def_φ⟩
+      apply localRuleApp_does_not_increase_jvoc ruleA Y Y_in
+      subst def_φ
+      exact (subθs Y Y_in).prop.1 n_in_voc_φ
+    · rintro ⟨W, M, w, w_⟩
+      simp only [Sequent.left, Sequent.L, Sequent.O, List.mem_cons, List.mem_append,
+        forall_eq_or_imp, evaluate, conEval, not_forall] at w_
+      rcases w_ with ⟨⟨θi, θi_in, w_nθi⟩, w_L⟩
+      simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists, interList] at θi_in
+      rcases θi_in with ⟨⟨L', R', o'⟩, c_in, def_θi⟩
+      have same_L : Sequent.left ⟨L', R', o'⟩ = Sequent.left (L,R,o) :=
+        @loadedR_preserves_left (L,R,o) _ O_is_some _ lrule _ YS_def _ (hc ▸ c_in)
+      refine (subθs ⟨L', R', o'⟩ (hc ▸ c_in)).2.2.1 ⟨W, M, w, ?_⟩
+      rw [same_L]; simp; grind
+    · rintro inter_R_sat
+      have RI_sat : satisfiable (Sequent.right (L, R, o) ∪ (interList)) := by
+        rcases inter_R_sat with ⟨W, M, w, w_Inter_R⟩
+        use W, M, w; simp [conEval] at *; grind
+      have := loadedR_sat_down ⟨L,R,o⟩ χ O_is_some lrule YS_def RI_sat
+      rcases this with ⟨⟨L', R', o'⟩, c_in, W, M, w, w_⟩
+      refine (subθs ⟨L', R', o'⟩ (hc ▸ def_rule ▸ c_in)).2.2.2 ⟨W, M, w, ?_⟩ -- given IP property
+      intro φ φ_in; simp at φ_in
+      simp [interList] at *
+      grind
 
 /-! ## Interpolants for proper clusters -/
 
