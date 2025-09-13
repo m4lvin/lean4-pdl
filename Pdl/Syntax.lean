@@ -56,6 +56,19 @@ infixl:33 "⋓" => Program.union
 prefix:33 "∗" => Program.star
 prefix:33 "?'" => Program.test -- avoiding plain "?" which has a meaning in Lean 4
 
+/-- A basic formula is of the form `¬⊥`, `p`, `¬p`, `[a]_` or `¬[a]_`.
+Note: in the article also `⊥` is basic, but not here because we want
+to apply `OneSidedLocalRule.bot` to it. -/
+@[simp]
+def Formula.basic : Formula → Bool
+  | ⊥ => False
+  | ~⊥ => True
+  | ·_ => True
+  | ~·_ => True
+  | ⌈·_⌉_ => True
+  | ~⌈·_⌉_ => True
+  | _ => False
+
 def Program.isAtomic : Program → Prop
 | ·_ => true
 | _ => false

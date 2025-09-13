@@ -9,7 +9,7 @@ import Pdl.UnfoldDia
 
 open HasLength
 
-/-! ## Local Tableaux -/
+/-! ## One-sided local rules -/
 
 /-- Local rules replace a given set of formulas by other sets, one for each branch.
 The list of resulting branches can be empty, representing that the given set is closed.
@@ -46,6 +46,8 @@ theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B
     simp only [List.mem_singleton, forall_eq, unfoldDiamond]
     rw [localDiamondTruth α φ W M w, disEval, disconEval]
     apply mapCon_mapForall
+
+/-! ## Loaded Rules -/
 
 /-- The loaded diamond rule, given by `unfoldDiamondLoaded`.
 In MB page 19 these were multiple rules ¬u, ¬; ¬* and ¬?.
@@ -91,6 +93,8 @@ theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
     · use a, b
     · exact w_f
 
+/-! ## Local Rules -/
+
 /-- A local rule is a `OneSidedLocalRule`, a left-right contradiction, or a `LoadRule`.
 Note that formulas can be in four places: left, right, loaded left, loaded right.
 
@@ -115,73 +119,74 @@ inductive LocalRule : Sequent → List Sequent → Type
       : LocalRule (∅, ∅, some (Sum.inr (~'χ))) YS
   deriving Repr, DecidableEq
 
--- mathlib this?
-@[simp]
-instance Option.instHasSubsetOption : HasSubset (Option α) := HasSubset.mk
-  λ o1 o2 =>
-  match o1, o2 with
-  | none, _ => True
-  | some _, none => False
-  | some f, some g => f = g
-
--- mathlib this?
-@[simp]
-theorem Option.some_subseteq {O : Option α} : (some x ⊆ O) ↔ some x = O := by
-  cases O
-  all_goals simp
-
--- mathlib this?
-/-- Instance that is used to say `(O : Olf) \ (O' : Olf)`. -/
-instance Option.insHasSdiff [DecidableEq α] : SDiff (Option α) := SDiff.mk
-  λ o1 del =>
-  match o1, del with
-  | none, _ => none
-  | some f, none => some f
-  | some f, some g => if f = g then none else some f
-
-@[simp]
-lemma Option.insHasSdiff_none [DecidableEq α] :
-    (none : Option α) \ o = none := by
-  unfold Option.insHasSdiff
-  grind
-
-@[simp]
-lemma Option.insHasSdiff_remove_none_cancel [DecidableEq α] :
-    o \ (none : Option α) = o := by
-  unfold Option.insHasSdiff
-  grind
-
-@[simp]
-lemma Option.insHasSdiff_remove_sem_eq_none [DecidableEq α] :
-    (some x) \ (some x : Option α) = none := by
-  unfold Option.insHasSdiff
-  grind
-
-@[simp]
-def Option.overwrite : Option α → Option α → Option α
-| old, none   => old
-| _  , some x => some x
-
-def Olf.change (oldO : Olf) (Ocond : Olf) (newO : Olf) : Olf := (oldO \ Ocond).overwrite newO
-
-@[simp]
-theorem Olf.change_none_none : Olf.change oldO none none = oldO := by
-  cases oldO <;> simp [Olf.change, Option.overwrite, Option.insHasSdiff]
-
-@[simp]
-theorem Olf.change_some: Olf.change oldO whatever (some wnlf) = some wnlf := by
-    cases oldO <;> simp [Olf.change, Option.overwrite]
-
-@[simp]
-theorem Olf.change_some_some_eq : Olf.change (some nχ) (some nχ) Onew = Onew := by
-  cases Onew <;> simp [Olf.change, Option.overwrite]
-
 @[simp]
 def applyLocalRule : LocalRule (Lcond, Rcond, Ocond) ress → Sequent → List Sequent
   | _, ⟨L, R, O⟩ => ress.map $
       fun (Lnew, Rnew, Onew) => ( L.diff Lcond ++ Lnew
                                 , R.diff Rcond ++ Rnew
                                 , Olf.change O Ocond Onew )
+
+lemma oneSidedL_preserves_right {LRO : Sequent}
+    {Lcond : List Formula} (Lpreproof : Lcond ⊆ LRO.L)
+    {Lres : List (List Formula)} (orule : OneSidedLocalRule Lcond Lres)
+    {YS : List Sequent} (YS_def : YS = List.map (fun res => (res, ∅, none)) Lres)
+    : ∀ c ∈ applyLocalRule (LocalRule.oneSidedL orule YS_def) LRO, c.right = LRO.right := by
+  rcases LRO with ⟨L,R,O⟩
+  rintro ⟨L',R',O'⟩
+  subst YS_def
+  simp at *
+  grind
+
+lemma oneSidedR_preserves_left {LRO : Sequent}
+    {Rcond : List Formula} (Rpreproof : Rcond ⊆ LRO.R)
+    {Rres : List (List Formula)} (orule : OneSidedLocalRule Rcond Rres)
+    {YS : List Sequent} (YS_def : YS = List.map (fun res => (∅, res, none)) Rres)
+    : ∀ c ∈ applyLocalRule (LocalRule.oneSidedR orule YS_def) LRO, c.left = LRO.left := by
+  rcases LRO with ⟨L,R,O⟩
+  rintro ⟨L',R',O'⟩
+  subst YS_def
+  simp at *
+  grind
+
+open HasSat
+
+lemma oneSidedL_sat_down (LRO : Sequent)
+    {Lcond : List Formula} (Lpreproof : Lcond ⊆ LRO.L)
+    {Lres : List (List Formula)} (orule : OneSidedLocalRule Lcond Lres)
+    {YS : List Sequent} (YS_def : YS = List.map (fun res => (res, ∅, none)) Lres)
+    {X : List Formula} (LX_sat : satisfiable (Sequent.left LRO ∪ X))
+    : ∃ c ∈ applyLocalRule (LocalRule.oneSidedL orule YS_def) LRO, satisfiable (c.left ∪ X) := by
+  rcases LRO with ⟨L,R,O⟩
+  subst YS_def
+  rcases LX_sat with ⟨W, M, w, satM⟩
+  have : evaluate M w (Con Lcond) := by simp [conEval]; aesop
+  have := (oneSidedLocalRuleTruth orule W M w).1 this
+  rw [disconEval] at this
+  rcases this with ⟨L', L'_in, w_L'⟩
+  simp [applyLocalRule]
+  refine ⟨L', L'_in, W, M, w, fun φ φ_in => ?_⟩
+  specialize @satM φ
+  have := List.diff_subset L Lcond
+  rcases φ_in with (φ_in_LnoCond | φ_in_L') | φ_in_O <;> aesop
+
+lemma oneSidedR_sat_down (LRO : Sequent)
+    {Rcond : List Formula} (Rpreproof : Rcond ⊆ LRO.R)
+    {Rres : List (List Formula)} (orule : OneSidedLocalRule Rcond Rres)
+    {YS : List Sequent} (YS_def : YS = List.map (fun res => (∅, res, none)) Rres)
+    {X : List Formula} (RX_sat : satisfiable (Sequent.right LRO ∪ X))
+    : ∃ c ∈ applyLocalRule (LocalRule.oneSidedR orule YS_def) LRO, satisfiable (c.right ∪ X) := by
+  rcases LRO with ⟨L,R,O⟩
+  subst YS_def
+  rcases RX_sat with ⟨W, M, w, satM⟩
+  have : evaluate M w (Con Rcond) := by simp [conEval]; aesop
+  have := (oneSidedLocalRuleTruth orule W M w).1 this
+  rw [disconEval] at this
+  rcases this with ⟨L', L'_in, w_L'⟩
+  simp [applyLocalRule]
+  refine ⟨L', L'_in, W, M, w, fun φ φ_in => ?_⟩
+  specialize @satM φ
+  have := List.diff_subset R Rcond
+  rcases φ_in with (φ_in_LnoCond | φ_in_L') | φ_in_O <;> aesop
 
 /-- A local rule application going from `⟨L,R,O⟩` to `C` consists of a
 local rule `lr` replacing `⟨Lcond, Rcond, Ocond⟩` by `ress` and
@@ -433,49 +438,6 @@ theorem localRuleTruth
             rcases g_in with (_|g_def)
             · apply w_Ci; simp_all
             · subst g_def; apply w_Ci; simp_all
-
-/-- A basic formula is of the form `¬⊥`, `p`, `¬p`, `[a]_` or `¬[a]_`.
-Note: in the article also `⊥` is basic, but not here because then
-`OneSidedLocalRule.bot` can be applied to it. -/
-@[simp]
-def Formula.basic : Formula → Bool
-  | ⊥ => False
-  | ~⊥ => True
-  | ·_ => True
-  | ~·_ => True
-  | ⌈·_⌉_ => True
-  | ~⌈·_⌉_ => True
-  | _ => False
-
-/-- A sequent is *closed* iff it contains `⊥` or contains a formula and its negation. -/
-def Sequent.closed (X : Sequent) : Prop :=
-  ⊥ ∈ X ∨ ∃ f ∈ X, (~f) ∈ X
-
-/-- Used by `instDecidableClosed`, a variant of `Fintype.decidableExistsFintype`. -/
-instance Fintype.decidableExistsImpliesFintype {α : Type u_1} {p q : α → Prop}
-    [DecidablePred p] [DecidablePred q] [Fintype (Subtype p)]
-    : Decidable (∃ (a : α), p a ∧ q a) := by
-  by_cases ∃ x : Subtype p, q x -- This uses the Fintype instance.
-  · apply isTrue
-    aesop
-  · apply isFalse
-    aesop
-
-instance instDecidableClosed {X : Sequent} : Decidable (X.closed) := by
-  unfold Sequent.closed
-  by_cases ⊥ ∈ X
-  · apply isTrue
-    tauto
-  · by_cases ∃ f, f ∈ X ∧ (~f) ∈ X
-    · apply isTrue
-      aesop
-    · apply isFalse
-      aesop
-
-/-- A sequent is *basic* iff it only contains basic formulas and is not closed. -/
-def Sequent.basic : Sequent → Prop
-  | (L, R, o) => (∀ f ∈ L ++ R ++ (o.map (Sum.elim negUnload negUnload)).toList, f.basic)
-               ∧ ¬ Sequent.closed (L, R, o)
 
 instance instDecidableBasic {X : Sequent} : Decidable (X.basic) := by
   by_cases X.closed

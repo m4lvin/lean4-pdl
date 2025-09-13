@@ -6,36 +6,24 @@ import Pdl.TableauPath
 
 open HasSat
 
--- FIXME these Olf and Sequent operations should move to Sequent.lean
+/-! ## Joint vocabulary -/
 
-def Olf.L : Olf → List Formula
-| none => []
-| some (Sum.inl ⟨lf⟩) => [~ lf.unload]
-| some (Sum.inr _) => []
-
-@[simp]
-lemma Olf.L_none : Olf.L none = [] := by rfl
-@[simp]
-lemma Olf.L_inr : Olf.L (some (Sum.inr lf)) = [] := by rfl
-
-def Olf.R : Olf → List Formula
-| none => []
-| some (Sum.inl _) => []
-| some (Sum.inr ⟨lf⟩) => [~ lf.unload]
-
-@[simp]
-lemma Olf.R_none : Olf.R none = [] := by rfl
-@[simp]
-lemma Olf.R_inl : Olf.R (some (Sum.inl lf)) = [] := by rfl
-
-@[simp]
-def Sequent.left (X : Sequent) : List Formula := X.L ++ X.O.L
-@[simp]
-def Sequent.right (X : Sequent) : List Formula := X.R ++ X.O.R
-
-/-- Joint vocabulary of all parts of a `Sequent`. -/
+/-- The joint vocabulary occurring on both the left and the right side. -/
 @[simp]
 def jvoc (X : Sequent) : Vocab := (X.left).fvoc ∩ (X.right).fvoc
+
+lemma jvoc_sub_of_voc_sub {Y X : Sequent}
+    (hl : Y.left.fvoc ⊆ X.left.fvoc)
+    (hr : Y.right.fvoc ⊆ X.right.fvoc)
+    : jvoc Y ⊆ jvoc X := by
+  intro x x_in_jY
+  simp only [jvoc, Finset.mem_inter] at x_in_jY
+  specialize @hl x x_in_jY.1
+  specialize @hr x x_in_jY.2
+  simp only [jvoc, Finset.mem_inter]
+  tauto
+
+/-! ## Partition Interpolants -/
 
 def isPartInterpolant (X : Sequent) (θ : Formula) :=
   θ.voc ⊆ jvoc X ∧ (¬ satisfiable ((~θ) :: X.left) ∧ ¬ satisfiable (θ :: X.right))
@@ -49,6 +37,8 @@ def onlfvoc : Option NegLoadFormula → Vocab
 
 def lfovoc (L : List (List Formula × Option NegLoadFormula)) : Vocab :=
   L.toFinset.sup (fun ⟨fs,o⟩ => fs.fvoc ∪ (onlfvoc o))
+
+/-! ## Interpolants for local rules -/
 
 lemma LoadRule_voc (lr : LoadRule (~'χ) ress) : lfovoc ress ⊆ χ.voc := by
   intro x x_in
@@ -180,17 +170,6 @@ theorem localRule_does_not_increase_vocab_R (rule : LocalRule Cond B) :
     simp at *
   · aesop
 
-lemma jvoc_sub_of_voc_sub {Y X : Sequent}
-    (hl : Y.left.fvoc ⊆ X.left.fvoc)
-    (hr : Y.right.fvoc ⊆ X.right.fvoc)
-    : jvoc Y ⊆ jvoc X := by
-  intro x x_in_jY
-  simp only [jvoc, Finset.mem_inter] at x_in_jY
-  specialize @hl x x_in_jY.1
-  specialize @hr x x_in_jY.2
-  simp only [jvoc, Finset.mem_inter]
-  tauto
-
 theorem localRuleApp_does_not_increase_jvoc (ruleA : LocalRuleApp X C) :
     ∀ Y ∈ C, jvoc Y ⊆ jvoc X := by
   match ruleA with
@@ -284,76 +263,10 @@ theorem localRuleApp_does_not_increase_jvoc (ruleA : LocalRuleApp X C) :
           · refine ⟨ψ.voc, Or.inr ⟨ψ, ?_, rfl⟩, x_in_ψvoc⟩
             simp_all
 
-/-! ## HELPERS to be moved elsewhere -/
-
-theorem oneSidedL_preserves_right
-    {Lcond : List Formula} (Lpreproof : Lcond ⊆ LRO.L)
-    {Lres : List (List Formula)} (orule : OneSidedLocalRule Lcond Lres)
-    {YS : List Sequent} (YS_def : YS = List.map (fun res => (res, ∅, none)) Lres)
-    : ∀ c ∈ applyLocalRule (LocalRule.oneSidedL orule YS_def) LRO, c.right = LRO.right := by
-  rcases LRO with ⟨L,R,O⟩
-  rintro ⟨L',R',O'⟩
-  subst YS_def
-  simp at *
-  grind
-
-theorem oneSidedR_preserves_left
-    {Rcond : List Formula} (Rpreproof : Rcond ⊆ LRO.R)
-    {Rres : List (List Formula)} (orule : OneSidedLocalRule Rcond Rres)
-    {YS : List Sequent} (YS_def : YS = List.map (fun res => (∅, res, none)) Rres)
-    : ∀ c ∈ applyLocalRule (LocalRule.oneSidedR orule YS_def) LRO, c.left = LRO.left := by
-  rcases LRO with ⟨L,R,O⟩
-  rintro ⟨L',R',O'⟩
-  subst YS_def
-  simp at *
-  grind
-
--- move elsewhere?
-theorem oneSidedL_sat_down (LRO : Sequent)
-    {Lcond : List Formula} (Lpreproof : Lcond ⊆ LRO.L)
-    {Lres : List (List Formula)} (orule : OneSidedLocalRule Lcond Lres)
-    {YS : List Sequent} (YS_def : YS = List.map (fun res => (res, ∅, none)) Lres)
-    {X : List Formula} (LX_sat : satisfiable (Sequent.left LRO ∪ X))
-    : ∃ c ∈ applyLocalRule (LocalRule.oneSidedL orule YS_def) LRO, satisfiable (c.left ∪ X) := by
-  rcases LRO with ⟨L,R,O⟩
-  subst YS_def
-  rcases LX_sat with ⟨W, M, w, satM⟩
-  have : evaluate M w (Con Lcond) := by simp [conEval]; aesop
-  have := (oneSidedLocalRuleTruth orule W M w).1 this
-  rw [disconEval] at this
-  rcases this with ⟨L', L'_in, w_L'⟩
-  simp [applyLocalRule]
-  refine ⟨L', L'_in, W, M, w, fun φ φ_in => ?_⟩
-  specialize @satM φ
-  have := List.diff_subset L Lcond
-  rcases φ_in with (φ_in_LnoCond | φ_in_L') | φ_in_O <;> aesop
-
--- move elsewhere?
-theorem oneSidedR_sat_down (LRO : Sequent)
-    {Rcond : List Formula} (Rpreproof : Rcond ⊆ LRO.R)
-    {Rres : List (List Formula)} (orule : OneSidedLocalRule Rcond Rres)
-    {YS : List Sequent} (YS_def : YS = List.map (fun res => (∅, res, none)) Rres)
-    {X : List Formula} (RX_sat : satisfiable (Sequent.right LRO ∪ X))
-    : ∃ c ∈ applyLocalRule (LocalRule.oneSidedR orule YS_def) LRO, satisfiable (c.right ∪ X) := by
-  rcases LRO with ⟨L,R,O⟩
-  subst YS_def
-  rcases RX_sat with ⟨W, M, w, satM⟩
-  have : evaluate M w (Con Rcond) := by simp [conEval]; aesop
-  have := (oneSidedLocalRuleTruth orule W M w).1 this
-  rw [disconEval] at this
-  rcases this with ⟨L', L'_in, w_L'⟩
-  simp [applyLocalRule]
-  refine ⟨L', L'_in, W, M, w, fun φ φ_in => ?_⟩
-  specialize @satM φ
-  have := List.diff_subset R Rcond
-  rcases φ_in with (φ_in_LnoCond | φ_in_L') | φ_in_O <;> aesop
-
-/-! ## end of HELPERS -/
-
-/-- Maehara's method for single-step local rule applications
+/-- Maehara's method for single-step *local* rule applications.
 This covers easy cases without any loaded path repeats.
 We do *not* use `localRuleTruth` to prove this,
-but the more specific lemmas `oneSidedL_sat_down` and `oneSidedL_sat_down` -/
+but the more specific lemmas `oneSidedL_sat_down` and `oneSidedL_sat_down`. -/
 def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) C)
     (subθs : ∀ c ∈ C, PartInterpolant c)
     : PartInterpolant (L,R,o) := by
@@ -401,7 +314,7 @@ def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) 
   case oneSidedR ress orule YS_def => -- rule applied in second component R
     -- Only somewhat analogous to oneSidedR. Part 2 and 3 are flipped around in a way.
     let interList := C.attach.map $ fun c => (subθs c.1 c.2).1
-    refine ⟨Con interList, ?_, ?_, ?_⟩ -- using conjunction here!
+    refine ⟨Con interList, ?_, ?_, ?_⟩ -- using conjunction here
     · intro n n_in_inter
       rw [in_voc_con] at n_in_inter
       rcases n_in_inter with ⟨φ, φ_in, n_in_voc_φ⟩
@@ -482,6 +395,7 @@ def localInterpolantStep (L R : List Formula) (o) (ruleA : LocalRuleApp (L,R,o) 
     -- analogous?
     sorry
 
+/-! ## Interpolants for proper clusters -/
 
 /-- The exits of a cluster: (C \ C+). -/
 -- IDEA: similar to endNodesOf?
