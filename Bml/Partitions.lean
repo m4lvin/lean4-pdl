@@ -9,8 +9,7 @@ open HasVocabulary HasSat
 def Partition :=
   Finset Formula × Finset Formula
 
--- Definition 24
-
+/-- MB Definition 24 -/
 def isPartInterpolant (LR : TNode) (θ : Formula) :=
   voc θ ⊆ jvoc LR ∧ ¬Satisfiable (LR.1 ∪ {~θ}) ∧ ¬Satisfiable (LR.2 ∪ {θ})
 
@@ -20,7 +19,8 @@ def PartInterpolant (LR : TNode) := Subtype <| isPartInterpolant LR
 -- use let x : t := mapImageProp X
 -- complains unless you specify all implicit arguments
 -- for now: use x := mapImageProp, provide t in a comment
-theorem choice_property_in_image {f : α → β }{l : List α} {p : β → Prop} (p_in_image: ∃y ∈ (List.map f l), p y) : ∃x ∈ l, p (f x) :=
+theorem choice_property_in_image {f : α → β} {l : List α} {p : β → Prop}
+    (p_in_image : ∃ y ∈ (l.map f), p y) : ∃ x ∈ l, p (f x) :=
   by simp at p_in_image; assumption
 
 def InterpolantInductionStep

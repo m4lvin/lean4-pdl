@@ -169,12 +169,12 @@ theorem Olf.change_none_none : Olf.change oldO none none = oldO := by
   cases oldO <;> simp [Olf.change, Option.overwrite, Option.insHasSdiff]
 
 @[simp]
-theorem Olf.change_some_some_none : Olf.change (some wnlf) (some wnlf) none = none := by
-  simp [Olf.change, Option.overwrite, Option.insHasSdiff]
-
-@[simp]
 theorem Olf.change_some: Olf.change oldO whatever (some wnlf) = some wnlf := by
     cases oldO <;> simp [Olf.change, Option.overwrite]
+
+@[simp]
+theorem Olf.change_some_some_eq : Olf.change (some nχ) (some nχ) Onew = Onew := by
+  cases Onew <;> simp [Olf.change, Option.overwrite]
 
 @[simp]
 def applyLocalRule : LocalRule (Lcond, Rcond, Ocond) ress → Sequent → List Sequent
@@ -330,12 +330,12 @@ theorem localRuleTruth
       cases O
       · use (L ++ X, R, none)
         constructor
-        · use X, none; simp only [Option.map_none, Olf.change_some_some_none, and_true]; exact in_ress
+        · use X, none; simp only [Option.map_none, and_true]; exact in_ress
         · intro g; subst def_f; rw [conEval] at w_f; specialize hyp g; aesop
       case some val =>
         use (L ++ X, R, some (Sum.inl val))
         constructor
-        · use X, some val; simp only [Option.map_some, Olf.change_some, and_true]; exact in_ress
+        · use X, some val; simp only [Option.map_some, and_true]; exact in_ress
         · intro g g_in
           subst def_f
           simp_all [pairUnload, negUnload, conEval]
@@ -391,12 +391,12 @@ theorem localRuleTruth
       cases O
       · use (L, R ++ X, none)
         constructor
-        · use X, none; simp only [Option.map_none, Olf.change_some_some_none, and_true]; exact in_ress
+        · use X, none; simp only [Option.map_none, and_true]; exact in_ress
         · intro g; subst def_f; rw [conEval] at w_f; specialize hyp g; aesop
       case some val =>
         use (L, R ++ X, some (Sum.inr val))
         constructor
-        · use X, some val; simp only [Option.map_some, Olf.change_some, and_true]; exact in_ress
+        · use X, some val; simp only [Option.map_some, and_true]; exact in_ress
         · intro g g_in
           subst def_f
           simp_all [pairUnload, negUnload, conEval]
@@ -525,23 +525,6 @@ instance LocalTableau.instDecidableEq {lt1 lt2 : LocalTableau X} : Decidable (lt
     try exact instDecidableFalse
     try exact instDecidableTrue
 
--- Should be easier to do, or in mathlib already?
-theorem mem_of_two_subperm {α} {l : List α} {a b : α}  [DecidableEq α] :
-    [a,b].Subperm l → a ∈ l ∧ b ∈ l := by
-  intro subl
-  have := List.subperm_ext_iff.1 subl
-  simp at this
-  rw [← List.count_pos_iff, ← List.count_pos_iff]
-  constructor
-  · linarith
-  · rcases this with ⟨al, bl⟩
-    by_cases a = b
-    · subst_eqs
-      simp_all [-List.count_pos_iff]
-      rw [@List.subperm_ext_iff] at subl
-      linarith
-    · aesop
-
 /-- If we can apply a local rule to a sequent then it cannot be basic. -/
 lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
   rcases X with ⟨L,R,o⟩
@@ -557,7 +540,7 @@ lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
     case bot => right; simp_all [Sequent.closed]
     case not φ =>
       right; simp_all [Sequent.closed]; right
-      have := mem_of_two_subperm preconditionProof
+      have := preconditionProof.subset
       refine ⟨φ, Or.inl ?_, Or.inl ?_⟩ <;> tauto
     case neg φ =>
       left; push_neg
@@ -583,7 +566,7 @@ lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
     case bot => right; simp_all [Sequent.closed]
     case not φ =>
       right; simp_all [Sequent.closed]; right
-      have := mem_of_two_subperm preconditionProof
+      have := preconditionProof.subset
       refine ⟨φ, Or.inr ?_, Or.inr ?_⟩ <;> tauto
     case neg φ =>
       left; push_neg

@@ -247,8 +247,8 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
         cases Zolf_in
         · aesop
         cases olf
-        · simp_all [Olf.change, Option.insHasSdiff]
-        · simp_all (decide := true) [Olf.change, Option.insHasSdiff]
+        · simp_all
+        · simp_all (decide := true)
           aesop
       clear Y_in
       subst this
