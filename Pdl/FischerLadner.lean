@@ -3,12 +3,13 @@ import Mathlib.Algebra.Order.BigOperators.Group.List
 import Pdl.Measures
 import Pdl.Vocab
 
-/-! # Fischer-Ladner Closure (alternative)
+/-! # Fischer-Ladner Closure
 
 Here we define a closure on sets of formulas.
 Our main reference for this closure is Section 6.1 of [HKT2000]
 See also Definition 4.79 and Exercise 4.8.2 in [BRV2001].
-A version following the proof of Theorem 3.2 in [FL1979] is in `FischerLadner.lean`.
+An alternative version following the proof of Theorem 3.2 in [FL1979]
+but unfinished is in `Unused/FischerLadnerViaPreForms.lean`.
 
 - [FL1979] Michael J. Fischer and Richard E. Ladner (1979):
   *Propositional dynamic logic of regular programs*.
@@ -29,7 +30,8 @@ A version following the proof of Theorem 3.2 in [FL1979] is in `FischerLadner.le
 /-! ## Definition  -/
 
 mutual
-/-- See Section 6.1 of [HKT2000]. Note that there only implication is given.
+/-- The Fischer-Ladner closure of a formula.
+See Section 6.1 of [HKT2000]. Note that there only implication is given.
 For our `Formula` type we also need to cover conjunction and negation.
 The main work is done by `FLb`, which also ensures termination. -/
 def FL : Formula → List Formula
@@ -39,6 +41,8 @@ def FL : Formula → List Formula
 | ⌈α⌉φ => FLb α φ ++ FL φ
 | ~φ => [~φ] ++ FL φ
 
+/-- The Fischer-Ladner closure of a box formula,
+not recursing into the formula after the box. -/
 def FLb : Program → Formula → List Formula
 | ·a, φ => [ ⌈·a⌉φ ]
 | α⋓β, φ => [ ⌈α⋓β⌉φ ] ++ FLb α φ ++ FLb β φ
@@ -171,8 +175,39 @@ lemma FL_box_star {φ α ψ} :
   simp [FL, FLb] at this
   aesop
 
-@[simp]
 def FLL (L : List Formula) : List Formula := L.flatMap FL
+
+@[simp]
+lemma FLL_refl_sub {L} : L ⊆ FLL L := by induction L <;> simp_all [FLL]
+
+lemma FLL_sub {L1 L2} : L1 ⊆ L2 → FLL L1 ⊆ FLL L2 := by
+  unfold FLL
+  intro h x x_in
+  grind
+
+@[simp]
+lemma FLL_idem_ext {L φ} : φ ∈ FLL (FLL L) → φ ∈ FLL L := by
+  unfold FLL
+  intro φ_in
+  have := @FL_trans
+  grind
+
+lemma FLL_sub_FLL_iff_sub_FLL {L K : List Formula} : L ⊆ FLL K ↔ FLL L ⊆ FLL K := by
+  constructor
+  · unfold FLL
+    rintro h φ' φ'_in
+    simp_all only [List.mem_flatMap]
+    rcases φ'_in with ⟨φ, φ_in, φ'_in⟩
+    specialize h φ_in
+    simp only [List.mem_flatMap] at h
+    rcases h with ⟨φ'', φ''_in, φ_in⟩
+    use φ''
+    have := @FL_trans
+    grind
+  · have := @FLL_refl_sub L
+    grind
+
+lemma FLL_append_eq : FLL (L ++ K) = FLL L ++ FLL K := by simp [FLL]
 
 /-! ## FL stays in the Vocabulary -/
 

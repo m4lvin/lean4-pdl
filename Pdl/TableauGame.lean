@@ -135,43 +135,84 @@ lemma move.hist (mov : move next ⟨Hist, X, pos⟩) :
   all_goals
     grind
 
-/-! ## Termination -/
+/-! ## Termination via finite FL closure
+
+Intuitively, we want to say that each step from (L,R,O) in a tableau to (L',R',O') stays in the
+FL of (L,R,O). Moreover, each side left/right stays within its own FL closure.
+This does *not* mean that `L'` must be in the FL of `L`, because the `O` may also contribute to
+the left part. This makes `Sequent.subseteq_FL` tricky to define.
+
+Moreover, we are working with lists (or, by ignoring their order, multisets) and thus staying in
+the FL closure does not imply that there are only finitely many sequents reachable: by repeating
+the same formulas the length of the list may increase.
+To tackle this we want to use that `rep` is defined with `setEqTo` that ignores multiplicity, so
+that even if there are infinitely many different lists and thus sequents in principle reachable,
+we still cannot have an infinite chain because that would mean we must have a "set-repeat" that
+is not allowed.
+
+-/
 
 -- Quick reminder how ≤ and ⊆ work on multisets.
 example : ¬ {2,2,1} ≤ ({1,2} : Multiset Nat) := by decide -- cares about multiplicity
 example :   {2,2,1} ⊆ ({1,2} : Multiset Nat) := by simp_all -- set-like / only cares about support
 
 /-- `X` is a component-wise *multi*subset of the FL-closure of `Y`.
-This implies `Sequent.subseteq_FL` but not vice versa, because infinitely
-many multisets yield the same set.
-!!! TODO also need to take into account X.O and Y.O on both sides each !! -/
+Implies `Sequent.subseteq_FL` but not vice versa, as infinitely many multisets yield the same set.
+
+BROKEN - does not take into account X.O and Y.O on both sides.
+Hopefully we will never need this anyway. Use `Sequent.subseteq_FL` instead. -/
 def Sequent.multisubseteq_FL (X : Sequent) (Y : Sequent) : Prop :=
     Multiset.ofList X.R < Multiset.ofList (FLL Y.R)
   ∧ Multiset.ofList X.L < Multiset.ofList (FLL Y.L)
 
-/-- Sequent `X` is a component-wise subset of the FL-closure of `Y`.
-!!! TODO also need to take into account X.O and Y.O on both sides each !! -/
+/-- Sequent `Y` is a component-wise subset of the FL-closure of `X`.
+Note that by component we mean left and right (and not L, R, O).
+
+WORRY: Is using Sequent.O.L here a problem because it might not be injective?
+(Because it calls `unload` where both ⌊a⌋⌊b⌋p and ⌊a⌋⌈b⌉p become ⌈a⌉⌈b⌉p.)
+-/
 def Sequent.subseteq_FL (X : Sequent) (Y : Sequent) : Prop :=
-    X.R ⊆ FLL Y.R  ∧  X.L ⊆ FLL Y.L  ∧  true
+      X.L   ⊆ FLL (Y.L ++ Y.O.L)
+    ∧ X.O.L ⊆ FLL (Y.L ++ Y.O.L)
+    ∧ X.R   ⊆ FLL (Y.R ++ Y.O.R)
+    ∧ X.O.R ⊆ FLL (Y.R ++ Y.O.R)
 
 @[simp]
-lemma Sequent.subseteq_FL_refl (X : Sequent) : X.subseteq_FL X := by sorry
+lemma Sequent.subseteq_FL_refl (X : Sequent) : X.subseteq_FL X := by
+  rcases X with ⟨L,R,O⟩
+  simp [Sequent.subseteq_FL, FLL_append_eq]
 
 @[simp]
 lemma Sequent.subseteq_FL_trans (X Y Z: Sequent) :
     X.subseteq_FL Y → Y.subseteq_FL Z → X.subseteq_FL Z := by
-  sorry
+  intro X_Y Y_Z
+  rcases X with ⟨L,R,O⟩
+  rcases Y with ⟨L',R',O'⟩
+  rcases Z with ⟨L'',R'',O''⟩
+  simp [Sequent.subseteq_FL] at *
+  have := @FLL_sub_FLL_iff_sub_FLL
+  refine ⟨?_, ?_, ?_, ?_⟩ <;> intro φ φ_in
+  · have : (L' ++ O'.L) ⊆ FLL (L'' ++ O''.L) := by grind
+    grind
+  · have : (L' ++ O'.L) ⊆ FLL (L'' ++ O''.L) := by grind
+    grind
+  · have : (R' ++ O'.R) ⊆ FLL (R'' ++ O''.R) := by grind
+    grind
+  · have : (R' ++ O'.R) ⊆ FLL (R'' ++ O''.R) := by grind
+    grind
 
 /-- Helper for `LocalRule.stays_in_FL` -/
-lemma LoadRule.stays_in_FL (lr : LoadRule (~'χ) ress) :
-    ∀ Y ∈ ress, (Y.1) ⊆ FL (~ χ.unload) := by -- PROBLEM: also need to cover Y.2
+-- TODO analogous LoadRule.stays_in_FL_right
+lemma LoadRule.stays_in_FL_left (lr : LoadRule (~'χ) ress) :
+    ∀ Y ∈ ress, Sequent.subseteq_FL (Y.1, ∅, Y.2.map Sum.inl) (∅, ∅, some (Sum.inl (~'χ))) := by
+  simp [Sequent.subseteq_FL, Olf.L]
   sorry
 
 /-- Helper for `move_inside_FL` -/
 theorem LocalRule.stays_in_FL {Lcond Rcond Ocond B}
     (rule : LocalRule (Lcond, Rcond, Ocond) B) :
     ∀ Y ∈ B, Y.subseteq_FL ⟨Lcond, Rcond, Ocond⟩ := by
-  -- intro res res_in_B x x_in_res
+  intro Y Y_in_B
   cases rule
   <;> sorry
 
