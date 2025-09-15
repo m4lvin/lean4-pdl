@@ -30,10 +30,6 @@ theorem proj : g ∈ projection A X ↔ (⌈·A⌉g) ∈ X :=
 
 /-! ## Loading and Loaded Histories -/
 
-def boxesOf : Formula → List Program × Formula
-| (Formula.box prog nextf) => let (rest,endf) := boxesOf nextf; ⟨prog::rest, endf⟩
-| f => ([], f)
-
 /-- A history is a list of Sequents.
 This only tracks "big" steps, hoping we do not need steps within a local tableau.
 The head of the first list is the newest Sequent. -/

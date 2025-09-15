@@ -98,6 +98,8 @@ instance : DecidablePred Program.isStar := by
 theorem Program.isStar_iff : α.isStar ↔ ∃ β, α = (∗β) := by
   cases α <;> simp_all [isStar]
 
+/-! ## Tools for Box Formulas -/
+
 @[simp]
 theorem Formula.boxes_nil : Formula.boxes [] φ = φ := by simp [Formula.boxes]
 
@@ -112,6 +114,21 @@ theorem boxes_last : Formula.boxes (δ ++ [α]) φ = Formula.boxes δ (⌈α⌉�
 theorem boxes_append : Formula.boxes (as ++ bs) P = Formula.boxes as (Formula.boxes bs P) :=
   by
   induction as <;> simp [Formula.boxes]
+
+def boxesOf : Formula → List Program × Formula
+| (Formula.box prog nextf) => let (rest,endf) := boxesOf nextf; ⟨prog::rest, endf⟩
+| f => ([], f)
+
+lemma def_of_boxesOf_def (h : boxesOf φ = (αs, ψ)) : φ = ⌈⌈αs⌉⌉ψ := by
+  induction αs generalizing φ
+  · unfold boxesOf at h
+    cases φ <;> simp_all
+  case cons α αs IH =>
+    simp
+    cases φ <;> simp_all [boxesOf]
+    case box β φ =>
+      apply IH
+      grind
 
 /-! ## Loaded Formulas -/
 
