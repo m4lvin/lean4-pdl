@@ -21,7 +21,8 @@ inductive PathIn : ∀ {Hist X}, Tableau Hist X → Type
     : PathIn (Tableau.pdl nrep bas r next)
 -- deriving DecidableEq
 
-/-- FIXME This was derivable in Lean 4.20 and 4.21 but no longer in 4.22 ??? -/
+/-- FIXME This was derivable in Lean 4.20 and 4.21 but no longer in 4.22 and 4.23.
+Should be fixed with  4.24, see https://github.com/leanprover/lean4/issues/9971 -/
 instance : DecidableEq (PathIn tab) := sorry
 
 def tabAt : PathIn tab → Σ H X, Tableau H X

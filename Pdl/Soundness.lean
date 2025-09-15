@@ -551,8 +551,7 @@ theorem not_cEquiv_of_free_loaded (s t : PathIn tab)
 
 theorem ePropB.d {tab : Tableau .nil X} (s t : PathIn tab) :
     (nodeAt t).isFree → s < t → s <ᶜ t := by
-intro t_free
-intro slt
+intro t_free slt
 constructor
 · apply Relation.TransGen_or_left; exact slt
 · intro con
@@ -609,8 +608,7 @@ theorem ePropB.e {tab : Tableau .nil X} (s t : PathIn tab) :
 -- Added for loadedDiamondPaths
 theorem ePropB.e_help {tab : Tableau .nil X} (s t : PathIn tab) :
     (nodeAt t).isLoaded → (nodeAt s).isFree → t ◃⁺ s → ¬ (s ◃⁺ t) := by
-  intro t_loaded s_free t_s
-  intro s_t
+  intro t_loaded s_free t_s s_t
   absurd not_cEquiv_of_free_loaded _ _ s_free t_loaded
   constructor <;> apply Relation.TransGen.to_reflTransGen <;> assumption
 
@@ -639,8 +637,7 @@ theorem ePropB.g {tab : Tableau .nil X} (s t : PathIn tab) :
 -- Not in notes
 theorem ePropB.g_tweak {tab : Tableau .nil X} (s u t : PathIn tab) :
     s ◃⁺ u  →  u ◃⁺ t  →  ¬ t ≡ᶜ u → ¬ t ≡ᶜ s := by
-  intro s_u u_t not_t_u
-  intro t_s
+  intro s_u u_t not_t_u t_s
   absurd not_t_u
   constructor
   · apply @Relation.ReflTransGen.trans _ _ _ _ _ t_s.1

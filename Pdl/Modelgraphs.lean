@@ -196,7 +196,7 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
     repeat' constructor
     · intro QandR_in_X
       specialize andSplit QandR_in_X
-      cases' andSplit with Q_in_X R_in_X
+      rcases andSplit with ⟨Q_in_X, R_in_X⟩
       simp only [evaluate]
       constructor
       · exact plus_Q Q_in_X
@@ -204,14 +204,13 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
     · intro notQandR_in_X
       unfold evaluate; rw [not_and_or]
       specialize notAndSplit notQandR_in_X
-      cases' notAndSplit with notQ_in_X notR_in_X
+      rcases notAndSplit with notQ_in_X | notR_in_X
       · left; exact minus_Q notQ_in_X
       · right; exact minus_R notR_in_X
   case box a P =>
     repeat' constructor
     all_goals simp
-    · intro boxP_in_X
-      intro Y Y_in X_rel_Y
+    · intro boxP_in_X Y Y_in X_rel_Y
       have ⟨plus_Y, _⟩ := loadedTruthLemma MG ⟨Y, Y_in⟩ P
       have oh_a := loadedTruthLemmaProg MG a X
       apply plus_Y

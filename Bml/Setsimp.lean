@@ -30,9 +30,9 @@ theorem lengthAdd {X : Finset Formula} {ϕ} :
 theorem lengthOf_insert_leq_plus {X : Finset Formula} {ϕ : Formula} :
     lengthOfSet (insert ϕ X) ≤ lengthOfSet X + lengthOfFormula ϕ :=
   by
-  cases' em (ϕ ∈ X) with in_x not_in_x
-  · rw [Finset.insert_eq_of_mem in_x]; simp
-  · rw [lengthAdd not_in_x]
+  by_cases h : ϕ ∈ X
+  · rw [Finset.insert_eq_of_mem h]; simp
+  · rw [lengthAdd h]
 
 @[simp]
 theorem lengthRemove (X : Finset Formula) :

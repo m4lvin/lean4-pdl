@@ -511,12 +511,10 @@ theorem notSimpleThenLocalRule {L R} : ¬Simple (L,R)
 
 
 theorem conDecreasesLength {φ ψ : Formula} :
-  (Finset.sum {φ, ψ} fun x => lengthOfFormula x) <
-  1 + lengthOfFormula φ + lengthOfFormula ψ :=
-  by
-    cases' em (φ = ψ) with heq hneq
-    · simp [heq] at *
-    · simp [Finset.sum_pair hneq]
+    (Finset.sum {φ, ψ} fun x => lengthOfFormula x) < 1 + lengthOfFormula φ + lengthOfFormula ψ := by
+  by_cases h : φ = ψ
+  · simp [h] at *
+  · simp [Finset.sum_pair h]
 
 theorem localRuleDecreasesLengthSide (rule : LocalRule (Lcond, Rcond) ress) :
   ∀ res ∈ ress,
@@ -532,7 +530,7 @@ theorem localRuleDecreasesLengthSide (rule : LocalRule (Lcond, Rcond) ress) :
           case neg φ => simp [←Nat.add_assoc]
           case con φ ψ => simp; exact conDecreasesLength
           case ncon φ ψ =>
-            cases' in_ress with case_phi case_psi
+            rcases in_ress with case_phi | case_psi
             <;> ( first
                 | simp [case_psi]
                 | ( simp [case_phi]
@@ -829,7 +827,7 @@ theorem existsLocalTableauFor LR : Nonempty (LocalTableau LR) :=
     case inr canApplyRule =>
       rw [not_not] at canApplyRule
       rcases canApplyRule with ⟨LCond, RCond, C, lr_exists, preconL, preconR⟩
-      cases' lr_exists with lr
+      rcases lr_exists with ⟨lr⟩
       constructor
       apply LocalTableau.fromRule
       apply LocalRuleApp.mk C LCond RCond lr ⟨preconL, preconR⟩

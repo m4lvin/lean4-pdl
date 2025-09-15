@@ -105,8 +105,7 @@ infixl:40 "⊭" => fun a b => ¬a⊨b
 
 theorem forms_to_sets {φ ψ : Formula} : φ⊨ψ → ({φ} : Finset Formula)⊨({ψ} : Finset Formula) :=
   by
-  intro impTaut
-  intro W M w lhs ψ1 psi1_in_setpsi
+  intro impTaut W M w lhs ψ1 psi1_in_setpsi
   specialize impTaut W M w
   simp at *
   subst psi1_in_setpsi

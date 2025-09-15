@@ -27,13 +27,13 @@ theorem listEq_to_conEq : l1 = l2 → Con l1 = Con l2 := by
 theorem conEvalHT {X f W M} {w : W} :
     evaluate M w (Con (f :: X)) ↔ evaluate M w f ∧ evaluate M w (Con X) :=
   by
-  induction' X with g X _
+  induction X
   · simp
   · simp
 
 theorem conEval {W M X} {w : W} : evaluate M w (Con X) ↔ ∀ f ∈ X, evaluate M w f :=
   by
-  induction' X with f X IH
+  induction X
   · simp
   · rw [conEvalHT]
     simp
@@ -72,17 +72,17 @@ theorem listEq_to_disEq : l1 = l2 → dis l1 = dis l2 := by
 theorem disEvalHT {X f W M} {w : W} :
     evaluate M w (dis (f :: X)) ↔ evaluate M w f ∨ evaluate M w (dis X) :=
   by
-  induction' X with g X IH
+  induction X
   · simp
   · simp
     tauto
 
 theorem disEval {W M X} {w : W} : evaluate M w (dis X) ↔ ∃ f ∈ X, evaluate M w f :=
   by
-  induction' X with f X IH
+  induction X
   · simp
   · rw [disEvalHT]
-    simp [IH]
+    simp_all
 
 /-- Vocabulary of Disjunction -/
 theorem in_voc_dis n (L : List Formula) :
@@ -114,9 +114,7 @@ theorem disconEvalHT {X} : ∀ XS, discon (X :: XS)≡Con X⋁discon XS :=
   by
   unfold semEquiv
   intro XS W M w
-  cases' XS with Y YS
-  · simp
-  · simp
+  cases XS <;> simp
 
 theorem disconEval' {W M} {w : W} :
     ∀ {N : Nat} XS,
@@ -124,10 +122,9 @@ theorem disconEval' {W M} {w : W} :
   by
   intro N
   refine Nat.strong_induction_on N ?_ -- should be induction N using Nat.strong_induction_on or something similar?
-  intro n IH
-  intro XS nDef
+  intro n IH XS nDef
   subst nDef
-  cases' XS with X XS
+  rcases XS with _ | ⟨X,XS⟩
   · simp
   specialize IH XS.length (by simp) XS (by rfl)
   rw [disconEvalHT]
@@ -136,21 +133,20 @@ theorem disconEval' {W M} {w : W} :
   constructor
   · -- →
     intro lhs
-    cases' lhs with lhs lhs
+    rcases lhs with lhs|lhs
     · use X
       simp
       rw [conEval] at lhs
       tauto
-    · cases' lhs with Y claim
+    · rcases lhs with ⟨Y,claim⟩
       use Y
       simp
       tauto
   · -- ←
     intro rhs
-    cases' rhs with Y rhs
-    cases' rhs with Y_in Ysat
+    rcases rhs with ⟨Y,Y_in,Ysat⟩
     simp at Y_in
-    cases' Y_in with Y_in
+    rcases Y_in with Y_in|Y_in
     · left
       subst Y_in
       rw [conEval]; tauto

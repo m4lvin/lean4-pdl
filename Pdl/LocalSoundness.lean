@@ -24,7 +24,7 @@ theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
     case oneSidedL =>
       simp_all
       have ⟨A, ⟨⟨Z, ⟨⟨Γ, ⟨Γ_in, Z_def⟩⟩, A_def⟩⟩, Y_in_A⟩⟩ := Y_in
-      apply IH Z Γ ⟨Γ_in, Z_def⟩
+      apply IH Z Γ Γ_in Z_def
       · subst Z_def
         cases side
         all_goals
@@ -34,7 +34,7 @@ theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
     case oneSidedR =>
       simp_all
       have ⟨A, ⟨⟨Z, ⟨⟨Γ, ⟨Γ_in, Z_def⟩⟩, A_def⟩⟩, Y_in_A⟩⟩ := Y_in
-      apply IH Z Γ ⟨Γ_in, Z_def⟩
+      apply IH Z Γ Γ_in Z_def
       · subst Z_def
         cases side
         all_goals
@@ -46,7 +46,7 @@ theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
     case loadedL outputs χ lrule resNodes_def =>
       simp_all
       have ⟨A, ⟨⟨Z, ⟨⟨Γ, ⟨Δ, ⟨cond, Z_def⟩⟩⟩, A_def⟩⟩, Y_in_A⟩⟩ := Y_in
-      apply IH Z Γ Δ ⟨cond, Z_def⟩
+      apply IH Z Γ Δ cond Z_def
       · subst Z_def
         cases side
         case LL =>
@@ -62,7 +62,7 @@ theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
     case loadedR outputs χ lrule resNodes_def =>
       simp_all
       have ⟨A, ⟨⟨Z, ⟨⟨Γ, ⟨Δ, ⟨cond, Z_def⟩⟩⟩, A_def⟩⟩, Y_in_A⟩⟩ := Y_in
-      apply IH Z Γ Δ ⟨cond, Z_def⟩
+      apply IH Z Γ Δ cond Z_def
       · subst Z_def
         cases side
         case LL =>
@@ -182,7 +182,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
       case oneSidedL resNodes orule =>
         simp_all [applyLocalRule] -- uses locRulTru
         rcases v_t with ⟨res, res_in, v_⟩
-        specialize IH _ res ⟨res_in, rfl⟩ v_ w_nξ _ _ v_αs_w
+        specialize IH _ res res_in rfl v_ w_nξ _ _ v_αs_w
           (by cases side <;> simp_all [AnyNegFormula.in_side])
           (by apply Sequent.without_loaded_in_side_isFree _ _ side; clear IH
               cases side
@@ -201,7 +201,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
       case oneSidedR resNodes orule => -- analogous to oneSidedL
         simp_all [applyLocalRule] -- uses locRulTru
         rcases v_t with ⟨res, res_in, v_⟩
-        specialize IH _ res ⟨res_in, rfl⟩ v_ w_nξ _ _ v_αs_w
+        specialize IH _ res res_in rfl v_ w_nξ _ _ v_αs_w
           (by cases side <;> simp_all [AnyNegFormula.in_side])
           (by apply Sequent.without_loaded_in_side_isFree _ _ side; clear IH
               cases side

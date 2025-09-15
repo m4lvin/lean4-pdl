@@ -61,8 +61,7 @@ theorem signature_iff {W} {M : KripkeModel W} {w : W} :
     evaluate M w (signature α ℓ) ↔ ∀ τ ∈ (testsOfProgram α).attach, ℓ τ ↔ evaluate M w τ.val := by
   simp [signature, conEval]
   constructor
-  · intro w_ℓ
-    intro τ τ_in
+  · intro w_ℓ τ τ_in
     cases em (ℓ ⟨τ, τ_in⟩)
     · specialize w_ℓ τ τ τ_in
       aesop
@@ -74,8 +73,7 @@ theorem signature_iff {W} {M : KripkeModel W} {w : W} :
 
 -- unused
 theorem top_equiv_disj_TP : ∀ α, tautology (dis ((allTP α).map (signature α))) := by
-  intro α
-  intro W M w
+  intro α W M w
   rw [disEval]
   simp only [List.mem_map, exists_exists_and_eq_and]
   have := Classical.propDecidable
@@ -94,8 +92,7 @@ theorem signature_contradiction_of_neq_TPs {ℓ ℓ' : TP α} :
     ℓ ≠ ℓ' → contradiction (signature α ℓ ⋀ signature α ℓ') := by
   simp only [ne_eq]
   rw [TP_eq_iff]
-  intro ldiff
-  intro W M w
+  intro ldiff W M w
   simp_all only [List.mem_attach, forall_true_left, Subtype.forall, not_forall, evaluate, not_and]
   rcases ldiff with ⟨τ, τ_in, disagree⟩
   simp_all [signature, conEval]
@@ -120,14 +117,11 @@ theorem signature_contradiction_of_neq_TPs {ℓ ℓ' : TP α} :
 -- unused?
 theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α ℓ ≡ ψ ⋀ signature α ℓ := by
   constructor
-  · intro phi_iff_psi
-    intro ℓ
-    intro W M w
+  · intro phi_iff_psi ℓ W M w
     simp only [evaluate, and_congr_left_iff]
     specialize phi_iff_psi W M w
     tauto
-  · intro hyp
-    intro W M w
+  · intro hyp W M w
     have := Classical.propDecidable
     let ℓ : TP α := fun τ => evaluate M w τ
     specialize hyp ℓ W M w
@@ -656,16 +650,14 @@ theorem boxHelperTP α (ℓ : TP α) :
     aesop
   · intro W M w
     simp [conEval, signature]
-    intro w_ℓ
-    intro φ φ_in
+    intro w_ℓ φ φ_in
     have := F_mem_iff_neg α ℓ φ
     rw [this] at φ_in
     clear this
     rcases φ_in with ⟨τ, τ_in, φ_def, not_ℓ_τ⟩
     specialize w_ℓ φ τ
     aesop
-  · intro ψ
-    intro W M w
+  · intro ψ W M w
     simp [conEval, Xset]
     intro w_sign
     constructor

@@ -20,9 +20,7 @@ theorem modelExistence: consistent X →
 
 theorem completeness : ∀ X, consistent X → satisfiable X :=
   by
-  intro X
-  intro X_is_consistent
-  rcases X with ⟨L, R, O⟩
+  rintro ⟨L, R, O⟩ X_is_consistent
   have ⟨WS, M, w, h⟩ := modelExistence X_is_consistent
   use WS, M.val, w
   simp [modelCanSemImplySequent, Sequent.toFinset] at *

@@ -153,8 +153,7 @@ example (a b : Program) (X : Formula) :
     constructor
     · simp_all
     · constructor
-      · intro v w_a_v u
-        intro v_aSubS_w
+      · intro v w_a_v u v_aSubS_w
         aesop
       · intro v w_b_v u v_aSubS_u
         apply lhs
@@ -167,8 +166,7 @@ theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a
   by
   intro W M w
   simp only [evaluate, relate, not_forall, not_and, not_exists, not_not, and_imp]
-  intro Mwφ  MwStarImpHyp
-  intro x w_starA_x
+  intro Mwφ  MwStarImpHyp x w_starA_x
   induction w_starA_x
   case refl => assumption
   case tail u v w_aS_u u_a_v IH =>

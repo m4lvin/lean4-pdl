@@ -230,7 +230,7 @@ Note that the paper does not prove this, only says it is similar to the proof th
 are finite, i.e. Lemma 4.10 which uses the Fischer-Ladner closure. -/
 lemma move.wf : WellFounded move := by
   -- If it's not wellfounded, then there must be an infinite sequence of moves.
-  rw [WellFounded.wellFounded_iff_no_descending_seq]
+  rw [wellFounded_iff_isEmpty_descending_chain]
   by_contra hyp
   simp at hyp
   rcases hyp with ⟨f, f_rel⟩

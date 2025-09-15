@@ -45,7 +45,7 @@ theorem wf_of_finTransInvImage_of_transIrrefl {α : Type}
     (trans_irrefl : IsIrrefl α (Relation.TransGen r))
     : WellFounded r := by
   -- Suppose there is an infinite descending sequence.
-  rw [WellFounded.wellFounded_iff_no_descending_seq]
+  rw [wellFounded_iff_isEmpty_descending_chain]
   by_contra hyp
   simp at hyp
   rcases hyp with ⟨f, f_⟩
@@ -64,7 +64,7 @@ theorem wf_of_finTransInvImage_of_transIrrefl {α : Type}
   -- By assumption the inverse image of r' at `p` is also finite, so r' must be well founded.
   have := @Finite.wf_of_irrefl_trans β r' finTransInvImage r'_irrefl
   -- Hence there is no infinite descending r'-sequence.
-  rw [WellFounded.wellFounded_iff_no_descending_seq] at this
+  rw [wellFounded_iff_isEmpty_descending_chain] at this
   absurd this
   simp
   -- But we can get such a r'-sequence from the r-sequence, contradiction!

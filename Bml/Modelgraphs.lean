@@ -25,8 +25,7 @@ theorem truthLemma {Worlds : Set (Finset Formula)} (MG : ModelGraph Worlds) :
     ∀ X : Worlds, ∀ P, P ∈ X.val → Evaluate (MG.val, X) P :=
   by
   intro X P
-  cases' MG with M M_prop
-  rcases M_prop with ⟨i, ii, iii, iv⟩
+  rcases MG with ⟨M, ⟨i, ii, iii, iv⟩⟩
   -- induction loading!!
   let plus P (X : Worlds) := P ∈ X.val → Evaluate (M, X) P
   let minus P (X : Worlds) := ~P ∈ X.val → ¬Evaluate (M, X) P
@@ -56,7 +55,7 @@ theorem truthLemma {Worlds : Set (Finset Formula)} (MG : ModelGraph Worlds) :
         exact minus_IH notP_in_X
       · intro notnotP_in_X
         rcases i X with ⟨X_saturated, _, _⟩
-        cases' X_saturated P ⊥ with doubleNeg
+        rcases X_saturated P ⊥ with ⟨doubleNeg⟩
         -- ⊥ is unused!
         unfold Evaluate;
         simp
@@ -70,7 +69,8 @@ theorem truthLemma {Worlds : Set (Finset Formula)} (MG : ModelGraph Worlds) :
       rcases X_saturated P Q with ⟨_, andSplit, notAndSplit⟩
       repeat' constructor
       · intro PandQ_in_X
-        specialize andSplit PandQ_in_X; cases' andSplit with P_in_X Q_in_X
+        specialize andSplit PandQ_in_X
+        rcases andSplit with ⟨P_in_X, Q_in_X⟩
         unfold Evaluate
         constructor
         · exact plus_IH_P P_in_X
@@ -78,7 +78,7 @@ theorem truthLemma {Worlds : Set (Finset Formula)} (MG : ModelGraph Worlds) :
       · intro notPandQ_in_X
         unfold Evaluate; rw [not_and_or]
         specialize notAndSplit notPandQ_in_X
-        cases' notAndSplit with notP_in_X notQ_in_X
+        rcases notAndSplit with notP_in_X | notQ_in_X
         · left; exact minus_IH_P notP_in_X
         · right; exact minus_IH_Q notQ_in_X
       · intro PandQ_in_X Y X_rel_Y; exact iii X Y (P⋀Q) X_rel_Y PandQ_in_X

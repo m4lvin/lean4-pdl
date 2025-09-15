@@ -17,12 +17,10 @@ theorem tautImp_iff_TNOdenotUnsat {φ ψ} {X : TNode} :
   simp only [Tautology, Evaluate, not_and, HasSat.Satisfiable, union_singleton_is_insert,
     Finset.mem_singleton, Finset.mem_insert, forall_eq_or_imp, forall_eq, not_exists] at *
   constructor
-  · intro taut
-    intro W M w w_nPsi w_phi
+  · intro taut W M w w_nPsi w_phi
     specialize taut W M w
     tauto
-  · intro unsat
-    intro W M w
+  · intro unsat W M w
     specialize unsat W M w
     simp only [impl, Evaluate, not_and, not_not]
     tauto

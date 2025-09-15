@@ -103,8 +103,7 @@ theorem semEquiv.refl : Reflexive semEquiv := by
   tauto
 
 theorem semEquiv.symm : Symmetric semEquiv := by
-  intro φ1 φ2 hyp
-  intro W M w
+  intro φ1 φ2 hyp W M w
   specialize hyp W M w
   tauto
 
@@ -118,8 +117,7 @@ theorem relEquiv.refl : Reflexive relEquiv := by
   tauto
 
 theorem relEquiv.symm : Symmetric relEquiv := by
-  intro α1 α2 hyp
-  intro W M w v
+  intro α1 α2 hyp W M w v
   specialize hyp W M w v
   tauto
 
@@ -172,8 +170,7 @@ theorem vDashSingleton_iff_vDash_formula {M : KripkeModel W} {w : W} : ∀ φ, (
 -- useful lemmas to connect different ⊨ cases
 theorem forms_to_lists {φ ψ : Formula} : φ⊨ψ → ([φ] : List Formula)⊨([ψ] : List Formula) :=
   by
-  intro impTaut
-  intro W M w lhs ψ psi_in_psi
+  intro impTaut W M w lhs ψ psi_in_psi
   specialize impTaut W M w
   simp at psi_in_psi lhs
   rw [psi_in_psi]
@@ -186,8 +183,7 @@ theorem forms_to_lists {φ ψ : Formula} : φ⊨ψ → ([φ] : List Formula)⊨(
 /-- The Local Deduction Theorem. -/
 theorem deduction (X : List Formula) (φ ψ : Formula) :
     X ++ [φ] ⊨ ψ → (X ⊨ φ ↣ ψ) := by
-  intro Xφ_then_ψ
-  intro W M w w_X
+  intro Xφ_then_ψ W M w w_X
   aesop
 
 theorem notSat_iff_semImplies (X : List Formula) (φ : Formula):
@@ -390,15 +386,13 @@ theorem evalBoxes (δ : List Program) φ :
   case cons α δ IH =>
     simp only [Formula.boxes_cons]
     constructor
-    · intro lhs
-      intro v v_αδ_w
+    · intro lhs v v_αδ_w
       simp [relateSeq] at *
       rcases v_αδ_w with ⟨u, w_α_u, u_δ_v⟩
       specialize @IH u
       refine IH.1 ?_ v u_δ_v
       simp_all only [true_iff]
-    · intro rhs
-      intro u w_α_u
+    · intro rhs u w_α_u
       apply IH.2
       intro v u_δ_v
       apply rhs
@@ -412,16 +406,14 @@ theorem evaluate_unload_box :
 
 theorem truthImply_then_satImply (X Y : List Formula) : X ⊨ Y → satisfiable X → satisfiable Y :=
   by
-  intro X_Y
-  intro satX
+  intro X_Y satX
   rcases satX with ⟨W,M,w,v_X⟩
   specialize X_Y W M w v_X
   use W, M, w
 
 /-- Semantic induction rule for the Kleene star operator. -/
 theorem stepToStar : φ ⊨ (⌈α⌉φ) ⋀ ψ  →  φ ⊨ (⌈∗α⌉ψ) := by
-  intro hyp
-  intro W M w w_φ
+  intro hyp W M w w_φ
   specialize hyp W M
   have : ∀ v, relate M (∗α) w v → evaluate M v φ := by
     intro v w_sta_v

@@ -21,7 +21,7 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W ×
       cases newWorld
       exact newVal -- use new given valuation here!!
     case inr oldWorld => -- world in one of the given models:
-      cases' oldWorld with R w
+      rcases oldWorld with ⟨R, w⟩
       exact (collection R).snd.fst.val w
   · -- defining relations:
     intro worldOne worldTwo
@@ -32,8 +32,8 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W ×
     case inr.inl => exact False -- no connection from models to new world
     case inr.inr oldWorldOne oldWorldTwo =>
       -- connect two old worlds iff they are from the same model and were connected there already:
-      cases' oldWorldOne with kOne wOne
-      cases' oldWorldTwo with kTwo wTwo
+      rcases oldWorldOne with ⟨kOne, wOne⟩
+      rcases oldWorldTwo with ⟨kTwo, wTwo⟩
       have help : kOne = kTwo → Prop := by
         intro same
         have sameCol : collection kOne = collection kTwo := by rw [← same]
@@ -67,8 +67,7 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
     case box f f_IH =>
       unfold Evaluate
       constructor
-      · intro true_in_combo
-        intro otherWorld rel_in_old_model
+      · intro true_in_combo   otherWorld rel_in_old_model
         specialize f_IH R otherWorld
         rw [← f_IH]
         specialize true_in_combo (Sum.inr ⟨R, otherWorld⟩)
@@ -194,7 +193,7 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
         specialize all_pro_sat otherWorld.fst f
         simp at all_pro_sat
         rw [or_imp] at all_pro_sat
-        cases' all_pro_sat with _ all_pro_sat_right
+        rcases all_pro_sat with ⟨_, all_pro_sat_right⟩
         rw [←proj] at f_in_LR
         simp at *
         specialize all_pro_sat_right f_in_LR
@@ -221,7 +220,7 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
       · -- show that X is not closed:
         by_contra hyp
         unfold Closed at hyp
-        cases' hyp with bot_in_LR f_and_notf_in_LR
+        rcases hyp with bot_in_LR | f_and_notf_in_LR
         · exact w_sat_LR ⊥ bot_in_LR
         · rcases f_and_notf_in_LR with ⟨f, f_in_LR, notf_in_LR⟩
           let w_sat_f := w_sat_LR f f_in_LR
@@ -248,7 +247,7 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
           aesop
     · -- right to left
       intro rhs
-      cases' rhs with not_closed_LR all_pro_sat
+      rcases rhs with ⟨not_closed_LR, all_pro_sat⟩
       unfold Satisfiable at *
       -- Let's build a new Kripke model!
       let (L, R) := LR
@@ -261,7 +260,7 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
       let collection : β → Σ W : Type, KripkeModel W × W :=
         by
         intro k
-        cases' k with R notboxr_in_LR
+        rcases k with ⟨R, notboxr_in_LR⟩
         use typeFor R notboxr_in_LR, modelFor R notboxr_in_LR, worldFor R notboxr_in_LR
       let newVal c := f_in_TNode (Formula.atom_prop c) (L, R)
       let BigM := combinedModel collection newVal
@@ -272,24 +271,8 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
       -- and that X is not closed (to ensure that it is locally consistent)
       apply combMo_sat_LR LR_is_simple not_closed_LR collection
       -- it remains to show that the new big model satisfies X
-      intro R f f_inpro_or_notr
-      cases' R with R notrbox_in_LR
-      simp only [Finset.mem_union, Finset.mem_singleton] at *
-      specialize this_pro_sat R notrbox_in_LR
-      cases' f_inpro_or_notr with f_inpro f_is_notboxR
-      · -- if f is in the projection
-        specialize this_pro_sat f
-        rw [or_imp] at this_pro_sat
-        cases' this_pro_sat with this_pro_sat_l this_pro_sat_r
-        exact this_pro_sat_l f_inpro
-      · -- case where f is ~[]R
-        cases f_is_notboxR
-        case refl =>
-          specialize this_pro_sat (~R)
-          rw [or_imp] at this_pro_sat
-          cases' this_pro_sat with this_pro_sat_l this_pro_sat_r
-          tauto
-      simp (config := {zetaDelta := true}) -- need to unfold "let"s
+      grind
+      grind
 
 theorem localRuleSoundness
     (M : KripkeModel W)
@@ -410,7 +393,7 @@ theorem localTableauAndEndNodesUnsatThenNotSat (LR : TNode) {ltLR : LocalTableau
     rcases ruleA with ⟨ress, Lcond, Rcond, lrule, preproofL, preproofR⟩
     rename_i L R hC
     have prepf : Lcond ⊆ L ∧ Rcond ⊆ R := And.intro preproofL preproofR
-    cases' someChildSat with c c_sat
+    rcases someChildSat with ⟨c, c_sat⟩
     set ltc := next c c_sat.left
     have endNodesInclusion :
       ∀ Z, Z ∈ endNodesOf ⟨c, ltc⟩
@@ -493,7 +476,7 @@ theorem correctness : ∀LR : TNode, Satisfiable LR → Consistent LR :=
 theorem soundTableau : ∀φ, Provable φ → ¬Satisfiable ({~φ} : Finset Formula) :=
   by
     intro phi prov
-    cases' prov with tabl
+    rcases prov with ⟨tabl⟩
     exact tableauThenNotSat ({~phi}, ∅) tabl
 
 theorem soundness : ∀φ, Provable φ → Tautology φ :=

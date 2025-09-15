@@ -238,8 +238,7 @@ end
 
 theorem repl_in_F_equiv x ψ :
     (φ1 ≡ φ2) → (repl_in_F x ψ φ1) ≡ (repl_in_F x ψ φ2) := by
-  intro hyp
-  intro W M w
+  intro hyp W M w
   have claim1 := repl_in_model_sat_iff x ψ φ1 M w
   have claim2 := repl_in_model_sat_iff x ψ φ2 M w
   simp only [evaluatePoint, modelCanSemImplyForm] at *
@@ -251,8 +250,7 @@ theorem repl_in_F_equiv x ψ :
 
 theorem repl_in_P_equiv x ψ :
     (α1 ≡ᵣ α2) → (repl_in_P x ψ α1) ≡ᵣ (repl_in_P x ψ α2) := by
-  intro hyp
-  intro W M w v
+  intro hyp W M w v
   have claim1 := repl_in_model_rel_iff x ψ α1 M w v
   have claim2 := repl_in_model_rel_iff x ψ α2 M w v
   rw [claim1]
@@ -314,8 +312,7 @@ end
 /-- Replacing an atom in a tautology results in a tautology. -/
 lemma taut_repl φ p q :
     tautology φ → tautology (repl_in_F p (·q) φ) := by
-  intro taut_φ
-  intro W M w
+  intro taut_φ W M w
   have := repl_in_model_sat_iff p (·q) φ M w
   simp [vDash.SemImplies] at this
   rw [this]
@@ -325,8 +322,9 @@ lemma taut_repl φ p q :
 lemma non_occ_taut_then_taut_repl_in_imp (φ ψ : Formula) (p q : ℕ) :
     Sum.inl p ∉ ψ.voc → Sum.inl q ∉ ψ.voc →
     tautology (φ ↣ ψ) → tautology (repl_in_F p (·q) φ ↣ ψ) := by
-  intro p_not_in_ψ q_not_in_ψ taut_imp
-  intro W M w; simp only [evaluate, not_and, not_not]; intro w_φ
+  intro p_not_in_ψ q_not_in_ψ taut_imp W M w
+  simp only [evaluate, not_and, not_not]
+  intro w_φ
   have := taut_repl _ p q taut_imp W M w
   clear taut_imp
   simp only [repl_in_F, evaluate, not_and, not_not] at this
@@ -338,8 +336,9 @@ lemma non_occ_taut_then_taut_repl_in_imp (φ ψ : Formula) (p q : ℕ) :
 lemma non_occ_taut_then_taut_imp_repl_in (φ ψ : Formula) (p q : ℕ) :
     Sum.inl p ∉ ψ.voc → Sum.inl q ∉ ψ.voc →
     tautology (ψ ↣ φ) → tautology (ψ ↣ repl_in_F p (·q) φ) := by
-  intro p_not_in_ψ q_not_in_ψ taut_imp
-  intro W M w; simp only [evaluate, not_and, not_not]; intro w_ψ
+  intro p_not_in_ψ q_not_in_ψ taut_imp W M w
+  simp only [evaluate, not_and, not_not]
+  intro w_ψ
   have := taut_repl _ p q taut_imp W M w
   clear taut_imp
   simp [repl_in_F, evaluate, not_and, not_not] at this
