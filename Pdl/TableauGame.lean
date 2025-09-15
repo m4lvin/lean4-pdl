@@ -135,6 +135,74 @@ lemma move.hist (mov : move next ⟨Hist, X, pos⟩) :
   all_goals
     grind
 
+lemma move_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos} :
+  move next ⟨H, X, p⟩ ↔
+  -- ProverPos:
+  ( ∃ nrep Xbasic, p = .inl (.bas nrep Xbasic)
+    ∧ ∃ L R, ( -- need to choose PDL rule application:
+      ( X = ⟨L, R, none⟩ -- (L+) rule, choosing formula to load
+        ∧ ( ∃ δs δ ψ, (~⌈⌈δs⌉⌉⌈δ⌉ψ) ∈ L
+            ∧ next = ⟨_, _, posOf (X::H) (L.erase (~⌈⌈δs⌉⌉⌈δ⌉ψ), R, some (Sum.inl (~'(⌊⌊δs⌋⌋⌊δ⌋ψ))))⟩)
+          ∨
+          ( ∃ δs δ ψ, (~⌈⌈δs⌉⌉⌈δ⌉ψ) ∈ R
+            ∧ next = ⟨_, _, posOf (X::H) (L, R.erase (~⌈⌈δs⌉⌉⌈δ⌉ψ), some (Sum.inr (~'(⌊⌊δs⌋⌋⌊δ⌋ψ))))⟩)
+      )
+      ∨
+      ( ∃ a ξ, X.2.2 = some (.inl (~'⌊·a⌋ξ))
+        ∧ ( ( ∃ φ, ξ = .normal φ -- (M) rule, deterministic
+              ∧ next = ⟨_,_,posOf (X::H) ⟨(~φ) :: projection a L, projection a R, none⟩⟩ )
+            ∨
+            ( ∃ χ, ξ = .loaded χ
+              ∧ next = ⟨_,_,posOf (X::H) ⟨projection a L, projection a R, some (Sum.inl (~'χ))⟩⟩ )
+            ∨
+            ( -- (L-) rule, deterministic
+              next = ⟨_, _, posOf (X::H) (L.insert (~(⌊·a⌋ξ).unload), R, none)⟩
+            )
+          )
+      )
+      ∨
+      ( ∃ a ξ, X.2.2 = some (.inr (~'⌊·a⌋ξ))
+        ∧ ( ( ∃ φ, ξ = .normal φ -- (M) rule, deterministic
+              ∧ next = ⟨_,_,posOf (X::H) ⟨projection a L, (~φ) :: projection a R, none⟩⟩ )
+            ∨
+            ( ∃ χ, ξ = .loaded χ
+              ∧ next = ⟨_,_,posOf (X::H) ⟨projection a L, projection a R, some (Sum.inr (~'χ))⟩⟩)
+            ∨
+            ( ∃ a ξ, -- (L-) rule, deterministic
+              next = ⟨_, _, posOf (X::H) (L.insert (~(⌊·a⌋ξ).unload), R, none)⟩
+            )
+          )
+      )
+    )
+  )
+  ∨
+  ( ∃ nrep nbas, p = .inl (.nbas nrep nbas) -- not basic, prover picks ltab
+    ∧ ∃ ltab : LocalTableau X, next = ⟨H, X, .inr (.ltab nrep nbas ltab)⟩
+  )
+  ∨
+  -- BuilderPos:
+  ( ∃ nrep nbas ltab, p = .inr (.ltab nrep nbas ltab) -- builds picks end node
+    ∧ ∃ Y ∈ endNodesOf ltab, next = ⟨(X :: H), Y, posOf (X :: H) Y⟩)
+  := by
+
+  sorry
+
+/-- After two moves we must reach a different sequent.
+Is this useful for termination? -/
+lemma move_twice_neq {A B C : GamePos} (B_C : move C B) (A_B : move B A) :
+    A.2.1 ≠ C.2.1 := by
+  rcases A with ⟨HA, A, pA⟩
+  rcases B with ⟨HB, B, pB⟩
+  rcases C with ⟨HC, C, pC⟩
+  simp
+  -- QUESTION: how can I get `cases B_C using move_iff` to work here?
+  rw [move_iff] at B_C
+  rcases B_C with h|h|h
+
+  all_goals
+    sorry
+
+#exit
 /-! ## Termination via finite FL closure
 
 Intuitively, we want to say that each step from (L,R,O) in a tableau to (L',R',O') stays in the
