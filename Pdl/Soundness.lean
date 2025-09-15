@@ -526,11 +526,11 @@ theorem not_cEquiv_of_free_loaded (s t : PathIn tab)
   rintro ⟨s_t, t_s⟩
   unfold cEdge at s_t
   induction s_t using Relation.ReflTransGen.head_induction_on
-  case intro.refl =>
+  case refl =>
     simp [Sequent.isFree] at s_free
     rw [s_free] at t_loaded
     contradiction
-  case intro.head s l s_l l_t ih =>
+  case head s l s_l l_t ih =>
     by_cases (nodeAt l).isFree
     case pos l_free => exact ih l_free (Relation.ReflTransGen.tail t_s s_l)
     case neg l_loaded =>
@@ -893,7 +893,7 @@ lemma loadedDiamondPathsPDL
             intro f f_in
             simp at f_in
             rcases f_in with ((f_in|f_in)|f_in)
-            case inr.intro.intro.inr =>
+            case inr.inr =>
               subst_eqs
               simp only [evaluate]
               exact w_nξ
@@ -1003,7 +1003,7 @@ lemma loadedDiamondPathsPDL
             intro f f_in
             simp at f_in
             rcases f_in with ((f_in|f_in)|f_in)
-            case inr.intro.intro.inr =>
+            case inr.inr =>
               subst_eqs
               simp only [evaluate]
               exact w_nξ

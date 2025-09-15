@@ -19,11 +19,7 @@ inductive PathIn : ∀ {Hist X}, Tableau Hist X → Type
     : PathIn (Tableau.loc nrep nbas lt next)
 | pdl {nrep bas} {r : PdlRule X Y} {next} (tail : PathIn next)
     : PathIn (Tableau.pdl nrep bas r next)
--- deriving DecidableEq
-
-/-- FIXME This was derivable in Lean 4.20 and 4.21 but no longer in 4.22 and 4.23.
-Should be fixed with  4.24, see https://github.com/leanprover/lean4/issues/9971 -/
-instance : DecidableEq (PathIn tab) := sorry
+deriving DecidableEq
 
 def tabAt : PathIn tab → Σ H X, Tableau H X
 | .nil => ⟨_,_,tab⟩
@@ -158,7 +154,7 @@ theorem edge_append_loc_nil {X} {Hist} {tab : Tableau X Hist} (s : PathIn tab)
   use sHist, sX, nrep, nbas, lt, next, (by assumption), Y_in
   constructor
   · rw [append_eq_iff_eq, ← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
-    rw [← tabAt_s_def]
+  · rw [← tabAt_s_def]
 
 /-- Appending a one-step `pdl` path is also a ⋖_ child. -/
 @[simp]
@@ -169,7 +165,7 @@ theorem edge_append_pdl_nil (h : (tabAt s).2.2 = Tableau.pdl nrep bas r next) :
   use (tabAt s).1, (tabAt s).2.1, nrep, bas, (by assumption), r, next
   constructor
   · rw [← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
-    rw [← h]
+  · rw [← h]
 
 -- QUESTION: Does it actually have an effect to mark this with simp?
 -- FIXME: implicit `tail` argument?

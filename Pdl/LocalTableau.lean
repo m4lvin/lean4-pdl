@@ -1154,8 +1154,8 @@ theorem LocalRuleDecreases (rule : LocalRule X ress) :
         try subst_eqs
         try simp at *
         try subst_eqs
-      case neg.refl => linarith
-      case con.refl => cases y_in_Y <;> (subst_eqs; linarith)
+      case neg => linarith
+      case con => cases y_in_Y <;> (subst_eqs; linarith)
       case nCo => cases Y_in_ress <;> (subst_eqs; simp at * ; subst_eqs; linarith)
       case dia α φ notAtom =>
         rcases Y_in_ress with ⟨E, E_in, E_def⟩
@@ -1176,8 +1176,8 @@ theorem LocalRuleDecreases (rule : LocalRule X ress) :
         try subst_eqs
         try simp at *
         try subst_eqs
-      case neg.refl => linarith
-      case con.refl => cases y_in_Y <;> (subst_eqs; linarith)
+      case neg => linarith
+      case con => cases y_in_Y <;> (subst_eqs; linarith)
       case nCo => cases Y_in_ress <;> (subst_eqs; simp at * ; subst_eqs ; linarith)
       case dia α φ notAtom =>
         rcases Y_in_ress with ⟨E, E_in, E_def⟩
