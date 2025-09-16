@@ -143,10 +143,10 @@ lemma move_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos} :
     ( ∃ nrep Xbasic, p = .inl (.bas nrep Xbasic)
       ∧ ∃ L R, ( -- need to choose PDL rule application:
         ( X = ⟨L, R, none⟩ -- (L+) rule, choosing formula to load
-          ∧ ( ( ∃ δs δ ψ, (~⌈⌈δs⌉⌉⌈δ⌉ψ) ∈ L
+          ∧ ( ( ∃ δs δ ψ, ¬ ψ.isBox ∧ (~⌈⌈δs⌉⌉⌈δ⌉ψ) ∈ L
                 ∧ next = ⟨_, _, posOf (X::H) (L.erase (~⌈⌈δs⌉⌉⌈δ⌉ψ), R, some (Sum.inl (~'(⌊⌊δs⌋⌋⌊δ⌋ψ))))⟩)
               ∨
-              ( ∃ δs δ ψ, (~⌈⌈δs⌉⌉⌈δ⌉ψ) ∈ R
+              ( ∃ δs δ ψ, ¬ ψ.isBox ∧ (~⌈⌈δs⌉⌉⌈δ⌉ψ) ∈ R
                 ∧ next = ⟨_, _, posOf (X::H) (L, R.erase (~⌈⌈δs⌉⌉⌈δ⌉ψ), some (Sum.inr (~'(⌊⌊δs⌋⌋⌊δ⌋ψ))))⟩)
             )
         )
@@ -197,24 +197,26 @@ lemma move_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos} :
       rcases mv with ⟨ψ, ψ_in, next_in⟩ | ⟨ψ, ψ_in, next_in⟩ -- FIXME
       · cases ψ -- L
         case neg φ =>
-          by_cases h: ∃ head tail ψ, boxesOf φ = ((head :: tail), ψ)
-          · rcases h with ⟨head, tail, ψ, bxs_def⟩
+          by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
+          · rcases h with ⟨head, tail, ψ, ψ_nonBox, bxs_def⟩
             simp [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
             refine ⟨L, R, Or.inl ⟨ rfl, Or.inl ⟨(head :: tail).dropLast, (head :: tail).getLast (by simp), ψ, ?_⟩⟩⟩
             rw [← boxes_last, List.dropLast_append_getLast]
             have := def_of_boxesOf_def bxs_def; grind
-          · exfalso; grind
+          · exfalso
+            cases φ <;> simp_all [boxesOf]
         all_goals
           exfalso; simp at *
       · cases ψ -- R, analogous
         case neg φ =>
-          by_cases h: ∃ head tail ψ, boxesOf φ = ((head :: tail), ψ)
-          · rcases h with ⟨head, tail, ψ, bxs_def⟩
+          by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
+          · rcases h with ⟨head, tail, ψ, ψ_nonBox, bxs_def⟩
             simp [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
             refine ⟨L, R, Or.inl ⟨ rfl, Or.inr ⟨(head :: tail).dropLast, (head :: tail).getLast (by simp), ψ, ?_⟩⟩⟩
             rw [← boxes_last, List.dropLast_append_getLast]
             have := def_of_boxesOf_def bxs_def; grind
-          · exfalso; grind
+          · exfalso
+            cases φ <;> simp_all [boxesOf]
         all_goals
           exfalso; simp at *
     · -- Here we have a loaded formula in X already, and are basic.
@@ -233,21 +235,36 @@ lemma move_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos} :
     all_goals
       simp at *
       try grind
-
   · unfold move theMoves
-    -- rcases p with (_|_|_) | (_|_) <;> rcases X with ⟨L,R,_|χ⟩ -- so many cases, also here?
     rintro (⟨nrep, Xbas, p_def, hyp⟩ | ⟨nrep, nbas, p_def, hyp⟩ | ⟨nrep, nbas, lt, p_def, hyp⟩) <;> subst p_def
-    · rcases hyp with ⟨L, R, (⟨X_def, hyp⟩ | hyp | hyp) ⟩
-      ·
-        sorry
-      ·
-        sorry
-      ·
-        sorry
-    ·
-      sorry
-    ·
-      sorry
+    · rcases hyp with ⟨L, R, (⟨X_def, hyp⟩ | _ | _) ⟩
+      · subst X_def
+        simp
+        rcases hyp with ⟨δs, δ, ψ, ψ_noBox, _in_L, next_def⟩
+                      | ⟨δs, δ, ψ, ψ_noBox, _in_R, next_def⟩
+        · left
+          use (~⌈⌈δs⌉⌉⌈δ⌉ψ)
+          have := @boxesOf_def_of_def_of_nonBox _ (δs ++ [δ]) ψ rfl ψ_noBox
+          rw [boxes_last] at this
+          simp_all
+          cases δs <;> simp
+          grind
+        · right
+          use (~⌈⌈δs⌉⌉⌈δ⌉ψ)
+          have := @boxesOf_def_of_def_of_nonBox _ (δs ++ [δ]) ψ rfl ψ_noBox
+          rw [boxes_last] at this
+          simp_all
+          cases δs <;> simp
+          grind
+      · grind
+      · grind
+    · simp
+      rcases hyp with ⟨ltab, next_def⟩
+      subst next_def
+      use ltab
+      simp [LocalTableau.fintype.complete]
+    · simp
+      grind
 
 /-- After two moves we must reach a different sequent.
 Is this useful for termination? -/

@@ -130,6 +130,29 @@ lemma def_of_boxesOf_def (h : boxesOf φ = (αs, ψ)) : φ = ⌈⌈αs⌉⌉ψ :
       apply IH
       grind
 
+def Formula.isBox : Formula → Prop
+| (Formula.box _ _ ) => True
+| _ => False
+
+lemma boxesOf_def_of_def_of_nonBox (h : φ = ⌈⌈αs⌉⌉ψ) (nonBox : ¬ ψ.isBox) :
+    boxesOf φ = (αs, ψ) := by
+  induction αs generalizing φ
+  · unfold boxesOf
+    cases φ <;> simp_all [Formula.isBox]; aesop
+  case cons α αs IH =>
+    subst h
+    unfold boxesOf
+    simp_all
+
+@[simp]
+lemma boxesOf_output_not_isBox : ¬ (boxesOf φ).2.isBox := by
+  cases φ
+  case box α φ =>
+    have := @boxesOf_output_not_isBox φ
+    simp_all [boxesOf, Formula.isBox]
+  all_goals
+    simp_all [boxesOf, Formula.isBox]
+
 /-! ## Loaded Formulas -/
 
 -- Loaded formulas consist of a negation, a sequence of loading boxes and then a normal formula.
