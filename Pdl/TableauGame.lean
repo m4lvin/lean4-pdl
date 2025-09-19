@@ -1,3 +1,5 @@
+import Mathlib.Data.Quot
+
 import Pdl.Game
 import Pdl.Tableau
 import Pdl.Modelgraphs
@@ -275,9 +277,9 @@ lemma move_twice_neq {A B C : GamePos} (B_C : move C B) (A_B : move B A) :
   rcases C with ⟨HC, C, pC⟩
   simp
   -- QUESTION: how can I get `cases B_C using move_iff` to work here?
+  -- ANSWER: don't, better rewrite `move` to be an inductive in the first place!
   rw [move_iff] at B_C
   rcases B_C with h|h|h
-
   all_goals
     sorry
 
@@ -362,14 +364,106 @@ theorem LocalRule.stays_in_FL {Lcond Rcond Ocond B}
   cases rule
   <;> sorry
 
-
 lemma move_inside_FL : move next p → next.2.1.subseteq_FL p.2.1 := by
   -- This will be many case distinctions and extra lemmas.
   sorry
 
--- QUESTION: Given (X : Sequent) how to say
--- "there are only finitely many "sequents modulo `setEq`" that are subseteq_FL Y X
--- ???
+/-! We now define a (hopefully) useful Quotient.
+
+TODO move `Seqt` to Sequent.lean and `Sequent.subseteq_FL_congr` to FischerLadner.lean later?
+-/
+
+instance instEquivalenceSequentSetEqTo : Equivalence Sequent.setEqTo where
+  refl := by rintro ⟨L,R,O⟩; simp [Sequent.setEqTo]
+  symm := by rintro ⟨L,R,O⟩ ⟨L',R',O'⟩; simp [Sequent.setEqTo]; grind
+  trans := by rintro ⟨L,R,O⟩ ⟨L',R',O'⟩ ⟨L'',R'',O''⟩; simp [Sequent.setEqTo]; grind
+
+instance instSetoidSequent : Setoid Sequent := ⟨Sequent.setEqTo, instEquivalenceSequentSetEqTo⟩
+
+/-- Yes, it's a pun. A `Sequent` modulo `Sequent.setEqTo`. -/
+abbrev Seqt := Quotient instSetoidSequent
+
+/-- Congruence for `Sequent.subseteq_FL`, used to make `Seqt.subseteq_FL` well-defined. -/
+lemma Sequent.subseteq_FL_congr (a₁ b₁ a₂ b₂ : Sequent) :
+    a₁ ≈ a₂ → b₁ ≈ b₂ → (a₁.subseteq_FL b₁ = a₂.subseteq_FL b₂) := by
+  rintro ⟨a_L, a_R, a_O⟩ ⟨b_L, b_R, b_O⟩
+  rw [eq_iff_iff]
+  rcases a₁ with ⟨La1,Ra1,Oa1⟩
+  rcases a₂ with ⟨La2,Ra2,Oa2⟩
+  rcases b₁ with ⟨Lb1,Rb1,Ob1⟩
+  rcases b₂ with ⟨Lb2,Rb2,Ob2⟩
+  rw [List.toFinset.ext_iff] at a_L a_R b_L b_R
+  subst a_O b_O
+  unfold subseteq_FL
+  simp only [Sequent.L, Sequent.O, Sequent.R]
+  constructor <;> rintro ⟨hL,hOL,hR,hOR⟩ <;> refine ⟨?_, ?_, ?_, ?_⟩
+  all_goals
+    intro φ φ_in
+    rw [FLL_append_eq, List.mem_append]
+  · rw [← a_L] at φ_in
+    specialize hL φ_in
+    rw [FLL_append_eq, List.mem_append] at hL
+    have := FLL_ext b_L φ
+    aesop
+  · specialize hOL φ_in
+    rw [FLL_append_eq, List.mem_append] at hOL
+    have := FLL_ext b_L φ
+    tauto
+  ·
+    sorry
+  ·
+    sorry
+  ·
+    sorry
+  ·
+    sorry
+  ·
+    sorry
+  ·
+    sorry
+
+
+def Seqt.subseteq_FL (X : Seqt) (Y : Seqt) : Prop :=
+  Quotient.lift₂ Sequent.subseteq_FL Sequent.subseteq_FL_congr X Y
+
+/-- In the quotient the moves keep us inside the FL. -/
+lemma move_congr (hm : move next p) :
+    Seqt.subseteq_FL (Quotient.mk' next.2.1) (Quotient.mk' p.2.1) := by
+  unfold Seqt.subseteq_FL
+  exact move_inside_FL hm
+
+/-- In the quotient for `setEqTo` there are only finitely many FL-subsets for a given Seqt.
+This means "there are only finitely many "sequents modulo `setEq`" that are subseteq_FL Y. -/
+lemma Seqt.subseteq_FL_finite {Xs : Seqt} : Finite { Ys // Seqt.subseteq_FL Ys Xs } := by
+  rcases Xs with ⟨X⟩
+  -- or even define a Fintype by generating the list of all sublists?
+  sorry
+
+/-- General helper lemma: If we have an enumeration of infinitely many values, and all of them
+have a certain property, but we also know that there are only finitely many values with that
+property, then there must be identical values in the enuemration. -/
+lemma help {α : Type} {f : ℕ → α} {p : α → Prop}
+    (h_p : ∀ n, p (f n)) (h_fin : Finite {x // p x})
+    : ∃ k1 k2, k1 ≠ k2 ∧ f k1 = f k2 := by
+  -- Because {x // p x} is finite, also Set.range f is finite.
+  have range_finite : Finite (Set.range f) := by
+    apply Set.Finite.subset h_fin
+    intro x ⟨n, def_x⟩
+    convert h_p n
+    rw [def_x]
+  -- ℕ is infinite, so f cannot be injective
+  have not_injective : ¬Function.Injective f := by
+    intro hinj
+    -- If f were injective, then Set.range f would be infinite (bijective with ℕ)
+    have : Infinite (Set.range f) := by
+      rw [@Set.infinite_coe_iff]
+      have := Infinite.of_injective f hinj
+      exact Set.infinite_range_of_injective hinj
+    exact this.not_finite range_finite
+  -- Non-injective means there exist distinct inputs with same output
+  rw [Function.Injective] at not_injective
+  push_neg at not_injective
+  tauto
 
 /-- Lemma 6.10, sort of. Because the move relation is wellfounded, all matches must be finite.
 Note that the paper does not prove this, only says it is similar to the proof that PDL-tableaux
@@ -380,7 +474,6 @@ lemma move.wf : WellFounded move := by
   by_contra hyp
   simp at hyp
   rcases hyp with ⟨f, f_rel⟩
-
   have all_moves_inside : ∀ n, ((f n).2.1).subseteq_FL (f 0).2.1 := by
     intro k
     induction k
@@ -389,20 +482,30 @@ lemma move.wf : WellFounded move := by
       apply Sequent.subseteq_FL_trans _ _ _ ?_ IH
       apply move_inside_FL (f_rel k)
 
-  -- TODO: state that the history of all `f k` must be shared, proven via `move.hist`?
-
   -- IDEA from here onwards: the Hist and X stays inside FL, but they also must all be different?!
   -- Well, almost all must be different. Single steps that keep `Hist` and `X` are sometimes
   -- allowed, in the annyong case in `move.hist`.
 
   have no_repeats : ∀ n, ¬ rep (f n).1 (f n).2.1 := fun k => move_then_no_rep (f_rel k)
 
-  unfold rep at *
+  have FL_fin := @Seqt.subseteq_FL_finite (Quotient.mk' (f 0).2.1)
 
-  sorry
+  -- have := @help _ f (fun pos => pos.2.1.subseteq_FL (f 0).2.1) all_moves_inside ?_
+  -- PROBLEM: How to go from "only finitely many sequents" to "finitely many GamePos" values?
+  have := @help _ (fun n => ⟦(f n).2.1⟧) (fun Xs => Seqt.subseteq_FL Xs ⟦(f 0).2.1⟧ ) ?_ FL_fin
+  · rcases this with ⟨k1, k2, same⟩
+    simp [rep] at same no_repeats
+    -- still need that the histories extend each other. use `move.hist` for this?
+    sorry
+  · intro n
+    specialize all_moves_inside n
+    simp [Seqt.subseteq_FL]
+    assumption
+
+-- and THEN argue that same element in quotient means we need have no `move` successor before quotienting?!
 
   /- OLD IDEA for `move.wf`
-  apply @wf_of_finTransInvImage_of_transIrrefl
+  apply `wf_of_finTransInvImage_of_transIrrefl` - no longer needed at all now?
   · -- To show: only finitely many moves are reachable
     -- Use `move_inside_flc` for this.
     sorry

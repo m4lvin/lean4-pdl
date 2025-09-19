@@ -209,6 +209,11 @@ lemma FLL_sub_FLL_iff_sub_FLL {L K : List Formula} : L ⊆ FLL K ↔ FLL L ⊆ F
 
 lemma FLL_append_eq : FLL (L ++ K) = FLL L ++ FLL K := by simp [FLL]
 
+/-- Being a member of the FL closure of a list does not depend on the position. -/
+lemma FLL_ext (h : ∀ φ, φ ∈ L1 ↔ φ ∈ L2) φ : φ ∈ FLL L1  ↔ φ ∈ FLL L2 := by
+  simp [FLL] at *
+  aesop
+
 /-! ## FL stays in the Vocabulary -/
 
 mutual
