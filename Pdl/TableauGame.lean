@@ -110,6 +110,9 @@ def theMoves : GamePos → Finset GamePos
   | ⟨H, X, .inr (.ltab _ _ ltab)⟩ =>
       ((endNodesOf ltab).map (fun Y => ⟨(X :: H), Y, posOf (X :: H) Y⟩)).toFinset
 
+/-- `move next p` says that we can move from `p` to `next`.
+
+TODO: rewrite to an inductive, and flip the order? -/
 def move (next p : GamePos) := next ∈ theMoves p
 
 lemma no_moves_of_rep {Hist X pos} (h : rep Hist X) :
@@ -136,6 +139,18 @@ lemma move.hist (mov : move next ⟨Hist, X, pos⟩) :
   rcases X with ⟨L,R,_|o⟩ <;> rcases pos with (_|_|_)|(_|_) <;> simp at mov
   all_goals
     grind
+
+lemma move.hist_suffix (mov : move next ⟨Hist, X, pos⟩) : Hist <:+ next.1 := by
+  have := move.hist mov
+  aesop
+
+lemma move.trans_hist_suffix (mov : Relation.TransGen move pZ pX) :
+    pX.1 <:+ pZ.1 := by
+  induction mov
+  case single hm => exact move.hist_suffix hm
+  case tail steps hm IH =>
+    have := move.hist_suffix hm
+    apply List.IsSuffix.trans this IH
 
 set_option maxHeartbeats 2000000 in
 lemma move_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos} :
@@ -400,6 +415,7 @@ lemma Sequent.subseteq_FL_congr (a₁ b₁ a₂ b₂ : Sequent) :
   all_goals
     intro φ φ_in
     rw [FLL_append_eq, List.mem_append]
+    simp only at *
   · rw [← a_L] at φ_in
     specialize hL φ_in
     rw [FLL_append_eq, List.mem_append] at hL
@@ -409,19 +425,33 @@ lemma Sequent.subseteq_FL_congr (a₁ b₁ a₂ b₂ : Sequent) :
     rw [FLL_append_eq, List.mem_append] at hOL
     have := FLL_ext b_L φ
     tauto
-  ·
-    sorry
-  ·
-    sorry
-  ·
-    sorry
-  ·
-    sorry
-  ·
-    sorry
-  ·
-    sorry
-
+  · rw [← a_R] at φ_in
+    specialize hR φ_in
+    rw [FLL_append_eq, List.mem_append] at hR
+    have := FLL_ext b_R φ
+    tauto
+  · specialize hOR φ_in
+    rw [FLL_append_eq, List.mem_append] at hOR
+    have := FLL_ext b_R φ
+    tauto
+  · rw [a_L] at φ_in
+    specialize hL φ_in
+    rw [FLL_append_eq, List.mem_append] at hL
+    have := FLL_ext b_L φ
+    tauto
+  · specialize hOL φ_in
+    rw [FLL_append_eq, List.mem_append] at hOL
+    have := FLL_ext b_L φ
+    tauto
+  · rw [a_R] at φ_in
+    specialize hR φ_in
+    rw [FLL_append_eq, List.mem_append] at hR
+    have := FLL_ext b_R φ
+    tauto
+  · specialize hOR φ_in
+    rw [FLL_append_eq, List.mem_append] at hOR
+    have := FLL_ext b_R φ
+    tauto
 
 def Seqt.subseteq_FL (X : Seqt) (Y : Seqt) : Prop :=
   Quotient.lift₂ Sequent.subseteq_FL Sequent.subseteq_FL_congr X Y
@@ -482,21 +512,61 @@ lemma move.wf : WellFounded move := by
       apply Sequent.subseteq_FL_trans _ _ _ ?_ IH
       apply move_inside_FL (f_rel k)
 
-  -- IDEA from here onwards: the Hist and X stays inside FL, but they also must all be different?!
-  -- Well, almost all must be different. Single steps that keep `Hist` and `X` are sometimes
-  -- allowed, in the annyong case in `move.hist`.
+  -- Elements along the chain are related by the transitive closure of `move`.
+  have trans_rel : ∀ k1 k2, k1 < k2 → Relation.TransGen move (f k2) (f k1) := by
+    intro k1 k2 k_lt
+    rw [lt_iff_exists_add] at k_lt
+    rcases k_lt with ⟨m, m_pos, k2_def⟩; subst k2_def
+    induction m
+    · exfalso; cases m_pos
+    case succ m IH =>
+      cases m
+      · exact Relation.TransGen.single (f_rel k1)
+      case succ m =>
+        simp at IH
+        exact Relation.TransGen.head (f_rel (k1 + m + 1)) IH
 
+  -- IDEA from here onwards: the Hist and X stays inside FL, but must be different / no repeats.
+  -- Well, almost all X must be different. Single steps that keep `Hist` and `X` are sometimes
+  -- allowed, in the annyong case in `move.hist`. Still, we can never repeat an `X` in `Hist`.
   have no_repeats : ∀ n, ¬ rep (f n).1 (f n).2.1 := fun k => move_then_no_rep (f_rel k)
 
+  -- The histories along the chain extend each other.
+  have hist_suffixes : ∀ k1 k2, k1 < k2 → (f k1).1 <:+ (f k2).1 := by
+    intro k1 k2 k_lt
+    specialize trans_rel k1 k2 k_lt
+    exact @move.trans_hist_suffix _ _ trans_rel
+
+  -- There are only finitely many setEqTo-different sequents in the FL closure of the chain start.
   have FL_fin := @Seqt.subseteq_FL_finite (Quotient.mk' (f 0).2.1)
 
-  -- have := @help _ f (fun pos => pos.2.1.subseteq_FL (f 0).2.1) all_moves_inside ?_
-  -- PROBLEM: How to go from "only finitely many sequents" to "finitely many GamePos" values?
-  have := @help _ (fun n => ⟦(f n).2.1⟧) (fun Xs => Seqt.subseteq_FL Xs ⟦(f 0).2.1⟧ ) ?_ FL_fin
-  · rcases this with ⟨k1, k2, same⟩
-    simp [rep] at same no_repeats
-    -- still need that the histories extend each other. use `move.hist` for this?
-    sorry
+  -- Now we apply the general helper lemma from above. A tricky thing here is that we want to
+  -- go from "only finitely many sequents" to "finitely many GamePos" values.
+  have := @help _ (fun n => ⟦(f n).2.1⟧) (fun Xs => Seqt.subseteq_FL Xs ⟦(f 0).2.1⟧) ?_ FL_fin
+  · rcases this with ⟨k1, k2, k_diff, same⟩
+    simp [rep, instSetoidSequent] at same no_repeats
+    rw [Nat.ne_iff_lt_or_gt] at k_diff
+    absurd same
+    rcases k_diff with k1_lt_k2 | k2_lt_k1
+    · -- k1 < k2 case
+      -- here use the history extension
+      apply no_repeats k2 (f k1).2.1
+
+      -- Remains to show that `f k1` is in the history of `f k2`.
+      -- We have that the k2 history extends the k1 history,
+      specialize hist_suffixes k1 k2 k1_lt_k2
+      -- but also need that history *actually grows* at some point.
+      -- Make lemma for this?
+      -- Can we use `move_twice_neq` here?
+      -- How do we know that k2 - k1 is at least 2 and not 1 ???
+
+      sorry
+
+    · -- analogous case for k2 < k1
+      rw [Sequent.setEqTo_symm]
+      apply no_repeats k1 (f k2).2.1
+
+      sorry
   · intro n
     specialize all_moves_inside n
     simp [Seqt.subseteq_FL]
