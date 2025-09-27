@@ -364,6 +364,40 @@ lemma Sequent.subseteq_FL_trans (X Y Z: Sequent) :
   · have : (R' ++ O'.R) ⊆ FLL (R'' ++ O''.R) := by grind
     grind
 
+lemma Sequent.subseteq_FL_of_setEq_right (h : X.setEqTo Y) {Z : Sequent} :
+    Z.subseteq_FL X → Z.subseteq_FL Y := by
+  rcases X with ⟨L,R,O⟩
+  rcases Y with ⟨L',R',O'⟩
+  rcases Z with ⟨L'',R'',O''⟩
+  simp [setEqTo] at h
+  rcases h with ⟨L_same, R_same, O_same⟩
+  subst O_same
+  rintro ⟨hL, hR, hOL, hOR⟩
+  simp at *
+  refine ⟨?_, ?_, ?_, ?_⟩ <;> simp
+  all_goals
+    rw [FLL_append_eq, List.toFinset.ext_iff] at *
+    have := FLL_ext L_same
+    have := FLL_ext R_same
+    grind
+
+lemma Sequent.subseteq_FL_of_setEq_left {X Y : Sequent} (h : X.setEqTo Y) {Z : Sequent} :
+    X.subseteq_FL Z → Y.subseteq_FL Z := by
+  rcases X with ⟨L,R,O⟩
+  rcases Y with ⟨L',R',O'⟩
+  rcases Z with ⟨L'',R'',O''⟩
+  simp [setEqTo] at h
+  rcases h with ⟨L_same, R_same, O_same⟩
+  subst O_same
+  rintro ⟨hL, hR, hOL, hOR⟩
+  simp at *
+  refine ⟨?_, ?_, ?_, ?_⟩ <;> simp
+  all_goals
+    rw [FLL_append_eq, List.toFinset.ext_iff] at *
+    have := FLL_ext L_same
+    have := FLL_ext R_same
+    grind
+
 /-- Helper for `LocalRule.stays_in_FL` -/
 -- TODO analogous LoadRule.stays_in_FL_right
 lemma LoadRule.stays_in_FL_left (lr : LoadRule (~'χ) ress) :
@@ -383,7 +417,49 @@ lemma move_inside_FL : move next p → next.2.1.subseteq_FL p.2.1 := by
   -- This will be many case distinctions and extra lemmas.
   sorry
 
-/-! We now define a (hopefully) useful Quotient.
+/-- A list of sequents that are all FL-subsequents of the given sequent.
+The list defined here is not complete because there are infinitely many such other sequents.
+But the list is exhaustive modulo `setEqTo`, as will be shown later via the `Seqt` quotient.
+Defined using `List.instMonad`.
+-/
+def Sequent.all_subseteq_FL (Y : Sequent) : List { X : Sequent // Sequent.subseteq_FL X Y } := do
+  -- QUESTION: any way to do sublist and permutation in one go?
+  -- Never mind, removed `.flatMap List.permutations` again which really should not be needed.
+  -- Trying out different orders `.sublists.attach` and `.attach.sublists` here.
+  let XL  ← (FLL (Y.L ++ Y.O.L)).sublists.attach
+  let XOL ← (FLL (Y.L ++ Y.O.L)).sublists.attach
+  let XR  ← (FLL (Y.R ++ Y.O.R)).sublists.attach
+  let XOR ← (FLL (Y.R ++ Y.O.R)).sublists.attach
+  -- TODO: We need to generate all possible `XO : Olf` from `XOL` and `XOR` here.
+  let X : Sequent := ⟨XL.1, XR.1, none⟩
+  have h : X.subseteq_FL Y := by
+    unfold X
+    rcases Y with ⟨L',R',O'⟩
+    refine ⟨?_, ?_, ?_⟩ <;> simp
+    · have := XL.2
+      simp at this
+      exact List.Sublist.subset this
+    · have := XR.2
+      simp at this
+      exact List.Sublist.subset this
+    -- · sorry -- TODO for O later
+  return ⟨X, h⟩
+
+/-! NOTE
+
+The following do NOT hold / do NOT exist because there are in fact infinitely many FL-subsequents
+of a given sequent, so the list returned by `all_subseteq_FL` can never contain all.
+
+```
+def Sequent.all_subseteq_FL_spec (X Y : Sequent) (h : Y.subseteq_FL X) :
+    ⟨Y,h⟩ ∈ Sequent.all_subseteq_FL X := sorry
+
+instance Sequent.subseteq_FL_fintype {X : Sequent} :
+    Fintype { Y // Sequent.subseteq_FL Y X } := sorry
+```
+
+Hence, we now define the Quotient modulo `Sequent.setEqTo` within which there are only finitely
+many FL-subsequents.
 
 TODO move `Seqt` to Sequent.lean and `Sequent.subseteq_FL_congr` to FischerLadner.lean later?
 -/
@@ -397,6 +473,12 @@ instance instSetoidSequent : Setoid Sequent := ⟨Sequent.setEqTo, instEquivalen
 
 /-- Yes, it's a pun. A `Sequent` modulo `Sequent.setEqTo`. -/
 abbrev Seqt := Quotient instSetoidSequent
+
+/-- Needed to make `List.toFinset` work for `List Seqt`.
+Strange that this is not inferred from `instDecidableRelSequentSetEqTo` automatically. -/
+instance instDecidableEqSeqt : DecidableEq Seqt := by
+  have := instDecidableRelSequentSetEqTo
+  apply Quotient.decidableEq
 
 /-- Congruence for `Sequent.subseteq_FL`, used to make `Seqt.subseteq_FL` well-defined. -/
 lemma Sequent.subseteq_FL_congr (a₁ b₁ a₂ b₂ : Sequent) :
@@ -456,18 +538,79 @@ lemma Sequent.subseteq_FL_congr (a₁ b₁ a₂ b₂ : Sequent) :
 def Seqt.subseteq_FL (X : Seqt) (Y : Seqt) : Prop :=
   Quotient.lift₂ Sequent.subseteq_FL Sequent.subseteq_FL_congr X Y
 
-/-- In the quotient the moves keep us inside the FL. -/
-lemma move_congr (hm : move next p) :
+/-- In the quotient the moves keep us inside the FL. UNUSED, delete this? -/
+lemma Seqt.subseteq_FL_of_move (hm : move next p) :
     Seqt.subseteq_FL (Quotient.mk' next.2.1) (Quotient.mk' p.2.1) := by
   unfold Seqt.subseteq_FL
   exact move_inside_FL hm
 
+def Sequent.allSeqt_subseteq_FL (X : Sequent) : Finset Seqt :=
+  (X.all_subseteq_FL.map (fun x => ⟦x.1⟧)).toFinset
+
+lemma Sequent.allSeqt_subseteq_FL_spec (X : Sequent) :
+    ∀ Y, ⟦Y⟧ ∈ X.allSeqt_subseteq_FL → Y.subseteq_FL X := by
+  intro Y Ys_in
+  simp [Sequent.allSeqt_subseteq_FL, instSetoidSequent] at *
+  rcases Ys_in with ⟨Z, ⟨Z_sub_X, Z_in_all⟩, Z_equiv_Y⟩
+  exact Sequent.subseteq_FL_of_setEq_left Z_equiv_Y Z_sub_X
+
+lemma Sequent.allSeqt_subseteq_FL_complete (X : Sequent) :
+    ∀ Y, Y.subseteq_FL X → ⟦Y⟧ ∈ X.allSeqt_subseteq_FL := by
+  intro Y Y_in
+  simp [Sequent.allSeqt_subseteq_FL, instSetoidSequent]
+  use Y
+  sorry
+
+lemma Sequent.allSeqt_subseteq_FL_congr (X Y : Sequent) (h : X ≈ Y) :
+    Sequent.allSeqt_subseteq_FL X = Sequent.allSeqt_subseteq_FL Y := by
+  ext Ys
+  simp only [allSeqt_subseteq_FL, List.map_subtype, List.mem_toFinset, List.mem_map,
+    List.mem_unattach]
+  simp [instHasEquivOfSetoid, instSetoidSequent] at h
+  constructor
+  · rintro ⟨Z, ⟨Z_sub_X, Z_in_sub_X⟩, def_YS⟩
+    have Z_sub_Y := (Sequent.subseteq_FL_congr Z X Z Y (Setoid.refl _) h).mp Z_sub_X
+    have := Y.allSeqt_subseteq_FL_complete Z Z_sub_Y
+    simp only [allSeqt_subseteq_FL, List.map_subtype, List.mem_toFinset, List.mem_map,
+      List.mem_unattach, Quotient.eq] at this
+    aesop
+  · rintro ⟨Z, ⟨Z_sub_Y, Z_in_sub_Y⟩, def_YS⟩
+    have Z_sub_Y := (Sequent.subseteq_FL_congr Z Y Z X (Setoid.refl _) (Setoid.symm h)).mp Z_sub_Y
+    have := X.allSeqt_subseteq_FL_complete Z Z_sub_Y
+    simp only [allSeqt_subseteq_FL, List.map_subtype, List.mem_toFinset, List.mem_map,
+      List.mem_unattach, Quotient.eq] at this
+    aesop
+
+def Seqt.all_subseteq_FL (Xs : Seqt) : Finset Seqt  :=
+  Quotient.lift Sequent.allSeqt_subseteq_FL Sequent.allSeqt_subseteq_FL_congr Xs
+
+lemma Seqt.all_subseteq_FL_spec { Ys : Seqt } (Ys_in : Ys ∈ Xs.all_subseteq_FL) :
+    Ys.subseteq_FL Xs := by
+  sorry
+
+lemma Seqt.all_subseteq_FL_complete { Ys : Seqt } (Ys_in : Ys.subseteq_FL Xs) :
+    Ys ∈ Xs.all_subseteq_FL := by
+  sorry
+
+def Seqt.all_subseteq_FL_attached (Xs : Seqt) : Finset { Ys :Seqt // Ys.subseteq_FL Xs } :=
+  Xs.all_subseteq_FL.attach.map
+    ⟨fun ⟨Ys,Ys_in⟩ => ⟨Ys, Seqt.all_subseteq_FL_spec Ys_in⟩, by rintro ⟨Ys1,_⟩ ⟨Ys2,_⟩ h; aesop⟩
+
+def Seqt.all_subseteq_FL_attached_complete (Xs : Seqt) :
+    ∀ (x : { Ys : Seqt // Ys.subseteq_FL Xs }), x ∈ Xs.all_subseteq_FL_attached := by
+  rintro ⟨Ys,Ys_in⟩
+  simp only [all_subseteq_FL_attached, Finset.mem_map, Finset.mem_attach,
+    Function.Embedding.coeFn_mk, Subtype.mk.injEq, true_and, Subtype.exists, exists_prop,
+    exists_eq_right]
+  apply Seqt.all_subseteq_FL_complete Ys_in
+
+instance Seqt.subseteq_FL_instFintype {Xs : Seqt} : Fintype { Ys // Seqt.subseteq_FL Ys Xs } :=
+  ⟨ Xs.all_subseteq_FL_attached, Xs.all_subseteq_FL_attached_complete ⟩
+
 /-- In the quotient for `setEqTo` there are only finitely many FL-subsets for a given Seqt.
 This means "there are only finitely many "sequents modulo `setEq`" that are subseteq_FL Y. -/
-lemma Seqt.subseteq_FL_finite {Xs : Seqt} : Finite { Ys // Seqt.subseteq_FL Ys Xs } := by
-  rcases Xs with ⟨X⟩
-  -- or even define a Fintype by generating the list of all sublists?
-  sorry
+lemma Seqt.subseteq_FL_finite {Xs : Seqt} : Finite { Ys // Seqt.subseteq_FL Ys Xs } :=
+  @Finite.of_fintype { Ys // Seqt.subseteq_FL Ys Xs } Seqt.subseteq_FL_instFintype
 
 /-- General helper lemma: If we have an enumeration of infinitely many values, and all of them
 have a certain property, but we also know that there are only finitely many values with that

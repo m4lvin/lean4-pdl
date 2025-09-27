@@ -109,6 +109,7 @@ about the side of the formula and what formual is loaded.
 Hint: use `List.toFinset.ext_iff` with this. -/
 def Sequent.setEqTo : Sequent → Sequent → Prop
 | (L,R,O), (L',R',O') => L.toFinset = L'.toFinset ∧ R.toFinset = R'.toFinset ∧ O = O'
+deriving Decidable
 
 instance : DecidableRel Sequent.setEqTo := by
   unfold Sequent.setEqTo DecidableRel
