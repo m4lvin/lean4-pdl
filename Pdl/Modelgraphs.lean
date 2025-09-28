@@ -27,6 +27,8 @@ def saturated : Finset Formula → Prop
     ∧ ((⌈α⌉P) ∈ X → ∃ l : TP α, (Xset α l P).all (fun y => y ∈ X))
     ∧ ((~⌈α⌉P) ∈ X → ∃ Fδ ∈ H α, (Yset Fδ P).all (fun y => y ∈ X))
 
+namespace Modelgraphs
+
 /-- Q α -/
 def Q {W : Finset (Finset Formula)} (R : Nat → W → W → Prop)
   : Program → W → W → Prop
@@ -35,6 +37,10 @@ def Q {W : Finset (Finset Formula)} (R : Nat → W → W → Prop)
 | α ⋓ β  => fun v w => Q R α v w ∨ Q R β v w
 | α ;' β => Relation.Comp (Q R α) (Q R β)
 | ∗ α    => Relation.ReflTransGen (Q R α)
+
+end Modelgraphs
+
+open Modelgraphs
 
 /-- A model graph is a Kripke model using sets of formulas as states and
 fulfilling conditions (i) to (iv). See MB Def 19, page 31.

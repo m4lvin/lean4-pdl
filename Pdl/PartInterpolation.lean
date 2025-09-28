@@ -2,7 +2,10 @@ import Mathlib.Data.Finset.Basic
 
 import Pdl.TableauPath
 
-/-! # Interpolants for Partitions (big part of Section 7) -/
+/-! # Interpolants for Partitions (big part of Section 7)
+
+Note that we can skip much of subsection 7.3 because we worked already with split tableaux anyway.
+-/
 
 open HasSat
 
@@ -30,7 +33,7 @@ def isPartInterpolant (X : Sequent) (θ : Formula) :=
 
 def PartInterpolant (N : Sequent) := Subtype <| isPartInterpolant N
 
-/-- This is like `Olf.voc` but without the ⊕ inside. -/
+/-- Like `Olf.voc` but without the ⊕ inside. -/
 def onlfvoc : Option NegLoadFormula → Vocab
 | none => ∅
 | some nlf => NegLoadFormula.voc nlf
@@ -460,14 +463,14 @@ def exitsOf : (tab : Tableau Hist (L, R, some nlf)) → List (PathIn tab)
 | .loc _ _ lt next => sorry -- TODO: can the exit be "inside" lt? Or can we filter `endNodesOf lt`?
 | .pdl _ _ _ next => sorry -- TODO: if (L-) then root of next is exit, also if (M) removes loading etc?
 
--- TODO move to Soundness.lean ?
+-- move to TableauPath.lean later
 def PathIn.children : (p : PathIn tab) → List (PathIn tab) := sorry
 
-/-- C+ -/
+/-- Exits from a given list of nodes. Something like this should get us from `C` to `C+`. -/
 def plus_exits {X} {tab : Tableau .nil X} (C : List (PathIn tab)) : List (PathIn tab) :=
   C ++ (C.map (fun p => p.children)).flatten
 
-/-- W.l.o.g version of `clusterInterpolation`. -/
+/-- W.l.o.g version of `clusterInterpolation` where loaded formula is on the right side. -/
 def clusterInterpolation_right {Hist L R nlf}
     (tab : Tableau Hist (L, R, some (Sum.inr nlf)))
     (exitIPs : ∀ e ∈ exitsOf tab, PartInterpolant (nodeAt e))

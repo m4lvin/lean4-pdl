@@ -96,6 +96,24 @@ theorem Olf.change_some: Olf.change oldO whatever (some wnlf) = some wnlf := by
 theorem Olf.change_some_some_eq : Olf.change (some nχ) (some nχ) Onew = Onew := by
   cases Onew <;> simp [Olf.change, Option.overwrite]
 
+@[simp]
+def Olf.isNone : Olf → Prop
+ | .none => True
+ | .some (Sum.inl _) => False
+ | .some (Sum.inr _) => False
+
+@[simp]
+def Olf.isLeft : Olf → Prop
+ | .none => False
+ | .some (Sum.inl _) => True
+ | .some (Sum.inr _) => False
+
+@[simp]
+def Olf.isRight : Olf → Prop
+ | .none => False
+ | .some (Sum.inl _) => False
+ | .some (Sum.inr _) => True
+
 /-! ## Sequents and their (multi)set quality -/
 
 /-- A tableau node is labelled with two lists of formulas and an `Olf`.

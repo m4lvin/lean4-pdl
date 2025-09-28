@@ -338,6 +338,8 @@ theorem cEquiv.symm (s t : PathIn tab) : s ≡ᶜ t ↔ t ≡ᶜ s := by
   unfold cEquiv
   tauto
 
+/-- Given a tableau node, return its cluster as an element in the `cEquiv` quotient.
+Suffices for Soundness, but for Interpolation we need something "more constructive". -/
 def clusterOf {X} {tab : Tableau .nil X} (p : PathIn tab) :=
   Quot.mk cEquiv p
 
