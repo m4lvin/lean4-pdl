@@ -108,6 +108,7 @@ def theMoves : GamePos → Finset GamePos
   -- BuilderPos:
   | ⟨H, X, .inr (.lpr lpr)⟩ => ∅ -- no moves ⇒ Prover wins
   | ⟨H, X, .inr (.ltab _ _ ltab)⟩ =>
+      -- Let Builder pick an end node of `ltab`:
       ((endNodesOf ltab).map (fun Y => ⟨(X :: H), Y, posOf (X :: H) Y⟩)).toFinset
 
 /-- `move next p` says that we can move from `p` to `next`.
@@ -960,7 +961,48 @@ theorem gameP (X : Sequent) (s : Strategy tableauGame Prover) (h : winning s (st
 
 /-! ## From Builder winning strategies to model graphs (Section 6.3) -/
 
--- See also Bml/CompletenessViaPaths.lean for the things needed here.
+-- See also Bml/CompletenessViaPaths.lean for inspiration that might be useful here.
+
+/-- Tree data type to keep track of choices made by Builder. Might still need to be tweaked. -/
+inductive BuildTree : Sequent → Type
+  | Leaf {X} : BuildTree X
+  | Step {X} : List (Σ Y, BuildTree Y) → BuildTree X
+
+/-- The generated strategy tree for Builder -/
+def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X, p⟩) : BuildTree X :=
+  match p with
+  -- Prover positions:
+  | Sum.inl (.nlpRep _) => .Leaf -- Builder wins :-)
+  | Sum.inl (.bas nrep bas) => sorry -- prover must apply PDL rule
+  | Sum.inl (.nbas nrep nbas) => -- prover must choose local rule
+      .Step
+      -- LocalTableau.fintype.1.image (fun ltab => ⟨H, X, .inr (.ltab nrep nbas ltab)⟩)
+      sorry
+  -- Builder positions:
+  | Sum.inr (.lpr _) => by exfalso; simp [winning] at h -- prover wins :-(
+  | Sum.inr (.ltab nrep nbas ltX) =>
+      if ne : (tableauGame.moves ⟨H, ⟨X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩⟩).Nonempty
+      then
+        -- use `s` to choose `Y ∈ endNodeOf ltX`
+        let Y := (s ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ (by simp) ne)
+        have new_h : winning s Y.1 := winning_of_winning_move _ h
+        have forTermination : move Y.1 ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ := by
+          simp_all [move_iff]
+          have := Y.2
+          simp only [Game.Pos.moves, Game.moves, tableauGame, theMoves] at this
+          simp [-Finset.coe_mem] at this
+          aesop
+        .Step [ ⟨_, buildTree s new_h⟩ ]
+      else by
+        exfalso
+        unfold winning winner at h
+        simp_all
+termination_by -- use move.wf
+  tableauGame.wf.2.wrap (⟨H, X, p⟩ : GamePos)
+decreasing_by
+  · simp_wf -- show that it's a move
+    simp only [WellFoundedRelation.rel, Game.wf, tableauGame]
+    exact forTermination
 
 -- TODO Definition 6.13 initial, pre-state
 
