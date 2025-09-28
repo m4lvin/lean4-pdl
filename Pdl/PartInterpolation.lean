@@ -1,6 +1,6 @@
 import Mathlib.Data.Finset.Basic
 
-import Pdl.TableauPath
+import Pdl.Soundness
 
 /-! # Interpolants for Partitions (big part of Section 7)
 
@@ -453,6 +453,104 @@ def localInterpolantStep L R o C (ruleA : LocalRuleApp (L,R,o) C)
       intro φ φ_in; simp at φ_in
       simp [interList] at *
       grind
+
+/-! ## Cluster tools -/
+
+def repeatsOf {tab : Tableau .nil X} (s : PathIn tab) : List (PathIn tab) :=
+  sorry
+
+def all_cEdge {X} {tab : Tableau .nil X} (s : PathIn tab) : List (PathIn tab) :=
+  sorry
+
+lemma all_cEdge_spec {X} {tab : Tableau .nil X} (s t : PathIn tab) :
+    t ∈ all_cEdge s ↔ ((s ⋖_ t) ∨ s ♥ t) := by
+  sorry
+
+def all_cEdge_rev {X} {tab : Tableau .nil X} (t : PathIn tab) : List (PathIn tab) :=
+  sorry
+
+lemma all_cEdge_rev_spec {X} {tab : Tableau .nil X} (s t : PathIn tab) :
+    s ∈ all_cEdge_rev t ↔ ((s ⋖_ t) ∨ s ♥ t) := by
+  sorry
+
+/-- Loaded nodes "below" the given one, also allowing ♥ steps. -/
+def loadedBelow : PathIn tab → List (PathIn tab) := sorry
+
+/-- Loaded nodes "above" the given one, also allowing *backwards* ♥ steps. -/
+def loadedAbove : PathIn tab → List (PathIn tab) := sorry
+
+/-- List of all other nodes in the same cluster, essentially a constructive version of `clusterOf`.
+Computed as the intersection of `loadedAbove` and `loadedBelow`. -/
+def clusterListOf (p : PathIn tab) : List (PathIn tab) := loadedBelow p  ∩  loadedBelow p
+
+lemma clusterListOf_spec (p : PathIn tab) :
+    q ∈ clusterListOf p  ↔  p ≡ᶜ q := by
+  sorry
+
+-- TODO: how to convert `clusterListOf` result back to a tree?
+-- Essentially, this would incorporate Lemma 7.22 (a).
+
+def rootOf : List (PathIn tab) → PathIn tab := sorry -- just take the shortest?
+
+-- Or would it be better to already construct (partial) trees instead of lists directly?
+
+-- OR just assume are given the root of a cluster and use the tableau as it is to define `Q`?
+
+/-- Lemma 7.22 (b) for left side -/
+lemma cluster_all_left_loaded {p : PathIn tab} (h : (nodeAt p).2.2.isLeft) :
+    ∀ q ∈ clusterListOf p, (nodeAt q).2.2.isLeft := by
+  sorry
+
+/-- Lemma 7.22 (b) for right side -/
+lemma cluster_all_right_loaded {p : PathIn tab} (h : (nodeAt p).2.2.isRight) :
+    ∀ q ∈ clusterListOf p, (nodeAt q).2.2.isRight := by
+  sorry
+
+def isExitIn : Sequent → List Sequent → Prop := sorry
+
+instance : Decidable (isExitIn X C) := sorry
+
+/-! ## Quasi-Tableaux -/
+
+-- Alternative idea for def 7.31:
+-- Instead of labelling nodes in Q with finite sequents, label them with the path to where
+-- that sequent comes from in `Λ₂[C⁺]`?
+
+inductive Typ | one | two | three -- lower case because these are not `Type`s.
+open Typ
+
+/-- Simple tree data type for `Q`. -/
+inductive QuasiTab : Type | QNode : Typ → Sequent → List QuasiTab → QuasiTab
+open QuasiTab
+
+-- TODO add invariant?!
+
+def Qchildren (C : List Sequent) : (t : Typ) → (Hist : List Sequent) → (X : Sequent) → List QuasiTab
+| .one, Hist, X => -- case k(x)=1
+    if X ∈ Hist ∨ isExitIn X C
+      then [ ] -- then x is a leaf
+      else [ QNode .two X (Qchildren C .two (X :: Hist) X) ]
+| .two, Hist, X => -- case k(x)=2
+    [ QNode .three X (Qchildren C .three (X :: Hist) X) ]
+| .three, Hist, X => -- case k(x)=3
+    if X.basic
+    then
+      -- unique child with .one and result of PDL rule application
+      sorry
+    else
+      -- create children based on local rule
+      sorry
+termination_by
+  1 -- O.o ... see remark after Def 7.31 ;-)
+decreasing_by
+  · sorry
+  · sorry
+
+/-- Quasi-Tableau from Def 7.31.
+No names for the nodes as we use an inductive type, so we just write `X` for `Δₓ` -/
+def Q {r : PathIn tab} : QuasiTab :=
+  let X := nodeAt r -- FIXME wlog we only want the right sequent. But `.R` is not enogh !?!?!?!?!?
+  QNode .one X (Qchildren ((clusterListOf r).map nodeAt) .one [] X)
 
 /-! ## Interpolants for proper clusters -/
 
