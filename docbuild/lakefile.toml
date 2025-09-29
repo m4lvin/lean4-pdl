@@ -8,6 +8,6 @@ name = "pdl"
 path = ".."
 
 [[require]]
-scope = "leanprover"
 name = "doc-gen4"
-rev = "v4.24.0-rc1"
+git = "https://github.com/m4lvin/doc-gen4"
+rev = "show-sorryAx"
