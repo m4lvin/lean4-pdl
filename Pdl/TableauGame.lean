@@ -44,7 +44,53 @@ def posOf (H : History) (X : Sequent) : ProverPos H X ⊕ BuilderPos H X :=
 
 /-! ## Moves -/
 
-/-- The moves for the `tableauGame`. -/
+/-- The relation `move old next` says that we can move from `old` to `next`. -/
+@[grind]
+inductive move : (old : GamePos) → (new :GamePos) → Prop
+-- In any  ⟨H, X, .inl (.bas nrep Xbasic)⟩ prover may choose a PDL rule application.
+-- (L+) if X is not loaded, choice of formula
+| prLoadL : ¬ ψ.isBox → (~⌈⌈δs⌉⌉⌈δ⌉ψ) ∈ L →
+   move ⟨Hist, ⟨L, R, none⟩, .inl (.bas nrep Xbasic)⟩
+         ⟨_, _, posOf (⟨L, R, none⟩::Hist) (L.erase (~⌈⌈δs⌉⌉⌈δ⌉ψ), R, some (Sum.inl (~'(⌊⌊δs⌋⌋⌊δ⌋ψ))))⟩
+| prLoadR : ¬ ψ.isBox → (~⌈⌈δs⌉⌉⌈δ⌉ψ) ∈ R →
+    move ⟨Hist, ⟨L, R, none⟩, .inl (.bas nrep Xbasic)⟩
+         ⟨_, _, posOf (⟨L, R, none⟩::Hist) (L, R.erase (~⌈⌈δs⌉⌉⌈δ⌉ψ), some (Sum.inr (~'(⌊⌊δs⌋⌋⌊δ⌋ψ))))⟩
+-- left (M)
+| prModNormalL : ξ = .normal φ →
+    move ⟨Hist, ⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩, .inl (.bas nrep Xbasic)⟩
+         ⟨_,_,posOf (⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩::Hist) ⟨(~φ) :: projection a L, projection a R, none⟩⟩
+| prModLoadedL : ξ = .loaded χ
+  → move ⟨Hist, ⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩, .inl (.bas nrep Xbasic)⟩
+         ⟨_,_,posOf (⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩::Hist) ⟨projection a L, projection a R, some (Sum.inl (~'χ))⟩⟩
+-- left (L-)
+| prUnloadL :
+    move ⟨Hist, ⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩, .inl (.bas nrep Xbasic)⟩
+         ⟨_, _, posOf (⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩::Hist) (L.insert (~(⌊·a⌋ξ).unload), R, none)⟩
+-- right (M)
+| prModNormalR : ξ = .normal φ →
+    move ⟨Hist, ⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩, .inl (.bas nrep Xbasic)⟩
+         ⟨_,_,posOf (⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩::Hist) ⟨projection a L, (~φ) :: projection a R, none⟩⟩
+| prModLoadedR : ξ = .loaded χ →
+    move ⟨Hist, ⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩, .inl (.bas nrep Xbasic)⟩
+         ⟨_,_,posOf (⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩::Hist) ⟨projection a L, projection a R, some (Sum.inr (~'χ))⟩⟩
+-- right (L-)
+| prUnloadR :
+    move ⟨Hist, ⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩, .inl (.bas nrep Xbasic)⟩
+         ⟨_, _, posOf (⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩::Hist) (L, R.insert (~(⌊·a⌋ξ).unload), none)⟩
+-- If not basic, let prover pick any `ltab : LocalTableau X` as new position:
+| prLocTab : move ⟨Hist, X, .inl (.nbas nrep nbas)⟩
+                                          ⟨Hist, X, .inr (.ltab nrep nbas ltab)⟩
+-- Let Builder pick an end node of `ltab`:
+| buEnd : Y ∈ endNodesOf (ltab : LocalTableau X) →
+    move ⟨Hist, X, .inr (.ltab nrep nbas ltab)⟩ ⟨(X :: Hist), Y, posOf (X :: Hist) Y⟩
+
+lemma move_then_no_rep {next} {p : (ProverPos Hist X ⊕ BuilderPos Hist X)} :
+    move ⟨Hist, X, p⟩ next → ¬ rep Hist X := by
+  intro next_p hyp
+  cases next_p <;> grind
+
+/-- The finite set of moves, given as a function instead of a relation.
+In `theMoves_mem_iff_move` below we prove that this agrees with `move`. -/
 @[simp]
 def theMoves : GamePos → Finset GamePos
   -- ProverPos:
@@ -111,51 +157,10 @@ def theMoves : GamePos → Finset GamePos
       -- Let Builder pick an end node of `ltab`:
       ((endNodesOf ltab).map (fun Y => ⟨(X :: H), Y, posOf (X :: H) Y⟩)).toFinset
 
-/-- `move next p` says that we can move from `p` to `next`.
-
-TODO: rewrite to an inductive, and flip the order? -/
-def move (next p : GamePos) := next ∈ theMoves p
-
-lemma no_moves_of_rep {Hist X pos} (h : rep Hist X) :
-    theMoves ⟨Hist, X, pos⟩ = ∅ := by
-  by_contra hyp
-  rw [Finset.eq_empty_iff_forall_notMem] at hyp
-  push_neg at hyp
-  rcases hyp with ⟨p, p_in⟩
-  unfold theMoves at p_in
-  rcases X with ⟨L,R,_|o⟩ <;> rcases pos with (_|_|_)|(_|_) <;> aesop
-
-lemma move_then_no_rep {next} {p : (ProverPos Hist X ⊕ BuilderPos Hist X)} :
-    move next ⟨Hist, X, p⟩ → ¬ rep Hist X := by
-  intro next_p hyp
-  have := @no_moves_of_rep _ _ p hyp
-  unfold move at next_p
-  aesop
-
-lemma move.hist (mov : move next ⟨Hist, X, pos⟩) :
-      (∃ newPos, next = ⟨Hist, X, newPos⟩) -- this is an annoying case ;-)
-    ∨ (∃ Y newPos, next = ⟨X :: Hist, Y, newPos⟩)  := by
-  unfold move theMoves at mov
-  simp at mov
-  rcases X with ⟨L,R,_|o⟩ <;> rcases pos with (_|_|_)|(_|_) <;> simp at mov
-  all_goals
-    grind
-
-lemma move.hist_suffix (mov : move next ⟨Hist, X, pos⟩) : Hist <:+ next.1 := by
-  have := move.hist mov
-  aesop
-
-lemma move.trans_hist_suffix (mov : Relation.TransGen move pZ pX) :
-    pX.1 <:+ pZ.1 := by
-  induction mov
-  case single hm => exact move.hist_suffix hm
-  case tail steps hm IH =>
-    have := move.hist_suffix hm
-    apply List.IsSuffix.trans this IH
-
 set_option maxHeartbeats 2000000 in
-lemma move_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos} :
-    move next ⟨H, X, p⟩
+/-- Characterization of `theMoves`. -/
+lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos} :
+    next ∈ theMoves ⟨H, X, p⟩
     ↔
     -- ProverPos:
     ( ∃ nrep Xbasic, p = .inl (.bas nrep Xbasic)
@@ -253,7 +258,7 @@ lemma move_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos} :
     all_goals
       simp at *
       try grind
-  · unfold move theMoves
+  · unfold theMoves
     rintro (⟨nrep, Xbas, p_def, hyp⟩ | ⟨nrep, nbas, p_def, hyp⟩ | ⟨nrep, nbas, lt, p_def, hyp⟩) <;> subst p_def
     · rcases hyp with ⟨L, R, (⟨X_def, hyp⟩ | _ | _) ⟩
       · subst X_def
@@ -284,20 +289,116 @@ lemma move_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos} :
     · simp
       grind
 
+lemma no_moves_of_rep {Hist X pos} (h : rep Hist X) :
+    theMoves ⟨Hist, X, pos⟩ = ∅ := by
+  by_contra hyp
+  rw [Finset.eq_empty_iff_forall_notMem] at hyp
+  push_neg at hyp
+  rcases hyp with ⟨p, p_in⟩
+  unfold theMoves at p_in
+  rcases X with ⟨L,R,_|o⟩ <;> rcases pos with (_|_|_)|(_|_) <;> aesop
+
+/-- The finite set given by `theMoves` indeed agrees with the relation `move`. -/
+lemma theMoves_mem_iff_move :
+    next ∈ theMoves p ↔ move p next := by
+  rcases p with ⟨Hist, X, pos⟩
+  constructor
+  · intro mv
+    unfold theMoves at mv
+    rcases pos with (_|_|_) | (_|_) <;> rcases X with ⟨L,R,_|χ⟩ <;> simp_all
+    case inl.bas.none =>
+      rcases mv with ⟨ψ, ψ_in, next_in⟩ | ⟨ψ, ψ_in, next_in⟩
+      · cases ψ -- L
+        case neg φ =>
+          by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
+          · rcases h with ⟨head, tail, ψ, ψ_nonBox, bxs_def⟩
+            simp [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
+            subst next
+            have : ∀ h, φ = ⌈⌈(head :: tail).dropLast⌉⌉⌈(head :: tail).getLast h⌉ψ := by
+              simp [def_of_boxesOf_def bxs_def]
+              rw [← boxes_last, List.dropLast_append_getLast, Formula.boxes_cons]
+            rw [this (by simp)]
+            grind
+          · exfalso
+            cases φ <;> simp_all [boxesOf]
+        all_goals
+          exfalso; simp at *
+      · cases ψ -- R, analogous
+        case neg φ =>
+          by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
+          · rcases h with ⟨head, tail, ψ, ψ_nonBox, bxs_def⟩
+            simp [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
+            subst next
+            have : ∀ h, φ = ⌈⌈(head :: tail).dropLast⌉⌉⌈(head :: tail).getLast h⌉ψ := by
+              simp [def_of_boxesOf_def bxs_def]
+              rw [← boxes_last, List.dropLast_append_getLast, Formula.boxes_cons]
+            rw [this (by simp)]
+            grind
+          · exfalso
+            cases φ <;> simp_all [boxesOf]
+        all_goals
+          exfalso; simp at *
+    · -- Here we have a loaded formula in X already, and are basic.
+      -- So the only applicable rules are (M) and (L-).
+      rcases χ with (⟨⟨χ⟩⟩|⟨⟨χ⟩⟩) <;> rcases χ with ⟨δ,φ|χ⟩ <;> cases δ <;> simp_all
+      case mp.inl.bas.some.inl.normal.atom_prog =>
+        cases mv <;> subst_eqs
+        · apply move.prUnloadL
+        · apply move.prModNormalL rfl
+      case mp.inl.bas.some.inl.loaded.atom_prog =>
+        cases mv <;> subst_eqs
+        · apply move.prUnloadL
+        · apply move.prModLoadedL rfl
+      case mp.inl.bas.some.inr.normal.atom_prog =>
+        cases mv <;> subst_eqs
+        · apply move.prUnloadR
+        · apply move.prModNormalR rfl
+      case mp.inl.bas.some.inr.loaded.atom_prog =>
+        cases mv <;> subst_eqs
+        · apply move.prUnloadR
+        · apply move.prModLoadedR rfl
+      all_goals
+        grind
+    all_goals
+      grind
+  · intro mov
+    rw [theMoves_iff]
+    cases mov <;> grind
+
+lemma move.hist (mov : move ⟨Hist, X, pos⟩ next) :
+      (∃ newPos, next = ⟨Hist, X, newPos⟩) -- this is an annoying case ;-)
+    ∨ (∃ Y newPos, next = ⟨X :: Hist, Y, newPos⟩)  := by
+  cases mov <;> grind
+
+lemma move.hist_suffix (mov : move ⟨Hist, X, pos⟩ next) : Hist <:+ next.1 := by
+  have := move.hist mov
+  grind
+
+lemma move.trans_hist_suffix (mov : Relation.TransGen move pX pZ) :
+    pX.1 <:+ pZ.1 := by
+  induction mov
+  case single hm => exact move.hist_suffix hm
+  case tail steps hm IH =>
+    have := move.hist_suffix hm
+    apply List.IsSuffix.trans IH this
+
 /-- After two moves we must reach a different sequent.
 Is this useful for termination? -/
-lemma move_twice_neq {A B C : GamePos} (B_C : move C B) (A_B : move B A) :
+lemma move_twice_neq {A B C : GamePos} (A_B : move A B) (B_C : move B C) :
     A.2.1 ≠ C.2.1 := by
   rcases A with ⟨HA, A, pA⟩
   rcases B with ⟨HB, B, pB⟩
   rcases C with ⟨HC, C, pC⟩
   simp
-  -- QUESTION: how can I get `cases B_C using move_iff` to work here?
-  -- ANSWER: don't, better rewrite `move` to be an inductive in the first place!
+  -- NEW: now that `move` is an inductive we can do `cases B_C` here.
+  cases A_B -- <;> cases h B_C -- cannot solve dependent elimination ??????
+  <;> sorry
+  /-
   rw [move_iff] at B_C
   rcases B_C with h|h|h
   all_goals
     sorry
+  -/
 
 /-! ## Termination via finite FL closure
 
@@ -414,9 +515,10 @@ theorem LocalRule.stays_in_FL {Lcond Rcond Ocond B}
   cases rule
   <;> sorry
 
-lemma move_inside_FL : move next p → next.2.1.subseteq_FL p.2.1 := by
+lemma move_inside_FL (mov : move p next) : next.2.1.subseteq_FL p.2.1 := by
   -- This will be many case distinctions and extra lemmas.
-  sorry
+  cases mov
+  <;> sorry
 
 /-- A list of sequents that are all FL-subsequents of the given sequent.
 The list defined here is not complete because there are infinitely many such other sequents.
@@ -540,7 +642,7 @@ def Seqt.subseteq_FL (X : Seqt) (Y : Seqt) : Prop :=
   Quotient.lift₂ Sequent.subseteq_FL Sequent.subseteq_FL_congr X Y
 
 /-- In the quotient the moves keep us inside the FL. UNUSED, delete this? -/
-lemma Seqt.subseteq_FL_of_move (hm : move next p) :
+lemma Seqt.subseteq_FL_of_move (hm : move p next) :
     Seqt.subseteq_FL (Quotient.mk' next.2.1) (Quotient.mk' p.2.1) := by
   unfold Seqt.subseteq_FL
   exact move_inside_FL hm
@@ -642,7 +744,7 @@ lemma help {α : Type} {f : ℕ → α} {p : α → Prop}
 /-- Lemma 6.10, sort of. Because the move relation is wellfounded, all matches must be finite.
 Note that the paper does not prove this, only says it is similar to the proof that PDL-tableaux
 are finite, i.e. Lemma 4.10 which uses the Fischer-Ladner closure. -/
-lemma move.wf : WellFounded move := by
+lemma move.converse_wf : WellFounded (Function.swap move) := by
   -- If it's not wellfounded, then there must be an infinite sequence of moves.
   rw [wellFounded_iff_isEmpty_descending_chain]
   by_contra hyp
@@ -656,8 +758,8 @@ lemma move.wf : WellFounded move := by
       apply Sequent.subseteq_FL_trans _ _ _ ?_ IH
       apply move_inside_FL (f_rel k)
 
-  -- Elements along the chain are related by the transitive closure of `move`.
-  have trans_rel : ∀ k1 k2, k1 < k2 → Relation.TransGen move (f k2) (f k1) := by
+  -- Elements along the chain are related by the transitive closure of `move.swap`.
+  have trans_rel : ∀ k1 k2, k1 < k2 → Relation.TransGen (Function.swap move) (f k2) (f k1) := by
     intro k1 k2 k_lt
     rw [lt_iff_exists_add] at k_lt
     rcases k_lt with ⟨m, m_pos, k2_def⟩; subst k2_def
@@ -679,7 +781,7 @@ lemma move.wf : WellFounded move := by
   have hist_suffixes : ∀ k1 k2, k1 < k2 → (f k1).1 <:+ (f k2).1 := by
     intro k1 k2 k_lt
     specialize trans_rel k1 k2 k_lt
-    exact @move.trans_hist_suffix _ _ trans_rel
+    exact @move.trans_hist_suffix _ _ (Relation.TransGen.swap trans_rel)
 
   -- There are only finitely many setEqTo-different sequents in the FL closure of the chain start.
   have FL_fin := @Seqt.subseteq_FL_finite (Quotient.mk' (f 0).2.1)
@@ -736,8 +838,8 @@ def tableauGame : Game where
   turn | ⟨_, _, .inl _⟩ => Prover
        | ⟨_, _, .inr _⟩ => Builder
   moves := theMoves
-  wf := ⟨move, move.wf⟩
-  move_rel := by simp [move]
+  wf := ⟨fun x y => move y x, move.converse_wf⟩
+  move_rel := by grind [theMoves_mem_iff_move]
 
 @[simp]
 lemma tableauGame_turn_Prover {Hist X lpr} :
@@ -986,12 +1088,11 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
         -- use `s` to choose `Y ∈ endNodeOf ltX`
         let Y := (s ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ (by simp) ne)
         have new_h : winning s Y.1 := winning_of_winning_move _ h
-        have forTermination : move Y.1 ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ := by
-          simp_all [move_iff]
+        have forTermination : move ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ Y.1 := by
           have := Y.2
           simp only [Game.Pos.moves, Game.moves, tableauGame, theMoves] at this
           simp [-Finset.coe_mem] at this
-          aesop
+          grind
         .Step [ ⟨_, buildTree s new_h⟩ ]
       else by
         exfalso
@@ -1001,7 +1102,7 @@ termination_by -- use move.wf
   tableauGame.wf.2.wrap (⟨H, X, p⟩ : GamePos)
 decreasing_by
   · simp_wf -- show that it's a move
-    simp only [WellFoundedRelation.rel, Game.wf, tableauGame]
+    simp [WellFoundedRelation.rel, Game.wf, tableauGame]
     exact forTermination
 
 -- TODO Definition 6.13 initial, pre-state
