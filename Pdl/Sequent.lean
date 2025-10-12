@@ -24,6 +24,10 @@ def Olf.L : Olf → List Formula
 lemma Olf.L_none : Olf.L none = [] := by rfl
 @[simp]
 lemma Olf.L_inr : Olf.L (some (Sum.inr lf)) = [] := by rfl
+@[simp]
+lemma Olf.L_map_inr : Olf.L (Option.map Sum.inr olf) = [] := by cases olf <;> rfl
+@[simp]
+lemma Olf.L_inl : Olf.L (some (Sum.inl lf)) = [~lf.1.unload] := by simp only [L]
 
 def Olf.R : Olf → List Formula
 | none => []
@@ -34,6 +38,10 @@ def Olf.R : Olf → List Formula
 lemma Olf.R_none : Olf.R none = [] := by rfl
 @[simp]
 lemma Olf.R_inl : Olf.R (some (Sum.inl lf)) = [] := by rfl
+@[simp]
+lemma Olf.R_map_inl : Olf.R (Option.map Sum.inl olf) = [] := by cases olf <;> rfl
+@[simp]
+lemma Olf.R_inr : Olf.R (some (Sum.inr lf)) = [~lf.1.unload] := by simp only [R]
 
 -- mathlib this?
 @[simp]
@@ -85,8 +93,12 @@ def Option.overwrite : Option α → Option α → Option α
 def Olf.change (oldO : Olf) (Ocond : Olf) (newO : Olf) : Olf := (oldO \ Ocond).overwrite newO
 
 @[simp]
-theorem Olf.change_none_none : Olf.change oldO none none = oldO := by
+theorem Olf.change_old_none_none : Olf.change oldO none none = oldO := by
   cases oldO <;> simp [Olf.change, Option.overwrite, Option.insHasSdiff]
+
+@[simp]
+theorem Olf.change_none_none_new : Olf.change none none newO = newO := by
+  cases newO <;> simp [Olf.change, Option.overwrite, Option.insHasSdiff]
 
 @[simp]
 theorem Olf.change_some: Olf.change oldO whatever (some wnlf) = some wnlf := by
@@ -182,17 +194,24 @@ def Sequent.toFinset : Sequent → Finset Formula
 
 /-! ## Components and sides of sequents -/
 
-@[simp]
-def Sequent.L : Sequent → List Formula := λ⟨L,_,_⟩ => L
-@[simp]
-def Sequent.R : Sequent → List Formula := λ⟨_,R,_⟩ => R
-@[simp]
-def Sequent.O : Sequent → Olf := λ⟨_,_,O⟩ => O
+def Sequent.L : Sequent → List Formula | ⟨L,_,_⟩ => L
+def Sequent.R : Sequent → List Formula | ⟨_,R,_⟩ => R
+def Sequent.O : Sequent → Olf | ⟨_,_,O⟩ => O
 
 @[simp]
-def Sequent.left (X : Sequent) : List Formula := X.L ++ X.O.L
+lemma Sequent.L_eq {L R O} : Sequent.L ⟨L,R,O⟩ = L := by simp [Sequent.L]
 @[simp]
+lemma Sequent.R_eq {L R O} : Sequent.R ⟨L,R,O⟩ = R := by simp [Sequent.R]
+@[simp]
+lemma Sequent.O_eq {L R O} : Sequent.O ⟨L,R,O⟩ = O := by simp [Sequent.O]
+
+def Sequent.left (X : Sequent) : List Formula := X.L ++ X.O.L
 def Sequent.right (X : Sequent) : List Formula := X.R ++ X.O.R
+
+@[simp]
+lemma Sequent.left_eq {L R O} : Sequent.left ⟨L,R,O⟩ = L ++ O.L := by simp [Sequent.left]
+@[simp]
+def Sequent.right_eq {L R O} : Sequent.right ⟨L,R,O⟩ = R ++ O.R := by simp [Sequent.right]
 
 /-! ## Formulas as elements of sequents -/
 

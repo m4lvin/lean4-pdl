@@ -111,16 +111,9 @@ theorem localRule_does_not_increase_vocab_L {Cond B}
       cases lnf <;> simp [Olf.L] at *
       subst φ_in_OlfL
       exact x_in_φvoc
-  case loadedR B_def =>
-    simp [List.fvoc, Olf.L] at *
-    subst_eqs
-    rcases x_in_res with ⟨φ, φ_in_Olf, x_in_φvoc⟩
-    absurd x_in_φvoc
-    aesop
   -- other cases are all trivial (as in Bml)
   all_goals
-    simp at *
-  · aesop
+    aesop
 
 theorem localRule_does_not_increase_vocab_R (rule : LocalRule Cond B) :
     ∀ res ∈ B, res.right.fvoc ⊆ Cond.right.fvoc := by
@@ -162,16 +155,9 @@ theorem localRule_does_not_increase_vocab_R (rule : LocalRule Cond B) :
       cases lnf <;> simp [Olf.R] at *
       subst φ_in_OlfR
       exact x_in_φvoc
-  case loadedL B_def =>
-    simp [List.fvoc, Olf.R] at *
-    subst_eqs
-    rcases x_in_res with ⟨φ, φ_in_Olf, x_in_φvoc⟩
-    absurd x_in_φvoc
-    aesop
   -- other cases are all trivial (as in Bml)
   all_goals
-    simp at *
-  · aesop
+    aesop
 
 theorem localRuleApp_does_not_increase_jvoc (ruleA : LocalRuleApp X C) :
     ∀ Y ∈ C, jvoc Y ⊆ jvoc X := by

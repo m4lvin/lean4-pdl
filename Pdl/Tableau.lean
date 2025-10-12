@@ -104,6 +104,7 @@ instance {H X} : Decidable (Nonempty (LoadedPathRepeat H X)) := by
 /-! ## The PDL rules -/
 
 /-- A rule to go from `X` to `Y`. Note the four variants of the modal rule. -/
+@[grind]
 inductive PdlRule : (X : Sequent) → (Y : Sequent) → Type
   -- The (L+) rule:
   | loadL : (~⌈⌈δ⌉⌉⌈α⌉φ) ∈ L

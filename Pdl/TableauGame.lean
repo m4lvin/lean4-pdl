@@ -44,47 +44,21 @@ def posOf (H : History) (X : Sequent) : ProverPos H X ⊕ BuilderPos H X :=
 
 /-! ## Moves -/
 
-/-- The relation `move old next` says that we can move from `old` to `next`. -/
-@[grind]
+/-- The relation `move old next` says that we can move from `old` to `next`.
+There are three kinds of moves. -/
+-- @[grind] -- FIXME
 inductive move : (old : GamePos) → (new :GamePos) → Prop
--- In any  ⟨H, X, .inl (.bas nrep Xbasic)⟩ prover may choose a PDL rule application.
--- (L+) if X is not loaded, choice of formula
-| prLoadL : ¬ ψ.isBox → (~⌈⌈δs⌉⌉⌈δ⌉ψ) ∈ L →
-   move ⟨Hist, ⟨L, R, none⟩, .inl (.bas nrep Xbasic)⟩
-         ⟨_, _, posOf (⟨L, R, none⟩::Hist) (L.erase (~⌈⌈δs⌉⌉⌈δ⌉ψ), R, some (Sum.inl (~'(⌊⌊δs⌋⌋⌊δ⌋ψ))))⟩
-| prLoadR : ¬ ψ.isBox → (~⌈⌈δs⌉⌉⌈δ⌉ψ) ∈ R →
-    move ⟨Hist, ⟨L, R, none⟩, .inl (.bas nrep Xbasic)⟩
-         ⟨_, _, posOf (⟨L, R, none⟩::Hist) (L, R.erase (~⌈⌈δs⌉⌉⌈δ⌉ψ), some (Sum.inr (~'(⌊⌊δs⌋⌋⌊δ⌋ψ))))⟩
--- left (M)
-| prModNormalL : ξ = .normal φ →
-    move ⟨Hist, ⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩, .inl (.bas nrep Xbasic)⟩
-         ⟨_,_,posOf (⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩::Hist) ⟨(~φ) :: projection a L, projection a R, none⟩⟩
-| prModLoadedL : ξ = .loaded χ
-  → move ⟨Hist, ⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩, .inl (.bas nrep Xbasic)⟩
-         ⟨_,_,posOf (⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩::Hist) ⟨projection a L, projection a R, some (Sum.inl (~'χ))⟩⟩
--- left (L-)
-| prUnloadL :
-    move ⟨Hist, ⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩, .inl (.bas nrep Xbasic)⟩
-         ⟨_, _, posOf (⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩::Hist) (L.insert (~(⌊·a⌋ξ).unload), R, none)⟩
--- right (M)
-| prModNormalR : ξ = .normal φ →
-    move ⟨Hist, ⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩, .inl (.bas nrep Xbasic)⟩
-         ⟨_,_,posOf (⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩::Hist) ⟨projection a L, (~φ) :: projection a R, none⟩⟩
-| prModLoadedR : ξ = .loaded χ →
-    move ⟨Hist, ⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩, .inl (.bas nrep Xbasic)⟩
-         ⟨_,_,posOf (⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩::Hist) ⟨projection a L, projection a R, some (Sum.inr (~'χ))⟩⟩
--- right (L-)
-| prUnloadR :
-    move ⟨Hist, ⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩, .inl (.bas nrep Xbasic)⟩
-         ⟨_, _, posOf (⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩::Hist) (L, R.insert (~(⌊·a⌋ξ).unload), none)⟩
--- If not basic, let prover pick any `ltab : LocalTableau X` as new position:
-| prLocTab : move ⟨Hist, X, .inl (.nbas nrep nbas)⟩
+/-- When the sequent is basic and no repeat, let prover apply a PDL rule. -/
+| prPdl {Y Hist nrep Xbasic} : PdlRule X Y →
+    move ⟨Hist, X, .inl (.bas nrep Xbasic)⟩ ⟨(X :: Hist), Y, posOf (X :: Hist) Y⟩
+/-- If not basic, let prover pick any `ltab : LocalTableau X` as new position. -/
+| prLocTab {Hist X nrep nbas ltab} : move ⟨Hist, X, .inl (.nbas nrep nbas)⟩
                                           ⟨Hist, X, .inr (.ltab nrep nbas ltab)⟩
--- Let Builder pick an end node of `ltab`:
-| buEnd : Y ∈ endNodesOf (ltab : LocalTableau X) →
+/-- Let Builder pick an end node of `ltab` -/
+| buEnd {X ltab Y Hist nrep nbas} : Y ∈ endNodesOf (ltab : LocalTableau X) →
     move ⟨Hist, X, .inr (.ltab nrep nbas ltab)⟩ ⟨(X :: Hist), Y, posOf (X :: Hist) Y⟩
 
-lemma move_then_no_rep {next} {p : (ProverPos Hist X ⊕ BuilderPos Hist X)} :
+lemma move_then_no_rep {Hist X next} {p : (ProverPos Hist X ⊕ BuilderPos Hist X)} :
     move ⟨Hist, X, p⟩ next → ¬ rep Hist X := by
   intro next_p hyp
   cases next_p <;> grind
@@ -318,7 +292,10 @@ lemma theMoves_mem_iff_move :
               simp [def_of_boxesOf_def bxs_def]
               rw [← boxes_last, List.dropLast_append_getLast, Formula.boxes_cons]
             rw [this (by simp)]
-            grind
+            apply move.prPdl
+            simp only [ne_eq, reduceCtorEq, not_false_eq_true, forall_true_left] at this
+            subst this
+            exact PdlRule.loadL ψ_in rfl
           · exfalso
             cases φ <;> simp_all [boxesOf]
         all_goals
@@ -333,7 +310,10 @@ lemma theMoves_mem_iff_move :
               simp [def_of_boxesOf_def bxs_def]
               rw [← boxes_last, List.dropLast_append_getLast, Formula.boxes_cons]
             rw [this (by simp)]
-            grind
+            apply move.prPdl
+            simp only [ne_eq, reduceCtorEq, not_false_eq_true, forall_true_left] at this
+            subst this
+            exact PdlRule.loadR ψ_in rfl
           · exfalso
             cases φ <;> simp_all [boxesOf]
         all_goals
@@ -341,29 +321,36 @@ lemma theMoves_mem_iff_move :
     · -- Here we have a loaded formula in X already, and are basic.
       -- So the only applicable rules are (M) and (L-).
       rcases χ with (⟨⟨χ⟩⟩|⟨⟨χ⟩⟩) <;> rcases χ with ⟨δ,φ|χ⟩ <;> cases δ <;> simp_all
-      case mp.inl.bas.some.inl.normal.atom_prog =>
+      case mp.inl.bas.some.inl.normal.atom_prog a nrep bas =>
         cases mv <;> subst_eqs
-        · apply move.prUnloadL
-        · apply move.prModNormalL rfl
-      case mp.inl.bas.some.inl.loaded.atom_prog =>
+        · apply move.prPdl; apply @PdlRule.freeL _ L R [] (·a) φ _ rfl; simp
+        · apply move.prPdl; apply PdlRule.modL rfl rfl
+      case mp.inl.bas.some.inl.loaded.atom_prog a nrep bas =>
         cases mv <;> subst_eqs
-        · apply move.prUnloadL
-        · apply move.prModLoadedL rfl
-      case mp.inl.bas.some.inr.normal.atom_prog =>
+        · apply move.prPdl;
+          -- apply @PdlRule.freeL _ L R [] (·a) χ.unload
+          -- need to get all other boxes inside χ here first.
+          sorry
+        · apply move.prPdl; apply PdlRule.modL rfl rfl
+      case mp.inl.bas.some.inr.normal.atom_prog a nrep bas =>
         cases mv <;> subst_eqs
-        · apply move.prUnloadR
-        · apply move.prModNormalR rfl
+        · apply move.prPdl; apply @PdlRule.freeR _ L R [] (·a) φ _ rfl; simp
+        · apply move.prPdl; apply PdlRule.modR rfl rfl
       case mp.inl.bas.some.inr.loaded.atom_prog =>
         cases mv <;> subst_eqs
-        · apply move.prUnloadR
-        · apply move.prModLoadedR rfl
+        · apply move.prPdl; apply PdlRule.freeR <;> sorry
+        · apply move.prPdl; apply PdlRule.modR rfl rfl
       all_goals
         grind
     all_goals
-      grind
+      sorry -- grind
   · intro mov
-    rw [theMoves_iff]
-    cases mov <;> grind
+    cases mov
+    case prPdl =>
+      -- rw [theMoves_iff] -- or not ???
+      sorry
+    · grind [theMoves_iff]
+    · grind [theMoves_iff]
 
 lemma move.hist (mov : move ⟨Hist, X, pos⟩ next) :
       (∃ newPos, next = ⟨Hist, X, newPos⟩) -- this is an annoying case ;-)
@@ -390,15 +377,22 @@ lemma move_twice_neq {A B C : GamePos} (A_B : move A B) (B_C : move B C) :
   rcases B with ⟨HB, B, pB⟩
   rcases C with ⟨HC, C, pC⟩
   simp
-  -- NEW: now that `move` is an inductive we can do `cases B_C` here.
-  cases A_B -- <;> cases h B_C -- cannot solve dependent elimination ??????
-  <;> sorry
-  /-
-  rw [move_iff] at B_C
-  rcases B_C with h|h|h
-  all_goals
+  -- have := @no_moves_of_rep -- useful or useless here?
+  -- Now that `move` is an inductive we can do `cases B_C` here.
+  cases A_B -- <;>
+  case prPdl Xbasic nrep r =>
+    intro hyp
+    subst hyp -- hmm?
+    -- cases B_C -- Dependent elimination failed: Failed to solve equation :-(
     sorry
-  -/
+  case prLocTab ltA nrep =>
+    cases B_C -- must be buEnd :-)
+    case buEnd nbas nrep' C_in =>
+      have := @endNodesOf_nonbasic_non_eq _ C ltA nbas C_in
+      grind
+  case buEnd ltA nbas nrep B_in =>
+    -- cases B_C -- Dependent elimination failed: Failed to solve equation :-(
+    sorry
 
 /-! ## Termination via finite FL closure
 
@@ -500,25 +494,305 @@ lemma Sequent.subseteq_FL_of_setEq_left {X Y : Sequent} (h : X.setEqTo Y) {Z : S
     have := FLL_ext R_same
     grind
 
+-- TODO: is this the right/useful statement?
+lemma unfoldDiamond_in_FL (α : Program) (ψ : Formula) (X : List Formula) :
+    X ∈ unfoldDiamond α ψ → ∀ φ ∈ X, φ ∈ FL (⌈α⌉φ) := by
+  intro X_in φ φ_in
+  rcases unfoldDiamondContent α ψ X X_in φ φ_in with φ_def|h|h
+  · simp_all [FL]
+  · rcases h with ⟨τ, τ_from_φ, φ_def⟩
+    subst φ_def
+    cases α <;> simp [FL]
+  · rcases h with ⟨a, δ, φ_def⟩
+    subst φ_def
+    cases α <;> simp [FL]
+
 /-- Helper for `LocalRule.stays_in_FL` -/
--- TODO analogous LoadRule.stays_in_FL_right
 lemma LoadRule.stays_in_FL_left (lr : LoadRule (~'χ) ress) :
     ∀ Y ∈ ress, Sequent.subseteq_FL (Y.1, ∅, Y.2.map Sum.inl) (∅, ∅, some (Sum.inl (~'χ))) := by
-  simp [Sequent.subseteq_FL, Olf.L]
+  simp [Sequent.subseteq_FL, Olf.L, FLL]
+  intro F χ in_ress
+  cases lr
+  -- Need or already have somwhere a lemma that unfoldDiamond(loaded)' stays in FL closure?
+  · simp
+    sorry
+  · sorry
+
+/-- Helper for `LocalRule.stays_in_FL` -/
+lemma LoadRule.stays_in_FL_right (lr : LoadRule (~'χ) ress) :
+    ∀ Y ∈ ress, Sequent.subseteq_FL (∅, Y.1, Y.2.map Sum.inr) (∅, ∅, some (Sum.inr (~'χ))) := by
+  -- TODO, analogous to `LoadRule.stays_in_FL_left`?
   sorry
 
-/-- Helper for `move_inside_FL` -/
-theorem LocalRule.stays_in_FL {Lcond Rcond Ocond B}
-    (rule : LocalRule (Lcond, Rcond, Ocond) B) :
-    ∀ Y ∈ B, Y.subseteq_FL ⟨Lcond, Rcond, Ocond⟩ := by
+/-- Helper for `LocalTableau.stays_in_FL` -/
+theorem LocalRule.stays_in_FL {X B}
+    (rule : LocalRule X B) :
+    ∀ Y ∈ B, Y.subseteq_FL X := by
   intro Y Y_in_B
   cases rule
-  <;> sorry
+  case oneSidedL =>
+    sorry
+  case oneSidedR =>
+    sorry -- analogous?
+  case LRnegL =>
+    sorry
+  case LRnegR =>
+    sorry -- analogous?
+  case loadedL ress χ lorule B_def =>
+    subst B_def
+    simp [List.empty_eq, List.mem_map, Prod.exists] at *
+    rcases Y_in_B with ⟨l, o, in_ress, def_Y⟩
+    have := LoadRule.stays_in_FL_left lorule (l, o) in_ress
+    simp_all
+  case loadedR ress χ lorule B_def =>
+    subst B_def
+    simp only [List.empty_eq, List.mem_map, Prod.exists] at *
+    rcases Y_in_B with ⟨l, o, in_ress, def_Y⟩
+    have := LoadRule.stays_in_FL_right lorule (l, o) in_ress
+    simp_all
+
+/-- LocalTableau helper for `move_inside_FL` -/
+theorem LocalTableau.stays_in_FL {X}
+    (ltX : LocalTableau X) :
+    ∀ Y ∈ endNodesOf ltX, Y.subseteq_FL X := by
+  intro Y Y_in_B
+  cases ltX
+  case byLocalRule B next lra =>
+    have _forTermination := localRuleApp.decreases_DM lra
+    rcases lra with @⟨L, R, _, ress, O, Lcond, Rcond, Ocond, lr, B_def, ⟨Lconp,Rconp,Oconp⟩⟩
+    subst B_def
+    have lr_lemma := LocalRule.stays_in_FL lr
+    simp [endNodesOf] at Y_in_B
+    rcases Y_in_B with ⟨l, ⟨W, W_in, def_l⟩ , Y_in⟩
+    subst def_l
+    rcases W_in with ⟨re, re_in_ress, def_W⟩
+    have IH := LocalTableau.stays_in_FL _ Y Y_in
+    clear _forTermination -- to avoid simplifying it
+    subst def_W
+    specialize lr_lemma re re_in_ress
+    rcases re with ⟨Lnew, Rnew, Onew⟩
+    simp at *
+    clear Y_in next
+    simp [Sequent.subseteq_FL, FLL_append_eq] at IH lr_lemma ⊢
+    obtain ⟨IHL, IHLO, IHR, IHRO⟩ := IH
+    obtain ⟨lemL, lemLO, lemR, lemRO⟩ := lr_lemma
+    refine ⟨?_, ?_ , ?_ , ?_⟩ <;> intro x x_in
+    · specialize IHL x_in
+      simp at *
+      rcases IHL with h|h|h
+      · left
+        have := @FLL_diff_sub L Lcond
+        grind
+      · have := FLL_sub lemL h
+        simp [FLL_append_eq] at this
+        rcases this with in_Lcond|inOcondL
+        · left
+          apply @FLL_sub Lcond L (List.Subperm.subset Lconp) _ in_Lcond
+        · cases Ocond <;> rcases O with _|⟨χ|χ⟩ <;> simp_all
+      · cases Ocond <;> rcases O with _|⟨χ|χ⟩ <;> rcases Onew with _|⟨χnew|χnew⟩ <;> simp_all
+        · apply FLL_sub (List.Subperm.subset Lconp)
+          rw [← FLL_idem_ext]
+          exact List.mem_flatMap_of_mem lemLO h
+        · left
+          apply FLL_sub (List.Subperm.subset Lconp)
+          rw [← FLL_idem_ext]
+          exact List.mem_flatMap_of_mem lemLO h
+        · apply FLL_sub (List.Subperm.subset Lconp)
+          rw [← FLL_idem_ext]
+          exact List.mem_flatMap_of_mem lemLO h
+        · rcases lemLO with lemH|lemH
+          · left
+            apply FLL_sub (List.Subperm.subset Lconp)
+            rw [← FLL_idem_ext]
+            exact List.mem_flatMap_of_mem lemH h
+          · right
+            exact FL_trans lemH h
+        · apply FLL_sub (List.Subperm.subset Lconp)
+          rw [← FLL_idem_ext]
+          exact List.mem_flatMap_of_mem lemLO h
+    · specialize IHLO x_in
+      simp at *
+      rcases IHLO with h|h|h
+      · left
+        have := @FLL_diff_sub L Lcond
+        grind
+      · have := FLL_sub lemL h
+        simp [FLL_append_eq] at this
+        rcases this with in_Lcond|inOcondR
+        · left
+          apply @FLL_sub Lcond L (List.Subperm.subset Lconp) _ in_Lcond
+        · cases Ocond <;> rcases O with _|⟨χ|χ⟩ <;> simp_all
+      · cases Ocond <;> rcases O with _|⟨χ|χ⟩ <;> rcases Onew with _|⟨χnew|χnew⟩ <;> simp_all
+        · apply FLL_sub (List.Subperm.subset Lconp)
+          rw [← FLL_idem_ext]
+          apply List.mem_flatMap_of_mem lemLO h
+        · left
+          apply FLL_sub (List.Subperm.subset Lconp)
+          rw [← FLL_idem_ext]
+          exact List.mem_flatMap_of_mem lemLO h
+        · apply FLL_sub (List.Subperm.subset Lconp)
+          rw [← FLL_idem_ext]
+          exact List.mem_flatMap_of_mem lemLO h
+        · rcases lemLO with lemH|lemH
+          · left
+            apply FLL_sub (List.Subperm.subset Lconp)
+            rw [← FLL_idem_ext]
+            exact List.mem_flatMap_of_mem lemH h
+          · right
+            exact FL_trans lemH h
+        · apply FLL_sub (List.Subperm.subset Lconp)
+          rw [← FLL_idem_ext]
+          exact List.mem_flatMap_of_mem lemLO h
+    · specialize IHR x_in
+      simp at *
+      rcases IHR with h|h|h
+      · left
+        have := @FLL_diff_sub R Rcond
+        grind
+      · have := FLL_sub lemR h
+        simp [FLL_append_eq] at this
+        rcases this with in_Rcond|inOcondR
+        · left
+          apply @FLL_sub Rcond R (List.Subperm.subset Rconp) _ in_Rcond
+        · cases Ocond <;> rcases O with _|⟨χ|χ⟩ <;> simp_all
+      · cases Ocond <;> rcases O with _|⟨χ|χ⟩ <;> rcases Onew with _|⟨χnew|χnew⟩ <;> simp_all
+        · apply FLL_sub (List.Subperm.subset Rconp)
+          rw [← FLL_idem_ext]
+          apply List.mem_flatMap_of_mem lemRO h
+        · apply FLL_sub (List.Subperm.subset Rconp)
+          rw [← FLL_idem_ext]
+          exact List.mem_flatMap_of_mem lemRO h
+        · left
+          apply FLL_sub (List.Subperm.subset Rconp)
+          rw [← FLL_idem_ext]
+          exact List.mem_flatMap_of_mem lemRO h
+        · apply FLL_sub (List.Subperm.subset Rconp)
+          rw [← FLL_idem_ext]
+          exact List.mem_flatMap_of_mem lemRO h
+        · rcases lemRO with lemH|lemH
+          · left
+            apply FLL_sub (List.Subperm.subset Rconp)
+            rw [← FLL_idem_ext]
+            exact List.mem_flatMap_of_mem lemH h
+          · right
+            exact FL_trans lemH h
+    · specialize IHRO x_in
+      simp at *
+      rcases IHRO with h|h|h
+      · left
+        have := @FLL_diff_sub R Rcond
+        grind
+      · have := FLL_sub lemR h
+        simp [FLL_append_eq] at this
+        rcases this with in_Rcond|inOcondR
+        · left
+          apply @FLL_sub Rcond R (List.Subperm.subset Rconp) _ in_Rcond
+        · cases Ocond <;> rcases O with _|⟨χ|χ⟩ <;> simp_all
+      · cases Ocond <;> rcases O with _|⟨χ|χ⟩ <;> rcases Onew with _|⟨χnew|χnew⟩ <;> simp_all
+        · apply FLL_sub (List.Subperm.subset Rconp)
+          rw [← FLL_idem_ext]
+          apply List.mem_flatMap_of_mem lemRO h
+        · apply FLL_sub (List.Subperm.subset Rconp)
+          rw [← FLL_idem_ext]
+          exact List.mem_flatMap_of_mem lemRO h
+        · left
+          apply FLL_sub (List.Subperm.subset Rconp)
+          rw [← FLL_idem_ext]
+          exact List.mem_flatMap_of_mem lemRO h
+        · apply FLL_sub (List.Subperm.subset Rconp)
+          rw [← FLL_idem_ext]
+          exact List.mem_flatMap_of_mem lemRO h
+        · rcases lemRO with lemH|lemH
+          · left
+            apply FLL_sub (List.Subperm.subset Rconp)
+            rw [← FLL_idem_ext]
+            exact List.mem_flatMap_of_mem lemH h
+          · right
+            exact FL_trans lemH h
+  case sim => simp_all [endNodesOf]
+termination_by
+  X
+decreasing_by
+  simp_wf
+  subst_eqs
+  simp at *
+  apply _forTermination re re_in_ress
+
+lemma projection_sub_FLL : projection a R ⊆ FLL R := by
+  intro φ φ_in
+  rw [proj] at φ_in
+  simp [FLL]
+  use ⌈·a⌉φ, φ_in
+  simp [FL]
+
+/-- PdlRule helper for `move_inside_FL` -/
+theorem PdlRule.stays_in_FL {X Y}
+    (rule : PdlRule X Y) :
+    Y.subseteq_FL X := by
+  cases rule
+  case loadL L δ α φ R in_L Y_def =>
+    subst Y_def
+    simp [Sequent.subseteq_FL]
+    constructor
+    · exact List.Subset.trans List.erase_subset FLL_refl_sub
+    · exact FLL_refl_sub in_L
+  case loadR L δ α φ R in_L Y_def =>
+    subst Y_def
+    simp [Sequent.subseteq_FL]
+    constructor
+    · exact List.Subset.trans List.erase_subset FLL_refl_sub
+    · exact FLL_refl_sub in_L
+  case freeL L R δ α φ X_def Y_def =>
+    subst X_def
+    subst Y_def
+    simp [Sequent.subseteq_FL]
+    intro x x_in
+    simp at x_in
+    apply FLL_refl_sub
+    simp
+    tauto
+  case freeR L R δ α φ X_def Y_def =>
+    subst X_def
+    subst Y_def
+    simp [Sequent.subseteq_FL]
+    intro x x_in
+    simp at x_in
+    apply FLL_refl_sub
+    simp
+    tauto
+  case modL L R a ξ X_def Y_def =>
+    subst X_def
+    subst Y_def
+    cases ξ <;> simp [Sequent.subseteq_FL]
+    case normal φ =>
+      refine ⟨⟨?_, ?_⟩, ?_⟩
+      · simp [FLL_append_eq]
+        right
+        simp [FL, FLb]
+        right
+        unfold FL --- PROBLEM: we need closure under single negation!
+        sorry
+      · have := @projection_sub_FLL a L
+        grind [FLL_append_eq]
+      · apply projection_sub_FLL
+    case loaded χ =>
+      refine ⟨?_, ?_, ?_⟩
+      · have := @projection_sub_FLL a L
+        grind [FLL_append_eq]
+      · simp [FLL_append_eq]
+        right
+        -- also needs negation?
+        sorry
+      · apply projection_sub_FLL
+  case modR L R a ξ X_def Y_def =>
+    -- analogous to `modL` case, do later.
+    sorry
 
 lemma move_inside_FL (mov : move p next) : next.2.1.subseteq_FL p.2.1 := by
-  -- This will be many case distinctions and extra lemmas.
   cases mov
-  <;> sorry
+  case prPdl r => apply PdlRule.stays_in_FL r
+  case buEnd ltX _ _ _ _ Y_in => simp; apply LocalTableau.stays_in_FL ltX _ Y_in
+  case prLocTab => simp
 
 /-- A list of sequents that are all FL-subsequents of the given sequent.
 The list defined here is not complete because there are infinitely many such other sequents.
@@ -554,7 +828,7 @@ The following do NOT hold / do NOT exist because there are in fact infinitely ma
 of a given sequent, so the list returned by `all_subseteq_FL` can never contain all.
 
 ```
-def Sequent.all_subseteq_FL_spec (X Y : Sequent) (h : Y.subseteq_FL X) :
+def Sequent.all_subseteq_FL_complete (X Y : Sequent) (h : Y.subseteq_FL X) :
     ⟨Y,h⟩ ∈ Sequent.all_subseteq_FL X := sorry
 
 instance Sequent.subseteq_FL_fintype {X : Sequent} :
@@ -661,7 +935,10 @@ lemma Sequent.allSeqt_subseteq_FL_complete (X : Sequent) :
     ∀ Y, Y.subseteq_FL X → ⟦Y⟧ ∈ X.allSeqt_subseteq_FL := by
   intro Y Y_in
   simp [Sequent.allSeqt_subseteq_FL, instSetoidSequent]
-  use Y
+  -- Here the above NOTE matters.
+  -- We need to work around that there is no `Sequent.all_subseteq_FL_complete`.
+  -- use Y -- this might not work because `Y` might not be in `all_subseteq_FL`.
+  -- How to find a sequent that is an element of `all_subseteq_FL` ???
   sorry
 
 lemma Sequent.allSeqt_subseteq_FL_congr (X Y : Sequent) (h : X ≈ Y) :
@@ -1065,23 +1342,28 @@ theorem gameP (X : Sequent) (s : Strategy tableauGame Prover) (h : winning s (st
 
 -- See also Bml/CompletenessViaPaths.lean for inspiration that might be useful here.
 
-/-- Tree data type to keep track of choices made by Builder. Might still need to be tweaked. -/
+/-- Tree data type to keep track of choices made by Builder. Might still need to be tweaked.
+TODO: choices should be labelled with the choices made by prover??
+-/
 inductive BuildTree : Sequent → Type
   | Leaf {X} : BuildTree X
   | Step {X} : List (Σ Y, BuildTree Y) → BuildTree X
 
 /-- The generated strategy tree for Builder -/
-def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X, p⟩) : BuildTree X :=
+def buildTree (s : Strategy tableauGame Builder) {H X} p (h : winning s ⟨H, X, p⟩) : BuildTree X :=
   match p with
   -- Prover positions:
   | Sum.inl (.nlpRep _) => .Leaf -- Builder wins :-)
   | Sum.inl (.bas nrep bas) => sorry -- prover must apply PDL rule
-  | Sum.inl (.nbas nrep nbas) => -- prover must choose local rule
-      .Step
-      -- LocalTableau.fintype.1.image (fun ltab => ⟨H, X, .inr (.ltab nrep nbas ltab)⟩)
-      sorry
+  | Sum.inl (.nbas nrep nbas) => -- prover must choose local rule / a whole local tableau
+      -- Note: not using the Fintype instance because we want a List, not Finset
+      let prMoves := (LocalTableau.all X).map
+        (fun ltab => (⟨H, X, .inr (.ltab nrep nbas ltab)⟩ : GamePos))
+      have stillWin : ∀ newPos ∈ prMoves, winning s newPos := by sorry
+      .Step $
+      prMoves.attach.map $ fun pos => ⟨_, buildTree s p (stillWin _ sorry)⟩ -- p ≠ pos MISMATCH ?!
   -- Builder positions:
-  | Sum.inr (.lpr _) => by exfalso; simp [winning] at h -- prover wins :-(
+  | Sum.inr (.lpr _) => by exfalso; simp [winning] at h -- prover wins, cannot happen
   | Sum.inr (.ltab nrep nbas ltX) =>
       if ne : (tableauGame.moves ⟨H, ⟨X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩⟩).Nonempty
       then
@@ -1092,17 +1374,23 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
           have := Y.2
           simp only [Game.Pos.moves, Game.moves, tableauGame, theMoves] at this
           simp [-Finset.coe_mem] at this
+          have := fun Y => @move.buEnd X ltX Y H nrep nbas
           grind
-        .Step [ ⟨_, buildTree s new_h⟩ ]
+        .Step [ ⟨_, buildTree s _ new_h⟩ ]
       else by
         exfalso
         unfold winning winner at h
         simp_all
-termination_by -- use move.wf
+termination_by
   tableauGame.wf.2.wrap (⟨H, X, p⟩ : GamePos)
 decreasing_by
-  · simp_wf -- show that it's a move
+  · simp_wf
     simp [WellFoundedRelation.rel, Game.wf, tableauGame]
+    -- show that it's a move
+    sorry
+  · simp_wf
+    simp [WellFoundedRelation.rel, Game.wf, tableauGame]
+    -- show that it's a move
     exact forTermination
 
 -- TODO Definition 6.13 initial, pre-state

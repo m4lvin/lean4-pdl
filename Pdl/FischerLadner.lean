@@ -186,11 +186,21 @@ lemma FLL_sub {L1 L2} : L1 ⊆ L2 → FLL L1 ⊆ FLL L2 := by
   grind
 
 @[simp]
-lemma FLL_idem_ext {L φ} : φ ∈ FLL (FLL L) → φ ∈ FLL L := by
-  unfold FLL
-  intro φ_in
-  have := @FL_trans
-  grind
+lemma FLL_nil : FLL [] = [] := List.flatMap_nil
+
+@[simp]
+lemma FLL_singelton : FLL [φ] = FL φ := by simp [FLL]
+
+@[simp]
+lemma FLL_idem_ext {L φ} : φ ∈ FLL (FLL L) ↔ φ ∈ FLL L := by
+  constructor
+  · unfold FLL
+    intro φ_in
+    have := @FL_trans
+    grind
+  · intro φ_in
+    have := @FLL_refl_sub (FLL L)
+    grind
 
 lemma FLL_sub_FLL_iff_sub_FLL {L K : List Formula} : L ⊆ FLL K ↔ FLL L ⊆ FLL K := by
   constructor
@@ -207,7 +217,9 @@ lemma FLL_sub_FLL_iff_sub_FLL {L K : List Formula} : L ⊆ FLL K ↔ FLL L ⊆ F
   · have := @FLL_refl_sub L
     grind
 
-lemma FLL_append_eq : FLL (L ++ K) = FLL L ++ FLL K := by simp [FLL]
+lemma FLL_append_eq {L K} : FLL (L ++ K) = FLL L ++ FLL K := by simp [FLL]
+
+lemma FLL_diff_sub {L K} : FLL (L \ K) ⊆ FLL L := FLL_sub (List.diff_subset L K)
 
 /-- Being a member of the FL closure of a list does not depend on the position. -/
 lemma FLL_ext (h : ∀ φ, φ ∈ L1 ↔ φ ∈ L2) φ : φ ∈ FLL L1  ↔ φ ∈ FLL L2 := by
