@@ -272,7 +272,8 @@ lemma no_moves_of_rep {Hist X pos} (h : rep Hist X) :
   unfold theMoves at p_in
   rcases X with ⟨L,R,_|o⟩ <;> rcases pos with (_|_|_)|(_|_) <;> aesop
 
-/-- The finite set given by `theMoves` indeed agrees with the relation `move`. -/
+/-- The finite set given by `theMoves` indeed agrees with the relation `move`.
+(Other direction should hold too, but for now seems to not be needed.)-/
 lemma move_of_mem_theMoves :
     next ∈ theMoves p → move p next := by
   rcases p with ⟨Hist, X, pos⟩
@@ -389,18 +390,46 @@ lemma move_twice_neq {A B C : GamePos} (A_B : move A B) (B_C : move B C) :
   -- Now that `move` is an inductive we can do `cases B_C` here.
   cases A_B -- <;>
   case prPdl Xbasic nrep r =>
-    intro hyp
-    subst hyp -- hmm?
-    -- cases B_C -- Dependent elimination failed: Failed to solve equation :-(
-    sorry
+    -- cases B_C -- Dependent elimination failed: Failed to solve equation.
+    generalize h : posOf (A :: HA) B = stepP at *
+    cases B_C
+    case prPdl basicB nrepB r' =>
+      intro A_C
+      subst A_C
+      -- ?? PdlRule from A to B but also from B to A --- only possible by loading + freeing
+      -- PROBLEM: how do we prevent (L+) right after (L-) and vice versa?
+      sorry
+    case prLocTab nbasB ltB nrep' =>
+      intro A_eq_B
+      subst A_eq_B
+      exfalso
+      tauto
+    case buEnd ltB nbasB nrepB C_in =>
+      intro A_eq_C
+      subst A_eq_C
+      -- ??? -- LocalTableau from B to A but also PdlRule form A to B -- should be impossible?
+      sorry
   case prLocTab ltA nrep =>
     cases B_C -- must be buEnd :-)
     case buEnd nbas nrep' C_in =>
       have := @endNodesOf_nonbasic_non_eq _ C ltA nbas C_in
       grind
   case buEnd ltA nbas nrep B_in =>
-    -- cases B_C -- Dependent elimination failed: Failed to solve equation :-(
-    sorry
+    -- cases B_C -- Dependent elimination failed: Failed to solve equation.
+    generalize h : posOf (A :: HA) B = stepP at *
+    cases B_C
+    case prPdl basicB nrepB r =>
+      intro A_C
+      subst A_C
+      -- ??? -- LocalTableau from A to B but also PdlRule form B to A -- should be impossible?
+      sorry
+    case prLocTab nbasB ltB nrep' =>
+      have := @endNodesOf_nonbasic_non_eq _ B ltA nbas B_in
+      tauto
+    case buEnd ltB nbasB nrepB C_in =>
+      exfalso
+      have := endNodesOf_basic B_in
+      tauto
 
 /-! ## Termination via finite FL closure
 
