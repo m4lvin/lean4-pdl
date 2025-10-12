@@ -273,10 +273,10 @@ lemma no_moves_of_rep {Hist X pos} (h : rep Hist X) :
   rcases X with ⟨L,R,_|o⟩ <;> rcases pos with (_|_|_)|(_|_) <;> aesop
 
 /-- The finite set given by `theMoves` indeed agrees with the relation `move`. -/
-lemma theMoves_mem_iff_move :
-    next ∈ theMoves p ↔ move p next := by
+lemma move_of_mem_theMoves :
+    next ∈ theMoves p → move p next := by
   rcases p with ⟨Hist, X, pos⟩
-  constructor
+  -- FIXME: un-indent
   · intro mv
     unfold theMoves at mv
     rcases pos with (_|_|_) | (_|_) <;> rcases X with ⟨L,R,_|χ⟩ <;> simp_all
@@ -321,36 +321,44 @@ lemma theMoves_mem_iff_move :
     · -- Here we have a loaded formula in X already, and are basic.
       -- So the only applicable rules are (M) and (L-).
       rcases χ with (⟨⟨χ⟩⟩|⟨⟨χ⟩⟩) <;> rcases χ with ⟨δ,φ|χ⟩ <;> cases δ <;> simp_all
-      case mp.inl.bas.some.inl.normal.atom_prog a nrep bas =>
+      case inl.bas.some.inl.normal.atom_prog a nrep bas =>
         cases mv <;> subst_eqs
         · apply move.prPdl; apply @PdlRule.freeL _ L R [] (·a) φ _ rfl; simp
         · apply move.prPdl; apply PdlRule.modL rfl rfl
-      case mp.inl.bas.some.inl.loaded.atom_prog a nrep bas =>
+      case inl.bas.some.inl.loaded.atom_prog a nrep bas =>
         cases mv <;> subst_eqs
-        · apply move.prPdl;
-          -- apply @PdlRule.freeL _ L R [] (·a) χ.unload
-          -- need to get all other boxes inside χ here first.
-          sorry
+        · rcases LoadFormula.exists_loadMulti χ with ⟨δ, α, φ, χ_def⟩
+          subst χ
+          rw [unload_loadMulti]
+          apply move.prPdl;
+          convert @PdlRule.freeL _ L R (·a :: δ) α φ _ rfl rfl using 1
         · apply move.prPdl; apply PdlRule.modL rfl rfl
-      case mp.inl.bas.some.inr.normal.atom_prog a nrep bas =>
+      case inl.bas.some.inr.normal.atom_prog a nrep bas =>
         cases mv <;> subst_eqs
         · apply move.prPdl; apply @PdlRule.freeR _ L R [] (·a) φ _ rfl; simp
         · apply move.prPdl; apply PdlRule.modR rfl rfl
-      case mp.inl.bas.some.inr.loaded.atom_prog =>
+      case inl.bas.some.inr.loaded.atom_prog a nrep bas =>
         cases mv <;> subst_eqs
-        · apply move.prPdl; apply PdlRule.freeR <;> sorry
+        · rcases LoadFormula.exists_loadMulti χ with ⟨δ, α, φ, χ_def⟩
+          subst χ
+          rw [unload_loadMulti]
+          apply move.prPdl;
+          convert @PdlRule.freeR _ L R (·a :: δ) α φ _ rfl rfl using 1
         · apply move.prPdl; apply PdlRule.modR rfl rfl
       all_goals
         grind
-    all_goals
-      sorry -- grind
-  · intro mov
-    cases mov
-    case prPdl =>
-      -- rw [theMoves_iff] -- or not ???
-      sorry
-    · grind [theMoves_iff]
-    · grind [theMoves_iff]
+    · rcases mv with ⟨lt, lt_in, def_next⟩
+      subst def_next
+      apply move.prLocTab
+    · rcases mv with ⟨lt, lt_in, def_next⟩
+      subst def_next
+      apply move.prLocTab
+    · rcases mv with ⟨lt, lt_in, def_next⟩
+      subst def_next
+      apply move.buEnd lt_in
+    · rcases mv with ⟨lt, lt_in, def_next⟩
+      subst def_next
+      apply move.buEnd lt_in
 
 lemma move.hist (mov : move ⟨Hist, X, pos⟩ next) :
       (∃ newPos, next = ⟨Hist, X, newPos⟩) -- this is an annoying case ;-)
@@ -1116,7 +1124,7 @@ def tableauGame : Game where
        | ⟨_, _, .inr _⟩ => Builder
   moves := theMoves
   wf := ⟨fun x y => move y x, move.converse_wf⟩
-  move_rel := by grind [theMoves_mem_iff_move]
+  move_rel := by grind [move_of_mem_theMoves]
 
 @[simp]
 lemma tableauGame_turn_Prover {Hist X lpr} :
