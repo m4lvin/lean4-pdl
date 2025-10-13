@@ -89,7 +89,8 @@ abbrev r : Formula := · atR
 abbrev a : Program := · atA
 
 /-- Preparation for Example 2 from MB. -/
-def subTabForEx2 : Tableau [([r⋀(~⌈a⌉p), ~ (r ⋀ (~⌈a⌉p⋀q))], [], none)] ([r, ~(⌈a⌉p), ⌈a⌉(p⋀q)], [], none) :=
+def subTabForEx2 :
+    Tableau [([r⋀(~⌈a⌉p), ~ (r ⋀ (~⌈a⌉p⋀q))], [], none)] ([r, ~(⌈a⌉p), ⌈a⌉(p⋀q)], [], none) :=
   by
   have principal : (~(⌈a⌉p)) ∈ [r, ~(⌈a⌉p), ⌈a⌉(p⋀q)] := by simp
   apply Tableau.pdl (by simp [rep]; decide) (by simp [Sequent.basic, Sequent.closed])
@@ -147,7 +148,8 @@ example : Tableau [] ([r ⋀ (~(⌈a⌉p)), r ↣ ⌈a⌉(p ⋀ q)], [], none) :
       subst c_in
       -- second branch, apply "neg" and then modal step!
       apply LocalTableau.byLocalRule
-        ⟨ [~~(⌈a⌉( p ⋀q))], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.neg (⌈a⌉(p⋀q)))) rfl, _ ⟩
+        ⟨ [~~(⌈a⌉( p ⋀q))], [], none
+        , (LocalRule.oneSidedL (OneSidedLocalRule.neg (⌈a⌉(p⋀q)))) rfl, _ ⟩
       all_goals (try simp; try rfl)
       intro c c_in; simp at c_in; subst c_in -- unique child node
       -- ending local tableau with a simple node:
@@ -217,19 +219,22 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
       subst Y_in
       -- (◇)
       apply LocalTableau.byLocalRule
-        ⟨_, _, _, (LocalRule.loadedL _ (LoadRule.dia' (by simp [Program.isAtomic] : ¬ (∗((·atA)⋓(?'p))).isAtomic))) rfl, by simp; rfl⟩
+        ⟨_, _, _, (LocalRule.loadedL _ (LoadRule.dia'
+        (by simp [Program.isAtomic] : ¬ (∗((·atA)⋓(?'p))).isAtomic))) rfl, by simp; rfl⟩
       all_goals (try simp; try rfl)
       intro Y Y_in
       by_cases Y = ([q, ⌈·atA⌉⌈∗·atA⌉q, ~q], [], none)
       -- branching!
       -- cases Y_in -- type mismatch when assigning motive, so work around that.
-        <;> simp_all [unfoldDiamondLoaded', YsetLoad', H, splitLast]; subst_eqs; try clear Y_in
-      · apply LocalTableau.byLocalRule -- left branch: close with q and ~q
+        <;> simp_all [unfoldDiamondLoaded', YsetLoad', H, splitLast]
+      · subst_eqs
+        apply LocalTableau.byLocalRule -- left branch: close with q and ~q
           ⟨ [q, ~(q)], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.not q)) rfl, _ ⟩
         all_goals (try simp; try rfl)
         · intro _ _; simp_all
         · decide
-      · apply LocalTableau.sim -- right branch: simple
+      · clear Y_in
+        apply LocalTableau.sim -- right branch: simple
         simp [Sequent.basic, Sequent.closed]
     case next =>
       intro Y Y_in

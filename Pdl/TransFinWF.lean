@@ -24,11 +24,11 @@ lemma wf_of_trans_wf {α : Type} {r : α → α → Prop} (trans_wf : WellFounde
   absurd m_is_min x x_in_s
   exact Relation.TransGen.single hyp
 
-theorem Finite.wf_of_irrefl_trans {α : Type} (r: α → α → Prop)
+theorem Finite.wf_of_irrefl_trans {α : Type} (r : α → α → Prop)
     [Finite α]
     (trans_irrefl : IsIrrefl α (Relation.TransGen r))
-    : WellFounded r := by
-  apply wf_of_trans_wf $ @Finite.wellFounded_of_trans_of_irrefl α _ (Relation.TransGen r) _ trans_irrefl
+    : WellFounded r :=
+  wf_of_trans_wf <| Finite.wellFounded_of_trans_of_irrefl (Relation.TransGen r)
 
 lemma TransGen_from_Subtype {α : Type} {r : α → α → Prop} {P : α → Prop} {x y}
     (h : Relation.TransGen (fun (x y : Subtype P) => r x.1 y.1) x y)

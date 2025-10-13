@@ -45,8 +45,7 @@ open Modelgraphs
 /-- A model graph is a Kripke model using sets of formulas as states and
 fulfilling conditions (i) to (iv). See MB Def 19, page 31.
 Note: In (ii) MB only has →. We follow BRV Def 4.18 and 4.84.
-Note: In (iii) "a" is atomic, but in iv "α" is any program.
- -/
+Note: In (iii) "a" is atomic, but in iv "α" is any program. -/
 def ModelGraph (W : Finset (Finset Formula)) :=
   let i := ∀ X : W, saturated X.val ∧ ⊥ ∉ X.val ∧ ∀ pp, (·pp : Formula) ∈ X.val → (~(·pp)) ∉ X.val
   let ii M := ∀ X p, (·p : Formula) ∈ X.val ↔ M.val X p
@@ -57,7 +56,7 @@ def ModelGraph (W : Finset (Finset Formula)) :=
 /-! ## Truth Lemma -/
 
 theorem get_eq_getzip {X Y : α} {i : Fin ((List.length (l ++ [Y])))} {h} :
-  List.get (X :: (l ++ [Y])) (Fin.castSucc i) = (List.get ((x, X) :: List.zip δ (l ++ [Y])) ⟨i.val, h⟩).2 := by
+  List.get (X :: (l ++ [Y])) (Fin.castSucc i) = (((x, X) :: List.zip δ (l ++ [Y]))[i.val]'h).2 := by
   -- special thanks to droplet739
   simp only [←List.zip_cons_cons]
   simp only [List.get_eq_getElem, List.length_cons, Fin.coe_castSucc]
@@ -69,10 +68,11 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
     {δ : List Program}
     {φ : Formula}
     {l : List { x // x ∈ Worlds }}
-    (length_def: l.length + 1 = δ.length)
+    (length_def : l.length + 1 = δ.length)
     (δφ_in_X : (⌈⌈δ⌉⌉φ) ∈ X.val)
     (lchain : List.Chain' (pairRel MG.1) (List.zip ((?'⊤) :: δ) (X :: l ++ [Y])))
-    (IHδ : ∀ d ∈ δ, ∀ (X' Y' : { x // x ∈ Worlds }) (φ' : Formula), (⌈d⌉φ') ∈ X'.1 → relate (MG.1) d X' Y' → φ' ∈ Y'.1)
+    (IHδ : ∀ d ∈ δ, ∀ (X' Y' : { x // x ∈ Worlds }) φ',
+            (⌈d⌉φ') ∈ X'.1 → relate (MG.1) d X' Y' → φ' ∈ Y'.1)
     (i : Fin (List.length (X :: l ++ [Y])))
     :
     (⌈⌈δ.drop i⌉⌉φ) ∈ ((X :: l ++ [Y]).get i).val := by
@@ -82,14 +82,16 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
       List.length_cons, Fin.val_zero, List.drop_zero, List.get_cons_zero]
       -- uses δφ_in_X
   case succ i IH =>
-    simp_all only [List.cons_append, List.length_cons, List.append_eq, Fin.val_succ, List.get_cons_succ']
+    simp_all only [List.cons_append, List.length_cons, List.append_eq, Fin.val_succ,
+      List.get_cons_succ']
     have help1 : (List.append l [Y]).length = δ.length := by simp [length_def]
-    apply IHδ (δ.get (i.cast help1)) (by apply List.get_mem) (List.get (X :: l ++ [Y]) i.castSucc)
-    · have : (⌈List.get δ (i.cast help1)⌉⌈⌈List.drop (i + 1) δ⌉⌉φ) = (⌈⌈List.drop (i.castSucc) δ⌉⌉φ) := by
+    apply IHδ (δ[i.cast help1]) (by apply List.get_mem) (List.get (X :: l ++ [Y]) i.castSucc)
+    · have : (⌈(δ[i.cast help1])⌉⌈⌈List.drop (i + 1) δ⌉⌉φ) = (⌈⌈List.drop (i.castSucc) δ⌉⌉φ) := by
         simp only [List.append_eq, Fin.coe_castSucc]
-        have := @List.drop_eq_getElem_cons _ i δ (by rw [← length_def]; have := Fin.is_lt i; convert this; simp)
+        have := @List.drop_eq_getElem_cons _ i δ
+          (by rw [← length_def]; have := Fin.is_lt i; convert this; simp)
         rw [this]
-        simp only [List.get_eq_getElem, Fin.coe_cast, List.append_eq, List.getElem_cons_drop]
+        simp only [Fin.getElem_fin, Fin.coe_cast, List.append_eq, List.getElem_cons_drop]
         cases i
         simp_all only [instBot, insTop, List.zip_cons_cons, Subtype.forall, List.append_eq,
           Fin.castSucc_mk]
@@ -108,12 +110,13 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
         rw [← length_def]
         simp at hyp
         exact hyp
-      simp [pairRel, instBot, insTop, List.zip_cons_cons, List.length_cons, List.append_eq, List.getElem_zip] at lchain
+      simp [pairRel, instBot, insTop, List.zip_cons_cons, List.length_cons, List.append_eq,
+        List.getElem_zip] at lchain
       convert lchain
       apply get_eq_getzip
 
 -- TODO: it seems default 200000 is not enough for mutual theorems below?!
-set_option maxHeartbeats 2000000
+set_option maxHeartbeats 2000000 in
 -- set_option trace.profiler true
 
 -- Originally MB Lemma 9, page 32, stronger version for induction loading.
@@ -275,7 +278,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       simp [Xset] at mysat
       have TP_eq : TP (∗β) = TP β := by simp [TP,testsOfProgram]
       -- Now we use the outer IH for C2 on all formulas in F(β,ℓ):
-      have X_ConF : evaluate MG.1 X (Con $ F β ℓ) := by
+      have X_ConF : evaluate MG.1 X (Con <| F β ℓ) := by
         rw [conEval]
         intro ψ ψ_in
         -- termination here will need F_goes_down when moving this into the above?
@@ -489,7 +492,8 @@ theorem cpHelpA {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α
       simp only [List.mem_singleton, Prod.mk.injEq] at in_l
       cases in_l
       subst_eqs
-      simp_all only [Qcombo, Relation.Comp, Qtests, beq_iff_eq, List.mem_union_iff, and_imp, forall_exists_index]
+      simp_all only [Qcombo, Relation.Comp, Qtests, beq_iff_eq, List.mem_union_iff, and_imp,
+        forall_exists_index]
       rcases v_combo_w with ⟨z, ⟨def_z, F_hyp⟩, z_w⟩
       subst def_z
       use v

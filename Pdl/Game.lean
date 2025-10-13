@@ -97,7 +97,8 @@ instance {g : Game} : LT g.Pos := ⟨fun p q => g.wf.rel q p⟩
 /-! ## Strategies -/
 
 /-- A strategy in `g` for `i`, whenever it is `i`'s turn, chooses a move, if there are any. -/
-def Strategy (g : Game) (i : Player) : Type := ∀ p : g.Pos, g.turn p = i → p.moves.Nonempty → p.moves
+def Strategy (g : Game) (i : Player) : Type :=
+  ∀ p : g.Pos, g.turn p = i → p.moves.Nonempty → p.moves
 
 noncomputable def choose_move {g : Game} {p : g.Pos} : p.moves.Nonempty → p.moves :=
   Classical.choice ∘ Set.Nonempty.to_subtype
@@ -136,7 +137,7 @@ theorem good_is_surviving {g : Game} {p : g.Pos} :
     good i p → g.turn p = i → p.moves.Nonempty := by
   intro W turn
   unfold good at W
-  apply (Or.resolve_right . (not_and_of_not_left _ <| not_eq_other_eq_i.mpr turn)) at W
+  apply (Or.resolve_right · (not_and_of_not_left _ <| not_eq_other_eq_i.mpr turn)) at W
   match W with | ⟨_, ⟨q, ⟨h, _⟩⟩⟩ => exact ⟨q,h⟩
 
 theorem good_or_other {g : Game} (p : g.Pos) : good (g.turn p) p ∨ good (other (g.turn p)) p := by
@@ -161,7 +162,7 @@ theorem good_A_or_B {g : Game} (p : g.Pos) : good A p ∨ good B p := by
   have det := good_or_other p
   cases i : g.turn p <;> cases det <;> simp_all
 
-noncomputable def good_strat (i : Player): Strategy g i := fun p turn nempty =>
+noncomputable def good_strat (i : Player) : Strategy g i := fun p turn nempty =>
   have := Classical.dec
   if W : good i p
     then by
@@ -182,7 +183,8 @@ noncomputable def good_strat (i : Player): Strategy g i := fun p turn nempty =>
 /-- The cone of all positions reachable from `p` assuming that `i` plays `sI`. -/
 inductive inMyCone {g : Game} (sI : Strategy g i) (p : g.Pos) : g.Pos → Prop
 | nil : inMyCone sI p p
-| myStep : inMyCone sI p q → (has_moves : q.moves.Nonempty) → (h : g.turn q = i) → inMyCone sI p (sI q h has_moves)
+| myStep : inMyCone sI p q → (has_moves : q.moves.Nonempty) → (h : g.turn q = i)
+                → inMyCone sI p (sI q h has_moves)
 | oStep : inMyCone sI p q → g.turn q = other i → r ∈ g.moves q → inMyCone sI p r
 
 theorem inMyCone_trans {p q r : g.Pos} {s : Strategy g i} :
@@ -221,10 +223,10 @@ theorem surviving_is_winning {sI : Strategy g i}
       apply (not_eq_other_eq_i.mp ∘ Ne.symm) at turn
       exact empty (surv _ .nil turn.symm)
     split
-    . exact surviving_is_winning (surv . ∘ inMyCone_trans (.myStep .nil _ _)) _
+    · exact surviving_is_winning (surv · ∘ inMyCone_trans (.myStep .nil _ _)) _
     next _ turn =>
       exact surviving_is_winning
-        (surv . ∘ inMyCone_trans (.oStep .nil (not_eq_i_eq_other.mp turn) <| Subtype.mem _)) _
+        (surv · ∘ inMyCone_trans (.oStep .nil (not_eq_i_eq_other.mp turn) <| Subtype.mem _)) _
 termination_by p
 decreasing_by all_goals apply g.move_rel; exact Subtype.mem _
 
@@ -236,8 +238,8 @@ https://en.wikipedia.org/wiki/Zermelo%27s_theorem_(game_theory)
 -/
 theorem gamedet (g : Game) (p : g.Pos) :
     (∃ s : Strategy g A, winning s p) ∨ (∃ s : Strategy g B, winning s p) := Or.imp
-    (⟨good_strat A, good_strat_winning .⟩)
-    (⟨good_strat B, good_strat_winning .⟩)
+    (⟨good_strat A, good_strat_winning ·⟩)
+    (⟨good_strat B, good_strat_winning ·⟩)
     <| good_A_or_B p
 
 /-! ## Additional Helper Theorems -/

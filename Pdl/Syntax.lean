@@ -44,8 +44,8 @@ instance Formula.instBot : Bot Formula := ⟨Formula.bottom⟩
 @[simp]
 instance Formula.insTop : Top Formula := ⟨Formula.neg Formula.bottom⟩
 
-infixr:66 "⋀" => Formula.and
-infixr:60 "⋁" => Formula.or
+infixr:66 " ⋀ " => Formula.and
+infixr:60 " ⋁ " => Formula.or
 notation:55 φ:56 " ↣ " ψ:55 => ~ (φ ⋀ (~ψ))
 notation:55 φ:56 " ⟷ " ψ:55 => (φ ↣ ψ) ⋀ (ψ ↣ φ)
 notation "⌈" α "⌉" P => Formula.box α P
@@ -182,7 +182,8 @@ def loadMulti : List Program → Program → Formula → LoadFormula
 theorem loadMulti_nil : loadMulti [] α φ = LoadFormula.box α φ := by simp [loadMulti]
 
 @[simp]
-theorem loadMulti_cons : loadMulti (β :: δ) α φ = LoadFormula.box β (loadMulti δ α φ) := by simp [loadMulti]
+theorem loadMulti_cons {β δ α φ} :
+    loadMulti (β :: δ) α φ = LoadFormula.box β (loadMulti δ α φ) := by simp [loadMulti]
 
 def LoadFormula.boxes : List Program → LoadFormula → LoadFormula
 | δ, χ => List.foldr (fun β lf => LoadFormula.box β lf) χ δ
@@ -226,26 +227,28 @@ def negUnload : NegLoadFormula → Formula
 example : NegLoadFormula := ~'(⌊((·1) ;' (·2))⌋(⊤ : Formula))
 example : NegLoadFormula := ~'(⌊⌊[·1, ·2]⌋⌋⌊·1⌋(⊤ : Formula))
 
-theorem loadBoxes_append : LoadFormula.boxes (as ++ bs) P = LoadFormula.boxes as (LoadFormula.boxes bs P) :=
+theorem loadBoxes_append {as bs P} :
+    LoadFormula.boxes (as ++ bs) P = LoadFormula.boxes as (LoadFormula.boxes bs P) :=
   by
   induction as <;> simp [LoadFormula.boxes]
 
-theorem loadBoxes_last : (~'⌊a⌋LoadFormula.boxes (as ++ [c]) P) = (~'⌊a⌋LoadFormula.boxes as (⌊c⌋P)) :=
+theorem loadBoxes_last {a as c P} :
+    (~'⌊a⌋LoadFormula.boxes (as ++ [c]) P) = (~'⌊a⌋LoadFormula.boxes as (⌊c⌋P)) :=
   by
   induction as <;> simp [LoadFormula.boxes]
 
 @[simp]
-theorem unload_boxes : (⌊⌊δ⌋⌋φ).unload = ⌈⌈δ⌉⌉φ.unload := by
+theorem unload_boxes {δ φ} : (⌊⌊δ⌋⌋φ).unload = ⌈⌈δ⌉⌉φ.unload := by
   induction δ
   · simp only [LoadFormula.boxes, List.foldr_nil, Formula.boxes]
   · simpa [Formula.boxes, LoadFormula.boxes]
 
 @[simp]
-theorem unload_neg_loaded : (~'⌊α⌋(.loaded χ)).1.unload = ⌈α⌉(χ.unload) := by
+theorem unload_neg_loaded {α χ} : (~'⌊α⌋(.loaded χ)).1.unload = ⌈α⌉(χ.unload) := by
   simp [LoadFormula.unload]
 
 @[simp]
-theorem unload_neg_normal : (~'⌊α⌋(.normal φ)).1.unload = ⌈α⌉φ := by
+theorem unload_neg_normal {α φ} : (~'⌊α⌋(.normal φ)).1.unload = ⌈α⌉φ := by
   simp [LoadFormula.unload]
 
 /-- Load a possibly already loaded formula χ with a sequence δ of boxes.
@@ -254,19 +257,20 @@ def AnyFormula.loadBoxes : List Program → AnyFormula → AnyFormula
 | δ, χ => List.foldr (fun β lf => LoadFormula.box β lf) χ δ
 
 @[simp]
-lemma AnyFormula.boxes_nil : AnyFormula.loadBoxes [] ξ = ξ := by
+lemma AnyFormula.boxes_nil {ξ} : AnyFormula.loadBoxes [] ξ = ξ := by
   simp [AnyFormula.loadBoxes]
 
 @[simp]
-lemma AnyFormula.loadBoxes_cons : AnyFormula.loadBoxes (α :: γ) ξ = ⌊α⌋ (AnyFormula.loadBoxes γ ξ) := by
+lemma AnyFormula.loadBoxes_cons {α γ ξ} :
+    AnyFormula.loadBoxes (α :: γ) ξ = ⌊α⌋ (AnyFormula.loadBoxes γ ξ) := by
   simp [AnyFormula.loadBoxes]
 
-theorem AnyFormula.loadBoxes_append :
+theorem AnyFormula.loadBoxes_append {as bs φ} :
     AnyFormula.loadBoxes (as ++ bs) φ = AnyFormula.loadBoxes as (AnyFormula.loadBoxes bs φ) :=
   by
   induction as <;> simp [AnyFormula.loadBoxes]
 
-lemma AnyFormula.loadBoxes_loaded_eq_loaded_boxes :
+lemma AnyFormula.loadBoxes_loaded_eq_loaded_boxes {δ χ} :
     AnyFormula.loadBoxes δ (AnyFormula.loaded χ) = AnyFormula.loaded (⌊⌊δ⌋⌋χ) := by
   induction δ
   · simp
@@ -300,7 +304,8 @@ lemma AnyFormulaBoxBoxes_eq_FormulaBoxLoadBoxes_inside_unload :
     = ( ⌈α⌉((AnyFormula.loadBoxes αs (AnyFormula.normal φ)).unload)) := by
   cases αs <;> simp_all [AnyFormula.loadBoxes, AnyFormula.unload]
 
-lemma AnyFormula.loadBoxes_unload_eq_boxes : (AnyFormula.loadBoxes βs (AnyFormula.normal φ)).unload = ⌈⌈βs⌉⌉φ := by
+lemma AnyFormula.loadBoxes_unload_eq_boxes {βs φ} :
+    (AnyFormula.loadBoxes βs (AnyFormula.normal φ)).unload = ⌈⌈βs⌉⌉φ := by
   induction βs <;> simp [unload]
   case cons ih => exact ih
 
@@ -338,7 +343,7 @@ def LoadFormula.split : (lf : LoadFormula) → List Program × Formula
 end
 
 @[simp]
-theorem AnyFormula.split_normal (φ : Formula): (AnyFormula.normal φ).split = ([],φ) := by
+theorem AnyFormula.split_normal (φ : Formula) : (AnyFormula.normal φ).split = ([],φ) := by
   simp [AnyFormula.split]
 
 theorem AnyFormula.box_split (af : AnyFormula) :
@@ -346,7 +351,7 @@ theorem AnyFormula.box_split (af : AnyFormula) :
   cases af <;> simp
 
 @[simp]
-theorem LoadFormula.split_list_not_empty (lf : LoadFormula): lf.split.1 ≠ [] := by
+theorem LoadFormula.split_list_not_empty (lf : LoadFormula) : lf.split.1 ≠ [] := by
   cases lf
   simp [LoadFormula.split]
 
@@ -363,8 +368,8 @@ theorem loadMulti_nonEmpty_box (h : δ ≠ []) :
   · absurd h; rfl
   · simp at *
 
-theorem LoadFormula.split_eq_loadMulti_nonEmpty {δ φ} (lf : LoadFormula) :
-    (h : lf.split = (δ,φ)) → lf = loadMulti_nonEmpty δ (by have := split_list_not_empty lf; simp_all) φ := by
+theorem LoadFormula.split_eq_loadMulti_nonEmpty {δ φ} (lf : LoadFormula) : (h : lf.split = (δ,φ)) →
+    lf = loadMulti_nonEmpty δ (by have := split_list_not_empty lf; simp_all) φ := by
   induction δ generalizing φ lf
   all_goals
     rcases lf_def : lf with ⟨α,af⟩
@@ -399,9 +404,8 @@ theorem LoadFormula.split_eq_loadMulti_nonEmpty {δ φ} (lf : LoadFormula) :
           subst_eqs
           simp
 
-theorem LoadFormula.split_eq_loadMulti_nonEmpty' {δ φ} (lf : LoadFormula)
-    (h : δ ≠ []) (h2 : lf.split = (δ,φ)):
-    lf = loadMulti_nonEmpty δ h φ := by
+theorem LoadFormula.split_eq_loadMulti_nonEmpty' {δ φ} (lf : LoadFormula) (h : δ ≠ [])
+    (h2 : lf.split = (δ, φ)) : lf = loadMulti_nonEmpty δ h φ := by
   have := LoadFormula.split_eq_loadMulti_nonEmpty lf h2
   rw [this]
 
@@ -456,7 +460,7 @@ lemma loadMulti_eq_loadBoxes :
 /-- Helper function for `YsetLoad'` to get last list element. -/
 def splitLast : List α → Option (List α × α)
 | [] => none
-| (x :: xs) => some $ match splitLast xs with
+| (x :: xs) => some <| match splitLast xs with
   | none => ([], x)
   | some (ys, y) => (x::ys, y)
 
@@ -464,7 +468,7 @@ def splitLast : List α → Option (List α × α)
 theorem splitLast_nil : splitLast [] = (none : Option (List α × α)) := by simp [splitLast]
 
 theorem splitLast_cons_eq_some (x : α) (xs : List α) :
-    (splitLast (x :: xs)) = some ((x :: xs).dropLast, (x :: xs).getLast (List.cons_ne_nil x xs)) := by
+    splitLast (x :: xs) = some ((x :: xs).dropLast, (x :: xs).getLast (List.cons_ne_nil x xs)) := by
   cases xs
   · simp [splitLast]
   case cons y ys =>

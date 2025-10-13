@@ -256,7 +256,7 @@ theorem localRuleApp_does_not_increase_jvoc (ruleA : LocalRuleApp X C) :
 This covers easy cases without any loaded path repeats.
 We do *not* use `localRuleTruth` to prove this,
 but the more specific lemmas `oneSidedL_sat_down` and `oneSidedL_sat_down`. -/
-def localInterpolantStep L R o C (ruleA : LocalRuleApp (L,R,o) C)
+def localInterpolantStep L R o C (ruleA : LocalRuleApp (L, R, o) C)
     (subθs : ∀ c ∈ C, PartInterpolant c)
     : PartInterpolant (L,R,o) := by
   -- UNPACKING TERMS
@@ -264,7 +264,7 @@ def localInterpolantStep L R o C (ruleA : LocalRuleApp (L,R,o) C)
   -- DISTINCTION ON LOCALRULE USED
   cases def_rule : rule
   case oneSidedL ress orule YS_def => -- rule applied in first component L
-    let interList := C.attach.map $ fun c => (subθs c.1 c.2).1
+    let interList := C.attach.map <| fun c => (subθs c.1 c.2).1
     refine ⟨dis interList, ?_, ?_, ?_⟩ -- disjunction here
     · intro n n_in_inter
       rw [in_voc_dis] at n_in_inter
@@ -301,7 +301,7 @@ def localInterpolantStep L R o C (ruleA : LocalRuleApp (L,R,o) C)
       rw [same_R]; simp; grind
   case oneSidedR ress orule YS_def => -- rule applied in second component R
     -- Only somewhat analogous to oneSidedR. Part 2 and 3 are flipped around in a way.
-    let interList := C.attach.map $ fun c => (subθs c.1 c.2).1
+    let interList := C.attach.map <| fun c => (subθs c.1 c.2).1
     refine ⟨Con interList, ?_, ?_, ?_⟩ -- using conjunction here
     · intro n n_in_inter
       rw [in_voc_con] at n_in_inter
@@ -368,7 +368,7 @@ def localInterpolantStep L R o C (ruleA : LocalRuleApp (L,R,o) C)
   case loadedL ress χ lrule YS_def =>
     -- similar to oneSidedL case
     simp at YS_def
-    let interList := C.attach.map $ fun c => (subθs c.1 c.2).1
+    let interList := C.attach.map <| fun c => (subθs c.1 c.2).1
     have O_is_some : Sequent.O (L, R, o) = some (Sum.inl (~'χ)) := by
         have := precondProof.2.2; simp at this; simp; exact this.symm
     refine ⟨dis interList, ?_, ?_, ?_⟩ -- disjunction here
@@ -407,7 +407,7 @@ def localInterpolantStep L R o C (ruleA : LocalRuleApp (L,R,o) C)
       rw [same_R]; simp; grind
   case loadedR ress χ lrule YS_def =>
     -- based on oneSidedR case
-    let interList := C.attach.map $ fun c => (subθs c.1 c.2).1
+    let interList := C.attach.map <| fun c => (subθs c.1 c.2).1
     have O_is_some : Sequent.O (L, R, o) = some (Sum.inr (~'χ)) := by
       have := precondProof.2.2; simp at this; simp; exact this.symm
     refine ⟨Con interList, ?_, ?_, ?_⟩ -- using conjunction here
@@ -545,7 +545,7 @@ def Q {r : PathIn tab} : QuasiTab :=
 def exitsOf : (tab : Tableau Hist (L, R, some nlf)) → List (PathIn tab)
 | .lrep lpr => [] -- a repeat is never an exit
 | .loc _ _ lt next => sorry -- TODO: can the exit be "inside" lt? Or can we filter `endNodesOf lt`?
-| .pdl _ _ _ next => sorry -- TODO: if (L-) then root of next is exit, also if (M) removes loading etc?
+| .pdl _ _ _ next => sorry -- TODO: if (L-) then root of next is exit, also if (M) removes loading?
 
 -- move to TableauPath.lean later
 def PathIn.children : (p : PathIn tab) → List (PathIn tab) := sorry

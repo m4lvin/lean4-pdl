@@ -147,7 +147,7 @@ When using this, this may be helpful:
 theorem edge_append_loc_nil {X} {Hist} {tab : Tableau X Hist} (s : PathIn tab)
     {lt : LocalTableau sX} (next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (sX :: sHist) Y)
     {Y : Sequent} (Y_in : Y ∈ endNodesOf lt)
-    (tabAt_s_def : tabAt s = ⟨sHist, sX, Tableau.loc nrep nbas lt next⟩ ) :
+    (tabAt_s_def : tabAt s = ⟨sHist, sX, Tableau.loc nrep nbas lt next⟩) :
     edge s (s.append (tabAt_s_def ▸ PathIn.loc Y_in .nil)) := by
   unfold edge
   left
@@ -455,7 +455,8 @@ theorem tabAt_fst_length_eq_toHistory_length {tab : Tableau [] X} (s : PathIn ta
 theorem PathIn.loc_length_eq {X Y Hist} {nrep nbas} {lt : LocalTableau X}
     {next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: Hist) Y}
     Y_in (tail : PathIn (next Y Y_in))
-    : (loc Y_in tail : PathIn (.loc nrep nbas lt next)).toHistory.length = tail.toHistory.length + 1 := by
+    : (loc Y_in tail : PathIn (.loc nrep nbas lt next)).toHistory.length
+      = tail.toHistory.length + 1 := by
   simp [PathIn.toHistory]
 
 @[simp]
@@ -570,7 +571,7 @@ theorem PathIn.rewind_le (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) : t
     exact Relation.ReflTransGen.refl
 
 /-- If we rewind by `k > 0` steps then the length goes down. -/
-theorem PathIn.rewind_length_lt_length_of_gt_zero {tab : Tableau Hist X}
+theorem PathIn.rewind_length_lt_length_of_gt_zero {Hist X} {tab : Tableau Hist X}
     (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) (k_gt_zero : k > 0)
     : (t.rewind k).length < t.length := by
   induction t
@@ -595,13 +596,14 @@ theorem PathIn.rewind_length_lt_length_of_gt_zero {tab : Tableau Hist X}
       simp only [rewind, Fin.lastCases_castSucc, Function.comp_apply, length, add_lt_add_iff_right]
       convert IH <;> simp [Fin.heq_ext_iff _]
 
-theorem PathIn.rewind_lt_of_gt_zero {tab : Tableau Hist X}
+theorem PathIn.rewind_lt_of_gt_zero {Hist X} {tab : Tableau Hist X}
     (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) (k_gt_zero : k > 0) :
     (t.rewind k) < t := by
   have h : t.rewind k ≤ t := PathIn.rewind_le t k
   apply Relation.TransGen_of_ReflTransGen h
   intro con
-  have length_lt : (t.rewind k).length < t.length := PathIn.rewind_length_lt_length_of_gt_zero t k k_gt_zero
+  have length_lt : (t.rewind k).length < t.length :=
+    PathIn.rewind_length_lt_length_of_gt_zero t k k_gt_zero
   have length_eq : (t.rewind k).length = t.length := by simp [con]
   simp_all
 
@@ -660,11 +662,11 @@ constructor
   simp [PathIn.toHistory]
 · cases a <;> simp [PathIn.toHistory]
 
-lemma PathIn.loc_injective :
+lemma PathIn.loc_injective {Hist X nrep nbas lt next Y Y_in ta tb} :
     @PathIn.loc Hist X nrep nbas lt next Y Y_in ta = PathIn.loc Y_in tb → ta = tb := by
   simp
 
-lemma PathIn.pdl_injective r ta tb :
+lemma PathIn.pdl_injective {Hist X Y nrep bas next} r ta tb :
     @PathIn.pdl Hist X Y nrep bas r next ta = PathIn.pdl tb → ta = tb := by
   simp
 
@@ -714,7 +716,7 @@ theorem rewind_order_reversing {t : PathIn tab} {k k' : Fin (List.length t.toHis
           apply PathIn.loc_le_loc_of_le
           apply IH
           · simp_all
-  case pdl => -- this is kind of just a copy of loc, maybe there is some all_goals simplification possible
+  case pdl => -- almost the same as `loc`, maybe change to `all_goals`?
     cases t <;> simp only [PathIn.rewind]
     case nil =>
       exact Relation.ReflTransGen.refl
@@ -747,17 +749,19 @@ theorem rewind_order_reversing {t : PathIn tab} {k k' : Fin (List.length t.toHis
     simp only [PathIn.rewind]
     exact Relation.ReflTransGen.refl
 
-theorem PathIn.loc_lt_loc_of_lt {t1 t2} (h : t1 < t2) :
-    @loc Hist X Y nrep nbas lt next Z_in t1 < @ loc Hist X Y nrep nbas lt next Z_in t2 := by
-  apply Relation.TransGen_of_ReflTransGen (PathIn.loc_le_loc_of_le (Relation.TransGen.to_reflTransGen h))
+theorem PathIn.loc_lt_loc_of_lt {Hist X Y nrep nbas lt next Z_in} {t1 t2} (h : t1 < t2) :
+    @loc Hist X Y nrep nbas lt next Z_in t1 < @ loc Hist X Y nrep nbas lt next Z_in t2 :=
+  Relation.TransGen_of_ReflTransGen (PathIn.loc_le_loc_of_le (Relation.TransGen.to_reflTransGen h))
+  <| by
   simp_all
   intro con
   subst con
   exact path_is_irreflexive h
 
-theorem PathIn.pdl_lt_pdl_of_lt {t1 t2} (h : t1 < t2) :
-    @pdl Hist X Y nrep bas r Z_in t1 < @pdl Hist X Y nrep bas r Z_in t2 := by
-  apply Relation.TransGen_of_ReflTransGen (PathIn.pdl_le_pdl_of_le (Relation.TransGen.to_reflTransGen h))
+theorem PathIn.pdl_lt_pdl_of_lt {Hist X Y nrep bas r Z_in} {t1 t2} (h : t1 < t2) :
+    @pdl Hist X Y nrep bas r Z_in t1 < @pdl Hist X Y nrep bas r Z_in t2 :=
+  Relation.TransGen_of_ReflTransGen (PathIn.pdl_le_pdl_of_le (Relation.TransGen.to_reflTransGen h))
+  <| by
   simp_all
   intro con
   subst con
@@ -903,7 +907,7 @@ theorem rewind_order_reversing_if_not_nil {t : PathIn tab}
             simp [PathIn.toHistory] at j_pf
             simp [PathIn.toHistory] at j'_pf
             simp_all
-  case pdl  => -- this is kind of just a copy of loc, maybe there is some all_goals simplification possible
+  case pdl  => -- almost the same as `loc`, maybe change to `all_goals`?
     cases t <;> simp only [PathIn.rewind]
     case nil =>
       simp_all
@@ -1208,7 +1212,7 @@ theorem exists_rewinds_middle {a b c : PathIn tab} (h : a ≤ b) (h' : b ≤ c) 
     exact this
   simp_all
 
-/-- ## Finiteness and Wellfoundedness --/
+/-- ## Finiteness and Wellfoundedness -/
 
 -- Why not in Mathlib?
 -- See https://leanprover.zulipchat.com/#narrow/stream/217875-Is-there-code-for-X.3F/topic/Union.20BigOperator/near/470044981
@@ -1298,7 +1302,7 @@ lemma PathIn.mem_history_multisetEqTo_then_lrep {tab : Tableau Hist X} (p : Path
   case pdl _ _ _ nrep _ => exact nrep ⟨Y, by have := Sequent.setEqTo_of_multisetEqTo; aesop⟩
   case lrep             => simp [Tableau.isLrep]
 
-lemma single_of_transgen {α} {r} {a c: α} : Relation.TransGen r a c → ∃ b, r a b := by
+lemma single_of_transgen {α} {r} {a c : α} : Relation.TransGen r a c → ∃ b, r a b := by
   intro h
   induction h
   case single b e => use b
@@ -1310,8 +1314,9 @@ instance flipEdge.instIsIrrefl : IsIrrefl (PathIn tab) (Relation.TransGen (flip 
   rw [Relation.transGen_swap] at p_p
   have p_in_Hist_p := edge_TransGen_then_mem_History p_p
   have := PathIn.mem_history_multisetEqTo_then_lrep p ⟨nodeAt p, by simpa⟩
-  rcases (single_of_transgen p_p)
-  with ⟨_, ⟨_, _, _, _, _, _, _, _, h, _⟩ | ⟨_, _, _, _, _, _, _, h, _⟩⟩ <;> rw [h] at this <;> contradiction
+  rcases (single_of_transgen p_p) with ⟨_,   ⟨_, _, _, _, _, _, _, _, h, _⟩
+                                           | ⟨_, _, _, _, _, _, _, h, _⟩⟩
+  <;> rw [h] at this <;> contradiction
 
 /-- The `flip edge` relation in a tableau is well-founded. -/
 theorem flipEdge.wellFounded :

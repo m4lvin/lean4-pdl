@@ -121,7 +121,7 @@ theorem disconEval' {W M} {w : W} :
       List.length XS = N → (evaluate M w (discon XS) ↔ ∃ Y ∈ XS, ∀ f ∈ Y, evaluate M w f) :=
   by
   intro N
-  refine Nat.strong_induction_on N ?_ -- should be induction N using Nat.strong_induction_on or something similar?
+  refine Nat.strong_induction_on N ?_ -- FIXME use `induction N using Nat.strong_induction_on`???
   intro n IH XS nDef
   subst nDef
   rcases XS with _ | ⟨X,XS⟩

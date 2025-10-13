@@ -9,7 +9,7 @@ It shows that the semantic quotient of PDL `Program`s as `RelProp`s forms a `Kle
 -/
 
 instance : KStar Program :=
-  { kstar := λ (α : Program) ↦ ∗α }
+  { kstar := fun α ↦ ∗α }
 
 instance : KStar RelProp :=
   { kstar := RelProp.star }
@@ -49,7 +49,7 @@ instance RelProp.addMonoid : AddMonoid RelProp where
   nsmul := RelProp.Repeat
   nsmul_zero := by simp [RelProp.Repeat]
   nsmul_succ := by simp [RelProp.Repeat]
-  zero_add := instAddZeroClassRelProp.zero_add -- idk why I have to add these since AddMonoid extends AddZeroClass??
+  zero_add := instAddZeroClassRelProp.zero_add -- why needed, since AddMonoid extends AddZeroClass?
   add_zero := instAddZeroClassRelProp.add_zero
 
 instance RelProp.mul : Mul RelProp where
@@ -59,11 +59,13 @@ instance : MulZeroClass RelProp where
   zero_mul := by
     apply Quotient.ind
     intro α
-    simp [OfNat.ofNat, Zero.zero, HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid, relEquiv]
+    simp [OfNat.ofNat, Zero.zero, HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid,
+      relEquiv]
   mul_zero := by
     apply Quotient.ind
     intro α
-    simp [OfNat.ofNat, Zero.zero, HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid, relEquiv]
+    simp [OfNat.ofNat, Zero.zero, HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid,
+      relEquiv]
 
 instance : Distrib RelProp where
   left_distrib := by
@@ -115,8 +117,9 @@ instance RelProp.semiring : Semiring RelProp where
 
 def relImp (α β : Program) := ∀ (W : Type) (M : KripkeModel W) v w, relate M α v w → relate M β v w
 
-def relImp_strict (α β : Program) := (∀ (W : Type) (M : KripkeModel W) v w, relate M α v w → relate M β v w)
-                                  ∧ ¬(∀ (W : Type) (M : KripkeModel W) v w, relate M β v w → relate M α v w)
+def relImp_strict (α β : Program) :=
+     (∀ (W : Type) (M : KripkeModel W) v w, relate M α v w → relate M β v w)
+  ∧ ¬(∀ (W : Type) (M : KripkeModel W) v w, relate M β v w → relate M α v w)
 
 def RelProp.le : RelProp → RelProp → Prop := Quotient.lift₂ relImp (by
   intro α₁ β₁ α₂ β₂ hα hβ
@@ -174,25 +177,29 @@ instance RelProp.kleeneAlgebra : KleeneAlgebra RelProp where
   mul_kstar_le_kstar := by
     apply Quotient.ind
     intro α
-    simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le, relImp]
+    simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le,
+      relImp]
     intro W M v w x v_α_x x_αs_w
     exact Relation.ReflTransGen.head v_α_x x_αs_w
   kstar_mul_le_kstar := by
     apply Quotient.ind
     intro α
-    simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le, relImp]
+    simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le,
+      relImp]
     intro W M v w x v_αs_x x_α_w
     exact Relation.ReflTransGen.tail v_αs_x x_α_w
   mul_kstar_le_self := by
     refine (Quotient.ind (fun α => Quotient.ind (fun β => ?_)))
-    simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le, relImp]
+    simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le,
+      relImp]
     intro h W M v w x v_β_x x_αs_w
     induction x_αs_w
     case refl => exact v_β_x
     case tail y z x_αs_y y_α_z ih => exact h W M v z y ih y_α_z
   kstar_mul_le_self := by
     refine (Quotient.ind (fun α => Quotient.ind (fun β => ?_)))
-    simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le, relImp]
+    simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le,
+      relImp]
     intro h W M v w x v_αs_x x_β_w
     induction v_αs_x
     case refl => exact x_β_w

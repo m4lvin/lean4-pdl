@@ -97,7 +97,7 @@ theorem disconEval {W M} {w : W} :
       List.length XS = N → (Evaluate (M, w) (discon XS) ↔ ∃ Y ∈ XS, ∀ f ∈ Y, Evaluate (M, w) f) :=
   by
   intro N
-  refine Nat.strong_induction_on N ?_ -- should be induction N using Nat.strong_induction_on or something similar?
+  refine Nat.strong_induction_on N ?_ -- FIXME `induction N using Nat.strong_induction_on`?
   intro n IH XS nDef
   subst nDef
   rcases XS with _ | ⟨X,XS⟩
@@ -272,5 +272,5 @@ lemma eval_negBigCon_iff_eval_bigDisNeg {l : List Formula} {M : KripkeModel W} {
 lemma sat_negBigDis_iff_sat_bigConNeg {l : List Formula} :
     Satisfiable (~(bigDis l)) ↔ Satisfiable (~~bigCon (l.map (~·))) := by aesop
 
-lemma sat_negBigCon_iff_sat_bigDisNeg {l : List Formula}:
+lemma sat_negBigCon_iff_sat_bigDisNeg {l : List Formula} :
     Satisfiable (~(bigCon l)) ↔ Satisfiable (bigDis (l.map (~·))) := by aesop

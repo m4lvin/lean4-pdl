@@ -91,17 +91,18 @@ open VDash
 @[simp]
 instance modelCanSemImplyForm {W : Type} : VDash (KripkeModel W × W) Formula := ⟨@Evaluate W⟩
 @[simp]
-instance modelCanSemImplySet {W : Type} : VDash (KripkeModel W × W) (Finset Formula) := ⟨fun Mw X => ∀ f ∈ X, @Evaluate W Mw f⟩
+instance modelCanSemImplySet {W : Type} : VDash (KripkeModel W × W) (Finset Formula) :=
+  ⟨fun Mw X => ∀ f ∈ X, @Evaluate W Mw f⟩
 instance setCanSemImplySet : VDash (Finset Formula) (Finset Formula):= ⟨SemImpliesSets⟩
 instance setCanSemImplyForm : VDash (Finset Formula) Formula := ⟨fun X ψ => SemImpliesSets X {ψ}⟩
 instance formCanSemImplySet : VDash Formula (Finset Formula) := ⟨fun φ X => SemImpliesSets {φ} X⟩
 instance formCanSemImplyForm : VDash (Formula) (Formula):= ⟨fun φ ψ => SemImpliesSets {φ} {ψ}⟩
 
-infixl:40 "⊨" => SemImplies
+infixl:40 " ⊨ " => SemImplies
 
-infixl:40 "≡" => semEquiv
+infixl:40 " ≡ " => semEquiv
 
-infixl:40 "⊭" => fun a b => ¬a⊨b
+infixl:40 " ⊭ " => fun a b => ¬a⊨b
 
 theorem forms_to_sets {φ ψ : Formula} : φ⊨ψ → ({φ} : Finset Formula)⊨({ψ} : Finset Formula) :=
   by

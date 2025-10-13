@@ -9,11 +9,11 @@ open HasSat
 open LocalRule
 open OneSidedLocalRule
 
-def formulasInNegBox (X: Finset Formula): Finset Formula :=
-  X.biUnion λ α => (match α with | ~(□f) => {f} | _ => {})
+def formulasInNegBox (X : Finset Formula) : Finset Formula :=
+  X.biUnion fun α => (match α with | ~(□f) => {f} | _ => {})
 
 @[simp]
-theorem formulasInNegBoxIff: α ∈ formulasInNegBox X ↔  ~(□α) ∈ X := by
+theorem formulasInNegBoxIff {X α} : α ∈ formulasInNegBox X ↔  ~(□α) ∈ X := by
   rw[formulasInNegBox]
   -- was: aesop
   simp_all only [Finset.mem_biUnion]
@@ -33,45 +33,46 @@ theorem formulasInNegBoxIff: α ∈ formulasInNegBox X ↔  ~(□α) ∈ X := by
 def ConsTNode := Subtype fun Y => Consistent Y
 
 @[simp]
-instance : HasLength ConsTNode := ⟨λ ⟨LR,_⟩ => lengthOf LR⟩
+instance : HasLength ConsTNode := ⟨fun ⟨LR,_⟩ => lengthOf LR⟩
 
 @[simp]
-def toFinset : ConsTNode → Finset Formula := λ ⟨⟨L,R⟩,_⟩ => L ∪ R
+def toFinset : ConsTNode → Finset Formula := fun ⟨⟨L,R⟩,_⟩ => L ∪ R
 
 /--
-A `Path ctn` is a maximal path of consistent TNodes starting with `ctn` and connected by `LocalRuleApp`s.
-This does *not* have to be a path in any particular `LocalTableau`.
+A `Path ctn` is a maximal path of consistent `TNode`s starting with `ctn` and connected by
+`LocalRuleApp`s. This does *not* have to be a path in any particular `LocalTableau`.
 -/
-inductive Path: ConsTNode →  Type
-  | endNode (isSimple : Simple LR): Path ⟨LR, LR_cons⟩
+inductive Path : ConsTNode → Type
+  | endNode {LR LR_cons} (isSimple : Simple LR): Path ⟨LR, LR_cons⟩
   | interNode (_ : LocalRuleApp LR C) (c_in : c ∈ C)
     (tail : Path ⟨c, c_cons⟩): Path ⟨LR, LR_cons⟩
 open Path
 
 @[simp]
-def pathToFinset: Path ⟨(L,R), cons⟩  → Finset Formula
+def pathToFinset {L R cons} : Path ⟨(L,R), cons⟩ → Finset Formula
   | endNode _ => L ∪ R
   | (interNode _ _ tail) => L ∪ R ∪ pathToFinset tail
 
 @[simp]
-theorem LR_in_PathLR (path : Path ⟨(L,R),LR_cons⟩) : L ∪ R ⊆ (pathToFinset path) := by
+theorem LR_in_PathLR {L R LR_cons} (path : Path ⟨(L, R), LR_cons⟩) :
+    L ∪ R ⊆ (pathToFinset path) := by
   cases path
   case endNode => simp
   case interNode Y C C_in tail appTab =>
     simp_all only [pathToFinset, Finset.subset_union_left]
 
 @[simp]
-def endNodeOf: Path ⟨LR,LR_cons⟩ → ConsTNode
+def endNodeOf {LR LR_cons} : Path ⟨LR,LR_cons⟩ → ConsTNode
   | endNode _ => ⟨LR, LR_cons⟩
   | interNode _ _ tail => endNodeOf tail
 
-theorem endNodeIsSimple (path : Path consLR) (eq: consLR' = endNodeOf (path)): Simple consLR'.1 := by
+theorem endNodeIsSimple {consLR consLR'} (path : Path consLR) (eq : consLR' = endNodeOf (path)) :
+    Simple consLR'.1 := by
   induction path
   all_goals aesop
 
-theorem consistentThenConsistentChild
-  (lrApp : LocalRuleApp (L,R) C):
-  Consistent (L,R) → ∃ c ∈ C, Consistent c := by
+theorem consistentThenConsistentChild {L R C} (lrApp : LocalRuleApp (L, R) C) :
+    Consistent (L,R) → ∃ c ∈ C, Consistent c := by
   contrapose
   unfold Consistent Inconsistent
   simp
@@ -110,23 +111,23 @@ theorem consistentThenConsistentChild
       rw [def_c] at LR'_in2
       aesop
 
-theorem consThenProjectLCons (α_in: ~(□α) ∈ L) (LR_simple: Simple (L,R)): (Consistent (L,R)) →
-  Consistent (diamondProjectTNode (Sum.inl α) (L,R)) := by
+theorem consThenProjectLCons {L α R} (α_in : ~(□α) ∈ L) (LR_simple : Simple (L, R)) :
+    Consistent (L,R) → Consistent (diamondProjectTNode (Sum.inl α) (L,R)) := by
   contrapose
   unfold Consistent Inconsistent
   simp_all
   intro cTab
   exact ⟨ClosedTableau.atmL α_in LR_simple cTab⟩
 
-theorem consThenProjectRCons (α_in: ~(□α) ∈ R) (LR_simple: Simple (L,R)): (Consistent (L,R)) →
-  Consistent (diamondProjectTNode (Sum.inr α) (L,R)) := by
+theorem consThenProjectRCons {R α L} (α_in : ~(□α) ∈ R) (LR_simple : Simple (L, R)) :
+    Consistent (L,R) → Consistent (diamondProjectTNode (Sum.inr α) (L,R)) := by
   contrapose
   unfold Consistent Inconsistent
   simp_all
   intro cTab
   exact ⟨ClosedTableau.atmR α_in LR_simple cTab⟩
 
-theorem pathSaturated (path : Path consLR): Saturated (pathToFinset path) := by
+theorem pathSaturated {consLR} (path : Path consLR) : Saturated (pathToFinset path) := by
   intro P Q
   induction path
   case endNode LR LR_cons LR_simple =>
@@ -280,73 +281,75 @@ theorem pathSaturated (path : Path consLR): Saturated (pathToFinset path) := by
             cases IH3
             all_goals simp_all
 
-def botTableauL (bot_in: ⊥ ∈ LR.1): ClosedTableau LR := by
+def botTableauL (bot_in : ⊥ ∈ LR.1) : ClosedTableau LR := by
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
-    apply LocalRuleApp.mk _ {⊥} {} (LocalRule.oneSidedL OneSidedLocalRule.bot)
-    simp_all
-    use []
-    simp
+    · apply LocalRuleApp.mk _ {⊥} {} (LocalRule.oneSidedL OneSidedLocalRule.bot)
+      · simp_all
+      · exact []
+      · simp
     aesop
   case next => aesop
 
-def botTableauR (bot_in: ⊥ ∈ LR.2): ClosedTableau LR := by
+def botTableauR (bot_in : ⊥ ∈ LR.2) : ClosedTableau LR := by
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
-    apply LocalRuleApp.mk _ {} {⊥} (LocalRule.oneSidedR OneSidedLocalRule.bot)
-    simp_all
-    use []
-    simp
+    · apply LocalRuleApp.mk _ {} {⊥} (LocalRule.oneSidedR OneSidedLocalRule.bot)
+      · simp_all
+      · exact []
+      · simp
     aesop
   case next => aesop
 
-def notTableauLL (pp_in: (·pp) ∈ LR.1) (npp_in: (~·pp) ∈ LR.1): ClosedTableau LR := by
+def notTableauLL (pp_in : (·pp) ∈ LR.1) (npp_in : (~·pp) ∈ LR.1) : ClosedTableau LR := by
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
-    apply LocalRuleApp.mk _ {·pp,~·pp} {} (LocalRule.oneSidedL (OneSidedLocalRule.not (·pp)))
-    simp_all [Finset.subset_iff]
-    use []
-    simp
+    · apply LocalRuleApp.mk _ {·pp,~·pp} {} (LocalRule.oneSidedL (OneSidedLocalRule.not (·pp)))
+      · simp_all [Finset.subset_iff]
+      · exact []
+      · simp
     aesop
   case next => aesop
 
-def notTableauLR (pp_in: (·pp) ∈ LR.1) (npp_in: (~·pp) ∈ LR.2): ClosedTableau LR := by
+def notTableauLR (pp_in : (·pp) ∈ LR.1) (npp_in : (~·pp) ∈ LR.2) : ClosedTableau LR := by
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
-    apply LocalRuleApp.mk _ {·pp} {~·pp} (LocalRule.LRnegL (·pp))
-    simp_all [Finset.subset_iff]
-    use []
-    simp
-    aesop
+    · apply LocalRuleApp.mk _ {·pp} {~·pp} (LocalRule.LRnegL (·pp))
+      · simp_all [Finset.subset_iff]
+      · exact []
+      · simp
+    · aesop
   case next => aesop
 
-def notTableauRL (pp_in: (·pp) ∈ LR.2) (npp_in: (~·pp) ∈ LR.1): ClosedTableau LR := by
+def notTableauRL (pp_in : (·pp) ∈ LR.2) (npp_in : (~·pp) ∈ LR.1) : ClosedTableau LR := by
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
-    apply LocalRuleApp.mk _ {~·pp} {·pp} (LocalRule.LRnegR (·pp))
-    simp_all [Finset.subset_iff]
-    use []
-    simp
+    · apply LocalRuleApp.mk _ {~·pp} {·pp} (LocalRule.LRnegR (·pp))
+      · simp_all [Finset.subset_iff]
+      · exact []
+      · simp
     aesop
   case next => aesop
 
-def notTableauRR (pp_in: (·pp) ∈ LR.2) (npp_in: (~·pp) ∈ LR.2): ClosedTableau LR := by
+def notTableauRR (pp_in : (·pp) ∈ LR.2) (npp_in : (~·pp) ∈ LR.2) : ClosedTableau LR := by
   apply ClosedTableau.loc
   case lt =>
     apply LocalTableau.fromRule
-    apply LocalRuleApp.mk _ {} {·pp,~·pp} (LocalRule.oneSidedR (OneSidedLocalRule.not (·pp)))
-    simp_all [Finset.subset_iff]
-    use []
-    simp
+    · apply LocalRuleApp.mk _ {} {·pp,~·pp} (LocalRule.oneSidedR (OneSidedLocalRule.not (·pp)))
+      · simp_all [Finset.subset_iff]
+      · exact []
+      · simp
     aesop
   case next => aesop
 
-theorem pathConsistent (path : Path TN): ⊥ ∉ pathToFinset path ∧ ∀ (pp: Char), (·pp)  ∈ pathToFinset path → ~(·pp) ∉ pathToFinset path := by
+theorem pathConsistent (path : Path TN) :
+    ⊥ ∉ pathToFinset path
+    ∧ ∀ (pp: Char), (·pp) ∈ pathToFinset path → ~(·pp) ∉ pathToFinset path := by
   induction path
   case endNode LR consistentLR simpleLR =>
       unfold Consistent Inconsistent at consistentLR
@@ -422,7 +425,8 @@ theorem pathConsistent (path : Path TN): ⊥ ∉ pathToFinset path ∧ ∀ (pp: 
           · assumption
       simp_all
 
-theorem pathProjection (path: Path consLR): projection (pathToFinset path) ⊆ projection (toFinset (endNodeOf path)) := by
+theorem pathProjection (path : Path consLR) :
+    projection (pathToFinset path) ⊆ projection (toFinset (endNodeOf path)) := by
   intro α α_in
   rewrite [proj] at *
   induction path
@@ -452,7 +456,8 @@ theorem pathProjection (path: Path consLR): projection (pathToFinset path) ⊆ p
         all_goals aesop
       case inr α_in => assumption
 
-theorem pathDiamond (path: Path consLR) (α_in: ~(□α) ∈ pathToFinset path): ~(□α) ∈ toFinset (endNodeOf path) := by
+theorem pathDiamond (path : Path consLR) (α_in : ~(□α) ∈ pathToFinset path) :
+    ~(□α) ∈ toFinset (endNodeOf path) := by
   induction path
   case endNode LR LR_cons LR_simple => aesop
   case interNode LR C c c_cons LR_cons lrApp c_in tail IH =>
@@ -492,21 +497,21 @@ noncomputable def aPathOf (conLR : ConsTNode) : Path conLR := by
 termination_by
   lengthOf conLR
 
-noncomputable def toWorld (consLR: ConsTNode): Finset Formula :=
+noncomputable def toWorld (consLR : ConsTNode) : Finset Formula :=
   pathToFinset (aPathOf consLR)
 
 inductive M₀ (T0 : ConsTNode) : ConsTNode → Prop
 | base : M₀ T0 T0
+| inductiveL {L R LR_cons} (T : ConsTNode) :
+    (M₀ T0 T) → (eq: ⟨⟨L,R⟩, LR_cons⟩ = endNodeOf (aPathOf T)) → ∀ α, (h: ~(□α) ∈ L)
+      → M₀ T0 ⟨ diamondProjectTNode (Sum.inl α) ⟨L,R⟩
+              , consThenProjectLCons h (endNodeIsSimple (aPathOf T) eq) LR_cons⟩
+| inductiveR {L R LR_cons} (T : ConsTNode) :
+    (M₀ T0 T) →  (eq: ⟨⟨L,R⟩, LR_cons⟩ = endNodeOf (aPathOf T)) → ∀ α, (h: ~(□α) ∈ R)
+      → M₀ T0 ⟨ diamondProjectTNode (Sum.inr α) ⟨L,R⟩
+              , consThenProjectRCons h (endNodeIsSimple (aPathOf T) eq) LR_cons⟩
 
-| inductiveL (T : ConsTNode) : (M₀ T0 T) → (eq: ⟨⟨L,R⟩, LR_cons⟩ = endNodeOf (aPathOf T)) → ∀ α, (h: ~(□α) ∈ L) →
-  M₀ T0 ⟨diamondProjectTNode (Sum.inl α) ⟨L,R⟩, by
-    apply consThenProjectLCons h (endNodeIsSimple (aPathOf T) eq) LR_cons⟩
-
-| inductiveR (T : ConsTNode) : (M₀ T0 T) →  (eq: ⟨⟨L,R⟩, LR_cons⟩ = endNodeOf (aPathOf T)) → ∀ α, (h: ~(□α) ∈ R) →
-  M₀ T0 ⟨diamondProjectTNode (Sum.inr α) ⟨L,R⟩, by
-    apply consThenProjectRCons h (endNodeIsSimple (aPathOf T) eq) LR_cons⟩
-
-theorem modelExistence: Consistent (L,R) →
+theorem modelExistence : Consistent (L,R) →
     ∃ (WS : Set (Finset Formula)) (_ : ModelGraph WS) (W : WS), (L ∪ R) ⊆ W :=
   by
   intro LR_cons
@@ -564,7 +569,7 @@ theorem modelExistence: Consistent (L,R) →
             constructor
             · calc
                 projection (toWorld w') = projection (pathToFinset (aPathOf w')) := by aesop
-                _ ⊆ projection (toFinset (endNodeOf (aPathOf w'))) := by apply pathProjection (aPathOf w')
+                _ ⊆ projection (toFinset (endNodeOf (aPathOf w'))) := pathProjection (aPathOf w')
                 _ ⊆ projection (vL ∪ vR) := by rw[← v'_def]; simp
                 _ ⊆ u.1 ∪ u.2 := by rw[u_eq, projectionUnion]; simp
                 _ ⊆ toWorld u' := by apply LR_in_PathLR
@@ -592,7 +597,7 @@ theorem modelExistence: Consistent (L,R) →
             constructor
             · calc
                 projection (toWorld w') = projection (pathToFinset (aPathOf w')) := by aesop
-                _ ⊆ projection (toFinset (endNodeOf (aPathOf w'))) := by apply pathProjection (aPathOf w')
+                _ ⊆ projection (toFinset (endNodeOf (aPathOf w'))) := pathProjection (aPathOf w')
                 _ ⊆ projection (vL ∪ vR) := by rw[← v'_def]; simp
                 _ ⊆ u.1 ∪ u.2 := by rw[u_eq, projectionUnion]; simp
                 _ ⊆ toWorld u' := by apply LR_in_PathLR

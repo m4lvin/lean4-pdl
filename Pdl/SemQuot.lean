@@ -50,7 +50,7 @@ lemma Formula.neg_congr {φ ψ : Formula} (h : φ ≈ ψ) : Formula.neg φ ≈ F
      simp_all only
 
 def SemProp.neg : SemProp → SemProp :=
-  Quotient.map Formula.neg (congr_liftFun $ fun _ _ => Formula.neg_congr)
+  Quotient.map Formula.neg (congr_liftFun <| fun _ _ => Formula.neg_congr)
 
 lemma Formula.and_congr {φ₁ ψ₁ φ₂ ψ₂ : Formula} (h₁ : φ₁ ≈ φ₂) (h₂ : ψ₁ ≈ ψ₂) :
   φ₁.and ψ₁ ≈ φ₂.and ψ₂ :=
@@ -59,7 +59,7 @@ lemma Formula.and_congr {φ₁ ψ₁ φ₂ ψ₂ : Formula} (h₁ : φ₁ ≈ φ
      simp_all only
 
 def SemProp.and : SemProp → SemProp → SemProp :=
-  Quotient.map₂ Formula.and (congr_liftFun₂ $ fun _ _ _ _ hx hy => Formula.and_congr hx hy)
+  Quotient.map₂ Formula.and (congr_liftFun₂ <| fun _ _ _ _ hx hy => Formula.and_congr hx hy)
 
 lemma Formula.box_congr {α β : Program} {φ ψ : Formula} (h₁ : α ≈ β) (h₂ : φ ≈ ψ) :
   φ.box α ≈ ψ.box β :=
@@ -73,21 +73,21 @@ def SemProp.box : RelProp → SemProp → SemProp :=
 /-! ## Lifting program operators to the quotient -/
 
 def RelProp.sequence : RelProp → RelProp → RelProp :=
-  Quotient.map₂ Program.sequence (congr_liftFun₂ $
+  Quotient.map₂ Program.sequence (congr_liftFun₂ <|
     fun _ _ _ _ hx hy W M v w => by specialize hx W M; specialize hy W M; simp_all)
 
 def RelProp.union : RelProp → RelProp → RelProp :=
-  Quotient.map₂ Program.union (congr_liftFun₂ $
+  Quotient.map₂ Program.union (congr_liftFun₂ <|
     fun _ _ _ _ hx hy W M v w => by specialize hx W M; specialize hy W M; simp_all)
 
 def RelProp.star : RelProp → RelProp :=
-  Quotient.map Program.star (congr_liftFun $
+  Quotient.map Program.star (congr_liftFun <|
     fun α β h W M v w => by
       specialize h W M;
       simp_all only [relate, @ReflTransGen.iff_finitelyManySteps])
 
 def RelProp.test : SemProp → RelProp :=
-  Quotient.map Program.test (congr_liftFun $
+  Quotient.map Program.test (congr_liftFun <|
     fun τ₁ τ₂ h W M v w => by specialize h W M; simp_all)
 
 /-! ## Examples -/

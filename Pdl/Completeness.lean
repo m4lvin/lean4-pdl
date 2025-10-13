@@ -5,7 +5,7 @@ import Pdl.TableauGame
 
 open HasSat
 
-theorem modelExistence: consistent X →
+theorem modelExistence {X} : consistent X →
     ∃ (WS : Finset (Finset Formula)) (_ : ModelGraph WS) (W : WS), X.toFinset ⊆ W :=
   by
   intro consX

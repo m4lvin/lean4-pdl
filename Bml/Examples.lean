@@ -10,8 +10,6 @@ theorem mytaut1 (p : Char) : Tautology ((·p)↣·p) :=
   intro W M w
   simp
 
-open Classical
-
 theorem mytaut2 (p : Char) : Tautology ((~~·p)↣·p) :=
   by
   unfold Tautology Evaluate

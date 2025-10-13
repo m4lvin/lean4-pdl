@@ -13,7 +13,7 @@ theorem union_singleton_is_insert {X : Finset Formula} {ϕ : Formula} : X ∪ {�
 theorem sdiff_singleton_is_erase {X : Finset Formula} {ϕ : Formula} : X \ {ϕ} = X.erase ϕ :=
   by
   induction X using Finset.induction_on
-  simp
+  · simp
   ext1
   aesop
 
@@ -52,7 +52,7 @@ theorem lengthRemove (X : Finset Formula) :
   rw [anotherClaim] at claim
   aesop
 
-theorem lengthSetRemove (X Y : Finset Formula) (h: Y ⊆ X) :
+theorem lengthSetRemove (X Y : Finset Formula) (h : Y ⊆ X) :
   lengthOfSet (X \ Y) + lengthOfSet Y  = lengthOfSet X :=
   by
     induction Y using Finset.induction_on
@@ -64,10 +64,11 @@ theorem lengthSetRemove (X Y : Finset Formula) (h: Y ⊆ X) :
           rw [←Finset.singleton_subset_iff]
           exact subset_trans (by aesop) h
       rw [Finset.sdiff_insert X S ϕ, ←lengthRemove X ϕ, lengthAdd]
-      rw [Nat.add_comm, Nat.add_assoc, Nat.add_comm (lengthOfFormula ϕ) (lengthOfSet (Finset.erase (X \ S) ϕ))]
-      rw [lengthRemove (X \ S) ϕ, Nat.add_comm, ih subs_X]
-      · rw [lengthRemove X]; assumption
-      · simp; exact And.intro phi_in_X not_in_S
+      · rw [Nat.add_comm, Nat.add_assoc,
+          Nat.add_comm (lengthOfFormula ϕ) (lengthOfSet (Finset.erase (X \ S) ϕ))]
+        rw [lengthRemove (X \ S) ϕ, Nat.add_comm, ih subs_X]
+        · rw [lengthRemove X]; assumption
+        · simp; exact And.intro phi_in_X not_in_S
       · exact not_in_S
       · exact phi_in_X
 

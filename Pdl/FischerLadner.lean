@@ -164,7 +164,7 @@ lemma FLb_trans {α φ ψ} :
 end
 
 /- Lemma 6.2(i) -/
-lemma FL_box_sub {φ α ψ}:
+lemma FL_box_sub {φ α ψ} :
     (⌈α⌉ψ) ∈ FL φ → ψ ∈ FL φ := by
   intro hyp
   apply FL_trans hyp

@@ -46,7 +46,7 @@ lemma Olf.R_inr : Olf.R (some (Sum.inr lf)) = [~lf.1.unload] := by simp only [R]
 -- mathlib this?
 @[simp]
 instance Option.instHasSubsetOption : HasSubset (Option α) := HasSubset.mk
-  λ o1 o2 =>
+  fun o1 o2 =>
   match o1, o2 with
   | none, _ => True
   | some _, none => False
@@ -61,7 +61,7 @@ theorem Option.some_subseteq {O : Option α} : (some x ⊆ O) ↔ some x = O := 
 -- mathlib this?
 /-- Instance that is used to say `(O : Olf) \ (O' : Olf)`. -/
 instance Option.insHasSdiff [DecidableEq α] : SDiff (Option α) := SDiff.mk
-  λ o1 del =>
+  fun o1 del =>
   match o1, del with
   | none, _ => none
   | some f, none => some f
@@ -93,16 +93,17 @@ def Option.overwrite : Option α → Option α → Option α
 def Olf.change (oldO : Olf) (Ocond : Olf) (newO : Olf) : Olf := (oldO \ Ocond).overwrite newO
 
 @[simp]
-theorem Olf.change_old_none_none : Olf.change oldO none none = oldO := by
+theorem Olf.change_old_none_none {oldO} : Olf.change oldO none none = oldO := by
   cases oldO <;> simp [Olf.change, Option.overwrite, Option.insHasSdiff]
 
 @[simp]
-theorem Olf.change_none_none_new : Olf.change none none newO = newO := by
+theorem Olf.change_none_none_new {newO} : Olf.change none none newO = newO := by
   cases newO <;> simp [Olf.change, Option.overwrite, Option.insHasSdiff]
 
 @[simp]
-theorem Olf.change_some: Olf.change oldO whatever (some wnlf) = some wnlf := by
-    cases oldO <;> simp [Olf.change, Option.overwrite]
+theorem Olf.change_some {oldO whatever wnlf} :
+    Olf.change oldO whatever (some wnlf) = some wnlf := by
+  cases oldO <;> simp [Olf.change, Option.overwrite]
 
 @[simp]
 theorem Olf.change_some_some_eq : Olf.change (some nχ) (some nχ) Onew = Onew := by
@@ -218,7 +219,7 @@ def Sequent.right_eq {L R O} : Sequent.right ⟨L,R,O⟩ = R ++ O.R := by simp [
 @[simp]
 instance instMembershipFormulaSequent : Membership Formula Sequent := ⟨fun X φ => φ ∈ X.L ∨ φ ∈ X.R⟩
 
-instance instDecidableMemFormulaSequent {φ : Formula} {X :Sequent} : Decidable (φ ∈ X) := by
+instance instDecidableMemFormulaSequent {φ : Formula} {X : Sequent} : Decidable (φ ∈ X) := by
   rcases X with ⟨L,R,o⟩
   simp only [instMembershipFormulaSequent]
   infer_instance
@@ -297,7 +298,8 @@ theorem setEqTo_isLoaded_iff {X Y : Sequent} (h : X.setEqTo Y) : X.isLoaded = Y.
   all_goals
     simp_all
 
-theorem multisetEqTo_isLoaded_iff {X Y : Sequent} (h : X.multisetEqTo Y) : X.isLoaded = Y.isLoaded := by
+theorem multisetEqTo_isLoaded_iff {X Y : Sequent} (h : X.multisetEqTo Y) :
+    X.isLoaded = Y.isLoaded := by
   simp_all [Sequent.multisetEqTo, Sequent.isLoaded]
   rcases X with ⟨XL, XR, _|_⟩ <;> rcases Y with ⟨YL, YR, _|_⟩
   all_goals
@@ -306,11 +308,11 @@ theorem multisetEqTo_isLoaded_iff {X Y : Sequent} (h : X.multisetEqTo Y) : X.isL
 /-! ## Semantics of sequents -/
 
 instance modelCanSemImplySequent : vDash (KripkeModel W × W) Sequent :=
-  vDash.mk (λ ⟨M,w⟩ ⟨L, R, O⟩ =>
+  vDash.mk (fun ⟨M,w⟩ ⟨L, R, O⟩ =>
     ∀ f ∈ L ∪ R ∪ (O.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
 
 instance modelCanSemImplyLLO : vDash (KripkeModel W × W) (List Formula × List Formula × Olf) :=
-  vDash.mk (λ ⟨M,w⟩ ⟨L, R, O⟩ =>
+  vDash.mk (fun ⟨M,w⟩ ⟨L, R, O⟩ =>
     ∀ f ∈ L ∪ R ∪ (O.map (Sum.elim negUnload negUnload)).toList, evaluate M w f)
 
 instance instSequentHasSat : HasSat Sequent :=

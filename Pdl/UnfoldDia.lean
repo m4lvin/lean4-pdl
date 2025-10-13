@@ -39,8 +39,8 @@ lemma Hl_atomic_cons : Hl (·a :: αs) =  [ ([], ((·a : Program) :: αs)) ] := 
 
 theorem relateSeq_H_imp_relate {X : List Formula} {δ : List Program}
   : (X, δ) ∈ H α → (M, w) ⊨ Con X →  relateSeq M δ w v → relate M α w v :=
-  let me := (evaluate M w <| Con .)
-  let mr := (relateSeq M . w v)
+  let me := (evaluate M w <| Con ·)
+  let mr := (relateSeq M · w v)
   fun in_H ev rel => match α with
   | ·_ =>
     let hδ := congr_arg mr (Prod.eq_iff_fst_eq_snd_eq.mp (List.eq_of_mem_singleton in_H)).2
@@ -51,8 +51,8 @@ theorem relateSeq_H_imp_relate {X : List Formula} {δ : List Program}
     ⟨hδ.subst (motive := mr) rel, hX.subst (motive := me) ev⟩
 
   | _⋓_ => (List.mem_union_iff.mp in_H).elim
-    (.inl <| relateSeq_H_imp_relate . ev rel)
-    (.inr <| relateSeq_H_imp_relate . ev rel)
+    (.inl <| relateSeq_H_imp_relate · ev rel)
+    (.inr <| relateSeq_H_imp_relate · ev rel)
 
   | _;'_ =>
     let ⟨⟨_, δα⟩, in_Hα, h⟩ := List.exists_of_mem_flatMap in_H
@@ -61,7 +61,7 @@ theorem relateSeq_H_imp_relate {X : List Formula} {δ : List Program}
         let h := (if_pos c).subst h
         let ⟨_, in_Hβ, h⟩ := List.exists_of_mem_flatMap h
         let ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton <| h
-        let relα := c.symm.subst (motive := (relateSeq _ . _ _)) <| relateSeq_nil.mpr rfl
+        let relα := c.symm.subst (motive := (relateSeq _ · _ _)) <| relateSeq_nil.mpr rfl
         let relβ := hδ.subst (motive := mr) rel
         let ev := hX.subst (motive := me) ev
         let evα := conEval.mpr (List.forall_mem_union.mp <| conEval.mp ev).1
@@ -76,10 +76,10 @@ theorem relateSeq_H_imp_relate {X : List Formula} {δ : List Program}
 
   | ∗_ =>
     (List.mem_union_iff.mp in_H).elim (
-      let ⟨_, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton .
+      let ⟨_, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton ·
       (relateSeq_nil.mp <| hδ.subst (motive := mr) rel) ▸ .refl
     ) (
-      let ⟨_, in_Hα, h⟩ := List.exists_of_mem_flatMap .
+      let ⟨_, in_Hα, h⟩ := List.exists_of_mem_flatMap ·
       let ⟨_, h⟩ := List.mem_ite_nil_left.mp h
       let ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton h
       let evα := hX.subst (motive := me) ev
@@ -91,7 +91,7 @@ theorem relateSeq_H_imp_relate {X : List Formula} {δ : List Program}
 
 
 /-- A test formula coming from `H` comes from a test in the given program. -/
-theorem H_mem_test α φ {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ H α) (φ_in_Fs: φ ∈ Fs) :
+theorem H_mem_test α φ {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ H α) (φ_in_Fs : φ ∈ Fs) :
     ∃ τ, ∃ (_ : τ ∈ testsOfProgram α), φ = τ := by
   cases α
   case atom_prog =>
@@ -265,7 +265,7 @@ theorem keepFreshH α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ H α → x ∉ F.f
       cases em (δ' = []) <;> aesop
 
 -- FIXME is this in the notes? implicit somewhere?
-theorem H_goes_down_prog (α : Program) {Fs δ} (in_H : (Fs, δ) ∈ H α) {γ} (in_δ: γ ∈ δ) :
+theorem H_goes_down_prog (α : Program) {Fs δ} (in_H : (Fs, δ) ∈ H α) {γ} (in_δ : γ ∈ δ) :
   (if α.isAtomic then γ = α else if α.isStar
     then lengthOfProgram γ ≤ lengthOfProgram α
     else lengthOfProgram γ < lengthOfProgram α) := by
@@ -418,7 +418,8 @@ theorem guardToStarDiamond (x : Nat)
     aesop
   -- It remains to show the goal using claim.
   intro w hyp
-  simp only [Formula.or, List.mem_singleton, forall_eq, evaluate, relate, not_forall, exists_prop] at *
+  simp only [Formula.or, List.mem_singleton, forall_eq, evaluate, relate, not_forall,
+    exists_prop] at *
   rcases hyp with ⟨v, w_bS_v, v_Psi⟩
   induction w_bS_v using Relation.ReflTransGen.head_induction_on
   case refl =>
@@ -434,7 +435,6 @@ private theorem helper : ∀ (p : List Formula × List Program → Formula) X,
         (∃ f ∈ List.map p X, evaluate M w f)
       ↔ (∃ Fδ ∈ X, evaluate M w (p Fδ)) := by aesop
 
-set_option maxHeartbeats 2000000 in
 theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ => Con (Yset Fδ ψ)) ) := by
   intro W M w
   cases γ
@@ -623,10 +623,10 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
       let x : Nat := freshVarProg β
       have x_not_in : Sum.inl x ∉ β.voc := by apply freshVarProg_is_fresh
       -- NOTE the use of ⊥ below - matters for rhs-to-lhs in first Lemma condition.
-      let σ0 : Formula := dis $
+      let σ0 : Formula := dis <|
         (H β).map (fun (F,δ) => if δ = [] then Con F else ⊥)
-      let σ1 : Formula := dis $
-        ((H β).map (fun (F,δ) => if δ ≠ [] then Con ((~ Formula.boxes δ (~(·x : Formula))) :: F) else ⊥))
+      let σ1 : Formula := dis <|
+        ((H β).map (fun (F,δ) => if δ ≠ [] then Con ((~ ⌈⌈δ⌉⌉(~(·x : Formula))) :: F) else ⊥))
       -- Now we use the previous Lemma:
       have := @guardToStarDiamond β σ0 σ1 ρ ψ x x_not_in
       simp only [formCanSemImplyForm, semImpliesLists, List.mem_singleton, forall_eq] at this
@@ -717,12 +717,13 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
         simp only [ne_eq, Formula.instBot, ite_not]
         have : (repl_in_F x ρ (dis ((H β).map
           (fun Fδ => if Fδ.2 = [] then Formula.bottom else Con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)) ))) =
-            (dis ((H β).map (fun Fδ => if Fδ.2 = [] then Formula.bottom else Con ((~⌈⌈Fδ.2⌉⌉~ρ) :: Fδ.1))))
-            := by
+            (dis ((H β).map (fun Fδ => if Fδ.2 = [] then Formula.bottom
+                                                    else Con ((~⌈⌈Fδ.2⌉⌉~ρ) :: Fδ.1)))) := by
           suffices (repl_in_F x ρ (dis ((H β).map
             (fun Fδ => if Fδ.2 = [] then Formula.bottom else Con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)) ))) =
               ((dis ((H β).map
-                (fun Fδ => if Fδ.2 = [] then repl_in_F x ρ Formula.bottom else repl_in_F x ρ (Con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)) )))) by
+                (fun Fδ => if Fδ.2 = [] then repl_in_F x ρ Formula.bottom
+                                        else repl_in_F x ρ (Con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)) )))) by
             rw [this]
             simp only [repl_in_F, Formula.instBot]
             -- use that x not in β and thus also not in any element of H β
@@ -732,7 +733,8 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
             intro Fδ Fδ_in_Hβ
             cases em (Fδ.2 = [])
             · simp_all
-            · simp_all only [evaluate, relate, not_forall, exists_prop, repl_in_F, Formula.instBot, ite_false]
+            · simp_all only [evaluate, relate, not_forall, exists_prop, repl_in_F, Formula.instBot,
+                ite_false]
               rw [repl_in_Con]
               simp only [List.map_cons, repl_in_F]
               apply listEq_to_conEq
@@ -741,7 +743,8 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
               · exact repl_in_boxes_non_occ_eq_neg _ ((myFresh _ _ (Fδ_in_Hβ)).2)
               · exact repl_in_list_non_occ_eq _ ((myFresh _ _ (Fδ_in_Hβ)).1)
           -- remains to push repl_in_F through dis and map
-          convert repl_in_disMap x ρ (H β) (fun Fδ => Fδ.2 = []) (fun Fδ => (Con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)))
+          convert repl_in_disMap x ρ (H β) (fun Fδ => Fδ.2 = [])
+            (fun Fδ => (Con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)))
         rw [this, disEval, helper]
         clear this
         rintro ⟨⟨Fs,δ⟩, ⟨Fδ_in, repl_w_⟩⟩
@@ -919,21 +922,25 @@ def YsetLoad' : (List Formula × List Program) → Formula → (List Formula × 
     | some (δ, β) => ⟨F , ~' (loadMulti δ β φ)⟩
 
 /-- Loaded unfolding for ~'⌊α⌋(χ : LoadFormula) -/
-def unfoldDiamondLoaded (α : Program) (χ : LoadFormula) : List (List Formula × Option NegLoadFormula) :=
+def unfoldDiamondLoaded (α : Program) (χ : LoadFormula) :
+    List (List Formula × Option NegLoadFormula) :=
   (H α).map (fun Fδ => YsetLoad Fδ χ)
 
 /-- Loaded unfolding for ~'⌊α⌋(φ : Formula) -/
-def unfoldDiamondLoaded' (α : Program) (φ : Formula) : List (List Formula × Option NegLoadFormula) :=
+def unfoldDiamondLoaded' (α : Program) (φ : Formula) :
+    List (List Formula × Option NegLoadFormula) :=
   (H α).map (fun Fδ => YsetLoad' Fδ φ)
 
 def pairUnload : List Formula × Option NegLoadFormula → List Formula
 | (xs, none) => xs
 | (xs, some nlf) => xs ∪ [negUnload nlf]
 
-theorem unfoldDiamondLoaded_eq α χ : (unfoldDiamondLoaded α χ).map pairUnload = unfoldDiamond α χ.unload := by
+theorem unfoldDiamondLoaded_eq α χ :
+    (unfoldDiamondLoaded α χ).map pairUnload = unfoldDiamond α χ.unload := by
   simp [unfoldDiamondLoaded, unfoldDiamond, YsetLoad, Yset, pairUnload]
 
-theorem unfoldDiamondLoaded'_eq α φ : (unfoldDiamondLoaded' α φ).map pairUnload = unfoldDiamond α φ := by
+theorem unfoldDiamondLoaded'_eq α φ :
+    (unfoldDiamondLoaded' α φ).map pairUnload = unfoldDiamond α φ := by
   simp [unfoldDiamondLoaded', unfoldDiamond, YsetLoad', Yset, pairUnload]
   intro F δ in_H
   cases δ

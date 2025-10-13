@@ -119,7 +119,7 @@ def LocalRuleApp.all : (X : Sequent) → List (Σ C, LocalRuleApp X C)
                 · cases o <;> simp_all
             @LocalRuleApp.mk L R _ B o Lcond Rcond Ocond lr rfl h⟩))).reduceOption
 
-set_option maxHeartbeats 10000000 in
+set_option maxHeartbeats 10000000 in -- for aesop timeouts
 lemma LocalRuleApp.all_spec X C (lrA : LocalRuleApp X C) : ⟨C, lrA⟩ ∈ LocalRuleApp.all X := by
   rcases X with ⟨L,R,O⟩
   rcases lrA with ⟨Lcond, Rcond, Ocond, rule, preconditionProof⟩
@@ -139,13 +139,13 @@ lemma LocalRuleApp.all_spec X C (lrA : LocalRuleApp X C) : ⟨C, lrA⟩ ∈ Loca
     use ⟨[],Rcond,none⟩
     aesop
   case LRnegL φ _ _ hC =>
-    simp [all, List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
+    simp only [all, List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
     List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
     List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
     use ⟨[φ],[~φ],none⟩
     aesop
   case LRnegR φ _ _ hC =>
-    simp [all, List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
+    simp only [all, List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
     List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
     List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
     use ⟨[~φ],[φ],none⟩
@@ -164,7 +164,7 @@ lemma LocalRuleApp.all_spec X C (lrA : LocalRuleApp X C) : ⟨C, lrA⟩ ∈ Loca
         simp_all
       · unfold LocalRuleApp.all
         -- // aesop from here
-        simp [List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
+        simp only [List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
           List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
           List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
         use (∅, ∅, some (Sum.inl (~'⌊α⌋AnyFormula.normal φ)))

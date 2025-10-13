@@ -2,10 +2,10 @@
 
 import Bml.Tableau
 
-open Classical
 
 open HasSat
 
+open Classical in
 /-- Combine a collection of pointed models with one new world using the given valuation. -/
 -- TODO: rewrite to term mode?
 def combinedModel {β : Type} (collection : β → Σ W : Type, KripkeModel W × W)
@@ -97,11 +97,13 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
 
 /-- The combined model for X satisfies X. -/
 theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
-    {beta_def : β = {F : Formula | f_in_TNode (~F.box) (L, R)}} (simple_LR : Simple (L, R)) (not_closed_LR : ¬Closed (L ∪ R))
+    {beta_def : β = {F : Formula | f_in_TNode (~F.box) (L, R)}}
+    (simple_LR : Simple (L, R)) (not_closed_LR : ¬Closed (L ∪ R))
     (collection : β → Σ W : Type, KripkeModel W × W)
     (all_pro_sat :
       ∀ F : β,
-        ∀ f, (f ∈ (projection (L ∪ R) ∪ {~F})) → Evaluate ((collection F).snd.fst, (collection F).snd.snd) f) :
+        ∀ f ∈ (projection (L ∪ R) ∪ {~F}),
+          Evaluate ((collection F).snd.fst, (collection F).snd.snd) f) :
     ∀ f, f_in_TNode f (L, R)
       → Evaluate
         ((combinedModel collection fun c => Formula.atom_prop c ∈ (L ∪ R)).fst,
@@ -208,7 +210,9 @@ A simple set of formulas X is satisfiable if and only if
 it is not closed  and  for all ¬[A]R ∈ X also XA; ¬R is satisfiable.
 -/
 theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
-    Simple LR → (Satisfiable LR ↔ ¬Closed (LR.1 ∪ LR.2) ∧ ∀ F, f_in_TNode (~(□F)) LR → Satisfiable (projection (LR.1 ∪ LR.2) ∪ {~F})) :=
+    Simple LR → (Satisfiable LR
+      ↔   ¬ Closed (LR.1 ∪ LR.2)
+        ∧ ∀ F, f_in_TNode (~(□F)) LR → Satisfiable (projection (LR.1 ∪ LR.2) ∪ {~F})) :=
   by
     intro LR_is_simple
     constructor
@@ -271,8 +275,7 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
       -- and that X is not closed (to ensure that it is locally consistent)
       apply combMo_sat_LR LR_is_simple not_closed_LR collection
       -- it remains to show that the new big model satisfies X
-      grind
-      grind
+      <;> grind
 
 theorem localRuleSoundness
     (M : KripkeModel W)
@@ -325,7 +328,8 @@ theorem ruleImpliesChildSat
 
 theorem oneSidedRule_implies_child_sat_L
   {ruleApp : LocalRuleApp (L, R) C}
-  (def_ruleA : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (res, ∅)) _) _ _ rule hC preproof))
+  (def_ruleA : ruleApp =
+    (@LocalRuleApp.mk L R C (List.map (fun res => (res, ∅)) _) _ _ rule hC preproof))
   (rule_is_left : rule = LocalRule.oneSidedL orule)
   : Satisfiable (L ∪ X) → ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ X) :=
   by
@@ -338,7 +342,8 @@ theorem oneSidedRule_implies_child_sat_L
 
 theorem oneSidedRule_implies_child_sat_R
   {ruleApp : LocalRuleApp (L, R) C}
-  (def_ruleA : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (∅, res)) _) _ _ rule hC preproof))
+  (def_ruleA : ruleApp =
+    (@LocalRuleApp.mk L R C (List.map (fun res => (∅, res)) _) _ _ rule hC preproof))
   (rule_is_right : rule = LocalRule.oneSidedR orule)
   : Satisfiable (R ∪ X) → ∃c ∈ C.attach, Satisfiable (c.1.2 ∪ X) :=
     by
@@ -359,8 +364,9 @@ theorem atmSoundness {LR : TNode} {f} (not_box_f_in_LR : f_in_TNode (~(□f)) LR
   intro satLR
   unfold Satisfiable at satLR
   rcases satLR with ⟨W, M, w, w_sat_LR⟩
-  constructor
-  simp
+  refine ⟨W, ?_⟩
+  simp only [projectionUnion, Finset.union_singleton, Finset.mem_insert, Finset.mem_union,
+    forall_eq_or_imp, Evaluate]
   -- get the other reachable world:
   let w_sat_not_box_f := w_sat_LR (~f.box) not_box_f_in_LR
   unfold Evaluate at w_sat_not_box_f
@@ -396,8 +402,9 @@ theorem localTableauAndEndNodesUnsatThenNotSat (LR : TNode) {ltLR : LocalTableau
     rcases someChildSat with ⟨c, c_sat⟩
     set ltc := next c c_sat.left
     have endNodesInclusion :
-      ∀ Z, Z ∈ endNodesOf ⟨c, ltc⟩
-      → Z ∈ endNodesOf ⟨(L,R), LocalTableau.fromRule (@LocalRuleApp.mk _ _ C ress Lcond Rcond lrule hC prepf) next⟩ :=
+      ∀ Z ∈ endNodesOf ⟨c, ltc⟩,
+        Z ∈ endNodesOf ⟨(L,R), LocalTableau.fromRule
+          (@LocalRuleApp.mk _ _ C ress Lcond Rcond lrule hC prepf) next⟩ :=
       by
         simp
         intro Z Z_endOF_c
@@ -407,7 +414,8 @@ theorem localTableauAndEndNodesUnsatThenNotSat (LR : TNode) {ltLR : LocalTableau
       by intro Z1 Z1_is_endOf_c; apply endsOfLRnotSat Z1 (endNodesInclusion Z1 Z1_is_endOf_c)
     have : (∀Z, Z ∈ endNodesOf ⟨c , ltc⟩ → ¬Satisfiable Z) → ¬Satisfiable c :=
       by
-        have := localRuleAppDecreasesLength (@LocalRuleApp.mk _ _ C ress Lcond Rcond lrule hC prepf) c c_sat.left -- for termination
+        have := localRuleAppDecreasesLength
+          (@LocalRuleApp.mk _ _ C ress Lcond Rcond lrule hC prepf) c c_sat.left -- for termination
         apply localTableauAndEndNodesUnsatThenNotSat c
     exact (this endsOfcnotSat) (c_sat.right)
   case fromSimple hSimple =>
@@ -422,18 +430,20 @@ theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
   induction t
   case loc LR appTab _ IH =>
     apply localTableauAndEndNodesUnsatThenNotSat LR
-    intro Z ZisEndOfY
-    exact IH Z ZisEndOfY
+    · intro Z ZisEndOfY
+      exact IH Z ZisEndOfY
   case atmL LR φ notBoxPhiInY Y_is_simple ltProYnPhi notSatProj =>
     let (L,R) := LR
     rw [Lemma1_simple_sat_iff_all_projections_sat Y_is_simple]
-    simp only [f_in_TNode, Finset.mem_union, union_singleton_is_insert, not_and, not_forall, exists_prop]
+    simp only [f_in_TNode, Finset.mem_union, union_singleton_is_insert, not_and, not_forall,
+      exists_prop]
     intro nClo
     use φ
     constructor
     · tauto
     · convert notSatProj
-      simp only [diamondProjectTNode, setHasSat, Finset.mem_union, Finset.mem_insert, forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
+      simp only [diamondProjectTNode, setHasSat, Finset.mem_union, Finset.mem_insert,
+        forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
       constructor
       · rintro ⟨W,M,w,claim⟩
         use W, M, w
@@ -446,13 +456,15 @@ theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
   case atmR LR φ notBoxPhiInY Y_is_simple ltProYnPhi notSatProj =>
     let (L,R) := LR
     rw [Lemma1_simple_sat_iff_all_projections_sat Y_is_simple]
-    simp only [f_in_TNode, Finset.mem_union, union_singleton_is_insert, not_and, not_forall, exists_prop]
+    simp only [f_in_TNode, Finset.mem_union, union_singleton_is_insert, not_and, not_forall,
+      exists_prop]
     intro _
     use φ
     constructor
     · tauto
     · convert notSatProj
-      simp only [diamondProjectTNode, setHasSat, Finset.mem_union, Finset.mem_insert, forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
+      simp only [diamondProjectTNode, setHasSat, Finset.mem_union, Finset.mem_insert,
+        forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
       constructor <;>
       ( rintro ⟨W,M,w,claim⟩
         use W, M, w)

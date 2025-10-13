@@ -25,7 +25,7 @@ theorem choice_property_in_image {f : α → β} {l : List α} {p : β → Prop}
 
 def InterpolantInductionStep
   (L R : Finset Formula)
-  (ruleA : LocalRuleApp (L,R) C)
+  (ruleA : LocalRuleApp (L, R) C)
   (subθs : Π c ∈ C, PartInterpolant c)
   : PartInterpolant (L,R) :=
   by
@@ -38,7 +38,7 @@ def InterpolantInductionStep
 
     -- ONESIDED L
     | oneSidedL orule =>
-      let interList :=  (C.attach).map $ λ⟨c, cinC⟩ => (subθs c cinC).1
+      let interList :=  (C.attach).map <| fun ⟨c, cinC⟩ => (subθs c cinC).1
       use bigDis interList
       constructor
       · intro ℓ ℓ_in_inter
@@ -48,31 +48,36 @@ def InterpolantInductionStep
 
       · constructor
         · intro L_and_nθ_sat
-          have L_and_bigC_sat : Satisfiable ((L, R).1 ∪ {(~~bigCon (List.map (fun x => ~x) interList))}) := by
+          have L_and_bigC_sat :
+              Satisfiable ((L, R).1 ∪ {(~~bigCon (List.map (fun x => ~x) interList))}) := by
             rcases L_and_nθ_sat with ⟨W, M, w, MWsat⟩
-            have evalDis : Evaluate (M, w) (~bigDis interList) := MWsat (~bigDis interList) (by simp)
+            have evalDis := MWsat (~bigDis interList) (by simp)
             rw [eval_neg_BigDis_iff_eval_bigConNeg] at evalDis
             use W, M, w
             simp
             constructor
             · simp at evalDis; apply evalDis
             · intro φ φ_in_L; apply MWsat; simp[φ_in_L]
-          let ⟨⟨c,c_in_C⟩, _, sat_c_nnθ⟩ := oneSidedRule_implies_child_sat_L def_ruleA def_rule L_and_bigC_sat
+          let ⟨⟨c,c_in_C⟩, _, sat_c_nnθ⟩ :=
+            oneSidedRule_implies_child_sat_L def_ruleA def_rule L_and_bigC_sat
           have sat_c_θ : Satisfiable (c.1 ∪ {(bigCon <| interList.map (~·))}) :=
              (sat_double_neq_invariant (bigCon <| interList.map (~·))).mp sat_c_nnθ
           have sat_c_c'sθ : Satisfiable <| c.1 ∪ {~ (subθs c c_in_C).1} :=
-            bigConNeg_union_sat_down sat_c_θ (subθs c c_in_C).1 (by simp (config := {zetaDelta := true}); use c, c_in_C)
+            bigConNeg_union_sat_down sat_c_θ (subθs c c_in_C).1
+              (by simp (config := {zetaDelta := true}); use c, c_in_C)
           exact (subθs c c_in_C).2 |> And.right |> And.left <| sat_c_c'sθ
 
         · intro R_and_θ_sat
-          have ⟨⟨c,c_in_C⟩, _, sat_cθ⟩ := choice_property_in_image <| bigDis_union_sat_down R_and_θ_sat
-          have cR_eq_R : c.2 = R := (oneSidedRule_preserves_other_side_L def_ruleA def_rule) c c_in_C
+          have ⟨⟨c,c_in_C⟩, _, sat_cθ⟩ :=
+            choice_property_in_image <| bigDis_union_sat_down R_and_θ_sat
+          have cR_eq_R : c.2 = R :=
+            oneSidedRule_preserves_other_side_L def_ruleA def_rule c c_in_C
           rw[←cR_eq_R] at sat_cθ
           exact (subθs c c_in_C).2 |> And.right |> And.right <| sat_cθ
 
     -- ONESIDED R: dual to ONESIDED L
     | oneSidedR orule =>
-      let interList :=  (C.attach).map $ λ⟨c, cinC⟩ => (subθs c cinC).1
+      let interList :=  (C.attach).map <| fun ⟨c, cinC⟩ => (subθs c cinC).1
       use bigCon interList
       constructor
       · intro ℓ ℓ_in_inter
@@ -82,24 +87,28 @@ def InterpolantInductionStep
 
       · constructor
         · intro L_and_nθ_sat
-          have L_and_bigD_sat : Satisfiable ((L, R).1 ∪ {(bigDis (List.map (fun x => ~x) interList))}) := by
+          have L_and_bigD_sat :
+              Satisfiable ((L, R).1 ∪ {(bigDis (List.map (fun x => ~x) interList))}) := by
             rcases L_and_nθ_sat with ⟨W, M, w, MWsat⟩
-            have evalCon : Evaluate (M, w) (~(bigCon interList)) := MWsat (~bigCon interList) (by simp)
+            have evalCon := MWsat (~bigCon interList) (by simp)
             rw [eval_negBigCon_iff_eval_bigDisNeg] at evalCon
             use W, M, w
             simp
             constructor
             · simp at evalCon; apply evalCon
             · intro φ φ_in_L; apply MWsat; simp[φ_in_L]
-          let ⟨⟨c,c_in_C⟩,_,sat_c'sθ⟩ := choice_property_in_image <| choice_property_in_image <| bigDis_union_sat_down L_and_bigD_sat
-          have L_inv_to_rightrule : c.1 = L := (oneSidedRule_preserves_other_side_R def_ruleA def_rule) c c_in_C
+          let ⟨⟨c,c_in_C⟩,_,sat_c'sθ⟩ := choice_property_in_image <| choice_property_in_image
+            <| bigDis_union_sat_down L_and_bigD_sat
+          have L_inv_to_rightrule : c.1 = L :=
+            oneSidedRule_preserves_other_side_R def_ruleA def_rule c c_in_C
           rw[←L_inv_to_rightrule] at sat_c'sθ
           exact (subθs c c_in_C).2 |> And.right |> And.left <| sat_c'sθ
-
         · intro R_and_θ_sat
-          let ⟨⟨c,c_in_C⟩,_,sat_c_θ⟩ := oneSidedRule_implies_child_sat_R def_ruleA def_rule R_and_θ_sat
+          let ⟨⟨c,c_in_C⟩,_,sat_c_θ⟩ :=
+            oneSidedRule_implies_child_sat_R def_ruleA def_rule R_and_θ_sat
           have sat_c'sθ : Satisfiable <| c.2 ∪ {(subθs c c_in_C).1} :=
-              bigCon_union_sat_down sat_c_θ ((subθs c c_in_C).1) (by simp (config := {zetaDelta := true}); use c, c_in_C)
+              bigCon_union_sat_down sat_c_θ ((subθs c c_in_C).1)
+                (by simp (config := {zetaDelta := true}); use c, c_in_C)
           exact (subθs c c_in_C).2 |> And.right |> And.right <| sat_c'sθ
 
     -- LRNEG L
@@ -116,7 +125,8 @@ def InterpolantInductionStep
           · exact preproof.right <| Finset.mem_singleton.mpr rfl
           · exact ℓinφ
 
-      · constructor <;> apply negation_not_cosatisfiable φ <;> simp only [union_singleton_is_insert, Finset.mem_insert, true_or]
+      · constructor <;> apply negation_not_cosatisfiable φ
+        <;> simp only [union_singleton_is_insert, Finset.mem_insert, true_or]
         · apply Or.intro_right; exact preproof.left <| Finset.mem_singleton.mpr rfl
         · apply Or.intro_right; exact preproof.right <| Finset.mem_singleton.mpr rfl
 
@@ -238,22 +248,22 @@ theorem projection_reflects_unsat_R_R
 
 open HasLength
 
-def LocalTableau.length : LocalTableau LR → Nat
+def LocalTableau.length {LR} : LocalTableau LR → Nat
   | (@LocalTableau.fromRule _ C _ next) =>
       1 + (C.attach.map (fun ⟨c,c_in⟩ => (next c c_in).length )).sum
   | (LocalTableau.fromSimple _) => 1
 
-def ClosedTableau.length : ClosedTableau LR → Nat
-  | (ClosedTableau.loc lt next) =>
-      1 + lt.length + ((endNodesOf ⟨LR, lt⟩).attach.map (fun ⟨c, c_in_ends⟩ => (next c c_in_ends).length)).sum
+def ClosedTableau.length {LR} : ClosedTableau LR → Nat
+  | (ClosedTableau.loc lt next) => 1 + lt.length
+      + ((endNodesOf ⟨LR, lt⟩).attach.map (fun ⟨c, c_in_ends⟩ => (next c c_in_ends).length)).sum
   | (@ClosedTableau.atmL LR _ _ _ cTabProj) => 1 + cTabProj.length
   | (@ClosedTableau.atmR LR _ _ _ cTabProj) => 1 + cTabProj.length
 
 -- TODO: move to Tableau.lean
-theorem endNodeOfChildIsEndNode
+theorem endNodeOfChildIsEndNode {C x h E LR}
   lrApp
   (subTabs : (c : TNode) → c ∈ C → LocalTableau c)
-  (E_in:  E ∈ endNodesOf ⟨x, subTabs x h⟩)
+  (E_in : E ∈ endNodesOf ⟨x, subTabs x h⟩)
   : E ∈ endNodesOf ⟨LR, @LocalTableau.fromRule LR C lrApp subTabs⟩
   := by
   unfold endNodesOf
@@ -306,7 +316,8 @@ theorem endNodesOfChildSublistEndNodes
     (subTabs : (c : TNode) → c ∈ C → LocalTableau c)
     (c_in_C : cLR ∈ C)
     lrApp
-    : (endNodesOf ⟨cLR, subTabs cLR c_in_C⟩).Sublist (endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩) := by
+    : (endNodesOf ⟨cLR, subTabs cLR c_in_C⟩).Sublist
+      (endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩) := by
   simp_all only [lrEndNodes]
   apply List.sublist_flatten_of_mem
   simp_all only [List.mem_map, List.mem_attach, true_and, Subtype.exists]
@@ -319,8 +330,8 @@ lemma Sublist.pmap {α β : Type*} {p p2 : α → Prop}
     {f : (a : α) → p a → β} {g : (a : α) → p2 a → β}
     {xs ys : List α} {H : ∀ a ∈ xs, p a} {H2 : ∀ a ∈ ys, p2 a}
     (h : xs.Sublist ys)
-    (agree : ∀ x, (h1 : p x) → (h2 : p2 x) → f x h1 = g x h2):
-    (xs.pmap f H).Sublist (ys.pmap g H2) := by
+    (agree : ∀ x, (h1 : p x) → (h2 : p2 x) → f x h1 = g x h2)
+    : (xs.pmap f H).Sublist (ys.pmap g H2) := by
   induction h with
   | slnil => simp
   | cons _ _ h =>
@@ -329,11 +340,10 @@ lemma Sublist.pmap {α β : Type*} {p p2 : α → Prop}
   | cons₂ _ _ h =>
     rw [pmap.eq_2, pmap.eq_2]
     convert Sublist.cons₂ ..
-    apply (agree ..).symm
-    apply h
+    · exact (agree ..).symm
+    · exact h
 
-theorem map_sum_le_map_sum
-    (xs ys : List α)
+theorem map_sum_le_map_sum {α} (xs ys : List α)
     (h : xs.Sublist ys) -- NOTE: subset is not enough!
     (f : { x // x ∈ xs } → Nat)
     (g : { x // x ∈ ys } → Nat)
@@ -343,8 +353,8 @@ theorem map_sum_le_map_sum
     let ff := fun a ha => f ⟨a,ha⟩
     let gg := fun a ha => g ⟨a,ha⟩
     -- FIXME: There is probably a cleaner way to do this.
-    have : (xs.pmap ff _).Sublist (ys.pmap gg _) :=
-      @Sublist.pmap _ _ _ _ ff gg xs ys (by simp) (by simp) h (fun x h1 h2 => by unfold ff; unfold gg; simp_all)
+    have : (xs.pmap ff _).Sublist (ys.pmap gg _) := @Sublist.pmap _ _ _ _ ff gg xs ys
+      (by simp) (by simp) h (fun x h1 h2 => by unfold ff gg; simp_all)
     rw [List.pmap_eq_map_attach] at this
     rw [List.pmap_eq_map_attach] at this
     aesop
@@ -352,25 +362,26 @@ theorem map_sum_le_map_sum
   · exact this
   · simp
 
-theorem childNext_lt
+theorem childNext_lt {C LR lrApp}
     (subTabs : (c : TNode) → c ∈ C → LocalTableau c)
-    (next : (Y : TNode) → Y ∈ endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩ → ClosedTableau Y)
+    (next : ∀ Y ∈ endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩, ClosedTableau Y)
     (cLR : TNode)
     (c_in_C : cLR ∈ C)
-    :
-    (ClosedTableau.loc (subTabs cLR c_in_C) (childNext subTabs next cLR c_in_C)).length
-    <
-    (ClosedTableau.loc (LocalTableau.fromRule lrApp subTabs) next).length := by
+    :   (ClosedTableau.loc (subTabs cLR c_in_C) (childNext subTabs next cLR c_in_C)).length
+      < (ClosedTableau.loc (LocalTableau.fromRule lrApp subTabs) next).length := by
   have := childNext_eq subTabs next cLR c_in_C
   simp_all [ClosedTableau.length, LocalTableau.length]
-  have : (subTabs cLR c_in_C).length ≤ (List.map (fun x => (subTabs x.1 x.2).length) C.attach).sum := by
+  have :   (subTabs cLR c_in_C).length
+         ≤ (List.map (fun x => (subTabs x.1 x.2).length) C.attach).sum := by
     have := List.mem_attach _ ⟨_, c_in_C⟩
     have := elem_lt_map_sum this (fun x => (subTabs x.1 x.2).length)
     linarith
   have :
-      (List.map (fun x => (childNext subTabs next cLR c_in_C x.1 x.2).length) (endNodesOf ⟨cLR, subTabs cLR c_in_C⟩).attach).sum
+      (List.map (fun x => (childNext subTabs next cLR c_in_C x.1 x.2).length)
+                (endNodesOf ⟨cLR, subTabs cLR c_in_C⟩).attach).sum
       ≤
-      (List.map (fun x => (next x.1 x.2).length) (endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩).attach).sum := by
+      (List.map (fun x => (next x.1 x.2).length)
+                (endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩).attach).sum := by
     apply map_sum_le_map_sum
       (endNodesOf ⟨cLR, subTabs cLR c_in_C⟩)
       (endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩)

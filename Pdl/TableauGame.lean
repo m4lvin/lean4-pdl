@@ -47,7 +47,7 @@ def posOf (H : History) (X : Sequent) : ProverPos H X ⊕ BuilderPos H X :=
 /-- The relation `move old next` says that we can move from `old` to `next`.
 There are three kinds of moves. -/
 -- @[grind] -- FIXME
-inductive move : (old : GamePos) → (new :GamePos) → Prop
+inductive move : (old : GamePos) → (new : GamePos) → Prop
 /-- When the sequent is basic and no repeat, let prover apply a PDL rule. -/
 | prPdl {Y Hist nrep Xbasic} : PdlRule X Y →
     move ⟨Hist, X, .inl (.bas nrep Xbasic)⟩ ⟨(X :: Hist), Y, posOf (X :: Hist) Y⟩
@@ -76,25 +76,29 @@ def theMoves : GamePos → Finset GamePos
             -- We want to catch a negation and all boxes (≥ 1) after it to be loaded.
             (L.map (fun | ~φ => match boxesOf φ with
                             | (δ@h:(_::_), ψ) =>
-                              [ ⟨_,_,posOf (X::H) (L.erase (~φ), R, some (Sum.inl (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by subst h; simp)⌋ψ))))⟩ ]
+                              [ ⟨ _, _, posOf (X::H) (L.erase (~φ), R
+                                , some (Sum.inl (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by grind)⌋ψ))))⟩ ]
                             | ([],_) => []
                         | _ => [] )).flatten.toFinset
             ∪
             (R.map (fun | ~φ => match boxesOf φ with
                             | (δ@h:(_::_), ψ) =>
-                              [ ⟨_,_,posOf (X::H) (L, R.erase (~φ), some (Sum.inr (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by subst h; simp)⌋ψ))))⟩ ]
+                              [ ⟨ _, _, posOf (X::H) (L, R.erase (~φ)
+                                , some (Sum.inr (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by grind)⌋ψ))))⟩ ]
                             | ([],_) => []
                         | _ => [] )).flatten.toFinset
       | ⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩ =>
               ( match ξ with -- (M) rule, deterministic:
               | .normal φ => { ⟨_,_,posOf (X::H) ⟨(~φ) :: projection a L, projection a R, none⟩⟩ }
-              | .loaded χ => { ⟨_,_,posOf (X::H) ⟨projection a L, projection a R, some (Sum.inl (~'χ))⟩⟩ } )
+              | .loaded χ => { ⟨_,_,posOf (X::H) ⟨ projection a L, projection a R
+                                                 , some (Sum.inl (~'χ))⟩⟩ } )
               ∪ -- (L-) rule, deterministic:
               { ⟨_, _, posOf (X::H) (L.insert (~(⌊·a⌋ξ).unload), R, none)⟩ }
       | ⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩ =>
               ( match ξ with -- (M) rule, deterministic:
               | .normal φ => { ⟨_,_,posOf (X::H) ⟨projection a L, (~φ) :: projection a R, none⟩⟩ }
-              | .loaded χ => { ⟨_,_,posOf (X::H) ⟨projection a L, projection a R, some (Sum.inr (~'χ))⟩⟩ } )
+              | .loaded χ => { ⟨_,_,posOf (X::H) ⟨ projection a L, projection a R
+                                                 , some (Sum.inr (~'χ))⟩⟩ } )
               ∪ -- (L-) rule, deterministic:
               { ⟨_, _, posOf (X::H) (L, R.insert (~(⌊·a⌋ξ).unload), none)⟩ }
       -- Somewhat repetitive. Is there pattern matching with "did not match before" proofs?
@@ -131,7 +135,7 @@ def theMoves : GamePos → Finset GamePos
       -- Let Builder pick an end node of `ltab`:
       ((endNodesOf ltab).map (fun Y => ⟨(X :: H), Y, posOf (X :: H) Y⟩)).toFinset
 
-set_option maxHeartbeats 2000000 in
+set_option maxHeartbeats 2000000 in -- for simp_all timeouts
 /-- Characterization of `theMoves`. -/
 lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos} :
     next ∈ theMoves ⟨H, X, p⟩
@@ -141,10 +145,12 @@ lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos}
       ∧ ∃ L R, ( -- need to choose PDL rule application:
         ( X = ⟨L, R, none⟩ -- (L+) rule, choosing formula to load
           ∧ ( ( ∃ δs δ ψ, ¬ ψ.isBox ∧ (~⌈⌈δs⌉⌉⌈δ⌉ψ) ∈ L
-                ∧ next = ⟨_, _, posOf (X::H) (L.erase (~⌈⌈δs⌉⌉⌈δ⌉ψ), R, some (Sum.inl (~'(⌊⌊δs⌋⌋⌊δ⌋ψ))))⟩)
+                ∧ next = ⟨_, _, posOf (X::H) ( L.erase (~⌈⌈δs⌉⌉⌈δ⌉ψ), R
+                                             , some (Sum.inl (~'(⌊⌊δs⌋⌋⌊δ⌋ψ))))⟩)
               ∨
               ( ∃ δs δ ψ, ¬ ψ.isBox ∧ (~⌈⌈δs⌉⌉⌈δ⌉ψ) ∈ R
-                ∧ next = ⟨_, _, posOf (X::H) (L, R.erase (~⌈⌈δs⌉⌉⌈δ⌉ψ), some (Sum.inr (~'(⌊⌊δs⌋⌋⌊δ⌋ψ))))⟩)
+                ∧ next = ⟨_, _, posOf (X::H) ( L, R.erase (~⌈⌈δs⌉⌉⌈δ⌉ψ)
+                                             , some (Sum.inr (~'(⌊⌊δs⌋⌋⌊δ⌋ψ))))⟩)
             )
         )
         ∨
@@ -156,8 +162,7 @@ lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos}
                 ∧ next = ⟨_,_,posOf (X::H) ⟨projection a L, projection a R, some (Sum.inl (~'χ))⟩⟩ )
               ∨
               ( -- (L-) rule, deterministic
-                next = ⟨_, _, posOf (X::H) (L.insert (~(⌊·a⌋ξ).unload), R, none)⟩
-              )
+                next = ⟨_, _, posOf (X::H) (L.insert (~(⌊·a⌋ξ).unload), R, none)⟩ )
             )
         )
         ∨
@@ -197,7 +202,8 @@ lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos}
           by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
           · rcases h with ⟨head, tail, ψ, ψ_nonBox, bxs_def⟩
             simp [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
-            refine ⟨L, R, Or.inl ⟨ rfl, Or.inl ⟨(head :: tail).dropLast, (head :: tail).getLast (by simp), ψ, ?_⟩⟩⟩
+            refine ⟨L, R, Or.inl ⟨ rfl, Or.inl ⟨(head :: tail).dropLast
+                                 , (head :: tail).getLast (by simp), ψ, ?_⟩⟩⟩
             rw [← boxes_last, List.dropLast_append_getLast]
             have := def_of_boxesOf_def bxs_def; grind
           · exfalso
@@ -209,7 +215,8 @@ lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos}
           by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
           · rcases h with ⟨head, tail, ψ, ψ_nonBox, bxs_def⟩
             simp [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
-            refine ⟨L, R, Or.inl ⟨ rfl, Or.inr ⟨(head :: tail).dropLast, (head :: tail).getLast (by simp), ψ, ?_⟩⟩⟩
+            refine ⟨L, R, Or.inl ⟨ rfl, Or.inr ⟨(head :: tail).dropLast
+                                 , (head :: tail).getLast (by simp), ψ, ?_⟩⟩⟩
             rw [← boxes_last, List.dropLast_append_getLast]
             have := def_of_boxesOf_def bxs_def; grind
           · exfalso
@@ -233,7 +240,7 @@ lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos}
       simp at *
       try grind
   · unfold theMoves
-    rintro (⟨nrep, Xbas, p_def, hyp⟩ | ⟨nrep, nbas, p_def, hyp⟩ | ⟨nrep, nbas, lt, p_def, hyp⟩) <;> subst p_def
+    rintro (⟨_, _, p_def, hyp⟩ | ⟨_, _, p_def, hyp⟩ | ⟨_, _, lt, p_def, hyp⟩) <;> subst p_def
     · rcases hyp with ⟨L, R, (⟨X_def, hyp⟩ | _ | _) ⟩
       · subst X_def
         simp
@@ -273,7 +280,7 @@ lemma no_moves_of_rep {Hist X pos} (h : rep Hist X) :
   rcases X with ⟨L,R,_|o⟩ <;> rcases pos with (_|_|_)|(_|_) <;> aesop
 
 /-- The finite set given by `theMoves` indeed agrees with the relation `move`.
-(Other direction should hold too, but for now seems to not be needed.)-/
+(Other direction should hold too, but for now seems to not be needed.) -/
 lemma move_of_mem_theMoves :
     next ∈ theMoves p → move p next := by
   rcases p with ⟨Hist, X, pos⟩
@@ -479,7 +486,7 @@ lemma Sequent.subseteq_FL_refl (X : Sequent) : X.subseteq_FL X := by
   simp [Sequent.subseteq_FL, FLL_append_eq]
 
 @[simp]
-lemma Sequent.subseteq_FL_trans (X Y Z: Sequent) :
+lemma Sequent.subseteq_FL_trans (X Y Z : Sequent) :
     X.subseteq_FL Y → Y.subseteq_FL Z → X.subseteq_FL Z := by
   intro X_Y Y_Z
   rcases X with ⟨L,R,O⟩
@@ -545,7 +552,7 @@ lemma unfoldDiamond_in_FL (α : Program) (ψ : Formula) (X : List Formula) :
     cases α <;> simp [FL]
 
 /-- Helper for `LocalRule.stays_in_FL` -/
-lemma LoadRule.stays_in_FL_left (lr : LoadRule (~'χ) ress) :
+lemma LoadRule.stays_in_FL_left {χ ress} (lr : LoadRule (~'χ) ress) :
     ∀ Y ∈ ress, Sequent.subseteq_FL (Y.1, ∅, Y.2.map Sum.inl) (∅, ∅, some (Sum.inl (~'χ))) := by
   simp
   intro F oχ in_ress
@@ -1049,11 +1056,11 @@ lemma Sequent.allSeqt_subseteq_FL_congr (X Y : Sequent) (h : X ≈ Y) :
 def Seqt.all_subseteq_FL (Xs : Seqt) : Finset Seqt  :=
   Quotient.lift Sequent.allSeqt_subseteq_FL Sequent.allSeqt_subseteq_FL_congr Xs
 
-lemma Seqt.all_subseteq_FL_spec { Ys : Seqt } (Ys_in : Ys ∈ Xs.all_subseteq_FL) :
+lemma Seqt.all_subseteq_FL_spec {Ys : Seqt} (Ys_in : Ys ∈ Xs.all_subseteq_FL) :
     Ys.subseteq_FL Xs := by
   sorry
 
-lemma Seqt.all_subseteq_FL_complete { Ys : Seqt } (Ys_in : Ys.subseteq_FL Xs) :
+lemma Seqt.all_subseteq_FL_complete {Ys : Seqt} (Ys_in : Ys.subseteq_FL Xs) :
     Ys ∈ Xs.all_subseteq_FL := by
   sorry
 
@@ -1180,7 +1187,7 @@ lemma move.converse_wf : WellFounded (Function.swap move) := by
     simp [Seqt.subseteq_FL]
     assumption
 
--- and THEN argue that same element in quotient means we need have no `move` successor before quotienting?!
+-- and THEN argue that same in quotient means we have no `move` successor before quotienting?!
 
   /- OLD IDEA for `move.wf`
   apply `wf_of_finTransInvImage_of_transIrrefl` - no longer needed at all now?
@@ -1194,7 +1201,7 @@ lemma move.converse_wf : WellFounded (Function.swap move) := by
 
 /-! ## Actual Game Definition -/
 
-/-- The game defined in Section 6.2.-/
+/-- The game defined in Section 6.2. -/
 def tableauGame : Game where
   Pos := GamePos
   turn | ⟨_, _, .inl _⟩ => Prover
@@ -1395,7 +1402,7 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
       -- Now each `Y : endNodesOf lt` is a possible move.
       -- Because `sP` wins against all moves by Builder we can use `sP` to define `next`.
       -- Note that all is non-constructive here via Nonempty.
-      have next' : ∀ (Y : Sequent) (Y_in : Y ∈ endNodesOf ltX), Nonempty (Tableau (X :: Hist) Y) := by
+      have next' : ∀ Y (Y_in : Y ∈ endNodesOf ltX), Nonempty (Tableau (X :: Hist) Y) := by
         intro Y Y_in
         apply gameP_general (X :: Hist) Y sP (by apply posOf) -- the IH
         subst pos_def
@@ -1445,8 +1452,8 @@ def buildTree (s : Strategy tableauGame Builder) {H X} p (h : winning s ⟨H, X,
       let prMoves := (LocalTableau.all X).map
         (fun ltab => (⟨H, X, .inr (.ltab nrep nbas ltab)⟩ : GamePos))
       have stillWin : ∀ newPos ∈ prMoves, winning s newPos := by sorry
-      .Step $
-      prMoves.attach.map $ fun pos => ⟨_, buildTree s p (stillWin _ sorry)⟩ -- p ≠ pos MISMATCH ?!
+      .Step <|
+      prMoves.attach.map <| fun pos => ⟨_, buildTree s p (stillWin _ sorry)⟩ -- p ≠ pos MISMATCH ?!
   -- Builder positions:
   | Sum.inr (.lpr _) => by exfalso; simp [winning] at h -- prover wins, cannot happen
   | Sum.inr (.ltab nrep nbas ltX) =>

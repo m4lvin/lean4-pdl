@@ -55,7 +55,7 @@ theorem allTP_mem (ℓ : TP α) : ℓ ∈ allTP α := by
 
 /-- σ^ℓ -/
 def signature (α : Program) (ℓ : TP α) : Formula :=
-  Con $ (testsOfProgram α).attach.map (fun τ => if ℓ τ then τ.val else ~τ.val)
+  Con <| (testsOfProgram α).attach.map (fun τ => if ℓ τ then τ.val else ~τ.val)
 
 theorem signature_iff {W} {M : KripkeModel W} {w : W} :
     evaluate M w (signature α ℓ) ↔ ∀ τ ∈ (testsOfProgram α).attach, ℓ τ ↔ evaluate M w τ.val := by
@@ -160,7 +160,8 @@ def Xset (α : Program) (ℓ : TP α) (ψ : Formula) : List Formula :=
 def unfoldBox (α : Program) (φ : Formula) : List (List Formula) :=
   (allTP α).map (fun ℓ => Xset α ℓ φ)
 
-theorem F_mem_iff_neg α (ℓ : TP α) φ : φ ∈ F α ℓ ↔ ∃ τ, ∃ (h : τ ∈ testsOfProgram α), φ = (~τ) ∧ ℓ ⟨τ,h⟩ = false := by
+theorem F_mem_iff_neg α (ℓ : TP α) φ :
+    φ ∈ F α ℓ ↔ ∃ τ, ∃ (h : τ ∈ testsOfProgram α), φ = (~τ) ∧ ℓ ⟨τ,h⟩ = false := by
   simp_all only [exists_and_left]
   cases α
   all_goals
@@ -217,7 +218,11 @@ theorem P_monotone α (ℓ ℓ' : TP α) (h : ∀ τ, ℓ τ → ℓ' τ) δ : �
     simp_all [testsOfProgram, P]
 
 -- prove this via boxHelperTermination instead?
-theorem PgoesDown : γ ∈ δ → δ ∈ P α ℓ → (if α.isAtomic then γ = α else if α.isStar then lengthOfProgram γ ≤  lengthOfProgram α else lengthOfProgram γ < lengthOfProgram α) := by
+theorem PgoesDown : γ ∈ δ → δ ∈ P α ℓ →
+  (if α.isAtomic
+    then γ = α
+    else if α.isStar then lengthOfProgram γ ≤ lengthOfProgram α
+                     else lengthOfProgram γ < lengthOfProgram α) := by
   intro γ_in δ_in
   cases α
   all_goals
@@ -358,7 +363,7 @@ theorem keepFreshP α ℓ (x_notin : x ∉ α.voc) : ∀ δ ∈ P α ℓ, x ∉ 
       · exact IHα _ δ'_in.1 _ γ_in_δ'
       · subst_eqs; assumption
 
-set_option maxHeartbeats 2000000 in
+set_option maxHeartbeats 2000000 in -- for simp and aesop timeouts
 /-- Depending on α we know what can occur inside `δ ∈ P α ℓ` for unfoldBox. -/
 theorem boxHelperTermination α (ℓ : TP α) :
   ∀ δ ∈ P α ℓ,
@@ -683,7 +688,8 @@ theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
        ∀ W M (w v : W), (M,w) ⊨ ρ → relate M β w v → (M,v) ⊨ ρ := by
     intro W M w v w_rho w_β_v
     have : (M,w) ⊨ ⌈β⌉ρ := by
-      have by_ass : (M,w) ⊨ (repl_in_F x ρ) (χ0 ⋁ χ1) := by apply rho_imp_repl; simp; exact w_rho; simp
+      have by_ass : (M,w) ⊨ (repl_in_F x ρ) (χ0 ⋁ χ1) := by
+        apply rho_imp_repl; simp; exact w_rho; simp
       have obvious : (M,w) ⊨ (repl_in_F x ρ) (·x) := by simp; exact w_rho
       have : (M,w) ⊨ (repl_in_F x ρ) (((·x) ⋀ χ0) ⋁ χ1) := by
         simp [evaluate, modelCanSemImplyForm] at *
@@ -703,7 +709,9 @@ theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
   simp only [List.mem_singleton, forall_eq, evaluate, relate]
   intro w_rho v w_bS_v
   induction w_bS_v using Relation.ReflTransGen.head_induction_on
-  · apply rho_imp_psi; simp; assumption; simp
+  · apply rho_imp_psi
+    · simp; assumption
+    · simp
   case head u1 u2 u1_b_u2 _ IH =>
     apply IH
     exact fortysix W M u1 u2 w_rho u1_b_u2
@@ -734,11 +742,14 @@ theorem localBoxTruth_connector γ ψ :
       simp [List.mem_filter]
       tauto
     have := goal ℓ W M w -- using the claim proven by induction
-    simp_all
+    simp_all only [evaluate, implies_true, true_and, iff_and_self, List.mem_map,
+      exists_exists_and_eq_and]
     refine ⟨ℓ, ℓ_in, ?_⟩
     apply this
     unfold ℓ
-    simp_all [signature, conEval]
+    simp_all only [signature, conEval, List.mem_map, List.mem_attach, true_and, Subtype.exists,
+      forall_exists_index, decide_eq_true_eq, List.map_subtype, List.unattach_attach, and_imp,
+      forall_apply_eq_imp_iff₂]
     intro τ _
     split_ifs <;> simp_all
   · intro w_Cons
@@ -788,9 +799,9 @@ theorem localBoxTruth_connector γ ψ :
         aesop
     simp_all
 
-set_option maxHeartbeats 2000000 in
+set_option maxHeartbeats 2000000 in -- for simp timeouts (also triggering kernel error?)
 /-- Induction claim for `localBoxTruth`. -/
-theorem localBoxTruthI γ ψ (ℓ :TP γ) :
+theorem localBoxTruthI γ ψ (ℓ : TP γ) :
     (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Xset γ ℓ ψ) ⋀ signature γ ℓ := by
   intro W M w
   cases γ
@@ -1128,8 +1139,8 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
       let χ0 : Formula := dis (T0.map (fun ℓ => Con (F _ ℓ) ⋀ φ' ℓ))
       let χ1 : Formula := dis (T1.map (fun ℓ => Con (F _ ℓ) ⋀ φ' ℓ))
       have := guardToStar x β χ0 χ1 ρ ψ x_not_in_β ?_ ?_ ?_ W M w
-      simp only [List.mem_singleton, forall_eq] at this
-      exact this
+      · simp only [List.mem_singleton, forall_eq] at this
+        exact this
       all_goals
         clear W M w
         intro W M w
@@ -1138,7 +1149,8 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
         have IHβ_thm := localBoxTruth_connector _ _ (localBoxTruthI β (·x)) W M w
         rw [IHβ_thm]
         clear IHβ_thm
-        simp only [Xset, evalDis, disEval, List.mem_map, exists_exists_and_eq_and, conEval, List.mem_append, evaluate]
+        simp only [Xset, evalDis, disEval, List.mem_map, exists_exists_and_eq_and, conEval,
+          List.mem_append, evaluate]
         constructor
         · rintro ⟨ℓ, ℓ_in, w_Xβ⟩
           -- now need to choose x⋀χ0 or χ1
@@ -1282,7 +1294,7 @@ theorem localBoxTruthI γ ψ (ℓ :TP γ) :
 theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) :=
   localBoxTruth_connector γ ψ (localBoxTruthI γ ψ)
 
-theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M,v) ⊨ Con (F γ ℓ)) :
+theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M, v) ⊨ Con (F γ ℓ)) :
     ∃ δ ∈ P γ ℓ, relateSeq M δ v w := by
   cases γ
   case atom_prog =>
@@ -1298,13 +1310,15 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M,v) 
     simp at v_γ_w
     cases v_γ_w
     case inl v_α_w =>
-      have v_Fℓα : evaluate M v (Con (F α ℓ)) := by simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+      have v_Fℓα : evaluate M v (Con (F α ℓ)) := by
+        simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
       have IHα := existsBoxFP α v_α_w ℓ v_Fℓα -- using coercion from above :-)
       rcases IHα with ⟨δ, _⟩
       use δ
       simp_all [P]
     case inr v_β_w =>
-      have v_Fℓβ : evaluate M v (Con (F β ℓ)) := by simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+      have v_Fℓβ : evaluate M v (Con (F β ℓ)) := by
+        simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
       have IHβ := existsBoxFP β v_β_w ℓ v_Fℓβ -- using coercion from above :-)
       rcases IHβ with ⟨δ, _⟩
       use δ
@@ -1312,7 +1326,8 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M,v) 
   case sequence α β =>
     simp only [relate] at v_γ_w
     rcases v_γ_w with ⟨u, v_α_u, u_β_w⟩
-    have v_Fℓα : evaluate M v (Con (F α ℓ)) := by simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+    have v_Fℓα : evaluate M v (Con (F α ℓ)) := by
+      simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
     have IHα := existsBoxFP α v_α_u ℓ v_Fℓα -- using coercion from above :-)
     rcases IHα with ⟨δ, ⟨δ_in, v_δ_u⟩⟩
     -- "We make a further case distinction"
@@ -1322,7 +1337,8 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M,v) 
       simp [relateSeq] at v_δ_u
       subst v_δ_u
       rename relate M β v w => v_β_w
-      have v_Fℓβ : evaluate M v (Con (F β ℓ)) := by simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+      have v_Fℓβ : evaluate M v (Con (F β ℓ)) := by
+        simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
       have IHβ := existsBoxFP β v_β_w ℓ v_Fℓβ -- using coercion from above :-)
       rcases IHβ with ⟨η, ⟨η_in, v_η_w⟩⟩
       use η
@@ -1340,7 +1356,8 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M,v) 
       simp_all [P,relateSeq]
     case inr hyp =>
       rcases hyp with ⟨v_neq_w, ⟨u, v_neq_u, v_β_u, u_βS_w⟩⟩
-      have v_Fℓβ : evaluate M v (Con (F β ℓ)) := by simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+      have v_Fℓβ : evaluate M v (Con (F β ℓ)) := by
+        simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
       have IHβ := existsBoxFP β v_β_u ℓ v_Fℓβ
       rcases IHβ with ⟨δ, ⟨δ_in, v_δ_w⟩⟩
       have claim : δ ≠ [] := by by_contra hyp; subst hyp; simp_all [relateSeq];

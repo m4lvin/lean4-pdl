@@ -96,7 +96,8 @@ theorem notsatisfnotThenTaut : ∀ φ, ¬ satisfiable (~φ) → tautology φ :=
   unfold tautology
   simp
 
-theorem subsetSat {M : KripkeModel W} {w : W} {X Y : List Formula} : (∀ φ ∈ X, evaluate M w φ) → Y ⊆ X → ∀ φ ∈ Y, evaluate M w φ :=
+theorem subsetSat {M : KripkeModel W} {w : W} {X Y : List Formula} :
+    (∀ φ ∈ X, evaluate M w φ) → Y ⊆ X → ∀ φ ∈ Y, evaluate M w φ :=
   by aesop
 
 theorem semEquiv.refl : Reflexive semEquiv := by
@@ -132,28 +133,34 @@ class vDash (α : Type) (β : Type) where
 
 open vDash
 
-instance modelCanSemImplyForm {W : Type} : vDash (KripkeModel W × W) Formula := vDash.mk (@evaluatePoint W)
-instance modelCanSemImplySet {W : Type} : vDash (KripkeModel W × W) (List Formula) := vDash.mk (λ ⟨M,w⟩ fs => ∀ f ∈ fs, @evaluate W M w f)
+instance modelCanSemImplyForm {W : Type} : vDash (KripkeModel W × W) Formula :=
+  vDash.mk (@evaluatePoint W)
+instance modelCanSemImplySet {W : Type} : vDash (KripkeModel W × W) (List Formula) :=
+  vDash.mk (fun ⟨M,w⟩ fs => ∀ f ∈ fs, @evaluate W M w f)
 @[simp]
-instance modelCanSemImplyList {W : Type} : vDash (KripkeModel W × W) (List Formula) := vDash.mk (λ ⟨M,w⟩ fs => ∀ f ∈ fs, @evaluate W M w f)
+instance modelCanSemImplyList {W : Type} : vDash (KripkeModel W × W) (List Formula) :=
+  vDash.mk (fun ⟨M,w⟩ fs => ∀ f ∈ fs, @evaluate W M w f)
 instance modelCanSemImplyAnyFormula {W : Type} : vDash (KripkeModel W × W) AnyFormula :=
   ⟨fun (M,w) ξ => match ξ with
     | (AnyFormula.normal φ) => evaluate M w φ
     | .loaded χ => evaluate M w χ.unload⟩
 instance modelCanSemImplyAnyNegFormula {W : Type} : vDash (KripkeModel W × W) AnyNegFormula :=
-  vDash.mk (λ ⟨M,w⟩ ⟨ξ⟩ => ¬ SemImplies (M, w) ξ)
+  vDash.mk (fun ⟨M,w⟩ ⟨ξ⟩ => ¬ SemImplies (M, w) ξ)
 instance setCanSemImplySet : vDash (List Formula) (List Formula) := vDash.mk semImpliesLists
-instance setCanSemImplyForm : vDash (List Formula) Formula:= vDash.mk fun X ψ => semImpliesLists X [ψ]
-instance formCanSemImplySet : vDash Formula (List Formula) := vDash.mk fun φ X => semImpliesLists [φ] X
-instance formCanSemImplyForm : vDash Formula Formula := vDash.mk fun φ ψ => semImpliesLists [φ] [ψ]
+instance setCanSemImplyForm : vDash (List Formula) Formula :=
+  vDash.mk fun X ψ => semImpliesLists X [ψ]
+instance formCanSemImplySet : vDash Formula (List Formula) :=
+  vDash.mk fun φ X => semImpliesLists [φ] X
+instance formCanSemImplyForm : vDash Formula Formula :=
+  vDash.mk fun φ ψ => semImpliesLists [φ] [ψ]
 
-infixl:40 "⊨" => SemImplies
+infixl:40 " ⊨ " => SemImplies
 
-infixl:40 "≡" => semEquiv
+infixl:40 " ≡ " => semEquiv
 
-infixl:40 "≡ᵣ" => relEquiv
+infixl:40 " ≡ᵣ " => relEquiv
 
-infixl:40 "⊭" => fun a b => ¬a⊨b
+infixl:40 " ⊭ " => fun a b => ¬a⊨b
 
 @[simp]
 theorem singletonSat_iff_sat : ∀ φ, satisfiable ({φ} : Finset Formula) ↔ satisfiable φ :=
@@ -162,7 +169,8 @@ theorem singletonSat_iff_sat : ∀ φ, satisfiable ({φ} : Finset Formula) ↔ s
   simp
 
 @[simp]
-theorem vDashSingleton_iff_vDash_formula {M : KripkeModel W} {w : W} : ∀ φ, (M, w) ⊨ ([φ] : List Formula) ↔ evaluate M w φ :=
+theorem vDashSingleton_iff_vDash_formula {M : KripkeModel W} {w : W} :
+    ∀ φ, (M, w) ⊨ ([φ] : List Formula) ↔ evaluate M w φ :=
   by
   intro phi
   simp [modelCanSemImplyList]
@@ -176,8 +184,8 @@ theorem forms_to_lists {φ ψ : Formula} : φ⊨ψ → ([φ] : List Formula)⊨(
   rw [psi_in_psi]
   -- needed even though no ψ_1 in goal here?!
   apply impTaut
-  rw [←vDashSingleton_iff_vDash_formula φ] at lhs
-  · tauto
+  · rw [←vDashSingleton_iff_vDash_formula φ] at lhs
+    tauto
   · aesop
 
 /-- The Local Deduction Theorem. -/
@@ -186,7 +194,7 @@ theorem deduction (X : List Formula) (φ ψ : Formula) :
   intro Xφ_then_ψ W M w w_X
   aesop
 
-theorem notSat_iff_semImplies (X : List Formula) (φ : Formula):
+theorem notSat_iff_semImplies (X : List Formula) (φ : Formula) :
     ¬ satisfiable (X ∪ [~φ]) ↔ X ⊨ ([φ] : List Formula) := by
   constructor
   · simp only [satisfiable, not_exists, not_forall, exists_prop, setCanSemImplySet]

@@ -53,10 +53,12 @@ theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B
 In MB page 19 these were multiple rules ¬u, ¬; ¬* and ¬?.
 It replaces the loaded formula by up to one loaded formula and a list of normal formulas.
 It's a bit annoying to need the rule twice here due to the definition of LoadFormula
-and the extra definition of `unfoldDiamondLoaded'`.  -/
+and the extra definition of `unfoldDiamondLoaded'`. -/
 inductive LoadRule : NegLoadFormula → List (List Formula × Option NegLoadFormula) → Type
-  | dia  {α χ} : (notAtom : ¬ α.isAtomic) → LoadRule (~'⌊α⌋(χ : LoadFormula)) (unfoldDiamondLoaded  α χ)
-  | dia' {α φ} : (notAtom : ¬ α.isAtomic) → LoadRule (~'⌊α⌋(φ : Formula    )) (unfoldDiamondLoaded' α φ)
+  | dia  {α χ} : (notAtom : ¬ α.isAtomic)
+                → LoadRule (~'⌊α⌋(χ : LoadFormula)) (unfoldDiamondLoaded  α χ)
+  | dia' {α φ} : (notAtom : ¬ α.isAtomic)
+                → LoadRule (~'⌊α⌋(φ : Formula    )) (unfoldDiamondLoaded' α φ)
   deriving DecidableEq, Repr
 
 /-- Given a LoadRule application, define the equivalent unloaded rule application.
@@ -105,23 +107,24 @@ because in any such case we could also close the tableau before or without loadi
 The `YS_def` arguments in non-terminal rules enables deriving `DecidableEq` for `LocalRule`.
 -/
 inductive LocalRule : Sequent → List Sequent → Type
-  | oneSidedL (orule : OneSidedLocalRule precond ress)
-      (YS_def : YS = ress.map λ res => (res,∅,none)) : LocalRule (precond,∅,none) YS
-  | oneSidedR (orule : OneSidedLocalRule precond ress)
-      (YS_def : YS = ress.map λ res => (∅,res,none)) : LocalRule (∅,precond,none) YS
+  | oneSidedL {precond ress YS} (orule : OneSidedLocalRule precond ress)
+      (YS_def : YS = ress.map fun res => (res,∅,none)) : LocalRule (precond,∅,none) YS
+  | oneSidedR {precond ress YS} (orule : OneSidedLocalRule precond ress)
+      (YS_def : YS = ress.map fun res => (∅,res,none)) : LocalRule (∅,precond,none) YS
   | LRnegL (ϕ : Formula) : LocalRule ([ϕ], [~ϕ], none) ∅ --  ϕ on left side, ~ϕ on the right
   | LRnegR (ϕ : Formula) : LocalRule ([~ϕ], [ϕ], none) ∅ -- ~ϕ on left side,  ϕ on the right
-  | loadedL (χ : LoadFormula) (lrule : LoadRule (~'χ) ress)
-      (YS_def : YS = ress.map λ (X, o) => (X, ∅, o.map Sum.inl))
+  | loadedL {ress YS} (χ : LoadFormula) (lrule : LoadRule (~'χ) ress)
+      (YS_def : YS = ress.map fun (X, o) => (X, ∅, o.map Sum.inl))
       : LocalRule (∅, ∅, some (Sum.inl (~'χ))) YS
-  | loadedR (χ : LoadFormula) (lrule : LoadRule (~'χ) ress)
-      (YS_def : YS = ress.map λ (X, o) => (∅, X, o.map Sum.inr))
+  | loadedR {ress YS} (χ : LoadFormula) (lrule : LoadRule (~'χ) ress)
+      (YS_def : YS = ress.map fun (X, o) => (∅, X, o.map Sum.inr))
       : LocalRule (∅, ∅, some (Sum.inr (~'χ))) YS
   deriving Repr, DecidableEq
 
 @[simp]
-def applyLocalRule : LocalRule (Lcond, Rcond, Ocond) ress → Sequent → List Sequent
-  | _, ⟨L, R, O⟩ => ress.map $
+def applyLocalRule {Lcond Rcond Ocond ress} :
+  LocalRule (Lcond, Rcond, Ocond) ress → Sequent → List Sequent
+  | _, ⟨L, R, O⟩ => ress.map <|
       fun (Lnew, Rnew, Onew) => ( L.diff Lcond ++ Lnew
                                 , R.diff Rcond ++ Rnew
                                 , Olf.change O Ocond Onew )
@@ -194,7 +197,7 @@ lemma oneSidedR_sat_down (LRO : Sequent)
 lemma loadedL_preserves_right {LRO : Sequent}
     (χ : LoadFormula) (Opreproof : LRO.O = some (Sum.inl (~'χ)))
     {ress} (lrule : LoadRule (~'χ) ress)
-    {YS : List Sequent} (YS_def : YS = ress.map λ (X, o) => (X, ∅, o.map Sum.inl))
+    {YS : List Sequent} (YS_def : YS = ress.map fun (X, o) => (X, ∅, o.map Sum.inl))
     : ∀ c ∈ applyLocalRule (LocalRule.loadedL χ lrule YS_def) LRO, c.right = LRO.right := by
   rcases LRO with ⟨L,R,O⟩
   cases Opreproof
@@ -208,7 +211,7 @@ lemma loadedL_preserves_right {LRO : Sequent}
 lemma loadedR_preserves_left {LRO : Sequent}
     (χ : LoadFormula) (Opreproof : LRO.O = some (Sum.inr (~'χ)))
     {ress} (lrule : LoadRule (~'χ) ress)
-    {YS : List Sequent} (YS_def : YS = ress.map λ (X, o) => (∅, X, o.map Sum.inr))
+    {YS : List Sequent} (YS_def : YS = ress.map fun (X, o) => (∅, X, o.map Sum.inr))
     : ∀ c ∈ applyLocalRule (LocalRule.loadedR χ lrule YS_def) LRO, c.left = LRO.left := by
   rcases LRO with ⟨L,R,O⟩
   cases Opreproof
@@ -223,7 +226,7 @@ even together with any other list of formulas as context. -/
 lemma loadedL_sat_down (LRO : Sequent)
     (χ : LoadFormula) (Opreproof : LRO.O = some (Sum.inl (~'χ)))
     {ress} (lrule : LoadRule (~'χ) ress)
-    {YS : List Sequent} (YS_def : YS = ress.map λ (X, o) => (X, ∅, o.map Sum.inl))
+    {YS : List Sequent} (YS_def : YS = ress.map fun (X, o) => (X, ∅, o.map Sum.inl))
     {X : List Formula} (LX_sat : satisfiable (Sequent.left LRO ∪ X))
     : ∃ c ∈ applyLocalRule (LocalRule.loadedL χ lrule YS_def) LRO, satisfiable (c.left ∪ X) := by
   rcases LRO with ⟨L,R,O⟩
@@ -257,7 +260,7 @@ even together with any other list of formulas as context. -/
 lemma loadedR_sat_down (LRO : Sequent)
     (χ : LoadFormula) (Opreproof : LRO.O = some (Sum.inr (~'χ)))
     {ress} (lrule : LoadRule (~'χ) ress)
-    {YS : List Sequent} (YS_def : YS = ress.map λ (X, o) => (∅, X, o.map Sum.inr))
+    {YS : List Sequent} (YS_def : YS = ress.map fun (X, o) => (∅, X, o.map Sum.inr))
     {X : List Formula} (RX_sat : satisfiable (Sequent.right LRO ∪ X))
     : ∃ c ∈ applyLocalRule (LocalRule.loadedR χ lrule YS_def) LRO, satisfiable (c.right ∪ X) := by
   rcases LRO with ⟨L,R,O⟩
@@ -322,7 +325,7 @@ theorem localRuleTruth
         rw [← osTruth, conEval]
         intro f f_in; apply w_LRO
         simp only [List.mem_union_iff]
-        exact Or.inl $ Or.inl $ List.Subperm.subset preconditionProof f_in
+        exact Or.inl <| Or.inl <| List.Subperm.subset preconditionProof f_in
       rw [disconEval] at this
       rcases this with ⟨Y, Y_in, claim⟩
       use Y
@@ -332,7 +335,7 @@ theorem localRuleTruth
         simp only [List.mem_union_iff, List.mem_append] at f_in
         rcases f_in with (((f_in_L | f_in_Y) | f_in_R) | f_in_O)
         · apply w_LRO f; simp only [List.mem_union_iff]
-          exact Or.inl $ Or.inl $ List.diff_subset L Lcond f_in_L
+          exact Or.inl <| Or.inl <| List.diff_subset L Lcond f_in_L
         · exact claim f f_in_Y
         · apply w_LRO f; simp only [List.mem_union_iff]
           tauto
@@ -352,7 +355,7 @@ theorem localRuleTruth
           exact this f f_in_cond
         · apply w_LYRO
           simp only [List.mem_union_iff, List.mem_append]
-          exact Or.inl $ Or.inl $ Or.inl $ List.mem_diff_of_mem f_in_L f_notin_cond
+          exact Or.inl <| Or.inl <| Or.inl <| List.mem_diff_of_mem f_in_L f_notin_cond
       · apply w_LYRO; simp_all
       · apply w_LYRO; simp_all
   case oneSidedR ress orule ress_def hC =>
@@ -367,7 +370,7 @@ theorem localRuleTruth
         rw [← osTruth, conEval]
         intro f f_in; apply w_LRO
         simp only [List.mem_union_iff]
-        exact Or.inl $ Or.inr $ List.Subperm.subset preconditionProof f_in
+        exact Or.inl <| Or.inr <| List.Subperm.subset preconditionProof f_in
       rw [disconEval] at this
       rcases this with ⟨Y, Y_in, claim⟩
       use Y
@@ -377,9 +380,9 @@ theorem localRuleTruth
         simp only [List.mem_union_iff, List.mem_append] at f_in
         rcases f_in with ((f_in_L | (f_in_R | f_in_Y)) | f_in_O)
         · apply w_LRO f; simp only [List.mem_union_iff]
-          exact Or.inl $ Or.inl f_in_L
+          exact Or.inl <| Or.inl f_in_L
         · apply w_LRO f; simp only [List.mem_union_iff]
-          exact Or.inl $ Or.inr $ List.diff_subset R Rcond f_in_R
+          exact Or.inl <| Or.inr <| List.diff_subset R Rcond f_in_R
         · exact claim f f_in_Y
         · apply w_LRO f; simp only [List.mem_union_iff]
           exact Or.inr f_in_O
@@ -398,7 +401,7 @@ theorem localRuleTruth
           exact this f f_in_cond
         · apply w_LYRO
           simp only [List.mem_union_iff, List.mem_append]
-          exact Or.inl $ Or.inr $ Or.inl $ List.mem_diff_of_mem f_in_R f_notin_cond
+          exact Or.inl <| Or.inr <| Or.inl <| List.mem_diff_of_mem f_in_R f_notin_cond
       · apply w_LYRO; simp_all
 
   case LRnegL φ hC =>
@@ -562,16 +565,18 @@ inductive LocalTableau : (X : Sequent) → Type
   | sim {X} : X.basic → LocalTableau X
 
 instance LocalTableau.instDecidableEq {lt1 lt2 : LocalTableau X} : Decidable (lt1 = lt2) := by
-  rcases lt1 with (⟨lra1,next1⟩|Xbas1); rename_i B1
+  rcases lt1 with (⟨lra1,next1⟩|Xbas1)
   all_goals
     rcases lt2 with (⟨lra2,next2⟩|Xbas2); rename_i B2
-  · by_cases B1 = B2
+  · rename_i B1
+    by_cases B1 = B2
     · subst_eqs
       simp_all
       by_cases lra1 = lra2
       · subst_eqs
         simp only [true_and]
-        have := fun (X : Sequent) (X_in : X ∈ B1) => @LocalTableau.instDecidableEq _ (next1 X X_in) (next2 X X_in)
+        have := fun (X : Sequent) (X_in : X ∈ B1) =>
+          @LocalTableau.instDecidableEq _ (next1 X X_in) (next2 X X_in)
         by_cases ∃ Z ∈ B1, ∀ h, next1 Z h ≠ next2 Z h
         · apply isFalse
           aesop
@@ -587,7 +592,7 @@ instance LocalTableau.instDecidableEq {lt1 lt2 : LocalTableau X} : Decidable (lt
     try exact instDecidableTrue
 
 /-- If we can apply a local rule to a sequent then it cannot be basic. -/
-lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
+lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B) : ¬ X.basic := by
   rcases X with ⟨L,R,o⟩
   unfold Sequent.basic
   simp only [List.append_assoc, List.mem_append, Option.mem_toList,
@@ -663,24 +668,24 @@ lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
     case dia α χ α_nonAtom =>
       rcases o with _|⟨⟨α',χ'⟩|⟨α',χ'⟩⟩
       · simp_all
-      · refine ⟨~(~'⌊α'⌋χ').1.unload, Or.inr (Or.inr (Or.inl ⟨~'⌊α'⌋χ', ⟨Eq.refl _, Eq.refl _⟩⟩)), ?_⟩
+      · refine ⟨~(~'⌊α'⌋χ').1.unload, Or.inr (Or.inr (Or.inl ⟨~'⌊α'⌋χ', ⟨rfl, rfl⟩⟩)), ?_⟩
         · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
           subst h1 h2
           cases α <;> simp_all
           simp [Program.isAtomic] at α_nonAtom
-      · refine ⟨~(~'⌊α'⌋χ').1.unload, Or.inr (Or.inr (Or.inr ⟨~'⌊α'⌋χ', ⟨Eq.refl _, Eq.refl _⟩⟩)), ?_⟩
+      · refine ⟨~(~'⌊α'⌋χ').1.unload, Or.inr (Or.inr (Or.inr ⟨~'⌊α'⌋χ', ⟨rfl, rfl⟩⟩)), ?_⟩
         · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
           subst h1 h2
           cases α <;> simp_all
     case dia' α φ α_nonAtom =>
       rcases o with _|⟨⟨α',φ'⟩|⟨α',φ'⟩⟩
       · simp_all
-      · refine ⟨~(~'⌊α'⌋φ').1.unload, Or.inr (Or.inr (Or.inl ⟨~'⌊α'⌋φ', ⟨Eq.refl _, Eq.refl _⟩⟩)), ?_⟩
+      · refine ⟨~(~'⌊α'⌋φ').1.unload, Or.inr (Or.inr (Or.inl ⟨~'⌊α'⌋φ', ⟨rfl, rfl⟩⟩)), ?_⟩
         · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
           subst h1 h2
           cases α <;> simp_all
           simp [Program.isAtomic] at α_nonAtom
-      · refine ⟨~(~'⌊α'⌋φ').1.unload, Or.inr (Or.inr (Or.inr ⟨~'⌊α'⌋φ', ⟨Eq.refl _, Eq.refl _⟩⟩)), ?_⟩
+      · refine ⟨~(~'⌊α'⌋φ').1.unload, Or.inr (Or.inr (Or.inr ⟨~'⌊α'⌋φ', ⟨rfl, rfl⟩⟩)), ?_⟩
         · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
           subst h1 h2
           cases α <;> simp_all
@@ -691,11 +696,11 @@ lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
     case dia α χ α_nonAtom =>
       rcases o with _|⟨⟨α',χ'⟩|⟨α',χ'⟩⟩
       · simp_all
-      · refine ⟨~(~'⌊α'⌋χ').1.unload, Or.inr (Or.inr (Or.inl ⟨~'⌊α'⌋χ', ⟨Eq.refl _, Eq.refl _⟩⟩)), ?_⟩
+      · refine ⟨~(~'⌊α'⌋χ').1.unload, Or.inr (Or.inr (Or.inl ⟨~'⌊α'⌋χ', ⟨rfl, rfl⟩⟩)), ?_⟩
         · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
           subst h1 h2
           cases α <;> simp_all
-      · refine ⟨~(~'⌊α'⌋χ').1.unload, Or.inr (Or.inr (Or.inr ⟨~'⌊α'⌋χ', ⟨Eq.refl _, Eq.refl _⟩⟩)), ?_⟩
+      · refine ⟨~(~'⌊α'⌋χ').1.unload, Or.inr (Or.inr (Or.inr ⟨~'⌊α'⌋χ', ⟨rfl, rfl⟩⟩)), ?_⟩
         · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
           subst h1 h2
           cases α <;> simp_all
@@ -703,11 +708,11 @@ lemma nonbasic_of_localRuleApp (lrA : LocalRuleApp X B)  : ¬ X.basic := by
     case dia' α φ α_nonAtom =>
       rcases o with _|⟨⟨α',φ'⟩|⟨α',φ'⟩⟩
       · simp_all
-      · refine ⟨~(~'⌊α'⌋φ').1.unload, Or.inr (Or.inr (Or.inl ⟨~'⌊α'⌋φ', ⟨Eq.refl _, Eq.refl _⟩⟩)), ?_⟩
+      · refine ⟨~(~'⌊α'⌋φ').1.unload, Or.inr (Or.inr (Or.inl ⟨~'⌊α'⌋φ', ⟨rfl, rfl⟩⟩)), ?_⟩
         · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
           subst h1 h2
           cases α <;> simp_all
-      · refine ⟨~(~'⌊α'⌋φ').1.unload, Or.inr (Or.inr (Or.inr ⟨~'⌊α'⌋φ', ⟨Eq.refl _, Eq.refl _⟩⟩)), ?_⟩
+      · refine ⟨~(~'⌊α'⌋φ').1.unload, Or.inr (Or.inr (Or.inr ⟨~'⌊α'⌋φ', ⟨rfl, rfl⟩⟩)), ?_⟩
         · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
           subst h1 h2
           cases α <;> simp_all
@@ -785,7 +790,8 @@ def Olf.toForm : Olf → Multiset Formula
 | some (Sum.inl (~'χ)) => {~χ.unload}
 | some (Sum.inr (~'χ)) => {~χ.unload}
 
-theorem node_to_multiset_eq : node_to_multiset (L, R, O) = Multiset.ofList L + Multiset.ofList R + O.toForm := by
+theorem node_to_multiset_eq {L R O} :
+    node_to_multiset (L, R, O) = Multiset.ofList L + Multiset.ofList R + O.toForm := by
   cases O
   · simp [node_to_multiset, Olf.toForm]
   case some nlf =>
@@ -821,8 +827,9 @@ lemma List.Subperm.append {α : Type u_1} {l₁ l₂ r₁ r₂ : List α} :
     rw [List.subperm_append_left]
     exact hr
 
-theorem preconP_to_submultiset (preconditionProof : List.Subperm Lcond L ∧ List.Subperm Rcond R ∧ Ocond ⊆ O) :
-    node_to_multiset (Lcond, Rcond, Ocond) ≤ node_to_multiset (L, R, O) :=
+theorem preconP_to_submultiset {Lcond L Rcond R Ocond O}
+    (preconditionProof : List.Subperm Lcond L ∧ List.Subperm Rcond R ∧ Ocond ⊆ O)
+    : node_to_multiset (Lcond, Rcond, Ocond) ≤ node_to_multiset (L, R, O) :=
   by
   cases Ocond <;> cases O
   all_goals (try (rename_i f g; cases f; cases g))
@@ -854,7 +861,7 @@ theorem preconP_to_submultiset (preconditionProof : List.Subperm Lcond L ∧ Lis
     have := List.Subperm.count_le (List.Subperm.append preconditionProof.1 preconditionProof.2.1) f
     cases g <;> (rename_i nlform; cases nlform; simp_all)
 
-theorem Multiset.sub_of_le [DecidableEq α] {M N X Y: Multiset α} (h : N ≤ M) :
+theorem Multiset.sub_of_le {α} [DecidableEq α] {M N X Y : Multiset α} (h : N ≤ M) :
     M - N + Y = X ↔ M + Y = X + N := by
   constructor
   all_goals
@@ -893,15 +900,18 @@ theorem List.count_eq_diff_of_subperm [DecidableEq α] {L M : List α} (h : M.Su
 theorem node_to_multiset_of_precon {O Ocond Onew : Olf}
     (precon : Lcond.Subperm L ∧ Rcond.Subperm R ∧ Ocond ⊆ O)
     (O_extracon : O ≠ none → Ocond = none → Onew = none)
-    : node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) + node_to_multiset (Lnew, Rnew, Onew)
-    = node_to_multiset (L.diff Lcond ++ Lnew, R.diff Rcond ++ Rnew, Olf.change O Ocond Onew) := by
+    :   node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond)
+        + node_to_multiset (Lnew, Rnew, Onew)
+      = node_to_multiset (L.diff Lcond ++ Lnew, R.diff Rcond ++ Rnew, Olf.change O Ocond Onew) := by
   have my_le := preconP_to_submultiset precon
   rw [Multiset.sub_of_le my_le]
   clear my_le
   simp only [node_to_multiset_eq]
   rw [Multiset_diff_append_of_le]
   rw [Multiset_diff_append_of_le]
-  have claim : ↑L - ↑Lcond + ↑Lnew + (↑R - ↑Rcond + ↑Rnew) + (O.change Ocond Onew).toForm + (↑Lcond + ↑Rcond + Ocond.toForm) = ↑L + ↑Lnew + (↑R + ↑Rnew) + (O.change Ocond Onew).toForm + (Ocond.toForm) := by
+  have claim : ↑L - ↑Lcond + ↑Lnew + (↑R - ↑Rcond + ↑Rnew)
+                                  + (O.change Ocond Onew).toForm + (↑Lcond + ↑Rcond + Ocond.toForm)
+      = ↑L + ↑Lnew + (↑R + ↑Rnew) + (O.change Ocond Onew).toForm + (Ocond.toForm) := by
     rw [← add_assoc]
     apply add_right_cancel_iff.mpr
     rw [add_add_add_comm]
@@ -922,7 +932,8 @@ theorem node_to_multiset_of_precon {O Ocond Onew : Olf}
       Multiset.count φ (O.change Ocond Onew).toForm + Multiset.count φ Ocond.toForm by
     linarith
   unfold Olf.change
-  have claim : (Olf.toForm (Option.overwrite (O \ Ocond) Onew)) = O.toForm - Ocond.toForm + Onew.toForm := by
+  have claim : (Olf.toForm (Option.overwrite (O \ Ocond) Onew))
+               = O.toForm - Ocond.toForm + Onew.toForm := by
     all_goals cases O_Def : O <;> try (cases O_def2 : O)
     all_goals cases Ocond_Def : Ocond <;> try (cases Ocond_def2 : Ocond)
     all_goals cases Onew_Def : Onew <;> try (cases Onew_def2 : Onew)
@@ -937,7 +948,8 @@ theorem node_to_multiset_of_precon {O Ocond Onew : Olf}
     linarith
 
 @[simp]
-def lt_Sequent (X : Sequent) (Y : Sequent) := Multiset.IsDershowitzMannaLT (node_to_multiset X) (node_to_multiset Y)
+def lt_Sequent (X : Sequent) (Y : Sequent) :=
+  Multiset.IsDershowitzMannaLT (node_to_multiset X) (node_to_multiset Y)
 
 -- Needed for termination of endNOdesOf.
 -- Here we use `dm_wf` from MultisetOrder.lean.
@@ -953,7 +965,7 @@ theorem LocalRule.cond_non_empty (rule : LocalRule (Lcond, Rcond, Ocond) X) :
   case oneSidedL _ orule X_def => cases orule <;> simp
   case oneSidedR _ orule X_def => cases orule <;> simp
 
-theorem Multiset.sub_add_of_subset_eq [DecidableEq α] {M : Multiset α} (h : X ≤ M):
+theorem Multiset.sub_add_of_subset_eq [DecidableEq α] {M : Multiset α} (h : X ≤ M) :
     M = M - X + X := (tsub_add_cancel_of_le h).symm
 
 theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : List Formula}
@@ -967,7 +979,8 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
     rcases ubc with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ, _⟩
     · subst_eqs; linarith
     · subst def_ψ
-      suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (α;'β)).attach).sum.succ by
+      suffices lmOfFormula (~τ)
+          < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (α;'β)).attach).sum.succ by
         simp_all
         linarith
       rw [@List.attach_map_val _ _ (testsOfProgram (α;'β)) (fun x => lmOfFormula (~↑x))]
@@ -981,7 +994,8 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
     rcases ubc with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ, _⟩
     · subst_eqs; linarith
     · subst def_ψ
-      suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (α⋓β)).attach).sum.succ by
+      suffices lmOfFormula (~τ)
+          < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (α⋓β)).attach).sum.succ by
         simp_all
         linarith
       rw [@List.attach_map_val _ _ (testsOfProgram (α⋓β)) (fun x => lmOfFormula (~↑x))]
@@ -993,7 +1007,8 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
     rcases ubc with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ, _⟩
     · subst_eqs; linarith
     · subst def_ψ
-      suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (∗β)).attach).sum.succ by
+      suffices lmOfFormula (~τ)
+          < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (∗β)).attach).sum.succ by
         simp_all
         linarith
       rw [@List.attach_map_val _ _ (testsOfProgram (∗β)) (fun x => lmOfFormula (~↑x))]
@@ -1005,7 +1020,8 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
     rcases ubc with one | ⟨τ, τ_in, def_ψ⟩ | ⟨a, δ, def_ψ, _⟩
     · subst_eqs; linarith
     · subst def_ψ
-      suffices lmOfFormula (~τ) < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (?'τ0)).attach).sum.succ by
+      suffices lmOfFormula (~τ)
+          < (List.map (fun x => lmOfFormula (~ (x.1))) (testsOfProgram (?'τ0)).attach).sum.succ by
         simp_all
         linarith
       rw [@List.attach_map_val _ _ (testsOfProgram (?'τ0)) (fun x => lmOfFormula (~↑x))]
@@ -1024,7 +1040,7 @@ theorem lmOfFormula.le_union_right α β φ : lmOfFormula (~⌈β⌉φ) ≤ lmOf
   all_goals
     simp [testsOfProgram]
 
-theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ H α) {ψ} (in_Fs: ψ ∈ Fs) :
+theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ H α) {ψ} (in_Fs : ψ ∈ Fs) :
     lmOfFormula ψ < lmOfFormula (~⌈α⌉φ) := by
   cases α
   · simp_all [H]
@@ -1066,7 +1082,8 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ H α) {ψ} (i
         all_goals
           simp_all [H, testsOfProgram, lmOfFormula]
         all_goals
-          try rw [Function.comp_def, Function.comp_def, List.attach_map_val, List.attach_map_val] at IHα
+          try rw [Function.comp_def, Function.comp_def, List.attach_map_val,
+            List.attach_map_val] at IHα
           try linarith
   case union α β =>
     simp only [H, List.mem_union_iff] at in_H
@@ -1285,7 +1302,9 @@ theorem localRuleApp.decreases_DM {X : Sequent} {B : List Sequent}
   -- claim that the other definition would have been the same:
   have Z_eq : Z = node_to_multiset RES - node_to_multiset (Lnew, Rnew, Onew) := by
     unfold Z
-    have : node_to_multiset RES = node_to_multiset (L, R, O) - node_to_multiset (Lcond, Rcond, Ocond) + node_to_multiset (Lnew, Rnew, Onew) := by
+    have : node_to_multiset RES =   node_to_multiset (L, R, O)
+                                  - node_to_multiset (Lcond, Rcond, Ocond)
+                                  + node_to_multiset (Lnew, Rnew, Onew) := by
       have lrOprop : O ≠ none → Ocond = none → Onew = none := by
         cases O <;> cases Ocond <;> cases Onew <;> cases rule <;> simp_all
         all_goals
@@ -1316,7 +1335,8 @@ theorem localRuleApp.decreases_DM {X : Sequent} {B : List Sequent}
 
 @[simp]
 def endNodesOf : {X : _} → LocalTableau X → List Sequent
-  | .(_), (@byLocalRule X B _lr next) => (B.attach.map (fun ⟨Y, h⟩ => endNodesOf (next Y h))).flatten
+  | .(_), (@byLocalRule X B _lr next) =>
+      (B.attach.map (fun ⟨Y, h⟩ => endNodesOf (next Y h))).flatten
   | .(_), (@sim X _) => [X]
 termination_by
   X => X -- pick up instance WellFoundedRelation Sequent from above!
@@ -1328,7 +1348,7 @@ decreasing_by
 
 -- TODO Computable version possible?
 noncomputable def endNode_to_endNodeOfChildNonComp (lrA)
-  (E_in: E ∈ endNodesOf (@LocalTableau.byLocalRule X _ lrA subTabs)) :
+  (E_in : E ∈ endNodesOf (@LocalTableau.byLocalRule X _ lrA subTabs)) :
   @Subtype Sequent (fun x => ∃ h, E ∈ endNodesOf (subTabs x h)) := by
   simp [endNodesOf] at E_in
   choose l h E_in using E_in
@@ -1338,14 +1358,14 @@ noncomputable def endNode_to_endNodeOfChildNonComp (lrA)
   use c_in
 
 theorem endNodeIsEndNodeOfChild (lrA)
-  (E_in: E ∈ endNodesOf (@LocalTableau.byLocalRule X _ lrA subTabs)) :
+  (E_in : E ∈ endNodesOf (@LocalTableau.byLocalRule X _ lrA subTabs)) :
   ∃ Y h, E ∈ endNodesOf (subTabs Y h) := by
   have := endNode_to_endNodeOfChildNonComp lrA E_in
   use this
   aesop
 
 theorem endNodeOfChild_to_endNode
-    {X Y: Sequent}
+    {X Y : Sequent}
     {ltX}
     {C : List Sequent}
     (lrA : LocalRuleApp X C)
@@ -1353,7 +1373,7 @@ theorem endNodeOfChild_to_endNode
     (h : ltX = LocalTableau.byLocalRule lrA subTabs)
     (Y_in : Y ∈ C)
     {Z : Sequent}
-    (Z_in: Z ∈ endNodesOf (subTabs Y Y_in))
+    (Z_in : Z ∈ endNodesOf (subTabs Y Y_in))
     : Z ∈ endNodesOf ltX :=
   by
   cases h' : subTabs Y Y_in -- No induction needed for this!
@@ -1377,7 +1397,7 @@ theorem endNodeOfChild_to_endNode
 /-! ## Overall Soundness and Invertibility of LocalTableau -/
 
 theorem localTableauTruth {X} (lt : LocalTableau X) {W} (M : KripkeModel W) (w : W) :
-    (M,w) ⊨ X  ↔ ∃ Y ∈ endNodesOf lt, (M,w) ⊨ Y := by
+    (M, w) ⊨ X  ↔ ∃ Y ∈ endNodesOf lt, (M, w) ⊨ Y := by
   induction lt
   case byLocalRule Y B lrA next IH  =>
     have := localRuleTruth lrA M w

@@ -51,7 +51,7 @@ def BigConjunction : List Formula → Formula :=
   List.foldl Formula.And (~Formula.bottom)
 
 def BigDisjunction : List Formula → Formula :=
-  List.foldl (λϕ ψ => ~(~ϕ⋀~ψ)) (Formula.bottom)
+  List.foldl (fun ϕ ψ => ~(~ϕ⋀~ψ)) (Formula.bottom)
 
 -- showing formulas as strings that are valid Lean code
 def formToString : Formula → ℕ → Lean.Format

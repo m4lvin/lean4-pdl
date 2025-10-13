@@ -19,8 +19,6 @@ theorem mytaut1 (p : Nat) : tautology ((·p) ↣ (·p)) :=
   intro W M w
   simp
 
-open Classical
-
 theorem mytaut2 (p : Nat) : tautology ((~~·p)↣·p) :=
   by
   unfold tautology evaluate
@@ -95,8 +93,7 @@ theorem A6 (a : Program) (φ : Formula) : tautology ((⌈∗a⌉φ) ⟷ (φ ⋀ 
       right
       use v
   · -- right to left
-    simp only [evaluate, relate, not_forall, not_and, not_exists,
-      Decidable.not_not, and_imp]
+    simp only [evaluate, relate, not_forall, not_and, not_exists, and_imp]
     intro w_φ hyp v w_aS_v
     rcases Relation.ReflTransGen.cases_head w_aS_v <;> aesop
 
@@ -162,7 +159,8 @@ example (a b : Program) (X : Formula) :
     aesop
 
 /-- The induction axiom is semantically valid. Example 1 in [Bor88]. -/
-theorem inductionAxiom (a : Program) (φ : Formula) : tautology ((φ ⋀ ⌈∗a⌉(φ ↣ (⌈a⌉φ))) ↣ (⌈∗a⌉φ)) :=
+theorem inductionAxiom (a : Program) (φ : Formula) :
+    tautology ((φ ⋀ ⌈∗a⌉(φ ↣ (⌈a⌉φ))) ↣ (⌈∗a⌉φ)) :=
   by
   intro W M w
   simp only [evaluate, relate, not_forall, not_and, not_exists, not_not, and_imp]

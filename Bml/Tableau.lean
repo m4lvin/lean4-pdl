@@ -19,11 +19,11 @@ open HasVocabulary
 -- TNodes
 @[simp]
 instance : HasSubset (Finset Formula × Finset Formula) :=
-  HasSubset.mk λ (L1, R1) (L2, R2) => L1 ⊆ L2 ∧ R1 ⊆ R2
+  HasSubset.mk fun (L1, R1) (L2, R2) => L1 ⊆ L2 ∧ R1 ⊆ R2
 
 @[simp]
 instance : Union (Finset Formula × Finset Formula) :=
-  ⟨λ (L1, R1) (L2, R2) => (L1 ∪ L2, R1 ∪ R2)⟩
+  ⟨fun (L1, R1) (L2, R2) => (L1 ∪ L2, R1 ∪ R2)⟩
 
 def TNode := Finset Formula × Finset Formula
   deriving DecidableEq, HasSubset, Union
@@ -36,7 +36,7 @@ def lengthOfTNode : TNode → Nat
 instance TNodeHasLength : HasLength TNode := ⟨lengthOfTNode⟩
 
 @[simp]
-instance TNodeHasSat: HasSat TNode := ⟨fun (L,R) => HasSat.Satisfiable (L ∪ R)⟩
+instance TNodeHasSat : HasSat TNode := ⟨fun (L,R) => HasSat.Satisfiable (L ∪ R)⟩
 
 @[simp]
 def f_in_TNode (f : Formula) (LR : TNode) := f ∈ (LR.1 ∪ LR.2)
@@ -81,8 +81,8 @@ structure notSimpleFormOf (X : Finset Formula) where
   φinX : φ ∈ X
   not_simple : ¬SimpleForm φ
 
-noncomputable def notSimpleSetToForm {X : Finset Formula}: ¬SimpleSet X →
-  notSimpleFormOf X := λnot_simple =>
+noncomputable def notSimpleSetToForm {X : Finset Formula} : ¬SimpleSet X →
+  notSimpleFormOf X := fun not_simple =>
   have h : ∃φ ∈ X, ¬ SimpleForm φ := by rw [SimpleSet] at not_simple; aesop
   let w := Classical.choose h
   notSimpleFormOf.mk w (Classical.choose_spec h).1 (Classical.choose_spec h).2
@@ -110,7 +110,7 @@ def projectTNode : TNode → TNode
   | (L, R) => (projection L, projection R)
 
 @[simp]
-theorem projectionUnion: projection (X ∪ Y) = projection X ∪ projection Y := by
+theorem projectionUnion {X Y} : projection (X ∪ Y) = projection X ∪ projection Y := by
   ext φ
   simp [projection]
   grind
@@ -181,17 +181,19 @@ def SubPair := Finset Formula × Finset Formula
 deriving DecidableEq
 
 inductive LocalRule : SubPair → List SubPair → Type
-  | oneSidedL (orule : OneSidedLocalRule precond ress) : LocalRule (precond,∅) $ ress.map $ λ res => (res,∅)
-  | oneSidedR (orule : OneSidedLocalRule precond ress) : LocalRule (∅,precond) $ ress.map $ λ res => (∅,res)
+  | oneSidedL {precond ress} (orule : OneSidedLocalRule precond ress) :
+      LocalRule (precond,∅) <| ress.map <| fun res => (res,∅)
+  | oneSidedR {precond ress} (orule : OneSidedLocalRule precond ress) :
+      LocalRule (∅,precond) <| ress.map <| fun res => (∅,res)
   | LRnegL (ϕ : Formula) : LocalRule ({ϕ}, {~ϕ}) ∅ --  ϕ occurs on the left side, ~ϕ on the right
   | LRnegR (ϕ : Formula) : LocalRule ({~ϕ}, {ϕ}) ∅ -- ~ϕ occurs on the left side,  ϕ on the right
 
 @[simp]
-def jvoc (LR: TNode) := voc LR.1 ∩ voc LR.2
+def jvoc (LR : TNode) := voc LR.1 ∩ voc LR.2
 
 @[simp]
-def applyLocalRule (_ : LocalRule (Lcond, Rcond) ress) : TNode → List TNode
-  | ⟨L,R⟩ => ress.map $ λc => (L \ Lcond ∪ c.1, R \ Rcond ∪ c.2)
+def applyLocalRule {Lcond Rcond ress} (_ : LocalRule (Lcond, Rcond) ress) : TNode → List TNode
+  | ⟨L,R⟩ => ress.map <| fun c => (L \ Lcond ∪ c.1, R \ Rcond ∪ c.2)
 
 inductive LocalRuleApp : TNode → List TNode → Type
   | mk {L R : Finset Formula}
@@ -206,32 +208,35 @@ inductive LocalRuleApp : TNode → List TNode → Type
 theorem oneSidedRule_preserves_other_side_L
   {ruleApp : LocalRuleApp (L, R) C}
   (_ : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (res, ∅)) _) _ _ rule hC preproof))
-  (rule_is_left : rule = LocalRule.oneSidedL orule )
+  (rule_is_left : rule = LocalRule.oneSidedL orule)
   : ∀ c ∈ C, c.2 = R := by aesop
 
 theorem oneSidedRule_preserves_other_side_R
   {ruleApp : LocalRuleApp (L, R) C}
   (_ : ruleApp = (@LocalRuleApp.mk L R C (List.map (fun res => (∅, res)) _) _ _ rule hC preproof))
-  (rule_is_right : rule = LocalRule.oneSidedR orule )
+  (rule_is_right : rule = LocalRule.oneSidedR orule)
   : ∀ c ∈ C, c.1 = L := by aesop
 
-theorem localRule_does_not_increase_vocab_L (rule : LocalRule (Lcond, Rcond) ress)
-  : ∀ res ∈ ress, voc res.1 ⊆ voc Lcond := by
+theorem localRule_does_not_increase_vocab_L {Lcond Rcond ress}
+    (rule : LocalRule (Lcond, Rcond) ress)
+    : ∀ res ∈ ress, voc res.1 ⊆ voc Lcond := by
   intro res ress_in_ress ℓ ℓ_in_res
   cases rule
   case oneSidedL ress orule => cases orule <;> aesop
   -- other cases are trivial
   all_goals aesop
 -- dual
-theorem localRule_does_not_increase_vocab_R (rule : LocalRule (Lcond, Rcond) ress)
-  : ∀ res ∈ ress, voc res.2 ⊆ voc Rcond := by
+theorem localRule_does_not_increase_vocab_R {Lcond Rcond ress}
+    (rule : LocalRule (Lcond, Rcond) ress)
+    : ∀ res ∈ ress, voc res.2 ⊆ voc Rcond := by
   intro res ress_in_ress ℓ ℓ_in_res
   cases rule
   case oneSidedR ress orule => cases orule <;> aesop
   -- other cases are trivial
   all_goals aesop
 
-theorem localRuleApp_does_not_increase_vocab {L R : Finset Formula} (ruleA : LocalRuleApp (L,R) C)
+theorem localRuleApp_does_not_increase_vocab {C} {L R : Finset Formula}
+    (ruleA : LocalRuleApp (L, R) C)
   : ∀ cLR ∈ C, jvoc cLR ⊆ jvoc (L,R) := by -- decidableMem
   match ruleA with
   | @LocalRuleApp.mk _ _ _ ress Lcond Rcond rule hC preproof =>
@@ -275,11 +280,11 @@ node LR, then all children of LR in any `LocalTableau` contain α or res.
 This is used to prove that all paths are saturated.
 -/
 theorem LocalRuleUniqueL
-  (α_in_L: α ∈ L)
-  (lrApp: LocalRuleApp (L,R) C)
-  (orule: OneSidedLocalRule precond ress)
-  (precond_eq: precond = {α})
-  : ∀ c ∈ C, α ∈ c.1 ∨ (∃ res ∈ ress, res ⊆ c.1) := by
+    (α_in_L : α ∈ L)
+    (lrApp : LocalRuleApp (L, R) C)
+    (orule : OneSidedLocalRule precond ress)
+    (precond_eq : precond = {α})
+    : ∀ c ∈ C, α ∈ c.1 ∨ (∃ res ∈ ress, res ⊆ c.1) := by
   intro c c_in
   rcases lrApp with ⟨ress', Lcond', Rcond', lr', L_cond_in, R_cond_in⟩
   rename_i C_eq
@@ -345,12 +350,12 @@ theorem LocalRuleUniqueL
   all_goals simp_all
 
 /-- Almost exactly the same as `LocalRuleUniqueL`. -/
-theorem LocalRuleUniqueR
-  (α_in_R: α ∈ R)
-  (lrApp: LocalRuleApp (L,R) C)
-  (orule: OneSidedLocalRule precond ress)
-  (precond_eq: precond = {α})
-  : ∀ c ∈ C, α ∈ c.2 ∨ (∃ res ∈ ress, res ⊆ c.2) := by
+theorem LocalRuleUniqueR {R α L C precond ress}
+    (α_in_R : α ∈ R)
+    (lrApp : LocalRuleApp (L, R) C)
+    (orule : OneSidedLocalRule precond ress)
+    (precond_eq : precond = {α})
+    : ∀ c ∈ C, α ∈ c.2 ∨ (∃ res ∈ ress, res ⊆ c.2) := by
   intro c c_in
   rcases lrApp with ⟨ress', Lcond', Rcond', lr', L_cond_in, R_cond_in⟩
   rename_i C_eq
@@ -426,8 +431,8 @@ inductive LocalTableau : TNode → Type
 
 /-- If X is not simple, then a local rule can be applied (page 13). -/
 -- TODO custom tactic
-noncomputable def notSimpleToRuleApp {L R : Finset Formula}: ¬Simple (L,R) →
-  ΣC, LocalRuleApp (L,R) C := λnot_simple =>
+noncomputable def notSimpleToRuleApp {L R : Finset Formula} : ¬Simple (L,R) →
+  ΣC, LocalRuleApp (L,R) C := fun not_simple =>
   if simple_L : SimpleSet L
   then if simple_R : SimpleSet R
     then by exfalso; exact not_simple <| And.intro simple_L simple_R
@@ -441,7 +446,7 @@ noncomputable def notSimpleToRuleApp {L R : Finset Formula}: ¬Simple (L,R) →
         let rule := LocalRule.oneSidedR (OneSidedLocalRule.con ψ χ)
         let C := applyLocalRule rule (L,R)
         exact ⟨C,(@LocalRuleApp.mk L R C
-          (List.map (fun res => (∅, res)) [{ψ, χ}]) -- since DecidableEq cannot simplify this apparently
+          (List.map (fun res => (∅, res)) [{ψ, χ}]) -- DecidableEq cannot simp this apparently
           ∅ {ψ⋀χ} rule (rfl)
           ⟨(Finset.empty_subset L), (by rw[← φdef]; simp [vvv.φinX])⟩
         )⟩
@@ -454,7 +459,7 @@ noncomputable def notSimpleToRuleApp {L R : Finset Formula}: ¬Simple (L,R) →
           let rule := LocalRule.oneSidedR (OneSidedLocalRule.ncon ψ χ)
           let C := applyLocalRule rule (L,R)
           exact ⟨C,(@LocalRuleApp.mk L R C
-            (List.map (fun res => (∅, res)) [{~ψ}, {~χ}]) -- since DecidableEq cannot simplify this apparently
+            (List.map (fun res => (∅, res)) [{~ψ}, {~χ}]) -- DecidableEq cannot simp this apparently
             ∅ {~(ψ⋀χ)} rule (rfl)
             ⟨(Finset.empty_subset L), (by rw[← φdef]; simp [vvv.φinX])⟩
           )⟩
@@ -462,7 +467,7 @@ noncomputable def notSimpleToRuleApp {L R : Finset Formula}: ¬Simple (L,R) →
           let rule := LocalRule.oneSidedR (OneSidedLocalRule.neg ψ)
           let C := applyLocalRule rule (L,R)
           exact ⟨C,(@LocalRuleApp.mk L R C
-            (List.map (fun res => (∅, res)) [{ψ}]) -- since DecidableEq cannot simplify this apparently
+            (List.map (fun res => (∅, res)) [{ψ}]) -- DecidableEq cannot simp this apparently
             ∅ {~~ψ} rule (rfl)
             ⟨(Finset.empty_subset L), (by rw[← φdef]; simp [vvv.φinX])⟩
           )⟩
@@ -476,7 +481,7 @@ noncomputable def notSimpleToRuleApp {L R : Finset Formula}: ¬Simple (L,R) →
         let rule := LocalRule.oneSidedL (OneSidedLocalRule.con ψ χ)
         let C := applyLocalRule rule (L,R)
         exact ⟨C,(@LocalRuleApp.mk L R C
-          (List.map (fun res => (res,∅)) [{ψ, χ}]) -- since DecidableEq cannot simplify this apparently
+          (List.map (fun res => (res,∅)) [{ψ, χ}]) -- DecidableEq cannot simp this apparently
           {ψ⋀χ} ∅ rule (rfl)
           ⟨(by rw[← φdef]; simp [vvv.φinX]), (Finset.empty_subset R)⟩
         )⟩
@@ -489,7 +494,7 @@ noncomputable def notSimpleToRuleApp {L R : Finset Formula}: ¬Simple (L,R) →
           let rule := LocalRule.oneSidedL (OneSidedLocalRule.ncon ψ χ)
           let C := applyLocalRule rule (L,R)
           exact ⟨C,(@LocalRuleApp.mk L R C
-            (List.map  (fun res => (res,∅)) [{~ψ}, {~χ}]) -- since DecidableEq cannot simplify this apparently
+            (List.map  (fun res => (res,∅)) [{~ψ}, {~χ}]) -- DecidableEq cannot simp this apparently
             {~(ψ⋀χ)} ∅  rule (rfl)
           ⟨(by rw[← φdef]; simp [vvv.φinX]), (Finset.empty_subset R)⟩
           )⟩
@@ -497,7 +502,7 @@ noncomputable def notSimpleToRuleApp {L R : Finset Formula}: ¬Simple (L,R) →
           let rule := LocalRule.oneSidedL (OneSidedLocalRule.neg ψ)
           let C := applyLocalRule rule (L,R)
           exact ⟨C,(@LocalRuleApp.mk L R C
-            (List.map (fun res => (res,∅)) [{ψ}]) -- since DecidableEq cannot simplify this apparently
+            (List.map (fun res => (res,∅)) [{ψ}]) -- DecidableEq cannot simp this apparently
             {~~ψ} ∅  rule (rfl)
           ⟨(by rw[← φdef]; simp [vvv.φinX]), (Finset.empty_subset R)⟩
           )⟩
@@ -571,7 +576,7 @@ theorem zlengthOf.pos : 0 ≤ zlengthOf φ := Int.natCast_nonneg (lengthOfFormul
 @[simp]
 def zlengthOfSet : Finset Formula → Int := fun X => X.sum zlengthOf
 
-theorem zlen_iff { X Y : Finset Formula }
+theorem zlen_iff {X Y : Finset Formula}
     : lengthOf X < lengthOf Y ↔ zlengthOfSet X < zlengthOfSet Y :=
   by
   have : ∀ W, zlengthOfSet W = lengthOfSet W := by intro W; simp
@@ -662,7 +667,8 @@ theorem vocProj (X) : voc (projection X) ⊆ voc X :=
   simp
   tauto
 
-theorem diamondproj_does_not_increase_vocab_L (valid_proj : ~(□φ) ∈ L) : jvoc ((diamondProjectTNode (Sum.inl φ) (L,R))) ⊆ jvoc (L,R) := by
+theorem diamondproj_does_not_increase_vocab_L {L φ R} (valid_proj : ~(□φ) ∈ L) :
+    jvoc ((diamondProjectTNode (Sum.inl φ) (L,R))) ⊆ jvoc (L,R) := by
   intro ℓ ℓ_in_proj
   unfold jvoc at *
   apply Finset.mem_inter_of_mem
@@ -670,7 +676,10 @@ theorem diamondproj_does_not_increase_vocab_L (valid_proj : ~(□φ) ∈ L) : jv
     simp [diamondProjectTNode ] at ℓ_left;
     apply Or.elim ℓ_left
     · intro ℓ_in_φ; simp;
-      use ~(□φ); constructor; exact valid_proj; aesop
+      use ~(□φ)
+      constructor
+      · exact valid_proj
+      · aesop
     · intro ⟨ψ, ψ_in_proj, ℓ_in_ψ⟩
       apply proj_does_not_increase_vocab
       simp; use ψ
@@ -679,7 +688,8 @@ theorem diamondproj_does_not_increase_vocab_L (valid_proj : ~(□φ) ∈ L) : jv
     apply proj_does_not_increase_vocab
     simp; exact ℓ_right
 
-theorem diamondproj_does_not_increase_vocab_R (valid_proj : ~(□φ) ∈ R) : jvoc ((diamondProjectTNode (Sum.inr φ) (L,R))) ⊆ jvoc (L,R) := by
+theorem diamondproj_does_not_increase_vocab_R (valid_proj : ~(□φ) ∈ R) :
+    jvoc ((diamondProjectTNode (Sum.inr φ) (L,R))) ⊆ jvoc (L,R) := by
   intro ℓ ℓ_in_proj
   unfold jvoc at *
   apply Finset.mem_inter_of_mem
@@ -691,7 +701,10 @@ theorem diamondproj_does_not_increase_vocab_R (valid_proj : ~(□φ) ∈ R) : jv
     simp [diamondProjectTNode ] at ℓ_right;
     apply Or.elim ℓ_right
     · intro ℓ_in_φ; simp;
-      use ~(□φ); constructor; exact valid_proj; aesop
+      use ~(□φ)
+      constructor
+      · exact valid_proj
+      · aesop
     · intro ⟨ψ, ψ_in_proj, ℓ_in_ψ⟩
       apply proj_does_not_increase_vocab
       simp; use ψ
@@ -721,7 +734,7 @@ theorem endNodesOfSimple : endNodesOf ⟨ LR, LocalTableau.fromSimple hyp ⟩ = 
   simp only [endNodesOf]
 
 noncomputable def endNodeIsEndNodeOfChild (ruleA)
-  (E_in: E ∈ endNodesOf ⟨LR, @LocalTableau.fromRule LR C ruleA subTabs⟩) :
+  (E_in : E ∈ endNodesOf ⟨LR, @LocalTableau.fromRule LR C ruleA subTabs⟩) :
   @Subtype TNode (fun x => ∃ h, E ∈ endNodesOf ⟨x, subTabs x h⟩) := by
   unfold endNodesOf at E_in
   simp_all!
@@ -738,7 +751,8 @@ theorem lrEndNodes {LR : TNode} {C : List TNode} {ruleA} {subTabs} :
   by
   simp only [endNodesOf]
 
-theorem endNodesOfLEQ {LR Z ltLR} : Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOfTNode Z ≤ lengthOfTNode LR :=
+theorem endNodesOfLEQ {LR Z ltLR} :
+    Z ∈ endNodesOf ⟨LR, ltLR⟩ → lengthOfTNode Z ≤ lengthOfTNode LR :=
   by
   cases ltLR
   case fromRule altLR subTabs lrApp =>
@@ -773,9 +787,12 @@ Notes:
 - base case for simple tableaux is part of "atm" which can be applied to L or to R.
 -/
 inductive ClosedTableau : TNode → Type
-  | loc {LR} (lt : LocalTableau LR) : (next : ∀ Y ∈ endNodesOf ⟨LR, lt⟩, ClosedTableau Y) → ClosedTableau LR
-  | atmL {LR ϕ} : ~(□ϕ) ∈ LR.1 → Simple LR → ClosedTableau (diamondProjectTNode (Sum.inl ϕ) LR) → ClosedTableau LR
-  | atmR {LR ϕ} : ~(□ϕ) ∈ LR.2 → Simple LR → ClosedTableau (diamondProjectTNode (Sum.inr ϕ) LR) → ClosedTableau LR
+  | loc {LR} (lt : LocalTableau LR) :
+      (next : ∀ Y ∈ endNodesOf ⟨LR, lt⟩, ClosedTableau Y) → ClosedTableau LR
+  | atmL {LR ϕ} : ~(□ϕ) ∈ LR.1 → Simple LR
+      → ClosedTableau (diamondProjectTNode (Sum.inl ϕ) LR) → ClosedTableau LR
+  | atmR {LR ϕ} : ~(□ϕ) ∈ LR.2 → Simple LR
+      → ClosedTableau (diamondProjectTNode (Sum.inr ϕ) LR) → ClosedTableau LR
 
 def closedToLocal : ClosedTableau X → LocalTableau X
   | (ClosedTableau.loc lt _) => lt
@@ -797,12 +814,12 @@ def Consistent : TNode → Prop
 
 -- TODO: class Consistent to also allow sets instead fo TNodes
 
-noncomputable def aLocalTableauFor (LR: TNode) : LocalTableau LR :=
+noncomputable def aLocalTableauFor (LR : TNode) : LocalTableau LR :=
   if h_simple : (Simple LR)
   then LocalTableau.fromSimple h_simple
   else
     let ⟨C, ruleA⟩ := notSimpleToRuleApp h_simple
-    LocalTableau.fromRule ruleA <| (λc c_in_C =>
+    LocalTableau.fromRule ruleA <| (fun c c_in_C =>
       have := localRuleAppDecreasesLength ruleA c c_in_C -- for termination
       aLocalTableauFor c)
   termination_by
@@ -830,12 +847,13 @@ theorem existsLocalTableauFor LR : Nonempty (LocalTableau LR) :=
       rcases lr_exists with ⟨lr⟩
       constructor
       apply LocalTableau.fromRule
-      apply LocalRuleApp.mk C LCond RCond lr ⟨preconL, preconR⟩
-      use applyLocalRule lr (LR.1, LR.2)
-      rfl
-      intro c c_in
-      let ruleA := @LocalRuleApp.mk LR.1 LR.2 (applyLocalRule lr (LR.1, LR.2)) _ LCond RCond lr rfl ⟨preconL, preconR⟩
-      have := localRuleAppDecreasesLength ruleA c c_in
-      apply Classical.choice (existsLocalTableauFor c)
+      · apply LocalRuleApp.mk C LCond RCond lr ⟨preconL, preconR⟩
+        · use applyLocalRule lr (LR.1, LR.2)
+        · rfl
+      · intro c c_in
+        let ruleA := @LocalRuleApp.mk LR.1 LR.2 (applyLocalRule lr (LR.1, LR.2)) _
+                        LCond RCond lr rfl ⟨preconL, preconR⟩
+        have := localRuleAppDecreasesLength ruleA c c_in
+        apply Classical.choice (existsLocalTableauFor c)
 termination_by
   lengthOf LR
