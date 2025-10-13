@@ -39,7 +39,7 @@ def FL : Formula → List Formula
 | ⊥ => [⊥, ~⊥]
 | ·p => [·p, ~·p]
 | φ⋀ψ => [φ⋀ψ, ~(φ⋀ψ), ~φ, ~ψ] ++ FL φ ++ FL ψ -- ~φ and ~ψ needed for ~~ case.
-| ⌈α⌉φ => [~⌈α⌉φ] ++ FLb α φ ++ FL φ -- TODO: can we omit `[~⌈α⌉φ] ++ ` here?
+| ⌈α⌉φ => [~⌈α⌉φ, ~φ] ++ FLb α φ ++ FL φ -- Note: `~⌈α⌉φ` seems needed for `FLb_trans`.
 | ~φ => [~φ] ++ FL φ -- first element needed to deal with ~~φ, ~~~φ etc.
 
 /-- The Fischer-Ladner closure of a box formula,
@@ -58,7 +58,7 @@ def isNeg : Formula → Prop
 | ~_ => True
 | _ => False
 
-lemma FL_single_neg_closed :
+lemma FL_single_neg_closed {φ} :
     ¬ isNeg φ → ~φ ∈ FL φ := by
   cases φ <;> simp [FL, isNeg]
 
@@ -98,24 +98,26 @@ lemma FL_trans {φ ψ} :
     · have IH2 := @FL_trans φ2 ψ h
       grind
   case box α φ =>
-    rcases ψ_in with h|h|h
+    rcases ψ_in with h|h|h|h
     · subst_eqs
       simp [FL]
+    · subst_eqs
+      grind [FL]
     · have := FLb_trans h
-      grind
+      grind [FL]
     · have IH := @FL_trans φ ψ
-      aesop
+      grind
 
 /-- Lemma 6.1(ii) from [HKT2000] -/
 lemma FLb_trans {α φ ψ} :
-    ψ ∈ FLb α φ → FL ψ ⊆ FLb α φ ++ FL φ := by
+    ψ ∈ FLb α φ → FL ψ ⊆ FLb α φ ++ FL (~φ) := by
   intro ψ_in
   cases α <;> simp [FLb] at *
-  · grind [FL, FLb]
+  · cases ψ_in <;> subst_eqs <;> grind [FL, FLb]
   case sequence α1 α2 =>
     rcases ψ_in with h|h|h|h
-    · subst_eqs; simp [FL,FLb]
-    · subst_eqs; simp [FL,FLb]
+    · subst_eqs; grind [FL,FLb]
+    · subst_eqs; grind [FL,FLb]
     · have IH1 := @FLb_trans α1 (⌈α2⌉φ) ψ h
       intro x x_in
       specialize IH1 x_in
@@ -131,8 +133,8 @@ lemma FLb_trans {α φ ψ} :
       grind [FL]
   case union α1 α2 =>
     rcases ψ_in with h|h|h|h
-    · subst_eqs; simp [FL,FLb]
-    · subst_eqs; simp [FL,FLb]
+    · subst_eqs; grind [FL,FLb]
+    · subst_eqs; grind [FL,FLb]
     · have IH1 := @FLb_trans α1 φ ψ h
       intro x x_in
       specialize IH1 x_in
@@ -143,22 +145,22 @@ lemma FLb_trans {α φ ψ} :
       aesop
   case star α =>
     rcases ψ_in with h|h|h
-    · subst_eqs; simp [FL,FLb]
-    · subst_eqs; simp [FL,FLb]
+    · subst_eqs; grind [FL,FLb]
+    · subst_eqs; grind [FL,FLb]
     · have IH := @FLb_trans α (⌈∗α⌉φ) ψ h
       intro x x_in
       specialize IH x_in
       simp [FL] at *
-      rcases IH with h|h|h|h
+      rcases IH with h|h|h|h|h
       · aesop
       · aesop
-      · simp [FLb] at *
-        aesop
+      · aesop
+      · grind [FLb]
       · aesop
   case test τ =>
     rcases ψ_in with h|h|h
-    · subst_eqs; simp [FL, FLb]
-    · subst_eqs; simp [FL, FLb]
+    · subst_eqs; grind [FL, FLb]
+    · subst_eqs; grind [FL, FLb]
     · have := @FL_trans τ ψ
       grind [FL]
 end
@@ -277,7 +279,8 @@ lemma FL_stays_in_voc {φ ψ} (ψ_in_FL : ψ ∈ FL φ) : ψ.voc ⊆ φ.voc := b
     · have IH := FL_stays_in_voc h
       grind
   case box α φ =>
-    rcases ψ_in_FL with h|h|h
+    rcases ψ_in_FL with h|h|h|h
+    · subst_eqs; simp
     · subst_eqs; simp
     · exact FLb_stays_in_voc h
     · have IH := FL_stays_in_voc h

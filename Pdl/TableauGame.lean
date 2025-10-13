@@ -810,16 +810,15 @@ decreasing_by
   simp at *
   apply _forTermination re re_in_ress
 
-lemma projection_sub_FLL : projection a R ⊆ FLL R := by
+lemma projection_sub_FLL {a L} : projection a L ⊆ FLL L := by
   intro φ φ_in
   rw [proj] at φ_in
-  simp [FLL]
+  simp only [FLL, List.mem_flatMap]
   use ⌈·a⌉φ, φ_in
   simp [FL]
 
 /-- PdlRule helper for `move_inside_FL` -/
-theorem PdlRule.stays_in_FL {X Y}
-    (rule : PdlRule X Y) :
+theorem PdlRule.stays_in_FL {X Y} (rule : PdlRule X Y) :
     Y.subseteq_FL X := by
   cases rule
   case loadL L δ α φ R in_L Y_def =>
@@ -860,10 +859,8 @@ theorem PdlRule.stays_in_FL {X Y}
       refine ⟨⟨?_, ?_⟩, ?_⟩
       · simp [FLL_append_eq]
         right
+        -- Note: here the closure under single negation matters.
         simp [FL, FLb]
-        right
-        unfold FL --- PROBLEM: we need closure under single negation!
-        sorry
       · have := @projection_sub_FLL a L
         grind [FLL_append_eq]
       · apply projection_sub_FLL
@@ -873,12 +870,31 @@ theorem PdlRule.stays_in_FL {X Y}
         grind [FLL_append_eq]
       · simp [FLL_append_eq]
         right
-        -- also needs negation?
-        sorry
+        -- Note: here the closure under single negation matters.
+        simp [FL, FLb]
       · apply projection_sub_FLL
-  case modR L R a ξ X_def Y_def =>
-    -- analogous to `modL` case, do later.
-    sorry
+  case modR L R a ξ X_def Y_def => -- analogous to `modL` case
+    subst X_def
+    subst Y_def
+    cases ξ <;> simp [Sequent.subseteq_FL]
+    case normal φ =>
+      refine ⟨?_, ?_, ?_⟩
+      · apply @projection_sub_FLL a L
+      · simp [FLL_append_eq]
+        right
+        -- Note: here the closure under single negation matters.
+        simp [FL, FLb]
+      · have := @projection_sub_FLL a R
+        grind [FLL_append_eq]
+    case loaded χ =>
+      refine ⟨?_, ?_, ?_⟩
+      · apply projection_sub_FLL
+      · have := @projection_sub_FLL a R
+        grind [FLL_append_eq]
+      · simp [FLL_append_eq]
+        right
+        -- Note: here the closure under single negation matters.
+        simp [FL, FLb]
 
 lemma move_inside_FL (mov : move p next) : next.2.1.subseteq_FL p.2.1 := by
   cases mov
