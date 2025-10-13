@@ -33,25 +33,34 @@ mutual
 /-- The Fischer-Ladner closure of a formula.
 See Section 6.1 of [HKT2000]. Note that there only implication is given.
 For our `Formula` type we also need to cover conjunction and negation.
+Also note that we are closing under single negations as well here.
 The main work is done by `FLb`, which also ensures termination. -/
 def FL : Formula → List Formula
-| ⊥ => [⊥]
-| ·p => [·p]
-| φ⋀ψ => [φ⋀ψ] ++ FL φ ++ FL ψ
-| ⌈α⌉φ => FLb α φ ++ FL φ
-| ~φ => [~φ] ++ FL φ
+| ⊥ => [⊥, ~⊥]
+| ·p => [·p, ~·p]
+| φ⋀ψ => [φ⋀ψ, ~(φ⋀ψ), ~φ, ~ψ] ++ FL φ ++ FL ψ -- ~φ and ~ψ needed for ~~ case.
+| ⌈α⌉φ => [~⌈α⌉φ] ++ FLb α φ ++ FL φ -- TODO: can we omit `[~⌈α⌉φ] ++ ` here?
+| ~φ => [~φ] ++ FL φ -- first element needed to deal with ~~φ, ~~~φ etc.
 
 /-- The Fischer-Ladner closure of a box formula,
 not recursing into the formula after the box. -/
 def FLb : Program → Formula → List Formula
-| ·a, φ => [ ⌈·a⌉φ ]
-| α⋓β, φ => [ ⌈α⋓β⌉φ ] ++ FLb α φ ++ FLb β φ
-| α;'β, φ => [ ⌈α;'β⌉φ ] ++ FLb α (⌈β⌉φ) ++ FLb β φ
-| ∗α, φ => [ ⌈∗α⌉φ ] ++ FLb α (⌈∗α⌉φ)
-| ?'τ, φ => [ ⌈?'τ⌉φ ] ++ FL τ
+| ·a, φ => [ ⌈·a⌉φ, ~⌈·a⌉φ ]
+| α⋓β, φ => [ ⌈α⋓β⌉φ, ~⌈α⋓β⌉φ ] ++ FLb α φ ++ FLb β φ
+| α;'β, φ => [ ⌈α;'β⌉φ, ~⌈α;'β⌉φ ] ++ FLb α (⌈β⌉φ) ++ FLb β φ
+| ∗α, φ => [ ⌈∗α⌉φ, ~⌈∗α⌉φ ] ++ FLb α (⌈∗α⌉φ)
+| ?'τ, φ => [ ⌈?'τ⌉φ, ~⌈?'τ⌉φ ] ++ FL τ
 end
 
 /-! ## Lemmas  -/
+
+def isNeg : Formula → Prop
+| ~_ => True
+| _ => False
+
+lemma FL_single_neg_closed :
+    ¬ isNeg φ → ~φ ∈ FL φ := by
+  cases φ <;> simp [FL, isNeg]
 
 @[simp]
 lemma FL_refl {φ} :
@@ -71,23 +80,29 @@ lemma FL_trans {φ ψ} :
     ψ ∈ FL φ → FL ψ ⊆ FL φ := by
   intro ψ_in
   cases φ <;> simp [FL] at *
-  · subst_eqs; simp [FL]
-  · subst_eqs; simp [FL]
+  · cases ψ_in <;> subst_eqs <;> simp [FL]
+  · cases ψ_in <;> subst_eqs <;> simp [FL]
   · case neg φ =>
     cases ψ_in <;> subst_eqs
     · simp [FL]
     · have IH := @FL_trans φ
       aesop
   case and φ1 φ2 =>
-    rcases ψ_in with _|_|_ <;> subst_eqs
+    rcases ψ_in with h|h|h|h|h|h <;> subst_eqs
     · simp [FL]
-    · have IH1 := @FL_trans φ1 ψ
-      aesop
-    · have IH2 := @FL_trans φ2 ψ
-      aesop
+    · simp [FL]
+    · simp [FL]; grind
+    · simp [FL]; grind
+    · have IH1 := @FL_trans φ1 ψ h
+      grind
+    · have IH2 := @FL_trans φ2 ψ h
+      grind
   case box α φ =>
-    cases ψ_in
-    · apply FLb_trans; assumption
+    rcases ψ_in with h|h|h
+    · subst_eqs
+      simp [FL]
+    · have := FLb_trans h
+      grind
     · have IH := @FL_trans φ ψ
       aesop
 
@@ -96,45 +111,56 @@ lemma FLb_trans {α φ ψ} :
     ψ ∈ FLb α φ → FL ψ ⊆ FLb α φ ++ FL φ := by
   intro ψ_in
   cases α <;> simp [FLb] at *
-  · subst_eqs; simp [FL, FLb]
+  · grind [FL, FLb]
   case sequence α1 α2 =>
-    rcases ψ_in with _|_|_
+    rcases ψ_in with h|h|h|h
     · subst_eqs; simp [FL,FLb]
-    · have IH1 := @FLb_trans α1 (⌈α2⌉φ) ψ (by assumption)
+    · subst_eqs; simp [FL,FLb]
+    · have IH1 := @FLb_trans α1 (⌈α2⌉φ) ψ h
       intro x x_in
       specialize IH1 x_in
       simp [FL] at *
-      rcases IH1 with _|_|_ <;> aesop
-    · have IH2 := @FLb_trans α2 φ ψ (by assumption)
-      aesop
+      rcases IH1 with _|_|_|_ <;> try (aesop; done)
+      · subst_eqs
+        simp at *
+        right
+        right
+        left
+        cases α2 <;> simp [FLb]
+    · have IH2 := @FLb_trans α2 φ ψ h
+      grind [FL]
   case union α1 α2 =>
-    rcases ψ_in with _|_|_
+    rcases ψ_in with h|h|h|h
     · subst_eqs; simp [FL,FLb]
-    · have IH1 := @FLb_trans α1 φ ψ (by assumption)
+    · subst_eqs; simp [FL,FLb]
+    · have IH1 := @FLb_trans α1 φ ψ h
       intro x x_in
       specialize IH1 x_in
       aesop
-    · have IH2 := @FLb_trans α2 φ ψ (by assumption)
+    · have IH2 := @FLb_trans α2 φ ψ h
       intro x x_in
       specialize IH2 x_in
       aesop
   case star α =>
-    rcases ψ_in with _|_
+    rcases ψ_in with h|h|h
     · subst_eqs; simp [FL,FLb]
-    · have IH := @FLb_trans α (⌈∗α⌉φ) ψ (by assumption)
+    · subst_eqs; simp [FL,FLb]
+    · have IH := @FLb_trans α (⌈∗α⌉φ) ψ h
       intro x x_in
       specialize IH x_in
       simp [FL] at *
-      rcases IH with _|_|_
+      rcases IH with h|h|h|h
+      · aesop
       · aesop
       · simp [FLb] at *
         aesop
       · aesop
   case test τ =>
-    cases ψ_in
+    rcases ψ_in with h|h|h
+    · subst_eqs; simp [FL, FLb]
     · subst_eqs; simp [FL, FLb]
     · have := @FL_trans τ ψ
-      aesop
+      grind [FL]
 end
 
 /- Lemma 6.2(i) -/
@@ -237,7 +263,13 @@ lemma FL_stays_in_voc {φ ψ} (ψ_in_FL : ψ ∈ FL φ) : ψ.voc ⊆ φ.voc := b
     · simp at *
     · exact FL_stays_in_voc h
   case and φ1 φ2 =>
-    rcases ψ_in_FL with h|h|h
+    rcases ψ_in_FL with h|h|h|h|h|h
+    · subst_eqs
+      simp
+    · subst_eqs
+      simp
+    · subst_eqs
+      simp
     · subst_eqs
       simp
     · have IH := FL_stays_in_voc h
@@ -245,34 +277,43 @@ lemma FL_stays_in_voc {φ ψ} (ψ_in_FL : ψ ∈ FL φ) : ψ.voc ⊆ φ.voc := b
     · have IH := FL_stays_in_voc h
       grind
   case box α φ =>
-    rcases ψ_in_FL with h|h
+    rcases ψ_in_FL with h|h|h
+    · subst_eqs; simp
     · exact FLb_stays_in_voc h
     · have IH := FL_stays_in_voc h
       grind
+  all_goals
+    grind [Formula.voc]
 
 lemma FLb_stays_in_voc {α φ ψ} (ψ_in_FLb : ψ ∈ FLb α φ) : ψ.voc ⊆ α.voc ∪ φ.voc := by
   cases α <;> simp_all [FLb]
+  case atom_prog =>
+    aesop
   case sequence α1 α2 =>
-    rcases ψ_in_FLb with h|h|h
+    rcases ψ_in_FLb with h|h|h|h
+    · subst_eqs; simp
     · subst_eqs; simp
     · have IH := FLb_stays_in_voc h
       aesop
     · have IH := FLb_stays_in_voc h
       grind
   case union α1 α2 =>
-    rcases ψ_in_FLb with h|h|h
+    rcases ψ_in_FLb with h|h|h|h
+    · subst_eqs; simp
     · subst_eqs; simp
     · have IH := FLb_stays_in_voc h
       grind
     · have IH := FLb_stays_in_voc h
       grind
   case test τ =>
-    rcases ψ_in_FLb with h|h
+    rcases ψ_in_FLb with h|h|h
+    · subst_eqs; simp
     · subst_eqs; simp
     · have IH := FL_stays_in_voc h
       grind
   case star α =>
-    rcases ψ_in_FLb with h|h
+    rcases ψ_in_FLb with h|h|h
+    · subst_eqs; simp
     · subst_eqs; simp
     · have IH := FLb_stays_in_voc h
       aesop

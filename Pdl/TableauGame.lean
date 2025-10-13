@@ -547,13 +547,30 @@ lemma unfoldDiamond_in_FL (α : Program) (ψ : Formula) (X : List Formula) :
 /-- Helper for `LocalRule.stays_in_FL` -/
 lemma LoadRule.stays_in_FL_left (lr : LoadRule (~'χ) ress) :
     ∀ Y ∈ ress, Sequent.subseteq_FL (Y.1, ∅, Y.2.map Sum.inl) (∅, ∅, some (Sum.inl (~'χ))) := by
-  simp [Sequent.subseteq_FL, Olf.L, FLL]
-  intro F χ in_ress
+  simp
+  intro F oχ in_ress
   cases lr
   -- Need or already have somwhere a lemma that unfoldDiamond(loaded)' stays in FL closure?
-  · simp
-    sorry
-  · sorry
+  case dia α χ notAt =>
+    simp [Sequent.subseteq_FL]
+    have : pairUnload (F, oχ) ∈ unfoldDiamond α χ.unload := by
+      have := (unfoldDiamondLoaded_eq α χ)
+      grind
+    -- hmm
+    have := unfoldDiamond_in_FL α χ.unload _ this
+    cases oχ <;> simp [pairUnload] at *
+    · sorry
+    · sorry
+  case dia' α φ notAt =>
+    simp [Sequent.subseteq_FL]
+    have : pairUnload (F, oχ) ∈ unfoldDiamond α φ := by
+      have := (unfoldDiamondLoaded'_eq α φ)
+      grind
+    -- hmm
+    have := unfoldDiamond_in_FL α φ _ this
+    cases oχ <;> simp [pairUnload] at *
+    · sorry
+    · sorry
 
 /-- Helper for `LocalRule.stays_in_FL` -/
 lemma LoadRule.stays_in_FL_right (lr : LoadRule (~'χ) ress) :
@@ -561,20 +578,51 @@ lemma LoadRule.stays_in_FL_right (lr : LoadRule (~'χ) ress) :
   -- TODO, analogous to `LoadRule.stays_in_FL_left`?
   sorry
 
+/-- Helper for `LocalRule.stays_in_FL` -/
+theorem OneSidedLocalRule.stays_in_FL
+    (rule : OneSidedLocalRule precond ress) :
+    ∀ res ∈ ress, res ⊆ FLL precond := by
+  intro res res_in
+  cases rule <;> simp [FL] at *
+  all_goals
+    subst_eqs
+    try simp
+  case nCo φ1 φ2 =>
+    -- NOTE: Here it matters that FL is closed under (single) negation.
+    cases res_in <;> subst_eqs <;> simp at *
+  case box =>
+    -- need lemma that `unfoldBox` stays in FL here?
+    sorry
+  case dia =>
+    -- finish `LoadRule.stays_in_FL_left` before this here.
+    sorry
+
 /-- Helper for `LocalTableau.stays_in_FL` -/
 theorem LocalRule.stays_in_FL {X B}
     (rule : LocalRule X B) :
     ∀ Y ∈ B, Y.subseteq_FL X := by
   intro Y Y_in_B
   cases rule
-  case oneSidedL =>
-    sorry
-  case oneSidedR =>
-    sorry -- analogous?
+  case oneSidedL precond ress orule B_def =>
+    subst B_def
+    simp at *
+    rcases Y_in_B with ⟨res, res_in, def_Y⟩
+    subst def_Y
+    simp [Sequent.subseteq_FL]
+    apply OneSidedLocalRule.stays_in_FL orule _ res_in
+  case oneSidedR precond ress orule B_def =>
+    subst B_def
+    simp at *
+    rcases Y_in_B with ⟨res, res_in, def_Y⟩
+    subst def_Y
+    simp [Sequent.subseteq_FL]
+    apply OneSidedLocalRule.stays_in_FL orule _ res_in
   case LRnegL =>
-    sorry
+    absurd Y_in_B
+    tauto
   case LRnegR =>
-    sorry -- analogous?
+    absurd Y_in_B
+    tauto
   case loadedL ress χ lorule B_def =>
     subst B_def
     simp [List.empty_eq, List.mem_map, Prod.exists] at *
