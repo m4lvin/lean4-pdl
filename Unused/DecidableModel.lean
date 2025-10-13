@@ -42,11 +42,12 @@ theorem Finset.sdiff_ssubset_sdiff [DecidableEq α] {A B C : Finset α} (h1 : B 
         specialize xC_sub_B this
         tauto
 
-theorem reachableFrom_terminationHelper (r : α → α → Prop) [DecidableRel r] [DecidableEq α] [α_fin : Fintype α] (here : Finset α)
+theorem reachableFrom_terminationHelper {α} (r : α → α → Prop)
+    [DecidableRel r] [DecidableEq α] [α_fin : Fintype α] (here : Finset α)
     (h : (Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems).Nonempty)
-    :
-    (Fintype.elems \ (here ∪ Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems)).card <
-  (Fintype.elems \ here).card := by
+    : ( Fintype.elems
+        \ (here ∪ Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems)
+      ).card < (Fintype.elems \ here).card := by
   apply Finset.card_lt_card
   apply Finset.sdiff_ssubset_sdiff
   · intro _ _
@@ -66,8 +67,9 @@ theorem reachableFrom_terminationHelper (r : α → α → Prop) [DecidableRel r
       use x
 
 /-- Computable definition to close a finset under the reflexive transitive closure of a relation. -/
-def reachableFrom (r : α → α → Prop) [DecidableRel r] [DecidableEq α] [α_fin : Fintype α] (here : Finset α) :
-    Finset α :=
+def reachableFrom (r : α → α → Prop)
+    [DecidableRel r] [DecidableEq α] [α_fin : Fintype α] (here : Finset α)
+    : Finset α :=
   let nexts := α_fin.elems.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y)
   if _h : nexts.Nonempty then reachableFrom r (here ∪ nexts) else here
 termination_by
@@ -77,23 +79,34 @@ decreasing_by
   apply reachableFrom_terminationHelper
   exact _h
 
-theorem reachableFrom.subset (r : α → α → Prop) [DecidableRel r] [DecidableEq α] [α_fin : Fintype α] here :
-    here ⊆ reachableFrom r here := by
+theorem reachableFrom.subset (r : α → α → Prop)
+    [DecidableRel r] [DecidableEq α] [α_fin : Fintype α] here
+    : here ⊆ reachableFrom r here := by
   unfold reachableFrom
   simp_all only [dite_eq_ite]
-  by_cases hyp : (Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems).Nonempty <;> simp_all
-  have IH := reachableFrom.subset r (here ∪ Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems)
-  intro x x_in
-  have : x ∈ here ∪ Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems := by aesop
-  exact IH this
+  by_cases hyp : (Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems).Nonempty
+  <;> simp_all
+  · have IH := reachableFrom.subset r
+      (here ∪ Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems)
+    intro x x_in
+    have : x ∈ here ∪ Finset.filter
+      (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems := by aesop
+    exact IH this
+  · intro x x_in
+    split
+    next h =>
+      cases h
+      aesop
+    · simp_all
 termination_by
   (α_fin.elems \ here).card
 decreasing_by
   apply reachableFrom_terminationHelper
   exact hyp
 
-theorem reachableFrom.mem_iff (r : α → α → Prop) [DecidableRel r] [DecidableEq α] [α_fin : Fintype α] (here : Finset α) y :
-    y ∈ reachableFrom r here ↔ ∃ x ∈ here, Relation.ReflTransGen r x y := by
+theorem reachableFrom.mem_iff (r : α → α → Prop)
+    [DecidableRel r] [DecidableEq α] [α_fin : Fintype α] (here : Finset α) y
+    : y ∈ reachableFrom r here ↔ ∃ x ∈ here, Relation.ReflTransGen r x y := by
   constructor
   · intro y_in
     unfold reachableFrom at y_in
@@ -122,7 +135,8 @@ theorem reachableFrom.mem_iff (r : α → α → Prop) [DecidableRel r] [Decidab
         assumption
       · unfold reachableFrom
         simp only [dite_eq_ite]
-        have nonEmp : (Finset.filter (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems).Nonempty :=
+        have nonEmp : (Finset.filter
+            (fun y => ∃ x ∈ here, y ∉ here ∧ r x y) Fintype.elems).Nonempty :=
           ⟨b, by simp; exact ⟨Fintype.complete b, by use a⟩⟩
         simp [nonEmp]
         rw [reachableFrom.mem_iff] -- needs termination argument
@@ -165,7 +179,8 @@ instance evaluate.instDecidable (M : DecidableKripkeModel W) (w : W) φ
   | _ ⋀ _ => @instDecidableAnd _ _ (evaluate.instDecidable ..) (evaluate.instDecidable ..)
   | ~_ => @instDecidableNot _ (evaluate.instDecidable ..)
   | ⌈_⌉_ => @Fintype.decidableForallFintype _ _
-      (fun _ => @instDecidableForall _ _ (relate.instDecidable ..) (evaluate.instDecidable ..)) M.finW
+      (fun _ => @instDecidableForall _ _
+        (relate.instDecidable ..) (evaluate.instDecidable ..)) M.finW
 
 instance relate.instDecidable (M : DecidableKripkeModel W) α (v w : W)
     : Decidable (relate M α v w) := by

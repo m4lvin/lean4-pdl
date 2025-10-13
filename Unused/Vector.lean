@@ -6,7 +6,7 @@ import Mathlib.Tactic.Linarith
 These were previously used in `Soundness.lean`.
 -/
 
-lemma List.nonempty_drop_sub_succ (δ_not_empty : δ ≠ []) (k : Fin δ.length) :
+lemma List.nonempty_drop_sub_succ {δ : List α} (δ_not_empty : δ ≠ []) (k : Fin δ.length) :
   (List.drop (k.val + 1) δ).length + 1 = δ.length.succ - (k.val + 1) :=
   by
   simp
@@ -16,13 +16,13 @@ lemma List.nonempty_drop_sub_succ (δ_not_empty : δ ≠ []) (k : Fin δ.length)
     omega
   apply this <;> aesop
 
-lemma List.Vector.my_cast_head (n m : Nat) (v : List.Vector α n.succ) (h : n = m) :
+lemma List.Vector.my_cast_head {α} (n m : Nat) (v : List.Vector α n.succ) (h : n = m) :
     (h ▸ v).head = v.head := by subst h; simp
 
-lemma List.Vector.my_cast_getElem (n m : Nat) (v : List.Vector α n.succ) (h : n = m) (i : Fin n):
+lemma List.Vector.my_cast_getElem {α} (n m) (v : List.Vector α n.succ) (h : n = m) (i : Fin n) :
     (h ▸ v)[i] = v[i] := by subst h; simp
 
-lemma List.Vector.my_cast_eq_val_head (n m : Nat) (v : List.Vector α n.succ) (h : n = m) h2 :
+lemma List.Vector.my_cast_eq_val_head {α} (n m : Nat) (v : List.Vector α n.succ) (h : n = m) h2 :
     (h ▸ v).head = v.1.head h2 := by
   rcases v with ⟨l,l_prop⟩
   rw [List.Vector.my_cast_head]
@@ -30,7 +30,7 @@ lemma List.Vector.my_cast_eq_val_head (n m : Nat) (v : List.Vector α n.succ) (h
   · exfalso; aesop
   · aesop
 
-lemma List.Vector.my_cast_toList (n m : ℕ) (t : List α) ht (h : n = m) :
+lemma List.Vector.my_cast_toList {α} (n m : ℕ) (t : List α) ht (h : n = m) :
     t = List.Vector.toList (h ▸ (⟨t, ht⟩ : List.Vector α n)) := by subst h; simp
 
 lemma aux_simplify_vector_type {α} {q p : ℕ} (t : List α) h :
@@ -58,7 +58,7 @@ lemma List.Vector.my_drop_succ_cons {α} {m n : ℕ} (x : α) (t : List α) h (h
         simp [List.Vector.drop]
         rw [aux_simplify_vector_type]
 
-lemma List.Vector.get_succ_eq_head_drop {v : List.Vector α n.succ} (k : Fin n) (j : Nat)
+lemma List.Vector.get_succ_eq_head_drop {α n} {v : List.Vector α n.succ} (k : Fin n) (j : Nat)
     (h : (n + 1 - (k.val + 1)) = j + 1) :
     v.get k.succ = (h ▸ v.drop (k.val + 1)).head
     := by
@@ -86,8 +86,8 @@ lemma List.Vector.get_succ_eq_head_drop {v : List.Vector α n.succ} (k : Fin n) 
         rw [IH]
         clear IH
         rw [Vector.my_drop_succ_cons]
-        convert rfl
-        simp only [eqRec_heq_iff_heq, heq_eq_eq]
+        · convert rfl
+          simp only [eqRec_heq_iff_heq, heq_eq_eq]
         omega
 
 /-- Generalized vesrion of `Vector.drop_get_eq_get_add`. -/

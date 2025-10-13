@@ -125,14 +125,14 @@ def helperSplit (t1 : HisTree H j1) (t2 : HisTree H j2) (m_def : m ∈ [j1, j2])
 
 def bla : HisTree [] 4 :=
   --      4
-  step split $ helperSplit
+  step split <| helperSplit
     -- 1    3
-    leaf $
-    step split $ helperSplit
+    leaf <|
+    step split <| helperSplit
     --    1   2
       leaf
       --      4
-      (step up $ helper $ by apply rep; aesop)
+      (step up <| helper <| by apply rep; aesop)
 
 -- * NEW: PATHS, inductively and hopefully better than the unsafe verson below
 
@@ -177,9 +177,10 @@ def PathIn.dropAtEnd (p : PathIn ht) (k : Nat) (h : k ≤ p.length) : PathIn ht 
 
 -- #eval (blaPath.dropAtEnd 1 (by simp [PathIn.length])).toSteps
 
-theorem PathIn.length_eq_toListLength H n (ht : HisTree H n) (p : PathIn ht):
+theorem PathIn.length_eq_toListLength H n (ht : HisTree H n) (p : PathIn ht) :
   p.length = p.toList.length := by
-  induction p -- now works, and termination too. Maybe because PathIn.cons now has more arguments to keep track of?
+  induction p -- now works, termination too.
+  -- Maybe because PathIn.cons now has more arguments to keep track of?
   · simp [PathIn.toList, PathIn.length]
   case cons H ms n m m_in s next rest IH =>
     simp [PathIn.toList, PathIn.length]
@@ -207,7 +208,7 @@ def Environment (root : HisTree H n) : Type := PathIn root → PathIn root
 /-- Like `treeAt` but "jumping back" to companions. -/
 -- NOTE: Only works for H=[] to ensure the repeat k does not jump too far above!
 -- TODO: rewrite in term-mode
-def unravelAt {root : HisTree [] n} : PathIn root → PathIn root := by
+def unravelAt {n} {root : HisTree [] n} : PathIn root → PathIn root := by
   intro p
   let ⟨Hp,m,htp⟩ := treeAt p
   cases htp
@@ -228,7 +229,7 @@ def unravelAt {root : HisTree [] n} : PathIn root → PathIn root := by
 
 /-- Like `treeAt` but "jumping back" to companions. -/
 -- TODO: rewrite in term-mode
-def unravelAt' {root : HisTree H n} : PathIn root → PathIn root := by
+def unravelAt' {H n} {root : HisTree H n} : PathIn root → PathIn root := by
   intro p
   let ⟨Hp,m,htp⟩ := treeAt p
   cases htp
@@ -274,7 +275,8 @@ def isSplit : (Σ H n, HisTree H n) → Prop
 @[simp]
 def isPrefixOf : PathIn ht → PathIn ht → Prop
 | PathIn.nil, _ => true
-| PathIn.cons m _ _ _ rest, PathIn.cons m' _ _ _ rest' => (meq : m = m') → isPrefixOf rest (meq.symm ▸ rest')
+| PathIn.cons m _ _ _ rest, PathIn.cons m' _ _ _ rest' =>
+    (meq : m = m') → isPrefixOf rest (meq.symm ▸ rest')
 | PathIn.cons _ _ _ _ _, PathIn.nil => false
 
 @[simp]
@@ -292,7 +294,7 @@ theorem sameNode_cons {rest rest'} :
 -- Example of an easier statement about repeats.
 -- Any path to a repeat must have a prefix to the same thing,
 -- (This should be implied by the def of condition 6a for PDL.)
-theorem rep_needs_same_above
+theorem rep_needs_same_above {n}
     {ht : HisTree [] n}
     (p : PathIn ht)
     (p_is_rep : isRep (treeAt p))
@@ -393,7 +395,7 @@ theorem rep_needs_split_above
     cases p
     case nil _ _ _ _in_H' =>
       subst_eqs
-    case cons _in_H ms m m_in s next rest=> -- n' ks n'_ks n'_ks_in_H' ms m m_in_ms n_ms next rest IH foo
+    case cons _in_H ms m m_in s next rest =>
       sorry
   case step =>
     -- Impossible, a step is not a repeat.
@@ -420,7 +422,8 @@ def isPathIn : (Σ H n, HisTree H n) → List Nat → Bool
 | ⟨_, k, _⟩, [n]          => n == k
 | ⟨_, 1, leaf⟩,  (_::_::_   ) => False
 | ⟨_, k, rep _ _, ⟩, (n::_::_   ) => n == k
-| ⟨_, k, @step _ _ ms _ next⟩, (n::m::rest) => n == k ∧ ∃ m_in : m ∈ ms, (isPathIn ⟨_, _, next m_in⟩ (m::rest) )
+| ⟨_, k, @step _ _ ms _ next⟩, (n::m::rest) =>
+    n == k ∧ ∃ m_in : m ∈ ms, (isPathIn ⟨_, _, next m_in⟩ (m::rest) )
 
 def SafePathIn (t : Σ H n, HisTree H n) := Subtype (fun l => isPathIn t l)
 
@@ -441,7 +444,7 @@ def treeAt' : List Nat → (Σ H n, HisTree H n) → Option (Σ H n, HisTree H n
     none
 
 -- Now, given a SafePathIn leading to a repeat, how do we move back up to the companion?
--- May need the assumption that H = [], or at least that it is at least as long as the companion-repeat path.
+-- May need the assumption that H = [], or that it is at least as long as the companion-repeat path.
 
 def Pointer := (Σ H n, HisTree H n) × List Nat
 

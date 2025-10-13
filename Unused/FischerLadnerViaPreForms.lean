@@ -61,7 +61,7 @@ def PreForm.ofFormula (ψ : Formula) : PreForm := ⟨true, none, Sum.inl ψ⟩
 -- instance : Coe Formula (PreForm) := ⟨PreForm.ofFormula⟩ -- unused.
 
 def PreForm.toForm : PreForm → Formula
-| (b, αs, lrφ) => (if b then id else Formula.neg) $ Formula.boxes αs.toList (lrφ.elim id id)
+| (b, αs, lrφ) => (if b then id else Formula.neg) <| Formula.boxes αs.toList (lrφ.elim id id)
 
 /-- Converting `Formula` to `PreForm` and back to `Formula` is the identity. Note that the other
 direction does not hold, because two different `PreForm`s can encode the same `Formula`. -/
@@ -369,13 +369,15 @@ lemma PreForm.fischerLadnerClosure_idem :
           simp
           specialize steps ⟨0, by omega⟩
           convert steps
-          · have := @cast_append_getElem_eq_getElem_of_lt _ k l.tail k' l' (by omega) i.val (by omega)
+          · have := @cast_append_getElem_eq_getElem_of_lt _ k l.tail k' l'
+              (by omega) i.val (by omega)
             convert this
             convert def_l_head.symm
             · apply List.Vector.getElem_zero_eq_head
             · simp_all [List.Vector.getElem_max_eq_last]
           · rcases i with ⟨i,i_lt⟩
-            have := @cast_append_getElem_eq_getElem_of_ge _ _ l _ l' this (k' + 1) (by simp) (by omega)
+            have := @cast_append_getElem_eq_getElem_of_ge _ _ l _ l' this (k' + 1)
+              (by simp) (by omega)
             simp at this
             convert this
         · specialize steps ⟨i - k', by omega⟩

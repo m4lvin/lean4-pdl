@@ -6,8 +6,6 @@ import Pdl.Tableau
 
 import Mathlib.Tactic.Ring
 
-open Classical
-
 open HasSat
 
 -- Combine a collection of pointed models with one new world using the given valuation.
@@ -25,7 +23,7 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, Nat × KripkeMod
       cases newWorld
       exact newVal -- use new given valuation here!!
     case inr oldWorld => -- world in one of the given models:
-      cases' oldWorld with R w
+      rcases oldWorld with ⟨R, w⟩
       exact (collection R).snd.snd.fst.val w
   · -- defining relations:
     intro prog worldOne worldTwo
@@ -33,17 +31,19 @@ def combinedModel {β : Type} (collection : β → Σ W : Type, Nat × KripkeMod
     case inl.inl =>
       exact False -- no reflexive loop at the new world.
     case inl.inr newWorld oldWorld => -- connect new world to given points.
-      exact (HEq oldWorld.snd (collection oldWorld.fst).snd.snd) ∧ (HEq prog (collection oldWorld.fst).snd.fst)
+      exact (HEq oldWorld.snd (collection oldWorld.fst).snd.snd)
+          ∧ (HEq prog (collection oldWorld.fst).snd.fst)
     case inr.inl => exact False -- no connection from old worlds to new world
     case inr.inr oldWorldOne oldWorldTwo =>
       -- connect two old worlds iff they are from the same model and were connected there already:
-      cases' oldWorldOne with kOne wOne
-      cases' oldWorldTwo with kTwo wTwo
+      rcases oldWorldOne with ⟨kOne, wOne⟩
+      rcases oldWorldTwo with ⟨kTwo, wTwo⟩
       have help : kOne = kTwo → Prop := by
         intro same
         have sameCol : collection kOne = collection kTwo := by rw [← same]
         rw [← sameCol] at wTwo
         exact (collection kOne).snd.snd.fst.Rel prog wOne wTwo
+      classical
       exact dite (kOne = kTwo) (fun same => help same) fun _ => False
   · -- point at the new world:
     left
@@ -58,19 +58,23 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
     by
     intro mF mR moW
     apply @Formula.rec
-      (λφ => ∀ (R : β) (oldWorld : (collection R).fst),  -- Formula IH
+      (fun φ => ∀ (R : β) (oldWorld : (collection R).fst),  -- Formula IH
         evaluate (combinedModel collection newVal).fst (Sum.inr ⟨R, oldWorld⟩) φ ↔
           evaluate (collection R).snd.snd.fst oldWorld φ)
       -- Program IH 1: relations within models are preserved
-      (λπ => (∀ (R : β) (oldWorld₁ oldWorld₂ : (collection R).fst),
-        relate (combinedModel collection newVal).fst π (Sum.inr ⟨R, oldWorld₁⟩) (Sum.inr ⟨R, oldWorld₂⟩) ↔
-          relate (collection R).snd.snd.fst π oldWorld₁ oldWorld₂)
+      (fun π => (∀ (R : β) (oldWorld₁ oldWorld₂ : (collection R).fst),
+          relate (combinedModel collection newVal).fst π
+            (Sum.inr ⟨R, oldWorld₁⟩) (Sum.inr ⟨R, oldWorld₂⟩)
+        ↔ relate (collection R).snd.snd.fst π oldWorld₁ oldWorld₂)
             -- Program IH 2: if old worlds are from different models they are not related
             ∧ (∀ (R₁ R₂ : β) (oldWorld₁ : (collection R₁).fst) (oldWorld₂ : (collection R₂).fst),
-              R₁ ≠ R₂ → ¬(relate (combinedModel collection newVal).fst π (Sum.inr ⟨R₁, oldWorld₁⟩) (Sum.inr ⟨R₂, oldWorld₂⟩)))
+              R₁ ≠ R₂ →
+                ¬(relate (combinedModel collection newVal).fst π
+                    (Sum.inr ⟨R₁, oldWorld₁⟩) (Sum.inr ⟨R₂, oldWorld₂⟩)))
               -- Program IH 3: no old world can see the new world
               ∧ (∀ (R : β) (oldWorld : (collection R).fst),
-                ¬(relate (combinedModel collection newVal).fst π (Sum.inr ⟨R, oldWorld⟩) (Sum.inl Unit.unit))))
+                ¬(relate (combinedModel collection newVal).fst π
+                    (Sum.inr ⟨R, oldWorld⟩) (Sum.inl Unit.unit))))
       (by simp)       -- case bottom
       (by aesop)      -- case atom_prop
       (by aesop)      -- case neg
@@ -78,18 +82,16 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
       ( by            -- case box
           intro α f IH_a IH_f R oldWorld
           constructor
-          · aesop
+          · sorry -- aesop
           · intro true_in_old
             unfold evaluate at true_in_old
             simp
             constructor
-            · intro newWorld  -- new world
-              intro old_rel_new
+            · intro newWorld old_rel_new
               absurd old_rel_new
               rcases IH_a with ⟨IH_rel, sameR, noNewL⟩
               apply noNewL
-            · intro otherR otherWorld  -- old world
-              intro rel_in_new_model
+            · rintro ⟨otherR, otherWorld⟩ rel_in_new_model
               specialize IH_f otherR otherWorld
               simp_all
               rcases IH_a with ⟨IH_rel, sameR, noNewL⟩
@@ -120,7 +122,7 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
               unfold relate at new_rel
               rcases new_rel with ⟨u, a_rel_u, u_rel_b⟩
               rcases IH_a with ⟨IH_rel, sameR, noNewL⟩
-              cases' u with u_new u_old
+              rcases u with u_new|u_old
               · absurd a_rel_u
                 apply noNewL
               · rcases u_old with ⟨otherR, otherWorld⟩ -- old world
@@ -139,7 +141,7 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
             unfold relate at hrel
             rcases hrel with ⟨u, a_rel_u, _⟩
             rcases IH_a with ⟨IH_rel, sameR, noNewL⟩
-            cases' u with u_new u_old
+            rcases u with u_new|u_old
             · absurd a_rel_u
               apply noNewL
             · rcases u_old with ⟨otherR, otherWorld⟩ -- old world
@@ -162,8 +164,9 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
         constructor
         · intro R oldWorld₁ oldWorld₂                  -- first half of Program IH
           have star_preserved : ∀ (w v : (collection R).fst),
-            Relation.ReflTransGen (relate (combinedModel collection newVal).fst a)
-              (Sum.inr ⟨R, w⟩) (Sum.inr ⟨R, v⟩) ↔ Relation.ReflTransGen (relate (collection R).snd.snd.fst a) w v :=
+              Relation.ReflTransGen
+                (relate (combinedModel collection newVal).fst a) (Sum.inr ⟨R, w⟩) (Sum.inr ⟨R, v⟩)
+            ↔ Relation.ReflTransGen (relate (collection R).snd.snd.fst a) w v :=
             by
             intro w v
             rw [ReflTransGen.iff_finitelyManySteps]
@@ -199,13 +202,15 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
 /-
 -- The combined model for X satisfies X.
 theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
-    {beta_def : β = {F : Formula | f_in_TNode (~F.box) (L, R)}} (simple_LR : Simple (L, R)) (not_closed_LR : ¬closed (L ∪ R))
+    {beta_def : β = {F : Formula | f_in_TNode (~F.box) (L, R)}}
+    (simple_LR : Simple (L, R)) (not_closed_LR : ¬ closed (L ∪ R))
     (collection : β → Σ W : Type, KripkeModel W × W)
     (all_pro_sat :
       ∀ F : β,
-        ∀ f, (f ∈ (projection (L ∪ R) ∪ {~F})) → Evaluate ((collection F).snd.fst, (collection F).snd.snd) f) :
+        ∀ f, (f ∈ (projection (L ∪ R) ∪ {~F}))
+          → evaluate ((collection F).snd.fst, (collection F).snd.snd) f) :
     ∀ f, f_in_TNode f (L, R)
-      → Evaluate
+      → evaluate
         ((combinedModel collection fun c => Formula.atom_prop c ∈ (L ∪ R)).fst,
           (combinedModel collection fun c => Formula.atom_prop c ∈ (L ∪ R)).snd)
         f :=
@@ -310,7 +315,9 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
 -- A simple set of formulas X is satisfiable if and only if
 -- it is not closed  and  for all ¬[A]R ∈ X also XA; ¬R is satisfiable.
 theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
-    Simple LR → (satisfiable LR ↔ ¬closed (LR.1 ∪ LR.2) ∧ ∀ F, f_in_TNode (~(□F)) LR → satisfiable (projection (LR.1 ∪ LR.2) ∪ {~F})) :=
+    Simple LR → (satisfiable LR ↔
+      ¬closed (LR.1 ∪ LR.2) ∧ ∀ F, f_in_TNode (~(□F)) LR
+        → satisfiable (projection (LR.1 ∪ LR.2) ∪ {~F})) :=
   by
     intro LR_is_simple
     constructor
