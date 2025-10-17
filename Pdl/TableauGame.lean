@@ -538,18 +538,78 @@ lemma Sequent.subseteq_FL_of_setEq_left {X Y : Sequent} (h : X.setEqTo Y) {Z : S
     have := FLL_ext R_same
     grind
 
--- TODO: is this the right/useful statement?
+lemma testsOfProgram_in_FLb {φ α} (φ_in : φ ∈ testsOfProgram α) ψ : φ ∈ FLb α ψ := by
+  cases α <;> simp [testsOfProgram] at *
+  case sequence α β =>
+    simp [FLb]
+    right
+    right
+    rcases φ_in with h|h <;> have IH := testsOfProgram_in_FLb h <;> grind
+  case union α β =>
+    simp [FLb]
+    right
+    right
+    rcases φ_in with h|h <;> have IH := testsOfProgram_in_FLb h <;> grind
+  case star α =>
+    have IH := testsOfProgram_in_FLb φ_in (⌈∗α⌉ψ)
+    grind [FLb]
+  case test τ =>
+    simp_all [FLb]
+
+lemma H_tests_in_FL F δ α (in_H : (F, δ) ∈ H α) ψ : F ⊆ FLb α ψ := by
+  sorry
+
+lemma H_progs_in_FL F δ α (in_H : (F, δ) ∈ H α) ψ : (~⌈⌈δ⌉⌉ψ) ∈ FLb α ψ := by
+  sorry
+
 lemma unfoldDiamond_in_FL (α : Program) (ψ : Formula) (X : List Formula) :
-    X ∈ unfoldDiamond α ψ → ∀ φ ∈ X, φ ∈ FL (⌈α⌉φ) := by
+    X ∈ unfoldDiamond α ψ → ∀ φ ∈ X, φ ∈ FL (⌈α⌉ψ) := by
   intro X_in φ φ_in
   rcases unfoldDiamondContent α ψ X X_in φ φ_in with φ_def|h|h
   · simp_all [FL]
-  · rcases h with ⟨τ, τ_from_φ, φ_def⟩
+  · rcases h with ⟨τ, τ_from_α, φ_def⟩
     subst φ_def
-    cases α <;> simp [FL]
+    simp only [FL, List.cons_append, List.nil_append, List.mem_cons, List.mem_append]
+    exact Or.inr (Or.inr (Or.inl (testsOfProgram_in_FLb τ_from_α ψ)))
   · rcases h with ⟨a, δ, φ_def⟩
     subst φ_def
-    cases α <;> simp [FL]
+    rcases α with ⟨a⟩|⟨α,β⟩|⟨α,β⟩|⟨α⟩|⟨τ⟩
+    case atom_prog =>
+      simp [unfoldDiamond, Yset, H] at X_in
+      subst X_in
+      simp_all only [List.mem_cons, Formula.neg.injEq, Formula.box.injEq, Program.atom_prog.injEq,
+        List.not_mem_nil, or_false]
+      rcases φ_in with ⟨h1,h2⟩
+      subst h1
+      exact FL_single_neg_closed fun a => a
+    case test =>
+      simp only [unfoldDiamond, Yset, H, List.map_cons, Formula.boxes_nil, List.cons_union,
+        List.nil_union, List.map_nil, List.mem_cons, List.not_mem_nil, or_false] at X_in
+      subst X_in
+      simp at *
+      rcases φ_in with h|h
+      · subst h
+        simp [FL, FLb]
+      · absurd h
+        apply Formula.boxes_cons_neq_self
+    all_goals -- sequence, union and star case work the same :-)
+      simp [unfoldDiamond, Yset] at X_in
+      rcases X_in with ⟨F, δ, in_H, def_X⟩
+      subst def_X
+      simp at φ_in
+      rcases φ_in with φ_in|φ_def
+      · simp only [FL, List.cons_append, List.nil_append, List.mem_cons, Formula.neg.injEq,
+        Formula.box.injEq, reduceCtorEq, false_and, List.mem_append, false_or]
+        right
+        left
+        exact H_tests_in_FL _ _ _ in_H ψ φ_in
+      · rw [φ_def]
+        simp only [FL, List.cons_append, List.nil_append, List.mem_cons, Formula.neg.injEq,
+          List.mem_append]
+        right
+        right
+        left
+        exact H_progs_in_FL _ _ _ in_H ψ
 
 /-- Helper for `LocalRule.stays_in_FL` -/
 lemma LoadRule.stays_in_FL_left {χ ress} (lr : LoadRule (~'χ) ress) :
@@ -557,27 +617,18 @@ lemma LoadRule.stays_in_FL_left {χ ress} (lr : LoadRule (~'χ) ress) :
   simp
   intro F oχ in_ress
   cases lr
-  -- Need or already have somwhere a lemma that unfoldDiamond(loaded)' stays in FL closure?
   case dia α χ notAt =>
     simp [Sequent.subseteq_FL]
     have : pairUnload (F, oχ) ∈ unfoldDiamond α χ.unload := by
-      have := (unfoldDiamondLoaded_eq α χ)
+      have := unfoldDiamondLoaded_eq α χ
       grind
-    -- hmm
-    have := unfoldDiamond_in_FL α χ.unload _ this
-    cases oχ <;> simp [pairUnload] at *
-    · sorry
-    · sorry
+    cases oχ <;> grind [FL, pairUnload, unfoldDiamond_in_FL]
   case dia' α φ notAt =>
     simp [Sequent.subseteq_FL]
     have : pairUnload (F, oχ) ∈ unfoldDiamond α φ := by
       have := (unfoldDiamondLoaded'_eq α φ)
       grind
-    -- hmm
-    have := unfoldDiamond_in_FL α φ _ this
-    cases oχ <;> simp [pairUnload] at *
-    · sorry
-    · sorry
+    cases oχ <;> grind [FL, pairUnload, unfoldDiamond_in_FL]
 
 /-- Helper for `LocalRule.stays_in_FL` -/
 lemma LoadRule.stays_in_FL_right (lr : LoadRule (~'χ) ress) :

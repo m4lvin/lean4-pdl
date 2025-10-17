@@ -153,6 +153,20 @@ lemma boxesOf_output_not_isBox : ¬ (boxesOf φ).2.isBox := by
   all_goals
     simp_all [boxesOf, Formula.isBox]
 
+lemma Formula.boxes_cons_neq_self φ β δ : (⌈β⌉⌈⌈δ⌉⌉φ) ≠ φ := by
+  cases φ <;> try grind [Formula.boxes]
+  case box α φ =>
+    rw [← boxes_last]
+    simp only [ne_eq, box.injEq, not_and]
+    intro β_eq_α
+    rw [boxes_last]
+    cases δ
+    · exact @Formula.boxes_cons_neq_self φ α []
+    case cons γ δ =>
+      simp only [boxes_cons]
+      rw [← boxes_last]
+      exact @Formula.boxes_cons_neq_self φ γ (δ ++ [α])
+
 /-! ## Loaded Formulas -/
 
 -- Loaded formulas consist of a negation, a sequence of loading boxes and then a normal formula.
