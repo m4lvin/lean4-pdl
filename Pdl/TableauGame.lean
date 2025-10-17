@@ -556,11 +556,94 @@ lemma testsOfProgram_in_FLb {φ α} (φ_in : φ ∈ testsOfProgram α) ψ : φ �
   case test τ =>
     simp_all [FLb]
 
-lemma H_tests_in_FL F δ α (in_H : (F, δ) ∈ H α) ψ : F ⊆ FLb α ψ := by
-  sorry
+lemma H_tests_in_FL α F δ (in_H : (F, δ) ∈ H α) ψ : F ⊆ FLb α ψ := by
+  cases α <;> simp [H] at *
+  case atom_prog =>
+    grind
+  case sequence α β =>
+    rcases in_H with ⟨l, ⟨G, γ, in_H, def_l⟩, in_l⟩
+    subst def_l
+    by_cases γ = []
+    · subst_eqs
+      simp only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists] at in_l
+      rcases in_l with ⟨l, ⟨F', δ', in_H', def_l⟩ , in_l⟩
+      subst def_l
+      simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false] at *
+      cases in_l ; subst_eqs
+      have IHα := H_tests_in_FL _ _ _ in_H
+      have IHβ := H_tests_in_FL _ _ _ in_H'
+      grind [FLb]
+    · simp_all only [↓reduceIte, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
+      cases in_l ; subst_eqs
+      have IH := H_tests_in_FL α F γ in_H (⌈β⌉ψ)
+      grind [FLb]
+  case union α β =>
+    rcases in_H with in_H|in_H
+    all_goals
+      have IHα := H_tests_in_FL _ _ _ in_H ψ
+      grind [FLb]
+  case star α =>
+    rcases in_H with ⟨⟨_⟩,⟨_⟩⟩|in_H
+    · simp
+    · rcases in_H with ⟨l, ⟨G, γ, in_H, def_l⟩, in_l⟩
+      subst def_l
+      by_cases γ = []
+      · subst_eqs
+        simp_all
+      · simp_all only [↓reduceIte, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
+        cases in_l ; subst_eqs
+        have IH := H_tests_in_FL α F γ in_H (⌈∗α⌉ψ)
+        grind [FLb]
+  case test =>
+    cases in_H
+    subst_eqs
+    simp [FLb]
 
-lemma H_progs_in_FL F δ α (in_H : (F, δ) ∈ H α) ψ : (~⌈⌈δ⌉⌉ψ) ∈ FLb α ψ := by
-  sorry
+lemma H_progs_in_FL F δ α (in_H : (F, δ) ∈ H α) ψ : δ ≠ [] → (~⌈⌈δ⌉⌉ψ) ∈ FLb α ψ := by
+  cases α <;> simp [H, FLb] at *
+  · cases in_H
+    subst_eqs
+    simp
+  case sequence α β =>
+    rcases in_H with ⟨l, ⟨G, γ, in_H, def_l⟩, in_l⟩
+    subst def_l
+    by_cases γ = []
+    · subst_eqs
+      simp only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists] at in_l
+      rcases in_l with ⟨l, ⟨F', δ', in_H', def_l⟩ , in_l⟩
+      subst def_l
+      simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false] at *
+      cases in_l ; subst_eqs
+      have IHα := H_progs_in_FL _ _ _ in_H
+      have IHβ := H_progs_in_FL _ _ _ in_H'
+      grind [FLb]
+    · simp_all only [↓reduceIte, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
+      cases in_l ; subst_eqs
+      have IH := H_progs_in_FL _ _ _ in_H (⌈β⌉ψ)
+      rw [boxes_append]
+      grind
+  case union α β =>
+    rcases in_H with in_H|in_H
+    all_goals
+      have IHα := H_progs_in_FL _ _ _ in_H ψ
+      grind [FLb]
+  case star α =>
+    rcases in_H with ⟨⟨_⟩,⟨_⟩⟩|in_H
+    · simp
+    · rcases in_H with ⟨l, ⟨G, γ, in_H, def_l⟩, in_l⟩
+      subst def_l
+      by_cases γ = []
+      · subst_eqs
+        simp_all
+      · simp_all only [↓reduceIte, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
+        cases in_l ; subst_eqs
+        have IH := H_progs_in_FL _ _ _ in_H (⌈∗α⌉ψ)
+        rw [boxes_append]
+        grind [FLb]
+  case test τ =>
+    cases in_H
+    subst_eqs
+    simp
 
 lemma unfoldDiamond_in_FL (α : Program) (ψ : Formula) (X : List Formula) :
     X ∈ unfoldDiamond α ψ → ∀ φ ∈ X, φ ∈ FL (⌈α⌉ψ) := by
@@ -609,7 +692,12 @@ lemma unfoldDiamond_in_FL (α : Program) (ψ : Formula) (X : List Formula) :
         right
         right
         left
-        exact H_progs_in_FL _ _ _ in_H ψ
+        apply H_progs_in_FL _ _ _ in_H ψ ?_
+        intro hyp
+        subst hyp
+        rw [Formula.boxes_nil] at φ_def
+        absurd φ_def
+        apply Formula.boxes_cons_neq_self
 
 /-- Helper for `LocalRule.stays_in_FL` -/
 lemma LoadRule.stays_in_FL_left {χ ress} (lr : LoadRule (~'χ) ress) :

@@ -49,7 +49,7 @@ def FLb : Program → Formula → List Formula
 | α⋓β, φ => [ ⌈α⋓β⌉φ, ~⌈α⋓β⌉φ ] ++ FLb α φ ++ FLb β φ
 | α;'β, φ => [ ⌈α;'β⌉φ, ~⌈α;'β⌉φ ] ++ FLb α (⌈β⌉φ) ++ FLb β φ
 | ∗α, φ => [ ⌈∗α⌉φ, ~⌈∗α⌉φ ] ++ FLb α (⌈∗α⌉φ)
-| ?'τ, φ => [ ⌈?'τ⌉φ, ~⌈?'τ⌉φ ] ++ FL τ
+| ?'τ, φ => [ ⌈?'τ⌉φ, ~⌈?'τ⌉φ, ~τ ] ++ FL τ
 end
 
 /-! ## Lemmas  -/
@@ -309,7 +309,8 @@ lemma FLb_stays_in_voc {α φ ψ} (ψ_in_FLb : ψ ∈ FLb α φ) : ψ.voc ⊆ α
     · have IH := FLb_stays_in_voc h
       grind
   case test τ =>
-    rcases ψ_in_FLb with h|h|h
+    rcases ψ_in_FLb with h|h|h|h
+    · subst_eqs; simp
     · subst_eqs; simp
     · subst_eqs; simp
     · have IH := FL_stays_in_voc h
