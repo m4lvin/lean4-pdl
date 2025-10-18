@@ -21,7 +21,7 @@ There is no separate blueprint.
 
 - Tableaux prover: <https://w4eg.de/malvin/illc/tapdleau> (implemented [here](https://github.com/m4lvin/modal-tableau-interpolation) in Haskell, useful to run examples)
 
-- Open this repository [in Gitpod](https://gitpod.io/#https://github.com/m4lvin/lean4-pdl) or [GitHub Codespaces](https://codespaces.new/m4lvin/lean4-pdl?quickstart=1)
+- Open this repository in [GitHub Codespaces](https://codespaces.new/m4lvin/lean4-pdl?quickstart=1)
 
 ## Module dependency overview
 
