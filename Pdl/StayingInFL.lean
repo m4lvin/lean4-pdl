@@ -6,11 +6,12 @@ import Pdl.Tableau
 Here we define what it means for a `Sequent` to be inside the `FL` closure of another, and then
 prove several helper lemmas to show that all rules of our tableau system stay in the closure.
 
+The main two results are `LocalTableau.stays_in_FL` and `PdlRule.stays_in_FL`.
+
 Intuitively, we want to say that each step from (L,R,O) in a tableau to (L',R',O') stays in the
 FL of (L,R,O). To be precise, each side left/right stays within its own FL closure.
 However, this does *not* mean that `L'` must be in the FL of `L`, because the `O` may also
 contribute to the left part. This makes `Sequent.subseteq_FL` tricky to define.
-
 -/
 
 /-- Sequent `Y` is a component-wise subset of the FL-closure of `X`.
@@ -86,17 +87,35 @@ lemma Sequent.subseteq_FL_of_setEq_left {X Y : Sequent} (h : X.setEqTo Y) {Z : S
 lemma testsOfProgram_in_FLb {φ α} (φ_in : φ ∈ testsOfProgram α) ψ : φ ∈ FLb α ψ := by
   cases α <;> simp [testsOfProgram] at *
   case sequence α β =>
-    simp [FLb]
+    simp only [FLb, List.cons_append, List.nil_append, List.mem_cons, List.mem_append]
     right
     right
     rcases φ_in with h|h <;> have IH := testsOfProgram_in_FLb h <;> grind
   case union α β =>
-    simp [FLb]
+    simp only [FLb, List.cons_append, List.nil_append, List.mem_cons, List.mem_append]
     right
     right
     rcases φ_in with h|h <;> have IH := testsOfProgram_in_FLb h <;> grind
   case star α =>
     have IH := testsOfProgram_in_FLb φ_in (⌈∗α⌉ψ)
+    grind [FLb]
+  case test τ =>
+    simp_all [FLb]
+
+lemma neg_testsOfProgram_in_FLb {φ α} (φ_in : φ ∈ testsOfProgram α) ψ : ~φ ∈ FLb α ψ := by
+  cases α <;> simp [testsOfProgram] at *
+  case sequence α β =>
+    simp only [FLb, List.cons_append, List.nil_append, List.mem_cons, reduceCtorEq,
+      Formula.neg.injEq, List.mem_append, false_or]
+    right
+    rcases φ_in with h|h <;> have IH := neg_testsOfProgram_in_FLb h <;> grind
+  case union α β =>
+    simp only [FLb, List.cons_append, List.nil_append, List.mem_cons, reduceCtorEq,
+      Formula.neg.injEq, List.mem_append, false_or]
+    right
+    rcases φ_in with h|h <;> have IH := neg_testsOfProgram_in_FLb h <;> grind
+  case star α =>
+    have IH := neg_testsOfProgram_in_FLb φ_in (⌈∗α⌉ψ)
     grind [FLb]
   case test τ =>
     simp_all [FLb]
@@ -291,25 +310,71 @@ lemma LoadRule.stays_in_FL_right (lr : LoadRule (~'χ) ress) :
       grind
     cases oχ <;> grind [FL, pairUnload, unfoldDiamond_in_FL]
 
+lemma P_in_FL α δ ℓ ψ : δ ∈ P α ℓ → (⌈⌈δ⌉⌉ψ) ∈ FL (⌈α⌉ψ) := by
+  cases α
+  · simp_all [P]
+  case sequence α β =>
+    intro δ_in
+    simp [P] at δ_in
+    rcases δ_in with δ_in|δ_in
+    · rcases δ_in with ⟨σ, ⟨σ_in, σ_not_nil⟩, def_σ⟩
+      subst def_σ
+      simp [boxes_append]
+      have IHα := P_in_FL α _ ℓ (⌈β⌉ψ) σ_in
+      simp only [FL, FLb] at *
+      simp only [List.cons_append, List.nil_append, List.mem_cons, List.mem_append,
+        List.append_assoc] at *
+      aesop
+    · rcases δ_in with ⟨nil_in, δ_in⟩
+      have IHα := P_in_FL β _ ℓ ψ δ_in
+      simp [FL, FLb] at *
+      aesop
+  case union α β =>
+    intro δ_in
+    simp [P] at δ_in
+    rcases δ_in with δ_in|δ_in
+    · have IHα := P_in_FL α δ ℓ ψ δ_in
+      simp only [FL, List.cons_append, List.nil_append, List.mem_cons, List.mem_append] at *
+      rcases IHα with h|h|h|h <;> grind [FLb, neg_mem_FLb]
+    · have IHβ := P_in_FL β δ ℓ ψ δ_in
+      simp only [FL, List.cons_append, List.nil_append, List.mem_cons, List.mem_append] at *
+      rcases IHβ with h|h|h|h <;> grind [FLb, neg_mem_FLb]
+  case star α =>
+    intro δ_in
+    simp only [P, List.cons_union, List.nil_union, List.mem_map, List.mem_filter, bne_iff_ne, ne_eq,
+      List.append_eq_nil_iff, List.cons_ne_self, and_false, exists_const, not_false_eq_true,
+      List.insert_of_not_mem, List.mem_cons] at δ_in
+    rcases δ_in with bla|⟨σ, ⟨σ_in, σ_not_nil⟩ , def_δ⟩
+    · subst_eqs
+      simp [FL]
+    · subst def_δ
+      simp [boxes_append]
+      have IHα := P_in_FL α _ _ (⌈∗α⌉ψ) σ_in
+      cases σ <;> simp_all
+      case cons γ σ =>
+        grind [FL, FLb]
+  case test τ =>
+    simp_all [P, FL]
+
 lemma unfoldBox_in_FL (α : Program) (ψ : Formula) (X : List Formula) :
     X ∈ unfoldBox α ψ → ∀ φ ∈ X, φ ∈ FL (⌈α⌉ψ) := by
   intro X_in
-  simp [unfoldBox] at X_in
+  simp only [unfoldBox, List.mem_map] at X_in
   rcases X_in with ⟨ℓ, ℓ_in, def_X⟩
   subst def_X
   intro φ φ_in
-  cases α
-  · simp_all [Xset, F, P, FL, allTP]
-  · simp_all only [allTP, List.mem_map, List.mem_sublists, Xset, F, P, List.mem_append,
-    List.mem_union_iff, List.mem_filter, bne_iff_ne, ne_eq, List.mem_ite_nil_right, FL,
-    List.cons_append, List.nil_append, List.mem_cons]
-    sorry
-  · simp_all [Xset, F, P, FL, allTP]
-    sorry
-  · simp_all [Xset, F, P, FL, allTP]
-    sorry
-  · simp_all [Xset, F, P, FL, allTP]
-    sorry
+  simp only [Xset, List.mem_append, List.mem_map] at φ_in
+  rcases φ_in with φ_in|⟨δ, in_P, def_φ⟩
+  · simp only [FL, List.cons_append, List.nil_append, List.mem_cons, List.mem_append]
+    have := F_sub_testsOfProgram_map_neg α ℓ φ_in
+    simp only [List.mem_map] at this
+    rcases this with ⟨τ, τ_in, def_φ⟩
+    subst def_φ
+    have := @neg_testsOfProgram_in_FLb τ α τ_in ψ
+    grind
+  · subst def_φ
+    have := P_in_FL _ _ _ ψ in_P
+    grind [FL]
 
 /-- Helper for `LocalRule.stays_in_FL` -/
 theorem OneSidedLocalRule.stays_in_FL
@@ -368,7 +433,8 @@ theorem LocalRule.stays_in_FL {X B}
     have := LoadRule.stays_in_FL_right lorule (l, o) in_ress
     simp_all
 
-/-- LocalTableau helper for `move_inside_FL` -/
+/-- End nodes of a local tableau are FischerLadner-subsets of the root.
+This is used for `move_inside_FL`. -/
 theorem LocalTableau.stays_in_FL {X}
     (ltX : LocalTableau X) :
     ∀ Y ∈ endNodesOf ltX, Y.subseteq_FL X := by
@@ -542,7 +608,8 @@ lemma projection_sub_FLL {a L} : projection a L ⊆ FLL L := by
   use ⌈·a⌉φ, φ_in
   simp [FL]
 
-/-- PdlRule helper for `move_inside_FL` -/
+/-- Making a PDL rule step stays in the Fischer-Ladner closure.
+This is used for `move_inside_FL`. -/
 theorem PdlRule.stays_in_FL {X Y} (rule : PdlRule X Y) :
     Y.subseteq_FL X := by
   cases rule

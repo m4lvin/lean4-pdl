@@ -145,6 +145,23 @@ def F : (α : Program) → (ℓ : TP α) → List Formula
 | α;'β, ℓ => F α ℓ ∪ F β ℓ
 | ∗α, ℓ => F α ℓ
 
+lemma F_sub_testsOfProgram_map_neg (α : Program) (ℓ : TP α) :
+    F α ℓ ⊆ (testsOfProgram α).map Formula.neg := by
+  cases α <;> simp_all [F, testsOfProgram]
+  case sequence α β =>
+    have IHα := F_sub_testsOfProgram_map_neg α
+    have IHβ := F_sub_testsOfProgram_map_neg β
+    grind
+  case union α β =>
+    have IHα := F_sub_testsOfProgram_map_neg α
+    have IHβ := F_sub_testsOfProgram_map_neg β
+    grind
+  case star α =>
+    have IHα := F_sub_testsOfProgram_map_neg α
+    grind
+  case test =>
+    split <;> grind
+
 def P : (α : Program) →  (ℓ : TP α) → List (List Program)
 | ·a, _ => [ [(·a : Program)] ]
 | ?' τ, ℓ => if ℓ ⟨τ, by simp [testsOfProgram]⟩ then [ [] ] else ∅

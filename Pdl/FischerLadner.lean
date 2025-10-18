@@ -74,6 +74,9 @@ lemma FLb_refl {α φ} :
     (⌈α⌉φ) ∈ FLb α φ := by
   cases α <;> simp [FLb]
 
+@[simp]
+lemma neg_mem_FLb : (~⌈α⌉ψ) ∈ FLb α ψ := by cases α <;> simp [FLb]
+
 mutual
 /-- Lemma 6.1(i) from [HKT2000] -/
 lemma FL_trans {φ ψ} :
@@ -121,14 +124,9 @@ lemma FLb_trans {α φ ψ} :
     · have IH1 := @FLb_trans α1 (⌈α2⌉φ) ψ h
       intro x x_in
       specialize IH1 x_in
-      simp [FL] at *
-      rcases IH1 with _|_|_|_ <;> try (aesop; done)
-      · subst_eqs
-        simp at *
-        right
-        right
-        left
-        cases α2 <;> simp [FLb]
+      simp only [FL, List.cons_append, List.nil_append, List.mem_append, List.mem_cons,
+        or_self_left] at *
+      aesop
     · have IH2 := @FLb_trans α2 φ ψ h
       grind [FL]
   case union α1 α2 =>
@@ -171,6 +169,16 @@ lemma FL_box_sub {φ α ψ} :
   intro hyp
   apply FL_trans hyp
   simp [FL]
+
+/- A generalization of Lemma 6.2(i) -/
+lemma FL_boxes_sub {φ δ ψ} :
+    (⌈⌈δ⌉⌉ψ) ∈ FL φ → ψ ∈ FL φ := by
+  intro hyp
+  induction δ generalizing ψ
+  · simp_all
+  case cons γ δ IH =>
+    simp only [Formula.boxes_cons] at hyp
+    exact IH (FL_box_sub hyp)
 
 /- Lemma 6.2(ii) -/
 lemma FL_box_test {φ τ ψ} :
