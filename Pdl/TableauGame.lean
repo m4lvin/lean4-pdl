@@ -456,41 +456,86 @@ lemma move_inside_FL {p next} (mov : move p next) : next.2.1.subseteq_FL p.2.1 :
 /-- Given `~⌈α₁⌉…⌈αₙ⌉φ`, return the list of `~⌊α₁⌋…⌊αₖ⌋⌈αₖ₊₁⌉…⌈αₙ⌉φ` for all k. -/
 def Formula.allNegLoads : Formula → List NegLoadFormula
 | ~φ => match boxesOf φ with
-  | ([],_) => []
-  | (α::αs,ψ) => match h : splitLast (α::αs) with
-    | none => by exfalso; grind [splitLast_cons_eq_some]
-    | some (βs, β) => (~'⌊⌊βs⌋⌋⌊β⌋ψ) :: do
-        let k ← List.range' 0 (αs.length-1)
-        let (front,back) := αs.splitAt k -- not getting a proof here?!
-        match h' : splitLast front with
-          | none => by exfalso; sorry
-          | some (γs, γ) => return (~'⌊⌊γs⌋⌋⌊γ⌋⌈⌈back⌉⌉⌈β⌉ψ) -- CHECK THIS ?!?
+    | ([], _) => []
+    | (α :: αs, ψ) => do
+        let k ← (List.range' 1 (α :: αs).length).attach
+        have : (α :: αs).take k ≠ [] := by aesop
+        return ~'(loadMulti_nonEmpty ((α :: αs).take k) this (⌈⌈(α :: αs).drop k⌉⌉ψ))
 | _ => []
 
-lemma Formula.allNegLoads_spec {nχ φ} :
-    nχ ∈ φ.allNegLoads → negUnload nχ = φ := by
-  cases φ <;> simp [allNegLoads]
+lemma Formula.allNegLoads_spec {nχ φ} : nχ ∈ φ.allNegLoads → negUnload nχ = φ := by
+  cases φ <;> try (simp [allNegLoads]; done)
   case neg χ =>
-  cases χ <;> simp_all [boxesOf]
+  cases χ <;> try (simp [allNegLoads,boxesOf]; done)
   case box α φ =>
     rcases nχ with ⟨χ⟩
+    simp only [allNegLoads, List.length_cons, List.pure_def, List.bind_eq_flatMap, negUnload,
+      neg.injEq]
     split
-    next h =>
-      intro nχ_in
-      absurd h
-      simp [splitLast_cons_eq_some]
-    next γs γ h =>
-      -- better rewrite `Formula.allNegLoads` first?
-      sorry
+    next h => exfalso; cases h
+    next β βs ψ h =>
+      simp only [List.mem_flatMap, List.mem_attach, List.mem_cons, NegLoadFormula.neg.injEq,
+        List.not_mem_nil, or_false, true_and, Subtype.exists, List.mem_range'_1,
+        forall_exists_index, forall_and_index]
+      intro k one_le_k k_lt χ_def
+      have := def_of_boxesOf_def h
+      rw [this]; clear this
+      subst χ_def
+      simp only [loadMulti_nonEmpty_unload, boxes_cons]
+      rw [← @boxes_append]
+      rw [@List.take_append_drop]
+      rfl
 
-lemma Formula.allNegLoads_complete {nχ φ} :
-    negUnload nχ = φ → nχ ∈ φ.allNegLoads := by
+lemma Formula.allNegLoads_complete {nχ φ} : negUnload nχ = φ → nχ ∈ φ.allNegLoads := by
   rcases nχ with ⟨χ⟩
-  simp [negUnload]
+  simp only [negUnload]
   intro def_φ
   subst def_φ
-  simp [allNegLoads]
-  sorry
+  have := LoadFormula.exists_loadMulti χ
+  rcases this with ⟨αs, α, φ, def_χ⟩
+  have := @loadMulti_nonEmpty_eq_loadMulti αs α (by simp) φ
+  rw [← this] at def_χ; clear this
+  rw [def_χ]; clear def_χ
+  simp only [allNegLoads, loadMulti_nonEmpty_unload, List.length_cons, List.pure_def,
+    List.bind_eq_flatMap]
+  split
+  · exfalso
+    cases αs <;> simp_all [boxesOf]
+  next β βs ψ boxes_def =>
+    simp only [List.mem_flatMap, List.mem_attach, List.mem_cons, NegLoadFormula.neg.injEq,
+      List.not_mem_nil, or_false, true_and, Subtype.exists, List.mem_range'_1]
+    use (αs ++ [α]).length
+    simp only [List.length_append, List.length_cons, List.length_nil, zero_add, List.take_succ_cons,
+      List.drop_succ_cons, le_add_iff_nonneg_left, zero_le, true_and]
+    have := Formula.boxesOf_boxes_prefix (αs ++ [α]) φ
+    rcases this with ⟨γs, αs_α_γs_eq_boxes⟩
+    simp only [List.append_assoc, List.cons_append, List.nil_append, boxes_def] at αs_α_γs_eq_boxes
+    refine ⟨?_, ?_⟩
+    · have : (αs ++ α :: γs).length = (β :: βs).length := by simp_all
+      simp only [List.length_append, List.length_cons] at this
+      omega
+    · -- This was tricky.
+      rw [@loadMulti_nonEmpty_eq_loadMulti]
+      have := def_of_boxesOf_def boxes_def
+      cases αs
+      · simp_all
+      case cons β αs =>
+      simp only [loadMulti_cons, List.length_cons]
+      simp only [List.cons_append, boxes_cons, box.injEq] at this
+      rcases this with ⟨β_, this⟩
+      subst β_
+      simp only [List.cons_append, List.cons.injEq, true_and] at αs_α_γs_eq_boxes
+      subst αs_α_γs_eq_boxes
+      simp only [List.drop_length_add_append, List.drop_succ_cons, List.drop_zero, ne_eq,
+        List.take_eq_nil_iff, Nat.add_eq_zero, List.length_eq_zero_iff, one_ne_zero, and_false,
+        List.append_eq_nil_iff, reduceCtorEq, or_self, not_false_eq_true, loadMulti_nonEmpty_box,
+        LoadFormula.box.injEq, AnyFormula.loaded.injEq, true_and]
+      -- Doable from here.
+      simp only [boxes_append, boxes_cons, boxes_nil, boxes_injective, box.injEq, true_and] at this
+      rw [this]
+      apply LoadFormula.split_eq_loadMulti_nonEmpty (loadMulti αs α (⌈⌈γs⌉⌉ψ))
+      rw [loadMulti_split]
+      simp [List.take_length_add_append]
 
 /-- A list of sequents that are all FL-subsequents of the given sequent.
 The list defined here is not complete because there are infinitely many such other sequents.

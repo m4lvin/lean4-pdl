@@ -107,6 +107,10 @@ theorem Formula.boxes_nil : Formula.boxes [] φ = φ := by simp [Formula.boxes]
 theorem Formula.boxes_cons : Formula.boxes (β :: δ) φ = ⌈β⌉(Formula.boxes δ φ) := by
   simp [Formula.boxes]
 
+@[simp]
+lemma Formula.boxes_injective : (⌈⌈αs⌉⌉φ) = (⌈⌈αs⌉⌉ψ) ↔ φ = ψ := by
+  induction αs <;> simp_all
+
 theorem boxes_last : Formula.boxes (δ ++ [α]) φ = Formula.boxes δ (⌈α⌉φ) :=
   by
   induction δ <;> simp [Formula.boxes]
@@ -166,6 +170,13 @@ lemma Formula.boxes_cons_neq_self φ β δ : (⌈β⌉⌈⌈δ⌉⌉φ) ≠ φ :
       simp only [boxes_cons]
       rw [← boxes_last]
       exact @Formula.boxes_cons_neq_self φ γ (δ ++ [α])
+
+lemma Formula.boxesOf_boxes_prefix (αs : List Program) φ : αs <+: (boxesOf (⌈⌈αs⌉⌉φ)).1 := by
+  induction αs
+  · simp_all
+  case cons α αs IH =>
+    simp only [boxes_cons, boxesOf, List.cons_prefix_cons, true_and]
+    exact IH
 
 /-! ## Loaded Formulas -/
 
@@ -381,6 +392,19 @@ theorem loadMulti_nonEmpty_box (h : δ ≠ []) :
   cases δ
   · absurd h; rfl
   · simp at *
+
+@[simp]
+lemma loadMulti_split : (loadMulti αs α φ).split = (αs ++ [α], φ) := by
+  induction αs <;> simp_all
+
+@[simp]
+lemma loadMulti_nonEmpty_unload {δ h φ} : (loadMulti_nonEmpty δ h φ).unload  = ⌈⌈δ⌉⌉φ := by
+  induction δ
+  · exfalso; absurd h; rfl
+  case cons α αs IH =>
+    unfold loadMulti_nonEmpty
+    cases αs <;> simp
+    case cons β βs => exact IH
 
 theorem LoadFormula.split_eq_loadMulti_nonEmpty {δ φ} (lf : LoadFormula) : (h : lf.split = (δ,φ)) →
     lf = loadMulti_nonEmpty δ (by have := split_list_not_empty lf; simp_all) φ := by
