@@ -125,21 +125,18 @@ lemma H_tests_in_FL α F δ (in_H : (F, δ) ∈ H α) ψ : F ⊆ FLb α ψ := by
   case atom_prog =>
     grind
   case sequence α β =>
-    rcases in_H with ⟨l, ⟨G, γ, in_H, def_l⟩, in_l⟩
-    subst def_l
+    rcases in_H with ⟨G, γ, Gγ_in_H, Fδ_in⟩
     by_cases γ = []
     · subst_eqs
-      simp only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists] at in_l
-      rcases in_l with ⟨l, ⟨F', δ', in_H', def_l⟩ , in_l⟩
-      subst def_l
-      simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false] at *
-      cases in_l ; subst_eqs
-      have IHα := H_tests_in_FL _ _ _ in_H
+      simp only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists, ↓existsAndEq, and_true,
+        List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false, exists_eq_right_right'] at *
+      rcases Fδ_in with ⟨F', in_H', F_def⟩
+      have IHα := H_tests_in_FL _ _ _ Gγ_in_H
       have IHβ := H_tests_in_FL _ _ _ in_H'
       grind [FLb]
     · simp_all only [↓reduceIte, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
-      cases in_l ; subst_eqs
-      have IH := H_tests_in_FL α F γ in_H (⌈β⌉ψ)
+      cases Fδ_in ; subst_eqs
+      have IH := H_tests_in_FL α F γ Gγ_in_H (⌈β⌉ψ)
       grind [FLb]
   case union α β =>
     rcases in_H with in_H|in_H
@@ -149,28 +146,22 @@ lemma H_tests_in_FL α F δ (in_H : (F, δ) ∈ H α) ψ : F ⊆ FLb α ψ := by
   case star α =>
     rcases in_H with ⟨⟨_⟩,⟨_⟩⟩|in_H
     · simp
-    · rcases in_H with ⟨l, ⟨G, γ, in_H, def_l⟩, in_l⟩
-      subst def_l
-      by_cases γ = []
-      · subst_eqs
-        simp_all
-      · simp_all only [↓reduceIte, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
-        cases in_l ; subst_eqs
-        have IH := H_tests_in_FL α F γ in_H (⌈∗α⌉ψ)
-        grind [FLb]
+    · rcases in_H with ⟨γ, in_H, _, def_δ⟩
+      subst def_δ
+      have IH := H_tests_in_FL α F _ in_H (⌈∗α⌉ψ)
+      grind [FLb]
   case test =>
     cases in_H
     subst_eqs
     simp [FLb]
 
 lemma H_progs_in_FL F δ α (in_H : (F, δ) ∈ H α) ψ : δ ≠ [] → (~⌈⌈δ⌉⌉ψ) ∈ FLb α ψ := by
-  cases α <;> simp [H, FLb] at *
+  cases α <;> simp [H, FLb] at * -- pfoei
   · cases in_H
     subst_eqs
     simp
   case sequence α β =>
-    rcases in_H with ⟨l, ⟨G, γ, in_H, def_l⟩, in_l⟩
-    subst def_l
+    rcases in_H with ⟨G, γ, in_H, in_l⟩
     by_cases γ = []
     · subst_eqs
       simp only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists] at in_l
@@ -181,11 +172,13 @@ lemma H_progs_in_FL F δ α (in_H : (F, δ) ∈ H α) ψ : δ ≠ [] → (~⌈�
       have IHα := H_progs_in_FL _ _ _ in_H
       have IHβ := H_progs_in_FL _ _ _ in_H'
       grind [FLb]
-    · simp_all only [↓reduceIte, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
+    case neg γ_not_nil =>
+      simp_all [↓reduceIte, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
       cases in_l ; subst_eqs
-      have IH := H_progs_in_FL _ _ _ in_H (⌈β⌉ψ)
       rw [boxes_append]
-      grind
+      right
+      left
+      exact H_progs_in_FL _ _ _ in_H (⌈β⌉ψ) γ_not_nil -- IH
   case union α β =>
     rcases in_H with in_H|in_H
     all_goals
@@ -194,16 +187,14 @@ lemma H_progs_in_FL F δ α (in_H : (F, δ) ∈ H α) ψ : δ ≠ [] → (~⌈�
   case star α =>
     rcases in_H with ⟨⟨_⟩,⟨_⟩⟩|in_H
     · simp
-    · rcases in_H with ⟨l, ⟨G, γ, in_H, def_l⟩, in_l⟩
-      subst def_l
-      by_cases γ = []
-      · subst_eqs
-        simp_all
-      · simp_all only [↓reduceIte, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
-        cases in_l ; subst_eqs
-        have IH := H_progs_in_FL _ _ _ in_H (⌈∗α⌉ψ)
-        rw [boxes_append]
-        grind [FLb]
+    · rcases in_H with ⟨γ, in_H, γ_not_nil, def_δ⟩
+      subst def_δ
+      have IH := H_progs_in_FL _ _ _ in_H (⌈∗α⌉ψ) γ_not_nil
+      simp_all only [List.append_eq_nil_iff, List.cons_ne_self, and_self, not_false_eq_true,
+        forall_const]
+      rw [boxes_append]
+      right
+      exact IH
   case test τ =>
     cases in_H
     subst_eqs
@@ -276,7 +267,19 @@ lemma LoadRule.stays_in_FL_left {χ ress} (lr : LoadRule (~'χ) ress) :
     have : pairUnload (F, oχ) ∈ unfoldDiamond α χ.unload := by
       have := unfoldDiamondLoaded_eq α χ
       grind
-    cases oχ <;> grind [FL, pairUnload, unfoldDiamond_in_FL]
+    -- FIXME turn the remaining part into a Lemma, it's repeated below.
+    rcases oχ with _|nχ <;> simp [FL, pairUnload] at *
+    · intro φ φ_in
+      have := unfoldDiamond_in_FL _ _ _ this _ φ_in
+      grind [FL, unfoldDiamond_in_FL]
+    · constructor
+      · intro φ φ_in
+        have := unfoldDiamond_in_FL _ _ _ this
+        grind [FL, unfoldDiamond_in_FL]
+      · have := unfoldDiamond_in_FL _ _ _ this (~nχ.1.unload)
+        simp only [List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false, or_true,
+          forall_const] at *
+        grind [FL]
   case dia' α φ notAt =>
     simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_inl, LoadFormula.unload,
       List.nil_append, FLL_singelton, Sequent.R_eq, Olf.R_inl, List.append_nil, FLL_nil,
@@ -284,7 +287,18 @@ lemma LoadRule.stays_in_FL_left {χ ress} (lr : LoadRule (~'χ) ress) :
     have : pairUnload (F, oχ) ∈ unfoldDiamond α φ := by
       have := (unfoldDiamondLoaded'_eq α φ)
       grind
-    cases oχ <;> grind [FL, pairUnload, unfoldDiamond_in_FL]
+    rcases oχ with _|nχ <;> simp [FL, pairUnload] at *
+    · intro φ φ_in
+      have := unfoldDiamond_in_FL _ _ _ this _ φ_in
+      grind [FL, unfoldDiamond_in_FL]
+    · constructor
+      · intro φ φ_in
+        have := unfoldDiamond_in_FL _ _ _ this
+        grind [FL, unfoldDiamond_in_FL]
+      · have := unfoldDiamond_in_FL _ _ _ this (~nχ.1.unload)
+        simp only [List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false, or_true,
+          forall_const] at *
+        grind [FL]
 
 /-- Helper for `LocalRule.stays_in_FL` -/
 lemma LoadRule.stays_in_FL_right (lr : LoadRule (~'χ) ress) :
@@ -300,7 +314,18 @@ lemma LoadRule.stays_in_FL_right (lr : LoadRule (~'χ) ress) :
     have : pairUnload (F, oχ) ∈ unfoldDiamond α χ.unload := by
       have := unfoldDiamondLoaded_eq α χ
       grind
-    cases oχ <;> grind [FL, pairUnload, unfoldDiamond_in_FL]
+    rcases oχ with _|nχ <;> simp [FL, pairUnload] at *
+    · intro φ φ_in
+      have := unfoldDiamond_in_FL _ _ _ this _ φ_in
+      grind [FL, unfoldDiamond_in_FL]
+    · constructor
+      · intro φ φ_in
+        have := unfoldDiamond_in_FL _ _ _ this
+        grind [FL, unfoldDiamond_in_FL]
+      · have := unfoldDiamond_in_FL _ _ _ this (~nχ.1.unload)
+        simp only [List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false, or_true,
+          forall_const] at *
+        grind [FL]
   case dia' α φ notAt =>
     simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_inr, List.append_nil, FLL_nil,
       List.Subset.refl, Olf.L_map_inr, Sequent.R_eq, Olf.R_inr, LoadFormula.unload, List.nil_append,
@@ -308,7 +333,18 @@ lemma LoadRule.stays_in_FL_right (lr : LoadRule (~'χ) ress) :
     have : pairUnload (F, oχ) ∈ unfoldDiamond α φ := by
       have := (unfoldDiamondLoaded'_eq α φ)
       grind
-    cases oχ <;> grind [FL, pairUnload, unfoldDiamond_in_FL]
+    rcases oχ with _|nχ <;> simp [FL, pairUnload] at *
+    · intro φ φ_in
+      have := unfoldDiamond_in_FL _ _ _ this _ φ_in
+      grind [FL, unfoldDiamond_in_FL]
+    · constructor
+      · intro φ φ_in
+        have := unfoldDiamond_in_FL _ _ _ this
+        grind [FL, unfoldDiamond_in_FL]
+      · have := unfoldDiamond_in_FL _ _ _ this (~nχ.1.unload)
+        simp only [List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false, or_true,
+          forall_const] at *
+        grind [FL]
 
 lemma P_in_FL α δ ℓ ψ : δ ∈ P α ℓ → (⌈⌈δ⌉⌉ψ) ∈ FL (⌈α⌉ψ) := by
   cases α
@@ -390,9 +426,10 @@ theorem OneSidedLocalRule.stays_in_FL
     cases res_in <;> subst_eqs <;> simp at *
   case box α φ notAt =>
     exact unfoldBox_in_FL _ _ _ res_in -- a bit funny that `exact` works here!
-  case dia =>
-    have := unfoldDiamond_in_FL _ _ _ res_in
-    grind
+  case dia α φ notAt =>
+    intro ψ ψ_in
+    have := unfoldDiamond_in_FL _ _ _ res_in ψ ψ_in
+    grind [FL]
 
 /-- Helper for `LocalTableau.stays_in_FL` -/
 theorem LocalRule.stays_in_FL {X B}
@@ -433,6 +470,7 @@ theorem LocalRule.stays_in_FL {X B}
     have := LoadRule.stays_in_FL_right lorule (l, o) in_ress
     simp_all
 
+set_option maxHeartbeats 2000000 in -- for simp and aesop timeouts
 /-- End nodes of a local tableau are FischerLadner-subsets of the root.
 This is used for `move_inside_FL`. -/
 theorem LocalTableau.stays_in_FL {X}
@@ -448,12 +486,10 @@ theorem LocalTableau.stays_in_FL {X}
     simp [endNodesOf] at Y_in_B
     rcases Y_in_B with ⟨l, ⟨W, W_in, def_l⟩ , Y_in⟩
     subst def_l
-    rcases W_in with ⟨re, re_in_ress, def_W⟩
     have IH := LocalTableau.stays_in_FL _ Y Y_in
     clear _forTermination -- to avoid simplifying it
-    subst def_W
-    specialize lr_lemma re re_in_ress
-    rcases re with ⟨Lnew, Rnew, Onew⟩
+    specialize lr_lemma W W_in
+    rcases W with ⟨Lnew, Rnew, Onew⟩
     simp at *
     clear Y_in next
     simp [Sequent.subseteq_FL, FLL_append_eq] at IH lr_lemma ⊢
@@ -465,7 +501,7 @@ theorem LocalTableau.stays_in_FL {X}
       rcases IHL with h|h|h
       · left
         have := @FLL_diff_sub L Lcond
-        grind
+        aesop
       · have := FLL_sub lemL h
         simp [FLL_append_eq] at this
         rcases this with in_Lcond|inOcondL
@@ -498,7 +534,7 @@ theorem LocalTableau.stays_in_FL {X}
       rcases IHLO with h|h|h
       · left
         have := @FLL_diff_sub L Lcond
-        grind
+        aesop
       · have := FLL_sub lemL h
         simp [FLL_append_eq] at this
         rcases this with in_Lcond|inOcondR
@@ -531,7 +567,7 @@ theorem LocalTableau.stays_in_FL {X}
       rcases IHR with h|h|h
       · left
         have := @FLL_diff_sub R Rcond
-        grind
+        aesop
       · have := FLL_sub lemR h
         simp [FLL_append_eq] at this
         rcases this with in_Rcond|inOcondR
@@ -564,7 +600,7 @@ theorem LocalTableau.stays_in_FL {X}
       rcases IHRO with h|h|h
       · left
         have := @FLL_diff_sub R Rcond
-        grind
+        aesop
       · have := FLL_sub lemR h
         simp [FLL_append_eq] at this
         rcases this with in_Rcond|inOcondR
@@ -599,7 +635,7 @@ decreasing_by
   simp_wf
   subst_eqs
   simp at *
-  apply _forTermination re re_in_ress
+  apply _forTermination W W_in
 
 lemma projection_sub_FLL {a L} : projection a L ⊆ FLL L := by
   intro φ φ_in

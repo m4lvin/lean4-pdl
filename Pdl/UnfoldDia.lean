@@ -203,32 +203,29 @@ theorem keepFreshH α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ H α → x ∉ F.f
   all_goals
     constructor -- FIXME: delay this to shorten the proof?
   case sequence.left α β =>
-    rcases Fδ_in_H with ⟨l, ⟨⟨F', δ', ⟨Fδ'_in, def_l⟩⟩, Fδ_in_l⟩⟩
-    subst def_l
-    cases em (δ' = []) <;> simp_all
-    · subst_eqs
-      have IHα := keepFreshH α x_notin.1 F' [] Fδ'_in
-      simp_all [Vocab.fromList]
-      rcases Fδ_in_l with ⟨l', ⟨⟨a', b', ⟨a'b'_in_Hβ, def_l'⟩⟩, Fδ_in_l'⟩⟩
+    rcases Fδ_in_H with ⟨F', δ', Fδ'_in, Fδ_in_l⟩
+    cases em (δ' = [])
+    · simp_all only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists, ↓existsAndEq,
+      and_true, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false, exists_eq_right_right']
       subst_eqs
-      simp_all
-      intro y y_in
-      cases y_in
-      · apply IHα
-        assumption
-      · have IHβ := keepFreshH β x_notin.2 a' b' a'b'_in_Hβ
-        simp_all
+      have IHα := keepFreshH α x_notin.1 F' [] Fδ'_in
+      simp_all only [List.fvoc, Vocab.fromList, Finset.mem_sup, List.mem_toFinset, List.mem_map,
+        id_eq, exists_exists_and_eq_and, not_exists, not_and, List.pvoc, List.map_nil,
+        List.toFinset_nil, Finset.sup_empty, Finset.bot_eq_empty, Finset.notMem_empty,
+        not_false_eq_true, and_true]
+      rcases Fδ_in_l with ⟨a', _in_Hβ, F_def⟩
+      subst_eqs
+      have IHβ := keepFreshH β x_notin.2 a' δ _in_Hβ
+      aesop
     · have := keepFreshH α x_notin.1 F' δ' Fδ'_in
       simp_all
   case sequence.right α β =>
-    rcases Fδ_in_H with ⟨l, ⟨⟨F', δ', ⟨Fδ'_in, def_l⟩⟩, Fδ_in_l⟩⟩
-    subst def_l
+    rcases Fδ_in_H with ⟨F', δ', Fδ'_in, Fδ_in_l⟩
     cases em (δ' = []) <;> simp_all
     · subst_eqs
-      rcases Fδ_in_l with ⟨l', ⟨⟨a', b', ⟨a'b'_in_Hβ, def_l'⟩⟩, Fδ_in_l'⟩⟩
+      rcases Fδ_in_l with ⟨a', _in_Hβ, Fδ_in_l'⟩
       subst_eqs
-      simp_all
-      have IHβ := keepFreshH β x_notin.2 a' b' a'b'_in_Hβ
+      have IHβ := keepFreshH β x_notin.2 a' _ _in_Hβ
       simp_all
     · intro y y_in
       cases Fδ_in_l
@@ -251,18 +248,17 @@ theorem keepFreshH α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ H α → x ∉ F.f
     cases Fδ_in_H
     · simp_all
     case inr hyp =>
-      rcases hyp with ⟨l, ⟨⟨F', δ', ⟨Fδ'_in_Hα, def_l⟩⟩, Fδ_in_l⟩⟩
-      subst def_l
-      have IHα := keepFreshH α x_notin F' δ' Fδ'_in_Hα
-      cases em (δ' = []) <;> simp_all
+      rcases hyp with ⟨δ', Fδ'_in_H, δ_not_nil, δ_def⟩
+      have IHα := keepFreshH α x_notin F δ' Fδ'_in_H
+      subst δ_def
+      simp_all
   case star.right α =>
     cases Fδ_in_H
     · simp_all
     case inr hyp =>
-      rcases hyp with ⟨l, ⟨⟨F', δ', ⟨Fδ'_in_Hα, def_l⟩⟩, Fδ_in_l⟩⟩
-      subst def_l
-      have IHα := keepFreshH α x_notin F' δ' Fδ'_in_Hα
-      cases em (δ' = []) <;> aesop
+      rcases hyp with ⟨δ', Fδ'_in_Hα, δ_not_nil, δ_def⟩
+      have IHα := keepFreshH α x_notin F δ' Fδ'_in_Hα
+      aesop
 
 -- FIXME is this in the notes? implicit somewhere?
 theorem H_goes_down_prog (α : Program) {Fs δ} (in_H : (Fs, δ) ∈ H α) {γ} (in_δ : γ ∈ δ) :
@@ -449,31 +445,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
     have IHα := localDiamondTruth α ψ W M w
     have IHβ := localDiamondTruth β ψ W M w
     simp [evaluate, H, Yset, disEval] at *
-    constructor
-    · rintro ⟨v, v_claim⟩
-      rw [or_and_right] at v_claim
-      cases v_claim
-      case inl hyp =>
-        have : (∃ x, relate M α w x ∧ ¬evaluate M x ψ) := ⟨v, hyp⟩
-        rw [IHα] at this
-        rcases this with ⟨f, ⟨⟨a, b, ⟨ab_in, def_f⟩⟩, w_f⟩⟩
-        exact ⟨f, ⟨⟨a, b, ⟨Or.inl ab_in, def_f⟩⟩, w_f⟩⟩
-      case inr hyp =>
-        have : (∃ x, relate M β w x ∧ ¬evaluate M x ψ) := ⟨v, hyp⟩
-        rw [IHβ] at this
-        rcases this with ⟨f, ⟨⟨a, b, ⟨ab_in, def_f⟩⟩, w_f⟩⟩
-        exact ⟨f, ⟨⟨a, b, ⟨Or.inr ab_in, def_f⟩⟩, w_f⟩⟩
-    · rintro ⟨f, ⟨a, b, ⟨(ab_in_Hα|ab_in_Hβ), def_f⟩⟩, w_f⟩
-      · have : ∃ f, (∃ a b, (a, b) ∈ H α ∧ Con (a ∪ [~⌈⌈b⌉⌉ψ]) = f) ∧ evaluate M w f :=
-          ⟨f, ⟨⟨a, b, ⟨ab_in_Hα, def_f⟩⟩, w_f⟩⟩
-        rw [← IHα] at this
-        rcases this with ⟨x, ⟨w_α_x, x_Psi⟩⟩
-        exact ⟨x, ⟨Or.inl w_α_x, x_Psi⟩⟩
-      · have : ∃ f, (∃ a b, (a, b) ∈ H β ∧ Con (a ∪ [~⌈⌈b⌉⌉ψ]) = f) ∧ evaluate M w f :=
-          ⟨f, ⟨⟨a, b, ⟨ab_in_Hβ, def_f⟩⟩, w_f⟩⟩
-        rw [← IHβ] at this
-        rcases this with ⟨x, ⟨w_β_x, x_Psi⟩⟩
-        exact ⟨x, ⟨Or.inr w_β_x, x_Psi⟩⟩
+    grind
   case sequence α β =>
     -- "This case follows from the following computation"
     have : evaluate M w (~⌈α;'β⌉ψ) ↔ evaluate M w (~⌈α⌉⌈β⌉ψ) := by aesop
@@ -522,34 +494,25 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
         use ⟨Fs, δ ++ [β]⟩
         constructor
         · simp
-          use [(Fs, δ ++ [β])]
-          constructor
-          · use Fs, δ
-            simp_all
-          · simp_all
+          grind
         · simp [Yset, conEval, boxes_append] at *
           intro f f_in
           apply w_Con
           tauto
     -- upwards direction in notes:
     · rintro ⟨⟨Fs,δ⟩, ⟨Fδ_in, w_Con⟩⟩ -- ⟨⟨l, ⟨⟨a, b, ⟨ab_in, def_l⟩⟩, f_in_l⟩⟩, w_f⟩⟩
-      simp [H] at Fδ_in
-      rcases Fδ_in with ⟨l, ⟨Gs, γ, ⟨Gγ_in, def_l⟩⟩, Gγ_in_l⟩
-      subst def_l
+      simp only [H, List.mem_flatten, List.mem_map, Prod.exists, ↓existsAndEq, and_true] at Fδ_in
+      rcases Fδ_in with ⟨Gs, γ, Gγ_in, Fδ_in⟩
       cases em (γ = [])
       case inl δ_is_empty => -- tricky case where we actually need the IH for β
         subst δ_is_empty
-        simp at Gγ_in_l
-        rcases Gγ_in_l with ⟨l, ⟨⟨aaa, bbb, ⟨_in_Hβ,def_l⟩ ⟩, Fsδ_in_l⟩ ⟩
-        subst def_l
+        simp at Fδ_in
+        rcases Fδ_in with ⟨Hs, _in_Hβ, Fs_def⟩
+        subst Fs_def
         simp
-        use Gs, []
-        constructor
-        · exact Gγ_in
-        · simp at Fsδ_in_l
-          cases Fsδ_in_l
-          subst_eqs
-          simp [conEval, Yset]
+        use Gs, [], Gγ_in
+        simp [Yset]
+        · simp [conEval]
           intro f f_in
           cases f_in
           case inl f_in =>
@@ -562,7 +525,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
             have IHβ := localDiamondTruth β ψ W M w
             rw [IHβ, disEval, helper]
             clear IHβ
-            refine ⟨⟨aaa, δ⟩, ⟨_in_Hβ, ?_⟩⟩
+            use ⟨Hs,δ⟩, _in_Hβ
             rw [conEval]
             rw [conEval] at w_Con
             simp [Yset] at *
@@ -570,8 +533,9 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
             specialize w_Con f
             tauto
       case inr δ_not_empty => -- the easy case
-        simp_all
-        cases Gγ_in_l
+        simp_all only [↓reduceIte, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false,
+          Prod.exists]
+        cases Fδ_in
         subst_eqs
         simp_all [Yset, conEval, boxes_append]
         use Fs, γ
@@ -760,26 +724,23 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
           rcases this with ⟨v, w_ρ_v, v_ρ⟩ -- used for v_notStarβψ below!
           -- We now do bottom-up what the notes do, first reasoning "at w" then "at v"
           unfold ρ
-          -- unsure from here on
-          simp_all [disEval] -- affects v_notStarβψ :-/
-          simp [H]
-          use Con (Yset (Fs, δ ++ [∗β]) ψ)
-          constructor
-          · use Fs, δ ++ [∗β]
-            simp_all
-            use [(Fs, δ ++ [∗β])]
-            simp
-            use Fs, δ
-            simp_all
-          · simp [conEval, Yset]
-            intro f f_in
-            cases f_in
-            case inl f_in_F => exact repl_w_.2 f f_in_F
-            case inr f_def =>
-              subst f_def
-              simp [boxes_append,evalBoxes]
-              have v_notStarβψ := right_to_left_claim W M v v_ρ
-              exact ⟨v, ⟨w_ρ_v, v_notStarβψ⟩⟩
+          simp_all only [evaluate, relate, not_forall, List.mem_cons, Con,
+            forall_eq_or_imp, Yset, H, List.empty_eq, List.cons_union, List.nil_union,
+            List.mem_flatten, List.mem_map, Prod.exists, ↓existsAndEq, and_true,
+            List.mem_ite_nil_left, Prod.mk.injEq, List.nil_eq, List.append_eq_nil_iff,
+            List.cons_ne_self, and_false, List.not_mem_nil, or_self, exists_const,
+            not_false_eq_true, List.insert_of_not_mem, List.map_cons, Formula.boxes_nil,
+            List.map_flatten, List.map_map, disEval, Function.comp_apply, or_false,
+            exists_eq_or_imp]
+          right
+          use Fs, δ
+          simp_all [conEval]
+          rintro f (f_in_F|f_def)
+          · exact repl_w_.2 f f_in_F
+          · subst f_def
+            simp [boxes_append,evalBoxes]
+            have v_notStarβψ := right_to_left_claim W M v v_ρ
+            exact ⟨v, ⟨w_ρ_v, v_notStarβψ⟩⟩
       · -- Second Lemma condition
         intro w_nPsi
         unfold ρ
@@ -797,7 +758,7 @@ def pairRel (M : KripkeModel W) : (Program × W) → (Program × W) → Prop
 -- use later for Modelgraphs
 theorem relateSeq_toChain' {M} {δ} {v w : W} : relateSeq M δ v w → δ ≠ [] →
     ∃ (l : List W), l.length + 1 = δ.length ∧
-    List.Chain' (pairRel M) (List.zip ((?'⊤) :: δ) (v :: l ++ [w]) ) := by
+    List.IsChain (pairRel M) (List.zip ((?'⊤) :: δ) (v :: l ++ [w]) ) := by
   induction δ generalizing v w
   case nil =>
     simp [relateSeq]
@@ -816,8 +777,8 @@ theorem relateSeq_toChain' {M} {δ} {v w : W} : relateSeq M δ v w → δ ≠ []
       constructor
       · simp_all
       · simp_all [pairRel]
-        apply List.Chain'.cons'
-        · have := List.Chain'.tail lchain
+        apply List.IsChain.cons
+        · have := List.IsChain.tail lchain
           simp_all
         · cases l <;> cases δ
           all_goals simp_all [pairRel]
@@ -856,10 +817,7 @@ theorem existsDiamondH (v_γ_w : relate M γ v w) :
       rcases IHβ with ⟨Gs, η, ⟨Gη_in, v_Gs, v_η_w⟩⟩
       refine ⟨ ⟨Fs ∪ Gs, η⟩, ⟨?_, ?_, v_η_w⟩ ⟩
       · simp_all [H]
-        refine ⟨_, ⟨⟨Fs, [], ⟨Fδ_in, by rfl⟩⟩, ?_⟩⟩
-        simp
-        use [(Fs ∪ Gs, η)]
-        aesop
+        grind
       · intro f f_in
         simp at f_in
         cases f_in
@@ -869,9 +827,7 @@ theorem existsDiamondH (v_γ_w : relate M γ v w) :
           assumption
     case inr hyp =>
       refine ⟨⟨Fs, δ ++ [β]⟩, ⟨?_, ?_, ?_⟩⟩
-      · simp_all [H]
-        refine ⟨_, ⟨⟨Fs, δ, ⟨ Fδ_in , by rfl⟩⟩, ?_⟩⟩
-        simp_all
+      · grind [H]
       · intro f f_in
         simp at f_in
         specialize u_Fs f f_in
@@ -895,10 +851,9 @@ theorem existsDiamondH (v_γ_w : relate M γ v w) :
         have claim : δ ≠ [] := by
           by_contra hyp
           subst_eqs
-          simp [relateSeq] at v_δ_v1
+          simp only [relateSeq] at v_δ_v1
           tauto
-        refine ⟨_, ⟨⟨Fs, δ, ⟨Fδ_in, by rfl⟩⟩, ?_⟩⟩
-        simp_all
+        grind
       · constructor
         · intro f f_in
           simp at f_in

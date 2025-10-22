@@ -406,10 +406,11 @@ theorem localTableauAndEndNodesUnsatThenNotSat (LR : TNode) {ltLR : LocalTableau
         Z ∈ endNodesOf ⟨(L,R), LocalTableau.fromRule
           (@LocalRuleApp.mk _ _ C ress Lcond Rcond lrule hC prepf) next⟩ :=
       by
-        simp
+        simp only [lrEndNodes, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
+          Subtype.exists, ↓existsAndEq]
         intro Z Z_endOF_c
-        use endNodesOf ⟨c, ltc⟩
-        use ⟨c, (by tauto)⟩
+        use c
+        tauto
     have endsOfcnotSat : ∀Z1, Z1 ∈ endNodesOf ⟨c, ltc⟩ → ¬Satisfiable Z1 :=
       by intro Z1 Z1_is_endOf_c; apply endsOfLRnotSat Z1 (endNodesInclusion Z1 Z1_is_endOf_c)
     have : (∀Z, Z ∈ endNodesOf ⟨c , ltc⟩ → ¬Satisfiable Z) → ¬Satisfiable c :=

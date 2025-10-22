@@ -159,7 +159,7 @@ instance : DecidableRel Sequent.multisetEqTo := by
   rintro ⟨L,R,O⟩ ⟨L',R',O'⟩
   exact instDecidableAnd
 
-@[grind]
+@[grind →]
 lemma Sequent.setEqTo_of_multisetEqTo (X Y : Sequent) :
     X.multisetEqTo Y → X.setEqTo Y := by
   rcases X with ⟨L,R,O⟩

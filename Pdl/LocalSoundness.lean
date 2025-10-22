@@ -211,11 +211,9 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
         use Y
         simp_all only [List.empty_eq, List.nil_subperm, Option.instHasSubsetOption, and_self,
           and_true]
-        use endNodesOf (next (L.diff Lcond ++ res, R, O) (by aesop))
-        simp_all only [and_true]
         use (L.diff Lcond ++ res, R, O)
         simp_all only [exists_prop, and_true]
-        use res
+        grind
       case oneSidedR resNodes orule => -- analogous to oneSidedL
         simp_all only [applyLocalRule, List.empty_eq, List.diff_nil, List.map_map, List.mem_map,
           Function.comp_apply, List.append_nil, Olf.change_old_none_none, AnyFormula.loadBoxes_cons,
@@ -280,7 +278,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             simp [applyLocalRule, unfoldDiamondLoaded, YsetLoad] at B_def_apply_r_LRO
             rw [B_def_apply_r_LRO]
             simp
-            use F, δ
+            use δ
           simp
           cases δ
           case nil => -- δ is empty, is this the easy or the hard case? ;-)
@@ -534,7 +532,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             simp [applyLocalRule, unfoldDiamondLoaded, YsetLoad] at B_def_apply_r_LRO
             rw [B_def_apply_r_LRO]
             simp
-            use F, δ
+            use δ
           simp
           cases δ
           case nil => -- δ is empty, is this the easy or the hard case? ;-)

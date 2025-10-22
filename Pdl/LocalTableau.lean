@@ -269,25 +269,25 @@ lemma loadedR_sat_down (LRO : Sequent)
   rcases RX_sat with ⟨W, M, w, satM⟩
   have w_nχ : evaluate M w (~χ.unload) := by apply satM; simp [Olf.R]
   have := (loadRuleTruth lrule W M w).1 w_nχ; clear w_nχ
-  simp [disEval, List.mem_map, Function.comp_apply, Prod.exists] at this
-  rcases this with ⟨φ, ⟨ψs, φ0, _in_ress, def_φ⟩ , w_φ⟩
-  use (L, R ++ ψs, φ0.map Sum.inr)
-  subst def_φ
-  simp
-  constructor
-  · use ψs, φ0, _in_ress
-  · use W, M, w
-    intro φ φ_in
-    specialize @satM φ
-    rcases φ_in with (φ_in_L | φ_in_ψs | φ_in_OL) | φ_in_X
-    · aesop
-    · simp [conEval, pairUnload] at w_φ; aesop
-    · simp [Olf.R] at φ_in_OL
-      cases φ0 <;> simp [conEval, pairUnload] at *
-      subst φ_in_OL
-      apply w_φ
-      simp
-    · aesop
+  simp only [disEval, List.mem_map, Function.comp_apply, Prod.exists, ↓existsAndEq,
+    and_true] at this
+  rcases this with ⟨ψs, φ0, _in_ress, w_φ⟩
+  simp only [applyLocalRule, List.empty_eq, List.diff_nil, Olf.change_some_some_eq, List.map_map,
+    List.mem_map, Function.comp_apply, List.append_nil, Prod.exists, listHasSat, List.mem_union_iff,
+    ↓existsAndEq, and_true, Sequent.right_eq, List.append_assoc, List.mem_append]
+  use ψs, φ0, _in_ress
+  use W, M, w
+  intro φ φ_in
+  specialize @satM φ
+  rcases φ_in with (φ_in_L | φ_in_ψs | φ_in_OL) | φ_in_X
+  · aesop
+  · simp [conEval, pairUnload] at w_φ; aesop
+  · simp only [Olf.R] at φ_in_OL
+    cases φ0 <;> simp [conEval, pairUnload] at *
+    subst φ_in_OL
+    apply w_φ
+    simp
+  · aesop
 
 /-- A local rule application going from `⟨L,R,O⟩` to `C` consists of a
 local rule `lr` replacing `⟨Lcond, Rcond, Ocond⟩` by `ress` and
@@ -430,39 +430,33 @@ theorem localRuleTruth
     constructor
     · intro hyp
       have hyp' := hyp (~χ.unload)
-      simp at hyp'
+      simp only [Option.map_some, Sum.elim_inl, negUnload, Option.toList_some, List.mem_union_iff,
+        List.mem_cons, List.not_mem_nil, or_false, or_true, evaluate, forall_const] at hyp'
       rw [this] at hyp'
-      rcases hyp' with ⟨f, ⟨X , O, in_ress, def_f⟩, w_f⟩
+      rcases hyp' with ⟨X , O, in_ress, w_f⟩
       cases O
-      · use (L ++ X, R, none)
-        constructor
-        · use X, none; simp only [Option.map_none, and_true]; exact in_ress
-        · intro g; subst def_f; rw [conEval] at w_f; specialize hyp g; aesop
+      · use X, none
+        simp_all only [Option.map_none, true_and]
+        intro g; rw [conEval] at w_f; specialize hyp g; aesop
       case some val =>
-        use (L ++ X, R, some (Sum.inl val))
-        constructor
-        · use X, some val; simp only [Option.map_some, and_true]; exact in_ress
-        · intro g g_in
-          subst def_f
-          simp_all [pairUnload, negUnload, conEval]
-          have := w_f (~val.1.unload)
-          aesop
-    · rintro ⟨Ci, ⟨⟨X, O, ⟨in_ress, def_Ci⟩⟩, w_Ci⟩⟩
+        use X, some val, in_ress
+        intro g g_in
+        simp_all [pairUnload, negUnload, conEval]
+        have := w_f (~val.1.unload)
+        aesop
+    · rintro ⟨X, O, ⟨in_ress, w_Ci⟩⟩
       intro f f_in
-      subst def_Ci
       cases O <;> simp at *
       · cases f_in
         · aesop
         subst_eqs
         simp only [evaluate]
         rw [this]
-        use (Con (pairUnload (X, none)))
-        constructor
-        · use X, none
-        · simp only [pairUnload, conEval]
-          intro f f_in
-          apply w_Ci
-          simp_all
+        use X, none
+        simp_all only [pairUnload, negUnload, conEval, true_and]
+        intro f f_in
+        apply w_Ci
+        simp_all
       case some val =>
         rcases f_in with (f_in|f_in)|f_in
         · apply w_Ci; simp_all
@@ -470,14 +464,12 @@ theorem localRuleTruth
         · subst f_in
           simp only [evaluate]
           rw [this]
-          use Con (pairUnload (X, some val))
-          constructor
-          · use X, some val
-          · simp only [pairUnload, negUnload, conEval, List.mem_union_iff, List.mem_singleton]
-            intro g g_in
-            rcases g_in with (_|g_def)
-            · apply w_Ci; simp_all
-            · subst g_def; apply w_Ci; simp_all
+          use X, some val, in_ress
+          simp only [pairUnload, negUnload, conEval, List.mem_union_iff, List.mem_singleton]
+          intro g g_in
+          rcases g_in with (_|g_def)
+          · apply w_Ci; simp_all
+          · subst g_def; apply w_Ci; simp_all
 
   case loadedR ress χ lrule ress_def hC =>
     subst ress_def
@@ -491,39 +483,33 @@ theorem localRuleTruth
     constructor
     · intro hyp
       have hyp' := hyp (~χ.unload)
-      simp at hyp'
+      simp only [Option.map_some, Sum.elim_inr, negUnload, Option.toList_some, List.mem_union_iff,
+        List.mem_cons, List.not_mem_nil, or_false, or_true, evaluate, forall_const] at hyp'
       rw [this] at hyp'
-      rcases hyp' with ⟨f, ⟨X , O, in_ress, def_f⟩, w_f⟩
+      rcases hyp' with ⟨X , O, in_ress, w_f⟩
       cases O
-      · use (L, R ++ X, none)
-        constructor
-        · use X, none; simp only [Option.map_none, and_true]; exact in_ress
-        · intro g; subst def_f; rw [conEval] at w_f; specialize hyp g; aesop
+      · use X, none
+        simp_all only [Option.map_none, true_and]
+        intro g; rw [conEval] at w_f; specialize hyp g; aesop
       case some val =>
-        use (L, R ++ X, some (Sum.inr val))
-        constructor
-        · use X, some val; simp only [Option.map_some, and_true]; exact in_ress
-        · intro g g_in
-          subst def_f
-          simp_all [pairUnload, negUnload, conEval]
-          have := w_f (~val.1.unload)
-          aesop
-    · rintro ⟨Ci, ⟨⟨X, O, ⟨in_ress, def_Ci⟩⟩, w_Ci⟩⟩
+        use X, some val, in_ress
+        intro g g_in
+        simp_all [pairUnload, negUnload, conEval]
+        have := w_f (~val.1.unload)
+        aesop
+    · rintro ⟨X, O, ⟨in_ress, w_Ci⟩⟩
       intro f f_in
-      subst def_Ci
       cases O <;> simp at *
       · cases f_in
         · aesop
         subst_eqs
         simp only [evaluate]
         rw [this]
-        use (Con (pairUnload (X, none)))
-        constructor
-        · use X, none
-        · simp only [pairUnload, conEval]
-          intro f f_in
-          apply w_Ci
-          simp_all
+        use X, none
+        simp_all only [pairUnload, negUnload, conEval, true_and]
+        intro f f_in
+        apply w_Ci
+        simp_all
       case some val =>
         rcases f_in with (f_in|f_in)|f_in
         · apply w_Ci; simp_all
@@ -531,14 +517,12 @@ theorem localRuleTruth
         · subst f_in
           simp only [evaluate]
           rw [this]
-          use Con (pairUnload (X, some val))
-          constructor
-          · use X, some val
-          · simp only [pairUnload, negUnload, conEval, List.mem_union_iff, List.mem_singleton]
-            intro g g_in
-            rcases g_in with (_|g_def)
-            · apply w_Ci; simp_all
-            · subst g_def; apply w_Ci; simp_all
+          use X, some val, in_ress
+          simp only [pairUnload, negUnload, conEval, List.mem_union_iff, List.mem_singleton]
+          intro g g_in
+          rcases g_in with (_|g_def)
+          · apply w_Ci; simp_all
+          · subst g_def; apply w_Ci; simp_all
 
 -- TODO: move to Sequent.lean maybe? What does it need?
 instance instDecidableBasic {X : Sequent} : Decidable (X.basic) := by
@@ -1097,12 +1081,11 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ H α) {ψ} (i
   case star α =>
     simp only [lmOfFormula]
     simp [H] at in_H
-    rcases in_H with _ | ⟨l, ⟨Fs', δ', in_H', def_l⟩, in_l⟩
+    rcases in_H with _ | ⟨δ', in_H', in_l⟩
     · simp_all only [List.not_mem_nil]
-    · subst def_l
-      by_cases δ' = []
-      · simp_all only [List.nil_append, ite_true, List.not_mem_nil]
-      · simp_all only [ite_false, List.mem_singleton, Prod.mk.injEq, testsOfProgram]
+    · by_cases δ' = []
+      · simp_all
+      · simp only [testsOfProgram]
         cases in_l
         subst_eqs
         have IHα := H_goes_down α φ in_H' in_Fs
@@ -1352,10 +1335,7 @@ noncomputable def endNode_to_endNodeOfChildNonComp (lrA)
   @Subtype Sequent (fun x => ∃ h, E ∈ endNodesOf (subTabs x h)) := by
   simp [endNodesOf] at E_in
   choose l h E_in using E_in
-  choose c c_in l_eq using h
-  subst l_eq
-  use c
-  use c_in
+  aesop
 
 theorem endNodeIsEndNodeOfChild (lrA)
   (E_in : E ∈ endNodesOf (@LocalTableau.byLocalRule X _ lrA subTabs)) :
@@ -1379,20 +1359,15 @@ theorem endNodeOfChild_to_endNode
   cases h' : subTabs Y Y_in -- No induction needed for this!
   case sim Y_isSimp =>
     subst h
-    simp
-    use endNodesOf (subTabs Y Y_in)
-    constructor
-    · use Y, Y_in
-    · exact Z_in
+    simp only [endNodesOf, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
+      Subtype.exists, ↓existsAndEq]
+    grind
   case byLocalRule C' subTabs' lrA' =>
     subst h
     rw [h'] at Z_in
-    simp
-    use endNodesOf (subTabs Y Y_in)
-    constructor
-    · use Y, Y_in
-    · rw [h']
-      exact Z_in
+    simp only [endNodesOf, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
+      Subtype.exists, ↓existsAndEq]
+    grind
 
 /-! ## Overall Soundness and Invertibility of LocalTableau -/
 
@@ -1442,8 +1417,7 @@ theorem endNodesOf_nonbasic_lt_Sequent {X Y} (lt : LocalTableau X) (X_nonbas : �
   case byLocalRule X B lrA next IH =>
     intro Y_in
     simp at Y_in
-    rcases Y_in with ⟨l, ⟨Z, Z_in_B, def_l⟩ , Y_in_l⟩
-    subst def_l
+    rcases Y_in with ⟨Z, Z_in_B, Y_in_l⟩
     by_cases Z.basic
     case pos Z_basic =>
       have next_Z_is_end : endNodesOf (next Z Z_in_B) = [Z] := by

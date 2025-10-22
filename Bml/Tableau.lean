@@ -739,10 +739,7 @@ noncomputable def endNodeIsEndNodeOfChild (ruleA)
   unfold endNodesOf at E_in
   simp_all!
   choose l h E_in using E_in
-  choose c c_in l_eq using h
-  subst l_eq
-  use c
-  use c_in
+  use l, h
 
 @[simp]
 theorem lrEndNodes {LR : TNode} {C : List TNode} {ruleA} {subTabs} :
@@ -757,9 +754,9 @@ theorem endNodesOfLEQ {LR Z ltLR} :
   cases ltLR
   case fromRule altLR subTabs lrApp =>
     intro Z_endOf_LR
-    simp at Z_endOf_LR
-    rcases Z_endOf_LR with ⟨ZS, ⟨c, c_in_C, endNodes_c_eq_ZS⟩, Z_in_ZS⟩
-    subst endNodes_c_eq_ZS
+    simp only [lrEndNodes, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
+      Subtype.exists, ↓existsAndEq] at Z_endOf_LR
+    rcases Z_endOf_LR with ⟨c, c_in_C, Z_in_ZS⟩
     apply le_of_lt
     have := localRuleAppDecreasesLength lrApp c c_in_C -- for termination and below!
     · calc
@@ -773,9 +770,9 @@ theorem endNodesOfLocalRuleLT :
     Z ∈ endNodesOf ⟨LR, LocalTableau.fromRule lrApp subTabs⟩ → lengthOfTNode Z < lengthOfTNode LR :=
   by
   intro Z_endOf_LR
-  simp at Z_endOf_LR
-  rcases Z_endOf_LR with ⟨ZS, ⟨c, c_in_C, endNodes_c_eq_ZS⟩, Z_in_ZS⟩
-  subst endNodes_c_eq_ZS
+  simp only [lrEndNodes, List.mem_flatten, List.mem_map, List.mem_attach, true_and, Subtype.exists,
+    ↓existsAndEq] at Z_endOf_LR
+  rcases Z_endOf_LR with ⟨c, c_in_C, Z_in_ZS⟩
   have := localRuleAppDecreasesLength lrApp c c_in_C -- for termination and below!
   · calc
       lengthOfTNode Z ≤ lengthOfTNode c := endNodesOfLEQ Z_in_ZS

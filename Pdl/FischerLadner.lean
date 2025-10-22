@@ -158,7 +158,7 @@ lemma FLb_trans {α φ ψ} :
   case test τ =>
     rcases ψ_in with h|h|h
     · subst_eqs; grind [FL, FLb]
-    · subst_eqs; grind [FL, FLb]
+    · subst_eqs; simp [FL, FLb]; grind
     · have := @FL_trans τ ψ
       grind [FL]
 end

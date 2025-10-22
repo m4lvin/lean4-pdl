@@ -71,11 +71,11 @@ theorem reachable_iff_star_relate {M} {α : Program} {w v : W} :
                                                    (Reachable.trans hr ⟨Walk.cons ha (.nil α) ·⟩)
 
 -- Unused
-theorem star_relate_of_Chain : List.Chain (relate M α) w (l ++ [v]) → relate M (∗α) w v :=
+theorem star_relate_of_Chain : List.IsChain (relate M α) (w :: l ++ [v]) → relate M (∗α) w v :=
   fun h => match l with
-  | .nil => .single <| List.Chain'.rel_head h
-  | .cons x xs => .head (b := x) (List.Chain'.rel_head h) <| star_relate_of_Chain (l := xs) <|
-      match h with | .cons _ h => h
+  | .nil => .single <| List.IsChain.rel_head h
+  | .cons x xs => .head (b := x) (List.IsChain.rel_head h) <| star_relate_of_Chain (l := xs) <|
+      match h with | .cons_cons _ h => h
 
 /-! ## Distance -/
 

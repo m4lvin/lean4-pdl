@@ -70,7 +70,7 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
     {l : List { x // x ∈ Worlds }}
     (length_def : l.length + 1 = δ.length)
     (δφ_in_X : (⌈⌈δ⌉⌉φ) ∈ X.val)
-    (lchain : List.Chain' (pairRel MG.1) (List.zip ((?'⊤) :: δ) (X :: l ++ [Y])))
+    (lchain : List.IsChain (pairRel MG.1) (List.zip ((?'⊤) :: δ) (X :: l ++ [Y])))
     (IHδ : ∀ d ∈ δ, ∀ (X' Y' : { x // x ∈ Worlds }) φ',
             (⌈d⌉φ') ∈ X'.1 → relate (MG.1) d X' Y' → φ' ∈ Y'.1)
     (i : Fin (List.length (X :: l ++ [Y])))
@@ -98,18 +98,20 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
         rw [Formula.boxes_cons]
       rw [this]
       exact IH
-    · simp
+    · simp only [instBot, List.append_eq, Fin.getElem_fin, Fin.coe_cast, List.cons_append,
+      List.get_eq_getElem, List.length_cons, Fin.coe_castSucc]
       -- It now remains to make lchain usable
-      rw [List.chain'_iff_get] at lchain
+      rw [List.isChain_iff_get] at lchain
       specialize lchain i ?_
       · rcases i with ⟨val, hyp⟩
         simp_all only [insTop, List.zip_cons_cons, List.length_cons, List.length_zip,
-          List.length_append, min_self, add_tsub_cancel_right, instBot,
+          List.length_append, min_self, instBot,
           List.get_eq_getElem, List.getElem_cons_succ, List.getElem_zip, Subtype.forall,
           List.append_eq, Fin.castSucc_mk]
         rw [← length_def]
-        simp at hyp
-        exact hyp
+        simp only [List.append_eq, List.length_append, List.length_cons, List.length_nil,
+          zero_add] at hyp
+        linarith
       simp [pairRel, instBot, insTop, List.zip_cons_cons, List.length_cons, List.append_eq,
         List.getElem_zip] at lchain
       convert lchain
@@ -529,7 +531,7 @@ theorem cpHelpA {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α
     have IHα := cpHelpA R α
     intro v_combo_w
     simp [H, List.mem_flatten, List.mem_map, Prod.exists] at in_H
-    rcases in_H with ⟨F_nil, δ_nil⟩ | ⟨L, ⟨F, δ, in_Hα, def_l⟩, in_L⟩
+    rcases in_H with ⟨F_nil, δ_nil⟩ | ⟨δ, in_Hα, in_L⟩
     · subst_eqs
       simp only [Qcombo, Relation.Comp, Qtests, Subtype.beq_iff, beq_iff_eq, List.not_mem_nil,
         IsEmpty.forall_iff, implies_true, and_true, Qsteps, Subtype.exists, exists_and_left,
@@ -538,15 +540,12 @@ theorem cpHelpA {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α
       subst v_combo_w
       simp only [Q, Subtype.coe_eta]
       exact Relation.ReflTransGen.refl
-    · simp only [Q]
-      subst def_l
+    · simp_all only [Q]
       by_cases δ = []
       · subst_eqs
-        simp only [reduceIte] at in_L
-        absurd in_L
-        exact List.not_mem_nil
+        simp_all
       case neg hyp =>
-        simp only [hyp, reduceIte, List.mem_singleton, Prod.mk.injEq] at in_L
+        simp only [hyp] at in_L
         cases in_L
         subst_eqs
         simp only [Qcombo, Relation.Comp, Qtests] at v_combo_w

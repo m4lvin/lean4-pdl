@@ -100,19 +100,12 @@ theorem signature_contradiction_of_neq_TPs {ℓ ℓ' : TP α} :
   cases em (ℓ ⟨τ,τ_in⟩)
   · specialize ℓ_conform τ τ τ_in
     simp_all only [ite_true, forall_true_left]
-    use (~τ)
-    constructor
-    · use τ, τ_in
-      simp_all
-    · simp
-      assumption
+    use τ
+    simp_all
   · specialize ℓ_conform (~τ) τ τ_in
     simp_all only [Bool.not_eq_true, evaluate]
     use τ
-    constructor
-    · use τ, τ_in
-      simp_all
-    · simp_all
+    simp_all
 
 -- unused?
 theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α ℓ ≡ ψ ⋀ signature α ℓ := by
@@ -593,18 +586,18 @@ theorem unfoldBoxContent α ψ :
       subst def_φ
       cases α <;> simp_all [P, subprograms, Program.isAtomic, Program.isStar]
       case atom_prog a =>
-        clear bht
+        subst bht
         right
-        use a
         use []
         simp
       case sequence α β =>
         rcases bht with _ | ⟨a, ⟨δ1n, δ_def⟩, ⟨a_in, δ_sub⟩⟩
         · subst_eqs; simp
         · subst δ_def
-          simp_all -- FIXME: `simp_all?` gives wrong suggestion?
+          simp_all only [List.cons_subset, List.mem_cons, reduceCtorEq, List.mem_append, or_true,
+            true_and, Formula.boxes_cons, and_false, exists_const, Formula.box.injEq,
+            Program.atom_prog.injEq, ↓existsAndEq, false_or]
           right
-          use a
           use δ1n
           simp_all
           intro γ γ_in
@@ -614,30 +607,24 @@ theorem unfoldBoxContent α ψ :
         rcases bht with _ | ⟨a, ⟨δ1n, δ_def⟩, ⟨a_in, δ_sub⟩⟩
         · subst_eqs; simp
         · subst δ_def
-          simp_all -- FIXME: `simp_all?` gives wrong suggestion?
+          simp_all only [List.cons_subset, List.mem_cons, reduceCtorEq, List.mem_append, or_true,
+            true_and, Formula.boxes_cons, and_false, exists_const, Formula.box.injEq,
+            Program.atom_prog.injEq, ↓existsAndEq, false_or]
           right
-          use a, δ1n
+          use δ1n
           simp
-          constructor
-          · assumption
-          · intro γ γ_in
-            specialize δ_sub γ_in
-            simp_all
+          grind
       case star β =>
         rcases bht with _ | ⟨a, ⟨δ1n, δ_def⟩, ⟨a_in, δ_sub⟩⟩
         · subst_eqs; simp
         · subst δ_def
-          simp_all
+          simp_all only [reduceCtorEq, false_or, List.cons_subset, List.mem_cons, or_true,
+            List.append_subset, true_or, List.nil_subset, List.subset_cons_of_subset, and_self,
+            and_true, true_and, Formula.boxes_cons, and_false, exists_const, Formula.box.injEq,
+            Program.atom_prog.injEq, ↓existsAndEq]
           right
-          use a, δ1n ++ [∗β]
-          simp
-          constructor
-          · assumption
-          · intro γ γ_in
-            rcases γ_in with γ_in | γ_in
-            · specialize δ_sub γ_in
-              aesop
-            · aesop
+          use δ1n ++ [∗β]
+          grind
 
 theorem unfoldBox_voc {x α φ} {L} (L_in : L ∈ unfoldBox α φ) {ψ} (ψ_in : ψ ∈ L)
     (x_in_voc_ψ : x ∈ ψ.voc) : x ∈ α.voc ∨ x ∈ φ.voc := by

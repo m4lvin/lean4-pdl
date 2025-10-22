@@ -239,16 +239,23 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
     case next =>
       intro Y Y_in
       have : Y = ([q, ⌈a⌉⌈∗a⌉q], [], some (Sum.inl (~'⌊⌊[a]⌋⌋⌊∗a⋓(?'p)⌋AnyFormula.normal q)))  := by
-        simp [endNodesOf] at *
-        rcases Y_in with ⟨l, ⟨a, ⟨Z, Z_in, def_a⟩ , def_l⟩, Y_in_l⟩
+        simp only [List.empty_eq, List.map_nil, eq_mpr_eq_cast, endNodesOf, List.mem_flatten,
+          List.mem_map, List.mem_attach, true_and, Subtype.exists, Function.comp_apply,
+          Olf.change_old_none_none, ↓existsAndEq] at *
+        rcases Y_in with ⟨a, ⟨Z, Z_in, def_a⟩, Y_in_l⟩
         subst def_a
-        subst def_l
         -- It seems annoying to deal with all the casting here.
-        simp [endNodesOf_cast_helper] at Y_in_l
-        rcases Y_in_l with ⟨l, ⟨a, ⟨Z, olf, Zolf_in, def_a⟩ , def_l⟩ , Y_in_l⟩
+        simp only [endNodesOf_cast_helper, endNodesOf, List.mem_flatten, List.mem_map,
+          List.mem_attach, true_and, Subtype.exists, Function.comp_apply, Prod.exists,
+          ↓existsAndEq] at Y_in_l
+        rcases Y_in_l with ⟨a, ⟨Z, olf, Zolf_in, def_a⟩ , Y_in_l⟩
         subst def_a
-        subst def_l
-        simp [unfoldDiamondLoaded', H, YsetLoad', splitLast] at Zolf_in
+        simp only [unfoldDiamondLoaded', YsetLoad', H, List.empty_eq, List.cons_union,
+          List.nil_union, List.mem_cons, Prod.mk.injEq, List.ne_cons_self, List.cons_ne_self,
+          and_self, List.not_mem_nil, or_self, not_false_eq_true, List.insert_of_not_mem,
+          List.map_cons, ↓reduceIte, List.cons_append, List.nil_append, List.map_nil,
+          List.flatten_cons, List.flatten_nil, List.append_nil, List.nil_eq, reduceCtorEq,
+          and_false, splitLast, loadMulti_cons, loadMulti_nil, or_false] at Zolf_in
         cases Zolf_in
         · aesop
         cases olf
