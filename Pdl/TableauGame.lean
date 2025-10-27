@@ -897,10 +897,10 @@ lemma help {α : Type} {f : ℕ → α} {p : α → Prop}
   push_neg at not_injective
   tauto
 
-/-- Lemma 6.10, sort of. Because the move relation is wellfounded, all matches must be finite.
+/-- Lemma 6.10. The move relation is converse wellfounded (and thus all matches must be finite).
 Note that the paper does not prove this, only says it is similar to the proof that PDL-tableaux
 are finite, i.e. Lemma 4.10 which uses the Fischer-Ladner closure. -/
-lemma move.converseWellFounded : WellFounded (Function.swap move) := by
+lemma matchesFinite : WellFounded (Function.swap move) := by
   -- If it's not wellfounded, then there must be an infinite sequence of moves.
   rw [wellFounded_iff_isEmpty_descending_chain]
   by_contra hyp
@@ -1007,7 +1007,7 @@ def tableauGame : Game where
   turn | ⟨_, _, .inl _⟩ => Prover
        | ⟨_, _, .inr _⟩ => Builder
   moves := theMoves
-  wf := ⟨fun x y => move y x, move.converseWellFounded⟩
+  wf := ⟨fun x y => move y x, matchesFinite⟩
   move_rel := by grind [move_of_mem_theMoves]
 
 @[simp]
