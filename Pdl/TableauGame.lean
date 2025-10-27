@@ -415,58 +415,7 @@ lemma move.trans_hist {pX pY} (movt : Relation.TransGen move pX pY) :
       simp at *
       grind
 
-/-- After two moves we must reach a different sequent.
-Is this useful for termination? -/
-lemma move_twice_neq {A B C : GamePos} (A_B : move A B) (B_C : move B C) :
-    A.2.1 ≠ C.2.1 := by
-  rcases A with ⟨HA, A, pA⟩
-  rcases B with ⟨HB, B, pB⟩
-  rcases C with ⟨HC, C, pC⟩
-  simp
-  -- have := @no_moves_of_rep -- useful or useless here?
-  -- Now that `move` is an inductive we can do `cases B_C` here.
-  cases A_B -- <;>
-  case prPdl Xbasic nrep r =>
-    -- cases B_C -- Dependent elimination failed: Failed to solve equation.
-    generalize h : posOf (A :: HA) B = stepP at *
-    cases B_C
-    case prPdl basicB nrepB r' =>
-      intro A_C
-      subst A_C
-      -- ?? PdlRule from A to B but also from B to A --- only possible by loading + freeing
-      -- PROBLEM: how do we prevent (L+) right after (L-) and vice versa?
-      sorry
-    case prLocTab nbasB ltB nrep' =>
-      intro A_eq_B
-      subst A_eq_B
-      exfalso
-      tauto
-    case buEnd ltB nbasB nrepB C_in =>
-      intro A_eq_C
-      subst A_eq_C
-      -- ??? -- LocalTableau from B to A but also PdlRule form A to B -- should be impossible?
-      sorry
-  case prLocTab ltA nrep =>
-    cases B_C -- must be buEnd :-)
-    case buEnd nbas nrep' C_in =>
-      have := @endNodesOf_nonbasic_non_eq _ C ltA nbas C_in
-      grind
-  case buEnd ltA nbas nrep B_in =>
-    -- cases B_C -- Dependent elimination failed: Failed to solve equation.
-    generalize h : posOf (A :: HA) B = stepP at *
-    cases B_C
-    case prPdl basicB nrepB r =>
-      intro A_C
-      subst A_C
-      -- ??? -- LocalTableau from A to B but also PdlRule form B to A -- should be impossible?
-      sorry
-    case prLocTab nbasB ltB nrep' =>
-      have := @endNodesOf_nonbasic_non_eq _ B ltA nbas B_in
-      tauto
-    case buEnd ltB nbasB nrepB C_in =>
-      exfalso
-      have := endNodesOf_basic B_in
-      tauto
+/-! ## Lemmas about double moves -/
 
 /-- After two moves the history must grow. -/
 lemma move_twice_hist_length {A B C : GamePos} (A_B : move A B) (B_C : move B C) :
@@ -487,6 +436,42 @@ lemma move_twice_hist_length {A B C : GamePos} (A_B : move A B) (B_C : move B C)
   case buEnd ltA nbas nrep B_in =>
     generalize h : posOf (A :: HA) B = stepP at *
     cases B_C <;> simp_all <;> linarith
+
+/-- Insert obligatory "We like to move it move it" joke here. -/
+abbrev movemove := Relation.Comp move move
+
+lemma movemove.hist {A B C : GamePos} (A_B : move A B) (B_C : move B C) :
+    ((A.2.1 :: A.1) <:+ C.1)  := by
+  rcases A with ⟨HA, A, pA⟩
+  rcases B with ⟨HB, B, pB⟩
+  rcases C with ⟨HC, C, pC⟩
+  simp only
+  cases A_B
+  case prPdl Xbasic nrep r =>
+    generalize h : posOf (A :: HA) B = stepP at *
+    cases B_C <;> simp_all
+  case prLocTab ltA nrep =>
+    cases B_C -- must be buEnd :-)
+    case buEnd nbas nrep' C_in =>
+      have := @endNodesOf_nonbasic_non_eq _ C ltA nbas C_in
+      grind
+  case buEnd ltA nbas nrep B_in =>
+    generalize h : posOf (A :: HA) B = stepP at *
+    cases B_C <;> simp_all
+
+/-- After any number of double moves the history gets extended. -/
+lemma movemove_trans_hist {A B : GamePos} (A_B : Relation.TransGen movemove A B) :
+    ((A.2.1 :: A.1) <:+ B.1)  := by
+  induction A_B
+  case single C mvmv =>
+    rcases mvmv with ⟨B, A_B, B_C⟩
+    exact movemove.hist A_B B_C
+  case tail B C A__B B_C IH =>
+    rcases B_C with ⟨X, B_X, X_C⟩
+    have := movemove.hist B_X X_C
+    cases IH
+    cases this
+    grind
 
 /-! ## Termination via finite FL closure
 
@@ -655,10 +640,10 @@ of a given sequent, so the list returned by `all_subseteq_FL` can never contain 
 
 ```
 def Sequent.all_subseteq_FL_complete (X Y : Sequent) (h : Y.subseteq_FL X) :
-    ⟨Y,h⟩ ∈ Sequent.all_subseteq_FL X := sorry
+    ⟨Y,h⟩ ∈ Sequent.all_subseteq_FL X := ...
 
 instance Sequent.subseteq_FL_fintype {X : Sequent} :
-    Fintype { Y // Sequent.subseteq_FL Y X } := sorry
+    Fintype { Y // Sequent.subseteq_FL Y X } := ...
 ```
 
 Hence, we now define the Quotient modulo `Sequent.setEqTo` within which there are only finitely
@@ -920,38 +905,63 @@ lemma move.converse_wf : WellFounded (Function.swap move) := by
   rw [wellFounded_iff_isEmpty_descending_chain]
   by_contra hyp
   simp at hyp
-  rcases hyp with ⟨f, f_rel⟩
-  simp only [Function.swap] at f_rel
-
+  rcases hyp with ⟨g, g_rel⟩
+  simp only [Function.swap] at g_rel
+  -- Idea from here onwards: the Hist and X stays inside FL, but must be different / no repeats.
+  -- Well, almost all X must be different. Single steps that keep `Hist` and `X` are sometimes
+  -- allowed, in the annyong case in `move.hist`. Hence we use double steps.
+  have all_g_moves_inside (n : ℕ) : (Seqt.subseteq_FL ⟦(g n).snd.fst⟧ ⟦(g 0).snd.fst⟧) := by
+    simp only [Seqt.subseteq_FL, Quotient.lift_mk]
+    induction n
+    · simp
+    case succ k IH =>
+      apply Sequent.subseteq_FL_trans _ _ _ ?_ IH
+      apply move_inside_FL (g_rel k)
+  -- Important TRICK: we now define another descending chain that makes TWO `moves` each time.
+  let f n := g (n*2)
+  -- The f chain stays in the FL closure.
   have all_moves_inside (n : ℕ) : (Seqt.subseteq_FL ⟦(f n).snd.fst⟧ ⟦(f 0).snd.fst⟧) := by
     simp only [Seqt.subseteq_FL, Quotient.lift_mk]
     induction n
     · simp
     case succ k IH =>
       apply Sequent.subseteq_FL_trans _ _ _ ?_ IH
-      apply move_inside_FL (f_rel k)
-
-  -- Elements along the chain are related by the transitive closure of `move`.
-  have trans_rel : ∀ k1 k2, k1 < k2 → Relation.TransGen move (f k1) (f k2) := by
+      unfold f
+      rw [Nat.add_mul]
+      simp only [Nat.reduceMul]
+      have h1 := move_inside_FL (g_rel (k*2))
+      have h2 := move_inside_FL (g_rel (k*2 + 1))
+      exact Sequent.subseteq_FL_trans _ _ _ h2 h1
+  -- Elements along the chain are related by the transitive closure of `move`s.
+  -- (This also holds for move instead of movemove, but we really want this one.)
+  have trans_rel : ∀ k1 k2, k1 < k2 → Relation.TransGen movemove (f k1) (f k2) := by
     intro k1 k2 k_lt
     rw [lt_iff_exists_add] at k_lt
-    rcases k_lt with ⟨m, m_pos, k2_def⟩; subst k2_def
+    rcases k_lt with ⟨m, m_pos, k2_def⟩
+    subst k2_def
     induction m
     · exfalso; cases m_pos
     case succ m IH =>
       cases m
-      · exact Relation.TransGen.single (f_rel k1)
+      · unfold f
+        apply Relation.TransGen.single
+        refine ⟨g (k1 * 2 + 1), ?_, ?_⟩
+        · apply g_rel
+        · convert g_rel (k1 * 2 + 1) using 2
+          linarith
       case succ m =>
-        simp at IH
-        exact Relation.TransGen.tail IH (f_rel (k1 + (m + 1)))
+        simp only [gt_iff_lt, add_pos_iff, zero_lt_one, or_true, forall_const] at IH
+        apply Relation.TransGen.tail IH
+        unfold f
+        refine ⟨g ((k1 + (m + 1)) * 2 + 1), ?_, ?_⟩
+        · apply g_rel
+        · convert g_rel ((k1 + (m + 1)) * 2 + 1) using 2
+          linarith
 
-  -- IDEA from here onwards: the Hist and X stays inside FL, but must be different / no repeats.
-  -- Well, almost all X must be different. Single steps that keep `Hist` and `X` are sometimes
-  -- allowed, in the annyong case in `move.hist`. Still, we can never repeat an `X` in `Hist`.
-  have no_repeats : ∀ n, ¬ rep (f n).1 (f n).2.1 := fun k => move_then_no_rep (f_rel k)
+  have no_repeats n : ¬ rep (f n).1 (f n).2.1 := move_then_no_rep (g_rel (n * 2))
 
-  -- -- The histories along the chain extend each other.
-  have hist_suffixes := fun k1 k2 h => move.trans_hist (trans_rel k1 k2 h)
+  -- -- The histories along the `f` chain *properly* extend each other.
+  have hist_suffixes := fun k1 k2 h => movemove_trans_hist (trans_rel k1 k2 h)
 
   -- There are only finitely many setEqTo-different sequents in the FL closure of the chain start.
   have FL_fin := @Seqt.subseteq_FL_finite (Quotient.mk' (f 0).2.1)
@@ -962,44 +972,32 @@ lemma move.converse_wf : WellFounded (Function.swap move) := by
   rcases this with ⟨k1, k2, k_diff, same⟩
   simp [rep, instSetoidSequent] at same no_repeats
   rw [Nat.ne_iff_lt_or_gt] at k_diff
+  rcases h1 : f k1 with ⟨H, X, p⟩
+  rcases h2 : f k2 with ⟨H', X', p'⟩
+  rw [h1, h2] at same
+  simp only at same
   rcases k_diff with k1_lt_k2 | k2_lt_k1
   · -- k1 < k2 case
-
-    rcases h1 : f k1 with ⟨H, X, p⟩
-    rcases h2 : f k2 with ⟨H', X', p'⟩
-
     specialize no_repeats k2
     rw [h2] at no_repeats
-    simp at no_repeats
-
-    rw [h1, h2] at same
-    simp at same
-
+    simp only at no_repeats
     -- We have that the k2 history extends the k1 history.
     specialize hist_suffixes k1 k2 k1_lt_k2
     rw [h1, h2] at hist_suffixes
-    simp at hist_suffixes
-
-    rcases hist_suffixes with h|h
-    · cases h
-      -- Here we have the case where `f k1` and `f k2` have the same history and sequent.
-      subst_eqs
-      -- To actually get a contradiction we need the history to *actually grow*.
-      -- Can we use `move_twice_neq` here?
-      -- But then how do we know that k2 - k1 is at least 2 and not 1 ???
-      --
-      -- Alternative ideas
-      -- - Prove in this case that the whole sequence must actually be a single `prLocTab` move?
-      --   But that itself is fine / not enough for a contradiction.
-      -- - Redefine the `f` sequence to only "count" the non-`prLocTab` steps?
-      sorry
-    · refine no_repeats X ?_ same
-      rcases h with ⟨L,h⟩
-      rw [← h]
-      simp
-
-  · -- k2 < k1 case, should be completely analogous
-    sorry
+    simp only at hist_suffixes
+    cases hist_suffixes
+    subst_eqs
+    exact no_repeats X (by simp) same
+  · -- k2 < k1 case, analogous
+    specialize no_repeats k1
+    rw [h1] at no_repeats
+    simp only at no_repeats
+    specialize hist_suffixes k2 k1 k2_lt_k1
+    rw [h1, h2] at hist_suffixes
+    simp only at hist_suffixes
+    cases hist_suffixes
+    subst_eqs
+    exact no_repeats X' (by simp) ((Sequent.setEqTo_symm _ _).mpr same)
 
 /-! ## Actual Game Definition -/
 
