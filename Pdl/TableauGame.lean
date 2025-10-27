@@ -468,6 +468,26 @@ lemma move_twice_neq {A B C : GamePos} (A_B : move A B) (B_C : move B C) :
       have := endNodesOf_basic B_in
       tauto
 
+/-- After two moves the history must grow. -/
+lemma move_twice_hist_length {A B C : GamePos} (A_B : move A B) (B_C : move B C) :
+    A.1.length < C.1.length := by
+  rcases A with ⟨HA, A, pA⟩
+  rcases B with ⟨HB, B, pB⟩
+  rcases C with ⟨HC, C, pC⟩
+  simp only
+  cases A_B
+  case prPdl Xbasic nrep r =>
+    generalize h : posOf (A :: HA) B = stepP at *
+    cases B_C <;> simp_all <;> linarith
+  case prLocTab ltA nrep =>
+    cases B_C -- must be buEnd :-)
+    case buEnd nbas nrep' C_in =>
+      have := @endNodesOf_nonbasic_non_eq _ C ltA nbas C_in
+      grind
+  case buEnd ltA nbas nrep B_in =>
+    generalize h : posOf (A :: HA) B = stepP at *
+    cases B_C <;> simp_all <;> linarith
+
 /-! ## Termination via finite FL closure
 
 See also `StayingInFL.lean` where`Sequent.subseteq_FL` is defined.
@@ -901,6 +921,7 @@ lemma move.converse_wf : WellFounded (Function.swap move) := by
   by_contra hyp
   simp at hyp
   rcases hyp with ⟨f, f_rel⟩
+  simp only [Function.swap] at f_rel
 
   have all_moves_inside (n : ℕ) : (Seqt.subseteq_FL ⟦(f n).snd.fst⟧ ⟦(f 0).snd.fst⟧) := by
     simp only [Seqt.subseteq_FL, Quotient.lift_mk]
