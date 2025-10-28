@@ -279,13 +279,13 @@ lemma no_moves_of_rep {Hist X pos} (h : rep Hist X) :
 
 /-- The finite set given by `theMoves` indeed agrees with the relation `move`.
 Other direction is `mem_theMoves_of_move`. -/
-lemma move_of_mem_theMoves {p next} :
-    next ∈ theMoves p → move p next := by
-  rcases p with ⟨Hist, X, pos⟩
+lemma move_of_mem_theMoves {pos next} :
+    next ∈ theMoves pos → move pos next := by
+  rcases pos with ⟨Hist, X, p⟩
   -- FIXME: un-indent
   · intro mv
     unfold theMoves at mv
-    rcases pos with (_|_|_) | (_|_) <;> rcases X with ⟨L,R,_|χ⟩ <;> simp_all
+    rcases p with (_|_|_) | (_|_) <;> rcases X with ⟨L,R,_|χ⟩ <;> simp_all
     case inl.bas.none =>
       rcases mv with ⟨ψ, ψ_in, next_in⟩ | ⟨ψ, ψ_in, next_in⟩
       · cases ψ -- L
@@ -366,9 +366,118 @@ lemma move_of_mem_theMoves {p next} :
       subst def_next
       apply move.buEnd lt_in
 
-lemma mem_theMoves_of_move {p next} :
-    move p next → next ∈ theMoves p := by
-  sorry
+lemma mem_theMoves_of_move {pos next} :
+    move pos next → next ∈ theMoves pos := by
+  intro mov
+  rcases pos with ⟨H, X, p⟩
+  rw [theMoves_iff] -- good idea?
+  cases mov
+  case prPdl Y bas r nrep =>
+    simp_all
+    use X.1, X.2.1
+    rcases X with ⟨L,R,_|χ⟩ <;> cases r <;> try subst_eqs <;> try simp_all -- FIXME non-terminal
+    case none.loadL δs δ ψ in_L =>
+      by_cases ψ.isBox
+      · right
+        right
+        -- PROBLEM: PdlRule.loadL actually does not ensure maximal loading?
+        sorry
+      · left; left
+        use δs, δ, ψ
+    case none.loadR δs δ ψ in_L =>
+      by_cases ψ.isBox
+      · right
+        right
+        -- PROBLEM: PdlRule.loadR actually does not ensure maximal loading?
+        sorry
+      · left; right
+        use δs, δ, ψ
+    case some.freeL δs δ ψ  =>
+      right
+      left -- L
+      cases δs
+      · simp_all only [LoadFormula.boxes_nil]
+        cases δ
+        case atom_prog a =>
+          use a, AnyFormula.normal ψ
+          simp only [AnyFormula.normal.injEq, exists_eq_left', reduceCtorEq, false_and,
+            exists_false, LoadFormula.unload, false_or, true_and]
+          aesop
+        all_goals
+          absurd bas
+          rintro ⟨bas, nclos⟩
+          simp at bas
+          specialize bas _ (Or.inr (Or.inr rfl))
+          simp at bas
+      case cons α δs =>
+        cases α
+        case atom_prog a =>
+          use a
+          use ⌊⌊δs⌋⌋⌊δ⌋AnyFormula.normal ψ
+          simp only [LoadFormula.boxes_cons, reduceCtorEq, false_and, exists_const,
+            AnyFormula.loaded.injEq, exists_eq_left', LoadFormula.unload, false_or, true_and]
+          right
+          convert rfl using 5
+          simp
+        all_goals
+          absurd bas
+          rintro ⟨bas, nclos⟩
+          simp only [Option.map_some, Sum.elim_inl, negUnload, unload_boxes, LoadFormula.unload,
+            Formula.boxes_cons, Option.toList_some, List.append_assoc, List.mem_append,
+            List.mem_cons, List.not_mem_nil, or_false, Formula.basic, decide_false,
+            decide_true] at bas
+          specialize bas _ (Or.inr (Or.inr rfl))
+          simp at bas
+    case some.freeR δs δ ψ =>
+      right
+      right -- R, this is the only change here!
+      cases δs
+      · simp_all only [LoadFormula.boxes_nil]
+        cases δ
+        case atom_prog a =>
+          use a, AnyFormula.normal ψ
+          simp only [AnyFormula.normal.injEq, exists_eq_left', reduceCtorEq, false_and,
+            exists_false, LoadFormula.unload, false_or, true_and]
+          aesop
+        all_goals
+          absurd bas
+          rintro ⟨bas, nclos⟩
+          simp at bas
+          specialize bas _ (Or.inr (Or.inr rfl))
+          simp at bas
+      case cons α δs =>
+        cases α
+        case atom_prog a =>
+          use a
+          use ⌊⌊δs⌋⌋⌊δ⌋AnyFormula.normal ψ
+          simp only [LoadFormula.boxes_cons, reduceCtorEq, false_and, exists_const,
+            AnyFormula.loaded.injEq, exists_eq_left', LoadFormula.unload, false_or, true_and]
+          right
+          convert rfl using 5
+          simp
+        all_goals
+          absurd bas
+          rintro ⟨bas, nclos⟩
+          simp only [Option.map_some, Option.toList_some, List.append_assoc, List.mem_append,
+            List.mem_cons, List.not_mem_nil, or_false, Formula.basic, decide_false,
+            decide_true] at bas
+          specialize bas _ (Or.inr (Or.inr rfl))
+          simp at bas
+    case some.modL a ξ =>
+      right
+      left
+      use a, ξ
+      simp
+      cases ξ <;> grind
+    case some.modR =>
+    · grind -- sus that this works but did not in `modL` case?!
+
+  case prLocTab nbas ltX nrep =>
+    simp_all
+    use ltX
+  case buEnd Y ltX nbas Y_in nrep =>
+    simp_all
+    use Y
 
 lemma move.hist (mov : move ⟨Hist, X, pos⟩ next) :
       (∃ newPos, next = ⟨Hist, X, newPos⟩) -- this is for the annoying `prLocTab` case ;-)
