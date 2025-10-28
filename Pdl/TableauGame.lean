@@ -44,14 +44,17 @@ There are three kinds of moves. -/
 -- @[grind] -- FIXME
 inductive move : (old : GamePos) → (new : GamePos) → Prop
 /-- When the sequent is basic and no repeat, let prover apply a PDL rule. -/
-| prPdl {Y Hist nrep Xbasic} : PdlRule X Y →
-    move ⟨Hist, X, .inl (.bas nrep Xbasic)⟩ ⟨(X :: Hist), Y, posOf (X :: Hist) Y⟩
+| prPdl {X Y Hist nrep Xbasic} : PdlRule X Y →
+    move ⟨Hist, X, .inl (.bas nrep Xbasic)⟩
+         ⟨(X :: Hist), Y, posOf (X :: Hist) Y⟩
 /-- If not basic, let prover pick any `ltab : LocalTableau X` as new position. -/
-| prLocTab {Hist X nrep nbas ltab} : move ⟨Hist, X, .inl (.nbas nrep nbas)⟩
-                                          ⟨Hist, X, .inr (.ltab nrep nbas ltab)⟩
+| prLocTab {Hist X nrep nbas ltab} :
+    move ⟨Hist, X, .inl (.nbas nrep nbas)⟩
+         ⟨Hist, X, .inr (.ltab nrep nbas ltab)⟩
 /-- Let Builder pick an end node of `ltab` -/
 | buEnd {X ltab Y Hist nrep nbas} : Y ∈ endNodesOf (ltab : LocalTableau X) →
-    move ⟨Hist, X, .inr (.ltab nrep nbas ltab)⟩ ⟨(X :: Hist), Y, posOf (X :: Hist) Y⟩
+    move ⟨Hist, X, .inr (.ltab nrep nbas ltab)⟩
+         ⟨(X :: Hist), Y, posOf (X :: Hist) Y⟩
 
 lemma move_then_no_rep {Hist X next} {p : (ProverPos Hist X ⊕ BuilderPos Hist X)} :
     move ⟨Hist, X, p⟩ next → ¬ rep Hist X := by
@@ -59,7 +62,7 @@ lemma move_then_no_rep {Hist X next} {p : (ProverPos Hist X ⊕ BuilderPos Hist 
   cases next_p <;> grind
 
 /-- The finite set of moves, given as a function instead of a relation.
-In `theMoves_mem_iff_move` below we prove that this agrees with `move`. -/
+With `move_of_mem_theMoves` and `mem_theMoves_of_move` this agrees with `move`. -/
 @[simp]
 def theMoves : GamePos → Finset GamePos
   -- ProverPos:
@@ -275,8 +278,8 @@ lemma no_moves_of_rep {Hist X pos} (h : rep Hist X) :
   rcases X with ⟨L,R,_|o⟩ <;> rcases pos with (_|_|_)|(_|_) <;> aesop
 
 /-- The finite set given by `theMoves` indeed agrees with the relation `move`.
-(Other direction should hold too, but for now seems to not be needed.) -/
-lemma move_of_mem_theMoves :
+Other direction is `mem_theMoves_of_move`. -/
+lemma move_of_mem_theMoves {p next} :
     next ∈ theMoves p → move p next := by
   rcases p with ⟨Hist, X, pos⟩
   -- FIXME: un-indent
@@ -362,6 +365,10 @@ lemma move_of_mem_theMoves :
     · rcases mv with ⟨lt, lt_in, def_next⟩
       subst def_next
       apply move.buEnd lt_in
+
+lemma mem_theMoves_of_move {p next} :
+    move p next → next ∈ theMoves p := by
+  sorry
 
 lemma move.hist (mov : move ⟨Hist, X, pos⟩ next) :
       (∃ newPos, next = ⟨Hist, X, newPos⟩) -- this is for the annoying `prLocTab` case ;-)
@@ -1230,30 +1237,59 @@ def startPos (X : Sequent) : GamePos := ⟨[], X, posOf [] X⟩
 theorem gameP (X : Sequent) (s : Strategy tableauGame Prover) (h : winning s (startPos X)) :
     Nonempty (Tableau [] X) := gameP_general [] X s _ h
 
+/-! ## All applicable PDL rules
+
+FIXME move this section to another file? It is like `LocalAll.lean` but not local.
+-/
+
+def PdlRule.all (X : Sequent) : List (Σ Y, PdlRule X Y) := sorry
+
+lemma PdlRule.all_spec {X Y} (r : PdlRule X Y) : ⟨Y, r⟩ ∈ PdlRule.all X := by
+  sorry
+
 /-! ## From Builder winning strategies to model graphs (Section 6.3) -/
 
 -- See also Bml/CompletenessViaPaths.lean for inspiration that might be useful here.
 
 /-- Tree data type to keep track of choices made by Builder. Might still need to be tweaked.
-TODO: choices should be labelled with the choices made by prover??
+- Choices should be labelled with the choices made by prover?
+- Maybe we also need to carry proofs in here?
 -/
 inductive BuildTree : Sequent → Type
   | Leaf {X} : BuildTree X
   | Step {X} : List (Σ Y, BuildTree Y) → BuildTree X
 
-/-- The generated strategy tree for Builder -/
+/-- The tree generated from a winning Builder strategy -/
 def buildTree (s : Strategy tableauGame Builder) {H X} p (h : winning s ⟨H, X, p⟩) : BuildTree X :=
   match p with
   -- Prover positions:
   | Sum.inl (.nlpRep _) => .Leaf -- Builder wins :-)
-  | Sum.inl (.bas nrep bas) => sorry -- prover must apply PDL rule
-  | Sum.inl (.nbas nrep nbas) => -- prover must choose local rule / a whole local tableau
+  | Sum.inl (.bas nrep bas) => -- prover chooses PDL rule
+      let prMoves := (PdlRule.all X).map
+        (fun ⟨Y, r⟩ => (⟨(X :: H), Y, posOf (X :: H) Y⟩ : GamePos))
+      have stillWin : ∀ newPos ∈ prMoves, winning s newPos := by
+        -- FIXME some redundancy between here and the termination proof
+        intro newPos newPos_in
+        refine @winning_of_whatever_other_move _ _ s _ (by simp) h ⟨newPos, ?_⟩
+        simp only [List.mem_map, Sigma.exists, exists_and_right, prMoves] at newPos_in
+        rcases newPos_in with ⟨Y, ⟨r, r_in⟩, def_newPos⟩
+        simp only [tableauGame]
+        apply mem_theMoves_of_move
+        subst newPos
+        refine move.prPdl r
+      .Step <| prMoves.attach.map <| fun ⟨pos, h⟩ => ⟨pos.2.1, buildTree s pos.2.2 (stillWin pos h)⟩
+  | Sum.inl (.nbas nrep nbas) => -- prover chooses a local tableau
       -- Note: not using the Fintype instance because we want a List, not Finset
       let prMoves := (LocalTableau.all X).map
         (fun ltab => (⟨H, X, .inr (.ltab nrep nbas ltab)⟩ : GamePos))
-      have stillWin : ∀ newPos ∈ prMoves, winning s newPos := by sorry
-      .Step <|
-      prMoves.attach.map <| fun pos => ⟨_, buildTree s p (stillWin _ sorry)⟩ -- p ≠ pos MISMATCH ?!
+      have stillWin : ∀ newPos ∈ prMoves, winning s newPos := by
+        intro newPos newPos_in
+        refine @winning_of_whatever_other_move _ _ s _ (by simp) h ⟨newPos, ?_⟩
+        simp only [tableauGame, List.mem_map, theMoves, Finset.mem_image, prMoves] at *
+        rcases newPos_in with ⟨ltX, ltX_in, def_newPos⟩
+        refine ⟨ltX, ?_, def_newPos⟩
+        simp_all [Fintype.elems]
+      .Step <| prMoves.attach.map <| fun ⟨pos, h⟩ => ⟨pos.2.1, buildTree s pos.2.2 (stillWin pos h)⟩
   -- Builder positions:
   | Sum.inr (.lpr _) => by exfalso; simp [winning] at h -- prover wins, cannot happen
   | Sum.inr (.ltab nrep nbas ltX) =>
@@ -1264,26 +1300,38 @@ def buildTree (s : Strategy tableauGame Builder) {H X} p (h : winning s ⟨H, X,
         have new_h : winning s Y.1 := winning_of_winning_move _ h
         have forTermination : move ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ Y.1 := by
           have := Y.2
-          simp only [Game.Pos.moves, Game.moves, tableauGame, theMoves] at this
-          simp [-Finset.coe_mem] at this
+          simp only [Game.Pos.moves, tableauGame, theMoves, List.mem_toFinset] at this
           have := fun Y => @move.buEnd X ltX Y H nrep nbas
           grind
         .Step [ ⟨_, buildTree s _ new_h⟩ ]
       else by
         exfalso
-        unfold winning winner at h
-        simp_all
+        simp_all [winning, winner]
 termination_by
   tableauGame.wf.2.wrap (⟨H, X, p⟩ : GamePos)
 decreasing_by
   · simp_wf
-    simp [WellFoundedRelation.rel, Game.wf, tableauGame]
-    -- show that it's a move
-    sorry
+    simp only [tableauGame, Game.wf, WellFoundedRelation.rel]
+    -- PDL rule case
+    simp only [List.mem_map, Sigma.exists, exists_and_right, prMoves] at h
+    rcases h with ⟨Y, ⟨r, _⟩, def_newPos⟩
+    subst def_newPos
+    exact move.prPdl r
   · simp_wf
-    simp [WellFoundedRelation.rel, Game.wf, tableauGame]
+    simp only [tableauGame, Game.wf, WellFoundedRelation.rel]
+    -- show that it's a move
+    unfold prMoves at h
+    simp only [List.mem_map] at h
+    rcases h with ⟨ltX, _, def_pos⟩
+    subst def_pos
+    apply @move.prLocTab H X nrep nbas
+  · simp_wf
+    simp only [tableauGame, Game.wf, WellFoundedRelation.rel]
     -- show that it's a move
     exact forTermination
+
+-- IDEA: define paths inside BuildTree like in `TableauPath.lean`?
+-- Then define *maximal* paths? Including going via back-edges!?
 
 -- TODO Definition 6.13 initial, pre-state
 
