@@ -301,7 +301,7 @@ lemma move_of_mem_theMoves {pos next} :
             apply move.prPdl
             simp only [ne_eq, reduceCtorEq, not_false_eq_true, forall_true_left] at this
             subst this
-            exact PdlRule.loadL ψ_in rfl
+            exact PdlRule.loadL ψ_in ψ_nonBox rfl
           · exfalso
             cases φ <;> simp_all [boxesOf]
         all_goals
@@ -319,7 +319,7 @@ lemma move_of_mem_theMoves {pos next} :
             apply move.prPdl
             simp only [ne_eq, reduceCtorEq, not_false_eq_true, forall_true_left] at this
             subst this
-            exact PdlRule.loadR ψ_in rfl
+            exact PdlRule.loadR ψ_in ψ_nonBox rfl
           · exfalso
             cases φ <;> simp_all [boxesOf]
         all_goals
@@ -376,22 +376,12 @@ lemma mem_theMoves_of_move {pos next} :
     simp_all
     use X.1, X.2.1
     rcases X with ⟨L,R,_|χ⟩ <;> cases r <;> try subst_eqs <;> try simp_all -- FIXME non-terminal
-    case none.loadL δs δ ψ in_L =>
-      by_cases ψ.isBox
-      · right
-        right
-        -- PROBLEM: PdlRule.loadL actually does not ensure maximal loading?
-        sorry
-      · left; left
-        use δs, δ, ψ
-    case none.loadR δs δ ψ in_L =>
-      by_cases ψ.isBox
-      · right
-        right
-        -- PROBLEM: PdlRule.loadR actually does not ensure maximal loading?
-        sorry
-      · left; right
-        use δs, δ, ψ
+    case none.loadL δs δ ψ notBox in_L =>
+      left; left
+      use δs, δ, ψ
+    case none.loadR δs δ ψ notBox in_L =>
+      left; right
+      use δs, δ, ψ
     case some.freeL δs δ ψ  =>
       right
       left -- L
@@ -1186,6 +1176,7 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
         rcases nextPosIn with ⟨χ, χ_in⟩|⟨χ, χ_in⟩
         · cases χ
           case neg φ =>
+            have notBox : ¬ (boxesOf φ).2.isBox := boxesOf_output_not_isBox
             rcases boxesOf_def : boxesOf φ with ⟨_|⟨δ,αs⟩, ψ⟩
             · exfalso; simp [boxesOf_def] at χ_in
             · simp_all only [tableauGame_turn_Prover, List.mem_cons, List.not_mem_nil, or_false]
@@ -1194,7 +1185,8 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
               subst this
               constructor -- leaving Prop
               apply Tableau.pdl nrep Xbas
-                (@PdlRule.loadL _ ((δ :: αs).dropLast) ((δ :: αs).getLast (by simp)) ψ _ _ ?_ ?_)
+                (@PdlRule.loadL _ ((δ :: αs).dropLast)
+                  ((δ :: αs).getLast (by simp)) ψ _ _ ?_ notBox ?_)
                 new_tab_from_IH
               · rw [← boxes_last]
                 rw [@List.dropLast_append_getLast]
@@ -1207,6 +1199,7 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
         -- COPY-PASTA only changed loadL to loadR
         · cases χ
           case neg φ =>
+            have notBox : ¬ (boxesOf φ).2.isBox := boxesOf_output_not_isBox
             rcases boxesOf_def : boxesOf φ with ⟨_|⟨δ,αs⟩, ψ⟩
             · exfalso; simp [boxesOf_def] at χ_in
             · simp_all only [tableauGame_turn_Prover, List.mem_cons, List.not_mem_nil, or_false]
@@ -1215,7 +1208,8 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
               subst this
               constructor -- leaving Prop
               apply Tableau.pdl nrep Xbas
-                (@PdlRule.loadR _ ((δ :: αs).dropLast) ((δ :: αs).getLast (by simp)) ψ _ _ _ _)
+                (@PdlRule.loadR _ ((δ :: αs).dropLast)
+                  ((δ :: αs).getLast (by simp)) ψ _ _ ?_ notBox ?_)
                 new_tab_from_IH
               · rw [← boxes_last]
                 rw [@List.dropLast_append_getLast]

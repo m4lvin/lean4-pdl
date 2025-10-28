@@ -649,13 +649,13 @@ This is used for `move_inside_FL`. -/
 theorem PdlRule.stays_in_FL {X Y} (rule : PdlRule X Y) :
     Y.subseteq_FL X := by
   cases rule
-  case loadL L δ α φ R in_L Y_def =>
+  case loadL L δ α φ R in_L notBox Y_def =>
     subst Y_def
     simp [Sequent.subseteq_FL]
     constructor
     · exact List.Subset.trans List.erase_subset FLL_refl_sub
     · exact FLL_refl_sub in_L
-  case loadR L δ α φ R in_L Y_def =>
+  case loadR L δ α φ R in_L notBox Y_def =>
     subst Y_def
     simp [Sequent.subseteq_FL]
     constructor

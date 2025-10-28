@@ -94,7 +94,7 @@ def subTabForEx2 :
   by
   have principal : (~(⌈a⌉p)) ∈ [r, ~(⌈a⌉p), ⌈a⌉(p⋀q)] := by simp
   apply Tableau.pdl (by simp [rep]; decide) (by simp [Sequent.basic, Sequent.closed])
-    (@PdlRule.loadL _ [] _ _ _ _ principal rfl)
+    (@PdlRule.loadL _ [] _ _ _ _ principal (by simp [Formula.isBox]) rfl)
   simp
   apply Tableau.pdl (by simp [rep]; decide) (by simp [Sequent.basic, Sequent.closed])
     (.modL rfl rfl) -- Note: modL no longer needs to ask for basic.
@@ -199,7 +199,7 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
       by simp
     -- (L+)
     apply Tableau.pdl (by simp [rep]; decide) (by simp [Sequent.basic, Sequent.closed])
-      (PdlRule.loadL (δ := [a]) principal rfl)
+      (PdlRule.loadL (δ := [a]) principal (by simp [Formula.isBox]) rfl)
     clear principal
     simp
     -- (M)

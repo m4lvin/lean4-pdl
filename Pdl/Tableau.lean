@@ -109,9 +109,9 @@ instance {H X} : Decidable (Nonempty (LoadedPathRepeat H X)) := by
 @[grind]
 inductive PdlRule : (X : Sequent) → (Y : Sequent) → Type
   -- The (L+) rule:
-  | loadL : (~⌈⌈δ⌉⌉⌈α⌉φ) ∈ L
+  | loadL : (~⌈⌈δ⌉⌉⌈α⌉φ) ∈ L → ¬ φ.isBox
       → Y = (L.erase (~⌈⌈δ⌉⌉⌈α⌉φ), R, some (Sum.inl (~'(⌊⌊δ⌋⌋⌊α⌋φ)))) → PdlRule (L, R, none) Y
-  | loadR : (~⌈⌈δ⌉⌉⌈α⌉φ) ∈ R
+  | loadR : (~⌈⌈δ⌉⌉⌈α⌉φ) ∈ R → ¬ φ.isBox
       → Y = (L, R.erase (~⌈⌈δ⌉⌉⌈α⌉φ), some (Sum.inr (~'(⌊⌊δ⌋⌋⌊α⌋φ)))) → PdlRule (L, R, none) Y
   -- The (L-) rule:
   | freeL :
