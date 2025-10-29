@@ -371,6 +371,30 @@ end
 theorem AnyFormula.split_normal (φ : Formula) : (AnyFormula.normal φ).split = ([],φ) := by
   simp [AnyFormula.split]
 
+theorem AnyFormula.split_eq_nil_is_normal (ξ φ) : ξ.split = ([],φ) → ξ = AnyFormula.normal φ := by
+  rcases ξ with _|⟨_,_⟩ <;> simp [AnyFormula.split]
+
+mutual
+lemma LoadFormula.split_inj {ξ ξ' : LoadFormula} (h : ξ.split = ξ'.split) : ξ = ξ' := by
+  rcases ξ with ⟨α, ξ⟩
+  rcases ξ' with ⟨α', ξ'⟩
+  simp only [LoadFormula.split, Prod.mk.injEq, List.cons.injEq, LoadFormula.box.injEq] at *
+  constructor
+  · tauto
+  case right =>
+    apply AnyFormula.split_inj
+    aesop
+
+lemma AnyFormula.split_inj {ξ ξ' : AnyFormula} (h : ξ.split = ξ'.split) : ξ = ξ' := by
+  rcases ξ with φ|ξ <;> rcases ξ' with φ'|ξ' <;> simp_all
+  case normal.loaded =>
+    cases ξ'; simp_all
+  case loaded.normal =>
+    cases ξ; simp_all
+  case loaded.loaded =>
+    exact LoadFormula.split_inj h
+end
+
 theorem AnyFormula.box_split (af : AnyFormula) :
   (⌊α⌋af).split = (α :: af.split.1, af.split.2) := by
   cases af <;> simp
@@ -447,7 +471,7 @@ theorem LoadFormula.split_eq_loadMulti_nonEmpty' {δ φ} (lf : LoadFormula) (h :
   have := LoadFormula.split_eq_loadMulti_nonEmpty lf h2
   rw [this]
 
-theorem loadMulti_nonEmpty_eq_loadMulti :
+theorem loadMulti_nonEmpty_eq_loadMulti {δ α h φ} :
     loadMulti_nonEmpty (δ ++ [α]) h φ = loadMulti δ α φ := by
   induction δ
   · simp
@@ -504,6 +528,9 @@ def splitLast : List α → Option (List α × α)
 
 @[simp]
 theorem splitLast_nil : splitLast [] = (none : Option (List α × α)) := by simp [splitLast]
+
+theorem nil_of_splitLast_none : splitLast δs = none → δs = [] := by
+  cases δs <;> simp [splitLast]
 
 theorem splitLast_cons_eq_some (x : α) (xs : List α) :
     splitLast (x :: xs) = some ((x :: xs).dropLast, (x :: xs).getLast (List.cons_ne_nil x xs)) := by
