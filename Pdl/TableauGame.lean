@@ -1345,10 +1345,126 @@ theorem gameP (X : Sequent) (s : Strategy tableauGame Prover) (h : winning s (st
 FIXME move this section to another file? It is like `LocalAll.lean` but not local.
 -/
 
-def PdlRule.all (X : Sequent) : List (Σ Y, PdlRule X Y) := sorry
+/-- List of all `PdlRule`s applicable to `X`. Code is based on part of `theMoves`. -/
+def PdlRule.all (X : Sequent) : List (Σ Y, PdlRule X Y) :=
+  match X with
+  | ⟨L, R, none⟩ => -- (L+) if X is not loaded, choice of formula
+        (L.attach.map (fun -- Catch a negation and all boxes (≥ 1) after it to be loaded.
+                    | ⟨~φ, in_L⟩ => match bdef : boxesOf φ with
+                        | (δ@δ_def:(_::_), ψ) =>
+                          have notBox : ¬ ψ.isBox := by
+                            have := @boxesOf_output_not_isBox φ; simp_all
+                          have _in'' : (~⌈⌈δ.dropLast⌉⌉⌈δ.getLast _⌉ψ) ∈ L := by
+                            rw [def_of_boxesOf_def bdef] at in_L
+                            convert in_L using 2
+                            rw [← δ_def, ← @boxes_last, @List.dropLast_append_getLast]
+                          [ ⟨ ( L.erase _, R
+                              , some (Sum.inl (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by simp_all)⌋ψ))))
+                            , .loadL _in'' notBox rfl ⟩ ]
+                        | ([],_) => []
+                    | _ => [] )).flatten
+        ++
+        (R.attach.map (fun
+                    | ⟨~φ, in_R⟩ => match bdef : boxesOf φ with
+                        | (δ@δ_def:(_::_), ψ) =>
+                          have notBox : ¬ ψ.isBox := by
+                            have := @boxesOf_output_not_isBox φ; simp_all
+                          have _in'' : (~⌈⌈δ.dropLast⌉⌉⌈δ.getLast _⌉ψ) ∈ R := by
+                            rw [def_of_boxesOf_def bdef] at in_R
+                            convert in_R using 2
+                            rw [← δ_def, ← @boxes_last, @List.dropLast_append_getLast]
+                          [ ⟨ ( L, R.erase _
+                              , some (Sum.inr (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by simp_all)⌋ψ))))
+                            , .loadR _in'' notBox rfl ⟩ ]
+                        | ([],_) => []
+                    | _ => [] )).flatten
+  | ⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩ =>
+          ( match ξ_def : ξ with -- (M) rule, deterministic:
+          | .normal φ => [ ⟨ ⟨ _, _, none                ⟩, .modL rfl rfl ⟩ ]
+          | .loaded χ => [ ⟨ ⟨ _, _, some (Sum.inl (~'χ))⟩, .modL rfl rfl ⟩ ] )
+          ++ -- (L-) rule, deterministic:
+          [ match ξsp_def : ξ.split with
+          | ⟨δs, φ⟩ => match sp_def : splitLast δs with
+            | none =>
+              ⟨ (L.insert (~(⌊·a⌋ξ).unload), R, none)
+              , @PdlRule.freeL _ L R [] (·a) φ _
+                  (by simp_all [nil_of_splitLast_none, AnyFormula.split_eq_nil_is_normal])
+                  (by simp_all [nil_of_splitLast_none, AnyFormula.split_eq_nil_is_normal]) ⟩
+            | some ⟨δs_, δ⟩ =>
+              ⟨ (L.insert (~(⌊·a⌋ξ).unload), R, none)
+              , by
+                  have ξ_def : ξ = AnyFormula.loadBoxes (δs_ ++ [δ]) φ := by
+                      rw [← splitLast_append_singleton] at sp_def
+                      rw [splitLast_inj sp_def, ← loadMulti_split] at ξsp_def
+                      have : (loadMulti δs_ δ φ).split = AnyFormula.split (loadMulti δs_ δ φ) := rfl
+                      have := AnyFormula.split_inj (this ▸ ξsp_def)
+                      exact this ▸ loadMulti_eq_loadBoxes
+                  refine @PdlRule.freeL _ L R (·a :: δs_) δ φ _ ?_ ?_
+                  · simp [ξ_def, box_loadBoxes_append_eq_of_loaded_eq_loadBoxes]
+                  · simp only [Formula.boxes_cons, Prod.mk.injEq, and_true]
+                    convert rfl
+                    simp [ξ_def, AnyFormula.loadBoxes_unload_eq_boxes, boxes_last] ⟩
+          ]
+  | ⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩ =>
+          ( match ξ_def : ξ with -- (M) rule, deterministic:
+          | .normal φ => [ ⟨ ⟨ _, _, none                ⟩, .modR rfl rfl ⟩ ]
+          | .loaded χ => [ ⟨ ⟨ _, _, some (Sum.inr (~'χ))⟩, .modR rfl rfl ⟩ ] )
+          ++ -- (L-) rule, deterministic:
+          [ match ξsp_def : ξ.split with
+          | ⟨δs, φ⟩ => match sp_def : splitLast δs with
+            | none =>
+              ⟨ (L, R.insert (~(⌊·a⌋ξ).unload), none)
+              , @PdlRule.freeR _ L R [] (·a) φ _
+                  (by simp_all [nil_of_splitLast_none, AnyFormula.split_eq_nil_is_normal])
+                  (by simp_all [nil_of_splitLast_none, AnyFormula.split_eq_nil_is_normal]) ⟩
+            | some ⟨δs_, δ⟩ =>
+              ⟨ (L, R.insert (~(⌊·a⌋ξ).unload), none)
+              , by
+                  have ξ_def : ξ = AnyFormula.loadBoxes (δs_ ++ [δ]) φ := by
+                      rw [← splitLast_append_singleton] at sp_def
+                      rw [splitLast_inj sp_def, ← loadMulti_split] at ξsp_def
+                      have : (loadMulti δs_ δ φ).split = AnyFormula.split (loadMulti δs_ δ φ) := rfl
+                      have := AnyFormula.split_inj (this ▸ ξsp_def)
+                      exact this ▸ loadMulti_eq_loadBoxes
+                  refine @PdlRule.freeR _ L R (·a :: δs_) δ φ _ ?_ ?_
+                  · simp [ξ_def, box_loadBoxes_append_eq_of_loaded_eq_loadBoxes]
+                  · simp only [Formula.boxes_cons, Prod.mk.injEq, and_true, true_and]
+                    convert rfl
+                    simp [ξ_def, AnyFormula.loadBoxes_unload_eq_boxes, boxes_last] ⟩
+          ]
+  -- WORRY: also need to allow freeL/freeR from non-atomic loading? (to make _spec below provable)
+  | _ => [] -- YOLO?
 
+/-- NOTE: unfinished but also NOT USED at the moment / not needed at all?
+
+Maybe it's enough to build the countermodelgraph from a buildTree that uses only the PdlRules in
+`PdlRule.all` and we can ignore other (e.g. non-atomic unloading) PdlRule applications???
+-/
 lemma PdlRule.all_spec {X Y} (r : PdlRule X Y) : ⟨Y, r⟩ ∈ PdlRule.all X := by
-  sorry
+  cases r
+  case loadL L δs α φ R in_L notBox Y_def =>
+    subst Y_def
+    unfold all
+    simp
+    sorry
+  case loadR R δs α φ L in_R notBox Y_def =>
+    -- analogous
+    sorry
+  case freeL L R δs α φ X_def Y_def =>
+    subst X_def Y_def
+    cases δs <;> simp_all [all]
+    · -- rw [Formula.boxes_nil] -- motive is not type correct
+      sorry
+    · sorry
+  case freeR L R δs α φ X_def Y_def =>
+    -- analogous
+    sorry
+  case modL L R a ξ X_def Y_def =>
+    subst X_def Y_def
+    cases ξ <;> simp_all [all]
+  case modR L R a ξ X_def Y_def =>
+    subst X_def Y_def
+    cases ξ <;> simp_all [all]
 
 /-! ## From Builder winning strategies to model graphs (Section 6.3) -/
 
