@@ -5,25 +5,34 @@ import Pdl.Vocab
 
 /-! # Fischer-Ladner Closure
 
-Here we define a closure on sets of formulas.
+Here we define a closure on sets (well, actually lists) of formulas.
 Our main reference for this closure is Section 6.1 of [HKT2000]
+which also was used in a Rocq formalization in [DB2018].
 See also Definition 4.79 and Exercise 4.8.2 in [BRV2001].
 An alternative version following the proof of Theorem 3.2 in [FL1979]
 but unfinished is in `Unused/FischerLadnerViaPreForms.lean`.
 
 - [FL1979] Michael J. Fischer and Richard E. Ladner (1979):
   *Propositional dynamic logic of regular programs*.
-	Journal of Computer and System Sciences, vol 18, no 2, pp. 194--211.
-	<https://doi.org/10.1016/0022-0000(79)90046-1>
-
-- [BRV2001] Patrick Blackburn, Maarten de Rijke and Yde Venema (2001):
-	*Modal Logic*.
-	Cambridge University Press.
-  <https://www.mlbook.org/>
+  Journal of Computer and System Sciences, vol 18, no 2, pp. 194--211.
+  <https://doi.org/10.1016/0022-0000(79)90046-1>
 
 - [HKT2000] David Harel, Dexter Kozen, and Jerzy Tiuryn (2000):
   *Dynamic Logic*.
   MIT Press, 2000.
+
+- [BRV2001] Patrick Blackburn, Maarten de Rijke and Yde Venema (2001):
+  *Modal Logic*.
+  Cambridge University Press.
+  <https://www.mlbook.org>
+
+- [DB2018] Christian Doczkal and Joachim Bard:
+  *Completeness and Decidability of Converse PDL in the Constructive Type Theory of Coq*,
+  CPP 2018.
+  <https://hal.science/hal-01646782>
+  —
+  The code for this work is at <https://github.com/chdoc/comp-dec-pdl> and their FL closure definition
+  is [here](https://github.com/chdoc/comp-dec-pdl/blob/master/PDL/PDL_def.v#L472).
 
 -/
 
