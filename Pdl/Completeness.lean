@@ -1,7 +1,7 @@
 import Pdl.Soundness
-import Pdl.TableauGame
+import Pdl.BuildTree
 
-/-! # Completeness (Section 6) -/
+/-! # Completeness Proof (Section 6.4) -/
 
 open HasSat
 
@@ -18,6 +18,7 @@ theorem modelExistence {X} : consistent X →
     rcases strmg X sB winning_sB with ⟨WS, mg, X_in_WS⟩
     use WS, mg, ⟨X.toFinset, X_in_WS⟩
 
+/-- Theorem 6.1 -/
 theorem completeness : ∀ X, consistent X → satisfiable X :=
   by
   rintro ⟨L, R, O⟩ X_is_consistent

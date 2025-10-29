@@ -1,5 +1,6 @@
 import Pdl.AxiomBlame
 import Pdl.Beth
+import Pdl.BuildTree
 import Pdl.Completeness
 import Pdl.Discon
 import Pdl.Distance
