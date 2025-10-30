@@ -131,9 +131,9 @@ lemma PdlRule.all_spec {X Y} (r : PdlRule X Y) : ⟨Y, r⟩ ∈ PdlRule.all X :=
 - Choices should be labelled with the choices made by prover?
 - Maybe we also need to carry proofs in here?
 -/
-inductive BuildTree : Sequent → Type
-  | Leaf {X} : Nat → BuildTree X
-  | Step {X} : List (Σ Y, BuildTree Y) → BuildTree X
+inductive BuildTree : GamePos → Type
+  | Leaf {pos} (rp : rep pos.1 pos.2.1) : BuildTree pos
+  | Step {pos} (YS : List GamePos) (next : ∀ newPos ∈ YS, BuildTree newPos) : BuildTree pos
 
 -- QUESTION: are actually all leafs in the BuildTree backpointers?
 
@@ -147,10 +147,11 @@ def theRep {H X} (rp : rep H X) : Nat :=
   | some k => k
 
 /-- The tree generated from a winning Builder strategy -/
-def buildTree (s : Strategy tableauGame Builder) {H X} p (h : winning s ⟨H, X, p⟩) : BuildTree X :=
+def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X, p⟩) :
+    BuildTree ⟨H, X, p⟩ :=
   match p with
   -- Prover positions:
-  | Sum.inl (.nlpRep rp noLpRep) => .Leaf (theRep rp) -- Builder wins with back-pointer :-)
+  | Sum.inl (.nlpRep rp noLpRep) => .Leaf rp -- Builder wins with back-pointer :-)
   | Sum.inl (.bas nrep bas) => -- prover chooses PDL rule
       let prMoves := (PdlRule.all X).map
         (fun ⟨Y, r⟩ => (⟨(X :: H), Y, posOf (X :: H) Y⟩ : GamePos))
@@ -163,8 +164,8 @@ def buildTree (s : Strategy tableauGame Builder) {H X} p (h : winning s ⟨H, X,
         simp only [tableauGame]
         apply mem_theMoves_of_move
         subst newPos
-        refine move.prPdl r
-      .Step <| prMoves.attach.map <| fun ⟨pos, h⟩ => ⟨pos.2.1, buildTree s pos.2.2 (stillWin pos h)⟩
+        exact move.prPdl r
+      .Step prMoves <| fun Y Y_in => buildTree s (stillWin _ Y_in)
   | Sum.inl (.nbas nrep nbas) => -- prover chooses a local tableau
       -- Note: not using the Fintype instance because we want a List, not Finset
       let prMoves := (LocalTableau.all X).map
@@ -176,7 +177,7 @@ def buildTree (s : Strategy tableauGame Builder) {H X} p (h : winning s ⟨H, X,
         rcases newPos_in with ⟨ltX, ltX_in, def_newPos⟩
         refine ⟨ltX, ?_, def_newPos⟩
         simp_all [Fintype.elems]
-      .Step <| prMoves.attach.map <| fun ⟨pos, h⟩ => ⟨pos.2.1, buildTree s pos.2.2 (stillWin pos h)⟩
+      .Step prMoves <| fun Y Y_in => buildTree s (stillWin _ Y_in)
   -- Builder positions:
   | Sum.inr (.lpr _) => by exfalso; simp [winning] at h -- prover wins, cannot happen
   | Sum.inr (.ltab nrep nbas ltX) =>
@@ -184,13 +185,13 @@ def buildTree (s : Strategy tableauGame Builder) {H X} p (h : winning s ⟨H, X,
       then
         -- use `s` to choose `Y ∈ endNodeOf ltX`
         let Y := (s ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ (by simp) ne)
-        have new_h : winning s Y.1 := winning_of_winning_move _ h
+        have stillWin : winning s Y.1 := winning_of_winning_move _ h
         have forTermination : move ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ Y.1 := by
           have := Y.2
           simp only [Game.Pos.moves, tableauGame, theMoves, List.mem_toFinset] at this
           have := fun Y => @move.buEnd X ltX Y H nrep nbas
           grind
-        .Step [ ⟨_, buildTree s _ new_h⟩ ]
+        .Step [ Y.1 ] <| fun Y Y_in => by simp at Y_in; subst Y_in; exact buildTree s stillWin
       else by
         exfalso
         simp_all [winning, winner]
@@ -200,16 +201,16 @@ decreasing_by
   · simp_wf
     simp only [tableauGame, Game.wf, WellFoundedRelation.rel]
     -- PDL rule case
-    simp only [List.mem_map, Sigma.exists, exists_and_right, prMoves] at h
-    rcases h with ⟨Y, ⟨r, _⟩, def_newPos⟩
+    simp only [List.mem_map, Sigma.exists, exists_and_right, prMoves] at Y_in
+    rcases Y_in with ⟨Y, ⟨r, _⟩, def_newPos⟩
     subst def_newPos
     exact move.prPdl r
   · simp_wf
     simp only [tableauGame, Game.wf, WellFoundedRelation.rel]
     -- show that it's a move
-    unfold prMoves at h
-    simp only [List.mem_map] at h
-    rcases h with ⟨ltX, _, def_pos⟩
+    unfold prMoves at Y_in
+    simp only [List.mem_map] at Y_in
+    rcases Y_in with ⟨ltX, _, def_pos⟩
     subst def_pos
     apply @move.prLocTab H X nrep nbas
   · simp_wf
@@ -239,5 +240,5 @@ decreasing_by
 /-- Theorem 6.21: If Builder has a winning strategy then there is a model graph. -/
 theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (startPos X)) :
     ∃ (WS : Finset (Finset Formula)) (mg : ModelGraph WS), X.toFinset ∈ WS := by
-  let bt := buildTree s (startPos X).2.2
+  let bt := buildTree s h
   sorry
