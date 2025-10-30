@@ -221,7 +221,47 @@ decreasing_by
 -- IDEA: define paths and edge-relation inside BuildTree as in `TableauPath.lean`?
 -- Then define *maximal* paths? Including going via back-edges!?
 
+/-- Inspired by `PathIn` -/
+inductive Match : ∀ {pos : GamePos}, BuildTree pos → Type
+| stop {bt} : Match bt
+| move {YS Y next} (Y_in : Y ∈ YS) (tail : Match (next Y Y_in)) : Match (BuildTree.Step YS next)
+
+def Match.btAt {bt : BuildTree pos} : Match bt → Σ newPos, BuildTree newPos
+| .stop => ⟨_, bt⟩
+| .move _ tail => btAt tail
+
+-- TODO lemmas like those about `tabAt` and `nodeAt`?
+
+def Match.append : (m1 : Match bt) → (m2 : Match (btAt m1).2) → Match bt
+| .stop, m2 => m2
+| .move Y_in tail, m2 => .move Y_in (append tail m2)
+
+-- TODO lemmas like those about `PathIn.append`?
+
+/-- The parent-child relation ⋖_𝕋 in a Builder strategy tree. Similar to `edge`. -/
+def Match.edge (m n : Match bt) : Prop :=
+  ∃ YS next, ∃ mPos nPos : GamePos, ∃ nPos_in,
+    ∃ (h : btAt m = ⟨mPos, BuildTree.Step YS next⟩),
+      n = m.append (h ▸ @Match.move _ _ nPos _ nPos_in .stop)
+
+-- FIXME use `Fin` instead of `Nat`?
+def Match.rewind : Match bt → Nat → Match bt := sorry
+
+-- ... lots of stuff needed here?
+
+def Match.companionOf {bt : BuildTree pos} (m : Match bt) rp
+  (_ : btAt m = ⟨mPos, BuildTree.Leaf rp⟩) : Match bt :=
+    m.rewind (theRep rp)
+    -- s.rewind ((Fin.cast (tabAt_fst_length_eq_toHistory_length s) lpr.val).succ)
+
+def Match.companion (m n : Match bt) : Prop :=
+  ∃ (mPos :_) (rp : _) (h : btAt m = ⟨mPos, BuildTree.Leaf rp⟩),
+    n = Match.companionOf m rp h
+
+def Match.cEdge (m n : Match bt) : Prop := Match.edge m n ∨ Match.companion m n
+
 -- TODO Definition 6.13 initial, pre-state
+-- QUESTION: paper only allows one back-pointer step in pre-states. Is that enough?
 
 -- TODO Lemma 6.14: how to collect formulas in a pre-state
 
