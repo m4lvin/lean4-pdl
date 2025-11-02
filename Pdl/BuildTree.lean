@@ -2,6 +2,8 @@ import Pdl.TableauGame
 
 /-! # From winning strategies to model graphs (Section 6.3) -/
 
+/-! ## BuildTree -/
+
 /-- List of all `PdlRule`s applicable to `X`. Code is based on part of `theMoves`
 This is also similar to the definitions in `LocalAll.lean`. -/
 def PdlRule.all (X : Sequent) : List (Σ Y, PdlRule X Y) :=
@@ -129,6 +131,7 @@ lemma PdlRule.all_spec {X Y} (r : PdlRule X Y) : ⟨Y, r⟩ ∈ PdlRule.all X :=
 
 /-- Tree data type to keep track of choices made by Builder. Might still need to be tweaked.
 - Choices should be labelled with the choices made by prover?
+  TODO: i.e. we need to keep track of which rule is used.
 - Maybe we also need to carry proofs in here?
 -/
 inductive BuildTree : GamePos → Type
@@ -165,6 +168,7 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
         apply mem_theMoves_of_move
         subst newPos
         exact move.prPdl r
+      -- TODO: what if `prMoves` here is empty? Make a leaf then?
       .Step prMoves <| fun Y Y_in => buildTree s (stillWin _ Y_in)
   | Sum.inl (.nbas nrep nbas) => -- prover chooses a local tableau
       -- Note: not using the Fintype instance because we want a List, not Finset
@@ -177,6 +181,7 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
         rcases newPos_in with ⟨ltX, ltX_in, def_newPos⟩
         refine ⟨ltX, ?_, def_newPos⟩
         simp_all [Fintype.elems]
+      -- TODO: check that `prMoves` here can never be empty?
       .Step prMoves <| fun Y Y_in => buildTree s (stillWin _ Y_in)
   -- Builder positions:
   | Sum.inr (.lpr _) => by exfalso; simp [winning] at h -- prover wins, cannot happen
@@ -218,8 +223,10 @@ decreasing_by
     -- show that it's a move
     exact forTermination
 
--- IDEA: define paths and edge-relation inside BuildTree as in `TableauPath.lean`?
--- Then define *maximal* paths? Including going via back-edges!?
+/-! ## Match
+
+Here we define paths inside a `BuildTree`, similar to `PathIn` for `Tableau`.
+-/
 
 /-- Inspired by `PathIn` -/
 inductive Match : ∀ {pos : GamePos}, BuildTree pos → Type
@@ -258,18 +265,59 @@ def Match.companion (m n : Match bt) : Prop :=
   ∃ (mPos :_) (rp : _) (h : btAt m = ⟨mPos, BuildTree.Leaf rp⟩),
     n = Match.companionOf m rp h
 
+-- skip / not use this?
 def Match.cEdge (m n : Match bt) : Prop := Match.edge m n ∨ Match.companion m n
 
--- TODO Definition 6.13 initial, pre-state
--- QUESTION: paper only allows one back-pointer step in pre-states. Is that enough?
+/-! ## Pre-states (Def 6.13)
 
--- TODO Lemma 6.14: how to collect formulas in a pre-state
+As possible worlds for the model graph we want to define *maximal* paths inside the build tree.
+These paths may use `companion` steps, but they should not contain any `(M)` steps.
+
+QUESTION: why do we in the paper only allow one `companion` step?
+-/
+
+/-- How to say that this is not a modal step? -/
+def Match.edge.not_mod : Match.edge m n → Prop := sorry
+
+/-- A pre-state-part is a path in a BuildTree starting at a Match, going along any non-(M) `edge`
+or `companion` steps and ending ???? -/
+inductive PreStateP {Pos} (bt : BuildTree Pos) : (m : Match bt) → Type
+| edge {m n} : (e : Match.edge m n) → e.not_mod → PreStateP bt n → PreStateP bt m
+| companion : Match.companion m n → PreStateP bt n → PreStateP bt m
+| stop :
+    -- PROBLEM / QUESTION: end just before (M), but also at leaf given by empty `prMoves`???
+    false → PreStateP bt m
+
+/-- A pre-state is a maximal pre-state-part, i.e. starting at the root or just after (M+). -/
+inductive PreState {Pos} (bt : BuildTree Pos) : (m : Match bt) → Type
+
+def PreState.all (bt : BuildTree Pos) : List (Σ m, PreState bt m) := sorry
+
+-- TODO lemma PreState.all_spec : ...
+
+/-- Collect formulas in a pre-state -/
+def PreState.forms : PreState bt m → List Formula := sorry
+
+def PreState.last : PreState bt n → Sequent := sorry
+
+-- TODO Lemma 6.14
 
 -- TODO Lemma 6.15
 
--- TODO Lemma 6.16 pre-states are locally consistent and saturated, last node basic.
+-- TODO Lemma 6.16: pre-states are saturated and locally consistent, their last node is basic.
+lemma PreState.locConsSatBas (π : PreState bt m) :
+    saturated (π.forms).toFinset
+    ∧ locallyConsistent (π.forms).toFinset
+    ∧ π.last.basic
+  := sorry
 
--- TODO Definition 6.18 to get model graph from strategy tree.
+/-- Definition 6.17 to get model graph from strategy tree. -/
+@[simp]
+def BuildTree.toModel (bt : BuildTree Pos) : (Σ W : Finset (Finset Formula), KripkeModel W) :=
+  ⟨ ((PreState.all bt).map (fun ⟨_, π⟩ => π.forms.toFinset)).toFinset -- W
+  , { val := fun X p => Formula.atom_prop p ∈ X.1 -- valuation V(p)
+    , Rel := fun a X Y => -- relation Rₐ
+        ∃ φ, (~⌈·a⌉φ) ∈ X.1 ∧ (projection a X.1.toList).toFinset ∪ {~φ} ⊆ Y.1 }⟩
 
 -- TODO Lemma 6.18
 
@@ -277,8 +325,32 @@ def Match.cEdge (m n : Match bt) : Prop := Match.edge m n ∨ Match.companion m 
 
 -- TODO Lemma 6.20: diamond existence lemma for pre-states
 
+/-! ## Model graph of pre-states -/
+
 /-- Theorem 6.21: If Builder has a winning strategy then there is a model graph. -/
 theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (startPos X)) :
     ∃ (WS : Finset (Finset Formula)) (mg : ModelGraph WS), X.toFinset ∈ WS := by
   let bt := buildTree s h
-  sorry
+  let WS := bt.toModel.1
+  let M := bt.toModel.2
+  refine ⟨WS, ⟨M, ⟨?i, ?ii, ?iii, ?iv⟩⟩, ?X_in⟩  -- FIXME rename to (a), (b), (c), (d) as in paper?
+  -- show the model graph properties
+  · rintro ⟨X, X_in⟩
+    unfold WS at X_in
+    simp at X_in
+    rcases X_in with ⟨m, π, in_all, def_X⟩
+    have := PreState.locConsSatBas π-- using Lemma 6.16 for (i)
+    simp_all
+  · -- "(b, c) will follow immediately from the definition"
+    simp_all [M]
+  · intro X Y a φ X_a_Y aφ_in_X -- pick any ⌈a⌉φ
+    simp only [M] at X_a_Y
+    rcases X_a_Y with ⟨ψ, in_X, sub_Y⟩ -- relation was witnessed by ⌈a⌉ψ
+    apply sub_Y -- show that φ is in projection
+    simp_all
+  · -- "The main challenge" :-)
+    sorry
+  · unfold WS
+    simp
+    -- need actual def for `PreState.all` first
+    sorry
