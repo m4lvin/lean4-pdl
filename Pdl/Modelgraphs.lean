@@ -15,7 +15,7 @@ open HasLength
 /-- A set of formulas is saturated if it is closed under:
 removing double negations, splitting (negated) conjunctions,
 unfolding boxes using any test profile, and unfolding diamonds using `H`.
--/
+Part of Def 6.2 -/
 def saturated : Finset Formula → Prop
   -- TODO: change P Q notation to φ ψ
   | X => ∀ (P Q : Formula) (α : Program),
@@ -26,6 +26,11 @@ def saturated : Finset Formula → Prop
     -- programs closure, now only two general cases, no program subcases:
     ∧ ((⌈α⌉P) ∈ X → ∃ l : TP α, (Xset α l P).all (fun y => y ∈ X))
     ∧ ((~⌈α⌉P) ∈ X → ∃ Fδ ∈ H α, (Yset Fδ P).all (fun y => y ∈ X))
+
+/-- A set of formulas is lcoally consistent iff it does not contain ⊥
+and for all atoms p ∈ X we do not have ~p ∈ X. Part of Def 6.2 -/
+def locallyConsistent (X : Finset Formula) : Prop :=
+  ⊥ ∉ X.val ∧ ∀ pp, (·pp : Formula) ∈ X.val → (~(·pp)) ∉ X.val
 
 namespace Modelgraphs
 
@@ -47,7 +52,7 @@ fulfilling conditions (i) to (iv). See MB Def 19, page 31.
 Note: In (ii) MB only has →. We follow BRV Def 4.18 and 4.84.
 Note: In (iii) "a" is atomic, but in iv "α" is any program. -/
 def ModelGraph (W : Finset (Finset Formula)) :=
-  let i := ∀ X : W, saturated X.val ∧ ⊥ ∉ X.val ∧ ∀ pp, (·pp : Formula) ∈ X.val → (~(·pp)) ∉ X.val
+  let i := ∀ X : W, saturated X.val ∧ locallyConsistent X
   let ii M := ∀ X p, (·p : Formula) ∈ X.val ↔ M.val X p
   let iii M := ∀ X Y a P, M.Rel a X Y → (⌈·a⌉P) ∈ X.val → P ∈ Y.val
   let iv M := ∀ X α P, (~⌈α⌉P) ∈ X.val → ∃ Y, (Q M.Rel) α X Y ∧ (~P) ∈ Y.val
@@ -78,7 +83,7 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
     (⌈⌈δ.drop i⌉⌉φ) ∈ ((X :: l ++ [Y]).get i).val := by
   induction i using Fin.inductionOn
   case zero =>
-    simp_all only [instBot, insTop, List.cons_append, List.zip_cons_cons, Subtype.forall,
+    simp_all only [insTop, List.cons_append, List.zip_cons_cons, Subtype.forall,
       List.length_cons, Fin.val_zero, List.drop_zero, List.get_cons_zero]
       -- uses δφ_in_X
   case succ i IH =>
@@ -93,26 +98,25 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
         rw [this]
         simp only [Fin.getElem_fin, Fin.coe_cast, List.append_eq, List.getElem_cons_drop]
         cases i
-        simp_all only [instBot, insTop, List.zip_cons_cons, Subtype.forall, List.append_eq,
+        simp_all only [insTop, List.zip_cons_cons, Subtype.forall, List.append_eq,
           Fin.castSucc_mk]
         rw [Formula.boxes_cons]
       rw [this]
       exact IH
-    · simp only [instBot, List.append_eq, Fin.getElem_fin, Fin.coe_cast, List.cons_append,
+    · simp only [List.append_eq, Fin.getElem_fin, Fin.coe_cast, List.cons_append,
       List.get_eq_getElem, List.length_cons, Fin.coe_castSucc]
       -- It now remains to make lchain usable
       rw [List.isChain_iff_get] at lchain
       specialize lchain i ?_
       · rcases i with ⟨val, hyp⟩
         simp_all only [insTop, List.zip_cons_cons, List.length_cons, List.length_zip,
-          List.length_append, min_self, instBot,
-          List.get_eq_getElem, List.getElem_cons_succ, List.getElem_zip, Subtype.forall,
-          List.append_eq, Fin.castSucc_mk]
+          List.length_append, min_self, List.get_eq_getElem, List.getElem_cons_succ,
+          List.getElem_zip, Subtype.forall, List.append_eq, Fin.castSucc_mk]
         rw [← length_def]
         simp only [List.append_eq, List.length_append, List.length_cons, List.length_nil,
           zero_add] at hyp
         linarith
-      simp [pairRel, instBot, insTop, List.zip_cons_cons, List.length_cons, List.append_eq,
+      simp [pairRel, insTop, List.zip_cons_cons, List.length_cons, List.append_eq,
         List.getElem_zip] at lchain
       convert lchain
       apply get_eq_getzip
@@ -126,24 +130,24 @@ set_option maxHeartbeats 2000000 in
 mutual
 
 /-- C3 in notes -/
-theorem Q_then_relate (MG : ModelGraph Worlds) α (X Y : Worlds) :
+theorem Q_then_relate {Worlds} (MG : ModelGraph Worlds) α (X Y : Worlds) :
     Q MG.val.Rel α X Y → relate MG.val α X Y := by
   cases α
   case atom_prog =>
-    simp only [instBot, Q, relate, imp_self]
+    simp only [Q, relate, imp_self]
   case sequence α β =>
     have := Q_then_relate MG α
     have := Q_then_relate MG β
-    simp only [instBot, Subtype.forall, Q, Relation.Comp, Subtype.exists,
+    simp only [Subtype.forall, Q, Relation.Comp, Subtype.exists,
       relate, forall_exists_index, and_imp] at *
     tauto
   case union α β =>
     have := Q_then_relate MG α
     have := Q_then_relate MG β
-    simp only [instBot, Subtype.forall, Q, relate] at *
+    simp only [Subtype.forall, Q, relate] at *
     tauto
   case star α =>
-    simp only [instBot, Q, relate]
+    simp only [Q, relate]
     apply Relation.ReflTransGen.lift
     intro a b Qab
     exact Q_then_relate MG α a b Qab
@@ -162,8 +166,7 @@ termination_by
 theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
     ∀ P, (P ∈ X.val → evaluate MG.val X P) -- (+)
     ∧ ((~P) ∈ X.val → ¬evaluate MG.val X P) -- (-)
-    :=
-  by
+    := by
   intro P
   cases P -- no "induction", use recursive calls!
   case bottom =>
@@ -172,6 +175,7 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
       apply absurd P_in_X
       have ⟨_,⟨i,_,_,_⟩⟩ := MG
       specialize i X
+      unfold locallyConsistent at i
       tauto
     · simp only [evaluate, not_false_eq_true, implies_true]
   case atom_prop pp =>
@@ -194,7 +198,7 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
       simp only [evaluate]
       exact minus notQ_in_X
     · intro notnotQ_in_X
-      simp only [instBot, evaluate, not_not]
+      simp only [evaluate, not_not]
       have ⟨M,⟨i,_,_,_⟩⟩ := MG
       rcases i X with ⟨X_saturated, _, _⟩
       exact plus ((X_saturated Q Q (?'Q)).1 notnotQ_in_X)
@@ -249,7 +253,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
   -- NOTE we do `atom` and `star` but then `all_goals`
   case atom_prog a =>
     subst α_def
-    simp only [instBot, relate] at X_rel_Y
+    simp only [relate] at X_rel_Y
     have ⟨_,⟨_,_,iii,_⟩⟩ := MG
     exact iii X Y _ _ X_rel_Y boxP_in_X
   case star β =>
@@ -382,12 +386,12 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       have _forTermination : lengthOfFormula τ < lengthOfProgram _ := F_goes_down τ_in
       have := loadedTruthLemma MG X τ
       subst α_def
-      simp_all only [instBot, relate, Subtype.exists, lengthOfProgram, true_or, forall_true_left]
+      simp_all only [relate, Subtype.exists, lengthOfProgram, true_or, forall_true_left]
     have := existsBoxFP _ X_rel_Y (α_def ▸ ℓ)
       (by simp [modelCanSemImplyForm,conEval]; exact X_F)
     rcases this with ⟨δ, δ_in_P, X_δ_Y⟩
     have δφ_in_X : (⌈⌈δ⌉⌉φ) ∈ X.val := by
-      simp_all only [instBot, relate, Subtype.exists]
+      simp_all only [relate, Subtype.exists]
       subst_eqs
       apply Xset_sub_X
       right
