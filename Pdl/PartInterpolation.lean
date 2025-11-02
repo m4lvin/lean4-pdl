@@ -1,5 +1,4 @@
-import Mathlib.Data.Finset.Basic
-
+import Pdl.Flip
 import Pdl.Soundness
 
 /-! # Interpolants for Partitions (big part of Section 7)
@@ -505,13 +504,15 @@ instance : Decidable (isExitIn X C) := sorry
 inductive Typ | one | two | three -- lower case because these are not `Type`s.
 open Typ
 
-/-- Simple tree data type for `Q`. -/
-inductive QuasiTab : Type | QNode : Typ → Sequent → List QuasiTab → QuasiTab
+/-- Simple tree data type for `Q` in Def. 7.31. -/
+inductive QuasiTab : Type | QNode : (k : Typ) → (Δ : Sequent) → (next : List QuasiTab) → QuasiTab
 open QuasiTab
 
 -- TODO add invariant?!
 
-def Qchildren (C : List Sequent) : (t : Typ) → (Hist : List Sequent) → (X : Sequent) → List QuasiTab
+-- TODO use `rep` instead of `X ∈ Hist` maybe?
+
+def Qchildren (C : List Sequent) : (k : Typ) → (Hist : List Sequent) → (X : Sequent) → List QuasiTab
 | .one, Hist, X => -- case k(x)=1
     if X ∈ Hist ∨ isExitIn X C
       then [ ] -- then x is a leaf
@@ -519,9 +520,10 @@ def Qchildren (C : List Sequent) : (t : Typ) → (Hist : List Sequent) → (X : 
 | .two, Hist, X => -- case k(x)=2
     [ QNode .three X (Qchildren C .three (X :: Hist) X) ]
 | .three, Hist, X => -- case k(x)=3
-    if X.basic
+    if X.basic -- (Paper does "not basic" first.)
     then
       -- unique child with .one and result of PDL rule application
+      -- PROBLEM: needs uniformity?
       sorry
     else
       -- create children based on local rule
@@ -532,7 +534,7 @@ decreasing_by
   · sorry
   · sorry
 
-/-- Quasi-Tableau from Def 7.31.
+/-- Quasi-Tableau from Def 7.31. Here we "start the construction", then use `Qchildren`.
 No names for the nodes as we use an inductive type, so we just write `X` for `Δₓ` -/
 def Q {r : PathIn tab} : QuasiTab :=
   let X := nodeAt r -- FIXME wlog we only want the right sequent. But `.R` is not enogh !?!?!?!?!?
@@ -561,6 +563,39 @@ def clusterInterpolation_right {Hist L R nlf}
     : PartInterpolant (L, R, some (Sum.inr nlf)) := by
   sorry
 
+/-! The following lemma about `PathIn.flip` is here because it is also about `exitsOf`. -/
+
+lemma mem_exitsOf_to_flip {s : PathIn tab} : s ∈ exitsOf tab → s.flip ∈ exitsOf tab.flip := sorry
+
+/-
+lemma mem_existsOf_of_flip_flip {tab : Tableau Hist X} {s : PathIn tab.flip.flip} :
+    s ∈ exitsOf tab.flip.flip → s ∈ exitsOf tab := by
+  sorry
+-/
+
+def exitsOf_flip : (exitIPs : ∀ e ∈ exitsOf tab, PartInterpolant (nodeAt e)) →
+    ∀ e ∈ exitsOf tab.flip, PartInterpolant (nodeAt e) := by
+  intro e e_in
+  -- have := mem_existsOf_to_flip e_in
+  -- have : e.flip ∈ exitsOf tab := by
+  --   sorry
+  -- simp [Sequent.flip_flip, Hist_flip] at this
+  -- rw [Tableau.flip_flip] at this motive not type correct
+  -- tricky?
+  sorry
+
+/-- When `X` is an interpolant for `X`, then `~θ` is an interpolant for `X.flip`. -/
+lemma IsPartInterpolant.flip : isPartInterpolant X θ → isPartInterpolant X.flip (~θ) := by
+  rintro ⟨voc, l_ip, r_ip⟩
+  refine ⟨?_, ?_, ?_⟩
+  · clear l_ip r_ip
+    simp_all
+    intro x x_in
+    specialize voc x_in
+    simp_all
+  · simp_all
+  · simp_all
+
 /-- Given a tableau where the root is loaded, and exit interpolants, interpolate the root. -/
 def clusterInterpolation {Hist L R snlf}
     (tab : Tableau Hist (L, R, some snlf))
@@ -568,8 +603,13 @@ def clusterInterpolation {Hist L R snlf}
     : PartInterpolant (L, R, some snlf) := by
   cases snlf
   case inl nlf =>
-    -- TODO: "flip" the left/right sides of `tab` so we can apply the wlog version.
-    sorry
+    -- We "flip" the left/right sides of `tab` so we can apply the wlog version.
+    let f_tab := tab.flip
+    let f_exitIPs : ∀ e ∈ exitsOf tab.flip, PartInterpolant (nodeAt e) := exitsOf_flip exitIPs
+    have := @clusterInterpolation_right _ _ _ nlf f_tab f_exitIPs
+    rcases this with ⟨θ, isInter⟩
+    refine ⟨~θ, ?_⟩
+    apply IsPartInterpolant.flip isInter
   case inr nlf =>
     exact @clusterInterpolation_right _ _ _ nlf tab exitIPs
 
