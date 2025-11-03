@@ -12,30 +12,25 @@ def PdlRule.all (X : Sequent) : List (Σ Y, PdlRule X Y) :=
         (L.attach.map (fun -- Catch a negation and all boxes (≥ 1) after it to be loaded.
                     | ⟨~φ, in_L⟩ => match bdef : boxesOf φ with
                         | (δ@δ_def:(_::_), ψ) =>
-                          have notBox : ¬ ψ.isBox := by
-                            have := @boxesOf_output_not_isBox φ; simp_all
                           have _in'' : (~⌈⌈δ.dropLast⌉⌉⌈δ.getLast _⌉ψ) ∈ L := by
-                            rw [def_of_boxesOf_def bdef] at in_L
-                            convert in_L using 2
-                            rw [← δ_def, ← @boxes_last, @List.dropLast_append_getLast]
+                            rw [← boxes_last, @List.dropLast_append_getLast, δ_def,
+                              ← def_of_boxesOf_def bdef]; exact in_L
                           [ ⟨ ( L.erase _, R
                               , some (Sum.inl (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by simp_all)⌋ψ))))
-                            , .loadL _in'' notBox rfl ⟩ ]
+                            , .loadL _in'' (nonBox_of_boxesOf_def bdef) rfl
+                            ⟩ ]
                         | ([],_) => []
                     | _ => [] )).flatten
         ++
         (R.attach.map (fun
                     | ⟨~φ, in_R⟩ => match bdef : boxesOf φ with
                         | (δ@δ_def:(_::_), ψ) =>
-                          have notBox : ¬ ψ.isBox := by
-                            have := @boxesOf_output_not_isBox φ; simp_all
                           have _in'' : (~⌈⌈δ.dropLast⌉⌉⌈δ.getLast _⌉ψ) ∈ R := by
-                            rw [def_of_boxesOf_def bdef] at in_R
-                            convert in_R using 2
-                            rw [← δ_def, ← @boxes_last, @List.dropLast_append_getLast]
+                            rw [← boxes_last, @List.dropLast_append_getLast, δ_def,
+                              ← def_of_boxesOf_def bdef]; exact in_R
                           [ ⟨ ( L, R.erase _
                               , some (Sum.inr (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by simp_all)⌋ψ))))
-                            , .loadR _in'' notBox rfl ⟩ ]
+                            , .loadR _in'' (nonBox_of_boxesOf_def bdef) rfl ⟩ ]
                         | ([],_) => []
                     | _ => [] )).flatten
   | ⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩ =>
@@ -104,9 +99,26 @@ lemma PdlRule.all_spec {X Y} (r : PdlRule X Y) : ⟨Y, r⟩ ∈ PdlRule.all X :=
   cases r
   case loadL L δs α φ R in_L notBox Y_def =>
     subst Y_def
-    unfold all
-    simp
-    sorry
+    unfold PdlRule.all
+    simp only [List.mem_append, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
+      Subtype.exists, ↓existsAndEq]
+    refine Or.inl ⟨_, in_L, ?_⟩
+    simp only
+    split
+    next bdef =>
+      simp only [List.mem_cons, Sigma.mk.injEq, List.not_mem_nil, or_false]
+      constructor
+      · convert rfl using 3
+        · simp_all only [Formula.neg.injEq]
+          rw [← @boxes_last, @List.dropLast_append_getLast]
+          exact Eq.symm (def_of_boxesOf_def bdef)
+        · simp only [Option.some.injEq, Sum.inl.injEq, NegLoadFormula.neg.injEq]
+          have := defs_of_boxesOf_last_of_nonBox notBox δs α
+          grind
+      · have := def_of_boxesOf_def bdef
+        -- HEq?!
+        sorry
+    · exfalso; cases δs <;> simp_all [boxesOf]
   case loadR R δs α φ L in_R notBox Y_def =>
     -- analogous
     sorry

@@ -157,6 +157,23 @@ lemma boxesOf_output_not_isBox : ¬ (boxesOf φ).2.isBox := by
   all_goals
     simp_all [boxesOf, Formula.isBox]
 
+lemma nonBox_of_boxesOf_def (bdef : boxesOf φ = (L, ψ)) : ¬ ψ.isBox := by
+  have := @boxesOf_output_not_isBox φ; simp_all
+
+lemma boxesOf_nonBox {φ} (notBox : ¬ φ.isBox) : boxesOf φ = ([], φ) := by
+  cases φ <;> simp_all [Formula.isBox, boxesOf]
+
+/-- If φ is not a box then we know the result of `boxesOf (⌈⌈δs⌉⌉⌈α⌉φ)`.
+A more general version without α should also hold. -/
+lemma defs_of_boxesOf_last_of_nonBox {φ}
+    (notBox : ¬ φ.isBox) δs α : boxesOf (⌈⌈δs⌉⌉⌈α⌉φ) = (δs ++ [α], φ) := by
+  cases δs <;> simp_all [boxesOf]
+  case nil =>
+    simp_all only [true_and, boxesOf_nonBox notBox]
+  case cons δ δs =>
+    have IH := defs_of_boxesOf_last_of_nonBox notBox δs
+    grind
+
 lemma Formula.boxes_cons_neq_self φ β δ : (⌈β⌉⌈⌈δ⌉⌉φ) ≠ φ := by
   cases φ <;> try grind [Formula.boxes]
   case box α φ =>
@@ -178,10 +195,11 @@ lemma Formula.boxesOf_boxes_prefix (αs : List Program) φ : αs <+: (boxesOf (�
     simp only [boxes_cons, boxesOf, List.cons_prefix_cons, true_and]
     exact IH
 
-/-! ## Loaded Formulas -/
+/-! ## Loaded Formulas
 
--- Loaded formulas consist of a negation, a sequence of loading boxes and then a normal formula.
--- For loading boxes we write ⌊α⌋ instead of ⌈α⌉.
+Loaded formulas consist of a negation, a non-empty sequence of loading boxes, and a normal formula.
+For loading boxes we write `⌊α⌋` instead of `⌈α⌉`.
+-/
 
 mutual
 inductive AnyFormula : Type
