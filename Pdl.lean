@@ -6,6 +6,7 @@ import Pdl.Discon
 import Pdl.Distance
 import Pdl.Examples
 import Pdl.FischerLadner
+import Pdl.Flip
 import Pdl.Game
 import Pdl.Interpolation
 import Pdl.Kleene
@@ -27,7 +28,6 @@ import Pdl.Tableau
 import Pdl.TableauExamples
 import Pdl.TableauGame
 import Pdl.TableauPath
-import Pdl.TransFinWF
 import Pdl.UnfoldBox
 import Pdl.UnfoldDia
 import Pdl.Vocab
