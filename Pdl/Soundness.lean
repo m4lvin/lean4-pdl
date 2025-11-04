@@ -1078,7 +1078,7 @@ The lemma statement differs slightly from the paper version:
 
 - Our paths cannot stop "inside" a `LocalTableau` and they may take apart more than one loaded box,
   hence we need access to *all* of the boxes `αs` in front of the normal formula `φ`.
-- We do _not_ say that the from `t` to `s` has to be satisfiable.
+- We do _not_ say that the path from `t` to `s` has to be satisfiable.
 - We only demand `s` to be satisfiable in the free case. For the other disjunct this is implied.
 
 The paper proof uses three nested induction levels, one of them only in the star case.

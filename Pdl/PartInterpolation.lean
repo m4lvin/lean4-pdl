@@ -255,11 +255,12 @@ theorem localRuleApp_does_not_increase_jvoc (ruleA : LocalRuleApp X C) :
 This covers easy cases without any loaded path repeats.
 We do *not* use `localRuleTruth` to prove this,
 but the more specific lemmas `oneSidedL_sat_down` and `oneSidedL_sat_down`. -/
-def localInterpolantStep L R o C (ruleA : LocalRuleApp (L, R, o) C)
+def localInterpolantStep {X C} (lra : LocalRuleApp X C)
     (subθs : ∀ c ∈ C, PartInterpolant c)
-    : PartInterpolant (L,R,o) := by
+    : PartInterpolant X := by
   -- UNPACKING TERMS
-  rcases def_ruleA : ruleA with @⟨L, R, C, YS, O, Lcond, Rcond, Ocond, rule, hc, precondProof⟩
+  rcases X with ⟨L,R,o⟩
+  rcases def_ruleA : lra with @⟨L, R, C, YS, O, Lcond, Rcond, Ocond, rule, hc, precondProof⟩
   -- DISTINCTION ON LOCALRULE USED
   cases def_rule : rule
   case oneSidedL ress orule YS_def => -- rule applied in first component L
@@ -270,7 +271,7 @@ def localInterpolantStep L R o C (ruleA : LocalRuleApp (L, R, o) C)
       rcases n_in_inter with ⟨φ, φ_in, n_in_voc_φ⟩
       simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists, interList] at φ_in
       rcases φ_in with ⟨Y, Y_in, def_φ⟩
-      apply localRuleApp_does_not_increase_jvoc ruleA Y Y_in
+      apply localRuleApp_does_not_increase_jvoc lra Y Y_in
       subst def_φ
       exact (subθs Y Y_in).prop.1 n_in_voc_φ
     · rintro nInter_L_sat
@@ -307,7 +308,7 @@ def localInterpolantStep L R o C (ruleA : LocalRuleApp (L, R, o) C)
       rcases n_in_inter with ⟨φ, φ_in, n_in_voc_φ⟩
       simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists, interList] at φ_in
       rcases φ_in with ⟨Y, Y_in, def_φ⟩
-      apply localRuleApp_does_not_increase_jvoc ruleA Y Y_in
+      apply localRuleApp_does_not_increase_jvoc lra Y Y_in
       subst def_φ
       exact (subθs Y Y_in).prop.1 n_in_voc_φ
     · rintro ⟨W, M, w, w_⟩
@@ -376,7 +377,7 @@ def localInterpolantStep L R o C (ruleA : LocalRuleApp (L, R, o) C)
       rcases n_in_inter with ⟨φ, φ_in, n_in_voc_φ⟩
       simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists, interList] at φ_in
       rcases φ_in with ⟨Y, Y_in, def_φ⟩
-      apply localRuleApp_does_not_increase_jvoc ruleA Y Y_in
+      apply localRuleApp_does_not_increase_jvoc lra Y Y_in
       subst def_φ
       exact (subθs Y Y_in).prop.1 n_in_voc_φ
     · rintro nInter_L_sat
@@ -415,7 +416,7 @@ def localInterpolantStep L R o C (ruleA : LocalRuleApp (L, R, o) C)
       rcases n_in_inter with ⟨φ, φ_in, n_in_voc_φ⟩
       simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists, interList] at φ_in
       rcases φ_in with ⟨Y, Y_in, def_φ⟩
-      apply localRuleApp_does_not_increase_jvoc ruleA Y Y_in
+      apply localRuleApp_does_not_increase_jvoc lra Y Y_in
       subst def_φ
       exact (subθs Y Y_in).prop.1 n_in_voc_φ
     · rintro ⟨W, M, w, w_⟩
@@ -438,6 +439,49 @@ def localInterpolantStep L R o C (ruleA : LocalRuleApp (L, R, o) C)
       intro φ φ_in; simp at φ_in
       simp [interList] at *
       grind
+
+/-! ## Interpolants for Local Tableau -/
+
+def LocalTableau.interpolant (ltX : LocalTableau X)
+    (endθs : ∀ Y ∈ endNodesOf ltX, PartInterpolant Y)
+    : PartInterpolant X := by
+  cases ltX
+  case byLocalRule YS nexts lra =>
+    apply localInterpolantStep lra
+    intro Y Y_in
+    have IH := LocalTableau.interpolant (nexts Y Y_in)
+    exact IH (fun Z Z_in_end => endθs _ (endNodeOfChild_to_endNode lra nexts rfl Y_in Z_in_end))
+  case sim Xbas =>
+    apply endθs X
+    simp [endNodesOf]
+
+/-! ## Interpolants for PdlRules applied to free nodes
+
+The only rule treated here is (L+), i.e. `loadL` and `loadR`.
+-/
+
+def freePdlRuleInterpolant {X Y} (r : PdlRule X Y) (Xfree : X.isFree) (θY : PartInterpolant Y)
+    : PartInterpolant X := by
+  rcases θY with ⟨θ, θ_ip_Y⟩
+  cases r
+  case loadL notBox Y_def =>
+    use θ
+    subst Y_def
+    rcases θ_ip_Y with ⟨hYvoc, hYL, hYR⟩
+    refine ⟨?_, ?_, ?_⟩
+    · intro x x_in
+      specialize hYvoc x_in
+      simp at hYvoc
+      simp
+      sorry -- easy?
+    · sorry -- easy?
+    · sorry -- easy?
+  case loadR =>
+    use θ
+    sorry -- analogous
+  all_goals
+    exfalso
+    subst_eqs
 
 /-! ## Cluster tools -/
 
@@ -613,6 +657,61 @@ def clusterInterpolation {Hist L R snlf}
   case inr nlf =>
     exact @clusterInterpolation_right _ _ _ nlf tab exitIPs
 
-def tabToInt {X : Sequent} (tab : Tableau .nil X) :
-    PartInterpolant X := by
-  sorry
+theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
+    ∃ θ, isPartInterpolant (nodeAt s) θ := by
+  -- Pity that `PathIn.edge_upwards_inductionOn` only works with `Prop` motive :-/
+  induction s using PathIn.edge_upwards_inductionOn -- But wait, only use this for the free case!
+  next s IH =>
+  -- case distinction before or after `induction`?
+  by_cases (nodeAt s).isLoaded
+  case pos =>
+    -- HARD case.
+    -- Here we want to use `clusterInterpolation`.
+    -- Maybe like this?
+    have := @PathIn.edge_upwards_inductionOn .nil X tab
+      (fun t => ¬ (nodeAt t).isLoaded → ∃ θ_t, isPartInterpolant (nodeAt t) θ_t)
+    sorry
+  case neg s_free =>
+    -- EASY case, singleton cluster because not loaded.
+    simp at s_free
+    rcases s_def : tabAt s with ⟨Hist, X, t⟩
+    cases t
+    case loc nbas ltX nrep nexts =>
+      have := LocalTableau.interpolant ltX
+      -- use here that endNodes will also be free?
+      -- need ⋖ for all end nodes etc?
+      sorry
+    case pdl Y bas r nrep next =>
+      -- The def of `t` here is inspired by the proof of `tableauThenNotSat` (with s/t swapped).
+      let s_to_t : PathIn (Tableau.pdl nrep bas r next) := (.pdl .nil)
+      let t : PathIn tab := s.append (s_def ▸ s_to_t)
+      have s_t : s ⋖_ t := by
+          unfold t s_to_t
+          convert @edge_append_pdl_nil .nil _ tab s (s_def ▸ nrep)
+                                        (s_def ▸ bas) Y (s_def ▸ r) (s_def ▸ next) ?_ <;> grind
+      have Y_def : Y = nodeAt t := by
+        unfold t s_to_t
+        simp only [nodeAt_append]
+        apply Eq.symm
+        convert @nodeAt_pdl_nil _ _ _ nrep bas next r <;> grind
+      specialize IH s_t
+      unfold nodeAt at s_free
+      rw [s_def] at s_free
+      simp only at s_free
+      unfold nodeAt
+      rw [s_def]
+      simp only
+      rw [← Y_def] at IH
+      rcases IH with ⟨θY, θY_ip_Y⟩
+      have := freePdlRuleInterpolant r (by grind [Sequent.isFree]) ⟨θY, θY_ip_Y⟩
+      rcases this with ⟨θX, θX_ipX⟩
+      use θX
+    case lrep lpr =>
+      exfalso
+      absurd s_free
+      rw [nodeAt, s_def]
+      simp only [Bool.not_eq_false]
+      apply LoadedPathRepeat_rep_isLoaded lpr
+
+theorem tabToInt {X : Sequent} (tab : Tableau .nil X) :
+    ∃ θ, isPartInterpolant X θ := tabToIntAt tab .nil
