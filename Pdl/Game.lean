@@ -233,8 +233,9 @@ decreasing_by all_goals apply g.move_rel; exact Subtype.mem _
 theorem good_strat_winning (W : good i p) : winning (good_strat i) p :=
   surviving_is_winning fun _ => good_is_surviving ∘ (good_cone W)
 
-/-- Zermelo's Theorem: In every `Game` position one of the two players has a winning strategy.
-https://en.wikipedia.org/wiki/Zermelo%27s_theorem_(game_theory)
+/--
+[Zermelo's Theorem](https://en.wikipedia.org/wiki/Zermelo%27s_theorem_(game_theory)):
+In every `Game` position one of the two players has a winning strategy.
 -/
 theorem gamedet (g : Game) (p : g.Pos) :
     (∃ s : Strategy g A, winning s p) ∨ (∃ s : Strategy g B, winning s p) := Or.imp

@@ -49,7 +49,7 @@ open Modelgraphs
 
 /-- A model graph is a Kripke model using sets of formulas as states and
 fulfilling conditions (i) to (iv). See MB Def 19, page 31.
-Note: In (ii) MB only has →. We follow BRV Def 4.18 and 4.84.
+Note: In (ii) MB only has →. We follow [BRV2001] Def 4.18 and 4.84.
 Note: In (iii) "a" is atomic, but in iv "α" is any program. -/
 def ModelGraph (W : Finset (Finset Formula)) :=
   let i := ∀ X : W, saturated X.val ∧ locallyConsistent X
