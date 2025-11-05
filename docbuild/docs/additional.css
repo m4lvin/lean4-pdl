@@ -1,0 +1,14 @@
+
+div.mod_doc img {
+    max-width:90%;
+}
+
+.nav_sect summary {
+    color: var(--tags-border-color);
+}
+
+.nav_sect[data-path="./Pdl.html"] summary  {
+    color: var(--text-color);
+    font-weight:bold;
+    text-decoration:underline;
+}

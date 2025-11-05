@@ -16,6 +16,7 @@ bml: .first-run-done
 
 doc:
 	cd docbuild && lake -Kenv=dev build Pdl:docs
+	cat docbuild/docs/additional.css >> docbuild/.lake/build/doc/style.css
 
 show-doc: doc
 	(sleep 2 && firefox http://127.0.0.1:8000/Pdl.html) &
