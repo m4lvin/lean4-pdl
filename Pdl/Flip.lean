@@ -105,9 +105,29 @@ lemma basic_flip {X : Sequent} : X.flip.basic ↔ X.basic := by
 lemma nrep_flip (nrep : ¬rep Hist X) : ¬rep (List.map Sequent.flip Hist) X.flip := by
   simp_all [rep]
 
-def LocalRule.flip :
-    LocalRule (Lcond, Rcond, Ocond) ress → LocalRule (Rcond, Lcond, Ocond.flip) (ress.map .flip) :=
-  sorry
+def LocalRule.flip (lr : LocalRule (Lcond, Rcond, Ocond) ress) :
+    LocalRule (Rcond, Lcond, Ocond.flip) (ress.map .flip) := by
+  cases lr
+  case oneSidedL YS orule YS_def =>
+    apply LocalRule.oneSidedR orule
+    aesop
+  case oneSidedR YS orule YS_def =>
+    apply LocalRule.oneSidedL orule
+    aesop
+  case LRnegL =>
+    apply LocalRule.LRnegR
+  case LRnegR =>
+    apply LocalRule.LRnegL
+  case loadedL YS χ lrule YS_def =>
+    apply LocalRule.loadedR _ lrule
+    subst YS_def
+    simp only [List.empty_eq, List.map_map, List.map_inj_left, Function.comp_apply, Prod.forall]
+    rintro L (_|_|_) <;> simp_all [Sequent.flip, Olf.flip]
+  case loadedR lrule YS_def =>
+    apply LocalRule.loadedL _ lrule
+    subst YS_def
+    simp only [List.empty_eq, List.map_map, List.map_inj_left, Function.comp_apply, Prod.forall]
+    rintro L (_|_|_) <;> simp_all [Sequent.flip, Olf.flip]
 
 def LocalRuleApp.flip {X B} : LocalRuleApp X B → LocalRuleApp X.flip (B.map Sequent.flip) := by
   rintro ⟨Lcond, Rcond, Ocond, rule, preconditionProof⟩
@@ -159,10 +179,66 @@ lemma endNodesOf_flip {X} {lt : LocalTableau X} {Y} :
   case sim Z Zbas =>
     simp_all [LocalTableau.flip]
 
-def PdlRule.flip : PdlRule X Y → PdlRule X.flip Y.flip := by sorry
+def PdlRule.flip {X Y} (r : PdlRule X Y) : PdlRule X.flip Y.flip := by
+  cases r
+  case loadL L δs α φ R in_L notBox Y_def =>
+    subst Y_def
+    simp only [Sequent.flip]
+    apply PdlRule.loadR in_L notBox rfl
+  case loadR R δs α φ L in_R notBox Y_def =>
+    subst Y_def
+    simp only [Sequent.flip]
+    apply PdlRule.loadL in_R notBox rfl
+  case freeL L R δs α φ X_def Y_def =>
+    subst X_def Y_def
+    simp only [Sequent.flip]
+    apply PdlRule.freeR rfl rfl
+  case freeR L R δs α φ X_def Y_def =>
+    subst X_def Y_def
+    simp only [Sequent.flip]
+    apply PdlRule.freeL rfl rfl
+  case modL ξ X_def Y_def =>
+    subst X_def Y_def
+    simp only [Sequent.flip]
+    apply PdlRule.modR rfl
+    cases ξ <;> simp_all [Olf.flip]
+  case modR ξ X_def Y_def =>
+    subst X_def Y_def
+    simp only [Sequent.flip]
+    apply PdlRule.modL rfl
+    cases ξ <;> simp_all [Olf.flip]
 
-def LoadedPathRepeat.flip :
-  LoadedPathRepeat Hist X → LoadedPathRepeat (List.map Sequent.flip Hist) X.flip := sorry
+@[simp]
+lemma Sequent.flip_multisetEqTo {X Y : Sequent} :
+    X.flip.multisetEqTo Y.flip ↔ X.multisetEqTo Y := by
+  rcases X with ⟨L, R, O⟩
+  rcases Y with ⟨L, R, O⟩
+  simp only [multisetEqTo, flip, Multiset.coe_eq_coe, Olf.flip_inj]
+  grind
+
+@[simp]
+lemma Sequent.flip_isLoaded {X : Sequent} :
+    X.flip.isLoaded ↔ X.isLoaded := by
+  rcases X with ⟨L, R, O⟩
+  simp only [Sequent.isLoaded, Sequent.flip, Olf.flip]
+  grind
+
+def LoadedPathRepeat.flip {Hist X} (lpr : LoadedPathRepeat Hist X) :
+    LoadedPathRepeat (List.map Sequent.flip Hist) X.flip := by
+  rcases lpr with ⟨k, same, path_loaded⟩
+  refine ⟨?_, ?_, ?_⟩
+  · simp only [List.length_map]
+    use k
+    simp_all
+  · simp only [Fin.eta, eq_mpr_eq_cast, List.get_eq_getElem, List.getElem_map,
+    Sequent.flip_multisetEqTo]
+    convert same
+    grind
+  · simp only [Fin.eta, eq_mpr_eq_cast, List.get_eq_getElem, List.getElem_map,
+    Sequent.flip_isLoaded]
+    intro m m_lt
+    apply path_loaded ⟨m, by grind⟩
+    grind
 
 /-- (┛ಠ_ಠ)┛彡┻━┻ -/
 def Tableau.flip {Hist X} : Tableau Hist X → Tableau (Hist.map Sequent.flip) X.flip
