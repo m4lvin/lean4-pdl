@@ -1,3 +1,5 @@
+import Mathlib.Tactic.DepRewrite
+
 import Pdl.TableauPath
 
 /-! # Flipping a tableau (for section 7)
@@ -45,6 +47,11 @@ lemma Sequent.flip_setEqTo_flip {X Y : Sequent} : X.flip.setEqTo Y.flip ↔ X.se
   rcases X with ⟨L, R, O⟩
   rcases Y with ⟨L', R', O'⟩
   grind [Sequent.setEqTo, Sequent.flip, Olf.flip_inj]
+
+@[simp]
+lemma Sequent.map_flip_map_flip {Hist} :
+    (List.map Sequent.flip (List.map Sequent.flip Hist)) = Hist := by
+  induction Hist <;> simp_all
 
 @[simp]
 lemma basic_flip {X : Sequent} : X.flip.basic ↔ X.basic := by
@@ -130,6 +137,7 @@ def LocalRule.flip (lr : LocalRule (Lcond, Rcond, Ocond) ress) :
     simp only [List.empty_eq, List.map_map, List.map_inj_left, Function.comp_apply, Prod.forall]
     rintro L (_|_|_) <;> simp_all [Sequent.flip, Olf.flip]
 
+/-- Note: is it possible and useful to rewrite this in more term and less tactic mode? -/
 def LocalRuleApp.flip {X B} : LocalRuleApp X B → LocalRuleApp X.flip (B.map Sequent.flip) := by
   rintro ⟨Lcond, Rcond, Ocond, rule, preconditionProof⟩
   next L R ress O B_def =>
@@ -145,6 +153,10 @@ def LocalRuleApp.flip {X B} : LocalRuleApp X B → LocalRuleApp X.flip (B.map Se
     refine ⟨hR, hL, ?_⟩
     rcases O with (_|_|_) <;> rcases Ocond with (_|_|_) <;> simp_all [Olf.flip, Sum.swap]
 
+lemma LocalRuleApp.flip_flip {X B} {lra : LocalRuleApp X B} :
+    lra.flip.flip = Sequent.map_flip_map_flip ▸ Sequent.flip_flip ▸ lra := by
+  sorry
+
 lemma Sequent.flip_mem_of_mem_map_flip {B : List Sequent} {Y : Sequent} :
     Y ∈ B.map Sequent.flip → Y.flip ∈ B := by aesop
 
@@ -153,11 +165,26 @@ def LocalTableau.flip {X} : LocalTableau X → LocalTableau X.flip
       @Sequent.flip_flip Y ▸ (next Y.flip (Sequent.flip_mem_of_mem_map_flip Y_in)).flip)
   | (@sim X Xbas) => .sim (basic_flip.mpr Xbas)
 
+@[simp]
+lemma Sequent.flip_comp_flip : Sequent.flip ∘ Sequent.flip = id := by
+  ext X
+  rw [Function.comp_apply, Sequent.flip_flip, id_eq]
+
 lemma LocalTableau.flip_flip {lt : LocalTableau X} : lt.flip.flip = Sequent.flip_flip ▸ lt := by
-  cases lt <;> simp [LocalTableau.flip]
-  · apply eq_of_heq
-    -- rw [Sequent.flip_flip] -- motive is not type correct :-( use HEq?
-    sorry
+  induction lt <;> simp [LocalTableau.flip]
+  case byLocalRule IH =>
+    apply eq_of_heq
+    rw! (castMode := .all) [Sequent.flip_flip] -- :-)
+    simp only [heq_eq_eq, byLocalRule.injEq, List.map_map, Sequent.flip_comp_flip, List.map_id_fun,
+      id_eq, eqRec_heq_iff_heq, true_and]
+    constructor
+    · rw [LocalRuleApp.flip_flip]
+      grind
+    · refine Function.hfunext rfl ?_
+      intro X X' X_heq_X'
+      apply Function.hfunext
+      · grind
+      · grind
   · grind
 
 lemma LocalTableau.flip_inj {X} {lt : LocalTableau X} :
@@ -246,12 +273,6 @@ def LoadedPathRepeat.flip {Hist X} : LoadedPathRepeat Hist X →
       intro m m_lt
       apply path_loaded ⟨m, by grind⟩
       omega
-
--- move up?
-@[simp]
-lemma Sequent.map_flip_map_flip {Hist} :
-    (List.map Sequent.flip (List.map Sequent.flip Hist)) = Hist := by
-  induction Hist <;> simp_all
 
 -- move elsewhere?
 lemma LoadedPathRepeat.ext {Hist X} (lprA lprB : LoadedPathRepeat Hist X) :
