@@ -17,7 +17,7 @@ def OneSidedLocalRule.all : (L : List Formula) → Option (Σ B, OneSidedLocalRu
   | _ => none
 
 def OneSidedLocalRule.all_spec (osr : OneSidedLocalRule L B)
-    : ⟨B, osr⟩ ∈ OneSidedLocalRule.all L := by
+    : OneSidedLocalRule.all L = some ⟨B, osr⟩ := by
   cases osr
   all_goals
     simp [OneSidedLocalRule.all]
@@ -78,7 +78,7 @@ def LocalRule.all_spec (lr : LocalRule L B) : ⟨B, lr⟩ ∈ LocalRule.all L :=
 -- TODO instance : Fintype (LocalRule L B) := ⟨(LocalRule.all L).toList, LocalRule.all_spec⟩
 
 /-- Given a sequent, return a list of all possible local rule applications. -/
-def LocalRuleApp.all : (X : Sequent) → List (Σ C, LocalRuleApp X C)
+def LocalRuleApp.all : (X : Sequent) → List LocalRuleApp
   | ⟨L, R, o⟩ =>
       -- The idea here is to apply `LocalRule.all` to all sublists of L, R.
       -- But `List.sublists` would not be enough, because the `preconditionProof`
@@ -96,7 +96,7 @@ def LocalRuleApp.all : (X : Sequent) → List (Σ C, LocalRuleApp X C)
               (fun Ocond => (Lcond,Rcond,Ocond)))))
       (conds.attach.map (fun ⟨⟨Lcond,Rcond,Ocond⟩, cond_in⟩ =>
         (LocalRule.all ⟨Lcond,Rcond,Ocond⟩).map
-          (fun ⟨B,lr⟩  => ⟨applyLocalRule lr (L, R, o),
+          (fun ⟨B,lr⟩ =>
             have h : Lcond.Subperm L ∧ Rcond.Subperm R ∧ Ocond ⊆ o := by
               simp only [List.map_cons, List.map_nil, List.mem_flatMap, List.mem_permutations,
                 List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false, conds, Oconds, Rconds,
@@ -117,40 +117,48 @@ def LocalRuleApp.all : (X : Sequent) → List (Σ C, LocalRuleApp X C)
                   rw [@List.subperm_iff]
                   use R0
                 · cases o <;> simp_all
-            @LocalRuleApp.mk L R _ B o Lcond Rcond Ocond lr rfl h⟩))).reduceOption
+            { L := L, R := R, O:= o, preconditionProof := h, Lcond := Lcond, Rcond := Rcond,
+              Ocond := Ocond, lr := lr, ress := _ }
+            ))).reduceOption
+
+lemma LocalRuleApp.all_X (X : Sequent) : ∀ lra ∈ LocalRuleApp.all X, lra.X = X := by
+  intro lra lra_in
+  rcases X with ⟨L, R, O⟩
+  simp only [all, List.map_cons, List.map_nil, applyLocalRule, List.reduceOption_mem_iff,
+    List.mem_map, List.mem_attach, true_and, Subtype.exists, List.mem_flatMap,
+    List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false] at lra_in
+  grind [Option.map_eq_some_iff]
 
 set_option maxHeartbeats 10000000 in -- for aesop timeouts
-lemma LocalRuleApp.all_spec X C (lrA : LocalRuleApp X C) : ⟨C, lrA⟩ ∈ LocalRuleApp.all X := by
-  rcases X with ⟨L,R,O⟩
-  rcases lrA with ⟨Lcond, Rcond, Ocond, rule, preconditionProof⟩
-  rcases preconditionProof with ⟨subpermL, subpermR, subO⟩
-  rw [List.subperm_iff] at subpermL
-  rw [List.subperm_iff] at subpermR
+lemma LocalRuleApp.all_spec (lrA : LocalRuleApp) : lrA ∈ LocalRuleApp.all lrA.X := by
+  rcases lrA with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, ⟨subpermL, subpermR, subO⟩⟩
+  have subpermL_ := List.subperm_iff.mp subpermL
+  have subpermR_ := List.subperm_iff.mp subpermR
   have := LocalRule.all_spec rule
   cases rule
   · simp only [all, List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
-    List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
-    List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
+      List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
+      List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
     use ⟨Lcond,[],none⟩
     aesop
   · simp only [all, List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
-    List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
-    List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
+      List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
+      List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
     use ⟨[],Rcond,none⟩
     aesop
-  case LRnegL φ _ _ hC =>
-    simp only [all, List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
-    List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
-    List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
+  case LRnegL φ =>
+    simp only [all, List.empty_eq, List.map_cons, List.map_nil, applyLocalRule,
+      List.map_attach_eq_pmap, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
+      List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
     use ⟨[φ],[~φ],none⟩
     aesop
-  case LRnegR φ _ _ hC =>
-    simp only [all, List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
-    List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
-    List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
+  case LRnegR φ =>
+    simp only [all, List.empty_eq, List.map_cons, List.map_nil, applyLocalRule,
+      List.map_attach_eq_pmap, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
+      List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
     use ⟨[~φ],[φ],none⟩
     aesop
-  case loadedL χ lor _ _ _ C_def =>
+  case loadedL χ lor YS_def =>
     have := LoadRule.the_spec lor
     rcases χ  with ⟨α, ξ⟩
     rcases ξ with (φ|χ) <;> simp only [LoadRule.the, dite_not, Option.some_eq_dite_none_left,
@@ -161,13 +169,20 @@ lemma LocalRuleApp.all_spec X C (lrA : LocalRuleApp X C) : ⟨C, lrA⟩ ∈ Loca
       cases O <;> cases lor
       · -- imposible, if O = none then we cannot apply a loadedL rule.
         exfalso
+        subst_eqs
         simp_all
       · unfold LocalRuleApp.all
-        -- // aesop from here
-        simp only [List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
-          List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
-          List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
+        simp only [List.empty_eq, List.map_cons, List.map_nil, applyLocalRule,
+          List.reduceOption_mem_iff, List.mem_map, List.mem_attach, true_and, Subtype.exists,
+          List.mem_flatMap, List.mem_permutations, List.mem_sublists, List.mem_cons,
+          List.not_mem_nil, or_false]
+        subst_eqs
+        simp only [List.empty_eq]
         use (∅, ∅, some (Sum.inl (~'⌊α⌋AnyFormula.normal φ)))
+        simp only [List.nil_sublist, and_true, Option.mem_def, List.empty_eq, List.diff_nil,
+          applyLocalRule, List.map_map, Option.map_eq_some_iff, mk.injEq, true_and, Sigma.exists,
+          exists_prop] at *
+        rw [this]
         aesop
     case loaded =>
       rcases this with ⟨ress_def, ⟨α_notAtomic, lor_heq_def⟩⟩
@@ -177,13 +192,12 @@ lemma LocalRuleApp.all_spec X C (lrA : LocalRuleApp X C) : ⟨C, lrA⟩ ∈ Loca
         exfalso
         simp_all
       · unfold LocalRuleApp.all
-        -- // aesop from here
         simp [List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
           List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
           List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
         use (∅, ∅, some (Sum.inl (~'⌊α⌋AnyFormula.loaded χ)))
         aesop
-  case loadedR χ lor _ _ _ C_def =>
+  case loadedR χ lor YS_def =>
     -- COPY-PASTA from loadedL case, changed inl to inr.
     have := LoadRule.the_spec lor
     rcases χ  with ⟨α, ξ⟩
@@ -191,19 +205,31 @@ lemma LocalRuleApp.all_spec X C (lrA : LocalRuleApp X C) : ⟨C, lrA⟩ ∈ Loca
       Option.some.injEq, Sigma.mk.injEq, exists_and_left] at this
     case normal =>
       rcases this with ⟨ress_def, ⟨α_notAtomic, lor_heq_def⟩⟩
+      -- `O` comes from `X`, so it is the old/before olf. The `o` is the new one.
       cases O <;> cases lor
-      · exfalso
+      · -- imposible, if O = none then we cannot apply a loadedL rule.
+        exfalso
+        subst_eqs
         simp_all
       · unfold LocalRuleApp.all
-        simp only [List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
-          List.empty_eq, List.reduceOption_mem_iff, List.mem_pmap, List.mem_flatMap,
-          List.mem_permutations, List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false]
+        simp only [List.empty_eq, List.map_cons, List.map_nil, applyLocalRule,
+          List.reduceOption_mem_iff, List.mem_map, List.mem_attach, true_and, Subtype.exists,
+          List.mem_flatMap, List.mem_permutations, List.mem_sublists, List.mem_cons,
+          List.not_mem_nil, or_false]
+        subst_eqs
+        simp only [List.empty_eq]
         use (∅, ∅, some (Sum.inr (~'⌊α⌋AnyFormula.normal φ)))
+        simp only [List.empty_eq, List.nil_sublist, and_true, Option.mem_def, List.diff_nil,
+          applyLocalRule, List.map_map, Option.map_eq_some_iff, mk.injEq, true_and, Sigma.exists,
+          exists_prop] at *
+        rw [this]
         aesop
     case loaded =>
       rcases this with ⟨ress_def, ⟨α_notAtomic, lor_heq_def⟩⟩
+      -- `O` comes from `X`, so it is the old/before olf. The `o` is the new one.
       cases O <;> cases lor
-      · exfalso
+      · -- imposible, if O = none then we cannot apply a loadedL rule.
+        exfalso
         simp_all
       · unfold LocalRuleApp.all
         simp only [List.map_cons, List.map_nil, applyLocalRule, List.map_attach_eq_pmap,
@@ -212,6 +238,7 @@ lemma LocalRuleApp.all_spec X C (lrA : LocalRuleApp X C) : ⟨C, lrA⟩ ∈ Loca
         use (∅, ∅, some (Sum.inr (~'⌊α⌋AnyFormula.loaded χ)))
         aesop
 
+/-
 /-- At most finitely many local rule applications lead from `X` and to `B`. Note this is weaker
 than "only finitely many local rules apply to `X`, because each `B` gives a different type. -/
 instance LocalRuleApp.fintype {X} {C} : Fintype (LocalRuleApp X C) := by
@@ -223,6 +250,7 @@ instance LocalRuleApp.fintype {X} {C} : Fintype (LocalRuleApp X C) := by
   use C
   simp only [exists_const, exists_eq_right]
   apply LocalRuleApp.all_spec
+-/
 
 /-- Convert a function returning lists into a list of functions. Helper for `LocalTableau.all`. -/
 def combo {α : Type} [DecidableEq α] {q : α → Type} : {L : List α}
@@ -256,31 +284,32 @@ def LocalTableau.all : (X : Sequent) → List (LocalTableau X) := fun X =>
   if bas : X.basic
   then [ .sim bas ]
   else do
-    let ⟨B, (lra : LocalRuleApp X B)⟩ <- LocalRuleApp.all X
-    let tabsFor (Y : Sequent) (h : Y ∈ B) : List (LocalTableau Y) := by
+    let ⟨lra, lra_mem⟩  <- (LocalRuleApp.all X).attach
+    have def_X := LocalRuleApp.all_X X _ lra_mem
+    let tabsFor (Y : Sequent) (h : Y ∈ lra.C) : List (LocalTableau Y) := by
       have _forTermination := localRuleApp.decreases_DM lra _ h
       apply LocalTableau.all
-    let nexts : List ((Y : Sequent) → Y ∈ B → LocalTableau Y) := combo tabsFor
+    let nexts : List ((Y : Sequent) → Y ∈ lra.C → LocalTableau Y) := combo tabsFor
     let next <- nexts
-    return @byLocalRule X B lra next
+    return @byLocalRule X lra def_X.symm next
 termination_by
   X => X
 decreasing_by
-  exact _forTermination
+  exact def_X ▸ _forTermination
 
 lemma LocalTableau.all_spec : ltX ∈ LocalTableau.all X := by
   by_cases Xbas : X.basic
   · unfold LocalTableau.all
     cases ltX
-    case pos.byLocalRule lra =>
+    case pos.byLocalRule lra next X_def =>
       absurd Xbas
-      exact nonbasic_of_localRuleApp lra
+      exact X_def ▸ nonbasic_of_localRuleApp lra
     · simp_all
   · unfold LocalTableau.all
     simp_all
     cases ltX
-    case neg.byLocalRule B next lra =>
-      refine ⟨_, lra, LocalRuleApp.all_spec _ _ _, ?_⟩
+    case neg.byLocalRule lra next X_def =>
+      refine ⟨lra, X_def ▸ LocalRuleApp.all_spec lra, ?_⟩
       simp only [byLocalRule.injEq, heq_eq_eq, true_and, exists_eq_right']
       apply combo_mem_of_forall_in
       intro Y Y_in

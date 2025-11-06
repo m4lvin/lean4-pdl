@@ -14,18 +14,16 @@ example : provable (~⊥) := by
   · simp [Sequent.basic] -- works :-)
   case a.lt =>
     apply LocalTableau.byLocalRule
-      ⟨[~~⊥], [], none, LocalRule.oneSidedL (OneSidedLocalRule.neg ⊥) rfl, by simp⟩
-      ?_
-    · exact [([⊥], [], none)]
+      { lr := LocalRule.oneSidedL (OneSidedLocalRule.neg ⊥) rfl
+        L := _, R := _, O := _, ress := _, preconditionProof := _ } rfl ?_
     · simp
     · -- build one child tableau
       intro c c_in
       simp at c_in
       subst c_in
       apply LocalTableau.byLocalRule
-        ⟨[⊥], [], none, LocalRule.oneSidedL (OneSidedLocalRule.bot) rfl, by simp⟩
-        ?_
-      · exact []
+        { lr := LocalRule.oneSidedL (OneSidedLocalRule.bot) rfl
+        , L := _, R := _, O := _, ress := _, preconditionProof := _ } rfl ?_
       · simp
       · aesop
   case a.next =>
@@ -41,16 +39,18 @@ example : provable (~(p ⋀ (~p))) :=
   · simp [Sequent.basic] -- works :-)
   case a.lt =>
     apply LocalTableau.byLocalRule
-      ⟨[ ~~(p ⋀ (~p))], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.neg (p ⋀ (~p))) rfl), _⟩
-      ?_
+      { lr := (LocalRule.oneSidedL (OneSidedLocalRule.neg (p ⋀ (~p))) rfl)
+        L := _, R := _, O := none, ress := _, preconditionProof := _ } rfl ?_
     all_goals (try simp; try rfl)
     intro c c_in; simp at c_in; subst c_in
     apply LocalTableau.byLocalRule
-      ⟨[p ⋀ (~p)], [], none, LocalRule.oneSidedL (OneSidedLocalRule.con p (~p)) rfl, _⟩
+      { lr := LocalRule.oneSidedL (OneSidedLocalRule.con p (~p)) rfl
+        L := _, R := _, O := _, ress := _, preconditionProof := _ }
     all_goals (try simp; try rfl)
     intro c c_in; simp at c_in; subst c_in -- unique child node
     apply LocalTableau.byLocalRule
-      ⟨[p, ~p], [], none, LocalRule.oneSidedL (OneSidedLocalRule.not p) rfl, _⟩
+      { lr := LocalRule.oneSidedL (OneSidedLocalRule.not p) rfl
+        L := _, R := _, O := _, ress := _, preconditionProof := _ }
     all_goals (try simp; try rfl)
     intro c c_in; simp at c_in
   case a.next =>
@@ -68,7 +68,8 @@ example : Tableau [] ([·p, ~(·p)], [], none) :=
     -- For this we made "not closed" part of `Sequent.basic`.
   case lt =>
     apply LocalTableau.byLocalRule
-      ⟨[·p, ~(·p)], [], none, LocalRule.oneSidedL (OneSidedLocalRule.not (·p)) rfl, _⟩
+      { lr := LocalRule.oneSidedL (OneSidedLocalRule.not (·p)) rfl
+        L := _, R := _, O := _, ress := _, preconditionProof := _ }
     all_goals (try simp; try rfl)
     intro c c_in; simp at c_in
   case next =>
@@ -105,11 +106,13 @@ def subTabForEx2 :
   · simp [Sequent.basic, Sequent.closed]
   case lt =>
     apply LocalTableau.byLocalRule
-      ⟨ [p⋀q], [], none, LocalRule.oneSidedL (OneSidedLocalRule.con p q) rfl, _⟩
+      { lr := LocalRule.oneSidedL (OneSidedLocalRule.con p q) rfl
+        L := _, R := _, O := _, ress := _, preconditionProof := _ }
     all_goals (try simp; try rfl)
     · intro c c_in; simp at c_in; subst c_in -- unique child node
       apply LocalTableau.byLocalRule
-        ⟨ [p, (~p)], [], none, LocalRule.oneSidedL (OneSidedLocalRule.not p) rfl, _⟩
+        { lr := LocalRule.oneSidedL (OneSidedLocalRule.not p) rfl
+          L := _, R := _, O := _, ress := _, preconditionProof := _ }
       all_goals (try simp; try rfl)
       · intro c c_in; simp at c_in
       · decide -- This works because p and q are concrete values, not variables :-)
@@ -126,12 +129,13 @@ example : Tableau [] ([r ⋀ (~(⌈a⌉p)), r ↣ ⌈a⌉(p ⋀ q)], [], none) :
   · simp [Sequent.basic, Sequent.closed]
   case lt =>
     apply LocalTableau.byLocalRule
-      ⟨[r ⋀ (~(⌈a⌉p))], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.con r (~(⌈a⌉p)))) rfl, _⟩
+      { lr := LocalRule.oneSidedL (OneSidedLocalRule.con r (~(⌈a⌉p))) rfl
+        L := _, R := _, O := _, ress := _, preconditionProof := _ }
     all_goals (try simp; try rfl)
     intro c c_in; simp at c_in; subst c_in -- unique child node
     apply LocalTableau.byLocalRule
-      ⟨[(~(r ⋀ (~(⌈a⌉(p ⋀ q)))))], [], none,
-        (LocalRule.oneSidedL (OneSidedLocalRule.nCo r (~(⌈a⌉(p ⋀ q))))) rfl, _⟩
+      { lr := LocalRule.oneSidedL (OneSidedLocalRule.nCo r (~(⌈a⌉(p ⋀ q)))) rfl
+        L := _, R := _, O := _, ress := _, preconditionProof := _ }
     all_goals (try simp; try rfl)
     intro c c_in; simp at *
     -- now branching!
@@ -140,7 +144,8 @@ example : Tableau [] ([r ⋀ (~(⌈a⌉p)), r ↣ ⌈a⌉(p ⋀ q)], [], none) :
       subst c_def
       -- first branch, apply "not"
       apply LocalTableau.byLocalRule
-        ⟨ [r, ~(r)], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.not r)) rfl, _ ⟩
+        { lr := LocalRule.oneSidedL (OneSidedLocalRule.not r) rfl
+          L := _, R := _, O := _, ress := _, preconditionProof := _ }
       all_goals (try simp; try rfl)
       · intro c c_in; simp at *
       · decide
@@ -148,8 +153,8 @@ example : Tableau [] ([r ⋀ (~(⌈a⌉p)), r ↣ ⌈a⌉(p ⋀ q)], [], none) :
       subst c_in
       -- second branch, apply "neg" and then modal step!
       apply LocalTableau.byLocalRule
-        ⟨ [~~(⌈a⌉( p ⋀q))], [], none
-        , (LocalRule.oneSidedL (OneSidedLocalRule.neg (⌈a⌉(p⋀q)))) rfl, _ ⟩
+        { lr := LocalRule.oneSidedL (OneSidedLocalRule.neg (⌈a⌉(p⋀q))) rfl
+          L := _, R := _, O := _, ress := _, preconditionProof := _ }
       all_goals (try simp; try rfl)
       intro c c_in; simp at c_in; subst c_in -- unique child node
       -- ending local tableau with a simple node:
@@ -185,7 +190,8 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
   case lt =>
     -- (□)
     apply LocalTableau.byLocalRule
-      ⟨_, _, _, (LocalRule.oneSidedL (OneSidedLocalRule.box (∗a) q (by decide))) rfl, by simp⟩
+      { lr := LocalRule.oneSidedL (OneSidedLocalRule.box (∗a) q (by decide)) rfl
+        L := _, R := _, O := _, ress := _, preconditionProof := _ }
     all_goals (try simp; try rfl)
     intro Y Y_in
     simp [unfoldBox, allTP, testsOfProgram, Xset, F, P, a] at *
@@ -212,15 +218,17 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
     case lt =>
       -- (□)
       apply LocalTableau.byLocalRule
-        ⟨_, _, _, (LocalRule.oneSidedL (OneSidedLocalRule.box (∗a) q (by decide))) rfl, by simp⟩
+        { lr := LocalRule.oneSidedL (OneSidedLocalRule.box (∗a) q (by decide)) rfl
+          L := _, R := _, O := _, ress := _, preconditionProof := _ }
       all_goals (try simp; try rfl)
       intro Y Y_in
       simp [unfoldBox, allTP, testsOfProgram, Xset, F, P, a] at *
       subst Y_in
       -- (◇)
       apply LocalTableau.byLocalRule
-        ⟨_, _, _, (LocalRule.loadedL _ (LoadRule.dia'
-        (by simp [Program.isAtomic] : ¬ (∗((·atA)⋓(?'p))).isAtomic))) rfl, by simp; rfl⟩
+        { lr := LocalRule.loadedL _ (LoadRule.dia'
+            (by simp [Program.isAtomic] : ¬ (∗((·atA)⋓(?'p))).isAtomic)) rfl
+          L := _, R := _, O := _, ress := _, preconditionProof := _ }
       all_goals (try simp; try rfl)
       intro Y Y_in
       by_cases Y = ([q, ⌈·atA⌉⌈∗·atA⌉q, ~q], [], none)
@@ -229,7 +237,8 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
         <;> simp_all [unfoldDiamondLoaded', YsetLoad', H, splitLast]
       · subst_eqs
         apply LocalTableau.byLocalRule -- left branch: close with q and ~q
-          ⟨ [q, ~(q)], [], none, (LocalRule.oneSidedL (OneSidedLocalRule.not q)) rfl, _ ⟩
+          { lr := LocalRule.oneSidedL (OneSidedLocalRule.not q) rfl
+            L := _, R := _, O := _, ress := _, preconditionProof := _ }
         all_goals (try simp; try rfl)
         · intro _ _; simp_all
         · decide
@@ -239,15 +248,18 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
     case next =>
       intro Y Y_in
       have : Y = ([q, ⌈a⌉⌈∗a⌉q], [], some (Sum.inl (~'⌊⌊[a]⌋⌋⌊∗a⋓(?'p)⌋AnyFormula.normal q)))  := by
-        simp only [List.empty_eq, List.map_nil, eq_mpr_eq_cast, endNodesOf, List.mem_flatten,
-          List.mem_map, List.mem_attach, true_and, Subtype.exists, Function.comp_apply,
-          Olf.change_old_none_none, ↓existsAndEq] at *
+        simp only [List.empty_eq, applyLocalRule.eq_1, List.diff_nil, List.nil_append,
+          List.cons_append, List.map_nil, id_eq, eq_mpr_eq_cast, endNodesOf, List.mem_flatten,
+          List.mem_map, List.mem_attach, true_and, Subtype.exists, List.diff_cons,
+          List.erase_cons_head, List.map_map, Function.comp_apply, Olf.change_old_none_none,
+          ↓existsAndEq] at *
         rcases Y_in with ⟨a, ⟨Z, Z_in, def_a⟩, Y_in_l⟩
         subst def_a
         -- It seems annoying to deal with all the casting here.
+        -- Less now with lra as structure, but still tricky.
         simp only [endNodesOf_cast_helper, endNodesOf, List.mem_flatten, List.mem_map,
-          List.mem_attach, true_and, Subtype.exists, Function.comp_apply, Prod.exists,
-          ↓existsAndEq] at Y_in_l
+          List.mem_attach, true_and, Subtype.exists, Olf.change_some_some_eq, List.map_map,
+          Function.comp_apply, Prod.exists, ↓existsAndEq] at Y_in_l
         rcases Y_in_l with ⟨a, ⟨Z, olf, Zolf_in, def_a⟩ , Y_in_l⟩
         subst def_a
         simp only [unfoldDiamondLoaded', YsetLoad', H, List.empty_eq, List.cons_union,

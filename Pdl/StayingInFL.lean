@@ -478,11 +478,12 @@ theorem LocalTableau.stays_in_FL {X}
     ∀ Y ∈ endNodesOf ltX, Y.subseteq_FL X := by
   intro Y Y_in_B
   cases ltX
-  case byLocalRule B next lra =>
+  case byLocalRule lra next X_def =>
     have _forTermination := localRuleApp.decreases_DM lra
-    rcases lra with @⟨L, R, _, ress, O, Lcond, Rcond, Ocond, lr, B_def, ⟨Lconp,Rconp,Oconp⟩⟩
-    subst B_def
-    have lr_lemma := LocalRule.stays_in_FL lr
+    rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, ⟨Lconp,Rconp,Oconp⟩⟩
+    subst X_def hC
+    simp only [LocalRuleApp.X] at _forTermination
+    have lr_lemma := LocalRule.stays_in_FL rule
     simp [endNodesOf] at Y_in_B
     rcases Y_in_B with ⟨l, ⟨W, W_in, def_l⟩ , Y_in⟩
     subst def_l

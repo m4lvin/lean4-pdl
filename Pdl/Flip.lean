@@ -137,12 +137,15 @@ def LocalRule.flip (lr : LocalRule (Lcond, Rcond, Ocond) ress) :
     simp only [List.empty_eq, List.map_map, List.map_inj_left, Function.comp_apply, Prod.forall]
     rintro L (_|_|_) <;> simp_all [Sequent.flip, Olf.flip]
 
+lemma LocalRule.flip_flip (lr : LocalRule (Lcond, Rcond, Ocond) ress) :
+    lr.flip.flip = Olf.flip_flip ▸ Sequent.map_flip_map_flip ▸ lr := by
+  cases lr <;> simp_all [LocalRule.flip] <;> grind
+
 /-- Note: is it possible and useful to rewrite this in more term and less tactic mode? -/
-def LocalRuleApp.flip {X B} : LocalRuleApp X B → LocalRuleApp X.flip (B.map Sequent.flip) := by
-  rintro ⟨Lcond, Rcond, Ocond, rule, preconditionProof⟩
-  next L R ress O B_def =>
-  refine @LocalRuleApp.mk _ _ _ _ _ Rcond Lcond Ocond.flip rule.flip ?_ ?_
-  · subst B_def
+def LocalRuleApp.flip : LocalRuleApp → LocalRuleApp := by
+  rintro ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, preconditionProof⟩
+  refine @LocalRuleApp.mk R L O.flip Rcond Lcond Ocond.flip _ rule.flip (C.map Sequent.flip) ?_ ?_
+  · subst hC
     simp
     rintro ⟨Lnew, Rnew, Onew⟩ Y_in
     simp [Sequent.flip]
@@ -153,37 +156,41 @@ def LocalRuleApp.flip {X B} : LocalRuleApp X B → LocalRuleApp X.flip (B.map Se
     refine ⟨hR, hL, ?_⟩
     rcases O with (_|_|_) <;> rcases Ocond with (_|_|_) <;> simp_all [Olf.flip, Sum.swap]
 
-lemma LocalRuleApp.flip_flip {X B} {lra : LocalRuleApp X B} :
-    lra.flip.flip = Sequent.map_flip_map_flip ▸ Sequent.flip_flip ▸ lra := by
-  sorry
+@[simp]
+lemma Sequent.flip_comp_flip : Sequent.flip ∘ Sequent.flip = id := by
+  ext X
+  rw [Function.comp_apply, Sequent.flip_flip, id_eq]
+
+lemma LocalRuleApp.flip_flip {lra : LocalRuleApp} :
+    lra.flip.flip = lra := by
+  rcases lra with ⟨L, R, O, C, Lcond, Rcond, Ocond, ress, rule, hC, preconditionProof⟩
+  simp [LocalRuleApp.flip]
+  rw [LocalRule.flip_flip]
+  grind
 
 lemma Sequent.flip_mem_of_mem_map_flip {B : List Sequent} {Y : Sequent} :
     Y ∈ B.map Sequent.flip → Y.flip ∈ B := by aesop
 
 def LocalTableau.flip {X} : LocalTableau X → LocalTableau X.flip
-  | (@byLocalRule X _ lra next) => .byLocalRule lra.flip (fun Y Y_in =>
-      @Sequent.flip_flip Y ▸ (next Y.flip (Sequent.flip_mem_of_mem_map_flip Y_in)).flip)
+  | (@byLocalRule X lra X_def next) => .byLocalRule lra.flip
+      (by subst X_def; simp [LocalRuleApp.flip, Sequent.flip])
+      (fun Y Y_in =>
+        @Sequent.flip_flip Y ▸ (next Y.flip (Sequent.flip_mem_of_mem_map_flip Y_in)).flip)
   | (@sim X Xbas) => .sim (basic_flip.mpr Xbas)
-
-@[simp]
-lemma Sequent.flip_comp_flip : Sequent.flip ∘ Sequent.flip = id := by
-  ext X
-  rw [Function.comp_apply, Sequent.flip_flip, id_eq]
 
 lemma LocalTableau.flip_flip {lt : LocalTableau X} : lt.flip.flip = Sequent.flip_flip ▸ lt := by
   induction lt <;> simp [LocalTableau.flip]
   case byLocalRule IH =>
     apply eq_of_heq
     rw! (castMode := .all) [Sequent.flip_flip] -- :-)
-    simp only [heq_eq_eq, byLocalRule.injEq, List.map_map, Sequent.flip_comp_flip, List.map_id_fun,
-      id_eq, eqRec_heq_iff_heq, true_and]
+    simp only [heq_eq_eq, byLocalRule.injEq]
     constructor
-    · rw [LocalRuleApp.flip_flip]
-      grind
+    · exact LocalRuleApp.flip_flip
     · refine Function.hfunext rfl ?_
       intro X X' X_heq_X'
       apply Function.hfunext
-      · grind
+      · rw [LocalRuleApp.flip_flip]
+        grind
       · grind
   · grind
 
@@ -200,11 +207,8 @@ lemma endNodesOf_flip {X} {lt : LocalTableau X} {Y} :
   induction lt
   case byLocalRule B next lra IH =>
     simp [endNodesOf, LocalTableau.flip] at *
-    rcases Y_in with ⟨Z, ⟨W, W_in_B, def_Z⟩, Y_in_end⟩
-    subst def_Z
-    use W, W_in_B
-    apply IH
-    grind only [!LocalTableau.flip_inj]
+    rcases Y_in with ⟨W, W_in_B, Y_in_end⟩
+    refine ⟨W.flip, ?_, ?_⟩ <;> grind
   case sim Z Zbas =>
     simp_all [LocalTableau.flip]
 
@@ -285,11 +289,7 @@ lemma LoadedPathRepeat.flip_flip {Hist X} (lpr : LoadedPathRepeat Hist X) :
     lpr.flip.flip = Sequent.map_flip_map_flip ▸ Sequent.flip_flip ▸ lpr := by
   rcases lpr with ⟨k, hk⟩
   simp [LoadedPathRepeat.flip]
-  apply LoadedPathRepeat.ext
-  apply Fin.ext
-  -- too many casts?
-  -- rw [Sequent.map_flip_map_flip] -- motive is not type correct
-  sorry
+  rw! [Sequent.map_flip_map_flip, Sequent.flip_flip]
 
 /-- (┛ಠ_ಠ)┛彡┻━┻ -/
 def Tableau.flip {Hist X} : Tableau Hist X → Tableau (Hist.map Sequent.flip) X.flip
@@ -311,11 +311,23 @@ lemma Hist_flip {Hist} : List.map Sequent.flip (List.map Sequent.flip Hist) = Hi
 lemma Tableau.flip_flip {Hist X} {tab : Tableau Hist X} :
     tab.flip.flip = Sequent.flip_flip ▸ Hist_flip ▸ tab := by
   induction tab
-  case loc =>
+  case loc Hist X nrep nbas ltX next IH =>
     simp [Tableau.flip]
-    -- rw [LocalTableau.flip_flip] -- motive is not type correct :-( use HEq?
-    sorry
-  case pdl r net IH =>
+    rw! [LocalTableau.flip_flip]
+    rw! (castMode := .all) [Sequent.flip_flip]
+    simp
+    convert Tableau.loc.congr_simp nrep nbas ltX next next ?_
+    · exact Sequent.map_flip_map_flip
+    · exact Sequent.map_flip_map_flip
+    case h Y W Y_eq_W Y_in W_in Y_heq_W =>
+      subst Y_eq_W
+      simp_all
+      specialize IH Y Y_in
+      rw! (castMode := .all) [@Sequent.flip_flip Y]
+      simp_all
+    · simp
+    · rfl
+  case pdl r next IH =>
     nth_rewrite 1 [Tableau.flip]
     nth_rewrite 1 [Tableau.flip]
     rw [IH]; clear IH
@@ -331,7 +343,6 @@ def PathIn.flip {Hist X} {tab : Tableau Hist X} : PathIn tab → PathIn tab.flip
         (by apply endNodesOf_flip; grind [LocalTableau.flip_flip])
         (by
           have := tail.flip; convert this using 1
-          -- rw [Sequent.flip_flip] -- motive is not type correct :-( use HEq?
-          sorry
+          rw! [@Sequent.flip_flip Y]
         )
   | .pdl tail => .pdl tail.flip

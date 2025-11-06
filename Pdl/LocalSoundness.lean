@@ -15,11 +15,10 @@ theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
   : ∀ Y ∈ endNodesOf ltab, (~''(⌊α⌋ξ)).in_side side Y := by
   intro Y Y_in
   induction ltab
-  case byLocalRule X B lra next IH =>
-    rcases X with ⟨L, R, O⟩
-    rcases lra with ⟨Lcond, Rcond, Ocond, r, precons⟩
-    rename_i resNodes B_def_apply_r_LRO
-    cases r
+  case byLocalRule X lra X_def next IH =>
+    subst X_def
+    rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, precons⟩
+    cases rule
     case oneSidedL =>
       simp_all only [applyLocalRule, List.empty_eq, List.diff_nil, List.map_map, List.mem_map,
         Function.comp_apply, List.append_nil, Olf.change_old_none_none, forall_exists_index,
@@ -30,8 +29,7 @@ theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
       · subst Z_def
         cases side
         all_goals
-        simp only [List.empty_eq, List.nil_subperm, Option.instHasSubsetOption, and_self, and_true,
-          AnyNegFormula.in_side] at *
+        simp only [AnyNegFormula.in_side] at *
         exact negLoad_in
       · simp [Y_in_A, A_def]
     case oneSidedR =>
@@ -44,8 +42,7 @@ theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
       · subst Z_def
         cases side
         all_goals
-        simp only [List.empty_eq, List.nil_subperm, Option.instHasSubsetOption, and_true, true_and,
-          AnyNegFormula.in_side] at *
+        simp only [AnyNegFormula.in_side] at *
         exact negLoad_in
       · simp [Y_in_A, A_def]
     case LRnegL φ => simp_all
@@ -66,8 +63,8 @@ theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
           subst precons
           cases lrule <;> simp_all
         case RR =>
+          clear IH next Y_in Y_in_A A_def
           simp [AnyNegFormula.in_side] at *
-          rw [negLoad_in]
           simp_all
       · simp [Y_in_A, A_def]
     case loadedR outputs χ lrule resNodes_def =>
@@ -79,11 +76,9 @@ theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
       · subst Z_def
         cases side
         case LL =>
-          simp only [List.empty_eq, List.nil_subperm, Option.instHasSubsetOption,
-            Option.some_subseteq, true_and, AnyNegFormula.in_side] at *
-          rw [negLoad_in]
-          simp_all only [Olf.change, Option.overwrite, sdiff, ↓reduceIte, Option.map,
-            Option.some.injEq, reduceCtorEq]
+          clear IH next Y_in Y_in_A A_def
+          simp only [AnyNegFormula.in_side] at *
+          simp_all
         case RR =>
           simp only [AnyNegFormula.in_side]
           simp only [AnyNegFormula.in_side] at negLoad_in
@@ -109,16 +104,14 @@ lemma next_exists_avoid_def_l {B : List Sequent} (next : (Y : Sequent) → Y ∈
   · rintro ⟨Z, Z_in, Y_in⟩
     exact ⟨_, ⟨Z, Z_in, rfl⟩, Y_in⟩
 
-lemma lra_preserves_free (lra : LocalRuleApp X B) (Z_in : Z ∈ B) (X_free : X.isFree) :
+lemma lra_preserves_free (lra : LocalRuleApp) (Z_in : Z ∈ lra.C) (X_free : lra.X.isFree) :
     Z.isFree := by
   -- We distinguish which rule was applied.
-  rcases X with ⟨L,R,O⟩
-  rcases lra with ⟨Lcond, Rcond, Ocond, r, precons⟩
-  rename_i resNodes B_def_apply_r_LRO
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, preconditionProof⟩
   unfold Sequent.isFree Sequent.isLoaded
   rcases Z with ⟨ZL, ZR, _|(nlf|nlf)⟩ <;> rcases O with (_|(nlf|nlf)) <;> simp_all
   all_goals
-    cases r
+    cases rule
     case oneSidedR resNodes orule resNodes_def =>
       cases orule <;> simp_all <;> subst_eqs
       · cases Z_in <;> rename_i h <;> cases h
@@ -135,7 +128,7 @@ lemma lra_preserves_free (lra : LocalRuleApp X B) (Z_in : Z ∈ B) (X_free : X.i
 lemma endNodesOf_free_are_free {X Y} (ltX : LocalTableau X) (h : X.isFree)
     (Y_in : Y ∈ endNodesOf ltX) : Y.isFree := by
   induction ltX
-  case byLocalRule X B lra next IH =>
+  case byLocalRule X lra X_def next IH =>
     rcases X with ⟨L,R,O⟩
     simp_all
     rcases Y_in with ⟨Z, Z_in_B, Y_in⟩
@@ -184,19 +177,21 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
     induction ltab generalizing α αs v w
     -- the generalizing `αs` here makes things really slow. use recursion instead?
 
-    case byLocalRule X B lra next IH =>
-      rcases X with ⟨L,R,O⟩
+    case byLocalRule X lra X_def next IH => -- X B lra next IH =>
+      subst X_def
 
       -- Soundness and invertibility of the local rule:
-      have locRulTru := @localRuleTruth (L,R,O) _ lra W M
+      have locRulTru := @localRuleTruth lra W M
+      rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, precons⟩
+      simp only [AnyFormula.loadBoxes_cons, modelCanSemImplyList, LocalRuleApp.X, endNodesOf.eq_1,
+        List.mem_flatten, List.mem_map, List.mem_attach, true_and, Subtype.exists,
+        next_exists_avoid_def_l] at *
 
       -- We distinguish which rule was applied.
-      rcases lra with ⟨Lcond, Rcond, Ocond, r, precons⟩
-      rename_i resNodes B_def_apply_r_LRO
-      cases r
+      cases rule
 
       -- Rules not affecting the loaded formula are easy by using the IH.
-      case oneSidedL resNodes orule =>
+      case oneSidedL YS orule YS_def =>
         simp_all [applyLocalRule] -- uses locRulTru
         rcases v_t with ⟨res, res_in, v_⟩
         specialize IH _ res res_in rfl v_ w_nξ _ _ v_αs_w
@@ -209,16 +204,14 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                 exact negLoad_in)
         rcases IH with ⟨Y, Y_in, v_Y⟩
         use Y
-        simp_all only [List.empty_eq, List.nil_subperm, Option.instHasSubsetOption, and_self,
-          and_true]
+        simp_all only [and_self, and_true]
         use (L.diff Lcond ++ res, R, O)
         simp_all only [exists_prop, and_true]
         grind
-      case oneSidedR resNodes orule => -- analogous to oneSidedL
+      case oneSidedR YS orule YS_def => -- analogous to oneSidedL
         simp_all only [applyLocalRule, List.empty_eq, List.diff_nil, List.map_map, List.mem_map,
-          Function.comp_apply, List.append_nil, Olf.change_old_none_none, AnyFormula.loadBoxes_cons,
-          modelCanSemImplyList, forall_exists_index, forall_and_index, exists_exists_and_eq_and,
-          endNodesOf.eq_1, List.mem_flatten, List.mem_attach, true_and, Subtype.exists]
+          Function.comp_apply, List.append_nil, Olf.change_old_none_none, exists_exists_and_eq_and,
+          forall_exists_index, forall_and_index]
           -- uses locRulTru
         rcases v_t with ⟨res, res_in, v_⟩
         specialize IH _ res res_in rfl v_ w_nξ _ _ v_αs_w
@@ -231,10 +224,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                 exact negLoad_in)
         rcases IH with ⟨Y, Y_in, v_Y⟩
         use Y
-        simp_all only [List.empty_eq, List.nil_subperm, Option.instHasSubsetOption, and_self,
-          and_true]
-        use endNodesOf (next (L, R.diff Rcond ++ res, O) (by aesop))
-        simp_all only [and_true]
+        simp_all only [and_self, and_true]
         use (L, R.diff Rcond ++ res, O)
         simp_all only [exists_prop, and_true]
         use res
@@ -274,12 +264,11 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             cases side <;> aesop
           subst α_same -- But cannot do `subst χ_def`.
           -- This F,δ pair is also used for one result in `B`:
-          have in_B : (L ++ F, R, some (Sum.inl (~'⌊⌊δ⌋⌋χ'))) ∈ B := by
-            simp [applyLocalRule, unfoldDiamondLoaded, YsetLoad] at B_def_apply_r_LRO
-            rw [B_def_apply_r_LRO]
+          have in_B : (L ++ F, R, some (Sum.inl (~'⌊⌊δ⌋⌋χ'))) ∈ C := by
+            simp [applyLocalRule, unfoldDiamondLoaded, YsetLoad] at hC
+            rw [hC]
             simp
             use δ
-          simp
           cases δ
           case nil => -- δ is empty, is this the easy or the hard case? ;-)
             simp at v_δ_u v_F -- Here we have v = u.
@@ -303,8 +292,10 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                   rcases u_αs_w with ⟨x, v_α_x, bla⟩
                   use x, v_α_x; rw [evalBoxes]
                   push_neg; use w; tauto
-              · rw [← χ_def]; cases side <;> simp_all [AnyNegFormula.in_side, LoadFormula.boxes]
-              · rw [← χ_def]; simp_all [Sequent.without, LoadFormula.boxes]
+              · clear IH next
+                cases side <;> subst_eqs <;> simp_all [AnyNegFormula.in_side, LoadFormula.boxes]
+              · clear IH next
+                simp_all [Sequent.without, LoadFormula.boxes]
               -- Now actually get the IH result.
               rcases IH with ⟨ Y, Y_in, v_Y
                              , ( Y_free
@@ -331,7 +322,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             -- A non-empty δ came from α, so we have not actually made the step to `u` yet.
             -- Again we prepare to use IH, but now for `d` and `δs ++ αs` instead.
             specialize @IH _ in_B v w ?_ w_nξ d (δs ++ αs) ?_ ?_ ?_
-            · intro f f_in
+            · intro f f_in; clear IH
               simp only [Option.map_some, Sum.elim_inl, negUnload, unload_boxes,
                 Formula.boxes_cons, Option.toList_some, List.mem_union_iff, List.mem_append,
                 List.mem_cons, List.not_mem_nil, or_false] at f_in
@@ -350,12 +341,12 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               rw [relateSeq_cons] at v_δ_u
               rcases v_δ_u with ⟨x, v_d_x, x_δ_u⟩
               refine ⟨x, v_d_x, ⟨u, x_δ_u, u_αs_w⟩⟩
-            · cases side
-              · simp only [AnyFormula.loadBoxes_cons, AnyNegFormula.in_side]
+            · clear IH next
+              cases side
+              · simp only [AnyNegFormula.in_side]
                 convert rfl
                 apply box_loadBoxes_append_eq_of_loaded_eq_loadBoxes χ_def
-              · exfalso
-                simp_all [AnyNegFormula.in_side, LoadFormula.boxes]
+              · simp_all [AnyNegFormula.in_side, LoadFormula.boxes]
             · exact Sequent.without_loadBoxes_isFree_of_eq_inl χ_def
             -- Now actually get the IH result.
             rcases IH with ⟨ Y, Y_in, v_Y
@@ -402,7 +393,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             · simp at *
               rcases negLoad_in with ⟨α_same, φ_def⟩
               cases αs <;> simp_all
-            · subst B_def_apply_r_LRO this
+            · subst hC this
               simp_all only [Option.some.injEq, reduceCtorEq]
           -- It seems this is actually easier than the `dia` case, we can `subst` more here.
           subst α_same
@@ -414,23 +405,22 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
           simp
           cases δ
           case nil => -- δ is empty, so we should have a free result?
+            clear IH -- No IH needed because we reach a free node.
             simp at v_δ_u v_F -- Here we have v = u.
             subst v_δ_u
             -- This F,δ pair is also used for one result in `B`:
-            have in_B : (L ++ (F ∪ [~φ]), R, none) ∈ B := by
-              simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at B_def_apply_r_LRO
-              rw [B_def_apply_r_LRO]
+            have in_B : (L ++ (F ∪ [~φ]), R, none) ∈ C := by
+              clear next
+              simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at hC
+              rw [hC]
               simp
               refine ⟨F, [], _in_H, ?_, ?_⟩
               · simp
-              · clear IH
-                cases O <;> cases side
+              · cases O <;> cases side
                 all_goals
                   simp [splitLast, Olf.change, Option.insHasSdiff, AnyNegFormula.in_side] at *
                 · exact negLoad_in
-                · exfalso; aesop
-            -- No IH needed because we reach a free node.
-            clear IH
+                · subst hC; exfalso; aesop
             -- We do not know `Y` yet because ltab may continue after `(L ++ F ++ [~φ], R, none)`.
             -- So let's use localTableauTruth to find a free end node, similar to αs = [] case.
             have v_Z : (M, v) ⊨ ((L ++ (F ∪ [~φ]), R, none) : Sequent) := by intro f f_in; aesop
@@ -446,9 +436,9 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               | none => by exfalso; simp_all [splitLast]
             have split_def : splitLast (d :: δs) = some δ_β := by rfl
             -- This F,δ pair is also used for one result in `B`:
-            have in_B : (L ++ F, R, some (Sum.inl (~'loadMulti δ_β.1 δ_β.2 φ))) ∈ B := by
-              simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at B_def_apply_r_LRO
-              rw [B_def_apply_r_LRO]
+            have in_B : (L ++ F, R, some (Sum.inl (~'loadMulti δ_β.1 δ_β.2 φ))) ∈ C := by
+              simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at hC
+              rw [hC]
               simp
               use F, (d :: δs), _in_H
               rw [split_def]
@@ -457,7 +447,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             -- A non-empty δ came from α, so we have not actually made the step to `u` yet.
             -- Again we prepare to use IH, but now for `d` and `δs` instead.
             specialize @IH _ in_B v u ?_ w_nξ d δs ?_ ?_ ?_
-            · intro f f_in
+            · intro f f_in; clear IH
               simp only [Option.map_some, Sum.elim_inl, negUnload, unload_loadMulti,
                 Option.toList_some, List.mem_union_iff, List.mem_append, List.mem_cons,
                 List.not_mem_nil, or_false] at f_in
@@ -472,8 +462,9 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                 exact w_nξ
             · simp_rw [relateSeq_cons]
               exact ⟨x, v_d_x, x_δs_u⟩
-            · cases side
-              · simp [AnyFormula.loadBoxes_cons, AnyNegFormula.in_side]
+            · clear IH next
+              cases side
+              · simp [AnyNegFormula.in_side]
                 exact loadMulti_of_splitLast_cons split_def
               · exfalso
                 simp_all [AnyNegFormula.in_side]
@@ -528,12 +519,11 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             cases side <;> aesop
           subst α_same -- But cannot do `subst χ_def`.
           -- This F,δ pair is also used for one result in `B`:
-          have in_B : (L, R ++ F, some (Sum.inr (~'⌊⌊δ⌋⌋χ'))) ∈ B := by
-            simp [applyLocalRule, unfoldDiamondLoaded, YsetLoad] at B_def_apply_r_LRO
-            rw [B_def_apply_r_LRO]
+          have in_B : (L, R ++ F, some (Sum.inr (~'⌊⌊δ⌋⌋χ'))) ∈ C := by
+            simp [applyLocalRule, unfoldDiamondLoaded, YsetLoad] at hC
+            rw [hC]
             simp
             use δ
-          simp
           cases δ
           case nil => -- δ is empty, is this the easy or the hard case? ;-)
             simp at v_δ_u v_F -- Here we have v = u.
@@ -557,8 +547,10 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                   rcases u_αs_w with ⟨x, v_α_x, bla⟩
                   use x, v_α_x; rw [evalBoxes]
                   push_neg; use w; tauto
-              · rw [← χ_def]; cases side <;> simp_all [AnyNegFormula.in_side, LoadFormula.boxes]
-              · rw [← χ_def]; simp_all [Sequent.without, LoadFormula.boxes]
+              · clear IH next
+                cases side <;> simp_all [AnyNegFormula.in_side, LoadFormula.boxes]
+              · clear IH next
+                simp_all [Sequent.without, LoadFormula.boxes]
               -- Now actually get the IH result.
               rcases IH with ⟨ Y, Y_in, v_Y
                              , ( Y_free
@@ -605,10 +597,11 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               rw [relateSeq_cons] at v_δ_u
               rcases v_δ_u with ⟨x, v_d_x, x_δ_u⟩
               refine ⟨x, v_d_x, ⟨u, x_δ_u, u_αs_w⟩⟩
-            · cases side
+            · clear IH next
+              cases side
               · exfalso
                 simp_all [AnyNegFormula.in_side, LoadFormula.boxes]
-              · simp only [AnyFormula.loadBoxes_cons, AnyNegFormula.in_side]
+              · simp only [AnyNegFormula.in_side]
                 convert rfl
                 apply box_loadBoxes_append_eq_of_loaded_eq_loadBoxes χ_def
             · exact Sequent.without_loadBoxes_isFree_of_eq_inr χ_def
@@ -655,7 +648,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             rw [← this] at negLoad_in
             cases side
             · subst this
-              simp_all only [modelCanSemImplyList, Option.some.injEq, reduceCtorEq]
+              simp_all
             · simp at negLoad_in
               rcases negLoad_in with ⟨α_same, φ_def⟩
               cases αs <;> simp_all
@@ -666,21 +659,19 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
           simp [relateSeq] at u_αs_w
           subst u_αs_w -- We now have u = w.
           -- Note: we now do `in_B` *after* distinguishing whether δ = [].
-          simp only [List.empty_eq, endNodesOf.eq_1, List.mem_flatten, List.mem_map,
-            List.mem_attach, true_and, Subtype.exists, next_exists_avoid_def_l,
-            modelCanSemImplyList, Hl_singleton]
+          simp only [Hl_singleton]
           cases δ
           case nil => -- δ is empty, so we should have a free result?
             simp at v_δ_u v_F -- Here we have v = u.
             subst v_δ_u
             -- This F,δ pair is also used for one result in `B`:
-            have in_B : (L, R ++ (F ∪ [~φ]), none) ∈ B := by
-              simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at B_def_apply_r_LRO
-              rw [B_def_apply_r_LRO]
+            have in_B : (L, R ++ (F ∪ [~φ]), none) ∈ C := by
+              simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at hC
+              rw [hC]
               simp
               refine ⟨F, [], _in_H, ?_, ?_⟩
               · simp
-              · clear IH
+              · clear IH next
                 cases O <;> cases side
                 all_goals
                   simp [splitLast, Olf.change, Option.insHasSdiff, AnyNegFormula.in_side] at *
@@ -703,9 +694,9 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               | none => by exfalso; simp_all [splitLast]
             have split_def : splitLast (d :: δs) = some δ_β := by rfl
             -- This F,δ pair is also used for one result in `B`:
-            have in_B : (L, R ++ F, some (Sum.inr (~'loadMulti δ_β.1 δ_β.2 φ))) ∈ B := by
-              simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at B_def_apply_r_LRO
-              rw [B_def_apply_r_LRO]
+            have in_B : (L, R ++ F, some (Sum.inr (~'loadMulti δ_β.1 δ_β.2 φ))) ∈ C := by
+              simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at hC
+              rw [hC]
               simp only [List.mem_map, Function.comp_apply, List.append_nil, Prod.mk.injEq,
                 List.append_cancel_left_eq, true_and, Prod.exists]
               use F, (d :: δs), _in_H
@@ -715,11 +706,10 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             -- A non-empty δ came from α, so we have not actually made the step to `u` yet.
             -- Again we prepare to use IH, but now for `d` and `δs` instead.
             specialize @IH _ in_B v u ?_ w_nξ d δs ?_ ?_ ?_
-            · intro f f_in
+            · intro f f_in; clear IH next
               simp only [Option.map_some, Sum.elim_inr, negUnload, unload_loadMulti,
                 Option.toList_some, List.mem_union_iff, List.mem_append, List.mem_cons,
                 List.not_mem_nil, or_false] at f_in
-              clear IH
               rcases f_in with ((f_in|(f_in|f_in))|f_def)
               · apply v_t; simp_all
               · apply v_t; simp_all
@@ -731,10 +721,11 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                 exact w_nξ
             · simp_rw [relateSeq_cons]
               exact ⟨x, v_d_x, x_δs_u⟩
-            · cases side
+            · clear IH next
+              cases side
               · exfalso
                 simp_all [AnyNegFormula.in_side]
-              · simp only [AnyNegFormula.in_side, AnyFormula.loadBoxes_cons, Option.some.injEq,
+              · simp only [AnyNegFormula.in_side, Option.some.injEq,
                 Sum.inr.injEq, NegLoadFormula.neg.injEq]
                 exact loadMulti_of_splitLast_cons split_def
             · exact Sequent.without_loadMulti_isFree_of_splitLast_cons_inr split_def
