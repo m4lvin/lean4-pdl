@@ -346,3 +346,13 @@ def PathIn.flip {Hist X} {tab : Tableau Hist X} : PathIn tab → PathIn tab.flip
           rw! [@Sequent.flip_flip Y]
         )
   | .pdl tail => .pdl tail.flip
+
+lemma PathIn.flip_flip {Hist X} {tab : Tableau Hist X} (s : PathIn tab) :
+    s.flip.flip =
+      ( show_term
+        (by convert s
+            · exact Sequent.map_flip_map_flip
+            · exact Sequent.flip_flip;
+            · simp
+          ) : PathIn tab.flip.flip) := by
+  sorry
