@@ -78,15 +78,21 @@ def PdlRule.all (X : Sequent) : List (Σ Y, PdlRule X Y) :=
                   simp [box_loadBoxes_append_eq_of_loaded_eq_loadBoxes, Formula.boxes_cons,
                     LoadFormula.split_splitLast_to_loadBoxes ξsp_def sp_def]⟩
           ]
-  -- WORRY: also need to allow freeL/freeR from non-atomic loading? (to make _spec below provable)
-  | _ => [] -- YOLO?
+  | _ => []
 
-/-- NOTE: unfinished but also NOT USED at the moment / not needed at all?
+lemma LoadFormula.split_boxes_cons {βs α φ} :
+    (⌊⌊βs⌋⌋⌊α⌋AnyFormula.normal φ).split = (βs ++ [α], φ) := by
+  induction βs
+  · simp_all
+  · rw [List.cons_append]
+    rw [LoadFormula.boxes_cons]
+    simp only [split, AnyFormula.split, Prod.mk.injEq, List.cons.injEq, true_and]
+    grind
 
-Maybe it's enough to build the countermodelgraph from a buildTree that uses only the PdlRules in
-`PdlRule.all` and we can ignore other (e.g. non-atomic unloading) PdlRule applications???
+/-- Specification that `PdlRule.all` is complete, almost: we demand `X.basic` here which is not
+part of the `PdlRule` type, but demanded by `Tableau.pdl`.
 -/
-lemma PdlRule.all_spec {X Y} (r : PdlRule X Y) : ⟨Y, r⟩ ∈ PdlRule.all X := by
+lemma PdlRule.all_spec {X Y} (bas : X.basic) (r : PdlRule X Y) : ⟨Y, r⟩ ∈ PdlRule.all X := by
   cases r_def : r
   case loadL L δs α φ R in_L notBox Y_def =>
     subst Y_def
@@ -106,13 +112,30 @@ lemma PdlRule.all_spec {X Y} (r : PdlRule X Y) : ⟨Y, r⟩ ∈ PdlRule.all X :=
         · simp only [Option.some.injEq, Sum.inl.injEq, NegLoadFormula.neg.injEq]
           have := defs_of_boxesOf_last_of_nonBox notBox δs α
           grind
-      · have := def_of_boxesOf_def bdef
-        -- HEq?!
-        sorry
+      · have := defs_of_boxesOf_last_of_nonBox notBox δs α
+        grind
     · exfalso; cases δs <;> simp_all [boxesOf]
   case loadR R δs α φ L in_R notBox Y_def =>
-    -- analogous
-    sorry
+    subst Y_def
+    unfold PdlRule.all
+    simp only [List.mem_append, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
+      Subtype.exists, ↓existsAndEq]
+    refine Or.inr ⟨_, in_R, ?_⟩
+    simp only
+    split
+    next bdef =>
+      simp only [List.mem_cons, Sigma.mk.injEq, List.not_mem_nil, or_false]
+      have := defs_of_boxesOf_last_of_nonBox notBox δs α
+      constructor
+      · convert rfl using 5
+        · rw [← @boxes_last, @List.dropLast_append_getLast]
+          exact Eq.symm (def_of_boxesOf_def bdef)
+        · simp only [NegLoadFormula.neg.injEq]
+          have := defs_of_boxesOf_last_of_nonBox notBox δs α
+          grind
+      · have := defs_of_boxesOf_last_of_nonBox notBox δs α
+        grind
+    · exfalso; cases δs <;> simp_all [boxesOf]
   case freeL L R δs α φ X_def Y_def =>
     subst X_def Y_def
     cases δs
@@ -120,12 +143,76 @@ lemma PdlRule.all_spec {X Y} (r : PdlRule X Y) : ⟨Y, r⟩ ∈ PdlRule.all X :=
       cases α_def : α <;> simp_all [PdlRule.all]
       case atom_prog a => aesop
       all_goals
-        -- PROBLEM: non-atomic freeL application here!
-        sorry
-    · sorry
+        -- Here we need `bas` to disallow non-atomic freeL applications
+        subst_eqs
+        absurd bas
+        simp only [Sequent.basic]
+        rw [not_and_or]
+        aesop
+    case cons β βs =>
+      rw! [Formula.boxes_cons, LoadFormula.boxes_cons]
+      cases β_def : β <;> simp_all [PdlRule.all]
+      case atom_prog a =>
+        subst_eqs; split <;> simp_all <;> right
+        case h spL_def => -- split non-empty into none is impossible
+          absurd spL_def
+          unfold LoadFormula.split
+          cases βs <;> simp_all [splitLast, LoadFormula.boxes_cons]
+        case h k γs γ spL_def => -- tricky case
+          have := splitLast_undo_of_some spL_def
+          simp only at this
+          simp only [LoadFormula.split_boxes_cons] at *
+          rw [← List.concat_eq_append, ← List.concat_eq_append] at this
+          have := List.of_concat_eq_concat this
+          cases this
+          subst_eqs
+          grind
+      all_goals
+        -- Here we need `bas` to disallow non-atomic freeL applications
+        subst_eqs
+        absurd bas
+        simp only [Sequent.basic]
+        rw [not_and_or]
+        aesop
   case freeR L R δs α φ X_def Y_def =>
-    -- analogous
-    sorry
+    -- COPY-PASTA from `freeL`.
+    subst X_def Y_def
+    cases δs
+    · rw! [Formula.boxes_nil, LoadFormula.boxes_nil]
+      cases α_def : α <;> simp_all [PdlRule.all]
+      case atom_prog a => aesop
+      all_goals
+        -- Here we need `bas` to disallow non-atomic freeL applications
+        subst_eqs
+        absurd bas
+        simp only [Sequent.basic]
+        rw [not_and_or]
+        aesop
+    case cons β βs =>
+      rw! [Formula.boxes_cons, LoadFormula.boxes_cons]
+      cases β_def : β <;> simp_all [PdlRule.all]
+      case atom_prog a =>
+        subst_eqs; split <;> simp_all <;> right
+        case h spL_def => -- split non-empty into none is impossible
+          absurd spL_def
+          unfold LoadFormula.split
+          cases βs <;> simp_all [splitLast, LoadFormula.boxes_cons]
+        case h k γs γ spL_def => -- tricky case
+          have := splitLast_undo_of_some spL_def
+          simp only at this
+          simp only [LoadFormula.split_boxes_cons] at *
+          rw [← List.concat_eq_append, ← List.concat_eq_append] at this
+          have := List.of_concat_eq_concat this
+          cases this
+          subst_eqs
+          grind
+      all_goals
+        -- Here we need `bas` to disallow non-atomic freeL applications
+        subst_eqs
+        absurd bas
+        simp only [Sequent.basic]
+        rw [not_and_or]
+        aesop
   case modL L R a ξ X_def Y_def =>
     subst X_def Y_def
     cases ξ <;> simp_all [all]
@@ -277,17 +364,19 @@ def Match.cEdge (m n : Match bt) : Prop := Match.edge m n ∨ Match.companion m 
 
 /-! ## Pre-states (Def 6.13)
 
-As possible worlds for the model graph we want to define *maximal* paths inside the build tree.
-These paths may use `companion` steps, but they should not contain any `(M)` steps.
+As possible worlds for the model graph we want to define *maximal* paths inside the build tree
+that do not contain `(M)` steps.
 
-QUESTION: why do we in the paper only allow one `companion` step?
+In the paper pre-states are allowed to be of the form π;π' when π ends at a repeat and π' is a
+maximal prefix of the path from the companion to that repeat. Here we will probably only store
+the π part of such pre-states, because the π' is uniquely determined by π then.
 -/
 
 /-- How to say that this is not a modal step? -/
 def Match.edge.not_mod : Match.edge m n → Prop := sorry
 
 /-- A pre-state-part is a path in a BuildTree starting at a Match, going along any non-(M) `edge`
-or `companion` steps and ending ???? -/
+or `companion` steps and ending at a leaf or just before an (M) application. -/
 inductive PreStateP {Pos} (bt : BuildTree Pos) : (m : Match bt) → Type
 | edge {m n} : (e : Match.edge m n) → e.not_mod → PreStateP bt n → PreStateP bt m
 | companion : Match.companion m n → PreStateP bt n → PreStateP bt m
@@ -302,7 +391,10 @@ def PreState.all (bt : BuildTree Pos) : List (Σ m, PreState bt m) := sorry
 
 -- TODO lemma PreState.all_spec : ...
 
-/-- Collect formulas in a pre-state -/
+/-- Collect formulas in a pre-state.
+
+TODO: If the pre-state ends in a repeat, also include formulas in the path from companion to (M).
+-/
 def PreState.forms : PreState bt m → List Formula := sorry
 
 def PreState.last : PreState bt n → Sequent := sorry
