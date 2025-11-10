@@ -347,12 +347,34 @@ def PathIn.flip {Hist X} {tab : Tableau Hist X} : PathIn tab → PathIn tab.flip
         )
   | .pdl tail => .pdl tail.flip
 
+lemma PathIn_helper {tabA : Tableau HistA XA} {tabB : Tableau HistB XB}
+    (hHist : HistA = HistB)
+    (hX : XA = XB) :
+    tabA = hHist ▸ hX ▸ tabB → PathIn tabA = PathIn tabB := by
+  subst_eqs
+  simp_all
+
+lemma PathIn_type_flip_flip {tab : Tableau Hist X} :
+    PathIn tab.flip.flip = PathIn tab := by
+  rw [Tableau.flip_flip]
+  grind
+
+/-- TODO: can this be stated better, without convert tactic? -/
 lemma PathIn.flip_flip {Hist X} {tab : Tableau Hist X} (s : PathIn tab) :
-    s.flip.flip =
-      ( show_term
-        (by convert s
-            · exact Sequent.map_flip_map_flip
-            · exact Sequent.flip_flip;
-            · simp
-          ) : PathIn tab.flip.flip) := by
-  sorry
+    s.flip.flip = Tableau.flip_flip ▸ (by convert s <;> simp) := by
+  simp
+  induction s
+  case nil =>
+    simp [PathIn.flip]
+    grind
+  case loc IH =>
+    simp only [flip, List.map_cons, eq_mpr_eq_cast]
+    sorry
+  case pdl Hist X Y nrep bas r next tail IH =>
+    -- Ugly, but works :-)
+    simp only [flip]
+    rw! [IH]
+    clear IH
+    apply eq_of_heq
+    have := @heq_of_eq _ (@tail.pdl _ _ _ nrep bas r)
+    convert this ?_ <;> simp_all [PdlRule.flip_flip] <;> rfl

@@ -605,7 +605,7 @@ def PathIn.children : (p : PathIn tab) → List (PathIn tab) := sorry
 def plus_exits {X} {tab : Tableau .nil X} (C : List (PathIn tab)) : List (PathIn tab) :=
   C ++ (C.map (fun p => p.children)).flatten
 
-/-- W.l.o.g version of `clusterInterpolation` where loaded formula is on the right side. -/
+/-- Specific version of `clusterInterpolation` where loaded formula is on the right side. -/
 def clusterInterpolation_right {Hist L R nlf}
     (tab : Tableau Hist (L, R, some (Sum.inr nlf)))
     (exitIPs : ∀ e ∈ exitsOf tab, PartInterpolant (nodeAt e))
@@ -614,24 +614,29 @@ def clusterInterpolation_right {Hist L R nlf}
 
 /-! The following lemma about `PathIn.flip` is here because it is also about `exitsOf`. -/
 
-lemma mem_exitsOf_to_flip {s : PathIn tab} : s ∈ exitsOf tab → s.flip ∈ exitsOf tab.flip := sorry
-
-/-
-lemma mem_existsOf_of_flip_flip {tab : Tableau Hist X} {s : PathIn tab.flip.flip} :
-    s ∈ exitsOf tab.flip.flip → s ∈ exitsOf tab := by
+lemma mem_existsOf_of_flip {Hist L R nlf} {tab : Tableau Hist (L, R, some nlf)}
+    {s : PathIn tab.flip} (s_in : s ∈ (exitsOf tab.flip : List (PathIn tab.flip)))
+    : (PathIn_type_flip_flip ▸ s.flip) ∈ exitsOf tab := by
   sorry
--/
 
-def exitsOf_flip : (exitIPs : ∀ e ∈ exitsOf tab, PartInterpolant (nodeAt e)) →
+def exitsOf_flip (exitIPs : ∀ e ∈ exitsOf tab, PartInterpolant (nodeAt e)) :
     ∀ e ∈ exitsOf tab.flip, PartInterpolant (nodeAt e) := by
   intro e e_in
-  -- have := mem_existsOf_to_flip e_in
-  -- have : e.flip ∈ exitsOf tab := by
-  --   sorry
-  -- simp [Sequent.flip_flip, Hist_flip] at this
-  -- rw [Tableau.flip_flip] at this motive not type correct
-  -- tricky?
-  sorry
+  have := mem_existsOf_of_flip e_in
+  specialize exitIPs _ this
+  have : (nodeAt (PathIn_type_flip_flip ▸ e.flip)) = (nodeAt e).flip := by
+    -- need lemma about `nodeAt(.. ▸ .flip)` here?
+    sorry
+  rw [this] at exitIPs
+  rcases exitIPs with ⟨θ, ⟨hVoc, hL, hR⟩⟩
+  refine ⟨θ, ?_, ?_, ?_⟩
+  · intro x x_in
+    specialize hVoc x_in
+    simp [jvoc] at hVoc
+    aesop
+  -- TODO: lemma that flip does not affect satisfiability
+  · sorry
+  · sorry
 
 /-- When `X` is an interpolant for `X`, then `~θ` is an interpolant for `X.flip`. -/
 lemma IsPartInterpolant.flip : isPartInterpolant X θ → isPartInterpolant X.flip (~θ) := by
