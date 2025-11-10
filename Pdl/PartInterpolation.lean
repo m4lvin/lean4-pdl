@@ -469,21 +469,58 @@ def freePdlRuleInterpolant {X Y} (r : PdlRule X Y) (Xfree : X.isFree) (θY : Par
     : PartInterpolant X := by
   rcases θY with ⟨θ, θ_ip_Y⟩
   cases r
-  case loadL notBox Y_def =>
+  case loadL in_L notBox Y_def =>
     use θ
     subst Y_def
     rcases θ_ip_Y with ⟨hYvoc, hYL, hYR⟩
     refine ⟨?_, ?_, ?_⟩
     · intro x x_in
       specialize hYvoc x_in
-      simp at hYvoc
-      simp
-      sorry -- easy?
-    · sorry -- easy?
-    · sorry -- easy?
-  case loadR =>
+      simp only [jvoc, List.fvoc, Vocab.fromList, Sequent.left_eq, Olf.L_inl, unload_boxes,
+        LoadFormula.unload, List.map_append, List.map_cons, Formula.voc, List.map_nil,
+        List.toFinset_append, List.toFinset_cons, List.toFinset_nil, insert_empty_eq,
+        Finset.union_singleton, Finset.sup_insert, id_eq, Finset.sup_eq_union', Sequent.right_eq,
+        Olf.R_inl, List.append_nil, Finset.mem_inter, Finset.mem_union, Finset.mem_sup,
+        List.mem_toFinset, List.mem_map, exists_exists_and_eq_and] at hYvoc
+      simp only [jvoc, List.fvoc, Vocab.fromList, Sequent.left_eq, Olf.L_none, List.append_nil,
+        Sequent.right_eq, Olf.R_none, Finset.mem_inter, Finset.mem_sup, List.mem_toFinset,
+        List.mem_map, id_eq, exists_exists_and_eq_and]
+      rcases hYvoc with ⟨x_from, ⟨φ, φ_inR, x_from_φ⟩⟩
+      constructor
+      · rcases x_from with (hx|hx)
+        · exact ⟨_, in_L, hx⟩
+        · grind
+      · use φ
+    all_goals
+      clear notBox Xfree
+      simp at *
+      grind
+  case loadR in_R notBox Y_def=>
     use θ
-    sorry -- analogous
+    subst Y_def
+    rcases θ_ip_Y with ⟨hYvoc, hYL, hYR⟩
+    refine ⟨?_, ?_, ?_⟩
+    · intro x x_in
+      specialize hYvoc x_in
+      simp only [jvoc, List.fvoc, Vocab.fromList, Sequent.left_eq, Olf.L_inr, List.append_nil,
+        Sequent.right_eq, Olf.R_inr, unload_boxes, LoadFormula.unload, List.map_append,
+        List.map_cons, Formula.voc, List.map_nil, List.toFinset_append, List.toFinset_cons,
+        List.toFinset_nil, insert_empty_eq, Finset.union_singleton, Finset.sup_insert, id_eq,
+        Finset.sup_eq_union', Finset.mem_inter, Finset.mem_sup, List.mem_toFinset, List.mem_map,
+        exists_exists_and_eq_and, Finset.mem_union] at hYvoc
+      simp only [jvoc, List.fvoc, Vocab.fromList, Sequent.left_eq, Olf.L_none, List.append_nil,
+        Sequent.right_eq, Olf.R_none, Finset.mem_inter, Finset.mem_sup, List.mem_toFinset,
+        List.mem_map, id_eq, exists_exists_and_eq_and]
+      rcases hYvoc with ⟨⟨φ, φ_inR, x_from_φ⟩, x_from⟩
+      constructor
+      · use φ
+      · rcases x_from with (hx|hx)
+        · exact ⟨_, in_R, hx⟩
+        · grind
+    all_goals
+      clear notBox Xfree
+      simp at *
+      grind
   all_goals
     exfalso
     subst_eqs
@@ -734,13 +771,10 @@ theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
       let s_to_t : PathIn (Tableau.pdl nrep bas r next) := (.pdl .nil)
       let t : PathIn tab := s.append (s_def ▸ s_to_t)
       have s_t : s ⋖_ t := by
-          unfold t s_to_t
           convert @edge_append_pdl_nil .nil _ tab s (s_def ▸ nrep)
                                         (s_def ▸ bas) Y (s_def ▸ r) (s_def ▸ next) ?_ <;> grind
-      have Y_def : Y = nodeAt t := by
-        unfold t s_to_t
-        simp only [nodeAt_append]
-        apply Eq.symm
+      have def_Y : nodeAt t = Y := by
+        simp only [t, s_to_t, nodeAt_append]
         convert @nodeAt_pdl_nil _ _ _ nrep bas next r <;> grind
       specialize IH s_t
       unfold nodeAt at s_free
@@ -749,7 +783,7 @@ theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
       unfold nodeAt
       rw [s_def]
       simp only
-      rw [← Y_def] at IH
+      rw [def_Y] at IH
       rcases IH with ⟨θY, θY_ip_Y⟩
       have := freePdlRuleInterpolant r (by grind [Sequent.isFree]) ⟨θY, θY_ip_Y⟩
       rcases this with ⟨θX, θX_ipX⟩
