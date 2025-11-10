@@ -617,26 +617,32 @@ def clusterInterpolation_right {Hist L R nlf}
 lemma mem_existsOf_of_flip {Hist L R nlf} {tab : Tableau Hist (L, R, some nlf)}
     {s : PathIn tab.flip} (s_in : s ∈ (exitsOf tab.flip : List (PathIn tab.flip)))
     : (PathIn_type_flip_flip ▸ s.flip) ∈ exitsOf tab := by
+  -- Actually define `exitsOf` first.
   sorry
 
 def exitsOf_flip (exitIPs : ∀ e ∈ exitsOf tab, PartInterpolant (nodeAt e)) :
     ∀ e ∈ exitsOf tab.flip, PartInterpolant (nodeAt e) := by
   intro e e_in
-  have := mem_existsOf_of_flip e_in
-  specialize exitIPs _ this
+  specialize exitIPs _ (mem_existsOf_of_flip e_in)
   have : (nodeAt (PathIn_type_flip_flip ▸ e.flip)) = (nodeAt e).flip := by
-    -- need lemma about `nodeAt(.. ▸ .flip)` here?
-    sorry
+    convert PathIn.nodeAt_flip <;> try simp_all [Sequent.flip, Olf.flip]
   rw [this] at exitIPs
   rcases exitIPs with ⟨θ, ⟨hVoc, hL, hR⟩⟩
-  refine ⟨θ, ?_, ?_, ?_⟩
+  refine ⟨~θ, ?_, ?_, ?_⟩
   · intro x x_in
     specialize hVoc x_in
-    simp [jvoc] at hVoc
+    simp only [jvoc, List.fvoc, Vocab.fromList, Sequent.flip_left, Sequent.flip_right,
+      Finset.mem_inter, Finset.mem_sup, List.mem_toFinset, List.mem_map, id_eq,
+      exists_exists_and_eq_and] at hVoc
     aesop
-  -- TODO: lemma that flip does not affect satisfiability
-  · sorry
-  · sorry
+  · simp only [jvoc, List.fvoc, Vocab.fromList, Sequent.flip_left, Sequent.flip_right, listHasSat,
+    List.mem_cons, forall_eq_or_imp, evaluate, not_exists, not_and, not_forall, not_not] at *
+    intro W M w w_θ
+    exact hR W M w w_θ
+  · simp only [jvoc, List.fvoc, Vocab.fromList, Sequent.flip_left, Sequent.flip_right, listHasSat,
+    List.mem_cons, forall_eq_or_imp, evaluate, not_exists, not_and, not_forall] at *
+    intro W M w not_w_θ
+    exact hL W M w not_w_θ
 
 /-- When `X` is an interpolant for `X`, then `~θ` is an interpolant for `X.flip`. -/
 lemma IsPartInterpolant.flip : isPartInterpolant X θ → isPartInterpolant X.flip (~θ) := by
@@ -667,10 +673,11 @@ def clusterInterpolation {Hist L R snlf}
   case inr nlf =>
     exact @clusterInterpolation_right _ _ _ nlf tab exitIPs
 
+/-- Ideally this would be a computable `def` and not an existential.
+But currently `PathIn.edge_upwards_inductionOn` only works with `Prop` motive. -/
 theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
     ∃ θ, isPartInterpolant (nodeAt s) θ := by
-  -- Pity that `PathIn.edge_upwards_inductionOn` only works with `Prop` motive :-/
-  induction s using PathIn.edge_upwards_inductionOn -- But wait, only use this for the free case!
+  induction s using PathIn.edge_upwards_inductionOn -- But wait, only use this for the free case!??
   next s IH =>
   -- case distinction before or after `induction`?
   by_cases (nodeAt s).isLoaded
@@ -684,14 +691,45 @@ theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
   case neg s_free =>
     -- EASY case, singleton cluster because not loaded.
     simp at s_free
-    rcases s_def : tabAt s with ⟨Hist, X, t⟩
-    cases t
+    rcases s_def : tabAt s with ⟨Hist, X, s_tab⟩
+    cases s_tab_def : s_tab
     case loc nbas ltX nrep nexts =>
-      have := LocalTableau.interpolant ltX
-      -- use here that endNodes will also be free?
-      -- need ⋖ for all end nodes etc?
-      sorry
+      /- -- Interestingly, we do not care about the end node being free here.
+      have Xfree : X.isFree := by rw [nodeAt, s_def] at s_free; grind [Sequent.isFree]
+      have endFree := fun Y => @endNodesOf_free_are_free _ Y ltX Xfree
+      -/
+      have endIPsExist : ∀ Y ∈ endNodesOf ltX, ∃ θ, isPartInterpolant Y θ := by
+        intro Y Y_in
+        subst s_tab_def -- hmm?
+        -- Need to make a path-step to Y, def and proofs about it inspired by `Soundness.lean`
+        let s_to_u : PathIn (tabAt s).2.2 := s_def ▸ @PathIn.loc _ _ nrep nbas ltX nexts Y Y_in .nil
+        let u := s.append s_to_u
+        have s_u : s ⋖_ u := by
+          unfold u s_to_u
+          apply edge_append_loc_nil
+          grind
+        specialize IH s_u
+        have tabAt_u_def : tabAt u = ⟨_, ⟨Y, nexts Y Y_in⟩⟩ := by
+          unfold u s_to_u
+          rw [tabAt_append]
+          have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc nrep nbas ltX nexts)))
+              = ⟨X :: _, ⟨Y, nexts Y Y_in⟩⟩ := by simp_all
+          convert this <;> try rw [s_def]
+          rw [eqRec_heq_iff_heq]
+        unfold nodeAt at IH
+        rw [tabAt_u_def] at IH
+        exact IH
+      let ltIP := LocalTableau.interpolant ltX ?endNodeIPs
+      · rcases ltIP with ⟨θ, X_ip_θ⟩
+        use θ
+        unfold nodeAt
+        rw [s_def]
+        simp_all
+      · intro Y Y_in
+        specialize endIPsExist Y Y_in
+        exact ⟨endIPsExist.choose, endIPsExist.choose_spec⟩
     case pdl Y bas r nrep next =>
+      subst s_tab_def
       -- The def of `t` here is inspired by the proof of `tableauThenNotSat` (with s/t swapped).
       let s_to_t : PathIn (Tableau.pdl nrep bas r next) := (.pdl .nil)
       let t : PathIn tab := s.append (s_def ▸ s_to_t)

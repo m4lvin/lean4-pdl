@@ -354,12 +354,27 @@ lemma PathIn_helper {tabA : Tableau HistA XA} {tabB : Tableau HistB XB}
   subst_eqs
   simp_all
 
+@[simp]
 lemma PathIn_type_flip_flip {tab : Tableau Hist X} :
     PathIn tab.flip.flip = PathIn tab := by
   rw [Tableau.flip_flip]
   grind
 
-/-- TODO: can this be stated better, without convert tactic? -/
+lemma PathIn.nodeAt_flip {Hist X} {tab : Tableau Hist X} {e : PathIn tab} :
+    nodeAt (e.flip) = (nodeAt e).flip := by
+  induction e
+  case nil => simp_all [PathIn.flip]
+  case loc Hist X nrep nbas lt next Y Y_in tail IH =>
+    simp [PathIn.flip]
+    rw [← IH]
+    clear IH
+    -- hmm?
+    sorry
+  case pdl => simp_all [PathIn.flip]
+
+/-
+/-- It seems we do not need this?
+TODO: can this be stated better, without convert tactic? -/
 lemma PathIn.flip_flip {Hist X} {tab : Tableau Hist X} (s : PathIn tab) :
     s.flip.flip = Tableau.flip_flip ▸ (by convert s <;> simp) := by
   simp
@@ -378,3 +393,4 @@ lemma PathIn.flip_flip {Hist X} {tab : Tableau Hist X} (s : PathIn tab) :
     apply eq_of_heq
     have := @heq_of_eq _ (@tail.pdl _ _ _ nrep bas r)
     convert this ?_ <;> simp_all [PdlRule.flip_flip] <;> rfl
+-/
