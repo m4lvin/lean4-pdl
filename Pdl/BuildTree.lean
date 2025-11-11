@@ -317,17 +317,18 @@ decreasing_by
     -- show that it's a move
     exact forTermination
 
-/-! ## Match
+/-! ## Matches
 
-Here we define paths inside a `BuildTree`, similar to `PathIn` for `Tableau`.
+WORRY: Where in the below is it okay/safe to work with the `BuildTree` type and
+where should we insist on the (more specific) `buildTree` result value?
 -/
 
-/-- Inspired by `PathIn` -/
+/-- Path inside a `BuildTree`. Analogous to `PathIn` for `Tableau`. -/
 inductive Match : ∀ {pos : GamePos}, BuildTree pos → Type
 | stop {bt} : Match bt
 | move {YS Y next} (Y_in : Y ∈ YS) (tail : Match (next Y Y_in)) : Match (BuildTree.Step YS next)
 
-def Match.btAt {bt : BuildTree pos} : Match bt → Σ newPos, BuildTree newPos
+def Match.btAt {pos} {bt : BuildTree pos} : Match bt → Σ newPos, BuildTree newPos
 | .stop => ⟨_, bt⟩
 | .move _ tail => btAt tail
 
@@ -345,22 +346,23 @@ def Match.edge (m n : Match bt) : Prop :=
     ∃ (h : btAt m = ⟨mPos, BuildTree.Step YS next⟩),
       n = m.append (h ▸ @Match.move _ _ nPos _ nPos_in .stop)
 
--- FIXME use `Fin` instead of `Nat`?
-def Match.rewind : Match bt → Nat → Match bt := sorry
+/-- Go back up inside `bt` by `k` steps.
+FIXME: instead of `Nat`, use `Fin` like we do in `PathIn.rewind`. -/
+def Match.rewind : Match bt → (k : Nat) → Match bt
+| .stop, _ => .stop
+| .move Y_in tail, 0 => .move Y_in tail
+| .move Y_in tail, (k + 1) => (Match.move Y_in tail).rewind k
 
 -- ... lots of stuff needed here?
 
 def Match.companionOf {bt : BuildTree pos} (m : Match bt) rp
-  (_ : btAt m = ⟨mPos, BuildTree.Leaf rp⟩) : Match bt :=
-    m.rewind (theRep rp)
-    -- s.rewind ((Fin.cast (tabAt_fst_length_eq_toHistory_length s) lpr.val).succ)
+  (_ : btAt m = ⟨mPos, BuildTree.Leaf rp⟩) : Match bt := m.rewind (theRep rp)
 
 def Match.companion (m n : Match bt) : Prop :=
   ∃ (mPos :_) (rp : _) (h : btAt m = ⟨mPos, BuildTree.Leaf rp⟩),
     n = Match.companionOf m rp h
 
--- skip / not use this?
-def Match.cEdge (m n : Match bt) : Prop := Match.edge m n ∨ Match.companion m n
+local notation ma:arg " ♥ " mb:arg => Match.companion ma mb
 
 /-! ## Pre-states (Def 6.13)
 
@@ -373,21 +375,40 @@ the π part of such pre-states, because the π' is uniquely determined by π the
 -/
 
 /-- How to say that this is not a modal step? -/
-def Match.edge.not_mod : Match.edge m n → Prop := sorry
+def Match.edge.not_mod {m n : Match bt} : Match.edge m n → Prop := by
+  rcases btAt m with ⟨pos, m_bt⟩
+  rcases pos with ⟨Hist, X, _⟩
+  -- Here we are MISSING the info in BuildTree which rule was actually used!
+  sorry
 
-/-- A pre-state-part is a path in a BuildTree starting at a Match, going along any non-(M) `edge`
-or `companion` steps and ending at a leaf or just before an (M) application. -/
-inductive PreStateP {Pos} (bt : BuildTree Pos) : (m : Match bt) → Type
+def Match.isLeaf {pos} {bt : BuildTree pos} {m : Match bt} : Prop :=
+    ∃ m_pos rep, m.btAt = ⟨m_pos, .Leaf rep⟩
+
+/-- This match ends *just before* an (M) application. -/
+def Match.isJustBeforeM {pos} {bt : BuildTree pos} {m : Match bt} : Prop :=
+  sorry
+
+/-- This match ends at the *result* of an (M) application. -/
+def Match.isResultOfM {pos} {bt : BuildTree pos} {m : Match bt} : Prop :=
+  sorry
+
+/-- A pre-state-part is any path in a BuildTree consisting of non-(M) `edge`s and ending at a leaf
+or just before an (M) application. (There are no `Match.companion` steps here, see note above.)
+
+PROBLEM / QUESTION: do we also need leafs given by empty `prMoves`??? -/
+inductive PreStateP {pos} (bt : BuildTree pos) : (m : Match bt) → Type
 | edge {m n} : (e : Match.edge m n) → e.not_mod → PreStateP bt n → PreStateP bt m
-| companion : Match.companion m n → PreStateP bt n → PreStateP bt m
-| stop :
-    -- PROBLEM / QUESTION: end just before (M), but also at leaf given by empty `prMoves`???
-    false → PreStateP bt m
+| stopLeaf {m} : m.isLeaf → PreStateP bt m
+| stopAtM {m} : m.isJustBeforeM → PreStateP bt m
 
-/-- A pre-state is a maximal pre-state-part, i.e. starting at the root or just after (M+). -/
-inductive PreState {Pos} (bt : BuildTree Pos) : (m : Match bt) → Type
+/-- A pre-state is a maximal pre-state-part, i.e. starting at the root or just after (M). -/
+inductive PreState {pos} (bt : BuildTree pos) : Type
+| fromRoot : PreStateP bt .stop → PreState bt
+| fromMod {m} : m.isResultOfM → PreStateP bt m → PreState bt
 
-def PreState.all (bt : BuildTree Pos) : List (Σ m, PreState bt m) := sorry
+def PreState.all {pos} (bt : BuildTree pos) : List (PreState bt) := sorry
+  -- Maybe define `Match.all` first and then filter it here?
+  -- Or better do it inductively?
 
 -- TODO lemma PreState.all_spec : ...
 
@@ -395,16 +416,16 @@ def PreState.all (bt : BuildTree Pos) : List (Σ m, PreState bt m) := sorry
 
 TODO: If the pre-state ends in a repeat, also include formulas in the path from companion to (M).
 -/
-def PreState.forms : PreState bt m → List Formula := sorry
+def PreState.forms : PreState bt → List Formula := sorry
 
-def PreState.last : PreState bt n → Sequent := sorry
+def PreState.last : PreState bt → Sequent := sorry
 
 -- TODO Lemma 6.14
 
 -- TODO Lemma 6.15
 
 -- TODO Lemma 6.16: pre-states are saturated and locally consistent, their last node is basic.
-lemma PreState.locConsSatBas (π : PreState bt m) :
+lemma PreState.locConsSatBas (π : PreState bt) :
     saturated (π.forms).toFinset
     ∧ locallyConsistent (π.forms).toFinset
     ∧ π.last.basic
@@ -413,7 +434,7 @@ lemma PreState.locConsSatBas (π : PreState bt m) :
 /-- Definition 6.17 to get model graph from strategy tree. -/
 @[simp]
 def BuildTree.toModel (bt : BuildTree Pos) : (Σ W : Finset (Finset Formula), KripkeModel W) :=
-  ⟨ ((PreState.all bt).map (fun ⟨_, π⟩ => π.forms.toFinset)).toFinset -- W
+  ⟨ ((PreState.all bt).map (List.toFinset ∘ PreState.forms)).toFinset -- W
   , { val := fun X p => Formula.atom_prop p ∈ X.1 -- valuation V(p)
     , Rel := fun a X Y => -- relation Rₐ
         ∃ φ, (~⌈·a⌉φ) ∈ X.1 ∧ (projection a X.1.toList).toFinset ∪ {~φ} ⊆ Y.1 }⟩
@@ -438,7 +459,7 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
     rintro ⟨X, X_in⟩
     unfold WS at X_in
     simp at X_in
-    rcases X_in with ⟨m, π, in_all, def_X⟩
+    rcases X_in with ⟨π, in_all, def_X⟩
     have := PreState.locConsSatBas π-- using Lemma 6.16 for (i)
     simp_all
   -- "(b, c) will follow immediately from the definition"
@@ -457,4 +478,5 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
     unfold WS
     simp
     -- need actual def for `PreState.all` first
+    -- use the .fromRoot pre-state
     sorry
