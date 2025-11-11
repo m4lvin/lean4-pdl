@@ -662,7 +662,7 @@ def exitsOf_flip (exitIPs : ∀ e ∈ exitsOf tab, PartInterpolant (nodeAt e)) :
   intro e e_in
   specialize exitIPs _ (mem_existsOf_of_flip e_in)
   have : (nodeAt (PathIn_type_flip_flip ▸ e.flip)) = (nodeAt e).flip := by
-    convert PathIn.nodeAt_flip <;> try simp_all [Sequent.flip, Olf.flip]
+    convert PathIn.nodeAt_flip <;> simp_all [Sequent.flip, Olf.flip]
   rw [this] at exitIPs
   rcases exitIPs with ⟨θ, ⟨hVoc, hL, hR⟩⟩
   refine ⟨~θ, ?_, ?_, ?_⟩
