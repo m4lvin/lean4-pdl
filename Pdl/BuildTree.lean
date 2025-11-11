@@ -428,28 +428,33 @@ def BuildTree.toModel (bt : BuildTree Pos) : (Σ W : Finset (Finset Formula), Kr
 
 /-- Theorem 6.21: If Builder has a winning strategy then there is a model graph. -/
 theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (startPos X)) :
-    ∃ (WS : Finset (Finset Formula)) (mg : ModelGraph WS), X.toFinset ∈ WS := by
+    ∃ (WS : Finset (Finset Formula)) (mg : ModelGraph WS), ∃ Z ∈ WS, X.toFinset ⊆ Z := by
   let bt := buildTree s h
   let WS := bt.toModel.1
   let M := bt.toModel.2
-  refine ⟨WS, ⟨M, ⟨?i, ?ii, ?iii, ?iv⟩⟩, ?X_in⟩  -- FIXME rename to (a), (b), (c), (d) as in paper?
+  refine ⟨WS, ⟨M, ⟨?a, ?b, ?c, ?d⟩⟩, ?X_in⟩
   -- show the model graph properties
-  · rintro ⟨X, X_in⟩
+  case a =>
+    rintro ⟨X, X_in⟩
     unfold WS at X_in
     simp at X_in
     rcases X_in with ⟨m, π, in_all, def_X⟩
     have := PreState.locConsSatBas π-- using Lemma 6.16 for (i)
     simp_all
-  · -- "(b, c) will follow immediately from the definition"
+  -- "(b, c) will follow immediately from the definition"
+  case b =>
     simp_all [M]
-  · intro X Y a φ X_a_Y aφ_in_X -- pick any ⌈a⌉φ
+  case c =>
+    intro X Y a φ X_a_Y aφ_in_X -- pick any ⌈a⌉φ
     simp only [M] at X_a_Y
     rcases X_a_Y with ⟨ψ, in_X, sub_Y⟩ -- relation was witnessed by ⌈a⌉ψ
     apply sub_Y -- show that φ is in projection
     simp_all
-  · -- "The main challenge" :-)
+  case d =>
+  -- "The main challenge" :-)
     sorry
-  · unfold WS
+  case X_in =>
+    unfold WS
     simp
     -- need actual def for `PreState.all` first
     sorry

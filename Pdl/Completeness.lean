@@ -5,7 +5,8 @@ import Pdl.BuildTree
 
 open HasSat
 
-theorem modelExistence {X} : consistent X →
+/-- Helper for `completeness`. Uses `gameP` and `strmg`. -/
+lemma modelExistence {X} : consistent X →
     ∃ (WS : Finset (Finset Formula)) (_ : ModelGraph WS) (W : WS), X.toFinset ⊆ W :=
   by
   intro consX
@@ -15,8 +16,8 @@ theorem modelExistence {X} : consistent X →
     simp_all [inconsistent]
     exact gameP _ (sP) winning_sP
   · rcases BuilderHasWinningS with ⟨sB, winning_sB⟩
-    rcases strmg X sB winning_sB with ⟨WS, mg, X_in_WS⟩
-    use WS, mg, ⟨X.toFinset, X_in_WS⟩
+    rcases strmg X sB winning_sB with ⟨WS, mg, Z, Z_in_WS, X_sub_Z⟩
+    exact ⟨WS, mg, ⟨Z, Z_in_WS⟩, X_sub_Z⟩
 
 /-- Theorem 6.1 -/
 theorem completeness : ∀ X, consistent X → satisfiable X :=
