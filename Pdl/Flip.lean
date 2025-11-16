@@ -180,7 +180,7 @@ def LocalTableau.flip {X} : LocalTableau X → LocalTableau X.flip
 
 lemma LocalTableau.flip_flip {lt : LocalTableau X} : lt.flip.flip = Sequent.flip_flip ▸ lt := by
   induction lt <;> simp [LocalTableau.flip]
-  case byLocalRule IH =>
+  case byLocalRule X lra X_def next IH =>
     apply eq_of_heq
     rw! (castMode := .all) [Sequent.flip_flip] -- :-)
     simp only [heq_eq_eq, byLocalRule.injEq]

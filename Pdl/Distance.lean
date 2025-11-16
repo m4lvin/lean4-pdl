@@ -2,9 +2,11 @@ import Mathlib.Data.ENat.Lattice
 
 import Pdl.UnfoldDia
 
-/-! # Distance between states
+/-! # Distance between states in a Kripke model
 
-This is used for the correctness of cluster interpolants in Section 7.
+In the article these are used for the correctness of cluster interpolants in Section 7.
+Here we also use them to state and prove `localLoadedDiamondList`, a local version
+of the `loadedDiamondPaths` lemma that is part of the Soundness proof in Section 6.
 -/
 
 /-! ## Walks -/
@@ -70,7 +72,7 @@ theorem reachable_iff_star_relate {M} {α : Program} {w v : W} :
     | tail _  ha hr => exact by_cases (p := _ = _) (Eq.subst · (motive := (Reachable _ _ _ ·)) hr)
                                                    (Reachable.trans hr ⟨Walk.cons ha (.nil α) ·⟩)
 
--- Unused
+/-- Unused -/
 theorem star_relate_of_Chain : List.IsChain (relate M α) (w :: l ++ [v]) → relate M (∗α) w v :=
   fun h => match l with
   | .nil => .single <| List.IsChain.rel_head h
@@ -226,7 +228,7 @@ theorem distance_star_le x :
 /-! ## Distance of diamond unfoldings
 
 Here we relate `distance` to `H`.
- -/
+-/
 
 /-- 7.47 (b) -/
 lemma distance_list_eq_distance_steps (M : KripkeModel W) (v w : W) δ :
