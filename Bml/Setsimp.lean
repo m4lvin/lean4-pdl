@@ -47,8 +47,8 @@ theorem lengthRemove (X : Finset Formula) :
     ext1
     simp only [Finset.mem_sdiff, Finset.mem_insert, Finset.mem_singleton]
     constructor
-    aesop
-    tauto
+    · aesop
+    · tauto
   rw [anotherClaim] at claim
   aesop
 

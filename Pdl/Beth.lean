@@ -61,8 +61,8 @@ theorem beth (φ : Formula) (h : φ.impDef p) :
       clear ip_two
       have := non_occ_taut_then_taut_repl_in_imp ((repl_in_F p (·p0) φ⋀·p0)) ψ p0 p
       simp only [repl_in_F, beq_self_eq_true, ↓reduceIte] at this
-      rw [repl_in_F_cancel_via_non_occ _ p p0 ?_] at this
-      apply this
+      rw [repl_in_F_cancel_via_non_occ _ p p0 p0_not_in_φ] at this
+      apply this _ _ ip_one
       · intro p0_in_ψ
         specialize ip_voc p0_in_ψ
         simp [p0_neq_p1] at ip_voc
@@ -73,14 +73,12 @@ theorem beth (φ : Formula) (h : φ.impDef p) :
         simp at ip_voc
         by_cases Sum.inl p ∈ φ.voc <;> simp_all [repl_in_F_voc_def]
         omega
-      · assumption
-      · assumption
     have ip_two_p : tautology (ψ ↣ (φ ↣ ·p)) := by
       clear ip_one
       have := non_occ_taut_then_taut_imp_repl_in
         (~ (repl_in_F p (·p1) φ ⋀ (~·p1))) ψ p1 p
       simp only [repl_in_F, beq_self_eq_true, ↓reduceIte] at this
-      rw [repl_in_F_cancel_via_non_occ _ p p1 ?_] at this
+      rw [repl_in_F_cancel_via_non_occ _ p p1 p1_not_in_φ] at this
       apply this
       -- rest is same as in ip_one_p
       · intro p1_in_ψ
@@ -93,7 +91,6 @@ theorem beth (φ : Formula) (h : φ.impDef p) :
         simp at ip_voc
         by_cases Sum.inl p ∈ φ.voc <;> simp_all [repl_in_F_voc_def]
         omega
-      · assumption
       · assumption
     intro W M w w_φ
     simp at w_φ

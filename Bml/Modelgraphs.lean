@@ -93,7 +93,7 @@ theorem truthLemma {Worlds : Set (Finset Formula)} (MG : ModelGraph Worlds) :
       · intro notBoxP_in_X; unfold Evaluate
         push_neg
         rcases iv X P notBoxP_in_X with ⟨Y, X_rel_Y, notP_in_Y⟩
-        use Y; constructor; exact X_rel_Y
+        refine ⟨Y, X_rel_Y, ?_⟩
         rcases IH Y with ⟨_, minus_IH_Y, _⟩
         exact minus_IH_Y notP_in_Y
       · intro boxBoxP_in_X Y X_rel_Y; exact iii X Y (□P) X_rel_Y boxBoxP_in_X

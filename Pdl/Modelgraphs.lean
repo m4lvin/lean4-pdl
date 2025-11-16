@@ -289,9 +289,9 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
         intro ψ ψ_in
         -- termination here will need F_goes_down when moving this into the above?
         have _forTermination : lengthOfFormula ψ < lengthOfProgram (∗β) := by
-          apply F_goes_down
-          simp [F]
-          convert ψ_in
+          apply @F_goes_down _ ℓ
+          simp only [F]
+          exact ψ_in
         apply (loadedTruthLemma MG X ψ).1
         apply mysat.1; simp [F]; assumption
       -- now use Lemma 34:

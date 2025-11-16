@@ -693,7 +693,10 @@ theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
     intro W M w v w_rho w_β_v
     have : (M,w) ⊨ ⌈β⌉ρ := by
       have by_ass : (M,w) ⊨ (repl_in_F x ρ) (χ0 ⋁ χ1) := by
-        apply rho_imp_repl; simp; exact w_rho; simp
+        apply rho_imp_repl
+        · simp only [List.mem_cons, List.not_mem_nil, or_false, forall_eq]
+          exact w_rho
+        · simp
       have obvious : (M,w) ⊨ (repl_in_F x ρ) (·x) := by simp; exact w_rho
       have : (M,w) ⊨ (repl_in_F x ρ) (((·x) ⋀ χ0) ⋁ χ1) := by
         simp [evaluate, modelCanSemImplyForm] at *

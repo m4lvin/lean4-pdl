@@ -19,10 +19,10 @@ theorem noBot : Provable (~⊥) := by
       subst c_in
       let ltBot : LocalTableau ({⊥},∅) := by
         apply LocalTableau.fromRule
-        apply LocalRuleApp.mk _ {⊥} {} (LocalRule.oneSidedL (OneSidedLocalRule.bot))
-        · simp
-        use []
-        simp
+        · apply LocalRuleApp.mk _ {⊥} {} (LocalRule.oneSidedL (OneSidedLocalRule.bot))
+          · simp
+          · use []
+          · simp
         aesop
       simp at ltBot
       exact ltBot
@@ -45,16 +45,16 @@ theorem noContradiction : Provable (~(p⋀~p)) :=
       subst c_in -- unique child node
       let ltB : LocalTableau ({p⋀~p},∅) := by
         apply LocalTableau.fromRule
-        apply LocalRuleApp.mk _ {p⋀~p} {} (LocalRule.oneSidedL (OneSidedLocalRule.con p (~p)))
-        · simp
-        all_goals (try rfl)
+        · apply LocalRuleApp.mk _ {p⋀~p} {} (LocalRule.oneSidedL (OneSidedLocalRule.con p (~p)))
+          · simp
+          all_goals (try rfl)
         intro c c_in; simp at c_in; subst c_in -- unique child node
         let ltC : LocalTableau ({p, ~p}, ∅) := by
           apply LocalTableau.fromRule
-          apply LocalRuleApp.mk _ {p, ~p} {} (LocalRule.oneSidedL (OneSidedLocalRule.not p))
-          simp
-          use [] -- claim that there are no more children
-          simp
+          · apply LocalRuleApp.mk _ {p, ~p} {} (LocalRule.oneSidedL (OneSidedLocalRule.not p))
+            · simp
+            · use [] -- claim that there are no more children
+            · simp
           aesop
         exact ltC
       exact ltB
@@ -78,12 +78,12 @@ def subTabForEx2 : ClosedTableau ({·'r', ~(□p), □(p⋀q)}, {}) :=
     · intro c c_in; simp at c_in; subst c_in -- unique child node
       let ltB : LocalTableau ({~p, p, q}, ∅) := by
         apply LocalTableau.fromRule
-        apply LocalRuleApp.mk _ {p, ~p} {} (LocalRule.oneSidedL (OneSidedLocalRule.not p))
-        · simp
-          intro f
-          aesop
-        use [] -- claim there are no children
-        simp
+        · apply LocalRuleApp.mk _ {p, ~p} {} (LocalRule.oneSidedL (OneSidedLocalRule.not p))
+          · simp
+            intro f
+            aesop
+          · use [] -- claim there are no children
+          · simp
         aesop
       exact ltB
   case next =>
@@ -105,11 +105,11 @@ example : ClosedTableau ({r⋀~(□p), r↣□(p⋀q)}, {}) :=
     · intro c c_in; simp at c_in; subst c_in -- unique child node
       let ltB : LocalTableau ({~(r⋀~(□(p⋀q))), r, ~(□p)}, ∅) := by
         apply LocalTableau.fromRule
-        apply LocalRuleApp.mk _ {~(r⋀~(□(p⋀q)))} {}
-          (LocalRule.oneSidedL (OneSidedLocalRule.ncon r (~(□(p⋀q)))))
-        · simp
-        · exact [ ({r, ~(□p), ~(r)},{}), ({r, ~(□p), ~~(□(p⋀q))},{}) ]
-        · rfl
+        · apply LocalRuleApp.mk _ {~(r⋀~(□(p⋀q)))} {}
+            (LocalRule.oneSidedL (OneSidedLocalRule.ncon r (~(□(p⋀q)))))
+          · simp
+          · exact [ ({r, ~(□p), ~(r)},{}), ({r, ~(□p), ~~(□(p⋀q))},{}) ]
+          · rfl
         · intro c c_in
           simp at c_in
           -- now branching!
@@ -118,19 +118,19 @@ example : ClosedTableau ({r⋀~(□p), r↣□(p⋀q)}, {}) :=
             subst c_def
             -- first branch, apply "not"
             apply LocalTableau.fromRule
-            apply LocalRuleApp.mk _ {r, ~(r)} {} (LocalRule.oneSidedL (OneSidedLocalRule.not r))
-            · simp
-            · exact [] -- claim there are no children
-            · rfl
+            · apply LocalRuleApp.mk _ {r, ~(r)} {} (LocalRule.oneSidedL (OneSidedLocalRule.not r))
+              · simp
+              · exact [] -- claim there are no children
+              · rfl
             · aesop
           case neg hyp =>
             have c_def : c = ({r, ~(□p), ~~(□(p⋀q))},{}) := by aesop
             subst c_def
             -- second branch, apply "neg" and then modal step!
             apply LocalTableau.fromRule
-            apply LocalRuleApp.mk _ {~~(□(p⋀q))} {}
-              (LocalRule.oneSidedL (OneSidedLocalRule.neg (□(p⋀q))))
-            all_goals (try simp; try rfl)
+            · apply LocalRuleApp.mk _ {~~(□(p⋀q))} {}
+                (LocalRule.oneSidedL (OneSidedLocalRule.neg (□(p⋀q))))
+              all_goals (try simp; try rfl)
             intro c c_in; simp at c_in; subst c_in -- unique child node
             -- ending local tableau with a simple node:
             apply LocalTableau.fromSimple

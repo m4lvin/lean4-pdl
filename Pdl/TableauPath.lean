@@ -1203,13 +1203,12 @@ theorem exists_rewinds_middle {a b c : PathIn tab} (h : a ≤ b) (h' : b ≤ c) 
     by_contra k_lt_k
     apply not_le.1 at k_lt_k
     have this := rewind_order_reversing_if_not_nil k_lt_k c_ne_nil
-    simp_all
-    apply edge.TransGen_isAsymm.1 a b
+    simp_all only [ne_eq]
+    apply edge.TransGen_isAsymm.1 a b ?_ this
     apply Relation.TransGen_of_ReflTransGen h
     intro con
-    simp_all
+    simp_all only
     exact path_is_irreflexive this
-    exact this
   simp_all
 
 /-- ## Finiteness and Wellfoundedness -/
