@@ -628,21 +628,34 @@ def Q {r : PathIn tab} : QuasiTab :=
 
 /-! ## Interpolants for proper clusters -/
 
-/-- The exits of a cluster: (C \ C+). -/
--- IDEA: similar to endNodesOf?
-def exitsOf : (tab : Tableau Hist (L, R, some nlf)) → List (PathIn tab)
-| .lrep lpr => [] -- a repeat is never an exit
-| .loc _ _ lt next => sorry -- TODO: can the exit be "inside" lt? Or can we filter `endNodesOf lt`?
-| .pdl _ _ _ next => sorry -- TODO: if (L-) then root of next is exit, also if (M) removes loading?
+/-- Helper for `exitsOf`. Or replace it fully with this? -/
+def exitsOf (tab : Tableau Hist X) : List (PathIn tab) :=
+  if X.isLoaded
+  then
+    match tab with
+    | .lrep _ => [] -- A repeat has no exit! (To ensure termination we do not rewind here.)
+    | .loc _ _ lt next => (endNodesOf lt).attach.flatMap (fun ⟨Y,Y_in⟩ =>
+                                  (exitsOf (next Y Y_in)).map (PathIn.loc Y_in))
+    | .pdl _ _ _ next => (exitsOf next).map PathIn.pdl
+  else
+    [ .nil ] -- Free nodes are their own (and the only kind of exits.
+
+lemma exitsOf_non_nil_off_loaded {tab : Tableau Hist X} :
+    X.isLoaded ↔ ∀ q ∈ exitsOf tab, q ≠ .nil := by
+  constructor
+  · intro Xload q q_in
+    unfold exitsOf at q_in
+    simp only [Xload, ↓reduceIte] at q_in
+    cases tab <;> simp at q_in <;> grind
+  · intro no_nil
+    unfold exitsOf at no_nil
+    grind
 
 -- move to TableauPath.lean later
 def PathIn.children : (p : PathIn tab) → List (PathIn tab) := sorry
 
-/-- Exits from a given list of nodes. Something like this should get us from `C` to `C+`. -/
-def plus_exits {X} {tab : Tableau .nil X} (C : List (PathIn tab)) : List (PathIn tab) :=
-  C ++ (C.map (fun p => p.children)).flatten
-
-/-- Specific version of `clusterInterpolation` where loaded formula is on the right side. -/
+/-- Specific version of `clusterInterpolation` where loaded formula is on the right side.
+This may need additional hypotheses to say that we start at the root of the cluster. -/
 def clusterInterpolation_right {Hist L R nlf}
     (tab : Tableau Hist (L, R, some (Sum.inr nlf)))
     (exitIPs : ∀ e ∈ exitsOf tab, PartInterpolant (nodeAt e))
@@ -651,16 +664,34 @@ def clusterInterpolation_right {Hist L R nlf}
 
 /-! The following lemma about `PathIn.flip` is here because it is also about `exitsOf`. -/
 
-lemma mem_existsOf_of_flip {Hist L R nlf} {tab : Tableau Hist (L, R, some nlf)}
-    {s : PathIn tab.flip} (s_in : s ∈ (exitsOf tab.flip : List (PathIn tab.flip)))
+lemma mem_existsOf_of_flip {Hist L R lr_nlf} {tab : Tableau Hist (L, R, some lr_nlf)}
+    (s : PathIn tab.flip) (s_in : s ∈ (exitsOf tab.flip : List (PathIn tab.flip)))
     : (PathIn_type_flip_flip ▸ s.flip) ∈ exitsOf tab := by
   -- Actually define `exitsOf` first.
-  sorry
+  unfold exitsOf at *
+  cases lr_nlf <;> simp [Sequent.isLoaded, Sequent.flip, Olf.flip] at *
+  · cases tab <;> simp_all [Tableau.flip]
+    case loc nrep next =>
+      rcases s_in with ⟨Yf, Yf_in, e, e_in, def_s⟩
+      rcases exists_flip_of_endNodesOf Yf_in with ⟨Y, def_Yf, Y_in⟩
+      subst def_Yf def_s
+      let newTab := (next Y (by rw [LocalTableau.flip_flip] at Y_in; exact Y_in))
+      -- still need that Y is still loaded -- should follow from what here?
+      -- have IH := @mem_existsOf_of_flip _ _ _  _  newTab
+      sorry
+    case pdl nlf Y as r nrep next =>
+      rcases s_in with ⟨e, e_in, def_s⟩
+      subst def_s
+      refine ⟨PathIn_type_flip_flip ▸ e.flip, ?_⟩
+      -- have IH := mem_existsOf_of_flip e.flip e_in
+      sorry
+  · sorry
 
-def exitsOf_flip (exitIPs : ∀ e ∈ exitsOf tab, PartInterpolant (nodeAt e)) :
+def exitsOf_flip {tab : Tableau Hist (L, R, some nlf)}
+    (exitIPs : ∀ e ∈ exitsOf tab, PartInterpolant (nodeAt e)) :
     ∀ e ∈ exitsOf tab.flip, PartInterpolant (nodeAt e) := by
   intro e e_in
-  specialize exitIPs _ (mem_existsOf_of_flip e_in)
+  specialize exitIPs _ (mem_existsOf_of_flip _ e_in)
   have : (nodeAt (PathIn_type_flip_flip ▸ e.flip)) = (nodeAt e).flip := by
     convert PathIn.nodeAt_flip <;> simp_all [Sequent.flip, Olf.flip]
   rw [this] at exitIPs
@@ -724,6 +755,8 @@ theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
     -- Maybe like this?
     have := @PathIn.edge_upwards_inductionOn .nil X tab
       (fun t => ¬ (nodeAt t).isLoaded → ∃ θ_t, isPartInterpolant (nodeAt t) θ_t)
+    -- Use a lemma here that all the `exitsOf` are indeed easier??
+    -- Is that covered by `upwards_inductionOn`? Or do we need "its" transitive closure?
     sorry
   case neg s_free =>
     -- EASY case, singleton cluster because not loaded.
