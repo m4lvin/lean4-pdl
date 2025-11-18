@@ -640,7 +640,7 @@ def exitsOf (tab : Tableau Hist X) : List (PathIn tab) :=
   else
     [ .nil ] -- Free nodes are their own (and the only kind of exits.
 
-lemma exitsOf_non_nil_off_loaded {tab : Tableau Hist X} :
+lemma loaded_iff_exitsOf_non_nil {tab : Tableau Hist X} :
     X.isLoaded ↔ ∀ q ∈ exitsOf tab, q ≠ .nil := by
   constructor
   · intro Xload q q_in
@@ -662,29 +662,102 @@ def clusterInterpolation_right {Hist L R nlf}
     : PartInterpolant (L, R, some (Sum.inr nlf)) := by
   sorry
 
+/-- TODO messy helper for `mem_existsOf_of_flip` -/
+lemma PathIn.loc_flip
+    nrep nbas
+    (lt : LocalTableau (L, R, some (Sum.inl nlf)))
+    (next : (Y : _) → Y ∈ endNodesOf lt → Tableau ((L, R, some (Sum.inl nlf)) :: Hist) Y)
+    (next' : (Yf : _) → Yf ∈ endNodesOf lt.flip → Tableau ((_ :: Hist).map Sequent.flip) Yf)
+    (Y : Sequent)
+    (Y_in : Y ∈ endNodesOf lt)
+    (p : PathIn (next Y Y_in))
+    (Yf_in : Y.flip ∈ endNodesOf lt.flip)
+    (h_next : (next Y Y_in).flip = next' Y.flip Yf_in)
+    (h : (Tableau.loc nrep nbas lt.flip next') = (Tableau.loc nrep' nbas' lt next).flip)
+    :
+    (PathIn.loc Y_in nil).flip = h ▸ @PathIn.loc _ _ _ _ lt.flip next' _ Yf_in .nil := by
+  -- cases h -- oho!
+  simp [PathIn.flip] -- hmm
+  sorry
+
 /-! The following lemma about `PathIn.flip` is here because it is also about `exitsOf`. -/
 
 lemma mem_existsOf_of_flip {Hist L R lr_nlf} {tab : Tableau Hist (L, R, some lr_nlf)}
     (s : PathIn tab.flip) (s_in : s ∈ (exitsOf tab.flip : List (PathIn tab.flip)))
     : (PathIn_type_flip_flip ▸ s.flip) ∈ exitsOf tab := by
-  -- Actually define `exitsOf` first.
   unfold exitsOf at *
-  cases lr_nlf <;> simp [Sequent.isLoaded, Sequent.flip, Olf.flip] at *
-  · cases tab <;> simp_all [Tableau.flip]
-    case loc nrep next =>
+  rcases lr_nlf with (nlf|nlf)
+  · cases tab
+    case loc nbas lt nrep next =>
+      simp only [Sequent.flip, Olf.flip, Option.map_some, Sum.swap_inl, Tableau.flip,
+        Sequent.isLoaded, decide_true, ↓reduceIte, List.mem_flatMap, List.mem_attach, List.mem_map,
+        true_and, Subtype.exists, Sum.swap_inr] at *
       rcases s_in with ⟨Yf, Yf_in, e, e_in, def_s⟩
       rcases exists_flip_of_endNodesOf Yf_in with ⟨Y, def_Yf, Y_in⟩
       subst def_Yf def_s
-      let newTab := (next Y (by rw [LocalTableau.flip_flip] at Y_in; exact Y_in))
-      -- still need that Y is still loaded -- should follow from what here?
-      -- have IH := @mem_existsOf_of_flip _ _ _  _  newTab
-      sorry
-    case pdl nlf Y as r nrep next =>
+      rcases Y with ⟨LY, RY, (_|lr_nlf_Y)⟩
+      · simp [Sequent.flip] at e
+        simp_all [Sequent.flip]
+        rw! (castMode := .all) [Olf.flip_none] at e_in; simp at e_in
+        rw [LocalTableau.flip_flip] at Y_in
+        -- Should this be exfalso here?
+        -- - Show that Y must be loaded -- should follow from what here?
+        -- Or is it okay for an exit to be "inside" / right after a local tableau?
+        refine ⟨ (LY,RY,none), Y_in, .nil, ?_, ?_⟩
+        · unfold exitsOf
+          simp [Sequent.isLoaded]
+        · unfold exitsOf at e_in
+          simp [Sequent.isLoaded] at e_in
+          subst e_in
+          unfold PathIn.flip; simp
+          unfold PathIn.flip; simp
+          -- TODO: Lemma about .loc .nil and cast?
+          sorry
+      · rcases lr_nlf_Y with (nlfY|nlfY)
+        · sorry -- analogous later?
+        simp [Sequent.flip] at *
+        unfold Sequent.flip at e e_in
+        simp at e e_in
+        unfold Olf.flip at e e_in
+        simp at e e_in
+        have := endNodesOf_flip Yf_in
+        simp only [Sequent.flip_flip] at this
+        refine ⟨(LY, RY, some _), this, ?_⟩
+        use (PathIn_type_flip_flip ▸ e.flip)
+        constructor
+        · have IH := mem_existsOf_of_flip _ e_in -- yeah?!
+          grind
+        · -- only HEq business left to do here?
+          sorry
+    case pdl Y bas r nrep next =>
+      simp_all only [Sequent.flip, Olf.flip, Option.map_some, Sum.swap_inl, Tableau.flip,
+        Sequent.isLoaded, decide_true, ↓reduceIte, List.mem_map, Sum.swap_inr]
       rcases s_in with ⟨e, e_in, def_s⟩
       subst def_s
-      refine ⟨PathIn_type_flip_flip ▸ e.flip, ?_⟩
-      -- have IH := mem_existsOf_of_flip e.flip e_in
-      sorry
+      rcases Y with ⟨LY, RY, (_|lr_nlf_Y)⟩ -- to get that Y is loaded
+      · unfold exitsOf at ⊢ e_in
+        simp [Sequent.isLoaded] at *
+        subst e_in
+        -- only HEq business left to do here?
+        sorry
+      · have IH := mem_existsOf_of_flip e e_in
+        use (PathIn_type_flip_flip ▸ e.flip), IH
+        simp
+        -- only HEq business left to do here?
+        sorry
+
+    case lrep =>
+      simp [Sequent.isLoaded, Sequent.flip, Olf.flip] at *
+      simp_all [Tableau.flip]
+
+  · -- other `nlf` side, should be analogous.
+    sorry
+termination_by
+  s.length
+decreasing_by
+  · simp_wf
+    subst_eqs
+    sorry
   · sorry
 
 def exitsOf_flip {tab : Tableau Hist (L, R, some nlf)}
