@@ -20,6 +20,9 @@ lemma Olf.flip_inj {O1 O2 : Olf} : O1.flip = O2.flip ↔ O1 = O2 := by
 lemma Olf.flip_flip {O : Olf} : O.flip.flip = O := by
   rcases O with (_|_|_) <;> simp_all [Olf.flip]
 
+@[simp]
+lemma Olf.flip_none : Olf.flip none = none := by simp [Olf.flip]
+
 def Sequent.flip : Sequent → Sequent := fun ⟨L, R, O⟩ => ⟨R, L, O.flip⟩
 
 @[simp]
@@ -213,16 +216,22 @@ lemma endNodesOf_flip {X} {lt : LocalTableau X} {Y} :
   case sim Z Zbas =>
     simp_all [LocalTableau.flip]
 
-lemma exists_flip_of_endNodesOf {X : Sequent} {lt : LocalTableau X.flip} {Yf} :
-     Yf ∈ endNodesOf lt → ∃ Y, Yf = Y.flip ∧ Y ∈ endNodesOf lt.flip := by
-  intro Y_in
-  cases lt
-  case byLocalRule B next lra =>
+lemma exists_flip_of_endNodesOf {X : Sequent} {ltf : LocalTableau X.flip} {Zf} :
+     Zf ∈ endNodesOf ltf → ∃ Z, Zf = Z.flip ∧ Z ∈ endNodesOf ltf.flip := by
+  intro Z_in
+  cases ltf
+  case byLocalRule lra next X_def =>
     simp only [endNodesOf, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
       Subtype.exists, ↓existsAndEq, LocalTableau.flip] at *
-    rcases Y_in with ⟨W, W_in_B, Y_in_end⟩
-    -- TODO IH := ...
-    refine ⟨W.flip, ?_, ?_⟩ <;> subst_eqs <;> sorry
+    rcases Z_in with ⟨Yf, Yf_in_B, Zf_via_Yf⟩
+    refine ⟨Zf.flip, ?_, ⟨Yf.flip, ?_, ?_⟩⟩
+    · simp
+    · grind [LocalRuleApp.flip]
+    · rw! (castMode := .all) [@Sequent.flip_flip Yf]
+      simp only
+      apply endNodesOf_flip
+      rw [LocalTableau.flip_flip]
+      grind
   case sim Xbas =>
     simp_all only [endNodesOf, List.mem_cons, List.not_mem_nil, or_false, LocalTableau.flip]
     subst_eqs
