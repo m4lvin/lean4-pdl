@@ -815,22 +815,47 @@ def clusterInterpolation {Hist L R snlf}
     exact @clusterInterpolation_right _ _ _ nlf tab exitIPs
 
 /-- Ideally this would be a computable `def` and not an existential.
-But currently `PathIn.edge_upwards_inductionOn` only works with `Prop` motive. -/
+But currently `PathIn.strong_upwards_inductionOn` only works with `Prop` motive. -/
 theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
     ∃ θ, isPartInterpolant (nodeAt s) θ := by
-  induction s using PathIn.edge_upwards_inductionOn -- But wait, only use this for the free case!??
+  induction s using PathIn.strong_upwards_inductionOn -- Strong!
   next s IH =>
   -- case distinction before or after `induction`?
   by_cases (nodeAt s).isLoaded
-  case pos =>
-    -- HARD case.
-    -- Here we want to use `clusterInterpolation`.
-    -- Maybe like this?
-    have := @PathIn.edge_upwards_inductionOn .nil X tab
-      (fun t => ¬ (nodeAt t).isLoaded → ∃ θ_t, isPartInterpolant (nodeAt t) θ_t)
-    -- Use a lemma here that all the `exitsOf` are indeed easier??
-    -- Is that covered by `upwards_inductionOn`? Or do we need "its" transitive closure?
-    sorry
+  case pos s_loaded =>
+    -- HARD case, here we want to use `clusterInterpolation` and that is why we used
+    -- `PathIn.strong_upwards_inductionOn` to have an IH applicable to "far away" exits.
+    -- WORRY: the IH here is not morally true, might later need to restrict it to free nodes.
+    -- Now we use `s_loaded` to get the right input type for `clusterInterpolation`.
+    rcases tab_s_def : tabAt s with ⟨Hist, ⟨L,R, olf⟩, tabNew⟩
+    cases olf
+    case none =>
+      exfalso
+      unfold nodeAt at s_loaded
+      rw [tab_s_def] at s_loaded
+      simp [Sequent.isLoaded] at s_loaded
+    case some lr_nlf =>
+      let myExitIPs : ∀ e ∈ exitsOf tabNew, PartInterpolant (nodeAt e) := by
+        intro e e_in
+        specialize @IH (s.append (tab_s_def ▸ e)) ?_
+        · -- TODO: lemma that all `exitsOf` are proper successors (because we are loaded).
+          sorry
+        have := IH.choose_spec
+        simp only [nodeAt_append] at this IH
+        refine ⟨IH.choose, ?_⟩
+        convert this
+        · rw [tab_s_def]
+        · rw [tab_s_def]
+        · rw [tab_s_def]
+        · rw! [tab_s_def]
+          simp
+      have := @clusterInterpolation _ L R lr_nlf tabNew myExitIPs
+      rcases this with ⟨θ, h_θ⟩
+      use θ
+      unfold nodeAt
+      rw [tab_s_def]
+      simp
+      exact h_θ
   case neg s_free =>
     -- EASY case, singleton cluster because not loaded.
     simp at s_free
@@ -851,7 +876,7 @@ theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
           unfold u s_to_u
           apply edge_append_loc_nil
           grind
-        specialize IH s_u
+        specialize IH (Relation.TransGen.single s_u)
         have tabAt_u_def : tabAt u = ⟨_, ⟨Y, nexts Y Y_in⟩⟩ := by
           unfold u s_to_u
           rw [tabAt_append]
@@ -882,7 +907,7 @@ theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
       have def_Y : nodeAt t = Y := by
         simp only [t, s_to_t, nodeAt_append]
         convert @nodeAt_pdl_nil _ _ _ nrep bas next r <;> grind
-      specialize IH s_t
+      specialize IH (Relation.TransGen.single s_t)
       unfold nodeAt at s_free
       rw [s_def] at s_free
       simp only at s_free
