@@ -814,6 +814,34 @@ def clusterInterpolation {Hist L R snlf}
   case inr nlf =>
     exact @clusterInterpolation_right _ _ _ nlf tab exitIPs
 
+-- MOVE AWAY after proving
+lemma PathIn.lt_append_iff_not_eq {tab : Tableau Hist X}
+  (p : PathIn tab) (h : tabAt p = ⟨pHist, ⟨pX, tabNew⟩⟩) (q : PathIn tabNew)
+  : p < p.append (h ▸ q) ↔ p ≠ p.append (h ▸ q) := by
+  have := @PathIn.eq_append_iff_other_eq_nil _ _ tab p (h ▸ q)
+  cases q_def : q
+  case nil => -- showing false ↔ false
+    have : p.append (h ▸ .nil) = p := by grind
+    simp_all
+    exact path_is_irreflexive
+  case loc => -- showing true ↔ true
+    have : p.append (h ▸ q) ≠ p := by
+      subst q_def
+      simp
+      rw [Eq.comm, PathIn.eq_append_iff_other_eq_nil]
+      intro hyp
+      -- ???
+      sorry
+    simp [q_def] at this
+    simp only [ne_eq]
+    rw [Eq.comm]
+    simp only [this, not_false_eq_true, iff_true, gt_iff_lt]
+    clear this
+    sorry
+  case pdl => -- showing true ↔ true
+    simp_all
+    sorry
+
 /-- Ideally this would be a computable `def` and not an existential.
 But currently `PathIn.strong_upwards_inductionOn` only works with `Prop` motive. -/
 theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
@@ -838,17 +866,20 @@ theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
       let myExitIPs : ∀ e ∈ exitsOf tabNew, PartInterpolant (nodeAt e) := by
         intro e e_in
         specialize @IH (s.append (tab_s_def ▸ e)) ?_
-        · -- TODO: lemma that all `exitsOf` are proper successors (because we are loaded).
-          sorry
+        · -- Use that `exitsOf` something loaded are proper successors.
+          have e_non_nil : e ≠ .nil := by
+            unfold nodeAt at s_loaded
+            have := (@loaded_iff_exitsOf_non_nil _ _ (tabAt s).2.2).mp s_loaded (tab_s_def ▸ e) ?_
+            · convert this <;> grind
+            grind
+          have := PathIn.lt_append_iff_not_eq _ tab_s_def e
+          simp at this
+          grind
         have := IH.choose_spec
         simp only [nodeAt_append] at this IH
         refine ⟨IH.choose, ?_⟩
-        convert this
-        · rw [tab_s_def]
-        · rw [tab_s_def]
-        · rw [tab_s_def]
-        · rw! [tab_s_def]
-          simp
+        convert this <;> try rw [tab_s_def]
+        rw! [tab_s_def]; simp
       have := @clusterInterpolation _ L R lr_nlf tabNew myExitIPs
       rcases this with ⟨θ, h_θ⟩
       use θ
