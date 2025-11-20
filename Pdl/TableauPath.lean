@@ -1346,3 +1346,47 @@ theorem PathIn.edge_upwards_inductionOn {Hist X} {tab : Tableau Hist X}
       cases tabAt_t_eq
     · rw [tabT_def] at tabAt_t_eq
       cases tabAt_t_eq
+
+-- not in mathlib already?
+lemma Relation.TransGen_flip_iff {r : α → α → Prop} :
+    Relation.TransGen (flip r) s t ↔ Relation.TransGen r t s := by
+  constructor
+  all_goals
+    intro t_s
+    induction t_s
+    case single t s_t =>
+      exact TransGen.single s_t
+    case tail b c _ c_b b_s =>
+      simp only [flip] at c_b
+      exact TransGen.trans (TransGen.single c_b) b_s
+
+/-- Strong induction from the leaves (= childless nodes) to the root.
+Suppose whenever the `motive` holds at all successors then it holds at the parent.
+Then it holds at all nodes. -/
+theorem PathIn.strong_upwards_inductionOn {Hist X} {tab : Tableau Hist X}
+    {motive : PathIn tab → Prop}
+    (ups : ∀ {u}, (∀ {s}, (u_s : u < s) → motive s) → motive u)
+    (t0 : PathIn tab)
+    : motive t0 := by
+  have := @WellFounded.transGen _ _ (@flipEdge.wellFounded _ _ tab)
+  apply WellFounded.induction this t0
+  intro t IH
+  rcases tabT_def : (tabAt t) with ⟨H,X,tabT⟩
+  cases tabT
+  case loc => exact ups fun {s} t_s => IH s (by rw [Relation.TransGen_flip_iff]; exact t_s)
+  case pdl => exact ups fun {s} t_s => IH s (by rw [Relation.TransGen_flip_iff]; exact t_s)
+  case lrep lpr =>
+    apply ups
+    rintro s t_s
+    cases t_s
+    case a.single t_s => -- easy case, like in non-strong induction
+      rcases t_s with ⟨_, _, _, _, _, _, _, _, tabAt_t_eq, _⟩
+                    | ⟨_, _, _, _, _, _, _, tabAt_t_eq, _⟩
+      · rw [tabT_def] at tabAt_t_eq
+        cases tabAt_t_eq
+      · rw [tabT_def] at tabAt_t_eq
+        cases tabAt_t_eq
+    case a.tail b c t__b b_c =>
+      apply IH
+      rw [Relation.TransGen_flip_iff]
+      exact Relation.TransGen.trans t__b (Relation.TransGen.single b_c)
