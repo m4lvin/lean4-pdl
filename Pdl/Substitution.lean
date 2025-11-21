@@ -319,9 +319,8 @@ lemma taut_repl φ p q :
 
 /-- A special case of `taut_repl` for the proof of `beth`. -/
 lemma non_occ_taut_then_taut_repl_in_imp (φ ψ : Formula) (p q : ℕ) :
-    Sum.inl p ∉ ψ.voc → Sum.inl q ∉ ψ.voc →
-    tautology (φ ↣ ψ) → tautology (repl_in_F p (·q) φ ↣ ψ) := by
-  intro p_not_in_ψ q_not_in_ψ taut_imp W M w
+    Sum.inl p ∉ ψ.voc → tautology (φ ↣ ψ) → tautology (repl_in_F p (·q) φ ↣ ψ) := by
+  intro p_not_in_ψ taut_imp W M w
   simp only [evaluate, not_and, not_not]
   intro w_φ
   have := taut_repl _ p q taut_imp W M w
@@ -333,9 +332,8 @@ lemma non_occ_taut_then_taut_repl_in_imp (φ ψ : Formula) (p q : ℕ) :
 
 /-- Another special case of `taut_repl` for the proof of `beth`. -/
 lemma non_occ_taut_then_taut_imp_repl_in (φ ψ : Formula) (p q : ℕ) :
-    Sum.inl p ∉ ψ.voc → Sum.inl q ∉ ψ.voc →
-    tautology (ψ ↣ φ) → tautology (ψ ↣ repl_in_F p (·q) φ) := by
-  intro p_not_in_ψ q_not_in_ψ taut_imp W M w
+    Sum.inl p ∉ ψ.voc → tautology (ψ ↣ φ) → tautology (ψ ↣ repl_in_F p (·q) φ) := by
+  intro p_not_in_ψ taut_imp W M w
   simp only [evaluate, not_and, not_not]
   intro w_ψ
   have := taut_repl _ p q taut_imp W M w
