@@ -1,5 +1,6 @@
 name = "pdl"
 defaultTargets = ["Pdl"]
+lintDriver = "batteries/runLinter"
 
 [leanOptions]
 weak.linter.mathlibStandardSet = true
