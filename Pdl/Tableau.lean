@@ -52,7 +52,7 @@ Note: `k=0` means the first element of `Hist` is the companion. -/
 def LoadedPathRepeat (Hist : History) (X : Sequent) : Type :=
   Subtype (fun k => (Hist.get k).multisetEqTo X ∧ ∀ m ≤ k, (Hist.get m).isLoaded)
 
-lemma LoadedPathRepeat.to_rep (lpr : LoadedPathRepeat Hist X) : rep Hist X := by
+lemma LoadedPathRepeat.to_rep {Hist X} (lpr : LoadedPathRepeat Hist X) : rep Hist X := by
   rcases lpr with ⟨k, same, all_loaded⟩
   use List.get Hist k
   simp_all only [List.get_eq_getElem, List.getElem_mem, true_and]
@@ -78,12 +78,12 @@ def LoadedPathRepeat.choice {H X} (ne : Nonempty (LoadedPathRepeat H X)) :
     rw [Fin.find_eq_some_iff] at find_def
     aesop
 
-theorem LoadedPathRepeat_comp_isLoaded (lpr : LoadedPathRepeat Hist X) :
+theorem LoadedPathRepeat_comp_isLoaded {Hist X} (lpr : LoadedPathRepeat Hist X) :
     (Hist.get lpr.val).isLoaded := by
   rcases lpr with ⟨j, claim⟩
   apply claim.2 j (le_refl j)
 
-theorem LoadedPathRepeat_rep_isLoaded (lpr : LoadedPathRepeat Hist X) : X.isLoaded := by
+theorem LoadedPathRepeat_rep_isLoaded {Hist X} (lpr : LoadedPathRepeat Hist X) : X.isLoaded := by
   rcases lpr with ⟨k, claim⟩
   rw [← multisetEqTo_isLoaded_iff claim.1]
   exact claim.2 k (le_refl k)
@@ -109,26 +109,26 @@ instance {H X} : Decidable (Nonempty (LoadedPathRepeat H X)) := by
 @[grind]
 inductive PdlRule : (X : Sequent) → (Y : Sequent) → Type
   -- The (L+) rule:
-  | loadL : (~⌈⌈δ⌉⌉⌈α⌉φ) ∈ L → ¬ φ.isBox
+  | loadL {L δ α φ Y R} : (~⌈⌈δ⌉⌉⌈α⌉φ) ∈ L → ¬ φ.isBox
       → Y = (L.erase (~⌈⌈δ⌉⌉⌈α⌉φ), R, some (Sum.inl (~'(⌊⌊δ⌋⌋⌊α⌋φ)))) → PdlRule (L, R, none) Y
-  | loadR : (~⌈⌈δ⌉⌉⌈α⌉φ) ∈ R → ¬ φ.isBox
+  | loadR {R δ α φ Y L} : (~⌈⌈δ⌉⌉⌈α⌉φ) ∈ R → ¬ φ.isBox
       → Y = (L, R.erase (~⌈⌈δ⌉⌉⌈α⌉φ), some (Sum.inr (~'(⌊⌊δ⌋⌋⌊α⌋φ)))) → PdlRule (L, R, none) Y
   -- The (L-) rule:
-  | freeL :
+  | freeL {X L R δ α φ Y} :
         X = (L, R, some (Sum.inl (~'(⌊⌊δ⌋⌋⌊α⌋(φ : Formula)))))
       → Y = (L.insert (~⌈⌈δ⌉⌉⌈α⌉φ), R, none)
       → PdlRule X Y
-  | freeR :
+  | freeR {X L R δ α φ Y} :
         X = (L, R, some (Sum.inr (~'(⌊⌊δ⌋⌋⌊α⌋(φ : Formula)))))
       → Y = (L, R.insert (~⌈⌈δ⌉⌉⌈α⌉φ), none)
       → PdlRule X Y
   -- The (M) rule:
-  | modL   {A X ξ} :
+  | modL {Y L R A X ξ} :
         X = ⟨L, R, some (Sum.inl (~'⌊·A⌋(ξ : AnyFormula)))⟩
       → Y = ( match ξ with | .normal φ => ⟨(~φ) :: projection A L, projection A R, none⟩
                            | .loaded χ => ⟨projection A L, projection A R, some (Sum.inl (~'χ))⟩ )
       → PdlRule X Y
-  | modR   {A X ξ} :
+  | modR {Y L R A X ξ} :
         X = ⟨L, R, some (Sum.inr (~'⌊·A⌋(ξ : AnyFormula)))⟩
       → Y = ( match ξ with | .normal φ => ⟨projection A L, (~φ) :: projection A R, none⟩
                            | .loaded χ => ⟨projection A L, projection A R, some (Sum.inr (~'χ))⟩ )
@@ -150,7 +150,7 @@ inductive Tableau : History → Sequent → Type
               (next : Tableau (X :: Hist) Y) : Tableau Hist X
   | lrep {X Hist} (lpr : LoadedPathRepeat Hist X) : Tableau Hist X
 
-def Tableau.size : Tableau Hist X → Nat
+def Tableau.size {Hist X} : Tableau Hist X → Nat
   | .loc _ _ lt next => 1 + ((endNodesOf lt).attach.map (fun ⟨Y, Y_in⟩ => (next Y Y_in).size)).sum
   | .pdl _ _ _ next => 1 + next.size
   | .lrep _ => 1
@@ -170,7 +170,7 @@ lemma Tableau.size_next_lt_of_pdl
     : next.size < tab.size := by
   simp_all [Tableau.size]
 
-instance instDecidableExistsEndNodeOf {lt : LocalTableau X}
+instance instDecidableExistsEndNodeOf {X} {lt : LocalTableau X}
     {f : (Y : Sequent) → Y ∈ endNodesOf lt → Prop}
     {dec : (Y : Sequent) → (Y_in : Y ∈ endNodesOf lt) → Decidable (f Y Y_in)} :
     Decidable (∃ Y, ∃ Y_in : Y ∈ endNodesOf lt, f Y Y_in) := by
@@ -181,7 +181,8 @@ instance instDecidableExistsEndNodeOf {lt : LocalTableau X}
     apply isFalse
     aesop
 
-instance Tableau.instDecidableEq {tab1 tab2 : Tableau Hist X} : Decidable (tab1 = tab2) := by
+instance Tableau.instDecidableEq {Hist X} {tab1 tab2 : Tableau Hist X} :
+    Decidable (tab1 = tab2) := by
   rcases tab1_def : tab1 with (⟨nrep1,nbas1,lt1,next1⟩|@⟨_,X2,Y2,nrep2,bas2,r2,next2⟩|_)
   all_goals
     rcases tab2 with (⟨nrep2,nbas2,lt2,next2⟩|@⟨_,X1,Y1,nrep1,bas1,r1,next1⟩|_)
@@ -223,8 +224,7 @@ decreasing_by
   · exact Tableau.size_next_lt_of_loc tab1_def Y Y_in
   · exact Tableau.size_next_lt_of_pdl tab1_def
 
-
-def Tableau.isLrep : (Tableau Hist X) → Prop
+def Tableau.isLrep {Hist X} : (Tableau Hist X) → Prop
   | .loc .. => False
   | .pdl .. => False
   | .lrep .. => True

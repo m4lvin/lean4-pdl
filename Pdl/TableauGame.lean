@@ -41,7 +41,6 @@ def posOf (H : History) (X : Sequent) : ProverPos H X ⊕ BuilderPos H X :=
 
 /-- The relation `move old next` says that we can move from `old` to `next`.
 There are three kinds of moves. -/
--- @[grind] -- FIXME
 inductive move : (old : GamePos) → (new : GamePos) → Prop
 /-- When the sequent is basic and no repeat, let prover apply a PDL rule. -/
 | prPdl {X Y Hist nrep Xbasic} : PdlRule X Y →
@@ -194,7 +193,7 @@ lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos}
     · simp at *
     · simp_all -- bas none case
       -- use L, R
-      rcases mv with ⟨ψ, ψ_in, next_in⟩ | ⟨ψ, ψ_in, next_in⟩ -- FIXME
+      rcases mv with ⟨ψ, ψ_in, next_in⟩ | ⟨ψ, ψ_in, next_in⟩
       · cases ψ -- L
         case neg φ =>
           by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
@@ -282,89 +281,88 @@ Other direction is `mem_theMoves_of_move`. -/
 lemma move_of_mem_theMoves {pos next} :
     next ∈ theMoves pos → move pos next := by
   rcases pos with ⟨Hist, X, p⟩
-  -- FIXME: un-indent
-  · intro mv
-    unfold theMoves at mv
-    rcases p with (_|_|_) | (_|_) <;> rcases X with ⟨L,R,_|χ⟩ <;> simp_all
-    case inl.bas.none =>
-      rcases mv with ⟨ψ, ψ_in, next_in⟩ | ⟨ψ, ψ_in, next_in⟩
-      · cases ψ -- L
-        case neg φ =>
-          by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
-          · rcases h with ⟨head, tail, ψ, ψ_nonBox, bxs_def⟩
-            simp [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
-            subst next
-            have : ∀ h, φ = ⌈⌈(head :: tail).dropLast⌉⌉⌈(head :: tail).getLast h⌉ψ := by
-              simp [def_of_boxesOf_def bxs_def]
-              rw [← boxes_last, List.dropLast_append_getLast, Formula.boxes_cons]
-            rw [this (by simp)]
-            apply move.prPdl
-            simp only [ne_eq, reduceCtorEq, not_false_eq_true, forall_true_left] at this
-            subst this
-            exact PdlRule.loadL ψ_in ψ_nonBox rfl
-          · exfalso
-            cases φ <;> simp_all [boxesOf]
-        all_goals
-          exfalso; simp at *
-      · cases ψ -- R, analogous
-        case neg φ =>
-          by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
-          · rcases h with ⟨head, tail, ψ, ψ_nonBox, bxs_def⟩
-            simp [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
-            subst next
-            have : ∀ h, φ = ⌈⌈(head :: tail).dropLast⌉⌉⌈(head :: tail).getLast h⌉ψ := by
-              simp [def_of_boxesOf_def bxs_def]
-              rw [← boxes_last, List.dropLast_append_getLast, Formula.boxes_cons]
-            rw [this (by simp)]
-            apply move.prPdl
-            simp only [ne_eq, reduceCtorEq, not_false_eq_true, forall_true_left] at this
-            subst this
-            exact PdlRule.loadR ψ_in ψ_nonBox rfl
-          · exfalso
-            cases φ <;> simp_all [boxesOf]
-        all_goals
-          exfalso; simp at *
-    · -- Here we have a loaded formula in X already, and are basic.
-      -- So the only applicable rules are (M) and (L-).
-      rcases χ with (⟨⟨χ⟩⟩|⟨⟨χ⟩⟩) <;> rcases χ with ⟨δ,φ|χ⟩ <;> cases δ <;> simp_all
-      case inl.bas.some.inl.normal.atom_prog a nrep bas =>
-        cases mv <;> subst_eqs
-        · apply move.prPdl; apply @PdlRule.freeL _ L R [] (·a) φ _ rfl; simp
-        · apply move.prPdl; apply PdlRule.modL rfl rfl
-      case inl.bas.some.inl.loaded.atom_prog a nrep bas =>
-        cases mv <;> subst_eqs
-        · rcases LoadFormula.exists_loadMulti χ with ⟨δ, α, φ, χ_def⟩
-          subst χ
-          rw [unload_loadMulti]
-          apply move.prPdl;
-          convert @PdlRule.freeL _ L R (·a :: δ) α φ _ rfl rfl using 1
-        · apply move.prPdl; apply PdlRule.modL rfl rfl
-      case inl.bas.some.inr.normal.atom_prog a nrep bas =>
-        cases mv <;> subst_eqs
-        · apply move.prPdl; apply @PdlRule.freeR _ L R [] (·a) φ _ rfl; simp
-        · apply move.prPdl; apply PdlRule.modR rfl rfl
-      case inl.bas.some.inr.loaded.atom_prog a nrep bas =>
-        cases mv <;> subst_eqs
-        · rcases LoadFormula.exists_loadMulti χ with ⟨δ, α, φ, χ_def⟩
-          subst χ
-          rw [unload_loadMulti]
-          apply move.prPdl;
-          convert @PdlRule.freeR _ L R (·a :: δ) α φ _ rfl rfl using 1
-        · apply move.prPdl; apply PdlRule.modR rfl rfl
+  intro mv
+  unfold theMoves at mv
+  rcases p with (_|_|_) | (_|_) <;> rcases X with ⟨L,R,_|χ⟩ <;> simp_all
+  case inl.bas.none =>
+    rcases mv with ⟨ψ, ψ_in, next_in⟩ | ⟨ψ, ψ_in, next_in⟩
+    · cases ψ -- L
+      case neg φ =>
+        by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
+        · rcases h with ⟨head, tail, ψ, ψ_nonBox, bxs_def⟩
+          simp [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
+          subst next
+          have : ∀ h, φ = ⌈⌈(head :: tail).dropLast⌉⌉⌈(head :: tail).getLast h⌉ψ := by
+            simp [def_of_boxesOf_def bxs_def]
+            rw [← boxes_last, List.dropLast_append_getLast, Formula.boxes_cons]
+          rw [this (by simp)]
+          apply move.prPdl
+          simp only [ne_eq, reduceCtorEq, not_false_eq_true, forall_true_left] at this
+          subst this
+          exact PdlRule.loadL ψ_in ψ_nonBox rfl
+        · exfalso
+          cases φ <;> simp_all [boxesOf]
       all_goals
-        grind
-    · rcases mv with ⟨lt, lt_in, def_next⟩
-      subst def_next
-      apply move.prLocTab
-    · rcases mv with ⟨lt, lt_in, def_next⟩
-      subst def_next
-      apply move.prLocTab
-    · rcases mv with ⟨lt, lt_in, def_next⟩
-      subst def_next
-      apply move.buEnd lt_in
-    · rcases mv with ⟨lt, lt_in, def_next⟩
-      subst def_next
-      apply move.buEnd lt_in
+        exfalso; simp at *
+    · cases ψ -- R, analogous
+      case neg φ =>
+        by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
+        · rcases h with ⟨head, tail, ψ, ψ_nonBox, bxs_def⟩
+          simp [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
+          subst next
+          have : ∀ h, φ = ⌈⌈(head :: tail).dropLast⌉⌉⌈(head :: tail).getLast h⌉ψ := by
+            simp [def_of_boxesOf_def bxs_def]
+            rw [← boxes_last, List.dropLast_append_getLast, Formula.boxes_cons]
+          rw [this (by simp)]
+          apply move.prPdl
+          simp only [ne_eq, reduceCtorEq, not_false_eq_true, forall_true_left] at this
+          subst this
+          exact PdlRule.loadR ψ_in ψ_nonBox rfl
+        · exfalso
+          cases φ <;> simp_all [boxesOf]
+      all_goals
+        exfalso; simp at *
+  · -- Here we have a loaded formula in X already, and are basic.
+    -- So the only applicable rules are (M) and (L-).
+    rcases χ with (⟨⟨χ⟩⟩|⟨⟨χ⟩⟩) <;> rcases χ with ⟨δ,φ|χ⟩ <;> cases δ <;> simp_all
+    case inl.bas.some.inl.normal.atom_prog a nrep bas =>
+      cases mv <;> subst_eqs
+      · apply move.prPdl; apply @PdlRule.freeL _ L R [] (·a) φ _ rfl; simp
+      · apply move.prPdl; apply PdlRule.modL rfl rfl
+    case inl.bas.some.inl.loaded.atom_prog a nrep bas =>
+      cases mv <;> subst_eqs
+      · rcases LoadFormula.exists_loadMulti χ with ⟨δ, α, φ, χ_def⟩
+        subst χ
+        rw [unload_loadMulti]
+        apply move.prPdl;
+        convert @PdlRule.freeL _ L R (·a :: δ) α φ _ rfl rfl using 1
+      · apply move.prPdl; apply PdlRule.modL rfl rfl
+    case inl.bas.some.inr.normal.atom_prog a nrep bas =>
+      cases mv <;> subst_eqs
+      · apply move.prPdl; apply @PdlRule.freeR _ L R [] (·a) φ _ rfl; simp
+      · apply move.prPdl; apply PdlRule.modR rfl rfl
+    case inl.bas.some.inr.loaded.atom_prog a nrep bas =>
+      cases mv <;> subst_eqs
+      · rcases LoadFormula.exists_loadMulti χ with ⟨δ, α, φ, χ_def⟩
+        subst χ
+        rw [unload_loadMulti]
+        apply move.prPdl;
+        convert @PdlRule.freeR _ L R (·a :: δ) α φ _ rfl rfl using 1
+      · apply move.prPdl; apply PdlRule.modR rfl rfl
+    all_goals
+      grind
+  · rcases mv with ⟨lt, lt_in, def_next⟩
+    subst def_next
+    apply move.prLocTab
+  · rcases mv with ⟨lt, lt_in, def_next⟩
+    subst def_next
+    apply move.prLocTab
+  · rcases mv with ⟨lt, lt_in, def_next⟩
+    subst def_next
+    apply move.buEnd lt_in
+  · rcases mv with ⟨lt, lt_in, def_next⟩
+    subst def_next
+    apply move.buEnd lt_in
 
 lemma mem_theMoves_of_move {pos next} :
     move pos next → next ∈ theMoves pos := by

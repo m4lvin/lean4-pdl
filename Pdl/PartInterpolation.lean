@@ -725,7 +725,7 @@ lemma mem_existsOf_of_flip {Hist L R lr_nlf} {tab : Tableau Hist (L, R, some lr_
         refine ⟨(LY, RY, some _), this, ?_⟩
         use (PathIn_type_flip_flip ▸ e.flip)
         constructor
-        · have IH := mem_existsOf_of_flip _ e_in -- yeah?!
+        · have IH := mem_existsOf_of_flip e e_in -- yeah?!
           grind
         · -- only HEq business left to do here?
           sorry
@@ -758,7 +758,8 @@ decreasing_by
   · simp_wf
     subst_eqs
     sorry
-  · sorry
+  · -- use that length goes down with `edge`?
+    sorry
 
 def exitsOf_flip {tab : Tableau Hist (L, R, some nlf)}
     (exitIPs : ∀ e ∈ exitsOf tab, PartInterpolant (nodeAt e)) :

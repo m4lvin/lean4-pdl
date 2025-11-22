@@ -17,15 +17,14 @@ removing double negations, splitting (negated) conjunctions,
 unfolding boxes using any test profile, and unfolding diamonds using `H`.
 Part of Def 6.2 -/
 def saturated : Finset Formula → Prop
-  -- TODO: change P Q notation to φ ψ
-  | X => ∀ (P Q : Formula) (α : Program),
+  | X => ∀ (φ ψ : Formula) (α : Program),
     -- propositional closure:
-      ((~~P) ∈ X → P ∈ X)
-    ∧ (P⋀Q ∈ X → P ∈ X ∧ Q ∈ X)
-    ∧ ((~(P⋀Q)) ∈ X → (~P) ∈ X ∨ (~Q) ∈ X)
+      ((~~φ) ∈ X → φ ∈ X)
+    ∧ (φ⋀ψ ∈ X → φ ∈ X ∧ ψ ∈ X)
+    ∧ ((~(φ⋀ψ)) ∈ X → (~φ) ∈ X ∨ (~ψ) ∈ X)
     -- programs closure, now only two general cases, no program subcases:
-    ∧ ((⌈α⌉P) ∈ X → ∃ l : TP α, (Xset α l P).all (fun y => y ∈ X))
-    ∧ ((~⌈α⌉P) ∈ X → ∃ Fδ ∈ H α, (Yset Fδ P).all (fun y => y ∈ X))
+    ∧ ((⌈α⌉φ) ∈ X → ∃ l : TP α, (Xset α l φ).all (fun y => y ∈ X))
+    ∧ ((~⌈α⌉φ) ∈ X → ∃ Fδ ∈ H α, (Yset Fδ φ).all (fun y => y ∈ X))
 
 /-- A set of formulas is lcoally consistent iff it does not contain ⊥
 and for all atoms p ∈ X we do not have ~p ∈ X. Part of Def 6.2 -/
@@ -121,15 +120,14 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
       convert lchain
       apply get_eq_getzip
 
--- TODO: it seems default 200000 is not enough for mutual theorems below?!
 set_option maxHeartbeats 2000000 in
--- set_option trace.profiler true
+-- Three mutually recursive theorems with long proofs.
 
--- Originally MB Lemma 9, page 32, stronger version for induction loading.
--- Now also using Q relation to overwrite tests.
 mutual
 
-/-- C3 in notes -/
+/-- C3 in notes.
+Originally MB Lemma 9, page 32, stronger version for induction loading.
+Now also using Q relation to overwrite tests. -/
 theorem Q_then_relate {Worlds} (MG : ModelGraph Worlds) α (X Y : Worlds) :
     Q MG.val.Rel α X Y → relate MG.val α X Y := by
   cases α

@@ -370,9 +370,8 @@ As possible worlds for the model graph we want to define *maximal* paths inside 
 that do not contain `(M)` steps.
 
 In the paper pre-states are allowed to be of the form π;π' when π ends at a repeat and π' is a
-maximal prefix of the path from the companion to that repeat. Here we will probably only store
-the π part of such pre-states, because the π' is uniquely determined by π then.
--/
+maximal prefix of the path from the companion to that repeat. Here we only store the π part of
+such pre-states, because the π' is then uniquely determined by π. -/
 
 /-- How to say that this is not a modal step? -/
 def Match.edge.not_mod {m n : Match bt} : Match.edge m n → Prop := by
@@ -472,7 +471,10 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
     apply sub_Y -- show that φ is in projection
     simp_all
   case d =>
-  -- "The main challenge" :-)
+    simp
+    intro w w_in α φ in_w
+    -- "The main challenge" :-)
+    -- Need Lemmas 6.18 to 6.19 about pre-states here.
     sorry
   case X_in =>
     unfold WS
