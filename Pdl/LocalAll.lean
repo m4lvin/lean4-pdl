@@ -16,7 +16,7 @@ def OneSidedLocalRule.all : (L : List Formula) → Option (Σ B, OneSidedLocalRu
   | [~⌈α⌉φ]   => if notAtm : ¬ α.isAtomic then some ⟨(unfoldDiamond α φ), dia α φ notAtm⟩ else none
   | _ => none
 
-def OneSidedLocalRule.all_spec (osr : OneSidedLocalRule L B)
+lemma OneSidedLocalRule.all_spec (osr : OneSidedLocalRule L B)
     : OneSidedLocalRule.all L = some ⟨B, osr⟩ := by
   cases osr
   all_goals
@@ -30,7 +30,7 @@ def LoadRule.the : (nχ : NegLoadFormula) → Option (Σ ress, LoadRule nχ ress
   | (~'⌊α⌋(.loaded _)) => if notAtom : ¬ α.isAtomic then some ⟨_, dia  notAtom⟩ else none
   | (~'⌊α⌋(.normal _)) => if notAtom : ¬ α.isAtomic then some ⟨_, dia' notAtom⟩ else none
 
-def LoadRule.the_spec (lor : LoadRule (~'χ) ress) : some ⟨ress, lor⟩ = LoadRule.the (~'χ) := by
+lemma LoadRule.the_spec (lor : LoadRule (~'χ) ress) : some ⟨ress, lor⟩ = LoadRule.the (~'χ) := by
   cases lor
   all_goals
     simp [LoadRule.the]
@@ -57,7 +57,7 @@ def LocalRule.all : (cond : Sequent) → Option (Σ ress, LocalRule cond ress)
       if notAtm : ¬ α.isAtomic then some ⟨_, .loadedR _ (@LoadRule.dia' α _ notAtm) rfl⟩ else none
   | _ => none
 
-def LocalRule.all_spec (lr : LocalRule L B) : ⟨B, lr⟩ ∈ LocalRule.all L := by
+lemma LocalRule.all_spec (lr : LocalRule L B) : ⟨B, lr⟩ ∈ LocalRule.all L := by
   cases lr <;> simp [LocalRule.all]
   case oneSidedL precond ress osr B_def =>
     have := OneSidedLocalRule.all_spec osr

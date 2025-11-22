@@ -263,7 +263,7 @@ def Sequent.basic : Sequent → Prop
 
 /-- A variant of `Fintype.decidableExistsFintype`, used by `instDecidableClosed`. -/
 instance Fintype.decidableExistsConjFintype {α : Type u_1} {p q : α → Prop}
-    [DecidablePred p] [DecidablePred q] [Fintype (Subtype p)]
+    [DecidablePred q] [Fintype (Subtype p)]
     : Decidable (∃ (a : α), p a ∧ q a) := by
   by_cases ∃ x : Subtype p, q x -- This uses the Fintype instance.
   · apply isTrue; aesop

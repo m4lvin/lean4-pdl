@@ -758,12 +758,12 @@ many FL-subsequents.
 TODO move `Seqt` to Sequent.lean and `Sequent.subseteq_FL_congr` to FischerLadner.lean later?
 -/
 
-instance instEquivalenceSequentSetEqTo : Equivalence Sequent.setEqTo where
+def equivalenceSequentSetEqTo : Equivalence Sequent.setEqTo where
   refl := by rintro ⟨L,R,O⟩; simp [Sequent.setEqTo]
   symm := by rintro ⟨L,R,O⟩ ⟨L',R',O'⟩; simp [Sequent.setEqTo]; grind
   trans := by rintro ⟨L,R,O⟩ ⟨L',R',O'⟩ ⟨L'',R'',O''⟩; simp [Sequent.setEqTo]; grind
 
-instance instSetoidSequent : Setoid Sequent := ⟨Sequent.setEqTo, instEquivalenceSequentSetEqTo⟩
+instance instSetoidSequent : Setoid Sequent := ⟨Sequent.setEqTo, equivalenceSequentSetEqTo⟩
 
 /-- Yes, it's a pun. A `Sequent` modulo `Sequent.setEqTo`. -/
 abbrev Seqt := Quotient instSetoidSequent
