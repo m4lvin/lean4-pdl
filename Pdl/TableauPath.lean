@@ -1,5 +1,6 @@
 import Mathlib.Data.Finset.Lattice.Fold
 import Mathlib.Logic.Relation
+import Mathlib.Tactic.DepRewrite
 
 import Pdl.Tableau
 
@@ -419,6 +420,115 @@ theorem PathIn.pdl_le_pdl_of_le {t1 t2} (h : t1 ≤ t2) :
     apply Relation.ReflTransGen.tail IH
     simp
     exact s_t
+
+/-! ## Path cast and append lemmas
+
+Lemmas developed for `tabToIntAt`.
+-/
+
+@[simp]
+lemma PathIn.cast_nil (h : tab = tab2) :
+    (h ▸ (.nil : PathIn tab)) = (.nil : PathIn tab2) := by grind
+
+@[simp]
+lemma PathIn.tabAt_cast_nil (h : tab = tab2) :
+    tabAt (h ▸ (PathIn.nil : PathIn tab)) = tabAt (.nil : PathIn tab2) := by
+  convert @tabAt_nil; simp_all
+
+@[simp]
+lemma PathIn.tabAt_cast_loc (h : (Tableau.loc nrep nbas lt nexts) = tab2)
+    (tail : PathIn (nexts Y Y_in)) :
+    tabAt (h ▸ (PathIn.loc Y_in tail)) = tabAt tail := by
+  convert tabAt_loc <;> simp_all
+
+@[simp]
+lemma PathIn.tabAt_cast_pdl (h : Tableau.pdl nrep bas r next = tab2) :
+    tabAt (h ▸ PathIn.pdl tail) = tabAt tail := by
+  convert @tabAt_pdl _ _ nrep bas _ r next tail <;> simp_all
+
+@[simp]
+lemma PathIn.tabAt_cast (p : PathIn tab) (h : tab = tab2) :
+    tabAt (h ▸ p) = tabAt p := by
+  cases p <;> simp_all [tabAt]
+
+/-- (p ++ q) ++ r = p ++ (q ++ r) -/
+lemma PathIn.append_append {tab : Tableau Hist X}
+    (p : PathIn tab) (q : PathIn (tabAt p).2.2) (r : PathIn (tabAt (p.append q)).2.2)
+    : (p.append q).append r = p.append (q.append (tabAt_append p q ▸ r)) := by
+  induction p <;> simp_all [PathIn.append]
+
+@[simp]
+lemma PathIn.loc_append {X Hist} {nrep : ¬rep Hist X} {nbas : ¬X.basic} {lt : LocalTableau X}
+    {nexts : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: Hist) Y}
+    {Y : Sequent} {Y_in : Y ∈ endNodesOf lt} {tail : PathIn _}
+    (h : PathIn (nexts Y Y_in) = PathIn (tabAt (PathIn.loc Y_in .nil)).snd.snd)
+    : (PathIn.loc Y_in .nil : PathIn (Tableau.loc nrep nbas lt nexts)).append tail
+    = PathIn.loc Y_in (h ▸ tail) := by
+  simp [append]
+
+@[simp]
+lemma PathIn.pdl_append {Hist X Y} {next : Tableau (X :: Hist) Y} {nrep : ¬rep Hist X}
+    {bas : X.basic} {r : PdlRule X Y} {tail : PathIn (tabAt PathIn.nil.pdl).snd.snd}
+    (h : PathIn next = PathIn (tabAt nil.pdl).snd.snd)
+    : (PathIn.pdl .nil : PathIn (Tableau.pdl nrep bas r next)).append tail
+    = PathIn.pdl (h ▸ tail) := by
+  simp [append]
+
+/-- Used for `tabToIntAt`. -/
+lemma PathIn.lt_append_non_nil {Hist X pHist pX tabNew} {tab : Tableau Hist X}
+  (p : PathIn tab) (h : tabAt p = ⟨pHist, ⟨pX, tabNew⟩⟩) (q : PathIn tabNew)
+  : q ≠ .nil → p < p.append (h ▸ q) := by
+  cases q
+  case nil => simp
+  case loc Y nbas lt Y_in nrep nexts tail =>
+    simp
+    have p_loc : p ⋖_ (p.append (h ▸ PathIn.loc Y_in .nil)) := edge_append_loc_nil _ _ _ h
+    apply Relation.TransGen.head' p_loc
+    by_cases tail_nil : tail = .nil
+    · subst_eqs
+      exact Relation.ReflTransGen.refl
+    · apply Relation.TransGen.to_reflTransGen
+      have IH := @PathIn.lt_append_non_nil Hist X _ _ (nexts Y Y_in) tab
+      convert IH ?_ ?_ tail tail_nil using 1
+      · rw [PathIn.append_append, append_eq_iff_eq]
+        simp
+        have := @PathIn.loc_append _ _ nrep nbas lt nexts Y Y_in tail rfl
+        convert this <;> try rw [h]
+        · simp_all
+        · grind
+      · simp
+        rw! [h]
+        simp
+  case pdl Y bas r nrep next tail =>
+    simp only [ne_eq, reduceCtorEq, not_false_eq_true, forall_const]
+    have p_pdl : p ⋖_ (p.append (h ▸ nil.pdl)) := by
+      have := @edge_append_pdl_nil Hist X tab p
+      rw! (castMode := .all) [h] at this
+      simp only [Tableau.pdl.injEq, forall_and_index] at this
+      exact @this nrep bas Y r next rfl (by simp) (by simp)
+    apply Relation.TransGen.head' p_pdl
+    by_cases tail_nil : tail = .nil
+    · subst_eqs
+      exact Relation.ReflTransGen.refl
+    · apply Relation.TransGen.to_reflTransGen
+      have IH := @PathIn.lt_append_non_nil _ _ _ _ next tab
+      convert IH ?_ ?_ tail tail_nil using 1
+      · rw [PathIn.append_append, append_eq_iff_eq]
+        simp
+        have := @PathIn.pdl_append _ _ _ next nrep bas r tail rfl
+        convert this <;> try rw [h]
+        · simp_all
+        · grind
+      · simp
+        rw! [h]
+        simp
+termination_by
+  tabNew.size
+decreasing_by
+  · subst_eqs
+    apply Tableau.size_next_lt_of_loc rfl
+  · subst_eqs
+    apply Tableau.size_next_lt_of_pdl rfl
 
 /-! ## From Path to History -/
 
