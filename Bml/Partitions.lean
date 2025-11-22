@@ -441,7 +441,6 @@ termination_by tab.length
 decreasing_by
 all_goals
   subst_eqs
-  simp_wf
   simp [ClosedTableau.length]
 · exact childNext_lt subTabs next cLR c_in_C
 · apply simple_lt isSimple next
