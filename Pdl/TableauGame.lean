@@ -673,7 +673,7 @@ lemma Formula.allNegLoads_complete {nχ φ} : negUnload nχ = φ → nχ ∈ φ.
       simp only [List.cons_append, List.cons.injEq, true_and] at αs_α_γs_eq_boxes
       subst αs_α_γs_eq_boxes
       simp only [List.drop_length_add_append, List.drop_succ_cons, List.drop_zero, ne_eq,
-        List.take_eq_nil_iff, Nat.add_eq_zero, List.length_eq_zero_iff, one_ne_zero, and_false,
+        List.take_eq_nil_iff, Nat.add_eq_zero_iff, List.length_eq_zero_iff, one_ne_zero, and_false,
         List.append_eq_nil_iff, reduceCtorEq, or_self, not_false_eq_true, loadMulti_nonEmpty_box,
         LoadFormula.box.injEq, AnyFormula.loaded.injEq, true_and]
       -- Doable from here.

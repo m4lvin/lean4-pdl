@@ -969,7 +969,7 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
         simp_all
         linarith
       rw [@List.attach_map_val _ _ (testsOfProgram (α;'β)) (fun x => lmOfFormula (~↑x))]
-      rw [Nat.lt_succ]
+      rw [Nat.lt_succ_iff]
       apply List.le_sum_of_mem
       simp only [List.mem_map]
       use τ
@@ -984,7 +984,7 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
         simp_all
         linarith
       rw [@List.attach_map_val _ _ (testsOfProgram (α⋓β)) (fun x => lmOfFormula (~↑x))]
-      rw [Nat.lt_succ]
+      rw [Nat.lt_succ_iff]
       exact List.single_le_sum (by simp) _ (by rw [List.mem_map]; use τ)
     · subst def_ψ
       simp [lmOfFormula]
@@ -997,7 +997,7 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
         simp_all
         linarith
       rw [@List.attach_map_val _ _ (testsOfProgram (∗β)) (fun x => lmOfFormula (~↑x))]
-      rw [Nat.lt_succ]
+      rw [Nat.lt_succ_iff]
       exact List.single_le_sum (by simp) _ (by rw [List.mem_map]; use τ)
     · subst def_ψ
       simp [lmOfFormula]
@@ -1010,7 +1010,7 @@ theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : Li
         simp_all
         linarith
       rw [@List.attach_map_val _ _ (testsOfProgram (?'τ0)) (fun x => lmOfFormula (~↑x))]
-      rw [Nat.lt_succ]
+      rw [Nat.lt_succ_iff]
       exact List.single_le_sum (by simp) _ (by rw [List.mem_map]; use τ)
     · subst def_ψ
       simp [lmOfFormula]
@@ -1108,7 +1108,7 @@ theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X 
         simp_all [testsOfProgram]
         linarith
       suffices ∃ τ' ∈ testsOfProgram (α;'β), lmOfFormula ψ < 1 + lmOfFormula τ' by
-        rw [Nat.lt_succ]
+        rw [Nat.lt_succ_iff]
         apply List.le_sum_of_mem
         simp_all [testsOfProgram]
         aesop
@@ -1119,7 +1119,7 @@ theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X 
         simp_all [testsOfProgram]
         linarith
       suffices ∃ τ' ∈ testsOfProgram (α;'β), lmOfFormula ψ < 1 + lmOfFormula τ' by
-        rw [Nat.lt_succ]
+        rw [Nat.lt_succ_iff]
         apply List.le_sum_of_mem
         simp_all [testsOfProgram]
         aesop
@@ -1130,7 +1130,7 @@ theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X 
         simp_all [testsOfProgram]
         linarith
       suffices ∃ τ' ∈ testsOfProgram (∗β), lmOfFormula ψ < 1 + lmOfFormula τ' by
-        rw [Nat.lt_succ]
+        rw [Nat.lt_succ_iff]
         apply List.le_sum_of_mem
         simp_all [testsOfProgram]
         aesop
