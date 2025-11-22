@@ -815,33 +815,70 @@ def clusterInterpolation {Hist L R snlf}
   case inr nlf =>
     exact @clusterInterpolation_right _ _ _ nlf tab exitIPs
 
--- MOVE AWAY after proving
-lemma PathIn.lt_append_iff_not_eq {tab : Tableau Hist X}
+/-! NOTE: this section should be moved to TableauPath.lean -/
+
+@[simp]
+lemma PathIn.cast_nil (h : tab = tab2) :
+    (h ▸ (.nil : PathIn tab)) = (.nil : PathIn tab2) := by grind
+
+@[simp]
+lemma PathIn.tabAt_cast_nil (h : tab = tab2) :
+    tabAt (h ▸ (PathIn.nil : PathIn tab)) = tabAt (.nil : PathIn tab2) := by
+  convert @tabAt_nil; simp_all
+
+@[simp]
+lemma PathIn.tabAt_cast_loc (h : (Tableau.loc nrep nbas lt nexts) = tab2)
+    (tail : PathIn (nexts Y Y_in)) :
+    tabAt (h ▸ (PathIn.loc Y_in tail)) = tabAt tail := by
+  convert tabAt_loc <;> simp_all
+
+@[simp]
+lemma PathIn.tabAt_cast_pdl (h : Tableau.pdl nrep bas r next = tab2) :
+    tabAt (h ▸ PathIn.pdl tail) = tabAt tail := by
+  convert @tabAt_pdl _ _ nrep bas _ r next tail <;> simp_all
+
+@[simp]
+lemma PathIn.tabAt_cast (p : PathIn tab) (h : tab = tab2) :
+    tabAt (h ▸ p) = tabAt p := by
+  cases p <;> simp_all [tabAt]
+
+lemma PathIn.append_append {tab : Tableau Hist X}
+    (p : PathIn tab) (q : PathIn (tabAt p).2.2) (r : PathIn (tabAt (p.append q)).2.2)
+    : (p.append q).append r = (p.append (q.append (tabAt_append _ _ ▸ r))) := by
+  induction p <;> simp_all [PathIn.append]
+
+/-- Used for `tabToIntAt`. -/
+lemma PathIn.lt_append_non_nil {Hist X pHist pX tabNew} {tab : Tableau Hist X}
   (p : PathIn tab) (h : tabAt p = ⟨pHist, ⟨pX, tabNew⟩⟩) (q : PathIn tabNew)
-  : p < p.append (h ▸ q) ↔ p ≠ p.append (h ▸ q) := by
-  have := @PathIn.eq_append_iff_other_eq_nil _ _ tab p (h ▸ q)
-  cases q_def : q
-  case nil => -- showing false ↔ false
-    have : p.append (h ▸ .nil) = p := by grind
-    simp_all
-    exact path_is_irreflexive
-  case loc => -- showing true ↔ true
-    have : p.append (h ▸ q) ≠ p := by
-      subst q_def
-      simp
-      rw [Eq.comm, PathIn.eq_append_iff_other_eq_nil]
-      intro hyp
-      -- ???
-      sorry
-    simp [q_def] at this
-    simp only [ne_eq]
-    rw [Eq.comm]
-    simp only [this, not_false_eq_true, iff_true, gt_iff_lt]
-    clear this
+  : q ≠ .nil → p < p.append (h ▸ q) := by
+  cases q
+  case nil => simp
+  case loc =>
+    simp
     sorry
-  case pdl => -- showing true ↔ true
-    simp_all
-    sorry
+  case pdl Y bas r nrep next tail => -- showing true ↔ true
+    simp
+    have p_pdl : p ⋖_ (p.append (Eq.symm h ▸ nil.pdl)) := by
+      have := @edge_append_pdl_nil Hist X tab p
+      rw! (castMode := .all) [h] at this
+      simp only [Tableau.pdl.injEq, forall_and_index] at this
+      exact @this nrep bas Y r next rfl (by simp) (by simp)
+    apply Relation.TransGen.head' p_pdl
+    by_cases tail_nil : tail = .nil
+    · subst_eqs
+      exact Relation.ReflTransGen.refl
+    · have IH := @PathIn.lt_append_non_nil _ _ _ _ next tab
+        (p.append <| h ▸ PathIn.pdl .nil) ?_ tail tail_nil
+      · apply Relation.TransGen.to_reflTransGen
+        convert IH using 1; clear IH
+        rw [PathIn.append_append, append_eq_iff_eq]
+        -- lemma ?!
+        sorry
+      · simp
+        rw! [h]
+        simp
+
+/- TODO: move stuff above here to TableauPath.lean -/
 
 /-- Ideally this would be a computable `def` and not an existential.
 But currently `PathIn.strong_upwards_inductionOn` only works with `Prop` motive. -/
@@ -867,14 +904,11 @@ theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
       let myExitIPs : ∀ e ∈ exitsOf tabNew, PartInterpolant (nodeAt e) := by
         intro e e_in
         specialize @IH (s.append (tab_s_def ▸ e)) ?_
-        · -- Use that `exitsOf` something loaded are proper successors.
-          have e_non_nil : e ≠ .nil := by
-            unfold nodeAt at s_loaded
-            have := (@loaded_iff_exitsOf_non_nil _ _ (tabAt s).2.2).mp s_loaded (tab_s_def ▸ e) ?_
-            · convert this <;> grind
-            grind
-          have := PathIn.lt_append_iff_not_eq _ tab_s_def e
-          simp at this
+        · apply PathIn.lt_append_non_nil _ tab_s_def
+          -- Use that `exitsOf` something loaded are proper successors.
+          unfold nodeAt at s_loaded
+          have := (@loaded_iff_exitsOf_non_nil _ _ (tabAt s).2.2).mp s_loaded (tab_s_def ▸ e) ?_
+          · convert this <;> grind
           grind
         have := IH.choose_spec
         simp only [nodeAt_append] at this IH
@@ -894,7 +928,7 @@ theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
     rcases s_def : tabAt s with ⟨Hist, X, s_tab⟩
     cases s_tab_def : s_tab
     case loc nbas ltX nrep nexts =>
-      /- -- Interestingly, we do not care about the end node being free here.
+      /- -- Interestingly, we do not *yet* care about the end node being free here.
       have Xfree : X.isFree := by rw [nodeAt, s_def] at s_free; grind [Sequent.isFree]
       have endFree := fun Y => @endNodesOf_free_are_free _ Y ltX Xfree
       -/
