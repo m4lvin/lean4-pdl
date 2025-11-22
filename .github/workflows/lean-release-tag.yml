@@ -6,6 +6,8 @@ on:
     paths:
       - 'lean-toolchain'
 
+name: Lean Release Tag
+
 jobs:
   lean-release-tag:
     name: Add Lean release tag
