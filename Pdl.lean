@@ -13,7 +13,6 @@ import Pdl.Kleene
 import Pdl.LocalAll
 import Pdl.LocalSoundness
 import Pdl.LocalTableau
-import Pdl.Measures
 import Pdl.Modelgraphs
 import Pdl.PartInterpolation
 import Pdl.Semantics

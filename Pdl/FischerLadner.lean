@@ -1,6 +1,6 @@
 import Mathlib.Algebra.Order.BigOperators.Group.List
 
-import Pdl.Measures
+import Pdl.Syntax
 import Pdl.Vocab
 
 /-! # Fischer-Ladner Closure
@@ -55,9 +55,11 @@ lemma FL_single_neg_closed {φ} :
 @[simp]
 lemma FL_refl {φ} :
     φ ∈ FL φ := by
-  cases φ <;> simp [FL]
+  cases φ
   case box α φ =>
-    cases α <;> simp [FLb]
+    cases α <;> simp [FL, FLb]
+  all_goals
+    simp [FL]
 
 @[simp]
 lemma FLb_refl {α φ} :

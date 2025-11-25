@@ -6,7 +6,6 @@ import Mathlib.Order.CompleteLattice.Basic
 import Mathlib.Order.FixedPoints
 
 import Pdl.Syntax
-import Pdl.Measures
 
 /-! # Semantics (Section 2.2) -/
 
@@ -180,7 +179,7 @@ theorem forms_to_lists {φ ψ : Formula} : φ⊨ψ → ([φ] : List Formula)⊨(
   by
   intro impTaut W M w lhs ψ psi_in_psi
   specialize impTaut W M w
-  simp at psi_in_psi lhs
+  simp only [List.mem_cons, List.not_mem_nil, or_false, forall_eq] at psi_in_psi lhs
   rw [psi_in_psi]
   -- needed even though no ψ_1 in goal here?!
   apply impTaut
@@ -251,7 +250,7 @@ theorem relate_steps_append : ∀ x z, relate M (Program.steps (as ++ bs)) x z  
     intro x z
     constructor
     · intro lhs
-      simp at *
+      simp only [List.cons_append, Program.steps.eq_2, relate, Program.steps] at *
       rcases lhs with ⟨y, x_a_y, y_asbs_z⟩
       rw [IH] at y_asbs_z
       rcases y_asbs_z with ⟨y', y_as_ys', ys'_bs_z⟩
@@ -260,7 +259,7 @@ theorem relate_steps_append : ∀ x z, relate M (Program.steps (as ++ bs)) x z  
       · use y
       · exact ys'_bs_z
     · intro rhs
-      simp at *
+      simp only [Program.steps, relate, List.cons_append] at *
       rcases rhs with ⟨y, ⟨y', x_a_y', y'_as_y⟩, bla⟩
       use y'
       rw [IH y' z]
@@ -276,7 +275,7 @@ theorem rel_steps_last {as} : ∀ v w,
     simp at *
   case cons a2 as IH =>
     intro s t
-    simp at *
+    simp only [List.cons_append, Program.steps.eq_2, relate, Program.steps] at *
     constructor
     · intro lhs
       rcases lhs with ⟨next, s_a2_next, next_asa_t⟩
@@ -345,7 +344,9 @@ theorem relateSeq_iff_exists_Vector (M : KripkeModel W) (δ : List Program) (w v
       · rw [v_def]
         simp [List.Vector.last_def, List.Vector.get]
       · apply Fin.cases
-        · simp [List.Vector.head]
+        · simp only [Fin.coe_ofNat_eq_mod, Nat.zero_mod, List.getElem_cons_zero,
+            Nat.succ_eq_add_one, Fin.castSucc_zero, List.Vector.get_zero, List.Vector.head,
+            Fin.succ_zero_eq_one]
           convert w_u
           subst u_def
           simp [List.Vector.get]
@@ -358,7 +359,8 @@ theorem relateSeq_iff_exists_Vector (M : KripkeModel W) (δ : List Program) (w v
       use wws[1]
       constructor
       · have := claim 0
-        simp at this
+        simp only [Fin.coe_ofNat_eq_mod, Nat.zero_mod, List.getElem_cons_zero, Fin.castSucc_zero,
+          List.Vector.get_zero, Fin.succ_zero_eq_one] at this
         convert this
       · specialize IH u
         rw [IH]
@@ -395,7 +397,7 @@ theorem evalBoxes (δ : List Program) φ :
     simp only [Formula.boxes_cons]
     constructor
     · intro lhs v v_αδ_w
-      simp [relateSeq] at *
+      simp only [evaluate, relateSeq] at *
       rcases v_αδ_w with ⟨u, w_α_u, u_δ_v⟩
       specialize @IH u
       refine IH.1 ?_ v u_δ_v
@@ -439,20 +441,20 @@ theorem SemImplyAnyNegFormula_loadBoxes_iff {M : KripkeModel W} {ξ : AnyFormula
   · simp
   case cons d δ IH =>
     unfold modelCanSemImplyAnyNegFormula at IH
-    simp at IH
+    simp only at IH
     unfold SemImplies modelCanSemImplyAnyNegFormula modelCanSemImplyAnyFormula
-    simp
+    simp only [AnyFormula.loadBoxes_cons, evaluate_unload_box, not_forall]
     constructor
     · rintro ⟨u, w_u, u_⟩
       rw [IH] at u_
       rcases u_ with ⟨z, u_z, z_⟩
       use z
-      simp [relateSeq_cons]
+      simp only [relateSeq_cons]
       constructor
       · use u
       · convert z_
     · rintro ⟨v, w_v, v_⟩
-      simp [relateSeq_cons] at w_v
+      simp only [relateSeq_cons] at w_v
       rcases w_v with ⟨u, w_u, u_v⟩
       refine ⟨u, w_u, ?_⟩
       rw [IH]

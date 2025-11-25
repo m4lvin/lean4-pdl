@@ -1,5 +1,4 @@
-import Mathlib.Data.List.Induction
-import Mathlib.Order.BoundedOrder.Basic
+import Mathlib.Algebra.BigOperators.Group.Finset.Defs
 
 /-! # Syntax (Section 2.1) -/
 
@@ -81,7 +80,7 @@ instance : DecidablePred Program.isAtomic
 | ∗_ => decidable_of_decidable_of_iff (by simp [Program.isAtomic] : False ↔ _)
 | ?'_ => decidable_of_decidable_of_iff (by simp [Program.isAtomic] : False ↔ _)
 
-theorem Program.isAtomic_iff : α.isAtomic ↔ ∃ a, α = (·a : Program) := by
+theorem Program.isAtomic_iff {α : Program} : α.isAtomic ↔ ∃ a, α = (·a : Program) := by
   cases α <;> simp_all [isAtomic]
 
 def Program.isStar : Program → Prop
@@ -90,32 +89,33 @@ def Program.isStar : Program → Prop
 
 instance : DecidablePred Program.isStar := by
   intro α
-  cases α <;> simp [Program.isStar] <;>
+  cases α <;> simp only [Program.isStar, Bool.false_eq_true] <;>
   all_goals
     try exact instDecidableTrue
     try exact instDecidableFalse
 
-theorem Program.isStar_iff : α.isStar ↔ ∃ β, α = (∗β) := by
+theorem Program.isStar_iff {α : Program} : α.isStar ↔ ∃ β, α = (∗β) := by
   cases α <;> simp_all [isStar]
 
 /-! ## Tools for Box Formulas -/
 
 @[simp]
-theorem Formula.boxes_nil : Formula.boxes [] φ = φ := by simp [Formula.boxes]
+theorem Formula.boxes_nil {φ : Formula} : Formula.boxes [] φ = φ := by simp [Formula.boxes]
 
 @[simp]
-theorem Formula.boxes_cons : Formula.boxes (β :: δ) φ = ⌈β⌉(Formula.boxes δ φ) := by
+theorem Formula.boxes_cons {β δ φ} : Formula.boxes (β :: δ) φ = ⌈β⌉(Formula.boxes δ φ) := by
   simp [Formula.boxes]
 
 @[simp]
-lemma Formula.boxes_injective : (⌈⌈αs⌉⌉φ) = (⌈⌈αs⌉⌉ψ) ↔ φ = ψ := by
+lemma Formula.boxes_injective {αs φ ψ} : (⌈⌈αs⌉⌉φ) = (⌈⌈αs⌉⌉ψ) ↔ φ = ψ := by
   induction αs <;> simp_all
 
-theorem boxes_last : Formula.boxes (δ ++ [α]) φ = Formula.boxes δ (⌈α⌉φ) :=
+theorem boxes_last {δ α φ} : Formula.boxes (δ ++ [α]) φ = Formula.boxes δ (⌈α⌉φ) :=
   by
   induction δ <;> simp [Formula.boxes]
 
-theorem boxes_append : Formula.boxes (as ++ bs) P = Formula.boxes as (Formula.boxes bs P) :=
+theorem boxes_append {as bs P} :
+    Formula.boxes (as ++ bs) P = Formula.boxes as (Formula.boxes bs P) :=
   by
   induction as <;> simp [Formula.boxes]
 
@@ -123,24 +123,21 @@ def boxesOf : Formula → List Program × Formula
 | (Formula.box prog nextf) => let (rest,endf) := boxesOf nextf; ⟨prog::rest, endf⟩
 | f => ([], f)
 
-lemma def_of_boxesOf_def (h : boxesOf φ = (αs, ψ)) : φ = ⌈⌈αs⌉⌉ψ := by
-  induction αs generalizing φ
+lemma def_of_boxesOf_def {φ γ ψ} (h : boxesOf φ = (γ, ψ)) : φ = ⌈⌈γ⌉⌉ψ := by
+  induction γ generalizing φ
   · unfold boxesOf at h
     cases φ <;> simp_all
   case cons α αs IH =>
-    simp
-    cases φ <;> simp_all [boxesOf]
-    case box β φ =>
-      apply IH
-      grind
+    simp only [Formula.boxes_cons]
+    cases φ <;> grind [boxesOf]
 
 def Formula.isBox : Formula → Prop
 | (Formula.box _ _ ) => True
 | _ => False
 
-lemma boxesOf_def_of_def_of_nonBox (h : φ = ⌈⌈αs⌉⌉ψ) (nonBox : ¬ ψ.isBox) :
-    boxesOf φ = (αs, ψ) := by
-  induction αs generalizing φ
+lemma boxesOf_def_of_def_of_nonBox {φ γ ψ} (h : φ = ⌈⌈γ⌉⌉ψ) (nonBox : ¬ ψ.isBox) :
+    boxesOf φ = (γ, ψ) := by
+  induction γ generalizing φ
   · unfold boxesOf
     cases φ <;> simp_all [Formula.isBox]; aesop
   case cons α αs IH =>
@@ -149,7 +146,7 @@ lemma boxesOf_def_of_def_of_nonBox (h : φ = ⌈⌈αs⌉⌉ψ) (nonBox : ¬ ψ.
     simp_all
 
 @[simp]
-lemma boxesOf_output_not_isBox : ¬ (boxesOf φ).2.isBox := by
+lemma boxesOf_output_not_isBox {φ : Formula} : ¬ (boxesOf φ).2.isBox := by
   cases φ
   case box α φ =>
     have := @boxesOf_output_not_isBox φ
@@ -157,7 +154,7 @@ lemma boxesOf_output_not_isBox : ¬ (boxesOf φ).2.isBox := by
   all_goals
     simp_all [boxesOf, Formula.isBox]
 
-lemma nonBox_of_boxesOf_def (bdef : boxesOf φ = (L, ψ)) : ¬ ψ.isBox := by
+lemma nonBox_of_boxesOf_def {φ L ψ} (bdef : boxesOf φ = (L, ψ)) : ¬ ψ.isBox := by
   have := @boxesOf_output_not_isBox φ; simp_all
 
 lemma boxesOf_nonBox {φ} (notBox : ¬ φ.isBox) : boxesOf φ = ([], φ) := by
@@ -167,12 +164,12 @@ lemma boxesOf_nonBox {φ} (notBox : ¬ φ.isBox) : boxesOf φ = ([], φ) := by
 A more general version without α should also hold. -/
 lemma defs_of_boxesOf_last_of_nonBox {φ}
     (notBox : ¬ φ.isBox) δs α : boxesOf (⌈⌈δs⌉⌉⌈α⌉φ) = (δs ++ [α], φ) := by
-  cases δs <;> simp_all [boxesOf]
+  cases δs
   case nil =>
-    simp_all only [true_and, boxesOf_nonBox notBox]
+    simp_all [boxesOf, boxesOf_nonBox notBox]
   case cons δ δs =>
     have IH := defs_of_boxesOf_last_of_nonBox notBox δs
-    grind
+    simp_all [boxesOf]
 
 lemma Formula.boxes_cons_neq_self φ β δ : (⌈β⌉⌈⌈δ⌉⌉φ) ≠ φ := by
   cases φ <;> try grind [Formula.boxes]
@@ -222,7 +219,7 @@ def loadMulti : List Program → Program → Formula → LoadFormula
 | bs, α, φ => List.foldr (fun β lf => LoadFormula.box β lf) (LoadFormula.box α φ) bs
 
 @[simp]
-theorem loadMulti_nil : loadMulti [] α φ = LoadFormula.box α φ := by simp [loadMulti]
+theorem loadMulti_nil {α φ} : loadMulti [] α φ = LoadFormula.box α φ := by simp [loadMulti]
 
 @[simp]
 theorem loadMulti_cons {β δ α φ} :
@@ -232,9 +229,9 @@ def LoadFormula.boxes : List Program → LoadFormula → LoadFormula
 | δ, χ => List.foldr (fun β lf => LoadFormula.box β lf) χ δ
 
 @[simp]
-lemma LoadFormula.boxes_nil : LoadFormula.boxes [] χ = χ := by simp [LoadFormula.boxes]
+lemma LoadFormula.boxes_nil {χ} : LoadFormula.boxes [] χ = χ := by simp [LoadFormula.boxes]
 
-lemma LoadFormula.boxes_cons :
+lemma LoadFormula.boxes_cons {b bs φ} :
     LoadFormula.boxes (b :: bs) φ = LoadFormula.box b (LoadFormula.boxes bs φ) :=
   by
   induction bs <;> simp [LoadFormula.boxes]
@@ -318,7 +315,7 @@ lemma AnyFormula.loadBoxes_loaded_eq_loaded_boxes {δ χ} :
   induction δ
   · simp
   case cons IH =>
-    simp
+    simp only [loadBoxes_cons, loaded.injEq]
     rw [IH]
     rfl
 
@@ -333,12 +330,10 @@ lemma box_loadBoxes_append_eq_of_loaded_eq_loadBoxes
   · exfalso
     simp_all
   case cons α αs =>
-    simp at h
+    simp only [AnyFormula.loadBoxes_cons, AnyFormula.loaded.injEq] at h
     subst h
-    rw [LoadFormula.boxes_cons]
-    rw [AnyFormula.loadBoxes_append]
-    rw [AnyFormula.loadBoxes_cons]
-    simp -- d gone
+    rw [LoadFormula.boxes_cons,AnyFormula.loadBoxes_append,AnyFormula.loadBoxes_cons]
+    simp only [LoadFormula.box.injEq, true_and] -- d gone
     apply AnyFormula.loadBoxes_loaded_eq_loaded_boxes
 
 @[simp]
@@ -349,8 +344,12 @@ lemma AnyFormulaBoxBoxes_eq_FormulaBoxLoadBoxes_inside_unload :
 
 lemma AnyFormula.loadBoxes_unload_eq_boxes {βs φ} :
     (AnyFormula.loadBoxes βs (AnyFormula.normal φ)).unload = ⌈⌈βs⌉⌉φ := by
-  induction βs <;> simp [unload]
-  case cons ih => exact ih
+  induction βs
+  · simp [unload]
+  case cons ih =>
+    simp only [unload, loadBoxes_cons, AnyFormulaBoxBoxes_eq_FormulaBoxLoadBoxes_inside_unload,
+      Formula.boxes_cons, Formula.box.injEq, true_and];
+    exact ih
 
 lemma loaded_eq_to_unload_eq χ αs φ
     (h : AnyFormula.loaded χ = AnyFormula.loadBoxes αs (AnyFormula.normal φ))
@@ -404,12 +403,16 @@ lemma LoadFormula.split_inj {ξ ξ' : LoadFormula} (h : ξ.split = ξ'.split) : 
     aesop
 
 lemma AnyFormula.split_inj {ξ ξ' : AnyFormula} (h : ξ.split = ξ'.split) : ξ = ξ' := by
-  rcases ξ with φ|ξ <;> rcases ξ' with φ'|ξ' <;> simp_all
+  rcases ξ with φ|ξ <;> rcases ξ' with φ'|ξ'
+  case normal.normal =>
+    simp_all
   case normal.loaded =>
+    simp_all only [AnyFormula.split, reduceCtorEq]
     cases ξ'; simp_all
   case loaded.normal =>
     cases ξ; simp_all
   case loaded.loaded =>
+    simp_all only [AnyFormula.split, AnyFormula.loaded.injEq]
     exact LoadFormula.split_inj h
 end
 
@@ -445,8 +448,7 @@ lemma loadMulti_nonEmpty_unload {δ h φ} : (loadMulti_nonEmpty δ h φ).unload 
   · exfalso; absurd h; rfl
   case cons α αs IH =>
     unfold loadMulti_nonEmpty
-    cases αs <;> simp
-    case cons β βs => exact IH
+    cases αs <;> simp_all
 
 theorem LoadFormula.split_eq_loadMulti_nonEmpty {δ φ} (lf : LoadFormula) : (h : lf.split = (δ,φ)) →
     lf = loadMulti_nonEmpty δ (by have := split_list_not_empty lf; simp_all) φ := by
@@ -458,28 +460,28 @@ theorem LoadFormula.split_eq_loadMulti_nonEmpty {δ φ} (lf : LoadFormula) : (h 
   case cons β δ IH =>
     cases af
     · unfold LoadFormula.split at h
-      simp at h
+      simp only [AnyFormula.split, Prod.mk.injEq, List.cons.injEq, List.nil_eq] at h
       rcases h with ⟨⟨α_eq_β, def_δ⟩, def_φ⟩
       subst_eqs
       simp_all
     case loaded lf2 =>
       specialize @IH φ lf2 ?_
       · rw [AnyFormula.box_split] at h
-        simp at *
+        simp only [AnyFormula.split, Prod.mk.injEq, List.cons.injEq] at *
         rcases h with ⟨⟨α_eq_β, def_δ⟩, def_φ⟩
         subst_eqs
         simp
       · rw [loadMulti_nonEmpty_box ?_]
-        · simp
+        · simp only [box.injEq, AnyFormula.loaded.injEq]
           rw [AnyFormula.box_split] at h
-          simp at *
+          simp only [AnyFormula.split, Prod.mk.injEq, List.cons.injEq] at *
           rcases h with ⟨⟨α_eq_β, def_δ⟩, def_φ⟩
           subst_eqs
-          simp
+          simp only [true_and]
           convert IH
-        · simp
+        · simp only [ne_eq]
           rw [AnyFormula.box_split] at h
-          simp at *
+          simp only [AnyFormula.split, Prod.mk.injEq, List.cons.injEq] at *
           rcases h with ⟨⟨α_eq_β, def_δ⟩, def_φ⟩
           subst_eqs
           simp
@@ -491,11 +493,7 @@ theorem LoadFormula.split_eq_loadMulti_nonEmpty' {δ φ} (lf : LoadFormula) (h :
 
 theorem loadMulti_nonEmpty_eq_loadMulti {δ α h φ} :
     loadMulti_nonEmpty (δ ++ [α]) h φ = loadMulti δ α φ := by
-  induction δ
-  · simp
-  case cons IH =>
-    simp
-    rw [IH]
+  induction δ <;> simp_all
 
 theorem LoadFormula.split_eq_loadMulti (lf : LoadFormula) {δ α φ}
     (h : lf.split = (δ ++ [α], φ)) : lf = loadMulti δ α φ := by
@@ -511,7 +509,7 @@ theorem LoadFormula.exists_splitLast (lf : LoadFormula) :
     simp
   case loaded lf =>
     rcases LoadFormula.exists_splitLast lf with ⟨δ', α', IH⟩
-    simp
+    simp only [split, AnyFormula.split]
     rw [IH]
     use α :: δ', α'
     simp
@@ -561,16 +559,13 @@ theorem splitLast_cons_eq_some (x : α) (xs : List α) :
     simp
 
 @[simp]
-theorem splitLast_append_singleton : splitLast (xs ++ [x]) = some (xs, x) := by
-  induction xs
-  · simp [splitLast]
-  case cons IH =>
-    simp [splitLast]
-    rw [IH]
+theorem splitLast_append_singleton {α} {xs : List α} {x : α} :
+    splitLast (xs ++ [x]) = some (xs, x) := by
+  induction xs <;> simp_all [splitLast]
 
-lemma splitLast_inj (h : splitLast αs = splitLast βs) :
-    αs = βs := by
-  induction αs using List.reverseRecOn <;> induction βs using List.reverseRecOn
+lemma splitLast_inj {α} {xs ys : List α} (h : splitLast xs = splitLast ys) :
+    xs = ys := by
+  induction xs using List.reverseRecOn <;> induction ys using List.reverseRecOn
   · rfl
   · exfalso
     simp_all
@@ -585,9 +580,9 @@ lemma splitLast_undo_of_some (h : splitLast αs = some βs_b) :
     simp_all
   have := @splitLast_cons_eq_some _ α αs
   rw [h] at this
-  simp at this
+  simp only [Option.some.injEq] at this
   subst this
-  simp
+  simp only
   apply List.dropLast_append_getLast
 
 lemma loadMulti_of_splitLast_cons {α αs βs β φ} (h : splitLast (α :: αs) = some ⟨βs, β⟩) :
@@ -597,7 +592,7 @@ lemma loadMulti_of_splitLast_cons {α αs βs β φ} (h : splitLast (α :: αs) 
     exact splitLast_inj h
   cases αs
   · unfold splitLast at h
-    simp at h
+    simp only [splitLast_nil, Option.some.injEq, Prod.mk.injEq, List.nil_eq] at h
     cases h
     subst_eqs
     simp at *
@@ -609,9 +604,46 @@ lemma loadMulti_of_splitLast_cons {α αs βs β φ} (h : splitLast (α :: αs) 
     cases βs
     · exfalso
       unfold splitLast at h
-      simp at h
+      simp only [Option.some.injEq] at h
       cases h
     case cons β2 βs =>
       simp_all
       subst new_h
       simp_all
+
+/-! # Measures -/
+
+mutual
+  @[simp]
+  def lengthOfProgram : Program → Nat
+    | ·_ => 1
+    | α;'β => 1 + lengthOfProgram α + lengthOfProgram β
+    | α⋓β => 1 + lengthOfProgram α + lengthOfProgram β
+    | ∗α => 1 + lengthOfProgram α
+    | ?'φ => 2 + lengthOfFormula φ -- 2 not 1, to make F^ℓ go down ;-)
+  @[simp]
+  def lengthOfFormula : Formula → Nat
+    | Formula.bottom => 1
+    | ·_ => 1
+    | ~φ => 1 + lengthOfFormula φ
+    | φ⋀ψ => 1 + lengthOfFormula φ + lengthOfFormula ψ
+    | ⌈α⌉φ => 1 + lengthOfProgram α + lengthOfFormula φ
+end
+
+lemma lengthOfProgram_gt_zero (α : Program) : 0 < lengthOfProgram α := by
+  cases α <;> simp <;> omega
+
+class HasLength (α : Type) where
+  lengthOf : α → ℕ
+
+open HasLength
+@[simp]
+instance formulaHasLength : HasLength Formula := ⟨lengthOfFormula⟩
+@[simp]
+instance setFormulaHasLength : HasLength (Finset Formula) := ⟨fun X => X.sum lengthOfFormula⟩
+@[simp]
+instance listFormulaHasLength : HasLength (List Formula) := ⟨fun X => (X.map lengthOfFormula).sum⟩
+@[simp]
+instance programHasLength : HasLength Program := ⟨lengthOfProgram⟩
+@[simp]
+instance setProgramHasLength : HasLength (Finset Program) := ⟨fun X => X.sum lengthOfProgram⟩

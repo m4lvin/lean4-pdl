@@ -3,8 +3,10 @@ defaultTargets = ["Pdl"]
 lintDriver = "batteries/runLinter"
 
 [leanOptions]
+pp.unicode.fun = true # pretty-prints `fun a ↦ b`
 weak.linter.mathlibStandardSet = true
 # weak.linter.flexible = true  # maybe someday enable this
+# autoImplicit = false  # maybe someday enable this
 
 [[require]]
 name = "mathlib"

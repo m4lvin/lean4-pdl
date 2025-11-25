@@ -975,10 +975,10 @@ This means "there are only finitely many "sequents modulo `setEq`" that are subs
 lemma Seqt.subseteq_FL_finite {Xs : Seqt} : Finite { Ys // Seqt.subseteq_FL Ys Xs } :=
   @Finite.of_fintype { Ys // Seqt.subseteq_FL Ys Xs } Seqt.subseteq_FL_instFintype
 
-/-- General helper lemma: If we have an enumeration of infinitely many values, and all of them
+/-- Helper lemma for `matchesFinite`: If we have enumerate infinitely many values, and all of them
 have a certain property, but we also know that there are only finitely many values with that
-property, then there must be identical values in the enuemration. -/
-lemma help {α : Type} {f : ℕ → α} {p : α → Prop}
+property, then there must be identical values in the enumeration. -/
+lemma exist_duplicates_of_infinite_among_fintype {α : Type} {f : ℕ → α} {p : α → Prop}
     (h_p : ∀ n, p (f n)) (h_fin : Finite {x // p x})
     : ∃ k1 k2, k1 ≠ k2 ∧ f k1 = f k2 := by
   -- Because {x // p x} is finite, also Set.range f is finite.
@@ -1072,7 +1072,8 @@ lemma matchesFinite : WellFounded (Function.swap move) := by
 
   -- Now we apply the general helper lemma from above. A tricky thing here is that we want to
   -- go from "only finitely many sequents" to "finitely many GamePos" values.
-  have := @help _ (fun n => ⟦(f n).2.1⟧) (Seqt.subseteq_FL · ⟦(f 0).2.1⟧) all_moves_inside FL_fin
+  have := @exist_duplicates_of_infinite_among_fintype _
+    (fun n => ⟦(f n).2.1⟧) (Seqt.subseteq_FL · ⟦(f 0).2.1⟧) all_moves_inside FL_fin
   rcases this with ⟨k1, k2, k_diff, same⟩
   simp [rep, instSetoidSequent] at same no_repeats
   rw [Nat.ne_iff_lt_or_gt] at k_diff
