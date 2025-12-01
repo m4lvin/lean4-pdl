@@ -343,3 +343,13 @@ theorem winning_of_whatever_other_move {g : Game} {i : Player} {sI : Strategy g 
     absurd r_in
     exact not_in_cone_of_move m.2 sJ
   aesop
+
+lemma winning_of_in_cone_winning {g : Game} {i : Player} {p q : g.Pos} {sI : Strategy g i}
+    (in_cone : inMyCone sI p q) (h : winning sI p) : winning sI q := by
+  induction in_cone
+  case nil => exact h
+  case myStep q q_in_cone has_moves my_turn ih =>
+    apply winning_of_winning_move
+    exact ih
+  case oStep q q' q_in_cone o_turn in_moves ih =>
+    exact @winning_of_whatever_other_move g i sI q o_turn ih ⟨q', in_moves⟩
