@@ -1,6 +1,7 @@
 import Bml.Semantics
+import Bml.BigConDis
 
-def isBisimulation {W W': Type} (Z : W → W' → Prop)
+def isBisimulation {W W' : Type} (Z : W → W' → Prop)
   (M : KripkeModel W) (M' : KripkeModel W') : Prop :=
   -- valuations
   (∀ w w' c, Z w w' → (M.val w c ↔ M'.val w' c))
@@ -14,12 +15,6 @@ def isBisimulation {W W': Type} (Z : W → W' → Prop)
 /-- Two pointed models are bisimilar iff there exists a bisimulation connecting them. -/
 def bisimilar : (KripkeModel W × W) → (KripkeModel W' × W') → Prop
   | (M, w), (M', w') => ∃ Z, isBisimulation Z M M' ∧ Z w w'
-
--- FIXME: move to Semantics.lean
-def modelEquiv (Mw : KripkeModel W × W) (Mw' : KripkeModel W' × W') : Prop :=
-  ∀ (φ : Formula), Mw ⊨ φ ↔ Mw' ⊨ φ
-
-infixl:77 "≣" => modelEquiv
 
 theorem modelEquiv_iff_bisimilar {W : Type} (finW : Fintype W) (finW' : Fintype W')
     (M : KripkeModel W) (w : W) (M' : KripkeModel W') (w' : W') :
@@ -37,8 +32,8 @@ theorem modelEquiv_iff_bisimilar {W : Type} (finW : Fintype W) (finW' : Fintype 
       simp only [modelCanSemImplyForm]
       by_contra hyp
       simp only [not_exists, not_and] at hyp
-      let S' := { u' : finW'.elems // M'.Rel w' u'  }
-      have claim : ∀ wᵢ' : S', ∃ (ψᵢ : Formula), (M,v) ⊨ ψᵢ ∧ ¬ (M', wᵢ'.val.val) ⊨ ψᵢ := by
+      have claim : ∀ wᵢ' : Subtype (M'.Rel w'),
+          ∃ (ψᵢ : Formula), (M,v) ⊨ ψᵢ ∧ ¬ (M', wᵢ'.val) ⊨ ψᵢ := by
         rintro ⟨wᵢ', w'_wᵢ'⟩
         simp only [modelCanSemImplyForm]
         specialize hyp wᵢ'
@@ -48,19 +43,82 @@ theorem modelEquiv_iff_bisimilar {W : Type} (finW : Fintype W) (finW' : Fintype 
         by_cases Evaluate (M, v) ψ0
         · use ψ0; aesop
         · use ~ψ0; aesop
-      let φ := ~(□(~ BigConjunction (sorry /- idea: map using choice and claim -/)))
-      have : (M,w) ⊨ φ := by sorry
-      have : ¬ (M',w') ⊨ φ := by sorry
+      let f (wᵢ' : Subtype (M'.Rel w')) : Formula := Exists.choose (claim wᵢ')
+      let subfin : Fintype (Subtype (M'.Rel w')) :=
+        @Subtype.fintype W' _ (fun _ => Classical.dec _) finW'
+      let φ := ~(□(~ bigCon (subfin.elems.toList.map f)))
+      have : (M,w) ⊨ φ := by
+        simp [φ]
+        refine ⟨v, w_v, ?_⟩
+        unfold Fintype.elems subfin Subtype.fintype Fintype.subtype f
+        simp only [Finset.filter_val, Finset.mem_mk, Multiset.mem_pmap, Subtype.mk.injEq,
+          Multiset.mem_filter, Finset.mem_val, Finset.mem_univ, true_and, exists_prop,
+          exists_eq_right, modelCanSemImplyForm, forall_self_imp]
+        intro wᵢ' w'_wᵢ'
+        have := Exists.choose_spec (claim ⟨wᵢ', w'_wᵢ'⟩)
+        tauto
+      have : ¬ (M',w') ⊨ φ := by
+        simp [φ]
+        intro wᵢ' w'_wᵢ'
+        have := Exists.choose_spec (claim ⟨wᵢ', w'_wᵢ'⟩)
+        refine ⟨wᵢ', w'_wᵢ', ?_⟩
+        unfold Fintype.elems subfin Subtype.fintype Fintype.subtype f
+        simp only [Finset.filter_val, Finset.mem_mk, Multiset.mem_pmap, Subtype.mk.injEq,
+          Multiset.mem_filter, Finset.mem_val, Finset.mem_univ, true_and, exists_prop,
+          exists_eq_right, modelCanSemImplyForm]
+        tauto
       absurd c
       simp only [modelCanSemImplyForm, not_forall]
       use φ
       tauto
     · intro w w' c v' w'_v' -- showing the back condition
-      -- should be analogous to forth direction
-      sorry
+      -- COPY-PASTA from forth direction, just adding and removing primes :-)
+      unfold modelEquiv at c
+      unfold modelEquiv
+      simp only [modelCanSemImplyForm]
+      by_contra hyp
+      simp only [not_exists, not_and] at hyp
+      have claim : ∀ wᵢ : Subtype (M.Rel w),
+          ∃ (ψᵢ : Formula), (M',v') ⊨ ψᵢ ∧ ¬ (M, wᵢ.val) ⊨ ψᵢ := by
+        rintro ⟨wᵢ, w_wᵢ⟩
+        simp only [modelCanSemImplyForm]
+        specialize hyp wᵢ
+        rw [propext (not_iff_false_intro w_wᵢ)] at hyp
+        simp only [imp_false, not_forall] at hyp
+        rcases hyp with ⟨ψ0, bla⟩
+        by_cases Evaluate (M', v') ψ0
+        · use ψ0; aesop
+        · use ~ψ0; aesop
+      let f (wᵢ : Subtype (M.Rel w)) : Formula := Exists.choose (claim wᵢ)
+      let subfin : Fintype (Subtype (M.Rel w)) :=
+        @Subtype.fintype W _ (fun _ => Classical.dec _) finW
+      let φ := ~(□(~ bigCon (subfin.elems.toList.map f)))
+      have : (M',w') ⊨ φ := by
+        simp [φ]
+        refine ⟨v', w'_v', ?_⟩
+        unfold Fintype.elems subfin Subtype.fintype Fintype.subtype f
+        simp only [Finset.filter_val, Finset.mem_mk, Multiset.mem_pmap, Subtype.mk.injEq,
+          Multiset.mem_filter, Finset.mem_val, Finset.mem_univ, true_and, exists_prop,
+          exists_eq_right, modelCanSemImplyForm, forall_self_imp]
+        intro wᵢ w_wᵢ
+        have := Exists.choose_spec (claim ⟨wᵢ, w_wᵢ⟩)
+        tauto
+      have : ¬ (M,w) ⊨ φ := by
+        simp [φ]
+        intro wᵢ w_wᵢ
+        have := Exists.choose_spec (claim ⟨wᵢ, w_wᵢ⟩)
+        refine ⟨wᵢ, w_wᵢ, ?_⟩
+        unfold Fintype.elems subfin Subtype.fintype Fintype.subtype f
+        simp only [Finset.filter_val, Finset.mem_mk, Multiset.mem_pmap, Subtype.mk.injEq,
+          Multiset.mem_filter, Finset.mem_val, Finset.mem_univ, true_and, exists_prop,
+          exists_eq_right, modelCanSemImplyForm]
+        tauto
+      absurd c
+      simp only [modelCanSemImplyForm, not_forall]
+      use φ
+      tauto
     · exact Mw_equiv_Mw
-  · intro Mw_bisim_Mw'
-    intro φ
+  · intro Mw_bisim_Mw' φ
     induction φ generalizing w w' with
     | bottom =>
       simp

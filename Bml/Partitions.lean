@@ -2,7 +2,7 @@
 
 import Bml.Tableau
 import Bml.Soundness
-import Bml.bigConDis
+import Bml.BigConDis
 
 open HasVocabulary HasSat
 

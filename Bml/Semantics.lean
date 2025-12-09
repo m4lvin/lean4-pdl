@@ -104,6 +104,12 @@ infixl:40 " ≡ " => semEquiv
 
 infixl:40 " ⊭ " => fun a b => ¬a⊨b
 
+/-- Semantic equivalence between pointed models. -/
+def modelEquiv {W W' : Type} (Mw : KripkeModel W × W) (Mw' : KripkeModel W' × W') : Prop :=
+  ∀ (φ : Formula), Mw ⊨ φ ↔ Mw' ⊨ φ
+
+infixl:77 "≣" => modelEquiv
+
 theorem forms_to_sets {φ ψ : Formula} : φ⊨ψ → ({φ} : Finset Formula)⊨({ψ} : Finset Formula) :=
   by
   intro impTaut W M w lhs ψ1 psi1_in_setpsi
