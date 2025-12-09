@@ -1,7 +1,7 @@
 
 all: pdl bml
 
-.PHONY: all pdl bml doc
+.PHONY: all pdl bml doc show-doc clean delete-unused-oleans check update-fix
 
 pdl: .first-run-done
 	lake build Pdl
@@ -25,9 +25,35 @@ show-doc: doc
 clean:
 	rm -rf .first-run-done lake-packages .lake build lakefile.olean
 
-PDL_LEAN_FILES := $(wildcard Pdl/*.lean)
+# lean4checker
 
 BASE = https://m4lvin.github.io/lean4-pdl/docs/Pdl/
+
+OLEANS = $(wildcard .lake/build/lib/lean/Pdl/*.olean) $(wildcard .lake/build/lib/lean/Bml/*.olean)
+
+delete-unused-oleans:
+	@for olean in $(OLEANS); do \
+		dir=$$(dirname $$olean); \
+		base=$$(basename $$olean .olean); \
+		lean=$$base.lean; \
+		if [ "$$dir" = ".lake/build/lib/lean/Pdl" ] && [ ! -f ./Pdl/$$lean ]; then \
+			echo "Deleting $$olean"; \
+			rm -f $$olean; \
+		elif [ "$$dir" = ".lake/build/lib/lean/Bml" ] && [ ! -f ./Bml/$$lean ]; then \
+			echo "Deleting $$olean"; \
+			rm -f $$olean; \
+		fi \
+	done
+	@echo "Deleted unused .olean files."
+
+check: pdl bml delete-unused-oleans
+	rm -rf lean4checker
+	chmod +x ./scripts/run_lean4checker.sh
+	./scripts/run_lean4checker.sh
+
+# Dependency Graph
+
+PDL_LEAN_FILES := $(wildcard Pdl/*.lean)
 
 dependencies.svg: dependencies.dot
 	dot -Tsvg dependencies.dot > $@
