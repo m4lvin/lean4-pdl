@@ -732,7 +732,7 @@ theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
       case cast j =>
         specialize IH Z Z_in tail
         simp_all only [List.get_eq_getElem, List.length_cons, rewind, toHistory,
-          Fin.lastCases_castSucc, Function.comp_apply, nodeAt_loc, Fin.coe_cast, Fin.coe_castSucc]
+          Fin.lastCases_castSucc, Function.comp_apply, nodeAt_loc, Fin.val_cast, Fin.val_castSucc]
         rcases j with ⟨j,j_lt⟩
         rw [loc_length_eq] at j_lt
         have := @List.getElem_append _ (nodeAt tail :: tail.toHistory) [Y] j ?_
@@ -751,7 +751,7 @@ theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
         specialize IH tail
         simp only [List.get_eq_getElem, List.length_cons, toHistory, nodeAt_pdl] at *
         simp_all only [rewind, Fin.lastCases_castSucc, Function.comp_apply, nodeAt_pdl,
-          Fin.coe_cast, Fin.coe_castSucc]
+          Fin.val_cast, Fin.val_castSucc]
         rcases j with ⟨j,j_lt⟩
         rw [pdl_length_eq] at j_lt
         have := @List.getElem_append _ (nodeAt tail :: tail.toHistory) [Z] j ?_
@@ -1321,7 +1321,7 @@ theorem exists_rewinds_middle {a b c : PathIn tab} (h : a ≤ b) (h' : b ≤ c) 
     exact path_is_irreflexive this
   simp_all
 
-/-- ## Finiteness and Wellfoundedness -/
+/-! ## Finiteness and Wellfoundedness -/
 
 -- Why not in Mathlib?
 -- See https://leanprover.zulipchat.com/#narrow/stream/217875-Is-there-code-for-X.3F/topic/Union.20BigOperator/near/470044981

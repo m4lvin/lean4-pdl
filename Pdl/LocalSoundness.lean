@@ -163,33 +163,25 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             )
         )
     ) := by
-
   cases αs
-
   case nil => -- We can pick any end node.
     simp_all
     rcases (localTableauTruth ltab M w).1 v_t with ⟨Y, Y_in, w_Y⟩
     refine ⟨Y, Y_in, w_Y, Or.inl ?_⟩
     apply endNodesOf_free_are_free ltab no_other_loading Y_in
-
   case cons α αs =>
-
     induction ltab generalizing α αs v w
     -- the generalizing `αs` here makes things really slow. use recursion instead?
-
     case byLocalRule X lra X_def next IH => -- X B lra next IH =>
       subst X_def
-
       -- Soundness and invertibility of the local rule:
       have locRulTru := @localRuleTruth lra W M
       rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, precons⟩
       simp only [AnyFormula.loadBoxes_cons, modelCanSemImplyList, LocalRuleApp.X, endNodesOf.eq_1,
         List.mem_flatten, List.mem_map, List.mem_attach, true_and, Subtype.exists,
         next_exists_avoid_def_l] at *
-
       -- We distinguish which rule was applied.
       cases rule
-
       -- Rules not affecting the loaded formula are easy by using the IH.
       case oneSidedL YS orule YS_def =>
         simp_all [applyLocalRule] -- uses locRulTru
@@ -228,12 +220,10 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
         use (L, R.diff Rcond ++ res, O)
         simp_all only [exists_prop, and_true]
         use res
-
       case LRnegL φ =>
         simp_all
       case LRnegR =>
         simp_all
-
       case loadedL outputs χ lrule resNodes_def =>
         subst resNodes_def
         -- Instead of localRuleTruth ...
@@ -488,7 +478,6 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               simp at in_Hl
               rw [in_Hl.2]
               exact _in_H
-
       case loadedR outputs χ lrule resNodes_def => -- COPY-PASTA from loadedL, modulo `side`
         subst resNodes_def
         -- Instead of localRuleTruth ...
@@ -749,7 +738,6 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                 or_false] at in_Hl
               rw [in_Hl.2]
               exact _in_H
-
     case sim X X_isBasic =>
       clear no_other_loading
       -- If `X` is basic then `α` must be atomic.

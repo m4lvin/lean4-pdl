@@ -32,10 +32,8 @@ def InterpolantInductionStep
     -- UNPACKING TERMS
     match def_ruleA : ruleA with
     | @LocalRuleApp.mk _ _ _ ress Lcond Rcond rule hC preproof =>
-
     -- DISTINCTION ON LOCALRULE USED
     cases def_rule : rule with
-
     -- ONESIDED L
     | oneSidedL orule =>
       let interList :=  (C.attach).map <| fun ⟨c, cinC⟩ => (subθs c cinC).1
@@ -45,7 +43,6 @@ def InterpolantInductionStep
         let ⟨⟨c,c_in_C⟩, _, ℓ_in_c'θ⟩ := choice_property_in_image <| vocOfBigDis ℓ_in_inter
         have ℓ_in_c : ℓ ∈ jvoc c := (subθs c c_in_C).2 |> And.left <| ℓ_in_c'θ
         exact localRuleApp_does_not_increase_vocab ruleA c c_in_C <| ℓ_in_c
-
       · constructor
         · intro L_and_nθ_sat
           have L_and_bigC_sat :
@@ -66,7 +63,6 @@ def InterpolantInductionStep
             bigConNeg_union_sat_down sat_c_θ (subθs c c_in_C).1
               (by simp (config := {zetaDelta := true}); use c, c_in_C)
           exact (subθs c c_in_C).2 |> And.right |> And.left <| sat_c_c'sθ
-
         · intro R_and_θ_sat
           have ⟨⟨c,c_in_C⟩, _, sat_cθ⟩ :=
             choice_property_in_image <| bigDis_union_sat_down R_and_θ_sat
@@ -74,7 +70,6 @@ def InterpolantInductionStep
             oneSidedRule_preserves_other_side_L def_ruleA def_rule c c_in_C
           rw[←cR_eq_R] at sat_cθ
           exact (subθs c c_in_C).2 |> And.right |> And.right <| sat_cθ
-
     -- ONESIDED R: dual to ONESIDED L
     | oneSidedR orule =>
       let interList :=  (C.attach).map <| fun ⟨c, cinC⟩ => (subθs c cinC).1
@@ -84,7 +79,6 @@ def InterpolantInductionStep
         let ⟨⟨c,c_in_C⟩, _, ℓ_in_c'θ⟩ := choice_property_in_image <| vocOfBigCon ℓ_in_inter
         have ℓ_in_c : ℓ ∈ jvoc c := (subθs c c_in_C).2 |> And.left <| ℓ_in_c'θ
         exact localRuleApp_does_not_increase_vocab ruleA c c_in_C <| ℓ_in_c
-
       · constructor
         · intro L_and_nθ_sat
           have L_and_bigD_sat :
@@ -110,7 +104,6 @@ def InterpolantInductionStep
               bigCon_union_sat_down sat_c_θ ((subθs c c_in_C).1)
                 (by simp (config := {zetaDelta := true}); use c, c_in_C)
           exact (subθs c c_in_C).2 |> And.right |> And.right <| sat_c'sθ
-
     -- LRNEG L
     | LRnegL φ =>
       use φ
@@ -124,12 +117,10 @@ def InterpolantInductionStep
         · use ~φ; constructor
           · exact preproof.right <| Finset.mem_singleton.mpr rfl
           · exact ℓinφ
-
       · constructor <;> apply negation_not_cosatisfiable φ
         <;> simp only [union_singleton_is_insert, Finset.mem_insert, true_or]
         · apply Or.intro_right; exact preproof.left <| Finset.mem_singleton.mpr rfl
         · apply Or.intro_right; exact preproof.right <| Finset.mem_singleton.mpr rfl
-
     -- LRNEG R: dual to LRNEG l
     | LRnegR φ =>
       use ~φ
@@ -143,7 +134,6 @@ def InterpolantInductionStep
         · use φ; constructor
           · exact preproof.right <| Finset.mem_singleton.mpr rfl
           · exact ℓinφ
-
       · constructor
         · apply negation_not_cosatisfiable (~φ) <;> simp
           apply Or.intro_right; exact preproof.left <| Finset.mem_singleton.mpr rfl

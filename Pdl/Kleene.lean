@@ -31,11 +31,13 @@ instance : AddZeroClass RelProp where
   add_zero := by
     apply Quotient.ind
     intro α
-    simp [HAdd.hAdd, Add.add, OfNat.ofNat, Zero.zero, RelProp.union, Program.instSetoid, relEquiv]
+    simp [HAdd.hAdd, Add.add, OfNat.ofNat, Zero.zero, RelProp.union, Program.instSetoid, relEquiv,
+      Quotient.eq]
   zero_add := by
     apply Quotient.ind
     intro α
-    simp [HAdd.hAdd, Add.add, OfNat.ofNat, Zero.zero, RelProp.union, Program.instSetoid, relEquiv]
+    simp [HAdd.hAdd, Add.add, OfNat.ofNat, Zero.zero, RelProp.union, Program.instSetoid, relEquiv,
+      Quotient.eq]
 
 def Program.Repeat : ℕ → Program → Program
   | 0     , _ => ?'⊥
@@ -60,12 +62,12 @@ instance : MulZeroClass RelProp where
     apply Quotient.ind
     intro α
     simp [OfNat.ofNat, Zero.zero, HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid,
-      relEquiv]
+      relEquiv, Quotient.eq]
   mul_zero := by
     apply Quotient.ind
     intro α
     simp [OfNat.ofNat, Zero.zero, HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid,
-      relEquiv]
+      relEquiv, Quotient.eq]
 
 instance : Distrib RelProp where
   left_distrib := by
@@ -95,7 +97,7 @@ instance : NonUnitalNonAssocSemiring RelProp where
 instance : NonUnitalSemiring RelProp where
   mul_assoc := by
     refine (Quotient.ind (fun α => Quotient.ind (fun β => Quotient.ind (fun γ => ?_))))
-    simp [HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid, relEquiv]
+    simp [HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid, relEquiv, Quotient.eq]
     aesop
 
 instance RelProp.instOne : One RelProp :=
@@ -144,7 +146,7 @@ instance RelProp.instPreorder : Preorder RelProp where
 instance RelProp.partialOrder : PartialOrder RelProp where
   le_antisymm := by
     refine (Quotient.ind (fun α => Quotient.ind (fun β => ?_)))
-    simp [LE.le, RelProp.le, relImp, Program.instSetoid, relEquiv]
+    simp [LE.le, RelProp.le, relImp, Program.instSetoid, relEquiv, Quotient.eq]
     aesop
 
 instance RelProp.semilatticeSup : SemilatticeSup RelProp where

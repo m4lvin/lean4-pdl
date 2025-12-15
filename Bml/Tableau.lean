@@ -450,7 +450,6 @@ noncomputable def notSimpleToRuleApp {L R : Finset Formula} : ¬Simple (L,R) →
           ∅ {ψ⋀χ} rule (rfl)
           ⟨(Finset.empty_subset L), (by rw[← φdef]; simp [vvv.φinX])⟩
         )⟩
-
       | ~ψ  => match ψ with
         | ⊥
         | ·_
@@ -485,7 +484,6 @@ noncomputable def notSimpleToRuleApp {L R : Finset Formula} : ¬Simple (L,R) →
           {ψ⋀χ} ∅ rule (rfl)
           ⟨(by rw[← φdef]; simp [vvv.φinX]), (Finset.empty_subset R)⟩
         )⟩
-
       | ~ψ  => match ψ with
         | ⊥
         | ·_

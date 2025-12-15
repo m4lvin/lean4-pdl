@@ -63,7 +63,7 @@ theorem get_eq_getzip {X Y : α} {i : Fin ((List.length (l ++ [Y])))} {h} :
   List.get (X :: (l ++ [Y])) (Fin.castSucc i) = (((x, X) :: List.zip δ (l ++ [Y]))[i.val]'h).2 := by
   -- special thanks to droplet739
   simp only [←List.zip_cons_cons]
-  simp only [List.get_eq_getElem, List.length_cons, Fin.coe_castSucc]
+  simp only [List.get_eq_getElem, List.length_cons, Fin.val_castSucc]
   rw [List.getElem_zip]
 
 theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
@@ -91,21 +91,21 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
     have help1 : (List.append l [Y]).length = δ.length := by simp [length_def]
     apply IHδ (δ[i.cast help1]) (by apply List.get_mem) (List.get (X :: l ++ [Y]) i.castSucc)
     · have : (⌈(δ[i.cast help1])⌉⌈⌈List.drop (i + 1) δ⌉⌉φ) = (⌈⌈List.drop (i.castSucc) δ⌉⌉φ) := by
-        simp only [List.append_eq, Fin.coe_castSucc]
+        simp only [List.append_eq, Fin.val_castSucc]
         have := @List.drop_eq_getElem_cons _ i δ
           (by rw [← length_def]; have := Fin.is_lt i; convert this; simp)
         rw [this]
-        simp only [Fin.getElem_fin, Fin.coe_cast, List.append_eq, List.getElem_cons_drop]
+        simp only [Fin.getElem_fin, Fin.val_cast, List.append_eq, List.getElem_cons_drop]
         cases i
         simp_all only [insTop, List.zip_cons_cons, Subtype.forall, List.append_eq,
           Fin.castSucc_mk]
         rw [Formula.boxes_cons]
       rw [this]
       exact IH
-    · simp only [List.append_eq, Fin.getElem_fin, Fin.coe_cast, List.cons_append,
-      List.get_eq_getElem, List.length_cons, Fin.coe_castSucc]
+    · simp only [List.append_eq, Fin.getElem_fin, Fin.val_cast, List.cons_append,
+      List.get_eq_getElem, List.length_cons, Fin.val_castSucc]
       -- It now remains to make lchain usable
-      rw [List.isChain_iff_get] at lchain
+      rw [List.isChain_iff_getElem] at lchain
       specialize lchain i ?_
       · rcases i with ⟨val, hyp⟩
         simp_all only [insTop, List.zip_cons_cons, List.length_cons, List.length_zip,

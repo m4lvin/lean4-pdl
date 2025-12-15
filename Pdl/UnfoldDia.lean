@@ -45,15 +45,12 @@ theorem relateSeq_H_imp_relate {X : List Formula} {δ : List Program}
   | ·_ =>
     let hδ := congr_arg mr (Prod.eq_iff_fst_eq_snd_eq.mp (List.eq_of_mem_singleton in_H)).2
     relateSeq_singleton.mp (cast hδ rel)
-
   | ?'_ =>
     let ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton in_H
     ⟨hδ.subst (motive := mr) rel, hX.subst (motive := me) ev⟩
-
   | _⋓_ => (List.mem_union_iff.mp in_H).elim
     (.inl <| relateSeq_H_imp_relate · ev rel)
     (.inr <| relateSeq_H_imp_relate · ev rel)
-
   | _;'_ =>
     let ⟨⟨_, δα⟩, in_Hα, h⟩ := List.exists_of_mem_flatMap in_H
     if c : δα = []
@@ -73,7 +70,6 @@ theorem relateSeq_H_imp_relate {X : List Formula} {δ : List Program}
         let ⟨u, relα, relβ⟩ :=  relateSeq_append.mp <| hδ.subst (motive := mr) rel
         let evα := hX.subst (motive := me) ev
         ⟨u, relateSeq_H_imp_relate in_Hα evα relα, relateSeq_singleton.mp relβ⟩
-
   | ∗_ =>
     (List.mem_union_iff.mp in_H).elim (
       let ⟨_, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton ·
@@ -88,7 +84,6 @@ theorem relateSeq_H_imp_relate {X : List Formula} {δ : List Program}
       let relαS := relateSeq_singleton.mp relαS
       .head relα relαS
     )
-
 
 /-- A test formula coming from `H` comes from a test in the given program. -/
 theorem H_mem_test α φ {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ H α) (φ_in_Fs : φ ∈ Fs) :

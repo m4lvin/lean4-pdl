@@ -166,7 +166,7 @@ theorem add_iInf {f : ι → ℕ∞} {a : ℕ∞} : a + ⨅ i, f i = ⨅ i, a + 
     _ = _ := (iInf_of_empty _).symm)
   (fun _ =>
     let ⟨i, hi⟩ := iInf_exists_eq f
-    let h : ⨅ i, a + f i = a + f i := iInf_of_min fun _ => add_le_add_left (hi ▸ iInf_le ..) _
+    let h : ⨅ i, a + f i = a + f i := iInf_of_min fun _ => add_le_add_right (hi ▸ iInf_le ..) _
     calc
       _ = a + f i := congr_arg _ hi
       _ = ⨅ i, a + f i := h.symm)
@@ -185,7 +185,6 @@ theorem distance_list_append (δ₁ δ₂ : List Program)
       (fun h => le_of_le_of_eq le_top
         ((if_neg h : distance_list _ _ _ [] = _) ▸ (top_add (distance_list ..)).symm)))
     fun _ _ => ⟨w, by simp_all only [List.nil_append, distance_list, ite_true, zero_add]⟩
-
   | (α::δ₁') =>
     let IH u := distance_list_append δ₁' δ₂
     calc
@@ -393,7 +392,7 @@ theorem rel_existsH_dist (w_α_v : relate M α w v)
           _ = _ := iInf_eq_of_forall_ge_of_forall_gt_exists_lt (
             fun _ => calc
               _ ≤ _ := iInf_le (fun x => distance M α w x + distance M β x v) _
-              _ ≤ _ := add_le_add_right (distance_le_Hdistance in_Hα evα) _
+              _ ≤ _ := add_le_add_left (distance_le_Hdistance in_Hα evα) _
             )
             fun _ => (⟨u, calc
               _ + _ = _ + _ := congr_arg (· + _) dlα
@@ -418,10 +417,10 @@ theorem rel_existsH_dist (w_α_v : relate M α w v)
         , evα
         , distance_list_concat ▸ iInf_eq_of_forall_ge_of_forall_gt_exists_lt
           (fun y => (distance_star_le y).trans <|
-                    add_le_add_right (distance_le_Hdistance in_Hα evα) _)
+                    add_le_add_left (distance_le_Hdistance in_Hα evα) _)
           fun _ => (⟨x, lt_of_eq_of_lt (calc
             _ = distance M α w x + fdist .. := congr_arg₂ (· + ·) dlα distance_cast
-            _ = _ := eq_of_le_of_ge (add_le_add_left (iInf_le _ _) _) <| calc
+            _ = _ := eq_of_le_of_ge (add_le_add_right (iInf_le _ _) _) <| calc
               _ = _ := min_p.symm
               _ ≤ _ := le_iInf (iInf_le _ <| .cons rwx · wx)
               _ = _ := add_iInf.symm

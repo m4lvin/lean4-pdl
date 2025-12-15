@@ -353,7 +353,7 @@ theorem vDash_multisetEqTo_iff {X Y : Sequent} (h : X.multisetEqTo Y) (M : Kripk
   have : ∀ f, f ∈ R ↔ f ∈ R' := fun f => List.Perm.mem_iff R_iff
   aesop
 
-/-- ## Removing loaded formulas from sequents -/
+/-! ## Removing loaded formulas from sequents -/
 
 def Sequent.without : (LRO : Sequent) → (naf : AnyNegFormula) → Sequent
 | ⟨L,R,O⟩, ⟨.normal f⟩  => ⟨L \ {~f}, R \ {~f}, O⟩

@@ -459,7 +459,6 @@ lemma mem_theMoves_of_move {pos next} :
       cases ξ <;> grind
     case some.modR =>
     · grind -- sus that this works but did not in `modL` case?!
-
   case prLocTab nbas ltX nrep =>
     simp_all
     use ltX
@@ -842,7 +841,7 @@ def Sequent.allSeqt_subseteq_FL (X : Sequent) : Finset Seqt :=
 lemma Sequent.allSeqt_subseteq_FL_spec (X : Sequent) :
     ∀ Y, ⟦Y⟧ ∈ X.allSeqt_subseteq_FL → Y.subseteq_FL X := by
   intro Y Ys_in
-  simp [Sequent.allSeqt_subseteq_FL, instSetoidSequent] at *
+  simp [Sequent.allSeqt_subseteq_FL, instSetoidSequent, Quotient.eq] at *
   rcases Ys_in with ⟨Z, ⟨Z_sub_X, Z_in_all⟩, Z_equiv_Y⟩
   exact Sequent.subseteq_FL_of_setEq_left Z_equiv_Y Z_sub_X
 
@@ -925,17 +924,25 @@ lemma Sequent.allSeqt_subseteq_FL_congr (X Y : Sequent) (h : X ≈ Y) :
   simp [instHasEquivOfSetoid, instSetoidSequent] at h
   constructor
   · rintro ⟨Z, ⟨Z_sub_X, Z_in_sub_X⟩, def_YS⟩
+    subst def_YS
     have Z_sub_Y := (Sequent.subseteq_FL_congr Z X Z Y (Setoid.refl _) h).mp Z_sub_X
     have := Y.allSeqt_subseteq_FL_complete Z Z_sub_Y
-    simp only [allSeqt_subseteq_FL, List.map_subtype, List.mem_toFinset, List.mem_map,
-      List.mem_unattach, Quotient.eq] at this
-    aesop
+    simp only [instSetoidSequent, allSeqt_subseteq_FL, List.map_subtype, List.mem_toFinset,
+      List.mem_map, List.mem_unattach, Quotient.eq] at this
+    rcases this with ⟨W, ⟨W_eq_Y, _⟩, W_eq_Z⟩
+    use W
+    simp_all
+    exact Quotient.sound W_eq_Z
   · rintro ⟨Z, ⟨Z_sub_Y, Z_in_sub_Y⟩, def_YS⟩
+    subst def_YS
     have Z_sub_Y := (Sequent.subseteq_FL_congr Z Y Z X (Setoid.refl _) (Setoid.symm h)).mp Z_sub_Y
     have := X.allSeqt_subseteq_FL_complete Z Z_sub_Y
     simp only [allSeqt_subseteq_FL, List.map_subtype, List.mem_toFinset, List.mem_map,
       List.mem_unattach, Quotient.eq] at this
-    aesop
+    rcases this with ⟨W, ⟨W_eq_Y, _⟩, W_eq_Z⟩
+    use W
+    simp_all
+    exact Quotient.sound W_eq_Z
 
 def Seqt.all_subseteq_FL (Xs : Seqt) : Finset Seqt  :=
   Quotient.lift Sequent.allSeqt_subseteq_FL Sequent.allSeqt_subseteq_FL_congr Xs
@@ -1061,15 +1068,11 @@ lemma matchesFinite : WellFounded (Function.swap move) := by
         · apply g_rel
         · convert g_rel ((k1 + (m + 1)) * 2 + 1) using 2
           linarith
-
   have no_repeats n : ¬ rep (f n).1 (f n).2.1 := move_then_no_rep (g_rel (n * 2))
-
   -- -- The histories along the `f` chain *properly* extend each other.
   have hist_suffixes := fun k1 k2 h => movemove_trans_hist (trans_rel k1 k2 h)
-
   -- There are only finitely many setEqTo-different sequents in the FL closure of the chain start.
   have FL_fin := @Seqt.subseteq_FL_finite (Quotient.mk' (f 0).2.1)
-
   -- Now we apply the general helper lemma from above. A tricky thing here is that we want to
   -- go from "only finitely many sequents" to "finitely many GamePos" values.
   have := @exist_duplicates_of_infinite_among_fintype _
@@ -1080,7 +1083,7 @@ lemma matchesFinite : WellFounded (Function.swap move) := by
   rcases h1 : f k1 with ⟨H, X, p⟩
   rcases h2 : f k2 with ⟨H', X', p'⟩
   rw [h1, h2] at same
-  simp only at same
+  simp only [Quotient.eq] at same
   rcases k_diff with k1_lt_k2 | k2_lt_k1
   · -- k1 < k2 case
     specialize no_repeats k2

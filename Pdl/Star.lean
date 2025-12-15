@@ -47,7 +47,6 @@ Similar to `List.exists_chain_of_relationReflTransGen`. -/
 theorem ReflTransGen.to_finitelyManySteps {r : α → α → Prop} (h : Relation.ReflTransGen r x z) :
     ∃ (n : ℕ) (ys : List.Vector α n.succ),
       x = ys.head ∧ z = ys.last ∧ ∀ i : Fin n, r (ys.get i.castSucc) (ys.get (i.succ)) := by
-
   induction h using Relation.ReflTransGen.head_induction_on
   case refl =>
     use 0, List.Vector.cons z List.Vector.nil

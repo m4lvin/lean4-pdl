@@ -776,7 +776,6 @@ lemma loadedDiamondPathsPDL
         rw [tabAt_s_def]
       · simp only [Sequent.isLoaded, nodeAt, decide_false, decide_true]
         rw [tabAt_t_def]
-
   case freeR L R δ β φ Z_def Y_def =>
     subst Z_def Y_def
     -- Leaving cluster, interesting that IH is not needed here.
@@ -815,7 +814,6 @@ lemma loadedDiamondPathsPDL
         rw [tabAt_s_def]
       · simp only [Sequent.isLoaded, nodeAt, decide_false, decide_true]
         rw [tabAt_t_def]
-
   case modL L R a ξ' Z_def Y_def =>
     subst Y_def
     have : ξ' = ξ := by
@@ -924,7 +922,6 @@ lemma loadedDiamondPathsPDL
           all_goals
             rw [nodeAt_s_def]
             simp_all [Sequent.isFree, Sequent.isLoaded, Sequent.without]
-
   case modR L R a ξ' Z_def Y_def => -- COPY ADAPTATION from `modL`
     subst Y_def
     have : ξ' = ξ := by
@@ -1158,7 +1155,6 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
       case loc nbas' _ _ _ =>
         exfalso
         exact nbas' (endNodesOf_basic Y_in)
-
       case pdl Y' bas' r' nrep' next' =>
         -- first adapt loadedDiamondPathsPDL to list
         have := exists_same_distance_of_relateSeq_cons v_α_αs_w
@@ -1203,7 +1199,6 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
               · apply ePropB.g_tweak _ _ _ (Relation.TransGen.head (Or.inl t_s) s1_s) s_k eq_con
             · refine ⟨k, ⟨?_, Or.inr inr⟩⟩
               · exact Relation.TransGen.head (Or.inl t_s) (Relation.TransGen.trans s1_s s_k)
-
       -- Here we need to go to the companion.
       -- We will make a recursive call, and for termination note that the path becomes shorter.
       case lrep lpr =>
@@ -1264,7 +1259,6 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
               (Relation.TransGen_or_left (Relation.TransGen.single t'_s))
               (Relation.TransGen_or_right (Relation.TransGen.single t_comp_u))
         · exact Or.inr reached
-
     all_goals -- all other cases for α! (even including ∗, other than in paper)
         have : nodeAt t = Z := by unfold nodeAt; rw [tabAt_t_def]
         have Z_free := Z.without_loaded_in_side_isFree (⌊α⌋AnyFormula.loadBoxes αs φ)
@@ -1366,7 +1360,6 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
     rcases this with ⟨u, ⟨v_α_u, u_αs_w, u_minimal⟩⟩
     have u_nαsφ : (M, u)⊨~''(AnyFormula.loadBoxes αs (AnyFormula.normal φ)) := by
       apply SemImply_loadedNormal_ofSeqAndNormal w_nφ u_αs_w
-
     have lDPDL := loadedDiamondPathsPDL α X tab t v_t (AnyFormula.loadBoxes αs φ)
                     negLoad_in v_α_u u_nαsφ bas r nrep next tabAt_t_def
     cases αs_def : αs
@@ -1404,7 +1397,6 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
           · exact ePropB.g_tweak _ _ _ t_s1 s1_s eq_con
         · refine ⟨s, ⟨?_, Or.inr inr⟩⟩
           · exact Relation.TransGen.trans t_s1 s1_s
-
   case lrep lpr =>
     -- Here we need to go to the companion.
     -- We will make a recursive call, and for termination note that the path becomes shorter.
@@ -1439,7 +1431,6 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
     · refine Or.inl ⟨s_sat, ?_⟩
       exact ePropB.g_tweak _ _ _ (Relation.TransGen.single (Or.inr t_comp_u)) u_s not_s_u
     · exact Or.inr reached
-
     termination_by
       (⟨distance_list M v w (α :: αs), lengthOfProgram α, t.length⟩ : ℕ∞ × Nat × Nat)
     decreasing_by

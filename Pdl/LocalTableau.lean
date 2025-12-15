@@ -406,7 +406,6 @@ theorem localRuleTruth
           simp only [List.mem_union_iff, List.mem_append]
           exact Or.inl <| Or.inr <| Or.inl <| List.mem_diff_of_mem f_in_R f_notin_cond
       · apply w_LYRO; simp_all
-
   case LRnegL φ =>
     subst hC
     simp [applyLocalRule] at *
@@ -421,7 +420,6 @@ theorem localRuleTruth
     have := hyp φ
     have := hyp (~φ)
     aesop
-
   case loadedL ress χ lrule ress_def =>
     subst ress_def
     have := loadRuleTruth lrule W M w
@@ -473,7 +471,6 @@ theorem localRuleTruth
           rcases g_in with (_|g_def)
           · apply w_Ci; simp_all
           · subst g_def; apply w_Ci; simp_all
-
   case loadedR ress χ lrule ress_def =>
     subst ress_def
     -- based on loadedL case
@@ -1146,7 +1143,6 @@ theorem LocalRuleDecreases (rule : LocalRule X ress) :
     cases rule
     case LRnegL => simp at *
     case LRnegR => simp at *
-
     case oneSidedL orule ress_def =>
       subst ress_def
       cases orule
@@ -1168,7 +1164,6 @@ theorem LocalRuleDecreases (rule : LocalRule X ress) :
         subst E_def
         simp_all only [List.append_nil, Multiset.mem_coe]
         exact unfoldBox.decreases_lmOf_nonAtomic notAtom E_in y_in_Y
-
     case oneSidedR orule ress_def =>
       subst ress_def
       cases orule
@@ -1190,7 +1185,6 @@ theorem LocalRuleDecreases (rule : LocalRule X ress) :
         subst E_def
         simp_all only [Multiset.mem_coe]
         exact unfoldBox.decreases_lmOf_nonAtomic notAtom E_in y_in_Y
-
     case loadedL lrule ress_def =>
       simp [node_to_multiset]
       cases lrule
@@ -1216,7 +1210,6 @@ theorem LocalRuleDecreases (rule : LocalRule X ress) :
           use F, o
         · subst Y_def
           cases o <;> simp_all [pairUnload]
-
     case loadedR lrule ress_def =>
       simp [node_to_multiset]
       cases lrule
