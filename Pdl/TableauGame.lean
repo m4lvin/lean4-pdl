@@ -194,14 +194,18 @@ lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos}
     rcases p with (_|_|_) | (_|_) <;> rcases X with ⟨L,R,_|χ⟩
     · simp at *
     · simp at *
-    · simp_all -- bas none case
+    · -- bas none case
+      simp_all only [Finset.mem_union, List.mem_toFinset, List.mem_flatten, List.mem_map,
+        exists_exists_and_eq_and, true_and, exists_const, not_false_eq_true, Sum.inl.injEq,
+        reduceCtorEq, false_and, not_true_eq_false, IsEmpty.exists_iff, exists_false, or_self,
+        or_false]
       -- use L, R
       rcases mv with ⟨ψ, ψ_in, next_in⟩ | ⟨ψ, ψ_in, next_in⟩
       · cases ψ -- L
         case neg φ =>
           by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
           · rcases h with ⟨head, tail, ψ, ψ_nonBox, bxs_def⟩
-            simp [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
+            simp only [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
             refine ⟨L, R, Or.inl ⟨ rfl, Or.inl ⟨(head :: tail).dropLast
                                  , (head :: tail).getLast (by simp), ψ, ?_⟩⟩⟩
             rw [← boxes_last, List.dropLast_append_getLast]
@@ -243,7 +247,8 @@ lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos}
     rintro (⟨_, _, p_def, hyp⟩ | ⟨_, _, p_def, hyp⟩ | ⟨_, _, lt, p_def, hyp⟩) <;> subst p_def
     · rcases hyp with ⟨L, R, (⟨X_def, hyp⟩ | _ | _) ⟩
       · subst X_def
-        simp
+        simp only [Finset.mem_union, List.mem_toFinset, List.mem_flatten, List.mem_map,
+          exists_exists_and_eq_and]
         rcases hyp with ⟨δs, δ, ψ, ψ_noBox, _in_L, next_def⟩
                       | ⟨δs, δ, ψ, ψ_noBox, _in_R, next_def⟩
         · left
@@ -262,7 +267,7 @@ lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos}
           grind
       · grind
       · grind
-    · simp
+    · simp only [Finset.mem_image]
       rcases hyp with ⟨ltab, next_def⟩
       subst next_def
       use ltab
@@ -286,17 +291,20 @@ lemma move_of_mem_theMoves {pos next} :
   rcases pos with ⟨Hist, X, p⟩
   intro mv
   unfold theMoves at mv
-  rcases p with (_|_|_) | (_|_) <;> rcases X with ⟨L,R,_|χ⟩ <;> simp_all
+  rcases p with (_|_|_) | (_|_) <;> rcases X with ⟨L,R,_|χ⟩ <;> simp_all only [Finset.mem_image,
+    Finset.mem_union, Finset.notMem_empty, Finset.union_singleton, List.mem_flatten, List.mem_map,
+    List.mem_toFinset, exists_exists_and_eq_and]
   case inl.bas.none =>
     rcases mv with ⟨ψ, ψ_in, next_in⟩ | ⟨ψ, ψ_in, next_in⟩
     · cases ψ -- L
       case neg φ =>
         by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
         · rcases h with ⟨head, tail, ψ, ψ_nonBox, bxs_def⟩
-          simp [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
+          simp only [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
           subst next
           have : ∀ h, φ = ⌈⌈(head :: tail).dropLast⌉⌉⌈(head :: tail).getLast h⌉ψ := by
-            simp [def_of_boxesOf_def bxs_def]
+            simp only [ne_eq, reduceCtorEq, not_false_eq_true, def_of_boxesOf_def bxs_def,
+              Formula.boxes_cons, forall_true_left]
             rw [← boxes_last, List.dropLast_append_getLast, Formula.boxes_cons]
           rw [this (by simp)]
           simp only [move]
@@ -313,10 +321,11 @@ lemma move_of_mem_theMoves {pos next} :
       case neg φ =>
         by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
         · rcases h with ⟨head, tail, ψ, ψ_nonBox, bxs_def⟩
-          simp [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
+          simp only [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
           subst next
           have : ∀ h, φ = ⌈⌈(head :: tail).dropLast⌉⌉⌈(head :: tail).getLast h⌉ψ := by
-            simp [def_of_boxesOf_def bxs_def]
+            simp only [ne_eq, reduceCtorEq, not_false_eq_true, def_of_boxesOf_def bxs_def,
+              Formula.boxes_cons, forall_true_left]
             rw [← boxes_last, List.dropLast_append_getLast, Formula.boxes_cons]
           rw [this (by simp)]
           simp only [move]
@@ -331,7 +340,8 @@ lemma move_of_mem_theMoves {pos next} :
         exfalso; simp at *
   · -- Here we have a loaded formula in X already, and are basic.
     -- So the only applicable rules are (M) and (L-).
-    rcases χ with (⟨⟨χ⟩⟩|⟨⟨χ⟩⟩) <;> rcases χ with ⟨δ,φ|χ⟩ <;> cases δ <;> simp_all
+    rcases χ with (⟨⟨χ⟩⟩|⟨⟨χ⟩⟩) <;> rcases χ with ⟨δ,φ|χ⟩ <;> cases δ <;>
+      simp_all only [LoadFormula.unload, Finset.mem_insert, Finset.mem_singleton]
     case inl.bas.some.inl.normal.atom_prog a nrep bas =>
       cases mv <;> subst_eqs
       · constructor; apply Move.prPdl; apply @PdlRule.freeL _ L R [] (·a) φ _ rfl; simp
@@ -379,9 +389,10 @@ lemma mem_theMoves_of_move {pos next} :
   rcases mov with ⟨mov⟩
   cases mov
   case prPdl Y bas r nrep =>
-    simp_all
+    simp_all only [true_and, exists_const, not_false_eq_true, Sum.inl.injEq, reduceCtorEq,
+      false_and, not_true_eq_false, IsEmpty.exists_iff, exists_false, or_self, or_false]
     use X.1, X.2.1
-    rcases X with ⟨L,R,_|χ⟩ <;> cases r <;> try subst_eqs <;> try simp_all -- FIXME non-terminal
+    rcases X with ⟨L,R,_|χ⟩ <;> cases r <;> subst_eqs <;> simp_all only [true_and]
     case none.loadL δs δ ψ notBox in_L =>
       left; left
       use δs, δ, ψ
@@ -402,7 +413,9 @@ lemma mem_theMoves_of_move {pos next} :
         all_goals
           absurd bas
           rintro ⟨bas, nclos⟩
-          simp at bas
+          simp only [Option.map_some, Sum.elim_inl, negUnload, LoadFormula.unload,
+            Option.toList_some, List.append_assoc, List.mem_append, List.mem_cons, List.not_mem_nil,
+            or_false, Formula.basic, decide_false, decide_true] at bas
           specialize bas _ (Or.inr (Or.inr rfl))
           simp at bas
       case cons α δs =>
@@ -438,7 +451,9 @@ lemma mem_theMoves_of_move {pos next} :
         all_goals
           absurd bas
           rintro ⟨bas, nclos⟩
-          simp at bas
+          simp only [Option.map_some, Sum.elim_inr, negUnload, LoadFormula.unload,
+            Option.toList_some, List.append_assoc, List.mem_append, List.mem_cons, List.not_mem_nil,
+            or_false, Formula.basic, decide_false, decide_true] at bas
           specialize bas _ (Or.inr (Or.inr rfl))
           simp at bas
       case cons α δs =>
@@ -467,12 +482,8 @@ lemma mem_theMoves_of_move {pos next} :
       cases ξ <;> grind
     case some.modR =>
     · grind -- sus that this works but did not in `modL` case?!
-  case prLocTab nbas ltX nrep =>
-    simp_all
-    use ltX
-  case buEnd Y ltX nbas Y_in nrep =>
-    simp_all
-    use Y
+  case prLocTab nbas ltX nrep => grind
+  case buEnd Y ltX nbas Y_in nrep => grind
 
 lemma move.hist (mov : move ⟨Hist, X, pos⟩ next) :
       (∃ newPos, next = ⟨Hist, X, newPos⟩) -- this is for the annoying `prLocTab` case ;-)
@@ -521,7 +532,6 @@ lemma move.trans_hist {pX pY} (movt : Relation.TransGen move pX pY) :
       simp at *
       aesop
     · cases Y_def
-      simp at *
       rcases pX with ⟨X, H, p⟩
       rcases pW with ⟨Y', H', p'⟩
       simp at *
@@ -607,7 +617,7 @@ lemma move_inside_FL {p next} (mov : move p next) : next.2.1.subseteq_FL p.2.1 :
   rcases mov with ⟨mov⟩
   cases mov
   case prPdl r => apply PdlRule.stays_in_FL r
-  case buEnd ltX _ _ _ _ Y_in => simp; apply LocalTableau.stays_in_FL ltX _ Y_in
+  case buEnd ltX _ _ _ _ Y_in => apply LocalTableau.stays_in_FL ltX _ Y_in
   case prLocTab => simp
 
 /-- Given `~⌈α₁⌉…⌈αₙ⌉φ`, return the list of `~⌊α₁⌋…⌊αₖ⌋⌈αₖ₊₁⌉…⌈αₙ⌉φ` for all k. -/
@@ -715,39 +725,45 @@ def Sequent.all_subseteq_FL (Y : Sequent) : List { X : Sequent // Sequent.subset
   have h : X.subseteq_FL Y := by
     unfold X
     rcases Y with ⟨L',R',O'⟩
-    refine ⟨?_, ?_, ?_, ?_⟩ <;> simp
+    refine ⟨?_, ?_, ?_, ?_⟩ <;> simp only [List.cons_append, L_eq, R_eq, O_eq]
     · have := XL.2
-      simp at this
+      simp only [L_eq, O_eq, List.mem_sublists] at this
       exact List.Sublist.subset this
     · simp only [Olf.L]
-      rcases XO with ⟨none|⟨(nχ|_)⟩, XO_in⟩ <;> try simp_all
-      simp only [List.cons_append, List.mem_cons, reduceCtorEq, List.mem_append, List.mem_flatMap,
-        List.mem_map, Function.comp_apply, Option.some.injEq, Sum.inl.injEq, exists_eq_right,
-        and_false, exists_false, or_false, false_or, OLs, ORs] at XO_in
-      rcases XO_in with ⟨φ, φ_in, nχ_in⟩
-      have := Formula.allNegLoads_spec nχ_in
-      simp only [negUnload] at this
-      rw [this]
-      suffices φ ∈ (FLL (L' ++ O'.L)) by aesop
-      have := XOL.2
-      simp only [L_eq, O_eq, List.mem_sublists] at this
-      exact List.Sublist.mem φ_in this
+      rcases XO with ⟨none|⟨(nχ|_)⟩, XO_in⟩
+      · simp_all
+      · simp_all only [List.cons_subset, List.nil_subset, and_true]
+        simp only [List.cons_append, List.mem_cons, reduceCtorEq, List.mem_append, List.mem_flatMap,
+          List.mem_map, Function.comp_apply, Option.some.injEq, Sum.inl.injEq, exists_eq_right,
+          and_false, exists_false, or_false, false_or, OLs, ORs] at XO_in
+        rcases XO_in with ⟨φ, φ_in, nχ_in⟩
+        have := Formula.allNegLoads_spec nχ_in
+        simp only [negUnload] at this
+        rw [this]
+        suffices φ ∈ (FLL (L' ++ O'.L)) by aesop
+        have := XOL.2
+        simp only [L_eq, O_eq, List.mem_sublists] at this
+        exact List.Sublist.mem φ_in this
+      · simp_all
     · have := XR.2
       simp only [R_eq, O_eq, List.mem_sublists] at this
       exact List.Sublist.subset this
     · simp only [Olf.R]
-      rcases XO with ⟨none|⟨(nχ|_)⟩, XO_in⟩ <;> try simp_all
-      simp only [List.cons_append, List.mem_cons, reduceCtorEq, List.mem_append, List.mem_flatMap,
-        List.mem_map, Function.comp_apply, Option.some.injEq, and_false, exists_false,
-        Sum.inr.injEq, exists_eq_right, false_or, OLs, ORs] at XO_in
-      rcases XO_in with ⟨φ, φ_in, nχ_in⟩
-      have := Formula.allNegLoads_spec nχ_in
-      simp only [negUnload] at this
-      rw [this]
-      suffices φ ∈ (FLL (R' ++ O'.R)) by aesop
-      have := XOR.2
-      simp only [R_eq, O_eq, List.mem_sublists] at this
-      exact List.Sublist.mem φ_in this
+      rcases XO with ⟨none|⟨(nχ|_)⟩, XO_in⟩
+      · simp_all
+      · simp_all
+      · simp_all only [List.cons_subset, List.nil_subset, and_true]
+        simp only [List.cons_append, List.mem_cons, reduceCtorEq, List.mem_append, List.mem_flatMap,
+          List.mem_map, Function.comp_apply, Option.some.injEq, and_false, exists_false,
+          Sum.inr.injEq, exists_eq_right, false_or, OLs, ORs] at XO_in
+        rcases XO_in with ⟨φ, φ_in, nχ_in⟩
+        have := Formula.allNegLoads_spec nχ_in
+        simp only [negUnload] at this
+        rw [this]
+        suffices φ ∈ (FLL (R' ++ O'.R)) by aesop
+        have := XOR.2
+        simp only [R_eq, O_eq, List.mem_sublists] at this
+        exact List.Sublist.mem φ_in this
   return ⟨X, h⟩
 
 /-! NOTE
@@ -855,7 +871,8 @@ def Sequent.allSeqt_subseteq_FL (X : Sequent) : Finset Seqt :=
 lemma Sequent.allSeqt_subseteq_FL_spec (X : Sequent) :
     ∀ Y, ⟦Y⟧ ∈ X.allSeqt_subseteq_FL → Y.subseteq_FL X := by
   intro Y Ys_in
-  simp [Sequent.allSeqt_subseteq_FL, instSetoidSequent, Quotient.eq] at *
+  simp only [instSetoidSequent, allSeqt_subseteq_FL, List.map_subtype, List.mem_toFinset,
+    List.mem_map, List.mem_unattach, Quotient.eq] at *
   rcases Ys_in with ⟨Z, ⟨Z_sub_X, Z_in_all⟩, Z_equiv_Y⟩
   exact Sequent.subseteq_FL_of_setEq_left Z_equiv_Y Z_sub_X
 
@@ -889,7 +906,7 @@ lemma Sequent.allSeqt_subseteq_FL_complete (X : Sequent) :
   refine ⟨⟨L', R', Y.O⟩, ⟨?_, ?_⟩ , L'_same, R'_same, rfl⟩
   · unfold subseteq_FL
     simp only [L_eq, O_eq, R_eq]
-    simp_all [FLL_append_eq]
+    simp_all only [FLL_append_eq, List.mem_sublists, and_true, true_and]
     constructor
     · exact List.Sublist.subset L'_in
     · exact List.Sublist.subset R'_in
@@ -935,7 +952,7 @@ lemma Sequent.allSeqt_subseteq_FL_congr (X Y : Sequent) (h : X ≈ Y) :
   ext Ys
   simp only [allSeqt_subseteq_FL, List.map_subtype, List.mem_toFinset, List.mem_map,
     List.mem_unattach]
-  simp [instHasEquivOfSetoid, instSetoidSequent] at h
+  simp only [instHasEquivOfSetoid, instSetoidSequent] at h
   constructor
   · rintro ⟨Z, ⟨Z_sub_X, Z_in_sub_X⟩, def_YS⟩
     subst def_YS
@@ -945,7 +962,7 @@ lemma Sequent.allSeqt_subseteq_FL_congr (X Y : Sequent) (h : X ≈ Y) :
       List.mem_map, List.mem_unattach, Quotient.eq] at this
     rcases this with ⟨W, ⟨W_eq_Y, _⟩, W_eq_Z⟩
     use W
-    simp_all
+    simp_all only [exists_const, true_and]
     exact Quotient.sound W_eq_Z
   · rintro ⟨Z, ⟨Z_sub_Y, Z_in_sub_Y⟩, def_YS⟩
     subst def_YS
@@ -955,7 +972,7 @@ lemma Sequent.allSeqt_subseteq_FL_congr (X Y : Sequent) (h : X ≈ Y) :
       List.mem_unattach, Quotient.eq] at this
     rcases this with ⟨W, ⟨W_eq_Y, _⟩, W_eq_Z⟩
     use W
-    simp_all
+    simp_all only [exists_const, true_and]
     exact Quotient.sound W_eq_Z
 
 def Seqt.all_subseteq_FL (Xs : Seqt) : Finset Seqt  :=
@@ -967,7 +984,7 @@ lemma Seqt.all_subseteq_FL_spec {Ys : Seqt} (Ys_in : Ys ∈ Xs.all_subseteq_FL) 
   rcases Xs with ⟨x⟩
   unfold Seqt.all_subseteq_FL at Ys_in
   unfold Seqt.subseteq_FL
-  simp [instSetoidSequent] at *
+  simp only [instSetoidSequent] at *
   exact Sequent.allSeqt_subseteq_FL_spec x Y Ys_in
 
 lemma Seqt.all_subseteq_FL_complete {Ys : Seqt} (Ys_in : Ys.subseteq_FL Xs) :
@@ -1029,7 +1046,7 @@ lemma matchesFinite : WellFounded (Function.swap move) := by
   -- If it's not wellfounded, then there must be an infinite sequence of moves.
   rw [wellFounded_iff_isEmpty_descending_chain]
   by_contra hyp
-  simp at hyp
+  simp only [not_isEmpty_iff, nonempty_subtype] at hyp
   rcases hyp with ⟨g, g_rel⟩
   simp only [Function.swap] at g_rel
   -- Idea from here onwards: the Hist and X stays inside FL, but must be different / no repeats.
@@ -1092,7 +1109,7 @@ lemma matchesFinite : WellFounded (Function.swap move) := by
   have := @exist_duplicates_of_infinite_among_fintype _
     (fun n => ⟦(f n).2.1⟧) (Seqt.subseteq_FL · ⟦(f 0).2.1⟧) all_moves_inside FL_fin
   rcases this with ⟨k1, k2, k_diff, same⟩
-  simp [rep, instSetoidSequent] at same no_repeats
+  simp only [instSetoidSequent, rep, not_exists, not_and] at same no_repeats
   rw [Nat.ne_iff_lt_or_gt] at k_diff
   rcases h1 : f k1 with ⟨H, X, p⟩
   rcases h2 : f k2 with ⟨H', X', p'⟩
@@ -1185,9 +1202,11 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
       have IH := gameP_general _ _ sP _ still_winning -- okay ??
       rcases IH with ⟨new_tab_from_IH⟩
       rcases the_move with ⟨⟨newHist, newX, newPos⟩, nextPosIn⟩
-      simp at new_tab_from_IH
+      simp only at new_tab_from_IH
       simp only [tableauGame, Game.Pos.moves, pos_def, Game.moves] at nextPosIn
-      rcases X with ⟨L,R,_|(⟨⟨χ⟩⟩|⟨⟨χ⟩⟩)⟩ <;> simp at *
+      rcases X with ⟨L,R,_|(⟨⟨χ⟩⟩|⟨⟨χ⟩⟩)⟩ <;> simp only [theMoves,
+        Finset.mem_union, List.mem_toFinset, List.mem_flatten, List.mem_map,
+        exists_exists_and_eq_and, Finset.union_singleton] at *
       · -- no loaded formula yet, the only PDL rule we can apply is (L+)
         rcases nextPosIn with ⟨χ, χ_in⟩|⟨χ, χ_in⟩
         · cases χ
@@ -1258,7 +1277,7 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
               apply @PdlRule.freeL _ L R (·a :: δ) _ _ _ rfl
               simp
           · -- applying (M)
-            cases ψ <;> simp at nextPosIn <;> cases nextPosIn
+            cases ψ <;> simp only [Finset.mem_singleton] at nextPosIn <;> cases nextPosIn
             all_goals
               exact ⟨Tableau.pdl nrep Xbas (PdlRule.modL rfl rfl) new_tab_from_IH⟩
         all_goals
@@ -1288,7 +1307,7 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
               apply @PdlRule.freeR _ L R (·a :: δ) _ _ _ rfl
               simp
           · -- applying (M)
-            cases ψ <;> simp at nextPosIn <;> cases nextPosIn
+            cases ψ <;> simp only [Finset.mem_singleton] at nextPosIn <;> cases nextPosIn
             all_goals
               exact ⟨Tableau.pdl nrep Xbas (by apply PdlRule.modR <;> rfl) new_tab_from_IH⟩
         all_goals
@@ -1312,11 +1331,11 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
       have IH := gameP_general _ _ sP _ still_winning -- okay ??
       rcases IH with ⟨new_tab_from_IH⟩
       rcases the_move with ⟨⟨newHist, newX, newPos⟩, nextPosIn⟩
-      simp at new_tab_from_IH
+      simp only at new_tab_from_IH
       simp only [tableauGame, Game.Pos.moves, pos_def, Game.moves] at nextPosIn
       --- ... until here
       -- No need to look into `lt` here, we just use the IH for the `BuilderPos` case!
-      simp at nextPosIn
+      simp only [theMoves, Finset.mem_image] at nextPosIn
       rcases nextPosIn with ⟨lt, lt_in, same⟩
       cases same
       constructor
@@ -1334,7 +1353,8 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
         subst pos_def
         -- The main work is done by the following lemma
         have := winning_of_whatever_other_move (by simp) h
-        simp [tableauGame, Game.moves] at this
+        simp only [tableauGame, Game.moves, theMoves, Subtype.forall, List.mem_toFinset,
+          List.mem_map, forall_exists_index, and_imp, forall_apply_eq_imp_iff₂] at this
         exact this _ Y_in
       have next := fun Y Y_in => Classical.choice (next' Y Y_in)
       use Tableau.loc nrep nbas ltX next
@@ -1343,9 +1363,9 @@ termination_by
 decreasing_by
   all_goals
     apply tableauGame.move_rel
-    simp [WellFounded.wrap]
+    simp only [WellFounded.wrap, Sigma.eta, SetLike.coe_mem]
   · subst pos_def
-    simp [tableauGame, Game.moves]
+    simp only [tableauGame, Game.moves, theMoves, List.mem_toFinset, List.mem_map]
     use Y
 
 /-- The starting position for the given sequent.

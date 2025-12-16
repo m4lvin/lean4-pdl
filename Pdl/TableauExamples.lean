@@ -7,6 +7,7 @@ import Pdl.Soundness
 As a sanity check we construct tableaux/proofs for some examples.
 -/
 
+set_option linter.flexible false in
 example : provable (~⊥) := by
   apply provable.byTableauL
   apply Tableau.loc
@@ -19,7 +20,9 @@ example : provable (~⊥) := by
     · simp
     · -- build one child tableau
       intro c c_in
-      simp at c_in
+      simp only [applyLocalRule, Formula.instBot, List.diff_cons, List.erase_cons_head,
+        List.diff_nil, List.nil_append, List.empty_eq, Olf.change_none_none_new, List.map_cons,
+        List.map_nil, List.mem_cons, List.not_mem_nil, or_false] at c_in
       subst c_in
       apply LocalTableau.byLocalRule
         { lr := LocalRule.oneSidedL (OneSidedLocalRule.bot) rfl
@@ -31,6 +34,7 @@ example : provable (~⊥) := by
     exfalso -- endNodesOf is empty
     simp at Y_in
 
+set_option linter.flexible false in
 example : provable (~(p ⋀ (~p))) :=
   by
   apply provable.byTableauL
@@ -58,6 +62,7 @@ example : provable (~(p ⋀ (~p))) :=
     exfalso -- endNodesOf is empty
     simp at Y_in
 
+set_option linter.flexible false in
 example : Tableau [] ([·p, ~(·p)], [], none) :=
   by
   apply Tableau.loc
@@ -89,6 +94,7 @@ abbrev r : Formula := · atR
 
 abbrev a : Program := · atA
 
+set_option linter.flexible false in
 /-- Preparation for Example 2 from MB. -/
 def subTabForEx2 :
     Tableau [([r⋀(~⌈a⌉p), ~ (r ⋀ (~⌈a⌉p⋀q))], [], none)] ([r, ~(⌈a⌉p), ⌈a⌉(p⋀q)], [], none) :=
@@ -121,6 +127,7 @@ def subTabForEx2 :
     exfalso
     aesop
 
+set_option linter.flexible false in
 /-- Example 2 from MB. -/
 example : Tableau [] ([r ⋀ (~(⌈a⌉p)), r ↣ ⌈a⌉(p ⋀ q)], [], none) :=
   by
@@ -218,7 +225,12 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
         L := _, R := _, O := _, ress := _, preconditionProof := _ }
     all_goals (try simp; try rfl)
     intro Y Y_in
-    simp [unfoldBox, allTP, testsOfProgram, Xset, F, P, a] at *
+    simp only [a, List.diff_cons, List.erase_cons_head, List.diff_nil, List.cons_append,
+      List.nil_append, Olf.change_none_none_new, unfoldBox, Xset, F, List.empty_eq, P, bne_iff_ne,
+      ne_eq, List.cons_ne_self, not_false_eq_true, List.filter_cons_of_pos, List.filter_nil,
+      List.map_cons, List.map_nil, List.cons_union, List.nil_union, List.mem_cons, List.nil_eq,
+      reduceCtorEq, List.not_mem_nil, or_self, List.insert_of_not_mem, Formula.boxes_nil,
+      Formula.boxes_cons, allTP, testsOfProgram, List.sublists_nil, decide_false, or_false] at *
     subst Y_in
     apply LocalTableau.sim
     simp [Sequent.basic, Sequent.closed]
@@ -315,7 +327,6 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
           cases m using Fin.cases
           · simp_all [Sequent.isLoaded]
           case succ m =>
-            simp_all
             have := Fin.one_lt_succ_succ m
-            simp_all
+            simp_all only [Fin.isValue, Nat.reduceAdd, Fin.val_succ, List.getElem_cons_succ]
             omega

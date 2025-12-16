@@ -452,7 +452,7 @@ theorem relateSeq_existsH_dist (v_αγ_w : relateSeq M (α :: γ) v w)
   use ⟨X,δ⟩
   have one : distance_list M v w (α :: γ) ≥ distance_list M v w (δ ++ γ) := by
     rw [αγ_eq_α_γ, ← δ_eq_α]
-    simp [distance_list_append]
+    simp only [distance_list_append, ge_iff_le]
     apply iInf_le
   have two : distance_list M v w (α :: γ) ≤ distance_list M v w (δ ++ γ) :=
     distList_le_of_Hsat M v _ α γ in_H v_X -- use (e)

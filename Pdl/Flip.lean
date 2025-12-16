@@ -101,16 +101,14 @@ lemma basic_flip {X : Sequent} : X.flip.basic ↔ X.basic := by
         simp only [Olf.flip, Option.map_eq_some_iff, Sum.exists, Sum.swap_inl, reduceCtorEq,
           and_false, exists_false, Sum.swap_inr, Sum.inl.injEq, exists_eq_right, false_or,
           negUnload] at h
-        simp
-        exact h
+        simpa
       · right
         right
         left
         simp only [Olf.flip, Option.map_eq_some_iff, Sum.exists, Sum.swap_inl, Sum.inr.injEq,
           exists_eq_right, Sum.swap_inr, reduceCtorEq, and_false, exists_false, or_false,
           negUnload] at h
-        simp
-        exact h
+        simpa
     · aesop
 
 lemma nrep_flip (nrep : ¬rep Hist X) : ¬rep (List.map Sequent.flip Hist) X.flip := by
@@ -149,9 +147,9 @@ def LocalRuleApp.flip : LocalRuleApp → LocalRuleApp := by
   rintro ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, preconditionProof⟩
   refine @LocalRuleApp.mk R L O.flip Rcond Lcond Ocond.flip _ rule.flip (C.map Sequent.flip) ?_ ?_
   · subst hC
-    simp
+    simp only [applyLocalRule, List.map_map, List.map_inj_left, Function.comp_apply]
     rintro ⟨Lnew, Rnew, Onew⟩ Y_in
-    simp [Sequent.flip]
+    simp only [Sequent.flip]
     convert rfl using 3
     rcases O with (_|_|_) <;> rcases Onew with (_|_|_) <;> rcases Ocond with (_|_|_)
       <;> simp [Olf.flip, Olf.change, Option.insHasSdiff] <;> grind
@@ -167,7 +165,8 @@ lemma Sequent.flip_comp_flip : Sequent.flip ∘ Sequent.flip = id := by
 lemma LocalRuleApp.flip_flip {lra : LocalRuleApp} :
     lra.flip.flip = lra := by
   rcases lra with ⟨L, R, O, C, Lcond, Rcond, Ocond, ress, rule, hC, preconditionProof⟩
-  simp [LocalRuleApp.flip]
+  simp only [flip, Olf.flip_flip, applyLocalRule, Option.instHasSubsetOption.eq_1, List.map_map,
+    Sequent.flip_comp_flip, List.map_id_fun, id_eq, mk.injEq, and_true, true_and]
   rw [LocalRule.flip_flip]
   grind
 
@@ -182,7 +181,7 @@ def LocalTableau.flip {X} : LocalTableau X → LocalTableau X.flip
   | (@sim X Xbas) => .sim (basic_flip.mpr Xbas)
 
 lemma LocalTableau.flip_flip {lt : LocalTableau X} : lt.flip.flip = Sequent.flip_flip ▸ lt := by
-  induction lt <;> simp [LocalTableau.flip]
+  induction lt <;> simp only [flip]
   case byLocalRule X lra X_def next IH =>
     apply eq_of_heq
     rw! (castMode := .all) [Sequent.flip_flip] -- :-)
@@ -313,19 +312,19 @@ lemma LoadedPathRepeat.ext {Hist X} (lprA lprB : LoadedPathRepeat Hist X) :
 lemma LoadedPathRepeat.flip_flip {Hist X} (lpr : LoadedPathRepeat Hist X) :
     lpr.flip.flip = Sequent.map_flip_map_flip ▸ Sequent.flip_flip ▸ lpr := by
   rcases lpr with ⟨k, hk⟩
-  simp [LoadedPathRepeat.flip]
+  simp only [flip, List.get_eq_getElem]
   rw! [Sequent.map_flip_map_flip, Sequent.flip_flip]
   rfl
 
 /-- (┛ಠ_ಠ)┛彡┻━┻ -/
 def Tableau.flip {Hist X} : Tableau Hist X → Tableau (Hist.map Sequent.flip) X.flip
 | .loc nrep nbas lt next =>  .loc (nrep_flip nrep)
-                                  (by simp; exact nbas)
+                                  (by simpa)
                                   lt.flip
                                   (fun Y Y_in =>
                                    @Sequent.flip_flip Y ▸ (next Y.flip (endNodesOf_flip Y_in)).flip)
 | .pdl nrep bas r next =>  .pdl (nrep_flip nrep)
-                                (by simp; exact bas)
+                                (by simpa)
                                 r.flip
                                 next.flip
 | .lrep lpr =>  .lrep lpr.flip
@@ -338,16 +337,17 @@ lemma Tableau.flip_flip {Hist X} {tab : Tableau Hist X} :
     tab.flip.flip = Sequent.flip_flip ▸ Hist_flip ▸ tab := by
   induction tab
   case loc Hist X nrep nbas ltX next IH =>
-    simp [Tableau.flip]
+    simp only [flip]
     rw! [LocalTableau.flip_flip]
     rw! (castMode := .all) [Sequent.flip_flip]
-    simp
+    simp only [List.map_cons]
     convert Tableau.loc.congr_simp nrep nbas ltX next next ?_
     · exact Sequent.map_flip_map_flip
     · exact Sequent.map_flip_map_flip
     case h Y W Y_eq_W Y_in W_in Y_heq_W =>
       subst Y_eq_W
-      simp_all
+      simp_all only [List.map_cons, List.map_map, Sequent.flip_comp_flip, List.map_id_fun, id_eq,
+        heq_eq_eq, eqRec_heq_iff_heq]
       specialize IH Y Y_in
       rw! (castMode := .all) [@Sequent.flip_flip Y]
       simp_all
@@ -392,7 +392,7 @@ lemma PathIn.nodeAt_flip {Hist X} {tab : Tableau Hist X} {e : PathIn tab} :
   induction e
   case nil => simp_all [PathIn.flip]
   case loc Hist X nrep nbas lt next Y Y_in tail IH =>
-    simp [PathIn.flip]
+    simp only [flip, List.map_cons, eq_mpr_eq_cast, nodeAt_loc]
     rw [← IH]
     clear IH
     simp only [nodeAt, List.map_cons]

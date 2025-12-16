@@ -20,7 +20,7 @@ theorem interpolation {φ ψ : Formula} :
     by
     rw [tautImp_iff_SequentUnsat rfl] at hyp
     rw [← consIffSat _ (by simp)] at hyp -- using completeness
-    simp [consistent,inconsistent] at hyp
+    simp only [consistent, inconsistent, not_nonempty_iff, not_isEmpty_iff] at hyp
     exact Classical.choice hyp
   have partInt := tabToInt ctX -- using tableau interpolation
   rcases partInt with ⟨θ, pI_prop⟩
@@ -35,14 +35,18 @@ theorem interpolation {φ ψ : Formula} :
   · have := pI_prop.2.1
     clear pI_prop
     rw [tautImp_iff_comboNotUnsat]
-    simp [satisfiable] at *
+    simp only [satisfiable, Sequent.left_eq, Olf.L_none, List.append_nil, List.mem_cons,
+      List.not_mem_nil, or_false, forall_eq_or_imp, evaluate, forall_eq, not_exists, not_and,
+      not_not] at *
     intro W M w
     specialize this W M w
     tauto
   · have := pI_prop.2.2
     clear pI_prop
     rw [tautImp_iff_comboNotUnsat]
-    simp [satisfiable] at *
+    simp only [satisfiable, Sequent.right_eq, Olf.R_none, List.append_nil, List.mem_cons,
+      List.not_mem_nil, or_false, forall_eq_or_imp, forall_eq, evaluate, not_exists, not_and,
+      not_not] at *
     intro W M w
     specialize this W M w
     tauto

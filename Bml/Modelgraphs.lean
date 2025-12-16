@@ -58,7 +58,7 @@ theorem truthLemma {Worlds : Set (Finset Formula)} (MG : ModelGraph Worlds) :
         rcases X_saturated P ⊥ with ⟨doubleNeg⟩
         -- ⊥ is unused!
         unfold Evaluate;
-        simp
+        simp only [not_not]
         exact plus_IH (doubleNeg notnotP_in_X)
       · intro notPp_in_X Y X_rel_Y; exact iii X Y (~P) X_rel_Y notPp_in_X
     case And P Q IH_P IH_Q =>

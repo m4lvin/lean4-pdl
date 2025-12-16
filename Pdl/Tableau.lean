@@ -167,10 +167,10 @@ lemma Tableau.size_next_lt_of_loc
     (tab_def : tab = Tableau.loc nrep nbas lt next) Y Y_in
     : (next Y Y_in).size < tab.size := by
   subst tab_def
-  simp [Tableau.size]
+  simp only [size]
   rw [@Nat.lt_one_add_iff]
   apply List.le_sum_of_mem
-  simp
+  simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists]
   use Y, Y_in
 
 lemma Tableau.size_next_lt_of_pdl
@@ -196,7 +196,7 @@ instance Tableau.instDecidableEq {Hist X} {tab1 tab2 : Tableau Hist X} :
     rcases tab2 with (⟨nrep2,nbas2,lt2,next2⟩|@⟨_,X1,Y1,nrep1,bas1,r1,next1⟩|_)
   · by_cases h : lt1 = lt2
     · subst h
-      simp
+      simp only [loc.injEq, heq_eq_eq, true_and]
       have := fun (Y : Sequent) (Y_in : Y ∈ endNodesOf lt1) =>
         @Tableau.instDecidableEq _ _ (next1 Y Y_in) (next2 Y Y_in)
       have : Decidable (∃ Y, ∃ Y_in : Y ∈ endNodesOf lt1, next1 Y Y_in ≠ next2 Y Y_in) := by
@@ -209,22 +209,21 @@ instance Tableau.instDecidableEq {Hist X} {tab1 tab2 : Tableau Hist X} :
       · apply isTrue; aesop
     · apply isFalse; aesop
   all_goals
-    try simp_all
-    try exact instDecidableFalse
-    try exact instDecidableTrue
-    try infer_instance
+    simp_all only [reduceCtorEq, pdl.injEq, lrep.injEq]
   case pdl.pdl =>
     by_cases h : Y1 = Y2
     · subst h
-      simp_all
+      simp_all only [not_false_eq_true, heq_eq_eq, true_and]
       by_cases h : r2 = r1
       · subst h
-        simp
+        simp only [true_and]
         apply Tableau.instDecidableEq
       · apply isFalse
         tauto
     · apply isFalse
       tauto
+  all_goals
+    infer_instance
 termination_by
   -- Note: cannot use DM ordering here, because PDL rules (L+) and (L-) do not decrease it.
   tab1.size

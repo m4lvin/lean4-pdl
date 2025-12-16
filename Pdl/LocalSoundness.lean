@@ -104,6 +104,7 @@ lemma next_exists_avoid_def_l {B : List Sequent} (next : (Y : Sequent) → Y ∈
   · rintro ⟨Z, Z_in, Y_in⟩
     exact ⟨_, ⟨Z, Z_in, rfl⟩, Y_in⟩
 
+set_option linter.flexible false in
 lemma lra_preserves_free (lra : LocalRuleApp) (Z_in : Z ∈ lra.C) (X_free : lra.X.isFree) :
     Z.isFree := by
   -- We distinguish which rule was applied.
@@ -130,7 +131,8 @@ lemma endNodesOf_free_are_free {X Y} (ltX : LocalTableau X) (h : X.isFree)
   induction ltX
   case byLocalRule X lra X_def next IH =>
     rcases X with ⟨L,R,O⟩
-    simp_all
+    simp_all only [LocalRuleApp.X, endNodesOf.eq_1, List.mem_flatten, List.mem_map, List.mem_attach,
+      true_and, Subtype.exists, next_exists_avoid_def_l]
     rcases Y_in with ⟨Z, Z_in_B, Y_in⟩
     apply IH Z Z_in_B ?_ Y_in
     -- remains to show that Z is free

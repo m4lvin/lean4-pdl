@@ -75,7 +75,7 @@ theorem consistentThenConsistentChild {L R C} (lrApp : LocalRuleApp (L, R) C) :
     Consistent (L,R) → ∃ c ∈ C, Consistent c := by
   contrapose
   unfold Consistent Inconsistent
-  simp
+  simp only [not_nonempty_iff, not_exists, not_and, not_isEmpty_iff]
   intro h
   -- choose closed tableaux for your children
   have c_to_cTab {c: TNode} (c_in: c ∈ C): ClosedTableau c := by
@@ -96,12 +96,12 @@ theorem consistentThenConsistentChild {L R C} (lrApp : LocalRuleApp (L, R) C) :
     rcases this with ⟨c, LR'_in⟩
     choose c_in_C LR'_in2 using LR'_in
     -- was: simp [closedToLocal] at * -- mysteriously broken with Lean v4.22.0-rc2
-    simp at *
+    simp only at *
     unfold closedToLocal at *
     cases def_c : c_to_cTab c_in_C
     case loc lt_c next =>
       rw [def_c] at LR'_in2
-      simp at LR'_in2
+      simp only at LR'_in2
       apply next
       exact LR'_in2
     case atmL =>
@@ -115,7 +115,7 @@ theorem consThenProjectLCons {L α R} (α_in : ~(□α) ∈ L) (LR_simple : Simp
     Consistent (L,R) → Consistent (diamondProjectTNode (Sum.inl α) (L,R)) := by
   contrapose
   unfold Consistent Inconsistent
-  simp_all
+  simp_all only [not_nonempty_iff, not_isEmpty_iff, Nonempty.forall]
   intro cTab
   exact ⟨ClosedTableau.atmL α_in LR_simple cTab⟩
 
@@ -123,7 +123,7 @@ theorem consThenProjectRCons {R α L} (α_in : ~(□α) ∈ R) (LR_simple : Simp
     Consistent (L,R) → Consistent (diamondProjectTNode (Sum.inr α) (L,R)) := by
   contrapose
   unfold Consistent Inconsistent
-  simp_all
+  simp_all only [not_nonempty_iff, not_isEmpty_iff, Nonempty.forall]
   intro cTab
   exact ⟨ClosedTableau.atmR α_in LR_simple cTab⟩
 
@@ -133,7 +133,7 @@ theorem pathSaturated {consLR} (path : Path consLR) : Saturated (pathToFinset pa
   case endNode LR LR_cons LR_simple =>
     unfold Simple SimpleSet at LR_simple
     rcases LR_simple with ⟨L_simple, R_simple⟩
-    simp_all
+    simp_all only [pathToFinset, Finset.mem_union]
     constructor
     · intro nnP_in
       cases nnP_in
@@ -246,7 +246,8 @@ theorem pathSaturated {consLR} (path : Path consLR) : Saturated (pathToFinset pa
               simp_all
             aesop
           · case inr nP_nQ_in_L' =>
-            simp_all
+            simp_all only [List.mem_cons, List.not_mem_nil, or_false, exists_eq_or_imp,
+              Finset.singleton_subset_iff, ↓existsAndEq, true_and]
             cases nP_nQ_in_L'
             case inl nP_in_L'=>
               apply Or.inl
@@ -267,7 +268,8 @@ theorem pathSaturated {consLR} (path : Path consLR) : Saturated (pathToFinset pa
                 simp_all
               aesop
             · case inr nP_nQ_in_R' =>
-              simp_all
+              simp_all only [List.mem_cons, List.not_mem_nil, or_false, exists_eq_or_imp,
+                Finset.singleton_subset_iff, ↓existsAndEq, true_and]
               cases nP_nQ_in_R'
               case inl nP_in_R'=>
                 apply Or.inl
@@ -356,7 +358,7 @@ theorem pathConsistent (path : Path TN) :
       simp at consistentLR
       constructor
       · by_contra bot_in
-        simp at bot_in
+        simp only [pathToFinset, instBotFormula, Finset.mem_union] at bot_in
         cases bot_in
         case inl bot_in =>
           exact IsEmpty.false (botTableauL bot_in)
@@ -364,7 +366,7 @@ theorem pathConsistent (path : Path TN) :
           exact IsEmpty.false (botTableauR bot_in)
       · intro pp pp_in
         by_contra npp_in
-        simp_all
+        simp_all only [pathToFinset, Finset.mem_union]
         cases pp_in
         case inl pp_in =>
           cases npp_in
@@ -383,7 +385,8 @@ theorem pathConsistent (path : Path TN) :
     · by_contra h
       unfold Consistent Inconsistent at *
       simp at LR'_cons LR_cons
-      simp_all -- handels the case ⊥ ∈ pathToFinset tail
+      simp_all only [Lean.Elab.WF.paramLet, instBotFormula, pathToFinset, Finset.union_assoc,
+        Finset.mem_union, or_false] -- handles the case ⊥ ∈ pathToFinset tail
       cases h
       case inl bot_in =>
         exact IsEmpty.false (botTableauL bot_in)
@@ -397,28 +400,29 @@ theorem pathConsistent (path : Path TN) :
         rcases lrApp with ⟨ress, Lcond,Rcond, lr, Lcond_in, Rcond_in⟩
         rename_i L R C_eq
         subst C_eq
-        simp_all
+        simp_all only [instBotFormula, applyLocalRule.eq_1, pathToFinset, Finset.union_assoc,
+          Finset.mem_union]
         constructor
         · rcases pp_in with pp_in | pp_in | pp_in
           · apply LR_in_PathLR
-            simp
+            simp only [Finset.mem_union]
             apply Or.inl
             cases_type* LocalRule OneSidedLocalRule
             all_goals aesop
           · apply LR_in_PathLR
-            simp
+            simp only [Finset.mem_union]
             apply Or.inr
             cases_type* LocalRule OneSidedLocalRule
             all_goals aesop
           · assumption
         · rcases npp_in with npp_in | npp_in | npp_in
           · apply LR_in_PathLR
-            simp
+            simp only [Finset.mem_union]
             apply Or.inl
             cases_type* LocalRule OneSidedLocalRule
             all_goals aesop
           · apply LR_in_PathLR
-            simp
+            simp only [Finset.mem_union]
             apply Or.inr
             cases_type* LocalRule OneSidedLocalRule
             all_goals aesop
@@ -432,7 +436,7 @@ theorem pathProjection (path : Path consLR) :
   induction path
   case endNode LR LR_cons LR_simple => aesop
   case interNode LR C c c_cons LR_cons lrApp c_in tail IH =>
-    simp_all
+    simp_all only [toFinset, pathToFinset, Finset.union_assoc, Finset.mem_union, endNodeOf]
     apply IH
     rcases lrApp with ⟨ress, Lcond, Rcond, lr, Lcond_in, Rcond_in⟩
     rename_i L R C_eq
@@ -461,7 +465,7 @@ theorem pathDiamond (path : Path consLR) (α_in : ~(□α) ∈ pathToFinset path
   induction path
   case endNode LR LR_cons LR_simple => aesop
   case interNode LR C c c_cons LR_cons lrApp c_in tail IH =>
-    simp_all
+    simp_all only [toFinset, pathToFinset, Finset.union_assoc, Finset.mem_union, endNodeOf]
     apply IH
     rcases lrApp with ⟨ress, Lcond, Rcond, lr, Lcond_in, Rcond_in⟩
     rename_i L R C_eq
@@ -530,7 +534,7 @@ theorem modelExistence : Consistent (L,R) →
   · simp
   · constructor
     · intro ⟨W, W_in⟩
-      simp_all
+      simp_all only [instBotFormula]
       choose W' _ h using W_in
       subst h
       exact ⟨pathSaturated (aPathOf W'), pathConsistent (aPathOf W')⟩
@@ -543,7 +547,7 @@ theorem modelExistence : Consistent (L,R) →
         · -- notation: w_world for world, w for TNode, w' for ConsTNode
           intro ⟨w_world, w_world_in⟩ f nboxf_in_w
           unfold WS at w_world_in
-          simp at w_world_in
+          simp only [Set.mem_setOf_eq] at w_world_in
           rcases w_world_in with ⟨ w', w'_in, w_world_eq⟩
           subst w_world_eq
           let v' := endNodeOf (aPathOf w')
@@ -555,7 +559,7 @@ theorem modelExistence : Consistent (L,R) →
             simp_all
           have v_simp: Simple (vL,vR) := by
             apply endNodeIsSimple (aPathOf w') v'_def
-          simp at nboxf_in_v
+          simp only [Finset.mem_union] at nboxf_in_v
           cases nboxf_in_v
           case inl nboxf_in =>
             let u := diamondProjectTNode (Sum.inl f) ⟨vL, vR⟩
@@ -573,14 +577,10 @@ theorem modelExistence : Consistent (L,R) →
                 _ ⊆ projection (vL ∪ vR) := by rw[← v'_def]; simp
                 _ ⊆ u.1 ∪ u.2 := by rw[u_eq, projectionUnion]; simp
                 _ ⊆ toWorld u' := by apply LR_in_PathLR
-            · have nf_in : ~f ∈ u.1 ∪ u.2 := by
-                simp (config := {zetaDelta := true})
-                unfold diamondProjectTNode
-                split
-                all_goals simp_all
+            · have nf_in : ~f ∈ u.1 ∪ u.2 := by simp_all
               apply (LR_in_PathLR _) nf_in
             · have h := M₀.inductiveL w' w'_in v'_def
-              simp at h
+              simp only at h
               specialize h f nboxf_in
               use u'
               simp_all only [union_singleton_is_insert, and_true]
@@ -601,11 +601,7 @@ theorem modelExistence : Consistent (L,R) →
                 _ ⊆ projection (vL ∪ vR) := by rw[← v'_def]; simp
                 _ ⊆ u.1 ∪ u.2 := by rw[u_eq, projectionUnion]; simp
                 _ ⊆ toWorld u' := by apply LR_in_PathLR
-            · have nf_in : ~f ∈ u.1 ∪ u.2 := by
-                simp (config := {zetaDelta := true})
-                unfold diamondProjectTNode
-                split
-                all_goals simp_all
+            · have nf_in : ~f ∈ u.1 ∪ u.2 := by simp_all
               apply u_sub nf_in
             · have h := M₀.inductiveR w' w'_in v'_def
               specialize h f nboxf_in
@@ -614,7 +610,7 @@ theorem modelExistence : Consistent (L,R) →
               exact h
   · use ⟨(L,R), LR_cons⟩
     unfold toWorld
-    simp [pathLR]
+    simp only [and_true, pathLR]
     exact M₀.base
 
 -- Theorem 4, page 37

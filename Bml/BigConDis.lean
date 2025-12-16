@@ -76,14 +76,8 @@ theorem conEvalHT {X f W M} {w : W} :
   cases X
   <;> simp
 
-theorem conEval {W M X} {w : W} : Evaluate (M, w) (bigCon X) ↔ ∀ f ∈ X, Evaluate (M, w) f :=
-  by
-  induction X
-  · simp
-  · rw [conEvalHT]
-    simp
-    intro _
-    assumption
+theorem conEval {W M X} {w : W} : Evaluate (M, w) (bigCon X) ↔ ∀ f ∈ X, Evaluate (M, w) f := by
+  induction X <;> simp_all [conEvalHT]
 
 theorem disconEvalHT {X} : ∀ XS, discon (X :: XS) ≡ bigCon X ⋁ discon XS :=
   by
@@ -118,7 +112,7 @@ theorem disconEval {W M} {w : W} :
       tauto
   · -- ←
     rintro ⟨Y, Y_in, Ysat⟩
-    simp at Y_in
+    simp only [List.mem_cons] at Y_in
     rcases Y_in with Y_in | Y_in
     · left
       subst Y_in
@@ -151,9 +145,9 @@ theorem disconAnd {XS YS} : discon (XS ⊎ YS) ≡ discon XS ⋀ discon YS :=
   unfold semEquiv
   intro W M w
   rw [disconEval (XS ⊎ YS) (by rfl)]
-  simp
-  rw [disconEval XS (by rfl)]
-  rw [disconEval YS (by rfl)]
+  simp only [listHasUplus, pairunionList, List.mem_flatten, List.mem_map, exists_exists_and_eq_and,
+    exists_exists_and_exists_and_eq_and, List.mem_append, Evaluate]
+  rw [disconEval XS (by rfl), disconEval YS (by rfl)]
   aesop
 
 theorem disconOr {XS YS} : discon (XS ∪ YS) ≡ discon XS ⋁ discon YS :=
@@ -161,15 +155,14 @@ theorem disconOr {XS YS} : discon (XS ∪ YS) ≡ discon XS ⋁ discon YS :=
   unfold semEquiv
   intro W M w
   rw [disconEval (XS ∪ YS) (by rfl)]
-  simp
-  rw [disconEval XS (by rfl)]
-  rw [disconEval YS (by rfl)]
+  simp only [List.mem_union_iff, Formula.or, Evaluate.eq_3, Evaluate, not_and, not_not]
+  rw [disconEval XS (by rfl), disconEval YS (by rfl)]
   constructor
   · -- →
     intro lhs
     rcases lhs with ⟨Z, Z_in, w_sat_Z⟩
     intro notL
-    simp at notL
+    simp only [not_exists, not_and, not_forall, exists_prop] at notL
     cases Z_in
     case inl Z_in_XS =>
       specialize notL Z Z_in_XS
@@ -195,7 +188,7 @@ theorem union_elem_uplus {XS YS : Finset (Finset Formula)} {X Y : Finset Formula
   X ∈ XS → Y ∈ YS → ((X ∪ Y) ∈ (XS ⊎ YS)) :=
   by
   intro X_in Y_in
-  simp
+  simp only [finsetHasUplus, pairunionFinset, Finset.mem_biUnion, Finset.mem_singleton]
   exact ⟨X, X_in, Y, Y_in, rfl⟩
 
 @[simp]
@@ -255,7 +248,9 @@ lemma bigConNeg_union_sat_down {X : Finset Formula} {l : List Formula} :
   by
     intro hyp
     rcases hyp with ⟨W, M, w, sat⟩
-    simp at *
+    simp only [Finset.union_singleton, Finset.mem_insert, forall_eq_or_imp, bigCon_sat,
+      List.mem_map, forall_exists_index, and_imp, forall_apply_eq_imp_iff₂, Evaluate,
+      setHasSat] at *
     rcases sat with ⟨lNotSat, XSat⟩
     intro φ inl
     use W, M, w

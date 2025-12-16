@@ -35,7 +35,7 @@ theorem interpolation {ϕ ψ} : Tautology (ϕ↣ψ) → ∃ θ, Interpolant ϕ �
     rw [← completeness] at hyp
     -- using completeness!
     unfold Consistent at hyp
-    simp at hyp
+    simp only [not_not] at hyp
     unfold Inconsistent at hyp
     change ClosedTableau ({ϕ}, {~ψ})
     exact Classical.choice hyp

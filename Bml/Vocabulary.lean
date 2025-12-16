@@ -42,37 +42,34 @@ theorem vocElem_subs_vocSet {ϕ X} : ϕ ∈ X → vocabOfFormula ϕ ⊆ vocabOfS
     cases phi_in_X
   case insert ψ S _ _ =>
     intro psi_in_insert
-    simp at *
+    simp only [vocabOfSetFormula, Finset.mem_insert, Finset.biUnion_insert] at *
     intro a aIn
     aesop
 
 theorem vocMonotone {X Y : Finset Formula} (hyp : X ⊆ Y) : voc X ⊆ voc Y :=
   by
   unfold voc
-  simp at *
+  simp only [setFormulaHasVocabulary, vocabOfSetFormula,
+    Finset.biUnion_subset_iff_forall_subset] at *
   intro a aIn
   unfold Finset.biUnion at *
   intro p pIn
   aesop
 
-theorem vocErase {X : Finset Formula} {ϕ : Formula} : voc (X \ {ϕ}) ⊆ voc X :=
-  by
+theorem vocErase {X : Finset Formula} {ϕ : Formula} : voc (X \ {ϕ}) ⊆ voc X := by
   apply vocMonotone
   rw [sdiff_singleton_is_erase]
   intro a aIn
   exact Finset.mem_of_mem_erase aIn
 
-theorem vocUnion {X Y : Finset Formula} : voc (X ∪ Y) = voc X ∪ voc Y :=
-  by
-  simp
-  ext1
-  aesop
+theorem vocUnion {X Y : Finset Formula} : voc (X ∪ Y) = voc X ∪ voc Y := by aesop
 
 theorem vocPreserved (X : Finset Formula) (ψ ϕ) :
     ψ ∈ X → voc ϕ = voc ψ → voc X = voc (X \ {ψ} ∪ {ϕ}) :=
   by
   intro psi_in_X eq_voc
-  simp at *
+  simp only [formulaHasVocabulary, setFormulaHasVocabulary, vocabOfSetFormula,
+    sdiff_singleton_is_erase, Finset.union_singleton, Finset.biUnion_insert] at *
   ext1
   constructor
   all_goals intro a_in
@@ -88,7 +85,8 @@ theorem vocPreservedTwo {X : Finset Formula} (ψ ϕ1 ϕ2) :
   by
   intro psi_in_X eq_voc
   rw [vocUnion]
-  simp at *
+  simp only [setFormulaHasVocabulary, vocabOfSetFormula, Finset.biUnion_insert,
+    Finset.singleton_biUnion, formulaHasVocabulary, sdiff_singleton_is_erase] at *
   ext1
   constructor
   all_goals intro a_in; norm_num at *
@@ -108,7 +106,8 @@ theorem vocPreservedSub {X : Finset Formula} (ψ ϕ) :
     ψ ∈ X → voc ϕ ⊆ voc ψ → voc (X \ {ψ} ∪ {ϕ}) ⊆ voc X :=
   by
   intro psi_in_X sub_voc
-  simp at *
+  simp only [formulaHasVocabulary, setFormulaHasVocabulary, sdiff_singleton_is_erase,
+    Finset.union_singleton, vocabOfSetFormula, Finset.biUnion_insert] at *
   intro a a_in; norm_num at *
   cases a_in
   · use ψ; rw [Finset.subset_iff] at sub_voc ; tauto

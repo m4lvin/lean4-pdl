@@ -148,7 +148,7 @@ theorem H_mem_sequence α {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ H α) :
   case atom_prog =>
     simp_all [H]
   case union α β =>
-    simp_all [H]
+    simp_all only [H, List.mem_union_iff]
     rcases in_H with in_Hα | in_Hβ
     · have IHα := H_mem_sequence α in_Hα
       aesop
@@ -185,12 +185,17 @@ theorem keepFreshH α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ H α → x ∉ F.f
   intro x_notin F δ Fδ_in_H
   cases α
   all_goals
-    simp [H, Program.voc] at *
+    simp only [Program.voc, H, List.empty_eq, List.cons_union, List.nil_union, List.mem_flatten,
+      List.mem_map, Prod.exists, ↓existsAndEq, and_true, List.mem_ite_nil_left, List.mem_cons,
+      Prod.mk.injEq, List.nil_eq, List.append_eq_nil_iff, List.cons_ne_self, and_false,
+      List.not_mem_nil, or_self, exists_const, not_false_eq_true, List.insert_of_not_mem, or_false,
+      true_and, List.fvoc, Vocab.fromList, Finset.mem_sup, List.mem_toFinset, id_eq,
+      exists_exists_and_eq_and, not_exists, not_and, List.pvoc, Finset.mem_singleton,
+      Finset.mem_union, not_or, List.mem_union_iff] at *
   case atom_prog a =>
     cases Fδ_in_H
     subst_eqs
-    simp [Program.voc]
-    assumption
+    simpa [Program.voc]
   case test =>
     cases Fδ_in_H
     subst_eqs
@@ -216,7 +221,9 @@ theorem keepFreshH α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ H α → x ∉ F.f
       simp_all
   case sequence.right α β =>
     rcases Fδ_in_H with ⟨F', δ', Fδ'_in, Fδ_in_l⟩
-    cases em (δ' = []) <;> simp_all
+    cases em (δ' = []) <;> simp_all only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists,
+        ↓existsAndEq, and_true, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false,
+        exists_eq_right_right']
     · subst_eqs
       rcases Fδ_in_l with ⟨a', _in_Hβ, Fδ_in_l'⟩
       subst_eqs
@@ -336,10 +343,10 @@ theorem unfoldDiamondContent α ψ :
          ∨ (∃ (a : Nat), ∃ δ, φ = (~⌈·a⌉⌈⌈δ⌉⌉ψ)))
     := by
   intro X X_in φ φ_in_X
-  simp [unfoldDiamond, Yset] at X_in
+  simp only [unfoldDiamond, Yset, List.mem_map, Prod.exists] at X_in
   rcases X_in with ⟨Fs, δ, in_H, def_X⟩
   subst def_X
-  simp at φ_in_X
+  simp only [List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false] at φ_in_X
   rcases φ_in_X with φ_in_Fs | φ_def
   · -- φ is in F so it must be a test
     right
@@ -353,10 +360,10 @@ theorem unfoldDiamondContent α ψ :
 
 theorem unfoldDiamond_voc {x α φ} {L} (L_in : L ∈ unfoldDiamond α φ) {ψ} (ψ_in : ψ ∈ L)
     (x_in_voc_ψ : x ∈ ψ.voc) : x ∈ α.voc ∨ x ∈ φ.voc := by
-  simp [unfoldDiamond, Yset] at L_in
+  simp only [unfoldDiamond, Yset, List.mem_map, Prod.exists] at L_in
   rcases L_in with ⟨Fs, δ, in_H, def_L⟩
   subst def_L
-  simp at ψ_in
+  simp only [List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false] at ψ_in
   cases ψ_in
   case inl hyp =>
     left
@@ -393,7 +400,8 @@ theorem guardToStarDiamond (x : Nat)
   have claim : ∀ u v, (M,v) ⊨ ρ → relate M β u v → (M,u) ⊨ ρ := by
     intro u v v_rho u_β_v
     have u_ : (M,u) ⊨ (~⌈β⌉~ρ) := by
-      simp [modelCanSemImplyForm] at *
+      simp only [Formula.or, modelCanSemImplyForm, evaluatePoint, evaluate, not_forall,
+        not_not] at *
       use v
     have u_2 : (M, u) ⊨ (ρ ⋀ repl_in_F x ρ σ0) ⋁ (repl_in_F x ρ σ1) := by
       have repl_equiv := repl_in_F_equiv x ρ beta_equiv
@@ -432,9 +440,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
   case atom_prog a =>
     simp [H, Yset]
   case test τ =>
-    simp [evaluate, H, Yset]
-    rw [conEval]
-    simp
+    simp [evaluate, H, Yset, conEval]
   case union α β =>
     -- "This case is straightforward"
     have IHα := localDiamondTruth α ψ W M w
@@ -460,7 +466,8 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
         subst δ_is_empty
         have claim : ∃ Gγ ∈ H β, evaluate M w (Con (Yset Gγ ψ)) := by
           rw [conEval] at w_Con
-          simp [Yset] at w_Con
+          simp only [Yset, Formula.boxes_nil, List.mem_union_iff, List.mem_cons, List.not_mem_nil,
+            or_false] at w_Con
           have := w_Con (~⌈β⌉ψ)
           simp only [or_true, forall_true_left] at this
           have IHβ := localDiamondTruth β ψ W M w
@@ -488,9 +495,10 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
         unfold H
         use ⟨Fs, δ ++ [β]⟩
         constructor
-        · simp
+        · simp only [List.mem_flatten, List.mem_map, Prod.exists, ↓existsAndEq, and_true]
           grind
-        · simp [Yset, conEval, boxes_append] at *
+        · simp only [Yset, conEval, List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false,
+          boxes_append, Formula.boxes_cons, Formula.boxes_nil] at *
           intro f f_in
           apply w_Con
           tauto
@@ -501,18 +509,19 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
       cases em (γ = [])
       case inl δ_is_empty => -- tricky case where we actually need the IH for β
         subst δ_is_empty
-        simp at Fδ_in
+        simp only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists, ↓existsAndEq, and_true,
+          List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false, exists_eq_right_right'] at Fδ_in
         rcases Fδ_in with ⟨Hs, _in_Hβ, Fs_def⟩
         subst Fs_def
-        simp
+        simp only [Prod.exists]
         use Gs, [], Gγ_in
-        simp [Yset]
-        · simp [conEval]
+        simp only [Yset, Formula.boxes_nil]
+        · simp only [conEval, List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false]
           intro f f_in
           cases f_in
           case inl f_in =>
             rw [conEval] at w_Con
-            simp [Yset] at *
+            simp only [Yset, List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false] at *
             specialize w_Con f
             tauto
           case inr f_def =>
@@ -523,7 +532,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
             use ⟨Hs,δ⟩, _in_Hβ
             rw [conEval]
             rw [conEval] at w_Con
-            simp [Yset] at *
+            simp only [Yset, List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false] at *
             intro f
             specialize w_Con f
             tauto
@@ -532,7 +541,8 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
           Prod.exists]
         cases Fδ_in
         subst_eqs
-        simp_all [Yset, conEval, boxes_append]
+        simp_all only [Yset, boxes_append, Formula.boxes_cons, Formula.boxes_nil, conEval,
+          List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false]
         use Fs, γ
   case star β =>
     let ρ := dis ((H (∗β)).map (fun Fδ => Con (Yset Fδ ψ)))
@@ -549,12 +559,17 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
       rw [disEval, helper]
       rintro ⟨⟨Fs,δ⟩, ⟨Fδ_in, w_Con⟩⟩
       rw [conEval] at w_Con
-      simp [H] at Fδ_in
+      simp only [H, List.empty_eq, List.cons_union, List.nil_union, List.mem_flatten, List.mem_map,
+        Prod.exists, ↓existsAndEq, and_true, List.mem_ite_nil_left, List.mem_cons, Prod.mk.injEq,
+        List.nil_eq, List.append_eq_nil_iff, List.cons_ne_self, and_false, List.not_mem_nil,
+        or_self, exists_const, not_false_eq_true, List.insert_of_not_mem, or_false,
+        true_and] at Fδ_in
       cases Fδ_in
       case inl hyp =>
         cases hyp
         subst_eqs
-        simp_all [Yset]
+        simp_all only [Yset, Formula.boxes_nil, List.nil_union, List.mem_cons, List.not_mem_nil,
+          or_false, evaluate, forall_eq, relate, not_forall]
         use w
       case inr hyp =>
         have : ∃ γ, δ = γ ++ [∗β] ∧ γ ≠ [] ∧ (Fs,γ) ∈ H β := by aesop
@@ -562,7 +577,8 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
         subst δ_def
         simp only [Yset, List.mem_union_iff, List.mem_singleton] at w_Con
         suffices evaluate M w (~⌈β⌉⌈∗β⌉ψ) by
-          simp at *
+          simp only [ne_eq, List.append_cancel_right_eq, exists_eq_right_right', evaluate, relate,
+            not_forall] at *
           rcases this with ⟨v, ⟨w_β_v, ⟨u, ⟨v_Sβ_u, u_nPsi⟩⟩⟩⟩
           refine ⟨u, ?_, u_nPsi⟩
           exact Relation.ReflTransGen.head w_β_v v_Sβ_u
@@ -601,29 +617,32 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
           rw [← or_iff_not_and_not]
           cases em (δ = [])
           · subst_eqs
-            simp [conEval, Yset] at w_
+            simp only [Yset, Formula.boxes_nil, conEval, List.mem_union_iff, List.mem_cons,
+              List.not_mem_nil, or_false] at w_
             left
             unfold σ0
-            simp_all
+            simp_all only [evaluate, relate, not_forall, Formula.instBot]
             rw [disEval, helper]
             constructor
             · have := w_ (~~·x)
-              simp at this
+              simp only [or_true, evaluate, not_not, forall_const] at this
               exact this
             · use (Fs, [])
-              simp_all
+              simp_all only [↓reduceIte, true_and]
               rw [conEval]
               intro f f_in
               apply w_
               left
               exact f_in
-          · simp [conEval, Yset] at w_
+          · simp only [Yset, conEval, List.mem_union_iff, List.mem_cons, List.not_mem_nil,
+            or_false] at w_
             right
             unfold σ1
-            simp_all
+            simp_all only [evaluate, relate, not_forall, ne_eq, Formula.instBot,
+              ite_not]
             rw [disEval, helper]
             use (Fs, δ)
-            simp_all
+            simp_all only [exists_prop, ↓reduceIte, true_and]
             rw [conEval]
             intro f f_in
             apply w_ f
@@ -635,42 +654,43 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
           cases rhs
           case inl hyp =>
             unfold σ0 at hyp
-            simp at hyp
+            simp only [Formula.instBot] at hyp
             rw [disEval, helper] at hyp
             rcases hyp with ⟨w_x, ⟨⟨Fs,δ⟩, w_⟩⟩
             use (Fs,δ)
-            simp [conEval, Yset]
+            simp only [Yset, conEval, List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false]
             constructor
             · exact w_.1
             · cases em (δ = [])
               case inl δ_is_empty =>
                 subst δ_is_empty
-                simp_all [conEval]
+                simp_all only [evaluate, relate, not_forall, ↓reduceIte, conEval,
+                  Formula.boxes_nil]
                 intro f f_in
                 cases f_in
                 · apply w_.2; assumption
-                · subst_eqs; simp; assumption
+                · subst_eqs; simp_all
               case inr δ_notEmpty => exfalso; simp_all
                 -- this case works because we used ⊥ above!
           case inr hyp =>
             unfold σ1 at hyp
-            simp at hyp
+            simp only [ne_eq, Formula.instBot, ite_not] at hyp
             rw [disEval, helper] at hyp
             rcases hyp with ⟨⟨Fs,δ⟩, ⟨Fδ_in, w_⟩⟩
             use ⟨Fs,δ⟩
-            simp [conEval, Yset] at *
-            -- hmm
+            simp only [evaluate, relate, not_forall, Yset, conEval, List.mem_union_iff,
+              List.mem_cons, List.not_mem_nil, or_false] at *
             constructor
             · exact Fδ_in
             · cases em (δ = [])
               case inl _ => exfalso; simp_all
                 -- this case works because we used ⊥ above!
               case inr δ_notEmpty =>
-                simp_all [conEval]
+                simp_all only [↓reduceIte, conEval, List.mem_cons, forall_eq_or_imp, evaluate]
                 intro f f_in
                 cases f_in
                 · apply w_.2; assumption
-                · subst_eqs; simp; exact w_.1
+                · subst_eqs; simp_all
       · -- Lemma condition that is done last in notes.
         unfold σ1
         simp only [ne_eq, Formula.instBot, ite_not]
@@ -712,10 +732,10 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
           subst hyp
           simp_all
         case inr hyp =>
-          simp [hyp] at repl_w_
+          simp only [hyp, ↓reduceIte] at repl_w_
           rw [conEval] at repl_w_
           have := repl_w_ (~⌈⌈δ⌉⌉~ρ) (by simp)
-          simp [evalBoxes] at this
+          simp only [evaluate, evalBoxes, not_forall, not_not] at this
           rcases this with ⟨v, w_ρ_v, v_ρ⟩ -- used for v_notStarβψ below!
           -- We now do bottom-up what the notes do, first reasoning "at w" then "at v"
           unfold ρ
@@ -729,20 +749,28 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (H γ).map (fun Fδ =>
             exists_eq_or_imp]
           right
           use Fs, δ
-          simp_all [conEval]
+          simp_all only [exists_prop, not_false_eq_true, and_self, conEval, List.mem_union_iff,
+            List.mem_cons, List.not_mem_nil, or_false, true_and]
           rintro f (f_in_F|f_def)
           · exact repl_w_.2 f f_in_F
           · subst f_def
-            simp [boxes_append,evalBoxes]
+            simp only [evaluate, boxes_append, Formula.boxes_cons, Formula.boxes_nil, evalBoxes,
+              relate, not_forall]
             have v_notStarβψ := right_to_left_claim W M v v_ρ
+            simp only [exists_prop]
             exact ⟨v, ⟨w_ρ_v, v_notStarβψ⟩⟩
       · -- Second Lemma condition
         intro w_nPsi
         unfold ρ
         rw [disEval, helper]
-        simp [H, conEval, Yset]
+        simp only [H, List.empty_eq, List.cons_union, List.nil_union, List.mem_flatten,
+          List.mem_map, Prod.exists, ↓existsAndEq, and_true, List.mem_ite_nil_left, List.mem_cons,
+          Prod.mk.injEq, List.nil_eq, List.append_eq_nil_iff, List.cons_ne_self, and_false,
+          List.not_mem_nil, or_self, exists_const, not_false_eq_true, List.insert_of_not_mem,
+          or_false, Yset, conEval, List.mem_union_iff, exists_eq_or_imp, Formula.boxes_nil,
+          false_or, forall_eq, evaluate]
         left
-        simp at w_nPsi
+        simp only [evaluate] at w_nPsi
         exact w_nPsi
     · apply right_to_left_claim -- done above
 
@@ -771,7 +799,8 @@ theorem relateSeq_toChain' {M} {δ} {v w : W} : relateSeq M δ v w → δ ≠ []
       use (u :: l)
       constructor
       · simp_all
-      · simp_all [pairRel]
+      · simp_all only [ne_eq, reduceCtorEq, not_false_eq_true, Formula.insTop, List.cons_append,
+        List.zip_cons_cons, List.isChain_cons_cons, pairRel, true_and]
         apply List.IsChain.cons
         · have := List.IsChain.tail lchain
           simp_all
@@ -782,13 +811,14 @@ theorem existsDiamondH (v_γ_w : relate M γ v w) :
     ∃ Fδ ∈ H γ, (M,v) ⊨ Fδ.1 ∧ relateSeq M Fδ.2 v w := by
   cases γ
   case atom_prog =>
-    simp [H, relateSeq] at *
+    simp only [relate, H, List.mem_cons, List.not_mem_nil, or_false, modelCanSemImplyList,
+      exists_eq_left, IsEmpty.forall_iff, implies_true, relateSeq, exists_eq_right, true_and] at *
     exact v_γ_w
   case test τ =>
     simp [H, relateSeq] at *
     aesop
   case union α β =>
-    simp [H] at *
+    simp only [relate, H, List.mem_union_iff, modelCanSemImplyList, Prod.exists] at *
     cases v_γ_w
     case inl hyp =>
       have IHα := existsDiamondH hyp
@@ -800,7 +830,7 @@ theorem existsDiamondH (v_γ_w : relate M γ v w) :
     simp only [relate] at v_γ_w
     rcases v_γ_w with ⟨u, v_α_u, u_β_w⟩
     have IHα := existsDiamondH v_α_u
-    simp at IHα
+    simp only [modelCanSemImplyList, Prod.exists] at IHα
     rcases IHα with ⟨Fs, δ, ⟨Fδ_in, u_Fs, v_δ_u⟩⟩
     cases em (δ = [])
     case inl hyp =>
@@ -808,13 +838,13 @@ theorem existsDiamondH (v_γ_w : relate M γ v w) :
       simp only [relateSeq] at v_δ_u -- we have v = u
       subst v_δ_u
       have IHβ := existsDiamondH u_β_w
-      simp at IHβ
+      simp only [modelCanSemImplyList, Prod.exists] at IHβ
       rcases IHβ with ⟨Gs, η, ⟨Gη_in, v_Gs, v_η_w⟩⟩
       refine ⟨ ⟨Fs ∪ Gs, η⟩, ⟨?_, ?_, v_η_w⟩ ⟩
       · simp_all [H]
         grind
       · intro f f_in
-        simp at f_in
+        simp only [List.mem_union_iff] at f_in
         cases f_in
         · specialize u_Fs f (by assumption)
           assumption
@@ -824,10 +854,8 @@ theorem existsDiamondH (v_γ_w : relate M γ v w) :
       refine ⟨⟨Fs, δ ++ [β]⟩, ⟨?_, ?_, ?_⟩⟩
       · grind [H]
       · intro f f_in
-        simp at f_in
-        specialize u_Fs f f_in
-        assumption
-      · simp [relateSeq_append]
+        simp_all
+      · simp only [relateSeq_append, relateSeq_singleton]
         use u
   case star β =>
     simp only [relate] at v_γ_w
@@ -842,7 +870,12 @@ theorem existsDiamondH (v_γ_w : relate M γ v w) :
       rcases IHβ with ⟨⟨Fs,δ⟩, Fδ_in, v_Fs, v_δ_v1⟩
       use ⟨Fs, δ ++ [∗β]⟩
       constructor
-      · simp [H] at *
+      · simp only [ne_eq, modelCanSemImplyList, H, List.empty_eq, List.cons_union, List.nil_union,
+        List.mem_flatten, List.mem_map, Prod.exists, ↓existsAndEq, and_true, List.mem_ite_nil_left,
+        List.mem_cons, Prod.mk.injEq, List.nil_eq, List.append_eq_nil_iff, List.cons_ne_self,
+        and_false, List.not_mem_nil, or_self, exists_const, not_false_eq_true,
+        List.insert_of_not_mem, List.append_cancel_right_eq, or_false, exists_eq_right_right',
+        false_or] at *
         have claim : δ ≠ [] := by
           by_contra hyp
           subst_eqs
@@ -851,7 +884,7 @@ theorem existsDiamondH (v_γ_w : relate M γ v w) :
         grind
       · constructor
         · intro f f_in
-          simp at f_in
+          simp only at f_in
           exact v_Fs f f_in
         · rw [relateSeq_append]
           use v1
@@ -891,7 +924,8 @@ theorem unfoldDiamondLoaded_eq α χ :
 
 theorem unfoldDiamondLoaded'_eq α φ :
     (unfoldDiamondLoaded' α φ).map pairUnload = unfoldDiamond α φ := by
-  simp [unfoldDiamondLoaded', unfoldDiamond, YsetLoad', Yset, pairUnload]
+  simp only [unfoldDiamondLoaded', YsetLoad', List.map_map, unfoldDiamond, Yset, List.map_inj_left,
+    Function.comp_apply, pairUnload, negUnload, Prod.forall]
   intro F δ in_H
   cases δ
   · simp
