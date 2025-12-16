@@ -74,7 +74,7 @@ instance : Decidable (SimpleForm φ) :=
 def SimpleSet : Finset Formula → Prop
   | X => ∀ P ∈ X.attach, SimpleForm P.val
 
-instance : Decidable (SimpleSet X) := Finset.decidableDforallFinset
+instance {X : Finset Formula} : Decidable (SimpleSet X) := Finset.decidableDforallFinset
 
 structure notSimpleFormOf (X : Finset Formula) where
   φ : Formula
@@ -116,10 +116,9 @@ theorem projectionUnion {X Y} : projection (X ∪ Y) = projection X ∪ projecti
   grind
 
 -- TODO @[simp]
-theorem proj {g : Formula} {X : Finset Formula} : g ∈ projection X ↔ □g ∈ X :=
-  by
+theorem proj {g : Formula} {X : Finset Formula} : g ∈ projection X ↔ □g ∈ X := by
   rw [projection]
-  simp
+  simp only [formProjection, Finset.mem_biUnion, Option.mem_toFinset, Option.mem_def]
   constructor
   · intro lhs
     rcases lhs with ⟨boxg, boxg_in_X, projboxg_is_g⟩
@@ -128,10 +127,9 @@ theorem proj {g : Formula} {X : Finset Formula} : g ∈ projection X ↔ □g �
   · intro rhs
     use □g
 
-theorem projSet {X : Finset Formula} : ↑(projection X) = {ϕ | □ϕ ∈ X} :=
-  by
+theorem projSet {X : Finset Formula} : ↑(projection X) = {ϕ | □ϕ ∈ X} := by
   ext1
-  simp
+  simp only [SetLike.mem_coe, Set.mem_setOf_eq]
   exact proj
 
 
@@ -168,7 +166,7 @@ theorem projection_set_length_leq : ∀ X, lengthOfSet (projection X) ≤ length
           apply sum_union_le
         _ ≤ lengthOfFormula f + (projection S).sum lengthOfFormula := by
           simp only [add_le_add_iff_right, projection_length_leq]
-        _ ≤ lengthOfFormula f + S.sum lengthOfFormula := by simp; apply IH
+        _ ≤ lengthOfFormula f + S.sum lengthOfFormula := by simpa [add_le_add_iff_left]
 
 inductive OneSidedLocalRule : Finset Formula → List (Finset Formula) → Type
   | bot                  : OneSidedLocalRule {⊥}      ∅
@@ -241,8 +239,9 @@ theorem localRuleApp_does_not_increase_vocab {C} {L R : Finset Formula}
   match ruleA with
   | @LocalRuleApp.mk _ _ _ ress Lcond Rcond rule hC preproof =>
   intro c cinC ℓ ℓ_in_c
-  simp at ℓ_in_c
-  simp
+  simp only [jvoc, setFormulaHasVocabulary, vocabOfSetFormula, Finset.mem_inter,
+    Finset.mem_biUnion] at ℓ_in_c
+  simp only [jvoc, setFormulaHasVocabulary, vocabOfSetFormula, Finset.mem_inter, Finset.mem_biUnion]
   constructor
   · have ⟨Lφ,Lφ_in_cL, ℓ_in_Lφ⟩ := ℓ_in_c.left
     apply Or.elim (em (Lφ ∈ L))
@@ -252,9 +251,10 @@ theorem localRuleApp_does_not_increase_vocab {C} {L R : Finset Formula}
       let ⟨res, res_in_ress, Lφ_in_res_L⟩ := Lφ_in_res
       have ℓ_in_ψ_in_Lcond : ∃ψ ∈ Lcond, ℓ ∈ voc ψ := by
         let voc_res_ss_Lcond := localRule_does_not_increase_vocab_L rule res res_in_ress
-        simp at voc_res_ss_Lcond
+        simp only [setFormulaHasVocabulary, vocabOfSetFormula,
+          Finset.biUnion_subset_iff_forall_subset] at voc_res_ss_Lcond
         let ℓ_in_voc_Lcond := voc_res_ss_Lcond Lφ Lφ_in_res_L ℓ_in_Lφ
-        simp at ℓ_in_voc_Lcond
+        simp only [Finset.mem_biUnion] at ℓ_in_voc_Lcond
         exact ℓ_in_voc_Lcond
       let ⟨ψ, ψ_in_Lcond, ℓ_in_ψ⟩ := ℓ_in_ψ_in_Lcond
       use ψ, (by aesop), ℓ_in_ψ
@@ -267,9 +267,10 @@ theorem localRuleApp_does_not_increase_vocab {C} {L R : Finset Formula}
       let ⟨res, res_in_ress, Rφ_in_res_R⟩ := Rφ_in_res
       have ℓ_in_ψ_in_Rcond : ∃ψ ∈ Rcond, ℓ ∈ voc ψ := by
         let voc_res_ss_Rcond := localRule_does_not_increase_vocab_R rule res res_in_ress
-        simp at voc_res_ss_Rcond
+        simp only [setFormulaHasVocabulary, vocabOfSetFormula,
+          Finset.biUnion_subset_iff_forall_subset] at voc_res_ss_Rcond
         let ℓ_in_voc_Rcond := voc_res_ss_Rcond Rφ Rφ_in_res_R ℓ_in_Rφ
-        simp at ℓ_in_voc_Rcond
+        simp only [Finset.mem_biUnion] at ℓ_in_voc_Rcond
         exact ℓ_in_voc_Rcond
       let ⟨ψ, ψ_in_Rcond, ℓ_in_ψ⟩ := ℓ_in_ψ_in_Rcond
       use ψ, (by aesop), ℓ_in_ψ
@@ -305,7 +306,10 @@ theorem LocalRuleUniqueL
     case neg φ =>
       cases orule'
       case neg φ' =>
-        simp_all
+        simp_all only [Finset.empty_subset, Finset.singleton_inj, Finset.singleton_subset_iff,
+          applyLocalRule, sdiff_singleton_is_erase, Finset.sdiff_empty, List.map_cons, List.map_nil,
+          Finset.union_singleton, Finset.union_empty, List.mem_cons, List.not_mem_nil, or_false,
+          Finset.mem_insert, Finset.mem_erase, ne_eq, and_true, exists_eq_left]
         subst c_in
         subst precond_eq
         if φ = φ'
@@ -315,7 +319,11 @@ theorem LocalRuleUniqueL
     case con φ ψ =>
       cases orule'
       case con φ' ψ' =>
-        simp_all
+        simp_all only [Finset.empty_subset, Finset.singleton_inj, Finset.singleton_subset_iff,
+          applyLocalRule, sdiff_singleton_is_erase, Finset.sdiff_empty, List.map_cons, List.map_nil,
+          Finset.union_insert, Finset.union_singleton, Finset.union_empty, List.mem_cons,
+          List.not_mem_nil, or_false, Finset.mem_insert, Finset.mem_erase, ne_eq, and_true,
+          exists_eq_left]
         subst c_in
         subst precond_eq
         if φ = φ' ∧ ψ = ψ'
@@ -329,7 +337,8 @@ theorem LocalRuleUniqueL
       simp_all
       cases orule'
       case ncon φ' ψ' =>
-        simp at c_in
+        simp only [List.mem_cons, List.not_mem_nil, or_false, sdiff_singleton_is_erase,
+          exists_eq_or_imp, Finset.union_singleton, ↓existsAndEq, true_and] at c_in
         subst precond_eq
         cases c_in
         case inl c_eq =>
@@ -376,7 +385,10 @@ theorem LocalRuleUniqueR {R α L C precond ress}
     case neg φ =>
       cases orule'
       case neg φ' =>
-        simp_all
+        simp_all only [Finset.empty_subset, Finset.singleton_inj, Finset.singleton_subset_iff,
+          applyLocalRule, Finset.sdiff_empty, sdiff_singleton_is_erase, List.map_cons, List.map_nil,
+          Finset.union_empty, Finset.union_singleton, List.mem_cons, List.not_mem_nil, or_false,
+          Finset.mem_insert, Finset.mem_erase, ne_eq, and_true, exists_eq_left]
         subst c_in
         subst precond_eq
         if φ = φ'
@@ -386,7 +398,11 @@ theorem LocalRuleUniqueR {R α L C precond ress}
     case con φ ψ =>
       cases orule'
       case con φ' ψ' =>
-        simp_all
+        simp_all only [Finset.empty_subset, Finset.singleton_inj, Finset.singleton_subset_iff,
+          applyLocalRule, Finset.sdiff_empty, sdiff_singleton_is_erase, List.map_cons, List.map_nil,
+          Finset.union_empty, Finset.union_insert, Finset.union_singleton, List.mem_cons,
+          List.not_mem_nil, or_false, Finset.mem_insert, Finset.mem_erase, ne_eq, and_true,
+          exists_eq_left]
         subst c_in
         subst precond_eq
         if φ = φ' ∧ ψ = ψ'
@@ -400,7 +416,8 @@ theorem LocalRuleUniqueR {R α L C precond ress}
       simp_all
       cases orule'
       case ncon φ' ψ' =>
-        simp at c_in
+        simp only [List.mem_cons, List.not_mem_nil, or_false, sdiff_singleton_is_erase,
+          exists_eq_or_imp, Finset.union_singleton, ↓existsAndEq, true_and] at c_in
         subst precond_eq
         cases c_in
         case inl c_eq =>
@@ -529,18 +546,20 @@ theorem localRuleDecreasesLengthSide (rule : LocalRule (Lcond, Rcond) ress) :
     ( first
       | ( rename_i rule
           cases rule
-          <;> (simp at *; try rw [in_ress])
+          <;> (simp only [Finset.sum_empty, Finset.sum_singleton, List.empty_eq, List.map_cons,
+            List.map_nil, List.mem_cons, List.not_mem_nil, false_and, false_or, lengthOfFormula,
+            lengthOfSet, not_lt_zero, or_false, setFormulaHasLength] at *; try rw [in_ress])
           case neg φ => simp [←Nat.add_assoc]
-          case con φ ψ => simp; exact conDecreasesLength
+          case con φ ψ => simp only [and_true]; exact conDecreasesLength
           case ncon φ ψ =>
             rcases in_ress with case_phi | case_psi
             <;> ( first
                 | simp [case_psi]
-                | ( simp [case_phi]
+                | ( simp only [case_phi, Finset.sum_singleton, lengthOfFormula, add_lt_add_iff_left,
+                  and_true]
                     rw [Nat.add_comm 1 (lengthOfFormula φ), Nat.add_assoc]
                     aesop)))
       | all_goals aesop)
-
 
 -- These are used by aesop in `localRuleNoOverlap`.
 @[simp]
@@ -650,7 +669,7 @@ def diamondProjectTNode : Sum Formula Formula → TNode → TNode
 | (Sum.inr φ), (L, R) => (projection L, projection R ∪ {~φ})
 
 theorem proj_does_not_increase_vocab : voc (projection X) ⊆ voc X := by
-  simp
+  simp only [setFormulaHasVocabulary, vocabOfSetFormula, Finset.biUnion_subset_iff_forall_subset]
   intro φ φ_in_proj ℓ ℓ_in_φ
   rw [proj] at φ_in_proj
   simp
@@ -658,7 +677,7 @@ theorem proj_does_not_increase_vocab : voc (projection X) ⊆ voc X := by
 
 theorem vocProj (X) : voc (projection X) ⊆ voc X :=
   by
-  simp
+  simp only [setFormulaHasVocabulary, vocabOfSetFormula, Finset.biUnion_subset_iff_forall_subset]
   intro ϕ phi_in_proj
   rw [proj] at phi_in_proj
   intro a aInVocPhi
@@ -671,20 +690,24 @@ theorem diamondproj_does_not_increase_vocab_L {L φ R} (valid_proj : ~(□φ) �
   unfold jvoc at *
   apply Finset.mem_inter_of_mem
   · have ℓ_left := (Finset.mem_inter.mp ℓ_in_proj).left
-    simp [diamondProjectTNode ] at ℓ_left;
+    simp only [setFormulaHasVocabulary, diamondProjectTNode, Finset.union_singleton,
+      vocabOfSetFormula, Finset.biUnion_insert, vocabOfFormula, Finset.mem_union,
+      Finset.mem_biUnion] at ℓ_left;
     apply Or.elim ℓ_left
-    · intro ℓ_in_φ; simp;
+    · intro ℓ_in_φ
+      simp only [setFormulaHasVocabulary, vocabOfSetFormula, Finset.mem_biUnion];
       use ~(□φ)
       constructor
       · exact valid_proj
       · aesop
     · intro ⟨ψ, ψ_in_proj, ℓ_in_ψ⟩
       apply proj_does_not_increase_vocab
-      simp; use ψ
+      simp only [setFormulaHasVocabulary, vocabOfSetFormula, Finset.mem_biUnion]; use ψ
   · have ℓ_right := (Finset.mem_inter.mp ℓ_in_proj).right
-    simp [diamondProjectTNode ] at ℓ_right;
+    simp only [setFormulaHasVocabulary, diamondProjectTNode, Finset.union_singleton,
+      vocabOfSetFormula, Finset.mem_biUnion] at ℓ_right;
     apply proj_does_not_increase_vocab
-    simp; exact ℓ_right
+    simp only [setFormulaHasVocabulary, vocabOfSetFormula, Finset.mem_biUnion]; exact ℓ_right
 
 theorem diamondproj_does_not_increase_vocab_R (valid_proj : ~(□φ) ∈ R) :
     jvoc ((diamondProjectTNode (Sum.inr φ) (L,R))) ⊆ jvoc (L,R) := by
@@ -692,20 +715,24 @@ theorem diamondproj_does_not_increase_vocab_R (valid_proj : ~(□φ) ∈ R) :
   unfold jvoc at *
   apply Finset.mem_inter_of_mem
   · have ℓ_left := (Finset.mem_inter.mp ℓ_in_proj).left
-    simp [diamondProjectTNode ] at ℓ_left;
+    simp only [setFormulaHasVocabulary, diamondProjectTNode, Finset.union_singleton,
+      vocabOfSetFormula, Finset.mem_biUnion] at ℓ_left;
     apply proj_does_not_increase_vocab
-    simp; exact ℓ_left
+    simp only [setFormulaHasVocabulary, vocabOfSetFormula, Finset.mem_biUnion]; exact ℓ_left
   · have ℓ_right := (Finset.mem_inter.mp ℓ_in_proj).right
-    simp [diamondProjectTNode ] at ℓ_right;
+    simp only [setFormulaHasVocabulary, diamondProjectTNode, Finset.union_singleton,
+      vocabOfSetFormula, Finset.biUnion_insert, vocabOfFormula, Finset.mem_union,
+      Finset.mem_biUnion] at ℓ_right;
     apply Or.elim ℓ_right
-    · intro ℓ_in_φ; simp;
+    · intro ℓ_in_φ
+      simp only [setFormulaHasVocabulary, vocabOfSetFormula, Finset.mem_biUnion]
       use ~(□φ)
       constructor
       · exact valid_proj
       · aesop
     · intro ⟨ψ, ψ_in_proj, ℓ_in_ψ⟩
       apply proj_does_not_increase_vocab
-      simp; use ψ
+      simp only [setFormulaHasVocabulary, vocabOfSetFormula, Finset.mem_biUnion]; use ψ
 
 open LocalTableau
 

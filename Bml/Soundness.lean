@@ -73,10 +73,9 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
         specialize true_in_combo (Sum.inr ⟨R, otherWorld⟩)
         apply true_in_combo
         unfold combinedModel
-        simp
-        exact rel_in_old_model
+        simpa
       · intro true_in_old
-        simp
+        simp only [Sum.forall]
         constructor
         · intro newWorld
           unfold combinedModel
@@ -91,8 +90,7 @@ theorem combMo_preserves_truth_at_oldWOrld {β : Type}
           rw [f_IH]
           apply true_in_old
           -- remains to show that related in old model
-          simp at *
-          exact rel_in_new_model
+          simp_all
 
 
 /-- The combined model for X satisfies X. -/
@@ -112,8 +110,8 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
   by
     intro f f_in_LR
     unfold Simple SimpleSet at simple_LR
-    simp at simple_LR
-    simp at f_in_LR
+    simp only [Finset.mem_attach, SimpleForm, forall_const, Subtype.forall] at simple_LR
+    simp only [f_in_TNode, Finset.mem_union] at f_in_LR
     rw [←Finset.mem_union] at f_in_LR
     cases f
     -- no induction because (L, R) is simple
@@ -150,7 +148,8 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
           rw [coMoLemma]
           specialize all_pro_sat ⟨f, h⟩ (~f)
           unfold Evaluate at all_pro_sat
-          simp at *
+          simp only [Finset.mem_union, Prod.mk.eta, projectionUnion, Finset.union_singleton,
+            Finset.mem_insert, true_or, forall_const] at *
           exact all_pro_sat
         ·-- show that worlds are related in combined model (def above, case 2)
           aesop
@@ -193,11 +192,12 @@ theorem combMo_sat_LR {L R : Finset Formula} {β : Set Formula}
             otherWorld.snd
         rw [coMoLemma]
         specialize all_pro_sat otherWorld.fst f
-        simp at all_pro_sat
+        simp only [projectionUnion, Finset.union_singleton, Finset.mem_insert, Finset.mem_union,
+          Prod.mk.eta] at all_pro_sat
         rw [or_imp] at all_pro_sat
         rcases all_pro_sat with ⟨_, all_pro_sat_right⟩
         rw [←proj] at f_in_LR
-        simp at *
+        simp only [f_in_TNode, Finset.mem_union, projectionUnion, Sigma.eta] at *
         specialize all_pro_sat_right f_in_LR
         have sameWorld : otherWorld.snd = (collection otherWorld.fst).snd.snd := by
           rw [heq_iff_eq.mp (HEq.symm is_rel)]
@@ -234,11 +234,12 @@ theorem Lemma1_simple_sat_iff_all_projections_sat {LR : TNode} :
         intro R notboxr_in_LR
         let w_sat_notboxr := w_sat_LR (~(□R)) notboxr_in_LR
         unfold Evaluate at w_sat_notboxr
-        simp at w_sat_notboxr
+        simp only [Evaluate, not_forall, exists_prop] at w_sat_notboxr
         rcases w_sat_notboxr with ⟨v, w_rel_v, v_sat_notr⟩
         use W, M, v
         intro g
-        simp at *
+        simp only [Finset.mem_union, f_in_TNode, projectionUnion, Finset.union_singleton,
+          Finset.mem_insert] at *
         rw [or_imp]
         constructor
         · intro g_is_notR
@@ -286,11 +287,15 @@ theorem localRuleSoundness
   by
     intro satLR
     cases rule
-    <;> simp at *
+    <;> simp only [Evaluate, Finset.mem_insert, Finset.mem_union, Finset.notMem_empty,
+      Finset.union_assoc, Finset.union_empty, Finset.union_singleton, List.empty_eq,
+      List.mem_map, List.not_mem_nil, exists_exists_and_eq_and, exists_false, false_and,
+      false_or, forall_eq_or_imp, modelCanSemImplySet, or_false] at *
     <;> ( first
         | ( rename_i siderule
             cases siderule
-            <;> simp at *
+            <;> simp only [instBotFormula, Finset.mem_insert, Finset.mem_singleton, List.empty_eq,
+              List.not_mem_nil, false_and, exists_const] at *
             case bot => specialize satLR ⊥; tauto
             case not φ =>
               have : Evaluate (M, w) (~φ) := by
@@ -370,7 +375,7 @@ theorem atmSoundness {LR : TNode} {f} (not_box_f_in_LR : f_in_TNode (~(□f)) LR
   -- get the other reachable world:
   let w_sat_not_box_f := w_sat_LR (~f.box) not_box_f_in_LR
   unfold Evaluate at w_sat_not_box_f
-  simp at w_sat_not_box_f
+  simp only [Evaluate, not_forall, exists_prop] at w_sat_not_box_f
   rcases w_sat_not_box_f with ⟨v, w_rel_v, v_not_sat_f⟩
   -- show that the projection is satisfiable:
   use M, v
@@ -379,12 +384,12 @@ theorem atmSoundness {LR : TNode} {f} (not_box_f_in_LR : f_in_TNode (~(□f)) LR
   intro phi phi_in_proj
   rw [proj] at phi_in_proj
   cases phi_in_proj
-  · specialize w_sat_LR phi.box (by simp; left; assumption)
-    simp [Evaluate] at w_sat_LR
+  · specialize w_sat_LR phi.box (by simp only [Finset.mem_union]; left; assumption)
+    simp only [Evaluate] at w_sat_LR
     exact w_sat_LR v w_rel_v
   case inr hyp =>
     rw [proj] at hyp
-    specialize w_sat_LR phi.box (by simp; right; assumption)
+    specialize w_sat_LR phi.box (by simp only [Finset.mem_union]; right; assumption)
     exact w_sat_LR v w_rel_v
 
 theorem localTableauAndEndNodesUnsatThenNotSat (LR : TNode) {ltLR : LocalTableau LR} :

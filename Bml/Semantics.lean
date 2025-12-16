@@ -114,7 +114,7 @@ theorem forms_to_sets {φ ψ : Formula} : φ⊨ψ → ({φ} : Finset Formula)⊨
   by
   intro impTaut W M w lhs ψ1 psi1_in_setpsi
   specialize impTaut W M w
-  simp at *
+  simp only [Finset.mem_singleton, forall_eq] at *
   subst psi1_in_setpsi
   apply impTaut
   exact lhs
@@ -140,7 +140,7 @@ theorem sat_double_neq_invariant
   all_goals rintro ⟨W,M,w,satX⟩
   all_goals use W, M, w
   · intro φ' is_in
-    simp at is_in
+    simp only [Finset.union_singleton, Finset.mem_insert] at is_in
     cases is_in
     · specialize satX (~~φ)
       aesop
@@ -150,7 +150,7 @@ theorem sat_double_neq_invariant
       simp
       aesop
   · intro φ' is_in
-    simp at is_in
+    simp only [Finset.union_singleton, Finset.mem_insert] at is_in
     cases is_in
     · specialize satX φ
       aesop

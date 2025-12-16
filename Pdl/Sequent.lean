@@ -293,14 +293,15 @@ theorem Sequent.some_not_isFree L R olf : ¬ Sequent.isFree (L, R, some olf) := 
 
 -- delete me later?
 theorem setEqTo_isLoaded_iff {X Y : Sequent} (h : X.setEqTo Y) : X.isLoaded = Y.isLoaded := by
-  simp_all [Sequent.setEqTo, Sequent.isLoaded]
+  simp_all only [Sequent.setEqTo, Sequent.isLoaded, decide_false, decide_true]
   rcases X with ⟨XL, XR, _|_⟩ <;> rcases Y with ⟨YL, YR, _|_⟩
   all_goals
     simp_all
 
 theorem multisetEqTo_isLoaded_iff {X Y : Sequent} (h : X.multisetEqTo Y) :
     X.isLoaded = Y.isLoaded := by
-  simp_all [Sequent.multisetEqTo, Sequent.isLoaded]
+  simp_all only [Sequent.multisetEqTo, Multiset.coe_eq_coe, Sequent.isLoaded, decide_false,
+    decide_true]
   rcases X with ⟨XL, XR, _|_⟩ <;> rcases Y with ⟨YL, YR, _|_⟩
   all_goals
     simp_all
@@ -334,7 +335,7 @@ theorem vDash_setEqTo_iff {X Y : Sequent} (h : X.setEqTo Y) (M : KripkeModel W) 
   rcases Y with ⟨L',R',O'⟩
   simp only [modelCanSemImplySequent]
   unfold Sequent.setEqTo at h
-  simp at h
+  simp only at h
   rw [List.toFinset.ext_iff, List.toFinset.ext_iff] at h
   rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
   simp_all
@@ -345,7 +346,7 @@ theorem vDash_multisetEqTo_iff {X Y : Sequent} (h : X.multisetEqTo Y) (M : Kripk
   rcases Y with ⟨L',R',O'⟩
   simp only [modelCanSemImplySequent]
   unfold Sequent.multisetEqTo at h
-  simp at h
+  simp only [Multiset.coe_eq_coe] at h
   rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
   simp_all
   subst O_eq_O'
@@ -380,7 +381,8 @@ lemma Sequent.without_loadBoxes_isFree_of_eq_inl {L R δs} {χ : LoadFormula} {�
     : (Sequent.without (L, R, some (Sum.inl (~'⌊⌊d :: δs⌋⌋χ)))
       (~''(AnyFormula.loadBoxes (d :: (δs ++ αs)) (AnyFormula.normal φ)))).isFree := by
   unfold Sequent.without
-  simp
+  simp only [AnyFormula.loadBoxes_cons, NegLoadFormula.mem_Sequent, O_eq, Option.some.injEq,
+    Sum.inl.injEq, NegLoadFormula.neg.injEq, reduceCtorEq, or_false]
   suffices (⌊⌊d :: δs⌋⌋χ) = ⌊d⌋AnyFormula.loadBoxes (δs ++ αs) (AnyFormula.normal φ) by simp_all
   rw [box_loadBoxes_append_eq_of_loaded_eq_loadBoxes]
   exact h
@@ -390,7 +392,8 @@ lemma Sequent.without_loadBoxes_isFree_of_eq_inr {L R δs} {χ : LoadFormula} {�
     : (Sequent.without (L, R, some (Sum.inr (~'⌊⌊d :: δs⌋⌋χ)))
       (~''(AnyFormula.loadBoxes (d :: (δs ++ αs)) (AnyFormula.normal φ)))).isFree := by
   unfold Sequent.without
-  simp
+  simp only [AnyFormula.loadBoxes_cons, NegLoadFormula.mem_Sequent, O_eq, Option.some.injEq,
+    reduceCtorEq, Sum.inr.injEq, NegLoadFormula.neg.injEq, false_or]
   suffices (⌊⌊d :: δs⌋⌋χ) = ⌊d⌋AnyFormula.loadBoxes (δs ++ αs) (AnyFormula.normal φ) by simp_all
   rw [box_loadBoxes_append_eq_of_loaded_eq_loadBoxes]
   exact h
@@ -442,7 +445,7 @@ theorem AnyNegFormula.in_side_of_multisetEqTo {X Y} (h : X.multisetEqTo Y) {anf 
   -- rw [List.toFinset.ext_iff, List.toFinset.ext_iff] at h
   rcases h with ⟨L_iff, R_iff, O_eq_O'⟩
   subst O_eq_O'
-  cases side <;> rcases anf with ⟨(n|m)⟩ <;> simp_all [AnyNegFormula.in_side]
+  cases side <;> rcases anf with ⟨(n|m)⟩ <;> simp_all only [Multiset.coe_eq_coe, in_side]
   · exact List.Perm.mem_iff L_iff
   · exact List.Perm.mem_iff R_iff
 
@@ -466,7 +469,8 @@ lemma Sequent.isLoaded_of_negAnyFormula_loaded {α ξ side} {X : Sequent}
   rcases O with _|⟨lf|lf⟩
   · cases side <;> simp_all
   all_goals
-    cases side <;> simp at negLoad_in
+    cases side <;> simp only [Option.some.injEq, reduceCtorEq, Sum.inl.injEq,
+      Sum.inr.injEq] at negLoad_in
     subst negLoad_in
     cases ξ
     all_goals

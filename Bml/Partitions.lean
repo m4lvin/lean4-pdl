@@ -51,9 +51,13 @@ def InterpolantInductionStep
             have evalDis := MWsat (~bigDis interList) (by simp)
             rw [eval_neg_BigDis_iff_eval_bigConNeg] at evalDis
             use W, M, w
-            simp
+            simp only [Finset.union_singleton, Finset.mem_insert, forall_eq_or_imp, Evaluate,
+              bigCon_sat, List.mem_map, forall_exists_index, and_imp, forall_apply_eq_imp_iff₂,
+              not_forall, not_not, not_exists]
             constructor
-            · simp at evalDis; apply evalDis
+            · simp only [Evaluate, bigCon_sat, List.mem_map, forall_exists_index, and_imp,
+                forall_apply_eq_imp_iff₂, not_forall, not_not, not_exists] at evalDis;
+              apply evalDis
             · intro φ φ_in_L; apply MWsat; simp[φ_in_L]
           let ⟨⟨c,c_in_C⟩, _, sat_c_nnθ⟩ :=
             oneSidedRule_implies_child_sat_L def_ruleA def_rule L_and_bigC_sat
@@ -61,7 +65,8 @@ def InterpolantInductionStep
              (sat_double_neq_invariant (bigCon <| interList.map (~·))).mp sat_c_nnθ
           have sat_c_c'sθ : Satisfiable <| c.1 ∪ {~ (subθs c c_in_C).1} :=
             bigConNeg_union_sat_down sat_c_θ (subθs c c_in_C).1
-              (by simp (config := {zetaDelta := true}); use c, c_in_C)
+              (by simp (config := { zetaDelta := true }) only [List.mem_map, List.mem_attach,
+                true_and, Subtype.exists]; use c, c_in_C)
           exact (subθs c c_in_C).2 |> And.right |> And.left <| sat_c_c'sθ
         · intro R_and_θ_sat
           have ⟨⟨c,c_in_C⟩, _, sat_cθ⟩ :=
@@ -87,9 +92,10 @@ def InterpolantInductionStep
             have evalCon := MWsat (~bigCon interList) (by simp)
             rw [eval_negBigCon_iff_eval_bigDisNeg] at evalCon
             use W, M, w
-            simp
+            simp only [Finset.union_singleton, Finset.mem_insert, forall_eq_or_imp, bigDis_sat,
+              List.mem_map, exists_exists_and_eq_and, Evaluate]
             constructor
-            · simp at evalCon; apply evalCon
+            · simp_all
             · intro φ φ_in_L; apply MWsat; simp[φ_in_L]
           let ⟨⟨c,c_in_C⟩,_,sat_c'sθ⟩ := choice_property_in_image <| choice_property_in_image
             <| bigDis_union_sat_down L_and_bigD_sat
@@ -102,14 +108,17 @@ def InterpolantInductionStep
             oneSidedRule_implies_child_sat_R def_ruleA def_rule R_and_θ_sat
           have sat_c'sθ : Satisfiable <| c.2 ∪ {(subθs c c_in_C).1} :=
               bigCon_union_sat_down sat_c_θ ((subθs c c_in_C).1)
-                (by simp (config := {zetaDelta := true}); use c, c_in_C)
+                (by simp (config := { zetaDelta := true }) only [List.mem_map, List.mem_attach,
+                  true_and, Subtype.exists]; use c, c_in_C)
           exact (subθs c c_in_C).2 |> And.right |> And.right <| sat_c'sθ
     -- LRNEG L
     | LRnegL φ =>
       use φ
       constructor
       · intro ℓ ℓinφ
-        simp at ℓinφ; simp
+        simp only [formulaHasVocabulary] at ℓinφ
+        simp only [jvoc, setFormulaHasVocabulary, vocabOfSetFormula, Finset.mem_inter,
+          Finset.mem_biUnion]
         constructor
         · use  φ; constructor
           · exact preproof.left <| Finset.mem_singleton.mpr rfl
@@ -126,7 +135,9 @@ def InterpolantInductionStep
       use ~φ
       constructor
       · intro ℓ ℓinφ
-        simp at ℓinφ; simp
+        simp only [formulaHasVocabulary, vocabOfFormula] at ℓinφ
+        simp only [jvoc, setFormulaHasVocabulary, vocabOfSetFormula, Finset.mem_inter,
+          Finset.mem_biUnion]
         constructor
         · use  ~φ; constructor
           · exact preproof.left <| Finset.mem_singleton.mpr rfl
@@ -135,9 +146,11 @@ def InterpolantInductionStep
           · exact preproof.right <| Finset.mem_singleton.mpr rfl
           · exact ℓinφ
       · constructor
-        · apply negation_not_cosatisfiable (~φ) <;> simp
+        · apply negation_not_cosatisfiable (~φ) <;> simp only [Finset.union_singleton,
+            Finset.mem_insert, true_or]
           apply Or.intro_right; exact preproof.left <| Finset.mem_singleton.mpr rfl
-        · apply negation_not_cosatisfiable φ <;> simp
+        · apply negation_not_cosatisfiable φ <;> simp only [Finset.union_singleton,
+            Finset.mem_insert, true_or]
           apply Or.intro_right; exact preproof.right <| Finset.mem_singleton.mpr rfl
 
 -- Four (annoyingly similar) helper theorems for the modal cases in tabToInt.
@@ -150,18 +163,18 @@ theorem projection_reflects_unsat_L_L
   by
   rintro ⟨W,M,w,sat⟩
   have := sat (~(□φ)) (by simp; tauto)
-  simp at this
+  simp only [Evaluate, not_forall] at this
   rcases this with ⟨v,w_v,v_nPhi⟩
   absurd notSatNotTheta
   use W, M, v
   intro f f_in
-  simp at f_in
+  simp only [Finset.union_singleton, Finset.mem_insert] at f_in
   cases f_in
   case inl => aesop
   case inr f_in =>
     have := sat (□f)
     let (L, R) := LR
-    simp [diamondProjectTNode] at f_in
+    simp only [diamondProjectTNode, Finset.union_singleton, Finset.mem_insert] at f_in
     cases f_in
     case inl => aesop
     case inr hyp => rw [proj] at hyp; aesop
@@ -174,18 +187,18 @@ theorem projection_reflects_unsat_L_R
   by
   rintro ⟨W,M,w,sat⟩
   have := sat (~(□~θ)) (by simp)
-  simp at this
+  simp only [Evaluate, not_forall, not_not] at this
   rcases this with ⟨v,w_v,v_nPhi⟩
   absurd notSatNotTheta
   use W, M, v
   intro f f_in
-  simp at f_in
+  simp only [Finset.union_singleton, Finset.mem_insert] at f_in
   cases f_in
   case inl => aesop
   case inr f_in =>
     have := sat (□f)
     let (L, R) := LR
-    simp [diamondProjectTNode] at f_in
+    simp only [diamondProjectTNode, Finset.union_singleton] at f_in
     rw [proj] at f_in; aesop
 
 theorem projection_reflects_unsat_R_L
@@ -196,18 +209,18 @@ theorem projection_reflects_unsat_R_L
   by
   rintro ⟨W,M,w,sat⟩
   have := sat (~(□θ)) (by simp)
-  simp at this
+  simp only [Evaluate, not_forall] at this
   rcases this with ⟨v,w_v,v_nPhi⟩
   absurd notSatNotTheta
   use W, M, v
   intro f f_in
-  simp at f_in
+  simp only [Finset.union_singleton, Finset.mem_insert] at f_in
   cases f_in
   case inl => aesop
   case inr f_in =>
     have := sat (□f)
     let (L, R) := LR
-    simp [diamondProjectTNode] at f_in
+    simp only [diamondProjectTNode, Finset.union_singleton] at f_in
     rw [proj] at f_in
     aesop
 
@@ -219,22 +232,23 @@ theorem projection_reflects_unsat_R_R
   by
   rintro ⟨W,M,w,sat⟩
   have := sat (~(□φ)) (by simp; tauto)
-  simp at this
+  simp only [Evaluate, not_forall] at this
   rcases this with ⟨v,w_v,v_nPhi⟩
   absurd notSatNotTheta
   use W, M, v
   intro f f_in
-  simp at f_in
+  simp only [Finset.union_singleton, Finset.mem_insert] at f_in
   cases f_in
   case inl => aesop
   case inr f_in =>
     have := sat (□f)
     let (L, R) := LR
-    simp [diamondProjectTNode] at f_in
+    simp only [diamondProjectTNode, Finset.union_singleton, Finset.mem_insert] at f_in
     rw [proj] at f_in
     cases f_in
-    case inl hyp => subst hyp; simp; exact v_nPhi
-    case inr => simp at this; apply this (by right; assumption) v w_v
+    case inl hyp => subst hyp; simp only [Evaluate]; exact v_nPhi
+    case inr => simp only [Finset.union_singleton, Finset.mem_insert, Formula.box.injEq,
+      Evaluate] at this; apply this (by right; assumption) v w_v
 
 open HasLength
 
@@ -286,7 +300,7 @@ theorem elem_lt_map_sum {x : α} {l : List α}
   induction l
   · simp_all
   case cons k l IH =>
-    simp_all
+    simp_all only [List.mem_cons, List.map_cons, List.sum_cons]
     cases h
     · simp_all
     case inr x_in =>
@@ -431,6 +445,6 @@ termination_by tab.length
 decreasing_by
 all_goals
   subst_eqs
-  simp [ClosedTableau.length]
+  simp only [ClosedTableau.length, lt_add_iff_pos_left, zero_lt_one]
 · exact childNext_lt subTabs next cLR c_in_C
 · apply simple_lt isSimple next
