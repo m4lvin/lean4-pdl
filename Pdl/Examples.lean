@@ -50,7 +50,7 @@ theorem A2 : tautology (⌈a⌉ ⊤) :=
 theorem A3 : tautology ((⌈a⌉(X⋀Y)) ↣ (⌈a⌉X) ⋀ (⌈a⌉Y)) :=
   by
   unfold tautology
-  simp
+  simp only [evaluate, not_and, not_forall, not_exists, not_not, exists_prop]
   intro W M w hyp
   constructor
   · intro v
@@ -80,7 +80,7 @@ theorem A6 (a : Program) (φ : Formula) : tautology ((⌈∗a⌉φ) ⟷ (φ ⋀ 
   intro W M w
   constructor
   · -- left to right
-    simp
+    simp only [evaluate, relate, not_and, not_forall, not_exists, not_not, exists_prop]
     intro starAφ
     constructor
     · -- show φ using refl:

@@ -296,8 +296,9 @@ lemma same_winner_of_same_in_cone {i g} {sI : Strategy g i} {sJ sJ' : Strategy g
     (same_cone : ∀ r, inMyCone sJ p r → sJ r = sJ' r)
     : winner sI sJ p = winner sI sJ' p := by
   unfold winner
-  by_cases (Game.moves p).Nonempty <;> simp_all
-  by_cases (Game.turn p = i) <;> simp_all
+  by_cases (Game.moves p).Nonempty <;> simp_all only [Finset.not_nonempty_iff_eq_empty,
+    Finset.not_nonempty_empty, ↓reduceDIte]
+  by_cases (Game.turn p = i) <;> simp_all only [not_eq_i_eq_other, not_other_i_eq_i, ↓reduceDIte]
   case pos p_has_moves turn =>
     apply same_winner_of_same_in_cone
     intro r r_in
@@ -331,7 +332,7 @@ theorem winning_of_whatever_other_move {i g} {sI : Strategy g i}
   unfold sJ_m winner at sI_wins_p
   have : (Game.moves p).Nonempty := ⟨m.1,m.2⟩
   have : ¬ Game.turn p = i := by aesop
-  simp [*] at sI_wins_p
+  simp only [↓reduceDIte, not_other_i_eq_i, *] at sI_wins_p
   convert sI_wins_p using 1 -- because rw [← sI_wins_p] does not work
   apply same_winner_of_same_in_cone
   -- Remains to show that sJ and sJ_m will agree on all remaining moves.

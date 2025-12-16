@@ -74,15 +74,19 @@ mutual
 lemma FL_trans {φ ψ} :
     ψ ∈ FL φ → FL ψ ⊆ FL φ := by
   intro ψ_in
-  cases φ <;> simp [FL] at *
-  · cases ψ_in <;> subst_eqs <;> simp [FL]
-  · cases ψ_in <;> subst_eqs <;> simp [FL]
-  · case neg φ =>
+  cases φ
+  · simp only [FL, Formula.instBot, List.mem_cons, List.not_mem_nil, or_false] at *
+    cases ψ_in <;> subst_eqs <;> simp [FL]
+  · simp only [FL, List.mem_cons, List.not_mem_nil, or_false] at *
+    cases ψ_in <;> subst_eqs <;> simp [FL]
+  · simp only [FL, List.cons_append, List.nil_append, List.mem_cons] at *
+    case neg φ =>
     cases ψ_in <;> subst_eqs
     · simp [FL]
     · have IH := @FL_trans φ
       aesop
   case and φ1 φ2 =>
+    simp only [FL, List.cons_append, List.nil_append, List.mem_cons, List.mem_append] at *
     rcases ψ_in with h|h|h|h|h|h <;> subst_eqs
     · simp [FL]
     · simp [FL]
@@ -93,6 +97,7 @@ lemma FL_trans {φ ψ} :
     · have IH2 := @FL_trans φ2 ψ h
       grind
   case box α φ =>
+    simp only [FL, List.cons_append, List.nil_append, List.mem_cons, List.mem_append] at *
     rcases ψ_in with h|h|h|h
     · subst_eqs
       simp [FL]
@@ -107,9 +112,13 @@ lemma FL_trans {φ ψ} :
 lemma FLb_trans {α φ ψ} :
     ψ ∈ FLb α φ → FL ψ ⊆ FLb α φ ++ FL (~φ) := by
   intro ψ_in
-  cases α <;> simp [FLb] at *
-  · cases ψ_in <;> subst_eqs <;> grind [FL, FLb]
+  cases α
+  · simp only [FLb, List.mem_cons, List.not_mem_nil, or_false, List.cons_append,
+      List.nil_append] at *
+    cases ψ_in <;> subst_eqs <;> grind [FL, FLb]
   case sequence α1 α2 =>
+    simp only [FLb, List.cons_append, List.nil_append, List.mem_cons, List.mem_append,
+      List.append_assoc] at *
     rcases ψ_in with h|h|h|h
     · subst_eqs; grind [FL,FLb]
     · subst_eqs; grind [FL,FLb]
@@ -122,6 +131,8 @@ lemma FLb_trans {α φ ψ} :
     · have IH2 := @FLb_trans α2 φ ψ h
       grind [FL]
   case union α1 α2 =>
+    simp only [FLb, List.cons_append, List.nil_append, List.mem_cons, List.mem_append,
+      List.append_assoc] at *
     rcases ψ_in with h|h|h|h
     · subst_eqs; grind [FL,FLb]
     · subst_eqs; grind [FL,FLb]
@@ -134,13 +145,15 @@ lemma FLb_trans {α φ ψ} :
       specialize IH2 x_in
       aesop
   case star α =>
+    simp only [FLb, List.cons_append, List.nil_append, List.mem_cons] at *
     rcases ψ_in with h|h|h
     · subst_eqs; grind [FL,FLb]
     · subst_eqs; grind [FL,FLb]
     · have IH := @FLb_trans α (⌈∗α⌉φ) ψ h
       intro x x_in
       specialize IH x_in
-      simp [FL] at *
+      simp only [FL, List.cons_append, List.nil_append, List.mem_append, List.mem_cons,
+        or_self_left] at *
       rcases IH with h|h|h|h|h
       · aesop
       · aesop
@@ -148,6 +161,7 @@ lemma FLb_trans {α φ ψ} :
       · grind [FLb]
       · aesop
   case test τ =>
+    simp only [FLb, List.cons_append, List.nil_append, List.mem_cons] at *
     rcases ψ_in with h|h|h
     · subst_eqs; grind [FL, FLb]
     · subst_eqs; simp [FL, FLb]; grind
@@ -261,26 +275,23 @@ lemma FLL_ext (h : ∀ φ, φ ∈ L1 ↔ φ ∈ L2) φ : φ ∈ FLL L1  ↔ φ �
 mutual
 
 lemma FL_stays_in_voc {φ ψ} (ψ_in_FL : ψ ∈ FL φ) : ψ.voc ⊆ φ.voc := by
-  cases φ <;> simp_all [FL]
+  cases φ
   case neg φ =>
+    simp_all only [FL, List.cons_append, List.nil_append, List.mem_cons, Formula.voc]
     rcases ψ_in_FL with _|h <;> subst_eqs
     · simp at *
     · exact FL_stays_in_voc h
   case and φ1 φ2 =>
+    simp_all only [FL, List.cons_append, List.nil_append, List.mem_cons, List.mem_append,
+      Formula.voc]
     rcases ψ_in_FL with h|h|h|h|h|h
-    · subst_eqs
-      simp
-    · subst_eqs
-      simp
-    · subst_eqs
-      simp
-    · subst_eqs
-      simp
-    · have IH := FL_stays_in_voc h
-      grind
-    · have IH := FL_stays_in_voc h
+    any_goals (subst_eqs; simp)
+    all_goals
+      have IH := FL_stays_in_voc h
       grind
   case box α φ =>
+    simp_all only [FL, List.cons_append, List.nil_append, List.mem_cons, List.mem_append,
+      Formula.voc]
     rcases ψ_in_FL with h|h|h|h
     · subst_eqs; simp
     · subst_eqs; simp
@@ -288,10 +299,13 @@ lemma FL_stays_in_voc {φ ψ} (ψ_in_FL : ψ ∈ FL φ) : ψ.voc ⊆ φ.voc := b
     · have IH := FL_stays_in_voc h
       grind
   all_goals
+    simp_all only [FL, Formula.instBot, List.mem_cons, List.not_mem_nil, or_false, Formula.voc,
+      Finset.subset_empty]
     grind [Formula.voc]
 
 lemma FLb_stays_in_voc {α φ ψ} (ψ_in_FLb : ψ ∈ FLb α φ) : ψ.voc ⊆ α.voc ∪ φ.voc := by
-  cases α <;> simp_all [FLb]
+  cases α <;> simp_all only [FLb, List.cons_append, List.nil_append, List.mem_cons,
+    List.mem_append, Program.voc, Finset.union_assoc]
   case atom_prog =>
     aesop
   case sequence α1 α2 =>

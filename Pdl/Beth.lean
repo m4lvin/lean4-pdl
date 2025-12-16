@@ -28,9 +28,10 @@ theorem beth (φ : Formula) (h : φ.impDef p) :
   have : tautology
       ((repl_in_F p (·p0) φ ⋀ ·p0) ↣ (repl_in_F p (·p1) φ ↣ ·p1)) := by
     intro W M w
-    simp
+    simp only [evaluate, not_and, not_not, Classical.not_imp, and_imp]
     specialize h p0 p1 W M w
-    simp at h
+    simp only [List.mem_cons, List.not_mem_nil, or_false, forall_eq, evaluate, not_and, not_not,
+      and_imp] at h
     intro w_φp0 w_p0
     specialize h w_φp0
     aesop
@@ -53,9 +54,10 @@ theorem beth (φ : Formula) (h : φ.impDef p) :
     all_goals
       simp_all only [ite_true, Finset.mem_singleton, or_self_right]
       by_contra hyp
-      simp [hyp] at *
+      simp only [ne_eq, hyp, ↓reduceIte, Finset.notMem_empty, or_self, false_or,
+        not_false_eq_true] at *
       absurd p0_neq_p1
-      rw[ip_voc0] at ip_voc1; injection ip_voc1
+      rw [ip_voc0] at ip_voc1; injection ip_voc1
   · -- show the semantic condition:
     have ip_one_p : tautology ((φ ⋀ ·p) ↣ ψ) := by
       clear ip_two
@@ -65,7 +67,8 @@ theorem beth (φ : Formula) (h : φ.impDef p) :
       apply this _ ip_one
       · intro p0_in_ψ
         specialize ip_voc p0_in_ψ
-        simp [p0_neq_p1] at ip_voc
+        simp only [Formula.voc, Finset.union_singleton, Finset.mem_inter, Finset.mem_insert,
+          true_or, Sum.inl.injEq, p0_neq_p1, false_or, true_and] at ip_voc
         rw [repl_in_F_voc_def] at ip_voc
         aesop
     have ip_two_p : tautology (ψ ↣ (φ ↣ ·p)) := by
@@ -78,7 +81,8 @@ theorem beth (φ : Formula) (h : φ.impDef p) :
       -- rest is same as in ip_one_p
       · intro p1_in_ψ
         specialize ip_voc p1_in_ψ
-        simp at ip_voc
+        simp only [Formula.voc, Finset.union_singleton, Finset.mem_inter, Finset.mem_insert,
+          Sum.inl.injEq, true_or, and_true] at ip_voc
         rw [repl_in_F_voc_def] at ip_voc
         aesop
       · assumption
