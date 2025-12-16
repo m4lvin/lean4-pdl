@@ -44,28 +44,28 @@ lemma congr_liftFun₂ {α β : Type} [HasEquiv α] [HasEquiv β] [HasEquiv γ] 
 
 /-! ## Lifting formula connectives to the quotient -/
 
-lemma Formula.neg_congr {φ ψ : Formula} (h : φ ≈ ψ) : Formula.neg φ ≈ Formula.neg ψ :=
-  by simp [HasEquiv.Equiv, Setoid.r, semEquiv] at *
-     intros W M w
-     simp_all only
+lemma Formula.neg_congr {φ ψ : Formula} (h : φ ≈ ψ) : Formula.neg φ ≈ Formula.neg ψ := by
+  simp only [HasEquiv.Equiv, Setoid.r, semEquiv, evaluate] at *
+  intros W M w
+  simp_all
 
 def SemProp.neg : SemProp → SemProp :=
   Quotient.map Formula.neg (congr_liftFun <| fun _ _ => Formula.neg_congr)
 
 lemma Formula.and_congr {φ₁ ψ₁ φ₂ ψ₂ : Formula} (h₁ : φ₁ ≈ φ₂) (h₂ : ψ₁ ≈ ψ₂) :
-  φ₁.and ψ₁ ≈ φ₂.and ψ₂ :=
-  by simp [HasEquiv.Equiv, Setoid.r, semEquiv] at *
-     intros W M w
-     simp_all only
+    φ₁.and ψ₁ ≈ φ₂.and ψ₂ := by
+  simp only [HasEquiv.Equiv, Setoid.r, semEquiv, evaluate] at *
+  intros W M w
+  simp_all
 
 def SemProp.and : SemProp → SemProp → SemProp :=
   Quotient.map₂ Formula.and (congr_liftFun₂ <| fun _ _ _ _ hx hy => Formula.and_congr hx hy)
 
 lemma Formula.box_congr {α β : Program} {φ ψ : Formula} (h₁ : α ≈ β) (h₂ : φ ≈ ψ) :
-  φ.box α ≈ ψ.box β :=
-  by simp [HasEquiv.Equiv, Setoid.r, semEquiv, relEquiv] at *
-     intros W M w
-     simp_all only
+    φ.box α ≈ ψ.box β := by
+  simp only [HasEquiv.Equiv, Setoid.r, relEquiv, semEquiv, evaluate] at *
+  intros W M w
+  simp_all only
 
 def SemProp.box : RelProp → SemProp → SemProp :=
   Quotient.map₂ Formula.box (fun _ _ hx _ _ hy => Formula.box_congr hx hy)
@@ -102,10 +102,10 @@ theorem neg_eq {φ ψ : Formula} (h : φ ≈ ψ) :
   Quotient.sound (Formula.neg_congr h)
 
 theorem neg_neg_eq' (φ : Formula) :
-    SemProp.neg (SemProp.neg <| Quotient.mk' φ) = Quotient.mk' φ :=
-  by apply Quotient.sound
-     intro W M w
-     simp [evaluate]
+    SemProp.neg (SemProp.neg <| Quotient.mk' φ) = Quotient.mk' φ := by
+  apply Quotient.sound
+  intro W M w
+  simp [evaluate]
 
 theorem trans_calc {P Q R : Prop} (hpq : P ↔ Q) (hqr : Q ↔ R) : P ↔ R :=
   by calc
@@ -117,6 +117,5 @@ example {φ ψ τ : Formula} (h1 : φ ≈ ψ) (h2 : ψ ≈ τ) : φ ≈ τ :=
     φ ≈ ψ := h1
     _ ≈ τ := h2
 
-theorem neg_neg_eq {φ : Formula} : Formula.neg (Formula.neg φ) ≈ φ := by
-  apply Quotient.exact
-  apply neg_neg_eq'
+theorem neg_neg_eq {φ : Formula} : Formula.neg (Formula.neg φ) ≈ φ :=
+  Quotient.exact (neg_neg_eq' _)

@@ -13,7 +13,7 @@ lemma modelExistence {X} : consistent X →
   rcases gamedet tableauGame (startPos X) with ProverHasWinningS | BuilderHasWinningS
   · absurd consX
     rcases ProverHasWinningS with ⟨sP, winning_sP⟩
-    simp_all [inconsistent]
+    simp_all only [inconsistent]
     exact gameP _ (sP) winning_sP
   · rcases BuilderHasWinningS with ⟨sB, winning_sB⟩
     rcases strmg X sB winning_sB with ⟨WS, mg, Z, Z_in_WS, X_sub_Z⟩
@@ -25,7 +25,9 @@ theorem completeness : ∀ X, consistent X → satisfiable X :=
   rintro ⟨L, R, O⟩ X_is_consistent
   have ⟨WS, M, w, h⟩ := modelExistence X_is_consistent
   use WS, M.val, w
-  simp [modelCanSemImplySequent, Sequent.toFinset] at *
+  simp only [Sequent.toFinset, Finset.union_assoc, modelCanSemImplySequent, List.mem_union_iff,
+    Option.mem_toList, Option.map_eq_some_iff, Sum.exists, Sum.elim_inl, negUnload,
+    Sum.elim_inr] at *
   intro f f_in
   apply truthLemma M w f
   apply h

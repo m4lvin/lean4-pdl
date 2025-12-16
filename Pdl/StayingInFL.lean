@@ -439,17 +439,19 @@ theorem LocalRule.stays_in_FL {X B}
   cases rule
   case oneSidedL precond ress orule B_def =>
     subst B_def
-    simp at *
+    simp only [List.empty_eq, List.mem_map] at *
     rcases Y_in_B with ⟨res, res_in, def_Y⟩
     subst def_Y
-    simp [Sequent.subseteq_FL]
+    simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_none, List.append_nil,
+      List.nil_subset, Sequent.R_eq, Olf.R_none, FLL_nil, List.Subset.refl, and_self, and_true]
     apply OneSidedLocalRule.stays_in_FL orule _ res_in
   case oneSidedR precond ress orule B_def =>
     subst B_def
-    simp at *
+    simp only [List.empty_eq, List.mem_map] at *
     rcases Y_in_B with ⟨res, res_in, def_Y⟩
     subst def_Y
-    simp [Sequent.subseteq_FL]
+    simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_none, List.append_nil,
+      FLL_nil, List.Subset.refl, Sequent.R_eq, Olf.R_none, List.nil_subset, and_true, true_and]
     apply OneSidedLocalRule.stays_in_FL orule _ res_in
   case LRnegL =>
     absurd Y_in_B
@@ -459,7 +461,7 @@ theorem LocalRule.stays_in_FL {X B}
     tauto
   case loadedL ress χ lorule B_def =>
     subst B_def
-    simp [List.empty_eq, List.mem_map, Prod.exists] at *
+    simp only [List.empty_eq, List.mem_map, Prod.exists] at *
     rcases Y_in_B with ⟨l, o, in_ress, def_Y⟩
     have := LoadRule.stays_in_FL_left lorule (l, o) in_ress
     simp_all
@@ -484,27 +486,28 @@ theorem LocalTableau.stays_in_FL {X}
     subst X_def hC
     simp only [LocalRuleApp.X] at _forTermination
     have lr_lemma := LocalRule.stays_in_FL rule
-    simp [endNodesOf] at Y_in_B
+    simp only [applyLocalRule.eq_1, LocalRuleApp.X, endNodesOf, List.mem_flatten, List.mem_map,
+      List.mem_attach, true_and, Subtype.exists, ↓existsAndEq] at Y_in_B
     rcases Y_in_B with ⟨l, ⟨W, W_in, def_l⟩ , Y_in⟩
     subst def_l
     have IH := LocalTableau.stays_in_FL _ Y Y_in
     clear _forTermination -- to avoid simplifying it
     specialize lr_lemma W W_in
     rcases W with ⟨Lnew, Rnew, Onew⟩
-    simp at *
+    simp only [LocalRuleApp.X] at *
     clear Y_in next
     simp [Sequent.subseteq_FL, FLL_append_eq] at IH lr_lemma ⊢
     obtain ⟨IHL, IHLO, IHR, IHRO⟩ := IH
     obtain ⟨lemL, lemLO, lemR, lemRO⟩ := lr_lemma
     refine ⟨?_, ?_ , ?_ , ?_⟩ <;> intro x x_in
     · specialize IHL x_in
-      simp at *
+      simp only [Option.instHasSubsetOption, List.mem_append] at *
       rcases IHL with h|h|h
       · left
         have := @FLL_diff_sub L Lcond
         aesop
       · have := FLL_sub lemL h
-        simp [FLL_append_eq] at this
+        simp only [FLL_append_eq, List.mem_append, FLL_idem_ext] at this
         rcases this with in_Lcond|inOcondL
         · left
           apply @FLL_sub Lcond L (List.Subperm.subset Lconp) _ in_Lcond
@@ -564,13 +567,13 @@ theorem LocalTableau.stays_in_FL {X}
           rw [← FLL_idem_ext]
           exact List.mem_flatMap_of_mem lemLO h
     · specialize IHR x_in
-      simp at *
+      simp only [Option.instHasSubsetOption, List.mem_append] at *
       rcases IHR with h|h|h
       · left
         have := @FLL_diff_sub R Rcond
         aesop
       · have := FLL_sub lemR h
-        simp [FLL_append_eq] at this
+        simp only [FLL_append_eq, List.mem_append, FLL_idem_ext] at this
         rcases this with in_Rcond|inOcondR
         · left
           apply @FLL_sub Rcond R (List.Subperm.subset Rconp) _ in_Rcond
@@ -597,13 +600,13 @@ theorem LocalTableau.stays_in_FL {X}
           · right
             exact FL_trans lemH h
     · specialize IHRO x_in
-      simp at *
+      simp only [Option.instHasSubsetOption, List.mem_append] at *
       rcases IHRO with h|h|h
       · left
         have := @FLL_diff_sub R Rcond
         aesop
       · have := FLL_sub lemR h
-        simp [FLL_append_eq] at this
+        simp only [FLL_append_eq, List.mem_append, FLL_idem_ext] at this
         rcases this with in_Rcond|inOcondR
         · left
           apply @FLL_sub Rcond R (List.Subperm.subset Rconp) _ in_Rcond
@@ -635,7 +638,10 @@ termination_by
 decreasing_by
   simp_wf
   subst_eqs
-  simp at *
+  simp only [lt_Sequent, node_to_multiset, Multiset.coe_add, Multiset.coe_singleton, LocalRuleApp.X,
+    endNodesOf, List.mem_flatten, List.mem_map, List.mem_attach, true_and, Subtype.exists,
+    ↓existsAndEq, applyLocalRule, forall_exists_index, and_imp, forall_apply_eq_imp_iff₂,
+    applyLocalRule.eq_1] at *
   apply _forTermination W W_in
 
 lemma projection_sub_FLL {a L} : projection a L ⊆ FLL L := by
@@ -652,41 +658,50 @@ theorem PdlRule.stays_in_FL {X Y} (rule : PdlRule X Y) :
   cases rule
   case loadL L δ α φ R in_L notBox Y_def =>
     subst Y_def
-    simp [Sequent.subseteq_FL]
+    simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_none, List.append_nil,
+      Olf.L_inl, unload_boxes, LoadFormula.unload, List.cons_subset, List.nil_subset, and_true,
+      Sequent.R_eq, Olf.R_none, FLL_refl_sub, Olf.R_inl, and_self]
     constructor
     · exact List.Subset.trans List.erase_subset FLL_refl_sub
     · exact FLL_refl_sub in_L
   case loadR L δ α φ R in_L notBox Y_def =>
     subst Y_def
-    simp [Sequent.subseteq_FL]
+    simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_none, List.append_nil,
+      FLL_refl_sub, Olf.L_inr, List.nil_subset, Sequent.R_eq, Olf.R_none, Olf.R_inr, unload_boxes,
+      LoadFormula.unload, List.cons_subset, and_true, true_and]
     constructor
     · exact List.Subset.trans List.erase_subset FLL_refl_sub
     · exact FLL_refl_sub in_L
   case freeL L R δ α φ X_def Y_def =>
     subst X_def
     subst Y_def
-    simp [Sequent.subseteq_FL]
+    simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_inl, unload_boxes,
+      LoadFormula.unload, Olf.L_none, List.nil_subset, Sequent.R_eq, Olf.R_inl, List.append_nil,
+      FLL_refl_sub, Olf.R_none, and_self, and_true]
     intro x x_in
     simp at x_in
     apply FLL_refl_sub
     simp
     tauto
   case freeR L R δ α φ X_def Y_def =>
-    subst X_def
-    subst Y_def
-    simp [Sequent.subseteq_FL]
+    subst X_def Y_def
+    simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_inr, List.append_nil,
+      FLL_refl_sub, Olf.L_none, List.nil_subset, Sequent.R_eq, Olf.R_inr, unload_boxes,
+      LoadFormula.unload, Olf.R_none, and_true, true_and]
     intro x x_in
-    simp at x_in
+    simp only [List.mem_insert_iff] at x_in
     apply FLL_refl_sub
-    simp
+    simp only [List.mem_append, List.mem_cons, List.not_mem_nil, or_false]
     tauto
   case modL L R a ξ X_def Y_def =>
     subst X_def
     subst Y_def
-    cases ξ <;> simp [Sequent.subseteq_FL]
+    cases ξ <;> simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_inl,
+      LoadFormula.unload, List.cons_subset, Olf.L_none, List.nil_subset, Sequent.R_eq, Olf.R_inl,
+      List.append_nil, Olf.R_none, and_true, true_and]
     case normal φ =>
       refine ⟨⟨?_, ?_⟩, ?_⟩
-      · simp [FLL_append_eq]
+      · simp only [FLL_append_eq, FLL_singelton, List.mem_append]
         right
         -- Note: here the closure under single negation matters.
         simp [FL, FLb]
@@ -697,7 +712,7 @@ theorem PdlRule.stays_in_FL {X Y} (rule : PdlRule X Y) :
       refine ⟨?_, ?_, ?_⟩
       · have := @projection_sub_FLL a L
         grind [FLL_append_eq]
-      · simp [FLL_append_eq]
+      · simp only [FLL_append_eq, FLL_singelton, List.mem_append]
         right
         -- Note: here the closure under single negation matters.
         simp [FL, FLb]
@@ -705,11 +720,13 @@ theorem PdlRule.stays_in_FL {X Y} (rule : PdlRule X Y) :
   case modR L R a ξ X_def Y_def => -- analogous to `modL` case
     subst X_def
     subst Y_def
-    cases ξ <;> simp [Sequent.subseteq_FL]
+    cases ξ <;> simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_inr,
+      List.append_nil, Olf.L_none, List.nil_subset, Sequent.R_eq, Olf.R_inr, LoadFormula.unload,
+      List.cons_subset, Olf.R_none, and_true, true_and]
     case normal φ =>
       refine ⟨?_, ?_, ?_⟩
       · apply @projection_sub_FLL a L
-      · simp [FLL_append_eq]
+      · simp only [FLL_append_eq, FLL_singelton, List.mem_append]
         right
         -- Note: here the closure under single negation matters.
         simp [FL, FLb]
@@ -720,7 +737,7 @@ theorem PdlRule.stays_in_FL {X Y} (rule : PdlRule X Y) :
       · apply projection_sub_FLL
       · have := @projection_sub_FLL a R
         grind [FLL_append_eq]
-      · simp [FLL_append_eq]
+      · simp only [FLL_append_eq, FLL_singelton, List.mem_append]
         right
         -- Note: here the closure under single negation matters.
         simp [FL, FLb]

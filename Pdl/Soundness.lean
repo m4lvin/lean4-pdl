@@ -22,27 +22,39 @@ theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := b
   -- the loading rules are easy, because loading never changes semantics
   case loadL =>
     use W, M, w
-    simp_all [modelCanSemImplySequent]
+    simp_all only [modelCanSemImplySequent, List.mem_union_iff, Option.mem_toList,
+      Option.map_eq_some_iff, Sum.exists, Sum.elim_inl, negUnload, Sum.elim_inr, reduceCtorEq,
+      false_and, exists_false, or_self, or_false, Option.some.injEq, Sum.inl.injEq, exists_eq_left',
+      unload_boxes, LoadFormula.unload]
     intro φ φ_in
     rcases φ_in with ((in_L | in_R) | φ_def)
     all_goals (apply w_; subst_eqs; try tauto)
     left; exact List.mem_of_mem_erase in_L
   case loadR =>
     use W, M, w
-    simp_all [modelCanSemImplySequent]
+    simp_all only [modelCanSemImplySequent, List.mem_union_iff, Option.mem_toList,
+      Option.map_eq_some_iff, Sum.exists, Sum.elim_inl, negUnload, Sum.elim_inr, reduceCtorEq,
+      false_and, exists_false, or_self, or_false, Option.some.injEq, Sum.inr.injEq, exists_eq_left',
+      unload_boxes, LoadFormula.unload, false_or]
     intro φ φ_in
     rcases φ_in with ((in_L | in_R) | φ_def)
     all_goals (apply w_; subst_eqs; try tauto)
     right; exact List.mem_of_mem_erase in_R
   case freeL =>
     use W, M, w
-    simp_all [modelCanSemImplySequent]
+    simp_all only [modelCanSemImplySequent, List.mem_union_iff, Option.mem_toList,
+      Option.map_eq_some_iff, Sum.exists, Sum.elim_inl, negUnload, Sum.elim_inr, Option.some.injEq,
+      Sum.inl.injEq, exists_eq_left', unload_boxes, LoadFormula.unload, reduceCtorEq, false_and,
+      exists_false, or_false, List.mem_insert_iff, or_self]
     intro φ φ_in
     rcases φ_in with (φ_def | (in_L | in_R))
     all_goals (apply w_; tauto)
   case freeR =>
     use W, M, w
-    simp_all [modelCanSemImplySequent]
+    simp_all only [modelCanSemImplySequent, List.mem_union_iff, Option.mem_toList,
+      Option.map_eq_some_iff, Sum.exists, Sum.elim_inl, negUnload, Sum.elim_inr, Option.some.injEq,
+      reduceCtorEq, false_and, exists_false, Sum.inr.injEq, exists_eq_left', unload_boxes,
+      LoadFormula.unload, false_or, List.mem_insert_iff, or_self, or_false]
     intro φ φ_in
     rcases φ_in with (φ_def | (in_L | in_R))
     all_goals (apply w_;  subst_eqs; try tauto)
@@ -51,33 +63,37 @@ theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := b
     use W, M -- but not the same world!
     have := w_ (negUnload (~'⌊·a⌋χ))
     cases χ
-    · simp [LoadFormula.unload] at *
+    · simp only [Option.map_some, Sum.elim_inl, negUnload, LoadFormula.unload, Option.toList_some,
+      List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false, or_true, evaluate.eq_3,
+      evaluate, relate, not_forall, forall_const] at *
       rcases this with ⟨v, w_a_b, v_⟩
       use v
       intro φ φ_in
-      simp at φ_in
+      simp only [List.cons_union, Option.map_none, Option.toList_none, List.mem_union_iff,
+        List.mem_insert_iff, proj, List.not_mem_nil, or_false] at φ_in
       rcases φ_in with ( φ_def | (in_L | in_R))
       · subst φ_def
         simp only [evaluate]
         assumption
       · have := w_ (⌈·a⌉φ) (by simp; tauto)
-        simp at this;
+        simp only [evaluate, relate] at this;
         exact this _ w_a_b
       · have := w_ (⌈·a⌉φ) (by simp; tauto)
-        simp at this;
+        simp only [evaluate, relate] at this;
         exact this _ w_a_b
-    · simp [LoadFormula.unload] at *
+    · simp only [Option.map_some, Sum.elim_inl, negUnload, LoadFormula.unload, Option.toList_some,
+      List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false, or_true, evaluate, relate,
+      not_forall, forall_const] at *
       rcases this with ⟨v, w_a_b, v_⟩
       use v
       intro φ φ_in
-      simp at φ_in
+      simp only [Option.map_some, Sum.elim_inl, negUnload, Option.toList_some, List.mem_union_iff,
+        proj, List.mem_cons, List.not_mem_nil, or_false] at φ_in
       rcases φ_in with ((in_L | in_R) | φ_def)
       · have := w_ (⌈·a⌉φ) (by simp; tauto)
-        simp at this;
-        exact this _ w_a_b
+        simp_all
       · have := w_ (⌈·a⌉φ) (by simp; tauto)
-        simp at this;
-        exact this _ w_a_b
+        simp_all
       · subst φ_def
         simp only [evaluate]
         assumption
@@ -86,36 +102,35 @@ theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := b
     use W, M -- but not the same world!
     have := w_ (negUnload (~'⌊·a⌋χ))
     cases χ
-    · simp [LoadFormula.unload] at *
+    · simp only [Option.map_some, Sum.elim_inr, negUnload, LoadFormula.unload, Option.toList_some,
+        List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false, or_true, evaluate, relate,
+        not_forall, forall_const] at *
       rcases this with ⟨v, w_a_b, v_⟩
       use v
       intro φ φ_in
-      simp at φ_in
+      simp only [Option.map_none, Option.toList_none, List.mem_union_iff, proj, List.mem_cons,
+        List.not_mem_nil, or_false] at φ_in
       rcases φ_in with (in_L | (φ_def | in_R))
       · have := w_ (⌈·a⌉φ) (by simp; tauto)
-        simp at this;
-        exact this _ w_a_b
+        simp_all
       · subst φ_def
-        simp only [evaluate]
-        assumption
+        simpa [evaluate]
       · have := w_ (⌈·a⌉φ) (by simp; tauto)
-        simp at this;
-        exact this _ w_a_b
-    · simp [LoadFormula.unload] at *
+        simp_all
+    · simp only [Option.map_some, Sum.elim_inr, negUnload, LoadFormula.unload, Option.toList_some,
+        List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false, or_true, evaluate, relate,
+        not_forall, forall_const] at *
       rcases this with ⟨v, w_a_b, v_⟩
       use v
       intro φ φ_in
-      simp at φ_in
+      simp only [Option.map_some, Sum.elim_inr, negUnload, Option.toList_some, List.mem_union_iff,
+        proj, List.mem_cons, List.not_mem_nil, or_false] at φ_in
       rcases φ_in with ((in_L | in_R) | φ_def)
       · have := w_ (⌈·a⌉φ) (by simp; tauto)
-        simp at this;
-        exact this _ w_a_b
+        simp_all
       · have := w_ (⌈·a⌉φ) (by simp; tauto)
-        simp at this;
-        exact this _ w_a_b
-      · subst φ_def
-        simp only [evaluate]
-        assumption
+        simp_all
+      · simp_all
 
 /-! ## Companion, cEdge, etc. -/
 
@@ -201,13 +216,13 @@ theorem companion_to_repeat_all_loaded
     have hist_eq_path : l.toHistory = (tabAt l).fst := by
       have := PathIn.toHistory_eq_Hist l
       simp_all
-    simp [hist_eq_path]
+    simp only [List.get_eq_getElem, hist_eq_path, List.getElem_cons_succ]
     have ⟨⟨lpr_len, lpr_len_pf⟩, ⟨eq_con, loaded_con⟩⟩ := lpr
     have h1 : k < List.length (tabAt l).fst := by
-      simp [←hist_eq_path]
+      simp only [← hist_eq_path]
       exact Nat.lt_of_succ_lt_succ k_lt_l_len
     have h2 : k ≤ lpr_len := by
-      simp at k_lt_lpr
+      simp only [Nat.succ_eq_add_one, add_le_add_iff_right] at k_lt_lpr
       exact k_lt_lpr
     exact loaded_con ⟨k, h1⟩ h2
 
@@ -260,8 +275,8 @@ lemma not_edge_and_heart {b : PathIn tab} : ¬ (a ⋖_ b ∧ b ♥ a) := by
         simp
       unfold nodeAt at *
       have nodeAt_a_def : (tabAt a).snd.fst = (LX,RX,OX) := by rw [tabAt_a_def]
-      simp [nodeAt_a_def] at *
-      simp [Sequent.multisetEqTo] at con
+      simp only [nodeAt_a_def] at *
+      simp only [Sequent.multisetEqTo, Multiset.coe_eq_coe] at con
       cases r
       case loadL => simp [Sequent.isLoaded] at a_loaded
       case loadR => simp [Sequent.isLoaded] at a_loaded
@@ -284,39 +299,39 @@ lemma not_edge_and_heart {b : PathIn tab} : ¬ (a ⋖_ b ∧ b ♥ a) := by
         rw [X_def] at con
         cases ξ
         case normal φ =>
-          simp at tabAt_b_def
+          simp only at tabAt_b_def
           have help : (tabAt b).snd.fst = ((~φ) :: projection n LX', projection n RX', none) := by
             rw [tabAt_b_def]
           simp only [help] at con
           simp_all
         case loaded φ =>
-          simp at tabAt_b_def
+          simp only at tabAt_b_def
           have help : (tabAt b).snd.fst = ( projection n LX'
                                           , projection n RX'
                                           , some (Sum.inl (~'φ))) := by rw [tabAt_b_def]
           simp only [help] at con
           have := con.2.2
-          simp at this
+          simp only [Option.some.injEq, Sum.inl.injEq, NegLoadFormula.neg.injEq] at this
           cases this
       case modR LX' RX' n ξ X_def Y_def =>  -- same as modL
         subst Y_def
         rw [X_def] at con
         cases ξ
         case normal φ =>
-          simp at tabAt_b_def
+          simp only at tabAt_b_def
           have help : (tabAt b).snd.fst = ( projection n LX'
                                           , (~φ) :: projection n RX'
                                           , none) := by rw [tabAt_b_def]
           simp only [help] at con
           simp_all
         case loaded φ =>
-          simp at tabAt_b_def
+          simp only at tabAt_b_def
           have help : (tabAt b).snd.fst = ( projection n LX'
                                           , projection n RX'
                                           , some (Sum.inr (~'φ))) := by rw [tabAt_b_def]
           simp only [help] at con
           have := con.2.2
-          simp at this
+          simp only [Option.some.injEq, Sum.inr.injEq, NegLoadFormula.neg.injEq] at this
           cases this
   exact node_ne node_eq
 
@@ -424,13 +439,13 @@ theorem eProp {X} (tab : Tableau .nil X) :
   refine ⟨?_, before.wellFounded, flip_before.wellFounded⟩
   constructor
   · intro _
-    simp [cEquiv]
+    simp only [cEquiv, and_self]
     exact Relation.ReflTransGen.refl
   · intro _ _
     simp [cEquiv]
     tauto
   · intro s u t
-    simp [cEquiv]
+    simp only [cEquiv, and_imp]
     intro s_u u_s u_t t_u
     exact ⟨ Relation.ReflTransGen.trans s_u u_t
           , Relation.ReflTransGen.trans t_u u_s ⟩
@@ -447,7 +462,7 @@ theorem ePropB.a {tab : Tableau .nil X} (s t : PathIn tab) :
     · apply Relation.TransGen.to_reflTransGen
       assumption
     · apply Relation.ReflTransGen.single
-      simp [cEdge]
+      simp only [cEdge]
       left
       exact t_childOf_s
   else
@@ -455,8 +470,7 @@ theorem ePropB.a {tab : Tableau .nil X} (s t : PathIn tab) :
                             | ⟨Hist, Z, nrep, bas, Y, r, next, tabAt_s_def, def_t_append⟩ )
     all_goals
       left
-      simp_all
-      unfold cEdge
+      simp_all only [not_false_eq_true, and_true]
       apply Relation.TransGen.single
       left
       unfold edge
@@ -501,10 +515,10 @@ theorem c_claim {a : Sequent} {tab : Tableau [] a} (t l c : PathIn tab) :
       unfold companionOf at c_def
       rw [c_def] at def_c
       have := rewind_is_inj def_c
-      simp [Fin.cast] at this
-      exact this
+      simp_all
     simp_all
-  simp [Sequent.isFree] at t_free
+  simp only [Sequent.isFree, Bool.not_eq_true, Bool.decide_eq_false, Bool.not_eq_eq_eq_not,
+    Bool.not_true] at t_free
   rw [t_loaded] at t_free
   cases t_free
 
@@ -523,7 +537,8 @@ theorem ePropB.c {X} {tab : Tableau .nil X} (s t : PathIn tab) :
         exact edge.TransGen_isAsymm.1 t s (Relation.TransGen.single tes)
       case inr ths =>
         have con := (companion_loaded ths).2
-        simp [Sequent.isFree] at s_free
+        simp only [Sequent.isFree, Bool.not_eq_true, Bool.decide_eq_false, Bool.not_eq_eq_eq_not,
+          Bool.not_true] at s_free
         rw [con] at s_free
         contradiction
     case right.head t k t_k k_s ih =>
@@ -539,7 +554,8 @@ theorem not_cEquiv_of_free_loaded (s t : PathIn tab)
   unfold cEdge at s_t
   induction s_t using Relation.ReflTransGen.head_induction_on
   case refl =>
-    simp [Sequent.isFree] at s_free
+    simp only [Sequent.isFree, Bool.not_eq_true, Bool.decide_eq_false, Bool.not_eq_eq_eq_not,
+      Bool.not_true] at s_free
     rw [s_free] at t_loaded
     contradiction
   case head s l s_l l_t ih =>
@@ -557,7 +573,8 @@ theorem not_cEquiv_of_free_loaded (s t : PathIn tab)
         case inr lnes => exact Relation.TransGen_of_ReflTransGen l_s lnes
       case inr shl =>
         have con := (companion_loaded shl).1
-        simp [Sequent.isFree] at s_free
+        simp only [Sequent.isFree, Bool.not_eq_true, Bool.decide_eq_false, Bool.not_eq_eq_eq_not,
+          Bool.not_true] at s_free
         rw [con] at s_free
         contradiction
 
@@ -576,7 +593,8 @@ constructor
       exact edge.TransGen_isAsymm.1 t s (Relation.TransGen.single tes)
     case inr ths =>
       have con := (companion_loaded ths).1
-      simp [Sequent.isFree] at t_free
+      simp only [Sequent.isFree, Bool.not_eq_true, Bool.decide_eq_false, Bool.not_eq_eq_eq_not,
+        Bool.not_true] at t_free
       rw [con] at t_free
       contradiction
   case right.head t k t_k k_s ih =>
@@ -586,11 +604,13 @@ constructor
       case inl tek => exact ih k_free (Relation.TransGen.tail slt tek)
       case inr thk =>
         have con := (companion_loaded thk).1
-        simp [Sequent.isFree] at t_free
+        simp only [Sequent.isFree, Bool.not_eq_true, Bool.decide_eq_false, Bool.not_eq_eq_eq_not,
+          Bool.not_true] at t_free
         rw [con] at t_free
         contradiction
     case neg k_loaded =>
-      simp [Sequent.isFree] at k_loaded
+      simp only [Sequent.isFree, Bool.not_eq_true, Bool.decide_eq_false, Bool.not_eq_eq_eq_not,
+        Bool.not_true, Bool.not_eq_false] at k_loaded
       apply not_cEquiv_of_free_loaded t k t_free k_loaded
       constructor
       · exact Relation.ReflTransGen.single t_k
@@ -833,7 +853,7 @@ lemma loadedDiamondPathsPDL
         subst_eqs
       rfl
     subst α_is_a
-    simp at v_α_w
+    simp only [relate] at v_α_w
     -- Let `s` be the unique child:
     let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ .pdl .nil)
     let s : PathIn tab := t.append t_to_s
@@ -853,7 +873,7 @@ lemma loadedDiamondPathsPDL
         left
         use φ
         simp only [true_and]
-        simp at next
+        simp only at next
         have : (tabAt tclean).2.1 = ((~φ) :: projection a L, projection a R, none) := by
           have : tabAt tclean = ⟨ _ :: _, (_, _, none) , next⟩ := by unfold tabAt; rfl
           rw [this]
@@ -862,7 +882,7 @@ lemma loadedDiamondPathsPDL
         right
         use χ
         simp only [true_and]
-        simp at next
+        simp only at next
         have : (tabAt tclean).2.1 = (projection a L, projection a R, some (Sum.inl (~'χ))) := by
           have : tabAt tclean = ⟨ _, (_, _, some (Sum.inl (~'χ))) , next⟩ := by unfold tabAt; rfl
           rw [this]
@@ -895,7 +915,8 @@ lemma loadedDiamondPathsPDL
           rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
           · rw [nodeAt_s_def]
             intro f f_in
-            simp at f_in
+            simp only [List.cons_union, Option.map_none, Option.toList_none, List.mem_union_iff,
+              List.mem_insert_iff, proj, List.not_mem_nil, or_false] at f_in
             rcases f_in with (f_in|f_in|f_in)
             · subst_eqs
               exact w_nξ
@@ -906,7 +927,8 @@ lemma loadedDiamondPathsPDL
               exact v_α_w
           · rw [nodeAt_s_def]
             intro f f_in
-            simp at f_in
+            simp only [Option.map_some, Sum.elim_inl, negUnload, Option.toList_some,
+              List.mem_union_iff, proj, List.mem_cons, List.not_mem_nil, or_false] at f_in
             rcases f_in with ((f_in|f_in)|f_in)
             case inr.inr =>
               subst_eqs
@@ -941,7 +963,7 @@ lemma loadedDiamondPathsPDL
         subst_eqs
       rfl
     subst α_is_a
-    simp at v_α_w
+    simp only [relate] at v_α_w
     -- Let `s` be the unique child:
     let t_to_s : PathIn (tabAt t).2.2 := (tabAt_t_def ▸ .pdl .nil)
     let s : PathIn tab := t.append t_to_s
@@ -961,7 +983,7 @@ lemma loadedDiamondPathsPDL
         left
         use φ
         simp only [true_and]
-        simp at next
+        simp only at next
         have : (tabAt tclean).2.1 = (projection a L, (~φ) :: projection a R, none) := by
           have : tabAt tclean = ⟨ _ :: _, _ , next⟩ := by unfold tabAt; rfl
           rw [this]
@@ -970,7 +992,7 @@ lemma loadedDiamondPathsPDL
         right
         use χ
         simp only [true_and]
-        simp at next
+        simp only at next
         have : (tabAt tclean).2.1 = (projection a L, projection a R, some (Sum.inr (~'χ))) := by
           have : tabAt tclean = ⟨_, (_, _, some (Sum.inr (~'χ))) , next⟩ := by unfold tabAt; rfl
           rw [this]
@@ -1004,19 +1026,18 @@ lemma loadedDiamondPathsPDL
         · rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
           · rw [nodeAt_s_def]
             intro f f_in
-            simp at f_in
+            simp only [Option.map_none, Option.toList_none, List.mem_union_iff, proj, List.mem_cons,
+              List.not_mem_nil, or_false] at f_in
             rcases f_in with (f_in|f_in|f_in)
             · have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
               apply this
               simp only [relate]
               exact v_α_w
             · subst_eqs
-              simp_all
-              exact w_nξ
+              simpa [evaluate]
             · have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
               apply this
-              simp only [relate]
-              exact v_α_w
+              simpa [relate]
           · rw [nodeAt_s_def]
             intro f f_in
             simp at f_in
@@ -1044,7 +1065,8 @@ lemma SemImply_loadedNormal_ofSeqAndNormal {M u}
   case nil => simp_all; exact w_nφ
   case cons β βs ih =>
     have ⟨v, ⟨u_β_v, v_βs_w⟩⟩ := u_αs_w
-    simp [vDash.SemImplies] at *
+    simp only [vDash.SemImplies, evaluatePoint, evaluate, AnyFormula.loadBoxes_cons,
+      AnyFormulaBoxBoxes_eq_FormulaBoxLoadBoxes_inside_unload, evaluate.eq_5, not_forall] at *
     refine ⟨v, ⟨u_β_v, ?_⟩⟩
     have := ih w_nφ v_βs_w
     cases f_def : AnyFormula.loadBoxes βs (AnyFormula.normal φ)

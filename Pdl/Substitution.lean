@@ -34,7 +34,7 @@ theorem repl_in_Con : repl_in_F x ψ (Con l) = Con (l.map (repl_in_F x ψ)) := b
     cases l
     · simp
     case cons φ2 l =>
-      simp [Con]
+      simp only [Con, repl_in_F, List.map_cons, Formula.and.injEq, true_and]
       apply repl_in_Con
 
 @[simp]
@@ -48,7 +48,8 @@ theorem repl_in_dis : repl_in_F x ψ (dis l) = dis (l.map (repl_in_F x ψ)) := b
     cases l
     · simp
     case cons φ2 l =>
-      simp [dis]
+      simp only [dis, Formula.or, repl_in_F, List.map_cons, Formula.neg.injEq, Formula.and.injEq,
+        true_and]
       apply repl_in_dis
 
 mutual
@@ -59,15 +60,18 @@ theorem repl_in_F_non_occ_eq {x φ ρ} :
   case bottom => simp
   case atom_prop c =>
     simp only [repl_in_F, beq_iff_eq, ite_eq_right_iff]
-    intro c_is_x; simp [Formula.voc] at *; subst_eqs; tauto
+    intro c_is_x
+    simp only [Formula.voc, Finset.mem_singleton, Sum.inl.injEq] at *
+    subst_eqs
+    tauto
   case neg φ0 =>
-    simp [Formula.voc] at *
+    simp only [Formula.voc, repl_in_F, Formula.neg.injEq] at *
     apply repl_in_F_non_occ_eq; tauto
   case and φ1 φ2 =>
-    simp [Formula.voc] at *
+    simp only [Formula.voc, Finset.mem_union, not_or, repl_in_F, Formula.and.injEq] at *
     constructor <;> (apply repl_in_F_non_occ_eq ; tauto)
   case box α φ0 =>
-    simp [Formula.voc] at *
+    simp only [Formula.voc, Finset.mem_union, not_or, repl_in_F, Formula.box.injEq] at *
     constructor
     · apply repl_in_P_non_occ_eq; tauto
     · apply repl_in_F_non_occ_eq; tauto
@@ -76,14 +80,18 @@ theorem repl_in_P_non_occ_eq {x α ρ} :
     (Sum.inl x) ∉ α.voc → repl_in_P x ρ α = α := by
   intro x_notin_alpha
   cases α
-  all_goals simp [Program.voc] at *
+  any_goals (simp [Program.voc] at *; done)
   case sequence β γ =>
+    simp only [Program.voc, Finset.mem_union, not_or, repl_in_P, Program.sequence.injEq] at *
     constructor <;> (apply repl_in_P_non_occ_eq; tauto)
   case union β γ =>
+    simp only [Program.voc, Finset.mem_union, not_or, repl_in_P, Program.union.injEq] at *
     constructor <;> (apply repl_in_P_non_occ_eq; tauto)
   case star β =>
+    simp only [Program.voc, repl_in_P, Program.star.injEq] at *
     apply repl_in_P_non_occ_eq ; tauto
   case test φ =>
+    simp only [Program.voc, repl_in_P, Program.test.injEq] at *
     apply repl_in_F_non_occ_eq; tauto
 end
 
@@ -124,7 +132,9 @@ theorem repl_in_list_non_occ_eq (F : List Formula) :
     simp only [List.map_cons, List.cons.injEq]
     constructor
     · apply repl_in_F_non_occ_eq
-      simp [Vocab.fromList] at *
+      simp only [Vocab.fromList, Finset.mem_sup, List.mem_toFinset, List.mem_map, id_eq,
+        exists_exists_and_eq_and, not_exists, not_and, List.map_cons, List.toFinset_cons,
+        Finset.sup_insert, Finset.sup_eq_union', Finset.mem_union, not_or] at *
       exact nonOcc.left
     · apply IH
       clear IH
@@ -133,7 +143,8 @@ theorem repl_in_list_non_occ_eq (F : List Formula) :
 mutual
 lemma repl_in_F_voc_def p φ ψ :
     (repl_in_F p φ ψ).voc = (ψ.voc \ {Sum.inl p}) ∪ (if Sum.inl p ∈ ψ.voc then φ.voc else {}) := by
-  cases ψ <;> simp
+  cases ψ <;> simp only [repl_in_F, Formula.instBot, Formula.voc, Finset.empty_sdiff,
+    Finset.notMem_empty, ↓reduceIte, Finset.union_idempotent]
   case atom_prop q => by_cases q = p <;> aesop
   case neg => apply repl_in_F_voc_def
   case and ψ1 ψ2 =>
@@ -149,7 +160,8 @@ lemma repl_in_F_voc_def p φ ψ :
 
 lemma repl_in_P_voc_def p φ α :
     (repl_in_P p φ α).voc = (α.voc \ {Sum.inl p}) ∪ (if Sum.inl p ∈ α.voc then φ.voc else {}) := by
-  cases α <;> simp
+  cases α <;> simp only [repl_in_P, Program.voc, Finset.mem_singleton, reduceCtorEq, ↓reduceIte,
+    Finset.union_empty]
   case atom_prog =>
     rfl
   case sequence α β =>
@@ -192,11 +204,11 @@ theorem repl_in_model_sat_iff x ψ φ {W} (M : KripkeModel W) (w : W) :
   case and φ1 φ2 =>
     have IH1 := repl_in_model_sat_iff x ψ φ1 M w
     have IH2 := repl_in_model_sat_iff x ψ φ2 M w
-    simp [evaluatePoint, modelCanSemImplyForm] at *
+    simp only [modelCanSemImplyForm, evaluatePoint, repl_in_F, evaluate] at *
     rw [IH1, IH2]
   case box α φ =>
     have IHα := repl_in_model_rel_iff x ψ α M w
-    simp [evaluatePoint, modelCanSemImplyForm] at *
+    simp only [modelCanSemImplyForm, repl_in_F, evaluatePoint, evaluate] at *
     constructor
     all_goals
       intro hyp v rel
@@ -271,7 +283,8 @@ mutual
 lemma repl_in_F_cancel_via_non_occ φ p q : Sum.inl q ∉ φ.voc →
     repl_in_F q (·p) (repl_in_F p (·q) φ) = φ := by
   intro q_not_in_ψ
-  cases φ <;> simp_all
+  cases φ <;> simp_all only [Formula.voc, Finset.notMem_empty, not_false_eq_true, repl_in_F,
+    Formula.instBot]
   case atom_prop q =>
     by_cases q = p <;> aesop
   case neg φ =>
@@ -289,7 +302,8 @@ lemma repl_in_F_cancel_via_non_occ φ p q : Sum.inl q ∉ φ.voc →
 lemma repl_in_P_cancel_via_non_occ α p q : Sum.inl q ∉ α.voc →
     repl_in_P q (·p) (repl_in_P p (·q) α) = α := by
   intro q_not_in_α
-  cases α <;> simp_all
+  cases α <;> simp_all only [Program.voc, Finset.mem_singleton, reduceCtorEq, not_false_eq_true,
+    repl_in_P]
   case sequence α1 α2 =>
     have := repl_in_P_cancel_via_non_occ α1 p q
     have := repl_in_P_cancel_via_non_occ α2 p q
@@ -313,7 +327,7 @@ lemma taut_repl φ p q :
     tautology φ → tautology (repl_in_F p (·q) φ) := by
   intro taut_φ W M w
   have := repl_in_model_sat_iff p (·q) φ M w
-  simp [vDash.SemImplies] at this
+  simp only [vDash.SemImplies, evaluatePoint] at this
   rw [this]
   apply taut_φ
 
@@ -338,7 +352,7 @@ lemma non_occ_taut_then_taut_imp_repl_in (φ ψ : Formula) (p q : ℕ) :
   intro w_ψ
   have := taut_repl _ p q taut_imp W M w
   clear taut_imp
-  simp [repl_in_F, evaluate, not_and, not_not] at this
+  simp only [repl_in_F, evaluate, not_and, not_not] at this
   apply this
   rw [repl_in_F_non_occ_eq] <;> assumption
 
@@ -384,11 +398,11 @@ theorem substitutionLemma σ φ {W} (M : KripkeModel W) (w : W) :
   case and φ1 φ2 =>
     have IH1 := substitutionLemma σ φ1 M w
     have IH2 := substitutionLemma σ φ2 M w
-    simp [evaluatePoint, modelCanSemImplyForm] at *
+    simp only [modelCanSemImplyForm, evaluatePoint, subst_in_F, evaluate] at *
     rw [IH1, IH2]
   case box α φ =>
     have IHα := substitutionLemmaRel σ α M w
-    simp [evaluatePoint, modelCanSemImplyForm] at *
+    simp only [modelCanSemImplyForm, subst_in_F, evaluatePoint, evaluate] at *
     constructor
     all_goals
       intro hyp v rel

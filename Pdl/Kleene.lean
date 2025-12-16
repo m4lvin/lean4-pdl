@@ -179,29 +179,29 @@ instance RelProp.kleeneAlgebra : KleeneAlgebra RelProp where
   mul_kstar_le_kstar := by
     apply Quotient.ind
     intro α
-    simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le,
-      relImp]
+    simp only [LE.le, le, HMul.hMul, Mul.mul, sequence, KStar.kstar, star, Quotient.map_mk,
+      Quotient.map₂_mk, Quotient.lift_mk, relImp, relate, forall_exists_index, and_imp]
     intro W M v w x v_α_x x_αs_w
     exact Relation.ReflTransGen.head v_α_x x_αs_w
   kstar_mul_le_kstar := by
     apply Quotient.ind
     intro α
-    simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le,
-      relImp]
+    simp only [LE.le, le, HMul.hMul, Mul.mul, sequence, KStar.kstar, star, Quotient.map_mk,
+      Quotient.map₂_mk, Quotient.lift_mk, relImp, relate, forall_exists_index, and_imp]
     intro W M v w x v_αs_x x_α_w
     exact Relation.ReflTransGen.tail v_αs_x x_α_w
   mul_kstar_le_self := by
     refine (Quotient.ind (fun α => Quotient.ind (fun β => ?_)))
-    simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le,
-      relImp]
+    simp only [LE.le, le, HMul.hMul, Mul.mul, sequence, Quotient.map₂_mk, Quotient.lift_mk, relImp,
+      relate, forall_exists_index, and_imp, KStar.kstar, star, Quotient.map_mk]
     intro h W M v w x v_β_x x_αs_w
     induction x_αs_w
     case refl => exact v_β_x
     case tail y z x_αs_y y_α_z ih => exact h W M v z y ih y_α_z
   kstar_mul_le_self := by
     refine (Quotient.ind (fun α => Quotient.ind (fun β => ?_)))
-    simp [HMul.hMul, Mul.mul, RelProp.sequence, KStar.kstar, RelProp.star, LE.le, RelProp.le,
-      relImp]
+    simp only [LE.le, le, HMul.hMul, Mul.mul, sequence, Quotient.map₂_mk, Quotient.lift_mk, relImp,
+      relate, forall_exists_index, and_imp, KStar.kstar, star, Quotient.map_mk]
     intro h W M v w x v_αs_x x_β_w
     induction v_αs_x
     case refl => exact x_β_w

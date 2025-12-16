@@ -25,20 +25,16 @@ theorem listEq_to_conEq : l1 = l2 → Con l1 = Con l2 := by
   aesop
 
 theorem conEvalHT {X f W M} {w : W} :
-    evaluate M w (Con (f :: X)) ↔ evaluate M w f ∧ evaluate M w (Con X) :=
-  by
+    evaluate M w (Con (f :: X)) ↔ evaluate M w f ∧ evaluate M w (Con X) := by
   induction X
   · simp
   · simp
 
-theorem conEval {W M X} {w : W} : evaluate M w (Con X) ↔ ∀ f ∈ X, evaluate M w f :=
-  by
+theorem conEval {W M X} {w : W} : evaluate M w (Con X) ↔ ∀ f ∈ X, evaluate M w f := by
   induction X
   · simp
   · rw [conEvalHT]
-    simp
-    intro _
-    assumption
+    simp_all
 
 /-- Vocabulary of Conjunction -/
 theorem in_voc_con n (L : List Formula) :
@@ -46,11 +42,7 @@ theorem in_voc_con n (L : List Formula) :
   induction L
   · simp [Con, Formula.voc]
   case cons h t IH =>
-    induction t -- needed to select case in `Con`
-    · simp [Con]
-    case cons h t IH =>
-      simp [Con, Formula.voc] at *
-      rw [← IH]
+    induction t <;> simp_all
 
 /-! ## Disjunction -/
 
@@ -90,11 +82,7 @@ theorem in_voc_dis n (L : List Formula) :
   induction L
   · simp [dis, Formula.voc]
   case cons h t IH =>
-    induction t -- needed to select case in `dis`
-    · simp [dis]
-    case cons h t IH =>
-      simp [dis, Formula.voc] at *
-      rw [← IH]
+    induction t <;> simp_all
 
 /-! ## Disjunction of Conjunctions -/
 
@@ -127,9 +115,7 @@ theorem disconEval' {W M} {w : W} :
   rcases XS with _ | ⟨X,XS⟩
   · simp
   specialize IH XS.length (by simp) XS (by rfl)
-  rw [disconEvalHT]
-  rw [evalDis]
-  rw [IH]
+  rw [disconEvalHT, evalDis, IH]
   constructor
   · -- →
     intro lhs
@@ -145,7 +131,7 @@ theorem disconEval' {W M} {w : W} :
   · -- ←
     intro rhs
     rcases rhs with ⟨Y,Y_in,Ysat⟩
-    simp at Y_in
+    simp only [List.mem_cons] at Y_in
     rcases Y_in with Y_in|Y_in
     · left
       subst Y_in
@@ -165,15 +151,14 @@ theorem disconOr {XS YS} : discon (XS ∪ YS) ≡ discon XS ⋁ discon YS :=
   unfold semEquiv
   intro W M w
   rw [disconEval (XS ∪ YS)]
-  simp
-  rw [disconEval XS]
-  rw [disconEval YS]
+  simp only [List.mem_union_iff, Formula.or, evaluate.eq_3, evaluate, not_and, not_not]
+  rw [disconEval XS, disconEval YS]
   constructor
   · -- →
     intro lhs
     rcases lhs with ⟨Z, Z_in, w_sat_Z⟩
     intro notL
-    simp at notL
+    simp only [not_exists, not_and, not_forall, exists_prop] at notL
     cases Z_in
     case inl Z_in_XS =>
       specialize notL Z Z_in_XS
@@ -220,16 +205,16 @@ theorem disconAnd {XS YS} : discon (XS ⊎ YS) ≡ discon XS ⋀ discon YS :=
   unfold semEquiv
   intro W M w
   rw [disconEval (XS ⊎ YS)]
-  simp
-  rw [disconEval XS]
-  rw [disconEval YS]
+  simp only [listHasUplus, pairunionList, List.mem_flatten, List.mem_map, exists_exists_and_eq_and,
+    exists_exists_and_exists_and_eq_and, List.mem_append, evaluate]
+  rw [disconEval XS, disconEval YS]
   aesop
 
 theorem union_elem_uplus {XS YS : Finset (Finset Formula)} {X Y : Finset Formula} :
   X ∈ XS → Y ∈ YS → ((X ∪ Y) ∈ (XS ⊎ YS)) :=
   by
   intro X_in Y_in
-  simp
+  simp only [finsetHasUplus, pairunionFinset, Finset.mem_biUnion, Finset.mem_singleton]
   exact ⟨X, X_in, Y, Y_in, rfl⟩
 
 /-- Helper for `oneSidedLocalRuleTruth`, used with `g = Yset`. -/

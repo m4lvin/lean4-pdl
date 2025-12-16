@@ -21,7 +21,7 @@ theorem TP_eq_iff {α} {ℓ ℓ' : TP α} : (ℓ = ℓ') ↔ ∀ τ ∈ (testsOf
   · intro ℓ_eq_ℓ _ _
     simp_all
   · intro rhs
-    simp_all
+    simp_all only [List.mem_attach, forall_const, Subtype.forall]
     unfold TP at *
     ext τ
     apply rhs
@@ -29,13 +29,17 @@ theorem TP_eq_iff {α} {ℓ ℓ' : TP α} : (ℓ = ℓ') ↔ ∀ τ ∈ (testsOf
 -- Coercions of TP α to the subprograms of α.
 -- These are needed to re-use `ℓ` in recursive calls of `F` and `P` below.
 instance : CoeOut (TP (α ⋓ β)) (TP α) :=
-  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by cases τ; simp [testsOfProgram]; left; assumption⟩  ⟩
+  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by
+    cases τ; simp only [testsOfProgram, List.mem_append]; left; assumption⟩ ⟩
 instance : CoeOut (TP (α ⋓ β)) (TP β) :=
-  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by cases τ; simp [testsOfProgram]; right; assumption⟩  ⟩
+  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by
+   cases τ; simp only [testsOfProgram, List.mem_append]; right; assumption⟩ ⟩
 instance : CoeOut (TP (α ;' β)) (TP α) :=
-  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by cases τ; simp [testsOfProgram]; left; assumption⟩  ⟩
+  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by
+   cases τ; simp only [testsOfProgram, List.mem_append]; left; assumption⟩ ⟩
 instance : CoeOut (TP (α ;' β)) (TP β) :=
-  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by cases τ; simp [testsOfProgram]; right; assumption⟩  ⟩
+  ⟨fun ℓ => fun τ => ℓ ⟨τ.val, by
+   cases τ; simp only [testsOfProgram, List.mem_append]; right; assumption⟩ ⟩
 instance : CoeOut (TP (∗α)) (TP α) :=
   ⟨fun l ⟨f,f_in⟩ => l ⟨f, by simp only [testsOfProgram]; exact f_in⟩⟩
 
@@ -59,7 +63,8 @@ def signature (α : Program) (ℓ : TP α) : Formula :=
 
 theorem signature_iff {W} {M : KripkeModel W} {w : W} :
     evaluate M w (signature α ℓ) ↔ ∀ τ ∈ (testsOfProgram α).attach, ℓ τ ↔ evaluate M w τ.val := by
-  simp [signature, conEval]
+  simp only [signature, conEval, List.mem_map, List.mem_attach, true_and, Subtype.exists,
+    forall_exists_index, forall_const, Subtype.forall]
   constructor
   · intro w_ℓ τ τ_in
     cases em (ℓ ⟨τ, τ_in⟩)
@@ -95,7 +100,8 @@ theorem signature_contradiction_of_neq_TPs {ℓ ℓ' : TP α} :
   intro ldiff W M w
   simp_all only [List.mem_attach, forall_true_left, Subtype.forall, not_forall, evaluate, not_and]
   rcases ldiff with ⟨τ, τ_in, disagree⟩
-  simp_all [signature, conEval]
+  simp_all only [signature, conEval, List.mem_map, List.mem_attach, true_and, Subtype.exists,
+    forall_exists_index, not_forall, exists_and_right, ↓existsAndEq, exists_prop]
   intro ℓ_conform
   cases em (ℓ ⟨τ,τ_in⟩)
   · specialize ℓ_conform τ τ τ_in
@@ -118,10 +124,11 @@ theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α
     have := Classical.propDecidable
     let ℓ : TP α := fun τ => evaluate M w τ
     specialize hyp ℓ W M w
-    simp at hyp
+    simp only [evaluate, and_congr_left_iff] at hyp
     apply hyp
     unfold ℓ
-    simp [signature, conEval]
+    simp only [signature, decide_eq_true_eq, List.map_subtype, List.unattach_attach, conEval,
+      List.mem_map, forall_exists_index, and_imp, forall_apply_eq_imp_iff₂]
     intro τ _
     split <;> simp_all
 
@@ -140,7 +147,7 @@ def F : (α : Program) → (ℓ : TP α) → List Formula
 
 lemma F_sub_testsOfProgram_map_neg (α : Program) (ℓ : TP α) :
     F α ℓ ⊆ (testsOfProgram α).map Formula.neg := by
-  cases α <;> simp_all [F, testsOfProgram]
+  cases α <;> simp_all only [F, List.empty_eq, testsOfProgram, List.map_nil, List.Subset.refl]
   case sequence α β =>
     have IHα := F_sub_testsOfProgram_map_neg α
     have IHβ := F_sub_testsOfProgram_map_neg β
@@ -175,7 +182,8 @@ theorem F_mem_iff_neg α (ℓ : TP α) φ :
   simp_all only [exists_and_left]
   cases α
   all_goals
-    simp_all [testsOfProgram, F]
+    simp_all only [F, List.empty_eq, List.not_mem_nil, testsOfProgram, IsEmpty.exists_iff,
+      and_false, exists_const]
   case sequence α β =>
     have := F_mem_iff_neg α ℓ φ
     have := F_mem_iff_neg β ℓ φ
@@ -193,18 +201,20 @@ theorem F_mem_iff_neg α (ℓ : TP α) φ :
 theorem P_monotone α (ℓ ℓ' : TP α) (h : ∀ τ, ℓ τ → ℓ' τ) δ : δ ∈ P α ℓ → δ ∈ P α ℓ' := by
   cases α
   case atom_prog _ =>
-    simp_all [testsOfProgram, P]
+    simp_all only [testsOfProgram, Subtype.forall, List.not_mem_nil, IsEmpty.forall_iff,
+      implies_true, P, List.mem_cons, or_false]
   case union α β =>
     intro δ_in
     have IHα := P_monotone α ℓ ℓ' (by intro τ τ_in; apply h; simp_all)
     have IHβ := P_monotone β ℓ ℓ' (by intro τ τ_in; apply h; simp_all)
-    simp [testsOfProgram, P] at *
+    simp only [testsOfProgram, Subtype.forall, List.mem_append, P, List.mem_union_iff] at *
     cases δ_in <;> simp_all
   case sequence α β =>
     intro δ_in
     have IHα := P_monotone α ℓ ℓ' (by intro τ τ_in; apply h; simp_all)
     have IHβ := P_monotone β ℓ ℓ' (by intro τ τ_in; apply h; simp_all)
-    simp [testsOfProgram, P] at *
+    simp only [testsOfProgram, Subtype.forall, List.mem_append, P, List.mem_union_iff, List.mem_map,
+      List.mem_filter, bne_iff_ne, ne_eq, List.mem_ite_nil_right] at *
     cases δ_in
     case inl δ_in =>
       rcases δ_in with ⟨δ', δ'_in, def_δ⟩
@@ -219,7 +229,9 @@ theorem P_monotone α (ℓ ℓ' : TP α) (h : ∀ τ, ℓ τ → ℓ' τ) δ : �
     cases em (δ = [])
     · simp_all [testsOfProgram, P]
     · have IHα := P_monotone α ℓ ℓ' (by intro τ τ_in; apply h; simp_all)
-      simp_all [testsOfProgram, P]
+      simp_all only [testsOfProgram, Subtype.forall, P, List.cons_union, List.nil_union,
+        List.mem_map, List.mem_filter, bne_iff_ne, ne_eq, List.append_eq_nil_iff, List.cons_ne_self,
+        and_false, exists_const, not_false_eq_true, List.insert_of_not_mem, List.mem_cons, false_or]
       rcases δ_in with ⟨δ', δ'_in, def_δ⟩
       subst def_δ
       use δ'
@@ -235,14 +247,15 @@ theorem PgoesDown : γ ∈ δ → δ ∈ P α ℓ →
                      else lengthOfProgram γ < lengthOfProgram α) := by
   intro γ_in δ_in
   cases α
-  all_goals
-    simp_all [Program.isAtomic, Program.isStar, P]
   case sequence α β =>
+    simp_all only [P, List.mem_union_iff, List.mem_map, List.mem_filter, bne_iff_ne, ne_eq,
+      List.mem_ite_nil_right, Program.isAtomic, Bool.false_eq_true, ↓reduceIte, Program.isStar,
+      lengthOfProgram]
     cases δ_in
     case inl δ_in =>
       rcases δ_in with ⟨αs, αs_in, def_δ⟩
       subst def_δ
-      simp_all
+      simp_all only [List.mem_append, List.mem_cons, List.not_mem_nil, or_false]
       cases γ_in
       case inl γ_in =>
         have IH := PgoesDown γ_in αs_in.1
@@ -253,12 +266,14 @@ theorem PgoesDown : γ ∈ δ → δ ∈ P α ℓ →
         linarith
     case inr δ_in =>
       cases em ([] ∈ P α ℓ)
-      · simp_all
+      · simp_all only [true_and]
         have IH := PgoesDown γ_in δ_in
         cases em β.isAtomic <;> cases em β.isStar
         all_goals (simp_all;try linarith)
       · simp_all
   case union α β =>
+    simp_all only [P, List.mem_union_iff, Program.isAtomic, Bool.false_eq_true, ↓reduceIte,
+      Program.isStar, lengthOfProgram]
     cases δ_in
     case inl δ_in =>
       have IH := PgoesDown γ_in δ_in
@@ -269,6 +284,10 @@ theorem PgoesDown : γ ∈ δ → δ ∈ P α ℓ →
       cases em β.isAtomic <;> cases em β.isStar
       all_goals (simp_all;try linarith)
   case star α =>
+    simp_all only [P, List.cons_union, List.nil_union, List.mem_map, List.mem_filter, bne_iff_ne,
+      ne_eq, List.append_eq_nil_iff, List.cons_ne_self, and_false, exists_const, not_false_eq_true,
+      List.insert_of_not_mem, List.mem_cons, Program.isAtomic, Bool.false_eq_true, ↓reduceIte,
+      Program.isStar, lengthOfProgram]
     cases δ
     case nil =>
       exfalso; cases γ_in
@@ -285,6 +304,8 @@ theorem PgoesDown : γ ∈ δ → δ ∈ P α ℓ →
           rw [← def_δ] at γ_in; simp at γ_in; tauto
         subst_eqs
         simp
+  all_goals -- test and atom_prog
+    simp_all [Program.isAtomic, Program.isStar, P]
 
 theorem F_goes_down : φ ∈ F α ℓ → lengthOfFormula φ < lengthOfProgram α := by
   intro φ_in
@@ -320,31 +341,41 @@ theorem F_goes_down : φ ∈ F α ℓ → lengthOfFormula φ < lengthOfProgram �
 theorem keepFreshF α ℓ (x_notin : x ∉ α.voc) : ∀ φ ∈ F α ℓ, x ∉ φ.voc := by
   intro φ φ_in
   cases α
-  all_goals
-    simp [F, Program.voc] at *
   case test τ =>
+    simp only [Program.voc, F, List.empty_eq, List.mem_ite_nil_left, Bool.not_eq_true,
+      List.mem_cons, List.not_mem_nil, or_false] at *
     cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩) <;> simp_all [Formula.voc]
   case sequence α β =>
+    simp only [Program.voc, Finset.mem_union, not_or, F, List.mem_union_iff] at *
     have := keepFreshF α ℓ x_notin.1
     have := keepFreshF β ℓ x_notin.2
     aesop
   case union α β =>
+    simp only [Program.voc, Finset.mem_union, not_or, F, List.mem_union_iff] at *
     have := keepFreshF α ℓ x_notin.1
     have := keepFreshF β ℓ x_notin.2
     aesop
   case star α =>
+    simp only [Program.voc, F] at *
     have := keepFreshF α ℓ x_notin
     aesop
+  case atom_prog =>
+    simp [Program.voc, F] at *
 
 theorem keepFreshP α ℓ (x_notin : x ∉ α.voc) : ∀ δ ∈ P α ℓ, x ∉ δ.pvoc := by
   intro δ δ_in
   cases α
   all_goals
-    simp_all [P, Program.voc, Vocab.fromList]
+    simp_all only [ Finset.mem_singleton, Finset.mem_sup, Finset.mem_union, IsEmpty.forall_iff,
+      List.empty_eq, List.mem_cons, List.mem_filter, List.mem_ite_nil_right, List.mem_map,
+      List.mem_toFinset, List.mem_union_iff, List.not_mem_nil, List.pvoc, P, Program.voc,
+      Vocab.fromList, bne_iff_ne, exists_exists_and_eq_and, id_eq, implies_true, implies_true,
+      ne_eq, not_and, not_exists, not_false_eq_true, not_or, or_false ]
   case sequence α β =>
     have IHα := keepFreshP α ℓ x_notin.1
     have IHβ := keepFreshP β ℓ x_notin.2
-    simp_all
+    simp_all only [List.pvoc, Vocab.fromList, Finset.mem_sup, List.mem_toFinset, List.mem_map,
+      id_eq, exists_exists_and_eq_and, not_exists, not_and]
     rcases δ_in with (⟨δ', δ'_in, def_δ⟩ | δ_in)
     · subst def_δ
       have := IHα _ δ'_in.1
@@ -390,15 +421,29 @@ theorem boxHelperTermination α (ℓ : TP α) :
   intro δ δ_in
   cases α
   all_goals
-    simp_all [Program.isAtomic, Program.isStar, P]
+    simp_all only [Bool.false_eq_true, IsEmpty.exists_iff, IsEmpty.forall_iff,
+      List.append_eq_nil_iff, List.cons.injEq, List.cons_append, List.cons_ne_self,
+      List.cons_subset, List.empty_eq, List.mem_cons, List.mem_filter, List.mem_ite_nil_right,
+      List.mem_map, List.mem_union_iff, List.nil_append, List.nil_eq, List.nil_subset,
+      List.not_mem_nil, P, Program.atom_prog.injEq, Program.isAtomic, Program.isStar,
+      Program.star.injEq, and_self, and_true, bne_iff_ne, exists_and_right, exists_const,
+      false_and, forall_const, forall_eq', implies_true, ne_eq, not_false_eq_true,
+      not_isEmpty_of_nonempty, not_true_eq_false, or_false, or_self, or_true, reduceCtorEq,
+      subprograms.refl, true_and]
   case sequence α β =>
     rcases δ_in with ⟨δ', ⟨ ⟨δ'_in, δ'_ne⟩, def_δ⟩⟩ | δ_in
     · subst def_δ
-      simp_all
+      simp_all only [List.append_eq_nil_iff, List.cons_ne_self, and_self, List.append_subset,
+        List.cons_subset, List.nil_subset, and_true, false_or]
       have IH := boxHelperTermination α ℓ δ' δ'_in
-      simp_all
-      by_cases α.isAtomic <;> by_cases α.isStar <;> simp_all
-      · exfalso
+      simp_all only [List.cons_append, List.nil_append, List.cons_subset, exists_and_right,
+        false_or, and_imp]
+      by_cases α.isAtomic <;> by_cases α.isStar
+      · simp_all only [List.cons_ne_self, not_false_eq_true, forall_const, not_true_eq_false,
+          not_isEmpty_of_nonempty, IsEmpty.exists_iff, true_and, imp_self, implies_true, and_true,
+          List.cons_append, List.nil_append, List.cons.injEq, exists_and_left, ↓existsAndEq,
+          List.cons_subset, List.nil_subset]
+        exfalso
         rw [Program.isAtomic_iff] at *
         rw [Program.isStar_iff] at *
         rename _ => hyp1
@@ -408,36 +453,54 @@ theorem boxHelperTermination α (ℓ : TP α) :
         rcases hyp2 with ⟨a, α_def⟩
         cases α_def
       case neg isAt notStar =>
+        simp_all only [List.cons_ne_self, not_false_eq_true, forall_const, not_true_eq_false,
+          not_isEmpty_of_nonempty, IsEmpty.exists_iff, true_and, implies_true, and_true,
+          List.cons_append, List.nil_append, List.cons.injEq, exists_and_left, ↓existsAndEq,
+          List.cons_subset, List.nil_subset]
         rw [Program.isAtomic_iff] at isAt
         rcases isAt with ⟨a, α_def⟩
         use a
         subst α_def
         simp [subprograms]
-      · rw [Program.isStar_iff] at *
+      · simp_all only [IsEmpty.forall_iff, not_false_eq_true, not_true_eq_false,
+          not_isEmpty_of_nonempty, IsEmpty.exists_iff, true_and, implies_true, and_true]
+        rw [Program.isStar_iff] at *
         rename _ => hyp
         rcases hyp with ⟨γ, α_def⟩
         specialize IH γ
-        simp_all [subprograms]
+        simp_all only [subprograms, List.cons_append, List.nil_append, List.mem_cons, reduceCtorEq,
+          false_or, forall_const, List.mem_append, subprograms.refl, or_true, and_true]
         rcases IH with ⟨a, ⟨δ1n, δ'_def⟩, ⟨a_in, δ'_sub⟩⟩
         use a
         subst δ'_def
-        simp at *
+        simp only [reduceCtorEq, not_false_eq_true, List.cons_subset, List.mem_cons, false_or,
+          List.append_subset, true_or, List.nil_subset, List.subset_cons_of_subset, and_self,
+          and_true, List.cons_append, List.append_assoc, List.nil_append, List.cons.injEq, true_and,
+          exists_eq', List.mem_append, and_self_left] at *
         constructor
         · left; exact a_in
         · subst α_def
           intro α α_in
           have := δ'_sub.2 α_in
           aesop
-      · rcases IH.2 with ⟨a, ⟨δ1n, δ'_def⟩, ⟨_, δ'_sub⟩⟩
+      · simp_all only [IsEmpty.forall_iff, not_false_eq_true, forall_const, true_and]
+        rcases IH.2 with ⟨a, ⟨δ1n, δ'_def⟩, ⟨_, δ'_sub⟩⟩
         subst δ'_def
         simp [subprograms] at *
         aesop
     · by_cases [] ∈ P α ℓ
-      · simp_all [subprograms]
+      · simp_all only [true_and, subprograms, List.cons_append, List.nil_append, List.mem_cons,
+        reduceCtorEq, List.mem_append, false_or]
         have IH := boxHelperTermination β ℓ δ δ_in
-        simp_all
-        by_cases β.isAtomic <;> by_cases β.isStar <;> simp_all
-        · exfalso
+        simp_all only [List.cons_append, List.nil_append, List.cons_subset, exists_and_right,
+          and_imp]
+        by_cases β.isAtomic <;> by_cases β.isStar
+        · simp_all only [forall_const, not_true_eq_false, not_isEmpty_of_nonempty,
+            IsEmpty.exists_iff, true_and, or_true, implies_true, and_true,
+            List.cons_ne_self, List.cons.injEq, List.nil_eq, exists_eq_right, List.cons_subset,
+            subprograms.refl, List.nil_subset, and_self, List.subset_append_of_subset_right,
+            List.subset_cons_of_subset, false_or]
+          exfalso
           rw [Program.isAtomic_iff] at *
           rw [Program.isStar_iff] at *
           rename _ => hyp1
@@ -446,12 +509,20 @@ theorem boxHelperTermination α (ℓ : TP α) :
           rename _ => hyp2
           rcases hyp2 with ⟨a, α_def⟩
           cases α_def
-        · rw [Program.isAtomic_iff] at *
+        · simp_all only [forall_const, not_true_eq_false, not_isEmpty_of_nonempty,
+            IsEmpty.exists_iff, true_and, or_true, implies_true, and_true,
+            List.cons_ne_self, List.cons.injEq, List.nil_eq, exists_eq_right, List.cons_subset,
+            subprograms.refl, List.nil_subset, and_self, List.subset_append_of_subset_right,
+            List.subset_cons_of_subset, false_or]
+          rw [Program.isAtomic_iff] at *
           cases IH
           subst_eqs
           simp_all [subprograms]
           aesop
-        · rw [Program.isStar_iff] at *
+        · simp_all only [IsEmpty.forall_iff, not_false_eq_true, not_true_eq_false,
+            not_isEmpty_of_nonempty, IsEmpty.exists_iff, true_and, or_true, implies_true, imp_self,
+            and_true]
+          rw [Program.isStar_iff] at *
           rename _ => hyp
           rcases hyp with ⟨γ, α_def⟩
           specialize IH γ
@@ -465,7 +536,8 @@ theorem boxHelperTermination α (ℓ : TP α) :
     cases δ_in
     case inl δ_in =>
       by_cases α.isAtomic <;> by_cases α.isStar <;>
-        simp_all [Program.isAtomic_iff, Program.isStar_iff, subprograms]
+        simp_all only [Program.isAtomic_iff, Program.isStar_iff, subprograms, List.cons_append,
+          List.nil_append, List.mem_cons, reduceCtorEq, List.mem_append, false_or]
       case pos hyp1 hyp2 =>
         rcases hyp1 with ⟨γ, α_def⟩
         rcases hyp2 with ⟨γ, α_def⟩
@@ -486,7 +558,8 @@ theorem boxHelperTermination α (ℓ : TP α) :
         aesop
     case inr δ_in =>
       by_cases β.isAtomic <;> by_cases β.isStar <;>
-        simp_all [Program.isAtomic_iff, Program.isStar_iff, subprograms]
+        simp_all only [Program.isAtomic_iff, Program.isStar_iff, subprograms, List.cons_append,
+          List.nil_append, List.mem_cons, reduceCtorEq, List.mem_append, false_or]
       case pos hyp1 hyp2 =>
         rcases hyp1 with ⟨γ, β_def⟩
         rcases hyp2 with ⟨γ, β_def⟩
@@ -529,7 +602,8 @@ theorem boxHelperTermination α (ℓ : TP α) :
         rcases hyp with ⟨α, β_def⟩
         subst β_def
         specialize IH α rfl
-        simp [subprograms] at *
+        simp only [reduceCtorEq, not_false_eq_true, implies_true, subprograms, List.cons_append,
+          List.nil_append, List.mem_cons, false_or] at *
         rcases IH with ⟨a, ⟨δ1n, δ'_def⟩, ⟨a_in, δ'_sub⟩⟩
         use a
         constructor
@@ -557,7 +631,7 @@ theorem unfoldBoxContent α ψ :
          ∨ (∃ (a : Nat), ∃ δ, φ = (⌈·a⌉⌈⌈δ⌉⌉ψ) ∧ ∀ γ ∈ ((·a : Program)::δ), γ ∈ subprograms α))
     := by
   intro X X_in φ φ_in_X
-  simp [unfoldBox, Xset] at X_in
+  simp only [unfoldBox, Xset, List.mem_map] at X_in
   rcases X_in with ⟨ℓ, ℓ_in, def_X⟩
   subst def_X
   simp only [List.mem_append, List.mem_map] at φ_in_X
@@ -584,13 +658,25 @@ theorem unfoldBoxContent α ψ :
     · -- φ is made from some δ from P α ℓ
       have bht := boxHelperTermination α ℓ δ δ_in
       subst def_φ
-      cases α <;> simp_all [P, subprograms, Program.isAtomic, Program.isStar]
+      cases α
       case atom_prog a =>
+        simp_all only [P, Program.isAtomic, List.mem_cons, List.not_mem_nil, or_false, forall_const,
+          reduceCtorEq, List.cons_append, List.nil_append, subprograms, List.cons_subset,
+          Program.atom_prog.injEq, or_true, true_and, not_isEmpty_of_nonempty, IsEmpty.exists_iff,
+          implies_true, not_true_eq_false, Program.isStar, Bool.false_eq_true, not_false_eq_true,
+          and_true, and_self, Formula.boxes_cons, Formula.boxes_nil, and_false, exists_const,
+          Formula.box.injEq, forall_eq_or_imp, ↓existsAndEq, false_or]
         subst bht
         right
         use []
         simp
       case sequence α β =>
+        simp_all only [P, List.mem_union_iff, List.mem_map, List.mem_filter, bne_iff_ne, ne_eq,
+          List.mem_ite_nil_right, Program.isAtomic, Bool.false_eq_true, IsEmpty.forall_iff,
+          reduceCtorEq, List.cons_append, List.nil_append, subprograms, List.cons_subset,
+          List.mem_cons, List.mem_append, false_or, not_isEmpty_of_nonempty, IsEmpty.exists_iff,
+          or_true, implies_true, not_false_eq_true, Program.isStar, and_self, exists_and_right,
+          forall_const, true_and, forall_eq_or_imp]
         rcases bht with _ | ⟨a, ⟨δ1n, δ_def⟩, ⟨a_in, δ_sub⟩⟩
         · subst_eqs; simp
         · subst δ_def
@@ -599,11 +685,16 @@ theorem unfoldBoxContent α ψ :
             Program.atom_prog.injEq, ↓existsAndEq, false_or]
           right
           use δ1n
-          simp_all
+          simp_all only [true_and]
           intro γ γ_in
           specialize δ_sub γ_in
           simp_all
       case union α β =>
+        simp_all only [P, List.mem_union_iff, Program.isAtomic, Bool.false_eq_true,
+          IsEmpty.forall_iff, reduceCtorEq, List.cons_append, List.nil_append, subprograms,
+          List.cons_subset, List.mem_cons, List.mem_append, false_or, not_isEmpty_of_nonempty,
+          IsEmpty.exists_iff, or_true, implies_true, not_false_eq_true, Program.isStar, and_self,
+          exists_and_right, forall_const, true_and, forall_eq_or_imp]
         rcases bht with _ | ⟨a, ⟨δ1n, δ_def⟩, ⟨a_in, δ_sub⟩⟩
         · subst_eqs; simp
         · subst δ_def
@@ -615,6 +706,13 @@ theorem unfoldBoxContent α ψ :
           simp
           grind
       case star β =>
+        simp_all only [P, List.cons_union, List.nil_union, List.mem_map, List.mem_filter,
+          bne_iff_ne, ne_eq, List.append_eq_nil_iff, List.cons_ne_self, and_false, exists_const,
+          not_false_eq_true, List.insert_of_not_mem, List.mem_cons, Program.isAtomic,
+          Bool.false_eq_true, IsEmpty.forall_iff, Program.star.injEq, List.cons_append,
+          List.nil_append, subprograms, List.cons_subset, reduceCtorEq, false_or, exists_and_right,
+          forall_eq', Program.isStar, not_true_eq_false, not_isEmpty_of_nonempty,
+          IsEmpty.exists_iff, or_true, and_true, true_and, forall_eq_or_imp]
         rcases bht with _ | ⟨a, ⟨δ1n, δ_def⟩, ⟨a_in, δ_sub⟩⟩
         · subst_eqs; simp
         · subst δ_def
@@ -625,6 +723,9 @@ theorem unfoldBoxContent α ψ :
           right
           use δ1n ++ [∗β]
           grind
+      case test τ =>
+        simp_all [P, subprograms, Program.isAtomic, Program.isStar]
+
 
 theorem unfoldBox_voc {x α φ} {L} (L_in : L ∈ unfoldBox α φ) {ψ} (ψ_in : ψ ∈ L)
     (x_in_voc_ψ : x ∈ ψ.voc) : x ∈ α.voc ∨ x ∈ φ.voc := by
@@ -635,7 +736,8 @@ theorem unfoldBox_voc {x α φ} {L} (L_in : L ∈ unfoldBox α φ) {ψ} (ψ_in :
     left
     have := testsOfProgram.voc _ τ_in
     tauto
-  · simp at *
+  · simp only [List.mem_cons, forall_eq_or_imp, Formula.voc, Program.voc, Finset.singleton_union,
+    Finset.mem_insert] at *
     simp only [Formula.voc_boxes, List.pvoc, Finset.mem_union] at x_in_voc_ψ
     rcases x_in_voc_ψ with (x_def|x_in|x_in)
     · subst x_def
@@ -658,7 +760,8 @@ theorem boxHelperTP α (ℓ : TP α) :
     have := F_mem_iff_neg α ℓ (~τ)
     aesop
   · intro W M w
-    simp [conEval, signature]
+    simp only [evaluate, conEval, signature, List.mem_map, List.mem_attach, true_and,
+      Subtype.exists, forall_exists_index, and_iff_right_iff_imp]
     intro w_ℓ φ φ_in
     have := F_mem_iff_neg α ℓ φ
     rw [this] at φ_in
@@ -667,7 +770,8 @@ theorem boxHelperTP α (ℓ : TP α) :
     specialize w_ℓ φ τ
     aesop
   · intro ψ W M w
-    simp [conEval, Xset]
+    simp only [evaluate, Xset, conEval, List.mem_append, List.mem_map, forall_exists_index, and_imp,
+      forall_apply_eq_imp_iff₂, and_congr_left_iff]
     intro w_sign
     constructor
     · intro lhs δ δ_in
@@ -687,8 +791,8 @@ theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
     (rho_imp_repl : ρ ⊨ (repl_in_F x ρ) (χ0 ⋁ χ1))
     (rho_imp_psi : ρ ⊨ ψ)
   : ρ ⊨ ⌈(∗β)⌉ψ := by
-  -- The key observation in this proof is the following:
-  have fortysix :
+  -- "The key observation in this proof is the following:"
+  have threepointsix :
        ∀ W M (w v : W), (M,w) ⊨ ρ → relate M β w v → (M,v) ⊨ ρ := by
     intro W M w v w_rho w_β_v
     have : (M,w) ⊨ ⌈β⌉ρ := by
@@ -697,7 +801,7 @@ theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
         · simp only [List.mem_cons, List.not_mem_nil, or_false, forall_eq]
           exact w_rho
         · simp
-      have obvious : (M,w) ⊨ (repl_in_F x ρ) (·x) := by simp; exact w_rho
+      have obvious : (M,w) ⊨ (repl_in_F x ρ) (·x) := by simpa
       have : (M,w) ⊨ (repl_in_F x ρ) (((·x) ⋀ χ0) ⋁ χ1) := by
         simp [evaluate, modelCanSemImplyForm] at *
         tauto
@@ -709,19 +813,16 @@ theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
       rw [equiv_iff _ _ this]
       simp_all
     -- It is then immediate...
-    simp [evaluate, modelCanSemImplyForm] at this
+    simp only [modelCanSemImplyForm, evaluatePoint, evaluate] at this
     exact this v w_β_v -- This finishes the proof of (46).
   -- To see how the Lemma follows from this...
   intro W M w
   simp only [List.mem_singleton, forall_eq, evaluate, relate]
   intro w_rho v w_bS_v
   induction w_bS_v using Relation.ReflTransGen.head_induction_on
-  · apply rho_imp_psi
-    · simp; assumption
-    · simp
+  · apply rho_imp_psi <;> simp_all
   case head u1 u2 u1_b_u2 _ IH =>
-    apply IH
-    exact fortysix W M u1 u2 w_rho u1_b_u2
+    exact IH (threepointsix W M u1 u2 w_rho u1_b_u2)
 
 /-- Show "suffices" part outside, to use `localBoxTruth` for star case in `localBoxTruthI`. -/
 theorem localBoxTruth_connector γ ψ :
@@ -740,7 +841,7 @@ theorem localBoxTruth_connector γ ψ :
     let ℓ : TP γ := fun ⟨τ,_⟩ => decide (evaluate M w τ)
     have ℓ_in : ℓ ∈ allTP γ := by
       unfold ℓ;
-      simp [allTP];
+      simp only [allTP, List.mem_map, List.mem_sublists];
       use ((testsOfProgram γ).filter (fun τ => evaluate M w τ))
       simp only [List.filter_sublist, true_and]
       apply funext
@@ -762,7 +863,7 @@ theorem localBoxTruth_connector γ ψ :
   · intro w_Cons
     rw [disEval] at w_Cons
     rcases w_Cons with ⟨φ, φ_in, w_Xℓ⟩
-    simp at φ_in
+    simp only [List.mem_map] at φ_in
     rcases φ_in with ⟨ℓ, _, def_φ⟩
     subst def_φ
     have := Classical.propDecidable
