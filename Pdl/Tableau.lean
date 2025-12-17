@@ -135,6 +135,14 @@ inductive PdlRule : (X : Sequent) → (Y : Sequent) → Type
       → PdlRule X Y
 deriving DecidableEq
 
+def PdlRule.isModal {X Y} : PdlRule X Y → Prop
+| .loadL _ _ _ => False
+| .loadR _ _ _ => False
+| .freeL _ _ => False
+| .freeR _ _ => False
+| .modL _ _ => True
+| .modR _ _ => True
+
 /--
 The `Tableau [parent, grandparent, ...] child` type.
 
