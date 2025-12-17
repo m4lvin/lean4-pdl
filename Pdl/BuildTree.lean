@@ -342,17 +342,17 @@ where should we insist on the (more specific) `buildTree` result value?
 
 /-- Path inside a `BuildTree`. Analogous to `PathIn` for `Tableau`. -/
 inductive Match : ∀ {pos : GamePos}, BuildTree pos → Type
-| stp {bt} : Match bt
+| stop {bt} : Match bt
 | mov {YS Y mvs next} Y_in (tail : Match (next Y Y_in)) : Match (BuildTree.Step YS mvs next)
 
 def Match.btAt {pos} {bt : BuildTree pos} : Match bt → Σ newPos, BuildTree newPos
-| stp => ⟨_, bt⟩
+| stop => ⟨_, bt⟩
 | mov _ tail => btAt tail
 
 -- TODO lemmas like those about `tabAt` and `nodeAt`?
 
 def Match.append : (m1 : Match bt) → (m2 : Match (btAt m1).2) → Match bt
-| stp, m2 => m2
+| stop, m2 => m2
 | mov Y_in tail, m2 => mov Y_in (append tail m2)
 
 -- TODO lemmas like those about `PathIn.append`?
@@ -366,7 +366,7 @@ structure Match.edge (m n : Match bt) where
   nPos_in : nPos ∈ YS
   mvs : ∀ newPos ∈ YS, Move mPos newPos
   h : btAt m = ⟨mPos, BuildTree.Step YS mvs next⟩
-  def_n : n = m.append (h ▸ @mov mPos YS nPos mvs next nPos_in stp)
+  def_n : n = m.append (h ▸ @mov mPos YS nPos mvs next nPos_in stop)
 
 /-- If `m` ends at a leaf, then it cannot have an edge to any `n`. -/
 lemma Match.leaf_no_edge {bt : BuildTree pos} (m : Match bt) rp (h : (btAt m).2 = .Leaf rp) :
@@ -380,7 +380,7 @@ lemma Match.leaf_no_edge {bt : BuildTree pos} (m : Match bt) rp (h : (btAt m).2 
 /-- Go back up inside `bt` by `k` steps.
 FIXME: instead of `Nat`, use `Fin` like we do in `PathIn.rewind`. -/
 def Match.rewind : Match bt → (k : Nat) → Match bt
-| stp, _ => stp
+| stop, _ => stop
 | mov Y_in tail, 0 => mov Y_in tail
 | mov Y_in tail, (k + 1) => (mov Y_in tail).rewind k
 
@@ -404,9 +404,9 @@ In the paper pre-states are allowed to be of the form π;π' when π ends at a r
 maximal prefix of the path from the companion to that repeat. Here we only store the π part of
 such pre-states, because the π' is then uniquely determined by π. -/
 
-/-- This edge between matches is not a modal step.
+/-- This edge between matches is a modal step.
 To even say this we adjusted `BuildTree` to contain data which rule was used. -/
-def Match.edge.not_mod {pos} {bt : BuildTree pos} {m n : Match bt} : Match.edge m n → Prop := by
+def Match.edge.isModal {pos} {bt : BuildTree pos} {m n : Match bt} : Match.edge m n → Prop := by
   rcases btAt_m_def : btAt m with ⟨pos, m_bt⟩
   rcases pos with ⟨Hist, X, _⟩
   intro m_n
@@ -425,69 +425,105 @@ def Match.edge.not_mod {pos} {bt : BuildTree pos} {m n : Match bt} : Match.edge 
     specialize mvs nPos nPos_in
     -- Here we use that we have a `Move` that is data (and we not just have `move`).
     cases mvs
-    case prPdl r => exact ¬ r.isModal
+    case prPdl r => exact r.isModal
     case prLocTab => exact False
     case buEnd => exact False
 
 def Match.isLeaf {pos} {bt : BuildTree pos} {m : Match bt} : Prop :=
     ∃ m_pos rep, m.btAt = ⟨m_pos, .Leaf rep⟩
 
-/-- This match ends *just before* an (M) application. -/
-def Match.isJustBeforeM {pos} {bt : BuildTree pos} {m : Match bt} : Prop :=
-  sorry
-
-/-- This match ends at the *result* of an (M) application. -/
-def Match.isResultOfM {pos} {bt : BuildTree pos} {m : Match bt} : Prop :=
-  sorry
-
-/-- A pre-state-part is any path in a BuildTree consisting of non-(M) `edge`s and ending at a leaf
-or just before an (M) application. (There are no `Match.companion` steps here, see note above.)
+/-- A pre-state-part starting at `m` is any path in `bt : BuildTree` consisting of non-(M) `edge`s
+and stopping at a leaf or at an (M) application. (No `Match.companion` steps here, see note above.)
 
 PROBLEM / QUESTION: do we also need leafs given by empty `prMoves`??? -/
 inductive PreStateP {pos} (bt : BuildTree pos) : (m : Match bt) → Type
-| edge {m n} : (e : Match.edge m n) → e.not_mod → PreStateP bt n → PreStateP bt m
+| edge {m n} : (e : Match.edge m n) → ¬ e.isModal → PreStateP bt n → PreStateP bt m
 | stopLeaf {m} : m.isLeaf → PreStateP bt m
-| stopAtM {m} : m.isJustBeforeM → PreStateP bt m
+| stopAtM {m n} : (e : Match.edge m n) → e.isModal → PreStateP bt m
 
-/-- A pre-state is a maximal pre-state-part, i.e. starting at the root or just after (M). -/
-inductive PreState {pos} (bt : BuildTree pos) : Type
-| fromRoot : PreStateP bt stp → PreState bt
-| fromMod {m} : m.isResultOfM → PreStateP bt m → PreState bt
-
-def PreState.all {pos} (bt : BuildTree pos) : List (PreState bt) := sorry
+/-- Collect all `PreStateP`s from a given `m` onwards. -/
+def BuildTree.allPreStatePs {pos} : (bt : BuildTree pos) → (m : Match bt) → List (PreStateP bt m)
   -- Maybe define `Match.all` first and then filter it here?
   -- Or better do it inductively?
+| .Leaf rp, m => [ .stopLeaf (by unfold Match.isLeaf; cases m; simp_all [Match.btAt]) ]
+| .Step YS YS_Moves next, _ => sorry
 
--- TODO lemma PreState.all_spec : ...
+lemma BuildTree.allPreStatePs_spec {pos} {bt : BuildTree pos} {m : Match bt} :
+    ∀ π : PreStateP bt m, π ∈ bt.allPreStatePs m := by
+  sorry
 
-/-- Collect formulas in a pre-state.
+/-- A pre-state is a maximal pre-state-part, i.e. starting at the root or just after (M).
+
+WORRY: should `fromRoot` also have a condition about `pos` being the start of the game?
+-/
+inductive PreState {pos} (bt : BuildTree pos) : Type
+| fromRoot : PreStateP bt .stop → PreState bt
+| fromMod {o m} : (e : Match.edge o m) → e.isModal → PreStateP bt m → PreState bt
+
+/-- Collect all `PreState`s for a given `BuildTree`. -/
+def BuildTree.allPreStates {pos} (bt : BuildTree pos) : List (PreState bt) :=
+  (bt.allPreStatePs .stop).map .fromRoot
+
+lemma BuildTree.allPreStates_spec {pos} {bt : BuildTree pos} :
+    ∀ π : PreState bt, π ∈ bt.allPreStates := by
+  -- should be easy, use BuildTree.allPreStatePs_spec
+  sorry
+
+/-- Collect formulas in a pre-state. The non-loaded part of Λ(π) in paper.
 
 TODO: If the pre-state ends in a repeat, also include formulas in the path from companion to (M).
+
+QUESTION: Can we collect loaded formulas here by unloading them?
+Or would that make the loaded case of `PreState.pdlFormCase` unsayable?
 -/
 def PreState.forms : PreState bt → List Formula := sorry
 
+/-- Collect formulas in a pre-state. The loaded part of Λ(π) in paper. -/
+def PreState.lforms : PreState bt → List NegLoadFormula := sorry
+
 def PreState.last : PreState bt → Sequent := sorry
 
--- TODO Lemma 6.14
+/-- TODO Lemma 6.14 -/
+lemma PreState.formsCases {π : PreState bt} : φ ∈ π.forms →
+      (φ.basic ∧ φ ∈ π.last) -- NOTE: the `∈` is not dealing with loaded formulas here!
+    ∨ (sorry) := by -- TODO how to say `φ is principal later?`
+    -- Or can we say something else / phrase it as closure condition about π.forms directly?
+  sorry
 
--- TODO Lemma 6.15
+/-- WIP Lemma 6.15 (unloaded case only) -/
+lemma PreState.pdlFormCase {π : PreState bt} : ¬ α.isAtomic → (~⌈α⌉φ) ∈ π.forms →
+    ∃ Xδ ∈ H α, Xδ.1 ∪ [~ Formula.boxes δ φ] ⊆ π.forms := by
+  sorry
 
--- TODO Lemma 6.16: pre-states are saturated and locally consistent, their last node is basic.
+/-- WIP Lemma 6.16: pre-states are saturated and locally consistent, their last node is basic. -/
 lemma PreState.locConsSatBas (π : PreState bt) :
     saturated (π.forms).toFinset
     ∧ locallyConsistent (π.forms).toFinset
-    ∧ π.last.basic
-  := sorry
+    ∧ π.last.basic := by
+  -- define `PreState.forms` first.
+  sorry
 
 /-- Definition 6.17 to get model graph from strategy tree. -/
 @[simp]
 def BuildTree.toModel (bt : BuildTree Pos) : (Σ W : Finset (Finset Formula), KripkeModel W) :=
-  ⟨ ((PreState.all bt).map (List.toFinset ∘ PreState.forms)).toFinset -- W
+  ⟨ ((bt.allPreStates).map (List.toFinset ∘ PreState.forms)).toFinset -- W
   , { val := fun X p => Formula.atom_prop p ∈ X.1 -- valuation V(p)
     , Rel := fun a X Y => -- relation Rₐ
         ∃ φ, (~⌈·a⌉φ) ∈ X.1 ∧ (projection a X.1.toList).toFinset ∪ {~φ} ⊆ Y.1 }⟩
 
--- TODO Lemma 6.18
+/-- WIP Lemma 6.18
+
+QUESTION: which `R` can we use here in order to use `Modelgraphs.Q`?
+-/
+lemma PreState.diamondExistence {φ : AnyFormula} {π : PreState bt} : (~'⌊α⌋φ) ∈ π.lforms →
+    -- QUESTION: what to say about `π` here and what to say about node `t` lying on `π`?
+    ∃ t : Match bt,
+        AnyNegFormula.mem_Sequent (t.btAt).1.2.1 (~''φ)
+      ∧ ∃ ρ : PreState bt, ∃ u : Match bt,
+        -- TODO: t < u
+        -- TODO: missing loaded formulas below
+        @Modelgraphs.Q sorry sorry α ⟨π.forms.toFinset, sorry⟩ ⟨ρ.forms.toFinset, sorry⟩ := by
+  sorry
 
 -- TODO Lemma 6.19: for any diamond we can go to a pre-state where that diamond is loaded
 
