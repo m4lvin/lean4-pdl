@@ -225,12 +225,13 @@ lemma PdlRule.all_spec {X Y} (bas : X.basic) (r : PdlRule X Y) : ⟨Y, r⟩ ∈ 
 
 /-- Tree data type to keep track of choices made by Builder. Might still need to be tweaked.
 - Choices should be labelled with the choices made by prover?
-  TODO: i.e. we need to keep track of which rule is used.
-- Maybe we also need to carry proofs in here?
+  TODO: Do we need to keep track of which rule is used?
 -/
 inductive BuildTree : GamePos → Type
   | Leaf {pos} (rp : rep pos.1 pos.2.1) : BuildTree pos
-  | Step {pos} (YS : List GamePos) (next : ∀ newPos ∈ YS, BuildTree newPos) : BuildTree pos
+  | Step {pos} (YS : List GamePos)
+      (YS_moves : ∀ newPos ∈ YS, move pos newPos)
+      (next : ∀ newPos ∈ YS, BuildTree newPos) : BuildTree pos
 
 -- QUESTION: are actually all leafs in the BuildTree backpointers?
 
@@ -261,9 +262,12 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
         simp only [tableauGame]
         apply mem_theMoves_of_move
         subst newPos
-        exact move.prPdl r
+        exact ⟨Move.prPdl r⟩
       -- TODO: what if `prMoves` here is empty? Make a leaf then?
-      .Step prMoves <| fun Y Y_in => buildTree s (stillWin _ Y_in)
+      .Step prMoves
+        (by intro nP nP_in; unfold prMoves at nP_in; simp at nP_in
+            rcases nP_in with ⟨Y, ⟨r, Yr_in⟩, def_nP⟩; rw [<- def_nP]; exact ⟨Move.prPdl r⟩)
+        <| fun Y Y_in => buildTree s (stillWin _ Y_in)
   | Sum.inl (.nbas nrep nbas) => -- prover chooses a local tableau
       -- Note: not using the Fintype instance because we want a List, not Finset
       let prMoves := (LocalTableau.all X).map
@@ -275,8 +279,11 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
         rcases newPos_in with ⟨ltX, ltX_in, def_newPos⟩
         refine ⟨ltX, ?_, def_newPos⟩
         simp_all [Fintype.elems]
-      -- TODO: check that `prMoves` here can never be empty?
-      .Step prMoves <| fun Y Y_in => buildTree s (stillWin _ Y_in)
+      -- TODO: check that `prMoves` here can never be empty? Or can it?
+      .Step prMoves
+        (by intro nP nP_in; unfold prMoves at nP_in; simp at nP_in
+            rcases nP_in with ⟨lt, lt_in, def_nP⟩; rw [<- def_nP]; exact ⟨Move.prLocTab⟩)
+        <| fun Y Y_in => buildTree s (stillWin _ Y_in)
   -- Builder positions:
   | Sum.inr (.lpr _) => by exfalso; simp [winning] at h -- prover wins, cannot happen
   | Sum.inr (.ltab nrep nbas ltX) =>
@@ -288,9 +295,11 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
         have forTermination : move ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ Y.1 := by
           have := Y.2
           simp only [Game.Pos.moves, tableauGame, theMoves, List.mem_toFinset] at this
-          have := fun Y => @move.buEnd X ltX Y H nrep nbas
-          grind
-        .Step [ Y.1 ] <| fun Y Y_in => by simp at Y_in; subst Y_in; exact buildTree s stillWin
+          have := fun Y Y_in => Nonempty.intro (@Move.buEnd X ltX Y H nrep nbas Y_in)
+          grind [move]
+        .Step [ Y.1 ]
+          (by intro nP nP_in; simp_all)
+          <| fun Y Y_in => by simp at Y_in; subst Y_in; exact buildTree s stillWin
       else by
         exfalso
         simp_all [winning, winner]
@@ -303,7 +312,7 @@ decreasing_by
     simp only [List.mem_map, Sigma.exists, exists_and_right, prMoves] at Y_in
     rcases Y_in with ⟨Y, ⟨r, _⟩, def_newPos⟩
     subst def_newPos
-    exact move.prPdl r
+    exact ⟨Move.prPdl r⟩
   · simp_wf
     simp only [tableauGame, Game.wf, WellFoundedRelation.rel]
     -- show that it's a move
@@ -311,7 +320,7 @@ decreasing_by
     simp only [List.mem_map] at Y_in
     rcases Y_in with ⟨ltX, _, def_pos⟩
     subst def_pos
-    apply @move.prLocTab H X nrep nbas
+    exact ⟨@Move.prLocTab H X nrep nbas _⟩
   · simp_wf
     simp only [tableauGame, Game.wf, WellFoundedRelation.rel]
     -- show that it's a move
@@ -325,33 +334,38 @@ where should we insist on the (more specific) `buildTree` result value?
 
 /-- Path inside a `BuildTree`. Analogous to `PathIn` for `Tableau`. -/
 inductive Match : ∀ {pos : GamePos}, BuildTree pos → Type
-| stop {bt} : Match bt
-| move {YS Y next} (Y_in : Y ∈ YS) (tail : Match (next Y Y_in)) : Match (BuildTree.Step YS next)
+| stp {bt} : Match bt
+| mov {YS Y mvs next} Y_in (tail : Match (next Y Y_in)) : Match (BuildTree.Step YS mvs next)
 
 def Match.btAt {pos} {bt : BuildTree pos} : Match bt → Σ newPos, BuildTree newPos
-| .stop => ⟨_, bt⟩
-| .move _ tail => btAt tail
+| stp => ⟨_, bt⟩
+| mov _ tail => btAt tail
 
 -- TODO lemmas like those about `tabAt` and `nodeAt`?
 
 def Match.append : (m1 : Match bt) → (m2 : Match (btAt m1).2) → Match bt
-| .stop, m2 => m2
-| .move Y_in tail, m2 => .move Y_in (append tail m2)
+| stp, m2 => m2
+| mov Y_in tail, m2 => mov Y_in (append tail m2)
 
 -- TODO lemmas like those about `PathIn.append`?
 
 /-- The parent-child relation ⋖_𝕋 in a Builder strategy tree. Similar to `edge`. -/
-def Match.edge (m n : Match bt) : Prop :=
-  ∃ YS next, ∃ mPos nPos : GamePos, ∃ nPos_in,
-    ∃ (h : btAt m = ⟨mPos, BuildTree.Step YS next⟩),
-      n = m.append (h ▸ @Match.move _ _ nPos _ nPos_in .stop)
+structure Match.edge (m n : Match bt) where
+  YS : List GamePos
+  next : (newPos : GamePos) → newPos ∈ YS → BuildTree newPos
+  mPos : GamePos
+  nPos : GamePos
+  nPos_in : _
+  mvs : _
+  h : btAt m = ⟨mPos, BuildTree.Step YS mvs next⟩
+  def_n : n = m.append (h ▸ @mov mPos YS nPos mvs next nPos_in stp)
 
 /-- Go back up inside `bt` by `k` steps.
 FIXME: instead of `Nat`, use `Fin` like we do in `PathIn.rewind`. -/
 def Match.rewind : Match bt → (k : Nat) → Match bt
-| .stop, _ => .stop
-| .move Y_in tail, 0 => .move Y_in tail
-| .move Y_in tail, (k + 1) => (Match.move Y_in tail).rewind k
+| stp, _ => stp
+| mov Y_in tail, 0 => mov Y_in tail
+| mov Y_in tail, (k + 1) => (mov Y_in tail).rewind k
 
 -- ... lots of stuff needed here?
 
@@ -377,8 +391,18 @@ such pre-states, because the π' is then uniquely determined by π. -/
 def Match.edge.not_mod {m n : Match bt} : Match.edge m n → Prop := by
   rcases btAt m with ⟨pos, m_bt⟩
   rcases pos with ⟨Hist, X, _⟩
+  intro m_n
   -- Here we are MISSING the info in BuildTree which rule was actually used!
-  sorry
+  cases m_bt
+  case Leaf =>
+    -- absurd m_n -- lemma that leafs have no edges?
+    sorry
+  case Step p YS next YS_moves =>
+    -- `cases edge` broken here, solved by turning `edge` into data
+    rcases m_n with ⟨YS, next, mPos, nPos, nPos_in, mvs, h, def_n⟩
+    specialize mvs nPos nPos_in
+    -- now also need that `move` is data ????
+    sorry
 
 def Match.isLeaf {pos} {bt : BuildTree pos} {m : Match bt} : Prop :=
     ∃ m_pos rep, m.btAt = ⟨m_pos, .Leaf rep⟩
@@ -402,7 +426,7 @@ inductive PreStateP {pos} (bt : BuildTree pos) : (m : Match bt) → Type
 
 /-- A pre-state is a maximal pre-state-part, i.e. starting at the root or just after (M). -/
 inductive PreState {pos} (bt : BuildTree pos) : Type
-| fromRoot : PreStateP bt .stop → PreState bt
+| fromRoot : PreStateP bt stp → PreState bt
 | fromMod {m} : m.isResultOfM → PreStateP bt m → PreState bt
 
 def PreState.all {pos} (bt : BuildTree pos) : List (PreState bt) := sorry
