@@ -41,22 +41,25 @@ def posOf (H : History) (X : Sequent) : ProverPos H X ⊕ BuilderPos H X :=
 
 /-- The relation `move old next` says that we can move from `old` to `next`.
 There are three kinds of moves. -/
-inductive move : (old : GamePos) → (new : GamePos) → Prop
+inductive Move : (old : GamePos) → (new : GamePos) → Type
 /-- When the sequent is basic and no repeat, let prover apply a PDL rule. -/
 | prPdl {X Y Hist nrep Xbasic} : PdlRule X Y →
-    move ⟨Hist, X, .inl (.bas nrep Xbasic)⟩
+    Move ⟨Hist, X, .inl (.bas nrep Xbasic)⟩
          ⟨(X :: Hist), Y, posOf (X :: Hist) Y⟩
 /-- If not basic, let prover pick any `ltab : LocalTableau X` as new position. -/
 | prLocTab {Hist X nrep nbas ltab} :
-    move ⟨Hist, X, .inl (.nbas nrep nbas)⟩
+    Move ⟨Hist, X, .inl (.nbas nrep nbas)⟩
          ⟨Hist, X, .inr (.ltab nrep nbas ltab)⟩
 /-- Let Builder pick an end node of `ltab` -/
 | buEnd {X ltab Y Hist nrep nbas} : Y ∈ endNodesOf (ltab : LocalTableau X) →
-    move ⟨Hist, X, .inr (.ltab nrep nbas ltab)⟩
+    Move ⟨Hist, X, .inr (.ltab nrep nbas ltab)⟩
          ⟨(X :: Hist), Y, posOf (X :: Hist) Y⟩
+
+def move (old : GamePos) (new : GamePos) : Prop := Nonempty (Move old new)
 
 lemma move_then_no_rep {Hist X next} {p : (ProverPos Hist X ⊕ BuilderPos Hist X)} :
     move ⟨Hist, X, p⟩ next → ¬ rep Hist X := by
+  simp only [move, Nonempty.forall]
   intro next_p hyp
   cases next_p <;> grind
 
@@ -296,7 +299,9 @@ lemma move_of_mem_theMoves {pos next} :
             simp [def_of_boxesOf_def bxs_def]
             rw [← boxes_last, List.dropLast_append_getLast, Formula.boxes_cons]
           rw [this (by simp)]
-          apply move.prPdl
+          simp only [move]
+          constructor
+          apply Move.prPdl
           simp only [ne_eq, reduceCtorEq, not_false_eq_true, forall_true_left] at this
           subst this
           exact PdlRule.loadL ψ_in ψ_nonBox rfl
@@ -314,7 +319,9 @@ lemma move_of_mem_theMoves {pos next} :
             simp [def_of_boxesOf_def bxs_def]
             rw [← boxes_last, List.dropLast_append_getLast, Formula.boxes_cons]
           rw [this (by simp)]
-          apply move.prPdl
+          simp only [move]
+          constructor
+          apply Move.prPdl
           simp only [ne_eq, reduceCtorEq, not_false_eq_true, forall_true_left] at this
           subst this
           exact PdlRule.loadR ψ_in ψ_nonBox rfl
@@ -327,48 +334,49 @@ lemma move_of_mem_theMoves {pos next} :
     rcases χ with (⟨⟨χ⟩⟩|⟨⟨χ⟩⟩) <;> rcases χ with ⟨δ,φ|χ⟩ <;> cases δ <;> simp_all
     case inl.bas.some.inl.normal.atom_prog a nrep bas =>
       cases mv <;> subst_eqs
-      · apply move.prPdl; apply @PdlRule.freeL _ L R [] (·a) φ _ rfl; simp
-      · apply move.prPdl; apply PdlRule.modL rfl rfl
+      · constructor; apply Move.prPdl; apply @PdlRule.freeL _ L R [] (·a) φ _ rfl; simp
+      · constructor; apply Move.prPdl; apply PdlRule.modL rfl rfl
     case inl.bas.some.inl.loaded.atom_prog a nrep bas =>
       cases mv <;> subst_eqs
       · rcases LoadFormula.exists_loadMulti χ with ⟨δ, α, φ, χ_def⟩
         subst χ
         rw [unload_loadMulti]
-        apply move.prPdl;
+        constructor; apply Move.prPdl;
         convert @PdlRule.freeL _ L R (·a :: δ) α φ _ rfl rfl using 1
-      · apply move.prPdl; apply PdlRule.modL rfl rfl
+      · constructor; apply Move.prPdl (PdlRule.modL rfl rfl)
     case inl.bas.some.inr.normal.atom_prog a nrep bas =>
       cases mv <;> subst_eqs
-      · apply move.prPdl; apply @PdlRule.freeR _ L R [] (·a) φ _ rfl; simp
-      · apply move.prPdl; apply PdlRule.modR rfl rfl
+      · constructor; apply Move.prPdl; apply @PdlRule.freeR _ L R [] (·a) φ _ rfl; simp
+      · constructor; apply Move.prPdl (PdlRule.modR rfl rfl)
     case inl.bas.some.inr.loaded.atom_prog a nrep bas =>
       cases mv <;> subst_eqs
       · rcases LoadFormula.exists_loadMulti χ with ⟨δ, α, φ, χ_def⟩
         subst χ
         rw [unload_loadMulti]
-        apply move.prPdl;
+        constructor; apply Move.prPdl;
         convert @PdlRule.freeR _ L R (·a :: δ) α φ _ rfl rfl using 1
-      · apply move.prPdl; apply PdlRule.modR rfl rfl
+      · constructor; apply Move.prPdl; apply PdlRule.modR rfl rfl
     all_goals
       grind
   · rcases mv with ⟨lt, lt_in, def_next⟩
     subst def_next
-    apply move.prLocTab
+    constructor; apply Move.prLocTab
   · rcases mv with ⟨lt, lt_in, def_next⟩
     subst def_next
-    apply move.prLocTab
+    constructor; apply Move.prLocTab
   · rcases mv with ⟨lt, lt_in, def_next⟩
     subst def_next
-    apply move.buEnd lt_in
+    constructor; apply Move.buEnd lt_in
   · rcases mv with ⟨lt, lt_in, def_next⟩
     subst def_next
-    apply move.buEnd lt_in
+    constructor; apply Move.buEnd lt_in
 
 lemma mem_theMoves_of_move {pos next} :
     move pos next → next ∈ theMoves pos := by
   intro mov
   rcases pos with ⟨H, X, p⟩
   rw [theMoves_iff] -- good idea?
+  rcases mov with ⟨mov⟩
   cases mov
   case prPdl Y bas r nrep =>
     simp_all
@@ -469,6 +477,7 @@ lemma mem_theMoves_of_move {pos next} :
 lemma move.hist (mov : move ⟨Hist, X, pos⟩ next) :
       (∃ newPos, next = ⟨Hist, X, newPos⟩) -- this is for the annoying `prLocTab` case ;-)
     ∨ (∃ Y newPos, next = ⟨X :: Hist, Y, newPos⟩)  := by
+  rcases mov with ⟨mov⟩
   cases mov
   case prPdl => right; grind
   case prLocTab => left; grind
@@ -527,6 +536,8 @@ lemma move_twice_hist_length {A B C : GamePos} (A_B : move A B) (B_C : move B C)
   rcases B with ⟨HB, B, pB⟩
   rcases C with ⟨HC, C, pC⟩
   simp only
+  rcases A_B with ⟨A_B⟩
+  rcases B_C with ⟨B_C⟩
   cases A_B
   case prPdl Xbasic nrep r =>
     generalize h : posOf (A :: HA) B = stepP at *
@@ -549,6 +560,8 @@ lemma movemove.hist {A B C : GamePos} (A_B : move A B) (B_C : move B C) :
   rcases B with ⟨HB, B, pB⟩
   rcases C with ⟨HC, C, pC⟩
   simp only
+  rcases A_B with ⟨A_B⟩
+  rcases B_C with ⟨B_C⟩
   cases A_B
   case prPdl Xbasic nrep r =>
     generalize h : posOf (A :: HA) B = stepP at *
@@ -591,6 +604,7 @@ is not allowed.
 -/
 
 lemma move_inside_FL {p next} (mov : move p next) : next.2.1.subseteq_FL p.2.1 := by
+  rcases mov with ⟨mov⟩
   cases mov
   case prPdl r => apply PdlRule.stays_in_FL r
   case buEnd ltX _ _ _ _ Y_in => simp; apply LocalTableau.stays_in_FL ltX _ Y_in
