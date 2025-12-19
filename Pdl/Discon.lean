@@ -158,7 +158,17 @@ theorem disconOr {XS YS} : discon (XS ∪ YS) ≡ discon XS ⋁ discon YS :=
     intro lhs
     rcases lhs with ⟨Z, Z_in, w_sat_Z⟩
     intro notL
-    simp only [not_exists, not_and, not_forall, exists_prop] at notL
+    simp at notL -- Linter will complain here.
+    -- simp? at notL -- gives this suggestion:
+    -- -- Try this:
+    -- -- [apply] simp only [not_exists, not_and, not_forall, Classical.not_imp] at notL
+    -- simp only [not_exists, not_and, not_forall, Classical.not_imp] at notL
+    -- but then `Classical.not_imp` is unused!
+    -- simp only [not_exists, not_and, not_forall] at notL
+    -- But now the proof state is different than it was after `simp at notL`.
+    -- We get the same with:
+    -- simp only [not_exists, not_and, not_forall, exists_prop] at notL
+    -- (End of example.)
     cases Z_in
     case inl Z_in_XS =>
       specialize notL Z Z_in_XS
