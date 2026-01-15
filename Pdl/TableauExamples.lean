@@ -1,6 +1,6 @@
 import Mathlib.Data.Finset.Basic
 
-import Pdl.Tableau
+import Pdl.Soundness
 
 /-! # Tableau Examples
 
@@ -166,22 +166,46 @@ example : Tableau [] ([r ⋀ (~(⌈a⌉p)), r ↣ ⌈a⌉(p ⋀ q)], [], none) :
       subst Y_in
       exact subTabForEx2
 
-/-- Example 4.7 involving a free repeat and thus open. -/
-example : ¬ provable ((⌈∗a⌉~⌈a⌉p) ↣ p) :=
-  by
-  sorry
+/-- Example 4.8, but shown via `soundness`.
+The corresponding partial tableau has a free repeat and is thus open. -/
+example : ¬ provable ((⌈∗a⌉~⌈a⌉p) ↣ p) := by
+  intro hyp
+  have := soundness _ hyp
+  unfold tautology at this
+  absurd this
+  push_neg
+  -- We define a single-world model with a loop where all atoms are false
+  refine ⟨ Unit, ?_, (), ?_⟩
+  · exact ⟨ fun w q => False
+          , fun b v w => True ⟩
+  · simp [evaluate]
 
-/-- Example 4.8 involving a loaded-path repeat but still open. -/
-example : ¬ provable ((⌈a⌉⌈∗a⌉p) ↣ (⌈a⌉⌈∗a⌉q)) :=
-  by
-  sorry
+/-- Example 4.9, but shown via `soundness`.
+The corresponding partial tableau has a loaded-path repeat but is still open. -/
+example (p q : Nat) (notSame : q ≠ p) :
+    ¬ provable ((⌈a⌉⌈∗a⌉(·p)) ↣ (⌈a⌉⌈∗a⌉(·q))) := by
+  intro hyp
+  have := soundness _ hyp
+  unfold tautology at this
+  absurd this
+  push_neg
+  -- We define a two-world model where only p holds at a loop at the end.
+  refine ⟨ Fin 2, ?_, 0, ?_⟩
+  · exact ⟨ fun w r => w = 1 ∧ r = p
+          , fun b v w => w = 1 ⟩
+  · simp [evaluate]
+    constructor
+    · intro h
+      cases h
+      grind
+    · exact fun _ => ⟨Relation.ReflTransGen.refl, notSame⟩
 
 -- Should this be with @[simp] in `LocalTableau.lean`?
 lemma endNodesOf_cast_helper {h : X = Y} (ltX : LocalTableau X) :
     endNodesOf (h ▸ ltX) = endNodesOf ltX := by
   subst_eqs; simp
 
-/-- Example 4.18 involving a loaded-path repeat -/
+/-- Example 4.19 involving a loaded-path repeat -/
 example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], none) :=
   by
   apply Tableau.loc
