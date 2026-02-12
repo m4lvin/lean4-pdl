@@ -546,7 +546,7 @@ theorem boxHelperTermination α (ℓ : TP α) :
         · simp_all [subprograms]
 
 /-- Where formulas in the unfolding can come from.
-The article also says `φ ∈ fischerLadner [⌈α⌉ψ]` which we omit here. -/
+The article also says `φ ∈ fischerLadner [⌈α⌉ψ]` which we prove later in `unfoldBox_in_FL`. -/
 theorem unfoldBoxContent α ψ :
     ∀ X ∈ (unfoldBox α ψ),
     ∀ φ ∈ X,

@@ -1436,7 +1436,7 @@ lemma non_eq_of_ltSequent : lt_Sequent X Y → X ≠ Y := by
   intro lt X_eq_Y
   subst X_eq_Y
   absurd lt
-  -- This us easy, because DM ordering is irreflexive.
+  -- This is easy, because the DM ordering is irreflexive.
   have := WellFounded.irrefl (instWellFoundedRelationSequent.2)
   apply this.1
 
