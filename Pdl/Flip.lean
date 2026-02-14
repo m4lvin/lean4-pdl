@@ -315,6 +315,7 @@ lemma LoadedPathRepeat.flip_flip {Hist X} (lpr : LoadedPathRepeat Hist X) :
   rcases lpr with ⟨k, hk⟩
   simp [LoadedPathRepeat.flip]
   rw! [Sequent.map_flip_map_flip, Sequent.flip_flip]
+  rfl
 
 /-- (┛ಠ_ಠ)┛彡┻━┻ -/
 def Tableau.flip {Hist X} : Tableau Hist X → Tableau (Hist.map Sequent.flip) X.flip
@@ -369,6 +370,7 @@ def PathIn.flip {Hist X} {tab : Tableau Hist X} : PathIn tab → PathIn tab.flip
         (by
           have := tail.flip; convert this using 1
           rw! [@Sequent.flip_flip Y]
+          rfl
         )
   | .pdl tail => .pdl tail.flip
 
@@ -396,7 +398,9 @@ lemma PathIn.nodeAt_flip {Hist X} {tab : Tableau Hist X} {e : PathIn tab} :
     simp only [nodeAt, List.map_cons]
     convert rfl
     · rw! (castMode := .all) [@Sequent.flip_flip Y]
+      rfl
     · simp_all
     · rw! (castMode := .all) [@Sequent.flip_flip Y]
+      rfl
     · simp_all
   case pdl => simp_all [PathIn.flip]

@@ -289,7 +289,7 @@ lemma not_in_cone_of_move {i g} {p q : g.Pos} (q_in : q ∈ g.moves p) (sI : Str
     · apply Relation.TransGen.trans _ (Relation.TransGen.single m_to_p)
       aesop
   absurd claim
-  exact IsAsymm.asymm p p claim
+  exact Std.Irrefl.irrefl p
 
 lemma same_winner_of_same_in_cone {i g} {sI : Strategy g i} {sJ sJ' : Strategy g (other i)}
     {p : g.Pos}

@@ -1437,7 +1437,7 @@ lemma non_eq_of_ltSequent : lt_Sequent X Y → X ≠ Y := by
   subst X_eq_Y
   absurd lt
   -- This us easy, because DM ordering is irreflexive.
-  have := WellFounded.isIrrefl (instWellFoundedRelationSequent.2)
+  have := WellFounded.irrefl (instWellFoundedRelationSequent.2)
   apply this.1
 
 /-- If `X` is not basic, then for all end nodes `Y` of a
@@ -1451,7 +1451,7 @@ theorem endNodesOf_nonbasic_non_eq {X Y} (lt : LocalTableau X) (X_nonbas : ¬ X.
 -- upstream me / Haitian? ;-)
 lemma IsDershowitzMannaLT.irrefl [Preorder α] [WellFoundedLT α] (X : Multiset α) :
     ¬ Multiset.IsDershowitzMannaLT X X := by
-  apply (WellFounded.isIrrefl (?_)).1
+  apply (WellFounded.irrefl (?_)).1
   exact (@Multiset.instWellFoundedIsDershowitzMannaLT α _ _).2
 
 /-- If a sequent is lower according to the DM-ordering, then they are multiset-different.

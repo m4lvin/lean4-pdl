@@ -166,6 +166,7 @@ lemma PdlRule.all_spec {X Y} (bas : X.basic) (r : PdlRule X Y) : ⟨Y, r⟩ ∈ 
           have := List.of_concat_eq_concat this
           cases this
           subst_eqs
+          rw! [unload_boxes, LoadFormula.unload]
           grind
       all_goals
         -- Here we need `bas` to disallow non-atomic freeL applications
@@ -205,6 +206,7 @@ lemma PdlRule.all_spec {X Y} (bas : X.basic) (r : PdlRule X Y) : ⟨Y, r⟩ ∈ 
           have := List.of_concat_eq_concat this
           cases this
           subst_eqs
+          rw! [unload_boxes, LoadFormula.unload]
           grind
       all_goals
         -- Here we need `bas` to disallow non-atomic freeL applications

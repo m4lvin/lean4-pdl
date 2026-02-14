@@ -318,7 +318,7 @@ theorem edge.wellFounded : WellFounded (@edge Hist X tab) := by
   rcases this with ⟨nat_wf⟩
   convert nat_wf
 
-instance edge.isAsymm : IsAsymm (PathIn tab) edge := by
+instance edge.isAsymm : @Std.Asymm (PathIn tab) edge := by
   constructor
   apply WellFounded.asymmetric edge.wellFounded
 
@@ -329,7 +329,7 @@ instance : LT (PathIn tab) := ⟨Relation.TransGen edge⟩
 instance : LE (PathIn tab) := ⟨Relation.ReflTransGen edge⟩
 
 /-- The "<" in a tableau is antisymmetric. -/
-instance edge.TransGen_isAsymm : IsAsymm (PathIn tab) (Relation.TransGen edge) :=
+instance edge.TransGen_isAsymm : @Std.Asymm (PathIn tab) (Relation.TransGen edge) :=
   ⟨WellFounded.asymmetric (WellFounded.transGen wellFounded)⟩
 
 theorem not_path_nil {a : PathIn tab} : ¬(a < PathIn.nil) := by
@@ -1370,7 +1370,7 @@ instance PathIn.instFintype {tab : Tableau Hist X} : Fintype (PathIn tab) := by
 
 -- mathlib?
 theorem Finite.wellfounded_of_irrefl_TC {α : Type} [Finite α] (r : α → α → Prop)
-    (h : IsIrrefl α (Relation.TransGen r)) : WellFounded r :=
+    (h : Std.Irrefl (Relation.TransGen r)) : WellFounded r :=
   let wf := Finite.wellFounded_of_trans_of_irrefl (Relation.TransGen r)
   ⟨fun a => acc_transGen_iff.mp <| wf.apply a⟩
 
@@ -1417,7 +1417,7 @@ lemma single_of_transgen {α} {r} {a c : α} : Relation.TransGen r a c → ∃ b
   case single b e => use b
   case tail d e ih => assumption
 
-instance flipEdge.instIsIrrefl : IsIrrefl (PathIn tab) (Relation.TransGen (flip edge)) := by
+instance flipEdge.instIsIrrefl : @Std.Irrefl (PathIn tab) (Relation.TransGen (flip edge)) := by
   constructor
   intro p p_p
   rw [Relation.transGen_swap] at p_p

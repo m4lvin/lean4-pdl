@@ -364,7 +364,7 @@ notation s:arg " <ᶜ " t:arg => before s t
 
 /-- The `<ᶜ` relation is irreflexive. -/
 theorem before.irrefl :
-    IsIrrefl _ (@before X tab) := by
+    Std.Irrefl (@before X tab) := by
   constructor
   intro p
   simp [before]
@@ -383,7 +383,7 @@ theorem before.trans :
 
 /-- The transitive closure of `<ᶜ` (which in fact is the same as `<ᶜ`) is irreflexive. -/
 theorem trans_before.irrefl {X tab} :
-    IsIrrefl _ (Relation.TransGen (@before X tab)) := by
+    Std.Irrefl (Relation.TransGen (@before X tab)) := by
   rw [Relation.transGen_eq_self before.trans]
   exact before.irrefl
 
@@ -394,14 +394,14 @@ theorem before.wellFounded :
 
 /-- The converse of `<ᶜ` is irreflexive. -/
 theorem flip_before.irrefl :
-    IsIrrefl _ (flip (@before X tab)) := by
+    Std.Irrefl (flip (@before X tab)) := by
   constructor
   intro p
   simp [flip, before]
 
 /-- The transtive closure of the converse of `<ᶜ` is irreflexive. -/
 theorem trans_flip_before.irrefl :
-    IsIrrefl _ (Relation.TransGen (flip (@before X tab))) := by
+    Std.Irrefl (Relation.TransGen (flip (@before X tab))) := by
   constructor
   intro p
   rw [Relation.TransGen.flip_iff]
