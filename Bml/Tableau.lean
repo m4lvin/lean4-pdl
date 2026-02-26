@@ -3,7 +3,7 @@
 import Mathlib.Algebra.Order.BigOperators.Ring.Finset
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Finset.PImage
-import Mathlib.Logic.IsEmpty
+import Mathlib.Logic.IsEmpty.Basic
 import Mathlib.Order.WellFoundedSet
 import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Linarith

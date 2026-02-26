@@ -45,8 +45,7 @@ theorem interpolation {ϕ ψ} : Tautology (ϕ↣ψ) → ∃ θ, Interpolant ϕ �
   unfold isPartInterpolant at pI_prop
   refine ⟨θ, ?_, ?_, ?_⟩
   · rw [tautImp_iff_comboNotUnsat]; tauto
-  · rw [tautImp_iff_comboNotUnsat]
-    simp_all [Evaluate, X]
+  · grind [tautImp_iff_comboNotUnsat, Evaluate]
   · intro c c_in
     have := pI_prop.1 c_in
     simp_all [X, jvoc]
