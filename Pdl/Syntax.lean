@@ -384,6 +384,15 @@ def LoadFormula.split : (lf : LoadFormula) → List Program × Formula
 | .box α af => (fun (δ,f) => (α :: δ, f)) af.split
 end
 
+lemma LoadFormula.split_boxes_cons {βs α φ} :
+    (⌊⌊βs⌋⌋⌊α⌋AnyFormula.normal φ).split = (βs ++ [α], φ) := by
+  induction βs
+  · simp_all
+  · rw [List.cons_append]
+    rw [LoadFormula.boxes_cons]
+    simp only [split, AnyFormula.split, Prod.mk.injEq, List.cons.injEq, true_and]
+    grind
+
 @[simp]
 theorem AnyFormula.split_normal (φ : Formula) : (AnyFormula.normal φ).split = ([],φ) := by
   simp [AnyFormula.split]
@@ -572,6 +581,16 @@ lemma splitLast_inj {α} {xs ys : List α} (h : splitLast xs = splitLast ys) :
   · exfalso
     simp_all
   aesop
+
+lemma LoadFormula.split_splitLast_to_loadBoxes {δs φ δs_ δ ξ}
+    (ξsp_def : ξ.split = (δs, φ))
+    (sp_def : splitLast δs = some (δs_, δ))
+    : ξ = AnyFormula.loadBoxes (δs_ ++ [δ]) (AnyFormula.normal φ) := by
+  rw [← splitLast_append_singleton] at sp_def
+  rw [splitLast_inj sp_def, ← loadMulti_split] at ξsp_def
+  have : (loadMulti δs_ δ φ).split = AnyFormula.split (loadMulti δs_ δ φ) := rfl
+  have := AnyFormula.split_inj (this ▸ ξsp_def)
+  exact this ▸ loadMulti_eq_loadBoxes
 
 lemma splitLast_undo_of_some (h : splitLast αs = some βs_b) :
     βs_b.1 ++ [βs_b.2] = αs := by

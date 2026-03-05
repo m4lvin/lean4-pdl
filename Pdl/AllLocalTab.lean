@@ -4,7 +4,12 @@ import Mathlib.Data.List.ReduceOption
 
 import Pdl.LocalTableau
 
-/-! # Generating all Local Tableaux -/
+/-! # Generating all Local Tableaux
+
+We show that for any `X` the type `LocalTableau` is finite.
+
+This is needed to define `BuildTree` as a finite tree.
+-/
 
 def OneSidedLocalRule.all : (L : List Formula) → Option (Σ B, OneSidedLocalRule L B)
   | [⊥]       =>  some ⟨∅, bot⟩

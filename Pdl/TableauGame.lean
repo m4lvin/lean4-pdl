@@ -1,5 +1,5 @@
 import Pdl.Game
-import Pdl.LocalAll
+import Pdl.AllLocalTab
 import Pdl.Modelgraphs
 import Pdl.StayingInFL
 

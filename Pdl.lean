@@ -1,3 +1,5 @@
+import Pdl.AllLocalTab
+import Pdl.AllPdlRule
 import Pdl.AxiomBlame
 import Pdl.Beth
 import Pdl.BuildTree
@@ -10,7 +12,6 @@ import Pdl.Flip
 import Pdl.Game
 import Pdl.Interpolation
 import Pdl.Kleene
-import Pdl.LocalAll
 import Pdl.LocalSoundness
 import Pdl.LocalTableau
 import Pdl.Modelgraphs
