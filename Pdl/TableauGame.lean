@@ -11,17 +11,20 @@ import Pdl.StayingInFL
 notation "Prover" => Player.A
 notation "Builder" => Player.B
 
+/-- Prover should make a move. -/
 inductive ProverPos (H : History) (X : Sequent) : Type where
   | nlpRep : rep H X → ¬ Nonempty (LoadedPathRepeat H X) → ProverPos H X -- Prover loses
   | bas : ¬ rep H X → X.basic → ProverPos H X -- Prover must apply a PDL rule
   | nbas : ¬ rep H X → ¬ X.basic → ProverPos H X -- Prover must make a local LocalTableau
   deriving DecidableEq
 
+/-- Builder should make a move. -/
 inductive BuilderPos (H : History) (X : Sequent) : Type where
   | lpr : LoadedPathRepeat H X → BuilderPos H X -- no moves, Prover wins.
   | ltab : ¬ rep H X → ¬ X.basic → LocalTableau X → BuilderPos H X -- Builder must pick endNodesOf
   deriving DecidableEq
 
+/-- Game position where either Prover (`isLeft`) or Builder (`isRight`) should make a move. -/
 def GamePos := Σ H X, (ProverPos H X ⊕ BuilderPos H X)
   deriving DecidableEq
 
@@ -1131,6 +1134,11 @@ def tableauGame : Game where
   moves := theMoves
   wf := ⟨fun x y => move y x, matchesFinite⟩
   move_rel := by grind [move_of_mem_theMoves]
+
+/-- This helps to pick up the derived instance `DecidableEq GamePos` above. -/
+instance instDecidableEqPos : DecidableEq tableauGame.Pos := by
+  simp only [Game.Pos, tableauGame]
+  exact instDecidableEqOfLawfulBEq
 
 @[simp]
 lemma tableauGame_turn_Prover {Hist X lpr} :

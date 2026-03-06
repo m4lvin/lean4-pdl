@@ -19,15 +19,6 @@ inductive BuildTree : GamePos → Type
 
 -- QUESTION: are actually all leafs in the BuildTree backpointers?
 
-def theRep {H X} (rp : rep H X) : Nat :=
-  match h : List.findIdx? (fun Y => decide (Y.setEqTo X)) H with
-  | none => by
-      exfalso
-      have : ∃ Y ∈ H, decide (Y.setEqTo X) = true := by aesop
-      have := @List.findIdx?_eq_some_of_exists Sequent H (fun Y => Y.setEqTo X) this
-      simp_all
-  | some k => k
-
 /-- The tree generated from a winning Builder strategy -/
 noncomputable -- :-(
 def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X, p⟩) :

@@ -46,6 +46,16 @@ instance {H X} : Decidable (rep H X) := by
     simp only [List.mem_cons, exists_eq_or_imp]
     exact instDecidableOr
 
+/-- Given a `rep H X`, determin the index of the companion in `H` using `List.findIdx?`. -/
+def theRep {H X} (rp : rep H X) : Nat :=
+  match h : List.findIdx? (fun Y => decide (Y.setEqTo X)) H with
+  | none => by
+      exfalso
+      have : ∃ Y ∈ H, decide (Y.setEqTo X) = true := by aesop
+      have := @List.findIdx?_eq_some_of_exists Sequent H (fun Y => Y.setEqTo X) this
+      simp_all
+  | some k => k
+
 /-- A lpr means we can go `k` steps back in the history to
 reach an equal node, and all nodes on the way are loaded.
 Note: `k=0` means the first element of `Hist` is the companion. -/
