@@ -46,7 +46,7 @@ def BuildTree.isLeaf {pos} : BuildTree pos → Prop
 
 def BuildTree.isFreeRepLeaf {pos} : BuildTree pos → Prop
   | BuildTree.BuStep .. => false
-  | @BuildTree.PrStep _ hturn oblada =>
+  | @BuildTree.PrStep _ hturn _ =>
       match pos with
       | ⟨H, X, p⟩ =>
         match p with
@@ -57,9 +57,18 @@ def BuildTree.isFreeRepLeaf {pos} : BuildTree pos → Prop
             | .nbas _ _ => False -- not a leaf because prover can apply a local rule/tableau
         | .inr _ => by exfalso; simp at hturn
 
-def BuildTree.rep_of_isFreeRepLeaf {pos : GamePos} {bt : BuildTree pos} (h : bt.isFreeRepLeaf) :
-    rep pos.1 pos.2.1 :=
-  sorry
+theorem BuildTree.rep_of_isFreeRepLeaf {pos : GamePos} {bt : BuildTree pos} :
+    bt.isFreeRepLeaf → rep pos.1 pos.2.1 := by
+  intro h
+  unfold isFreeRepLeaf at h
+  rcases pos with ⟨H, X, p⟩
+  cases bt <;> simp at *
+  case PrStep hturn next =>
+    cases p <;> simp at *
+    case inl proPos =>
+      cases proPos <;> simp at *
+      case nlpRep theRep lpr => exact theRep
+    · exfalso; grind
 
 /-- Given a winning Builder strategy, compute its `BuildTree`. -/
 def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X, p⟩) :
@@ -68,13 +77,13 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
   -- Prover positions:
   | Sum.inl (.nlpRep rp noLpRep) => .PrStep (by simp) (by intro _ m; cases m) -- Builder wins rep.
   | Sum.inl (.bas nrep bas) => -- prover chooses PDL rule
-      have stillWin : ∀ newPos, ∀ _ : Move ⟨_,_,Sum.inl (.bas nrep bas)⟩ newPos, winning s newPos :=
+      have stillWin : ∀ newP, ∀ _ : Move ⟨_,_,Sum.inl (.bas nrep bas)⟩ newP, winning s newP :=
         fun newPos mov =>
           @winning_of_whatever_other_move _ _ s _ (by simp) h ⟨newPos, mem_theMoves_of_move ⟨mov⟩⟩
       @BuildTree.PrStep ⟨_,_,Sum.inl (.bas nrep bas)⟩ (by simp_all)
         (fun newPos mov => buildTree s (stillWin newPos mov))
   | Sum.inl (.nbas nrep nbas) => -- prover chooses a local tableau
-      have stillWin : ∀ newPos, ∀ _ : Move ⟨_,_,Sum.inl (.nbas nrep nbas)⟩ newPos, winning s newPos :=
+      have stillWin : ∀ newP, ∀ _ : Move ⟨_,_,Sum.inl (.nbas nrep nbas)⟩ newP, winning s newP :=
         fun newPos mov =>
           @winning_of_whatever_other_move _ _ s _ (by simp) h ⟨newPos, mem_theMoves_of_move ⟨mov⟩⟩
       @BuildTree.PrStep ⟨_,_,Sum.inl (.nbas nrep nbas)⟩ (by simp_all)
@@ -223,7 +232,8 @@ that do not contain `(M)` steps.
 
 In the paper pre-states are allowed to be of the form π;π' when π ends at a repeat and π' is a
 maximal prefix of the path from the companion to that repeat. Here we only store the π part of
-such pre-states, because the π' is then uniquely determined by π. -/
+such pre-states, because the π' is then uniquely determined by π.
+-/
 
 /-- A pre-state-part starting at `m` is any path in `bt : BuildTree` consisting of non-(M) `edge`s
 and stopping at a leaf or at an (M) application. (No `Match.companion` steps here, see note above.)
@@ -238,8 +248,9 @@ inductive PreStateP {pos} (bt : BuildTree pos) : (m : Match bt) → Type
 def BuildTree.allPreStatePs {pos} : (bt : BuildTree pos) → (m : Match bt) → List (PreStateP bt m)
   -- Maybe define `Match.all` first and then filter it here?
   -- Or better do it inductively?
-| RepLeaf rp, m => [ .stopLeaf (by unfold Match.isLeaf; cases m; simp_all [Match.btAt]) ]
-| .Step YS YS_Moves next, _ => sorry
+| .PrStep hturn next, m => sorry
+    -- [ .stopLeaf (by unfold Match.isLeaf; cases m; simp_all [Match.btAt]) ]
+| .BuStep hturn mov next, _ => sorry
 
 lemma BuildTree.allPreStatePs_spec {pos} {bt : BuildTree pos} {m : Match bt} :
     ∀ π : PreStateP bt m, π ∈ bt.allPreStatePs m := by
@@ -251,7 +262,7 @@ WORRY: should `fromRoot` also have a condition about `pos` being the start of th
 -/
 inductive PreState {pos} (bt : BuildTree pos) : Type
 | fromRoot : PreStateP bt .nil → PreState bt
-| fromMod {o m} : (e : Match.edge o m) → e.isModal → PreStateP bt m → PreState bt
+| fromMod {o m} : (e : Match.Edge o m) → e.isModal → PreStateP bt m → PreState bt
 
 /-- Collect all `PreState`s for a given `BuildTree`. -/
 def BuildTree.allPreStates {pos} (bt : BuildTree pos) : List (PreState bt) :=
