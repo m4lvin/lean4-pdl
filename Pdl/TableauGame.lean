@@ -42,7 +42,7 @@ def posOf (H : History) (X : Sequent) : ProverPos H X ⊕ BuilderPos H X :=
 
 /-! ## Moves -/
 
-/-- The relation `move old next` says that we can move from `old` to `next`.
+/-- The relation `Move old next` says that we can move from `old` to `next`.
 There are three kinds of moves. -/
 inductive Move : (old : GamePos) → (new : GamePos) → Type
 /-- When the sequent is basic and no repeat, let prover apply a PDL rule. -/
@@ -57,6 +57,11 @@ inductive Move : (old : GamePos) → (new : GamePos) → Type
 | buEnd {X ltab Y Hist nrep nbas} : Y ∈ endNodesOf (ltab : LocalTableau X) →
     Move ⟨Hist, X, .inr (.ltab nrep nbas ltab)⟩
          ⟨(X :: Hist), Y, posOf (X :: Hist) Y⟩
+
+def Move.isModal {pos newPos : GamePos} : Move pos newPos → Prop
+| .prPdl r => r.isModal
+| .prLocTab => False
+| .buEnd _ => False
 
 def move (old : GamePos) (new : GamePos) : Prop := Nonempty (Move old new)
 
