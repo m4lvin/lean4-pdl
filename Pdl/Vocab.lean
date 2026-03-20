@@ -86,6 +86,45 @@ def subprograms : Program → List Program
 | α ⋓ β => [α ⋓ β] ++ subprograms α ++ subprograms β
 | ∗α => [∗α] ++ subprograms α
 
+lemma subprograms_length {α β : Program} :
+    β ∈ subprograms α → lengthOfProgram β ≤ lengthOfProgram α := by
+  intro β_in
+  cases α <;> simp_all [subprograms]
+  case sequence α1 α2 =>
+    rcases β_in with _|h|h
+    · subst_eqs
+      simp
+    · have IH1 := subprograms_length h
+      omega
+    · have IH2 := subprograms_length h
+      omega
+  case union α1 α2 =>
+    rcases β_in with _|h|h
+    · subst_eqs
+      simp
+    · have IH1 := subprograms_length h
+      omega
+    · have IH2 := subprograms_length h
+      omega
+  case star α =>
+    rcases β_in with _|h
+    · subst_eqs
+      simp
+    · have IH1 := subprograms_length h
+      omega
+
+lemma length_lt_of_mem_subprograms_erase {α β : Program} :
+    β ∈ (subprograms α).erase α → lengthOfProgram β < lengthOfProgram α := by
+  cases α <;> simp [subprograms]
+  case star α1 =>
+    have IH := @length_lt_of_mem_subprograms_erase α1
+    grind
+  all_goals
+    next α1 α2 =>
+    have IH := @length_lt_of_mem_subprograms_erase α1
+    have IH := @length_lt_of_mem_subprograms_erase α2
+    by_cases β = α1 <;> by_cases β = α2 <;> grind
+
 @[simp]
 theorem subprograms.refl : α ∈ subprograms α := by
   cases α <;> simp [subprograms]
