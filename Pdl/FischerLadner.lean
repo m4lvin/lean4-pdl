@@ -6,10 +6,12 @@ import Pdl.Vocab
 /-! # Fischer-Ladner Closure
 
 Here we define a closure on sets (well, actually lists) of formulas.
-Our main reference for this closure is Section 6.1 of [HKT2000].
+Our main reference for this closure is Section 6.1 of [HKT2000]
 which also was used in a Rocq formalization in [DB2018].
-The code for that work at [github.com/chdoc/comp-dec-pdl](https://github.com/chdoc/comp-dec-pdl)
-and their FL closure definition [here](https://github.com/chdoc/comp-dec-pdl/blob/master/PDL/PDL_def.v#L472).
+The code for that work can be found at
+[github.com/chdoc/comp-dec-pdl](https://github.com/chdoc/comp-dec-pdl)
+and their FL closure definition starts at
+[line 472 of `PDL_def.v`](https://github.com/chdoc/comp-dec-pdl/blob/master/PDL/PDL_def.v#L472).
 
 See also Definition 4.79 and Exercise 4.8.2 in [BRV2001].
 An alternative version following the proof of Theorem 3.2 in [FL1979]
