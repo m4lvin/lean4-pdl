@@ -57,6 +57,7 @@ theorem allTP_mem (ℓ : TP α) : ℓ ∈ allTP α := by
 def signature (α : Program) (ℓ : TP α) : Formula :=
   Con <| (testsOfProgram α).attach.map (fun τ => if ℓ τ then τ.val else ~τ.val)
 
+/-- This is currently unused. -/
 theorem signature_iff {W} {M : KripkeModel W} {w : W} :
     evaluate M w (signature α ℓ) ↔ ∀ τ ∈ (testsOfProgram α).attach, ℓ τ ↔ evaluate M w τ.val := by
   simp [signature, conEval]
@@ -71,7 +72,7 @@ theorem signature_iff {W} {M : KripkeModel W} {w : W} :
 
 -- Now come two out of the three facts about test profiles and signatures.
 
--- unused
+/-- This is currently unused. -/
 theorem top_equiv_disj_TP : ∀ α, tautology (dis ((allTP α).map (signature α))) := by
   intro α W M w
   rw [disEval]
@@ -87,7 +88,7 @@ theorem top_equiv_disj_TP : ∀ α, tautology (dis ((allTP α).map (signature α
     subst def_f
     aesop
 
--- unused?
+/-- This is currently unused. -/
 theorem signature_contradiction_of_neq_TPs {ℓ ℓ' : TP α} :
     ℓ ≠ ℓ' → contradiction (signature α ℓ ⋀ signature α ℓ') := by
   simp only [ne_eq]
@@ -107,7 +108,7 @@ theorem signature_contradiction_of_neq_TPs {ℓ ℓ' : TP α} :
     use τ
     simp_all
 
--- unused?
+/-- This is currently unused. -/
 theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α ℓ ≡ ψ ⋀ signature α ℓ := by
   constructor
   · intro phi_iff_psi ℓ W M w
@@ -128,7 +129,7 @@ theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α
 /-!
 ## Boxes: F, P, X and unfoldBox
 
-Note: In P and Xset we use lists not sets, to eventually make formulas.
+Note: In `P` and `Xset` we use lists not sets, to eventually make formulas.
 -/
 
 def F : (α : Program) → (ℓ : TP α) → List Formula
@@ -600,6 +601,8 @@ theorem unfoldBox_voc {x α φ} {L} (L_in : L ∈ unfoldBox α φ) {ψ} (ψ_in :
       exact subprograms_voc (sub_α.2 β β_in) x_in_βvoc
     · exact Or.inr x_in
 
+/-- A helper theorem about `Xset` and `signature`.
+Note that the paper only states the third conjunct. -/
 theorem boxHelperTP α (ℓ : TP α) :
     (∀ τ, (~τ.val) ∈ F α ℓ → ℓ τ = false)
   ∧ (Con (F α ℓ) ⋀ signature α ℓ ≡ signature α ℓ)
