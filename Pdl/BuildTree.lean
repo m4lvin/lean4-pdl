@@ -143,6 +143,14 @@ inductive Match : ∀ {pos : GamePos}, BuildTree pos → Type
       (mov : Move pos newPos)
       → Match (next newPos mov) → Match (@BuildTree.PrStep pos hturn next)
 
+/-- Inspired by `PathIn.length`.
+Note that this counts all steps, even the `prLocTab` ones where `pos.1` does not get longer. -/
+@[simp]
+def Match.length {pos : GamePos} {bt : BuildTree pos} : Match bt → Nat
+  | .nil => 0
+  | .bu tail => tail.length + 1
+  | .pr _ _ tail => tail.length + 1
+
 def Match.btAt {pos} {bt : BuildTree pos} : Match bt → Σ newPos, BuildTree newPos
 | .nil => ⟨_, bt⟩
 | .bu tail => btAt tail
@@ -171,22 +179,21 @@ structure Match.PrEdge (m n : Match bt) where
   btAt_m_def : btAt m = ⟨mPos, @BuildTree.PrStep _ hturn next⟩
   next_n_def : next (btAt n).1 n_in = (btAt n).2
 
-/-- The parent-child relation ⋖_𝕋 in a Builder strategy tree. Similar to `edge` but data. -/
+/-- The parent-child relation ⋖_𝕋 in a Builder strategy tree. -/
 def Match.Edge (m n : Match bt) : Type := Match.BuEdge m n ⊕ Match.PrEdge m n
 
 /-- This edge between matches is a modal step.
 To even say this `BuildTree` must contain `Move` and thus rule data. -/
-def Match.Edge.isModal {pos} {bt : BuildTree pos} {m n : Match bt} : Match.Edge m n → Prop := by
-  -- FIXME avoid tactic mode here
-  rcases btAt_m_def : btAt m with ⟨pos, m_bt⟩
-  rcases pos with ⟨Hist, X, p⟩
-  intro m_n
-  cases m_bt
-  case BuStep p YS next YS_moves => exact False -- Builder moves are never modal steps.
-  case PrStep hturn next =>
-    cases m_n
-    case inl m_bu_n => exfalso; grind [BuEdge]
-    case inr m_pr_n => exact m_pr_n.mov.isModal
+def Match.Edge.isModal {pos} {bt : BuildTree pos} {m n : Match bt} : Match.Edge m n → Prop :=
+  match btAt_m_def : btAt m with
+  | ⟨⟨Hist, X, p⟩, m_bt⟩ =>
+    fun m_n =>
+      match m_bt with
+      | @BuildTree.BuStep _ p YS next YS_moves => False -- Builder moves are never modal steps.
+      | .PrStep hturn next =>
+        match m_n with
+        | .inl m_bu_n => by exfalso; grind [BuEdge]
+        | .inr m_pr_n => m_pr_n.mov.isModal
 
 def Match.isLeaf {pos} {bt : BuildTree pos} {m : Match bt} : Prop := (btAt m).2.isLeaf
 
