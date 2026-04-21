@@ -143,6 +143,17 @@ inductive Match : ∀ {pos : GamePos}, BuildTree pos → Type
       (mov : Move pos newPos)
       → Match (next newPos mov) → Match (@BuildTree.PrStep pos hturn next)
 
+/-
+-- TODO, use `LocalAll` and `AllPdlRule`
+-- Wait, where are these actually used at the moment or will they be needed later?
+
+def BuildTree.all_Match (bt : BuildTree pos) : List (Match bt) := sorry
+
+theorem BuildTree.all_Match_spec (bt : BuildTree pos) :
+    ∀ m, m ∈ bt.all_Match := by
+  sorry
+-/
+
 /-- Inspired by `PathIn.length`.
 Note that this counts all steps, even the `prLocTab` ones where `pos.1` does not get longer. -/
 @[simp]
@@ -210,23 +221,95 @@ lemma Match.isLeaf_no_edge {bt : BuildTree pos} (m : Match bt) (h : m.isLeaf) :
     have := @mem_theMoves_of_move mPos n.btAt.1 ⟨mov⟩
     grind
 
-/-- Go back up inside `bt` by `k` steps.
-TODO: to correctly do this, replace `Nat` with a `Fin` like we do in `PathIn.rewind`.
-For that we need `Match.length` and maybe `Match.toHistory` first.
--/
-def Match.rewind : Match bt → (k : Nat) → Match bt
+/-- Convert a `Match` to a `History`. Inspired by `PathIn.toHistory`.
+Does not include the last node.
+The history of `.nil` is `[]` because this will not go into `pos.1`. -/
+def Match.toHistory {bt : BuildTree pos} : (m : Match bt) → History
+| .nil => []
+| .bu tail => tail.toHistory ++ [pos.2.1]
+| .pr _ _ tail => tail.toHistory ++ [pos.2.1]
+
+/-- Rewind a `Match`, i.e. go back up inside `bt` by `k` steps.
+This used to use `Nat` but now we take a `Fin` like in `PathIn.rewind`, and
+for that we needed to define `Match.length` first.
+IDEA: also use `Match.toHistory` here? -/
+def Match.rewind : (m : Match bt) → (k : Fin (m.length + 1)) → Match bt
 | .nil, _ => .nil
-| .bu _, 0 => sorry
-| .pr _ _ _, 0 => sorry
-| .bu _, k + 1 => sorry
-| .pr _ _ _, k + 1 => sorry
+| .bu tail, k => Fin.lastCases (.nil) (Match.bu ∘ tail.rewind) k
+| .pr _ _ tail, k => Fin.lastCases (.nil) (Match.pr _ _ ∘ tail.rewind) k
 
 -- ... lots of stuff needed here?
 
+/-- Given a `rep H X`, determine the index of the companion in `H` using `List.findIdx?`.
+Note that we do *not* care about loading here. -/
+def rep.toFin {H X} (rp : rep H X) : Fin (H.length) :=
+  match h : List.findIdx? (fun Y => decide (Y.setEqTo X)) H with
+  | none => by
+      exfalso
+      have : ∃ Y ∈ H, decide (Y.setEqTo X) = true := by aesop
+      have := @List.findIdx?_eq_some_of_exists Sequent H (fun Y => Y.setEqTo X) this
+      simp_all
+  | some k => ⟨k, by
+    have : k = @List.findIdx Sequent (fun Y => Y.setEqTo X) H := by grind
+    rw [this, List.findIdx_lt_length]
+    rw [List.findIdx?_eq_some_iff_findIdx_eq] at h
+    grind⟩
+
+/-- The extra condition that it is the turn of Builder is needed because otherwise
+the `prLocTab` case would falsify. -/
+theorem Move.fst_length_succ {H X p} (mov : Move ⟨H, ⟨X, p⟩⟩ newPos) :
+    tableauGame.turn ⟨H, ⟨X, p⟩⟩ = Builder →
+    newPos.1.length = H.length + 1 := by
+  cases mov <;> simp
+
+/-- This is NOT TRUE, because history only records different steps and will
+*not* count `Move.prLocTab` steps, though these are steps in the `Match`.
+
+WAIT, but `Match.toHistory` DOES count all steps, so the length statement here should be true. ??
+
+?? are we sure about this one ??
+Note that the history from `pos` needs to be added on the right side.
+
+?? Or better restrict `pos` to be a *starting* position of the game!?!?
+(Analogous to how many things in TableauPath are only the `Hist = []` case.) -/
+theorem Match.btAt_fst_fst_length_eq_length {bt : BuildTree pos} {m : Match bt} :
+    m.btAt.1.1.length = m.length + pos.1.length := by
+  induction bt
+  case BuStep pos newPos hturn mov next IH =>
+    cases m
+    case nil =>
+      rcases pos with ⟨H, X, p⟩
+      simp [Match.btAt]
+    case bu hturn tail =>
+      -- FIXME: change defs above to avoid duplicate `hturn` here?!
+      rcases pos with ⟨H, X, p⟩
+      simp [Match.btAt]
+      specialize @IH tail
+      rw [add_assoc]
+      convert IH using 2
+      grind [Move.fst_length_succ mov]
+  case PrStep pos hturn next IH =>
+    cases m
+    case nil =>
+      rcases pos with ⟨H, X, p⟩
+      simp [Match.btAt]
+    case pr newPos hturn mov tail =>
+      rcases pos with ⟨H, X, p⟩
+      simp [Match.btAt]
+      specialize @IH _ mov tail
+      rw [add_assoc]
+      convert IH using 2
+      -- NOT provable here because `newPos.1` is a history not counting `prLocTab` steps,
+      -- whereas the H list coming from `Match.toHistory` does count them.
+      sorry
+
 def Match.companionOf {bt : BuildTree pos} (m : Match bt)
   (h : (btAt m).2.isFreeRepLeaf) : Match bt :=
-    m.rewind (theRep ((btAt m).2.rep_of_isFreeRepLeaf h))
+    -- WAS: m.rewind (theRep ((btAt m).2.rep_of_isFreeRepLeaf h))
+    -- WANT: m.rewind (rep.toFin ((btAt m).2.rep_of_isFreeRepLeaf h))
+    sorry
 
+/-- The repeat ♥ companion relation on `Match`. -/
 def Match.companion (m n : Match bt) : Prop :=
   ∃ (h : (btAt m).2.isFreeRepLeaf), n = Match.companionOf m h
 
