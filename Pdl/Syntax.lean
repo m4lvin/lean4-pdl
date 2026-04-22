@@ -72,6 +72,11 @@ def Program.isAtomic : Program → Prop
 | ·_ => true
 | _ => false
 
+lemma Formula.neq_neg_self (φ : Formula) : φ ≠ ~φ := by
+  intro h
+  cases φ <;> simp_all only [reduceCtorEq, neg.injEq]
+  case neg φ => absurd h; exact Formula.neq_neg_self φ
+
 -- Note: to make `decide` work we use `decidable_of_decidable_of_iff`.
 instance : DecidablePred Program.isAtomic
 | ·_ => decidable_of_decidable_of_iff (by simp [Program.isAtomic] : True ↔ _)

@@ -700,9 +700,96 @@ lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
           cases α <;> simp_all
           simp [Program.isAtomic] at α_nonAtom
 
-/-- A sequent is basic iff no local rule  can be applied.
-Note that we do not have to exclude (L+) and (L-) which in the paper
-are also local rules, but here we made them `PdlRule`s. -/
+/-- For a given non-basic formula in the left list `L`,
+construct a `LocalRuleApp` using an appropriate `OneSidedLocalRule`. -/
+def localRuleApp_of_nonbasic_in_L (L R : List Formula) (O : Olf) (f : Formula)
+    (f_in : f ∈ L) (f_nonBas : f.basic = false)
+    : { lra : LocalRuleApp // lra.X = (L, R, O) } :=
+match f with
+  | .bottom => ⟨{ L, R, O, Lcond := [⊥], ress := []
+                  lr := .oneSidedL .bot rfl
+                  preconditionProof :=
+                    ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
+  | ·n => by simp [Formula.basic] at f_nonBas
+  | .neg f' => match f' with
+    | .bottom => by simp [Formula.basic] at f_nonBas
+    | .atom_prop n => by simp [Formula.basic] at f_nonBas
+    | .neg φ => ⟨{L, R, O, Lcond := [~~φ], ress := [([φ], [], none)]
+                  lr := .oneSidedL (.neg φ) rfl
+                  preconditionProof :=
+                    ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
+    | .and φ ψ => ⟨{L, R, O, Lcond := [~(φ⋀ψ)]
+                    ress := [([~φ], [], none), ([~ψ], [], none)]
+                    lr := .oneSidedL (.nCo φ ψ) rfl
+                    preconditionProof :=
+                      ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
+    | .box α φ =>
+        have hna : ¬ α.isAtomic := by cases α <;> simp_all [Formula.basic, Program.isAtomic]
+        ⟨{L, R, O, Lcond := [~⌈α⌉φ]
+          ress := (unfoldDiamond α φ).map (fun res => (res, [], none))
+          lr := .oneSidedL (.dia α φ hna) rfl
+          preconditionProof :=
+            ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
+  | .and φ ψ => ⟨{L, R, O, Lcond := [φ⋀ψ], ress := [([φ,ψ], [], none)]
+                  lr := .oneSidedL (.con φ ψ) rfl
+                  preconditionProof :=
+                    ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
+  | .box α φ =>
+      have hna : ¬ α.isAtomic := by cases α <;> simp_all [Formula.basic, Program.isAtomic]
+      ⟨{L, R, O, Lcond := [⌈α⌉φ]
+        ress := (unfoldBox α φ).map (fun res => (res, [], none))
+        lr := .oneSidedL (.box α φ hna) rfl
+        preconditionProof :=
+          ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
+
+/-- For a given non-basic formula in the right list `R`,
+construct a `LocalRuleApp` using an appropriate `OneSidedLocalRule`. -/
+def localRuleApp_of_nonbasic_in_R (L R : List Formula) (O : Olf) (f : Formula)
+    (f_in : f ∈ R) (f_nonBas : f.basic = false)
+    : { lra : LocalRuleApp // lra.X = (L, R, O) } :=
+  match f with
+  | .bottom => ⟨{ L, R, O, Rcond := [⊥], ress := []
+                  lr := .oneSidedR .bot rfl
+                  preconditionProof :=
+                    ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
+  | .atom_prop n => by simp [Formula.basic] at f_nonBas
+  | .neg f' => match f' with
+    | .bottom => by simp [Formula.basic] at f_nonBas
+    | .atom_prop n => by simp [Formula.basic] at f_nonBas
+    | .neg φ =>
+            ⟨{L, R, O, Rcond := [~~φ], ress := [([], [φ], none)]
+              lr := .oneSidedR (.neg φ) rfl
+              preconditionProof :=
+                ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
+    | .and φ ψ =>
+            ⟨{L, R, O, Rcond := [~(φ⋀ψ)]
+              ress := [([], [~φ], none), ([], [~ψ], none)]
+              lr := .oneSidedR (.nCo φ ψ) rfl
+              preconditionProof :=
+                ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
+    | .box α φ =>
+          have hna : ¬ α.isAtomic := by
+            cases α <;> simp_all [Formula.basic, Program.isAtomic]
+          ⟨{L, R, O, Rcond := [~⌈α⌉φ]
+            ress := (unfoldDiamond α φ).map (fun res => ([], res, none))
+            lr := .oneSidedR (.dia α φ hna) rfl
+            preconditionProof :=
+              ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
+  | .and φ ψ => ⟨{L, R, O, Rcond := [φ⋀ψ], ress := [([], [φ,ψ], none)]
+                  lr := .oneSidedR (.con φ ψ) rfl
+                  preconditionProof :=
+                    ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
+  | .box α φ =>
+    have hna : ¬ α.isAtomic := by cases α <;> simp_all [Formula.basic, Program.isAtomic]
+    ⟨{L, R, O, Rcond := [⌈α⌉φ]
+      ress := (unfoldBox α φ).map (fun res => ([], res, none))
+      lr := .oneSidedR (.box α φ hna) rfl
+      preconditionProof :=
+        ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
+
+/-- A sequent is basic iff no local rule can be applied.
+Note that in the paper (L+) and (L-) are also local rules and had to be excluded
+here, but here in the Lean formalization they are `PdlRule`s anyway. -/
 lemma basic_iff_noLocalRuleApp {Y : Sequent} :
     Y.basic ↔ ¬ ∃ (lra : LocalRuleApp),lra.X = Y := by
   constructor
@@ -726,33 +813,70 @@ lemma basic_iff_noLocalRuleApp {Y : Sequent} :
         simp at *
         cases φ_in <;> cases not_φ_in
         · refine ⟨⟨L,R,O, [φ, ~φ], [], none, [], .oneSidedL (.not _) rfl, [], rfl, ?_⟩, by simp⟩
-          simp_all
-          sorry
-        · refine ⟨⟨L,R,O, [φ], [~φ], none, [], LocalRule.LRnegL φ, [], rfl, by simp_all⟩, by simp⟩
-        · refine ⟨⟨L,R,O, [~φ], [φ], none, [], LocalRule.LRnegR φ, [], rfl, by simp_all⟩, by simp⟩
+          exact ⟨ List.cons_subperm_of_not_mem_of_mem
+                  (by simp [φ.neq_neg_self]) ‹_›
+                  (by rw [List.singleton_subperm_iff]; exact ‹_›),
+                  List.nil_subperm, by simp ⟩
+        · exact ⟨⟨L,R,O, [φ], [~φ], none, [], LocalRule.LRnegL φ, [], rfl, by simp_all⟩, by simp⟩
+        · exact ⟨⟨L,R,O, [~φ], [φ], none, [], LocalRule.LRnegR φ, [], rfl, by simp_all⟩, by simp⟩
         · refine ⟨⟨L,R,O, [], [φ, ~φ], none, [], .oneSidedR (.not _) rfl, [], rfl, ?_⟩, by simp⟩
-          simp_all
-          sorry
+          exact ⟨ List.nil_subperm,
+                  List.cons_subperm_of_not_mem_of_mem
+                  (by simp; exact φ.neq_neg_self) ‹_›
+                  (by rw [List.singleton_subperm_iff]; exact ‹_›),
+                  by simp ⟩
     rcases Y with ⟨L,R,O⟩
     simp_all
     clear not_closed
     absurd no_lra
     push_neg
-    sorry
-
-    /- Fyi, *LocalRule* has these fields:
-    L : List Formula := by grind
-    R : List Formula := by grind
-    O : Olf := by grind
-    Lcond : List Formula := []
-    Rcond : List Formula := []
-    Ocond : Olf := none
-    ress : List Sequent := by grind
-    lr : LocalRule (Lcond, Rcond, Ocond) ress
-    C : List Sequent := applyLocalRule lr (L,R,O)
-    hC : C = applyLocalRule lr (L,R,O) := by rfl
-    preconditionProof : List.Subperm Lcond L ∧ List.Subperm Rcond R ∧ Ocond ⊆ O
-    -/
+    -- Y_nonbas: ∃ formula in L ∪ R ∪ O that's not basic
+    rcases Y_nonbas with ⟨f, f_where, f_nonBas⟩
+    rcases f_where with f_in_L | f_in_R | ⟨a, rfl, rfl⟩ | ⟨b, rfl, rfl⟩
+    · exact Subtype.exists_of_subtype <| localRuleApp_of_nonbasic_in_L L R O f f_in_L f_nonBas
+    · exact Subtype.exists_of_subtype <| localRuleApp_of_nonbasic_in_R L R O f f_in_R f_nonBas
+    · -- O = some (Sum.inl a), formula is ~a.1.unload, not basic
+      -- a : NegLoadFormula, a = ~'χ where χ : LoadFormula = ⌊α⌋af
+      rcases a with ⟨⟨α, af⟩⟩
+      cases af with
+      | normal φ =>
+        -- formula is ~⌈α⌉φ, not basic means α is not atomic
+        have hna : ¬ α.isAtomic := by
+          cases α <;> simp_all [LoadFormula.unload, Program.isAtomic]
+        exact ⟨{ L, R, O := some (Sum.inl (~'⌊α⌋(AnyFormula.normal φ)))
+                 Ocond := some (Sum.inl (~'⌊α⌋(AnyFormula.normal φ)))
+                 ress := (unfoldDiamondLoaded' α φ).map
+                   (fun (X, o) => (X, [], o.map Sum.inl))
+                 lr := .loadedL _ (.dia' hna) rfl
+                 preconditionProof := ⟨List.nil_subperm, List.nil_subperm, by simp⟩ }, rfl⟩
+      | loaded χ =>
+        have hna : ¬ α.isAtomic := by
+          cases α <;> simp_all [LoadFormula.unload, Program.isAtomic]
+        exact ⟨{ L, R, O := some (Sum.inl (~'⌊α⌋(AnyFormula.loaded χ)))
+                 Ocond := some (Sum.inl (~'⌊α⌋(AnyFormula.loaded χ)))
+                 ress := (unfoldDiamondLoaded α χ).map
+                   (fun (X, o) => (X, [], o.map Sum.inl))
+                 lr := .loadedL _ (.dia hna) rfl
+                 preconditionProof := ⟨List.nil_subperm, List.nil_subperm, by simp⟩ }, rfl⟩
+    · -- O = some (Sum.inr b), symmetric to inl case
+      rcases b with ⟨⟨α, af⟩⟩
+      cases af with
+      | normal φ =>
+        have hna : ¬ α.isAtomic := by cases α <;> simp_all [LoadFormula.unload, Program.isAtomic]
+        exact ⟨{ L, R, O := some (Sum.inr (~'⌊α⌋(AnyFormula.normal φ)))
+                 Ocond := some (Sum.inr (~'⌊α⌋(AnyFormula.normal φ)))
+                 ress := (unfoldDiamondLoaded' α φ).map
+                   (fun (X, o) => ([], X, o.map Sum.inr))
+                 lr := .loadedR _ (.dia' hna) rfl
+                 preconditionProof := ⟨List.nil_subperm, List.nil_subperm, by simp⟩ }, rfl⟩
+      | loaded χ =>
+        have hna : ¬ α.isAtomic := by cases α <;> simp_all [LoadFormula.unload, Program.isAtomic]
+        exact ⟨{ L, R, O := some (Sum.inr (~'⌊α⌋(AnyFormula.loaded χ)))
+                 Ocond := some (Sum.inr (~'⌊α⌋(AnyFormula.loaded χ)))
+                 ress := (unfoldDiamondLoaded α χ).map
+                   (fun (X, o) => ([], X, o.map Sum.inr))
+                 lr := .loadedR _ (.dia hna) rfl
+                 preconditionProof := ⟨List.nil_subperm, List.nil_subperm, by simp⟩ }, rfl⟩
 
 /-! ## Termination of LocalTableau -/
 
