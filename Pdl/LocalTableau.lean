@@ -700,6 +700,60 @@ lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
           cases α <;> simp_all
           simp [Program.isAtomic] at α_nonAtom
 
+/-- A sequent is basic iff no local rule  can be applied.
+Note that we do not have to exclude (L+) and (L-) which in the paper
+are also local rules, but here we made them `PdlRule`s. -/
+lemma basic_iff_noLocalRuleApp {Y : Sequent} :
+    Y.basic ↔ ¬ ∃ (lra : LocalRuleApp),lra.X = Y := by
+  constructor
+  · have := nonbasic_of_localRuleApp
+    grind
+  · intro no_lra
+    by_contra Y_nonbas
+    unfold Sequent.basic at Y_nonbas
+    have not_closed : ¬ Sequent.closed Y := by
+      clear Y_nonbas
+      intro Y_closed
+      absurd no_lra
+      rcases Y_closed with bot_in_Y | f_not_f_in_Y
+      · rcases Y with ⟨L,R,O⟩
+        simp at *
+        cases bot_in_Y
+        · exact ⟨⟨L,R,O, [⊥],[],none, [], .oneSidedL .bot rfl, [], rfl, by simp_all⟩, by simp⟩
+        · exact ⟨⟨L,R,O, [],[⊥],none, [], .oneSidedR .bot rfl, [], rfl, by simp_all⟩, by simp⟩
+      · rcases f_not_f_in_Y with ⟨φ, φ_in, not_φ_in⟩
+        rcases Y with ⟨L,R,O⟩
+        simp at *
+        cases φ_in <;> cases not_φ_in
+        · refine ⟨⟨L,R,O, [φ, ~φ], [], none, [], .oneSidedL (.not _) rfl, [], rfl, ?_⟩, by simp⟩
+          simp_all
+          sorry
+        · refine ⟨⟨L,R,O, [φ], [~φ], none, [], LocalRule.LRnegL φ, [], rfl, by simp_all⟩, by simp⟩
+        · refine ⟨⟨L,R,O, [~φ], [φ], none, [], LocalRule.LRnegR φ, [], rfl, by simp_all⟩, by simp⟩
+        · refine ⟨⟨L,R,O, [], [φ, ~φ], none, [], .oneSidedR (.not _) rfl, [], rfl, ?_⟩, by simp⟩
+          simp_all
+          sorry
+    rcases Y with ⟨L,R,O⟩
+    simp_all
+    clear not_closed
+    absurd no_lra
+    push_neg
+    sorry
+
+    /- Fyi, *LocalRule* has these fields:
+    L : List Formula := by grind
+    R : List Formula := by grind
+    O : Olf := by grind
+    Lcond : List Formula := []
+    Rcond : List Formula := []
+    Ocond : Olf := none
+    ress : List Sequent := by grind
+    lr : LocalRule (Lcond, Rcond, Ocond) ress
+    C : List Sequent := applyLocalRule lr (L,R,O)
+    hC : C = applyLocalRule lr (L,R,O) := by rfl
+    preconditionProof : List.Subperm Lcond L ∧ List.Subperm Rcond R ∧ Ocond ⊆ O
+    -/
+
 /-! ## Termination of LocalTableau -/
 
 theorem testsOfProgram_sizeOf_lt α : ∀ τ ∈ testsOfProgram α, sizeOf τ < sizeOf α := by
