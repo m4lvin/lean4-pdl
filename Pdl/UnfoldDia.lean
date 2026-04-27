@@ -319,7 +319,7 @@ theorem H_goes_down_prog (α : Program) {Fs δ} (in_H : (Fs, δ) ∈ H α) {γ} 
   case test τ =>
     simp_all [H]
 
--- NOTE: this intermediate definition is no longer in the notes.
+/-- An intermediate step to define `unfoldDiamond`. This is not used in the paper. -/
 def Yset : (List Formula × List Program) → Formula → List Formula
 | ⟨F, δ⟩, φ => F ∪ [ ~ Formula.boxes δ φ ]
 
