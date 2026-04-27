@@ -1,4 +1,6 @@
+import Mathlib.Algebra.BigOperators.Group.Finset.Basic
 import Mathlib.Algebra.Order.BigOperators.Group.List
+import Mathlib.Algebra.Order.BigOperators.Group.Finset
 import Mathlib.Data.Multiset.DershowitzManna
 
 import Pdl.Sequent
@@ -901,7 +903,9 @@ theorem testsOfProgram_sizeOf_lt α : ∀ τ ∈ testsOfProgram α, sizeOf τ < 
 
 open LocalTableau
 
-/-- The local measure we use together with D-M to show that LocalTableau are finite. -/
+/-- The local measure we use together with D-M to show that LocalTableau are finite.
+Note that different from the paper here we also add `lmOfFormula (~φ)` in the `~⌈α⌉φ` case.
+This is needed to get `lmOfFormula_lt_dia_of_nonAtom`. -/
 @[simp]
 def lmOfFormula : (f : Formula) → Nat
 | ⊥ => 0
@@ -915,7 +919,7 @@ def lmOfFormula : (f : Formula) → Nat
 | ~⌈·_⌉ _ => 0 -- No more local steps
 | ⌈α⌉φ => 1 + lmOfFormula φ -- unfoldBox
             + ((testsOfProgram α).attach.map (fun τ => lmOfFormula (~τ.1))).sum
-| ~⌈α⌉φ => 1 + lmOfFormula (~φ) -- unfoldDia -- NOTE / TODO: paper does not add φ here?
+| ~⌈α⌉φ => 1 + lmOfFormula (~φ)
              + ((testsOfProgram α).attach.map (fun τ => lmOfFormula τ.1)).sum
 decreasing_by
   all_goals simp_wf
@@ -925,6 +929,10 @@ decreasing_by
     linarith
 
 theorem lmOfFormula_lt_box_of_nonAtom (h : ¬ α.isAtomic) :
+    lmOfFormula φ < lmOfFormula (⌈α⌉φ) := by
+  cases α <;> simp_all [Program.isAtomic, testsOfProgram] <;> linarith
+
+theorem lmOfFormula_lt_dia_of_nonAtom (h : ¬ α.isAtomic) :
     lmOfFormula (~φ) < lmOfFormula (~⌈α⌉φ) := by
   cases α <;> simp_all [Program.isAtomic, testsOfProgram] <;> linarith
 
@@ -1276,7 +1284,7 @@ theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X 
     : lmOfFormula ψ < lmOfFormula (~⌈α⌉φ) := by
   have udc := unfoldDiamondContent _ _ _ X_in _ ψ_in_X
   rcases udc with ψ_def | ⟨τ, τ_in, ψ_def⟩ | ⟨a, δ, ψ_def⟩ <;> subst ψ_def
-  · exact lmOfFormula_lt_box_of_nonAtom α_non_atomic
+  · exact lmOfFormula_lt_dia_of_nonAtom α_non_atomic
   · cases α <;> simp_all [Program.isAtomic, testsOfProgram]
     case sequence α β =>
       suffices lmOfFormula ψ < (List.map lmOfFormula (testsOfProgram (α;'β))).sum.succ by
@@ -1314,19 +1322,36 @@ theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X 
   · simp only [lmOfFormula, gt_iff_lt]
     cases α <;> simp_all [Program.isAtomic]
 
-lemma Finset.sum_of_two_lt {α : Type} [DecidableEq α] (x y : α) (f : α → Nat) :
-    ∑ i ∈ ({x, y} : Finset α), f i ≤ f x + f y := by
-  sorry
+/-- This is a helper for `measureProp` parts (d) and (e).
+If each element of a list `X` is either `a`, belongs to a list `bs`, or has `f` value 0,
+then the sum of `f` over `X.toFinset` is at most `f a + (bs.map f).sum`. -/
+lemma finset_sum_trichotomy {A : Type*} [DecidableEq A]
+    (f : A → ℕ) (X : List A) (a : A) (bs : List A)
+    (h : ∀ x ∈ X, x = a ∨ x ∈ bs ∨ f x = 0) :
+    ∑ x ∈ X.toFinset, f x ≤ f a + (bs.map f).sum := by
+  have h_sum_split : (∑ x ∈ X.toFinset, f x) ≤ (∑ x ∈ (X.toFinset.erase a), f x) + f a := by
+    by_cases ha : a ∈ X.toFinset <;> simp_all +decide
+    rw [← Finset.sum_erase_add _ _ (by aesop : a ∈ X.toFinset), add_comm]
+  have h_sum_le : (∑ x ∈ X.toFinset.erase a, f x) ≤ (∑ x ∈ (bs.toFinset), f x) := by
+    have h_sum_le' : (∑ x ∈ X.toFinset.erase a, f x) ≤
+        (∑ x ∈ (X.toFinset.erase a ∩ bs.toFinset), f x) := by
+      rw [← Finset.sum_subset (Finset.inter_subset_left)]
+      intro x hx hx'; specialize h x; aesop
+    exact h_sum_le'.trans (Finset.sum_le_sum_of_subset_of_nonneg
+      (Finset.inter_subset_right) (fun _ _ _ => Nat.zero_le _))
+  apply le_trans h_sum_split
+  rw [add_comm]
+  refine Nat.add_le_add_left (le_trans h_sum_le ?_) _
+  have h_toFinset_le : ∀ (l : List A), (∑ x ∈ l.toFinset, f x) ≤ (l.map f).sum := by
+    intro l; induction l <;> simp_all +decide
+    by_cases hh : ‹A› ∈ ‹List A›.toFinset <;> simp_all +decide; linarith!
+  exact h_toFinset_le bs
 
-/-- This is a summary Lemma, and not used as a whole anywhere.
-Note that part (d) and (e) talk about the sum/union over `X` and not single formulas, so for
-example (e) is not the same as `unfoldDiamond.decreases_lmOf_nonAtomic`.
-Also note that we use `List.toFinset` here to ignore duplicates in the list `X`.
-TODO: Could we show it using `List.sum` instead?
-For that we would need helper lemmas about the `lmOfFormula` applied to `H`, `Xset` etc.
-Or we need a proof that any `X ∈ unfoldBox α φ` cannot have duplicates?
--/
-lemma measureProp {α : Program} {φ φ₁ φ₂ : Formula} {X : List Formula} :
+/-- This is a summary lemma and not used as a whole anywhere.
+Note that parts (d) and (e) are about the measure sum over `X` and not single formulas, so
+for example (e) is not the same as `unfoldDiamond.decreases_lmOf_nonAtomic`.
+Also note that we use `List.toFinset` here to ignore duplicates in the list `X`. -/
+lemma measureProp {α : Program} {φ φ₁ φ₂ : Formula} :
       (lmOfFormula φ < lmOfFormula (~~φ)) -- a
     ∧ (lmOfFormula φ₁ + lmOfFormula φ₂ < lmOfFormula (φ₁ ⋀ φ₂)) -- b
     ∧ (lmOfFormula (~φ₁) < lmOfFormula (~(φ₁ ⋀ φ₂))) -- c i=1
@@ -1343,47 +1368,46 @@ lemma measureProp {α : Program} {φ φ₁ φ₂ : Formula} {X : List Formula} :
   case c2 => simp
   case d =>
     intro α_non_atomic X X_in
-    have := @unfoldBoxContent α φ X X_in
-    cases α
+    cases α_def : α
     case atom_prog => exfalso; simp_all [Program.isAtomic]
     case test τ =>
-      simp_all [subprograms, testsOfProgram, unfoldBox, allTP, Xset, F, P]
+      subst α_def
+      simp_all [testsOfProgram, unfoldBox, allTP, Xset, F, P]
       cases h : X_in <;> subst h <;> simp_all [Finset.sum]; linarith
-    case sequence α β =>
-      simp [unfoldBox] at X_in
-      rcases X_in with ⟨ℓ, ℓ_in, def_X⟩
-      subst def_X
-      sorry
-    case union α β =>
-      simp [unfoldBox] at X_in
-      rcases X_in with ⟨ℓ, ℓ_in, def_X⟩
-      subst def_X
-      sorry
-    case star α =>
-      sorry
+    all_goals
+      simp only [lmOfFormula, List.map_subtype, List.unattach_attach]
+      have tri : ∀ ψ ∈ X, ψ = φ ∨ ψ ∈ (testsOfProgram α).map (~·) ∨ lmOfFormula ψ = 0 := by
+        have ubc := unfoldBoxContent _ φ X X_in
+        intro ψ ψ_in; rcases ubc ψ ψ_in with rfl | ⟨τ, τ_in, rfl⟩ | ⟨a, δ, rfl, _⟩
+        · left; rfl
+        · right; left; exact List.mem_map_of_mem τ_in
+        · right; right; simp [lmOfFormula]
+      have := finset_sum_trichotomy lmOfFormula X φ ((testsOfProgram α).map (~·)) tri
+      subst α_def
+      simp only [List.mem_map, List.map_map, Function.comp_def, gt_iff_lt] at *
+      linarith
   case e =>
     intro α_non_atomic X X_in
-    have := @lmOfFormula_lt_box_of_nonAtom φ _ α_non_atomic
-    cases α
+    have := @lmOfFormula_lt_dia_of_nonAtom φ _ α_non_atomic
+    cases α_def : α
     case atom_prog =>
       simp_all [Program.isAtomic]
     case test τ =>
       simp_all [testsOfProgram, unfoldDiamond, H, Yset]
       subst X_in
-      by_cases h : τ = ~φ <;> simp_all
-      · simp [Finset.sum]
-      · have := Finset.sum_of_two_lt τ (~φ) lmOfFormula
-        linarith
-    case sequence α β =>
-      have := unfoldDiamondContent _ _ _ X_in
-      simp [unfoldDiamond, Yset] at X_in
-      rcases X_in with ⟨fs, ps, in_H, def_X⟩
-      subst def_X
-      sorry
-    case union α β =>
-      sorry
-    case star α =>
-      sorry
+      by_cases h : τ = ~φ <;> simp_all; grind
+    all_goals
+      have tri : ∀ ψ ∈ X, ψ = (~φ) ∨ ψ ∈ testsOfProgram α ∨ lmOfFormula ψ = 0 := by
+        have udc := unfoldDiamondContent _ _ _ X_in
+        intro ψ ψ_in
+        rcases udc ψ ψ_in with rfl | ⟨τ, τ_in, rfl⟩ | ⟨a, δ, rfl⟩
+        · left; rfl
+        · right; left; exact τ_in
+        · right; right; simp [lmOfFormula]
+      have := finset_sum_trichotomy lmOfFormula X (~φ) (testsOfProgram α) tri
+      subst α_def
+      simp only [lmOfFormula, List.map_subtype, List.unattach_attach, gt_iff_lt] at *
+      linarith
 
 theorem LocalRuleDecreases (rule : LocalRule X ress) :
     ∀ Y ∈ ress, ∀ y ∈ node_to_multiset Y, ∃ x ∈ node_to_multiset X, y < x :=
