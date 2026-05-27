@@ -11,7 +11,7 @@ Lessons learned while working on this file:
 
 -/
 
-namespace Simpler
+namespace Simpler -- delete me when replacing BuildTree.lean with this file
 
 /-! ## BuildTree -/
 
@@ -38,6 +38,7 @@ inductive BuildTree : Sequent → Type
             (next : ∀ Y, ∀ _r : PdlRule X Y, BuildTree Y) : BuildTree X
   /-- A leaf / end of the game where we win. -/ -- TODO: add conditions?
   -- free repeat OR basic and no rule applicable -- but what about (L+)?
+  -- NOTE:for free repeats we might need to get their "companion", so maybe we do need history?!
   | openLeaf {X} : BuildTree X
 
 inductive BuildChoice : List Sequent → Type
@@ -153,4 +154,89 @@ decreasing_by -- show that it's a move
   all_goals
     sorry
 
-end Simpler
+
+/-! ## Matches -/
+
+/-- A match is a path inside a `BuildTree`. Analogous to `PathIn` for `Tableau`. In Game Theory
+this could be called a "rollout", but note that it stays within the given Builder strategy tree
+and it is not tracking all intermediate game positions. -/
+inductive Match : ∀ {X : Sequent}, BuildTree X → Type
+  | nil {bt} : Match bt
+  | loc {nbas next lt} : Match (next lt).4 → Match (BuildTree.loc nbas next)
+  | pdl {bas next Y r} : Match (next Y r) → Match (BuildTree.pdl bas next)
+
+/-
+-- TODO, but NOW do not use `LocalAll` and `AllPdlRule` for this probably.
+-- Wait, where are these actually used at the moment or will they be needed later?
+
+def BuildTree.all_Match (bt : BuildTree X) : List (Match bt) := sorry
+
+theorem BuildTree.all_Match_spec (bt : BuildTree X) :
+    ∀ m, m ∈ bt.all_Match := by
+  sorry
+-/
+
+/-- Inspired by `PathIn.length`. Note that this only counts prover steps.
+OLD worry here that was `prLocTab` gets counted but did not make `pos.1` longer. Now OKAY maybe? -/
+@[simp]
+def Match.length {X : Sequent} {bt : BuildTree X} : Match bt → Nat
+  | .nil => 0
+  | .loc tail => tail.length + 1
+  | .pdl tail => tail.length + 1
+
+def Match.btAt {X} {bt : BuildTree X} : Match bt → Σ Y, BuildTree Y
+| .nil => ⟨_, bt⟩
+| .loc tail => btAt tail
+| .pdl tail => btAt tail
+
+-- TODO lemmas like those about `tabAt` and `nodeAt`?
+
+def Match.append {X} {bt : BuildTree X} : (m1 : Match bt) → (m2 : Match (btAt m1).2) → Match bt
+| .nil, m2 => m2
+| .loc tail, m2 => .loc (append tail m2)
+| .pdl tail, m2 => .pdl (append tail m2)
+
+-- TODO lemmas like those about `PathIn.append`?
+
+@[grind]
+structure Match.locEdge (m n : Match bt) where
+  mY : Sequent
+  nbas : _
+  next : (lt : LocalTableau mY) → BuildChoice (endNodesOf lt)
+  lt : LocalTableau mY
+  btAt_m_def : btAt m = ⟨mY, @BuildTree.loc mY nbas next⟩
+  btAt_n_def : btAt n = ⟨(next lt).2, (next lt).4⟩
+
+@[grind]
+structure Match.pdlEdge (m n : Match bt) where
+  mX : Sequent
+  nY : Sequent
+  bas : mX.basic
+  next : ∀ Y, ∀ _r : PdlRule mX Y, BuildTree Y
+  r : PdlRule mX nY
+  btAt_m_def : btAt m = ⟨mX, @BuildTree.pdl mX bas next⟩
+  btAt_n_def : btAt n = ⟨_, next nY r⟩
+
+/-- The parent-child relation ⋖_𝕋 in a Builder strategy tree. -/
+def Match.Edge (m n : Match bt) : Type := Match.locEdge m n ⊕ Match.pdlEdge m n
+
+/-- This edge between matches is a modal step.
+To even say this `BuildTree` must contain the rule data. -/
+def Match.Edge.isModal {pos} {bt : BuildTree pos} {m n : Match bt} : Match.Edge m n → Prop
+  | Sum.inl _ => False -- local edges are never modal steps.
+  | Sum.inr ⟨_, _, _, _, r, _, _⟩ =>  PdlRule.isModal r
+
+def Match.isLeaf {pos} {bt : BuildTree pos} {m : Match bt} : Prop :=
+  match (btAt m) with | ⟨_, .openLeaf⟩ => True | _ => False
+
+/-- If `m` ends at a leaf, then it cannot have an edge to any `n`. -/
+lemma Match.isLeaf_no_edge {bt : BuildTree pos} (m : Match bt) (h : m.isLeaf) :
+    ∀ n, ¬ Nonempty (Match.Edge m n) := by -- EASY as expected :)
+  intro n
+  unfold Match.isLeaf at h
+  rintro ⟨m_n⟩
+  cases m_n <;> grind
+
+-- QUESTION: Do we need to be able to roll back to repeats in a `BuildTree`??
+
+end Simpler -- delete me when replacing BuildTree.lean with this file
