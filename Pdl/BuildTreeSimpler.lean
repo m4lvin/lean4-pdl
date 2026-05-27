@@ -45,21 +45,35 @@ inductive BuildChoice : List Sequent → Type
 end
 
 /-- Given a winning Builder strategy, compute its `RuleTree`.
-TODO: add NEW here: we must start from a Prover position, i.e.
+NEW: note the `Sum.inl p` here. This ensure we start tree building from a Prover position, i.e.
 - not allowing BuilderPos.lpr here (easy, was forbidden already anyway as prover wins there.)
 - not allowing BuilderPos.ltab because we cannot use BuildTree.loc for a single fixed local tab. -/
-def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X, p⟩) :
+def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X, Sum.inl p⟩) :
     BuildTree X :=
   match p_def : p with
   -- Prover positions:
-  | Sum.inl (.nlpRep rp noLpRep) => .openLeaf -- Builder wins rep. ?? maybe we do want history?
-  | Sum.inl (.bas nrep bas) => -- prover chooses PDL rule
+  | (.nlpRep rp noLpRep) => .openLeaf -- Builder wins rep. ?? maybe we do want history?
+  | (.bas nrep bas) => -- prover chooses PDL rule
       have stillWin : ∀ newP, ∀ _ : Move ⟨_,_,Sum.inl (.bas nrep bas)⟩ newP, winning s newP :=
         fun newPos mov =>
           @winning_of_whatever_other_move _ _ s _ (by simp) h ⟨newPos, mem_theMoves_of_move ⟨mov⟩⟩
-      .pdl bas
-        (fun newSeq r => buildTree s (stillWin _ (.prPdl r)))
-  | Sum.inl (.nbas nrep nbas) => -- prover chooses a local tableau
+      .pdl bas <| fun newSeq r => by
+        -- deal with the result of `posOf` here already because we can only make a
+        -- recursive call if we again have a ProverPos.
+        cases newPos_def : posOf (X :: H) newSeq
+        case inl newP =>
+          refine @buildTree s (X :: H) newSeq newP (stillWin ⟨_, _, Sum.inl newP⟩ ?_)
+          rw [← newPos_def]
+          exact @Move.prPdl _ _ H nrep bas r
+        case inr newBP =>
+          exfalso
+          -- IDEA: The only BuilderPos resulting from `posOf` is an lpr ...
+          rcases posOf_eq_inr_then_lpr newPos_def with ⟨lpr, newBP_def⟩
+          have := stillWin ⟨_, _, posOf (X :: H) newSeq⟩ (Move.prPdl r)
+          rw [newPos_def, newBP_def] at this
+          -- .. where prover would win, so that cannot happen here.
+          simp [winning] at this
+  | (.nbas nrep nbas) => -- prover chooses a local tableau
       have stillWin : ∀ newP, ∀ _ : Move ⟨_,_,Sum.inl (.nbas nrep nbas)⟩ newP, winning s newP :=
         fun newPos mov =>
           @winning_of_whatever_other_move _ _ s _ (by simp) h ⟨newPos, mem_theMoves_of_move ⟨mov⟩⟩
@@ -99,62 +113,44 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
               have := @Move.buEnd X ltX Y H nrep nbas Y_in
               rw [← def_mY]
               exact this
-          -- make recursive call, remains to show that `s` still wins.
-          refine @buildTree s _ _ mY.val.2.2 ?_
-          -- Note that *two* moves have happened now, one by prover and one by us.
-          apply winning_of_winning_move
-          exact stillWin ⟨_, X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩ Move.prLocTab
-  -- Builder positions:
-  | Sum.inr (.lpr _) => by exfalso; simp [winning] at h -- lpr means prover wins, so cannot happen.
-  | Sum.inr (.ltab nrep nbas ltX) => by
-      -- Seems a bit weird to still have this case. Is it redundant with `(.nbas nrep nbas)` above?
-      have ne : (tableauGame.moves ⟨H, ⟨X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩⟩).Nonempty := by
-        by_contra hyp
-        simp_all only [winning, winner, ↓reduceDIte, tableauGame_turn_Builder, other_B_eq_A,
-          reduceCtorEq, forall_const]
-
-      -- Builder can use `s` to choose some `Y ∈ endNodeOf ltX`.
-      let sY := s ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ (by simp) ne
-      have Mov : Move ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ sY.1 := by
-        have := sY.2
-        simp only [Game.Pos.moves, tableauGame, theMoves, List.mem_toFinset] at this
-        simp [List.mem_map] at this
-        let oY := List.find? -- No more choice thanks to this!
-          (fun Y => @decide (⟨X :: H, ⟨Y, posOf (X :: H) Y⟩⟩ = sY.val) (instDecidableEqPos _ _))
-          (endNodesOf ltX)
-        cases oY_def : oY
-        · exfalso
-          have := List.find?_eq_none.mp oY_def
-          grind
-        case some Y =>
-          unfold oY at oY_def
-          have def_sY := List.find?_some oY_def
-          simp only [decide_eq_true_eq] at def_sY
-          have Y_in := List.mem_of_find?_eq_some oY_def
-          have := @Move.buEnd X ltX Y H nrep nbas Y_in
-          rw [← def_sY]
-          exact this
-      have stillWin : winning s sY.1 := winning_of_winning_move _ h
-      have forTermination : move ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ sY.1 := ⟨Mov⟩ -- needed?
-      -- No construction here, jsut recursion!?!
-      have := buildTree s stillWin
-      sorry
-      -- .loc nbas ltX
-      -- sorry -- BuildTree.BuStep (by simp) Mov (buildTree s stillWin)
+          -- NEW: also need case distinction here to ensure mY.val.2.2 is a ProverPos for recursion?
+          match mY_def : mY.val.2.2 with
+          | .inl myP =>
+            -- make recursive call, remains to show that `s` still wins.
+            refine @buildTree s _ _ myP ?_
+            rw [← mY_def]
+            -- Note that *two* moves have happened now, one by prover and one by us.
+            apply winning_of_winning_move
+            exact stillWin ⟨_, X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩ Move.prLocTab
+          | .inr mY_BP =>
+              exfalso -- fingers crossed ;-)
+              -- (This is different than above, cannot use `posOf_eq_inr_then_lpr` immediately.)
+              -- IDEA: mY is result of Move.buEnd, so if mY is a BuilderPos then it is an lpr.
+              rcases mY with ⟨mY, mY_in⟩ -- PROBLEM: here we also lose the def of mY :-/
+              rcases mY with ⟨newH, Y, posY⟩
+              cases Mov -- also clears newH and posY // only possible after the rcases?
+              case buEnd nbas' nrep' Y_in =>
+              simp at *
+              -- Now we can use it, but should we?
+              rcases posOf_eq_inr_then_lpr mY_def with ⟨lpr, mY_BP_def⟩
+              subst mY_BP_def
+              -- Want to use stillWin now, but we are in the setting where two moves happened!?
+              have := stillWin ⟨_, X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩ Move.prLocTab
+              -- ... ?
+              apply winning_of_winning_move (by simp) at this
+              -- Here we need the lost information that mY is a winning choice made by `s`.
+              -- simp [winning] at this
+              sorry
 
 termination_by
-  tableauGame.wf.2.wrap (⟨H, X, p⟩ : GamePos)
+  tableauGame.wf.2.wrap (⟨H, X, Sum.inl p⟩ : GamePos)
 decreasing_by -- show that it's a move
-  all_goals sorry
-
-  -- · simp_wf
-  --   simp only [tableauGame, Game.wf, WellFoundedRelation.rel]
-  --   exact ⟨mov⟩
-  -- · simp_wf
-  --   simp only [tableauGame, Game.wf, WellFoundedRelation.rel]
-  --   exact ⟨mov⟩
-  -- · simp_wf
-  --   simp only [tableauGame, Game.wf, WellFoundedRelation.rel]
-  --   exact forTermination
+  -- TODO but now it might be 2 moves! Use transitive closure? (it still must be wellfounded)
+  all_goals
+    simp_wf
+    simp only [tableauGame, Game.wf, WellFoundedRelation.rel]
+    try exact forTermination
+  all_goals
+    sorry
 
 end Simpler

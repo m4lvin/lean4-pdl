@@ -40,6 +40,11 @@ def posOf (H : History) (X : Sequent) : ProverPos H X ⊕ BuilderPos H X :=
       then .inl (.bas rep bas) -- actual ProverPos to choose a PDL rule
       else .inl (.nbas rep bas) -- actual ProverPos to make LocalTab
 
+lemma posOf_eq_inr_then_lpr {H X p} :
+    posOf H X = Sum.inr p → ∃ lpr, p = .lpr lpr := by
+  unfold posOf
+  grind
+
 /-! ## Moves -/
 
 /-- The relation `Move old next` says that we can move from `old` to `next`.
