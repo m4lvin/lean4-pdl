@@ -28,7 +28,7 @@ theorem proj : g ∈ projection A X ↔ (⌈·A⌉g) ∈ X :=
     rw [List.reduceOption_mem_iff]
     aesop
 
-/-! ## Loading and Loaded Histories -/
+/-! ## Histories and Repeats -/
 
 /-- A history is a list of Sequents.
 This only tracks "big" steps, hoping we do not need steps within a local tableau.
@@ -46,8 +46,8 @@ instance {H X} : Decidable (rep H X) := by
     simp only [List.mem_cons, exists_eq_or_imp]
     exact instDecidableOr
 
-/-- Given a `rep H X`, determin the index of the companion in `H` using `List.findIdx?`. -/
-def theRep {H X} (rp : rep H X) : Nat :=
+/-- Given `rep H X`, get the index of the companion in `H` using `List.findIdx?`. -/
+def rep.toNat {H X} (rp : rep H X) : Nat :=
   match h : List.findIdx? (fun Y => decide (Y.setEqTo X)) H with
   | none => by
       exfalso
@@ -56,19 +56,38 @@ def theRep {H X} (rp : rep H X) : Nat :=
       simp_all
   | some k => k
 
+/-- Given `rep H X`, get the index of the companion in `H` using `List.findIdx?`.
+Note that we do *not* care about loading here. -/
+def rep.toFin {H X} (rp : rep H X) : Fin (H.length) :=
+  have : rp.toNat < H.length :=
+    match h : List.findIdx? (fun Y => decide (Y.setEqTo X)) H with
+    | none => by
+      exfalso
+      have : ∃ Y ∈ H, decide (Y.setEqTo X) = true := by aesop
+      have := @List.findIdx?_eq_some_of_exists Sequent H (fun Y => Y.setEqTo X) this
+      simp_all
+    | some k => by
+      unfold toNat
+      rw! [h]
+      simp only
+      exact (@List.findIdx?_eq_some_iff_findIdx_eq.mp h).1
+  ⟨rp.toNat, this⟩
+
+/-! ## Loaded Path Repeats -/
+
 /-- A lpr means we can go `k` steps back in the history to
 reach an equal node, and all nodes on the way are loaded.
 Note: `k=0` means the first element of `Hist` is the companion. -/
 def LoadedPathRepeat (Hist : History) (X : Sequent) : Type :=
   Subtype (fun k => (Hist.get k).multisetEqTo X ∧ ∀ m ≤ k, (Hist.get m).isLoaded)
 
-lemma LoadedPathRepeat.to_rep {Hist X} (lpr : LoadedPathRepeat Hist X) : rep Hist X := by
+lemma LoadedPathRepeat.to_rep {H X} (lpr : LoadedPathRepeat H X) : rep H X := by
   rcases lpr with ⟨k, same, all_loaded⟩
-  use List.get Hist k
+  use List.get H k
   simp_all only [List.get_eq_getElem, List.getElem_mem, true_and]
   exact Sequent.setEqTo_of_multisetEqTo _ _ same
 
-instance : DecidableEq (LoadedPathRepeat Hist X) := Subtype.instDecidableEq
+instance {Hist X} : DecidableEq (LoadedPathRepeat Hist X) := Subtype.instDecidableEq
 
 /-- If there is any loaded path repeat, then we can compute one.
 FIXME There is probably a more elegant way, avoiding `Nonempty` and `Fin.find?`.

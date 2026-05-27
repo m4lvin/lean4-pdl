@@ -5,8 +5,9 @@ import Pdl.AllPdlRule
 
 Lessons learned while working on this file:
 
-- Are actually all leafs in the BuildTree backpointers?
-  No, we also want all other leafs where builder wins the game to actually build some model :-)
+- Not all leafs in the BuildTree are backpointers.
+  We want open leafs (where builder wins the game) to actually build worlds :-)
+  Moreover, free repeats also let builder win.
 
 -/
 
@@ -16,14 +17,22 @@ Lessons learned while working on this file:
 
 /-- Winning Strategy Tree for Builder.
 At a `BuStep` it is the turn of `Builder` and we have a single child for the `Move` they make.
-At a `PrStep` it is the turn of `Prover`, and we have children for all possible `Move`.
+At a `PrStep` it is the turn of `Prover`, and we have children for all possible `Move`s.
 
 In the paper "a leaf is either labeled with a sequent to which no rule is applicable, or it is a
 (free) repeat". Here we make leafs with `PrStep` because at such a position it is the turn of Prover
 but there are no moves so Prover loses.
 
 GOAL: The `BuildTree` type should carry all information we need, so later we should not care
-about how a specific strategy tree for builder gets made/computer, but just that there is one.
+about how a specific strategy tree for builder gets made/computed, but just that there is one.
+
+PROBLEM: This type currently makes too many steps where the sequence does not change.
+Note that Def 6.8. says that at every step a rule should be used!
+It seems that means we do not want the single-child `BuStep` here at all.???
+
+Each single step in the build tree should provide all three:
+- rule R chosen
+- child chosen
 -/
 inductive BuildTree : GamePos → Type
   | BuStep {pos newPos}
@@ -38,14 +47,11 @@ inductive BuildTree : GamePos → Type
       -- side note: we no longer have a `List` here, so may need `Finset.sort (theMoves pos)`??
 
 def BuildTree.isLeaf {pos} : BuildTree pos → Prop
-  | BuildTree.BuStep .. => false
+  | BuildTree.BuStep .. => False
   | BuildTree.PrStep .. => theMoves pos = ∅
 
--- TODO: `BuildTree.isLeaf` implies that either we have a free repeat or we have a
--- basic sequence to which no rule can be applied (and that is easily satisfiable?)
-
 def BuildTree.isFreeRepLeaf {pos} : BuildTree pos → Prop
-  | BuildTree.BuStep .. => false
+  | BuildTree.BuStep .. => False
   | @BuildTree.PrStep _ hturn _ =>
       match pos with
       | ⟨H, X, p⟩ =>
@@ -69,6 +75,21 @@ theorem BuildTree.rep_of_isFreeRepLeaf {pos : GamePos} {bt : BuildTree pos} :
       cases proPos <;> simp at *
       case nlpRep theRep lpr => exact theRep
     · exfalso; grind
+
+/-- TODO: `BuildTree.isLeaf` implies that either we have a free repeat or we have a
+basic sequence to which no rule can be applied (and that is easily satisfiable?) -/
+theorem BuildTree.isLeaf_iff {pos} {bt : BuildTree pos} :
+    bt.isLeaf → bt.isFreeRepLeaf ∨ pos.2.1.basic := by
+  intro bt_isLeaf
+  cases bt
+  case BuStep newPos next hturn m =>
+    unfold isLeaf at bt_isLeaf
+    simp at *
+  case PrStep =>
+    unfold isLeaf at bt_isLeaf
+    simp only at *
+
+    sorry
 
 /-- Given a winning Builder strategy, compute its `BuildTree`. -/
 def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X, p⟩) :
@@ -135,7 +156,8 @@ decreasing_by -- show that it's a move
 
 /-! ## Matches -/
 
-/-- Path inside a `BuildTree`. Analogous to `PathIn` for `Tableau`. -/
+/-- A match is a path inside a `BuildTree`. Analogous to `PathIn` for `Tableau`. In Game Theory
+this could be called a "rollout", but note that it stays within the given Builder strategy tree. -/
 inductive Match : ∀ {pos : GamePos}, BuildTree pos → Type
   | nil {bt} : Match bt
   | bu : Match next → Match (BuildTree.BuStep hturn m next)
@@ -216,15 +238,17 @@ lemma Match.isLeaf_no_edge {bt : BuildTree pos} (m : Match bt) (h : m.isLeaf) :
   by_contra hyp
   rcases hyp with ⟨m_bu_n|m_pr_n⟩
   · grind [BuildTree.isLeaf, Match.BuEdge]
-  · simp only [BuildTree.isLeaf, Bool.false_eq_true] at h
+  · simp only [BuildTree.isLeaf] at h
     rcases m_pr_n with ⟨mPos, hturn, mov, next, btAt_m_def, next_n_def⟩
     have := @mem_theMoves_of_move mPos n.btAt.1 ⟨mov⟩
     grind
 
 /-- Convert a `Match` to a `History`. Inspired by `PathIn.toHistory`.
 Does not include the last node.
-The history of `.nil` is `[]` because this will not go into `pos.1`. -/
-def Match.toHistory {bt : BuildTree pos} : (m : Match bt) → History
+The history of `.nil` is `[]` because this will not go into `pos.1`.
+IDEA: only record the .pr steps here, but skip .bu steps?!
+-/
+def Match.toHistory {pos : GamePos} {bt : BuildTree pos} : (m : Match bt) → History
 | .nil => []
 | .bu tail => tail.toHistory ++ [pos.2.1]
 | .pr _ _ tail => tail.toHistory ++ [pos.2.1]
@@ -233,27 +257,12 @@ def Match.toHistory {bt : BuildTree pos} : (m : Match bt) → History
 This used to use `Nat` but now we take a `Fin` like in `PathIn.rewind`, and
 for that we needed to define `Match.length` first.
 IDEA: also use `Match.toHistory` here? -/
-def Match.rewind : (m : Match bt) → (k : Fin (m.length + 1)) → Match bt
+def Match.rewind {pos} {bt : BuildTree pos} : (m : Match bt) → (k : Fin (m.length + 1)) → Match bt
 | .nil, _ => .nil
 | .bu tail, k => Fin.lastCases (.nil) (Match.bu ∘ tail.rewind) k
 | .pr _ _ tail, k => Fin.lastCases (.nil) (Match.pr _ _ ∘ tail.rewind) k
 
 -- ... lots of stuff needed here?
-
-/-- Given a `rep H X`, determine the index of the companion in `H` using `List.findIdx?`.
-Note that we do *not* care about loading here. -/
-def rep.toFin {H X} (rp : rep H X) : Fin (H.length) :=
-  match h : List.findIdx? (fun Y => decide (Y.setEqTo X)) H with
-  | none => by
-      exfalso
-      have : ∃ Y ∈ H, decide (Y.setEqTo X) = true := by aesop
-      have := @List.findIdx?_eq_some_of_exists Sequent H (fun Y => Y.setEqTo X) this
-      simp_all
-  | some k => ⟨k, by
-    have : k = @List.findIdx Sequent (fun Y => Y.setEqTo X) H := by grind
-    rw [this, List.findIdx_lt_length]
-    rw [List.findIdx?_eq_some_iff_findIdx_eq] at h
-    grind⟩
 
 /-- The extra condition that it is the turn of Builder is needed because otherwise
 the `prLocTab` case would falsify. -/
@@ -321,8 +330,8 @@ As possible worlds for the model graph we want to define *maximal* paths inside 
 that do not contain `(M)` steps.
 
 In the paper pre-states are allowed to be of the form π;π' when π ends at a repeat and π' is a
-maximal prefix of the path from the companion to that repeat. Here we only store the π part of
-such pre-states, because the π' is then uniquely determined by π.
+maximal prefix of the path from the companion to that repeat. Here in `PreState` and `PreStateP`
+we only store the π part of such pre-states, because the π' is then uniquely determined by π.
 -/
 
 /-- A pre-state-part starting at `m` is any path in `bt : BuildTree` consisting of non-(M) `edge`s
@@ -458,6 +467,6 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
   case X_in =>
     unfold WS
     simp
-    -- need actual def for `PreState.all` first
+    -- need actual def for `BuildTree.allPreStates` first
     -- use the .fromRoot pre-state
     sorry
