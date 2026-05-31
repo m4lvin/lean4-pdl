@@ -79,8 +79,9 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
         fun newPos mov =>
           @winning_of_whatever_other_move _ _ s _ (by simp) h ⟨newPos, mem_theMoves_of_move ⟨mov⟩⟩
       .loc nbas <| fun ltX => by
-        have ne : (tableauGame.moves ⟨H, ⟨X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩⟩).Nonempty
-          := by by_contra hyp; sorry -- ??
+        have ne : (tableauGame.moves ⟨H, ⟨X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩⟩).Nonempty :=
+          winning_has_moves (by simp) <|
+            stillWin ⟨H, ⟨X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩⟩ Move.prLocTab
         -- IDEA: use strategy `s` to choose move `mY` that picks the `Y ∈ endNodeOf ltX`:
         let mY := s ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ (by simp) ne
         -- We continue the BuildTree with the chosen `Y`:
