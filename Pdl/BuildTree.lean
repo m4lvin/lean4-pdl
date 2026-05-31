@@ -197,16 +197,26 @@ inductive Match : ∀ {H : History} {X : Sequent}, BuildTree H X → Type
   | loc {nbas next lt} : Match (next lt).6 → Match (BuildTree.loc nbas next)
   | pdl {bas next Y r} : Match (next Y r) → Match (BuildTree.pdl bas next)
 
-/-
--- TODO, but NOW do not use `LocalAll` and `AllPdlRule` for this probably.
--- Wait, where are these actually used at the moment or will they be needed later?
+/- All possible Matches in a given BuildTree. -/
+def Match.all {H X} : (bt : BuildTree H X) → List (Match bt)
+  | .loc nbas next => LocalTableau.all X >>= fun ltX => return Match.loc (← Match.all (next ltX).6)
+  | .pdl bas next => -- PdlRule.all X >>= fun ⟨Y,r⟩ => return Match.pdl (← (Match.all (next Y r)))
+      (PdlRule.all X).flatMap (fun ⟨Y,r⟩ =>
+        (Match.all (next Y r)).map (fun tail => Match.pdl tail))
+  | .freeRepeat fr => [ .nil ]
+  | .openLeaf => [ .nil ]
+termination_by
+  bt => sizeOf bt -- TODO use other measure, `sizeOf` seems to ignore mutual induction?!
+decreasing_by
+  · simp_wf -- `next` disappears on right side :-/
+    sorry
+  · sorry
 
-def BuildTree.all_Match (bt : BuildTree X) : List (Match bt) := sorry
-
-theorem BuildTree.all_Match_spec (bt : BuildTree X) :
-    ∀ m, m ∈ bt.all_Match := by
+theorem Match.all_spec {H X} (bt : BuildTree H X) :
+    ∀ m, m ∈ Match.all bt := by
+  intro m
+  -- easy, hopefully?
   sorry
--/
 
 /-- Inspired by `PathIn.length`. Counting the steps made by a `Match` in a `BuildTree`.
 Note that such a step may be combinations of a prover and a builder move. -/
@@ -261,14 +271,17 @@ def Match.Edge.isModal {H X} {bt : BuildTree H X} {m n : Match bt} : Match.Edge 
   | Sum.inl _ => False -- local edges are never modal steps.
   | Sum.inr ⟨_, _, _, _, _, r, _, _⟩ =>  PdlRule.isModal r
 
-def Match.isLeaf {H X} {bt : BuildTree H X} {m : Match bt} : Prop :=
+def Match.isOpenLeaf {H X} {bt : BuildTree H X} {m : Match bt} : Prop :=
   match (btAt m) with | ⟨_, _, .openLeaf⟩ => True | _ => False
 
-/-- If `m` ends at a leaf, then it cannot have an edge to any `n`. -/
-lemma Match.isLeaf_no_edge {H X} {bt : BuildTree H X} (m : Match bt) (h : m.isLeaf) :
+def Match.isFreeRepeat {H X} {bt : BuildTree H X} (m : Match bt) : Prop :=
+  match (btAt m) with | ⟨_, _, .freeRepeat _⟩ => True | _ => False
+
+/-- If `m` ends at an open leaf, then it cannot have an edge to any `n`. -/
+lemma Match.isOpenLeaf_no_edge {H X} {bt : BuildTree H X} (m : Match bt) (h : m.isOpenLeaf) :
     ∀ n, ¬ Nonempty (Match.Edge m n) := by -- EASY as expected :)
   intro n
-  unfold Match.isLeaf at h
+  unfold Match.isOpenLeaf at h
   rintro ⟨m_n⟩
   cases m_n <;> grind
 
@@ -313,10 +326,15 @@ lemma Match.btAt_newHist_length_eq_length_plus_oldHist {H X} {bt : BuildTree H X
 termination_by
   m.length
 
+lemma Match.isFreeRepeat_iff {H X} {bt : BuildTree H X} {m : Match bt} :
+    m.isFreeRepeat ↔ (btAt m).2.2.isFreeRepeat := by
+  unfold BuildTree.isFreeRepeat Match.isFreeRepeat
+  grind
+
 /-- Roll back to the companion. Only possibe if we started with H=[] so we know the root. -/
 def Match.companionOf {X} {bt : BuildTree [] X} (m : Match bt)
-  (h : (btAt m).2.2.isFreeRepeat) : Match bt :=
-    match BuildTree.getFreeRepeat h with
+  (h : m.isFreeRepeat) : Match bt :=
+    match BuildTree.getFreeRepeat (Match.isFreeRepeat_iff.eq ▸ h) with
     -- The free repeat says "go k steps back" where k < length of history at `m`.
     | ⟨⟨k, k_lt⟩ , same_and_free⟩ =>
       -- But to rewind m we need a k < length of m itself plus 1
@@ -324,7 +342,7 @@ def Match.companionOf {X} {bt : BuildTree [] X} (m : Match bt)
 
 /-- The repeat ♥ companion relation on `Match`. -/
 def Match.companion {X} {bt : BuildTree [] X} (m n : Match bt) : Prop :=
-  ∃ (h : (btAt m).2.2.isFreeRepeat), n = Match.companionOf m h
+  ∃ (h : m.isFreeRepeat), n = Match.companionOf m h
 
 local notation ma:arg " ♥ " mb:arg => Match.companion ma mb
 
@@ -341,22 +359,32 @@ we only store the π part of such pre-states, because the π' is then uniquely d
 /-- A pre-state-part starting at `m` is any path in `bt : BuildTree` consisting of non-(M) `edge`s
 and stopping at a leaf or at an (M) application. (No `Match.companion` steps here, see note above.)
 -/
-inductive PreStateP {H X} (bt : BuildTree H X) : (m : Match bt) → Type
-| edge {m n} : (e : Match.Edge m n) → ¬ e.isModal → PreStateP bt n → PreStateP bt m
-| stopLeaf {m} : m.isLeaf → PreStateP bt m
-| stopAtM {m n} : (e : Match.Edge m n) → e.isModal → PreStateP bt m
+inductive PreStatePart {H X} (bt : BuildTree H X) : (m : Match bt) → Type
+| edge {m n} : (e : Match.Edge m n) → ¬ e.isModal → PreStatePart bt n → PreStatePart bt m
+| stopAtM {m n} : (e : Match.Edge m n) → e.isModal → PreStatePart bt m
+| stopAtOpenLeaf {m} : m.isOpenLeaf → PreStatePart bt m
+| stopAtFreeRepeat {m} : m.isFreeRepeat → PreStatePart bt m
 
 /-- Collect all `PreStateP`s from a given `m` onwards. -/
--- Maybe define `Match.all` first and then filter it here?
--- Or better do it inductively?
-def BuildTree.allPreStatePs {H X} : (bt : BuildTree H X) → (m : Match bt) → List (PreStateP bt m)
-| .loc nbas next, m => sorry
-| .pdl bas next, _ => sorry
-| .freeRepeat fr, m => sorry
-| .openLeaf, m => sorry
+def BuildTree.allPreStateParts {H X0} (bt : BuildTree H X0) (m : Match bt) :
+    List (PreStatePart bt m) :=
+  match m_def : m.btAt with
+  | ⟨H', X, .loc nbas next⟩ => by
+      let := @LocalTableau.all X
+      -- IDEA: `map next` but the result type is dependent.
+      -- After that make recursive call. But better do `.pdl` case below first, hopefully easier?
+      sorry
+  | ⟨H', X, .pdl bas next⟩ => by
+      let := @PdlRule.all X
+      let : List (Σ Y, BuildTree (X :: H') Y) := this.map (fun ⟨Y,r⟩ => ⟨_, next _ r⟩)
+      -- Now wrap up each `r` into a `Match.Edge`,
+      -- then map PreStatePart.edge of them?
+      sorry
+  | ⟨H', X, .freeRepeat fr⟩ => [ .stopAtFreeRepeat (by simp [Match.isFreeRepeat]; grind) ]
+  | ⟨H', X, .openLeaf⟩ => [ .stopAtOpenLeaf (by simp [Match.isOpenLeaf]; grind) ]
 
-lemma BuildTree.allPreStatePs_spec {H X} {bt : BuildTree H X} {m : Match bt} :
-    ∀ π : PreStateP bt m, π ∈ bt.allPreStatePs m := by
+lemma BuildTree.allPreStateParts_spec {H X} {bt : BuildTree H X} {m : Match bt} :
+    ∀ π : PreStatePart bt m, π ∈ bt.allPreStateParts m := by
   sorry
 
 /-- A pre-state is a maximal pre-state-part, i.e. starting at the root or just after (M).
@@ -364,16 +392,23 @@ lemma BuildTree.allPreStatePs_spec {H X} {bt : BuildTree H X} {m : Match bt} :
 WORRY: should `fromRoot` also have a condition about `H` being empty, i.e. the start of the game?
 -/
 inductive PreState {H X} (bt : BuildTree H X) : Type
-| fromRoot : PreStateP bt .nil → PreState bt
-| fromMod {o m} : (e : Match.Edge o m) → e.isModal → PreStateP bt m → PreState bt
+| fromRoot : PreStatePart bt .nil → PreState bt
+| fromMod {o m} : (e : Match.Edge o m) → e.isModal → PreStatePart bt m → PreState bt
 
 /-- Collect all `PreState`s for a given `BuildTree`. -/
 def BuildTree.allPreStates {H X} (bt : BuildTree H X) : List (PreState bt) :=
-  (bt.allPreStatePs .nil).map .fromRoot
+  -- IDEAS: use `Match.all`, then filter by "is root or is just after modal", then
+  -- apply  BuildTree.allPreStateParts.
+  -- (Match.all bt).filter (fun m => m = .nil ∨ )
+  -- ... (bt.allPreStateParts .nil).map .fromRoot
+  sorry
 
 lemma BuildTree.allPreStates_spec {H X} {bt : BuildTree H X} :
     ∀ π : PreState bt, π ∈ bt.allPreStates := by
-  -- should be easy, use BuildTree.allPreStatePs_spec
+  unfold allPreStates
+  intro π
+  have := @BuildTree.allPreStateParts_spec
+  -- should be easy once `BuildTree.allPreStates` is done?
   sorry
 
 /-- Collect formulas in a pre-state. The non-loaded part of Λ(π) in paper.
