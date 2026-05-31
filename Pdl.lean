@@ -3,7 +3,6 @@ import Pdl.AllPdlRule
 import Pdl.AxiomBlame
 import Pdl.Beth
 import Pdl.BuildTree
-import Pdl.BuildTreeSimpler
 import Pdl.Completeness
 import Pdl.Discon
 import Pdl.Distance
