@@ -240,4 +240,14 @@ lemma Match.isLeaf_no_edge {bt : BuildTree pos} (m : Match bt) (h : m.isLeaf) :
 
 -- QUESTION: Do we need to be able to roll back to repeats in a `BuildTree`??
 
+-- Maybe Match.toHistory is not actually needed?
+
+/-- Rewind a `Match`, i.e. go back up inside `bt` by `k` steps. -/
+def Match.rewind {pos} {bt : BuildTree pos} : (m : Match bt) → (k : Fin (m.length + 1)) → Match bt
+| .nil, 0 => .nil
+| .nil, ⟨k+1,k_h⟩ => by exfalso; simp at k_h
+| .loc tail, k => Fin.lastCases (.nil) (Match.loc ∘ tail.rewind) k
+| .pdl tail, k => Fin.lastCases (.nil) (Match.pdl ∘ tail.rewind) k
+
+
 end Simpler -- delete me when replacing BuildTree.lean with this file
