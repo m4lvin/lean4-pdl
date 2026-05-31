@@ -51,6 +51,11 @@ inductive BuildChoice : History → Sequent → List Sequent → Type
   | pick {H X YS Y} : Y ∈ YS → BuildTree (X :: H) Y → BuildChoice H X YS
 end
 
+@[simp]
+lemma BuildChoice.fst_eq_H {H X YS} {bc : BuildChoice H X YS} : bc.1 = H := by
+  cases bc
+  rfl
+
 /-- Given a winning Builder strategy, compute its `RuleTree`.
 NEW: note the `Sum.inl p` here. This ensure we start tree building from a Prover position, i.e.
 - not allowing BuilderPos.lpr here (easy, was forbidden already anyway as prover wins there.)
@@ -203,8 +208,8 @@ theorem BuildTree.all_Match_spec (bt : BuildTree X) :
   sorry
 -/
 
-/-- Inspired by `PathIn.length`. Note that this only counts prover steps.
-OLD worry here that was `prLocTab` gets counted but did not make `pos.1` longer. Now OKAY maybe? -/
+/-- Inspired by `PathIn.length`. Counting the steps made by a `Match` in a `BuildTree`.
+Note that such a step may be combinations of a prover and a builder move. -/
 @[simp]
 def Match.length {H : History} {X : Sequent} {bt : BuildTree H X} : Match bt → Nat
   | .nil => 0
@@ -252,32 +257,87 @@ def Match.Edge (m n : Match bt) : Type := Match.locEdge m n ⊕ Match.pdlEdge m 
 
 /-- This edge between matches is a modal step.
 To even say this `BuildTree` must contain the rule data. -/
-def Match.Edge.isModal {H pos} {bt : BuildTree H pos} {m n : Match bt} : Match.Edge m n → Prop
+def Match.Edge.isModal {H X} {bt : BuildTree H X} {m n : Match bt} : Match.Edge m n → Prop
   | Sum.inl _ => False -- local edges are never modal steps.
   | Sum.inr ⟨_, _, _, _, _, r, _, _⟩ =>  PdlRule.isModal r
 
-def Match.isLeaf {H pos} {bt : BuildTree H pos} {m : Match bt} : Prop :=
+def Match.isLeaf {H X} {bt : BuildTree H X} {m : Match bt} : Prop :=
   match (btAt m) with | ⟨_, _, .openLeaf⟩ => True | _ => False
 
 /-- If `m` ends at a leaf, then it cannot have an edge to any `n`. -/
-lemma Match.isLeaf_no_edge {H pos} {bt : BuildTree H pos} (m : Match bt) (h : m.isLeaf) :
+lemma Match.isLeaf_no_edge {H X} {bt : BuildTree H X} (m : Match bt) (h : m.isLeaf) :
     ∀ n, ¬ Nonempty (Match.Edge m n) := by -- EASY as expected :)
   intro n
   unfold Match.isLeaf at h
   rintro ⟨m_n⟩
   cases m_n <;> grind
 
--- QUESTION: Do we need to be able to roll back to repeats in a `BuildTree`??
+-- Maybe Match.toHistory is not actually needed? Skipping it for now.
 
--- Maybe Match.toHistory is not actually needed?
-
-/-- Rewind a `Match`, i.e. go back up inside `bt` by `k` steps. -/
-def Match.rewind {H pos} {bt : BuildTree H pos} :
-    (m : Match bt) → (k : Fin (m.length + 1)) → Match bt
+/-- Rewind a `Match`, i.e. go back up inside `bt` by `k` steps.
+The + 1 is there because going back 0 steps does nothing. -/
+def Match.rewind {H X} {bt : BuildTree H X} : (m : Match bt) → (k : Fin (m.length + 1)) → Match bt
 | .nil, 0 => .nil
 | .nil, ⟨k+1,k_h⟩ => by exfalso; simp at k_h
 | .loc tail, k => Fin.lastCases (.nil) (Match.loc ∘ tail.rewind) k
 | .pdl tail, k => Fin.lastCases (.nil) (Match.pdl ∘ tail.rewind) k
+
+-- move up later?
+def BuildTree.isFreeRepeat {H X} : BuildTree H X → Prop
+  | BuildTree.freeRepeat _ => True
+  | _ => False
+
+def BuildTree.getFreeRepeat {H X} {bt : BuildTree H X}
+    (h : bt.isFreeRepeat) : FreeRepeat H X := by
+  unfold isFreeRepeat at h
+  cases bt <;> simp at *
+  case freeRepeat fr => exact fr
+
+lemma Match.btAt_hist_length_eq_length_succ {H X} {bt : BuildTree H X} (m : Match bt) :
+    m.btAt.1.length = m.length + H.length := by
+  rcases m_def : m
+  case nil =>
+    simp [btAt]
+  case loc nbas ltX next tail =>
+    have _forTermination : tail.length < m.length := by subst m_def; simp
+    have IH := @Match.btAt_hist_length_eq_length_succ _ _ (next ltX).6 tail
+    unfold btAt
+    rw [IH]
+    simp
+    grind
+  case pdl Y bas r next tail =>
+    have _forTermination : tail.length < m.length := by subst m_def; simp
+    have IH := @Match.btAt_hist_length_eq_length_succ _ _ _ tail
+    simp
+    unfold btAt
+    rw [IH]
+    simp
+    omega
+termination_by
+  m.length
+decreasing_by
+  all_goals
+    simp_wf
+    convert _forTermination
+    subst_eqs
+    simp
+    -- annoying HEq business, maybe restate lemma with m.btAt = ... instead of using .1 field?
+    sorry
+
+/-- Roll back to the companion. Only possibe if we started with H=[] so we know the root. -/
+def Match.companionOf {X} {bt : BuildTree [] X} (m : Match bt)
+  (h : (btAt m).2.2.isFreeRepeat) : Match bt :=
+    match BuildTree.getFreeRepeat h with
+    -- The free repeat says "go k steps back" where k < length of history at `m`.
+    | ⟨⟨k, k_lt⟩ , same_and_free⟩ =>
+      -- But to rewind m we need a k < length of m itself plus 1
+      m.rewind ⟨k, by grind [Match.btAt_hist_length_eq_length_succ]⟩
+
+/-- The repeat ♥ companion relation on `Match`. -/
+def Match.companion {X} {bt : BuildTree [] X} (m n : Match bt) : Prop :=
+  ∃ (h : (btAt m).2.2.isFreeRepeat), n = Match.companionOf m h
+
+local notation ma:arg " ♥ " mb:arg => Match.companion ma mb
 
 
 end Simpler -- delete me when replacing BuildTree.lean with this file
