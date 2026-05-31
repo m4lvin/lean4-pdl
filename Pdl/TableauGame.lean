@@ -1370,6 +1370,15 @@ decreasing_by
 With an empty history and using `posOf` to determine the first `GamePos`. -/
 def startPos (X : Sequent) : GamePos := ⟨[], X, posOf [] X⟩
 
+/-- We start with a prover position, because when the history is empty we can't have any repeat. -/
+lemma posOf_for_startPos (X : Sequent) : ∃ proPos, posOf [] X = Sum.inl proPos := by
+  unfold posOf
+  by_cases Nonempty (LoadedPathRepeat [] X)
+  case pos h => rcases h with ⟨⟨_⟩⟩; grind
+  case neg h =>
+    simp only [h, ↓reduceDIte, not_rep_empty]
+    by_cases X.basic <;> simp_all
+
 /-- If Prover has a winning strategy then there is a closed tableau. -/
 theorem gameP (X : Sequent) (s : Strategy tableauGame Prover) (h : winning s (startPos X)) :
     Nonempty (Tableau [] X) := gameP_general [] X s _ h

@@ -41,11 +41,13 @@ inductive BuildTree : History → Sequent → Type
   /-- Prover chooses PDL rule, never branches, so continue with unique child. -/
   | pdl {H X} (bas : X.basic)
             (next : ∀ Y, ∀ _r : PdlRule X Y, BuildTree (X :: H) Y) : BuildTree H X
-  /-- A leaf / end of the game where we win. -/ -- TODO: add conditions?
-  -- free repeat OR basic and no rule applicable -- but what about (L+)?
-  -- NOTE:for free repeats we might need to get their "companion", so maybe we do need history?!
+  /-- Free repeat means builder wins. -/
   | freeRepeat {H X} : FreeRepeat H X → BuildTree H X
+  /-- Leaf that is (might be?!) not a repeat, but no rules can be applied. -/
   | openLeaf {H X} : BuildTree H X
+  -- TODO: add `(bas : X.basic)` for "no local rules" and somehow say "no PDL rules"?
+  -- small worry but what about (L+) (L-), one of which is always applicable?
+  -- Well, then it would lead to a free repeat!?
 
 inductive BuildChoice : History → Sequent → List Sequent → Type
   | pick {H X YS Y} : Y ∈ YS → BuildTree (X :: H) Y → BuildChoice H X YS
@@ -338,6 +340,157 @@ def Match.companion {X} {bt : BuildTree [] X} (m n : Match bt) : Prop :=
   ∃ (h : (btAt m).2.2.isFreeRepeat), n = Match.companionOf m h
 
 local notation ma:arg " ♥ " mb:arg => Match.companion ma mb
+
+/-! ## Pre-states (Def 6.13)
+
+As possible worlds for the model graph we want to define *maximal* paths inside the build tree
+that do not contain `(M)` steps.
+
+In the paper pre-states are allowed to be of the form π;π' when π ends at a repeat and π' is a
+maximal prefix of the path from the companion to that repeat. Here in `PreState` and `PreStateP`
+we only store the π part of such pre-states, because the π' is then uniquely determined by π.
+-/
+
+/-- A pre-state-part starting at `m` is any path in `bt : BuildTree` consisting of non-(M) `edge`s
+and stopping at a leaf or at an (M) application. (No `Match.companion` steps here, see note above.)
+-/
+inductive PreStateP {H X} (bt : BuildTree H X) : (m : Match bt) → Type
+| edge {m n} : (e : Match.Edge m n) → ¬ e.isModal → PreStateP bt n → PreStateP bt m
+| stopLeaf {m} : m.isLeaf → PreStateP bt m
+| stopAtM {m n} : (e : Match.Edge m n) → e.isModal → PreStateP bt m
+
+/-- Collect all `PreStateP`s from a given `m` onwards. -/
+-- Maybe define `Match.all` first and then filter it here?
+-- Or better do it inductively?
+def BuildTree.allPreStatePs {H X} : (bt : BuildTree H X) → (m : Match bt) → List (PreStateP bt m)
+| .loc nbas next, m => sorry
+| .pdl bas next, _ => sorry
+| .freeRepeat fr, m => sorry
+| .openLeaf, m => sorry
+
+lemma BuildTree.allPreStatePs_spec {H X} {bt : BuildTree H X} {m : Match bt} :
+    ∀ π : PreStateP bt m, π ∈ bt.allPreStatePs m := by
+  sorry
+
+/-- A pre-state is a maximal pre-state-part, i.e. starting at the root or just after (M).
+
+WORRY: should `fromRoot` also have a condition about `H` being empty, i.e. the start of the game?
+-/
+inductive PreState {H X} (bt : BuildTree H X) : Type
+| fromRoot : PreStateP bt .nil → PreState bt
+| fromMod {o m} : (e : Match.Edge o m) → e.isModal → PreStateP bt m → PreState bt
+
+/-- Collect all `PreState`s for a given `BuildTree`. -/
+def BuildTree.allPreStates {H X} (bt : BuildTree H X) : List (PreState bt) :=
+  (bt.allPreStatePs .nil).map .fromRoot
+
+lemma BuildTree.allPreStates_spec {H X} {bt : BuildTree H X} :
+    ∀ π : PreState bt, π ∈ bt.allPreStates := by
+  -- should be easy, use BuildTree.allPreStatePs_spec
+  sorry
+
+/-- Collect formulas in a pre-state. The non-loaded part of Λ(π) in paper.
+
+TODO: If the pre-state ends in a repeat, also include formulas in the path from companion to (M).
+
+QUESTION: Can we collect loaded formulas here by unloading them?
+Or would that make the loaded case of `PreState.pdlFormCase` unsayable?
+-/
+def PreState.forms : PreState bt → List Formula := sorry
+
+/-- Collect formulas in a pre-state. The loaded part of Λ(π) in paper. -/
+def PreState.lforms : PreState bt → List NegLoadFormula := sorry
+
+def PreState.last : PreState bt → Sequent := sorry
+
+/-- TODO Lemma 6.14 -/
+lemma PreState.formsCases {π : PreState bt} : φ ∈ π.forms →
+      (φ.basic ∧ φ ∈ π.last) -- NOTE: the `∈` is not dealing with loaded formulas here!
+    ∨ (sorry) := by -- TODO how to say `φ is principal later?`
+    -- Or can we say something else / phrase it as closure condition about π.forms directly?
+  sorry
+
+/-- WIP Lemma 6.15 (unloaded case only) -/
+lemma PreState.pdlFormCase {π : PreState bt} : ¬ α.isAtomic → (~⌈α⌉φ) ∈ π.forms →
+    ∃ Xδ ∈ H α, Xδ.1 ∪ [~ Formula.boxes δ φ] ⊆ π.forms := by
+  sorry
+
+/-- WIP Lemma 6.16: pre-states are saturated and locally consistent, their last node is basic. -/
+lemma PreState.locConsSatBas (π : PreState bt) :
+    saturated (π.forms).toFinset
+    ∧ locallyConsistent (π.forms).toFinset
+    ∧ π.last.basic := by
+  -- define `PreState.forms` first.
+  sorry
+
+/-- Definition 6.17 to get model graph from strategy tree. -/
+@[simp]
+def BuildTree.toModel {H X} (bt : BuildTree H X) :
+    (Σ W : Finset (Finset Formula), KripkeModel W) :=
+  ⟨ ((bt.allPreStates).map (List.toFinset ∘ PreState.forms)).toFinset -- W
+  , { val := fun X p => Formula.atom_prop p ∈ X.1 -- valuation V(p)
+    , Rel := fun a X Y => -- relation Rₐ
+        ∃ φ, (~⌈·a⌉φ) ∈ X.1 ∧ (projection a X.1.toList).toFinset ∪ {~φ} ⊆ Y.1 }⟩
+
+/-- WIP Lemma 6.18
+
+QUESTION: which `R` can we use here in order to use `Modelgraphs.Q`?
+-/
+lemma PreState.diamondExistence {φ : AnyFormula} {π : PreState bt} : (~'⌊α⌋φ) ∈ π.lforms →
+    -- QUESTION: what to say about `π` here and what to say about node `t` lying on `π`?
+    ∃ t : Match bt,
+        AnyNegFormula.mem_Sequent (t.btAt).2.1 (~''φ)
+      ∧ ∃ ρ : PreState bt, ∃ u : Match bt,
+        -- TODO: t < u
+        -- TODO: missing loaded formulas below
+        @Modelgraphs.Q sorry sorry α ⟨π.forms.toFinset, sorry⟩ ⟨ρ.forms.toFinset, sorry⟩ := by
+  sorry
+
+-- TODO Lemma 6.19: for any diamond we can go to a pre-state where that diamond is loaded
+
+-- TODO Lemma 6.20: diamond existence lemma for pre-states
+
+/-! ## Model graph of pre-states -/
+
+/-- Theorem 6.21: If Builder has a winning strategy then there is a model graph.
+Uses `BuildTree.toModel`. -/
+theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (startPos X)) :
+    ∃ (WS : Finset (Finset Formula)) (mg : ModelGraph WS), ∃ Z ∈ WS, X.toFinset ⊆ Z := by
+  unfold startPos at h
+  rcases posOf_for_startPos X with ⟨proPos, posOf_def⟩
+  let bt := buildTree s (posOf_def ▸ h)
+  let WS := bt.toModel.1
+  let M := bt.toModel.2
+  refine ⟨WS, ⟨M, ⟨?a, ?b, ?c, ?d⟩⟩, ?X_in⟩
+  -- show the model graph properties
+  case a =>
+    rintro ⟨X, X_in⟩
+    unfold WS at X_in
+    simp at X_in
+    rcases X_in with ⟨π, in_all, def_X⟩
+    have := PreState.locConsSatBas π-- using Lemma 6.16 for (i)
+    simp_all
+  -- "(b, c) will follow immediately from the definition"
+  case b =>
+    simp_all [M]
+  case c =>
+    intro X Y a φ X_a_Y aφ_in_X -- pick any ⌈a⌉φ
+    simp only [M] at X_a_Y
+    rcases X_a_Y with ⟨ψ, in_X, sub_Y⟩ -- relation was witnessed by ⌈a⌉ψ
+    apply sub_Y -- show that φ is in projection
+    simp_all
+  case d =>
+    simp
+    intro w w_in α φ in_w
+    -- "The main challenge" :-)
+    -- Need Lemmas 6.18 to 6.19 about pre-states here.
+    sorry
+  case X_in =>
+    unfold WS
+    simp
+    -- need actual def for `BuildTree.allPreStates` first
+    -- use the .fromRoot pre-state
+    sorry
 
 
 end Simpler -- delete me when replacing BuildTree.lean with this file

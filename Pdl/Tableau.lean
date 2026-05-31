@@ -46,6 +46,9 @@ instance {H X} : Decidable (rep H X) := by
     simp only [List.mem_cons, exists_eq_or_imp]
     exact instDecidableOr
 
+@[simp]
+lemma not_rep_empty {X : Sequent} : ¬ rep [] X := by unfold rep; grind
+
 /-- Given `rep H X`, get the index of the companion in `H` using `List.findIdx?`. -/
 def rep.toNat {H X} (rp : rep H X) : Nat :=
   match h : List.findIdx? (fun Y => decide (Y.setEqTo X)) H with
