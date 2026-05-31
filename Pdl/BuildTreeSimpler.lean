@@ -17,32 +17,38 @@ namespace Simpler -- delete me when replacing BuildTree.lean with this file
 
 -- See also Bml/CompletenessViaPaths.lean for inspiration that might be useful here.
 
+/-- A free repeat is a non-loaded sequent that occured before. -/
+def FreeRepeat (Hist : History) (X : Sequent) : Type :=
+  Subtype (fun k => (Hist.get k).multisetEqTo X ∧ ¬ X.isLoaded)
+
 mutual
 /-- Winning Strategy Tree for Builder.
 At each step, we consider
 - ALL rules R that prover may choose, followed immediately by
 - ONE of the children then chosen by Builder
 
-The type is actually similar to `Tableau`, but has no history (???) and does allow an open leaf.
-There is no .lpr constructor here because we only make a `RuleTree` when Builder wins and
-thus we can never reach an lpr (where Prover would win).
+The type is actually similar to `Tableau`, as it also uses a history, but it does allow open leaves.
 For choosing a local tableau end node the mutual `RuleChoice` is needed to avoid the error
-"nested inductive datatypes parameters cannot contain local variables". -/
-inductive BuildTree : Sequent → Type
-  -- Prover chooses local tab, we pick one end node:
-  | loc {X} (nbas : ¬ X.basic)
-            (next : (lt : LocalTableau X) → BuildChoice (endNodesOf lt))
-            : BuildTree X
+"nested inductive datatypes parameters cannot contain local variables".
+Instead of the .lpr constructor here we have .fpr because we only make a `RuleTree` when Builder
+wins and thus we can never reach an lpr where Prover would win, but do allow free repeats.
+As in `Tableau` note that the history is stored in reverse. -/
+inductive BuildTree : History → Sequent → Type
+  /-- Prover chooses local tab, we pick one end node. -/
+  | loc {H X} (nbas : ¬ X.basic)
+            (next : (lt : LocalTableau X) → BuildChoice H X (endNodesOf lt))
+            : BuildTree H X
   /-- Prover chooses PDL rule, never branches, so continue with unique child. -/
-  | pdl {X} (bas : X.basic)
-            (next : ∀ Y, ∀ _r : PdlRule X Y, BuildTree Y) : BuildTree X
+  | pdl {H X} (bas : X.basic)
+            (next : ∀ Y, ∀ _r : PdlRule X Y, BuildTree (X :: H) Y) : BuildTree H X
   /-- A leaf / end of the game where we win. -/ -- TODO: add conditions?
   -- free repeat OR basic and no rule applicable -- but what about (L+)?
   -- NOTE:for free repeats we might need to get their "companion", so maybe we do need history?!
-  | openLeaf {X} : BuildTree X
+  | freeRepeat {H X} : FreeRepeat H X → BuildTree H X
+  | openLeaf {H X} : BuildTree H X
 
-inductive BuildChoice : List Sequent → Type
-  | pick {YS Y} : Y ∈ YS → BuildTree Y → BuildChoice YS
+inductive BuildChoice : History → Sequent → List Sequent → Type
+  | pick {H X YS Y} : Y ∈ YS → BuildTree (X :: H) Y → BuildChoice H X YS
 end
 
 /-- Given a winning Builder strategy, compute its `RuleTree`.
@@ -50,7 +56,7 @@ NEW: note the `Sum.inl p` here. This ensure we start tree building from a Prover
 - not allowing BuilderPos.lpr here (easy, was forbidden already anyway as prover wins there.)
 - not allowing BuilderPos.ltab because we cannot use BuildTree.loc for a single fixed local tab. -/
 def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X, Sum.inl p⟩) :
-    BuildTree X :=
+    BuildTree H X :=
   match p_def : p with
   -- Prover positions:
   | (.nlpRep rp noLpRep) => .openLeaf -- Builder wins rep. ?? maybe we do want history?
@@ -83,10 +89,14 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
           winning_has_moves (by simp) <|
             stillWin ⟨H, ⟨X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩⟩ Move.prLocTab
         -- IDEA: use strategy `s` to choose move `mY` that picks the `Y ∈ endNodeOf ltX`:
-        let mY := s ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ (by simp) ne
+        -- We want to define mY and then do rcases, but keep the information how it was defined.
+        let mY_raw := s ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ (by simp) ne
+        have mY_def : mY_raw.1 = s ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ (by simp) ne := rfl
+        rcases mY_raw with ⟨mY, mY_prop⟩
+        simp at mY_def
         -- We continue the BuildTree with the chosen `Y`:
-        refine (@BuildChoice.pick _ mY.val.2.1 ?in_endNodesOf_ltX ?subtree_for_mY)
-        · have := mY.prop
+        refine (@BuildChoice.pick _ _ _ mY.2.1 ?in_endNodesOf_ltX ?subtree_for_mY)
+        · have := mY_prop
           unfold Game.Pos.moves Game.moves tableauGame at this
           simp only at this
           rw [theMoves_iff] at this
@@ -96,12 +106,11 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
           simp
           exact Y'_in
         · -- now still need to make a `Move` so we can recursively call `buildTree`.
-          have Mov : Move ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ mY.1 := by
-            have := mY.2
-            simp only [Game.Pos.moves, tableauGame, theMoves, List.mem_toFinset] at this
-            simp [List.mem_map] at this
+          have Mov : Move ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ mY := by
+            simp only [Game.Pos.moves, tableauGame, theMoves, List.mem_toFinset] at mY_prop
+            simp [List.mem_map] at mY_prop
             let oY := List.find? -- No more choice thanks to this!
-              (fun Y => @decide (⟨_, ⟨_, posOf (X :: H) Y⟩⟩ = mY.val) (instDecidableEqPos _ _))
+              (fun Y => @decide (⟨_, ⟨_, posOf (X :: H) Y⟩⟩ = mY) (instDecidableEqPos _ _))
               (endNodesOf ltX)
             cases oY_def : oY
             · exfalso
@@ -115,35 +124,45 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
               have := @Move.buEnd X ltX Y H nrep nbas Y_in
               rw [← def_mY]
               exact this
+          rcases mY with ⟨H', Y, newP⟩ -- hoping this does not lose information? mY_def survives?
+          -- better here now?
+          have H'_def : H' = X :: H := by
+            simp [Game.Pos.moves, tableauGame, Game.moves] at mY_prop
+            grind
           -- NEW: also need case distinction here to ensure mY.val.2.2 is a ProverPos for recursion?
-          match mY_def : mY.val.2.2 with
+          match newP with
           | .inl myP =>
-            -- make recursive call, remains to show that `s` still wins.
-            refine @buildTree s _ _ myP ?_
-            rw [← mY_def]
+            simp only
+            -- Make recursive call, remains to show that `s` still wins.
+            -- (It's better to do `H'_def ▸` on the outside and not on `myP`.)
+            refine H'_def ▸ @buildTree s H' Y myP ?_
+            rw [mY_def]
             -- Note that *two* moves have happened now, one by prover and one by us.
             apply winning_of_winning_move
             exact stillWin ⟨_, X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩ Move.prLocTab
           | .inr mY_BP =>
               exfalso -- fingers crossed ;-)
+              subst H'_def
               -- (This is different than above, cannot use `posOf_eq_inr_then_lpr` immediately.)
-              -- IDEA: mY is result of Move.buEnd, so if mY is a BuilderPos then it is an lpr.
-              rcases mY with ⟨mY, mY_in⟩ -- PROBLEM: here we also lose the def of mY :-/
-              rcases mY with ⟨newH, Y, posY⟩
-              cases Mov -- also clears newH and posY // only possible after the rcases?
-              case buEnd nbas' nrep' Y_in =>
-              simp at *
-              -- Now we can use it, but should we?
-              rcases posOf_eq_inr_then_lpr mY_def with ⟨lpr, mY_BP_def⟩
-              subst mY_BP_def
-              -- Want to use stillWin now, but we are in the setting where two moves happened!?
-              have := stillWin ⟨_, X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩ Move.prLocTab
-              -- ... ?
-              apply winning_of_winning_move (by simp) at this
-              -- Here we need the lost information that mY is a winning choice made by `s`.
-              -- simp [winning] at this
-              sorry
-
+              -- OLD IDEA: mY is result of Move.buEnd, so if mY is a BuilderPos then it is an lpr.
+              -- cannot do `cases Mov` -- Dependent elimination failed: Failed to solve equation
+              -- Note that `Mov` goes from BuilderPos.ltab to mY_BP, so it must be a `posOf` result?
+              -- Distinguish cases what the BP we reach can be.
+              cases mY_BP
+              case lpr lr => -- possible
+                suffices winning s ⟨X :: H, ⟨Y, Sum.inr (BuilderPos.lpr lr)⟩⟩ by
+                  simp [winning] at this
+                rw [mY_def]
+                apply @winning_of_winning_move _ _ s
+                exact stillWin ⟨_, X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩ Move.prLocTab
+              case ltab => -- impossible
+                clear mY_def mY_prop newP
+                have := mem_theMoves_of_move (⟨Mov⟩)
+                absurd this
+                simp [theMoves]
+                intro Z Z_in
+                have := endNodesOf_basic Z_in
+                grind
 termination_by
   tableauGame.wf.2.wrap (⟨H, X, Sum.inl p⟩ : GamePos)
 decreasing_by -- show that it's a move
@@ -161,9 +180,9 @@ decreasing_by -- show that it's a move
 /-- A match is a path inside a `BuildTree`. Analogous to `PathIn` for `Tableau`. In Game Theory
 this could be called a "rollout", but note that it stays within the given Builder strategy tree
 and it is not tracking all intermediate game positions. -/
-inductive Match : ∀ {X : Sequent}, BuildTree X → Type
+inductive Match : ∀ {H : History} {X : Sequent}, BuildTree H X → Type
   | nil {bt} : Match bt
-  | loc {nbas next lt} : Match (next lt).4 → Match (BuildTree.loc nbas next)
+  | loc {nbas next lt} : Match (next lt).6 → Match (BuildTree.loc nbas next)
   | pdl {bas next Y r} : Match (next Y r) → Match (BuildTree.pdl bas next)
 
 /-
@@ -180,19 +199,20 @@ theorem BuildTree.all_Match_spec (bt : BuildTree X) :
 /-- Inspired by `PathIn.length`. Note that this only counts prover steps.
 OLD worry here that was `prLocTab` gets counted but did not make `pos.1` longer. Now OKAY maybe? -/
 @[simp]
-def Match.length {X : Sequent} {bt : BuildTree X} : Match bt → Nat
+def Match.length {H : History} {X : Sequent} {bt : BuildTree H X} : Match bt → Nat
   | .nil => 0
   | .loc tail => tail.length + 1
   | .pdl tail => tail.length + 1
 
-def Match.btAt {X} {bt : BuildTree X} : Match bt → Σ Y, BuildTree Y
-| .nil => ⟨_, bt⟩
+def Match.btAt {H X} {bt : BuildTree H X} : Match bt → Σ H' Y, BuildTree H' Y
+| .nil => ⟨_, _, bt⟩
 | .loc tail => btAt tail
 | .pdl tail => btAt tail
 
 -- TODO lemmas like those about `tabAt` and `nodeAt`?
 
-def Match.append {X} {bt : BuildTree X} : (m1 : Match bt) → (m2 : Match (btAt m1).2) → Match bt
+def Match.append {H X} {bt : BuildTree H X} :
+    (m1 : Match bt) → (m2 : Match (btAt m1).2.2) → Match bt
 | .nil, m2 => m2
 | .loc tail, m2 => .loc (append tail m2)
 | .pdl tail, m2 => .pdl (append tail m2)
@@ -201,37 +221,39 @@ def Match.append {X} {bt : BuildTree X} : (m1 : Match bt) → (m2 : Match (btAt 
 
 @[grind]
 structure Match.locEdge (m n : Match bt) where
+  H : History
   mY : Sequent
   nbas : _
-  next : (lt : LocalTableau mY) → BuildChoice (endNodesOf lt)
+  next : (lt : LocalTableau mY) → BuildChoice H mY (endNodesOf lt)
   lt : LocalTableau mY
-  btAt_m_def : btAt m = ⟨mY, @BuildTree.loc mY nbas next⟩
-  btAt_n_def : btAt n = ⟨(next lt).2, (next lt).4⟩
+  btAt_m_def : btAt m = ⟨H, mY, @BuildTree.loc _ mY nbas next⟩
+  btAt_n_def : btAt n = ⟨(next lt).2 :: (next lt).1, (next lt).4, (next lt).6⟩
 
 @[grind]
 structure Match.pdlEdge (m n : Match bt) where
+  H : History
   mX : Sequent
   nY : Sequent
   bas : mX.basic
-  next : ∀ Y, ∀ _r : PdlRule mX Y, BuildTree Y
+  next : ∀ Y, ∀ _r : PdlRule mX Y, BuildTree (mX :: H) Y
   r : PdlRule mX nY
-  btAt_m_def : btAt m = ⟨mX, @BuildTree.pdl mX bas next⟩
-  btAt_n_def : btAt n = ⟨_, next nY r⟩
+  btAt_m_def : btAt m = ⟨_, mX, @BuildTree.pdl H mX bas next⟩
+  btAt_n_def : btAt n = ⟨_, _, next nY r⟩
 
 /-- The parent-child relation ⋖_𝕋 in a Builder strategy tree. -/
 def Match.Edge (m n : Match bt) : Type := Match.locEdge m n ⊕ Match.pdlEdge m n
 
 /-- This edge between matches is a modal step.
 To even say this `BuildTree` must contain the rule data. -/
-def Match.Edge.isModal {pos} {bt : BuildTree pos} {m n : Match bt} : Match.Edge m n → Prop
+def Match.Edge.isModal {H pos} {bt : BuildTree H pos} {m n : Match bt} : Match.Edge m n → Prop
   | Sum.inl _ => False -- local edges are never modal steps.
-  | Sum.inr ⟨_, _, _, _, r, _, _⟩ =>  PdlRule.isModal r
+  | Sum.inr ⟨_, _, _, _, _, r, _, _⟩ =>  PdlRule.isModal r
 
-def Match.isLeaf {pos} {bt : BuildTree pos} {m : Match bt} : Prop :=
-  match (btAt m) with | ⟨_, .openLeaf⟩ => True | _ => False
+def Match.isLeaf {H pos} {bt : BuildTree H pos} {m : Match bt} : Prop :=
+  match (btAt m) with | ⟨_, _, .openLeaf⟩ => True | _ => False
 
 /-- If `m` ends at a leaf, then it cannot have an edge to any `n`. -/
-lemma Match.isLeaf_no_edge {bt : BuildTree pos} (m : Match bt) (h : m.isLeaf) :
+lemma Match.isLeaf_no_edge {H pos} {bt : BuildTree H pos} (m : Match bt) (h : m.isLeaf) :
     ∀ n, ¬ Nonempty (Match.Edge m n) := by -- EASY as expected :)
   intro n
   unfold Match.isLeaf at h
@@ -243,7 +265,8 @@ lemma Match.isLeaf_no_edge {bt : BuildTree pos} (m : Match bt) (h : m.isLeaf) :
 -- Maybe Match.toHistory is not actually needed?
 
 /-- Rewind a `Match`, i.e. go back up inside `bt` by `k` steps. -/
-def Match.rewind {pos} {bt : BuildTree pos} : (m : Match bt) → (k : Fin (m.length + 1)) → Match bt
+def Match.rewind {H pos} {bt : BuildTree H pos} :
+    (m : Match bt) → (k : Fin (m.length + 1)) → Match bt
 | .nil, 0 => .nil
 | .nil, ⟨k+1,k_h⟩ => by exfalso; simp at k_h
 | .loc tail, k => Fin.lastCases (.nil) (Match.loc ∘ tail.rewind) k

@@ -31,8 +31,8 @@ theorem proj : g ∈ projection A X ↔ (⌈·A⌉g) ∈ X :=
 /-! ## Histories and Repeats -/
 
 /-- A history is a list of Sequents.
-This only tracks "big" steps, hoping we do not need steps within a local tableau.
-The head of the first list is the newest Sequent. -/
+In the `Tableau` type this only tracks "big" steps, not steps happening within a `LocalTableau`.
+The list is in reverse order, i.e. the *head is the newest* Sequent. -/
 abbrev History : Type := List Sequent
 
 /-- We have a repeat iff the history contains a node that is `setEqTo` the current node. -/
