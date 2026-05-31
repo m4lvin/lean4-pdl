@@ -69,6 +69,8 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
         -- recursive call if we again have a ProverPos.
         cases newPos_def : posOf (X :: H) newSeq
         case inl newP =>
+          have _forTermination : Relation.TransGen tableauGame.wf.1 ⟨_,_, .inl newP⟩ ⟨_,_, .inl p⟩
+            := by rw [p_def, ← newPos_def]; exact Relation.TransGen.single ⟨Move.prPdl r⟩
           refine @buildTree s (X :: H) newSeq newP (stillWin ⟨_, _, Sum.inl newP⟩ ?_)
           rw [← newPos_def]
           exact @Move.prPdl _ _ H nrep bas r
@@ -124,20 +126,28 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
               have := @Move.buEnd X ltX Y H nrep nbas Y_in
               rw [← def_mY]
               exact this
-          rcases mY with ⟨H', Y, newP⟩ -- hoping this does not lose information? mY_def survives?
-          -- better here now?
+          rcases mY with ⟨H', Y, newP⟩ -- Happy because this does not lose mY_def.
           have H'_def : H' = X :: H := by
             simp [Game.Pos.moves, tableauGame, Game.moves] at mY_prop
             grind
-          -- NEW: also need case distinction here to ensure mY.val.2.2 is a ProverPos for recursion?
+          -- Case distinction here to ensure newP from mY is a ProverPos for recursion.
           match newP with
           | .inl myP =>
             simp only
-            -- Make recursive call, remains to show that `s` still wins.
-            -- (It's better to do `H'_def ▸` on the outside and not on `myP`.)
+            -- Make recursive call:
+            have _forTermination : Relation.TransGen tableauGame.wf.1 ⟨_,_, .inl myP⟩ ⟨_,_, .inl p⟩
+              :=  by
+                unfold WellFoundedRelation.rel Game.wf tableauGame
+                simp
+                apply @Relation.TransGen.trans _ _ _
+                  ⟨H, ⟨X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩⟩
+                · exact Relation.TransGen.single ⟨Mov⟩
+                · rw [p_def]; exact Relation.TransGen.single ⟨Move.prLocTab⟩
             refine H'_def ▸ @buildTree s H' Y myP ?_
+            -- (Remaining goal is nicer after doing `H'_def ▸` on the outside and not on `myP`.)
             rw [mY_def]
-            -- Note that *two* moves have happened now, one by prover and one by us.
+            -- Note that *two* moves have happened now, one by prover and one by Builder using `s`.
+            -- Remains to show that `s` still wins.
             apply winning_of_winning_move
             exact stillWin ⟨_, X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩ Move.prLocTab
           | .inr mY_BP =>
@@ -146,7 +156,7 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
               -- (This is different than above, cannot use `posOf_eq_inr_then_lpr` immediately.)
               -- OLD IDEA: mY is result of Move.buEnd, so if mY is a BuilderPos then it is an lpr.
               -- cannot do `cases Mov` -- Dependent elimination failed: Failed to solve equation
-              -- Note that `Mov` goes from BuilderPos.ltab to mY_BP, so it must be a `posOf` result?
+              -- `Mov` goes from a BuilderPos.ltab to `mY_BP`, so `mY_BP` must be a `posOf` result.
               -- Distinguish cases what the BP we reach can be.
               cases mY_BP
               case lpr lr => -- possible
@@ -164,16 +174,13 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
                 have := endNodesOf_basic Z_in
                 grind
 termination_by
-  tableauGame.wf.2.wrap (⟨H, X, Sum.inl p⟩ : GamePos)
-decreasing_by -- show that it's a move
-  -- TODO but now it might be 2 moves! Use transitive closure? (it still must be wellfounded)
+  -- Might need 2 moves, so we use the transitive closure (which is still wellfounded)
+  tableauGame.wf.2.transGen.wrap (⟨H, X, Sum.inl p⟩ : GamePos)
+decreasing_by
   all_goals
     simp_wf
-    simp only [tableauGame, Game.wf, WellFoundedRelation.rel]
-    try exact forTermination
-  all_goals
-    sorry
-
+    rw [← p_def]
+    exact _forTermination
 
 /-! ## Matches -/
 
