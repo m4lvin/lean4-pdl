@@ -1036,8 +1036,10 @@ lemma exist_duplicates_of_infinite_among_fintype {α : Type} {f : ℕ → α} {p
   tauto
 
 /-- Lemma 6.10. The move relation is converse wellfounded (and thus all matches must be finite).
-Note that the paper does not prove this, only says it is similar to the proof that PDL-tableaux
-are finite, i.e. Lemma 4.10 which uses the Fischer-Ladner closure. -/
+This is similar to the proof that PDL-tableaux are finite (Lemma 4.10).
+In the paper both proofs rely on the finiteness of the Fischer-Ladner closure.
+In Lean we never needed to say 4.10 because inductive values are always finite.
+But we do need a proof here, because this lemma is about `move`, not `Match`. -/
 lemma matchesFinite : WellFounded (Function.swap move) := by
   -- If it's not wellfounded, then there must be an infinite sequence of moves.
   rw [wellFounded_iff_isEmpty_descending_chain]
