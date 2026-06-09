@@ -24,7 +24,7 @@ def saturated : Finset Formula → Prop
     ∧ ((~(φ⋀ψ)) ∈ X → (~φ) ∈ X ∨ (~ψ) ∈ X)
     -- programs closure, now only two general cases, no program subcases:
     ∧ ((⌈α⌉φ) ∈ X → ∃ l : TP α, (Xset α l φ).all (fun y => y ∈ X))
-    ∧ ((~⌈α⌉φ) ∈ X → ∃ Fδ ∈ H α, (Yset Fδ φ).all (fun y => y ∈ X))
+    ∧ ((~⌈α⌉φ) ∈ X → ∃ Fδ ∈ Hset α, (Yset Fδ φ).all (fun y => y ∈ X))
 
 /-- A set of formulas is lcoally consistent iff it does not contain ⊥
 and for all atoms p ∈ X we do not have ~p ∈ X. Part of Def 6.2 -/
@@ -466,17 +466,17 @@ def Qcombo {W : Finset (Finset Formula)} (R : Nat → W → W → Prop)
 
 /-- Q_Fδ v w implies Q v w. -/
 theorem cpHelpA {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α : Program) :
-    ∀ Fδ ∈ H α, ∀ v w, Qcombo R Fδ.1 Fδ.2 v w → Q R α v w := by
+    ∀ Fδ ∈ Hset α, ∀ v w, Qcombo R Fδ.1 Fδ.2 v w → Q R α v w := by
   rintro ⟨F,δ⟩ in_H v w
   cases α
   case atom_prog =>
-    simp_all [Qtests, Qcombo, Relation.Comp, H]
+    simp_all [Qtests, Qcombo, Relation.Comp, Hset]
   case test =>
-    simp_all [Qtests, Qsteps, Qcombo, Relation.Comp, H]
+    simp_all [Qtests, Qsteps, Qcombo, Relation.Comp, Hset]
   case union α β =>
     intro v_combo_w
     simp only [Q]
-    simp only [H, List.mem_union_iff] at in_H
+    simp only [Hset, List.mem_union_iff] at in_H
     rcases in_H with hyp|hyp
     · left; exact cpHelpA R α (F, δ) hyp _ _ v_combo_w
     · right; exact cpHelpA R β (F, δ) hyp _ _ v_combo_w
@@ -484,7 +484,7 @@ theorem cpHelpA {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α
     have IHα := cpHelpA R α
     have IHβ := cpHelpA R β
     intro v_combo_w
-    simp only [H, List.mem_flatten, List.mem_map, Prod.exists] at in_H
+    simp only [Hset, List.mem_flatten, List.mem_map, Prod.exists] at in_H
     rcases in_H with ⟨L, ⟨F, δ, in_Hα, def_l⟩, in_L⟩
     simp only [Q, Relation.Comp]
     subst def_l
@@ -532,7 +532,7 @@ theorem cpHelpA {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α
   case star α =>
     have IHα := cpHelpA R α
     intro v_combo_w
-    simp [H, List.mem_flatten, List.mem_map, Prod.exists] at in_H
+    simp [Hset, List.mem_flatten, List.mem_map, Prod.exists] at in_H
     rcases in_H with ⟨F_nil, δ_nil⟩ | ⟨δ, in_Hα, in_L⟩
     · subst_eqs
       simp only [Qcombo, Relation.Comp, Qtests, Subtype.beq_iff, beq_iff_eq, List.not_mem_nil,

@@ -434,7 +434,7 @@ lemma PreState.formsCases {π : PreState bt} : φ ∈ π.forms →
 
 /-- WIP Lemma 6.15 (unloaded case only) -/
 lemma PreState.pdlFormCase {π : PreState bt} : ¬ α.isAtomic → (~⌈α⌉φ) ∈ π.forms →
-    ∃ Xδ ∈ H α, Xδ.1 ∪ [~ Formula.boxes δ φ] ⊆ π.forms := by
+    ∃ Xδ ∈ Hset α, Xδ.1 ∪ [~ Formula.boxes δ φ] ⊆ π.forms := by
   sorry
 
 /-- WIP Lemma 6.16: pre-states are saturated and locally consistent, their last node is basic. -/
