@@ -457,13 +457,23 @@ lemma PreState.formsCases {π : PreState bt} : φ ∈ π.forms →
     -- Or can we say something else / phrase it as closure condition about π.forms directly?
   sorry
 
-/-- WIP Lemma 6.15 (unloaded case only) -/
-lemma PreState.pdlFormCase {π : PreState bt} : ¬ α.isAtomic → (~⌈α⌉φ) ∈ π.forms →
-    ∃ Xδ ∈ Hset α, Xδ.1 ∪ [~ Formula.boxes δ φ] ⊆ π.forms := by
+/-- WIP Lemma 6.15 *un*loaded case -/
+lemma PreState.pdlFormCase {H X} {bt : BuildTree H X} {π : PreState bt} {α φ} :
+    ¬ α.isAtomic → (~⌈α⌉φ) ∈ π.forms →
+      ∃ Xδ ∈ Hset α, Xδ.1 ∪ [~ Formula.boxes Xδ.2 φ] ⊆ π.forms := by
   sorry
 
+/-
+TODO: This needs a case distinction for the AnyFormular, similar to `YsetLoad` and `YsetLoad'`.
+/-- WIP Lemma 6.15 *loaded* case -/
+lemma PreState.loadedFormCase {H X} {bt : BuildTree H X} {π : PreState bt} {α φ} :
+    ¬ α.isAtomic → (~'⌊α⌋φ) ∈ π.lforms →
+      ∃ Xδ ∈ Hset α, Xδ.1 ∪ [~ LoadFormula.boxes Xδ.2 φ] ⊆ π.forms := by
+  sorry
+-/
+
 /-- WIP Lemma 6.16: pre-states are saturated and locally consistent, their last node is basic. -/
-lemma PreState.locConsSatBas (π : PreState bt) :
+lemma PreState.locConsSatBas {H X} {bt : BuildTree H X} (π : PreState bt) :
     saturated (π.forms).toFinset
     ∧ locallyConsistent (π.forms).toFinset
     ∧ π.last.basic := by
