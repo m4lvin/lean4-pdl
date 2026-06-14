@@ -175,6 +175,9 @@ def PdlRule.isModal {X Y} : PdlRule X Y → Prop
 | .modL _ _ => True
 | .modR _ _ => True
 
+instance instDecidablePdlRuleIsModal {X Y} {r : PdlRule X Y} : Decidable (r.isModal) := by
+  cases r <;> simp [PdlRule.isModal] <;> (try exact instDecidableFalse) <;> exact instDecidableTrue
+
 /--
 The `Tableau [parent, grandparent, ...] child` type.
 

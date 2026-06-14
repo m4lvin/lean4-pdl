@@ -296,6 +296,12 @@ def Match.Edge.isModal {H X} {bt : BuildTree H X} {m n : Match bt} : Match.Edge 
   | Sum.inl _ => False -- local edges are never modal steps.
   | Sum.inr ⟨_, _, _, _, _, r, _, _⟩ =>  PdlRule.isModal r
 
+instance instDecidableMatchEdgeIsModal {e : Match.Edge m n} : Decidable (e.isModal) :=
+  match e with
+  | Sum.inl _ => by apply isFalse; simp [Match.Edge.isModal]
+  | Sum.inr ⟨_, _, _, _, _, r, _, _⟩ => by
+      simp [Match.Edge.isModal]; exact instDecidablePdlRuleIsModal
+
 def Match.isOpenLeaf {H X} {bt : BuildTree H X} {m : Match bt} : Prop :=
   match (btAt m) with | ⟨_, _, .openLeaf⟩ => True | _ => False
 
@@ -408,8 +414,8 @@ def BuildTree.allPreStateParts {H X0} (bt : BuildTree H X0) (m : Match bt) :
   | ⟨H', X, .freeRepeat fr⟩ => [ .stopAtFreeRepeat (by simp [Match.isFreeRepeat]; grind) ]
   | ⟨H', X, .openLeaf⟩ => [ .stopAtOpenLeaf (by simp [Match.isOpenLeaf]; grind) ]
 
-lemma BuildTree.allPreStateParts_spec {H X} {bt : BuildTree H X} {m : Match bt} :
-    ∀ π : PreStatePart bt m, π ∈ bt.allPreStateParts m := by
+lemma BuildTree.allPreStateParts_spec {H X} {bt : BuildTree H X} {m : Match bt}
+    {π : PreStatePart bt m} : π ∈ bt.allPreStateParts m := by
   sorry
 
 /-- A pre-state is a maximal pre-state-part, i.e. starting at the root or just after (M).
