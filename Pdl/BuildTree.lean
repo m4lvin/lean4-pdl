@@ -290,6 +290,14 @@ structure Match.pdlEdge (m n : Match bt) where
 /-- The parent-child relation ⋖_𝕋 in a Builder strategy tree. -/
 def Match.Edge (m n : Match bt) : Type := Match.locEdge m n ⊕ Match.pdlEdge m n
 
+lemma Match.Edge.wf {H X} {bt : BuildTree H X} :
+    WellFounded (fun (m n : Match bt) => Nonempty (Match.Edge m n)) := by
+  -- IDEA: similar to `matchesFinite`, but maybe easier?
+  -- Still use these things:
+  -- - `Match` is a finite type
+  -- - the transitive closure of `Match.Edge` is irreflexive
+  sorry
+
 /-- This edge between matches is a modal step.
 To even say this `BuildTree` must contain the rule data. -/
 def Match.Edge.isModal {H X} {bt : BuildTree H X} {m n : Match bt} : Match.Edge m n → Prop
@@ -400,19 +408,30 @@ inductive PreStatePart {H X} (bt : BuildTree H X) : (m : Match bt) → Type
 def BuildTree.allPreStateParts {H X0} (bt : BuildTree H X0) (m : Match bt) :
     List (PreStatePart bt m) :=
   match m_def : m.btAt with
-  | ⟨H', X, .loc nbas next⟩ => by
-      let := @LocalTableau.all X
+  | ⟨H', X, .loc nbas next⟩ => do
+      let ltX ←  @LocalTableau.all X
       -- IDEA: `map next` but the result type is dependent.
+      have := next ltX
       -- After that make recursive call. But better do `.pdl` case below first, hopefully easier?
       sorry
-  | ⟨H', X, .pdl bas next⟩ => by
-      let := @PdlRule.all X
-      let : List (Σ Y, BuildTree (X :: H') Y) := this.map (fun ⟨Y,r⟩ => ⟨_, next _ r⟩)
-      -- Now wrap up each `r` into a `Match.Edge`,
-      -- then map PreStatePart.edge of them?
-      sorry
+  | ⟨H', X, .pdl bas next⟩ => do
+      let ⟨Y,r⟩ ← @PdlRule.all X
+      let := next Y r
+      -- Now wrap up each `r` into a `Match.Edge`:
+      let n : Match bt := m.append sorry -- use `append` here or better something else?
+      have e : Match.Edge m n := .inr sorry
+      if isMo : e.isModal then
+        return PreStatePart.stopAtM e isMo
+      else
+        -- If we have a non-modal step, use recursion to get tail and then use PreStatePart.edge.
+        let tail ← BuildTree.allPreStateParts bt n
+        return PreStatePart.edge e isMo tail
   | ⟨H', X, .freeRepeat fr⟩ => [ .stopAtFreeRepeat (by simp [Match.isFreeRepeat]; grind) ]
   | ⟨H', X, .openLeaf⟩ => [ .stopAtOpenLeaf (by simp [Match.isOpenLeaf]; grind) ]
+termination_by
+  Match.Edge.wf.wrap m
+decreasing_by
+  sorry
 
 lemma BuildTree.allPreStateParts_spec {H X} {bt : BuildTree H X} {m : Match bt}
     {π : PreStatePart bt m} : π ∈ bt.allPreStateParts m := by
