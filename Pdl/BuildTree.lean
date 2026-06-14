@@ -37,6 +37,7 @@ inductive BuildTree : History → Sequent → Type
             (next : (lt : LocalTableau X) → BuildChoice H X (endNodesOf lt))
             : BuildTree H X
   /-- Prover chooses PDL rule, never branches, so continue with unique child. -/
+  -- TODO: add that there must be at least one applicable PdlRule?
   | pdl {H X} (bas : X.basic)
             (next : ∀ Y, ∀ _r : PdlRule X Y, BuildTree (X :: H) Y) : BuildTree H X
   /-- Free repeat means builder wins. -/
@@ -49,6 +50,18 @@ inductive BuildTree : History → Sequent → Type
 
 inductive BuildChoice : History → Sequent → List Sequent → Type
   | pick {H X YS Y} : Y ∈ YS → BuildTree (X :: H) Y → BuildChoice H X YS
+end
+
+mutual
+/-- Manual replacement for `sizeOf (bt : BuildTree)` so we also count the `next` parts. -/
+def BuildTree.size : BuildTree H X → Nat
+  | .loc _ next => 1 + ((LocalTableau.all X).map (fun lt => (next lt).size)).sum
+  | .pdl _ next => 1 + ((PdlRule.all X).map (fun ⟨Y,r⟩ => (next Y r).size)).sum
+  | .freeRepeat _ => 1
+  | .openLeaf => 1
+
+def BuildChoice.size : BuildChoice H X YS → Nat
+  | .pick _ bt_Y => bt_Y.size
 end
 
 @[simp]
@@ -206,11 +219,23 @@ def Match.all {H X} : (bt : BuildTree H X) → List (Match bt)
   | .freeRepeat fr => [ .nil ]
   | .openLeaf => [ .nil ]
 termination_by
-  bt => sizeOf bt -- TODO use other measure, `sizeOf` seems to ignore mutual induction?!
+  bt => bt.size
 decreasing_by
-  · simp_wf -- `next` disappears on right side :-/
-    sorry
-  · sorry
+  · simp [BuildTree.size]
+    have : (next ltX).6.size ∈ ((LocalTableau.all X).map (fun lt => (next lt).6.size)) := by
+      simp only [List.mem_map]
+      use ltX, LocalTableau.all_spec
+    have := List.le_sum_of_mem this
+    have : ∀ lt, (next lt).size = (next lt).6.size := fun lt => by
+      cases next lt; simp [BuildChoice.size]
+    simp_rw [this]
+    grind
+  · simp only [BuildTree.size]
+    have : (next Y r).size ∈ ((PdlRule.all X).map (fun ⟨Y,r⟩ => (next Y r).size)) := by
+      simp only [List.mem_map, Sigma.exists]
+      use Y, r, PdlRule.all_spec bas _
+    have := List.le_sum_of_mem this
+    grind
 
 theorem Match.all_spec {H X} (bt : BuildTree H X) :
     ∀ m, m ∈ Match.all bt := by
