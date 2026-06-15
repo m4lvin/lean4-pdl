@@ -212,10 +212,12 @@ inductive Match : ∀ {H : History} {X : Sequent}, BuildTree H X → Type
 
 /- All possible Matches in a given BuildTree. -/
 def Match.all {H X} : (bt : BuildTree H X) → List (Match bt)
-  | .loc nbas next => LocalTableau.all X >>= fun ltX => return Match.loc (← Match.all (next ltX).6)
-  | .pdl bas next => -- PdlRule.all X >>= fun ⟨Y,r⟩ => return Match.pdl (← (Match.all (next Y r)))
-      (PdlRule.all X).flatMap (fun ⟨Y,r⟩ =>
-        (Match.all (next Y r)).map (fun tail => Match.pdl tail))
+  | .loc nbas next =>
+      Match.nil ::
+      (LocalTableau.all X >>= fun ltX => return Match.loc (← Match.all (next ltX).6))
+  | .pdl bas next =>
+      Match.nil ::
+      (PdlRule.all X >>= fun ⟨Y,r⟩ => return Match.pdl (← (Match.all (next Y r))))
   | .freeRepeat fr => [ .nil ]
   | .openLeaf => [ .nil ]
 termination_by
