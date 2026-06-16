@@ -1,9 +1,11 @@
 import Pdl.Flip
 import Pdl.Soundness
 
-/-! # Interpolants for Partitions (big part of Section 7)
+/-! # Interpolants for Partitions (Section 9)
 
-Note that we can skip much of subsection 7.3 because we worked already with split tableaux anyway.
+Note that we can skip much of subsection 8.2 because we worked already with split tableaux anyway.
+
+NOTE: We may need extra work for *uniformity* though.
 -/
 
 open HasSat

@@ -69,7 +69,7 @@ lemma BuildChoice.fst_eq_H {H X YS} {bc : BuildChoice H X YS} : bc.1 = H := by
   cases bc
   rfl
 
-/-- Given a winning Builder strategy, compute its `RuleTree`.
+/-- Given a winning Builder strategy, compute its `BuildTree`.
 NEW: note the `Sum.inl p` here. This ensure we start tree building from a Prover position, i.e.
 - not allowing BuilderPos.lpr here (easy, was forbidden already anyway as prover wins there.)
 - not allowing BuilderPos.ltab because we cannot use BuildTree.loc for a single fixed local tab. -/
