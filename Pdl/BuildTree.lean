@@ -405,7 +405,8 @@ inductive PreStatePart {H X} (bt : BuildTree H X) : (m : Match bt) → Type
 | edge {m n} : (e : Match.Edge m n) → ¬ e.isModal → PreStatePart bt n → PreStatePart bt m
 | stopAtM {m n} : (e : Match.Edge m n) → e.isModal → PreStatePart bt m
 | stopAtOpenLeaf {m} : m.isOpenLeaf → PreStatePart bt m
-| stopAtFreeRepeat {m} : m.isFreeRepeat → PreStatePart bt m
+| stopAtFreeRepeat {m} : (h : m.isFreeRepeat) → PreStatePart bt m
+ -- IDEA: PreStatePart bt (Match.companionOf m h) →
 
 /-- Collect all `PreStateP`s from a given `m` onwards. -/
 def BuildTree.allPreStateParts {H X0} (bt : BuildTree H X0) (m : Match bt) :
@@ -464,6 +465,19 @@ lemma BuildTree.allPreStates_spec {H X} {bt : BuildTree H X} :
   -- should be easy once `BuildTree.allPreStates` is done?
   sorry
 
+-- Notes:
+-- - PreStatePart.forms
+-- - change output type to AnyFormula
+-- - Sequent.anyForms to collect
+
+
+/-- - Given a `PreStatePart` ending at a repeat, go to companion,
+then return the PreStatePart from there staying in the same Match. -/
+def PreStartPart.companionPart {m : Match bt} (h : m.isFreeRepeat) (π : PreStatePart bt m) :
+    π = PreStatePart.stopAtFreeRepeat h →
+    PreStatePart bt (Match.companionOf m h) :=
+  sorry
+
 /-- Collect formulas in a pre-state. The non-loaded part of Λ(π) in paper.
 
 TODO: If the pre-state ends in a repeat, also include formulas in the path from companion to (M).
@@ -471,7 +485,22 @@ TODO: If the pre-state ends in a repeat, also include formulas in the path from 
 QUESTION: Can we collect loaded formulas here by unloading them?
 Or would that make the loaded case of `PreState.pdlFormCase` unsayable?
 -/
-def PreState.forms : PreState bt → List Formula := sorry
+def PreState.forms {bt : BuildTree H X} : PreState bt → List Formula := by
+  intro π
+  cases π
+  case fromRoot π' =>
+    cases π'
+    case edge n tail e notModal =>
+      have := Match.btAt n
+      -- IDEA: have rest := PreStatePart.forms tail
+      sorry
+    case stopAtFreeRepeat =>
+      have := @PreStartPart.companionPart -- also collect forms from there!
+      sorry
+    all_goals
+      sorry
+  case fromMod =>
+    sorry
 
 /-- Collect formulas in a pre-state. The loaded part of Λ(π) in paper. -/
 def PreState.lforms : PreState bt → List NegLoadFormula := sorry
