@@ -1,5 +1,6 @@
 import Pdl.TableauGame
 import Pdl.AllPdlRule
+import Pdl.Syntax
 
 /-! # From winning strategies to model graphs (Section 6.3)
 
@@ -476,6 +477,32 @@ def PreState.forms : PreState bt → List Formula := sorry
 def PreState.lforms : PreState bt → List NegLoadFormula := sorry
 
 def PreState.last : PreState bt → Sequent := sorry
+
+def principalFormulaForLocalRule :  LocalRule X YS -> AnyFormula
+  | .oneSidedL orule _ =>
+      match orule with
+        | .bot      => Formula.bottom
+        | .con φ ψ =>  (φ ⋀ ψ)
+        | .not φ => φ
+        | .neg φ => ~~φ
+        | .nCo φ ψ => ~(Formula.and φ ψ)
+        | .dia α φ _ => ~⌈α⌉φ
+        | .box α φ _ => ⌈α⌉φ
+  | .oneSidedR orule _ =>
+      match orule with
+        | .bot      => Formula.bottom
+        | .con φ ψ => φ ⋀ ψ
+        | .not φ => φ
+        | .neg φ => ~~φ
+        | .nCo φ ψ => ~(Formula.and φ ψ)
+        | .dia α φ _  => ~⌈α⌉φ
+        | .box α φ _   => ⌈α⌉φ
+  | .LRnegL φ => φ
+  | .LRnegR φ => φ
+  | .loadedL φ _ _ => φ
+  | .loadedR φ _ _ => φ
+
+
 
 /-- TODO Lemma 6.14 -/
 lemma PreState.formsCases {π : PreState bt} : φ ∈ π.forms →
