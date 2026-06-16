@@ -630,17 +630,20 @@ def Q {r : PathIn tab} : QuasiTab :=
 
 /-! ## Interpolants for proper clusters -/
 
-/-- Helper for `exitsOf`. Or replace it fully with this? -/
+/-- Starting at root, return the list of earliest free (i.e. unloaded nodes).
+These are the "exits" from a loaded cluster.
+A repeat has no exit (because to ensure termination we do not rewind here.)
+Free nodes are their own (only) exit. -/
 def exitsOf (tab : Tableau Hist X) : List (PathIn tab) :=
   if X.isLoaded
   then
     match tab with
-    | .lrep _ => [] -- A repeat has no exit! (To ensure termination we do not rewind here.)
+    | .lrep _ => [] -- A repeat has no exit.
     | .loc _ _ lt next => (endNodesOf lt).attach.flatMap (fun ⟨Y,Y_in⟩ =>
                                   (exitsOf (next Y Y_in)).map (PathIn.loc Y_in))
     | .pdl _ _ _ next => (exitsOf next).map PathIn.pdl
   else
-    [ .nil ] -- Free nodes are their own (and the only kind of exits.
+    [ .nil ] -- Free nodes are their own (only) exit.
 
 lemma loaded_iff_exitsOf_non_nil {tab : Tableau Hist X} :
     X.isLoaded ↔ ∀ q ∈ exitsOf tab, q ≠ .nil := by
@@ -664,7 +667,7 @@ def clusterInterpolation_right {Hist L R nlf}
     : PartInterpolant (L, R, some (Sum.inr nlf)) := by
   sorry
 
-/-- TODO messy helper for `mem_existsOf_of_flip` -/
+/-- TODO messy helper for `mem_existsOf_of_flip`. Statement might still need to be changed. -/
 lemma PathIn.loc_flip
     nrep nbas
     (lt : LocalTableau (L, R, some (Sum.inl nlf)))
@@ -672,15 +675,14 @@ lemma PathIn.loc_flip
     (next' : (Yf : _) → Yf ∈ endNodesOf lt.flip → Tableau ((_ :: Hist).map Sequent.flip) Yf)
     (Y : Sequent)
     (Y_in : Y ∈ endNodesOf lt)
-    (p : PathIn (next Y Y_in))
     (Yf_in : Y.flip ∈ endNodesOf lt.flip)
     (h_next : (next Y Y_in).flip = next' Y.flip Yf_in)
     (h : (Tableau.loc nrep nbas lt.flip next') = (Tableau.loc nrep' nbas' lt next).flip)
     :
     (PathIn.loc Y_in nil).flip = h ▸ @PathIn.loc _ _ _ _ lt.flip next' _ Yf_in .nil := by
-  -- cases h -- oho!
+  cases h -- oho!
   simp [PathIn.flip] -- hmm
-  sorry
+  grind
 
 /-! The following lemma about `PathIn.flip` is here because it is also about `exitsOf`. -/
 
@@ -713,6 +715,8 @@ lemma mem_existsOf_of_flip {Hist L R lr_nlf} {tab : Tableau Hist (L, R, some lr_
           subst e_in
           unfold PathIn.flip; simp
           unfold PathIn.flip; simp
+          -- IDEA: have := `PathIn.loc_flip L R nlf Hist nrep nbas ?_ ?_ lt next _ _ Y_in Yf_in _ _
+          try grind
           -- TODO: Lemma about .loc .nil and cast?
           sorry
       · rcases lr_nlf_Y with (nlfY|nlfY)
