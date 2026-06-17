@@ -487,7 +487,7 @@ lemma PreState.formsCases {π : PreState bt} : φ ∈ π.forms →
 /-- WIP Lemma 6.15 *un*loaded case -/
 lemma PreState.pdlFormCase {H X} {bt : BuildTree H X} {π : PreState bt} {α φ} :
     ¬ α.isAtomic → (~⌈α⌉φ) ∈ π.forms →
-      ∃ Xδ ∈ Hset α, Xδ.1 ∪ [~ Formula.boxes Xδ.2 φ] ⊆ π.forms := by
+      ∃ Xδ ∈ Dset α, Xδ.1 ∪ [~ Formula.boxes Xδ.2 φ] ⊆ π.forms := by
   sorry
 
 /-
@@ -495,7 +495,7 @@ TODO: This needs a case distinction for the AnyFormular, similar to `YsetLoad` a
 /-- WIP Lemma 6.15 *loaded* case -/
 lemma PreState.loadedFormCase {H X} {bt : BuildTree H X} {π : PreState bt} {α φ} :
     ¬ α.isAtomic → (~'⌊α⌋φ) ∈ π.lforms →
-      ∃ Xδ ∈ Hset α, Xδ.1 ∪ [~ LoadFormula.boxes Xδ.2 φ] ⊆ π.forms := by
+      ∃ Xδ ∈ Dset α, Xδ.1 ∪ [~ LoadFormula.boxes Xδ.2 φ] ⊆ π.forms := by
   sorry
 -/
 

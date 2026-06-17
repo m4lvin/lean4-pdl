@@ -120,8 +120,8 @@ lemma neg_testsOfProgram_in_FLb {φ α} (φ_in : φ ∈ testsOfProgram α) ψ : 
   case test τ =>
     simp_all [FLb]
 
-lemma H_tests_in_FL α F δ (in_H : (F, δ) ∈ Hset α) ψ : F ⊆ FLb α ψ := by
-  cases α <;> simp [Hset] at *
+lemma H_tests_in_FL α F δ (in_H : (F, δ) ∈ Dset α) ψ : F ⊆ FLb α ψ := by
+  cases α <;> simp [Dset] at *
   case atom_prog =>
     grind
   case sequence α β =>
@@ -155,8 +155,8 @@ lemma H_tests_in_FL α F δ (in_H : (F, δ) ∈ Hset α) ψ : F ⊆ FLb α ψ :=
     subst_eqs
     simp [FLb]
 
-lemma H_progs_in_FL F δ α (in_H : (F, δ) ∈ Hset α) ψ : δ ≠ [] → (~⌈⌈δ⌉⌉ψ) ∈ FLb α ψ := by
-  cases α <;> simp [Hset, FLb] at * -- pfoei
+lemma H_progs_in_FL F δ α (in_H : (F, δ) ∈ Dset α) ψ : δ ≠ [] → (~⌈⌈δ⌉⌉ψ) ∈ FLb α ψ := by
+  cases α <;> simp [Dset, FLb] at * -- pfoei
   · cases in_H
     subst_eqs
     simp
@@ -213,7 +213,7 @@ lemma unfoldDiamond_in_FL (α : Program) (ψ : Formula) (X : List Formula) :
     subst φ_def
     rcases α with ⟨a⟩|⟨α,β⟩|⟨α,β⟩|⟨α⟩|⟨τ⟩
     case atom_prog =>
-      simp [unfoldDiamond, Yset, Hset] at X_in
+      simp [unfoldDiamond, Yset, Dset] at X_in
       subst X_in
       simp_all only [List.mem_cons, Formula.neg.injEq, Formula.box.injEq, Program.atom_prog.injEq,
         List.not_mem_nil, or_false]
@@ -221,7 +221,7 @@ lemma unfoldDiamond_in_FL (α : Program) (ψ : Formula) (X : List Formula) :
       subst h1
       exact FL_single_neg_closed fun a => a
     case test =>
-      simp only [unfoldDiamond, Yset, Hset, List.map_cons, Formula.boxes_nil, List.cons_union,
+      simp only [unfoldDiamond, Yset, Dset, List.map_cons, Formula.boxes_nil, List.cons_union,
         List.nil_union, List.map_nil, List.mem_cons, List.not_mem_nil, or_false] at X_in
       subst X_in
       simp at *

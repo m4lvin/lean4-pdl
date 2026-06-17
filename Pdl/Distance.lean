@@ -271,7 +271,7 @@ lemma dist_le_of_distList_le (h : ∀ u, distance M α v u ≤ distance_list M v
 
 open Classical in
 /-- 7.47 (d) -/
-theorem distance_le_Hdistance (in_H : (X, δ) ∈ Hset α) :
+theorem distance_le_Hdistance (in_H : (X, δ) ∈ Dset α) :
   (M, w) ⊨ Con X → distance M α w v ≤ distance_list M w v δ :=
   let me := (evaluate M w <| Con ·)
   fun ev => match α with
@@ -343,14 +343,14 @@ theorem distance_le_Hdistance (in_H : (X, δ) ∈ Hset α) :
 
 /-- 7.47 (e) -/
 lemma distList_le_of_Hsat {W} M (v w : W) α γ
-    (in_H : Xδ ∈ Hset α)
+    (in_H : Xδ ∈ Dset α)
     (v_X : evaluate M v (Con Xδ.1))
     : distance_list M v w (α :: γ) ≤ distance_list M v w (Xδ.2 ++ γ) :=
   dist_le_of_distList_le (fun _ => distance_le_Hdistance in_H v_X) w -- using (c) and (d)
 
 /-- 7.47 (f) -/
 theorem rel_existsH_dist (w_α_v : relate M α w v)
-    : ∃ Xδ ∈ Hset α,
+    : ∃ Xδ ∈ Dset α,
         evaluate M w (Con Xδ.1)
       ∧ distance_list M w v Xδ.2 = distance M α w v :=
   have d_fin : distance M α w v ≠ ⊤ := dist_iff_rel.mpr w_α_v
@@ -432,7 +432,7 @@ theorem rel_existsH_dist (w_α_v : relate M α w v)
 
 /-- 7.47 (g) -/
 theorem relateSeq_existsH_dist (v_αγ_w : relateSeq M (α :: γ) v w)
-    : ∃ Xδ ∈ Hset α,
+    : ∃ Xδ ∈ Dset α,
         evaluate M v (Con Xδ.1)
       ∧ distance_list M v w (Xδ.2 ++ γ) = distance_list M v w (α :: γ) := by
   have claim : ∃ u, relate M α v u ∧ relateSeq M γ u w ∧
@@ -461,7 +461,7 @@ theorem relateSeq_existsH_dist (v_αγ_w : relateSeq M (α :: γ) v w)
 /-- 7.47 (h)
 In the article this uses loaded formulas, we just use normal boxes. -/
 theorem existsH_of_true_diamond α γ (ψ : Formula) (v_ : evaluate M v (~⌈⌈α :: γ⌉⌉ψ))
-    : ∃ Xδ ∈ Hset α, evaluate M v (Con Xδ.1)
+    : ∃ Xδ ∈ Dset α, evaluate M v (Con Xδ.1)
                 ∧ evaluate M v (~⌈⌈Xδ.2⌉⌉⌈⌈γ⌉⌉ψ)
                 ∧   ⨅ w : {w // evaluate M w (~ψ)}, distance_list M v w (Xδ.2 ++ γ)
                   = ⨅ w : {w // evaluate M w (~ψ)}, distance_list M v w (α :: γ) := by
@@ -502,15 +502,15 @@ theorem distanceProps W M α {w v : W} δ :
     ∧ (distance_list M v w δ = distance M (Program.steps δ) v w) -- b
     ∧ ((∀ (u : W), distance M α v u ≤ distance_list M v u δ) →
         ∀ (u : W), distance_list M v u (α :: γ) ≤ distance_list M v u (δ ++ γ)) -- c
-    ∧ ((X, δ) ∈ Hset α → (M, w)⊨Con X → distance M α w v ≤ distance_list M w v δ) -- d
-    ∧ (Xδ ∈ Hset α → evaluate M v (Con Xδ.1) →
+    ∧ ((X, δ) ∈ Dset α → (M, w)⊨Con X → distance M α w v ≤ distance_list M w v δ) -- d
+    ∧ (Xδ ∈ Dset α → evaluate M v (Con Xδ.1) →
         distance_list M v w (α :: γ) ≤ distance_list M v w (Xδ.2 ++ γ) ) -- e
-    ∧ (relate M α w v → ∃ Xδ ∈ Hset α,
+    ∧ (relate M α w v → ∃ Xδ ∈ Dset α,
         evaluate M w (Con Xδ.1) ∧ distance_list M w v Xδ.2 = distance M α w v ) -- f
-    ∧ (relateSeq M (α :: γ) v w → ∃ Xδ ∈ Hset α,
+    ∧ (relateSeq M (α :: γ) v w → ∃ Xδ ∈ Dset α,
         evaluate M v (Con Xδ.1) ∧
         distance_list M v w (Xδ.2 ++ γ) = distance_list M v w (α :: γ)) -- g
-    ∧ (evaluate M v (~⌈⌈α :: γ⌉⌉ψ) → ∃ Xδ ∈ Hset α,
+    ∧ (evaluate M v (~⌈⌈α :: γ⌉⌉ψ) → ∃ Xδ ∈ Dset α,
         evaluate M v (Con Xδ.1) ∧
         evaluate M v (~⌈⌈Xδ.2⌉⌉⌈⌈γ⌉⌉ψ) ∧
           ⨅ w : {w // evaluate M w (~ψ)}, distance_list M v (↑w) (Xδ.2 ++ γ)

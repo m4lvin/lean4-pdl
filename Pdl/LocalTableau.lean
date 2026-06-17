@@ -1208,13 +1208,13 @@ theorem lmOfFormula.le_union_right α β φ : lmOfFormula (~⌈β⌉φ) ≤ lmOf
   all_goals
     simp [testsOfProgram]
 
-theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Hset α) {ψ} (in_Fs : ψ ∈ Fs) :
+theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Dset α) {ψ} (in_Fs : ψ ∈ Fs) :
     lmOfFormula ψ < lmOfFormula (~⌈α⌉φ) := by
   cases α
-  · simp_all [Hset]
+  · simp_all [Dset]
   case sequence α β =>
     simp only [lmOfFormula]
-    simp only [Hset, List.mem_flatten, List.mem_map, Prod.exists] at in_H
+    simp only [Dset, List.mem_flatten, List.mem_map, Prod.exists] at in_H
     rcases in_H with ⟨l, ⟨Fs', δ', in_H, def_l⟩, in_l⟩
     · subst def_l
       by_cases δ' = []
@@ -1238,7 +1238,7 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Hset α) {ψ}
         · have IHβ := H_goes_down β φ in_Hβ in_Fs''
           cases β
           all_goals
-            simp_all [Hset, testsOfProgram, lmOfFormula]
+            simp_all [Dset, testsOfProgram, lmOfFormula]
             try linarith
       · simp_all only [ite_false, List.mem_singleton, Prod.mk.injEq, testsOfProgram,
         List.attach_append, List.map_append, List.map_map, List.sum_append]
@@ -1248,13 +1248,13 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Hset α) {ψ}
         have IHα := H_goes_down α φ in_H in_Fs
         cases α
         all_goals
-          simp_all [Hset, testsOfProgram, lmOfFormula]
+          simp_all [Dset, testsOfProgram, lmOfFormula]
         all_goals
           try rw [Function.comp_def, Function.comp_def, List.attach_map_val,
             List.attach_map_val] at IHα
           try linarith
   case union α β =>
-    simp only [Hset, List.mem_union_iff] at in_H
+    simp only [Dset, List.mem_union_iff] at in_H
     rcases in_H with hyp|hyp
     · have IHα := H_goes_down α φ hyp in_Fs
       suffices lmOfFormula (~⌈α⌉φ) ≤ lmOfFormula (~⌈α⋓β⌉φ) by linarith
@@ -1264,7 +1264,7 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Hset α) {ψ}
       apply lmOfFormula.le_union_right
   case star α =>
     simp only [lmOfFormula]
-    simp [Hset] at in_H
+    simp [Dset] at in_H
     rcases in_H with _ | ⟨δ', in_H', in_l⟩
     · simp_all only [List.not_mem_nil]
     · by_cases δ' = []
@@ -1275,7 +1275,7 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Hset α) {ψ}
         have IHα := H_goes_down α φ in_H' in_Fs
         cases α <;> simp_all only [lmOfFormula, not_lt_zero']
   case test τ =>
-    simp_all [Hset, testsOfProgram]
+    simp_all [Dset, testsOfProgram]
 
 theorem unfoldDiamond.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : List Formula}
     (α_non_atomic : ¬ α.isAtomic)
@@ -1393,7 +1393,7 @@ lemma measureProp {α : Program} {φ φ₁ φ₂ : Formula} :
     case atom_prog =>
       simp_all [Program.isAtomic]
     case test τ =>
-      simp_all [testsOfProgram, unfoldDiamond, Hset, Yset]
+      simp_all [testsOfProgram, unfoldDiamond, Dset, Yset]
       subst X_in
       by_cases h : τ = ~φ <;> simp_all; grind
     all_goals

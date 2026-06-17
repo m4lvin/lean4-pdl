@@ -258,7 +258,7 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
       by_cases Y = ([q, ⌈·atA⌉⌈∗·atA⌉q, ~q], [], none)
       -- branching!
       -- cases Y_in -- type mismatch when assigning motive, so work around that.
-        <;> simp_all [unfoldDiamondLoaded', YsetLoad', Hset, splitLast]
+        <;> simp_all [unfoldDiamondLoaded', YsetLoad', Dset, splitLast]
       · subst_eqs
         apply LocalTableau.byLocalRule -- left branch: close with q and ~q
           { lr := LocalRule.oneSidedL (OneSidedLocalRule.not q) rfl
@@ -286,7 +286,7 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
           Function.comp_apply, Prod.exists, ↓existsAndEq] at Y_in_l
         rcases Y_in_l with ⟨a, ⟨Z, olf, Zolf_in, def_a⟩ , Y_in_l⟩
         subst def_a
-        simp only [unfoldDiamondLoaded', YsetLoad', Hset, List.empty_eq, List.cons_union,
+        simp only [unfoldDiamondLoaded', YsetLoad', Dset, List.empty_eq, List.cons_union,
           List.nil_union, List.mem_cons, Prod.mk.injEq, List.ne_cons_self, List.cons_ne_self,
           and_self, List.not_mem_nil, or_self, not_false_eq_true, List.insert_of_not_mem,
           List.map_cons, ↓reduceIte, List.cons_append, List.nil_append, List.map_nil,
