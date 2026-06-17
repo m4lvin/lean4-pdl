@@ -23,7 +23,7 @@ def saturated : Finset Formula → Prop
     ∧ (φ⋀ψ ∈ X → φ ∈ X ∧ ψ ∈ X)
     ∧ ((~(φ⋀ψ)) ∈ X → (~φ) ∈ X ∨ (~ψ) ∈ X)
     -- programs closure, now only two general cases, no program subcases:
-    ∧ ((⌈α⌉φ) ∈ X → ∃ l : TP α, (Xset α l φ).all (fun y => y ∈ X))
+    ∧ ((⌈α⌉φ) ∈ X → ∃ l : TP α, (Bset α l φ).all (fun y => y ∈ X))
     ∧ ((~⌈α⌉φ) ∈ X → ∃ Fδ ∈ Dset α, (Yset Fδ φ).all (fun y => y ∈ X))
 
 /-- A set of formulas is lcoally consistent iff it does not contain ⊥
@@ -268,7 +268,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       subst X_def Y_def
       have := ((MG.2.1 (YS.last)).1 φ φ (∗β)).right.right.right.left boxP_in_X
       rcases this with ⟨ℓ, mysat⟩
-      simp_all [Xset, F, P]
+      simp_all [Bset, F, P]
     case succ m innerIH => -- Z U X_β_Z Z_βS_U IH_φ_in_Z =>
       rcases claim with ⟨YS, X_def, Y_def, relSteps⟩
       let Z := YS.get 1
@@ -279,7 +279,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
         aesop
       have := ((MG.2.1 X).1 φ φ (∗β)).right.right.right.left boxP_in_X
       rcases this with ⟨ℓ, mysat⟩
-      simp [Xset] at mysat
+      simp [Bset] at mysat
       have TP_eq : TP (∗β) = TP β := by simp [TP,testsOfProgram]
       -- Now we use the outer IH for C2 on all formulas in F(β,ℓ):
       have X_ConF : evaluate MG.1 X (Con <| F β ℓ) := by
@@ -375,8 +375,8 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
     have satX := (MG.prop.1 X).left
     simp only [saturated, List.all_eq_true, decide_eq_true_eq, Prod.exists] at satX
     -- use saturatedness to get a testprofile ℓ:
-    rcases (satX φ φ α).right.right.right.left boxP_in_X with ⟨ℓ, Xset_sub_X⟩
-    simp only [Xset, List.mem_append, List.mem_map] at Xset_sub_X
+    rcases (satX φ φ α).right.right.right.left boxP_in_X with ⟨ℓ, Bset_sub_X⟩
+    simp only [Bset, List.mem_append, List.mem_map] at Bset_sub_X
     have X_F : ∀ τ ∈ F _ (α_def ▸ ℓ), evaluate MG.val X τ := by
       intro τ τ_in
       -- Now we use IH of C2 on the tests in a
@@ -391,7 +391,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
     have δφ_in_X : (⌈⌈δ⌉⌉φ) ∈ X.val := by
       simp_all only [relate, Subtype.exists]
       subst_eqs
-      apply Xset_sub_X
+      apply Bset_sub_X
       right
       use δ
     -- Now we apply IH of C4 to all elements in δ

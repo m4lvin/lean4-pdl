@@ -129,7 +129,7 @@ theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α
 /-!
 ## Boxes: F, P, X and unfoldBox
 
-Note: In `P` and `Xset` we use lists not sets, to eventually make formulas.
+Note: In `F`, `P` and `Bset` we use lists not sets, to eventually make formulas.
 -/
 
 def F : (α : Program) → (ℓ : TP α) → List Formula
@@ -164,12 +164,12 @@ def P : (α : Program) →  (ℓ : TP α) → List (List Program)
              ∪ (if [] ∈ P α ℓ then (P β ℓ) else [])
 | ∗α, ℓ => [ [] ] ∪ ((P α ℓ).filter (· != [])).map (fun as => as ++ [∗α])
 
-def Xset (α : Program) (ℓ : TP α) (ψ : Formula) : List Formula :=
+def Bset (α : Program) (ℓ : TP α) (ψ : Formula) : List Formula :=
   F α ℓ ++ (P α ℓ).map (fun as => Formula.boxes as ψ)
 
 /-- unfold_□(α,ψ) -/
 def unfoldBox (α : Program) (φ : Formula) : List (List Formula) :=
-  (allTP α).map (fun ℓ => Xset α ℓ φ)
+  (allTP α).map (fun ℓ => Bset α ℓ φ)
 
 theorem F_mem_iff_neg α (ℓ : TP α) φ :
     φ ∈ F α ℓ ↔ ∃ τ, ∃ (h : τ ∈ testsOfProgram α), φ = (~τ) ∧ ℓ ⟨τ,h⟩ = false := by
@@ -514,7 +514,7 @@ theorem unfoldBoxContent α ψ :
          ∨ (∃ (a : Nat), ∃ δ, φ = (⌈·a⌉⌈⌈δ⌉⌉ψ) ∧ ∀ γ ∈ ((·a : Program)::δ), γ ∈ subprograms α))
     := by
   intro X X_in φ φ_in_X
-  simp [unfoldBox, Xset] at X_in
+  simp [unfoldBox, Bset] at X_in
   rcases X_in with ⟨ℓ, ℓ_in, def_X⟩
   subst def_X
   simp only [List.mem_append, List.mem_map] at φ_in_X
@@ -601,12 +601,12 @@ theorem unfoldBox_voc {x α φ} {L} (L_in : L ∈ unfoldBox α φ) {ψ} (ψ_in :
       exact subprograms_voc (sub_α.2 β β_in) x_in_βvoc
     · exact Or.inr x_in
 
-/-- A helper theorem about `Xset` and `signature`.
+/-- A helper theorem about `Bset` and `signature`.
 Note that the paper only states the third conjunct. -/
 theorem boxHelperTP α (ℓ : TP α) :
     (∀ τ, (~τ.val) ∈ F α ℓ → ℓ τ = false)
   ∧ (Con (F α ℓ) ⋀ signature α ℓ ≡ signature α ℓ)
-  ∧ ∀ ψ, (Con (Xset α ℓ ψ) ⋀ signature α ℓ ≡ Con ((P α ℓ).map (fun αs => ⌈⌈αs⌉⌉ψ)) ⋀ signature α ℓ )
+  ∧ ∀ ψ, (Con (Bset α ℓ ψ) ⋀ signature α ℓ ≡ Con ((P α ℓ).map (fun αs => ⌈⌈αs⌉⌉ψ)) ⋀ signature α ℓ )
     := by
   refine ⟨?_, ?_, ?_⟩
   · intro τ τ_in
@@ -622,7 +622,7 @@ theorem boxHelperTP α (ℓ : TP α) :
     specialize w_ℓ φ τ
     aesop
   · intro ψ W M w
-    simp [conEval, Xset]
+    simp [conEval, Bset]
     intro w_sign
     constructor
     · intro lhs δ δ_in
@@ -680,8 +680,8 @@ theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
 
 /-- Show "suffices" part outside, to use `localBoxTruth` for star case in `localBoxTruthI`. -/
 theorem localBoxTruth_connector γ ψ :
-    (goal : ∀ ℓ, (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Xset γ ℓ ψ) ⋀ signature γ ℓ) →
-    (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) := by
+    (goal : ∀ ℓ, (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Bset γ ℓ ψ) ⋀ signature γ ℓ) →
+    (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Bset γ ℓ ψ)) ) := by
   -- By the properties of the signature formulas clearly ;-)
   -- `localBoxTruthI` suffices to prove `localBoxTruth`.
   intro goal W M w
@@ -723,8 +723,8 @@ theorem localBoxTruth_connector γ ψ :
     have := Classical.propDecidable
     -- again we get a test profile ℓ from the model:
     let ℓ' : TP γ := fun ⟨τ,_⟩ => decide (evaluate M w τ)
-    have w_Xℓ' : evaluate M w (Con (Xset γ ℓ' ψ)) := by
-      simp only [Xset, conEval, List.mem_append, List.mem_map]
+    have w_Xℓ' : evaluate M w (Con (Bset γ ℓ' ψ)) := by
+      simp only [Bset, conEval, List.mem_append, List.mem_map]
       intro φ φ_in
       cases φ_in
       case inl φ_in_Fℓ' =>
@@ -734,7 +734,7 @@ theorem localBoxTruth_connector γ ψ :
         simp_all
       case inr φ_in_Pℓ' =>
         rcases φ_in_Pℓ' with ⟨δ, δ_in_P, def_φ⟩
-        simp_all only [Xset, conEval, List.mem_append, List.mem_map]
+        simp_all only [Bset, conEval, List.mem_append, List.mem_map]
         apply w_Xℓ φ
         right
         use δ
@@ -764,15 +764,15 @@ theorem localBoxTruth_connector γ ψ :
 set_option maxHeartbeats 2000000 in -- for simp timeouts (also triggering kernel error?)
 /-- Induction claim for `localBoxTruth`. -/
 theorem localBoxTruthI γ ψ (ℓ : TP γ) :
-    (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Xset γ ℓ ψ) ⋀ signature γ ℓ := by
+    (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Bset γ ℓ ψ) ⋀ signature γ ℓ := by
   intro W M w
   cases γ
   case atom_prog a =>
-    simp_all [testsOfProgram, signature, Xset, P, F]
+    simp_all [testsOfProgram, signature, Bset, P, F]
   case test τ =>
     cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩ )
-    · simp_all [testsOfProgram, signature, Xset, P, F]
-    · simp_all [testsOfProgram, signature, Xset, P, F]
+    · simp_all [testsOfProgram, signature, Bset, P, F]
+    · simp_all [testsOfProgram, signature, Bset, P, F]
   case union α β =>
     have IHα := localBoxTruthI α ψ ℓ W M w
     have IHβ := localBoxTruthI β ψ ℓ W M w
@@ -791,7 +791,7 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
     -- signature is true, so we can add it for free:
     have : ∀ φ, evaluate M w φ
               ↔ evaluate M w (φ ⋀ signature (α⋓β) ℓ) := by simp_all
-    rw [this (Con (Xset (α⋓β) ℓ ψ))]
+    rw [this (Con (Bset (α⋓β) ℓ ψ))]
     clear this
     -- using part (3) of Lemma:
     have := (boxHelperTP (α⋓β) ℓ).2.2 ψ W M w
@@ -809,18 +809,18 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
         subst def_φ
         cases δ_in
         · apply lhs.1
-          simp only [Xset, List.mem_append, List.mem_map]
+          simp only [Bset, List.mem_append, List.mem_map]
           right
           use δ
         · apply lhs.2
-          simp only [Xset, List.mem_append, List.mem_map]
+          simp only [Bset, List.mem_append, List.mem_map]
           right
           use δ
       · assumption
     · intro rhs
       rw [conEval] at rhs
       constructor -- α and β parts, analogous
-      · simp only [Xset, conEval, List.mem_append, List.mem_map]
+      · simp only [Bset, conEval, List.mem_append, List.mem_map]
         intro φ φ_in
         cases φ_in
         case inl φ_in_F =>
@@ -836,7 +836,7 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
           simp only [List.mem_map, List.mem_union_iff]
           use δ
           tauto
-      · simp only [Xset, conEval, List.mem_append, List.mem_map]
+      · simp only [Bset, conEval, List.mem_append, List.mem_map]
         intro φ φ_in
         cases φ_in
         case inl φ_in_F =>
@@ -871,7 +871,7 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
     constructor
     · intro lhs
       rw [conEval]
-      simp_all [testsOfProgram, signature, conEval, Xset, P, F]
+      simp_all [testsOfProgram, signature, conEval, Bset, P, F]
       rintro φ ((φ_in_Fα|φ_in_Fβ) | ⟨δ, ⟨(δ_from_Pα|δ_from_Pβ), def_φ⟩⟩)
       · tauto
       · rw [F_mem_iff_neg β ℓ φ] at φ_in_Fβ
@@ -902,7 +902,7 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
         · simp_all
     · intro rhs
       rw [conEval]
-      simp_all [testsOfProgram, signature, conEval, Xset, P, F]
+      simp_all [testsOfProgram, signature, conEval, Bset, P, F]
       rintro φ (φ_in_Fα|⟨δ, φ_in_Pα, def_φ⟩)
       · tauto
       · subst def_φ
@@ -925,7 +925,7 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
           · simp_all
           · simp_all
   case star β =>
-    let ρ := dis ((allTP (∗β)).map (fun ℓ => Con (Xset (∗β) ℓ ψ)))
+    let ρ := dis ((allTP (∗β)).map (fun ℓ => Con (Bset (∗β) ℓ ψ)))
     suffices goal : (⌈∗β⌉ψ) ≡ ρ by
       specialize goal W M w
       simp only [evaluate, relate] at goal
@@ -940,7 +940,7 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
           simp at this
           rcases this with ⟨ℓ', _, w_Xℓ'⟩
           clear goal ρ
-          simp [conEval, Xset, F, P] at *
+          simp [conEval, Bset, F, P] at *
           rintro f (f_in_Fβ|(f_eq_ψ|f_from_Pβ))
           · simp [signature, conEval] at lhs
             have := lhs.2 f
@@ -993,7 +993,7 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
         · rw [goal]
           unfold ρ
           rw [disEval]
-          use Con (Xset (∗β) ℓ ψ)
+          use Con (Bset (∗β) ℓ ψ)
           simp_all only [List.mem_map, and_true]
           use ℓ -- seems to be only place where we actually use the given ℓ
           simp only [and_true]
@@ -1018,7 +1018,7 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
         use ℓ'
         constructor
         · exact allTP_mem ℓ'
-        · simp [conEval, Xset]
+        · simp [conEval, Bset]
           rintro f (f_in_F| ⟨δ, δ_in, def_f⟩)
           · simp [F_mem_iff_neg] at f_in_F
             unfold ℓ' at f_in_F
@@ -1052,7 +1052,7 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
           have IHβ_thm := localBoxTruth_connector _ _ (localBoxTruthI β (⌈∗β⌉ψ))
           have := (IHβ_thm  W M w).1
           clear IHβ_thm
-          simp [disEval, conEval, Xset] at *
+          simp [disEval, conEval, Bset] at *
           intro hyp2
           specialize this hyp2
           rcases this with ⟨ℓ', _, w_Xℓ'⟩
@@ -1111,7 +1111,7 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
         have IHβ_thm := localBoxTruth_connector _ _ (localBoxTruthI β (·x)) W M w
         rw [IHβ_thm]
         clear IHβ_thm
-        simp only [Xset, evalDis, disEval, List.mem_map, exists_exists_and_eq_and, conEval,
+        simp only [Bset, evalDis, disEval, List.mem_map, exists_exists_and_eq_and, conEval,
           List.mem_append, evaluate]
         constructor
         · rintro ⟨ℓ, ℓ_in, w_Xβ⟩
@@ -1175,7 +1175,7 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
         simp [disEval] at w_ρ
         rcases w_ρ with ⟨ℓ, _, w_Xℓ⟩ -- here we get ℓ
         simp only [repl_in_or, evalDis]
-        simp [conEval, conEval, Xset] at w_Xℓ
+        simp [conEval, conEval, Bset] at w_Xℓ
         unfold χ0 χ1 T0 T1 φ'
         clear χ0 χ1 T0 T1 φ φ'
         cases em ([] ∈ P β ℓ) -- based on this, go left or right
@@ -1246,14 +1246,14 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
               aesop
       · -- ρ ⊨ ψ
         unfold ρ
-        simp [disEval, conEval, Xset, P]
+        simp [disEval, conEval, Bset, P]
         intro ℓ_whatever _ hyp
         apply hyp
         right
         left
         rfl
 
-theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Xset γ ℓ ψ)) ) :=
+theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Bset γ ℓ ψ)) ) :=
   localBoxTruth_connector γ ψ (localBoxTruthI γ ψ)
 
 theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M, v) ⊨ Con (F γ ℓ)) :

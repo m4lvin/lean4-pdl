@@ -1372,7 +1372,7 @@ lemma measureProp {α : Program} {φ φ₁ φ₂ : Formula} :
     case atom_prog => exfalso; simp_all [Program.isAtomic]
     case test τ =>
       subst α_def
-      simp_all [testsOfProgram, unfoldBox, allTP, Xset, F, P]
+      simp_all [testsOfProgram, unfoldBox, allTP, Bset, F, P]
       cases h : X_in <;> subst h <;> simp_all [Finset.sum]; linarith
     all_goals
       simp only [lmOfFormula, List.map_subtype, List.unattach_attach]

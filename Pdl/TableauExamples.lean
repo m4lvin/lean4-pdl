@@ -218,12 +218,12 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
         L := _, R := _, O := _, ress := _, preconditionProof := _ }
     all_goals (try simp; try rfl)
     intro Y Y_in
-    simp [unfoldBox, allTP, testsOfProgram, Xset, F, P, a] at *
+    simp [unfoldBox, allTP, testsOfProgram, Bset, F, P, a] at *
     subst Y_in
     apply LocalTableau.sim
     simp [Sequent.basic, Sequent.closed]
   · intro Y Y_in
-    simp [unfoldBox, allTP, testsOfProgram, Xset, F, P, a] at Y_in
+    simp [unfoldBox, allTP, testsOfProgram, Bset, F, P, a] at Y_in
     subst Y_in
     have principal : (~⌈a⌉⌈∗(a)⋓(?'p)⌉q) ∈ [~⌈a⌉⌈∗(a)⋓(?'p)⌉q, q, ⌈a⌉⌈∗a⌉q] :=
       by simp
@@ -246,7 +246,7 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
           L := _, R := _, O := _, ress := _, preconditionProof := _ }
       all_goals (try simp; try rfl)
       intro Y Y_in
-      simp [unfoldBox, allTP, testsOfProgram, Xset, F, P, a] at *
+      simp [unfoldBox, allTP, testsOfProgram, Bset, F, P, a] at *
       subst Y_in
       -- (◇)
       apply LocalTableau.byLocalRule

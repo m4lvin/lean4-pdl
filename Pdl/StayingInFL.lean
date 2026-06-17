@@ -399,7 +399,7 @@ lemma unfoldBox_in_FL (α : Program) (ψ : Formula) (X : List Formula) :
   rcases X_in with ⟨ℓ, ℓ_in, def_X⟩
   subst def_X
   intro φ φ_in
-  simp only [Xset, List.mem_append, List.mem_map] at φ_in
+  simp only [Bset, List.mem_append, List.mem_map] at φ_in
   rcases φ_in with φ_in|⟨δ, in_P, def_φ⟩
   · simp only [FL, List.cons_append, List.nil_append, List.mem_cons, List.mem_append]
     have := F_sub_testsOfProgram_map_neg α ℓ φ_in
