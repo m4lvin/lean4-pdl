@@ -243,8 +243,31 @@ decreasing_by
 theorem Match.all_spec {H X} (bt : BuildTree H X) :
     ∀ m, m ∈ Match.all bt := by
   intro m
+  cases m
+  case nil =>
+    cases bt
+    case loc next nbas =>
+      rw[Match.all]
+      left
+    case pdl next bas =>
+      rw[Match.all]
+      left
+    case freeRepeat _ =>
+      rw[Match.all]
+      simp
+    case openLeaf =>
+      rw[Match.all]
+      simp
+  case loc a next lt =>
+    rw[Match.all]
+    right
+    simp
+    sorry
+  case pdl a next r bas =>
+    rw[Match.all]
+    right
+    sorry
   -- easy, hopefully?
-  sorry
 
 /-- Inspired by `PathIn.length`. Counting the steps made by a `Match` in a `BuildTree`.
 Note that such a step may be combinations of a prover and a builder move. -/
