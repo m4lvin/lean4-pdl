@@ -243,13 +243,13 @@ decreasing_by
 theorem Match.all_spec {H X} (bt : BuildTree H X) :
     ∀ m, m ∈ Match.all bt := by
   intro m
-  cases m
+  rcases m
   case nil =>
     cases bt
-    case loc next nbas =>
+    case loc _ _ =>
       rw[Match.all]
       left
-    case pdl next bas =>
+    case pdl _ _ =>
       rw[Match.all]
       left
     case freeRepeat _ =>
@@ -258,10 +258,11 @@ theorem Match.all_spec {H X} (bt : BuildTree H X) :
     case openLeaf =>
       rw[Match.all]
       simp
-  case loc a next lt =>
+  case loc Ha Ix nbas a next lt =>
     rw[Match.all]
     right
-    simp
+    --something like a is an instance of ltX b/c LocalTableau.all_spec
+    -- something like lt is in Match.all (next a).6
     sorry
   case pdl a next r bas =>
     rw[Match.all]
