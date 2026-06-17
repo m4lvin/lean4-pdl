@@ -262,7 +262,8 @@ theorem Match.all_spec {H X} (bt : BuildTree H X) :
     rw[Match.all]
     right
     --something like a is an instance of ltX b/c LocalTableau.all_spec
-    -- something like lt is in Match.all (next a).6
+    -- something like lt is in Match.all (next a).6 and therefore an instance of __do_lift
+    -- something like bc lt is an instance of __do_lift, lt.loc is an instance of __do_lift.loc
     sorry
   case pdl a next r bas =>
     rw[Match.all]
