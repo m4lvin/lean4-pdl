@@ -127,7 +127,7 @@ theorem equiv_iff_TPequiv : φ ≡ ψ  ↔  ∀ ℓ : TP α, φ ⋀ signature α
     split <;> simp_all
 
 /-!
-## Boxes: F, P, X and unfoldBox
+## Boxes: F, P, Bset and unfoldBox
 
 Note: In `F`, `P` and `Bset` we use lists not sets, to eventually make formulas.
 -/

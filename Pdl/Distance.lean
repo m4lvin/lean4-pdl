@@ -349,7 +349,7 @@ lemma distList_le_of_Hsat {W} M (v w : W) α γ
   dist_le_of_distList_le (fun _ => distance_le_Hdistance in_H v_X) w -- using (c) and (d)
 
 /-- 7.47 (f) -/
-theorem rel_existsH_dist (w_α_v : relate M α w v)
+theorem rel_existsD_dist (w_α_v : relate M α w v)
     : ∃ Xδ ∈ Dset α,
         evaluate M w (Con Xδ.1)
       ∧ distance_list M w v Xδ.2 = distance M α w v :=
@@ -362,19 +362,19 @@ theorem rel_existsH_dist (w_α_v : relate M α w v)
     Or.elim (min_cases (distance M α w v) (distance M β w v))
     (fun ⟨min_eq, d_le⟩ =>
       let ⟨Fδ, in_H, eval, dl_eq_d⟩ :=
-        rel_existsH_dist <| dist_iff_rel.mp <| ne_of_eq_of_ne min_eq.symm d_fin
+        rel_existsD_dist <| dist_iff_rel.mp <| ne_of_eq_of_ne min_eq.symm d_fin
       ⟨Fδ, List.mem_union_iff.mpr <| .inl in_H, eval, dl_eq_d.trans min_eq.symm⟩
     )
     (fun ⟨min_eq, d_le⟩ =>
       let ⟨Fδ, in_H, eval, dl_eq_d⟩ :=
-        rel_existsH_dist <| dist_iff_rel.mp <| ne_of_eq_of_ne min_eq.symm d_fin
+        rel_existsD_dist <| dist_iff_rel.mp <| ne_of_eq_of_ne min_eq.symm d_fin
       ⟨Fδ, List.mem_union_iff.mpr <| .inr in_H, eval, dl_eq_d.trans min_eq.symm⟩
     )
   | α;'β =>
     let ⟨u, min_u⟩ := iInf_exists_eq_of_ne_top d_fin
     let ⟨dα_fin, dβ_fin⟩:= WithTop.add_ne_top.mp <| ne_of_eq_of_ne min_u.symm d_fin
-    let ⟨⟨Xα, δα⟩, in_Hα, evα, dlα⟩ := rel_existsH_dist <| dist_iff_rel.mp dα_fin
-    let ⟨⟨Xβ, δβ⟩, in_Hβ, evβ, dlβ⟩ := rel_existsH_dist <| dist_iff_rel.mp dβ_fin
+    let ⟨⟨Xα, δα⟩, in_Hα, evα, dlα⟩ := rel_existsD_dist <| dist_iff_rel.mp dα_fin
+    let ⟨⟨Xβ, δβ⟩, in_Hβ, evβ, dlβ⟩ := rel_existsD_dist <| dist_iff_rel.mp dβ_fin
     if c : δα = []
       then
         let wu : w = u := eq_of_distance_nil <| ne_of_eq_of_ne (c ▸ dlα) dα_fin
@@ -409,7 +409,7 @@ theorem rel_existsH_dist (w_α_v : relate M α w v)
       match p with
       | .nil α => absurd rfl wv
       | .cons (x := x) rwx pxv wx =>
-        let ⟨⟨Xα, δα⟩, in_Hα, evα, dlα⟩ := rel_existsH_dist rwx
+        let ⟨⟨Xα, δα⟩, in_Hα, evα, dlα⟩ := rel_existsD_dist rwx
         let dα_fin : distance_list M _ _ δα ≠ ⊤ := ne_of_eq_of_ne dlα <| dist_iff_rel.mpr rwx
         let hδα : δα ≠ [] := mt (eq_of_distance_nil <| · ▸ dα_fin) wx
         ⟨ (Xα, δα ++ [∗α])
@@ -431,7 +431,7 @@ theorem rel_existsH_dist (w_α_v : relate M α w v)
     )
 
 /-- 7.47 (g) -/
-theorem relateSeq_existsH_dist (v_αγ_w : relateSeq M (α :: γ) v w)
+theorem relateSeq_existsD_dist (v_αγ_w : relateSeq M (α :: γ) v w)
     : ∃ Xδ ∈ Dset α,
         evaluate M v (Con Xδ.1)
       ∧ distance_list M v w (Xδ.2 ++ γ) = distance_list M v w (α :: γ) := by
@@ -446,7 +446,7 @@ theorem relateSeq_existsH_dist (v_αγ_w : relateSeq M (α :: γ) v w)
     · rw [← dist_iff_rel]; aesop
     · rw [← distance_list_iff_relate_Seq]; aesop
   rcases claim with ⟨u, v_α_u, u_w, αγ_eq_α_γ⟩
-  have := rel_existsH_dist v_α_u -- applying (f)
+  have := rel_existsD_dist v_α_u -- applying (f)
   rcases this with ⟨⟨X,δ⟩, in_H, v_X, δ_eq_α⟩
   simp only at δ_eq_α
   use ⟨X,δ⟩
@@ -460,7 +460,7 @@ theorem relateSeq_existsH_dist (v_αγ_w : relateSeq M (α :: γ) v w)
 
 /-- 7.47 (h)
 In the article this uses loaded formulas, we just use normal boxes. -/
-theorem existsH_of_true_diamond α γ (ψ : Formula) (v_ : evaluate M v (~⌈⌈α :: γ⌉⌉ψ))
+theorem existsD_of_true_diamond α γ (ψ : Formula) (v_ : evaluate M v (~⌈⌈α :: γ⌉⌉ψ))
     : ∃ Xδ ∈ Dset α, evaluate M v (Con Xδ.1)
                 ∧ evaluate M v (~⌈⌈Xδ.2⌉⌉⌈⌈γ⌉⌉ψ)
                 ∧   ⨅ w : {w // evaluate M w (~ψ)}, distance_list M v w (Xδ.2 ++ γ)
@@ -479,7 +479,7 @@ theorem existsH_of_true_diamond α γ (ψ : Formula) (v_ : evaluate M v (~⌈⌈
     refine ⟨w1, w1_not_ψ, ?_⟩
     rw [← @Ne.eq_def, distance_list_iff_relate_Seq]
     exact v_αγ_w1
-  have g := relateSeq_existsH_dist v_αγ_w0 -- use (g)
+  have g := relateSeq_existsD_dist v_αγ_w0 -- use (g)
   rcases g with ⟨Xδ, in_H, v_X, same_dist⟩
   refine ⟨Xδ, in_H, v_X, ?_, ?_⟩
   · rw [← @boxes_append]
@@ -521,9 +521,9 @@ theorem distanceProps W M α {w v : W} δ :
    , dist_le_of_distList_le -- (c)
    , distance_le_Hdistance -- (d)
    , distList_le_of_Hsat M v w α γ -- (e)
-   , rel_existsH_dist -- (f)
-   , relateSeq_existsH_dist -- (g)
-   , existsH_of_true_diamond α γ ψ -- (h)
+   , rel_existsD_dist -- (f)
+   , relateSeq_existsD_dist -- (g)
+   , existsD_of_true_diamond α γ ψ -- (h)
    ⟩
 
 theorem exists_same_distance_of_relateSeq_cons (w_αδ_v : relateSeq M (α :: δ) w v) :

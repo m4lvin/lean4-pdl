@@ -131,10 +131,10 @@ lemma endNodesOf_free_are_free {X Y} (ltX : LocalTableau X) (h : X.isFree)
   case byLocalRule X lra X_def next IH =>
     rcases X with ⟨L,R,O⟩
     simp_all
-    rcases Y_in with ⟨Z, Z_in_B, Y_in⟩
-    apply IH Z Z_in_B ?_ Y_in
+    rcases Y_in with ⟨Z, Z_in_C, Y_in⟩
+    apply IH Z Z_in_C ?_ Y_in
     -- remains to show that Z is free
-    apply lra_preserves_free lra Z_in_B h
+    apply lra_preserves_free lra Z_in_C h
   case sim =>
     simp_all
 
@@ -158,7 +158,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             ∧ relateSeq M γ v w
             ∧ distance_list M v w γ = distance_list M v w αs
             ∧ (M,v) ⊨ F
-            ∧ (F,γ) ∈ Hl αs -- "F,γ is a result from unfolding the αs"
+            ∧ (F,γ) ∈ Dl αs -- "F,γ is a result from unfolding the αs"
             ∧ (Y.without (~''(AnyFormula.loadBoxes γ φ))).isFree
             )
         )
@@ -232,10 +232,10 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
         -- We also need the info that `u` is picked minimally / witnesses the distance.
         have := exists_same_distance_of_relateSeq_cons v_αs_w
         rcases this with ⟨u, v_α_u, u_αs_w, u_picked_minimally⟩
-        -- Previously here we used `existsDiamondH` to imitate the relation `v_α_u`.
-        -- have from_H := @existsDiamondH W M α _ _ v_α_u
-        -- Now we use `rel_existsH_dist` to also get the same distance.
-        have from_H := rel_existsH_dist v_α_u
+        -- Previously here we used `existsDiamondDset` to imitate the relation `v_α_u`.
+        -- have from_H := @existsDiamondDset W M α _ _ v_α_u
+        -- Now we use `rel_existsD_dist` to also get the same distance.
+        have from_H := rel_existsD_dist v_α_u
         rcases from_H with ⟨⟨F,δ⟩, _in_H, v_F, same_dist⟩
         simp at same_dist
         have v_δ_u : relateSeq M δ v u := by
@@ -254,7 +254,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             cases side <;> aesop
           subst α_same -- But cannot do `subst χ_def`.
           -- This F,δ pair is also used for one result in `B`:
-          have in_B : (L ++ F, R, some (Sum.inl (~'⌊⌊δ⌋⌋χ'))) ∈ C := by
+          have in_C : (L ++ F, R, some (Sum.inl (~'⌊⌊δ⌋⌋χ'))) ∈ C := by
             simp [applyLocalRule, unfoldDiamondLoaded, YsetLoad] at hC
             rw [hC]
             simp
@@ -267,7 +267,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             · exfalso; simp_all
             case cons new_α new_αs =>
               -- Let's prepare the IH application now.
-              specialize @IH _ in_B v w ?_ w_nξ new_α new_αs u_αs_w ?_ ?_
+              specialize @IH _ in_C v w ?_ w_nξ new_α new_αs u_αs_w ?_ ?_
               · intro f f_in; clear IH
                 simp only [Option.map_some, Sum.elim_inl, negUnload, unload_boxes,
                   Formula.boxes_nil, Option.toList_some, List.mem_union_iff, List.mem_append,
@@ -289,9 +289,9 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               -- Now actually get the IH result.
               rcases IH with ⟨ Y, Y_in, v_Y
                              , ( Y_free
-                               | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Hl, Y_almost_free⟩ )⟩
-              · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
-              · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
+                               | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Dl, Y_almost_free⟩ )⟩
+              · refine ⟨Y, ⟨_, in_C, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
+              · refine ⟨Y, ⟨_, in_C, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
                 refine ⟨F ∪ G, γs, in_Y, v_γs_w, ?_, ?_, ?_, Y_almost_free⟩
                 · rw [dist_eq]
                   rw [u_picked_minimally]
@@ -304,14 +304,14 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                   simp at f_in; cases f_in
                   · apply v_F; assumption
                   · apply v_G; assumption
-                simp [Hl]
+                simp [Dl]
                 refine ⟨_, _, _in_H, ?_⟩
                 simp
-                refine ⟨G, in_Hl, rfl⟩
+                refine ⟨G, in_Dl, rfl⟩
           case cons d δs =>
             -- A non-empty δ came from α, so we have not actually made the step to `u` yet.
             -- Again we prepare to use IH, but now for `d` and `δs ++ αs` instead.
-            specialize @IH _ in_B v w ?_ w_nξ d (δs ++ αs) ?_ ?_ ?_
+            specialize @IH _ in_C v w ?_ w_nξ d (δs ++ αs) ?_ ?_ ?_
             · intro f f_in; clear IH
               simp only [Option.map_some, Sum.elim_inl, negUnload, unload_boxes,
                 Formula.boxes_cons, Option.toList_some, List.mem_union_iff, List.mem_append,
@@ -341,9 +341,9 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             -- Now actually get the IH result.
             rcases IH with ⟨ Y, Y_in, v_Y
                            , ( Y_free
-                             | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Hl, Y_almost_free⟩ )⟩
-            · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
-            · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
+                             | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Dl, Y_almost_free⟩ )⟩
+            · refine ⟨Y, ⟨_, in_C, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
+            · refine ⟨Y, ⟨_, in_C, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
               refine ⟨F, _, in_Y, v_γs_w, ?_, v_F, ?_, Y_almost_free⟩
               · rw [dist_eq]
                 -- was: TRICKY PROBLEM - how do we know that `u` is chosen to minimze distance?
@@ -357,19 +357,19 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                 · exact iInf_le_iff.mpr fun b a => a y
                 · simp [vDash.SemImplies, conEval]; assumption
               have αs_nonEmpty : αs ≠ [] := by cases αs <;> simp_all
-              simp only [Hl, List.mem_flatMap, Prod.exists] -- uses `αs_nonEmpty`
+              simp only [Dl, List.mem_flatMap, Prod.exists] -- uses `αs_nonEmpty`
               refine ⟨F, d :: δs, _in_H, ?_⟩
               simp
               -- Now show that `d` is atomic, because it resulted from `H α`.
               have ⟨a, d_atom⟩ : ∃ a, d = ((·a) : Program) := by
-                have := H_mem_sequence α _in_H
+                have := Dset_mem_sequence α _in_H
                 rcases this with inl | ⟨a, ⟨δ, list_prop⟩⟩
                 · exfalso ; simp_all
                 · refine ⟨a, by simp_all⟩
               subst d_atom
-              -- Hence `Hl (d :: ...)` does not actually unfold anything.
-              simp at in_Hl
-              exact in_Hl.2
+              -- Hence `Dl (d :: ...)` does not actually unfold anything.
+              simp at in_Dl
+              exact in_Dl.2
         case dia' α' φ' α'_not_atomic => -- only *somewhat* analogous to `dia` case.
           -- The rule application has its own α' that must be α,
           -- also has its own φ' that must be φ, (this is new/easier here)
@@ -391,15 +391,15 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
           subst αs_empty
           simp [relateSeq] at u_αs_w
           subst u_αs_w -- We now have u = w.
-          -- Note: we now do `in_B` *after* distinguishing whether δ = [].
+          -- Note: we now do `in_C` *after* distinguishing whether δ = [].
           simp
           cases δ
           case nil => -- δ is empty, so we should have a free result?
             clear IH -- No IH needed because we reach a free node.
             simp at v_δ_u v_F -- Here we have v = u.
             subst v_δ_u
-            -- This F,δ pair is also used for one result in `B`:
-            have in_B : (L ++ (F ∪ [~φ]), R, none) ∈ C := by
+            -- This F,δ pair is also used for one result in `C`:
+            have in_C : (L ++ (F ∪ [~φ]), R, none) ∈ C := by
               clear next
               simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at hC
               rw [hC]
@@ -414,9 +414,9 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             -- We do not know `Y` yet because ltab may continue after `(L ++ F ++ [~φ], R, none)`.
             -- So let's use localTableauTruth to find a free end node, similar to αs = [] case.
             have v_Z : (M, v) ⊨ ((L ++ (F ∪ [~φ]), R, none) : Sequent) := by intro f f_in; aesop
-            rcases (localTableauTruth (next _ in_B) M v).1 v_Z with ⟨Y, Y_in, v_Y⟩
-            refine ⟨Y, ⟨(L ++ (F ∪ [~φ]), R, none), in_B, Y_in⟩, ⟨v_Y, Or.inl ?Y_free⟩⟩
-            apply endNodesOf_free_are_free (next _ in_B) ?_ Y_in
+            rcases (localTableauTruth (next _ in_C) M v).1 v_Z with ⟨Y, Y_in, v_Y⟩
+            refine ⟨Y, ⟨(L ++ (F ∪ [~φ]), R, none), in_C, Y_in⟩, ⟨v_Y, Or.inl ?Y_free⟩⟩
+            apply endNodesOf_free_are_free (next _ in_C) ?_ Y_in
             simp
           case cons d δs =>
             rw [@relateSeq_cons] at v_δ_u
@@ -425,8 +425,8 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               | some this => this
               | none => by exfalso; simp_all [splitLast]
             have split_def : splitLast (d :: δs) = some δ_β := by rfl
-            -- This F,δ pair is also used for one result in `B`:
-            have in_B : (L ++ F, R, some (Sum.inl (~'loadMulti δ_β.1 δ_β.2 φ))) ∈ C := by
+            -- This F,δ pair is also used for one result in `C`:
+            have in_C : (L ++ F, R, some (Sum.inl (~'loadMulti δ_β.1 δ_β.2 φ))) ∈ C := by
               simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at hC
               rw [hC]
               simp
@@ -436,7 +436,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             -- Rest based on non-empty δ case in `dia` above; changed to work with `loadMulti`.
             -- A non-empty δ came from α, so we have not actually made the step to `u` yet.
             -- Again we prepare to use IH, but now for `d` and `δs` instead.
-            specialize @IH _ in_B v u ?_ w_nξ d δs ?_ ?_ ?_
+            specialize @IH _ in_C v u ?_ w_nξ d δs ?_ ?_ ?_
             · intro f f_in; clear IH
               simp only [Option.map_some, Sum.elim_inl, negUnload, unload_loadMulti,
                 Option.toList_some, List.mem_union_iff, List.mem_append, List.mem_cons,
@@ -462,21 +462,21 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             -- Now actually get the IH result.
             rcases IH with ⟨Y, Y_in, v_Y
                            , ( Y_free
-                             | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Hl, Y_almost_free⟩ )⟩
-            · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
-            · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
+                             | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Dl, Y_almost_free⟩ )⟩
+            · refine ⟨Y, ⟨_, in_C, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
+            · refine ⟨Y, ⟨_, in_C, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
               refine ⟨F, _, in_Y, v_γs_w, ?_, v_F, ?_, Y_almost_free⟩
               · rw [dist_eq,same_dist,distance_list_singleton]
               -- Now show that `d` is atomic, because it resulted from `H α`.
               have ⟨a, d_atom⟩ : ∃ a, d = ((·a) : Program) := by
-                have := H_mem_sequence α _in_H
+                have := Dset_mem_sequence α _in_H
                 rcases this with inl | ⟨a, ⟨δ, list_prop⟩⟩
                 · exfalso ; simp_all
                 · refine ⟨a, by simp_all⟩
               subst d_atom
-              -- Hence `Hl (d :: ...)` does not actually unfold anything.
-              simp at in_Hl
-              rw [in_Hl.2]
+              -- Hence `Dl (d :: ...)` does not actually unfold anything.
+              simp at in_Dl
+              rw [in_Dl.2]
               exact _in_H
       case loadedR outputs χ lrule resNodes_def => -- COPY-PASTA from loadedL, modulo `side`
         subst resNodes_def
@@ -486,10 +486,10 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
         -- We also need the info that `u` is picked minimally / witnesses the distance.
         have := exists_same_distance_of_relateSeq_cons v_αs_w
         rcases this with ⟨u, v_α_u, u_αs_w, u_picked_minimally⟩
-        -- Previously here we used `existsDiamondH` to imitate the relation `v_α_u`.
-        -- have from_H := @existsDiamondH W M α _ _ v_α_u
-        -- Now we use `rel_existsH_dist` to also get the same distance.
-        have from_H := rel_existsH_dist v_α_u
+        -- Previously here we used `existsDiamondDset` to imitate the relation `v_α_u`.
+        -- have from_H := @existsDiamondDset W M α _ _ v_α_u
+        -- Now we use `rel_existsD_dist` to also get the same distance.
+        have from_H := rel_existsD_dist v_α_u
         rcases from_H with ⟨⟨F,δ⟩, _in_H, v_F, same_dist⟩
         simp at same_dist
         have v_δ_u : relateSeq M δ v u := by
@@ -507,8 +507,8 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             rw [← this] at negLoad_in
             cases side <;> aesop
           subst α_same -- But cannot do `subst χ_def`.
-          -- This F,δ pair is also used for one result in `B`:
-          have in_B : (L, R ++ F, some (Sum.inr (~'⌊⌊δ⌋⌋χ'))) ∈ C := by
+          -- This F,δ pair is also used for one result in `C`:
+          have in_C : (L, R ++ F, some (Sum.inr (~'⌊⌊δ⌋⌋χ'))) ∈ C := by
             simp [applyLocalRule, unfoldDiamondLoaded, YsetLoad] at hC
             rw [hC]
             simp
@@ -521,7 +521,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             · exfalso; simp_all
             case cons new_α new_αs =>
               -- Let's prepare the IH application now.
-              specialize @IH _ in_B v w ?_ w_nξ new_α new_αs u_αs_w ?_ ?_
+              specialize @IH _ in_C v w ?_ w_nξ new_α new_αs u_αs_w ?_ ?_
               · intro f f_in; clear IH
                 simp only [LoadFormula.boxes_nil, Option.map_some, Sum.elim_inr, negUnload,
                   Option.toList_some, List.mem_union_iff, List.mem_append, List.mem_cons,
@@ -543,10 +543,10 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               -- Now actually get the IH result.
               rcases IH with ⟨ Y, Y_in, v_Y
                              , ( Y_free
-                               | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Hl, Y_almost_free⟩ )⟩
-              · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
+                               | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Dl, Y_almost_free⟩ )⟩
+              · refine ⟨Y, ⟨_, in_C, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
               · -- Not fully sure here.
-                refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
+                refine ⟨Y, ⟨_, in_C, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
                 refine ⟨F ∪ G, γs, in_Y, v_γs_w, ?_, ?_, ?_, Y_almost_free⟩
                 · rw [dist_eq]
                   rw [u_picked_minimally]
@@ -559,14 +559,14 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                   simp at f_in; cases f_in
                   · apply v_F; assumption
                   · apply v_G; assumption
-                simp [Hl]
+                simp [Dl]
                 refine ⟨_, _, _in_H, ?_⟩
                 simp
-                refine ⟨G, in_Hl, rfl⟩
+                refine ⟨G, in_Dl, rfl⟩
           case cons d δs =>
             -- A non-empty δ came from α, so we have not actually made the step to `u` yet.
             -- Again we prepare to use IH, but now for `d` and `δs ++ αs` instead.
-            specialize @IH _ in_B v w ?_ w_nξ d (δs ++ αs) ?_ ?_ ?_
+            specialize @IH _ in_C v w ?_ w_nξ d (δs ++ αs) ?_ ?_ ?_
             · intro f f_in
               simp only [Option.map_some, Sum.elim_inr, negUnload, unload_boxes,
                 Formula.boxes_cons, Option.toList_some, List.mem_union_iff, List.mem_append,
@@ -597,9 +597,9 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             -- Now actually get the IH result.
             rcases IH with ⟨ Y, Y_in, v_Y
                            , ( Y_free
-                             | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Hl, Y_almost_free⟩ )⟩
-            · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
-            · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
+                             | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Dl, Y_almost_free⟩ )⟩
+            · refine ⟨Y, ⟨_, in_C, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
+            · refine ⟨Y, ⟨_, in_C, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
               refine ⟨F, _, in_Y, v_γs_w, ?_, v_F, ?_, Y_almost_free⟩
               · rw [dist_eq]
                 -- was: TRICKY PROBLEM - how do we know that `u` is chosen to minimze distance?
@@ -613,19 +613,19 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                 · exact iInf_le_iff.mpr fun b a => a y
                 · simp [vDash.SemImplies, conEval]; assumption
               have αs_nonEmpty : αs ≠ [] := by cases αs <;> simp_all
-              simp only [Hl, List.mem_flatMap, Prod.exists] -- uses `αs_nonEmpty`
+              simp only [Dl, List.mem_flatMap, Prod.exists] -- uses `αs_nonEmpty`
               refine ⟨F, d :: δs, _in_H, ?_⟩
               simp
               -- Now show that `d` is atomic, because it resulted from `H α`.
               have ⟨a, d_atom⟩ : ∃ a, d = ((·a) : Program) := by
-                have := H_mem_sequence α _in_H
+                have := Dset_mem_sequence α _in_H
                 rcases this with inl | ⟨a, ⟨δ, list_prop⟩⟩
                 · exfalso ; simp_all
                 · refine ⟨a, by simp_all⟩
               subst d_atom
-              -- Hence `Hl (d :: ...)` does not actually unfold anything.
-              simp at in_Hl
-              exact in_Hl.2
+              -- Hence `Dl (d :: ...)` does not actually unfold anything.
+              simp at in_Dl
+              exact in_Dl.2
         case dia' α' φ' α'_not_atomic => -- only *somewhat* analogous to `dia` case.
           -- The rule application has its own α' that must be α,
           -- also has its own φ' that must be φ, (this is new/easier here)
@@ -647,14 +647,14 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
           subst αs_empty
           simp [relateSeq] at u_αs_w
           subst u_αs_w -- We now have u = w.
-          -- Note: we now do `in_B` *after* distinguishing whether δ = [].
-          simp only [Hl_singleton]
+          -- Note: we now do `in_C` *after* distinguishing whether δ = [].
+          simp only [Dl_singleton]
           cases δ
           case nil => -- δ is empty, so we should have a free result?
             simp at v_δ_u v_F -- Here we have v = u.
             subst v_δ_u
-            -- This F,δ pair is also used for one result in `B`:
-            have in_B : (L, R ++ (F ∪ [~φ]), none) ∈ C := by
+            -- This F,δ pair is also used for one result in `C`:
+            have in_C : (L, R ++ (F ∪ [~φ]), none) ∈ C := by
               simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at hC
               rw [hC]
               simp
@@ -671,9 +671,9 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             -- We do not know `Y` yet because ltab may continue after `(L ++ F ++ [~φ], R, none)`.
             -- So let's use localTableauTruth to find a free end node, similar to αs = [] case.
             have v_Z : (M, v) ⊨ ((L, R ++ (F ∪ [~φ]), none) : Sequent) := by intro f f_in; aesop
-            rcases (localTableauTruth (next _ in_B) M v).1 v_Z with ⟨Y, Y_in, v_Y⟩
-            refine ⟨Y, ⟨(L, R ++ (F ∪ [~φ]), none), in_B, Y_in⟩, ⟨v_Y, Or.inl ?_⟩⟩
-            apply endNodesOf_free_are_free (next _ in_B) ?_ Y_in
+            rcases (localTableauTruth (next _ in_C) M v).1 v_Z with ⟨Y, Y_in, v_Y⟩
+            refine ⟨Y, ⟨(L, R ++ (F ∪ [~φ]), none), in_C, Y_in⟩, ⟨v_Y, Or.inl ?_⟩⟩
+            apply endNodesOf_free_are_free (next _ in_C) ?_ Y_in
             simp
           case cons d δs =>
             rw [@relateSeq_cons] at v_δ_u
@@ -683,7 +683,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               | none => by exfalso; simp_all [splitLast]
             have split_def : splitLast (d :: δs) = some δ_β := by rfl
             -- This F,δ pair is also used for one result in `B`:
-            have in_B : (L, R ++ F, some (Sum.inr (~'loadMulti δ_β.1 δ_β.2 φ))) ∈ C := by
+            have in_C : (L, R ++ F, some (Sum.inr (~'loadMulti δ_β.1 δ_β.2 φ))) ∈ C := by
               simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at hC
               rw [hC]
               simp only [List.mem_map, Function.comp_apply, List.append_nil, Prod.mk.injEq,
@@ -694,7 +694,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             -- Rest based on non-empty δ case in `dia` above; changed to work with `loadMulti`.
             -- A non-empty δ came from α, so we have not actually made the step to `u` yet.
             -- Again we prepare to use IH, but now for `d` and `δs` instead.
-            specialize @IH _ in_B v u ?_ w_nξ d δs ?_ ?_ ?_
+            specialize @IH _ in_C v u ?_ w_nξ d δs ?_ ?_ ?_
             · intro f f_in; clear IH next
               simp only [Option.map_some, Sum.elim_inr, negUnload, unload_loadMulti,
                 Option.toList_some, List.mem_union_iff, List.mem_append, List.mem_cons,
@@ -721,22 +721,22 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             -- Now actually get the IH result.
             rcases IH with ⟨Y, Y_in, v_Y
                            , ( Y_free
-                             | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Hl, Y_almost_free⟩ )⟩
-            · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
-            · refine ⟨Y, ⟨_, in_B, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
+                             | ⟨G, γs, in_Y, v_γs_w, dist_eq, v_G, in_Dl, Y_almost_free⟩ )⟩
+            · refine ⟨Y, ⟨_, in_C, Y_in⟩ , ⟨v_Y, Or.inl Y_free⟩⟩ -- free'n'easy
+            · refine ⟨Y, ⟨_, in_C, Y_in⟩ , ⟨v_Y, Or.inr ?_⟩⟩
               refine ⟨F, _, in_Y, v_γs_w, ?_, v_F, ?_, Y_almost_free⟩
               · rw [dist_eq,same_dist,distance_list_singleton]
               -- Now show that `d` is atomic, because it resulted from `H α`.
               have ⟨a, d_atom⟩ : ∃ a, d = ((·a) : Program) := by
-                have := H_mem_sequence α _in_H
+                have := Dset_mem_sequence α _in_H
                 rcases this with inl | ⟨a, ⟨δ, list_prop⟩⟩
                 · exfalso ; simp_all
                 · refine ⟨a, by simp_all⟩
               subst d_atom
-              -- Hence `Hl (d :: ...)` does not actually unfold anything.
-              simp only [Hl_atomic_cons, List.mem_cons, Prod.mk.injEq, List.not_mem_nil,
-                or_false] at in_Hl
-              rw [in_Hl.2]
+              -- Hence `Dl (d :: ...)` does not actually unfold anything.
+              simp only [Dl_atomic_cons, List.mem_cons, Prod.mk.injEq, List.not_mem_nil,
+                or_false] at in_Dl
+              rw [in_Dl.2]
               exact _in_H
     case sim X X_isBasic =>
       clear no_other_loading

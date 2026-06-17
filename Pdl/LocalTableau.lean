@@ -1208,7 +1208,7 @@ theorem lmOfFormula.le_union_right α β φ : lmOfFormula (~⌈β⌉φ) ≤ lmOf
   all_goals
     simp [testsOfProgram]
 
-theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Dset α) {ψ} (in_Fs : ψ ∈ Fs) :
+theorem Dset_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Dset α) {ψ} (in_Fs : ψ ∈ Fs) :
     lmOfFormula ψ < lmOfFormula (~⌈α⌉φ) := by
   cases α
   · simp_all [Dset]
@@ -1227,7 +1227,7 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Dset α) {ψ}
         subst_eqs
         simp_all only [List.mem_union_iff]
         rcases in_Fs with in_Fs'|in_Fs''
-        · have IHα := H_goes_down α φ in_H in_Fs'
+        · have IHα := Dset_goes_down α φ in_H in_Fs'
           cases α
           all_goals
             simp [lmOfFormula] at IHα
@@ -1235,7 +1235,7 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Dset α) {ψ}
             simp only [List.attach_map_val, testsOfProgram] at *
             simp_all
             try linarith
-        · have IHβ := H_goes_down β φ in_Hβ in_Fs''
+        · have IHβ := Dset_goes_down β φ in_Hβ in_Fs''
           cases β
           all_goals
             simp_all [Dset, testsOfProgram, lmOfFormula]
@@ -1245,7 +1245,7 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Dset α) {ψ}
         rw [Function.comp_def, Function.comp_def, List.attach_map_val, List.attach_map_val]
         cases in_l
         subst_eqs
-        have IHα := H_goes_down α φ in_H in_Fs
+        have IHα := Dset_goes_down α φ in_H in_Fs
         cases α
         all_goals
           simp_all [Dset, testsOfProgram, lmOfFormula]
@@ -1256,10 +1256,10 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Dset α) {ψ}
   case union α β =>
     simp only [Dset, List.mem_union_iff] at in_H
     rcases in_H with hyp|hyp
-    · have IHα := H_goes_down α φ hyp in_Fs
+    · have IHα := Dset_goes_down α φ hyp in_Fs
       suffices lmOfFormula (~⌈α⌉φ) ≤ lmOfFormula (~⌈α⋓β⌉φ) by linarith
       apply lmOfFormula.le_union_left
-    · have IHβ := H_goes_down β φ hyp in_Fs
+    · have IHβ := Dset_goes_down β φ hyp in_Fs
       suffices lmOfFormula (~⌈β⌉φ) ≤ lmOfFormula (~⌈α⋓β⌉φ) by linarith
       apply lmOfFormula.le_union_right
   case star α =>
@@ -1272,7 +1272,7 @@ theorem H_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Dset α) {ψ}
       · simp only [testsOfProgram]
         cases in_l
         subst_eqs
-        have IHα := H_goes_down α φ in_H' in_Fs
+        have IHα := Dset_goes_down α φ in_H' in_Fs
         cases α <;> simp_all only [lmOfFormula, not_lt_zero']
   case test τ =>
     simp_all [Dset, testsOfProgram]
