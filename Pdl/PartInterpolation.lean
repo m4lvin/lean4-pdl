@@ -667,105 +667,176 @@ def clusterInterpolation_right {Hist L R nlf}
     : PartInterpolant (L, R, some (Sum.inr nlf)) := by
   sorry
 
-/-- TODO messy helper for `mem_existsOf_of_flip`. Statement might still need to be changed. -/
-lemma PathIn.loc_flip
-    nrep nbas
-    (lt : LocalTableau (L, R, some (Sum.inl nlf)))
-    (next : (Y : _) → Y ∈ endNodesOf lt → Tableau ((L, R, some (Sum.inl nlf)) :: Hist) Y)
-    (next' : (Yf : _) → Yf ∈ endNodesOf lt.flip → Tableau ((_ :: Hist).map Sequent.flip) Yf)
-    (Y : Sequent)
-    (Y_in : Y ∈ endNodesOf lt)
-    (Yf_in : Y.flip ∈ endNodesOf lt.flip)
-    (h_next : (next Y Y_in).flip = next' Y.flip Yf_in)
-    (h : (Tableau.loc nrep nbas lt.flip next') = (Tableau.loc nrep' nbas' lt next).flip)
-    :
-    (PathIn.loc Y_in nil).flip = h ▸ @PathIn.loc _ _ _ _ lt.flip next' _ Yf_in .nil := by
-  cases h -- oho!
-  simp [PathIn.flip] -- hmm
-  grind
+/-! ### Helper lemmas for `mem_existsOf_of_flip` (dependent-type / HEq plumbing) -/
 
-/-! The following lemma about `PathIn.flip` is here because it is also about `exitsOf`. -/
+/-- `PathIn.nil` over heterogeneously-equal tableaux are heterogeneously equal. -/
+theorem PathIn_nil_heq {H1 X1 H2 X2} {t1 : Tableau H1 X1} {t2 : Tableau H2 X2}
+    (hH : H1 = H2) (hX : X1 = X2) (h : HEq t1 t2) :
+    HEq (PathIn.nil : PathIn t1) (PathIn.nil : PathIn t2) := by
+  subst hH hX; obtain rfl := eq_of_heq h; rfl
 
-lemma mem_existsOf_of_flip {Hist L R lr_nlf} {tab : Tableau Hist (L, R, some lr_nlf)}
+/-- This lemma about `PathIn.flip` is here because it is also about `exitsOf`. -/
+lemma mem_existsOf_of_flip {Hist X} {tab : Tableau Hist X}
     (s : PathIn tab.flip) (s_in : s ∈ (exitsOf tab.flip : List (PathIn tab.flip)))
     : (PathIn_type_flip_flip ▸ s.flip) ∈ exitsOf tab := by
-  unfold exitsOf at *
-  rcases lr_nlf with (nlf|nlf)
-  · cases tab
-    case loc nbas lt nrep next =>
-      simp only [Sequent.flip, Olf.flip, Option.map_some, Sum.swap_inl, Tableau.flip,
-        Sequent.isLoaded, decide_true, ↓reduceIte, List.mem_flatMap, List.mem_attach, List.mem_map,
-        true_and, Subtype.exists, Sum.swap_inr] at *
+  induction tab with
+  | loc nrep nbas lt next ih =>
+    rename_i Hist X
+    unfold exitsOf at s_in ⊢
+    by_cases hX : X.isLoaded
+    · simp only [Sequent.flip_isLoaded, hX, ↓reduceIte] at *
+      simp only [Sequent.flip, Olf.flip, Tableau.flip, List.mem_flatMap, List.mem_attach,
+        List.mem_map, true_and, Subtype.exists] at *
       rcases s_in with ⟨Yf, Yf_in, e, e_in, def_s⟩
       rcases exists_flip_of_endNodesOf Yf_in with ⟨Y, def_Yf, Y_in⟩
-      subst def_Yf def_s
+      subst def_Yf
       rcases Y with ⟨LY, RY, (_|lr_nlf_Y)⟩
-      · simp [Sequent.flip] at e
-        simp_all [Sequent.flip]
+      · subst def_s
+        simp [Sequent.flip] at e
+        simp [Sequent.flip] at *
         rw! (castMode := .all) [Olf.flip_none] at e_in; simp at e_in
-        rw [LocalTableau.flip_flip] at Y_in
-        -- Should this be exfalso here?
-        -- - Show that Y must be loaded -- should follow from what here?
-        -- Or is it okay for an exit to be "inside" / right after a local tableau?
-        refine ⟨ (LY,RY,none), Y_in, .nil, ?_, ?_⟩
+        have Y_in' : (LY, RY, none) ∈ endNodesOf lt := by
+          have := endNodesOf_flip Yf_in; simpa [Sequent.flip_flip] using this
+        refine ⟨ (LY,RY,none), Y_in', .nil, ?_, ?_⟩
         · unfold exitsOf
           simp [Sequent.isLoaded]
         · unfold exitsOf at e_in
           simp [Sequent.isLoaded] at e_in
           subst e_in
-          unfold PathIn.flip; simp
-          unfold PathIn.flip; simp
-          -- IDEA: have := `PathIn.loc_flip L R nlf Hist nrep nbas ?_ ?_ lt next _ _ Y_in Yf_in _ _
-          try grind
-          -- TODO: Lemma about .loc .nil and cast?
-          sorry
-      · rcases lr_nlf_Y with (nlfY|nlfY)
-        · sorry -- analogous later?
-        simp [Sequent.flip] at *
-        unfold Sequent.flip at e e_in
-        simp at e e_in
-        unfold Olf.flip at e e_in
-        simp at e e_in
-        have := endNodesOf_flip Yf_in
-        simp only [Sequent.flip_flip] at this
-        refine ⟨(LY, RY, some _), this, ?_⟩
-        use (PathIn_type_flip_flip ▸ e.flip)
-        constructor
-        · have IH := mem_existsOf_of_flip e e_in -- yeah?!
-          grind
-        · -- only HEq business left to do here?
-          sorry
-    case pdl Y bas r nrep next =>
-      simp_all only [Sequent.flip, Olf.flip, Option.map_some, Sum.swap_inl, Tableau.flip,
-        Sequent.isLoaded, decide_true, ↓reduceIte, List.mem_map, Sum.swap_inr]
+          simp only [PathIn.flip]
+          -- HEq business: `PathIn.flip` commutes with `.loc .nil` (up to casts).
+          apply eq_of_heq
+          refine HEq.trans ?_ (eqRec_heq_iff_heq.mpr HEq.rfl).symm
+          congr 1
+          · exact Sequent.map_flip_map_flip.symm
+          · exact Sequent.flip_flip.symm
+          · exact proof_irrel_heq _ _
+          · exact proof_irrel_heq _ _
+          · exact (flip_aux_LocalTableau_flip_flip_heq lt).symm
+          · symm
+            apply Function.hfunext rfl
+            intro ⟨aL, aR, aO⟩ a' ha
+            obtain rfl := eq_of_heq ha
+            apply Function.hfunext
+            · rw [endNodesOf_flip_flip]
+            · intro b b' hb
+              simp only [eqRec_heq_iff_heq]
+              refine HEq.trans (Tableau_flip_heq (by simp [Sequent.flip, Olf.flip])
+                (by simp [Sequent.flip, Olf.flip]) (eqRec_heq_iff_heq.mpr HEq.rfl)) ?_
+              refine HEq.trans (flip_aux_Tableau_flip_flip_heq _) ?_
+              congr 1 <;> first
+                | exact proof_irrel_heq _ _
+                | simp [Sequent.flip, Olf.flip, Option.map_map]
+          · exact proof_irrel_heq _ _
+          · refine PathIn_nil_heq ?_ ?_ ?_
+            · simp [List.map_cons]
+              exact Sequent.flip_flip.symm
+            · exact Sequent.flip_flip.symm
+            · symm
+              refine HEq.trans (flip_aux_Tableau_flip_flip_heq _) ?_
+              congr 1
+      · -- Y is loaded; the `Sum.inl` and `Sum.inr` cases are identical.
+        rcases lr_nlf_Y with (nlfY | nlfY) <;>
+        · simp [Sequent.flip] at *
+          unfold Sequent.flip at e e_in
+          simp at e e_in
+          unfold Olf.flip at e e_in
+          simp at e e_in
+          have := endNodesOf_flip Yf_in
+          simp only [Sequent.flip_flip] at this
+          refine ⟨(LY, RY, some _), this, ?_⟩
+          use (PathIn_type_flip_flip ▸ e.flip)
+          refine ⟨ih _ _ e e_in, ?_⟩
+          -- `PathIn.flip` commutes with `.loc` (up to casts).
+          subst def_s
+          apply eq_of_heq
+          simp only [PathIn.flip]
+          refine HEq.trans ?_ (eqRec_heq_iff_heq.mpr HEq.rfl).symm
+          congr 1
+          case e_5 => exact (flip_aux_LocalTableau_flip_flip_heq lt).symm
+          case e_6 =>
+            symm
+            apply Function.hfunext rfl
+            intro a a' ha
+            obtain rfl := eq_of_heq ha
+            obtain ⟨aL, aR, aO⟩ := a
+            apply Function.hfunext
+            · rw [endNodesOf_flip_flip]
+            · intro b b' hb
+              simp only [eqRec_heq_iff_heq]
+              refine HEq.trans (Tableau_flip_heq (by simp [Sequent.flip, Olf.flip])
+                (by simp [Sequent.flip, Olf.flip]) (eqRec_heq_iff_heq.mpr HEq.rfl)) ?_
+              refine HEq.trans (flip_aux_Tableau_flip_flip_heq _) ?_
+              congr 1 <;> first
+                | exact proof_irrel_heq _ _
+                | simp [Sequent.flip, Olf.flip, Option.map_map]
+          case e_9 =>
+            simp only [eqRec_heq_iff_heq]
+            exact (flip_aux_eq_mpr_heq _ _).symm
+          all_goals first
+            | exact proof_irrel_heq _ _
+            | exact Sequent.flip_flip.symm
+            | simp
+    · simp only [Sequent.flip_isLoaded, hX, Bool.false_eq_true, ↓reduceIte,
+        List.mem_singleton] at *
+      subst s_in
+      apply eq_of_heq
+      rw [eqRec_heq_iff_heq]
+      simp only [PathIn.flip]
+      congr 1 <;> simp
+  | pdl nrep bas r next ih =>
+    rename_i Hist X Y
+    unfold exitsOf at s_in ⊢
+    by_cases hX : X.isLoaded
+    · simp only [Sequent.flip_isLoaded, hX, ↓reduceIte] at *
+      simp_all only [Sequent.flip, Olf.flip, Tableau.flip, List.mem_map]
       rcases s_in with ⟨e, e_in, def_s⟩
-      subst def_s
       rcases Y with ⟨LY, RY, (_|lr_nlf_Y)⟩ -- to get that Y is loaded
-      · unfold exitsOf at ⊢ e_in
+      · subst def_s
+        unfold exitsOf at ⊢ e_in
         simp [Sequent.isLoaded] at *
         subst e_in
-        -- only HEq business left to do here?
-        sorry
-      · have IH := mem_existsOf_of_flip e e_in
-        use (PathIn_type_flip_flip ▸ e.flip), IH
+        -- `PathIn.flip` of `.pdl .nil` is `.pdl .nil` (up to casts).
+        exact (PathIn.flip_flip (PathIn.pdl PathIn.nil)).symm
+      · refine ⟨PathIn_type_flip_flip ▸ e.flip, ?_, ?_⟩
+        · exact ih e e_in
+        rw [← def_s]
         simp
-        -- only HEq business left to do here?
-        sorry
-
-    case lrep =>
-      simp [Sequent.isLoaded, Sequent.flip, Olf.flip] at *
+        -- HEq business: `PathIn.flip` commutes with `.pdl` (up to casts).
+        apply eq_of_heq
+        simp only [PathIn.flip]
+        refine HEq.trans ?_ (eqRec_heq_iff_heq.mpr HEq.rfl).symm
+        congr 1 <;> first
+          | rfl
+          | exact Sequent.flip_flip.symm
+          | exact Sequent.map_flip_map_flip.symm
+          | exact (flip_aux_PdlRule_flip_flip_heq r).symm
+          | exact flip_aux_PdlRule_flip_flip_heq r
+          | exact (flip_aux_Tableau_flip_flip_heq next).symm
+          | exact flip_aux_Tableau_flip_flip_heq next
+          | exact eqRec_heq_iff_heq.mpr HEq.rfl
+          | exact proof_irrel_heq _ _
+    · simp only [Sequent.flip_isLoaded, hX, Bool.false_eq_true, ↓reduceIte,
+        List.mem_singleton] at *
+      subst s_in
+      apply eq_of_heq
+      rw [eqRec_heq_iff_heq]
+      simp only [PathIn.flip]
+      congr 1 <;> simp
+  | lrep lpr =>
+    rename_i X Hist
+    unfold exitsOf at s_in ⊢
+    by_cases hX : X.isLoaded
+    · simp only [Sequent.flip_isLoaded, hX, ↓reduceIte] at *
+      simp [Sequent.flip, Olf.flip] at *
       simp_all [Tableau.flip]
-
-  · -- other `nlf` side, should be analogous.
-    sorry
-termination_by
-  s.length
-decreasing_by
-  · simp_wf
-    subst_eqs
-    sorry
-  · -- use that length goes down with `edge`?
-    sorry
+    · simp only [Sequent.flip_isLoaded, hX, Bool.false_eq_true, ↓reduceIte,
+        List.mem_singleton] at *
+      subst s_in
+      apply eq_of_heq
+      rw [eqRec_heq_iff_heq]
+      simp only [PathIn.flip]
+      congr 1 <;> simp
 
 def exitsOf_flip {tab : Tableau Hist (L, R, some nlf)}
     (exitIPs : ∀ e ∈ exitsOf tab, PartInterpolant (nodeAt e)) :
