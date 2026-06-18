@@ -404,3 +404,92 @@ lemma PathIn.nodeAt_flip {Hist X} {tab : Tableau Hist X} {e : PathIn tab} :
       rfl
     · simp_all
   case pdl => simp_all [PathIn.flip]
+
+/-- `Eq.mpr` is a heterogeneous identity. -/
+theorem flip_aux_eq_mpr_heq {a b : Sort u} (h : a = b) (x : b) : HEq (Eq.mpr h x) x := by
+  cases h; rfl
+
+/-- Flipping a tableau twice gives back (heterogeneously) the original tableau. -/
+theorem flip_aux_Tableau_flip_flip_heq {H X} (t : Tableau H X) : HEq t.flip.flip t := by
+  rw [Tableau.flip_flip]; exact eqRec_heq_iff_heq.mpr (eqRec_heq_iff_heq.mpr HEq.rfl)
+
+/-- Flipping a local tableau twice gives back (heterogeneously) the original one. -/
+theorem flip_aux_LocalTableau_flip_flip_heq {X} (lt : LocalTableau X) : HEq lt.flip.flip lt := by
+  rw [LocalTableau.flip_flip]; exact eqRec_heq_iff_heq.mpr HEq.rfl
+
+/-- Flipping a pdl rule twice gives back (heterogeneously) the original one. -/
+theorem flip_aux_PdlRule_flip_flip_heq {X Y} (r : PdlRule X Y) : HEq r.flip.flip r := by
+  rw [PdlRule.flip_flip]; exact eqRec_heq_iff_heq.mpr (eqRec_heq_iff_heq.mpr HEq.rfl)
+
+/-- End nodes are invariant under flipping a local tableau twice. -/
+theorem endNodesOf_flip_flip {X} (lt : LocalTableau X) :
+    endNodesOf lt.flip.flip = endNodesOf lt := by
+  rw [LocalTableau.flip_flip]; congr 1
+  · exact Sequent.flip_flip
+  · exact eqRec_heq _ _
+
+/-- `PathIn.flip` respects heterogeneous equality of paths. -/
+theorem PathIn_flip_heq {H1 X1 H2 X2} {t1 : Tableau H1 X1} {t2 : Tableau H2 X2}
+    {p1 : PathIn t1} {p2 : PathIn t2}
+    (hH : H1 = H2) (hX : X1 = X2) (ht : HEq t1 t2) (hp : HEq p1 p2) :
+    HEq p1.flip p2.flip := by
+  subst hH hX; obtain rfl := eq_of_heq ht; rw [eq_of_heq hp]
+
+/-- `Tableau.flip` respects heterogeneous equality of tableaux. -/
+theorem Tableau_flip_heq {H1 X1 H2 X2} {t1 : Tableau H1 X1} {t2 : Tableau H2 X2}
+    (hH : H1 = H2) (hX : X1 = X2) (h : HEq t1 t2) : HEq t1.flip t2.flip := by
+  subst hH hX; rw [eq_of_heq h]
+
+/-- Flipping a path twice gives back (after casting along `PathIn_type_flip_flip`)
+the original path. -/
+theorem PathIn.flip_flip {Hist X} {tab : Tableau Hist X} (p : PathIn tab) :
+    PathIn_type_flip_flip ▸ (p.flip.flip) = p := by
+  induction p with
+  | nil =>
+    apply eq_of_heq
+    rw [eqRec_heq_iff_heq]
+    simp only [PathIn.flip]
+    congr 1 <;> simp
+  | @pdl Hist X Y nrep bas r next tail IH =>
+    apply eq_of_heq
+    rw [eqRec_heq_iff_heq]
+    simp only [PathIn.flip]
+    have hIH : HEq (tail.flip.flip) tail := eqRec_heq_iff_heq.mp (heq_of_eq IH)
+    have hr : HEq r.flip.flip r := by
+      rw [PdlRule.flip_flip, eqRec_heq_iff_heq, eqRec_heq_iff_heq]
+    have hnext : HEq next.flip.flip next := by
+      rw! [Tableau.flip_flip]; rw [eqRec_heq_iff_heq, eqRec_heq_iff_heq]
+    congr 1 <;> first
+      | rfl | exact hIH | exact hr | exact hnext | exact proof_irrel_heq _ _ | simp_all
+  | @loc Hist X nrep nbas lt next Y Y_in tail IH =>
+    apply eq_of_heq
+    rw [eqRec_heq_iff_heq]
+    simp only [PathIn.flip]
+    have htail : HEq (tail.flip.flip) tail := eqRec_heq_iff_heq.mp (heq_of_eq IH)
+    congr 1
+    case e_1 => simp
+    case e_2 => simp
+    case e_5 => rw [LocalTableau.flip_flip, eqRec_heq_iff_heq]
+    case e_6 =>
+      apply Function.hfunext rfl
+      intro a a' ha
+      obtain rfl := eq_of_heq ha
+      apply Function.hfunext
+      · rw [endNodesOf_flip_flip]
+      · intro b b' hb
+        simp only [eqRec_heq_iff_heq]
+        refine HEq.trans (Tableau_flip_heq (by simp) (by simp)
+          (eqRec_heq_iff_heq.mpr HEq.rfl)) ?_
+        refine HEq.trans (flip_aux_Tableau_flip_flip_heq _) ?_
+        rw! (castMode := .all) [Sequent.flip_flip]
+        apply heq_of_eq; congr 1
+    case e_9 =>
+      refine HEq.trans ?_ htail
+      refine HEq.trans (flip_aux_eq_mpr_heq _ _) ?_
+      refine PathIn_flip_heq (by simp) (by simp) ?_ (flip_aux_eq_mpr_heq _ _)
+      simp only [eqRec_heq_iff_heq]
+      refine Tableau_flip_heq (by simp) (by simp) ?_
+      rw! (castMode := .all) [Sequent.flip_flip]
+      apply heq_of_eq; congr 1
+    all_goals (try exact proof_irrel_heq _ _)
+    all_goals (try (simp))
