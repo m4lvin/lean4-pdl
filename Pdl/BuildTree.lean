@@ -211,6 +211,19 @@ inductive Match : ∀ {H : History} {X : Sequent}, BuildTree H X → Type
   | loc {nbas next lt} : Match (next lt).6 → Match (BuildTree.loc nbas next)
   | pdl {bas next Y r} : Match (next Y r) → Match (BuildTree.pdl bas next)
 
+/-- Inspired by `PathIn.length`. Counting the steps made by a `Match` in a `BuildTree`.
+Note that such a step may be combinations of a prover and a builder move. -/
+@[simp]
+def Match.length {H : History} {X : Sequent} {bt : BuildTree H X} : Match bt → Nat
+  | .nil => 0
+  | .loc tail => tail.length + 1
+  | .pdl tail => tail.length + 1
+
+def Match.btAt {H X} {bt : BuildTree H X} : Match bt → Σ H' Y, BuildTree H' Y
+| .nil => ⟨_, _, bt⟩
+| .loc tail => btAt tail
+| .pdl tail => btAt tail
+
 /- All possible Matches in a given BuildTree. -/
 def Match.all {H X} : (bt : BuildTree H X) → List (Match bt)
   | .loc nbas next =>
@@ -240,49 +253,25 @@ decreasing_by
     have := List.le_sum_of_mem this
     grind
 
-theorem Match.all_spec {H X} (bt : BuildTree H X) :
-    ∀ m, m ∈ Match.all bt := by
-  intro m
-  rcases m
-  case nil =>
-    cases bt
-    case loc _ _ =>
-      rw[Match.all]
-      left
-    case pdl _ _ =>
-      rw[Match.all]
-      left
-    case freeRepeat _ =>
-      rw[Match.all]
-      simp
-    case openLeaf =>
-      rw[Match.all]
-      simp
-  case loc Ha Ix nbas a next lt =>
-    rw[Match.all]
+theorem Match.all_spec {H X} (bt : BuildTree H X) m :
+    m ∈ Match.all bt := match m with
+  | nil => by cases bt <;> grind [Match.all]
+  | @loc _ _ nbas next lt tail => by
+    have IH := Match.all_spec _ tail
+    rw [Match.all]
     simp
+    refine ⟨lt, ?_⟩
     -- something like a is an instance of ltX b/c LocalTableau.all_spec
     -- something like lt is in Match.all (next a).6 and therefore an instance of __do_lift
     -- something like bc lt is an instance of __do_lift, lt.loc is an instance of __do_lift.loc
     sorry
-  case pdl a next r bas =>
-    rw[Match.all]
-    right
-    sorry
-  -- easy, hopefully?
-
-/-- Inspired by `PathIn.length`. Counting the steps made by a `Match` in a `BuildTree`.
-Note that such a step may be combinations of a prover and a builder move. -/
-@[simp]
-def Match.length {H : History} {X : Sequent} {bt : BuildTree H X} : Match bt → Nat
-  | .nil => 0
-  | .loc tail => tail.length + 1
-  | .pdl tail => tail.length + 1
-
-def Match.btAt {H X} {bt : BuildTree H X} : Match bt → Σ H' Y, BuildTree H' Y
-| .nil => ⟨_, _, bt⟩
-| .loc tail => btAt tail
-| .pdl tail => btAt tail
+  | @pdl _ _ bas next Y r tail => by
+    have IH := Match.all_spec _ tail
+    rw [Match.all]
+    simp
+    refine ⟨_, r, PdlRule.all_spec bas r, ?_⟩
+    refine ⟨tail, IH, rfl, ?_⟩ -- heterogeneous equality left here
+    simp
 
 -- TODO lemmas like those about `tabAt` and `nodeAt`?
 
