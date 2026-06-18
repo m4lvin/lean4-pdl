@@ -256,15 +256,13 @@ decreasing_by
 theorem Match.all_spec {H X} (bt : BuildTree H X) m :
     m ∈ Match.all bt := match m with
   | nil => by cases bt <;> grind [Match.all]
-  | @loc _ _ nbas next lt tail => by
-    have IH := Match.all_spec _ tail
-    rw [Match.all]
+  | @loc _ _ bas next lt tail => by
+    have IH:= Match.all_spec _ tail
+    rw[Match.all]
     simp
-    refine ⟨lt, ?_⟩
-    -- something like a is an instance of ltX b/c LocalTableau.all_spec
-    -- something like lt is in Match.all (next a).6 and therefore an instance of __do_lift
-    -- something like bc lt is an instance of __do_lift, lt.loc is an instance of __do_lift.loc
-    sorry
+    refine ⟨lt,?_ ⟩
+    refine ⟨ LocalTableau.all_spec ,tail,IH,?_⟩
+    simp
   | @pdl _ _ bas next Y r tail => by
     have IH := Match.all_spec _ tail
     rw [Match.all]
