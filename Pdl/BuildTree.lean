@@ -271,73 +271,24 @@ theorem Match.all_spec {H X} (bt : BuildTree H X) m :
     refine ⟨tail, IH, rfl, ?_⟩ -- heterogeneous equality left here
     simp
 
--- TODO lemmas like those about `tabAt` and `nodeAt`?
-
-def Match.append {H X} {bt : BuildTree H X} :
-    (m1 : Match bt) → (m2 : Match (btAt m1).2.2) → Match bt
-| .nil, m2 => m2
-| .loc tail, m2 => .loc (append tail m2)
-| .pdl tail, m2 => .pdl (append tail m2)
-
--- TODO lemmas like those about `PathIn.append`?
-
-@[grind]
-structure Match.locEdge (m n : Match bt) where
-  H : History
-  mY : Sequent
-  nbas : _
-  next : (lt : LocalTableau mY) → BuildChoice H mY (endNodesOf lt)
-  lt : LocalTableau mY
-  btAt_m_def : btAt m = ⟨H, mY, @BuildTree.loc _ mY nbas next⟩
-  btAt_n_def : btAt n = ⟨(next lt).2 :: (next lt).1, (next lt).4, (next lt).6⟩
-
-@[grind]
-structure Match.pdlEdge (m n : Match bt) where
-  H : History
-  mX : Sequent
-  nY : Sequent
-  bas : mX.basic
-  next : ∀ Y, ∀ _r : PdlRule mX Y, BuildTree (mX :: H) Y
-  r : PdlRule mX nY
-  btAt_m_def : btAt m = ⟨_, mX, @BuildTree.pdl H mX bas next⟩
-  btAt_n_def : btAt n = ⟨_, _, next nY r⟩
-
-/-- The parent-child relation ⋖_𝕋 in a Builder strategy tree. -/
-def Match.Edge (m n : Match bt) : Type := Match.locEdge m n ⊕ Match.pdlEdge m n
-
-lemma Match.Edge.wf {H X} {bt : BuildTree H X} :
-    WellFounded (fun (m n : Match bt) => Nonempty (Match.Edge m n)) := by
-  -- IDEA: similar to `matchesFinite`, but maybe easier?
-  -- Still use these things:
-  -- - `Match` is a finite type
-  -- - the transitive closure of `Match.Edge` is irreflexive
-  sorry
-
-/-- This edge between matches is a modal step.
-To even say this `BuildTree` must contain the rule data. -/
-def Match.Edge.isModal {H X} {bt : BuildTree H X} {m n : Match bt} : Match.Edge m n → Prop
-  | Sum.inl _ => False -- local edges are never modal steps.
-  | Sum.inr ⟨_, _, _, _, _, r, _, _⟩ =>  PdlRule.isModal r
-
-instance instDecidableMatchEdgeIsModal {e : Match.Edge m n} : Decidable (e.isModal) :=
-  match e with
-  | Sum.inl _ => by apply isFalse; simp [Match.Edge.isModal]
-  | Sum.inr ⟨_, _, _, _, _, r, _, _⟩ => by
-      simp [Match.Edge.isModal]; exact instDecidablePdlRuleIsModal
-
 def Match.isOpenLeaf {H X} {bt : BuildTree H X} {m : Match bt} : Prop :=
   match (btAt m) with | ⟨_, _, .openLeaf⟩ => True | _ => False
 
 def Match.isFreeRepeat {H X} {bt : BuildTree H X} (m : Match bt) : Prop :=
   match (btAt m) with | ⟨_, _, .freeRepeat _⟩ => True | _ => False
 
-/-- If `m` ends at an open leaf, then it cannot have an edge to any `n`. -/
-lemma Match.isOpenLeaf_no_edge {H X} {bt : BuildTree H X} (m : Match bt) (h : m.isOpenLeaf) :
-    ∀ n, ¬ Nonempty (Match.Edge m n) := by -- EASY as expected :)
-  intro n
-  unfold Match.isOpenLeaf at h
-  rintro ⟨m_n⟩
-  cases m_n <;> grind
+/-- Does this match end at a (M) rule (or any other pdl rule, in fact). -/
+def Match.endsAtModal (m : Match bt) : Prop :=
+  match btAt m with
+  | ⟨_, _, BuildTree.pdl _ _⟩ => True
+  | ⟨_, _, _⟩ => False
+
+-- needed / ever used?
+def Match.append {H X} {bt : BuildTree H X} :
+    (m1 : Match bt) → (m2 : Match (btAt m1).2.2) → Match bt
+| .nil, m2 => m2
+| .loc tail, m2 => .loc (append tail m2)
+| .pdl tail, m2 => .pdl (append tail m2)
 
 -- Maybe Match.toHistory is not actually needed? Skipping it for now.
 
@@ -406,90 +357,28 @@ As possible worlds for the model graph we want to define *maximal* paths inside 
 that do not contain `(M)` steps.
 
 In the paper pre-states are allowed to be of the form π;π' when π ends at a repeat and π' is a
-maximal prefix of the path from the companion to that repeat. Here in `PreState` and `PreStateP`
-we only store the π part of such pre-states, because the π' is then uniquely determined by π.
+maximal prefix of the path from the companion to that repeat.
+Here we only store the π part of such pre-states, because the π' is then uniquely determined by π.
 -/
 
-/-- A pre-state-part starting at `m` is any path in `bt : BuildTree` consisting of non-(M) `edge`s
-and stopping at a leaf or at an (M) application. (No `Match.companion` steps here, see note above.)
--/
-inductive PreStatePart {H X} (bt : BuildTree H X) : (m : Match bt) → Type
-| edge {m n} : (e : Match.Edge m n) → ¬ e.isModal → PreStatePart bt n → PreStatePart bt m
-| stopAtM {m n} : (e : Match.Edge m n) → e.isModal → PreStatePart bt m
-| stopAtOpenLeaf {m} : m.isOpenLeaf → PreStatePart bt m
-| stopAtFreeRepeat {m} : (h : m.isFreeRepeat) → PreStatePart bt m
- -- IDEA: PreStatePart bt (Match.companionOf m h) →
+/-- Given match marks the end of a pre state (or its π' part in case of free repeat.) -/
+def Match.representsPreState (m : Match bt) : Prop :=
+  m.isOpenLeaf ∨ m.isFreeRepeat ∨ m.endsAtModal
 
-/-- Collect all `PreStateP`s from a given `m` onwards. -/
-def BuildTree.allPreStateParts {H X0} (bt : BuildTree H X0) (m : Match bt) :
-    List (PreStatePart bt m) :=
-  match m_def : m.btAt with
-  | ⟨H', X, .loc nbas next⟩ => do
-      let ltX ←  @LocalTableau.all X
-      -- IDEA: `map next` but the result type is dependent.
-      have := next ltX
-      -- After that make recursive call. But better do `.pdl` case below first, hopefully easier?
-      sorry
-  | ⟨H', X, .pdl bas next⟩ => do
-      let ⟨Y,r⟩ ← @PdlRule.all X
-      let := next Y r
-      -- Now wrap up each `r` into a `Match.Edge`:
-      let n : Match bt := m.append sorry -- use `append` here or better something else?
-      have e : Match.Edge m n := .inr sorry
-      if isMo : e.isModal then
-        return PreStatePart.stopAtM e isMo
-      else
-        -- If we have a non-modal step, use recursion to get tail and then use PreStatePart.edge.
-        let tail ← BuildTree.allPreStateParts bt n
-        return PreStatePart.edge e isMo tail
-  | ⟨H', X, .freeRepeat fr⟩ => [ .stopAtFreeRepeat (by simp [Match.isFreeRepeat]; grind) ]
-  | ⟨H', X, .openLeaf⟩ => [ .stopAtOpenLeaf (by simp [Match.isOpenLeaf]; grind) ]
-termination_by
-  Match.Edge.wf.wrap m
-decreasing_by
-  sorry
+def PreState (bt : BuildTree H X) : Type := @Subtype (Match bt) Match.representsPreState
 
-lemma BuildTree.allPreStateParts_spec {H X} {bt : BuildTree H X} {m : Match bt}
-    {π : PreStatePart bt m} : π ∈ bt.allPreStateParts m := by
-  sorry
+def BuildTree.allPreStates (bt : BuildTree H X) : List (PreState bt) := sorry
 
-/-- A pre-state is a maximal pre-state-part, i.e. starting at the root or just after (M).
+def PreState.last : PreState bt → Match bt := sorry
 
-WORRY: should `fromRoot` also have a condition about `H` being empty, i.e. the start of the game?
--/
-inductive PreState {H X} (bt : BuildTree H X) : Type
-| fromRoot : PreStatePart bt .nil → PreState bt
-| fromMod {o m} : (e : Match.Edge o m) → e.isModal → PreStatePart bt m → PreState bt
+-- TODO: function given a match and a number of steps to go back, give all formulas since then.
 
-/-- Collect all `PreState`s for a given `BuildTree`. -/
-def BuildTree.allPreStates {H X} (bt : BuildTree H X) : List (PreState bt) :=
-  -- IDEAS: use `Match.all`, then filter by "is root or is just after modal", then
-  -- apply  BuildTree.allPreStateParts.
-  -- (Match.all bt).filter (fun m => m = .nil ∨ )
-  -- ... (bt.allPreStateParts .nil).map .fromRoot
-  sorry
+-- Give formulas since modal rule.
+-- Directly define this to collect the formulas on the way?
+-- TODO change Formula to AnyFormula, then repair below ;-)
+def PreState.getForms : (π  : PreState bt) → List Formula := sorry
 
-lemma BuildTree.allPreStates_spec {H X} {bt : BuildTree H X} :
-    ∀ π : PreState bt, π ∈ bt.allPreStates := by
-  unfold allPreStates
-  intro π
-  have := @BuildTree.allPreStateParts_spec
-  -- should be easy once `BuildTree.allPreStates` is done?
-  sorry
-
--- Notes:
--- - PreStatePart.forms
--- - change output type to AnyFormula
--- - Sequent.anyForms to collect
-
-
-/-- - Given a `PreStatePart` ending at a repeat, go to companion,
-then return the PreStatePart from there staying in the same Match. -/
-def PreStartPart.companionPart {m : Match bt} (h : m.isFreeRepeat) (π : PreStatePart bt m) :
-    π = PreStatePart.stopAtFreeRepeat h →
-    PreStatePart bt (Match.companionOf m h) :=
-  sorry
-
+/-
 /-- Collect formulas in a pre-state. The non-loaded part of Λ(π) in paper.
 
 TODO: If the pre-state ends in a repeat, also include formulas in the path from companion to (M).
@@ -513,12 +402,9 @@ def PreState.forms {bt : BuildTree H X} : PreState bt → List Formula := by
       sorry
   case fromMod =>
     sorry
+-/
 
-/-- Collect formulas in a pre-state. The loaded part of Λ(π) in paper. -/
-def PreState.lforms : PreState bt → List NegLoadFormula := sorry
-
-def PreState.last : PreState bt → Sequent := sorry
-
+-- unused?
 def principalFormulaForLocalRule :  LocalRule X YS -> AnyFormula
   | .oneSidedL orule _ =>
       match orule with
@@ -543,19 +429,17 @@ def principalFormulaForLocalRule :  LocalRule X YS -> AnyFormula
   | .loadedL φ _ _ => φ
   | .loadedR φ _ _ => φ
 
-
-
 /-- TODO Lemma 6.14 -/
-lemma PreState.formsCases {π : PreState bt} : φ ∈ π.forms →
-      (φ.basic ∧ φ ∈ π.last) -- NOTE: the `∈` is not dealing with loaded formulas here!
+lemma PreState.formsCases {π : PreState bt} : φ ∈ π.getForms →
+      (φ.basic ∧ φ ∈ π.last.btAt.2.1) -- NOTE: the `∈` might not deal with loaded formulas yet.
     ∨ (sorry) := by -- TODO how to say `φ is principal later?`
     -- Or can we say something else / phrase it as closure condition about π.forms directly?
   sorry
 
 /-- WIP Lemma 6.15 *un*loaded case -/
 lemma PreState.pdlFormCase {H X} {bt : BuildTree H X} {π : PreState bt} {α φ} :
-    ¬ α.isAtomic → (~⌈α⌉φ) ∈ π.forms →
-      ∃ Xδ ∈ Hset α, Xδ.1 ∪ [~ Formula.boxes Xδ.2 φ] ⊆ π.forms := by
+    ¬ α.isAtomic → (~⌈α⌉φ) ∈ π.getForms →
+      ∃ Xδ ∈ Hset α, Xδ.1 ∪ [~ Formula.boxes Xδ.2 φ] ⊆ π.getForms := by
   sorry
 
 /-
@@ -569,9 +453,9 @@ lemma PreState.loadedFormCase {H X} {bt : BuildTree H X} {π : PreState bt} {α 
 
 /-- WIP Lemma 6.16: pre-states are saturated and locally consistent, their last node is basic. -/
 lemma PreState.locConsSatBas {H X} {bt : BuildTree H X} (π : PreState bt) :
-    saturated (π.forms).toFinset
-    ∧ locallyConsistent (π.forms).toFinset
-    ∧ π.last.basic := by
+    saturated (π.getForms).toFinset
+    ∧ locallyConsistent (π.getForms).toFinset
+    ∧ π.last.btAt.2.1.basic := by
   -- define `PreState.forms` first.
   sorry
 
@@ -579,7 +463,7 @@ lemma PreState.locConsSatBas {H X} {bt : BuildTree H X} (π : PreState bt) :
 @[simp]
 def BuildTree.toModel {H X} (bt : BuildTree H X) :
     (Σ W : Finset (Finset Formula), KripkeModel W) :=
-  ⟨ ((bt.allPreStates).map (List.toFinset ∘ PreState.forms)).toFinset -- W
+  ⟨ ((bt.allPreStates).map (List.toFinset ∘ PreState.getForms)).toFinset -- W
   , { val := fun X p => Formula.atom_prop p ∈ X.1 -- valuation V(p)
     , Rel := fun a X Y => -- relation Rₐ
         ∃ φ, (~⌈·a⌉φ) ∈ X.1 ∧ (projection a X.1.toList).toFinset ∪ {~φ} ⊆ Y.1 }⟩
@@ -588,14 +472,15 @@ def BuildTree.toModel {H X} (bt : BuildTree H X) :
 
 QUESTION: which `R` can we use here in order to use `Modelgraphs.Q`?
 -/
-lemma PreState.diamondExistence {φ : AnyFormula} {π : PreState bt} : (~'⌊α⌋φ) ∈ π.lforms →
+lemma PreState.diamondExistence {φ : AnyFormula} {π : PreState bt} :
+  /- (~'⌊α⌋φ) ∈ π.getForms → -/ -- FIXME need loaded formulas in getForms result
     -- QUESTION: what to say about `π` here and what to say about node `t` lying on `π`?
     ∃ t : Match bt,
         AnyNegFormula.mem_Sequent (t.btAt).2.1 (~''φ)
       ∧ ∃ ρ : PreState bt, ∃ u : Match bt,
         -- TODO: t < u
         -- TODO: missing loaded formulas below
-        @Modelgraphs.Q sorry sorry α ⟨π.forms.toFinset, sorry⟩ ⟨ρ.forms.toFinset, sorry⟩ := by
+        @Modelgraphs.Q sorry sorry α ⟨π.getForms.toFinset, sorry⟩ ⟨ρ.getForms.toFinset, sorry⟩ := by
   sorry
 
 -- TODO Lemma 6.19: for any diamond we can go to a pre-state where that diamond is loaded
