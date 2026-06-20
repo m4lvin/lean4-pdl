@@ -214,6 +214,31 @@ lemma Sequent.left_eq {L R O} : Sequent.left ⟨L,R,O⟩ = L ++ O.L := by simp [
 @[simp]
 def Sequent.right_eq {L R O} : Sequent.right ⟨L,R,O⟩ = R ++ O.R := by simp [Sequent.right]
 
+/-! ## (Joint) vocabulary of sequents -/
+
+/-- Like `Olf.voc` but without the ⊕ inside. -/
+def onlfvoc : Option NegLoadFormula → Vocab
+| none => ∅
+| some nlf => nlf.voc
+
+def lfovoc (L : List (List Formula × Option NegLoadFormula)) : Vocab :=
+  L.toFinset.sup (fun ⟨fs,o⟩ => fs.fvoc ∪ (onlfvoc o))
+
+/-- The joint vocabulary occurring on both the left and the right side. -/
+@[simp]
+def jvoc (X : Sequent) : Vocab := (X.left).fvoc ∩ (X.right).fvoc
+
+lemma jvoc_sub_of_voc_sub {Y X : Sequent}
+    (hl : Y.left.fvoc ⊆ X.left.fvoc)
+    (hr : Y.right.fvoc ⊆ X.right.fvoc)
+    : jvoc Y ⊆ jvoc X := by
+  intro x x_in_jY
+  simp only [jvoc, Finset.mem_inter] at x_in_jY
+  specialize @hl x x_in_jY.1
+  specialize @hr x x_in_jY.2
+  simp only [jvoc, Finset.mem_inter]
+  tauto
+
 /-! ## Formulas as elements of sequents -/
 
 @[simp]

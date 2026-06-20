@@ -5,7 +5,9 @@ import Mathlib.Data.Finset.Lattice.Fold
 
 import Pdl.Syntax
 
-/-! # Vocabulary (part of Section 2.1) -/
+/-! # Vocabulary and other Syntax functions (part of Section 2.1) -/
+
+/-! ## Vocab -/
 
 abbrev Vocab := Finset (Sum Nat Nat)
 
@@ -70,6 +72,8 @@ def LoadFormula.voc (lf : LoadFormula) : Vocab := (unload lf).voc
 @[simp]
 def NegLoadFormula.voc (nlf : NegLoadFormula) : Vocab := (negUnload nlf).voc
 
+/-! ## Tests in a program -/
+
 /-- Test(α) -/
 def testsOfProgram : Program → List Formula
 | ·_ => []
@@ -77,6 +81,31 @@ def testsOfProgram : Program → List Formula
 | α;'β => testsOfProgram α ++ testsOfProgram β
 | α ⋓ β => testsOfProgram α ++ testsOfProgram β
 | ∗α => testsOfProgram α
+
+theorem testsOfProgram.voc α {τ} (τ_in : τ ∈ testsOfProgram α) : τ.voc ⊆ α.voc := by
+  cases α <;> simp_all [testsOfProgram]
+  case sequence α β =>
+    intro x x_in
+    rcases τ_in with hyp | hyp
+    all_goals
+      have := testsOfProgram.voc _ hyp
+      specialize this x_in
+      simp only [Finset.mem_union]
+      tauto
+  case union α β =>
+    intro x x_in
+    rcases τ_in with hyp | hyp
+    all_goals
+      have := testsOfProgram.voc _ hyp
+      specialize this x_in
+      simp only [Finset.mem_union]
+      tauto
+  case star α =>
+    intro x x_in
+    have := testsOfProgram.voc _ τ_in
+    exact this x_in
+
+/-! ## Subprograms -/
 
 /-- Prog(α) -/
 def subprograms : Program → List Program
@@ -147,29 +176,6 @@ lemma subprograms_voc {α β} : β ∈ subprograms α → β.voc ⊆ α.voc := b
     · simp_all
     · have := @subprograms_voc α1 β; intro x x_in; aesop
   · simp_all
-
-theorem testsOfProgram.voc α {τ} (τ_in : τ ∈ testsOfProgram α) : τ.voc ⊆ α.voc := by
-  cases α <;> simp_all [testsOfProgram]
-  case sequence α β =>
-    intro x x_in
-    rcases τ_in with hyp | hyp
-    all_goals
-      have := testsOfProgram.voc _ hyp
-      specialize this x_in
-      simp only [Finset.mem_union]
-      tauto
-  case union α β =>
-    intro x x_in
-    rcases τ_in with hyp | hyp
-    all_goals
-      have := testsOfProgram.voc _ hyp
-      specialize this x_in
-      simp only [Finset.mem_union]
-      tauto
-  case star α =>
-    intro x x_in
-    have := testsOfProgram.voc _ τ_in
-    exact this x_in
 
 /-! ## Fresh variables -/
 

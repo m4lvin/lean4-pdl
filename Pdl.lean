@@ -11,11 +11,12 @@ import Pdl.FischerLadner
 import Pdl.Flip
 import Pdl.Game
 import Pdl.Interpolation
+import Pdl.InterpolationDef
 import Pdl.Kleene
 import Pdl.LocalSoundness
+import Pdl.LocalInterpolation
 import Pdl.LocalTableau
 import Pdl.Modelgraphs
-import Pdl.PartInterpolation
 import Pdl.Semantics
 import Pdl.SemQuot
 import Pdl.Sequent

@@ -635,7 +635,7 @@ lemma loadMulti_of_splitLast_cons {α αs βs β φ} (h : splitLast (α :: αs) 
       subst new_h
       simp_all
 
-/-! # Measures -/
+/-! ## Measures -/
 
 mutual
   @[simp]

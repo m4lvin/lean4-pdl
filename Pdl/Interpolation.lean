@@ -1,6 +1,6 @@
 import Mathlib.Data.Finset.Basic
 
-import Pdl.PartInterpolation
+import Pdl.InterpolationDef
 import Pdl.Completeness
 
 /-! # Interpolation (Section 7) -/
