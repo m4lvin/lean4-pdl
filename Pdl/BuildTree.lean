@@ -367,7 +367,14 @@ def Match.representsPreState (m : Match bt) : Prop :=
 
 def PreState (bt : BuildTree H X) : Type := @Subtype (Match bt) Match.representsPreState
 
-def BuildTree.allPreStates (bt : BuildTree H X) : List (PreState bt) := sorry
+instance : DecidablePred representsPreState := sorry
+
+def filterPreStatesFromMatches {H X} {bt : BuildTree H X} : List (Match bt) →  List (PreState bt)
+  | L => (L.filter representsPreState).attach.map
+      (fun ⟨x, x_in⟩ => ⟨x, by simp at x_in; exact x_in.2⟩)
+
+def BuildTree.allPreStates (bt : BuildTree H X) : List (PreState bt) :=
+  filterPreStatesFromMatches (Match.all bt)
 
 def PreState.last : PreState bt → Match bt := sorry
 
