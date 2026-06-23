@@ -208,11 +208,15 @@ lemma Sequent.O_eq {L R O} : Sequent.O ⟨L,R,O⟩ = O := by simp [Sequent.O]
 
 def Sequent.left (X : Sequent) : List Formula := X.L ++ X.O.L
 def Sequent.right (X : Sequent) : List Formula := X.R ++ X.O.R
+def Sequent.bothSides (X : Sequent) : List Formula := X.left ++ X.right
 
 @[simp]
 lemma Sequent.left_eq {L R O} : Sequent.left ⟨L,R,O⟩ = L ++ O.L := by simp [Sequent.left]
 @[simp]
 def Sequent.right_eq {L R O} : Sequent.right ⟨L,R,O⟩ = R ++ O.R := by simp [Sequent.right]
+@[simp]
+def Sequent.bothSides_eq {L R O} : Sequent.bothSides ⟨L,R,O⟩ = L ++ O.L ++ R ++ O.R := by
+  simp [Sequent.bothSides]
 
 /-! ## Formulas as elements of sequents -/
 
