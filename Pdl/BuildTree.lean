@@ -378,12 +378,30 @@ def BuildTree.allPreStates (bt : BuildTree H X) : List (PreState bt) :=
 
 def PreState.last (p : PreState bt) : Match bt := p.val
 
+def Match.getFormulasAtEnd (m : Match bt) : (List Formula) :=
+   Sequent.bothSides (((Match.btAt m).snd).fst)
 -- TODO: function given a match and a number of steps to go back, give all formulas since then.
+-- n has to be submatch of m (implement condition?)
+def Match.getFormulasSince {bt : BuildTree H X} (m : Match bt) (n : Match bt) :
+  (List Formula) := sorry
+  --if m=n then:
+  --| true => m.getFormulasAtEnd
+  --else
+  --  m.getFormulasAtEnd ++ (getFormulasSince (Match.rewind m 1) n)
+
+def getFotrmulasUntilModalRule : (m : Match bt) → (List Formula):= sorry
+-- if m.endsAtModal return either m.getFormulasAtEnd
+-- else m.getFormulasAtEnd ++ ((rewind m 1).getFotrmulasUntilModalRule)
+
 
 -- Give formulas since modal rule.
 -- Directly define this to collect the formulas on the way?
 -- TODO change Formula to AnyFormula, then repair below ;-)
 def PreState.getForms : (π  : PreState bt) → List Formula := sorry
+-- if π.endsAtModalRule then (rewind π 1).getFotrmulasUntilModalRule
+-- if π.openLeaf then (getFormulasSince (modelRule after companion) (companion))
+--    ++ π.getFotrmulasUntilModalRule
+-- else π.getFormulasUntilModalRule
 
 /-
 /-- Collect formulas in a pre-state. The non-loaded part of Λ(π) in paper.
