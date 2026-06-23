@@ -376,7 +376,7 @@ def filterPreStatesFromMatches {H X} {bt : BuildTree H X} : List (Match bt) → 
 def BuildTree.allPreStates (bt : BuildTree H X) : List (PreState bt) :=
   filterPreStatesFromMatches (Match.all bt)
 
-def PreState.last : PreState bt → Match bt := sorry
+def PreState.last (p : PreState bt) : Match bt := p.val
 
 -- TODO: function given a match and a number of steps to go back, give all formulas since then.
 
