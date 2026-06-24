@@ -275,10 +275,24 @@ theorem Match.all_spec {H X} (bt : BuildTree H X) m :
 def Match.isOpenLeaf {H X} {bt : BuildTree H X} {m : Match bt} : Prop :=
   match (btAt m) with | ⟨_, _, .openLeaf⟩ => True | _ => False
 
+instance instDecidableIsOpenLeaf {m : Match bt} : Decidable m.isOpenLeaf := by
+  unfold Match.isOpenLeaf
+  rcases m.btAt with ⟨_, _, bt⟩
+  cases bt <;>
+  all_goals
+    try exact instDecidableTrue
+    try exact instDecidableFalse
+
 def Match.isFreeRepeat {H X} {bt : BuildTree H X} (m : Match bt) : Prop :=
   match (btAt m) with | ⟨_, _, .freeRepeat _⟩ => True | _ => False
 
-instance {m : Match bt} : Decidable m.isFreeRepeat := sorry
+instance instDecidableIsFreeRepeat {m : Match bt} : Decidable m.isFreeRepeat := by
+  unfold Match.isFreeRepeat
+  rcases m.btAt with ⟨_, _, bt⟩
+  cases bt <;> simp_all
+  all_goals
+    try exact instDecidableTrue
+    try exact instDecidableFalse
 
 /-- Does this match end *just before* a (M) rule (or any other pdl rule, in fact). -/
 def Match.endsAtModal (m : Match bt) : Prop :=
@@ -286,7 +300,13 @@ def Match.endsAtModal (m : Match bt) : Prop :=
   | ⟨_, _, BuildTree.pdl _ _⟩ => True
   | ⟨_, _, _⟩ => False
 
-instance {m : Match bt} : Decidable m.endsAtModal := sorry
+instance instDecidableEndsAtModal {m : Match bt} : Decidable m.endsAtModal := by
+  unfold Match.endsAtModal
+  rcases m.btAt with ⟨_, _, bt⟩
+  cases bt <;> simp_all
+  all_goals
+    try exact instDecidableTrue
+    try exact instDecidableFalse
 
 -- needed / ever used?
 def Match.append {H X} {bt : BuildTree H X} :
@@ -372,7 +392,8 @@ def Match.representsPreState (m : Match bt) : Prop :=
 
 def PreState (bt : BuildTree [] X) : Type := @Subtype (Match bt) Match.representsPreState
 
-instance {bt : BuildTree [] X} : DecidablePred (@Match.representsPreState _ _ bt) := sorry
+instance {bt : BuildTree [] X} : DecidablePred (@Match.representsPreState _ _ bt) :=
+  fun _ => instDecidableOr
 
 def filterPreStatesFromMatches {X} {bt : BuildTree [] X} : List (Match bt) →  List (PreState bt)
   | L => (L.filter (fun m => m.representsPreState)).attach.map
