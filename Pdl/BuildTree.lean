@@ -210,6 +210,7 @@ inductive Match : ∀ {H : History} {X : Sequent}, BuildTree H X → Type
   | nil {bt} : Match bt
   | loc {nbas next lt} : Match (next lt).6 → Match (BuildTree.loc nbas next)
   | pdl {bas next Y r} : Match (next Y r) → Match (BuildTree.pdl bas next)
+deriving DecidableEq
 
 /-- Inspired by `PathIn.length`. Counting the steps made by a `Match` in a `BuildTree`.
 Note that such a step may be combinations of a prover and a builder move. -/
@@ -277,11 +278,15 @@ def Match.isOpenLeaf {H X} {bt : BuildTree H X} {m : Match bt} : Prop :=
 def Match.isFreeRepeat {H X} {bt : BuildTree H X} (m : Match bt) : Prop :=
   match (btAt m) with | ⟨_, _, .freeRepeat _⟩ => True | _ => False
 
-/-- Does this match end at a (M) rule (or any other pdl rule, in fact). -/
+instance {m : Match bt} : Decidable m.isFreeRepeat := sorry
+
+/-- Does this match end *just before* a (M) rule (or any other pdl rule, in fact). -/
 def Match.endsAtModal (m : Match bt) : Prop :=
   match btAt m with
   | ⟨_, _, BuildTree.pdl _ _⟩ => True
   | ⟨_, _, _⟩ => False
+
+instance {m : Match bt} : Decidable m.endsAtModal := sorry
 
 -- needed / ever used?
 def Match.append {H X} {bt : BuildTree H X} :
@@ -365,43 +370,69 @@ Here we only store the π part of such pre-states, because the π' is then uniqu
 def Match.representsPreState (m : Match bt) : Prop :=
   m.isOpenLeaf ∨ m.isFreeRepeat ∨ m.endsAtModal
 
-def PreState (bt : BuildTree H X) : Type := @Subtype (Match bt) Match.representsPreState
+def PreState (bt : BuildTree [] X) : Type := @Subtype (Match bt) Match.representsPreState
 
-instance {bt : BuildTree H X} : DecidablePred (@Match.representsPreState _ _ bt) := sorry
+instance {bt : BuildTree [] X} : DecidablePred (@Match.representsPreState _ _ bt) := sorry
 
-def filterPreStatesFromMatches {H X} {bt : BuildTree H X} : List (Match bt) →  List (PreState bt)
+def filterPreStatesFromMatches {X} {bt : BuildTree [] X} : List (Match bt) →  List (PreState bt)
   | L => (L.filter (fun m => m.representsPreState)).attach.map
       (fun ⟨x, x_in⟩ => ⟨x, by simp at x_in; exact x_in.2⟩)
 
-def BuildTree.allPreStates (bt : BuildTree H X) : List (PreState bt) :=
+def BuildTree.allPreStates (bt : BuildTree [] X) : List (PreState bt) :=
   filterPreStatesFromMatches (Match.all bt)
 
 def PreState.last (p : PreState bt) : Match bt := p.val
 
 def Match.getFormulasAtEnd (m : Match bt) : (List Formula) :=
    Sequent.bothSides (((Match.btAt m).snd).fst)
+
 -- TODO: function given a match and a number of steps to go back, give all formulas since then.
 -- n has to be submatch of m (implement condition?)
 def Match.getFormulasSince {bt : BuildTree H X} (m : Match bt) (n : Match bt) :
-  (List Formula) := sorry
-  --if m=n then:
-  --| true => m.getFormulasAtEnd
-  --else
-  --  m.getFormulasAtEnd ++ (getFormulasSince (Match.rewind m 1) n)
+  (List Formula) :=
+  if m=n then
+    m.getFormulasAtEnd
+  else
+   m.getFormulasAtEnd ++ (getFormulasSince (Match.rewind m 1) n)
+termination_by
+  m.length
+decreasing_by
+  -- need lemma that Match.rewind decreases M.length
+  sorry
 
-def getFotrmulasUntilModalRule : (m : Match bt) → (List Formula):= sorry
--- if m.endsAtModal return either m.getFormulasAtEnd
--- else m.getFormulasAtEnd ++ ((rewind m 1).getFotrmulasUntilModalRule)
+def Match.getFormulasSinceModalRule (m : Match bt) : (List Formula) :=
+  if m = .nil
+  then m.getFormulasAtEnd
+  else
+    if m.endsAtModal
+    then []
+    else m.getFormulasAtEnd ++ ((Match.rewind m 1).getFormulasSinceModalRule)
+decreasing_by
+  sorry
 
+-- TODO revive "Edge" here?
+def Match.edge : Match bt → Match bt → Prop := sorry
+
+/-- Extend m towards n until (M) rule. -/
+def Match.extendUntilModal :
+  (m : Match bt) → (n : Match bt) → Relation.TransGen Match.edge m n → Match bt := sorry
+
+def Match.getFormulasUntilModal {bt : BuildTree H X} :
+  (m : Match bt) → (n : Match bt) → Relation.TransGen Match.edge m n → List Formula := sorry
 
 -- Give formulas since modal rule.
 -- Directly define this to collect the formulas on the way?
 -- TODO change Formula to AnyFormula, then repair below ;-)
-def PreState.getForms : (π  : PreState bt) → List Formula := sorry
--- if π.endsAtModalRule then (rewind π 1).getFotrmulasUntilModalRule
--- if π.openLeaf then (getFormulasSince (modelRule after companion) (companion))
---    ++ π.getFotrmulasUntilModalRule
--- else π.getFormulasUntilModalRule
+def PreState.getForms {bt : BuildTree [] X} (π  : PreState bt) : List Formula :=
+  if π.val.endsAtModal
+  then (π.val.rewind 1).getFormulasSinceModalRule ++ π.val.getFormulasAtEnd
+  else
+    if h_freeRep : π.val.isFreeRepeat
+    then
+      (Match.getFormulasUntilModal (π.val.companionOf h_freeRep) π.val sorry)
+      ++ π.val.getFormulasSinceModalRule
+    else -- open leaf
+      π.val.getFormulasSinceModalRule
 
 /-
 /-- Collect formulas in a pre-state. The non-loaded part of Λ(π) in paper.
@@ -462,7 +493,7 @@ lemma PreState.formsCases {π : PreState bt} : φ ∈ π.getForms →
   sorry
 
 /-- WIP Lemma 6.15 *un*loaded case -/
-lemma PreState.pdlFormCase {H X} {bt : BuildTree H X} {π : PreState bt} {α φ} :
+lemma PreState.pdlFormCase {X} {bt : BuildTree [] X} {π : PreState bt} {α φ} :
     ¬ α.isAtomic → (~⌈α⌉φ) ∈ π.getForms →
       ∃ Xδ ∈ Hset α, Xδ.1 ∪ [~ Formula.boxes Xδ.2 φ] ⊆ π.getForms := by
   sorry
@@ -477,7 +508,7 @@ lemma PreState.loadedFormCase {H X} {bt : BuildTree H X} {π : PreState bt} {α 
 -/
 
 /-- WIP Lemma 6.16: pre-states are saturated and locally consistent, their last node is basic. -/
-lemma PreState.locConsSatBas {H X} {bt : BuildTree H X} (π : PreState bt) :
+lemma PreState.locConsSatBas {X} {bt : BuildTree [] X} (π : PreState bt) :
     saturated (π.getForms).toFinset
     ∧ locallyConsistent (π.getForms).toFinset
     ∧ π.last.btAt.2.1.basic := by
@@ -486,7 +517,7 @@ lemma PreState.locConsSatBas {H X} {bt : BuildTree H X} (π : PreState bt) :
 
 /-- Definition 6.17 to get model graph from strategy tree. -/
 @[simp]
-def BuildTree.toModel {H X} (bt : BuildTree H X) :
+def BuildTree.toModel {X} (bt : BuildTree [] X) :
     (Σ W : Finset (Finset Formula), KripkeModel W) :=
   ⟨ ((bt.allPreStates).map (List.toFinset ∘ PreState.getForms)).toFinset -- W
   , { val := fun X p => Formula.atom_prop p ∈ X.1 -- valuation V(p)
