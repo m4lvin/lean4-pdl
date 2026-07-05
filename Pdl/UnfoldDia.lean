@@ -379,7 +379,7 @@ theorem unfoldDiamond_voc {x α φ} {L} (L_in : L ∈ unfoldDiamond α φ) {ψ} 
       have := (keepFreshDset α hyp Fs δ in_Dset).2
       unfold List.pvoc at this
       rw [Vocab.fromListProgram_map_iff] at this
-      push_neg at this
+      push Not at this
       specialize this _ α'_in
       tauto
     · right
@@ -395,7 +395,7 @@ theorem guardToStarDiamond (x : Nat)
   have claim : ∀ u v, (M,v) ⊨ ρ → relate M β u v → (M,u) ⊨ ρ := by
     intro u v v_rho u_β_v
     have u_ : (M,u) ⊨ (~⌈β⌉~ρ) := by
-      simp [modelCanSemImplyForm] at *
+      simp [vDash.SemImplies] at *
       use v
     have u_2 : (M, u) ⊨ (ρ ⋀ repl_in_F x ρ σ0) ⋁ (repl_in_F x ρ σ1) := by
       have repl_equiv := repl_in_F_equiv x ρ beta_equiv
@@ -403,9 +403,9 @@ theorem guardToStarDiamond (x : Nat)
       have nox : repl_in_P x ρ β = β := repl_in_P_non_occ_eq x_notin_beta
       rw [nox] at repl_equiv
       rw [equiv_iff _ _ repl_equiv] at u_
-      simp [modelCanSemImplyForm, evaluatePoint, formCanSemImplyForm, semImpliesLists] at *
+      simp [vDash.SemImplies, evaluatePoint, semImpliesLists] at *
       tauto
-    simp only [modelCanSemImplyForm, Formula.or, evaluatePoint, evaluate] at u_2
+    simp only [vDash.SemImplies, Formula.or, evaluatePoint, evaluate] at u_2
     rw [← @or_iff_not_and_not] at u_2
     specialize repl_imp_rho W M u
     aesop
@@ -421,7 +421,7 @@ theorem guardToStarDiamond (x : Nat)
   case head u1 u2 u1_b_u2 _ IH =>
     specialize claim u1 u2
     specialize notPsi_imp_rho W M u1
-    simp [modelCanSemImplyForm, evaluatePoint, formCanSemImplyForm, semImpliesLists] at *
+    simp [vDash.SemImplies, evaluatePoint, semImpliesLists] at *
     simp_all
 
 private theorem helper : ∀ (p : List Formula × List Program → Formula) X,
@@ -541,7 +541,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (Dset γ).map (fun Fδ
     -- "then our goal will be ..."
     suffices goal : (~⌈∗β⌉ψ) ≡ ρ by
       have := @equiv_iff _ _ goal W M w
-      simp only [modelCanSemImplyForm, evaluatePoint] at this
+      simp only [vDash.SemImplies, evaluatePoint] at this
       rw [this]
     -- right to left, done first because we use it for the other direction
     have right_to_left_claim : ∀ W M (w : W), evaluate M w ρ → evaluate M w (~⌈∗β⌉ψ) := by
@@ -590,7 +590,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (Dset γ).map (fun Fδ
         ((Dset β).map (fun (F,δ) => if δ ≠ [] then Con ((~ ⌈⌈δ⌉⌉(~(·x : Formula))) :: F) else ⊥))
       -- Now we use the previous Lemma:
       have := @guardToStarDiamond β σ0 σ1 ρ ψ x x_not_in
-      simp only [formCanSemImplyForm, semImpliesLists, List.mem_singleton, forall_eq] at this
+      simp only [vDash.SemImplies, semImpliesLists, List.mem_singleton, forall_eq] at this
       apply this <;> (clear this W M w; intro W M w) -- Switching model again.
       · -- Use IH to show first Lemma condition:
         have IHβ := localDiamondTruth β (~·x) W M w
@@ -675,7 +675,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (Dset γ).map (fun Fδ
                 · subst_eqs; simp; exact w_.1
       · -- Lemma condition that is done last in notes.
         unfold σ1
-        simp only [ne_eq, Formula.instBot, ite_not]
+        simp [ne_eq, Bot.bot, ite_not]
         have : (repl_in_F x ρ (dis ((Dset β).map
           (fun Fδ => if Fδ.2 = [] then Formula.bottom else Con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)) ))) =
             (dis ((Dset β).map (fun Fδ => if Fδ.2 = [] then Formula.bottom
@@ -686,7 +686,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (Dset γ).map (fun Fδ
                 (fun Fδ => if Fδ.2 = [] then repl_in_F x ρ Formula.bottom
                                         else repl_in_F x ρ (Con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)) )))) by
             rw [this]
-            simp only [repl_in_F, Formula.instBot]
+            simp only [repl_in_F, Bot.bot]
             -- use that x not in β and thus also not in any element of H β
             have myFresh := keepFreshDset β x_not_in
             apply listEq_to_disEq
@@ -694,7 +694,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (Dset γ).map (fun Fδ
             intro Fδ Fδ_in_Hβ
             cases em (Fδ.2 = [])
             · simp_all
-            · simp_all only [evaluate, relate, not_forall, exists_prop, repl_in_F, Formula.instBot,
+            · simp_all only [evaluate, relate, not_forall, exists_prop, repl_in_F, Bot.bot,
                 ite_false]
               rw [repl_in_Con]
               simp only [List.map_cons, repl_in_F]
@@ -706,6 +706,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (Dset γ).map (fun Fδ
           -- remains to push repl_in_F through dis and map
           convert repl_in_disMap x ρ (Dset β) (fun Fδ => Fδ.2 = [])
             (fun Fδ => (Con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)))
+          rfl
         rw [this, disEval, helper]
         clear this
         rintro ⟨⟨Fs,δ⟩, ⟨Fδ_in, repl_w_⟩⟩
@@ -784,7 +785,7 @@ theorem existsDiamondDset (v_γ_w : relate M γ v w) :
     ∃ Fδ ∈ Dset γ, (M,v) ⊨ Fδ.1 ∧ relateSeq M Fδ.2 v w := by
   cases γ
   case atom_prog =>
-    simp [Dset, relateSeq] at *
+    simp [Dset, relateSeq, vDash.SemImplies] at *
     exact v_γ_w
   case test τ =>
     simp [Dset, relateSeq] at *
@@ -837,7 +838,7 @@ theorem existsDiamondDset (v_γ_w : relate M γ v w) :
     cases this
     · subst_eqs
       use ⟨∅, []⟩
-      simp [Dset, relateSeq]
+      simp [Dset, relateSeq, vDash.SemImplies]
     case inr hyp =>
       rcases hyp with ⟨_, ⟨v1, v_neq_v1, v_β_v1, v1_βS_w⟩⟩
       have IHβ := existsDiamondDset v_β_v1

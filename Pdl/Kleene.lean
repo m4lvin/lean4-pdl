@@ -108,13 +108,13 @@ instance RelProp.semiring : Semiring RelProp where
     apply Quotient.ind
     intro α
     simp only [HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid, OfNat.ofNat, One.one,
-      Formula.insTop, Quotient.map₂_mk, Quotient.eq, relEquiv, relate, evaluate, not_false_eq_true,
+      Quotient.map₂_mk, Quotient.eq, relEquiv, relate, evaluate, not_false_eq_true,
       and_true, exists_eq_left', implies_true]
   mul_one := by
     apply Quotient.ind
     intro α
     simp only [HMul.hMul, Mul.mul, RelProp.sequence, Program.instSetoid, OfNat.ofNat, One.one,
-      Formula.insTop, Quotient.map₂_mk, Quotient.eq, relEquiv, relate, evaluate, not_false_eq_true,
+      Quotient.map₂_mk, Quotient.eq, relEquiv, relate, evaluate, not_false_eq_true,
       and_true, exists_eq_right, implies_true]
 
 def relImp (α β : Program) := ∀ (W : Type) (M : KripkeModel W) v w, relate M α v w → relate M β v w
@@ -123,13 +123,37 @@ def relImp_strict (α β : Program) :=
      (∀ (W : Type) (M : KripkeModel W) v w, relate M α v w → relate M β v w)
   ∧ ¬(∀ (W : Type) (M : KripkeModel W) v w, relate M β v w → relate M α v w)
 
-def RelProp.le : RelProp → RelProp → Prop := Quotient.lift₂ relImp (by
+def RelProp.le : RelProp → RelProp → Prop := Quotient.lift₂ relImp <| by
   intro α₁ β₁ α₂ β₂ hα hβ
-  simp_all [relImp, HasEquiv.Equiv, Program.instSetoid, relEquiv])
+  refine forall_congr (fun W => forall_congr (fun M => forall_congr (fun v => ?_)))
+  specialize hα W M v
+  specialize hβ W M v
+  grind
 
-def RelProp.lt : RelProp → RelProp → Prop := Quotient.lift₂ relImp_strict (by
+def RelProp.lt : RelProp → RelProp → Prop := Quotient.lift₂ relImp_strict <| by
   intro α₁ β₁ α₂ β₂ hα hβ
-  simp_all [relImp_strict, HasEquiv.Equiv, Program.instSetoid, relEquiv])
+  simp_all only [relImp_strict, not_forall, eq_iff_iff]
+  constructor <;> intro hyp <;> constructor
+  · intro W M v w v_α1_w
+    specialize hα W M v w
+    specialize hβ W M v w
+    have := hyp.1 W M v w
+    tauto
+  · obtain ⟨W,M,v,w,v_β1_w,not_v_α1_w⟩ := hyp.2
+    use W, M, v, w
+    specialize hα W M v w
+    specialize hβ W M v w
+    tauto
+  · intro W M v w v_α1_w
+    specialize hα W M v w
+    specialize hβ W M v w
+    have := hyp.1 W M v w
+    tauto
+  · obtain ⟨W,M,v,w,v_β1_w,not_v_α1_w⟩ := hyp.2
+    use W, M, v, w
+    specialize hα W M v w
+    specialize hβ W M v w
+    tauto
 
 instance RelProp.instLE : LE RelProp where
   le := RelProp.le
@@ -165,10 +189,11 @@ instance RelProp.semilatticeSup : SemilatticeSup RelProp where
     aesop
 
 instance RelProp.idemSemiring : IdemSemiring RelProp where
+  bot := ⟦?'⊥⟧
   bot_le := by
     apply Quotient.ind
     intro α
-    simp [OfNat.ofNat, Zero.zero, LE.le, RelProp.le, relImp]
+    simp [LE.le, RelProp.le, relImp]
 
 instance RelProp.kleeneAlgebra : KleeneAlgebra RelProp where
   one_le_kstar := by

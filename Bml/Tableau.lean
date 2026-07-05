@@ -222,7 +222,7 @@ theorem localRule_does_not_increase_vocab_L {Lcond Rcond ress}
     : ∀ res ∈ ress, voc res.1 ⊆ voc Lcond := by
   intro res ress_in_ress ℓ ℓ_in_res
   cases rule
-  case oneSidedL ress orule => cases orule <;> aesop
+  case oneSidedL ress orule => cases orule <;> simp [voc] at * <;> aesop
   -- other cases are trivial
   all_goals aesop
 -- dual
@@ -231,7 +231,7 @@ theorem localRule_does_not_increase_vocab_R {Lcond Rcond ress}
     : ∀ res ∈ ress, voc res.2 ⊆ voc Rcond := by
   intro res ress_in_ress ℓ ℓ_in_res
   cases rule
-  case oneSidedR ress orule => cases orule <;> aesop
+  case oneSidedR ress orule => cases orule <;> simp [voc] at * <;> aesop
   -- other cases are trivial
   all_goals aesop
 
@@ -241,8 +241,7 @@ theorem localRuleApp_does_not_increase_vocab {C} {L R : Finset Formula}
   match ruleA with
   | @LocalRuleApp.mk _ _ _ ress Lcond Rcond rule hC preproof =>
   intro c cinC ℓ ℓ_in_c
-  simp at ℓ_in_c
-  simp
+  simp only [jvoc, voc, vocabOfSetFormula, Finset.mem_inter, Finset.mem_biUnion] at *
   constructor
   · have ⟨Lφ,Lφ_in_cL, ℓ_in_Lφ⟩ := ℓ_in_c.left
     apply Or.elim (em (Lφ ∈ L))
@@ -252,7 +251,7 @@ theorem localRuleApp_does_not_increase_vocab {C} {L R : Finset Formula}
       let ⟨res, res_in_ress, Lφ_in_res_L⟩ := Lφ_in_res
       have ℓ_in_ψ_in_Lcond : ∃ψ ∈ Lcond, ℓ ∈ voc ψ := by
         let voc_res_ss_Lcond := localRule_does_not_increase_vocab_L rule res res_in_ress
-        simp at voc_res_ss_Lcond
+        simp [voc] at voc_res_ss_Lcond
         let ℓ_in_voc_Lcond := voc_res_ss_Lcond Lφ Lφ_in_res_L ℓ_in_Lφ
         simp at ℓ_in_voc_Lcond
         exact ℓ_in_voc_Lcond
@@ -267,7 +266,7 @@ theorem localRuleApp_does_not_increase_vocab {C} {L R : Finset Formula}
       let ⟨res, res_in_ress, Rφ_in_res_R⟩ := Rφ_in_res
       have ℓ_in_ψ_in_Rcond : ∃ψ ∈ Rcond, ℓ ∈ voc ψ := by
         let voc_res_ss_Rcond := localRule_does_not_increase_vocab_R rule res res_in_ress
-        simp at voc_res_ss_Rcond
+        simp [voc] at voc_res_ss_Rcond
         let ℓ_in_voc_Rcond := voc_res_ss_Rcond Rφ Rφ_in_res_R ℓ_in_Rφ
         simp at ℓ_in_voc_Rcond
         exact ℓ_in_voc_Rcond
@@ -512,7 +511,6 @@ theorem notSimpleThenLocalRule {L R} : ¬Simple (L,R)
     match ruleA with
     | @LocalRuleApp.mk _ _ _ ress Lcond Rcond rule _ pp => exact ⟨Lcond, Rcond, ress, rule, pp⟩
 
-
 theorem conDecreasesLength {φ ψ : Formula} :
     (Finset.sum {φ, ψ} fun x => lengthOfFormula x) < 1 + lengthOfFormula φ + lengthOfFormula ψ := by
   by_cases h : φ = ψ
@@ -530,25 +528,25 @@ theorem localRuleDecreasesLengthSide (rule : LocalRule (Lcond, Rcond) ress) :
       | ( rename_i rule
           cases rule
           <;> (simp at *; try rw [in_ress])
-          case neg φ => simp [←Nat.add_assoc]
+          case neg φ => simp [lengthOf, ← Nat.add_assoc]
           case con φ ψ => simp; exact conDecreasesLength
           case ncon φ ψ =>
             rcases in_ress with case_phi | case_psi
             <;> ( first
                 | simp [case_psi]
                 | ( simp [case_phi]
-                    rw [Nat.add_comm 1 (lengthOfFormula φ), Nat.add_assoc]
+                    simp [Nat.add_comm 1 (lengthOfFormula φ), Nat.add_assoc, lengthOf, lengthOfSet]
                     aesop)))
-      | all_goals aesop)
+      | all_goals (simp [lengthOf]; aesop <;> sorry))
 
 
 -- These are used by aesop in `localRuleNoOverlap`.
 @[simp]
-theorem notnot_notSelfContain : ~~φ ≠ φ := by intro hyp; cases hyp
+theorem notnot_notSelfContain {φ} : ~~φ ≠ φ := by intro hyp; cases hyp
 @[simp]
-theorem conNotSelfContainL : φ1 ⋀ φ2 ≠ φ1 := by intro hyp; cases hyp
+theorem conNotSelfContainL {φ1 φ2} : φ1 ⋀ φ2 ≠ φ1 := by intro hyp; cases hyp
 @[simp]
-theorem conNotSelfContainR : φ1 ⋀ φ2 ≠ φ2 := by intro hyp; cases hyp
+theorem conNotSelfContainR {φ1 φ2} : φ1 ⋀ φ2 ≠ φ2 := by intro hyp; cases hyp
 
 /-- Rules never re-insert the same formula(s). -/
 theorem localRuleNoOverlap
@@ -580,7 +578,7 @@ theorem zlen_iff {X Y : Finset Formula}
   have : ∀ W, zlengthOfSet W = lengthOfSet W := by intro W; simp
   rw [this, this]
   zify
-  simp
+  simp [lengthOf]
 
 theorem zlengthOfSet.pos : zlengthOfSet X ≥ 0 := by
   apply Finset.sum_induction zlengthOf
@@ -650,15 +648,14 @@ def diamondProjectTNode : Sum Formula Formula → TNode → TNode
 | (Sum.inr φ), (L, R) => (projection L, projection R ∪ {~φ})
 
 theorem proj_does_not_increase_vocab : voc (projection X) ⊆ voc X := by
-  simp
+  simp [voc]
   intro φ φ_in_proj ℓ ℓ_in_φ
   rw [proj] at φ_in_proj
   simp
   tauto
 
-theorem vocProj (X) : voc (projection X) ⊆ voc X :=
-  by
-  simp
+theorem vocProj (X) : voc (projection X) ⊆ voc X := by
+  simp [voc]
   intro ϕ phi_in_proj
   rw [proj] at phi_in_proj
   intro a aInVocPhi
@@ -671,16 +668,18 @@ theorem diamondproj_does_not_increase_vocab_L {L φ R} (valid_proj : ~(□φ) �
   unfold jvoc at *
   apply Finset.mem_inter_of_mem
   · have ℓ_left := (Finset.mem_inter.mp ℓ_in_proj).left
-    simp [diamondProjectTNode ] at ℓ_left;
+    simp only [voc, vocabOfSetFormula, diamondProjectTNode, union_singleton_is_insert,
+      Finset.biUnion_insert, vocabOfFormula, Finset.mem_union, Finset.mem_biUnion] at ℓ_left;
+    simp
     apply Or.elim ℓ_left
-    · intro ℓ_in_φ; simp;
+    · intro ℓ_in_φ; simp [voc]
       use ~(□φ)
       constructor
       · exact valid_proj
       · aesop
     · intro ⟨ψ, ψ_in_proj, ℓ_in_ψ⟩
       apply proj_does_not_increase_vocab
-      simp; use ψ
+      simp [voc]; use ψ
   · have ℓ_right := (Finset.mem_inter.mp ℓ_in_proj).right
     simp [diamondProjectTNode ] at ℓ_right;
     apply proj_does_not_increase_vocab
@@ -692,20 +691,20 @@ theorem diamondproj_does_not_increase_vocab_R (valid_proj : ~(□φ) ∈ R) :
   unfold jvoc at *
   apply Finset.mem_inter_of_mem
   · have ℓ_left := (Finset.mem_inter.mp ℓ_in_proj).left
-    simp [diamondProjectTNode ] at ℓ_left;
+    simp [voc, diamondProjectTNode ] at ℓ_left;
     apply proj_does_not_increase_vocab
-    simp; exact ℓ_left
+    simp [voc]; exact ℓ_left
   · have ℓ_right := (Finset.mem_inter.mp ℓ_in_proj).right
-    simp [diamondProjectTNode ] at ℓ_right;
+    simp [voc, diamondProjectTNode ] at ℓ_right;
     apply Or.elim ℓ_right
-    · intro ℓ_in_φ; simp;
+    · intro ℓ_in_φ; simp [voc]
       use ~(□φ)
       constructor
       · exact valid_proj
       · aesop
     · intro ⟨ψ, ψ_in_proj, ℓ_in_ψ⟩
       apply proj_does_not_increase_vocab
-      simp; use ψ
+      simp [voc]; use ψ
 
 open LocalTableau
 
@@ -820,7 +819,7 @@ noncomputable def aLocalTableauFor (LR : TNode) : LocalTableau LR :=
   termination_by
     lengthOf LR
   decreasing_by
-    simp_wf; assumption
+    assumption
 
 instance : Nonempty (LocalTableau LR) := Nonempty.intro (aLocalTableauFor LR)
 

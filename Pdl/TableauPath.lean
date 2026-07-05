@@ -34,7 +34,7 @@ def PathIn.append (p : PathIn tab) (q : PathIn (tabAt p).2.2) : PathIn tab := ma
 
 @[simp]
 theorem append_eq_iff_eq (s : PathIn tab) p q : s.append p = s.append q ↔ p = q := by
-  induction s <;> simp_all [PathIn.append]
+  induction s <;> simp_all [PathIn.append] <;> rfl -- FIXME why is rfl still needed?
 
 @[simp]
 theorem PathIn.eq_append_iff_other_eq_nil (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
@@ -63,15 +63,9 @@ theorem PathIn.nil_eq_append_iff_both_eq_nil (p : PathIn tab) (q : PathIn (tabAt
 theorem tabAt_append (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
     tabAt (p.append q) = tabAt q := by
   induction p
-  case nil => simp [PathIn.append]
-  case loc IH =>
-    simp [PathIn.append]
-    rw [← IH]
-    simp [tabAt]
-  case pdl IH =>
-    simp [PathIn.append]
-    rw [← IH]
-    simp [tabAt]
+  case nil => simp [PathIn.append]; rfl
+  case loc IH => apply IH
+  case pdl IH => apply IH
 
 @[simp]
 theorem tabAt_nil {tab : Tableau Hist X} : tabAt (.nil : PathIn tab) = ⟨_, _, tab⟩ := by
@@ -121,8 +115,31 @@ def PathIn.length : (t : PathIn tab) → ℕ
 
 theorem append_length {p : PathIn tab} q : (p.append q).length = p.length + q.length := by
   induction p <;> simp [PathIn.append]
-  case loc IH => rw [IH]; linarith
-  case pdl IH => rw [IH]; linarith
+  case nil => rfl -- why not done by simp already?
+  case loc IH =>
+    rw [IH]
+    -- linarith -- FIXME why is it broken??
+    conv =>
+      right
+      rw [add_assoc]
+      right
+      rw [add_comm]
+    conv =>
+      right
+      rw [← add_assoc]
+    rfl
+  case pdl IH =>
+    rw [IH]
+    -- linarith -- FIXME why is it broken??
+    conv =>
+      right
+      rw [add_assoc]
+      right
+      rw [add_comm]
+    conv =>
+      right
+      rw [← add_assoc]
+    rfl
 
 /-! ## Edge Relation -/
 
@@ -317,6 +334,7 @@ theorem edge.wellFounded : WellFounded (@edge Hist X tab) := by
   have := instWellFoundedLTNat
   rcases this with ⟨nat_wf⟩
   convert nat_wf
+  rfl -- FIXME why needed?
 
 instance edge.isAsymm : @Std.Asymm (PathIn tab) edge := by
   constructor
@@ -342,15 +360,15 @@ theorem edge_is_strict_ordering {s t : PathIn tab} : s ⋖_ t → s ≠ t := by
   simp_all
 
 theorem path_is_strict_ordering {s t : PathIn tab} : s < t → s ≠ t := by
-intro s_t seqt
-induction s_t
-case single set =>
-  absurd seqt
-  exact edge_is_strict_ordering set
-case tail k t s_k k_t ih =>
-  apply edge.TransGen_isAsymm.1 s k s_k
-  rw [seqt]
-  apply Relation.TransGen.single k_t
+  intro s_t seqt
+  induction s_t
+  case single set =>
+    absurd seqt
+    exact edge_is_strict_ordering set
+  case tail k t s_k k_t ih =>
+    apply edge.TransGen_isAsymm.1 s k s_k
+    rw [seqt]
+    apply Relation.TransGen.single k_t
 
 /-- An induction principle for `PathIn` with a base case at the root of the tableau and
 an induction step using the `edge` relation `⋖_`.
@@ -455,7 +473,7 @@ lemma PathIn.tabAt_cast (p : PathIn tab) (h : tab = tab2) :
 lemma PathIn.append_append {tab : Tableau Hist X}
     (p : PathIn tab) (q : PathIn (tabAt p).2.2) (r : PathIn (tabAt (p.append q)).2.2)
     : (p.append q).append r = p.append (q.append (tabAt_append p q ▸ r)) := by
-  induction p <;> simp_all [PathIn.append]
+  induction p <;> simp_all [PathIn.append] <;> try rfl -- FIXME why is rfl needed?
 
 @[simp]
 lemma PathIn.loc_append {X Hist} {nrep : ¬rep Hist X} {nbas : ¬X.basic} {lt : LocalTableau X}

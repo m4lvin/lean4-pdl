@@ -56,7 +56,12 @@ instance Option.instHasSubsetOption : HasSubset (Option α) := HasSubset.mk
 @[simp]
 theorem Option.some_subseteq {O : Option α} : (some x ⊆ O) ↔ some x = O := by
   cases O
-  all_goals simp
+  all_goals aesop
+
+-- mathlib this?
+@[simp]
+theorem Option.none_subseteq {O : Option α} : none ⊆ O :=
+  subset_of_subset_of_eq trivial rfl
 
 -- mathlib this?
 /-- Instance that is used to say `(O : Olf) \ (O' : Olf)`. -/
@@ -94,11 +99,11 @@ def Olf.change (oldO : Olf) (Ocond : Olf) (newO : Olf) : Olf := (oldO \ Ocond).o
 
 @[simp]
 theorem Olf.change_old_none_none {oldO} : Olf.change oldO none none = oldO := by
-  cases oldO <;> simp [Olf.change, Option.overwrite, Option.insHasSdiff]
+  cases oldO <;> simp [Olf.change, Option.overwrite]
 
 @[simp]
 theorem Olf.change_none_none_new {newO} : Olf.change none none newO = newO := by
-  cases newO <;> simp [Olf.change, Option.overwrite, Option.insHasSdiff]
+  cases newO <;> simp [Olf.change, Option.overwrite]
 
 @[simp]
 theorem Olf.change_some {oldO whatever wnlf} :
@@ -131,6 +136,7 @@ def Olf.isRight : Olf → Prop
 
 /-- A tableau node is labelled with two lists of formulas and an `Olf`.
 Each formula is placed on the left or right and up to one formula may be loaded. -/
+@[implicit_reducible]
 def Sequent := List Formula × List Formula × Olf -- ⟨L, R, o⟩
   deriving DecidableEq, Repr
 
@@ -246,11 +252,12 @@ instance instMembershipFormulaSequent : Membership Formula Sequent := ⟨fun X �
 
 instance instDecidableMemFormulaSequent {φ : Formula} {X : Sequent} : Decidable (φ ∈ X) := by
   rcases X with ⟨L,R,o⟩
-  simp only [instMembershipFormulaSequent]
+  unfold Membership.mem instMembershipFormulaSequent
   infer_instance
 
 instance instFintypeSubtypeMemSequent {X : Sequent} : Fintype (Subtype (fun x => x ∈ X)) := by
   rcases X with ⟨L,R,o⟩
+  unfold Membership.mem
   simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R]
   apply Fintype.subtype (L.toFinset ∪ R.toFinset)
   aesop
@@ -351,13 +358,13 @@ theorem tautImp_iff_SequentUnsat {φ ψ} {X : Sequent} :
   by
   intro defX
   subst defX
-  simp_all [tautology,satisfiable,modelCanSemImplySequent]
+  simp_all [tautology,satisfiable,vDash.SemImplies]
 
 theorem vDash_setEqTo_iff {X Y : Sequent} (h : X.setEqTo Y) (M : KripkeModel W) (w : W) :
     (M,w) ⊨ X ↔ (M,w) ⊨ Y := by
   rcases X with ⟨L, R, O⟩
   rcases Y with ⟨L',R',O'⟩
-  simp only [modelCanSemImplySequent]
+  simp only [vDash.SemImplies]
   unfold Sequent.setEqTo at h
   simp at h
   rw [List.toFinset.ext_iff, List.toFinset.ext_iff] at h
@@ -368,7 +375,7 @@ theorem vDash_multisetEqTo_iff {X Y : Sequent} (h : X.multisetEqTo Y) (M : Kripk
     (M,w) ⊨ X ↔ (M,w) ⊨ Y := by
   rcases X with ⟨L, R, O⟩
   rcases Y with ⟨L',R',O'⟩
-  simp only [modelCanSemImplySequent]
+  simp only [vDash.SemImplies]
   unfold Sequent.multisetEqTo at h
   simp at h
   rcases h with ⟨L_iff, R_iff, O_eq_O'⟩

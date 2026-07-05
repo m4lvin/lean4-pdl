@@ -135,11 +135,11 @@ lemma PdlRule.all_spec {X Y} (bas : X.basic) (r : PdlRule X Y) : ⟨Y, r⟩ ∈ 
       cases β_def : β <;> simp_all [PdlRule.all]
       case atom_prog a =>
         subst_eqs; split <;> simp_all <;> right
-        case h spL_def => -- split non-empty into none is impossible
+        case h_1 spL_def => -- split non-empty into none is impossible
           absurd spL_def
           unfold LoadFormula.split
           cases βs <;> simp_all [splitLast, LoadFormula.boxes_cons]
-        case h k γs γ spL_def => -- tricky case
+        case h_2 k γs γ spL_def => -- tricky case
           have := splitLast_undo_of_some spL_def
           simp only at this
           simp only [LoadFormula.split_boxes_cons] at *
@@ -175,11 +175,11 @@ lemma PdlRule.all_spec {X Y} (bas : X.basic) (r : PdlRule X Y) : ⟨Y, r⟩ ∈ 
       cases β_def : β <;> simp_all [PdlRule.all]
       case atom_prog a =>
         subst_eqs; split <;> simp_all <;> right
-        case h spL_def => -- split non-empty into none is impossible
+        case h_1 spL_def => -- split non-empty into none is impossible
           absurd spL_def
           unfold LoadFormula.split
           cases βs <;> simp_all [splitLast, LoadFormula.boxes_cons]
-        case h k γs γ spL_def => -- tricky case
+        case h_2 k γs γ spL_def => -- tricky case
           have := splitLast_undo_of_some spL_def
           simp only at this
           simp only [LoadFormula.split_boxes_cons] at *

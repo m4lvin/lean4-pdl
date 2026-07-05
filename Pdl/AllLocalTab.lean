@@ -106,7 +106,7 @@ def LocalRuleApp.all : (X : Sequent) → List LocalRuleApp
               simp only [List.map_cons, List.map_nil, List.mem_flatMap, List.mem_permutations,
                 List.mem_sublists, List.mem_cons, List.not_mem_nil, or_false, conds, Oconds, Rconds,
                 Lconds] at cond_in
-              rcases cond_in with ⟨Lc,Lc_sub,Rc,Rc_sub,cdef|cdef⟩ <;> cases cdef <;> simp_all
+              rcases cond_in with ⟨Lc,Lc_sub,Rc,Rc_sub,cdef|cdef⟩ <;> cases cdef <;> try simp_all
               · constructor
                 · rcases Lc_sub with ⟨L0, L0_sub_L, Lcond_perm_of_L0⟩
                   rw [@List.subperm_iff]

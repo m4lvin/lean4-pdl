@@ -172,6 +172,7 @@ lemma oneSidedL_sat_down (LRO : Sequent)
   refine ⟨L', L'_in, W, M, w, fun φ φ_in => ?_⟩
   specialize @satM φ
   have := List.diff_subset L Lcond
+  simp only [List.mem_union_iff, List.mem_append] at φ_in
   rcases φ_in with (φ_in_LnoCond | φ_in_L') | φ_in_O <;> aesop
 
 lemma oneSidedR_sat_down (LRO : Sequent)
@@ -191,6 +192,7 @@ lemma oneSidedR_sat_down (LRO : Sequent)
   refine ⟨L', L'_in, W, M, w, fun φ φ_in => ?_⟩
   specialize @satM φ
   have := List.diff_subset R Rcond
+  simp only [List.mem_union_iff, List.mem_append] at φ_in
   rcases φ_in with (φ_in_LnoCond | φ_in_L') | φ_in_O <;> aesop
 
 -- Following four lemmas are almost the same, but then for the loaded diamond rules.
@@ -247,6 +249,7 @@ lemma loadedL_sat_down (LRO : Sequent)
   · use W, M, w
     intro φ φ_in
     specialize @satM φ
+    simp only [List.mem_union_iff, List.mem_append] at φ_in
     rcases φ_in with (φ_in_L | φ_in_ψs | φ_in_OL) | φ_in_X
     · aesop
     · simp [conEval, pairUnload] at w_φ; aesop
@@ -275,12 +278,13 @@ lemma loadedR_sat_down (LRO : Sequent)
     and_true] at this
   rcases this with ⟨ψs, φ0, _in_ress, w_φ⟩
   simp only [applyLocalRule, List.empty_eq, List.diff_nil, Olf.change_some_some_eq, List.map_map,
-    List.mem_map, Function.comp_apply, List.append_nil, Prod.exists, listHasSat, List.mem_union_iff,
-    ↓existsAndEq, and_true, Sequent.right_eq, List.append_assoc, List.mem_append]
+    List.mem_map, Function.comp_apply, List.append_nil, Prod.exists, ↓existsAndEq, and_true,
+    Sequent.right_eq, List.append_assoc]
   use ψs, φ0, _in_ress
   use W, M, w
   intro φ φ_in
   specialize @satM φ
+  simp only [List.mem_union_iff, List.mem_append] at φ_in
   rcases φ_in with (φ_in_L | φ_in_ψs | φ_in_OL) | φ_in_X
   · aesop
   · simp [conEval, pairUnload] at w_φ; aesop
@@ -539,10 +543,10 @@ instance instDecidableBasic {X : Sequent} : Decidable (X.basic) := by
     simp only [h, not_false_eq_true, and_true]
     by_cases ∃ f ∈ L ++ R ++ (Option.map (Sum.elim negUnload negUnload) o).toList, f.basic ≠ true
     · apply isFalse
-      push_neg
+      push Not
       assumption
     · apply isTrue
-      push_neg at *
+      push Not at *
       assumption
 
 /-- Local tableau for `X`, maximal by definition. -/
@@ -588,65 +592,66 @@ lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
   case oneSidedL ress orule ress_def =>
     subst_eqs
     cases orule
-    case bot => right; simp_all [Sequent.closed]
+    case bot =>
+      right; simp_all [Sequent.closed, Membership.mem]
     case not φ =>
       right; simp_all [Sequent.closed]; right
       have := preconditionProof.subset
       refine ⟨φ, Or.inl ?_, Or.inl ?_⟩ <;> tauto
     case neg φ =>
-      left; push_neg; simp_all
+      left; push Not; simp_all
       refine ⟨~~φ, Or.inl (by simp_all), by simp⟩
     case con φ1 φ2 =>
-      left; push_neg; simp_all
+      left; push Not; simp_all
       refine ⟨φ1 ⋀ φ2, Or.inl (by simp_all), by simp⟩
     case nCo φ1 φ2 =>
-      left; push_neg; simp_all
+      left; push Not; simp_all
       refine ⟨~(φ1 ⋀ φ2), Or.inl (by simp_all), by simp⟩
     case box α φ α_nonAtom =>
-      left; push_neg; simp_all
+      left; push Not; simp_all
       refine ⟨⌈α⌉φ, Or.inl (by simp_all), ?_⟩
       cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
     case dia α φ α_nonAtom =>
-      left; push_neg; simp_all
+      left; push Not; simp_all
       refine ⟨~⌈α⌉φ, Or.inl ?_, ?_⟩
       · exact preconditionProof
       · cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
   case oneSidedR ress orule ress_def => -- analogous to oneSidedL
     cases orule
-    case bot => right; simp_all [Sequent.closed]
+    case bot => right; simp_all [Sequent.closed, Membership.mem]
     case not φ =>
       right; simp_all [Sequent.closed]; right
       have := preconditionProof.subset
       refine ⟨φ, Or.inr ?_, Or.inr ?_⟩ <;> tauto
     case neg φ =>
-      left; push_neg; simp_all
+      left; push Not; simp_all
       refine ⟨~~φ, Or.inr (by simp_all), by simp⟩
     case con φ1 φ2 =>
-      left; push_neg; simp_all
+      left; push Not; simp_all
       refine ⟨φ1 ⋀ φ2, Or.inr (by simp_all), by simp⟩
     case nCo φ1 φ2 =>
-      left; push_neg; simp_all
+      left; push Not; simp_all
       refine ⟨~(φ1 ⋀ φ2), Or.inr (by simp_all), by simp⟩
     case box α φ α_nonAtom =>
-      left; push_neg; simp_all
+      left; push Not; simp_all
       refine ⟨⌈α⌉φ, Or.inr (by simp_all), ?_⟩
       cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
     case dia α φ α_nonAtom =>
-      left; push_neg; simp_all
+      left; push Not; simp_all
       refine ⟨~⌈α⌉φ, Or.inr (Or.inl ?_), ?_⟩
       · exact preconditionProof
       · cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
   case LRnegL =>
     right
-    simp [Sequent.closed]
+    simp [Sequent.closed, Membership.mem]
     aesop
   case LRnegR =>
     right
-    simp [Sequent.closed]
+    simp [Sequent.closed, Membership.mem]
     aesop
   case loadedL ress χ lrule ress_def =>
     left
-    push_neg
+    push Not
     cases lrule
     case dia α χ α_nonAtom =>
       rcases O with _|⟨⟨α',χ'⟩|⟨α',χ'⟩⟩
@@ -675,7 +680,7 @@ lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
           cases α <;> simp_all
   case loadedR ress χ lrule ress_def => -- analogous to loadedL
     left
-    push_neg
+    push Not
     cases lrule
     case dia α χ α_nonAtom =>
       rcases O with _|⟨⟨α',χ'⟩|⟨α',χ'⟩⟩
@@ -831,7 +836,7 @@ lemma basic_iff_noLocalRuleApp {Y : Sequent} :
     simp_all
     clear not_closed
     absurd no_lra
-    push_neg
+    push Not
     -- Y_nonbas: ∃ formula in L ∪ R ∪ O that's not basic
     rcases Y_nonbas with ⟨f, f_where, f_nonBas⟩
     rcases f_where with f_in_L | f_in_R | ⟨a, rfl, rfl⟩ | ⟨b, rfl, rfl⟩
@@ -942,7 +947,7 @@ private instance instLTFormula : LT Formula := ⟨fun φ1 φ2 => lmOfFormula φ1
 
 instance Formula.WellFoundedLT : WellFoundedLT Formula := by
   constructor
-  simp_all only [instLTFormula]
+  simp_all only [LT.lt]
   exact @WellFounded.onFun Formula Nat Nat.lt lmOfFormula Nat.lt_wfRel.wf
 
 instance Formula.instPreorderFormula : Preorder Formula := Preorder.lift lmOfFormula
@@ -971,29 +976,6 @@ theorem node_to_multiset_eq {L R O} :
 theorem node_to_multiset_eq_of_three_eq (hL : L = L') (hR : R = R') (hO : O = O') :
     node_to_multiset (L, R, O) = node_to_multiset (L', R', O') := by
   aesop
-
--- mathlib this?
-lemma List.Subperm.append {α : Type u_1} {l₁ l₂ r₁ r₂ : List α} :
-    l₁.Subperm l₂ → r₁.Subperm r₂ → (l₁ ++ r₁).Subperm (l₂ ++ r₂) := by
-  intro hl hr
-  cases l₁
-  case nil =>
-    simp
-    apply List.Subperm.trans hr
-    induction l₂
-    · simp
-      exact Subperm.refl r₂
-    case cons IH =>
-      simp_all
-      apply List.Subperm.cons_right
-      exact IH
-  case cons h t =>
-    have : (h :: t ++ r₁).Subperm (l₂ ++ r₁) := by
-      rw [List.subperm_append_right]
-      exact hl
-    apply List.Subperm.trans this
-    rw [List.subperm_append_left]
-    exact hr
 
 theorem preconP_to_submultiset {Lcond L Rcond R Ocond O}
     (preconditionProof : List.Subperm Lcond L ∧ List.Subperm Rcond R ∧ Ocond ⊆ O)
@@ -1105,7 +1087,7 @@ theorem node_to_multiset_of_precon {O Ocond Onew : Olf}
     all_goals cases O_Def : O <;> try (cases O_def2 : O)
     all_goals cases Ocond_Def : Ocond <;> try (cases Ocond_def2 : Ocond)
     all_goals cases Onew_Def : Onew <;> try (cases Onew_def2 : Onew)
-    all_goals simp_all [Olf.toForm, Option.insHasSdiff]
+    all_goals simp_all [Olf.toForm]
   rw [claim]
   -- we now get 3 * 3 * 3 = 27 cases
   all_goals cases O <;> try (rename_i O; cases O)
@@ -1273,7 +1255,7 @@ theorem Dset_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Dset α) {
         cases in_l
         subst_eqs
         have IHα := Dset_goes_down α φ in_H' in_Fs
-        cases α <;> simp_all only [lmOfFormula, not_lt_zero']
+        cases α <;> simp_all only [lmOfFormula, not_lt_zero]
   case test τ =>
     simp_all [Dset, testsOfProgram]
 
@@ -1424,9 +1406,10 @@ theorem LocalRuleDecreases (rule : LocalRule X ress) :
         try subst_eqs
         try simp at *
         try subst_eqs
-      case neg => linarith
-      case con => cases y_in_Y <;> (subst_eqs; linarith)
-      case nCo => cases Y_in_ress <;> (subst_eqs; simp at * ; subst_eqs; linarith)
+      case neg => unfold LT.lt; simp
+      case con => cases y_in_Y <;> (subst_eqs; unfold LT.lt; simp; try linarith)
+      case nCo => cases Y_in_ress <;>
+        (subst_eqs; simp at * ; subst_eqs; unfold LT.lt; simp; try linarith)
       case dia α φ notAtom =>
         rcases Y_in_ress with ⟨E, E_in, E_def⟩
         subst E_def
@@ -1445,9 +1428,10 @@ theorem LocalRuleDecreases (rule : LocalRule X ress) :
         try subst_eqs
         try simp at *
         try subst_eqs
-      case neg => linarith
-      case con => cases y_in_Y <;> (subst_eqs; linarith)
-      case nCo => cases Y_in_ress <;> (subst_eqs; simp at * ; subst_eqs ; linarith)
+      case neg => unfold LT.lt; simp
+      case con => cases y_in_Y <;> (subst_eqs; unfold LT.lt; simp; try linarith)
+      case nCo => cases Y_in_ress <;>
+        (subst_eqs; simp at * ;subst_eqs; unfold LT.lt; simp; try linarith)
       case dia α φ notAtom =>
         rcases Y_in_ress with ⟨E, E_in, E_def⟩
         subst E_def
@@ -1561,7 +1545,7 @@ theorem localRuleApp.decreases_DM
       rw [← def_RES, node_to_multiset_of_precon preconP lrOprop]
     rw [this]
     subst def_RES
-    simp_all only [Option.instHasSubsetOption, add_tsub_cancel_right]
+    simp_all only [add_tsub_cancel_right]
   split_ands
   · exact (LocalRule.cond_non_empty rule : node_to_multiset (Lcond, Rcond, Ocond) ≠ ∅)
   · rw [Z_eq]

@@ -29,7 +29,7 @@ end
 
 theorem repl_in_Con : repl_in_F x ψ (Con l) = Con (l.map (repl_in_F x ψ)) := by
   cases l
-  · simp
+  · simp; rfl
   case cons φ1 l =>
     cases l
     · simp
@@ -56,7 +56,7 @@ theorem repl_in_F_non_occ_eq {x φ ρ} :
     (Sum.inl x) ∉ φ.voc → repl_in_F x ρ φ = φ := by
   intro x_notin_phi
   cases φ
-  case bottom => simp
+  case bottom => simp; rfl
   case atom_prop c =>
     simp only [repl_in_F, beq_iff_eq, ite_eq_right_iff]
     intro c_is_x; simp [Formula.voc] at *; subst_eqs; tauto
@@ -166,10 +166,12 @@ lemma repl_in_P_voc_def p φ α :
     ext x
     have := repl_in_F_voc_def p φ τ
     simp_all
+    rfl
   case star α =>
     ext x
     have := repl_in_P_voc_def p φ α
     simp_all
+    rfl
 end
 
 /-- Overwrite the valuation of `x` with the current value of `ψ` in a model. -/
@@ -181,22 +183,22 @@ theorem repl_in_model_sat_iff x ψ φ {W} (M : KripkeModel W) (w : W) :
     (M, w) ⊨ repl_in_F x ψ φ ↔ (repl_in_model x ψ M, w) ⊨ φ := by
   cases φ
   case bottom =>
-    simp [evaluatePoint, modelCanSemImplyForm]
+    simp [vDash.SemImplies, evaluatePoint]
   case atom_prop c =>
-    simp [evaluatePoint, modelCanSemImplyForm, evaluate, repl_in_model]
+    simp [vDash.SemImplies, evaluatePoint, vDash.SemImplies, evaluate, repl_in_model]
     aesop
   case neg φ =>
     have IH := repl_in_model_sat_iff x ψ φ M w
-    simp [evaluatePoint, modelCanSemImplyForm] at *
+    simp [evaluatePoint, vDash.SemImplies] at *
     tauto
   case and φ1 φ2 =>
     have IH1 := repl_in_model_sat_iff x ψ φ1 M w
     have IH2 := repl_in_model_sat_iff x ψ φ2 M w
-    simp [evaluatePoint, modelCanSemImplyForm] at *
+    simp [evaluatePoint, vDash.SemImplies] at *
     rw [IH1, IH2]
   case box α φ =>
     have IHα := repl_in_model_rel_iff x ψ α M w
-    simp [evaluatePoint, modelCanSemImplyForm] at *
+    simp [evaluatePoint, vDash.SemImplies] at *
     constructor
     all_goals
       intro hyp v rel
@@ -229,7 +231,7 @@ theorem repl_in_model_rel_iff x ψ α {W} (M : KripkeModel W) (w v : W) :
       tauto
   case test φ =>
     have IHφ := repl_in_model_sat_iff x ψ φ M v
-    simp only [repl_in_P, relate, and_congr_right_iff, evaluatePoint, modelCanSemImplyForm] at *
+    simp only [repl_in_P, relate, and_congr_right_iff, evaluatePoint, vDash.SemImplies] at *
     intro w_is_v
     subst w_is_v
     exact IHφ
@@ -240,11 +242,11 @@ theorem repl_in_F_equiv x ψ :
   intro hyp W M w
   have claim1 := repl_in_model_sat_iff x ψ φ1 M w
   have claim2 := repl_in_model_sat_iff x ψ φ2 M w
-  simp only [evaluatePoint, modelCanSemImplyForm] at *
+  simp only [evaluatePoint, vDash.SemImplies] at *
   rw [claim1]
   rw [claim2]
   have := @equiv_iff φ1 φ2 hyp W (repl_in_model x ψ M) w
-  simp only [evaluatePoint, modelCanSemImplyForm] at *
+  simp only [evaluatePoint, vDash.SemImplies] at *
   exact this
 
 theorem repl_in_P_equiv x ψ :
@@ -271,7 +273,7 @@ mutual
 lemma repl_in_F_cancel_via_non_occ φ p q : Sum.inl q ∉ φ.voc →
     repl_in_F q (·p) (repl_in_F p (·q) φ) = φ := by
   intro q_not_in_ψ
-  cases φ <;> simp_all
+  cases φ <;> simp_all <;> try rfl
   case atom_prop q =>
     by_cases q = p <;> aesop
   case neg φ =>
@@ -374,21 +376,21 @@ theorem substitutionLemma σ φ {W} (M : KripkeModel W) (w : W) :
     (M, w) ⊨ subst_in_F σ φ ↔ (subst_in_model σ M, w) ⊨ φ := by
   cases φ
   case bottom =>
-    simp [evaluatePoint, modelCanSemImplyForm]
+    simp [evaluatePoint, vDash.SemImplies]
   case atom_prop c =>
-    simp [evaluatePoint, modelCanSemImplyForm, evaluate, subst_in_model]
+    simp [evaluatePoint, vDash.SemImplies, evaluate, subst_in_model]
   case neg φ =>
     have IH := substitutionLemma σ φ M w
-    simp [evaluatePoint, modelCanSemImplyForm] at *
+    simp [evaluatePoint, vDash.SemImplies] at *
     tauto
   case and φ1 φ2 =>
     have IH1 := substitutionLemma σ φ1 M w
     have IH2 := substitutionLemma σ φ2 M w
-    simp [evaluatePoint, modelCanSemImplyForm] at *
+    simp [evaluatePoint, vDash.SemImplies] at *
     rw [IH1, IH2]
   case box α φ =>
     have IHα := substitutionLemmaRel σ α M w
-    simp [evaluatePoint, modelCanSemImplyForm] at *
+    simp [evaluatePoint, vDash.SemImplies] at *
     constructor
     all_goals
       intro hyp v rel
@@ -421,7 +423,7 @@ theorem substitutionLemmaRel (σ : Substitution) α {W} (M : KripkeModel W) (w v
       tauto
   case test φ =>
     have IHφ := substitutionLemma σ φ M v
-    simp only [subst_in_P, relate, and_congr_right_iff, evaluatePoint, modelCanSemImplyForm] at *
+    simp only [subst_in_P, relate, and_congr_right_iff, evaluatePoint, vDash.SemImplies] at *
     intro w_is_v
     subst w_is_v
     exact IHφ

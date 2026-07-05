@@ -24,21 +24,21 @@ theorem vocOfBigDis {l : List Formula} : x ∈ voc (bigDis l) → ∃φ ∈ l, x
   by
     intro hyp
     induction l
-    case nil  => aesop
+    case nil  => simp [voc] at hyp
     case cons head tail ih =>
       cases em (x ∈ vocabOfFormula head)
       · simp; tauto
-      · unfold bigDis at hyp; aesop
+      · unfold bigDis at hyp; simp [voc] at *; aesop
 
 theorem vocOfBigCon {l : List Formula} : x ∈ voc (bigCon l) → ∃φ ∈ l, x ∈ voc φ :=
   by
     intro hyp
     induction l
-    case nil  => aesop
+    case nil  => simp [voc] at hyp
     case cons head tail ih =>
       cases em (x ∈ vocabOfFormula head)
       · simp; tauto
-      · unfold bigCon at hyp; aesop
+      · unfold bigCon at hyp; simp [voc] at *; aesop
 
 @[simp]
 theorem conempty : bigCon ∅ = (⊤ : Formula) := by rfl
@@ -146,12 +146,11 @@ instance listHasUplus : HasUplus List := ⟨pairunionList⟩
 @[simp]
 instance finsetHasUplus : HasUplus Finset := ⟨pairunionFinset⟩
 
-theorem disconAnd {XS YS} : discon (XS ⊎ YS) ≡ discon XS ⋀ discon YS :=
-  by
+theorem disconAnd {XS YS} : discon (XS ⊎ YS) ≡ discon XS ⋀ discon YS := by
   unfold semEquiv
   intro W M w
   rw [disconEval (XS ⊎ YS) (by rfl)]
-  simp
+  simp [HasUplus.pairunion]
   rw [disconEval XS (by rfl)]
   rw [disconEval YS (by rfl)]
   aesop
@@ -192,10 +191,9 @@ theorem disconOr {XS YS} : discon (XS ∪ YS) ≡ discon XS ⋁ discon YS :=
       exact ⟨Or.inr Y_in, satY⟩
 
 theorem union_elem_uplus {XS YS : Finset (Finset Formula)} {X Y : Finset Formula} :
-  X ∈ XS → Y ∈ YS → ((X ∪ Y) ∈ (XS ⊎ YS)) :=
-  by
+    X ∈ XS → Y ∈ YS → ((X ∪ Y) ∈ (XS ⊎ YS)) := by
   intro X_in Y_in
-  simp
+  simp [HasUplus.pairunion]
   exact ⟨X, X_in, Y, Y_in, rfl⟩
 
 @[simp]
@@ -244,18 +242,18 @@ lemma bigCon_sat {l : List Formula} {M : KripkeModel W} {w : W} :
 
 lemma bigDis_union_sat_down {X : Finset Formula} {l : List Formula} :
     Satisfiable (X ∪ {bigDis l}) → ∃φ ∈ l, Satisfiable (X ∪ {φ}) :=
-  by simp at *; tauto
+  by simp [Satisfiable] at *; tauto
 
 lemma bigCon_union_sat_down {X : Finset Formula} {l : List Formula} :
     Satisfiable (X ∪ {bigCon l}) → ∀φ ∈ l, Satisfiable (X ∪ {φ}) :=
-  by simp at *; tauto
+  by simp [Satisfiable] at *; tauto
 
 lemma bigConNeg_union_sat_down {X : Finset Formula} {l : List Formula} :
     Satisfiable (X ∪ {bigCon (l.map (~·))}) → ∀φ ∈ l, Satisfiable (X ∪ {~φ}) :=
   by
     intro hyp
     rcases hyp with ⟨W, M, w, sat⟩
-    simp at *
+    simp [Satisfiable] at *
     rcases sat with ⟨lNotSat, XSat⟩
     intro φ inl
     use W, M, w
@@ -270,7 +268,7 @@ lemma eval_negBigCon_iff_eval_bigDisNeg {l : List Formula} {M : KripkeModel W} {
     Evaluate (M, w) (~(bigCon l)) ↔ Evaluate (M, w) (bigDis (l.map (~·))) := by aesop
 
 lemma sat_negBigDis_iff_sat_bigConNeg {l : List Formula} :
-    Satisfiable (~(bigDis l)) ↔ Satisfiable (~~bigCon (l.map (~·))) := by aesop
+    Satisfiable (~(bigDis l)) ↔ Satisfiable (~~bigCon (l.map (~·))) := by simp [Satisfiable]
 
 lemma sat_negBigCon_iff_sat_bigDisNeg {l : List Formula} :
-    Satisfiable (~(bigCon l)) ↔ Satisfiable (bigDis (l.map (~·))) := by aesop
+    Satisfiable (~(bigCon l)) ↔ Satisfiable (bigDis (l.map (~·))) := by simp [Satisfiable]

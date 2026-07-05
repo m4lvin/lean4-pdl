@@ -220,7 +220,8 @@ theorem disconAnd {XS YS} : discon (XS ⊎ YS) ≡ discon XS ⋀ discon YS :=
   unfold semEquiv
   intro W M w
   rw [disconEval (XS ⊎ YS)]
-  simp
+  simp only [HasUplus.pairunion, pairunionList, List.mem_flatten, List.mem_map,
+    exists_exists_and_eq_and, exists_exists_and_exists_and_eq_and, List.mem_append, evaluate]
   rw [disconEval XS]
   rw [disconEval YS]
   aesop
@@ -229,7 +230,7 @@ theorem union_elem_uplus {XS YS : Finset (Finset Formula)} {X Y : Finset Formula
   X ∈ XS → Y ∈ YS → ((X ∪ Y) ∈ (XS ⊎ YS)) :=
   by
   intro X_in Y_in
-  simp
+  simp only [HasUplus.pairunion, pairunionFinset, Finset.mem_biUnion, Finset.mem_singleton]
   exact ⟨X, X_in, Y, Y_in, rfl⟩
 
 /-- Helper for `oneSidedLocalRuleTruth`, used with `g = Yset`. -/

@@ -99,29 +99,33 @@ theorem subsetSat {M : KripkeModel W} {w : W} {X Y : List Formula} :
     (∀ φ ∈ X, evaluate M w φ) → Y ⊆ X → ∀ φ ∈ Y, evaluate M w φ :=
   by aesop
 
-theorem semEquiv.refl : Reflexive semEquiv := by
+theorem semEquiv.refl : Std.Refl semEquiv := by
+  constructor
   tauto
 
-theorem semEquiv.symm : Symmetric semEquiv := by
+theorem semEquiv.symm : Std.Symm semEquiv := by
+  constructor
   intro φ1 φ2 hyp W M w
   specialize hyp W M w
   tauto
 
-theorem semEquiv.trans : Transitive semEquiv := by
+theorem semEquiv.trans : IsTrans Formula semEquiv := by
+  constructor
   intro _ _ _ hyp1 hyp2 W M w
   specialize hyp1 W M w
   specialize hyp2 W M w
   tauto
 
-theorem relEquiv.refl : Reflexive relEquiv := by
-  tauto
+theorem relEquiv.refl : Std.Refl relEquiv := ⟨by tauto⟩
 
-theorem relEquiv.symm : Symmetric relEquiv := by
+theorem relEquiv.symm : Std.Symm relEquiv := by
+  constructor
   intro α1 α2 hyp W M w v
   specialize hyp W M w v
   tauto
 
-theorem relEquiv.trans : Transitive relEquiv := by
+theorem relEquiv.trans : IsTrans Program relEquiv := by
+  constructor
   intro _ _ _ hyp1 hyp2 W M w v
   specialize hyp1 W M w v
   specialize hyp2 W M w v
@@ -165,14 +169,14 @@ infixl:40 " ⊭ " => fun a b => ¬a⊨b
 theorem singletonSat_iff_sat : ∀ φ, satisfiable ({φ} : Finset Formula) ↔ satisfiable φ :=
   by
   intro phi
-  simp
+  simp [satisfiable]
 
 @[simp]
 theorem vDashSingleton_iff_vDash_formula {M : KripkeModel W} {w : W} :
     ∀ φ, (M, w) ⊨ ([φ] : List Formula) ↔ evaluate M w φ :=
   by
   intro phi
-  simp [modelCanSemImplyList]
+  simp [SemImplies]
 
 -- useful lemmas to connect different ⊨ cases
 theorem forms_to_lists {φ ψ : Formula} : φ⊨ψ → ([φ] : List Formula)⊨([ψ] : List Formula) :=
@@ -200,7 +204,7 @@ theorem deduction (X : List Formula) (ψ φ : Formula) :
 theorem notSat_iff_semImplies (X : List Formula) (φ : Formula) :
     ¬ satisfiable (X ∪ [~φ]) ↔ X ⊨ ([φ] : List Formula) := by
   constructor
-  · simp only [satisfiable, not_exists, not_forall, exists_prop, setCanSemImplySet]
+  · simp only [satisfiable, not_exists, not_forall, exists_prop]
     intro nSat W M w satX
     specialize nSat W M w
     rcases nSat with ⟨φ, phi_in, not_phi⟩
@@ -366,6 +370,7 @@ theorem relateSeq_iff_exists_Vector (M : KripkeModel W) (δ : List Program) (w v
         simp only [Fin.coe_ofNat_eq_mod, Nat.zero_mod, List.getElem_cons_zero, Fin.castSucc_zero,
           List.Vector.get_zero, Fin.succ_zero_eq_one] at this
         convert this
+        rfl
       · specialize IH u
         rw [IH]
         clear IH
@@ -391,7 +396,10 @@ theorem relateSeq_iff_exists_Vector (M : KripkeModel W) (δ : List Program) (w v
           aesop
         · intro i
           specialize claim i.succ
-          aesop
+          subst w_def v_def
+          simp_all [Fin.val_succ, List.getElem_cons_succ, Fin.castSucc_succ, List.get_eq_getElem,
+            Nat.succ_eq_add_one, List.Vector.get_tail_succ]
+          sorry -- aesop
 
 theorem evalBoxes (δ : List Program) φ :
     evaluate M w (⌈⌈δ⌉⌉φ) ↔ (∀ v, relateSeq M δ w v → evaluate M v φ) := by
@@ -416,7 +424,7 @@ theorem evalBoxes (δ : List Program) φ :
 @[simp]
 theorem evaluate_unload_box :
     evaluate M w (⌊α⌋af).unload ↔ ∀ v, relate M α w v → (M,v) ⊨ af := by
-  cases af <;> simp_all [modelCanSemImplyAnyFormula]
+  cases af <;> simp_all [SemImplies]
 
 theorem truthImply_then_satImply (X Y : List Formula) : X ⊨ Y → satisfiable X → satisfiable Y :=
   by
@@ -457,6 +465,7 @@ theorem SemImplyAnyNegFormula_loadBoxes_iff {M : KripkeModel W} {ξ : AnyFormula
       constructor
       · use u
       · convert z_
+        rfl
     · rintro ⟨v, w_v, v_⟩
       simp only [relateSeq_cons] at w_v
       rcases w_v with ⟨u, w_u, u_v⟩

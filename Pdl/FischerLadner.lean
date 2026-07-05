@@ -50,6 +50,10 @@ def isNeg : Formula → Prop
 | ~_ => True
 | _ => False
 
+/-- Strange that we need this. Lean versions 4.28 and earlier did not need it? -/
+@[simp]
+lemma Formula.bottom_rfl : Formula.bottom = ⊥ := by rfl
+
 lemma FL_single_neg_closed {φ} :
     ¬ isNeg φ → ~φ ∈ FL φ := by
   cases φ <;> simp [FL, isNeg]
@@ -290,7 +294,7 @@ lemma FL_stays_in_voc {φ ψ} (ψ_in_FL : ψ ∈ FL φ) : ψ.voc ⊆ φ.voc := b
     · have IH := FL_stays_in_voc h
       grind
   all_goals
-    grind [Formula.voc]
+    cases ψ_in_FL <;> simp_all [Formula.voc]
 
 lemma FLb_stays_in_voc {α φ ψ} (ψ_in_FLb : ψ ∈ FLb α φ) : ψ.voc ⊆ α.voc ∪ φ.voc := by
   cases α <;> simp_all [FLb]

@@ -64,7 +64,7 @@ theorem vocErase {X : Finset Formula} {ϕ : Formula} : voc (X \ {ϕ}) ⊆ voc X 
 
 theorem vocUnion {X Y : Finset Formula} : voc (X ∪ Y) = voc X ∪ voc Y :=
   by
-  simp
+  simp [voc]
   ext1
   aesop
 
@@ -76,7 +76,8 @@ theorem vocPreserved (X : Finset Formula) (ψ ϕ) :
   ext1
   constructor
   all_goals intro a_in
-  all_goals norm_num at *
+  all_goals simp only [voc, vocabOfSetFormula, Finset.mem_biUnion, Finset.biUnion_insert,
+    Finset.mem_union, Finset.mem_erase, ne_eq] at *
   · rcases a_in with ⟨θ, _, a_in_vocTheta⟩
     by_cases h : θ = ψ
     · aesop
@@ -91,7 +92,8 @@ theorem vocPreservedTwo {X : Finset Formula} (ψ ϕ1 ϕ2) :
   simp at *
   ext1
   constructor
-  all_goals intro a_in; norm_num at *
+  all_goals intro a_in; simp only [voc, vocabOfSetFormula, Finset.biUnion_insert,
+    Finset.singleton_biUnion, Finset.mem_biUnion, Finset.mem_union, Finset.mem_erase, ne_eq] at *
   · rcases a_in with ⟨θ, theta_in_X, a_in_vocTheta⟩
     by_cases h : θ = ψ
     · right; subst h; unfold vocabOfSetFormula vocabOfFormula at *
@@ -109,7 +111,8 @@ theorem vocPreservedSub {X : Finset Formula} (ψ ϕ) :
   by
   intro psi_in_X sub_voc
   simp at *
-  intro a a_in; norm_num at *
+  intro a a_in; simp only [voc, vocabOfSetFormula, Finset.biUnion_insert, Finset.mem_union,
+    Finset.mem_biUnion, Finset.mem_erase, ne_eq] at *
   cases a_in
   · use ψ; rw [Finset.subset_iff] at sub_voc ; tauto
   · aesop

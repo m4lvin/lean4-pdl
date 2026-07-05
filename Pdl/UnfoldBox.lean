@@ -178,13 +178,23 @@ theorem F_mem_iff_neg α (ℓ : TP α) φ :
   all_goals
     simp_all [testsOfProgram, F]
   case sequence α β =>
-    have := F_mem_iff_neg α ℓ φ
-    have := F_mem_iff_neg β ℓ φ
-    aesop
+    have IHα := F_mem_iff_neg α ℓ φ
+    have IHβ := F_mem_iff_neg β ℓ φ
+    refine ⟨fun | Or.inl hyp => ?_ | Or.inr hyp => ?_, fun ⟨τ, φ_def, h_τ_in, ℓ_false⟩  => ?_ ⟩
+    · have := IHα.1 hyp; aesop
+    · have := IHβ.1 hyp; aesop
+    · rcases h_τ_in with hyp|hyp
+      · left; apply IHα.2; aesop
+      · right; apply IHβ.2; aesop
   case union α β =>
-    have := F_mem_iff_neg α ℓ φ
-    have := F_mem_iff_neg β ℓ φ
-    aesop
+    have IHα := F_mem_iff_neg α ℓ φ
+    have IHβ := F_mem_iff_neg β ℓ φ
+    refine ⟨fun | Or.inl hyp => ?_ | Or.inr hyp => ?_, fun ⟨τ, φ_def, h_τ_in, ℓ_false⟩  => ?_ ⟩
+    · have := IHα.1 hyp; aesop
+    · have := IHβ.1 hyp; aesop
+    · rcases h_τ_in with hyp|hyp
+      · left; apply IHα.2; aesop
+      · right; apply IHβ.2; aesop
   case star α =>
     have := F_mem_iff_neg α ℓ φ
     aesop
@@ -654,7 +664,7 @@ theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
         · simp
       have obvious : (M,w) ⊨ (repl_in_F x ρ) (·x) := by simp; exact w_rho
       have : (M,w) ⊨ (repl_in_F x ρ) (((·x) ⋀ χ0) ⋁ χ1) := by
-        simp [evaluate, modelCanSemImplyForm] at *
+        simp [evaluate, vDash.SemImplies] at *
         tauto
       -- Now we want to "rewrite" with beta_equiv.
       have := repl_in_F_equiv x ρ beta_equiv
@@ -664,7 +674,7 @@ theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
       rw [equiv_iff _ _ this]
       simp_all
     -- It is then immediate...
-    simp [evaluate, modelCanSemImplyForm] at this
+    simp [evaluate, vDash.SemImplies] at this
     exact this v w_β_v -- This finishes the proof of (46).
   -- To see how the Lemma follows from this...
   intro W M w
@@ -874,7 +884,8 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
       simp_all [testsOfProgram, signature, conEval, Bset, P, F]
       rintro φ ((φ_in_Fα|φ_in_Fβ) | ⟨δ, ⟨(δ_from_Pα|δ_from_Pβ), def_φ⟩⟩)
       · tauto
-      · rw [F_mem_iff_neg β ℓ φ] at φ_in_Fβ
+      · -- FIXME -- rw [F_mem_iff_neg β ℓ φ] at φ_in_Fβ -- weird!
+        have φ_in_Fβ := (F_mem_iff_neg β ℓ φ).1 φ_in_Fβ
         rcases φ_in_Fβ with ⟨τ, τ_in, def_φ, not_ℓ_τ⟩
         apply w_sign_ℓ φ
         subst def_φ
@@ -891,15 +902,23 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
         simp_all [boxes_append]
       · subst def_φ
         cases em ([] ∈ P α ℓ)
-        · simp_all
-          apply IHβ.1 ?_ (⌈⌈δ⌉⌉ψ) <;> clear IHβ
+        · apply IHβ.1 ?_ (⌈⌈δ⌉⌉ψ) <;> clear IHβ
           · right; aesop
           · have := lhs (⌈β⌉ψ)
             simp only [evaluate] at this; apply this; clear this -- sounds like daft punk ;-)
             right
             use []
             simp_all
-        · simp_all
+        case inr h =>
+          -- was: simp_all
+          exfalso
+          exact
+            (Eq.mp
+              (Eq.trans
+                (congrFun' (congrArg And (eq_false h))
+                  (δ ∈ P β fun τ ↦ ℓ ⟨↑τ, instCoeOutTPSequence_1._proof_1 τ⟩))
+                (false_and (δ ∈ P β fun τ ↦ ℓ ⟨↑τ, instCoeOutTPSequence_1._proof_1 τ⟩)))
+              δ_from_Pβ)
     · intro rhs
       rw [conEval]
       simp_all [testsOfProgram, signature, conEval, Bset, P, F]
@@ -974,12 +993,14 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
                 have := lhs.2
                 simp only [signature, conEval, List.mem_map, List.mem_attach, true_and,
                   Subtype.exists, forall_exists_index] at this
-                specialize this τ τ (by simp [testsOfProgram]; exact τ_in)
-                simp_all only [ite_true, true_implies]
-                by_contra hyp
-                absurd this
+                specialize this τ τ (by simp [testsOfProgram]; exact τ_in) ?_
+                · split
+                  case isTrue => rfl
+                  case isFalse h => absurd h; exact ℓ_τ
                 specialize w_Xℓ' (~τ)
                 simp only [evaluate] at w_Xℓ'
+                by_contra hyp
+                absurd this
                 apply w_Xℓ'
                 left
                 rw [F_mem_iff_neg]
@@ -1078,8 +1099,11 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
               specialize this τ τ (by simp [testsOfProgram]; exact τ_in)
               simp at this
               apply this
-              intro
+              intro h
               simp_all
+              absurd h
+              simp only [Bool.not_eq_false]
+              exact ℓ_τ
           · exact δ_in
         simp [boxes_append]
         simp at this
@@ -1267,20 +1291,20 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M, v)
     rcases v_γ_w with ⟨v_is_w, v_τ⟩
     cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩ )
     all_goals
-      simp_all [modelCanSemImplyForm, evaluatePoint, F, P, relateSeq, testsOfProgram]
+      simp_all [vDash.SemImplies, evaluatePoint, F, P, relateSeq, testsOfProgram]
   case union α β =>
     simp at v_γ_w
     cases v_γ_w
     case inl v_α_w =>
       have v_Fℓα : evaluate M v (Con (F α ℓ)) := by
-        simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+        simp_all [conEval, F, vDash.SemImplies, evaluatePoint]
       have IHα := existsBoxFP α v_α_w ℓ v_Fℓα -- using coercion from above :-)
       rcases IHα with ⟨δ, _⟩
       use δ
       simp_all [P]
     case inr v_β_w =>
       have v_Fℓβ : evaluate M v (Con (F β ℓ)) := by
-        simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+        simp_all [conEval, F, vDash.SemImplies, evaluatePoint]
       have IHβ := existsBoxFP β v_β_w ℓ v_Fℓβ -- using coercion from above :-)
       rcases IHβ with ⟨δ, _⟩
       use δ
@@ -1289,7 +1313,7 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M, v)
     simp only [relate] at v_γ_w
     rcases v_γ_w with ⟨u, v_α_u, u_β_w⟩
     have v_Fℓα : evaluate M v (Con (F α ℓ)) := by
-      simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+      simp_all [conEval, F, vDash.SemImplies, evaluatePoint]
     have IHα := existsBoxFP α v_α_u ℓ v_Fℓα -- using coercion from above :-)
     rcases IHα with ⟨δ, ⟨δ_in, v_δ_u⟩⟩
     -- "We make a further case distinction"
@@ -1300,7 +1324,7 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M, v)
       subst v_δ_u
       rename relate M β v w => v_β_w
       have v_Fℓβ : evaluate M v (Con (F β ℓ)) := by
-        simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+        simp_all [conEval, F, vDash.SemImplies, evaluatePoint]
       have IHβ := existsBoxFP β v_β_w ℓ v_Fℓβ -- using coercion from above :-)
       rcases IHβ with ⟨η, ⟨η_in, v_η_w⟩⟩
       use η
@@ -1319,7 +1343,7 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M, v)
     case inr hyp =>
       rcases hyp with ⟨v_neq_w, ⟨u, v_neq_u, v_β_u, u_βS_w⟩⟩
       have v_Fℓβ : evaluate M v (Con (F β ℓ)) := by
-        simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+        simp_all [conEval, F, vDash.SemImplies, evaluatePoint]
       have IHβ := existsBoxFP β v_β_u ℓ v_Fℓβ
       rcases IHβ with ⟨δ, ⟨δ_in, v_δ_w⟩⟩
       have claim : δ ≠ [] := by by_contra hyp; subst hyp; simp_all [relateSeq];

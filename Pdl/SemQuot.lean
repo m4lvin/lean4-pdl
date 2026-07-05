@@ -6,9 +6,9 @@ import Pdl.Star
 /-! ## Defining the Quotient of Formulas -/
 
 def semEquiv.Equivalence : Equivalence semEquiv :=
-  ⟨ semEquiv.refl
-  , fun xy => semEquiv.symm xy
-  , fun xy yz => semEquiv.trans xy yz ⟩
+  ⟨ fun x => semEquiv.refl.1 x
+  , fun xy => semEquiv.symm.1 _ _ xy
+  , fun xy yz => semEquiv.trans.1 _ _ _ xy yz ⟩
 
 instance Formula.instSetoid : Setoid Formula := ⟨semEquiv, semEquiv.Equivalence⟩
 
@@ -18,9 +18,9 @@ abbrev SemProp := Quotient Formula.instSetoid
 /-! ## Defining the Quotient of Programs -/
 
 def relEquiv.Equivalence : Equivalence relEquiv :=
-  ⟨ relEquiv.refl
-  , fun xy => relEquiv.symm xy
-  , fun xy yz => relEquiv.trans xy yz ⟩
+  ⟨ fun x => relEquiv.refl.1 x
+  , fun xy => relEquiv.symm.1 _ _ xy
+  , fun xy yz => relEquiv.trans.1 _ _ _ xy yz ⟩
 
 instance Program.instSetoid : Setoid Program := ⟨relEquiv, relEquiv.Equivalence⟩
 
@@ -45,7 +45,7 @@ lemma congr_liftFun₂ {α β : Type} [HasEquiv α] [HasEquiv β] [HasEquiv γ] 
 /-! ## Lifting formula connectives to the quotient -/
 
 lemma Formula.neg_congr {φ ψ : Formula} (h : φ ≈ ψ) : Formula.neg φ ≈ Formula.neg ψ :=
-  by simp [HasEquiv.Equiv, Setoid.r, semEquiv] at *
+  by simp [HasEquiv.Equiv, instHasEquivOfSetoid, Setoid.r, semEquiv] at *
      intros W M w
      simp_all only
 
@@ -54,7 +54,7 @@ def SemProp.neg : SemProp → SemProp :=
 
 lemma Formula.and_congr {φ₁ ψ₁ φ₂ ψ₂ : Formula} (h₁ : φ₁ ≈ φ₂) (h₂ : ψ₁ ≈ ψ₂) :
   φ₁.and ψ₁ ≈ φ₂.and ψ₂ :=
-  by simp [HasEquiv.Equiv, Setoid.r, semEquiv] at *
+  by simp [HasEquiv.Equiv, instHasEquivOfSetoid, Setoid.r, semEquiv] at *
      intros W M w
      simp_all only
 
@@ -63,7 +63,7 @@ def SemProp.and : SemProp → SemProp → SemProp :=
 
 lemma Formula.box_congr {α β : Program} {φ ψ : Formula} (h₁ : α ≈ β) (h₂ : φ ≈ ψ) :
   φ.box α ≈ ψ.box β :=
-  by simp [HasEquiv.Equiv, Setoid.r, semEquiv, relEquiv] at *
+  by simp [HasEquiv.Equiv, instHasEquivOfSetoid, Setoid.r, semEquiv, relEquiv] at *
      intros W M w
      simp_all only
 

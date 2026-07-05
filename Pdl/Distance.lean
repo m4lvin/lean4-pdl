@@ -467,7 +467,7 @@ theorem existsD_of_true_diamond α γ (ψ : Formula) (v_ : evaluate M v (~⌈⌈
                   = ⨅ w : {w // evaluate M w (~ψ)}, distance_list M v w (α :: γ) := by
   simp only [evaluate] at v_
   rw [evalBoxes] at v_
-  push_neg at v_
+  push Not at v_
   rcases v_ with ⟨w1, v_αγ_w1, w1_not_ψ⟩
   -- Let `w0` be the witness to minimize the `α :: γ` distance from `w0` to `~ψ`:
   have := @iInf_exists_eq {w // evaluate M w (~ψ)} ⟨w1, w1_not_ψ⟩

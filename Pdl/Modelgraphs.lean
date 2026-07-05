@@ -82,7 +82,7 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
     (⌈⌈δ.drop i⌉⌉φ) ∈ ((X :: l ++ [Y]).get i).val := by
   induction i using Fin.inductionOn
   case zero =>
-    simp_all only [insTop, List.cons_append, List.zip_cons_cons, Subtype.forall,
+    simp_all only [List.cons_append, List.zip_cons_cons, Subtype.forall,
       List.length_cons, Fin.val_zero, List.drop_zero, List.get_cons_zero]
       -- uses δφ_in_X
   case succ i IH =>
@@ -97,7 +97,7 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
         rw [this]
         simp only [Fin.getElem_fin, Fin.val_cast, List.append_eq, List.getElem_cons_drop]
         cases i
-        simp_all only [insTop, List.zip_cons_cons, Subtype.forall, List.append_eq,
+        simp_all only [List.zip_cons_cons, Subtype.forall, List.append_eq,
           Fin.castSucc_mk]
         rw [Formula.boxes_cons]
       rw [this]
@@ -108,17 +108,19 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
       rw [List.isChain_iff_getElem] at lchain
       specialize lchain i ?_
       · rcases i with ⟨val, hyp⟩
-        simp_all only [insTop, List.zip_cons_cons, List.length_cons, List.length_zip,
+        simp_all only [List.zip_cons_cons, List.length_cons, List.length_zip,
           List.length_append, min_self, List.get_eq_getElem, List.getElem_cons_succ,
           List.getElem_zip, Subtype.forall, List.append_eq, Fin.castSucc_mk]
         rw [← length_def]
         simp only [List.append_eq, List.length_append, List.length_cons, List.length_nil,
           zero_add] at hyp
         linarith
-      simp [pairRel, insTop, List.zip_cons_cons, List.length_cons, List.append_eq,
+      simp [pairRel, List.zip_cons_cons, List.append_eq,
         List.getElem_zip] at lchain
       convert lchain
       apply get_eq_getzip
+
+attribute [local simp] lengthOf -- to simplify termination proofs below
 
 set_option maxHeartbeats 2000000 in
 -- Three mutually recursive theorems with long proofs.
@@ -275,8 +277,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       have X_β_Z : relate MG.1 β X Z := by
         specialize relSteps 0
         unfold Z
-        convert relSteps
-        aesop
+        simp_all
       have := ((MG.2.1 X).1 φ φ (∗β)).right.right.right.left boxP_in_X
       rcases this with ⟨ℓ, mysat⟩
       simp [Bset] at mysat
@@ -304,21 +305,24 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
         -- rest here is similar to same part in all_goals below.
         refine ⟨YS.tail, ?_, ?_, ?_⟩
         · rw [← List.Vector.get_zero]
-          rw [List.Vector.get_tail_succ]
+          have := List.Vector.get_tail_succ YS 0
           aesop
         · rw [List.Vector.last_def]
-          rw [List.Vector.get_tail_succ]
+          refine
+            Eq.mpr (id (congrArg (fun _a ↦ Y = _a) (List.Vector.get_tail_succ YS (Fin.last m)))) ?_
           aesop
         · intro i
           clear * -relSteps
           specialize relSteps i.succ
-          have : ((List.Vector.tail YS).get i.castSucc) = (YS.get ((Fin.succ i).castSucc)) := by
+          convert relSteps using 1
+          · have : YS.tail.get i.castSucc = YS.get i.succ.castSucc :=
+            of_eq_true
+              (Eq.trans
+                (congrFun' (congrArg Eq (List.Vector.get_tail_succ YS i.castSucc))
+                  (YS.get i.castSucc.succ))
+                (eq_self (YS.get i.castSucc.succ)))
             aesop
-          rw [this]; clear this
-          have : ((List.Vector.tail YS).get i.succ) = (YS.get ((Fin.succ i).succ)) := by
-            aesop
-          rw [this]; clear this
-          exact relSteps
+          · exact List.Vector.get_tail_succ YS i.succ
       case inr δ_notEmpty =>
         have : (δ ++ [∗β]) ∈ P (∗β) ℓ := by
           simp [P]
@@ -336,7 +340,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
               have := PgoesDown d_in_δ δ_in_P
               cases em β.isAtomic <;> cases em β.isStar
               all_goals
-                simp_all [P]
+                simp_all [P, lengthOf]
                 try linarith
             exact loadedTruthLemmaProg MG d X' φ' dφ_in_X' Y' X'_d_Y'
           have := relateSeq_toChain' X_δ_Z δ_notEmpty
@@ -355,21 +359,26 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
         clear innerIH
         simp_all
         refine ⟨YS.tail, ?_, ?_, ?_⟩
-        · unfold Z
-          rw [← List.Vector.get_zero]
-          rw [List.Vector.get_tail_succ]
-          rfl
+        · rw [← List.Vector.get_zero]
+          have := List.Vector.get_tail_succ YS 0
+          aesop
         · rw [List.Vector.last_def, List.Vector.last_def]
-          rw [List.Vector.get_tail_succ]
-          rfl
+          apply Eq.mpr (id
+            (congrArg (fun _a ↦ YS.get (Fin.last (m + 1)) = _a)
+                      (List.Vector.get_tail_succ YS (Fin.last m))))
+          aesop
         · intro i
           clear * -relSteps
           specialize relSteps i.succ
-          have : ((List.Vector.tail YS).get i.castSucc) = (YS.get i.succ.castSucc) := by aesop
-          rw [this]; clear this
-          have : ((List.Vector.tail YS).get i.succ) = (YS.get i.succ.succ) := by aesop
-          rw [this]; clear this
-          exact relSteps
+          convert relSteps using 1
+          · have : YS.tail.get i.castSucc = YS.get i.succ.castSucc :=
+            of_eq_true
+              (Eq.trans
+                (congrFun' (congrArg Eq (List.Vector.get_tail_succ YS i.castSucc))
+                  (YS.get i.castSucc.succ))
+                (eq_self (YS.get i.castSucc.succ)))
+            aesop
+          · exact List.Vector.get_tail_succ YS i.succ
   -- remaining cases: sequence, union, test
   all_goals -- sic!
     have satX := (MG.prop.1 X).left
@@ -386,7 +395,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       subst α_def
       simp_all only [relate, Subtype.exists, lengthOfProgram, true_or, forall_true_left]
     have := existsBoxFP _ X_rel_Y (α_def ▸ ℓ)
-      (by simp [modelCanSemImplyForm,conEval]; exact X_F)
+      (by simp [vDash.SemImplies,conEval]; exact X_F)
     rcases this with ⟨δ, δ_in_P, X_δ_Y⟩
     have δφ_in_X : (⌈⌈δ⌉⌉φ) ∈ X.val := by
       simp_all only [relate, Subtype.exists]
@@ -400,7 +409,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       intro d d_in_δ X' Y' φ' dφ_in_X' X'_d_Y'
       have _forTermination : lengthOf d < lengthOf α := by
         have := PgoesDown d_in_δ δ_in_P
-        simp_all [Program.isAtomic, Program.isStar]
+        simp_all [Program.isAtomic, Program.isStar, lengthOf]
       exact loadedTruthLemmaProg MG d X' φ' dφ_in_X' Y' X'_d_Y'
     -- NOTE: tried `induction δ` before, but that yields a too weak/annoying IH.
     -- Instead, check if δ is empty, and in non-empty case use `relateSeq_toChain'`.

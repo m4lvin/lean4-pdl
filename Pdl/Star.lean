@@ -92,7 +92,7 @@ theorem ReflTransGen.from_finitelyManySteps (r : α → α → Prop) {n : ℕ} :
         rfl
     · apply IH y z ys.tail
       unfold y
-      simp only [List.Vector.get_tail_succ, true_and]
+      simp only [Nat.succ_eq_add_one, true_and]
       constructor
       · have sameLast : ys.tail.last = ys.last := by
           cases ys using List.Vector.inductionOn
@@ -103,8 +103,17 @@ theorem ReflTransGen.from_finitelyManySteps (r : α → α → Prop) {n : ℕ} :
         exact z_is_last
       · intro i
         specialize steprel i.succ
-        induction i
-        all_goals aesop
+        simp only [Nat.succ_eq_add_one] at ys
+        rcases i with ⟨i, i_lt⟩
+        convert steprel using 1
+        · have := @List.Vector.get_tail _ _ ys
+          simp only [Nat.add_one_sub_one] at this
+          rw [this]
+          simp
+        · have := @List.Vector.get_tail _ _ ys
+          simp only [Nat.add_one_sub_one] at this
+          rw [this]
+          simp
 
 /-- `ReflTransGen r a b` is equivalent to `∃ x₀ ... xₙ, a = x₀ ∧ r x₀ x₁ ∧ ... ∧ r xₙ = b` -/
 theorem ReflTransGen.iff_finitelyManySteps (r : α → α → Prop) (x z : α) :

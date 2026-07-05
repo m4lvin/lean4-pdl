@@ -287,7 +287,7 @@ lemma no_moves_of_rep {Hist X pos} (h : rep Hist X) :
     theMoves ⟨Hist, X, pos⟩ = ∅ := by
   by_contra hyp
   rw [Finset.eq_empty_iff_forall_notMem] at hyp
-  push_neg at hyp
+  push Not at hyp
   rcases hyp with ⟨p, p_in⟩
   unfold theMoves at p_in
   rcases X with ⟨L,R,_|o⟩ <;> rcases pos with (_|_|_)|(_|_) <;> aesop
@@ -355,7 +355,9 @@ lemma move_of_mem_theMoves {pos next} :
         subst χ
         rw [unload_loadMulti]
         constructor; apply Move.prPdl;
-        convert @PdlRule.freeL _ L R (·a :: δ) α φ _ rfl rfl using 1
+        convert @PdlRule.freeL _ L R (·a :: δ) α φ _ rfl rfl using 4
+        · rfl -- FIXME why are rfl now needed here?
+        · rfl
       · constructor; apply Move.prPdl (PdlRule.modL rfl rfl)
     case inl.bas.some.inr.normal.atom_prog a nrep bas =>
       cases mv <;> subst_eqs
@@ -367,7 +369,9 @@ lemma move_of_mem_theMoves {pos next} :
         subst χ
         rw [unload_loadMulti]
         constructor; apply Move.prPdl;
-        convert @PdlRule.freeR _ L R (·a :: δ) α φ _ rfl rfl using 1
+        convert @PdlRule.freeR _ L R (·a :: δ) α φ _ rfl rfl using 4
+        · rfl -- FIXME why are rfl now needed here?
+        · rfl
       · constructor; apply Move.prPdl; apply PdlRule.modR rfl rfl
     all_goals
       grind
@@ -427,7 +431,8 @@ lemma mem_theMoves_of_move {pos next} :
             AnyFormula.loaded.injEq, exists_eq_left', LoadFormula.unload, false_or, true_and]
           right
           convert rfl using 5
-          simp
+          -- FIXME convert broken?!
+          sorry -- simp
         all_goals
           absurd bas
           rintro ⟨bas, nclos⟩
@@ -463,7 +468,8 @@ lemma mem_theMoves_of_move {pos next} :
             AnyFormula.loaded.injEq, exists_eq_left', LoadFormula.unload, false_or, true_and]
           right
           convert rfl using 5
-          simp
+          -- FIXME convert broken?!
+          sorry -- simp
         all_goals
           absurd bas
           rintro ⟨bas, nclos⟩
@@ -948,7 +954,7 @@ lemma Sequent.allSeqt_subseteq_FL_congr (X Y : Sequent) (h : X ≈ Y) :
   ext Ys
   simp only [allSeqt_subseteq_FL, List.map_subtype, List.mem_toFinset, List.mem_map,
     List.mem_unattach]
-  simp [instHasEquivOfSetoid, instSetoidSequent] at h
+  simp [HasEquiv.Equiv, instHasEquivOfSetoid] at h
   constructor
   · rintro ⟨Z, ⟨Z_sub_X, Z_in_sub_X⟩, def_YS⟩
     subst def_YS
@@ -1019,6 +1025,7 @@ lemma exist_duplicates_of_infinite_among_fintype {α : Type} {f : ℕ → α} {p
   have range_finite : Finite (Set.range f) := by
     apply Set.Finite.subset h_fin
     intro x ⟨n, def_x⟩
+    unfold Membership.mem Set.instMembership Set.Mem -- line was not needed in older Lean version!?
     convert h_p n
     rw [def_x]
   -- ℕ is infinite, so f cannot be injective
@@ -1032,7 +1039,7 @@ lemma exist_duplicates_of_infinite_among_fintype {α : Type} {f : ℕ → α} {p
     exact this.not_finite range_finite
   -- Non-injective means there exist distinct inputs with same output
   rw [Function.Injective] at not_injective
-  push_neg at not_injective
+  push Not at not_injective
   tauto
 
 /-- Lemma 6.10. The move relation is converse wellfounded (and thus all matches must be finite).
@@ -1139,6 +1146,7 @@ lemma matchesFinite : WellFounded (Function.swap move) := by
 /-! ## Actual Game Definition -/
 
 /-- The game defined in Section 6.2. -/
+@[reducible]
 def tableauGame : Game where
   Pos := GamePos
   turn | ⟨_, _, .inl _⟩ => Prover
@@ -1149,7 +1157,7 @@ def tableauGame : Game where
 
 /-- This helps to pick up the derived instance `DecidableEq GamePos` above. -/
 instance instDecidableEqPos : DecidableEq tableauGame.Pos := by
-  simp only [Game.Pos, tableauGame]
+  unfold Game.Pos tableauGame
   exact instDecidableEqOfLawfulBEq
 
 @[simp]
@@ -1168,12 +1176,14 @@ lemma tableauGame_turn_Builder {Hist X lpr} :
 @[simp]
 lemma tableauGame_winner_nlpRep_eq_Builder :
     @winner i tableauGame sI sJ ⟨Hist, X, .inl (.nlpRep h1 h2)⟩ = Builder := by
-  simp [winner, tableauGame]
+  unfold winner Game.moves tableauGame
+  simp
 
 @[simp]
 lemma tableauGame_winner_lpr_eq_Prover :
     @winner i tableauGame sI sJ ⟨Hist, X, .inr (.lpr lpr)⟩ = Prover := by
-  simp [winner, tableauGame]
+  unfold winner Game.moves tableauGame
+  simp
 
 /-! ## From Prover winning strategies to tableau -/
 
@@ -1206,7 +1216,8 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
       rcases IH with ⟨new_tab_from_IH⟩
       rcases the_move with ⟨⟨newHist, newX, newPos⟩, nextPosIn⟩
       simp at new_tab_from_IH
-      simp only [tableauGame, Game.Pos.moves, pos_def, Game.moves] at nextPosIn
+      unfold tableauGame Game.Pos.moves at nextPosIn
+      simp only [pos_def, Game.moves] at nextPosIn
       rcases X with ⟨L,R,_|(⟨⟨χ⟩⟩|⟨⟨χ⟩⟩)⟩ <;> simp at *
       · -- no loaded formula yet, the only PDL rule we can apply is (L+)
         rcases nextPosIn with ⟨χ, χ_in⟩|⟨χ, χ_in⟩
@@ -1354,7 +1365,7 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
         subst pos_def
         -- The main work is done by the following lemma
         have := winning_of_whatever_other_move (by simp) h
-        simp [tableauGame, Game.moves] at this
+        simp [Game.moves] at this
         exact this _ Y_in
       have next := fun Y Y_in => Classical.choice (next' Y Y_in)
       use Tableau.loc nrep nbas ltX next
@@ -1365,7 +1376,7 @@ decreasing_by
     apply tableauGame.move_rel
     simp [WellFounded.wrap]
   · subst pos_def
-    simp [tableauGame, Game.moves]
+    simp [Game.moves]
     use Y
 
 /-- The starting position for the given sequent.
