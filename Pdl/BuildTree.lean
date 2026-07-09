@@ -320,10 +320,55 @@ def Match.append {H X} {bt : BuildTree H X} :
 /-- Rewind a `Match`, i.e. go back up inside `bt` by `k` steps.
 The + 1 is there because going back 0 steps does nothing. -/
 def Match.rewind {H X} {bt : BuildTree H X} : (m : Match bt) → (k : Fin (m.length + 1)) → Match bt
-| .nil, 0 => .nil
-| .nil, ⟨k+1,k_h⟩ => by exfalso; simp at k_h
+| .nil, _ => .nil
 | .loc tail, k => Fin.lastCases (.nil) (Match.loc ∘ tail.rewind) k
 | .pdl tail, k => Fin.lastCases (.nil) (Match.pdl ∘ tail.rewind) k
+
+/-- Rewinding 0 steps does nothing. -/
+@[simp]
+lemma Match.rewind_zero {H X} {bt : BuildTree H X} (m : Match bt) : m.rewind 0 = m := by
+  induction m <;> simp only [rewind]
+  case loc H X nbas next lt tail IH => -- idea from PathIn.rewind_zero
+    have : 0 ≠ Fin.last (@loc H X nbas next lt tail).length := by
+      simp_all [Fin.last]
+    rw [← Fin.exists_castSucc_eq] at this
+    rcases this with ⟨k,kdef⟩
+    simp only [← kdef, Fin.lastCases_castSucc, Function.comp_apply, loc.injEq, heq_eq_eq, true_and]
+    convert IH
+    cases k
+    simp_all
+  case pdl H X bas next Y r tail IH =>
+    have : 0 ≠ Fin.last (@pdl H X bas next Y r tail).length := by
+      simp_all [Fin.last]
+    rw [← Fin.exists_castSucc_eq] at this
+    rcases this with ⟨k,kdef⟩
+    simp [← kdef, Fin.lastCases_castSucc, Function.comp_apply, pdl.injEq]
+    convert IH
+    cases k
+    simp_all
+
+/-- Inspired by `PathIn.rewind_length_lt_length_of_gt_zero`. -/
+lemma Match.rewind_length_lt_length_of_pos {H X} {bt : BuildTree H X} (m : Match bt)
+    (k : Fin (m.length + 1)) (k_pos : 0 < k)
+    : (m.rewind k).length < m.length := by
+  induction m
+  · exfalso
+    rcases k with ⟨k, k_prop⟩
+    simp only [length, zero_add, Nat.lt_one_iff] at k_prop
+    subst k_prop
+    simp_all
+  case loc H X nbas next lt tail IH =>
+    cases k using Fin.lastCases
+    case last => simp [Match.rewind] at *
+    case cast j =>
+      simp only [rewind, length, Fin.lastCases_castSucc, Function.comp_apply, add_lt_add_iff_right]
+      exact IH _ k_pos
+  case pdl Z Y H next r tail IH =>
+    cases k using Fin.lastCases
+    case last => simp [Match.rewind] at *
+    case cast j =>
+      simp only [rewind, length, Fin.lastCases_castSucc, Function.comp_apply, add_lt_add_iff_right]
+      exact IH _ k_pos
 
 -- move up later?
 def BuildTree.isFreeRepeat {H X} : BuildTree H X → Prop
@@ -407,28 +452,35 @@ def PreState.last (p : PreState bt) : Match bt := p.val
 def Match.getFormulasAtEnd (m : Match bt) : (List Formula) :=
    Sequent.bothSides (((Match.btAt m).snd).fst)
 
--- TODO: function given a match and a number of steps to go back, give all formulas since then.
--- n has to be submatch of m (implement condition?)
-def Match.getFormulasSince {bt : BuildTree H X} (m : Match bt) (n : Match bt) :
-  (List Formula) :=
-  if m=n then
+/-- Given a match and previous match, give all formulas since then.
+Still TODO: actually ensure that `n` is a submatch of `m`. Without this we may loop ∞.
+-/
+def Match.getFormulasSince {H X} {bt : BuildTree H X} (m : Match bt) (n : Match bt) :
+    List Formula :=
+  if m = n then
     m.getFormulasAtEnd
   else
    m.getFormulasAtEnd ++ (getFormulasSince (Match.rewind m 1) n)
 termination_by
   m.length
 decreasing_by
-  -- need lemma that Match.rewind decreases M.length
+  apply @Match.rewind_length_lt_length_of_pos H X bt m 1
+  -- Oops: 0 < 1 Only holds in Fin 2 and larger, not in in Fin 1 (i.e. here when m = .nil)
+  apply Fin.pos_iff_ne_zero.mpr
   sorry
 
 def Match.getFormulasSinceModalRule (m : Match bt) : (List Formula) :=
-  if m = .nil
+  if h_nil : m = .nil
   then m.getFormulasAtEnd
   else
     if m.endsAtModal
     then []
     else m.getFormulasAtEnd ++ ((Match.rewind m 1).getFormulasSinceModalRule)
+termination_by
+  m.length
 decreasing_by
+  apply @Match.rewind_length_lt_length_of_pos _ _ bt m 1
+  -- here 0 < 1 should be doable because we have m ≠ .nil
   sorry
 
 -- TODO revive "Edge" here?
@@ -548,6 +600,7 @@ def BuildTree.toModel {X} (bt : BuildTree [] X) :
 /-- WIP Lemma 6.18
 
 QUESTION: which `R` can we use here in order to use `Modelgraphs.Q`?
+ANSWER: The `Rel` from `BuildTree.toModel` should be used.
 -/
 lemma PreState.diamondExistence {φ : AnyFormula} {π : PreState bt} :
   /- (~'⌊α⌋φ) ∈ π.getForms → -/ -- FIXME need loaded formulas in getForms result
