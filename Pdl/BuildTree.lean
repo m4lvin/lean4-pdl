@@ -16,7 +16,8 @@ Lessons learned while working on this file:
 
 -- See also Bml/CompletenessViaPaths.lean for inspiration that might be useful here.
 
-/-- A free repeat is a non-loaded sequent that occured before. -/
+/-- A free repeat is a non-loaded sequent that occured before. Values of this type are pairs:
+the number of steps to go back in the history and a proof that we then find the same multiset. -/
 def FreeRepeat (Hist : History) (X : Sequent) : Type :=
   Subtype (fun k => (Hist.get k).multisetEqTo X ∧ ¬ X.isLoaded)
 
@@ -66,9 +67,27 @@ def BuildChoice.size : BuildChoice H X YS → Nat
 end
 
 @[simp]
-lemma BuildChoice.fst_eq_H {H X YS} {bc : BuildChoice H X YS} : bc.1 = H := by
-  cases bc
-  rfl
+lemma BuildChoice.fst_eq {H X YS} {bc : BuildChoice H X YS} : bc.1 = H := by cases bc; rfl
+
+@[simp]
+lemma BuildChoice.snd_eq {H X YS} {bc : BuildChoice H X YS} : bc.2 = X := by cases bc; rfl
+
+@[simp]
+lemma BuildChoice.thrd_eq {H X YS} {bc : BuildChoice H X YS} : bc.3 = YS := by cases bc; rfl
+
+def BuildTree.isFreeRepeat {H X} : BuildTree H X → Prop
+  | BuildTree.freeRepeat _ => True
+  | _ => False
+
+instance instDecidableIsFreeRepeat {H X} {bt : BuildTree H X} : Decidable bt.isFreeRepeat := by
+  cases bt <;> simp [BuildTree.isFreeRepeat] <;> try exact instDecidableFalse
+  exact instDecidableTrue
+
+def BuildTree.getFreeRepeat {H X} {bt : BuildTree H X}
+    (h : bt.isFreeRepeat) : FreeRepeat H X := by
+  unfold isFreeRepeat at h
+  cases bt <;> simp at *
+  case freeRepeat fr => exact fr
 
 /-- Given a winning Builder strategy, compute its `BuildTree`.
 NEW: note the `Sum.inl p` here. This ensure we start tree building from a Prover position, i.e.
@@ -213,7 +232,7 @@ inductive Match : ∀ {H : History} {X : Sequent}, BuildTree H X → Type
 deriving DecidableEq
 
 /-- Inspired by `PathIn.length`. Counting the steps made by a `Match` in a `BuildTree`.
-Note that such a step may be combinations of a prover and a builder move. -/
+Note that such a step is a combination of a prover and a builder move. -/
 @[simp]
 def Match.length {H : History} {X : Sequent} {bt : BuildTree H X} : Match bt → Nat
   | .nil => 0
@@ -286,7 +305,8 @@ instance instDecidableIsOpenLeaf {m : Match bt} : Decidable m.isOpenLeaf := by
 def Match.isFreeRepeat {H X} {bt : BuildTree H X} (m : Match bt) : Prop :=
   match (btAt m) with | ⟨_, _, .freeRepeat _⟩ => True | _ => False
 
-instance instDecidableIsFreeRepeat {m : Match bt} : Decidable m.isFreeRepeat := by
+instance instMatchDecidableIsFreeRepeat {H X} {bt : BuildTree H X} {m : Match bt} :
+    Decidable m.isFreeRepeat := by
   unfold Match.isFreeRepeat
   rcases m.btAt with ⟨_, _, bt⟩
   cases bt <;> simp_all
@@ -370,17 +390,6 @@ lemma Match.rewind_length_lt_length_of_pos {H X} {bt : BuildTree H X} (m : Match
       simp only [rewind, length, Fin.lastCases_castSucc, Function.comp_apply, add_lt_add_iff_right]
       exact IH _ k_pos
 
--- move up later?
-def BuildTree.isFreeRepeat {H X} : BuildTree H X → Prop
-  | BuildTree.freeRepeat _ => True
-  | _ => False
-
-def BuildTree.getFreeRepeat {H X} {bt : BuildTree H X}
-    (h : bt.isFreeRepeat) : FreeRepeat H X := by
-  unfold isFreeRepeat at h
-  cases bt <;> simp at *
-  case freeRepeat fr => exact fr
-
 lemma Match.btAt_newHist_length_eq_length_plus_oldHist {H X} {bt : BuildTree H X} (m : Match bt) :
     m.btAt.1.length = m.length + H.length :=
   match m with
@@ -406,10 +415,15 @@ lemma Match.isFreeRepeat_iff {H X} {bt : BuildTree H X} {m : Match bt} :
   unfold BuildTree.isFreeRepeat Match.isFreeRepeat
   grind
 
+/-- Get the `FreeRepeat` (rewind-index and same-sequent proof) of a `Match`. -/
+def Match.getFreeRepeat {X} {bt : BuildTree [] X} (m : Match bt)
+  (h : m.isFreeRepeat) : FreeRepeat m.btAt.1 m.btAt.2.1 :=
+    BuildTree.getFreeRepeat (Match.isFreeRepeat_iff.eq ▸ h)
+
 /-- Roll back to the companion. Only possibe if we started with H=[] so we know the root. -/
 def Match.companionOf {X} {bt : BuildTree [] X} (m : Match bt)
   (h : m.isFreeRepeat) : Match bt :=
-    match BuildTree.getFreeRepeat (Match.isFreeRepeat_iff.eq ▸ h) with
+    match m.getFreeRepeat h with
     -- The free repeat says "go k steps back" where k < length of history at `m`.
     | ⟨⟨k, k_lt⟩ , same_and_free⟩ =>
       -- But to rewind m we need a k < length of m itself plus 1
@@ -449,91 +463,91 @@ def BuildTree.allPreStates (bt : BuildTree [] X) : List (PreState bt) :=
 
 def PreState.last (p : PreState bt) : Match bt := p.val
 
-def Match.getFormulasAtEnd (m : Match bt) : (List Formula) :=
+/-- Get formulas at the current node at the end of the match.
+This includes the unloading of any loaded formula.
+
+QUESTION: Is it okay to collect loaded formulas by unloading them?
+Or does that make the loaded case of Lemma 6.15 `PreState.pdlFormCase` unsayable?
+If so, change output type to `List AnyFormula` here. -/
+def Match.getFormulasAtEnd (m : Match bt) : List Formula :=
    Sequent.bothSides (((Match.btAt m).snd).fst)
 
-/-- Given a match and previous match, give all formulas since then.
-Still TODO: actually ensure that `n` is a submatch of `m`. Without this we may loop ∞.
--/
-def Match.getFormulasSince {H X} {bt : BuildTree H X} (m : Match bt) (n : Match bt) :
-    List Formula :=
-  if m = n then
-    m.getFormulasAtEnd
-  else
-   m.getFormulasAtEnd ++ (getFormulasSince (Match.rewind m 1) n)
-termination_by
-  m.length
-decreasing_by
-  apply @Match.rewind_length_lt_length_of_pos H X bt m 1
-  -- Oops: 0 < 1 Only holds in Fin 2 and larger, not in in Fin 1 (i.e. here when m = .nil)
-  apply Fin.pos_iff_ne_zero.mpr
-  sorry
-
-def Match.getFormulasSinceModalRule (m : Match bt) : (List Formula) :=
-  if h_nil : m = .nil
+/-- Collect all formulas since the last modal rule application. -/
+def Match.getFormulasSinceModalRule (m : Match bt) : List Formula :=
+  if m = .nil
   then m.getFormulasAtEnd
   else
     if m.endsAtModal
-    then []
+    then [] -- Why? Because we do not want the result formulas *after* the (M) application.
     else m.getFormulasAtEnd ++ ((Match.rewind m 1).getFormulasSinceModalRule)
 termination_by
   m.length
 decreasing_by
   apply @Match.rewind_length_lt_length_of_pos _ _ bt m 1
-  -- here 0 < 1 should be doable because we have m ≠ .nil
-  sorry
+  -- Here 0 < 1 holds because we have m ≠ .nil.
+  have claim : m.length ≠ 0 := by cases m <;> simp_all
+  rcases Nat.exists_eq_succ_of_ne_zero claim with ⟨mlen_pred, mlen_def⟩
+  convert @Fin.zero_lt_one mlen_pred using 1 <;> grind
 
--- TODO revive "Edge" here?
-def Match.edge : Match bt → Match bt → Prop := sorry
+/-- Given a Match `m`, a rewind index `k` and a number `l < k`, collect the formulas at the
+nodes `m.rewind k` to `m.rewind (k-l)`. Note: maybe we should demand `0 < k` here?
+But maybe computing this `l` is already as difficult as using it here, so skip it?
+ALTERNATIVE `see Match.getFormulasUntilModal` instead. -/
+def Match.getFormulasFromSteps {H X} {bt : BuildTree H X} (m : Match bt)
+    (k : Fin (m.length + 1)) (l : Fin k) : List Formula :=
+  (List.range l.val).attach.map
+    (fun ⟨i,i_in⟩ => (m.rewind (k-⟨i,by grind⟩)).getFormulasAtEnd)
+  |> List.flatten
 
-/-- Extend m towards n until (M) rule. -/
-def Match.extendUntilModal :
-  (m : Match bt) → (n : Match bt) → Relation.TransGen Match.edge m n → Match bt := sorry
+-- small helper
+lemma Fin.sub_one_lt (k : Fin (n + 1)) : k ≠ 0 → k - 1 < k :=
+  fun h => by grind [Fin.val_sub_one_of_ne_zero h]
 
-def Match.getFormulasUntilModal {bt : BuildTree H X} :
-  (m : Match bt) → (n : Match bt) → Relation.TransGen Match.edge m n → List Formula := sorry
+/-- Given a Match `m`, a rewind index `k`, collect the formulas at the nodes from
+`m.rewind k`, `m.rewind (k-1)`, `m.rewind (k-2)`, ... until we hit a modal rule. -/
+def Match.getFormulasUntilModal {H X} {bt : BuildTree H X} (m : Match bt)
+    (k : Fin (m.length + 1)) : List Formula :=
+  if m = nil ∨ k = 0 -- Both should never happen?! Add as condition to def?
+  then []
+  else
+    if (m.rewind k).endsAtModal
+      then
+        [] -- Again, we do not include formulas resulting from (M) rule.
+      else
+        (m.rewind k).getFormulasAtEnd
+        ++ m.getFormulasUntilModal (k-1) -- correct? termination?
+termination_by
+  k
+decreasing_by
+  simp
+  -- `k-1 < k` only holds if we are at least in Fin 2, so use m ≠ nil here.
+  cases m <;> simp_all <;> simp at k <;> apply Fin.sub_one_lt <;> assumption
 
--- Give formulas since modal rule.
--- Directly define this to collect the formulas on the way?
--- TODO change Formula to AnyFormula, then repair below ;-)
-def PreState.getForms {bt : BuildTree [] X} (π  : PreState bt) : List Formula :=
+/-- Get all formulas for a pre-state. Might still need to change Formula to AnyFormula. -/
+def PreState.getForms {bt : BuildTree [] X} (π : PreState bt) : List Formula :=
   if π.val.endsAtModal
-  then (π.val.rewind 1).getFormulasSinceModalRule ++ π.val.getFormulasAtEnd
+  then (π.val.rewind 1).getFormulasSinceModalRule ++ π.val.getFormulasAtEnd -- easy case
   else
     if h_freeRep : π.val.isFreeRepeat
     then
-      (Match.getFormulasUntilModal (π.val.companionOf h_freeRep) π.val sorry)
-      ++ π.val.getFormulasSinceModalRule
-    else -- open leaf
       π.val.getFormulasSinceModalRule
+      ++
+      -- If pre-state ends at free repeat, also include formulas in companion-to-(M) path:
+      -- OLDEST idea:
+      -- (Match.getFormulasUntilModal (π.val.companionOf h_freeRep) π.val sorry)
+      -- OLD idea:
+      -- let k := (π.val.getFreeRepeat h_freeRep).1
+      -- let l := π.val.getCompToModalLength h_freeRep
+      -- π.val.getFormulasFromSteps k l
+      -- NEW idea:
+      have := Match.btAt_newHist_length_eq_length_plus_oldHist π.val
+      -- Similar situation as in Match.companionOf here?
+      π.val.getFormulasUntilModal ⟨(π.val.getFreeRepeat h_freeRep).1.1, by grind⟩
+      -- The way we make the Fin value is still abit ugly, tweak before proving stuff about here.
+    else -- must be an open leaf now!
+      π.val.getFormulasSinceModalRule -- also easy
 
-/-
-/-- Collect formulas in a pre-state. The non-loaded part of Λ(π) in paper.
-
-TODO: If the pre-state ends in a repeat, also include formulas in the path from companion to (M).
-
-QUESTION: Can we collect loaded formulas here by unloading them?
-Or would that make the loaded case of `PreState.pdlFormCase` unsayable?
--/
-def PreState.forms {bt : BuildTree H X} : PreState bt → List Formula := by
-  intro π
-  cases π
-  case fromRoot π' =>
-    cases π'
-    case edge n tail e notModal =>
-      have := Match.btAt n
-      -- IDEA: have rest := PreStatePart.forms tail
-      sorry
-    case stopAtFreeRepeat =>
-      have := @PreStartPart.companionPart -- also collect forms from there!
-      sorry
-    all_goals
-      sorry
-  case fromMod =>
-    sorry
--/
-
--- unused?
+-- Currently unused. Maybe move it to `LocalTableau.lean` ?
 def principalFormulaForLocalRule :  LocalRule X YS -> AnyFormula
   | .oneSidedL orule _ =>
       match orule with
@@ -572,7 +586,7 @@ lemma PreState.pdlFormCase {X} {bt : BuildTree [] X} {π : PreState bt} {α φ} 
   sorry
 
 /-
-TODO: This needs a case distinction for the AnyFormular, similar to `YsetLoad` and `YsetLoad'`.
+TODO: This needs a case distinction for the AnyFormula, similar to `YsetLoad` and `YsetLoad'`.
 /-- WIP Lemma 6.15 *loaded* case -/
 lemma PreState.loadedFormCase {H X} {bt : BuildTree H X} {π : PreState bt} {α φ} :
     ¬ α.isAtomic → (~'⌊α⌋φ) ∈ π.lforms →
@@ -580,7 +594,10 @@ lemma PreState.loadedFormCase {H X} {bt : BuildTree H X} {π : PreState bt} {α 
   sorry
 -/
 
-/-- WIP Lemma 6.16: pre-states are saturated and locally consistent, their last node is basic. -/
+/-- WIP Lemma 6.16: pre-states are saturated and locally consistent, their last node is basic.
+TODO: for free-repeat pre-states the "last node" is *not* π.last.btAt.2.1 but
+needs to be found via rewinding to just before the (M) rule after companion.
+-/
 lemma PreState.locConsSatBas {X} {bt : BuildTree [] X} (π : PreState bt) :
     saturated (π.getForms).toFinset
     ∧ locallyConsistent (π.getForms).toFinset
