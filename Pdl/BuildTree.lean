@@ -514,6 +514,12 @@ def filterPreStatesFromMatches {X} {bt : BuildTree [] X} : List (Match bt) →  
 def BuildTree.allPreStates (bt : BuildTree [] X) : List (PreState bt) :=
   filterPreStatesFromMatches (Match.all bt)
 
+lemma BuildTree.allPreStates_spec {X} {bt : BuildTree [] X} (π : PreState bt) :
+    π ∈ bt.allPreStates := by
+  unfold allPreStates filterPreStatesFromMatches
+  have := @Match.all_spec
+  aesop
+
 /-! ## Collecting Sequents in Pre-states -/
 
 /-- The sequent reached at the end of a match. -/
@@ -583,17 +589,15 @@ def PreState.sequents {X} {bt : BuildTree [] X} (π : PreState bt) : List Sequen
     else
       [ π.val.endSeq ] -- must be an open leaf now, add the end sequent itself. CHECK?!
 
-lemma PreState.sequents_nonEmpty {π : PreState bt} : π.sequents ≠ [] := by
+/-- Each pre-state has at least one sequent. -/
+lemma PreState.sequents_nonEmpty {X} {bt : BuildTree [] X} {π : PreState bt} :
+    π.sequents ≠ [] := by
   unfold PreState.sequents
   simp
   rcases π with ⟨m, m_isPreState⟩
   simp
-  split
-  · simp
-  · split
-    · simp
-      sorry
-    · simp
+  split <;> simp
+  · grind [Match.sequentsSincePdlRule]
 
 /-- Last sequent of a pre-state π.
 (Note that for free repeats this is not the same as where the Match π.val ends.) -/
@@ -620,6 +624,8 @@ inductive Step (X : Sequent) (Y : Sequent) : Prop
 lemma PreState.sequents_IsChain_Step {bt : BuildTree [] X} {π : PreState bt} :
     π.sequents.IsChain Step := by
   sorry
+
+-- IDEA: also prove that chain is "maximal"?
 
 /-! ## Collecting Formulas in Pre-states (via Sequents) -/
 
@@ -681,11 +687,16 @@ def BuildTree.toModel {X} (bt : BuildTree [] X) :
     , Rel := fun a X Y => -- relation Rₐ
         ∃ φ, (~⌈·a⌉φ) ∈ X.1 ∧ (projection a X.1.toList).toFinset ∪ {~φ} ⊆ Y.1 }⟩
 
+/-- Helper lemma saying (the formula sets of) all pre-states are in the model graph. -/
+lemma PreState.mem_toModel {X : Sequent} {bt : BuildTree [] X} {π : PreState bt} :
+    π.getForms.toFinset ∈ bt.toModel.fst := by
+  simp [BuildTree.allPreStates_spec]
+
 /-- WIP Lemma 6.18
 
 Note that we use `Rel` from `BuildTree.toModel` as the `R` to use `Modelgraphs.Q`. -/
-lemma PreState.diamondExistence {φ : AnyFormula} {π : PreState bt} :
-  /- (~'⌊α⌋φ) ∈ π.getForms → -/ -- FIXME need loaded formulas in getForms result
+lemma PreState.diamondExistenceLoaded {φ : AnyFormula} {π : PreState bt} :
+  /- (~'⌊α⌋φ) ∈ π.sequents → -/ -- FIXME need loaded formulas in getForms result
     -- QUESTION: what to say about `π` here and what to say about node `t` lying on `π`?
     ∃ t : Match bt,
         AnyNegFormula.mem_Sequent (t.btAt).2.1 (~''φ)
@@ -698,14 +709,24 @@ lemma PreState.diamondExistence {φ : AnyFormula} {π : PreState bt} :
 
 -- TODO Lemma 6.19: for any diamond we can go to a pre-state where that diamond is loaded
 
--- TODO Lemma 6.20: diamond existence lemma for pre-states
+/-- WIP (! approximation of) Lemma 6.20: diamond existence lemma for pre-states -/
+lemma PreState.diamondExistence {X} {bt : BuildTree [] X} {α} {φ : Formula} {π : PreState bt} :
+  -- FIXME does this include (un)loaded formulas???
+  (~⌈α⌉φ) ∈ π.getForms → ∃ π' : PreState bt,
+      ~φ ∈ π'.getForms ∧ @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α
+                          ⟨π.getForms.toFinset, π.mem_toModel⟩
+                          ⟨π'.getForms.toFinset, π'.mem_toModel⟩ := by
+  intro _in_forms
+  -- NOTE: now the formuals could actually come from a loaded formula in π ?!
+  -- Maybe now split and defer to two different lemmas from here?
+  sorry
 
 /-! ## Model graph of pre-states -/
 
 /-- Theorem 6.21: If Builder has a winning strategy then there is a model graph.
 Uses `BuildTree.toModel`. -/
 theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (startPos X)) :
-    ∃ (WS : Finset (Finset Formula)) (mg : ModelGraph WS),
+    ∃ (WS : Finset (Finset Formula)) (_ : ModelGraph WS),
       ∃ Z ∈ WS, X.bothSides.toFinset ⊆ Z := by
   unfold startPos at h
   rcases posOf_for_startPos X with ⟨proPos, posOf_def⟩
@@ -731,11 +752,21 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
     apply sub_Y -- show that φ is in projection
     simp_all
   case d =>
-    simp
+    simp only [Subtype.exists, exists_and_right, Subtype.forall]
     intro w w_in α φ in_w
     -- "The main challenge" :-)
-    -- Need Lemmas 6.18 to 6.19 about pre-states here.
-    sorry
+    -- Paper proof uses Lemmas 6.18 and 6.20 here, depending on loading.
+    unfold WS BuildTree.toModel at w_in
+    simp only [List.mem_toFinset, List.mem_map, Function.comp_apply] at w_in
+    -- w must come from some pre-state:
+    rcases w_in with ⟨π, π_in, def_w⟩
+    subst def_w
+    simp only [List.mem_toFinset] at in_w
+    have := PreState.diamondExistence in_w -- using the (generic?) lemma here
+    rcases this with ⟨π', not_φ_in, π_Qα_π'⟩
+    refine ⟨π'.getForms.toFinset, ?_, ?_⟩
+    · have := π'.mem_toModel; grind
+    · rw [List.mem_toFinset]; exact not_φ_in
   case X_in =>
     unfold WS
     -- Here the def of `BuildTree.allPreStates` matters.
