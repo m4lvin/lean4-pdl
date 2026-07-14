@@ -351,14 +351,14 @@ instance instMatchDecidableIsFreeRepeat {H X} {bt : BuildTree H X} {m : Match bt
     try exact instDecidableTrue
     try exact instDecidableFalse
 
-/-- Does this match end *just before* a (M) rule (or any other pdl rule, in fact). -/
-def Match.endsAtModal (m : Match bt) : Prop :=
+/-- Does this match end *just before* a PDL rule such as (M), (L+) and (L-). -/
+def Match.endsAtPdlRule (m : Match bt) : Prop :=
   match btAt m with
   | ⟨_, _, BuildTree.pdl _ _⟩ => True
   | ⟨_, _, _⟩ => False
 
-instance instDecidableEndsAtModal {m : Match bt} : Decidable m.endsAtModal := by
-  unfold Match.endsAtModal
+instance instDecidableEndsAtModal {m : Match bt} : Decidable m.endsAtPdlRule := by
+  unfold Match.endsAtPdlRule
   rcases m.btAt with ⟨_, _, bt⟩
   cases bt <;> simp_all
   all_goals
@@ -486,7 +486,7 @@ Here we only store the π part of such pre-states, because the π' is then uniqu
 inductive Match.representsPreState (m : Match bt) : Prop
 | ol : m.isOpenLeaf → Match.representsPreState m
 | fr : m.isFreeRepeat → Match.representsPreState m
-| em : m.endsAtModal → Match.representsPreState m
+| em : m.endsAtPdlRule → Match.representsPreState m
 
 def PreState (bt : BuildTree [] X) : Type := @Subtype (Match bt) Match.representsPreState
 
@@ -499,7 +499,7 @@ instance instDecidablePredMatchRepresentsPreState {bt : BuildTree [] X} :
   · by_cases h_fr : m.isFreeRepeat
     · apply isTrue
       exact Match.representsPreState.fr h_fr
-    · by_cases h_em : m.endsAtModal
+    · by_cases h_em : m.endsAtPdlRule
       · apply isTrue
         exact Match.representsPreState.em h_em
       · apply isFalse
@@ -516,26 +516,20 @@ def BuildTree.allPreStates (bt : BuildTree [] X) : List (PreState bt) :=
 
 def PreState.last (p : PreState bt) : Match bt := p.val
 
+/-! ## Collecting Sequents in Pre-states -/
 
-/-! ## Collecting Formulas in Pre-states -/
+/-- The sequent reached at the end of a match. -/
+def Match.end (m : Match bt) : Sequent := m.btAt.2.1
 
-/-- Get formulas at the current node at the end of the match.
-This includes the unloading of any loaded formula.
-
-QUESTION: Is it okay to collect loaded formulas by unloading them?
-Or does that make the loaded case of Lemma 6.15 `PreState.pdlFormCase` unsayable?
-If so, change output type to `List AnyFormula` here. -/
-def Match.getFormulasAtEnd (m : Match bt) : List Formula :=
-   Sequent.bothSides (((Match.btAt m).snd).fst)
-
-/-- Collect all formulas since the last modal rule application. -/
-def Match.getFormulasSinceModalRule (m : Match bt) : List Formula :=
+/-- Collect all formulas since the last PDL rule application.
+ -- QUESTION what order do we want here? ensure it. -/
+def Match.sequentsSincePdlRule (m : Match bt) : List Sequent :=
   if m = .nil
-  then m.getFormulasAtEnd
+  then [ m.end ]
   else
-    if m.endsAtModal
+    if m.endsAtPdlRule
     then [] -- Why? Because we do not want the result formulas *after* the (M) application.
-    else m.getFormulasAtEnd ++ ((Match.rewind m 1).getFormulasSinceModalRule)
+    else m.end :: (Match.rewind m 1).sequentsSincePdlRule
 termination_by
   m.length
 decreasing_by
@@ -545,62 +539,78 @@ decreasing_by
   rcases Nat.exists_eq_succ_of_ne_zero claim with ⟨mlen_pred, mlen_def⟩
   convert @Fin.zero_lt_one mlen_pred using 1 <;> grind
 
-/-- Given a Match `m`, a rewind index `k` and a number `l < k`, collect the formulas at the
+/-- Given a Match `m`, a rewind index `k` and a number `l < k`, collect the sequents at
 nodes `m.rewind k` to `m.rewind (k-l)`. Note: maybe we should demand `0 < k` here?
 But maybe computing this `l` is already as difficult as using it here, so skip it?
-ALTERNATIVE `see Match.getFormulasUntilModal` instead. -/
-def Match.getFormulasFromSteps {H X} {bt : BuildTree H X} (m : Match bt)
-    (k : Fin (m.length + 1)) (l : Fin k) : List Formula :=
+ALTERNATIVE `see Match.sequentsUntilModal` instead. -/
+def Match.sequentsFromTo {H X} {bt : BuildTree H X} (m : Match bt)
+    (k : Fin (m.length + 1)) (l : Fin k) : List Sequent :=
   (List.range l.val).attach.map
-    (fun ⟨i,i_in⟩ => (m.rewind (k-⟨i,by grind⟩)).getFormulasAtEnd)
-  |> List.flatten
-
--- small helper
-lemma Fin.sub_one_lt (k : Fin (n + 1)) : k ≠ 0 → k - 1 < k :=
-  fun h => by grind [Fin.val_sub_one_of_ne_zero h]
+    (fun ⟨i,i_in⟩ => (m.rewind (k-⟨i,by grind⟩)).end)
 
 /-- Given a Match `m`, a rewind index `k`, collect the formulas at the nodes from
 `m.rewind k`, `m.rewind (k-1)`, `m.rewind (k-2)`, ... until we hit a modal rule. -/
-def Match.getFormulasUntilModal {H X} {bt : BuildTree H X} (m : Match bt)
-    (k : Fin (m.length + 1)) : List Formula :=
+def Match.sequentsUntilModal {H X} {bt : BuildTree H X} (m : Match bt)
+    (k : Fin (m.length + 1)) : List Sequent :=
   if m = nil ∨ k = 0 -- Both should never happen?! Add as condition to def?
   then []
   else
-    if (m.rewind k).endsAtModal
+    if (m.rewind k).endsAtPdlRule
       then
         [] -- Again, we do not include formulas resulting from (M) rule.
       else
-        (m.rewind k).getFormulasAtEnd
-        ++ m.getFormulasUntilModal (k-1) -- correct? termination?
+        (m.rewind k).end :: m.sequentsUntilModal (k-1) -- correct?
 termination_by
   k
 decreasing_by
-  simp
   -- `k-1 < k` only holds if we are at least in Fin 2, so use m ≠ nil here.
-  cases m <;> simp_all <;> simp at k <;> apply Fin.sub_one_lt <;> assumption
+  have Fin.sub_one_lt (k : Fin (m.length + 1)) : k ≠ 0 → k - 1 < k :=
+    fun h => by grind [Fin.val_sub_one_of_ne_zero h]
+  cases m <;> simp_all
 
-/-- Get all formulas for a pre-state. Might still need to change Formula to AnyFormula. -/
-def PreState.getForms {bt : BuildTree [] X} (π : PreState bt) : List Formula :=
-  if π.val.endsAtModal
+/-- Get all sequents for a pre-state. Might still need to change Formula to AnyFormula. -/
+def PreState.sequents {X} {bt : BuildTree [] X} (π : PreState bt) : List Sequent :=
+  if π.val.endsAtPdlRule
   then
-    (π.val.rewind 1).getFormulasSinceModalRule ++ π.val.getFormulasAtEnd -- easy case
+    (π.val.rewind 1).sequentsSincePdlRule ++ [ π.val.end ] -- QUESTION what order?
   else
-    π.val.getFormulasSinceModalRule -- moved this before condition to get simpler prove goal.
+    π.val.sequentsSincePdlRule -- moved this before condition to get simpler prove goal.
     ++
     if h_freeRep : π.val.isFreeRepeat
     then -- If pre-state ends at free repeat, also include formulas in companion-to-(M) path:
       have := Match.btAt_newHist_length_eq_length_plus_oldHist π.val
       -- Similar situation as in Match.companionOf here?
-      π.val.getFormulasUntilModal ⟨(π.val.getFreeRepeat h_freeRep).1.1, by grind⟩
+      π.val.sequentsUntilModal ⟨(π.val.getFreeRepeat h_freeRep).1.1, by grind⟩
       -- The way we make the Fin value is still abit ugly, tweak before proving stuff about here.
     else
       [] -- must be an open leaf now, nothing else to add.
 
-/-! ## Properties of Pre-States -/
+/-! ## Steps between Sequents obtained from Pre-states -/
 
-/-- TODO Lemma 6.14 -/
+inductive Step (X : Sequent) (Y : Sequent) : Prop
+  | loc (nbas : ¬ X.basic) (lt : LocalTableau X) (Y_in : Y ∈ endNodesOf lt) : Step X Y
+  | pdl (bas : X.basic) (r : PdlRule X Y) : Step X Y
+
+-- TODO NEXT ?
+lemma PreState.sequents_IsChain_Step {bt : BuildTree [] X} {π : PreState bt} :
+    π.sequents.IsChain Step := by
+  sorry
+
+/-! ## Collecting Formulas in Pre-states (via Sequents) -/
+
+/-- Get all formulas for a pre-state. This includes the unloading of any loaded formula.
+QUESTION: Is it okay to collect loaded formulas by unloading them?
+Or does that make the loaded case of Lemma 6.15 `PreState.pdlFormCase` unsayable?
+If so, change output type to `List AnyFormula` here. -/
+def PreState.getForms {bt : BuildTree [] X} (π : PreState bt) : List Formula :=
+  π.sequents.flatMap Sequent.bothSides
+
+/-! ## Properties of Formula (Sets? Lists?) obtained from Pre-States -/
+
+/-- TODO Lemma 6.14 (NOTE: maybe just skip this one?!) -/
 lemma PreState.formsCases {π : PreState bt} : φ ∈ π.getForms →
       (φ.basic ∧ φ ∈ π.last.btAt.2.1) -- NOTE: the `∈` might not deal with loaded formulas yet.
+      -- Also note that ".last" might still be lying to us here when π ends at free repeat.
     ∨ (sorry) := by -- TODO how to say `φ is principal later?`
     -- Or can we say something else / phrase it as closure condition about π.forms directly?
   sorry
@@ -706,6 +716,8 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
     sorry
   case X_in =>
     unfold WS
+    simp
+    unfold BuildTree.allPreStates filterPreStatesFromMatches
     simp
     -- need actual def for `BuildTree.allPreStates` first
     -- use the .fromRoot pre-state
