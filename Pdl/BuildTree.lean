@@ -12,6 +12,43 @@ Lessons learned while working on this file:
 
 -/
 
+/-! ## Helper Lemmas -/
+
+/-- Any basic sequent is also saturated.
+This is good to know, but propably not strong enough to be useful. -/
+lemma Sequent.basic_then_saturated {X : Sequent} : X.basic → saturated X.toFinset := by
+  intro Xbas
+  rcases X with ⟨L,R,O⟩
+  unfold saturated
+  intro Fs φ ψ α
+  refine ⟨?_, ?_, ?_, ?box, ?dia⟩
+  · simp_all [basic, Fs, toFinset]
+    grind
+  · simp_all [basic, Fs, toFinset]
+    grind
+  · simp_all [basic, Fs, toFinset]
+    grind
+  case box =>
+    intro _in_F
+    simp_all [basic, Fs, toFinset]
+    cases α
+    case atom_prog =>
+      simp [TP, testsOfProgram,Bset,P,F]
+      exact _in_F
+    all_goals
+      simp [TP, testsOfProgram,Bset,P,F]
+      grind
+  case dia =>
+    intro _in_F
+    simp_all [basic, Fs, toFinset]
+    cases α
+    case atom_prog =>
+      simp [Dset,Yset]
+      exact _in_F
+    all_goals
+      simp [Dset,Yset]
+      grind
+
 /-! ## BuildTree -/
 
 -- See also Bml/CompletenessViaPaths.lean for inspiration that might be useful here.
@@ -435,7 +472,7 @@ def Match.companion {X} {bt : BuildTree [] X} (m n : Match bt) : Prop :=
 
 local notation ma:arg " ♥ " mb:arg => Match.companion ma mb
 
-/-! ## Pre-states (Def 6.13)
+/-! ## Definition of Pre-states (Def 6.13)
 
 As possible worlds for the model graph we want to define *maximal* paths inside the build tree
 that do not contain `(M)` steps.
@@ -478,6 +515,9 @@ def BuildTree.allPreStates (bt : BuildTree [] X) : List (PreState bt) :=
   filterPreStatesFromMatches (Match.all bt)
 
 def PreState.last (p : PreState bt) : Match bt := p.val
+
+
+/-! ## Collecting Formulas in Pre-states -/
 
 /-- Get formulas at the current node at the end of the match.
 This includes the unloading of any loaded formula.
@@ -556,6 +596,8 @@ def PreState.getForms {bt : BuildTree [] X} (π : PreState bt) : List Formula :=
     else
       [] -- must be an open leaf now, nothing else to add.
 
+/-! ## Properties of Pre-States -/
+
 /-- TODO Lemma 6.14 -/
 lemma PreState.formsCases {π : PreState bt} : φ ∈ π.getForms →
       (φ.basic ∧ φ ∈ π.last.btAt.2.1) -- NOTE: the `∈` might not deal with loaded formulas yet.
@@ -610,9 +652,7 @@ def BuildTree.toModel {X} (bt : BuildTree [] X) :
 
 /-- WIP Lemma 6.18
 
-QUESTION: which `R` can we use here in order to use `Modelgraphs.Q`?
-ANSWER: The `Rel` from `BuildTree.toModel` should be used. << TODO NEXT
--/
+Note that we use `Rel` from `BuildTree.toModel` as the `R` to use `Modelgraphs.Q`. -/
 lemma PreState.diamondExistence {φ : AnyFormula} {π : PreState bt} :
   /- (~'⌊α⌋φ) ∈ π.getForms → -/ -- FIXME need loaded formulas in getForms result
     -- QUESTION: what to say about `π` here and what to say about node `t` lying on `π`?
@@ -621,11 +661,8 @@ lemma PreState.diamondExistence {φ : AnyFormula} {π : PreState bt} :
       ∧ ∃ ρ : PreState bt, ∃ u : Match bt,
         -- TODO: t < u
         -- TODO: missing loaded formulas below
-        @Modelgraphs.Q sorry sorry α ⟨π.getForms.toFinset, sorry⟩ ⟨ρ.getForms.toFinset, sorry⟩ := by
-  sorry
-
-/-- Interesting exercise/check, but propably not strong enough to be useful. -/
-lemma Sequent.basic_then_saturated {X : Sequent} : X.basic → saturated X.toFinset := by
+        @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α ⟨π.getForms.toFinset, sorry⟩
+          ⟨ρ.getForms.toFinset, sorry⟩ := by
   sorry
 
 -- TODO Lemma 6.19: for any diamond we can go to a pre-state where that diamond is loaded
