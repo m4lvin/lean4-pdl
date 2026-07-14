@@ -12,7 +12,7 @@ open HasLength
 
 /-! ## Definition of Model Graphs -/
 
-/-- A set of formulas is saturated if it is closed under:
+/-- A set of formulas is *saturated* if it is closed under:
 removing double negations, splitting (negated) conjunctions,
 unfolding boxes using any test profile, and unfolding diamonds using `H`.
 Part of Def 6.2 -/
@@ -26,14 +26,16 @@ def saturated : Finset Formula → Prop
     ∧ ((⌈α⌉φ) ∈ X → ∃ l : TP α, (Bset α l φ).all (fun y => y ∈ X))
     ∧ ((~⌈α⌉φ) ∈ X → ∃ Fδ ∈ Dset α, (Yset Fδ φ).all (fun y => y ∈ X))
 
-/-- A set of formulas is lcoally consistent iff it does not contain ⊥
-and for all atoms p ∈ X we do not have ~p ∈ X. Part of Def 6.2 -/
+/-- A set of formulas is *lcoally consistent* iff it does not contain `⊥`
+and for all atoms `p ∈ X` we do not have `~p ∈ X`. Part of Def 6.2 -/
 def locallyConsistent (X : Finset Formula) : Prop :=
   ⊥ ∉ X.val ∧ ∀ pp, (·pp : Formula) ∈ X.val → (~(·pp)) ∉ X.val
 
 namespace Modelgraphs
 
-/-- Q α -/
+/-- Definition 6.3: Given relations for all atomic programs over model graph states
+(i.e. sets of formulas), define relations for all PDL programs inductively as usual,
+but using membership to interpret the test operator. -/
 def Q {W : Finset (Finset Formula)} (R : Nat → W → W → Prop)
   : Program → W → W → Prop
 | ·c     => R c

@@ -7,7 +7,7 @@ open HasSat
 
 /-- Helper for `completeness`. Uses `gameP` and `strmg`. -/
 lemma modelExistence {X} : consistent X →
-    ∃ (WS : Finset (Finset Formula)) (_ : ModelGraph WS) (W : WS), X.toFinset ⊆ W :=
+    ∃ (WS : Finset (Finset Formula)) (_ : ModelGraph WS) (W : WS), X.bothSides.toFinset ⊆ W :=
   by
   intro consX
   rcases gamedet tableauGame (startPos X) with ProverHasWinningS | BuilderHasWinningS
@@ -25,7 +25,7 @@ theorem completeness : ∀ X, consistent X → satisfiable X :=
   rintro ⟨L, R, O⟩ X_is_consistent
   have ⟨WS, M, w, h⟩ := modelExistence X_is_consistent
   use WS, M.val, w
-  simp [modelCanSemImplySequent, Sequent.toFinset] at *
+  simp [modelCanSemImplySequent] at *
   intro f f_in
   apply truthLemma M w f
   apply h
