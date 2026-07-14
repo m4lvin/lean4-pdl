@@ -446,14 +446,30 @@ Here we only store the π part of such pre-states, because the π' is then uniqu
 -/
 
 /-- Given match marks the end of a pre state (or its π' part in case of free repeat.) -/
-def Match.representsPreState (m : Match bt) : Prop :=
-  m.isOpenLeaf ∨ m.isFreeRepeat ∨ m.endsAtModal
+inductive Match.representsPreState (m : Match bt) : Prop
+| ol : m.isOpenLeaf → Match.representsPreState m
+| fr : m.isFreeRepeat → Match.representsPreState m
+| em : m.endsAtModal → Match.representsPreState m
 
 def PreState (bt : BuildTree [] X) : Type := @Subtype (Match bt) Match.representsPreState
 
-instance {bt : BuildTree [] X} : DecidablePred (@Match.representsPreState _ _ bt) :=
-  fun _ => instDecidableOr
+instance instDecidablePredMatchRepresentsPreState {bt : BuildTree [] X} :
+    DecidablePred (@Match.representsPreState _ _ bt) := by
+  intro m
+  by_cases h_ol : m.isOpenLeaf
+  · apply isTrue
+    exact Match.representsPreState.ol h_ol
+  · by_cases h_fr : m.isFreeRepeat
+    · apply isTrue
+      exact Match.representsPreState.fr h_fr
+    · by_cases h_em : m.endsAtModal
+      · apply isTrue
+        exact Match.representsPreState.em h_em
+      · apply isFalse
+        intro hyp
+        grind [Match.representsPreState]
 
+/-- Relies on `instDecidablePredMatchRepresentsPreState`. -/
 def filterPreStatesFromMatches {X} {bt : BuildTree [] X} : List (Match bt) →  List (PreState bt)
   | L => (L.filter (fun m => m.representsPreState)).attach.map
       (fun ⟨x, x_in⟩ => ⟨x, by simp at x_in; exact x_in.2⟩)
@@ -526,51 +542,19 @@ decreasing_by
 /-- Get all formulas for a pre-state. Might still need to change Formula to AnyFormula. -/
 def PreState.getForms {bt : BuildTree [] X} (π : PreState bt) : List Formula :=
   if π.val.endsAtModal
-  then (π.val.rewind 1).getFormulasSinceModalRule ++ π.val.getFormulasAtEnd -- easy case
+  then
+    (π.val.rewind 1).getFormulasSinceModalRule ++ π.val.getFormulasAtEnd -- easy case
   else
+    π.val.getFormulasSinceModalRule -- moved this before condition to get simpler prove goal.
+    ++
     if h_freeRep : π.val.isFreeRepeat
-    then
-      π.val.getFormulasSinceModalRule
-      ++
-      -- If pre-state ends at free repeat, also include formulas in companion-to-(M) path:
-      -- OLDEST idea:
-      -- (Match.getFormulasUntilModal (π.val.companionOf h_freeRep) π.val sorry)
-      -- OLD idea:
-      -- let k := (π.val.getFreeRepeat h_freeRep).1
-      -- let l := π.val.getCompToModalLength h_freeRep
-      -- π.val.getFormulasFromSteps k l
-      -- NEW idea:
+    then -- If pre-state ends at free repeat, also include formulas in companion-to-(M) path:
       have := Match.btAt_newHist_length_eq_length_plus_oldHist π.val
       -- Similar situation as in Match.companionOf here?
       π.val.getFormulasUntilModal ⟨(π.val.getFreeRepeat h_freeRep).1.1, by grind⟩
       -- The way we make the Fin value is still abit ugly, tweak before proving stuff about here.
-    else -- must be an open leaf now!
-      π.val.getFormulasSinceModalRule -- also easy
-
--- Currently unused. Maybe move it to `LocalTableau.lean` ?
-def principalFormulaForLocalRule :  LocalRule X YS -> AnyFormula
-  | .oneSidedL orule _ =>
-      match orule with
-        | .bot      => Formula.bottom
-        | .con φ ψ =>  (φ ⋀ ψ)
-        | .not φ => φ
-        | .neg φ => ~~φ
-        | .nCo φ ψ => ~(Formula.and φ ψ)
-        | .dia α φ _ => ~⌈α⌉φ
-        | .box α φ _ => ⌈α⌉φ
-  | .oneSidedR orule _ =>
-      match orule with
-        | .bot      => Formula.bottom
-        | .con φ ψ => φ ⋀ ψ
-        | .not φ => φ
-        | .neg φ => ~~φ
-        | .nCo φ ψ => ~(Formula.and φ ψ)
-        | .dia α φ _  => ~⌈α⌉φ
-        | .box α φ _   => ⌈α⌉φ
-  | .LRnegL φ => φ
-  | .LRnegR φ => φ
-  | .loadedL φ _ _ => φ
-  | .loadedR φ _ _ => φ
+    else
+      [] -- must be an open leaf now, nothing else to add.
 
 /-- TODO Lemma 6.14 -/
 lemma PreState.formsCases {π : PreState bt} : φ ∈ π.getForms →
@@ -583,7 +567,17 @@ lemma PreState.formsCases {π : PreState bt} : φ ∈ π.getForms →
 lemma PreState.pdlFormCase {X} {bt : BuildTree [] X} {π : PreState bt} {α φ} :
     ¬ α.isAtomic → (~⌈α⌉φ) ∈ π.getForms →
       ∃ Xδ ∈ Dset α, Xδ.1 ∪ [~ Formula.boxes Xδ.2 φ] ⊆ π.getForms := by
-  sorry
+  intro α_notAtom in_forms
+  -- unfold getForms at in_forms -- scary proof goal now ;-) maybe avoid unfolding for now?
+  -- Vague plan or strategy: find out where the formula (~⌈α⌉φ) is, then where it gets modified?
+  cases π.prop -- three goals thanks to inductive Prop
+  -- Some of these cases should be easier than others, how to avoid duplication?
+  case ol =>
+    sorry
+  case fr =>
+    sorry
+  case em =>
+    sorry
 
 /-
 TODO: This needs a case distinction for the AnyFormula, similar to `YsetLoad` and `YsetLoad'`.
@@ -617,7 +611,7 @@ def BuildTree.toModel {X} (bt : BuildTree [] X) :
 /-- WIP Lemma 6.18
 
 QUESTION: which `R` can we use here in order to use `Modelgraphs.Q`?
-ANSWER: The `Rel` from `BuildTree.toModel` should be used.
+ANSWER: The `Rel` from `BuildTree.toModel` should be used. << TODO NEXT
 -/
 lemma PreState.diamondExistence {φ : AnyFormula} {π : PreState bt} :
   /- (~'⌊α⌋φ) ∈ π.getForms → -/ -- FIXME need loaded formulas in getForms result
@@ -628,6 +622,10 @@ lemma PreState.diamondExistence {φ : AnyFormula} {π : PreState bt} :
         -- TODO: t < u
         -- TODO: missing loaded formulas below
         @Modelgraphs.Q sorry sorry α ⟨π.getForms.toFinset, sorry⟩ ⟨ρ.getForms.toFinset, sorry⟩ := by
+  sorry
+
+/-- Interesting exercise/check, but propably not strong enough to be useful. -/
+lemma Sequent.basic_then_saturated {X : Sequent} : X.basic → saturated X.toFinset := by
   sorry
 
 -- TODO Lemma 6.19: for any diamond we can go to a pre-state where that diamond is loaded

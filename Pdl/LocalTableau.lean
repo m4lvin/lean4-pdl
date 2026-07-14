@@ -131,6 +131,31 @@ def applyLocalRule {Lcond Rcond Ocond ress} :
                                 , R.diff Rcond ++ Rnew
                                 , Olf.change O Ocond Onew )
 
+/-- Helper originally written for Lemma 6.14 but currently unused. -/
+def principalFormulaForLocalRule : LocalRule X YS -> AnyFormula
+  | .oneSidedL orule _ =>
+      match orule with
+        | .bot      => Formula.bottom
+        | .con φ ψ =>  (φ ⋀ ψ)
+        | .not φ => φ
+        | .neg φ => ~~φ
+        | .nCo φ ψ => ~(Formula.and φ ψ)
+        | .dia α φ _ => ~⌈α⌉φ
+        | .box α φ _ => ⌈α⌉φ
+  | .oneSidedR orule _ =>
+      match orule with
+        | .bot      => Formula.bottom
+        | .con φ ψ => φ ⋀ ψ
+        | .not φ => φ
+        | .neg φ => ~~φ
+        | .nCo φ ψ => ~(Formula.and φ ψ)
+        | .dia α φ _  => ~⌈α⌉φ
+        | .box α φ _   => ⌈α⌉φ
+  | .LRnegL φ => φ
+  | .LRnegR φ => φ
+  | .loadedL φ _ _ => φ
+  | .loadedR φ _ _ => φ
+
 lemma oneSidedL_preserves_right {LRO : Sequent}
     {Lcond : List Formula} (Lpreproof : Lcond ⊆ LRO.L)
     {Lres : List (List Formula)} (orule : OneSidedLocalRule Lcond Lres)
