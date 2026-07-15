@@ -506,33 +506,53 @@ Here we only store the π part of such pre-states, because the π' is then uniqu
 -/
 
 /-- Given match marks the end of a pre state (or its π' part in case of free repeat.) -/
-inductive Match.representsPreState (m : Match bt) : Prop
-| ol : m.isOpenLeaf → Match.representsPreState m
-| fr : m.isFreeRepeat → Match.representsPreState m
-| em : m.endsAtPdlRule → Match.representsPreState m
+inductive Match.IsPreState (m : Match bt) : Type
+| ol : m.isOpenLeaf → Match.IsPreState m
+| em : m.endsAtPdlRule → Match.IsPreState m
+| fr : m.isFreeRepeat → Match.IsPreState m
 
-def PreState (bt : BuildTree [] X) : Type := @Subtype (Match bt) Match.representsPreState
+def PreState {X} (bt : BuildTree [] X) : Type := (m : Match bt) × m.IsPreState
 
-instance instDecidablePredMatchRepresentsPreState {bt : BuildTree [] X} :
-    DecidablePred (@Match.representsPreState _ _ bt) := by
+def Match.isPreState (m : Match bt) : Prop := Nonempty (m.IsPreState)
+
+instance instDecidablePredMatchIsPreState {bt : BuildTree [] X} :
+    DecidablePred (@Match.isPreState _ _ bt) := by
   intro m
   by_cases h_ol : m.isOpenLeaf
-  · apply isTrue
-    exact Match.representsPreState.ol h_ol
+  · apply isTrue; simp [Match.isPreState]; constructor
+    exact Match.IsPreState.ol h_ol
   · by_cases h_fr : m.isFreeRepeat
-    · apply isTrue
-      exact Match.representsPreState.fr h_fr
+    · apply isTrue; simp [Match.isPreState]; constructor
+      exact Match.IsPreState.fr h_fr
     · by_cases h_em : m.endsAtPdlRule
-      · apply isTrue
-        exact Match.representsPreState.em h_em
-      · apply isFalse
+      · apply isTrue; simp [Match.isPreState]; constructor
+        exact Match.IsPreState.em h_em
+      · apply isFalse; simp [Match.isPreState]; constructor
         intro hyp
-        grind [Match.representsPreState]
+        grind [Match.IsPreState]
 
-/-- Relies on `instDecidablePredMatchRepresentsPreState`. -/
-def filterPreStatesFromMatches {X} {bt : BuildTree [] X} : List (Match bt) →  List (PreState bt)
-  | L => (L.filter (fun m => m.representsPreState)).attach.map
-      (fun ⟨x, x_in⟩ => ⟨x, by simp at x_in; exact x_in.2⟩)
+lemma Match.isPreState_iff (m : Match bt) :
+    m.isPreState ↔ (m.isOpenLeaf ∨ m.isFreeRepeat ∨ m.endsAtPdlRule) := by
+  unfold Match.isPreState
+  constructor
+  · sorry
+  · sorry
+
+/-- Filter out all pre-states from a list of matches, keeping the data why they are pre-states. -/
+def filterPreStatesFromMatches {X} {bt : BuildTree [] X} : List (Match bt) → List (PreState bt)
+  | L => (L.map (fun m =>
+            if h_ol : m.isOpenLeaf
+            then [ ⟨m, .ol h_ol⟩ ]
+            else
+              if h_fr : m.isFreeRepeat
+              then [ ⟨m, .fr h_fr⟩ ]
+              else
+                if h_em : m.endsAtPdlRule
+                then [ ⟨m, .em h_em⟩ ]
+                else [ ]
+          )).flatten
+--  | L => (L.filter (fun m => m.isPreState)).attach.map
+--     (fun ⟨x, x_in⟩ => ⟨x, by simp at x_in; exact x_in.2⟩)
 
 def BuildTree.allPreStates (bt : BuildTree [] X) : List (PreState bt) :=
   filterPreStatesFromMatches (Match.all bt)
@@ -541,7 +561,7 @@ lemma BuildTree.allPreStates_spec {X} {bt : BuildTree [] X} (π : PreState bt) :
     π ∈ bt.allPreStates := by
   unfold allPreStates filterPreStatesFromMatches
   have := @Match.all_spec
-  aesop
+  sorry -- aesop
 
 /-! ## Collecting Sequents in Pre-states -/
 
@@ -591,15 +611,16 @@ decreasing_by
 
 /-- Get all sequents for a pre-state. -/
 def PreState.sequents {X} {bt : BuildTree [] X} (π : PreState bt) : List Sequent :=
-  π.val.sequentsSincePdlRule -- including the sequent at the end of π itself.
+  π.1.sequentsSincePdlRule -- including the sequent at the end of π itself.
   ++
-  if h_freeRep : π.val.isFreeRepeat
+  match π.2 with
+  | .fr h_freeRep =>
   -- If pre-state ends at free repeat, also include formulas in companion-to-(M) path
   -- NOTE that this means we include the repeater sequent twice.
-  then π.val.sequentsUntilPdlRule
-        ⟨ (π.val.getFreeRepeat h_freeRep).1.1
+    π.1.sequentsUntilPdlRule
+        ⟨ (π.1.getFreeRepeat h_freeRep).1.1
         , by grind [Match.btAt_newHist_length_eq_length_plus_oldHist] ⟩
-  else [ ]
+  | _ => [ ]
 
 /-- Each pre-state has at least one sequent. -/
 lemma PreState.sequents_nonEmpty {X} {bt : BuildTree [] X} {π : PreState bt} :
@@ -635,7 +656,14 @@ inductive Step (X : Sequent) (Y : Sequent) : Prop
 -- TODO NEXT ?
 lemma PreState.sequents_IsChain_Step {bt : BuildTree [] X} {π : PreState bt} :
     π.sequents.IsChain Step := by
-  sorry
+  rcases π with ⟨m, m_isPre⟩
+  cases m_isPre
+  case ol =>
+    sorry -- easy?
+  case em =>
+    sorry -- easy?
+  case fr =>
+    sorry -- tricky?
 
 -- IDEA: also prove that chain is "maximal"?
 
@@ -668,7 +696,7 @@ lemma PreState.pdlFormCase {X} {bt : BuildTree [] X} {π : PreState bt} {α φ} 
   intro α_notAtom in_forms
   -- unfold getForms at in_forms -- scary proof goal now ;-) maybe avoid unfolding for now?
   -- Vague plan or strategy: find out where the formula (~⌈α⌉φ) is, then where it gets modified?
-  cases π.prop -- three goals thanks to inductive Prop
+  cases π.2 -- three goals thanks to inductive Prop
   -- Some of these cases should be easier than others, how to avoid duplication?
   case ol =>
     sorry
@@ -724,8 +752,6 @@ lemma PreState.diamondExistenceLoaded {φ : AnyFormula} {π : PreState bt} :
   sorry
 
 -- TODO Lemma 6.19: for any diamond we can go to a pre-state where that diamond is loaded
-
-
 
 lemma diamondExistenceInduction {X} {bt : BuildTree [] X} {α} {φ : Formula} {π : PreState bt} :
   -- FIXME does this include (un)loaded formulas???
@@ -807,7 +833,20 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
     simp
     -- Use that there must be some pre-state containing the root.
     rcases BuildTree.allPreStates_contains_root bt with ⟨π, X_in_π⟩
-    refine ⟨π.val, ⟨Match.all_spec, π.prop⟩, ?_⟩
+    refine ⟨π, ⟨π.1, Match.all_spec, ?_⟩, ?_⟩
+    · rcases π with ⟨m, m_isPre⟩
+      have := @m.isPreState_iff.mp ⟨m_isPre⟩
+      cases m_isPre
+      case ol => simp_all
+      case fr =>
+        simp_all
+        have : ¬ m.isOpenLeaf := sorry
+        grind
+      case em =>
+        simp_all
+        have : ¬ m.isOpenLeaf := sorry
+        have : ¬ m.isFreeRepeat := sorry
+        grind
     · simp [PreState.getForms]
       intro f f_in
       -- Here it matters that above we agree on using `Sequent.bothSides`
