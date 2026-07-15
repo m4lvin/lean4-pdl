@@ -461,222 +461,64 @@ def Match.companion {X} {bt : BuildTree [] X} (m n : Match bt) : Prop :=
 
 local notation ma:arg " ♥ " mb:arg => Match.companion ma mb
 
-/-- Does this match end *just before* a PDL rule such as (M), (L+) and (L-). -/
-def Match.endsAtPdlRule (m : Match bt) : Prop :=
-  match btAt m with
-  | ⟨_, _, BuildTree.pdl _ _⟩ => True
-  | ⟨_, _, _⟩ => False
-
-instance instDecidableEndsAtPdlRule {H X} {bt : BuildTree H X} {m : Match bt} :
-    Decidable m.endsAtPdlRule := by
-  unfold Match.endsAtPdlRule
-  rcases m.btAt with ⟨_, _, bt⟩
-  cases bt <;> simp_all
-  all_goals
-    try exact instDecidableTrue
-    try exact instDecidableFalse
-
-/-- Does this match begin *just after* a PDL rule such as (M), (L+) and (L-). -/
-def Match.beginsAfterPdlRule {X} {bt : BuildTree [] X} (m : Match bt) : Prop :=
-  if m = .nil
-  then False
-  else
-    match btAt (m.rewind 1) with
-    | ⟨_, _, BuildTree.pdl _ _⟩ => True
-    | ⟨_, _, _⟩ => False
-
-instance instDecidableBeginsAfterPdlRule {X} {bt : BuildTree [] X} {m : Match bt} :
-    Decidable m.beginsAfterPdlRule := by
-  unfold Match.beginsAfterPdlRule
-  split
-  · exact instDecidableFalse
-  · split
-    · exact instDecidableTrue
-    · simp_all
-      exact instDecidableFalse
-
-/-! ## Definition of Pre-states (Def 6.13)
+/-! ## Collecting Sequents for Pre-states NEW APPROACH - directly from BuildTree ??
 
 As possible worlds for the model graph we want to define *maximal* paths inside the build tree
-that do not contain `(M)` steps. FIXME: also not (L+) and (L-) it seems?
+that do not contain (M), (L+) or (L-) steps. -/
 
-In the paper pre-states are allowed to be of the form π;π' when π ends at a repeat and π' is a
-maximal prefix of the path from the companion to that repeat.
-Here we only store the π part of such pre-states, because the π' is then uniquely determined by π.
--/
-
-/-- Given match marks the end of a pre state (or its π' part in case of free repeat.) -/
-inductive Match.IsPreState (m : Match bt) : Type
-| ol : m.isOpenLeaf → Match.IsPreState m
-| em : m.endsAtPdlRule → Match.IsPreState m
-| fr : m.isFreeRepeat → Match.IsPreState m
-
-def PreState {X} (bt : BuildTree [] X) : Type := (m : Match bt) × m.IsPreState
-
-def Match.isPreState (m : Match bt) : Prop := Nonempty (m.IsPreState)
-
-instance instDecidablePredMatchIsPreState {bt : BuildTree [] X} :
-    DecidablePred (@Match.isPreState _ _ bt) := by
-  intro m
-  by_cases h_ol : m.isOpenLeaf
-  · apply isTrue; simp [Match.isPreState]; constructor
-    exact Match.IsPreState.ol h_ol
-  · by_cases h_fr : m.isFreeRepeat
-    · apply isTrue; simp [Match.isPreState]; constructor
-      exact Match.IsPreState.fr h_fr
-    · by_cases h_em : m.endsAtPdlRule
-      · apply isTrue; simp [Match.isPreState]; constructor
-        exact Match.IsPreState.em h_em
-      · apply isFalse; simp [Match.isPreState]; constructor
-        intro hyp
-        grind [Match.IsPreState]
-
-lemma Match.isPreState_iff (m : Match bt) :
-    m.isPreState ↔ (m.isOpenLeaf ∨ m.isFreeRepeat ∨ m.endsAtPdlRule) := by
-  unfold Match.isPreState
-  constructor
-  · sorry
-  · sorry
-
-/-- Filter out all pre-states from a list of matches, keeping the data why they are pre-states. -/
-def filterPreStatesFromMatches {X} {bt : BuildTree [] X} : List (Match bt) → List (PreState bt)
-  | L => (L.map (fun m =>
-            if h_ol : m.isOpenLeaf
-            then [ ⟨m, .ol h_ol⟩ ]
-            else
-              if h_fr : m.isFreeRepeat
-              then [ ⟨m, .fr h_fr⟩ ]
-              else
-                if h_em : m.endsAtPdlRule
-                then [ ⟨m, .em h_em⟩ ]
-                else [ ]
-          )).flatten
---  | L => (L.filter (fun m => m.isPreState)).attach.map
---     (fun ⟨x, x_in⟩ => ⟨x, by simp at x_in; exact x_in.2⟩)
-
-def BuildTree.allPreStates (bt : BuildTree [] X) : List (PreState bt) :=
-  filterPreStatesFromMatches (Match.all bt)
-
-lemma BuildTree.allPreStates_spec {X} {bt : BuildTree [] X} (π : PreState bt) :
-    π ∈ bt.allPreStates := by
-  unfold allPreStates filterPreStatesFromMatches
-  have := @Match.all_spec
-  sorry -- aesop
-
-/-! ## Collecting Sequents in Pre-states -/
-
-/-- Collect all sequents since the last PDL rule application.
-This starts with the *oldest* sequent and ends with the sequent at the end of the match. -/
-def Match.sequentsSincePdlRule {X} {bt : BuildTree [] X} (m : Match bt) : List Sequent :=
-  ( if m = .nil ∨ m.beginsAfterPdlRule
-    then [ ]
-    else (Match.rewind m 1).sequentsSincePdlRule
-  ) ++ [ m.endSeq ] -- newest sequent last!
+def Match.collect {X} (bt : BuildTree [] X) (m : Match bt) : List (List Sequent) :=
+  match m_def : m.btAt with
+  | ⟨H', X', .loc _ next⟩ =>
+      (LocalTableau.all X').flatMap
+        fun lt => (endNodesOf lt).flatMap
+          fun Y => [ [X', Y] ] ++ -- a local pre-state consists of lt-root and lt-endNode
+                    (m.append (m_def ▸ @nil.loc _ _ _ next lt)).collect
+                    -- WORRY: will we create a redundant pre-state with `Y` again later?
+                    -- counter-WORRY: maybe that's okay / messy but fine?
+  | ⟨H', X', .pdl _ next⟩ =>
+      [ [X'] ] ++ -- a PDL pre-state consists of just a single node
+      (PdlRule.all X').flatMap
+        fun ⟨Y,r⟩ => (m.append (m_def ▸ @nil.pdl _ _ _ _ Y r)).collect
+  | ⟨H', X', .freeRepeat frp⟩ =>
+        [] -- !! somewhat radical change here, assuming that π',π'' is actually never non-trivial !!
+        -- (m.companionOf sorry).collect -- NO, would not terminate
+  | ⟨_, _, .openLeaf⟩ => [ [m.endSeq] ]
 termination_by
-  m.length
+  m.btAt -- size of remaining BuildTree should go down (whereas m.length goes up!)
 decreasing_by
-  apply @Match.rewind_length_lt_length_of_pos _ _ bt m 1
-  -- Here 0 < 1 holds because we have m ≠ .nil.
-  have claim : m.length ≠ 0 := by cases m <;> simp_all
-  rcases Nat.exists_eq_succ_of_ne_zero claim with ⟨mlen_pred, mlen_def⟩
-  convert @Fin.zero_lt_one mlen_pred using 1 <;> grind
+  all_goals
+    sorry
 
-/-- Given a Match `m`, a rewind index `k` and a number `l < k`, collect the sequents at
-nodes `m.rewind k` to `m.rewind (k-l)`. Note: maybe we should demand `0 < k` here?
-But maybe computing this `l` is already as difficult as using it here, so skip it?
-Unused, we use the ALTERNATIVE `see Match.sequentsUntilPdlRule` instead. -/
-def Match.sequentsFromTo {H X} {bt : BuildTree H X} (m : Match bt)
-    (k : Fin (m.length + 1)) (l : Fin k) : List Sequent :=
-  (List.range l.val).attach.map
-    (fun ⟨i,i_in⟩ => (m.rewind (k-⟨i,by grind⟩)).endSeq)
-
-/-- Given a Match `m`, a rewind index `k`, collect the sequents at the nodes
-`m.rewind k`, `m.rewind (k-1)`, `m.rewind (k-2)`, ... until a PDL rule. -/
-def Match.sequentsUntilPdlRule {H X} {bt : BuildTree H X} (m : Match bt)
-    (k : Fin (m.length + 1)) : List Sequent :=
-  if m = nil -- Should never happen because then we cannot rewind. FIXME add as condition to def?
-  then []
-  else
-    (m.rewind k).endSeq :: -- current sequent first
-    if (m.rewind k).endsAtPdlRule ∨ k = 0
-      then [] -- Do not include formulas after the PDL rule.
-      else m.sequentsUntilPdlRule (k-1) -- rewinding 1 less means going one step forward along m.
-termination_by
-  k
-decreasing_by
-  -- `k-1 < k` only holds if we are at least in Fin 2, so use m ≠ nil here.
-  have Fin.sub_one_lt (k : Fin (m.length + 1)) : k ≠ 0 → k - 1 < k :=
-    fun h => by grind [Fin.val_sub_one_of_ne_zero h]
-  cases m <;> simp_all
-
-/-- Get all sequents for a pre-state. -/
-def PreState.sequents {X} {bt : BuildTree [] X} (π : PreState bt) : List Sequent :=
-  π.1.sequentsSincePdlRule -- including the sequent at the end of π itself.
-  ++
-  match π.2 with
-  | .fr h_freeRep =>
-  -- If pre-state ends at free repeat, also include formulas in companion-to-(M) path
-  -- NOTE that this means we include the repeater sequent twice.
-    π.1.sequentsUntilPdlRule
-        ⟨ (π.1.getFreeRepeat h_freeRep).1.1
-        , by grind [Match.btAt_newHist_length_eq_length_plus_oldHist] ⟩
-  | _ => [ ]
-
-/-- Each pre-state has at least one sequent. -/
-lemma PreState.sequents_nonEmpty {X} {bt : BuildTree [] X} {π : PreState bt} :
-    π.sequents ≠ [] := by
-  unfold PreState.sequents Match.sequentsSincePdlRule
-  simp
-
-/-- Last sequent of a pre-state π.
-(Note that for free repeats this is not the same as where the Match π.val ends.) -/
-def PreState.last (π : PreState bt) : Sequent :=
-  π.sequents.getLast (PreState.sequents_nonEmpty)
-
-/-- There is at least one pre-state containing the root. -/
-lemma BuildTree.allPreStates_contains_root (bt : BuildTree [] X) :
-    ∃ π : PreState bt, X ∈ π.sequents := by
-  -- idea: first define some match starting at the root? Then show it's a pre-state?
-  -- but note we cannot just arbitrarily walk somewhere...
-  -- or maybe actually we can, as we are in a BuildTree that is "winning" by construction?
-  -- cases bt -- how does the game or build tree start?
-  sorry
-
--- TODO every Match is part of some pre-state
+def BuildTree.collect {X} (bt : BuildTree [] X) : List (List Sequent) :=
+  (@Match.nil _ _ bt).collect
 
 /-! ## Steps between Sequents obtained from Pre-states -/
 
-/-- The relation that should hold between sequents from the same pre-state.
-Either a local rule (in Lean: a whole LocalTableau) is applied, or we have a free repeat.
+/-- The relation that should hold between sequents from the same pre-state, based on local rules.
 We can never have PDL steps inside a PreState because they end there! -/
 inductive Step (X : Sequent) (Y : Sequent) : Prop
   | loc (nbas : ¬ X.basic) (lt : LocalTableau X) (Y_in : Y ∈ endNodesOf lt) : Step X Y
-  | frp (same : X.multisetEqTo X ∧ ¬ X.isLoaded) : Step X Y
 
 -- TODO NEXT ?
-lemma PreState.sequents_IsChain_Step {bt : BuildTree [] X} {π : PreState bt} :
-    π.sequents.IsChain Step := by
-  rcases π with ⟨m, m_isPre⟩
-  cases m_isPre
-  case ol =>
-    sorry -- easy?
-  case em =>
-    sorry -- easy?
-  case fr =>
-    sorry -- tricky?
+lemma BuildTree.collect_IsChain_Step {bt : BuildTree [] X} :
+    ∀ π ∈ bt.collect, π.IsChain Step := by
+  sorry -- tricky?
 
--- IDEA: also prove that chain is "maximal"?
+/-! ## Pre-states (Def 6.13) -/
 
--- QUESTION: all π.sequents have at most length 2 ?? Or 3, if they also go to a companion?
+/-- Hmmmm. Is this good? -/
+def PreState (bt : BuildTree [] X) : Type := Subtype (· ∈ bt.collect)
 
-/-! ## Collecting Formulas in Pre-states (via Sequents) -/
+-- NOTE: all π.sequents have at most length 2 ??
+
+/-! ## Collecting Formulas in Pre-state Sequents -/
 
 /-- Get all formulas for a pre-state. This includes the unloading of any loaded formula.
 QUESTION: Is it okay to collect loaded formulas by unloading them?
 Or does that make the loaded case of Lemma 6.15 `PreState.pdlFormCase` unsayable?
 If so, change output type to `List AnyFormula` here. -/
 def PreState.getForms {bt : BuildTree [] X} (π : PreState bt) : List Formula :=
-  (π.sequents.map Sequent.bothSides).flatten
+  (π.val.map Sequent.bothSides).flatten
 
 /-! ## Properties of Formula (Sets? Lists?) obtained from Pre-States -/
 
@@ -684,7 +526,7 @@ def PreState.getForms {bt : BuildTree [] X} (π : PreState bt) : List Formula :=
 
 /-- TODO Lemma 6.14 (NOTE: maybe just skip this one?!) -/
 lemma PreState.formsCases {π : PreState bt} : φ ∈ π.getForms →
-      (φ.basic ∧ φ ∈ π.last) -- NOTE: the `∈` might not deal with loaded formulas yet.
+      (φ.basic ∧ φ ∈ π.val.getLast sorry) -- NOTE: the `∈` might not deal with loaded formulas yet.
     ∨ (sorry) := by -- TODO how to say `φ is principal later?`
     -- Or can we say something else / phrase it as closure condition about π.forms directly?
   sorry
@@ -694,16 +536,7 @@ lemma PreState.pdlFormCase {X} {bt : BuildTree [] X} {π : PreState bt} {α φ} 
     ¬ α.isAtomic → (~⌈α⌉φ) ∈ π.getForms →
       ∃ Xδ ∈ Dset α, Xδ.1 ∪ [~ Formula.boxes Xδ.2 φ] ⊆ π.getForms := by
   intro α_notAtom in_forms
-  -- unfold getForms at in_forms -- scary proof goal now ;-) maybe avoid unfolding for now?
-  -- Vague plan or strategy: find out where the formula (~⌈α⌉φ) is, then where it gets modified?
-  cases π.2 -- three goals thanks to inductive Prop
-  -- Some of these cases should be easier than others, how to avoid duplication?
-  case ol =>
-    sorry
-  case fr =>
-    sorry
-  case em =>
-    sorry
+  sorry
 
 /-
 TODO: This needs a case distinction for the AnyFormula, similar to `YsetLoad` and `YsetLoad'`.
@@ -718,7 +551,7 @@ lemma PreState.loadedFormCase {H X} {bt : BuildTree H X} {π : PreState bt} {α 
 lemma PreState.locConsSatBas {X} {bt : BuildTree [] X} (π : PreState bt) :
     saturated (π.getForms).toFinset
     ∧ locallyConsistent (π.getForms).toFinset
-    ∧ π.last.basic := by
+    ∧ (π.val.getLast sorry).basic := by
   -- define `PreState.forms` first.
   sorry
 
@@ -726,7 +559,7 @@ lemma PreState.locConsSatBas {X} {bt : BuildTree [] X} (π : PreState bt) :
 @[simp]
 def BuildTree.toModel {X} (bt : BuildTree [] X) :
     (Σ W : Finset (Finset Formula), KripkeModel W) :=
-  ⟨ ((bt.allPreStates).map (List.toFinset ∘ PreState.getForms)).toFinset -- W
+  ⟨ ((bt.collect).map (List.toFinset ∘ List.flatten ∘ List.map Sequent.bothSides)).toFinset -- W
   , { val := fun X p => Formula.atom_prop p ∈ X.1 -- valuation V(p)
     , Rel := fun a X Y => -- relation Rₐ
         ∃ φ, (~⌈·a⌉φ) ∈ X.1 ∧ (projection a X.1.toList).toFinset ∪ {~φ} ⊆ Y.1 }⟩
@@ -734,7 +567,7 @@ def BuildTree.toModel {X} (bt : BuildTree [] X) :
 /-- Helper lemma saying (the formula sets of) all pre-states are in the model graph. -/
 lemma PreState.mem_toModel {X : Sequent} {bt : BuildTree [] X} {π : PreState bt} :
     π.getForms.toFinset ∈ bt.toModel.fst := by
-  simp [BuildTree.allPreStates_spec]
+  sorry -- simp [BuildTree.allPreStates_spec]
 
 /-- WIP Lemma 6.18
 
@@ -798,8 +631,8 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
     unfold WS at X_in
     simp at X_in
     rcases X_in with ⟨π, in_all, def_X⟩
-    have := PreState.locConsSatBas π-- using Lemma 6.16 for (i)
-    simp_all
+    have := PreState.locConsSatBas ⟨π, in_all⟩ -- using Lemma 6.16 for (i)
+    simp_all [PreState.getForms]
   -- "(b, c) will follow immediately from the definition"
   case b =>
     simp_all [M]
@@ -820,16 +653,20 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
     rcases w_in with ⟨π, π_in, def_w⟩
     subst def_w
     simp only [List.mem_toFinset] at in_w
+    /-
     have := diamondExistence in_w -- using the (generic?) lemma here
     rcases this with ⟨π', not_φ_in, π_Qα_π'⟩
     refine ⟨π'.getForms.toFinset, ?_, ?_⟩
     · have := π'.mem_toModel; grind
     · rw [List.mem_toFinset]; exact not_φ_in
+    -/
+    sorry
   case X_in =>
     unfold WS
     -- Here the def of `BuildTree.allPreStates` matters.
     simp
-    unfold BuildTree.allPreStates filterPreStatesFromMatches
+    /-
+    unfold  filterPreStatesFromMatches
     simp
     -- Use that there must be some pre-state containing the root.
     rcases BuildTree.allPreStates_contains_root bt with ⟨π, X_in_π⟩
@@ -853,3 +690,5 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
       -- (and not mix it with `Sequent.toFinset`.)
       simp_all
       use X
+    -/
+    sorry
