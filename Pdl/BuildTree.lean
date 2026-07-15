@@ -281,6 +281,9 @@ def Match.btAt {H X} {bt : BuildTree H X} : Match bt → Σ H' Y, BuildTree H' Y
 | .loc tail => btAt tail
 | .pdl tail => btAt tail
 
+/-- The sequent reached at the end of a match. -/
+def Match.endSeq {bt : BuildTree H X} (m : Match bt) : Sequent := m.btAt.2.1
+
 /- All possible Matches in a given BuildTree. -/
 def Match.all {H X} : (bt : BuildTree H X) → List (Match bt)
   | .loc nbas next =>
@@ -351,19 +354,15 @@ instance instMatchDecidableIsFreeRepeat {H X} {bt : BuildTree H X} {m : Match bt
     try exact instDecidableTrue
     try exact instDecidableFalse
 
-/-- Does this match end *just before* a PDL rule such as (M), (L+) and (L-). -/
-def Match.endsAtPdlRule (m : Match bt) : Prop :=
-  match btAt m with
-  | ⟨_, _, BuildTree.pdl _ _⟩ => True
-  | ⟨_, _, _⟩ => False
+lemma Match.isFreeRepeat_iff {H X} {bt : BuildTree H X} {m : Match bt} :
+    m.isFreeRepeat ↔ (btAt m).2.2.isFreeRepeat := by
+  unfold BuildTree.isFreeRepeat Match.isFreeRepeat
+  grind
 
-instance instDecidableEndsAtModal {m : Match bt} : Decidable m.endsAtPdlRule := by
-  unfold Match.endsAtPdlRule
-  rcases m.btAt with ⟨_, _, bt⟩
-  cases bt <;> simp_all
-  all_goals
-    try exact instDecidableTrue
-    try exact instDecidableFalse
+/-- Get the `FreeRepeat` (rewind-index and same-sequent proof) of a `Match`. -/
+def Match.getFreeRepeat {X} {bt : BuildTree [] X} (m : Match bt)
+  (h : m.isFreeRepeat) : FreeRepeat m.btAt.1 m.btAt.2.1 :=
+    BuildTree.getFreeRepeat (Match.isFreeRepeat_iff.eq ▸ h)
 
 -- needed / ever used?
 def Match.append {H X} {bt : BuildTree H X} :
@@ -447,16 +446,6 @@ lemma Match.btAt_newHist_length_eq_length_plus_oldHist {H X} {bt : BuildTree H X
 termination_by
   m.length
 
-lemma Match.isFreeRepeat_iff {H X} {bt : BuildTree H X} {m : Match bt} :
-    m.isFreeRepeat ↔ (btAt m).2.2.isFreeRepeat := by
-  unfold BuildTree.isFreeRepeat Match.isFreeRepeat
-  grind
-
-/-- Get the `FreeRepeat` (rewind-index and same-sequent proof) of a `Match`. -/
-def Match.getFreeRepeat {X} {bt : BuildTree [] X} (m : Match bt)
-  (h : m.isFreeRepeat) : FreeRepeat m.btAt.1 m.btAt.2.1 :=
-    BuildTree.getFreeRepeat (Match.isFreeRepeat_iff.eq ▸ h)
-
 /-- Roll back to the companion. Only possibe if we started with H=[] so we know the root. -/
 def Match.companionOf {X} {bt : BuildTree [] X} (m : Match bt)
   (h : m.isFreeRepeat) : Match bt :=
@@ -471,6 +460,40 @@ def Match.companion {X} {bt : BuildTree [] X} (m n : Match bt) : Prop :=
   ∃ (h : m.isFreeRepeat), n = Match.companionOf m h
 
 local notation ma:arg " ♥ " mb:arg => Match.companion ma mb
+
+/-- Does this match end *just before* a PDL rule such as (M), (L+) and (L-). -/
+def Match.endsAtPdlRule (m : Match bt) : Prop :=
+  match btAt m with
+  | ⟨_, _, BuildTree.pdl _ _⟩ => True
+  | ⟨_, _, _⟩ => False
+
+instance instDecidableEndsAtPdlRule {H X} {bt : BuildTree H X} {m : Match bt} :
+    Decidable m.endsAtPdlRule := by
+  unfold Match.endsAtPdlRule
+  rcases m.btAt with ⟨_, _, bt⟩
+  cases bt <;> simp_all
+  all_goals
+    try exact instDecidableTrue
+    try exact instDecidableFalse
+
+/-- Does this match begin *just after* a PDL rule such as (M), (L+) and (L-). -/
+def Match.beginsAfterPdlRule {X} {bt : BuildTree [] X} (m : Match bt) : Prop :=
+  if m = .nil
+  then False
+  else
+    match btAt (m.rewind 1) with
+    | ⟨_, _, BuildTree.pdl _ _⟩ => True
+    | ⟨_, _, _⟩ => False
+
+instance instDecidableBeginsAfterPdlRule {X} {bt : BuildTree [] X} {m : Match bt} :
+    Decidable m.beginsAfterPdlRule := by
+  unfold Match.beginsAfterPdlRule
+  split
+  · exact instDecidableFalse
+  · split
+    · exact instDecidableTrue
+    · simp_all
+      exact instDecidableFalse
 
 /-! ## Definition of Pre-states (Def 6.13)
 
@@ -522,18 +545,13 @@ lemma BuildTree.allPreStates_spec {X} {bt : BuildTree [] X} (π : PreState bt) :
 
 /-! ## Collecting Sequents in Pre-states -/
 
-/-- The sequent reached at the end of a match. -/
-def Match.endSeq (m : Match bt) : Sequent := m.btAt.2.1
-
-/-- Collect all formulas since the last PDL rule application.
- -- QUESTION what order do we want here? ensure it. -/
-def Match.sequentsSincePdlRule (m : Match bt) : List Sequent :=
-  if m = .nil
-  then [ m.endSeq ]
-  else
-    if m.endsAtPdlRule
-    then [] -- Why? Because we do not want the result formulas *after* the (M) application.
-    else m.endSeq :: (Match.rewind m 1).sequentsSincePdlRule
+/-- Collect all sequents since the last PDL rule application.
+This starts with the *oldest* sequent and ends with the sequent at the end of the match. -/
+def Match.sequentsSincePdlRule {X} {bt : BuildTree [] X} (m : Match bt) : List Sequent :=
+  ( if m = .nil ∨ m.beginsAfterPdlRule
+    then [ ]
+    else (Match.rewind m 1).sequentsSincePdlRule
+  ) ++ [ m.endSeq ] -- newest sequent last!
 termination_by
   m.length
 decreasing_by
@@ -546,24 +564,23 @@ decreasing_by
 /-- Given a Match `m`, a rewind index `k` and a number `l < k`, collect the sequents at
 nodes `m.rewind k` to `m.rewind (k-l)`. Note: maybe we should demand `0 < k` here?
 But maybe computing this `l` is already as difficult as using it here, so skip it?
-ALTERNATIVE `see Match.sequentsUntilModal` instead. -/
+Unused, we use the ALTERNATIVE `see Match.sequentsUntilPdlRule` instead. -/
 def Match.sequentsFromTo {H X} {bt : BuildTree H X} (m : Match bt)
     (k : Fin (m.length + 1)) (l : Fin k) : List Sequent :=
   (List.range l.val).attach.map
     (fun ⟨i,i_in⟩ => (m.rewind (k-⟨i,by grind⟩)).endSeq)
 
-/-- Given a Match `m`, a rewind index `k`, collect the formulas at the nodes from
-`m.rewind k`, `m.rewind (k-1)`, `m.rewind (k-2)`, ... until we hit a modal rule. -/
-def Match.sequentsUntilModal {H X} {bt : BuildTree H X} (m : Match bt)
+/-- Given a Match `m`, a rewind index `k`, collect the sequents at the nodes
+`m.rewind k`, `m.rewind (k-1)`, `m.rewind (k-2)`, ... until a PDL rule. -/
+def Match.sequentsUntilPdlRule {H X} {bt : BuildTree H X} (m : Match bt)
     (k : Fin (m.length + 1)) : List Sequent :=
-  if m = nil ∨ k = 0 -- Both should never happen?! Add as condition to def?
+  if m = nil -- Should never happen because then we cannot rewind. FIXME add as condition to def?
   then []
   else
-    if (m.rewind k).endsAtPdlRule
-      then
-        [] -- Again, we do not include formulas resulting from (M) rule.
-      else
-        (m.rewind k).endSeq :: m.sequentsUntilModal (k-1) -- correct?
+    (m.rewind k).endSeq :: -- current sequent first
+    if (m.rewind k).endsAtPdlRule ∨ k = 0
+      then [] -- Do not include formulas after the PDL rule.
+      else m.sequentsUntilPdlRule (k-1) -- rewinding 1 less means going one step forward along m.
 termination_by
   k
 decreasing_by
@@ -572,32 +589,23 @@ decreasing_by
     fun h => by grind [Fin.val_sub_one_of_ne_zero h]
   cases m <;> simp_all
 
-/-- Get all sequents for a pre-state. Might still need to change Formula to AnyFormula. -/
+/-- Get all sequents for a pre-state. -/
 def PreState.sequents {X} {bt : BuildTree [] X} (π : PreState bt) : List Sequent :=
-  if π.val.endsAtPdlRule
-  then
-    (π.val.rewind 1).sequentsSincePdlRule ++ [ π.val.endSeq ] -- QUESTION what order?
-  else
-    π.val.sequentsSincePdlRule -- moved this before condition to get simpler prove goal.
-    ++
-    if h_freeRep : π.val.isFreeRepeat
-    then -- If pre-state ends at free repeat, also include formulas in companion-to-(M) path:
-      have := Match.btAt_newHist_length_eq_length_plus_oldHist π.val
-      -- Similar situation as in Match.companionOf here?
-      π.val.sequentsUntilModal ⟨(π.val.getFreeRepeat h_freeRep).1.1, by grind⟩
-      -- The way we make the Fin value is still abit ugly, tweak before proving stuff about here.
-    else
-      [ π.val.endSeq ] -- must be an open leaf now, add the end sequent itself. CHECK?!
+  π.val.sequentsSincePdlRule -- including the sequent at the end of π itself.
+  ++
+  if h_freeRep : π.val.isFreeRepeat
+  -- If pre-state ends at free repeat, also include formulas in companion-to-(M) path
+  -- NOTE that this means we include the repeater sequent twice.
+  then π.val.sequentsUntilPdlRule
+        ⟨ (π.val.getFreeRepeat h_freeRep).1.1
+        , by grind [Match.btAt_newHist_length_eq_length_plus_oldHist] ⟩
+  else [ ]
 
 /-- Each pre-state has at least one sequent. -/
 lemma PreState.sequents_nonEmpty {X} {bt : BuildTree [] X} {π : PreState bt} :
     π.sequents ≠ [] := by
-  unfold PreState.sequents
+  unfold PreState.sequents Match.sequentsSincePdlRule
   simp
-  rcases π with ⟨m, m_isPreState⟩
-  simp
-  split <;> simp
-  · grind [Match.sequentsSincePdlRule]
 
 /-- Last sequent of a pre-state π.
 (Note that for free repeats this is not the same as where the Match π.val ends.) -/
@@ -613,12 +621,16 @@ lemma BuildTree.allPreStates_contains_root (bt : BuildTree [] X) :
   -- cases bt -- how does the game or build tree start?
   sorry
 
+-- TODO every Match is part of some pre-state
+
 /-! ## Steps between Sequents obtained from Pre-states -/
 
+/-- The relation that should hold between sequents from the same pre-state.
+Either a local rule (in Lean: a whole LocalTableau) is applied, or we have a free repeat.
+We can never have PDL steps inside a PreState because they end there! -/
 inductive Step (X : Sequent) (Y : Sequent) : Prop
   | loc (nbas : ¬ X.basic) (lt : LocalTableau X) (Y_in : Y ∈ endNodesOf lt) : Step X Y
-  -- NOPE, we can never have PDL steps inside a PreState because they end there!
-  -- -- | pdl (bas : X.basic) (r : PdlRule X Y) : Step X Y
+  | frp (same : X.multisetEqTo X ∧ ¬ X.isLoaded) : Step X Y
 
 -- TODO NEXT ?
 lemma PreState.sequents_IsChain_Step {bt : BuildTree [] X} {π : PreState bt} :
@@ -626,6 +638,8 @@ lemma PreState.sequents_IsChain_Step {bt : BuildTree [] X} {π : PreState bt} :
   sorry
 
 -- IDEA: also prove that chain is "maximal"?
+
+-- QUESTION: all π.sequents have at most length 2 ?? Or 3, if they also go to a companion?
 
 /-! ## Collecting Formulas in Pre-states (via Sequents) -/
 
@@ -637,6 +651,8 @@ def PreState.getForms {bt : BuildTree [] X} (π : PreState bt) : List Formula :=
   (π.sequents.map Sequent.bothSides).flatten
 
 /-! ## Properties of Formula (Sets? Lists?) obtained from Pre-States -/
+
+-- IDEA: rephrase these to be about the resulting chain, not about getForms !!
 
 /-- TODO Lemma 6.14 (NOTE: maybe just skip this one?!) -/
 lemma PreState.formsCases {π : PreState bt} : φ ∈ π.getForms →
@@ -709,14 +725,30 @@ lemma PreState.diamondExistenceLoaded {φ : AnyFormula} {π : PreState bt} :
 
 -- TODO Lemma 6.19: for any diamond we can go to a pre-state where that diamond is loaded
 
-/-- WIP (! approximation of) Lemma 6.20: diamond existence lemma for pre-states -/
-lemma PreState.diamondExistence {X} {bt : BuildTree [] X} {α} {φ : Formula} {π : PreState bt} :
+
+
+lemma diamondExistenceInduction {X} {bt : BuildTree [] X} {α} {φ : Formula} {π : PreState bt} :
   -- FIXME does this include (un)loaded formulas???
   (~⌈α⌉φ) ∈ π.getForms → ∃ π' : PreState bt,
       ~φ ∈ π'.getForms ∧ @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α
                           ⟨π.getForms.toFinset, π.mem_toModel⟩
                           ⟨π'.getForms.toFinset, π'.mem_toModel⟩ := by
   intro _in_forms
+
+  -- NOTE: now the formuals could actually come from a loaded formula in π ?!
+  -- Maybe now split and defer to two different lemmas from here?
+  sorry
+
+
+/-- WIP (! approximation of) Lemma 6.20: diamond existence lemma for pre-states -/
+lemma diamondExistence {X} {bt : BuildTree [] X} {α} {φ : Formula} {π : PreState bt} :
+  -- FIXME does this include (un)loaded formulas???
+  (~⌈α⌉φ) ∈ π.getForms → ∃ π' : PreState bt,
+      ~φ ∈ π'.getForms ∧ @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α
+                          ⟨π.getForms.toFinset, π.mem_toModel⟩
+                          ⟨π'.getForms.toFinset, π'.mem_toModel⟩ := by
+  intro _in_forms
+
   -- NOTE: now the formuals could actually come from a loaded formula in π ?!
   -- Maybe now split and defer to two different lemmas from here?
   sorry
@@ -762,7 +794,7 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
     rcases w_in with ⟨π, π_in, def_w⟩
     subst def_w
     simp only [List.mem_toFinset] at in_w
-    have := PreState.diamondExistence in_w -- using the (generic?) lemma here
+    have := diamondExistence in_w -- using the (generic?) lemma here
     rcases this with ⟨π', not_φ_in, π_Qα_π'⟩
     refine ⟨π'.getForms.toFinset, ?_, ?_⟩
     · have := π'.mem_toModel; grind
