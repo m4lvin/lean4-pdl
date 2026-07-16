@@ -32,3 +32,20 @@ TODO This implies (needs a proof?) similar to Fact 4.4 in the paper! -/
 def Match.getCompToModalLength {X} {bt : BuildTree [] X} (m : Match bt)
     (h : m.isFreeRepeat) : Fin (m.length - (m.getFreeRepeat h).1) :=
   sorry
+
+
+
+
+
+
+/-! ## Steps between Sequents obtained from Pre-states -/
+
+/-- The relation that should hold between sequents from the same pre-state, based on local rules.
+We can never have PDL steps inside a PreState because they end there! -/
+inductive Step (X : Sequent) (Y : Sequent) : Prop
+  | loc (nbas : ¬ X.basic) (lt : LocalTableau X) (Y_in : Y ∈ endNodesOf lt) : Step X Y
+
+-- TODO NEXT ?
+lemma BuildTree.collect_IsChain_Step {bt : BuildTree [] X} :
+    ∀ π ∈ bt.collect, π.IsChain Step := by
+  sorry -- tricky?

@@ -82,10 +82,11 @@ inductive BuildTree : History → Sequent → Type
   /-- Free repeat means builder wins. -/
   | freeRepeat {H X} : FreeRepeat H X → BuildTree H X
   /-- Leaf that is (might be?!) not a repeat, but no rules can be applied. -/
-  | openLeaf {H X} : BuildTree H X
-  -- TODO: add `(bas : X.basic)` for "no local rules" and somehow say "no PDL rules"?
+  | openLeaf {H X} (bas : X.basic) : BuildTree H X
+  -- TODO: maybe also somehow say "no PDL rules"?
   -- small worry but what about (L+) (L-), one of which is always applicable?
   -- Well, then it would lead to a free repeat!?
+  -- TODO: or/and add condition to be locally consistent?
 
 inductive BuildChoice : History → Sequent → List Sequent → Type
   | pick {H X YS Y} : Y ∈ YS → BuildTree (X :: H) Y → BuildChoice H X YS
@@ -97,7 +98,7 @@ def BuildTree.size : BuildTree H X → Nat
   | .loc _ next => 1 + ((LocalTableau.all X).map (fun lt => (next lt).size)).sum
   | .pdl _ next => 1 + ((PdlRule.all X).map (fun ⟨Y,r⟩ => (next Y r).size)).sum
   | .freeRepeat _ => 1
-  | .openLeaf => 1
+  | .openLeaf _ => 1
 
 def BuildChoice.size : BuildChoice H X YS → Nat
   | .pick _ bt_Y => bt_Y.size
@@ -126,6 +127,12 @@ def BuildTree.getFreeRepeat {H X} {bt : BuildTree H X}
   cases bt <;> simp at *
   case freeRepeat fr => exact fr
 
+def FreeRepeat.of_rep_noLpRep {X : Sequent} (rp : rep H X)
+    (noLpRep : ¬Nonempty (LoadedPathRepeat H X)) : FreeRepeat H X := by
+  refine ⟨rp.toFin, ?_⟩
+  simp
+  sorry --??
+
 /-- Given a winning Builder strategy, compute its `BuildTree`.
 NEW: note the `Sum.inl p` here. This ensure we start tree building from a Prover position, i.e.
 - not allowing BuilderPos.lpr here (easy, was forbidden already anyway as prover wins there.)
@@ -134,7 +141,7 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
     BuildTree H X :=
   match p_def : p with
   -- Prover positions:
-  | (.nlpRep rp noLpRep) => .openLeaf -- Builder wins rep. ?? maybe we do want history?
+  | (.nlpRep rp noLpRep) => .freeRepeat (.of_rep_noLpRep rp noLpRep) -- Builder wins free rep.
   | (.bas nrep bas) => -- prover chooses PDL rule
       have stillWin : ∀ newP, ∀ _ : Move ⟨_,_,Sum.inl (.bas nrep bas)⟩ newP, winning s newP :=
         fun newPos mov =>
@@ -293,7 +300,7 @@ def Match.all {H X} : (bt : BuildTree H X) → List (Match bt)
       Match.nil ::
       (PdlRule.all X >>= fun ⟨Y,r⟩ => return Match.pdl (← (Match.all (next Y r))))
   | .freeRepeat fr => [ .nil ]
-  | .openLeaf => [ .nil ]
+  | .openLeaf _ => [ .nil ]
 termination_by
   bt => bt.size
 decreasing_by
@@ -332,7 +339,7 @@ theorem Match.all_spec {H X} {bt : BuildTree H X} {m} :
     simp
 
 def Match.isOpenLeaf {H X} {bt : BuildTree H X} {m : Match bt} : Prop :=
-  match (btAt m) with | ⟨_, _, .openLeaf⟩ => True | _ => False
+  match (btAt m) with | ⟨_, _, .openLeaf _⟩ => True | _ => False
 
 instance instDecidableIsOpenLeaf {m : Match bt} : Decidable m.isOpenLeaf := by
   unfold Match.isOpenLeaf
@@ -461,6 +468,29 @@ def Match.companion {X} {bt : BuildTree [] X} (m n : Match bt) : Prop :=
 
 local notation ma:arg " ♥ " mb:arg => Match.companion ma mb
 
+/-! ## Collect paths of sequents within a LocalTableau (FIXME move to LocalTableau.lean later?)
+
+This may be useful for the pre-states used in the completeness proof. -/
+
+def LocalTableau.paths : {X : _} → LocalTableau X → List (List Sequent)
+  | .(_), (@byLocalRule X lra _ next) =>
+      (lra.C.attach.flatMap (fun ⟨Y, h⟩ => (next Y h).paths)).map (X :: ·)
+  | .(_), (@sim X _) => [[X]]
+termination_by
+  X => X -- pick up instance WellFoundedRelation Sequent from above!
+decreasing_by
+  subst_eqs
+  apply localRuleApp.decreases_DM lra Y h
+
+lemma LocalTableau.pathsLast_eq_endNodes :
+    lt.paths.map (List.getLast · sorry) = endNodesOf lt := by
+  sorry
+
+lemma LocalTableau.paths_saturated {lt : LocalTableau X} :
+    ∀ L ∈ lt.paths, saturated (L.map Sequent.bothSides).flatten.toFinset := by
+  sorry
+
+
 /-! ## Collecting Sequents for Pre-states NEW APPROACH - directly from BuildTree ??
 
 As possible worlds for the model graph we want to define *maximal* paths inside the build tree
@@ -482,32 +512,64 @@ def Match.collect {X} (bt : BuildTree [] X) (m : Match bt) : List (List Sequent)
   | ⟨H', X', .freeRepeat frp⟩ =>
         [] -- !! somewhat radical change here, assuming that π',π'' is actually never non-trivial !!
         -- (m.companionOf sorry).collect -- NO, would not terminate
-  | ⟨_, _, .openLeaf⟩ => [ [m.endSeq] ]
+  | ⟨_, _, .openLeaf _⟩ => [ [m.endSeq] ]
 termination_by
   m.btAt -- size of remaining BuildTree should go down (whereas m.length goes up!)
 decreasing_by
   all_goals
     sorry
 
-def BuildTree.collect {X} (bt : BuildTree [] X) : List (List Sequent) :=
+def BuildTree.collectViaMatches {X} (bt : BuildTree [] X) : List (List Sequent) :=
   (@Match.nil _ _ bt).collect
 
-/-! ## Steps between Sequents obtained from Pre-states -/
-
-/-- The relation that should hold between sequents from the same pre-state, based on local rules.
-We can never have PDL steps inside a PreState because they end there! -/
-inductive Step (X : Sequent) (Y : Sequent) : Prop
-  | loc (nbas : ¬ X.basic) (lt : LocalTableau X) (Y_in : Y ∈ endNodesOf lt) : Step X Y
-
--- TODO NEXT ?
-lemma BuildTree.collect_IsChain_Step {bt : BuildTree [] X} :
-    ∀ π ∈ bt.collect, π.IsChain Step := by
-  sorry -- tricky?
+/-- Collect pre-states in the whole BuildTree.
+The local pre-states come from paths in a local tableau,
+and PDL pre-states each consist of just a single node. -/
+def BuildTree.collect {H X} : (bt : BuildTree H X) → List (List Sequent)
+  | .loc _nbas next => (LocalTableau.all X).flatMap fun lt => lt.paths ++ (next lt).6.collect
+  | .pdl _bas next => [ [X] ] ++ (PdlRule.all X).flatMap fun ⟨Y,r⟩ => (next Y r).collect
+  | .freeRepeat _ => [ ] -- !! ??
+  | .openLeaf _ => [ [X] ]
+termination_by
+  bt => bt.size -- size of remaining BuildTree should go down
+decreasing_by
+  -- FIXME same termination proofs as for `Match.all` - move to simp lemmas about BuildTree.size
+  · simp [BuildTree.size]
+    have : (next lt).6.size ∈ ((LocalTableau.all X).map (fun lt => (next lt).6.size)) := by
+      simp only [List.mem_map]
+      use lt, LocalTableau.all_spec
+    have := List.le_sum_of_mem this
+    have : ∀ lt, (next lt).size = (next lt).6.size := fun lt => by
+      cases next lt; simp [BuildChoice.size]
+    simp_rw [this]
+    grind
+  · simp only [BuildTree.size]
+    have : (next Y r).size ∈ ((PdlRule.all X).map (fun ⟨Y,r⟩ => (next Y r).size)) := by
+      simp only [List.mem_map, Sigma.exists]
+      use Y, r, PdlRule.all_spec _bas _
+    have := List.le_sum_of_mem this
+    grind
 
 /-! ## Pre-states (Def 6.13) -/
 
 /-- Hmmmm. Is this good? -/
-def PreState (bt : BuildTree [] X) : Type := Subtype (· ∈ bt.collect)
+def PreState {X} (bt : BuildTree [] X) : Type := Subtype (· ∈ bt.collect)
+
+lemma PreState.nonempty {X} {bt : BuildTree [] X} {π : PreState bt} : π.val ≠ [] := by
+  rcases π with ⟨L, L_in⟩
+  unfold BuildTree.collect at L_in
+  simp_all
+  cases bt <;> simp_all
+  case loc nbas next L_in' =>
+    apply @PreState.nonempty _ _ ⟨L, L_in'⟩
+  case pdl bas next L_in' =>
+    apply @PreState.nonempty _ _ ⟨L, L_in'⟩
+termination_by
+  bt.size
+decreasing_by
+  -- use same termination proof as for Match.all etc above
+  all_goals
+    sorry
 
 -- NOTE: all π.sequents have at most length 2 ??
 
@@ -520,13 +582,18 @@ If so, change output type to `List AnyFormula` here. -/
 def PreState.getForms {bt : BuildTree [] X} (π : PreState bt) : List Formula :=
   (π.val.map Sequent.bothSides).flatten
 
+lemma PreState.getForms_saturated {X} {bt : BuildTree [] X} {π : PreState bt} :
+    saturated π.getForms.toFinset := by
+  sorry
+
+
 /-! ## Properties of Formula (Sets? Lists?) obtained from Pre-States -/
 
 -- IDEA: rephrase these to be about the resulting chain, not about getForms !!
 
 /-- TODO Lemma 6.14 (NOTE: maybe just skip this one?!) -/
 lemma PreState.formsCases {π : PreState bt} : φ ∈ π.getForms →
-      (φ.basic ∧ φ ∈ π.val.getLast sorry) -- NOTE: the `∈` might not deal with loaded formulas yet.
+      (φ.basic ∧ φ ∈ π.val.getLast PreState.nonempty) -- NOTE: the `∈` might not deal with loaded formulas yet.
     ∨ (sorry) := by -- TODO how to say `φ is principal later?`
     -- Or can we say something else / phrase it as closure condition about π.forms directly?
   sorry
@@ -549,11 +616,12 @@ lemma PreState.loadedFormCase {H X} {bt : BuildTree H X} {π : PreState bt} {α 
 
 /-- WIP Lemma 6.16: pre-states are saturated and locally consistent, their last node is basic. -/
 lemma PreState.locConsSatBas {X} {bt : BuildTree [] X} (π : PreState bt) :
-    saturated (π.getForms).toFinset
+    saturated π.getForms.toFinset
     ∧ locallyConsistent (π.getForms).toFinset
-    ∧ (π.val.getLast sorry).basic := by
-  -- define `PreState.forms` first.
-  sorry
+    ∧ (π.val.getLast PreState.nonempty).basic := ⟨PreState.getForms_saturated, sorry, sorry⟩
+
+
+/-! ## Defining The Model Graph -/
 
 /-- Definition 6.17 to get model graph from strategy tree. -/
 @[simp]

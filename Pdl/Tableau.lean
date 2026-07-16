@@ -59,8 +59,7 @@ def rep.toNat {H X} (rp : rep H X) : Nat :=
       simp_all
   | some k => k
 
-/-- Given `rep H X`, get the index of the companion in `H` using `List.findIdx?`.
-Note that we do *not* care about loading here. -/
+/-- Given `rep H X`, get the index of the companion in `H` using `List.findIdx?`. -/
 def rep.toFin {H X} (rp : rep H X) : Fin (H.length) :=
   have : rp.toNat < H.length :=
     match h : List.findIdx? (fun Y => decide (Y.setEqTo X)) H with
