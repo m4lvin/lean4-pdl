@@ -487,6 +487,12 @@ local notation ma:arg " ♥ " mb:arg => Match.companion ma mb
 
 This may be useful for the pre-states used in the completeness proof. -/
 
+/-- LocalRuleApp preserves saturatedness backwards. -/
+lemma LocalRuleApp.preserve_saturated_up (lra : LocalRuleApp) (X rest : List Formula) :
+    -- TODO: how to say that `lra` comes from formulas that yield something already in `rest` ???
+    (h : sorry) → saturated rest.toFinset → saturated (X.toFinset ∪ rest.toFinset) := by
+  sorry
+
 def LocalTableau.paths : {X : _} → LocalTableau X → List (List Sequent)
   | .(_), (@byLocalRule X lra _ next) =>
       (lra.C.attach.flatMap (fun ⟨Y, h⟩ => (next Y h).paths)).map (X :: ·)
@@ -497,7 +503,11 @@ decreasing_by
   subst_eqs
   apply localRuleApp.decreases_DM lra Y h
 
-lemma LocalTableau.pathsLast_eq_endNodes :
+lemma LocalTableau.paths_nonEmpty {X} (lt : LocalTableau X) :
+    ∀ L ∈ lt.paths, L ≠ [] := by
+  intro L L_in; cases lt <;> grind [paths]
+
+lemma LocalTableau.pathsLast_eq_endNodes {X} {lt : LocalTableau X} :
     lt.paths.map (List.getLast · sorry) = endNodesOf lt := by
   sorry
 
@@ -579,17 +589,29 @@ lemma PreState.nonempty {X} {bt : BuildTree H X} {π : PreState bt} : π.val ≠
   rcases π with ⟨L, L_in⟩
   unfold BuildTree.collect at L_in
   simp_all
-  cases bt <;> simp_all
+  cases bt
   case loc nbas next L_in' =>
-    apply @PreState.nonempty _ _ _ ⟨L, L_in'⟩
+    simp_all
+    rcases L_in with ⟨lt, lt_in, L_in⟩
+    rcases L_in with L_in|L_in
+    · exact LocalTableau.paths_nonEmpty lt L L_in
+    · have IH := @PreState.nonempty _ _ (next lt).6 ⟨L, L_in⟩
+      exact IH
   case pdl bas next L_in' =>
-    apply @PreState.nonempty _ _ _ ⟨L, L_in'⟩
+    simp_all
+    rcases L_in with L_def|⟨Y, r, rule_in, L_in⟩
+    · simp_all
+    · have IH := @PreState.nonempty _ _ (next Y r) ⟨L, L_in⟩
+      exact IH
+  all_goals
+    simp_all
 termination_by
   bt.size
-decreasing_by
-  -- use same termination proof as for Match.all etc above
-  all_goals
-    sorry
+decreasing_by -- almost same termination proof as for Match.all etc above :-)
+  · subst_eqs
+    apply @BuildTree.size_lt_loc H X
+  · subst_eqs
+    apply @BuildTree.size_lt_pdl H X
 
 -- NOTE: all π.sequents have at most length 2 ??
 
@@ -607,8 +629,34 @@ lemma PreState.getForms_saturated {X} {bt : BuildTree H X} {π : PreState bt} :
   -- Idea: case distinction between local pre-state or pdl-prestate.
   -- For local, use `LocalTableau.paths_saturated`
   -- For PDL pre-state, use `Sequent.basic_then_saturated`.
-  sorry
-
+  -- For any pre-state from later, make an IH by recursion and use it?
+  rcases π with ⟨π, π_in⟩
+  cases bt <;> simp [BuildTree.collect] at π_in <;> rename_i old_π_in
+  case loc nbas next =>
+    rcases π_in with ⟨lt, lt_in, π_in_lt|π_in_next⟩
+    · have := LocalTableau.paths_saturated _ π_in_lt
+      unfold getForms
+      -- easy, but mismatch vs `bothSides` in defs above
+      sorry
+    · have IH := @PreState.getForms_saturated _ _ _ ⟨π, π_in_next⟩
+      exact IH
+  case pdl bas next =>
+    rcases π_in with π_def|⟨Y, r, in_rule, π_in_next⟩
+    · have := Sequent.basic_then_saturated bas
+      simp [getForms]
+      -- easy but maybe mismatch?
+      sorry
+    · have IH := @PreState.getForms_saturated _ _ _ ⟨π, π_in_next⟩
+      exact IH
+  case openLeaf =>
+    sorry
+termination_by
+  bt.size
+decreasing_by
+  · subst_eqs
+    apply @BuildTree.size_lt_loc H X
+  · subst_eqs
+    apply @BuildTree.size_lt_pdl H X
 
 /-! ## Properties of Formula (Sets? Lists?) obtained from Pre-States -/
 
