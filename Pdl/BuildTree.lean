@@ -593,7 +593,15 @@ decreasing_by
 lemma BuildTree.collect_contains_root (bt : BuildTree [] X) :
     ∃ π ∈ bt.collect, X ∈ π := by
   cases bt <;> simp [collect]
-  case loc =>
+  case loc nbas next =>
+    let lts := LocalTableau.all X
+    have lts_ne : lts ≠ [] := sorry
+    rcases lts.exists_mem_of_ne_nil lts_ne with ⟨lt, lt_in⟩
+    let πs := lt.paths
+    have πs_ne : πs ≠ [] := sorry
+    rcases πs.exists_mem_of_ne_nil πs_ne with ⟨π, π_in⟩
+    refine ⟨π, ⟨lt, lt.all_spec, .inl π_in⟩, ?_⟩
+    -- still need X ∈ π ... via other lemma about LocalTableau.paths
     sorry
   case freeRepeat h =>
     exact FreeRepeat_nil_impossible h
@@ -661,20 +669,23 @@ lemma PreState.forms_saturated {X} {bt : BuildTree H X} {π : PreState bt} :
     rcases π_in with ⟨lt, lt_in, π_in_lt|π_in_next⟩
     · have := LocalTableau.paths_saturated _ π_in_lt
       unfold forms
-      -- easy, but mismatch vs `bothSides` in defs above
-      sorry
+      simp
+      -- still some mismatch vs `bothSides` in defs above?
+      convert this
+      aesop
     · have IH := @PreState.forms_saturated _ _ _ ⟨π, π_in_next⟩
       exact IH
   case pdl bas next =>
     rcases π_in with π_def|⟨Y, r, in_rule, π_in_next⟩
-    · have := Sequent.basic_then_saturated bas
+    · subst π_def
       simp [forms]
-      -- easy but maybe mismatch?
-      sorry
+      exact Sequent.basic_then_saturated bas
     · have IH := @PreState.forms_saturated _ _ _ ⟨π, π_in_next⟩
       exact IH
-  case openLeaf =>
-    sorry
+  case openLeaf bas =>
+    subst π_in
+    simp [forms]
+    exact Sequent.basic_then_saturated bas
 termination_by
   bt.size
 decreasing_by
@@ -683,6 +694,7 @@ decreasing_by
   · subst_eqs
     apply @BuildTree.size_lt_pdl H X
 
+-- IDEA: helper lemma "every pre-state is either a local tableau path or a singleton and basic" ??
 
 lemma PreState.forms_locallyConsistent {π : PreState bt} : locallyConsistent π.forms := by sorry
 
@@ -732,8 +744,8 @@ lemma PreState.loadUnfoldDiaMem_of_nonAtom' {H X} {bt : BuildTree H X} {π : Pre
 lemma PreState.locConsSatBas {X} {bt : BuildTree [] X} (π : PreState bt) :
     saturated π.forms
     ∧ locallyConsistent π.forms
-    ∧ (π.val.getLast PreState.nonempty).basic := ⟨PreState.forms_saturated, sorry, sorry⟩
-
+    ∧ (π.val.getLast PreState.nonempty).basic :=
+  ⟨π.forms_saturated, π.forms_locallyConsistent, π.forms_last_basic⟩
 
 /-! ## Defining The Model Graph -/
 
@@ -846,30 +858,14 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
     unfold WS
     -- Here the def of `BuildTree.allPreStates` matters.
     simp
-    /-
-    unfold  filterPreStatesFromMatches
-    simp
     -- Use that there must be some pre-state containing the root.
-    rcases BuildTree.allPreStates_contains_root bt with ⟨π, X_in_π⟩
-    refine ⟨π, ⟨π.1, Match.all_spec, ?_⟩, ?_⟩
-    · rcases π with ⟨m, m_isPre⟩
-      have := @m.isPreState_iff.mp ⟨m_isPre⟩
-      cases m_isPre
-      case ol => simp_all
-      case fr =>
-        simp_all
-        have : ¬ m.isOpenLeaf := sorry
-        grind
-      case em =>
-        simp_all
-        have : ¬ m.isOpenLeaf := sorry
-        have : ¬ m.isFreeRepeat := sorry
-        grind
-    · simp [PreState.getForms]
-      intro f f_in
-      -- Here it matters that above we agree on using `Sequent.bothSides`
-      -- (and not mix it with `Sequent.toFinset`.)
-      simp_all
+    rcases bt.collect_contains_root with ⟨π, π_in, X_in_π⟩
+    refine ⟨⟨π, π_in⟩, ?_, ?_⟩
+    · apply List.mem_attach
+    · intro φ φ_in
+      unfold PreState.forms
+      simp only [List.mem_toFinset, List.mem_flatten, List.mem_map, exists_exists_and_eq_and]
       use X
-    -/
-    sorry
+      rw [← X.bothSides_toFinset_eq_toFinset] at φ_in
+      simp [-Sequent.bothSides_toFinset_eq_toFinset] at φ_in
+      grind
