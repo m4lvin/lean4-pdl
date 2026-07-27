@@ -470,3 +470,36 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
     -- need actual def for `BuildTree.allPreStates` first
     -- use the .fromRoot pre-state
     sorry
+
+
+
+
+
+
+/-
+def Match.collect {X} (bt : BuildTree [] X) (m : Match bt) : List (List Sequent) :=
+  match m_def : m.btAt with
+  | ⟨H', X', .loc _ next⟩ =>
+      (LocalTableau.all X').flatMap
+        fun lt => (endNodesOf lt).flatMap
+          fun Y => [ [X', Y] ] ++ -- a local pre-state consists of lt-root and lt-endNode
+                    (m.append (m_def ▸ @nil.loc _ _ _ next lt)).collect
+                    -- WORRY: will we create a redundant pre-state with `Y` again later?
+                    -- counter-WORRY: maybe that's okay / messy but fine?
+  | ⟨H', X', .pdl _ next⟩ =>
+      [ [X'] ] ++ -- a PDL pre-state consists of just a single node
+      (PdlRule.all X').flatMap
+        fun ⟨Y,r⟩ => (m.append (m_def ▸ @nil.pdl _ _ _ _ Y r)).collect
+  | ⟨H', X', .freeRepeat frp⟩ =>
+        [] -- !! somewhat radical change here, assuming that π',π'' is actually never non-trivial !!
+        -- (m.companionOf sorry).collect -- NO, would not terminate
+  | ⟨_, _, .openLeaf _⟩ => [ [m.endSeq] ]
+termination_by
+  m.btAt -- size of remaining BuildTree should go down (whereas m.length goes up!)
+decreasing_by
+  all_goals
+    sorry
+
+def BuildTree.collectViaMatches {X} (bt : BuildTree [] X) : List (List Sequent) :=
+  (@Match.nil _ _ bt).collect
+-/

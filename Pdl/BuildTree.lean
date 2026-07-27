@@ -58,6 +58,10 @@ the number of steps to go back in the history and a proof that we then find the 
 def FreeRepeat (Hist : History) (X : Sequent) : Type :=
   Subtype (fun k => (Hist.get k).multisetEqTo X ∧ ¬ X.isLoaded)
 
+lemma FreeRepeat_nil_impossible : FreeRepeat [] X → False := by
+  rintro ⟨n, n_h⟩
+  grind
+
 mutual
 /-- Winning Strategy Tree for Builder.
 At each step, we consider
@@ -483,14 +487,36 @@ def Match.companion {X} {bt : BuildTree [] X} (m n : Match bt) : Prop :=
 
 local notation ma:arg " ♥ " mb:arg => Match.companion ma mb
 
-/-! ## Collect paths of sequents within a LocalTableau (FIXME move to LocalTableau.lean later?)
+/-! ## move to Syntax.lean and Sequent.lean later -/
+
+/-- Unfortunately our `AnyFormula` type does not include *negated* loaded formulas, so this is yet
+another type to describe "whatever formula" can be in a sequent, without losing information. -/
+inductive WhateverFormula : Type
+  | any : AnyFormula → WhateverFormula
+  | negLoad : NegLoadFormula → WhateverFormula
+  deriving Repr, DecidableEq
+
+instance : Coe Formula WhateverFormula := ⟨.any ∘ .normal⟩
+instance : Coe LoadFormula WhateverFormula := ⟨.any ∘ .loaded⟩
+instance : Coe NegLoadFormula WhateverFormula := ⟨WhateverFormula.negLoad⟩
+
+def Olf.wForms : Olf → List WhateverFormula
+  | none => []
+  | some (.inl (nφ)) => [.negLoad nφ]
+  | some (.inr (nφ)) => [.negLoad nφ]
+
+def Sequent.wForms : Sequent → List WhateverFormula
+  | ⟨L,R,O⟩ => L.map Coe.coe ++ R.map Coe.coe ++ O.wForms
+
+/-! ## Collect paths of sequents within a LocalTableau (move to LocalTableau.lean later?)
 
 This may be useful for the pre-states used in the completeness proof. -/
 
 /-- LocalRuleApp preserves saturatedness backwards. -/
 lemma LocalRuleApp.preserve_saturated_up (lra : LocalRuleApp) (X rest : List Formula) :
     -- TODO: how to say that `lra` comes from formulas that yield something already in `rest` ???
-    (h : sorry) → saturated rest.toFinset → saturated (X.toFinset ∪ rest.toFinset) := by
+    -- (h : sorry) →
+    saturated rest.toFinset → saturated (X.toFinset ∪ rest.toFinset) := by
   sorry
 
 def LocalTableau.paths : {X : _} → LocalTableau X → List (List Sequent)
@@ -511,11 +537,21 @@ lemma LocalTableau.pathsLast_eq_endNodes {X} {lt : LocalTableau X} :
     lt.paths.map (List.getLast · sorry) = endNodesOf lt := by
   sorry
 
+@[simp]
+lemma Sequent.bothSides_toFinset_eq_toFinset {X : Sequent} :
+    X.bothSides.toFinset = X.toFinset := by
+  rcases X with ⟨L,R,O⟩
+  unfold Sequent.bothSides Sequent.toFinset
+  simp
+  rcases O with _|(_|_) <;> simp
+
 -- FIXME find an easier/better way to say this / avoid biUnion here?
 lemma LocalTableau.paths_saturated {X} {lt : LocalTableau X} :
-    ∀ L ∈ lt.paths, saturated (Finset.biUnion (L.map Sequent.toFinset).toFinset id) := by
+    ∀ L ∈ lt.paths,
+      saturated (Finset.biUnion (L.map Sequent.bothSides).toFinset List.toFinset) := by
   induction lt
-  case byLocalRule =>
+  case byLocalRule X lra X_def next IH =>
+    -- subst X_def -- ??
     intro L L_in
     simp [paths] at L_in
     rcases L_in with ⟨L', ⟨Y, Y_in, L'_in⟩, def_L⟩
@@ -523,8 +559,8 @@ lemma LocalTableau.paths_saturated {X} {lt : LocalTableau X} :
     have IH := LocalTableau.paths_saturated _ L'_in
     subst def_L
     simp
-    -- TODO NEXT
-    -- write a separate lemma "LocalRuleApp preserves saturatedness backwards" for this?
+    -- use separate lemma "LocalRuleApp preserves saturatedness backwards" here.
+    have := lra.preserve_saturated_up
     sorry
   case sim Xbas =>
     simp [paths]
@@ -540,32 +576,6 @@ decreasing_by
 As possible worlds for the model graph we want to define *maximal* paths inside the build tree
 that do not contain (M), (L+) or (L-) steps. -/
 
-def Match.collect {X} (bt : BuildTree [] X) (m : Match bt) : List (List Sequent) :=
-  match m_def : m.btAt with
-  | ⟨H', X', .loc _ next⟩ =>
-      (LocalTableau.all X').flatMap
-        fun lt => (endNodesOf lt).flatMap
-          fun Y => [ [X', Y] ] ++ -- a local pre-state consists of lt-root and lt-endNode
-                    (m.append (m_def ▸ @nil.loc _ _ _ next lt)).collect
-                    -- WORRY: will we create a redundant pre-state with `Y` again later?
-                    -- counter-WORRY: maybe that's okay / messy but fine?
-  | ⟨H', X', .pdl _ next⟩ =>
-      [ [X'] ] ++ -- a PDL pre-state consists of just a single node
-      (PdlRule.all X').flatMap
-        fun ⟨Y,r⟩ => (m.append (m_def ▸ @nil.pdl _ _ _ _ Y r)).collect
-  | ⟨H', X', .freeRepeat frp⟩ =>
-        [] -- !! somewhat radical change here, assuming that π',π'' is actually never non-trivial !!
-        -- (m.companionOf sorry).collect -- NO, would not terminate
-  | ⟨_, _, .openLeaf _⟩ => [ [m.endSeq] ]
-termination_by
-  m.btAt -- size of remaining BuildTree should go down (whereas m.length goes up!)
-decreasing_by
-  all_goals
-    sorry
-
-def BuildTree.collectViaMatches {X} (bt : BuildTree [] X) : List (List Sequent) :=
-  (@Match.nil _ _ bt).collect
-
 /-- Collect pre-states in the whole BuildTree.
 The local pre-states come from paths in a local tableau,
 and PDL pre-states each consist of just a single node. -/
@@ -579,6 +589,14 @@ termination_by
 decreasing_by
   · exact size_lt_loc H X _nbas next lt
   · exact size_lt_pdl H X _bas next Y r
+
+lemma BuildTree.collect_contains_root (bt : BuildTree [] X) :
+    ∃ π ∈ bt.collect, X ∈ π := by
+  cases bt <;> simp [collect]
+  case loc =>
+    sorry
+  case freeRepeat h =>
+    exact FreeRepeat_nil_impossible h
 
 /-! ## Pre-states (Def 6.13) -/
 
@@ -617,15 +635,22 @@ decreasing_by -- almost same termination proof as for Match.all etc above :-)
 
 /-! ## Collecting Formulas in Pre-state Sequents -/
 
-/-- Get all formulas for a pre-state. This includes the unloading of any loaded formula.
-QUESTION: Is it okay to collect loaded formulas by unloading them?
-Or does that make the loaded case of Lemma 6.15 `PreState.pdlFormCase` unsayable?
-If so, change output type to `List AnyFormula` here. -/
-def PreState.getForms {bt : BuildTree H X} (π : PreState bt) : Finset Formula :=
+/-- Λ(π) gets all formulas for a pre-state but keep the information what is loaded.
+Returns the `WhateverFormula` type so that lemmas like 6.15 and 6.18 are sayable. -/
+def PreState.wForms {bt : BuildTree H X} (π : PreState bt) : Finset WhateverFormula :=
+  (π.val.map Sequent.wForms).flatten.toFinset
+
+/-- Λ⁻(π) gets all formulas from a pre-state π, via unloading if needed. -/
+def PreState.forms {bt : BuildTree H X} (π : PreState bt) : Finset Formula :=
   (π.val.map Sequent.bothSides).flatten.toFinset
 
-lemma PreState.getForms_saturated {X} {bt : BuildTree H X} {π : PreState bt} :
-    saturated π.getForms := by
+-- TODO lemmas connecting π.wForms and π.forms:
+-- if negloaded is in wForms, then its unloading is in forms
+-- if loaded is in wForms, then its unloading is in forms
+-- normal is in wForms iff it is in forms
+
+lemma PreState.forms_saturated {X} {bt : BuildTree H X} {π : PreState bt} :
+    saturated π.forms := by
   -- Idea: case distinction between local pre-state or pdl-prestate.
   -- For local, use `LocalTableau.paths_saturated`
   -- For PDL pre-state, use `Sequent.basic_then_saturated`.
@@ -635,18 +660,18 @@ lemma PreState.getForms_saturated {X} {bt : BuildTree H X} {π : PreState bt} :
   case loc nbas next =>
     rcases π_in with ⟨lt, lt_in, π_in_lt|π_in_next⟩
     · have := LocalTableau.paths_saturated _ π_in_lt
-      unfold getForms
+      unfold forms
       -- easy, but mismatch vs `bothSides` in defs above
       sorry
-    · have IH := @PreState.getForms_saturated _ _ _ ⟨π, π_in_next⟩
+    · have IH := @PreState.forms_saturated _ _ _ ⟨π, π_in_next⟩
       exact IH
   case pdl bas next =>
     rcases π_in with π_def|⟨Y, r, in_rule, π_in_next⟩
     · have := Sequent.basic_then_saturated bas
-      simp [getForms]
+      simp [forms]
       -- easy but maybe mismatch?
       sorry
-    · have IH := @PreState.getForms_saturated _ _ _ ⟨π, π_in_next⟩
+    · have IH := @PreState.forms_saturated _ _ _ ⟨π, π_in_next⟩
       exact IH
   case openLeaf =>
     sorry
@@ -658,39 +683,56 @@ decreasing_by
   · subst_eqs
     apply @BuildTree.size_lt_pdl H X
 
+
+lemma PreState.forms_locallyConsistent {π : PreState bt} : locallyConsistent π.forms := by sorry
+
+lemma PreState.forms_last_basic {π : PreState bt} : (π.val.getLast PreState.nonempty).basic := by
+  rcases π with ⟨π, π_in⟩
+
+  sorry
+
+-- last basic
+
 /-! ## Properties of Formula (Sets? Lists?) obtained from Pre-States -/
 
 -- IDEA: rephrase these to be about the resulting chain, not about getForms !!
 
 /-- TODO Lemma 6.14 (NOTE: maybe just skip this one?!) -/
-lemma PreState.formsCases {π : PreState bt} : φ ∈ π.getForms →
+lemma PreState.formsCases {π : PreState bt} : φ ∈ π.forms →
       (φ.basic ∧ φ ∈ π.val.getLast PreState.nonempty)
       -- NOTE: the `∈` might not deal with loaded formulas yet.
     ∨ (sorry) := by -- TODO how to say `φ is principal later?`
     -- Or can we say something else / phrase it as closure condition about π.forms directly?
   sorry
 
-/-- WIP Lemma 6.15 *un*loaded case -/
-lemma PreState.pdlFormCase {X} {bt : BuildTree [] X} {π : PreState bt} {α φ} :
-    ¬ α.isAtomic → (~⌈α⌉φ) ∈ π.getForms →
-      ∃ Xδ ∈ Dset α, (Xδ.1 ∪ [~ Formula.boxes Xδ.2 φ]).toFinset ⊆ π.getForms := by
+/-- Lemma 6.15 *free* case -/
+lemma PreState.freeUnfoldDiaMem_of_nonAtom {X} {bt : BuildTree [] X} {π : PreState bt} {α φ} :
+    ¬ α.isAtomic → (~⌈α⌉φ : WhateverFormula) ∈ π.wForms →
+      ∃ Xδ ∈ Dset α, (Xδ.1 ∪ [~ Formula.boxes Xδ.2 φ]).all (· ∈ π.wForms) := by
   intro α_notAtom in_forms
   sorry
 
-/-
-TODO: This needs a case distinction for the AnyFormula, similar to `YsetLoad` and `YsetLoad'`.
-/-- WIP Lemma 6.15 *loaded* case -/
-lemma PreState.loadedFormCase {H X} {bt : BuildTree H X} {π : PreState bt} {α φ} :
-    ¬ α.isAtomic → (~'⌊α⌋φ) ∈ π.lforms →
-      ∃ Xδ ∈ Dset α, Xδ.1 ∪ [~ LoadFormula.boxes Xδ.2 φ] ⊆ π.forms := by
+/-- Lemma 6.15 *loaded* case with _more than one_ loaded box -/
+lemma PreState.loadUnfoldDiaMem_of_nonAtom {H X} {bt : BuildTree H X} {π : PreState bt} {α}
+    (χ : LoadFormula) :
+    ¬ α.isAtomic → (.negLoad (~'⌊α⌋χ) : WhateverFormula) ∈ π.wForms →
+      ∃ Xδ ∈ Dset α, (Xδ.1).all (· ∈ π.wForms)
+                    ∧ (YsetLoad Xδ χ).2.toList.all (· ∈ π.wForms) := by
   sorry
--/
 
-/-- WIP Lemma 6.16: pre-states are saturated and locally consistent, their last node is basic. -/
+/-- Lemma 6.15 *loaded* case with only _one_ loaded box. -/
+lemma PreState.loadUnfoldDiaMem_of_nonAtom' {H X} {bt : BuildTree H X} {π : PreState bt} {α}
+    {φ : Formula} :
+    ¬ α.isAtomic → (.negLoad (~'⌊α⌋φ) : WhateverFormula) ∈ π.wForms →
+      ∃ Xδ ∈ Dset α, (Xδ.1).all (· ∈ π.wForms)
+                    ∧ (YsetLoad' Xδ φ).2.toList.all (· ∈ π.wForms) := by
+  sorry
+
+/-- Lemma 6.16: pre-states are saturated and locally consistent, their last node is basic. -/
 lemma PreState.locConsSatBas {X} {bt : BuildTree [] X} (π : PreState bt) :
-    saturated π.getForms
-    ∧ locallyConsistent π.getForms
-    ∧ (π.val.getLast PreState.nonempty).basic := ⟨PreState.getForms_saturated, sorry, sorry⟩
+    saturated π.forms
+    ∧ locallyConsistent π.forms
+    ∧ (π.val.getLast PreState.nonempty).basic := ⟨PreState.forms_saturated, sorry, sorry⟩
 
 
 /-! ## Defining The Model Graph -/
@@ -699,42 +741,41 @@ lemma PreState.locConsSatBas {X} {bt : BuildTree [] X} (π : PreState bt) :
 @[simp]
 def BuildTree.toModel {X} (bt : BuildTree [] X) :
     (Σ W : Finset (Finset Formula), KripkeModel W) :=
-  ⟨ ((bt.collect).attach.map (PreState.getForms)).toFinset -- W
+  ⟨ ((bt.collect).attach.map (PreState.forms)).toFinset -- W -- NOTE .forms here, not .wforms
   , { val := fun X p => Formula.atom_prop p ∈ X.1 -- valuation V(p)
     , Rel := fun a X Y => -- relation Rₐ
         ∃ φ, (~⌈·a⌉φ) ∈ X.1 ∧ (projection a X.1.toList).toFinset ∪ {~φ} ⊆ Y.1 }⟩
 
 /-- Helper lemma saying (the formula sets of) all pre-states are in the model graph. -/
 lemma PreState.mem_toModel {X : Sequent} {bt : BuildTree [] X} {π : PreState bt} :
-    π.getForms ∈ bt.toModel.fst := by
+    π.forms ∈ bt.toModel.fst := by
   simp
   use π
   simp
-  sorry -- hmm?
+  apply List.mem_attach
 
-/-- WIP Lemma 6.18
+instance {bt : BuildTree [] X} : Coe (PreState bt) { w : Finset Formula // w ∈ bt.toModel.1 } :=
+  ⟨fun π => ⟨π.forms, π.mem_toModel⟩⟩
 
+/-- Lemma 6.18.
 Note that we use `Rel` from `BuildTree.toModel` as the `R` to use `Modelgraphs.Q`. -/
-lemma PreState.diamondExistenceLoaded {φ : AnyFormula} {π : PreState bt} :
-  /- (~'⌊α⌋φ) ∈ π.sequents → -/ -- FIXME need loaded formulas in getForms result
+lemma PreState.loadedDiamondExistence {φ : AnyFormula} {π : PreState bt} :
+  (~'⌊α⌋φ : WhateverFormula) ∈ π.wForms →
     -- QUESTION: what to say about `π` here and what to say about node `t` lying on `π`?
     ∃ t : Match bt,
         AnyNegFormula.mem_Sequent (t.btAt).2.1 (~''φ)
       ∧ ∃ ρ : PreState bt, ∃ u : Match bt,
         -- TODO: t < u
-        -- TODO: missing loaded formulas below
-        @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α ⟨π.getForms, sorry⟩
-          ⟨ρ.getForms, sorry⟩ := by
+        @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α π ρ := by
   sorry
 
 -- TODO Lemma 6.19: for any diamond we can go to a pre-state where that diamond is loaded
 
-lemma diamondExistenceInduction {X} {bt : BuildTree [] X} {α} {φ : Formula} {π : PreState bt} :
+
+lemma freeDiamondExistenceInduction {X} {bt : BuildTree [] X} {α} {φ : Formula} {π : PreState bt} :
   -- FIXME does this include (un)loaded formulas???
-  (~⌈α⌉φ) ∈ π.getForms → ∃ π' : PreState bt,
-      ~φ ∈ π'.getForms ∧ @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α
-                          ⟨π.getForms, π.mem_toModel⟩
-                          ⟨π'.getForms, π'.mem_toModel⟩ := by
+  (~⌈α⌉φ) ∈ π.forms → ∃ π' : PreState bt,
+      ~φ ∈ π'.forms ∧ @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α π π' := by
   intro _in_forms
 
   -- NOTE: now the formuals could actually come from a loaded formula in π ?!
@@ -743,12 +784,10 @@ lemma diamondExistenceInduction {X} {bt : BuildTree [] X} {α} {φ : Formula} {�
 
 
 /-- WIP (! approximation of) Lemma 6.20: diamond existence lemma for pre-states -/
-lemma diamondExistence {X} {bt : BuildTree [] X} {α} {φ : Formula} {π : PreState bt} :
-  -- FIXME does this include (un)loaded formulas???
-  (~⌈α⌉φ) ∈ π.getForms → ∃ π' : PreState bt,
-      ~φ ∈ π'.getForms ∧ @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α
-                          ⟨π.getForms, π.mem_toModel⟩
-                          ⟨π'.getForms, π'.mem_toModel⟩ := by
+lemma freeDiamondExistence {X} {bt : BuildTree [] X} {α} {φ : Formula} {π : PreState bt} :
+  -- TODO include loaded formulas / separate lemma or here???
+  (~⌈α⌉φ) ∈ π.forms → ∃ π' : PreState bt,
+      ~φ ∈ π'.forms ∧ @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α π π' := by
   intro _in_forms
 
   -- NOTE: now the formuals could actually come from a loaded formula in π ?!
@@ -775,7 +814,7 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
     simp at X_in
     rcases X_in with ⟨π, in_all, def_X⟩
     have := π.locConsSatBas -- using Lemma 6.16 for (i)
-    simp_all [PreState.getForms]
+    simp_all [PreState.forms]
   -- "(b, c) will follow immediately from the definition"
   case b =>
     simp_all [M]

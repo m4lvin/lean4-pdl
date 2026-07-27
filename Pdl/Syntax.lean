@@ -199,7 +199,7 @@ lemma Formula.boxesOf_boxes_prefix (αs : List Program) φ : αs <+: (boxesOf (�
 
 /-! ## Loaded Formulas
 
-Loaded formulas consist of a negation, a non-empty sequence of loading boxes, and a normal formula.
+Loaded formulas consist of a non-empty sequence of loading boxes, and a normal formula.
 For loading boxes we write `⌊α⌋` instead of `⌈α⌉`.
 -/
 
