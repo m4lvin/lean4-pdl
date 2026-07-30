@@ -315,16 +315,22 @@ lemma LocalTableau.all_nonempty (X : Sequent) : LocalTableau.all X ≠ [] := by
   · simp_all [LocalTableau.all]
   · unfold LocalTableau.all
     have := LocalRuleApp.all_nonempty_of_nonbasic Xbas
-    simp_all
+    simp_all only [ne_eq, ↓reduceDIte, List.pure_def, List.bind_eq_flatMap,
+      List.flatMap_eq_nil_iff, List.mem_attach, List.cons_ne_self, imp_false, forall_const,
+      Subtype.forall, not_forall, not_not]
     rcases List.exists_mem_of_ne_nil _ this with ⟨lra, lra_in⟩
     refine ⟨lra, lra_in, ?_⟩
-    -- idea: for every lra-result sequent, get an IH:
-    -- have IH := LocalTableau.all_nonempty ...
-    -- use measure ... to show decreasing/termination?
-    -- then use choide ot let that be the `next` function here.
-    refine ⟨?_, combo_mem_of_forall_in _ _ ?_⟩
-    · sorry
-    · sorry
+    -- For every lra-result sequent, get an IH, use localRuleApp.decreases_DM for termination.
+    refine ⟨ (fun Y Y_in => (LocalTableau.all Y).head (LocalTableau.all_nonempty Y))
+           , combo_mem_of_forall_in _ _ ?_⟩
+    intro Y Y_in
+    exact List.head_mem (LocalTableau.all_nonempty Y)
+termination_by
+  X
+decreasing_by
+  all_goals
+    rw [← LocalRuleApp.all_X X lra lra_in]
+    exact localRuleApp.decreases_DM lra Y Y_in
 
 lemma LocalTableau.all_spec : ltX ∈ LocalTableau.all X := by
   by_cases Xbas : X.basic
