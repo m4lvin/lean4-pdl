@@ -508,6 +508,16 @@ def Olf.wForms : Olf → List WhateverFormula
 def Sequent.wForms : Sequent → List WhateverFormula
   | ⟨L,R,O⟩ => L.map Coe.coe ++ R.map Coe.coe ++ O.wForms
 
+lemma Sequent.mem_bothSides_iff (φ : Formula) (X : Sequent) :
+    φ ∈ X.bothSides ↔
+      ((.any (.normal φ) : WhateverFormula) ∈ X.wForms
+      ∨ (∃ χ, χ.unload = φ ∧ (.any (.loaded χ) ∈ X.wForms))
+      ∨ (∃ ψ, negUnload ψ = φ ∧ (.negLoad ψ ∈ X.wForms))) := by
+  rcases X with ⟨L, R, O⟩
+  rcases O with _ | (ψ | ψ) <;>
+    simp [Sequent.bothSides, Sequent.left, Sequent.right, Sequent.wForms, Olf.wForms,
+      Olf.L, Olf.R, instCoeFormulaWhateverFormula] <;> tauto
+
 /-! ## Collect paths of sequents within a LocalTableau (move to LocalTableau.lean later?)
 
 This may be useful for the pre-states used in the completeness proof. -/
@@ -544,16 +554,17 @@ lemma LocalTableau.paths_mem_nonempty {X} (lt : LocalTableau X) :
   intro L L_in; cases lt <;> grind [paths]
 
 lemma LocalTableau.pathsHead_eq_self {X} {lt : LocalTableau X} :
-    ∀ h : L ∈ lt.paths, L.head (LocalTableau.paths_mem_nonempty lt _ h) = X := by
+    ∀ {L}, (h : L ∈ lt.paths) → L.head (LocalTableau.paths_mem_nonempty lt _ h) = X := by
   cases lt <;> simp_all [paths]
   case byLocalRule lra next X_def =>
-    intro L1 Y Y_in_C L1_in def_L
-    subst def_L
+    intro L1 Y Z Z_in Y_in def_L1
+    subst def_L1
     simp
 
 -- still unused?
 lemma LocalTableau.pathsLast_eq_endNodes {X} {lt : LocalTableau X} :
-    lt.paths.map (List.getLast · sorry) = endNodesOf lt := by
+    lt.paths.attach.map
+      (fun L => L.1.getLast (LocalTableau.paths_mem_nonempty lt L.1 L.2)) = endNodesOf lt := by
   sorry
 
 @[simp]
@@ -636,8 +647,8 @@ lemma BuildTree.collect_contains_root (bt : BuildTree [] X) :
     have πs_ne : πs ≠ [] := LocalTableau.paths_nonempty lt
     rcases πs.exists_mem_of_ne_nil πs_ne with ⟨π, π_in⟩
     refine ⟨π, ⟨lt, lt.all_spec, .inl π_in⟩, ?_⟩
-    -- still need X ∈ π ... via other lemma about LocalTableau.paths
-    sorry
+    have := @LocalTableau.pathsHead_eq_self X lt π
+    grind
   case freeRepeat h =>
     exact FreeRepeat_nil_impossible h
 
@@ -698,10 +709,27 @@ lemma PreState.mem_forms_iff {φ : Formula} {π : PreState bt} :
       ∨ (∃ χ, χ.unload = φ ∧ (.any (.loaded χ) ∈ π.wForms))
       ∨ (∃ ψ, negUnload ψ = φ ∧ (.negLoad ψ ∈ π.wForms))
       ) := by
+  simp only [PreState.forms, PreState.wForms, List.mem_toFinset]
   constructor
-  · intro φ_in
-    sorry
-  · sorry
+  · intro h
+    rw [List.mem_flatten] at h
+    rcases h with ⟨Fs, Fs_in, hφ⟩
+    rw [List.mem_map] at Fs_in
+    rcases Fs_in with ⟨X, X_in, rfl⟩
+    rw [Sequent.mem_bothSides_iff] at hφ
+    grind
+  · rintro (h | ⟨χ, hχ, h⟩ | ⟨ψ, hψ, h⟩)
+    all_goals
+      rw [List.mem_flatten] at h
+      rcases h with ⟨wFs, wFs_in, hw⟩
+      rw [List.mem_map] at wFs_in
+      rcases wFs_in with ⟨X, X_in, rfl⟩
+      apply List.mem_flatten.mpr
+      refine ⟨X.bothSides, List.mem_map.mpr ⟨X, X_in, rfl⟩, ?_⟩
+      rw [Sequent.mem_bothSides_iff]
+    · exact Or.inl hw
+    · exact Or.inr (Or.inl ⟨χ, hχ, hw⟩)
+    · exact Or.inr (Or.inr ⟨ψ, hψ, hw⟩)
 
 lemma PreState.forms_saturated {X} {bt : BuildTree H X} {π : PreState bt} :
     saturated π.forms := by
