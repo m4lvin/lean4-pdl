@@ -79,18 +79,18 @@ inductive BuildTree : History → Sequent → Type
             (next : (lt : LocalTableau X) → BuildChoice H X (endNodesOf lt))
             : BuildTree H X
   /-- Prover chooses PDL rule, never branches, so continue with unique child. -/
-  -- TODO: add that there must be at least one applicable PdlRule?
-  | pdl {H X} (bas : X.basic)
+  | pdl {H X} (bas : X.basic) (someR : PdlRule.all X ≠ [])
             (next : ∀ Y, ∀ _r : PdlRule X Y, BuildTree (X :: H) Y) : BuildTree H X
   /-- Free repeat means builder wins. -/
+  -- QUESTION: do we insist on free repeat or is any not-loaded-path repeat a builder win?
   | freeRepeat {H X} : FreeRepeat H X → BuildTree H X
   /-- Leaf that is (might be?!) not a repeat, but no rules can be applied. -/
-  | openLeaf {H X} (bas : X.basic) : BuildTree H X
-  -- TODO: maybe also somehow say "no PDL rules"?
+  | openLeaf {H X} (bas : X.basic) (noRule : PdlRule.all X = []) : BuildTree H X
   -- small worry but what about (L+) (L-), one of which is always applicable?
   -- No. L- and L+ are not applicable when there is no diamond formula left.
   -- (And even when there is, they would lead to a free repeat..)
-  -- TODO: or/and add condition to be locally consistent?
+  -- Also, we do not add a condition to be locally consistent, because
+  -- already basic implies not closed and that implies locally consistent.
 
 inductive BuildChoice : History → Sequent → List Sequent → Type
   | pick {H X YS Y} : Y ∈ YS → BuildTree (X :: H) Y → BuildChoice H X YS
@@ -100,9 +100,9 @@ mutual
 /-- Manual replacement for `sizeOf (bt : BuildTree)` so we also count the `next` parts. -/
 def BuildTree.size : BuildTree H X → Nat
   | .loc _ next => 1 + ((LocalTableau.all X).map (fun lt => (next lt).size)).sum
-  | .pdl _ next => 1 + ((PdlRule.all X).map (fun ⟨Y,r⟩ => (next Y r).size)).sum
+  | .pdl _ _ next => 1 + ((PdlRule.all X).map (fun ⟨Y,r⟩ => (next Y r).size)).sum
   | .freeRepeat _ => 1
-  | .openLeaf _ => 1
+  | .openLeaf _ _ => 1
 
 def BuildChoice.size : BuildChoice H X YS → Nat
   | .pick _ bt_Y => bt_Y.size
@@ -122,8 +122,9 @@ lemma BuildTree.size_lt_loc (H : History) (X : Sequent) (nbas : ¬X.basic)
   grind
 
 lemma BuildTree.size_lt_pdl (H : History) (X : Sequent) (bas : X.basic)
+    (someR : PdlRule.all X ≠ [])
     (next : (Y : Sequent) → PdlRule X Y → BuildTree (X :: H) Y) (Y : Sequent) (r : PdlRule X Y) :
-    (next Y r).size < (BuildTree.pdl bas next).size := by
+    (next Y r).size < (BuildTree.pdl bas someR next).size := by
   simp only [BuildTree.size]
   have : (next Y r).size ∈ ((PdlRule.all X).map (fun ⟨Y,r⟩ => (next Y r).size)) := by
     simp only [List.mem_map, Sigma.exists]
@@ -174,11 +175,13 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
   match p_def : p with
   -- Prover positions:
   | (.nlpRep rp noLpRep) => .freeRepeat (.of_rep_noLpRep rp noLpRep) -- Builder wins free rep.
-  | (.bas nrep bas) => -- prover chooses PDL rule
+  | (.bas nrep bas) =>
+    if someR : PdlRule.all X ≠ []
+    then -- prover chooses PDL rule if there is one
       have stillWin : ∀ newP, ∀ _ : Move ⟨_,_,Sum.inl (.bas nrep bas)⟩ newP, winning s newP :=
         fun newPos mov =>
           @winning_of_whatever_other_move _ _ s _ (by simp) h ⟨newPos, mem_theMoves_of_move ⟨mov⟩⟩
-      .pdl bas <| fun newSeq r => by
+      .pdl bas someR <| fun newSeq r => by
         -- deal with the result of `posOf` here already because we can only make a
         -- recursive call if we again have a ProverPos.
         cases newPos_def : posOf (X :: H) newSeq
@@ -196,6 +199,8 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
           rw [newPos_def, newBP_def] at this
           -- .. where prover would win, so that cannot happen here.
           simp [winning] at this
+    else -- no rule, prover loses and we recordt his with an open leaf.
+      (.openLeaf bas (by rw [ne_eq, Decidable.not_not] at someR; exact someR))
   | (.nbas nrep nbas) => -- prover chooses a local tableau
       have stillWin : ∀ newP, ∀ _ : Move ⟨_,_,Sum.inl (.nbas nrep nbas)⟩ newP, winning s newP :=
         fun newPos mov =>
@@ -304,7 +309,7 @@ and it is not tracking all intermediate game positions. -/
 inductive Match : ∀ {H : History} {X : Sequent}, BuildTree H X → Type
   | nil {bt} : Match bt
   | loc {nbas next lt} : Match (next lt).6 → Match (BuildTree.loc nbas next)
-  | pdl {bas next Y r} : Match (next Y r) → Match (BuildTree.pdl bas next)
+  | pdl {bas someR next Y r} : Match (next Y r) → Match (BuildTree.pdl bas someR next)
 deriving DecidableEq
 
 /-- Inspired by `PathIn.length`. Counting the steps made by a `Match` in a `BuildTree`.
@@ -328,11 +333,11 @@ def Match.all {H X} : (bt : BuildTree H X) → List (Match bt)
   | .loc nbas next =>
       Match.nil ::
       (LocalTableau.all X >>= fun ltX => return Match.loc (← Match.all (next ltX).6))
-  | .pdl bas next =>
+  | .pdl bas someRule next =>
       Match.nil ::
       (PdlRule.all X >>= fun ⟨Y,r⟩ => return Match.pdl (← (Match.all (next Y r))))
   | .freeRepeat fr => [ .nil ]
-  | .openLeaf _ => [ .nil ]
+  | .openLeaf _ _ => [ .nil ]
 termination_by
   bt => bt.size
 decreasing_by
@@ -349,7 +354,7 @@ theorem Match.all_spec {H X} {bt : BuildTree H X} {m} :
     refine ⟨lt,?_ ⟩
     refine ⟨ LocalTableau.all_spec ,tail,IH,?_⟩
     simp
-  | @pdl _ _ bas next Y r tail => by
+  | @pdl _ _ bas someR next Y r tail => by
     have IH := @Match.all_spec _ _ _ tail
     rw [Match.all]
     simp
@@ -358,7 +363,7 @@ theorem Match.all_spec {H X} {bt : BuildTree H X} {m} :
     simp
 
 def Match.isOpenLeaf {H X} {bt : BuildTree H X} {m : Match bt} : Prop :=
-  match (btAt m) with | ⟨_, _, .openLeaf _⟩ => True | _ => False
+  match (btAt m) with | ⟨_, _, .openLeaf _ _⟩ => True | _ => False
 
 instance instDecidableIsOpenLeaf {m : Match bt} : Decidable m.isOpenLeaf := by
   unfold Match.isOpenLeaf
@@ -419,8 +424,8 @@ lemma Match.rewind_zero {H X} {bt : BuildTree H X} (m : Match bt) : m.rewind 0 =
     convert IH
     cases k
     simp_all
-  case pdl H X bas next Y r tail IH =>
-    have : 0 ≠ Fin.last (@pdl H X bas next Y r tail).length := by
+  case pdl H X bas someR next Y r tail IH =>
+    have : 0 ≠ Fin.last (@pdl H X bas someR next Y r tail).length := by
       simp_all [Fin.last]
     rw [← Fin.exists_castSucc_eq] at this
     rcases this with ⟨k,kdef⟩
@@ -625,15 +630,15 @@ that do not contain (M), (L+) or (L-) steps. -/
 The local pre-states come from paths in a local tableau,
 and PDL pre-states each consist of just a single node. -/
 def BuildTree.collect {H X} : (bt : BuildTree H X) → List (List Sequent)
-  | .loc _nbas next => (LocalTableau.all X).flatMap fun lt => lt.paths ++ (next lt).6.collect
-  | .pdl _bas next => [ [X] ] ++ (PdlRule.all X).flatMap fun ⟨Y,r⟩ => (next Y r).collect
+  | .loc _ next => (LocalTableau.all X).flatMap fun lt => lt.paths ++ (next lt).6.collect
+  | .pdl _ _ next => [ [X] ] ++ (PdlRule.all X).flatMap fun ⟨Y,r⟩ => (next Y r).collect
   | .freeRepeat _ => [ ] -- Not generating a pre-state here, go to companion instead !! ?? !!
-  | .openLeaf _ => [ [X] ]
+  | .openLeaf _ _ => [ [X] ]
 termination_by
   bt => bt.size -- size of remaining BuildTree should go down
 decreasing_by
-  · exact size_lt_loc H X _nbas next lt
-  · exact size_lt_pdl H X _bas next Y r
+  · exact size_lt_loc H X _ next lt
+  · exact size_lt_pdl H X _ _ next Y r
 
 lemma BuildTree.collect_nonempty (bt : BuildTree [] X) :
     bt.collect ≠ [] := by
@@ -758,14 +763,14 @@ lemma PreState.forms_saturated {X} {bt : BuildTree H X} {π : PreState bt} :
     · exact LocalTableau.paths_saturated _ π_in_lt
     · have IH := @PreState.forms_saturated _ _ _ ⟨π, π_in_next⟩
       exact IH
-  case pdl bas next =>
+  case pdl bas someR next =>
     rcases π_in with π_def|⟨Y, r, in_rule, π_in_next⟩
     · subst π_def
       simp [forms]
       exact Sequent.basic_then_saturated bas
     · have IH := @PreState.forms_saturated _ _ _ ⟨π, π_in_next⟩
       exact IH
-  case openLeaf bas =>
+  case openLeaf bas noRule =>
     subst π_in
     simp [forms]
     exact Sequent.basic_then_saturated bas
@@ -791,7 +796,7 @@ lemma PreState.forms_last_basic {bt : BuildTree H X} {π : PreState bt} :
     · exact LocalTableau.paths_last_basic _ π_in_lt
     · have IH := @PreState.forms_last_basic _ _ _ ⟨π, π_in_next⟩
       exact IH
-  case pdl bas next =>
+  case pdl bas someR next =>
     rcases π_in with π_def|⟨Y, r, in_rule, π_in_next⟩
     · subst π_def
       simp only [List.getLast_singleton]
