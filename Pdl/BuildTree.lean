@@ -513,10 +513,11 @@ def Sequent.wForms : Sequent → List WhateverFormula
 This may be useful for the pre-states used in the completeness proof. -/
 
 /-- LocalRuleApp preserves saturatedness backwards. -/
-lemma LocalRuleApp.preserve_saturated_up (lra : LocalRuleApp) (X rest : List Formula) :
-    -- TODO: how to say that `lra` comes from formulas that yield something already in `rest` ???
-    -- (h : sorry) →
-    saturated rest.toFinset → saturated (X.toFinset ∪ rest.toFinset) := by
+lemma LocalRuleApp.preserve_saturated_up (lra : LocalRuleApp) :
+    ∀ Y ∈ lra.C, ∀ (rest : List Sequent) ,
+      Y ∈ rest →
+      saturated (rest.map Sequent.bothSides).flatten.toFinset
+        → saturated (((lra.X :: rest).map Sequent.bothSides).flatten.toFinset) := by
   sorry
 
 def LocalTableau.paths : {X : _} → LocalTableau X → List (List Sequent)
@@ -542,6 +543,14 @@ lemma LocalTableau.paths_mem_nonempty {X} (lt : LocalTableau X) :
     ∀ L ∈ lt.paths, L ≠ [] := by
   intro L L_in; cases lt <;> grind [paths]
 
+lemma LocalTableau.pathsHead_eq_self {X} {lt : LocalTableau X} :
+    ∀ h : L ∈ lt.paths, L.head (LocalTableau.paths_mem_nonempty lt _ h) = X := by
+  cases lt <;> simp_all [paths]
+  case byLocalRule lra next X_def =>
+    intro L1 Y Y_in_C L1_in def_L
+    subst def_L
+    simp
+
 -- still unused?
 lemma LocalTableau.pathsLast_eq_endNodes {X} {lt : LocalTableau X} :
     lt.paths.map (List.getLast · sorry) = endNodesOf lt := by
@@ -555,10 +564,9 @@ lemma Sequent.bothSides_toFinset_eq_toFinset {X : Sequent} :
   simp
   rcases O with _|(_|_) <;> simp
 
--- FIXME find an easier/better way to say this / avoid biUnion here?
 lemma LocalTableau.paths_saturated {X} {lt : LocalTableau X} :
     ∀ L ∈ lt.paths,
-      saturated (Finset.biUnion (L.map Sequent.bothSides).toFinset List.toFinset) := by
+      saturated (List.map Sequent.bothSides L).flatten.toFinset := by
   induction lt
   case byLocalRule X lra X_def next IH =>
     -- subst X_def -- ??
@@ -568,10 +576,12 @@ lemma LocalTableau.paths_saturated {X} {lt : LocalTableau X} :
     -- hmmm
     have IH := LocalTableau.paths_saturated _ L'_in
     subst def_L
-    simp
+    subst X_def
     -- use separate lemma "LocalRuleApp preserves saturatedness backwards" here.
-    have := lra.preserve_saturated_up
-    sorry
+    apply @lra.preserve_saturated_up Y Y_in _ ?_ IH
+    -- because L' is a path from `next y : LocalTableau Y` it must start with Y.
+    have := LocalTableau.pathsHead_eq_self L'_in
+    grind
   case sim Xbas =>
     simp [paths]
     have := X.basic_then_saturated
@@ -703,12 +713,7 @@ lemma PreState.forms_saturated {X} {bt : BuildTree H X} {π : PreState bt} :
   cases bt <;> simp [BuildTree.collect] at π_in <;> rename_i old_π_in
   case loc nbas next =>
     rcases π_in with ⟨lt, lt_in, π_in_lt|π_in_next⟩
-    · have := LocalTableau.paths_saturated _ π_in_lt
-      unfold forms
-      simp
-      -- still some mismatch vs `bothSides` in defs above?
-      convert this
-      aesop
+    · exact LocalTableau.paths_saturated _ π_in_lt
     · have IH := @PreState.forms_saturated _ _ _ ⟨π, π_in_next⟩
       exact IH
   case pdl bas next =>
