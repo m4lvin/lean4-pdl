@@ -564,8 +564,8 @@ lemma LocalTableau.pathsHead_eq_self {X} {lt : LocalTableau X} :
 lemma LocalTableau.pathsLast_eq_endNodes {X} {lt : LocalTableau X} :
     lt.paths.attach.map
       (fun ⟨L,h⟩ => L.getLast (LocalTableau.paths_mem_nonempty lt L h)) = endNodesOf lt := by
-  induction lt
-  case byLocalRule X lra X_def next IH =>
+  cases lt
+  case byLocalRule lra X_def next =>
     simp_all
     sorry
   case sim bas =>
@@ -593,13 +593,11 @@ lemma Sequent.bothSides_toFinset_eq_toFinset {X : Sequent} :
 lemma LocalTableau.paths_saturated {X} {lt : LocalTableau X} :
     ∀ L ∈ lt.paths,
       saturated (List.map Sequent.bothSides L).flatten.toFinset := by
-  induction lt
-  case byLocalRule X lra X_def next IH =>
-    -- subst X_def -- ??
+  cases lt
+  case byLocalRule lra next X_def =>
     intro L L_in
     simp [paths] at L_in
     rcases L_in with ⟨L', ⟨Y, Y_in, L'_in⟩, def_L⟩
-    -- hmmm
     have IH := LocalTableau.paths_saturated _ L'_in
     subst def_L
     subst X_def
@@ -613,9 +611,10 @@ lemma LocalTableau.paths_saturated {X} {lt : LocalTableau X} :
     have := X.basic_then_saturated
     exact Sequent.basic_then_saturated Xbas
 termination_by
-  sizeOf lt -- or use DM ordering on `X` here?
+  X -- using DM ordering on `X` here
 decreasing_by
-  sorry
+  subst_eqs
+  exact localRuleApp.decreases_DM _ _ Y_in
 
 /-! ## Collecting Sequents for Pre-states NEW APPROACH - directly from BuildTree ??
 
@@ -912,15 +911,16 @@ lemma PreState.toMatch_toPreState {bt : BuildTree [] X} (π : PreState bt) :
 /-! ## Existence Lemmas -/
 
 /-- Lemma 6.18.
-Note that we use `Rel` from `BuildTree.toModel` as the `R` to use `Modelgraphs.Q`. -/
+Note that we use `Rel` from `BuildTree.toModel` as the `R` to use `Modelgraphs.Q`.
+
+TODO: use Match.toPreState (after defining it) to say that node `t` is "lying" on `π`.
+Also still missing the `t < u` part. Is it needed? -/
 lemma PreState.loadedDiamondExistence {φ : AnyFormula} {π : PreState bt} :
   (~'⌊α⌋φ : WhateverFormula) ∈ π.wForms →
-    -- QUESTION: what to say about `π` here and what to say about node `t` lying on `π`?
     ∃ t : Match bt,
         AnyNegFormula.mem_Sequent (t.btAt).2.1 (~''φ)
       ∧ ∃ ρ : PreState bt,
           ∃ u : Match bt,
-        -- TODO: t < u
         @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α π ρ := by
   sorry
 
