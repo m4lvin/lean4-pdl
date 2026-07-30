@@ -569,10 +569,52 @@ lemma LocalTableau.pathsHead_eq_self {X} {lt : LocalTableau X} :
 lemma LocalTableau.pathsLast_eq_endNodes {X} {lt : LocalTableau X} :
     lt.paths.attach.map
       (fun ⟨L,h⟩ => L.getLast (LocalTableau.paths_mem_nonempty lt L h)) = endNodesOf lt := by
-  cases lt
-  case byLocalRule lra X_def next =>
-    simp_all
-    sorry
+  induction lt
+  case byLocalRule X lra X_def next IH =>
+    -- this case is from aristotle.harmonic.fun
+    have map_attach_last (ls : List (List Sequent)) (hne : ∀ L ∈ ls, L ≠ []) :
+        ls.attach.map (fun ⟨L, h⟩ => (fun x => some x) (L.getLast (hne L h))) =
+          ls.map List.getLast? := by
+      induction ls with
+      | nil => simp
+      | cons L ls ih =>
+        simp only [List.attach_cons, List.map_cons, List.cons.injEq]
+        constructor
+        · exact (List.getLast?_eq_some_getLast (hne L (by simp))).symm
+        · simpa only [List.map_map] using
+            ih (fun K h => hne K (by simp [h]))
+    apply (Option.some_injective Sequent).list_map
+    simp only [List.map_map]
+    change (LocalTableau.byLocalRule lra X_def next).paths.attach.map
+      (fun ⟨L, h⟩ => some (L.getLast (LocalTableau.paths_mem_nonempty _ L h))) = _
+    rw [map_attach_last (LocalTableau.byLocalRule lra X_def next).paths
+      (LocalTableau.paths_mem_nonempty _)]
+    simp only [paths, endNodesOf, List.map_flatMap]
+    have map_flatten (xss : List (List Sequent)) :
+        List.map some xss.flatten = (xss.map (List.map some)).flatten := by
+      induction xss <;> simp_all
+    rw [map_flatten]
+    apply congrArg List.flatten
+    simp only [List.map_map]
+    apply List.map_inj_left.mpr
+    intro Yh Yh_in
+    rcases Yh with ⟨Y, Y_in⟩
+    rw [show List.map (List.getLast? ∘ List.cons X) (next Y Y_in).paths =
+      List.map List.getLast? (next Y Y_in).paths by
+        apply List.map_inj_left.mpr
+        intro L L_in
+        have hne := LocalTableau.paths_mem_nonempty (next Y Y_in) L L_in
+        change (X :: L).getLast? = L.getLast?
+        rw [List.getLast?_eq_some_getLast hne,
+          List.getLast?_eq_some_getLast (List.cons_ne_nil X L)]
+        exact congrArg some (List.getLast_cons hne)]
+    have hIH := congrArg (List.map some) (IH Y Y_in)
+    simp only [List.map_map] at hIH
+    change (next Y Y_in).paths.attach.map
+      (fun ⟨L, h⟩ => some (L.getLast (LocalTableau.paths_mem_nonempty _ L h))) = _ at hIH
+    rw [map_attach_last (next Y Y_in).paths
+      (LocalTableau.paths_mem_nonempty (next Y Y_in))] at hIH
+    exact hIH
   case sim bas =>
     simp_all [paths]
     ext
