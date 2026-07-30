@@ -529,10 +529,20 @@ decreasing_by
   subst_eqs
   apply localRuleApp.decreases_DM lra Y h
 
-lemma LocalTableau.paths_nonEmpty {X} (lt : LocalTableau X) :
+lemma LocalTableau.paths_nonempty {X} (lt : LocalTableau X) :
+    lt.paths ≠ [] := by
+  cases lt <;> simp [paths]
+  case byLocalRule lra next def_X =>
+    subst def_X
+    -- WORRY: what if the lra has no results because it's a "contradiction/closing" rule?
+    -- maybe we need the additional assumption here that X is consistent?
+    sorry
+
+lemma LocalTableau.paths_mem_nonempty {X} (lt : LocalTableau X) :
     ∀ L ∈ lt.paths, L ≠ [] := by
   intro L L_in; cases lt <;> grind [paths]
 
+-- still unused?
 lemma LocalTableau.pathsLast_eq_endNodes {X} {lt : LocalTableau X} :
     lt.paths.map (List.getLast · sorry) = endNodesOf lt := by
   sorry
@@ -582,7 +592,7 @@ and PDL pre-states each consist of just a single node. -/
 def BuildTree.collect {H X} : (bt : BuildTree H X) → List (List Sequent)
   | .loc _nbas next => (LocalTableau.all X).flatMap fun lt => lt.paths ++ (next lt).6.collect
   | .pdl _bas next => [ [X] ] ++ (PdlRule.all X).flatMap fun ⟨Y,r⟩ => (next Y r).collect
-  | .freeRepeat _ => [ ] -- !! ??
+  | .freeRepeat _ => [ ] -- Not generating a pre-state here, go to companion instead !! ?? !!
   | .openLeaf _ => [ [X] ]
 termination_by
   bt => bt.size -- size of remaining BuildTree should go down
@@ -590,15 +600,30 @@ decreasing_by
   · exact size_lt_loc H X _nbas next lt
   · exact size_lt_pdl H X _bas next Y r
 
+lemma BuildTree.collect_nonempty (bt : BuildTree [] X) :
+    bt.collect ≠ [] := by
+  cases bt
+  case loc nbas next =>
+    simp only [collect, ne_eq, List.flatMap_eq_nil_iff, List.append_eq_nil_iff, not_forall, not_and]
+    have := LocalTableau.all_nonempty X
+    rcases List.exists_mem_of_ne_nil _ this with ⟨lt, lt_in⟩
+    use lt, lt_in
+    have := LocalTableau.paths_nonempty lt
+    tauto
+  all_goals
+    simp [collect]
+  case freeRepeat h =>
+    exact FreeRepeat_nil_impossible h
+
 lemma BuildTree.collect_contains_root (bt : BuildTree [] X) :
     ∃ π ∈ bt.collect, X ∈ π := by
   cases bt <;> simp [collect]
   case loc nbas next =>
     let lts := LocalTableau.all X
-    have lts_ne : lts ≠ [] := sorry
+    have lts_ne : lts ≠ [] := LocalTableau.all_nonempty X
     rcases lts.exists_mem_of_ne_nil lts_ne with ⟨lt, lt_in⟩
     let πs := lt.paths
-    have πs_ne : πs ≠ [] := sorry
+    have πs_ne : πs ≠ [] := LocalTableau.paths_nonempty lt
     rcases πs.exists_mem_of_ne_nil πs_ne with ⟨π, π_in⟩
     refine ⟨π, ⟨lt, lt.all_spec, .inl π_in⟩, ?_⟩
     -- still need X ∈ π ... via other lemma about LocalTableau.paths
@@ -608,7 +633,7 @@ lemma BuildTree.collect_contains_root (bt : BuildTree [] X) :
 
 /-! ## Pre-states (Def 6.13) -/
 
-/-- Hmmmm. Is this good? -/
+/-- A pre-state is a list of sequents collected from a `BuildTree`. -/
 def PreState {H X} (bt : BuildTree H X) : Type := Subtype (· ∈ bt.collect)
 
 lemma PreState.nonempty {X} {bt : BuildTree H X} {π : PreState bt} : π.val ≠ [] := by
@@ -620,7 +645,7 @@ lemma PreState.nonempty {X} {bt : BuildTree H X} {π : PreState bt} : π.val ≠
     simp_all
     rcases L_in with ⟨lt, lt_in, L_in⟩
     rcases L_in with L_in|L_in
-    · exact LocalTableau.paths_nonEmpty lt L L_in
+    · exact LocalTableau.paths_mem_nonempty lt L L_in
     · have IH := @PreState.nonempty _ _ (next lt).6 ⟨L, L_in⟩
       exact IH
   case pdl bas next L_in' =>
@@ -656,6 +681,17 @@ def PreState.forms {bt : BuildTree H X} (π : PreState bt) : Finset Formula :=
 -- if negloaded is in wForms, then its unloading is in forms
 -- if loaded is in wForms, then its unloading is in forms
 -- normal is in wForms iff it is in forms
+-- normal is in forms iff ...
+lemma PreState.mem_forms_iff {φ : Formula} {π : PreState bt} :
+    φ ∈ π.forms ↔
+      ( (.any (.normal φ) : WhateverFormula) ∈ π.wForms
+      ∨ (∃ χ, χ.unload = φ ∧ (.any (.loaded χ) ∈ π.wForms))
+      ∨ (∃ ψ, negUnload ψ = φ ∧ (.negLoad ψ ∈ π.wForms))
+      ) := by
+  constructor
+  · intro φ_in
+    sorry
+  · sorry
 
 lemma PreState.forms_saturated {X} {bt : BuildTree H X} {π : PreState bt} :
     saturated π.forms := by
@@ -696,11 +732,12 @@ decreasing_by
 
 -- IDEA: helper lemma "every pre-state is either a local tableau path or a singleton and basic" ??
 
-lemma PreState.forms_locallyConsistent {π : PreState bt} : locallyConsistent π.forms := by sorry
+lemma PreState.forms_locallyConsistent {π : PreState bt} : locallyConsistent π.forms := by
+  sorry
 
-lemma PreState.forms_last_basic {π : PreState bt} : (π.val.getLast PreState.nonempty).basic := by
+lemma PreState.forms_last_basic {π : PreState bt} :
+    (π.val.getLast PreState.nonempty).basic := by
   rcases π with ⟨π, π_in⟩
-
   sorry
 
 -- last basic
@@ -769,6 +806,41 @@ lemma PreState.mem_toModel {X : Sequent} {bt : BuildTree [] X} {π : PreState bt
 instance {bt : BuildTree [] X} : Coe (PreState bt) { w : Finset Formula // w ∈ bt.toModel.1 } :=
   ⟨fun π => ⟨π.forms, π.mem_toModel⟩⟩
 
+/-! ## PreStates to Matches and back again
+
+IDEA / TODO: to prove the existence lemmas it seems useful to have helper lemmas/defs
+to switch between Pre-states & matches. Can we show these?
+
+- every pre-state must come from some match
+
+- every match gives us a pre-state
+
+If we have these, then we can use `Match.rewind` to "roll back up".
+
+Note: the functions will not necessarily "round-trip".
+
+Small worry: there is no order on Pre-States, so termination of this IH might be an issue?
+Idea: use the PreState-to-Match conversion and then the Match-length as termination_by.
+-/
+
+def PreState.toMatch {bt : BuildTree [] X} (π : PreState bt) : Match bt :=
+  sorry
+
+def Match.toPreState {bt : BuildTree [] X} (m : Match bt) : PreState bt := by
+  refine ⟨(m.btAt.2.2).collect.head ?_, ?_⟩
+  · have := @BuildTree.collect_nonempty
+    sorry
+  · -- lemma? Match.btAt_collect_mem_collect or so?
+    sorry
+
+/-- Round-trip. The other order does not hold because π may occur multiple times in bt. -/
+lemma PreState.toMatch_toPreState {bt : BuildTree [] X} (π : PreState bt) :
+    π.toMatch.toPreState = π := by
+  sorry
+
+
+/-! ## Existence Lemmas -/
+
 /-- Lemma 6.18.
 Note that we use `Rel` from `BuildTree.toModel` as the `R` to use `Modelgraphs.Q`. -/
 lemma PreState.loadedDiamondExistence {φ : AnyFormula} {π : PreState bt} :
@@ -776,7 +848,8 @@ lemma PreState.loadedDiamondExistence {φ : AnyFormula} {π : PreState bt} :
     -- QUESTION: what to say about `π` here and what to say about node `t` lying on `π`?
     ∃ t : Match bt,
         AnyNegFormula.mem_Sequent (t.btAt).2.1 (~''φ)
-      ∧ ∃ ρ : PreState bt, ∃ u : Match bt,
+      ∧ ∃ ρ : PreState bt,
+          ∃ u : Match bt,
         -- TODO: t < u
         @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α π ρ := by
   sorry
@@ -784,29 +857,40 @@ lemma PreState.loadedDiamondExistence {φ : AnyFormula} {π : PreState bt} :
 -- TODO Lemma 6.19: for any diamond we can go to a pre-state where that diamond is loaded
 
 
-lemma freeDiamondExistenceInduction {X} {bt : BuildTree [] X} {α} {φ : Formula} {π : PreState bt} :
-  -- FIXME does this include (un)loaded formulas???
-  (~⌈α⌉φ) ∈ π.forms → ∃ π' : PreState bt,
-      ~φ ∈ π'.forms ∧ @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α π π' := by
+/-- TODO: Induction loading for 6.20. -/
+lemma freeDiamondExistenceInduction {X} {bt : BuildTree [] X}
+    {ψ : Formula} -- FIXME also need that ψ is not boxed
+    {α} {ηs : List Program} {π : PreState bt} :
+    (~⌈α⌉⌈⌈ηs⌉⌉ψ : WhateverFormula) ∈ π.wForms →
+      ∃ π' : PreState bt,
+        (~⌈⌈ηs⌉⌉ψ) ∈ π'.forms -- NOTE: may occur loaded or unloaded in Λ(π')
+        ∧ @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α π π' := by
   intro _in_forms
-
-  -- NOTE: now the formuals could actually come from a loaded formula in π ?!
-  -- Maybe now split and defer to two different lemmas from here?
   sorry
 
-
-/-- WIP (! approximation of) Lemma 6.20: diamond existence lemma for pre-states -/
+/-- Lemma 6.20: free diamond existence lemma for pre-states -/
 lemma freeDiamondExistence {X} {bt : BuildTree [] X} {α} {φ : Formula} {π : PreState bt} :
-  -- TODO include loaded formulas / separate lemma or here???
-  (~⌈α⌉φ) ∈ π.forms → ∃ π' : PreState bt,
+  (~⌈α⌉φ : WhateverFormula) ∈ π.wForms → ∃ π' : PreState bt,
       ~φ ∈ π'.forms ∧ @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α π π' := by
-  intro _in_forms
-
-  -- NOTE: now the formuals could actually come from a loaded formula in π ?!
-  -- Maybe now split and defer to two different lemmas from here?
-  sorry
+  intro in_forms
+  let ηs_ψ := boxesOf φ
+  have := @freeDiamondExistenceInduction X bt ηs_ψ.2 α ηs_ψ.1 π ?in_forms
+  case in_forms =>
+    convert in_forms
+    exact Eq.symm (def_of_boxesOf_def rfl)
+  rcases this with ⟨π', in_π'_forms, α_rel⟩
+  refine ⟨π', ?_, α_rel⟩
+  · convert in_π'_forms
+    exact def_of_boxesOf_def rfl
 
 /-! ## Model graph of pre-states -/
+
+-- FIXME move me
+
+lemma BuildTree.exists_mem_attach_forms_eq {bt : BuildTree [] H} {ρ : PreState bt} :
+    ∃ a ∈ bt.collect.attach, PreState.forms a = ρ.forms := by
+  simp
+
 
 /-- Theorem 6.21: If Builder has a winning strategy then there is a model graph.
 Uses `BuildTree.toModel`. -/
@@ -846,14 +930,33 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
     -- w must come from some pre-state:
     rcases w_in with ⟨π, π_in, def_w⟩
     subst def_w
-    /-
-    have := diamondExistence in_w -- using the (generic?) lemma here
-    rcases this with ⟨π', not_φ_in, π_Qα_π'⟩
-    refine ⟨π'.getForms.toFinset, ?_, ?_⟩
-    · have := π'.mem_toModel; grind
-    · rw [List.mem_toFinset]; exact not_φ_in
-    -/
-    sorry
+    -- unfold PreState.forms at in_w -- NO, use lemma to switch to wforms instead?
+    rw [PreState.mem_forms_iff] at in_w
+    rcases in_w with in_w|(⟨χ,χul_def,in_w⟩|⟨ψ,ψul_def,in_w⟩)
+    · -- normal, use 6.20
+      rcases freeDiamondExistence in_w with ⟨π', in_π'_forms, α_rel⟩
+      refine ⟨π'.forms, ⟨?_, α_rel⟩, in_π'_forms⟩
+      unfold WS
+      simp only [BuildTree.toModel, Finset.union_singleton, List.mem_toFinset, List.mem_map]
+      exact bt.exists_mem_attach_forms_eq
+    · -- loaded but not negated, cannot happen
+      exfalso
+      cases χ
+      unfold LoadFormula.unload at χul_def
+      grind
+    · -- neg loaded, use 6.18
+      rcases ψ with ⟨⟨α',χ⟩ ⟩
+      simp only [negUnload, Formula.neg.injEq] at ψul_def
+      rcases PreState.loadedDiamondExistence in_w with ⟨t, in_t, ρ, u, α_rel⟩
+      unfold WS
+      simp only [BuildTree.toModel, Finset.union_singleton, List.mem_toFinset, List.mem_map]
+      refine ⟨ρ.forms, ⟨bt.exists_mem_attach_forms_eq, ?_⟩, ?_⟩
+      · have : α = α' := by cases χ <;> grind [LoadFormula.unload]
+        rw [this]
+        exact α_rel
+      · -- use `in_t : AnyNegFormula.mem_Sequent t.btAt.snd.fst (~''χ)` here.
+        -- But better adjust the statement of `PreState.loadedDiamondExistence` first.
+        sorry
   case X_in =>
     unfold WS
     -- Here the def of `BuildTree.allPreStates` matters.

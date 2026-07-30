@@ -243,6 +243,14 @@ lemma LocalRuleApp.all_spec (lrA : LocalRuleApp) : lrA ∈ LocalRuleApp.all lrA.
         use (∅, ∅, some (Sum.inr (~'⌊α⌋AnyFormula.loaded χ)))
         aesop
 
+lemma LocalRuleApp.all_nonempty_of_nonbasic {X : Sequent} (X_nonbas : ¬ X.basic) :
+    LocalRuleApp.all X ≠ [] := by
+  rw [@basic_iff_noLocalRuleApp X] at X_nonbas
+  simp only [not_exists, not_forall, Decidable.not_not] at X_nonbas
+  rcases X_nonbas with ⟨lra, def_X⟩
+  have := LocalRuleApp.all_spec lra
+  grind
+
 /-
 /-- At most finitely many local rule applications lead from `X` and to `B`. Note this is weaker
 than "only finitely many local rules apply to `X`, because each `B` gives a different type. -/
@@ -289,7 +297,7 @@ def LocalTableau.all : (X : Sequent) → List (LocalTableau X) := fun X =>
   if bas : X.basic
   then [ .sim bas ]
   else do
-    let ⟨lra, lra_mem⟩  <- (LocalRuleApp.all X).attach
+    let ⟨lra, lra_mem⟩ <- (LocalRuleApp.all X).attach
     have def_X := LocalRuleApp.all_X X _ lra_mem
     let tabsFor (Y : Sequent) (h : Y ∈ lra.C) : List (LocalTableau Y) := by
       have _forTermination := localRuleApp.decreases_DM lra _ h
@@ -301,6 +309,22 @@ termination_by
   X => X
 decreasing_by
   exact def_X ▸ _forTermination
+
+lemma LocalTableau.all_nonempty (X : Sequent) : LocalTableau.all X ≠ [] := by
+  by_cases Xbas : X.basic
+  · simp_all [LocalTableau.all]
+  · unfold LocalTableau.all
+    have := LocalRuleApp.all_nonempty_of_nonbasic Xbas
+    simp_all
+    rcases List.exists_mem_of_ne_nil _ this with ⟨lra, lra_in⟩
+    refine ⟨lra, lra_in, ?_⟩
+    -- idea: for every lra-result sequent, get an IH:
+    -- have IH := LocalTableau.all_nonempty ...
+    -- use measure ... to show decreasing/termination?
+    -- then use choide ot let that be the `next` function here.
+    refine ⟨?_, combo_mem_of_forall_in _ _ ?_⟩
+    · sorry
+    · sorry
 
 lemma LocalTableau.all_spec : ltX ∈ LocalTableau.all X := by
   by_cases Xbas : X.basic
