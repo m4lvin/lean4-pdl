@@ -14,8 +14,7 @@ Lessons learned while working on this file:
 
 /-! ## Helper Lemmas -/
 
-/-- Any basic sequent is also saturated.
-This is good to know, but propably not strong enough to be useful. -/
+/-- Any basic sequent is also saturated. -/
 lemma Sequent.basic_then_saturated {X : Sequent} : X.basic → saturated X.toFinset := by
   intro Xbas
   rcases X with ⟨L,R,O⟩
@@ -89,7 +88,8 @@ inductive BuildTree : History → Sequent → Type
   | openLeaf {H X} (bas : X.basic) : BuildTree H X
   -- TODO: maybe also somehow say "no PDL rules"?
   -- small worry but what about (L+) (L-), one of which is always applicable?
-  -- Well, then it would lead to a free repeat!?
+  -- No. L- and L+ are not applicable when there is no diamond formula left.
+  -- (And even when there is, they would lead to a free repeat..)
   -- TODO: or/and add condition to be locally consistent?
 
 inductive BuildChoice : History → Sequent → List Sequent → Type
@@ -561,11 +561,26 @@ lemma LocalTableau.pathsHead_eq_self {X} {lt : LocalTableau X} :
     subst def_L1
     simp
 
--- still unused?
 lemma LocalTableau.pathsLast_eq_endNodes {X} {lt : LocalTableau X} :
     lt.paths.attach.map
-      (fun L => L.1.getLast (LocalTableau.paths_mem_nonempty lt L.1 L.2)) = endNodesOf lt := by
-  sorry
+      (fun ⟨L,h⟩ => L.getLast (LocalTableau.paths_mem_nonempty lt L h)) = endNodesOf lt := by
+  induction lt
+  case byLocalRule X lra X_def next IH =>
+    simp_all
+    sorry
+  case sim bas =>
+    simp_all [paths]
+    ext
+    simp [paths]
+    grind
+
+lemma LocalTableau.paths_last_basic {X} {lt : LocalTableau X} :
+    ∀ L, (h : L ∈ lt.paths) → (L.getLast (LocalTableau.paths_mem_nonempty lt L h)).basic := by
+  intro L L_in
+  apply (@endNodesOf_basic _ _ lt)
+  rw [← @LocalTableau.pathsLast_eq_endNodes _ lt]
+  simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists]
+  grind
 
 @[simp]
 lemma Sequent.bothSides_toFinset_eq_toFinset {X : Sequent} :
@@ -768,10 +783,32 @@ decreasing_by
 lemma PreState.forms_locallyConsistent {π : PreState bt} : locallyConsistent π.forms := by
   sorry
 
-lemma PreState.forms_last_basic {π : PreState bt} :
+lemma PreState.forms_last_basic {bt : BuildTree H X} {π : PreState bt} :
     (π.val.getLast PreState.nonempty).basic := by
   rcases π with ⟨π, π_in⟩
-  sorry
+  cases bt <;> simp [BuildTree.collect] at π_in <;> rename_i π_in_old
+  case loc nbas next =>
+    rcases π_in with ⟨lt, lt_in, π_in_lt|π_in_next⟩
+    · exact LocalTableau.paths_last_basic _ π_in_lt
+    · have IH := @PreState.forms_last_basic _ _ _ ⟨π, π_in_next⟩
+      exact IH
+  case pdl bas next =>
+    rcases π_in with π_def|⟨Y, r, in_rule, π_in_next⟩
+    · subst π_def
+      simp only [List.getLast_singleton]
+      exact bas
+    · have IH := @PreState.forms_last_basic _ _ _ ⟨π, π_in_next⟩
+      exact IH
+  case openLeaf =>
+    subst π_in
+    simp_all
+termination_by
+  bt.size
+decreasing_by
+  · subst_eqs
+    apply @BuildTree.size_lt_loc H X
+  · subst_eqs
+    apply @BuildTree.size_lt_pdl H X
 
 -- last basic
 
