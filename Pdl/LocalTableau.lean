@@ -551,25 +551,6 @@ theorem localRuleTruth
           · apply w_Ci; simp_all
           · subst g_def; apply w_Ci; simp_all
 
--- TODO: move to Sequent.lean maybe? What does it need?
-instance instDecidableBasic {X : Sequent} : Decidable (X.basic) := by
-  by_cases X.closed
-  · apply isFalse
-    rcases X with ⟨L,R,o⟩
-    unfold Sequent.basic
-    aesop
-  case neg h =>
-    rcases X with ⟨L,R,o⟩
-    unfold Sequent.basic
-    simp only [h, not_false_eq_true, and_true]
-    by_cases ∃ f ∈ L ++ R ++ (Option.map (Sum.elim negUnload negUnload) o).toList, f.basic ≠ true
-    · apply isFalse
-      push_neg
-      assumption
-    · apply isTrue
-      push_neg at *
-      assumption
-
 /-- Local tableau for `X`, maximal by definition. -/
 inductive LocalTableau : (X : Sequent) → Type
   | byLocalRule {X} (lra : LocalRuleApp) (X_def : X = lra.X)

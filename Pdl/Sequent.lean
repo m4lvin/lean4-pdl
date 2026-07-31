@@ -306,6 +306,24 @@ instance Sequent.instDecidableClosed {X : Sequent} : Decidable (X.closed) := by
     · apply isTrue; aesop
     · apply isFalse; aesop
 
+instance instDecidableBasic {X : Sequent} : Decidable (X.basic) := by
+  by_cases X.closed
+  · apply isFalse
+    rcases X with ⟨L,R,o⟩
+    unfold Sequent.basic
+    aesop
+  case neg h =>
+    rcases X with ⟨L,R,o⟩
+    unfold Sequent.basic
+    simp only [h, not_false_eq_true, and_true]
+    by_cases ∃ f ∈ L ++ R ++ (Option.map (Sum.elim negUnload negUnload) o).toList, f.basic ≠ true
+    · apply isFalse
+      push_neg
+      assumption
+    · apply isTrue
+      push_neg at *
+      assumption
+
 def Sequent.isLoaded : Sequent → Bool
 | ⟨_, _, none  ⟩ => False
 | ⟨_, _, some _⟩ => True
