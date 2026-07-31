@@ -1,6 +1,5 @@
 import Pdl.TableauGame
 import Pdl.AllPdlRule
-import Pdl.Syntax
 
 /-! # From winning strategies to model graphs (Section 6.3)
 
@@ -663,6 +662,42 @@ decreasing_by
   subst_eqs
   exact localRuleApp.decreases_DM _ _ Y_in
 
+/-- An atomic formula anywhere in a local tableau path still occurs at the end of the path. -/
+lemma LocalTableau.paths_local_atom_mem_last {X} {lt : LocalTableau X} {L} (L_in : L ∈ lt.paths) f :
+    (f = ⊥ ∨ ∃ p : Nat, f = (Formula.atom_prop p) ∨ f = (~(Formula.atom_prop p))) →
+      f ∈ (List.map Sequent.bothSides L).flatten →
+        f ∈ (L.getLast (LocalTableau.paths_mem_nonempty lt L L_in)).bothSides := by
+  cases lt
+  case byLocalRule lra next X_def =>
+    intro f_kind f_in
+    simp [paths] at L_in
+    rcases L_in with ⟨L', ⟨Y, Y_in, L'_in⟩, rfl⟩
+    have L'_ne := LocalTableau.paths_mem_nonempty (next Y Y_in) L' L'_in
+    rw [List.getLast_cons L'_ne]
+    simp only [List.map_cons, List.flatten_cons, List.mem_append] at f_in
+    apply LocalTableau.paths_local_atom_mem_last L'_in f f_kind
+    rcases f_in with f_in_X | f_in_tail
+    · have f_in_Y := lra.preserve_local_atom_down Y Y_in f f_kind (by simpa [X_def] using f_in_X)
+      have head_eq := LocalTableau.pathsHead_eq_self L'_in
+      rcases L' with _ | ⟨Z, L''⟩
+      · contradiction
+      · simp only [List.map_cons, List.flatten_cons, List.mem_append]
+        left
+        simp only [List.head_cons] at head_eq
+        subst Y
+        exact f_in_Y
+    · exact f_in_tail
+  case sim bas =>
+    intro f_kind f_in
+    simp [paths] at L_in
+    subst L
+    simpa using f_in
+termination_by
+  X
+decreasing_by
+  subst_eqs
+  exact localRuleApp.decreases_DM _ _ Y_in
+
 /-! ## Collecting Sequents for Pre-states NEW APPROACH - directly from BuildTree ??
 
 As possible worlds for the model graph we want to define *maximal* paths inside the build tree
@@ -826,21 +861,54 @@ decreasing_by
 
 lemma Sequent.basic_to_locallyConsistent {X : Sequent} (bas : X.basic) :
     locallyConsistent X.toFinset := by
-  refine ⟨fun bot_in => ?_, fun p p_in not_p_in => ?_⟩
-  all_goals
-    absurd bas.2
-    simp only [Prod.mk.eta]
+  rcases X with ⟨L, R, O⟩
+  unfold locallyConsistent Sequent.toFinset at *
+  constructor
+  · intro hbot
+    apply bas.2
     unfold Sequent.closed
-    rcases X with ⟨L,R,O⟩
-  · left
-    simp_all [Sequent.toFinset]
-  · simp_all [Sequent.toFinset]
-    have := bas.2
-    unfold closed at this
+    left
     simp_all
-    cases p_in
-    · sorry
-    · sorry
+  · intro p hp hnp
+    apply bas.2
+    unfold Sequent.closed
+    right
+    refine ⟨(·p), ?_, ?_⟩
+    · simp_all
+    · simp_all
+      rcases hnp with h | h | ⟨a, rfl, ha⟩ | ⟨b, rfl, hb⟩
+      · exact Or.inl h
+      · exact Or.inr h
+      · rcases a with ⟨⟨α, af⟩⟩
+        cases af <;> simp [LoadFormula.unload] at ha
+      · rcases b with ⟨⟨α, af⟩⟩
+        cases af <;> simp [LoadFormula.unload] at hb
+
+lemma LocalTableau.paths_locallyConsistent {X} {lt : LocalTableau X} :
+    ∀ L ∈ lt.paths,
+      locallyConsistent (List.map Sequent.bothSides L).flatten.toFinset := by
+  intro L L_in
+  have last_basic := LocalTableau.paths_last_basic L L_in
+  have last_consistent := Sequent.basic_to_locallyConsistent last_basic
+  unfold locallyConsistent at *
+  constructor
+  · intro bot_in
+    simp only [Finset.mem_val, List.mem_toFinset] at bot_in
+    apply last_consistent.1
+    rw [← Sequent.bothSides_toFinset_eq_toFinset]
+    exact List.mem_toFinset.mpr <|
+      LocalTableau.paths_local_atom_mem_last L_in ⊥ (Or.inl rfl) bot_in
+  · intro p p_in neg_p_in
+    simp only [Finset.mem_val, List.mem_toFinset] at p_in neg_p_in
+    apply last_consistent.2 p
+    · rw [← Sequent.bothSides_toFinset_eq_toFinset]
+      exact List.mem_toFinset.mpr <|
+        LocalTableau.paths_local_atom_mem_last L_in (Formula.atom_prop p)
+          (Or.inr ⟨p, Or.inl rfl⟩) p_in
+    · rw [← Sequent.bothSides_toFinset_eq_toFinset]
+      exact List.mem_toFinset.mpr <|
+        LocalTableau.paths_local_atom_mem_last L_in (~(Formula.atom_prop p))
+          (Or.inr ⟨p, Or.inr rfl⟩) neg_p_in
 
 -- IDEA: helper lemma "every pre-state is either a local tableau path or a singleton and basic" ??
 
@@ -850,8 +918,7 @@ lemma PreState.forms_locallyConsistent {H X} {bt : BuildTree H X} {π : PreState
   cases bt <;> simp [BuildTree.collect] at π_in <;> rename_i π_in_old
   case loc nbas next =>
     rcases π_in with ⟨lt, lt_in, π_in_lt|π_in_next⟩
-    · -- TODO: lemma LocalTableau.paths_locallyConsistent ??
-      sorry
+    · exact LocalTableau.paths_locallyConsistent _ π_in_lt
     · have IH := @PreState.forms_locallyConsistent _ _ _ ⟨π, π_in_next⟩
       exact IH
   case pdl bas someR next =>

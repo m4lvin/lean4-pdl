@@ -857,3 +857,51 @@ lemma basic_iff_noLocalRuleApp {Y : Sequent} :
                  lr := .loadedR _ (.dia hna) rfl
                  preconditionProof := ⟨List.nil_subperm, List.nil_subperm, by simp⟩ }, rfl⟩
 
+/-! ## Local rule applications preserve atomic formulas -/
+
+lemma LocalRuleApp.preserve_bottom_down (lra : LocalRuleApp) :
+    ∀ Y ∈ lra.C, ⊥ ∈ lra.X.bothSides → ⊥ ∈ Y.bothSides := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, pre⟩
+  subst hC
+  cases rule <;> simp_all [applyLocalRule, Sequent.bothSides, Sequent.left, Sequent.right]
+  case oneSidedL ress orule ress_def => cases orule <;> simp_all <;> grind
+  case oneSidedR ress orule ress_def => cases orule <;> simp_all <;> grind
+  case loadedL ress chi lrule ress_def => cases lrule <;> simp_all <;>
+    intros <;> subst_eqs <;> simp_all <;> grind
+  case loadedR ress chi lrule ress_def => cases lrule <;> simp_all <;>
+    intros <;> subst_eqs <;> simp_all <;> grind
+
+lemma LocalRuleApp.preserve_atom_down (lra : LocalRuleApp) :
+    ∀ Y ∈ lra.C, ∀ p : Nat,
+      Formula.atom_prop p ∈ lra.X.bothSides → Formula.atom_prop p ∈ Y.bothSides := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, pre⟩
+  subst hC
+  cases rule <;> simp_all [applyLocalRule, Sequent.bothSides, Sequent.left, Sequent.right]
+  case oneSidedL ress orule ress_def => cases orule <;> simp_all <;> grind
+  case oneSidedR ress orule ress_def => cases orule <;> simp_all <;> grind
+  case loadedL ress chi lrule ress_def =>
+    cases lrule <;> simp_all <;> intros <;> subst_eqs <;> simp_all <;> grind
+  case loadedR ress chi lrule ress_def =>
+    cases lrule <;> simp_all <;> intros <;> subst_eqs <;> simp_all <;> grind
+
+lemma LocalRuleApp.preserve_neg_atom_down (lra : LocalRuleApp) :
+    ∀ Y ∈ lra.C, ∀ p : Nat,
+      (~(Formula.atom_prop p)) ∈ lra.X.bothSides → (~(Formula.atom_prop p)) ∈ Y.bothSides := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, pre⟩
+  subst hC
+  cases rule <;> simp_all [applyLocalRule, Sequent.bothSides, Sequent.left, Sequent.right]
+  case oneSidedL ress orule ress_def => cases orule <;> simp_all <;> grind
+  case oneSidedR ress orule ress_def => cases orule <;> simp_all <;> grind
+  case loadedL ress chi lrule ress_def =>
+    cases lrule <;> simp_all <;> intros <;> subst_eqs <;> simp_all <;> grind
+  case loadedR ress chi lrule ress_def =>
+    cases lrule <;> simp_all <;> intros <;> subst_eqs <;> simp_all <;> grind
+
+lemma LocalRuleApp.preserve_local_atom_down (lra : LocalRuleApp) :
+    ∀ Y ∈ lra.C, ∀ f,
+      (f = ⊥ ∨ ∃ p : Nat, f = (Formula.atom_prop p) ∨ f = (~(Formula.atom_prop p))) →
+      f ∈ lra.X.bothSides → f ∈ Y.bothSides := by
+  rintro Y Y_in f (rfl | ⟨p, rfl | rfl⟩) f_in
+  · exact lra.preserve_bottom_down Y Y_in f_in
+  · exact lra.preserve_atom_down Y Y_in p f_in
+  · exact lra.preserve_neg_atom_down Y Y_in p f_in
