@@ -905,3 +905,235 @@ lemma LocalRuleApp.preserve_local_atom_down (lra : LocalRuleApp) :
   · exact lra.preserve_bottom_down Y Y_in f_in
   · exact lra.preserve_atom_down Y Y_in p f_in
   · exact lra.preserve_neg_atom_down Y Y_in p f_in
+
+lemma mem_child_left_of_pairUnload_mem {w : List Formula} {o : Option NegLoadFormula}
+    {f : Formula} (h : f ∈ pairUnload (w, o)) :
+    f ∈ w ∨ f ∈ Olf.L (o.map Sum.inl) := by
+  cases o <;> simp_all [pairUnload]
+
+lemma mem_child_right_of_pairUnload_mem {w : List Formula} {o : Option NegLoadFormula}
+    {f : Formula} (h : f ∈ pairUnload (w, o)) :
+    f ∈ w ∨ f ∈ Olf.R (o.map Sum.inr) := by
+  cases o <;> simp_all [pairUnload]
+
+lemma loaded_unfold_child_closes_left {α : Program} {χ : LoadFormula}
+    {w : List Formula} {o : Option NegLoadFormula}
+    (h : (w, o) ∈ unfoldDiamondLoaded α χ) :
+    ∃ Fδ ∈ Dset α, ∀ f ∈ Yset Fδ χ.unload,
+      f ∈ w ∨ f ∈ Olf.L (o.map Sum.inl) := by
+  have hm : pairUnload (w, o) ∈ unfoldDiamond α χ.unload := by
+    rw [← unfoldDiamondLoaded_eq]
+    exact List.mem_map_of_mem h
+  simp only [unfoldDiamond, List.mem_map] at hm
+  rcases hm with ⟨Fδ, Fδ_in, heq⟩
+  exact ⟨Fδ, Fδ_in, fun f hf => mem_child_left_of_pairUnload_mem (heq ▸ hf)⟩
+
+lemma loaded_unfold'_child_closes_left {α : Program} {φ : Formula}
+    {w : List Formula} {o : Option NegLoadFormula}
+    (h : (w, o) ∈ unfoldDiamondLoaded' α φ) :
+    ∃ Fδ ∈ Dset α, ∀ f ∈ Yset Fδ φ,
+      f ∈ w ∨ f ∈ Olf.L (o.map Sum.inl) := by
+  have hm : pairUnload (w, o) ∈ unfoldDiamond α φ := by
+    rw [← unfoldDiamondLoaded'_eq]
+    exact List.mem_map_of_mem h
+  simp only [unfoldDiamond, List.mem_map] at hm
+  rcases hm with ⟨Fδ, Fδ_in, heq⟩
+  exact ⟨Fδ, Fδ_in, fun f hf => mem_child_left_of_pairUnload_mem (heq ▸ hf)⟩
+
+lemma loaded_unfold_child_closes_right {α : Program} {χ : LoadFormula}
+    {w : List Formula} {o : Option NegLoadFormula}
+    (h : (w, o) ∈ unfoldDiamondLoaded α χ) :
+    ∃ Fδ ∈ Dset α, ∀ f ∈ Yset Fδ χ.unload,
+      f ∈ w ∨ f ∈ Olf.R (o.map Sum.inr) := by
+  have hm : pairUnload (w, o) ∈ unfoldDiamond α χ.unload := by
+    rw [← unfoldDiamondLoaded_eq]
+    exact List.mem_map_of_mem h
+  simp only [unfoldDiamond, List.mem_map] at hm
+  rcases hm with ⟨Fδ, Fδ_in, heq⟩
+  exact ⟨Fδ, Fδ_in, fun f hf => mem_child_right_of_pairUnload_mem (heq ▸ hf)⟩
+
+lemma loaded_unfold'_child_closes_right {α : Program} {φ : Formula}
+    {w : List Formula} {o : Option NegLoadFormula}
+    (h : (w, o) ∈ unfoldDiamondLoaded' α φ) :
+    ∃ Fδ ∈ Dset α, ∀ f ∈ Yset Fδ φ,
+      f ∈ w ∨ f ∈ Olf.R (o.map Sum.inr) := by
+  have hm : pairUnload (w, o) ∈ unfoldDiamond α φ := by
+    rw [← unfoldDiamondLoaded'_eq]
+    exact List.mem_map_of_mem h
+  simp only [unfoldDiamond, List.mem_map] at hm
+  rcases hm with ⟨Fδ, Fδ_in, heq⟩
+  exact ⟨Fδ, Fδ_in, fun f hf => mem_child_right_of_pairUnload_mem (heq ▸ hf)⟩
+
+set_option maxHeartbeats 4000000 in
+/-- Every formula at the source of a local rule is either retained by a chosen child or is the
+principal formula and has the closure data required for saturatedness in that child. -/
+lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Sequent}
+    (hY : Y ∈ lra.C) : ∀ f ∈ lra.X.bothSides,
+      f ∈ Y.bothSides ∨
+        (∀ (φ ψ : Formula) (α : Program),
+          (f = (~~φ) → φ ∈ Y.bothSides) ∧
+          (f = (φ⋀ψ) → φ ∈ Y.bothSides ∧ ψ ∈ Y.bothSides) ∧
+          (f = (~(φ⋀ψ)) → (~φ) ∈ Y.bothSides ∨ (~ψ) ∈ Y.bothSides) ∧
+          (f = (⌈α⌉φ) → ∃ l : TP α, (Bset α l φ).all (· ∈ Y.bothSides)) ∧
+          (f = (~⌈α⌉φ) → ∃ Fδ ∈ Dset α, (Yset Fδ φ).all (· ∈ Y.bothSides))) := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, pre⟩
+  subst C
+  cases rule
+  case oneSidedL orule YS_def =>
+    cases orule
+    case neg φ =>
+      simp_all [applyLocalRule, Sequent.bothSides]
+      intro f hf
+      by_cases hp : f = ~~φ
+      · subst f; right; simp
+      · left
+        rcases hf with hf | hf | hf | hf
+        · have := (List.mem_erase_of_ne hp).2 hf; aesop
+        all_goals aesop
+    case con φ ψ =>
+      simp_all [applyLocalRule, Sequent.bothSides]
+      intro f hf
+      by_cases hp : f = φ⋀ψ
+      · subst f; right; simp
+      · left
+        rcases hf with hf | hf | hf | hf
+        · have := (List.mem_erase_of_ne hp).2 hf; aesop
+        all_goals aesop
+    case nCo φ ψ =>
+      simp_all [applyLocalRule, Sequent.bothSides]
+      intro f hf
+      by_cases hp : f = ~(φ⋀ψ)
+      · subst f
+        right
+        intro φ' ψ' _
+        rcases hY with hY | hY <;> subst Y <;>
+          simp [Sequent.bothSides] <;> aesop
+      · left
+        rcases hf with hf | hf | hf | hf
+        · have := (List.mem_erase_of_ne hp).2 hf; aesop
+        all_goals aesop
+    case box α φ notAtom =>
+      simp_all [applyLocalRule, Sequent.bothSides]
+      intro f hf
+      by_cases hp : f = ⌈α⌉φ
+      · subst f
+        right
+        intro φ' ψ' α'
+        refine ⟨by simp, by simp, by simp, ?_, by simp⟩
+        intro heq
+        injection heq with hα hφ
+        subst α'; subst φ'
+        simp only [unfoldBox, List.mem_map] at hY
+        rcases hY with ⟨l, l_in, hY⟩
+        rcases l_in with ⟨tp, tp_in, rfl⟩
+        subst Y
+        refine ⟨tp, ?_⟩
+        intro x hx
+        simp [Sequent.bothSides, hx]
+      · left
+        rcases hf with hf | hf | hf | hf
+        · have := (List.mem_erase_of_ne hp).2 hf; aesop
+        all_goals aesop
+    case dia α φ notAtom =>
+      simp_all [applyLocalRule, Sequent.bothSides]
+      intro f hf
+      by_cases hp : f = ~⌈α⌉φ
+      · subst f
+        right
+        intro φ' ψ' α'
+        refine ⟨by simp, by simp, by simp, by simp, ?_⟩
+        intro heq
+        injection heq with hneg
+        injection hneg with hα hφ
+        subst α'; subst φ'
+        simp only [unfoldDiamond, List.mem_map] at hY
+        rcases hY with ⟨ys, ys_in, hY⟩
+        rcases ys_in with ⟨Fδ, Fδ_in, rfl⟩
+        subst Y
+        rcases Fδ with ⟨Fs, δ⟩
+        refine ⟨Fs, δ, Fδ_in, ?_⟩
+        intro x hx
+        simp [Sequent.bothSides, hx]
+      · left
+        rcases hf with hf | hf | hf | hf
+        · have := (List.mem_erase_of_ne hp).2 hf; aesop
+        all_goals aesop
+    all_goals simp_all [applyLocalRule, Sequent.bothSides, List.mem_erase_of_ne] <;> aesop
+  case oneSidedR orule YS_def =>
+    cases orule <;> simp_all [applyLocalRule, Sequent.bothSides]
+    all_goals intro f hf
+    case neg φ => by_cases hp : f = ~~φ <;> simp_all [List.mem_erase_of_ne] <;> aesop
+    case con φ ψ => by_cases hp : f = φ⋀ψ <;> simp_all [List.mem_erase_of_ne] <;> aesop
+    case nCo φ ψ => by_cases hp : f = ~(φ⋀ψ) <;> simp_all [List.mem_erase_of_ne] <;> aesop
+    case box α φ notAtom => by_cases hp : f = ⌈α⌉φ <;> simp_all [List.mem_erase_of_ne, unfoldBox] <;> aesop
+    case dia α φ notAtom => by_cases hp : f = ~⌈α⌉φ <;> simp_all [List.mem_erase_of_ne, unfoldDiamond] <;> aesop
+    all_goals simp_all [List.mem_erase_of_ne] <;> aesop
+  case loadedL χ lrule YS_def =>
+    cases lrule
+    case dia α χ notAtom =>
+      simp_all [applyLocalRule, Sequent.bothSides]
+      intro f hf
+      by_cases hp : f = ~⌈α⌉χ.unload
+      · subst f
+        right
+        intro φ ψ β
+        refine ⟨by simp, by simp, by simp, by simp, ?_⟩
+        intro heq
+        injection heq with hn
+        injection hn with hα hφ
+        subst β; subst φ
+        rcases hY with ⟨w, o, hwo, rfl⟩
+        rcases loaded_unfold_child_closes_left hwo with ⟨⟨Fs,δ⟩, hD, hclose⟩
+        exact ⟨Fs, δ, hD, by aesop⟩
+      · left; aesop
+    case dia' α φ notAtom =>
+      simp_all [applyLocalRule, Sequent.bothSides]
+      intro f hf
+      by_cases hp : f = ~⌈α⌉φ
+      · subst f
+        right
+        intro φ' ψ β
+        refine ⟨by simp, by simp, by simp, by simp, ?_⟩
+        intro heq
+        injection heq with hn
+        injection hn with hα hφ
+        subst β; subst φ'
+        rcases hY with ⟨w, o, hwo, rfl⟩
+        rcases loaded_unfold'_child_closes_left hwo with ⟨⟨Fs,δ⟩, hD, hclose⟩
+        exact ⟨Fs, δ, hD, by aesop⟩
+      · left; aesop
+  case loadedR χ lrule YS_def =>
+    cases lrule
+    case dia α χ notAtom =>
+      simp_all [applyLocalRule, Sequent.bothSides]
+      intro f hf
+      by_cases hp : f = ~⌈α⌉χ.unload
+      · subst f
+        right
+        intro φ ψ β
+        refine ⟨by simp, by simp, by simp, by simp, ?_⟩
+        intro heq
+        injection heq with hn
+        injection hn with hα hφ
+        subst β; subst φ
+        rcases hY with ⟨w, o, hwo, rfl⟩
+        rcases loaded_unfold_child_closes_right hwo with ⟨⟨Fs,δ⟩, hD, hclose⟩
+        exact ⟨Fs, δ, hD, by aesop⟩
+      · left; aesop
+    case dia' α φ notAtom =>
+      simp_all [applyLocalRule, Sequent.bothSides]
+      intro f hf
+      by_cases hp : f = ~⌈α⌉φ
+      · subst f
+        right
+        intro φ' ψ β
+        refine ⟨by simp, by simp, by simp, by simp, ?_⟩
+        intro heq
+        injection heq with hn
+        injection hn with hα hφ
+        subst β; subst φ'
+        rcases hY with ⟨w, o, hwo, rfl⟩
+        rcases loaded_unfold'_child_closes_right hwo with ⟨⟨Fs,δ⟩, hD, hclose⟩
+        exact ⟨Fs, δ, hD, by aesop⟩
+      · left; aesop
+  all_goals simp_all [applyLocalRule]

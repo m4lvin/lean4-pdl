@@ -532,7 +532,74 @@ lemma LocalRuleApp.preserve_saturated_up (lra : LocalRuleApp) :
       Y ∈ rest →
       saturated (rest.map Sequent.bothSides).flatten.toFinset
         → saturated (((lra.X :: rest).map Sequent.bothSides).flatten.toFinset) := by
-  sorry
+  intro Y hY rest hYr hs
+  simp only [saturated] at hs ⊢
+  intro φ ψ α
+  have old_or_rest (f : Formula) :
+      f ∈ ((lra.X :: rest).map Sequent.bothSides).flatten.toFinset →
+      f ∈ lra.X.bothSides ∨ f ∈ (rest.map Sequent.bothSides).flatten.toFinset := by
+    simp only [List.map_cons, List.flatten_cons, List.mem_toFinset, List.mem_append]
+    exact id
+  have child_in_rest (f : Formula) (hf : f ∈ Y.bothSides) :
+      f ∈ (rest.map Sequent.bothSides).flatten.toFinset := by
+    simp only [List.mem_toFinset, List.mem_flatten, List.mem_map]
+    exact ⟨Y.bothSides, ⟨Y, hYr, rfl⟩, hf⟩
+  have lift_rest (f : Formula) :
+      f ∈ (rest.map Sequent.bothSides).flatten.toFinset →
+      f ∈ ((lra.X :: rest).map Sequent.bothSides).flatten.toFinset := by simp_all
+  have source_closure := lra.formula_preserved_or_expanded hY
+  rcases hs φ ψ α with ⟨hneg, hcon, hncon, hbox, hdia⟩
+  constructor
+  · intro h
+    rcases old_or_rest _ h with hsrc | hrest
+    · rcases source_closure _ hsrc with hkeep | hexpand
+      · exact lift_rest _ (hneg (child_in_rest _ hkeep))
+      · exact lift_rest _ (child_in_rest _ ((hexpand φ ψ α).1 rfl))
+    · exact lift_rest _ (hneg hrest)
+  constructor
+  · intro h
+    rcases old_or_rest _ h with hsrc | hrest
+    · rcases source_closure _ hsrc with hkeep | hexpand
+      · rcases hcon (child_in_rest _ hkeep) with ⟨hφ, hψ⟩
+        exact ⟨lift_rest _ hφ, lift_rest _ hψ⟩
+      · rcases (hexpand φ ψ α).2.1 rfl with ⟨hφ, hψ⟩
+        exact ⟨lift_rest _ (child_in_rest _ hφ), lift_rest _ (child_in_rest _ hψ)⟩
+    · rcases hcon hrest with ⟨hφ, hψ⟩
+      exact ⟨lift_rest _ hφ, lift_rest _ hψ⟩
+  constructor
+  · intro h
+    rcases old_or_rest _ h with hsrc | hrest
+    · rcases source_closure _ hsrc with hkeep | hexpand
+      · exact (hncon (child_in_rest _ hkeep)).imp (lift_rest _) (lift_rest _)
+      · rcases (hexpand φ ψ α).2.2.1 rfl with hφ | hψ
+        · exact Or.inl (lift_rest _ (child_in_rest _ hφ))
+        · exact Or.inr (lift_rest _ (child_in_rest _ hψ))
+    · exact (hncon hrest).imp (lift_rest _) (lift_rest _)
+  constructor
+  · intro h
+    rcases old_or_rest _ h with hsrc | hrest
+    · rcases source_closure _ hsrc with hkeep | hexpand
+      · rcases hbox (child_in_rest _ hkeep) with ⟨l, hl⟩
+        simp only [List.all_eq_true, decide_eq_true_eq] at hl
+        exact ⟨l, by simpa using fun f hf => lift_rest _ (by simpa using hl f hf)⟩
+      · rcases (hexpand φ ψ α).2.2.2.1 rfl with ⟨l, hl⟩
+        simp only [List.all_eq_true, decide_eq_true_eq] at hl
+        exact ⟨l, by simpa using fun f hf => lift_rest _ (child_in_rest _ (by simpa using hl f hf))⟩
+    · rcases hbox hrest with ⟨l, hl⟩
+      simp only [List.all_eq_true, decide_eq_true_eq] at hl
+      exact ⟨l, by simpa using fun f hf => lift_rest _ (by simpa using hl f hf)⟩
+  · intro h
+    rcases old_or_rest _ h with hsrc | hrest
+    · rcases source_closure _ hsrc with hkeep | hexpand
+      · rcases hdia (child_in_rest _ hkeep) with ⟨Fδ, hD, hF⟩
+        simp only [List.all_eq_true, decide_eq_true_eq] at hF
+        exact ⟨Fδ, hD, by simpa using fun f hf => lift_rest _ (by simpa using hF f hf)⟩
+      · rcases (hexpand φ ψ α).2.2.2.2 rfl with ⟨Fδ, hD, hF⟩
+        simp only [List.all_eq_true, decide_eq_true_eq] at hF
+        exact ⟨Fδ, hD, by simpa using fun f hf => lift_rest _ (child_in_rest _ (by simpa using hF f hf))⟩
+    · rcases hdia hrest with ⟨Fδ, hD, hF⟩
+      simp only [List.all_eq_true, decide_eq_true_eq] at hF
+      exact ⟨Fδ, hD, by simpa using fun f hf => lift_rest _ (by simpa using hF f hf)⟩
 
 def LocalTableau.paths : {X : _} → LocalTableau X → List (List Sequent)
   | .(_), (@byLocalRule X lra _ next) =>
