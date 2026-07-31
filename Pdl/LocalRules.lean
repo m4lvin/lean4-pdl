@@ -1,0 +1,859 @@
+import Mathlib.Algebra.BigOperators.Group.Finset.Basic
+import Mathlib.Algebra.Order.BigOperators.Group.List
+import Mathlib.Algebra.Order.BigOperators.Group.Finset
+import Mathlib.Data.Multiset.DershowitzManna
+
+import Pdl.Sequent
+import Pdl.UnfoldBox
+import Pdl.UnfoldDia
+
+/-! ## Local rules and local rule applications  -/
+
+open HasLength
+
+/-! ## One-sided local rules -/
+
+/-- Local rules replace a given set of formulas by other sets, one for each branch.
+The list of resulting branches can be empty, representing that the given set is closed.
+In the Haskell prover this is done in "ruleFor" in the Logic.PDL.Prove.Tree module. -/
+inductive OneSidedLocalRule : List Formula → List (List Formula) → Type
+  -- PROP LOGIC
+  -- closing rules:
+  | bot                 : OneSidedLocalRule [⊥]      ∅
+  | not (φ   : Formula) : OneSidedLocalRule [φ, ~φ]  ∅
+  | neg (φ   : Formula) : OneSidedLocalRule [~~φ]    [[φ]]
+  | con (φ ψ : Formula) : OneSidedLocalRule [φ ⋀ ψ]  [[φ,ψ]]
+  | nCo (φ ψ : Formula) : OneSidedLocalRule [~(φ⋀ψ)] [[~φ], [~ψ]]
+  -- PROGRAMS
+  -- the two general local rules:
+  | box (α φ) : (notAtom : ¬ α.isAtomic) → OneSidedLocalRule [ ⌈α⌉φ] (unfoldBox     α φ)
+  | dia (α φ) : (notAtom : ¬ α.isAtomic) → OneSidedLocalRule [~⌈α⌉φ] (unfoldDiamond α φ)
+  deriving DecidableEq, Repr
+
+theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B :=
+  by
+  intro W M w
+  cases lr
+  all_goals try (simp; done) -- takes care of all propositional rules
+  case box α φ notAtom =>
+    rw [conEval]
+    simp only [List.mem_singleton, forall_eq]
+    rw [localBoxTruth α φ W M w]
+    simp only [disEval, List.mem_map, exists_exists_and_eq_and, unfoldBox, disconEval]
+    constructor
+    · rintro ⟨l,hyp⟩; use l; rw [conEval] at hyp; tauto
+    · rintro ⟨l,hyp⟩; use l; rw [conEval]; tauto
+  case dia α φ notAtom =>
+    rw [conEval]
+    simp only [List.mem_singleton, forall_eq, unfoldDiamond]
+    rw [localDiamondTruth α φ W M w, disEval, disconEval]
+    apply mapCon_mapForall
+
+/-! ## Loaded Rules -/
+
+/-- The loaded diamond rule, given by `unfoldDiamondLoaded`.
+In MB page 19 these were multiple rules ¬u, ¬; ¬* and ¬?.
+It replaces the loaded formula by up to one loaded formula and a list of normal formulas.
+It's a bit annoying to need the rule twice here due to the definition of LoadFormula
+and the extra definition of `unfoldDiamondLoaded'`. -/
+inductive LoadRule : NegLoadFormula → List (List Formula × Option NegLoadFormula) → Type
+  | dia  {α χ} : (notAtom : ¬ α.isAtomic)
+                → LoadRule (~'⌊α⌋(χ : LoadFormula)) (unfoldDiamondLoaded  α χ)
+  | dia' {α φ} : (notAtom : ¬ α.isAtomic)
+                → LoadRule (~'⌊α⌋(φ : Formula    )) (unfoldDiamondLoaded' α φ)
+  deriving DecidableEq, Repr
+
+/-- Given a LoadRule application, define the equivalent unloaded rule application.
+This allows re-using `oneSidedLocalRuleTruth` to prove `loadRuleTruth`. -/
+def LoadRule.unload : LoadRule (~'χ) B → OneSidedLocalRule [~χ.unload] (B.map pairUnload)
+| @dia α χ notAtom => unfoldDiamondLoaded_eq α χ ▸ OneSidedLocalRule.dia α χ.unload notAtom
+| @dia' α φ notAtom => unfoldDiamondLoaded'_eq α φ ▸ OneSidedLocalRule.dia α φ notAtom
+
+/-- The loaded unfold rule is sound and invertible.
+In the notes this is part of localRuleTruth. -/
+theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
+    (~χ.unload) ≡ dis (B.map (Con ∘ pairUnload)) :=
+  by
+  intro W M w
+  have := oneSidedLocalRuleTruth (lr.unload) W M w
+  simp only [Con, evaluate, disconEval, List.mem_map] at this
+  simp only [evaluate, disEval, List.mem_map]
+  rw [this]
+  clear this
+  simp only [Prod.exists]
+  constructor
+  · rintro ⟨Y, ⟨a, ⟨b, ab_in_B, def_Y⟩⟩, w_Y⟩
+    use Con Y
+    simp_all only [conEval, implies_true, and_true]
+    use a, b, ab_in_B
+    rw [← def_Y]
+    simp
+  · rintro ⟨f, ⟨a, b, ab_in_B, def_f⟩, w_f⟩
+    subst def_f
+    simp at w_f
+    rw [conEval] at w_f
+    use pairUnload (a,b)
+    constructor
+    · use a, b
+    · exact w_f
+
+/-! ## Local Rules -/
+
+/-- A local rule is a `OneSidedLocalRule`, a left-right contradiction, or a `LoadRule`.
+Note that formulas can be in four places: left, right, loaded left, loaded right.
+
+We do *not* have neg/contradiction rules between loaded and unloaded formulas (i.e.
+between `({unload χ}, ∅, some (Sum.inl ~χ))` and `(∅, {unload χ}, some (Sum.inr ~χ))`)
+because in any such case we could also close the tableau before or without loading.
+
+The `YS_def` arguments in non-terminal rules enables deriving `DecidableEq` for `LocalRule`.
+-/
+inductive LocalRule : Sequent → List Sequent → Type
+  | oneSidedL {precond ress YS} (orule : OneSidedLocalRule precond ress)
+      (YS_def : YS = ress.map fun res => (res,∅,none)) : LocalRule (precond,∅,none) YS
+  | oneSidedR {precond ress YS} (orule : OneSidedLocalRule precond ress)
+      (YS_def : YS = ress.map fun res => (∅,res,none)) : LocalRule (∅,precond,none) YS
+  | LRnegL (ϕ : Formula) : LocalRule ([ϕ], [~ϕ], none) ∅ --  ϕ on left side, ~ϕ on the right
+  | LRnegR (ϕ : Formula) : LocalRule ([~ϕ], [ϕ], none) ∅ -- ~ϕ on left side,  ϕ on the right
+  | loadedL {ress YS} (χ : LoadFormula) (lrule : LoadRule (~'χ) ress)
+      (YS_def : YS = ress.map fun (X, o) => (X, ∅, o.map Sum.inl))
+      : LocalRule (∅, ∅, some (Sum.inl (~'χ))) YS
+  | loadedR {ress YS} (χ : LoadFormula) (lrule : LoadRule (~'χ) ress)
+      (YS_def : YS = ress.map fun (X, o) => (∅, X, o.map Sum.inr))
+      : LocalRule (∅, ∅, some (Sum.inr (~'χ))) YS
+  deriving Repr, DecidableEq
+
+@[simp]
+def applyLocalRule {Lcond Rcond Ocond ress} :
+  LocalRule (Lcond, Rcond, Ocond) ress → Sequent → List Sequent
+  | _, ⟨L, R, O⟩ => ress.map <|
+      fun (Lnew, Rnew, Onew) => ( L.diff Lcond ++ Lnew
+                                , R.diff Rcond ++ Rnew
+                                , Olf.change O Ocond Onew )
+
+/-- Helper originally written for Lemma 6.14 but currently unused. -/
+def principalFormulaForLocalRule : LocalRule X YS -> AnyFormula
+  | .oneSidedL orule _ =>
+      match orule with
+        | .bot      => Formula.bottom
+        | .con φ ψ =>  (φ ⋀ ψ)
+        | .not φ => φ
+        | .neg φ => ~~φ
+        | .nCo φ ψ => ~(Formula.and φ ψ)
+        | .dia α φ _ => ~⌈α⌉φ
+        | .box α φ _ => ⌈α⌉φ
+  | .oneSidedR orule _ =>
+      match orule with
+        | .bot      => Formula.bottom
+        | .con φ ψ => φ ⋀ ψ
+        | .not φ => φ
+        | .neg φ => ~~φ
+        | .nCo φ ψ => ~(Formula.and φ ψ)
+        | .dia α φ _  => ~⌈α⌉φ
+        | .box α φ _   => ⌈α⌉φ
+  | .LRnegL φ => φ
+  | .LRnegR φ => φ
+  | .loadedL φ _ _ => φ
+  | .loadedR φ _ _ => φ
+
+lemma oneSidedL_preserves_right {LRO : Sequent}
+    {Lcond : List Formula} (Lpreproof : Lcond ⊆ LRO.L)
+    {Lres : List (List Formula)} (orule : OneSidedLocalRule Lcond Lres)
+    {YS : List Sequent} (YS_def : YS = List.map (fun res => (res, ∅, none)) Lres)
+    : ∀ c ∈ applyLocalRule (LocalRule.oneSidedL orule YS_def) LRO, c.right = LRO.right := by
+  rcases LRO with ⟨L,R,O⟩
+  rintro ⟨L',R',O'⟩
+  subst YS_def
+  simp at *
+  grind
+
+lemma oneSidedR_preserves_left {LRO : Sequent}
+    {Rcond : List Formula} (Rpreproof : Rcond ⊆ LRO.R)
+    {Rres : List (List Formula)} (orule : OneSidedLocalRule Rcond Rres)
+    {YS : List Sequent} (YS_def : YS = List.map (fun res => (∅, res, none)) Rres)
+    : ∀ c ∈ applyLocalRule (LocalRule.oneSidedR orule YS_def) LRO, c.left = LRO.left := by
+  rcases LRO with ⟨L,R,O⟩
+  rintro ⟨L',R',O'⟩
+  subst YS_def
+  simp at *
+  grind
+
+open HasSat
+
+lemma oneSidedL_sat_down (LRO : Sequent)
+    {Lcond : List Formula} (Lpreproof : Lcond ⊆ LRO.L)
+    {Lres : List (List Formula)} (orule : OneSidedLocalRule Lcond Lres)
+    {YS : List Sequent} (YS_def : YS = List.map (fun res => (res, ∅, none)) Lres)
+    {X : List Formula} (LX_sat : satisfiable (Sequent.left LRO ∪ X))
+    : ∃ c ∈ applyLocalRule (LocalRule.oneSidedL orule YS_def) LRO, satisfiable (c.left ∪ X) := by
+  rcases LRO with ⟨L,R,O⟩
+  subst YS_def
+  rcases LX_sat with ⟨W, M, w, satM⟩
+  have : evaluate M w (Con Lcond) := by simp [conEval]; aesop
+  have := (oneSidedLocalRuleTruth orule W M w).1 this
+  rw [disconEval] at this
+  rcases this with ⟨L', L'_in, w_L'⟩
+  simp [applyLocalRule]
+  refine ⟨L', L'_in, W, M, w, fun φ φ_in => ?_⟩
+  specialize @satM φ
+  have := List.diff_subset L Lcond
+  rcases φ_in with (φ_in_LnoCond | φ_in_L') | φ_in_O <;> aesop
+
+lemma oneSidedR_sat_down (LRO : Sequent)
+    {Rcond : List Formula} (Rpreproof : Rcond ⊆ LRO.R)
+    {Rres : List (List Formula)} (orule : OneSidedLocalRule Rcond Rres)
+    {YS : List Sequent} (YS_def : YS = List.map (fun res => (∅, res, none)) Rres)
+    {X : List Formula} (RX_sat : satisfiable (Sequent.right LRO ∪ X))
+    : ∃ c ∈ applyLocalRule (LocalRule.oneSidedR orule YS_def) LRO, satisfiable (c.right ∪ X) := by
+  rcases LRO with ⟨L,R,O⟩
+  subst YS_def
+  rcases RX_sat with ⟨W, M, w, satM⟩
+  have : evaluate M w (Con Rcond) := by simp [conEval]; aesop
+  have := (oneSidedLocalRuleTruth orule W M w).1 this
+  rw [disconEval] at this
+  rcases this with ⟨L', L'_in, w_L'⟩
+  simp [applyLocalRule]
+  refine ⟨L', L'_in, W, M, w, fun φ φ_in => ?_⟩
+  specialize @satM φ
+  have := List.diff_subset R Rcond
+  rcases φ_in with (φ_in_LnoCond | φ_in_L') | φ_in_O <;> aesop
+
+-- Following four lemmas are almost the same, but then for the loaded diamond rules.
+
+/-- Applying a `LoadRule` on the left will leave the right unchanged. -/
+lemma loadedL_preserves_right {LRO : Sequent}
+    (χ : LoadFormula) (Opreproof : LRO.O = some (Sum.inl (~'χ)))
+    {ress} (lrule : LoadRule (~'χ) ress)
+    {YS : List Sequent} (YS_def : YS = ress.map fun (X, o) => (X, ∅, o.map Sum.inl))
+    : ∀ c ∈ applyLocalRule (LocalRule.loadedL χ lrule YS_def) LRO, c.right = LRO.right := by
+  rcases LRO with ⟨L,R,O⟩
+  cases Opreproof
+  rintro ⟨L',R',O'⟩
+  subst YS_def
+  simp at *
+  rintro _ olnlf _in_ress ⟨⟩
+  rcases olnlf with _|⟨_⟩ <;> simp
+
+/-- Applying a `LoadRule` on the right will leave the left unchanged. -/
+lemma loadedR_preserves_left {LRO : Sequent}
+    (χ : LoadFormula) (Opreproof : LRO.O = some (Sum.inr (~'χ)))
+    {ress} (lrule : LoadRule (~'χ) ress)
+    {YS : List Sequent} (YS_def : YS = ress.map fun (X, o) => (∅, X, o.map Sum.inr))
+    : ∀ c ∈ applyLocalRule (LocalRule.loadedR χ lrule YS_def) LRO, c.left = LRO.left := by
+  rcases LRO with ⟨L,R,O⟩
+  cases Opreproof
+  rintro ⟨L',R',O'⟩
+  subst YS_def
+  simp at *
+  rintro _ olnlf _in_ress ⟨⟩
+  rcases olnlf with _|⟨_⟩ <;> simp
+
+/-- Applying a `LoadRule` on the left preserves satisfiability of the left,
+even together with any other list of formulas as context. -/
+lemma loadedL_sat_down (LRO : Sequent)
+    (χ : LoadFormula) (Opreproof : LRO.O = some (Sum.inl (~'χ)))
+    {ress} (lrule : LoadRule (~'χ) ress)
+    {YS : List Sequent} (YS_def : YS = ress.map fun (X, o) => (X, ∅, o.map Sum.inl))
+    {X : List Formula} (LX_sat : satisfiable (Sequent.left LRO ∪ X))
+    : ∃ c ∈ applyLocalRule (LocalRule.loadedL χ lrule YS_def) LRO, satisfiable (c.left ∪ X) := by
+  rcases LRO with ⟨L,R,O⟩
+  cases Opreproof
+  subst YS_def
+  rcases LX_sat with ⟨W, M, w, satM⟩
+  have w_nχ : evaluate M w (~χ.unload) := by apply satM; simp [Olf.L]
+  have := (loadRuleTruth lrule W M w).1 w_nχ; clear w_nχ
+  simp only [disEval, List.mem_map, Function.comp_apply, Prod.exists] at this
+  rcases this with ⟨φ, ⟨ψs, φ0, _in_ress, def_φ⟩ , w_φ⟩
+  use (L ++ ψs, R, φ0.map Sum.inl)
+  subst def_φ
+  simp
+  constructor
+  · use ψs, φ0, _in_ress
+  · use W, M, w
+    intro φ φ_in
+    specialize @satM φ
+    rcases φ_in with (φ_in_L | φ_in_ψs | φ_in_OL) | φ_in_X
+    · aesop
+    · simp [conEval, pairUnload] at w_φ; aesop
+    · simp [Olf.L] at φ_in_OL
+      cases φ0 <;> simp [conEval, pairUnload] at *
+      subst φ_in_OL
+      apply w_φ
+      simp
+    · aesop
+
+/-- Applying a `LoadRule` on the right preserves satisfiability of the right,
+even together with any other list of formulas as context. -/
+lemma loadedR_sat_down (LRO : Sequent)
+    (χ : LoadFormula) (Opreproof : LRO.O = some (Sum.inr (~'χ)))
+    {ress} (lrule : LoadRule (~'χ) ress)
+    {YS : List Sequent} (YS_def : YS = ress.map fun (X, o) => (∅, X, o.map Sum.inr))
+    {X : List Formula} (RX_sat : satisfiable (Sequent.right LRO ∪ X))
+    : ∃ c ∈ applyLocalRule (LocalRule.loadedR χ lrule YS_def) LRO, satisfiable (c.right ∪ X) := by
+  rcases LRO with ⟨L,R,O⟩
+  cases Opreproof
+  subst YS_def
+  rcases RX_sat with ⟨W, M, w, satM⟩
+  have w_nχ : evaluate M w (~χ.unload) := by apply satM; simp [Olf.R]
+  have := (loadRuleTruth lrule W M w).1 w_nχ; clear w_nχ
+  simp only [disEval, List.mem_map, Function.comp_apply, Prod.exists, ↓existsAndEq,
+    and_true] at this
+  rcases this with ⟨ψs, φ0, _in_ress, w_φ⟩
+  simp only [applyLocalRule, List.empty_eq, List.diff_nil, Olf.change_some_some_eq, List.map_map,
+    List.mem_map, Function.comp_apply, List.append_nil, Prod.exists, listHasSat, List.mem_union_iff,
+    ↓existsAndEq, and_true, Sequent.right_eq, List.append_assoc, List.mem_append]
+  use ψs, φ0, _in_ress
+  use W, M, w
+  intro φ φ_in
+  specialize @satM φ
+  rcases φ_in with (φ_in_L | φ_in_ψs | φ_in_OL) | φ_in_X
+  · aesop
+  · simp [conEval, pairUnload] at w_φ; aesop
+  · simp only [Olf.R] at φ_in_OL
+    cases φ0 <;> simp [conEval, pairUnload] at *
+    subst φ_in_OL
+    apply w_φ
+    simp
+  · aesop
+
+/-! ## Local Rule Applications -/
+
+/-- A local rule application going from `⟨L,R,O⟩` to `C` consists of a
+local rule `lr` replacing `⟨Lcond, Rcond, Ocond⟩` by `ress` and
+proofs that `⟨Lcond, Rcond, Ocond⟩` is a subsequent of `⟨L,R,O⟩`
+and that `C` are the results of applying `lr` to `⟨L,R,O⟩`. -/
+structure LocalRuleApp where
+    L : List Formula := by grind
+    R : List Formula := by grind
+    O : Olf := by grind
+    Lcond : List Formula := []
+    Rcond : List Formula := []
+    Ocond : Olf := none
+    ress : List Sequent := by grind
+    lr : LocalRule (Lcond, Rcond, Ocond) ress
+    C : List Sequent := applyLocalRule lr (L,R,O)
+    hC : C = applyLocalRule lr (L,R,O) := by rfl
+    preconditionProof : List.Subperm Lcond L ∧ List.Subperm Rcond R ∧ Ocond ⊆ O
+  deriving DecidableEq
+
+@[simp]
+abbrev LocalRuleApp.X (lra : LocalRuleApp) : Sequent := ⟨lra.L, lra.R, lra.O⟩
+
+/-- Any local rule application is sound and invertible. -/
+theorem localRuleTruth
+    (lra : LocalRuleApp) {W} (M : KripkeModel W) (w : W)
+  : (M,w) ⊨ lra.X ↔ ∃ Ci ∈ lra.C, (M,w) ⊨ Ci
+  := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, preconditionProof⟩
+  simp at *
+  cases rule
+  case oneSidedL ress orule ress_def =>
+    subst ress_def
+    have osTruth := oneSidedLocalRuleTruth orule W M w
+    subst hC
+    simp [applyLocalRule] at *
+    constructor
+    · intro w_LRO
+      have : evaluate M w (discon ress) := by
+        rw [← osTruth, conEval]
+        intro f f_in; apply w_LRO
+        simp only [List.mem_union_iff]
+        exact Or.inl <| Or.inl <| List.Subperm.subset preconditionProof f_in
+      rw [disconEval] at this
+      rcases this with ⟨Y, Y_in, claim⟩
+      use Y
+      constructor
+      · exact Y_in
+      · intro f f_in
+        simp only [List.mem_union_iff, List.mem_append] at f_in
+        rcases f_in with (((f_in_L | f_in_Y) | f_in_R) | f_in_O)
+        · apply w_LRO f; simp only [List.mem_union_iff]
+          exact Or.inl <| Or.inl <| List.diff_subset L Lcond f_in_L
+        · exact claim f f_in_Y
+        · apply w_LRO f; simp only [List.mem_union_iff]
+          tauto
+        · apply w_LRO f; simp only [List.mem_union_iff]
+          exact Or.inr f_in_O
+    · rintro ⟨Y, Y_in, w_LYRO⟩
+      intro f f_in
+      simp only [List.mem_union_iff] at f_in
+      rcases f_in with ((f_in_L | f_in_R) | f_in_O)
+      · rcases em (f ∈ Lcond) with f_in_cond | f_notin_cond
+        · have : ∀ f ∈ Lcond, evaluate M w f := by
+            rw [← conEval, osTruth, disconEval]
+            use Y
+            constructor
+            · exact Y_in
+            · intro f f_in; apply w_LYRO; simp_all
+          exact this f f_in_cond
+        · apply w_LYRO
+          simp only [List.mem_union_iff, List.mem_append]
+          exact Or.inl <| Or.inl <| Or.inl <| List.mem_diff_of_mem f_in_L f_notin_cond
+      · apply w_LYRO; simp_all
+      · apply w_LYRO; simp_all
+  case oneSidedR ress orule ress_def =>
+    subst ress_def
+    -- based on oneSidedL case
+    have osTruth := oneSidedLocalRuleTruth orule W M w
+    subst hC
+    simp [applyLocalRule] at *
+    constructor
+    · intro w_LRO
+      have : evaluate M w (discon ress) := by
+        rw [← osTruth, conEval]
+        intro f f_in; apply w_LRO
+        simp only [List.mem_union_iff]
+        exact Or.inl <| Or.inr <| List.Subperm.subset preconditionProof f_in
+      rw [disconEval] at this
+      rcases this with ⟨Y, Y_in, claim⟩
+      use Y
+      constructor
+      · exact Y_in
+      · intro f f_in
+        simp only [List.mem_union_iff, List.mem_append] at f_in
+        rcases f_in with ((f_in_L | (f_in_R | f_in_Y)) | f_in_O)
+        · apply w_LRO f; simp only [List.mem_union_iff]
+          exact Or.inl <| Or.inl f_in_L
+        · apply w_LRO f; simp only [List.mem_union_iff]
+          exact Or.inl <| Or.inr <| List.diff_subset R Rcond f_in_R
+        · exact claim f f_in_Y
+        · apply w_LRO f; simp only [List.mem_union_iff]
+          exact Or.inr f_in_O
+    · rintro ⟨Y, Y_in, w_LYRO⟩
+      intro f f_in
+      simp only [List.mem_union_iff] at f_in
+      rcases f_in with ((f_in_L | f_in_R) | f_in_O)
+      · apply w_LYRO; simp_all
+      · rcases em (f ∈ Rcond) with f_in_cond | f_notin_cond
+        · have : ∀ f ∈ Rcond, evaluate M w f := by
+            rw [← conEval, osTruth, disconEval]
+            use Y
+            constructor
+            · exact Y_in
+            · intro f f_in; apply w_LYRO; simp_all
+          exact this f f_in_cond
+        · apply w_LYRO
+          simp only [List.mem_union_iff, List.mem_append]
+          exact Or.inl <| Or.inr <| Or.inl <| List.mem_diff_of_mem f_in_R f_notin_cond
+      · apply w_LYRO; simp_all
+  case LRnegL φ =>
+    subst hC
+    simp [applyLocalRule] at *
+    intro hyp
+    have := hyp φ
+    have := hyp (~φ)
+    aesop
+  case LRnegR φ =>
+    subst hC
+    simp [applyLocalRule] at *
+    intro hyp
+    have := hyp φ
+    have := hyp (~φ)
+    aesop
+  case loadedL ress χ lrule ress_def =>
+    subst ress_def
+    have := loadRuleTruth lrule W M w
+    rw [disEval] at this
+    subst hC
+    simp at preconditionProof
+    subst preconditionProof
+    simp at *
+    constructor
+    · intro hyp
+      have hyp' := hyp (~χ.unload)
+      simp only [Option.map_some, Sum.elim_inl, negUnload, Option.toList_some, List.mem_union_iff,
+        List.mem_cons, List.not_mem_nil, or_false, or_true, evaluate, forall_const] at hyp'
+      rw [this] at hyp'
+      rcases hyp' with ⟨X , O, in_ress, w_f⟩
+      cases O
+      · use X, none
+        simp_all only [Option.map_none, true_and]
+        intro g; rw [conEval] at w_f; specialize hyp g; aesop
+      case some val =>
+        use X, some val, in_ress
+        intro g g_in
+        simp_all [pairUnload, negUnload, conEval]
+        have := w_f (~val.1.unload)
+        aesop
+    · rintro ⟨X, O, ⟨in_ress, w_Ci⟩⟩
+      intro f f_in
+      cases O <;> simp at *
+      · cases f_in
+        · aesop
+        subst_eqs
+        simp only [evaluate]
+        rw [this]
+        use X, none
+        simp_all only [pairUnload, negUnload, conEval, true_and]
+        intro f f_in
+        apply w_Ci
+        simp_all
+      case some val =>
+        rcases f_in with (f_in|f_in)|f_in
+        · apply w_Ci; simp_all
+        · apply w_Ci; simp_all
+        · subst f_in
+          simp only [evaluate]
+          rw [this]
+          use X, some val, in_ress
+          simp only [pairUnload, negUnload, conEval, List.mem_union_iff, List.mem_singleton]
+          intro g g_in
+          rcases g_in with (_|g_def)
+          · apply w_Ci; simp_all
+          · subst g_def; apply w_Ci; simp_all
+  case loadedR ress χ lrule ress_def =>
+    subst ress_def
+    -- based on loadedL case
+    have := loadRuleTruth lrule W M w
+    rw [disEval] at this
+    subst hC
+    simp at preconditionProof
+    subst preconditionProof
+    simp at *
+    constructor
+    · intro hyp
+      have hyp' := hyp (~χ.unload)
+      simp only [Option.map_some, Sum.elim_inr, negUnload, Option.toList_some, List.mem_union_iff,
+        List.mem_cons, List.not_mem_nil, or_false, or_true, evaluate, forall_const] at hyp'
+      rw [this] at hyp'
+      rcases hyp' with ⟨X , O, in_ress, w_f⟩
+      cases O
+      · use X, none
+        simp_all only [Option.map_none, true_and]
+        intro g; rw [conEval] at w_f; specialize hyp g; aesop
+      case some val =>
+        use X, some val, in_ress
+        intro g g_in
+        simp_all [pairUnload, negUnload, conEval]
+        have := w_f (~val.1.unload)
+        aesop
+    · rintro ⟨X, O, ⟨in_ress, w_Ci⟩⟩
+      intro f f_in
+      cases O <;> simp at *
+      · cases f_in
+        · aesop
+        subst_eqs
+        simp only [evaluate]
+        rw [this]
+        use X, none
+        simp_all only [pairUnload, negUnload, conEval, true_and]
+        intro f f_in
+        apply w_Ci
+        simp_all
+      case some val =>
+        rcases f_in with (f_in|f_in)|f_in
+        · apply w_Ci; simp_all
+        · apply w_Ci; simp_all
+        · subst f_in
+          simp only [evaluate]
+          rw [this]
+          use X, some val, in_ress
+          simp only [pairUnload, negUnload, conEval, List.mem_union_iff, List.mem_singleton]
+          intro g g_in
+          rcases g_in with (_|g_def)
+          · apply w_Ci; simp_all
+          · subst g_def; apply w_Ci; simp_all
+
+/-- If we can apply a local rule to a sequent then it cannot be basic. -/
+lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, preconditionProof⟩
+  unfold Sequent.basic
+  simp only
+  rw [and_iff_not_or_not]
+  simp only [not_not]
+  cases rule
+  case oneSidedL ress orule ress_def =>
+    subst_eqs
+    cases orule
+    case bot => right; simp_all [Sequent.closed]
+    case not φ =>
+      right; simp_all [Sequent.closed]; right
+      have := preconditionProof.subset
+      refine ⟨φ, Or.inl ?_, Or.inl ?_⟩ <;> tauto
+    case neg φ =>
+      left; push_neg; simp_all
+      refine ⟨~~φ, Or.inl (by simp_all), by simp⟩
+    case con φ1 φ2 =>
+      left; push_neg; simp_all
+      refine ⟨φ1 ⋀ φ2, Or.inl (by simp_all), by simp⟩
+    case nCo φ1 φ2 =>
+      left; push_neg; simp_all
+      refine ⟨~(φ1 ⋀ φ2), Or.inl (by simp_all), by simp⟩
+    case box α φ α_nonAtom =>
+      left; push_neg; simp_all
+      refine ⟨⌈α⌉φ, Or.inl (by simp_all), ?_⟩
+      cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
+    case dia α φ α_nonAtom =>
+      left; push_neg; simp_all
+      refine ⟨~⌈α⌉φ, Or.inl ?_, ?_⟩
+      · exact preconditionProof
+      · cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
+  case oneSidedR ress orule ress_def => -- analogous to oneSidedL
+    cases orule
+    case bot => right; simp_all [Sequent.closed]
+    case not φ =>
+      right; simp_all [Sequent.closed]; right
+      have := preconditionProof.subset
+      refine ⟨φ, Or.inr ?_, Or.inr ?_⟩ <;> tauto
+    case neg φ =>
+      left; push_neg; simp_all
+      refine ⟨~~φ, Or.inr (by simp_all), by simp⟩
+    case con φ1 φ2 =>
+      left; push_neg; simp_all
+      refine ⟨φ1 ⋀ φ2, Or.inr (by simp_all), by simp⟩
+    case nCo φ1 φ2 =>
+      left; push_neg; simp_all
+      refine ⟨~(φ1 ⋀ φ2), Or.inr (by simp_all), by simp⟩
+    case box α φ α_nonAtom =>
+      left; push_neg; simp_all
+      refine ⟨⌈α⌉φ, Or.inr (by simp_all), ?_⟩
+      cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
+    case dia α φ α_nonAtom =>
+      left; push_neg; simp_all
+      refine ⟨~⌈α⌉φ, Or.inr (Or.inl ?_), ?_⟩
+      · exact preconditionProof
+      · cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
+  case LRnegL =>
+    right
+    simp [Sequent.closed]
+    aesop
+  case LRnegR =>
+    right
+    simp [Sequent.closed]
+    aesop
+  case loadedL ress χ lrule ress_def =>
+    left
+    push_neg
+    cases lrule
+    case dia α χ α_nonAtom =>
+      rcases O with _|⟨⟨α',χ'⟩|⟨α',χ'⟩⟩
+      · simp_all
+      · simp_all
+        refine ⟨~(~'⌊α'⌋χ').1.unload, by aesop, ?_⟩
+        · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
+          subst h1 h2
+          cases α <;> simp_all
+          simp [Program.isAtomic] at α_nonAtom
+      · refine ⟨~(~'⌊α'⌋χ').1.unload, by aesop, ?_⟩
+        · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
+          subst h1 h2
+          cases α <;> simp_all
+    case dia' α φ α_nonAtom =>
+      rcases O with _|⟨⟨α',φ'⟩|⟨α',φ'⟩⟩
+      · simp_all
+      · refine ⟨~(~'⌊α'⌋φ').1.unload, by aesop, ?_⟩
+        · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
+          subst h1 h2
+          cases α <;> simp_all
+          simp [Program.isAtomic] at α_nonAtom
+      · refine ⟨~(~'⌊α'⌋φ').1.unload, by aesop, ?_⟩
+        · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
+          subst h1 h2
+          cases α <;> simp_all
+  case loadedR ress χ lrule ress_def => -- analogous to loadedL
+    left
+    push_neg
+    cases lrule
+    case dia α χ α_nonAtom =>
+      rcases O with _|⟨⟨α',χ'⟩|⟨α',χ'⟩⟩
+      · simp_all
+      · refine ⟨~(~'⌊α'⌋χ').1.unload, by aesop, ?_⟩
+        · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
+          subst h1 h2
+          cases α <;> simp_all
+      · refine ⟨~(~'⌊α'⌋χ').1.unload, by aesop, ?_⟩
+        · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
+          subst h1 h2
+          cases α <;> simp_all
+          simp [Program.isAtomic] at α_nonAtom
+    case dia' α φ α_nonAtom =>
+      rcases O with _|⟨⟨α',φ'⟩|⟨α',φ'⟩⟩
+      · simp_all
+      · refine ⟨~(~'⌊α'⌋φ').1.unload, by aesop, ?_⟩
+        · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
+          subst h1 h2
+          cases α <;> simp_all
+      · refine ⟨~(~'⌊α'⌋φ').1.unload, by aesop, ?_⟩
+        · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
+          subst h1 h2
+          cases α <;> simp_all
+          simp [Program.isAtomic] at α_nonAtom
+
+/-- For a given non-basic formula in the left list `L`,
+construct a `LocalRuleApp` using an appropriate `OneSidedLocalRule`. -/
+def localRuleApp_of_nonbasic_in_L (L R : List Formula) (O : Olf) (f : Formula)
+    (f_in : f ∈ L) (f_nonBas : f.basic = false)
+    : { lra : LocalRuleApp // lra.X = (L, R, O) } :=
+match f with
+  | .bottom => ⟨{ L, R, O, Lcond := [⊥], ress := []
+                  lr := .oneSidedL .bot rfl
+                  preconditionProof :=
+                    ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
+  | ·n => by simp [Formula.basic] at f_nonBas
+  | .neg f' => match f' with
+    | .bottom => by simp [Formula.basic] at f_nonBas
+    | .atom_prop n => by simp [Formula.basic] at f_nonBas
+    | .neg φ => ⟨{L, R, O, Lcond := [~~φ], ress := [([φ], [], none)]
+                  lr := .oneSidedL (.neg φ) rfl
+                  preconditionProof :=
+                    ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
+    | .and φ ψ => ⟨{L, R, O, Lcond := [~(φ⋀ψ)]
+                    ress := [([~φ], [], none), ([~ψ], [], none)]
+                    lr := .oneSidedL (.nCo φ ψ) rfl
+                    preconditionProof :=
+                      ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
+    | .box α φ =>
+        have hna : ¬ α.isAtomic := by cases α <;> simp_all [Formula.basic, Program.isAtomic]
+        ⟨{L, R, O, Lcond := [~⌈α⌉φ]
+          ress := (unfoldDiamond α φ).map (fun res => (res, [], none))
+          lr := .oneSidedL (.dia α φ hna) rfl
+          preconditionProof :=
+            ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
+  | .and φ ψ => ⟨{L, R, O, Lcond := [φ⋀ψ], ress := [([φ,ψ], [], none)]
+                  lr := .oneSidedL (.con φ ψ) rfl
+                  preconditionProof :=
+                    ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
+  | .box α φ =>
+      have hna : ¬ α.isAtomic := by cases α <;> simp_all [Formula.basic, Program.isAtomic]
+      ⟨{L, R, O, Lcond := [⌈α⌉φ]
+        ress := (unfoldBox α φ).map (fun res => (res, [], none))
+        lr := .oneSidedL (.box α φ hna) rfl
+        preconditionProof :=
+          ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
+
+/-- For a given non-basic formula in the right list `R`,
+construct a `LocalRuleApp` using an appropriate `OneSidedLocalRule`. -/
+def localRuleApp_of_nonbasic_in_R (L R : List Formula) (O : Olf) (f : Formula)
+    (f_in : f ∈ R) (f_nonBas : f.basic = false)
+    : { lra : LocalRuleApp // lra.X = (L, R, O) } :=
+  match f with
+  | .bottom => ⟨{ L, R, O, Rcond := [⊥], ress := []
+                  lr := .oneSidedR .bot rfl
+                  preconditionProof :=
+                    ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
+  | .atom_prop n => by simp [Formula.basic] at f_nonBas
+  | .neg f' => match f' with
+    | .bottom => by simp [Formula.basic] at f_nonBas
+    | .atom_prop n => by simp [Formula.basic] at f_nonBas
+    | .neg φ =>
+            ⟨{L, R, O, Rcond := [~~φ], ress := [([], [φ], none)]
+              lr := .oneSidedR (.neg φ) rfl
+              preconditionProof :=
+                ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
+    | .and φ ψ =>
+            ⟨{L, R, O, Rcond := [~(φ⋀ψ)]
+              ress := [([], [~φ], none), ([], [~ψ], none)]
+              lr := .oneSidedR (.nCo φ ψ) rfl
+              preconditionProof :=
+                ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
+    | .box α φ =>
+          have hna : ¬ α.isAtomic := by
+            cases α <;> simp_all [Formula.basic, Program.isAtomic]
+          ⟨{L, R, O, Rcond := [~⌈α⌉φ]
+            ress := (unfoldDiamond α φ).map (fun res => ([], res, none))
+            lr := .oneSidedR (.dia α φ hna) rfl
+            preconditionProof :=
+              ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
+  | .and φ ψ => ⟨{L, R, O, Rcond := [φ⋀ψ], ress := [([], [φ,ψ], none)]
+                  lr := .oneSidedR (.con φ ψ) rfl
+                  preconditionProof :=
+                    ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
+  | .box α φ =>
+    have hna : ¬ α.isAtomic := by cases α <;> simp_all [Formula.basic, Program.isAtomic]
+    ⟨{L, R, O, Rcond := [⌈α⌉φ]
+      ress := (unfoldBox α φ).map (fun res => ([], res, none))
+      lr := .oneSidedR (.box α φ hna) rfl
+      preconditionProof :=
+        ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
+
+/-- A sequent is basic iff no local rule can be applied.
+Note that in the paper (L+) and (L-) are also local rules and had to be excluded
+here, but here in the Lean formalization they are `PdlRule`s anyway. -/
+lemma basic_iff_noLocalRuleApp {Y : Sequent} :
+    Y.basic ↔ ¬ ∃ (lra : LocalRuleApp),lra.X = Y := by
+  constructor
+  · have := nonbasic_of_localRuleApp
+    grind
+  · intro no_lra
+    by_contra Y_nonbas
+    unfold Sequent.basic at Y_nonbas
+    have not_closed : ¬ Sequent.closed Y := by
+      clear Y_nonbas
+      intro Y_closed
+      absurd no_lra
+      rcases Y_closed with bot_in_Y | f_not_f_in_Y
+      · rcases Y with ⟨L,R,O⟩
+        simp at *
+        cases bot_in_Y
+        · exact ⟨⟨L,R,O, [⊥],[],none, [], .oneSidedL .bot rfl, [], rfl, by simp_all⟩, by simp⟩
+        · exact ⟨⟨L,R,O, [],[⊥],none, [], .oneSidedR .bot rfl, [], rfl, by simp_all⟩, by simp⟩
+      · rcases f_not_f_in_Y with ⟨φ, φ_in, not_φ_in⟩
+        rcases Y with ⟨L,R,O⟩
+        simp at *
+        cases φ_in <;> cases not_φ_in
+        · refine ⟨⟨L,R,O, [φ, ~φ], [], none, [], .oneSidedL (.not _) rfl, [], rfl, ?_⟩, by simp⟩
+          exact ⟨ List.cons_subperm_of_not_mem_of_mem
+                  (by simp [φ.neq_neg_self]) ‹_›
+                  (by rw [List.singleton_subperm_iff]; exact ‹_›),
+                  List.nil_subperm, by simp ⟩
+        · exact ⟨⟨L,R,O, [φ], [~φ], none, [], LocalRule.LRnegL φ, [], rfl, by simp_all⟩, by simp⟩
+        · exact ⟨⟨L,R,O, [~φ], [φ], none, [], LocalRule.LRnegR φ, [], rfl, by simp_all⟩, by simp⟩
+        · refine ⟨⟨L,R,O, [], [φ, ~φ], none, [], .oneSidedR (.not _) rfl, [], rfl, ?_⟩, by simp⟩
+          exact ⟨ List.nil_subperm,
+                  List.cons_subperm_of_not_mem_of_mem
+                  (by simp; exact φ.neq_neg_self) ‹_›
+                  (by rw [List.singleton_subperm_iff]; exact ‹_›),
+                  by simp ⟩
+    rcases Y with ⟨L,R,O⟩
+    simp_all
+    clear not_closed
+    absurd no_lra
+    push_neg
+    -- Y_nonbas: ∃ formula in L ∪ R ∪ O that's not basic
+    rcases Y_nonbas with ⟨f, f_where, f_nonBas⟩
+    rcases f_where with f_in_L | f_in_R | ⟨a, rfl, rfl⟩ | ⟨b, rfl, rfl⟩
+    · exact Subtype.exists_of_subtype <| localRuleApp_of_nonbasic_in_L L R O f f_in_L f_nonBas
+    · exact Subtype.exists_of_subtype <| localRuleApp_of_nonbasic_in_R L R O f f_in_R f_nonBas
+    · -- O = some (Sum.inl a), formula is ~a.1.unload, not basic
+      -- a : NegLoadFormula, a = ~'χ where χ : LoadFormula = ⌊α⌋af
+      rcases a with ⟨⟨α, af⟩⟩
+      cases af with
+      | normal φ =>
+        -- formula is ~⌈α⌉φ, not basic means α is not atomic
+        have hna : ¬ α.isAtomic := by
+          cases α <;> simp_all [LoadFormula.unload, Program.isAtomic]
+        exact ⟨{ L, R, O := some (Sum.inl (~'⌊α⌋(AnyFormula.normal φ)))
+                 Ocond := some (Sum.inl (~'⌊α⌋(AnyFormula.normal φ)))
+                 ress := (unfoldDiamondLoaded' α φ).map
+                   (fun (X, o) => (X, [], o.map Sum.inl))
+                 lr := .loadedL _ (.dia' hna) rfl
+                 preconditionProof := ⟨List.nil_subperm, List.nil_subperm, by simp⟩ }, rfl⟩
+      | loaded χ =>
+        have hna : ¬ α.isAtomic := by
+          cases α <;> simp_all [LoadFormula.unload, Program.isAtomic]
+        exact ⟨{ L, R, O := some (Sum.inl (~'⌊α⌋(AnyFormula.loaded χ)))
+                 Ocond := some (Sum.inl (~'⌊α⌋(AnyFormula.loaded χ)))
+                 ress := (unfoldDiamondLoaded α χ).map
+                   (fun (X, o) => (X, [], o.map Sum.inl))
+                 lr := .loadedL _ (.dia hna) rfl
+                 preconditionProof := ⟨List.nil_subperm, List.nil_subperm, by simp⟩ }, rfl⟩
+    · -- O = some (Sum.inr b), symmetric to inl case
+      rcases b with ⟨⟨α, af⟩⟩
+      cases af with
+      | normal φ =>
+        have hna : ¬ α.isAtomic := by cases α <;> simp_all [LoadFormula.unload, Program.isAtomic]
+        exact ⟨{ L, R, O := some (Sum.inr (~'⌊α⌋(AnyFormula.normal φ)))
+                 Ocond := some (Sum.inr (~'⌊α⌋(AnyFormula.normal φ)))
+                 ress := (unfoldDiamondLoaded' α φ).map
+                   (fun (X, o) => ([], X, o.map Sum.inr))
+                 lr := .loadedR _ (.dia' hna) rfl
+                 preconditionProof := ⟨List.nil_subperm, List.nil_subperm, by simp⟩ }, rfl⟩
+      | loaded χ =>
+        have hna : ¬ α.isAtomic := by cases α <;> simp_all [LoadFormula.unload, Program.isAtomic]
+        exact ⟨{ L, R, O := some (Sum.inr (~'⌊α⌋(AnyFormula.loaded χ)))
+                 Ocond := some (Sum.inr (~'⌊α⌋(AnyFormula.loaded χ)))
+                 ress := (unfoldDiamondLoaded α χ).map
+                   (fun (X, o) => ([], X, o.map Sum.inr))
+                 lr := .loadedR _ (.dia hna) rfl
+                 preconditionProof := ⟨List.nil_subperm, List.nil_subperm, by simp⟩ }, rfl⟩
+
