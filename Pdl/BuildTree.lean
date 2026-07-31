@@ -824,10 +824,53 @@ decreasing_by
   · subst_eqs
     apply @BuildTree.size_lt_pdl H X
 
+lemma Sequent.basic_to_locallyConsistent {X : Sequent} (bas : X.basic) :
+    locallyConsistent X.toFinset := by
+  refine ⟨fun bot_in => ?_, fun p p_in not_p_in => ?_⟩
+  all_goals
+    absurd bas.2
+    simp only [Prod.mk.eta]
+    unfold Sequent.closed
+    rcases X with ⟨L,R,O⟩
+  · left
+    simp_all [Sequent.toFinset]
+  · simp_all [Sequent.toFinset]
+    have := bas.2
+    unfold closed at this
+    simp_all
+    cases p_in
+    · sorry
+    · sorry
+
 -- IDEA: helper lemma "every pre-state is either a local tableau path or a singleton and basic" ??
 
-lemma PreState.forms_locallyConsistent {π : PreState bt} : locallyConsistent π.forms := by
-  sorry
+lemma PreState.forms_locallyConsistent {H X} {bt : BuildTree H X} {π : PreState bt} :
+    locallyConsistent π.forms := by
+  rcases π with ⟨π, π_in⟩
+  cases bt <;> simp [BuildTree.collect] at π_in <;> rename_i π_in_old
+  case loc nbas next =>
+    rcases π_in with ⟨lt, lt_in, π_in_lt|π_in_next⟩
+    · -- TODO: lemma LocalTableau.paths_locallyConsistent ??
+      sorry
+    · have IH := @PreState.forms_locallyConsistent _ _ _ ⟨π, π_in_next⟩
+      exact IH
+  case pdl bas someR next =>
+    rcases π_in with π_def|⟨Y, r, in_rule, π_in_next⟩
+    · subst π_def
+      simp_all only [forms, List.map_cons, List.map_nil, List.flatten_cons, List.flatten_nil,
+        List.append_nil, Sequent.bothSides_toFinset_eq_toFinset]
+      apply Sequent.basic_to_locallyConsistent bas
+    · have IH := @PreState.forms_locallyConsistent _ _ _ ⟨π, π_in_next⟩
+      exact IH
+  case openLeaf bas noRule =>
+    subst π_in
+    simp [forms]
+    apply Sequent.basic_to_locallyConsistent bas
+termination_by
+  bt.size
+decreasing_by
+  · subst_eqs; apply BuildTree.size_lt_loc
+  · subst_eqs; apply BuildTree.size_lt_pdl
 
 lemma PreState.forms_last_basic {bt : BuildTree H X} {π : PreState bt} :
     (π.val.getLast PreState.nonempty).basic := by
