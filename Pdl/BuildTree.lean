@@ -60,6 +60,23 @@ lemma FreeRepeat_nil_impossible : FreeRepeat [] X → False := by
   rintro ⟨n, n_h⟩
   grind
 
+/-- An open local tableau has at least one end node. -/
+def OpenLocalTableau (X : Sequent) : Type := {lt : LocalTableau X // endNodesOf lt ≠ []}
+deriving DecidableEq
+
+def OpenLocalTableau.all (X : Sequent) : List (OpenLocalTableau X) :=
+  ((LocalTableau.all X).filter (endNodesOf · ≠ [])).attach.map (fun ⟨lt,h⟩ => ⟨lt, by simp_all⟩)
+
+lemma OpenLocalTableau.all_spec {X : Sequent} {ltX : OpenLocalTableau X} :
+    ltX ∈ OpenLocalTableau.all X := by
+  rcases ltX with ⟨lt, lt_has_ends⟩
+  unfold all
+  simp_all only [ne_eq, List.mem_map, List.mem_attach, true_and, Subtype.exists, decide_not,
+    List.mem_filter, Bool.not_eq_eq_eq_not, Bool.not_true, decide_eq_false_iff_not]
+  use lt
+  have := lt.all_spec
+  grind
+
 mutual
 /-- Winning Strategy Tree for Builder.
 At each step, we consider
@@ -73,9 +90,9 @@ Instead of the .lpr constructor here we have .fpr because we only make a `RuleTr
 wins and thus we can never reach an lpr where Prover would win, but do allow free repeats.
 As in `Tableau` note that the history is stored in reverse. -/
 inductive BuildTree : History → Sequent → Type
-  /-- Prover chooses local tab, we pick one end node. -/
-  | loc {H X} (nbas : ¬ X.basic)
-            (next : (lt : LocalTableau X) → BuildChoice H X (endNodesOf lt))
+  /-- Prover chooses local tab, we pick an end node (which must exist as otherwise prover wins). -/
+  | loc {H X} (nbas : ¬ X.basic) (someLT : OpenLocalTableau.all X ≠ [])
+            (next : (lt : OpenLocalTableau X) → BuildChoice H X (endNodesOf lt.1))
             : BuildTree H X
   /-- Prover chooses PDL rule, never branches, so continue with unique child. -/
   | pdl {H X} (bas : X.basic) (someR : PdlRule.all X ≠ [])
@@ -98,7 +115,7 @@ end
 mutual
 /-- Manual replacement for `sizeOf (bt : BuildTree)` so we also count the `next` parts. -/
 def BuildTree.size : BuildTree H X → Nat
-  | .loc _ next => 1 + ((LocalTableau.all X).map (fun lt => (next lt).size)).sum
+  | .loc _ _ next => 1 + ((OpenLocalTableau.all X).map (fun lt => (next lt).size)).sum
   | .pdl _ _ next => 1 + ((PdlRule.all X).map (fun ⟨Y,r⟩ => (next Y r).size)).sum
   | .freeRepeat _ => 1
   | .openLeaf _ _ => 1
@@ -108,12 +125,13 @@ def BuildChoice.size : BuildChoice H X YS → Nat
 end
 
 lemma BuildTree.size_lt_loc (H : History) (X : Sequent) (nbas : ¬X.basic)
-    (next : (lt : LocalTableau X) → BuildChoice H X (endNodesOf lt)) (ltX : LocalTableau X) :
-    (next ltX).6.size < (BuildTree.loc nbas next).size := by
+    (next : (lt : OpenLocalTableau X) → BuildChoice H X (endNodesOf lt.1))
+    (ltX : OpenLocalTableau X) someLT :
+    (next ltX).6.size < (BuildTree.loc nbas someLT next).size := by
   simp [BuildTree.size]
-  have : (next ltX).6.size ∈ ((LocalTableau.all X).map (fun lt => (next lt).6.size)) := by
+  have : (next ltX).6.size ∈ ((OpenLocalTableau.all X).map (fun lt => (next lt).6.size)) := by
     simp only [List.mem_map]
-    use ltX, LocalTableau.all_spec
+    use ltX, OpenLocalTableau.all_spec
   have := List.le_sum_of_mem this
   have : ∀ lt, (next lt).size = (next lt).6.size := fun lt => by
     cases next lt; simp [BuildChoice.size]
@@ -204,14 +222,24 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
       have stillWin : ∀ newP, ∀ _ : Move ⟨_,_,Sum.inl (.nbas nrep nbas)⟩ newP, winning s newP :=
         fun newPos mov =>
           @winning_of_whatever_other_move _ _ s _ (by simp) h ⟨newPos, mem_theMoves_of_move ⟨mov⟩⟩
-      .loc nbas <| fun ltX => by
-        have ne : (tableauGame.moves ⟨H, ⟨X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩⟩).Nonempty :=
+      have someLT : OpenLocalTableau.all X ≠ [] := by
+        -- We show that there is no lt without end nodes because prover could use it to win.
+        rcases List.exists_mem_of_ne_nil _ (LocalTableau.all_nonempty X) with ⟨lt, lt_in⟩
+        apply List.ne_nil_of_mem (@OpenLocalTableau.all_spec X ⟨lt, ?_⟩)
+        intro lt_no_ends
+        have := stillWin ⟨H, ⟨X, Sum.inr (.ltab nrep nbas lt)⟩⟩ Move.prLocTab
+        have has_moves := winning_has_moves (by simp) this
+        simp only [tableauGame, Game.moves, theMoves, List.toFinset_nonempty_iff, ne_eq,
+          List.map_eq_nil_iff] at has_moves
+        exact has_moves lt_no_ends
+      .loc nbas someLT <| fun ltX => by
+        have ne : (tableauGame.moves ⟨H, ⟨X, Sum.inr (.ltab nrep nbas ltX.1)⟩⟩).Nonempty :=
           winning_has_moves (by simp) <|
-            stillWin ⟨H, ⟨X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩⟩ Move.prLocTab
+            stillWin ⟨H, ⟨X, Sum.inr (.ltab nrep nbas ltX.1)⟩⟩ Move.prLocTab
         -- IDEA: use strategy `s` to choose move `mY` that picks the `Y ∈ endNodeOf ltX`:
         -- We want to define mY and then do rcases, but keep the information how it was defined.
-        let mY_raw := s ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ (by simp) ne
-        have mY_def : mY_raw.1 = s ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ (by simp) ne := rfl
+        let mY_raw := s ⟨H, X, Sum.inr (.ltab nrep nbas ltX.1)⟩ (by simp) ne
+        have mY_def : mY_raw.1 = s ⟨H, X, Sum.inr (.ltab nrep nbas ltX.1)⟩ (by simp) ne := rfl
         rcases mY_raw with ⟨mY, mY_prop⟩
         simp at mY_def
         -- We continue the BuildTree with the chosen `Y`:
@@ -226,12 +254,12 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
           simp
           exact Y'_in
         · -- now still need to make a `Move` so we can recursively call `buildTree`.
-          have Mov : Move ⟨H, X, Sum.inr (.ltab nrep nbas ltX)⟩ mY := by
+          have Mov : Move ⟨H, X, Sum.inr (.ltab nrep nbas ltX.1)⟩ mY := by
             simp only [Game.Pos.moves, tableauGame, theMoves, List.mem_toFinset] at mY_prop
             simp [List.mem_map] at mY_prop
             let oY := List.find? -- No more choice thanks to this!
               (fun Y => @decide (⟨_, ⟨_, posOf (X :: H) Y⟩⟩ = mY) (instDecidableEqPos _ _))
-              (endNodesOf ltX)
+              (endNodesOf ltX.1)
             cases oY_def : oY
             · exfalso
               have := List.find?_eq_none.mp oY_def
@@ -241,7 +269,7 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
               have def_mY := List.find?_some oY_def
               simp only [decide_eq_true_eq] at def_mY
               have Y_in := List.mem_of_find?_eq_some oY_def
-              have := @Move.buEnd X ltX Y H nrep nbas Y_in
+              have := @Move.buEnd X ltX.1 Y H nrep nbas Y_in
               rw [← def_mY]
               exact this
           rcases mY with ⟨H', Y, newP⟩ -- Happy because this does not lose mY_def.
@@ -258,7 +286,7 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
                 unfold WellFoundedRelation.rel Game.wf tableauGame
                 simp
                 apply @Relation.TransGen.trans _ _ _
-                  ⟨H, ⟨X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩⟩
+                  ⟨H, ⟨X, Sum.inr (BuilderPos.ltab nrep nbas ltX.1)⟩⟩
                 · exact Relation.TransGen.single ⟨Mov⟩
                 · rw [p_def]; exact Relation.TransGen.single ⟨Move.prLocTab⟩
             refine H'_def ▸ @buildTree s H' Y myP ?_
@@ -267,7 +295,7 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
             -- Note that *two* moves have happened now, one by prover and one by Builder using `s`.
             -- Remains to show that `s` still wins.
             apply winning_of_winning_move
-            exact stillWin ⟨_, X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩ Move.prLocTab
+            exact stillWin ⟨_, X, Sum.inr (BuilderPos.ltab nrep nbas ltX.1)⟩ Move.prLocTab
           | .inr mY_BP =>
               exfalso -- fingers crossed ;-)
               subst H'_def
@@ -282,7 +310,7 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
                   simp [winning] at this
                 rw [mY_def]
                 apply @winning_of_winning_move _ _ s
-                exact stillWin ⟨_, X, Sum.inr (BuilderPos.ltab nrep nbas ltX)⟩ Move.prLocTab
+                exact stillWin ⟨_, X, Sum.inr (BuilderPos.ltab nrep nbas ltX.1)⟩ Move.prLocTab
               case ltab => -- impossible
                 clear mY_def mY_prop newP
                 have := mem_theMoves_of_move (⟨Mov⟩)
@@ -307,7 +335,7 @@ this could be called a "rollout", but note that it stays within the given Builde
 and it is not tracking all intermediate game positions. -/
 inductive Match : ∀ {H : History} {X : Sequent}, BuildTree H X → Type
   | nil {bt} : Match bt
-  | loc {nbas next lt} : Match (next lt).6 → Match (BuildTree.loc nbas next)
+  | loc {nbas someLT next lt} : Match (next lt).6 → Match (BuildTree.loc nbas someLT next)
   | pdl {bas someR next Y r} : Match (next Y r) → Match (BuildTree.pdl bas someR next)
 deriving DecidableEq
 
@@ -329,9 +357,9 @@ def Match.endSeq {bt : BuildTree H X} (m : Match bt) : Sequent := m.btAt.2.1
 
 /- All possible Matches in a given BuildTree. -/
 def Match.all {H X} : (bt : BuildTree H X) → List (Match bt)
-  | .loc nbas next =>
+  | .loc nbas someLT next =>
       Match.nil ::
-      (LocalTableau.all X >>= fun ltX => return Match.loc (← Match.all (next ltX).6))
+      (OpenLocalTableau.all X >>= fun ltX => return Match.loc (← Match.all (next ltX).6))
   | .pdl bas someRule next =>
       Match.nil ::
       (PdlRule.all X >>= fun ⟨Y,r⟩ => return Match.pdl (← (Match.all (next Y r))))
@@ -346,12 +374,12 @@ decreasing_by
 theorem Match.all_spec {H X} {bt : BuildTree H X} {m} :
     m ∈ Match.all bt := match m with
   | nil => by cases bt <;> grind [Match.all]
-  | @loc _ _ bas next lt tail => by
+  | @loc _ _ bas someLT next lt tail => by
     have IH:= @Match.all_spec _ _ _ tail
     rw[Match.all]
     simp
     refine ⟨lt,?_ ⟩
-    refine ⟨ LocalTableau.all_spec ,tail,IH,?_⟩
+    refine ⟨ OpenLocalTableau.all_spec ,tail,IH,?_⟩
     simp
   | @pdl _ _ bas someR next Y r tail => by
     have IH := @Match.all_spec _ _ _ tail
@@ -414,8 +442,8 @@ def Match.rewind {H X} {bt : BuildTree H X} : (m : Match bt) → (k : Fin (m.len
 @[simp]
 lemma Match.rewind_zero {H X} {bt : BuildTree H X} (m : Match bt) : m.rewind 0 = m := by
   induction m <;> simp only [rewind]
-  case loc H X nbas next lt tail IH => -- idea from PathIn.rewind_zero
-    have : 0 ≠ Fin.last (@loc H X nbas next lt tail).length := by
+  case loc H X nbas someLT next lt tail IH => -- idea from PathIn.rewind_zero
+    have : 0 ≠ Fin.last (@loc H X nbas someLT next lt tail).length := by
       simp_all [Fin.last]
     rw [← Fin.exists_castSucc_eq] at this
     rcases this with ⟨k,kdef⟩
@@ -460,7 +488,7 @@ lemma Match.btAt_newHist_length_eq_length_plus_oldHist {H X} {bt : BuildTree H X
     m.btAt.1.length = m.length + H.length :=
   match m with
   | nil => by simp [btAt]
-  | @loc _ _ _ next lt tail => by
+  | @loc _ _ _ _ next lt tail => by
     have IH := Match.btAt_newHist_length_eq_length_plus_oldHist tail
     unfold btAt
     rw [IH]
@@ -526,6 +554,7 @@ lemma Sequent.mem_bothSides_iff (φ : Formula) (X : Sequent) :
 
 This may be useful for the pre-states used in the completeness proof. -/
 
+-- TODO golf/shorten this
 /-- LocalRuleApp preserves saturatedness backwards. -/
 lemma LocalRuleApp.preserve_saturated_up (lra : LocalRuleApp) :
     ∀ Y ∈ lra.C, ∀ (rest : List Sequent) ,
@@ -596,7 +625,8 @@ lemma LocalRuleApp.preserve_saturated_up (lra : LocalRuleApp) :
         exact ⟨Fδ, hD, by simpa using fun f hf => lift_rest _ (by simpa using hF f hf)⟩
       · rcases (hexpand φ ψ α).2.2.2.2 rfl with ⟨Fδ, hD, hF⟩
         simp only [List.all_eq_true, decide_eq_true_eq] at hF
-        exact ⟨Fδ, hD, by simpa using fun f hf => lift_rest _ (child_in_rest _ (by simpa using hF f hf))⟩
+        exact ⟨ Fδ, hD
+              , by simpa using fun f hf => lift_rest _ (child_in_rest _ (by simpa using hF f hf))⟩
     · rcases hdia hrest with ⟨Fδ, hD, hF⟩
       simp only [List.all_eq_true, decide_eq_true_eq] at hF
       exact ⟨Fδ, hD, by simpa using fun f hf => lift_rest _ (by simpa using hF f hf)⟩
@@ -610,15 +640,6 @@ termination_by
 decreasing_by
   subst_eqs
   apply localRuleApp.decreases_DM lra Y h
-
-lemma LocalTableau.paths_nonempty {X} (lt : LocalTableau X) :
-    lt.paths ≠ [] := by
-  cases lt <;> simp [paths]
-  case byLocalRule lra next def_X =>
-    subst def_X
-    -- WORRY: what if the lra has no results because it's a "contradiction/closing" rule?
-    -- maybe we need the additional assumption here that X is consistent?
-    sorry
 
 lemma LocalTableau.paths_mem_nonempty {X} (lt : LocalTableau X) :
     ∀ L ∈ lt.paths, L ≠ [] := by
@@ -686,6 +707,14 @@ lemma LocalTableau.pathsLast_eq_endNodes {X} {lt : LocalTableau X} :
     ext
     simp [paths]
     grind
+
+/-- Any open local tableau has at least one path (from root to some end node).
+Does not hold for `LocalTableau` which might end with "contradiction/closing" rule applications. -/
+lemma OpenLocalTableau.paths_nonempty {X} (lt : OpenLocalTableau X) :
+    lt.1.paths ≠ [] := by
+  rcases lt with ⟨lt, lt_has_ends⟩
+  have := @LocalTableau.pathsLast_eq_endNodes X lt
+  grind
 
 lemma LocalTableau.paths_last_basic {X} {lt : LocalTableau X} :
     ∀ L, (h : L ∈ lt.paths) → (L.getLast (LocalTableau.paths_mem_nonempty lt L h)).basic := by
@@ -765,34 +794,35 @@ decreasing_by
   subst_eqs
   exact localRuleApp.decreases_DM _ _ Y_in
 
-/-! ## Collecting Sequents for Pre-states NEW APPROACH - directly from BuildTree ??
+/-! ## Collecting Sequents for Pre-states
 
 As possible worlds for the model graph we want to define *maximal* paths inside the build tree
-that do not contain (M), (L+) or (L-) steps. -/
+that do not contain (M), (L+) or (L-) steps.
+
+We collect the sequents along such paths directly by induction on the `BuildTree`. -/
 
 /-- Collect pre-states in the whole BuildTree.
 The local pre-states come from paths in a local tableau,
 and PDL pre-states each consist of just a single node. -/
 def BuildTree.collect {H X} : (bt : BuildTree H X) → List (List Sequent)
-  | .loc _ next => (LocalTableau.all X).flatMap fun lt => lt.paths ++ (next lt).6.collect
+  | .loc _ _ next => (OpenLocalTableau.all X).flatMap fun lt => lt.1.paths ++ (next lt).6.collect
   | .pdl _ _ next => [ [X] ] ++ (PdlRule.all X).flatMap fun ⟨Y,r⟩ => (next Y r).collect
   | .freeRepeat _ => [ ] -- Not generating a pre-state here, go to companion instead !! ?? !!
   | .openLeaf _ _ => [ [X] ]
 termination_by
   bt => bt.size -- size of remaining BuildTree should go down
 decreasing_by
-  · exact size_lt_loc H X _ next lt
+  · exact size_lt_loc H X _ next lt _
   · exact size_lt_pdl H X _ _ next Y r
 
 lemma BuildTree.collect_nonempty (bt : BuildTree [] X) :
     bt.collect ≠ [] := by
   cases bt
-  case loc nbas next =>
+  case loc nbas someLT next =>
     simp only [collect, ne_eq, List.flatMap_eq_nil_iff, List.append_eq_nil_iff, not_forall, not_and]
-    have := LocalTableau.all_nonempty X
-    rcases List.exists_mem_of_ne_nil _ this with ⟨lt, lt_in⟩
+    rcases List.exists_mem_of_ne_nil _ someLT with ⟨lt, lt_in⟩
     use lt, lt_in
-    have := LocalTableau.paths_nonempty lt
+    have := OpenLocalTableau.paths_nonempty lt -- new :-)
     tauto
   all_goals
     simp [collect]
@@ -802,15 +832,13 @@ lemma BuildTree.collect_nonempty (bt : BuildTree [] X) :
 lemma BuildTree.collect_contains_root (bt : BuildTree [] X) :
     ∃ π ∈ bt.collect, X ∈ π := by
   cases bt <;> simp [collect]
-  case loc nbas next =>
-    let lts := LocalTableau.all X
-    have lts_ne : lts ≠ [] := LocalTableau.all_nonempty X
-    rcases lts.exists_mem_of_ne_nil lts_ne with ⟨lt, lt_in⟩
-    let πs := lt.paths
-    have πs_ne : πs ≠ [] := LocalTableau.paths_nonempty lt
+  case loc nbas someLT next =>
+    rcases List.exists_mem_of_ne_nil _ someLT with ⟨lt, lt_in⟩
+    let πs := lt.1.paths
+    have πs_ne : πs ≠ [] := OpenLocalTableau.paths_nonempty lt
     rcases πs.exists_mem_of_ne_nil πs_ne with ⟨π, π_in⟩
     refine ⟨π, ⟨lt, lt.all_spec, .inl π_in⟩, ?_⟩
-    have := @LocalTableau.pathsHead_eq_self X lt π
+    have := @LocalTableau.pathsHead_eq_self X lt.1 π
     grind
   case freeRepeat h =>
     exact FreeRepeat_nil_impossible h
@@ -825,11 +853,11 @@ lemma PreState.nonempty {X} {bt : BuildTree H X} {π : PreState bt} : π.val ≠
   unfold BuildTree.collect at L_in
   simp_all
   cases bt
-  case loc nbas next L_in' =>
+  case loc nbas someLT next L_in' =>
     simp_all
     rcases L_in with ⟨lt, lt_in, L_in⟩
     rcases L_in with L_in|L_in
-    · exact LocalTableau.paths_mem_nonempty lt L L_in
+    · exact LocalTableau.paths_mem_nonempty lt.1 L L_in
     · have IH := @PreState.nonempty _ _ (next lt).6 ⟨L, L_in⟩
       exact IH
   case pdl bas next L_in' =>
