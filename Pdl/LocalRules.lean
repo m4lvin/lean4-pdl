@@ -965,6 +965,7 @@ lemma loaded_unfold'_child_closes_right {α : Program} {φ : Formula}
   exact ⟨Fδ, Fδ_in, fun f hf => mem_child_right_of_pairUnload_mem (heq ▸ hf)⟩
 
 set_option maxHeartbeats 4000000 in
+-- lots of simp_al and aesop use, made by aristotle.harmonic.fun
 /-- Every formula at the source of a local rule is either retained by a chosen child or is the
 principal formula and has the closure data required for saturatedness in that child. -/
 lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Sequent}
@@ -1007,7 +1008,7 @@ lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Seque
         right
         intro φ' ψ' _
         rcases hY with hY | hY <;> subst Y <;>
-          simp [Sequent.bothSides] <;> aesop
+          simp <;> aesop
       · left
         rcases hf with hf | hf | hf | hf
         · have := (List.mem_erase_of_ne hp).2 hf; aesop
@@ -1029,7 +1030,7 @@ lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Seque
         subst Y
         refine ⟨tp, ?_⟩
         intro x hx
-        simp [Sequent.bothSides, hx]
+        simp [hx]
       · left
         rcases hf with hf | hf | hf | hf
         · have := (List.mem_erase_of_ne hp).2 hf; aesop
@@ -1053,12 +1054,12 @@ lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Seque
         rcases Fδ with ⟨Fs, δ⟩
         refine ⟨Fs, δ, Fδ_in, ?_⟩
         intro x hx
-        simp [Sequent.bothSides, hx]
+        simp [hx]
       · left
         rcases hf with hf | hf | hf | hf
         · have := (List.mem_erase_of_ne hp).2 hf; aesop
         all_goals aesop
-    all_goals simp_all [applyLocalRule, Sequent.bothSides, List.mem_erase_of_ne] <;> aesop
+    all_goals simp_all [applyLocalRule] <;> aesop
   case oneSidedR orule YS_def =>
     cases orule <;> simp_all [applyLocalRule, Sequent.bothSides]
     all_goals intro f hf
