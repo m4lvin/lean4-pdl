@@ -371,7 +371,7 @@ lemma mem_existsOf_of_flip {Hist X} {tab : Tableau Hist X}
       simp only [PathIn.flip]
       congr 1 <;> simp
   | lrep lpr =>
-    rename_i X Hist
+    rename_i Hist X
     unfold exitsOf at s_in ⊢
     by_cases hX : X.isLoaded
     · simp only [Sequent.flip_isLoaded, hX, ↓reduceIte] at *

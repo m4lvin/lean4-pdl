@@ -38,6 +38,13 @@ lemma Sequent.flip_flip {X : Sequent} : X.flip.flip = X := by
   rcases X with ⟨L,R,O⟩
   simp_all [Sequent.flip, Olf.flip]
 
+@[simp]
+lemma Sequent.flip_isLoaded {X : Sequent} :
+    X.flip.isLoaded ↔ X.isLoaded := by
+  rcases X with ⟨L, R, O⟩
+  simp only [Sequent.isLoaded, Sequent.flip, Olf.flip]
+  grind
+
 lemma Sequent.flip_eq_off {X Y : Sequent} : (X.flip = Y) = (X = Y.flip) := by
   rcases X with ⟨L,R,O⟩
   rcases Y with ⟨L',R',O'⟩
@@ -280,13 +287,6 @@ lemma Sequent.flip_multisetEqTo {X Y : Sequent} :
   rcases X with ⟨L, R, O⟩
   rcases Y with ⟨L, R, O⟩
   simp only [multisetEqTo, flip, Multiset.coe_eq_coe, Olf.flip_inj]
-  grind
-
-@[simp]
-lemma Sequent.flip_isLoaded {X : Sequent} :
-    X.flip.isLoaded ↔ X.isLoaded := by
-  rcases X with ⟨L, R, O⟩
-  simp only [Sequent.isLoaded, Sequent.flip, Olf.flip]
   grind
 
 def LoadedPathRepeat.flip {Hist X} : LoadedPathRepeat Hist X →

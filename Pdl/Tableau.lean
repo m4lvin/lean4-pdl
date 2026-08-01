@@ -62,6 +62,7 @@ def rep.toNat {H X} (rp : rep H X) : Nat :=
 /-- Given `rep H X`, get the index of the companion in `H` using `List.findIdx?`. -/
 def rep.toFin {H X} (rp : rep H X) : Fin (H.length) :=
   have : rp.toNat < H.length :=
+    -- use List.findFinIdx? instead here?
     match h : List.findIdx? (fun Y => decide (Y.setEqTo X)) H with
     | none => by
       exfalso
@@ -74,6 +75,16 @@ def rep.toFin {H X} (rp : rep H X) : Fin (H.length) :=
       simp only
       exact (@List.findIdx?_eq_some_iff_findIdx_eq.mp h).1
   ⟨rp.toNat, this⟩
+
+lemma rep.toFin_agrees (rp : rep H X) :
+    H[rp.toFin].setEqTo X := by
+  unfold rep.toFin rep.toNat
+  simp
+  match h : List.findIdx? (fun Y ↦ decide (Y.setEqTo X)) H with
+  | none => grind
+  | some k =>
+      have := @List.findIdx?_eq_some_iff_getElem _ H (fun Y ↦ decide (Y.setEqTo X)) k
+      grind
 
 /-! ## Loaded Path Repeats -/
 
@@ -134,6 +145,21 @@ instance {H X} : Decidable (Nonempty (LoadedPathRepeat H X)) := by
     specialize h k same
     aesop
 
+instance {H X} : Decidable (IsEmpty (LoadedPathRepeat H X)) := by
+  by_cases ∃ k, (H.get k).multisetEqTo X ∧ ∀ m ≤ k, (H.get m).isLoaded
+  case pos h =>
+    apply isFalse
+    simp only [not_isEmpty_iff]
+    rcases h with ⟨k, same, all_le_loaded⟩
+    constructor
+    exact ⟨k, by grind⟩
+  case neg h =>
+    apply isTrue
+    constructor
+    rintro ⟨k, same, all_le_loaded⟩
+    absurd h
+    aesop
+
 /-! ## The PDL rules -/
 
 /-- A rule to go from `X` to `Y`. Note the four variants of the modal rule. -/
@@ -190,7 +216,7 @@ inductive Tableau : History → Sequent → Type
             (next : ∀ Y ∈ endNodesOf lt, Tableau (X :: Hist) Y) : Tableau Hist X
   | pdl {X Y} (nrep : ¬ rep Hist X) (bas : X.basic) (r : PdlRule X Y)
               (next : Tableau (X :: Hist) Y) : Tableau Hist X
-  | lrep {X Hist} (lpr : LoadedPathRepeat Hist X) : Tableau Hist X
+  | lrep {H X} (lpr : LoadedPathRepeat H X) : Tableau H X
 
 def Tableau.size {Hist X} : Tableau Hist X → Nat
   | .loc _ _ lt next => 1 + ((endNodesOf lt).attach.map (fun ⟨Y, Y_in⟩ => (next Y Y_in).size)).sum
