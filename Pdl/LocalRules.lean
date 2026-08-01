@@ -1059,16 +1059,15 @@ lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Seque
         rcases hf with hf | hf | hf | hf
         · have := (List.mem_erase_of_ne hp).2 hf; aesop
         all_goals aesop
-    all_goals simp_all [applyLocalRule] <;> aesop
+    all_goals simp_all [applyLocalRule]
   case oneSidedR orule YS_def =>
     cases orule <;> simp_all [applyLocalRule, Sequent.bothSides]
     all_goals intro f hf
-    case neg φ => by_cases hp : f = ~~φ <;> simp_all [List.mem_erase_of_ne] <;> aesop
-    case con φ ψ => by_cases hp : f = φ⋀ψ <;> simp_all [List.mem_erase_of_ne] <;> aesop
-    case nCo φ ψ => by_cases hp : f = ~(φ⋀ψ) <;> simp_all [List.mem_erase_of_ne] <;> aesop
-    case box α φ notAtom => by_cases hp : f = ⌈α⌉φ <;> simp_all [List.mem_erase_of_ne, unfoldBox] <;> aesop
-    case dia α φ notAtom => by_cases hp : f = ~⌈α⌉φ <;> simp_all [List.mem_erase_of_ne, unfoldDiamond] <;> aesop
-    all_goals simp_all [List.mem_erase_of_ne] <;> aesop
+    case neg φ => by_cases hp : f = ~~φ <;> simp_all [List.mem_erase_of_ne]; aesop
+    case con φ ψ => by_cases hp : f = φ⋀ψ <;> simp_all [List.mem_erase_of_ne]; aesop
+    case nCo φ ψ => by_cases hp : f = ~(φ⋀ψ) <;> simp_all <;> aesop
+    case box α φ notAtom => by_cases hp : f = ⌈α⌉φ <;> simp_all [unfoldBox] <;> aesop
+    case dia α φ notAtom => by_cases hp : f = ~⌈α⌉φ <;> simp_all [unfoldDiamond] <;> aesop
   case loadedL χ lrule YS_def =>
     cases lrule
     case dia α χ notAtom =>
