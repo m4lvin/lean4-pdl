@@ -1399,42 +1399,48 @@ lemma edge_TransGen_then_mem_History :
     rcases h with ⟨_, _, _, _, _, _, _, _, _, p_def⟩ | ⟨_, _, _, _, _, _, _, _, p_def⟩
     <;> subst p_def <;> apply (mem_History_append ih)
 
-/-- TODO This no longer holds, now that we continue at loaded non-lprs.
-IDEA add "or X must be free" to conclusion? Is that helpful? -/
-lemma PathIn.mem_history_multisetEqTo_then_lrep {tab : Tableau Hist X} (p : PathIn tab) :
-    (∃ Y ∈ (tabAt p).1, Y.multisetEqTo (nodeAt p)) → (tabAt p).2.2.isLrep := by
-  rintro ⟨Y, h1, h2⟩
-  generalize h : tabAt p = tp
-  rcases tp with ⟨H, Z, t⟩
-  simp [nodeAt] at h2
-  rw [h] at h2
-  cases t
-  case loc _ _   nrep _ => sorry
-    -- exact nrep ⟨Y, by have := Sequent.setEqTo_of_multisetEqTo; aesop⟩
-  case pdl _ _ _ nrep _ => sorry
-    -- exact nrep ⟨Y, by have := Sequent.setEqTo_of_multisetEqTo; aesop⟩
-  case lrep             => simp [Tableau.isLrep]
+/-! ## Wellfoundedness of `flip edge`
 
-lemma single_of_transgen {α} {r} {a c : α} : Relation.TransGen r a c → ∃ b, r a b := by
-  intro h
-  induction h
-  case single b e => use b
-  case tail d e ih => assumption
+The lemmas and instances here are used for `tabToIntAt`. -/
 
-instance flipEdge.instIsIrrefl : @Std.Irrefl (PathIn tab) (Relation.TransGen (flip edge)) := by
-  constructor
-  intro p p_p
-  rw [Relation.transGen_swap] at p_p
-  have p_in_Hist_p := edge_TransGen_then_mem_History p_p
-  have := PathIn.mem_history_multisetEqTo_then_lrep p ⟨nodeAt p, by simpa⟩
-  rcases (single_of_transgen p_p) with ⟨_,   ⟨_, _, _, _, _, _, _, _, h, _⟩
-                                           | ⟨_, _, _, _, _, _, _, h, _⟩⟩
-  <;> rw [h] at this <;> contradiction
+lemma PathIn.length_lt_tab_size {H X} (tab : Tableau H X) (p : PathIn tab) :
+    p.length < tab.size := by
+  induction tab
+  case loc Hist X nflprep nbas lt next IH =>
+    cases p
+    · simp [Tableau.size]
+    case loc Y nbas_ nflprep_ Y_in tail =>
+      simp only [length, add_comm, Tableau.size, add_lt_add_iff_left]
+      specialize IH Y Y_in tail
+      refine lt_of_lt_of_le IH (List.le_sum_of_mem ?_)
+      simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists]
+      grind
+  case pdl Hist X Y nflprerp bas r next IH =>
+    cases p
+    · simp [Tableau.size]
+    case pdl nrep bas tail =>
+      simp only [length, Tableau.size]
+      specialize IH tail
+      grind
+  · cases p
+    simp [Tableau.size]
 
 /-- The `flip edge` relation in a tableau is well-founded. -/
-theorem flipEdge.wellFounded :
-  WellFounded (flip (@edge _ _ tab)) := by
-  apply Finite.wellfounded_of_irrefl_TC _ flipEdge.instIsIrrefl
+theorem flipEdge.wellFounded {H X} {tab : Tableau H X} :
+    WellFounded (flip (@edge _ _ tab)) := by
+  rw [wellFounded_iff_isEmpty_descending_chain]
+  by_contra hChain
+  simp at hChain
+  rcases hChain with ⟨f, all_rel⟩
+  have all_lt : ∀ (n : ℕ), (f n).length < tab.size :=
+    fun n => @PathIn.length_lt_tab_size H X tab (f n)
+  have increasing : ∀ (n : ℕ), (f n).length < (f (n + 1)).length :=
+    fun n => edge_then_length_lt (all_rel n)
+  have : ∀ n, (f (n + 1)).length > n := by
+    intro n
+    induction n <;> grind
+  absurd this tab.size
+  grind
 
 /-- Induction principle going from the leaves (= childless nodes) to the root.
 Suppose whenever the `motive` holds at all children then it holds at the parent.
