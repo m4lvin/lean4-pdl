@@ -52,9 +52,13 @@ lemma Sequent.basic_then_saturated {X : Sequent} : X.basic → saturated X.toFin
 -- See also Bml/CompletenessViaPaths.lean for inspiration that might be useful here.
 
 /-- A free repeat is a non-loaded sequent that occured before. Values of this type are pairs:
-the number of steps to go back in the history and a proof that we then find the same multiset. -/
+the number of steps to go back in the history and a proof that we then find the same set.
+
+Note: this now uses `setEqTo` instead of `multisetEqTo` to agree with `rep`.
+
+IDEA: move this to `Tableau.lean` near `rep` and turn `flprep` into data? -/
 def FreeRepeat (Hist : History) (X : Sequent) : Type :=
-  Subtype (fun k => (Hist.get k).multisetEqTo X ∧ ¬ X.isLoaded)
+  Subtype (fun k => (Hist.get k).setEqTo X ∧ ¬ X.isLoaded)
 
 lemma FreeRepeat_nil_impossible : FreeRepeat [] X → False := by
   rintro ⟨n, n_h⟩
@@ -172,16 +176,15 @@ def BuildTree.getFreeRepeat {H X} {bt : BuildTree H X}
   cases bt <;> simp at *
   case freeRepeat fr => exact fr
 
-/-- PROBLEM this is not provable as stated now.
-The repeat might still be loaded, just not loaded-path. -/
-def FreeRepeat.of_rep_noLpRep {X : Sequent} (rp : rep H X)
-    (noLpRep : ¬Nonempty (LoadedPathRepeat H X)) : FreeRepeat H X := by
+/-- Given the proof `rep H X` and that `X` is free, find a `FreeRepeat` value / data.
+
+(Previously here we tried to go from `rep H X` and `¬Nonempty (LoadedPathRepeat H X)`
+to `FreeRepeat` which does not work as there might still be loaded non-lpr repeats.) -/
+def FreeRepeat.of_rep_free {X : Sequent} (rp : rep H X)
+    (free : ¬ X.isLoaded) : FreeRepeat H X := by
   refine ⟨rp.toFin, ?_⟩
-  rcases rp with ⟨Y, Y_setEq_X⟩
-  unfold rep.toFin rep.toNat
-  simp
-  --??
-  sorry
+  have := rp.toFin_agrees
+  simp_all
 
 /-- Given a winning Builder strategy, compute its `BuildTree`.
 NEW: note the `Sum.inl p` here. This ensure we start tree building from a Prover position, i.e.
@@ -191,7 +194,8 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
     BuildTree H X :=
   match p_def : p with
   -- Prover positions:
-  | (.nlpRep rp noLpRep) => .freeRepeat (.of_rep_noLpRep rp noLpRep) -- Builder wins free rep.
+  | (ProverPos.frep rp) => -- Builder wins free rep.
+    .freeRepeat (.of_rep_free rp.1 (by grind [Sequent.isFree]))
   | (.bas nrep bas) =>
     if someR : PdlRule.all X ≠ []
     then -- prover chooses PDL rule if there is one

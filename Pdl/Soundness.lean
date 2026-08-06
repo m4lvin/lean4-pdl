@@ -222,15 +222,15 @@ lemma not_edge_and_heart {b : PathIn tab} : ¬ (a ⋖_ b ∧ b ♥ a) := by
   have node_ne : ¬ (Sequent.multisetEqTo (nodeAt a) (nodeAt b)) := by
     have a_loaded : (nodeAt a).isLoaded := by exact (companion_loaded bha).2
     have b_loaded : (nodeAt b).isLoaded := by exact (companion_loaded bha).1
-    rcases aeb with ⟨Hist, X, nrep, nbas, lt, next, Y, Y_in, tabAt_a_def, b_def⟩
-                  | ⟨Hist, X, nrep, bas, Y, r, next, tabAt_a_def, b_def⟩
+    rcases aeb with ⟨Hist, X, nflprep, nbas, lt, next, Y, Y_in, tabAt_a_def, b_def⟩
+                  | ⟨Hist, X, nflprep, bas, Y, r, next, tabAt_a_def, b_def⟩
     · have nodeAt_a_def : X = nodeAt a := by unfold nodeAt; rw [tabAt_a_def]
       have nodeAt_b_def : Y = nodeAt b := by
         let a_to_b : PathIn (tabAt a).2.2 := (tabAt_a_def ▸ PathIn.loc Y_in PathIn.nil)
         have tabAt_b_def : tabAt b = ⟨_, _, next Y Y_in⟩ := by
           subst b_def
           rw [tabAt_append]
-          have : tabAt (.loc Y_in .nil : PathIn (Tableau.loc nrep nbas lt next))
+          have : tabAt (.loc Y_in .nil : PathIn (Tableau.loc nflprep nbas lt next))
               = ⟨ X :: _
                 , Y, next Y Y_in⟩ := by
             unfold tabAt
@@ -250,7 +250,7 @@ lemma not_edge_and_heart {b : PathIn tab} : ¬ (a ⋖_ b ∧ b ♥ a) := by
       have tabAt_b_def : tabAt b = ⟨_, _, next⟩ := by
         subst b_def
         rw [tabAt_append]
-        have : tabAt (.pdl .nil : PathIn (.pdl nrep bas r next))
+        have : tabAt (.pdl .nil : PathIn (.pdl nflprep bas r next))
              = ⟨ (LX, RX, OX) :: _
                , Y, next⟩ := by
           unfold tabAt
@@ -451,8 +451,8 @@ theorem ePropB.a {tab : Tableau .nil X} (s t : PathIn tab) :
       left
       exact t_childOf_s
   else
-    rcases t_childOf_s with ( ⟨Hist, Z, nrep, nbas, lt, next, Y, Y_in, tabAt_s_def, t_def⟩
-                            | ⟨Hist, Z, nrep, bas, Y, r, next, tabAt_s_def, def_t_append⟩ )
+    rcases t_childOf_s with ( ⟨Hist, Z, nflprep, nbas, lt, next, Y, Y_in, tabAt_s_def, t_def⟩
+                            | ⟨Hist, Z, nflprep, bas, Y, r, next, tabAt_s_def, def_t_append⟩ )
     all_goals
       left
       simp_all
@@ -460,8 +460,8 @@ theorem ePropB.a {tab : Tableau .nil X} (s t : PathIn tab) :
       apply Relation.TransGen.single
       left
       unfold edge
-    · left; use Hist, Z, nrep, nbas, lt, next, Y, Y_in, tabAt_s_def
-    · right; use Hist, Z, nrep, bas, Y, r, next, tabAt_s_def
+    · left; use Hist, Z, nflprep, nbas, lt, next, Y, Y_in, tabAt_s_def
+    · right; use Hist, Z, nflprep, bas, Y, r, next, tabAt_s_def
 
 theorem ePropB.b {tab : Tableau .nil X} (s t : PathIn tab) :
     s ♥ t → t ≡ᶜ s := by
@@ -718,9 +718,9 @@ lemma loadedDiamondPathsPDL
   {Z Y : Sequent}
   (bas : Z.basic)
   (r : PdlRule Z Y)
-  (nrep : ¬rep Hist Z)
+  (nflprep : ¬ flprep Hist Z)
   (next : Tableau (Z :: Hist) Y)
-  (tabAt_t_def : tabAt t = ⟨Hist, ⟨Z, Tableau.pdl nrep bas r next⟩⟩) :
+  (tabAt_t_def : tabAt t = ⟨Hist, ⟨Z, Tableau.pdl nflprep bas r next⟩⟩) :
   ∃ s, t ◃⁺ s ∧
         ( satisfiable (nodeAt s) ∧ ¬s ≡ᶜ t
         ∨   (~''ξ).in_side side (nodeAt s)
@@ -748,7 +748,7 @@ lemma loadedDiamondPathsPDL
       unfold s t_to_s
       rw [tabAt_append]
       -- Only some HEq business left here.
-      have : tabAt (.pdl .nil : PathIn (Tableau.pdl nrep bas (PdlRule.freeL rfl rfl) next))
+      have : tabAt (.pdl .nil : PathIn (Tableau.pdl nflprep bas (PdlRule.freeL rfl rfl) next))
             = ⟨ (L, R, some (Sum.inl (~'⌊⌊δ⌋⌋⌊β⌋AnyFormula.normal φ))) :: _
               , ⟨(List.insert (~⌈⌈δ⌉⌉⌈β⌉φ) L, R, none), next⟩⟩ := by
         unfold tabAt
@@ -761,7 +761,7 @@ lemma loadedDiamondPathsPDL
       left
       right
       unfold s t_to_s
-      refine ⟨Hist, _, nrep, bas, _, (PdlRule.freeL rfl rfl), next, ?_⟩
+      refine ⟨Hist, _, nflprep, bas, _, (PdlRule.freeL rfl rfl), next, ?_⟩
       simp [tabAt_t_def]
     · use W, M, v
       intro φ φ_in
@@ -786,7 +786,7 @@ lemma loadedDiamondPathsPDL
       unfold s t_to_s
       rw [tabAt_append]
       -- Only some HEq business left here.
-      have : tabAt (.pdl .nil : PathIn (.pdl nrep bas (.freeR rfl rfl) next))
+      have : tabAt (.pdl .nil : PathIn (.pdl nflprep bas (.freeR rfl rfl) next))
             = ⟨ (L, R, some (Sum.inr (~'⌊⌊δ⌋⌋⌊β⌋AnyFormula.normal φ))) :: _
               , ⟨L, (List.insert (~⌈⌈δ⌉⌉⌈β⌉φ) R), none⟩, next⟩ := by
         unfold tabAt
@@ -799,7 +799,7 @@ lemma loadedDiamondPathsPDL
       left
       right
       unfold s t_to_s
-      refine ⟨Hist, _, nrep, bas, _, (.freeR rfl rfl), next, ?_⟩
+      refine ⟨Hist, _, nflprep, bas, _, (.freeR rfl rfl), next, ?_⟩
       simp [tabAt_t_def]
     · use W, M, v
       intro φ φ_in
@@ -847,7 +847,7 @@ lemma loadedDiamondPathsPDL
       unfold s t_to_s
       rw [tabAt_append]
       -- remains to deal with HEq business
-      let tclean : PathIn (.pdl nrep bas (.modL (Eq.refl _) rfl) next) := .pdl .nil
+      let tclean : PathIn (.pdl nflprep bas (.modL (Eq.refl _) rfl) next) := .pdl .nil
       cases ξ'
       case normal φ =>
         left
@@ -873,7 +873,7 @@ lemma loadedDiamondPathsPDL
     · constructor
       constructor
       right
-      refine ⟨Hist, _, nrep, bas, _, (.modL Z_def rfl), next, tabAt_t_def, ?_⟩
+      refine ⟨Hist, _, nflprep, bas, _, (.modL Z_def rfl), next, tabAt_t_def, ?_⟩
       simp [s, t_to_s]
     · apply Or.inr -- (a)
       constructor
@@ -955,7 +955,7 @@ lemma loadedDiamondPathsPDL
       unfold s t_to_s
       rw [tabAt_append]
       -- remains to deal with HEq business
-      let tclean : PathIn (.pdl nrep bas (.modR (Eq.refl _) rfl) next) := .pdl .nil
+      let tclean : PathIn (.pdl nflprep bas (.modR (Eq.refl _) rfl) next) := .pdl .nil
       cases ξ'
       case normal φ =>
         left
@@ -983,7 +983,7 @@ lemma loadedDiamondPathsPDL
     · constructor
       constructor
       right
-      refine ⟨Hist, _, nrep, bas, _, (PdlRule.modR Z_def rfl), next, tabAt_t_def, ?_⟩
+      refine ⟨Hist, _, nflprep, bas, _, (PdlRule.modR Z_def rfl), next, tabAt_t_def, ?_⟩
       simp [s, t_to_s]
     · right
       constructor
@@ -1119,7 +1119,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
   rcases tabAt_t_def : tabAt t with ⟨Hist, Z, tZ⟩
   cases tZ
   -- applying a local or a pdl rule or being a repeat?
-  case loc nbas ltZ nrep next =>
+  case loc nbas ltZ nflprep next =>
     rcases α_def : α with a | ⟨α₁, α₂⟩ | ⟨α₁, α₂⟩ | β | τ
     · subst α_def
       have α_atom : (·a : Program).isAtomic := by simp [Program.isAtomic]
@@ -1138,7 +1138,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
       have tabAt_s_def : tabAt s1 = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by
         unfold s1 t_to_s1
         rw [tabAt_append]
-        have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc nrep nbas ltZ next)))
+        have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc nflprep nbas ltZ next)))
             = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by simp_all
         convert this <;> try rw [tabAt_t_def]
         rw [eqRec_heq_iff_heq]
@@ -1155,14 +1155,14 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
       case loc nbas' _ _ _ =>
         exfalso
         exact nbas' (endNodesOf_basic Y_in)
-      case pdl Y' bas' r' nrep' next' =>
+      case pdl Y' bas' r' nflprep next' =>
         -- first adapt loadedDiamondPathsPDL to list
         have := exists_same_distance_of_relateSeq_cons v_α_αs_w
         rcases this with ⟨u, ⟨v_α_u, u_αs_w, u_minimal⟩⟩
         have u_nαsφ : (M, u)⊨~''(AnyFormula.loadBoxes αs (AnyFormula.normal φ)) := by
           apply SemImply_loadedNormal_ofSeqAndNormal w_nφ u_αs_w
         have lDPDL := loadedDiamondPathsPDL (·a) X tab s1 v_s1 (AnyFormula.loadBoxes αs φ)
-                        negLoad_in_s v_α_u u_nαsφ bas' r' nrep' next' (next_def ▸ tabAt_s_def)
+                        negLoad_in_s v_α_u u_nαsφ bas' r' nflprep next' (next_def ▸ tabAt_s_def)
         cases αs_def : αs
         case nil => -- if αs = [] we are done via the s1 we found
           simp_all
@@ -1277,7 +1277,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
         have tabAt_s_def : tabAt s1 = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by
           unfold s1 t_to_s1
           rw [tabAt_append]
-          have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc nrep nbas ltZ next)))
+          have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc nflprep nbas ltZ next)))
               = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by simp_all
           convert this <;> try rw [tabAt_t_def]
           rw [eqRec_heq_iff_heq]
@@ -1355,13 +1355,13 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
               · exact ePropB.g_tweak _ _ _ (Relation.TransGen.single (Or.inl t_s)) s1_s ne_con
             · refine ⟨s, ?_, Or.inr inr⟩
               · exact Relation.TransGen.head (Or.inl t_s) s1_s
-  case pdl Y bas r nrep next => -- handled mainly by helper
+  case pdl Y bas r nflprep next => -- handled mainly by helper
     have := exists_same_distance_of_relateSeq_cons v_α_αs_w
     rcases this with ⟨u, ⟨v_α_u, u_αs_w, u_minimal⟩⟩
     have u_nαsφ : (M, u)⊨~''(AnyFormula.loadBoxes αs (AnyFormula.normal φ)) := by
       apply SemImply_loadedNormal_ofSeqAndNormal w_nφ u_αs_w
     have lDPDL := loadedDiamondPathsPDL α X tab t v_t (AnyFormula.loadBoxes αs φ)
-                    negLoad_in v_α_u u_nαsφ bas r nrep next tabAt_t_def
+                    negLoad_in v_α_u u_nαsφ bas r nflprep next tabAt_t_def
     cases αs_def : αs
     case nil => -- if αs = [] we are done via the s we found
       simp_all
@@ -1467,13 +1467,13 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
       exfalso
       have := LoadedPathRepeat_rep_isLoaded lpr
       simp_all [Sequent.isFree, nodeAt]
-    case loc nbas lt nrep next =>
+    case loc nbas lt nflprep next =>
       simp [nodeAt]
       rw [localTableauSat lt] -- using soundness of local tableaux here!
       simp
       intro Y Y_in
       -- We are given an end node, now need to define a path leading to it.
-      let t_to_s : PathIn (Tableau.loc nrep nbas lt next) := (.loc Y_in .nil)
+      let t_to_s : PathIn (Tableau.loc nflprep nbas lt next) := (.loc Y_in .nil)
       let s : PathIn tab := t.append (t_def ▸ t_to_s)
       have t_s : t ⋖_ s := by
         unfold s t_to_s
@@ -1489,13 +1489,13 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
       rw [this]
       apply IH
       apply ePropB.c_single t _ t_is_free t_s
-    case pdl Y bas r nrep next =>
+    case pdl Y bas r nflprep next =>
       simp [nodeAt]
       intro hyp
       have := pdlRuleSat r hyp -- using soundness of pdl rules here!
       absurd this
       -- As in `loc` case, it now remains to define a path leading to `Y`.
-      let t_to_s : PathIn (Tableau.pdl nrep bas r next) := (.pdl .nil)
+      let t_to_s : PathIn (Tableau.pdl nflprep bas r next) := (.pdl .nil)
       let s : PathIn tab := t.append (t_def ▸ t_to_s)
       have t_s : t ⋖_ s := by
         unfold s t_to_s

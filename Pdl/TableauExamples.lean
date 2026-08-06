@@ -10,7 +10,8 @@ As a sanity check we construct tableaux/proofs for some examples.
 example : provable (~⊥) := by
   apply provable.byTableauL
   apply Tableau.loc
-  · simp [rep]
+  · simp [flprep]
+    decide
   · simp [Sequent.basic] -- works :-)
   case a.lt =>
     apply LocalTableau.byLocalRule
@@ -35,7 +36,7 @@ example : provable (~(p ⋀ (~p))) :=
   by
   apply provable.byTableauL
   apply Tableau.loc
-  · simp [rep]
+  · simp
   · simp [Sequent.basic] -- works :-)
   case a.lt =>
     apply LocalTableau.byLocalRule
@@ -61,7 +62,7 @@ example : provable (~(p ⋀ (~p))) :=
 example : Tableau [] ([·p, ~(·p)], [], none) :=
   by
   apply Tableau.loc
-  · simp [rep]
+  · simp
   · simp [Sequent.basic, Sequent.closed]
     -- Here is an example where all formulas are basic
     -- but we still to do `loc` to close the tableau.
@@ -94,14 +95,14 @@ def subTabForEx2 :
     Tableau [([r⋀(~⌈a⌉p), ~ (r ⋀ (~⌈a⌉p⋀q))], [], none)] ([r, ~(⌈a⌉p), ⌈a⌉(p⋀q)], [], none) :=
   by
   have principal : (~(⌈a⌉p)) ∈ [r, ~(⌈a⌉p), ⌈a⌉(p⋀q)] := by simp
-  apply Tableau.pdl (by simp [rep]; decide) (by simp [Sequent.basic, Sequent.closed])
+  apply Tableau.pdl (by simp [flprep, rep]; decide) (by simp [Sequent.basic, Sequent.closed])
     (@PdlRule.loadL _ [] _ _ _ _ principal (by simp [Formula.isBox]) rfl)
   simp
-  apply Tableau.pdl (by simp [rep]; decide) (by simp [Sequent.basic, Sequent.closed])
+  apply Tableau.pdl (by simp [flprep, rep]; decide) (by simp [Sequent.basic, Sequent.closed])
     (.modL rfl rfl) -- Note: modL no longer needs to ask for basic.
   simp [projection]
   apply Tableau.loc
-  · simp [rep]
+  · simp [flprep, rep]
     decide
   · simp [Sequent.basic, Sequent.closed]
   case lt =>
@@ -125,7 +126,7 @@ def subTabForEx2 :
 example : Tableau [] ([r ⋀ (~(⌈a⌉p)), r ↣ ⌈a⌉(p ⋀ q)], [], none) :=
   by
   apply Tableau.loc
-  · simp [rep]
+  · simp
   · simp [Sequent.basic, Sequent.closed]
   case lt =>
     apply LocalTableau.byLocalRule
@@ -209,7 +210,7 @@ lemma endNodesOf_cast_helper {h : X = Y} (ltX : LocalTableau X) :
 example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], none) :=
   by
   apply Tableau.loc
-  · simp [rep]
+  · simp
   · simp [Sequent.basic, Sequent.closed]
   case lt =>
     -- (□)
@@ -228,16 +229,16 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
     have principal : (~⌈a⌉⌈∗(a)⋓(?'p)⌉q) ∈ [~⌈a⌉⌈∗(a)⋓(?'p)⌉q, q, ⌈a⌉⌈∗a⌉q] :=
       by simp
     -- (L+)
-    apply Tableau.pdl (by simp [rep]; decide) (by simp [Sequent.basic, Sequent.closed])
+    apply Tableau.pdl (by simp [flprep, rep]; decide) (by simp [Sequent.basic, Sequent.closed])
       (PdlRule.loadL (δ := [a]) principal (by simp [Formula.isBox]) rfl)
     clear principal
     simp
     -- (M)
-    apply Tableau.pdl (by simp [rep]; decide) (by simp [Sequent.basic, Sequent.closed])
+    apply Tableau.pdl (by simp [flprep, rep]; decide) (by simp [Sequent.basic, Sequent.closed])
       (PdlRule.modL rfl rfl)
     simp [projection]
     apply Tableau.loc
-    · simp [rep]; decide
+    · simp [flprep, rep]; decide
     · simp [Sequent.basic, Sequent.closed]
     case lt =>
       -- (□)

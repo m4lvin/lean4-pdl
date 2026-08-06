@@ -120,6 +120,7 @@ lemma basic_flip {X : Sequent} : X.flip.basic ↔ X.basic := by
         exact h
     · aesop
 
+/-- Unused? -/
 lemma nrep_flip (nrep : ¬rep Hist X) : ¬rep (List.map Sequent.flip Hist) X.flip := by
   simp_all [rep]
 
@@ -317,14 +318,32 @@ lemma LoadedPathRepeat.flip_flip {Hist X} (lpr : LoadedPathRepeat Hist X) :
   rw! [Sequent.map_flip_map_flip, Sequent.flip_flip]
   rfl
 
+@[simp]
+lemma flprep_flip :
+    flprep (List.map Sequent.flip Hist) X.flip ↔ flprep Hist X := by
+  simp_all [flprep, rep, Sequent.isFree]
+  refine ⟨?_,?_⟩
+  · rintro (frep|⟨⟨lpr⟩⟩ )
+    · grind
+    · have := lpr.flip
+      right
+      simp at this
+      exact ⟨this⟩
+  · rintro (frep|⟨⟨lpr⟩⟩ )
+    · grind
+    · have := lpr.flip
+      right
+      simp at this
+      exact ⟨this⟩
+
 /-- (┛ಠ_ಠ)┛彡┻━┻ -/
 def Tableau.flip {Hist X} : Tableau Hist X → Tableau (Hist.map Sequent.flip) X.flip
-| .loc nrep nbas lt next =>  .loc (nrep_flip nrep)
+| .loc nflprep nbas lt next =>  .loc (by simp; exact nflprep)
                                   (by simp; exact nbas)
                                   lt.flip
                                   (fun Y Y_in =>
                                    @Sequent.flip_flip Y ▸ (next Y.flip (endNodesOf_flip Y_in)).flip)
-| .pdl nrep bas r next =>  .pdl (nrep_flip nrep)
+| .pdl nflprep bas r next =>  .pdl (by simp; exact nflprep)
                                 (by simp; exact bas)
                                 r.flip
                                 next.flip
@@ -337,12 +356,12 @@ lemma Hist_flip {Hist} : List.map Sequent.flip (List.map Sequent.flip Hist) = Hi
 lemma Tableau.flip_flip {Hist X} {tab : Tableau Hist X} :
     tab.flip.flip = Sequent.flip_flip ▸ Hist_flip ▸ tab := by
   induction tab
-  case loc Hist X nrep nbas ltX next IH =>
+  case loc Hist X nflprep nbas ltX next IH =>
     simp [Tableau.flip]
     rw! [LocalTableau.flip_flip]
     rw! (castMode := .all) [Sequent.flip_flip]
     simp
-    convert Tableau.loc.congr_simp nrep nbas ltX next next ?_
+    convert Tableau.loc.congr_simp nflprep nbas ltX next next ?_
     · exact Sequent.map_flip_map_flip
     · exact Sequent.map_flip_map_flip
     case h Y W Y_eq_W Y_in W_in Y_heq_W =>
@@ -364,7 +383,7 @@ lemma Tableau.flip_flip {Hist X} {tab : Tableau Hist X} :
 
 def PathIn.flip {Hist X} {tab : Tableau Hist X} : PathIn tab → PathIn tab.flip
   | .nil => .nil
-  | @PathIn.loc _ _ nrep Xnbas ltX next Y Y_in tail =>
+  | @PathIn.loc _ _ nflprep Xnbas ltX next Y Y_in tail =>
       @PathIn.loc _ _ _ _ _ _ Y.flip
         (by apply endNodesOf_flip; grind [LocalTableau.flip_flip])
         (by
@@ -391,7 +410,7 @@ lemma PathIn.nodeAt_flip {Hist X} {tab : Tableau Hist X} {e : PathIn tab} :
     nodeAt (e.flip) = (nodeAt e).flip := by
   induction e
   case nil => simp_all [PathIn.flip]
-  case loc Hist X nrep nbas lt next Y Y_in tail IH =>
+  case loc Hist X nflprep nbas lt next Y Y_in tail IH =>
     simp [PathIn.flip]
     rw [← IH]
     clear IH
@@ -450,7 +469,7 @@ theorem PathIn.flip_flip {Hist X} {tab : Tableau Hist X} (p : PathIn tab) :
     rw [eqRec_heq_iff_heq]
     simp only [PathIn.flip]
     congr 1 <;> simp
-  | @pdl Hist X Y nrep bas r next tail IH =>
+  | @pdl Hist X Y nflprep bas r next tail IH =>
     apply eq_of_heq
     rw [eqRec_heq_iff_heq]
     simp only [PathIn.flip]
@@ -461,7 +480,7 @@ theorem PathIn.flip_flip {Hist X} {tab : Tableau Hist X} (p : PathIn tab) :
       rw! [Tableau.flip_flip]; rw [eqRec_heq_iff_heq, eqRec_heq_iff_heq]
     congr 1 <;> first
       | rfl | exact hIH | exact hr | exact hnext | exact proof_irrel_heq _ _ | simp_all
-  | @loc Hist X nrep nbas lt next Y Y_in tail IH =>
+  | @loc Hist X nflprep nbas lt next Y Y_in tail IH =>
     apply eq_of_heq
     rw [eqRec_heq_iff_heq]
     simp only [PathIn.flip]

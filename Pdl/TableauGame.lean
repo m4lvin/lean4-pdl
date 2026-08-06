@@ -13,15 +13,15 @@ notation "Builder" => Player.B
 
 /-- Prover should make a move. -/
 inductive ProverPos (H : History) (X : Sequent) : Type where
-  | nlpRep : rep H X → ¬ Nonempty (LoadedPathRepeat H X) → ProverPos H X -- Prover loses
-  | bas : ¬ rep H X → X.basic → ProverPos H X -- Prover must apply a PDL rule
-  | nbas : ¬ rep H X → ¬ X.basic → ProverPos H X -- Prover must make a local LocalTableau
+  | frep : (rep H X ∧ X.isFree) → ProverPos H X -- Prover loses at free repeats.
+  | bas : ¬ flprep H X → X.basic → ProverPos H X -- Prover must apply a PDL rule
+  | nbas : ¬ flprep H X → ¬ X.basic → ProverPos H X -- Prover must make a local LocalTableau
   deriving DecidableEq
 
 /-- Builder should make a move. -/
 inductive BuilderPos (H : History) (X : Sequent) : Type where
   | lpr : LoadedPathRepeat H X → BuilderPos H X -- no moves, Prover wins.
-  | ltab : ¬ rep H X → ¬ X.basic → LocalTableau X → BuilderPos H X -- Builder must pick endNodesOf
+  | ltab : ¬ flprep H X → ¬ X.basic → LocalTableau X → BuilderPos H X -- Builder picks endNodesOf
   deriving DecidableEq
 
 /-- Game position where either Prover (`isLeft`) or Builder (`isRight`) should make a move. -/
@@ -30,15 +30,15 @@ def GamePos := Σ H X, (ProverPos H X ⊕ BuilderPos H X)
 
 /-- If we reach this sequent, what is the next game position? Includes winning positions. -/
 def posOf (H : History) (X : Sequent) : ProverPos H X ⊕ BuilderPos H X :=
-  if neNlp : Nonempty (LoadedPathRepeat H X)
-  then .inr (.lpr (.choice neNlp)) -- BuilderPos with no moves to let Prover win at lpr
+  if h_neNlp : Nonempty (LoadedPathRepeat H X)
+  then .inr (.lpr (.choice h_neNlp)) -- BuilderPos with no moves to let Prover win at lpr
   else
-    if rep : rep H X
-    then .inl (.nlpRep rep neNlp) -- ProverPos with no moves to let Builder win at (non-lp) repeat
+    if h_frep : rep H X ∧ X.isFree
+    then .inl (.frep h_frep) -- ProverPos with no moves to let Builder win at (non-lp) repeat
     else
       if bas : X.basic
-      then .inl (.bas rep bas) -- actual ProverPos to choose a PDL rule
-      else .inl (.nbas rep bas) -- actual ProverPos to make LocalTab
+      then .inl (.bas (by grind) bas) -- actual ProverPos to choose a PDL rule
+      else .inl (.nbas (by grind) bas) -- actual ProverPos to make LocalTab
 
 lemma posOf_eq_inr_then_lpr {H X p} :
     posOf H X = Sum.inr p → ∃ lpr, p = .lpr lpr := by
@@ -70,8 +70,8 @@ def Move.isModal {pos newPos : GamePos} : Move pos newPos → Prop
 
 def move (old : GamePos) (new : GamePos) : Prop := Nonempty (Move old new)
 
-lemma move_then_no_rep {Hist X next} {p : (ProverPos Hist X ⊕ BuilderPos Hist X)} :
-    move ⟨Hist, X, p⟩ next → ¬ rep Hist X := by
+lemma move_then_no_frep {H X next} {p : (ProverPos H X ⊕ BuilderPos H X)} :
+    move ⟨H, X, p⟩ next → ¬ (rep H X ∧ X.isFree) := by
   simp only [move, Nonempty.forall]
   intro next_p hyp
   cases next_p <;> grind
@@ -81,7 +81,7 @@ With `move_of_mem_theMoves` and `mem_theMoves_of_move` this agrees with `move`. 
 @[simp]
 def theMoves : GamePos → Finset GamePos
   -- ProverPos:
-  | ⟨H, X, .inl (.nlpRep _ _)⟩ => ∅ -- no moves ⇒ Builder wins
+  | ⟨H, X, .inl (.frep _)⟩ => ∅ -- no moves ⇒ Builder wins
   | ⟨H, X, .inl (.bas _ Xbasic)⟩ =>
       -- need to choose PDL rule application:
       match X with
@@ -283,8 +283,9 @@ lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos}
     · simp
       grind
 
-lemma no_moves_of_rep {Hist X pos} (h : rep Hist X) :
-    theMoves ⟨Hist, X, pos⟩ = ∅ := by
+attribute [local simp] flprep in
+lemma no_moves_of_rep {H X pos} (h : rep H X ∧ X.isFree) :
+    theMoves ⟨H, X, pos⟩ = ∅ := by
   by_contra hyp
   rw [Finset.eq_empty_iff_forall_notMem] at hyp
   push_neg at hyp
@@ -1097,7 +1098,8 @@ lemma matchesFinite : WellFounded (Function.swap move) := by
         · apply g_rel
         · convert g_rel ((k1 + (m + 1)) * 2 + 1) using 2
           linarith
-  have no_repeats n : ¬ rep (f n).1 (f n).2.1 := move_then_no_rep (g_rel (n * 2))
+  have no_repeats n : ¬ (rep (f n).1 (f n).2.1 ∧ (f n).2.1.isFree) :=
+    move_then_no_frep (g_rel (n * 2))
   -- -- The histories along the `f` chain *properly* extend each other.
   have hist_suffixes := fun k1 k2 h => movemove_trans_hist (trans_rel k1 k2 h)
   -- There are only finitely many setEqTo-different sequents in the FL closure of the chain start.
@@ -1124,7 +1126,17 @@ lemma matchesFinite : WellFounded (Function.swap move) := by
     simp only at hist_suffixes
     cases hist_suffixes
     subst_eqs
-    exact no_repeats X (by simp) same
+    -- exact no_repeats X (by simp) same -- PROBLEM because of new repeat def
+    have := no_repeats X (by simp) same
+    /- NOTES:
+    Now we know that X must be loaded.
+    We can probably show that between k1 and k2 there must be a free node because otherwise we
+    would have a loaded-path repeat (which would contradict the game going on).
+    So suppose we have such a free intermediate node. How to get a contradiction from it?
+
+    ALTERNATIVE try to imitate new 6.11 proof.
+    --/
+    sorry
   · -- k2 < k1 case, analogous
     specialize no_repeats k1
     rw [h1] at no_repeats
@@ -1134,7 +1146,9 @@ lemma matchesFinite : WellFounded (Function.swap move) := by
     simp only at hist_suffixes
     cases hist_suffixes
     subst_eqs
-    exact no_repeats X' (by simp) ((Sequent.setEqTo_symm _ _).mpr same)
+    -- same PROBLEM
+    have := no_repeats X' (by simp) ((Sequent.setEqTo_symm _ _).mpr same)
+    sorry
 
 /-! ## Actual Game Definition -/
 
@@ -1167,7 +1181,7 @@ lemma tableauGame_turn_Builder {Hist X lpr} :
 
 @[simp]
 lemma tableauGame_winner_nlpRep_eq_Builder :
-    @winner i tableauGame sI sJ ⟨Hist, X, .inl (.nlpRep h1 h2)⟩ = Builder := by
+    @winner i tableauGame sI sJ ⟨Hist, X, .inl (.frep h)⟩ = Builder := by
   simp [winner, tableauGame]
 
 @[simp]

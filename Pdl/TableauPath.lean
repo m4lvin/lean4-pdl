@@ -458,19 +458,19 @@ lemma PathIn.append_append {tab : Tableau Hist X}
   induction p <;> simp_all [PathIn.append]
 
 @[simp]
-lemma PathIn.loc_append {X Hist} {nrep : ¬rep Hist X} {nbas : ¬X.basic} {lt : LocalTableau X}
+lemma PathIn.loc_append {X Hist} {nflprep : ¬ flprep Hist X} {nbas : ¬X.basic} {lt : LocalTableau X}
     {nexts : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: Hist) Y}
     {Y : Sequent} {Y_in : Y ∈ endNodesOf lt} {tail : PathIn _}
     (h : PathIn (nexts Y Y_in) = PathIn (tabAt (PathIn.loc Y_in .nil)).snd.snd)
-    : (PathIn.loc Y_in .nil : PathIn (Tableau.loc nrep nbas lt nexts)).append tail
+    : (PathIn.loc Y_in .nil : PathIn (Tableau.loc nflprep nbas lt nexts)).append tail
     = PathIn.loc Y_in (h ▸ tail) := by
   simp [append]
 
 @[simp]
-lemma PathIn.pdl_append {Hist X Y} {next : Tableau (X :: Hist) Y} {nrep : ¬rep Hist X}
+lemma PathIn.pdl_append {Hist X Y} {next : Tableau (X :: Hist) Y} {nflprep : ¬ flprep Hist X}
     {bas : X.basic} {r : PdlRule X Y} {tail : PathIn (tabAt PathIn.nil.pdl).snd.snd}
     (h : PathIn next = PathIn (tabAt nil.pdl).snd.snd)
-    : (PathIn.pdl .nil : PathIn (Tableau.pdl nrep bas r next)).append tail
+    : (PathIn.pdl .nil : PathIn (Tableau.pdl nflprep bas r next)).append tail
     = PathIn.pdl (h ▸ tail) := by
   simp [append]
 
@@ -480,7 +480,7 @@ lemma PathIn.lt_append_non_nil {Hist X pHist pX tabNew} {tab : Tableau Hist X}
   : q ≠ .nil → p < p.append (h ▸ q) := by
   cases q
   case nil => simp
-  case loc Y nbas lt Y_in nrep nexts tail =>
+  case loc Y nbas lt Y_in nflprep nexts tail =>
     simp
     have p_loc : p ⋖_ (p.append (h ▸ PathIn.loc Y_in .nil)) := edge_append_loc_nil _ _ _ h
     apply Relation.TransGen.head' p_loc
@@ -492,20 +492,20 @@ lemma PathIn.lt_append_non_nil {Hist X pHist pX tabNew} {tab : Tableau Hist X}
       convert IH ?_ ?_ tail tail_nil using 1
       · rw [PathIn.append_append, append_eq_iff_eq]
         simp
-        have := @PathIn.loc_append _ _ nrep nbas lt nexts Y Y_in tail rfl
+        have := @PathIn.loc_append _ _ nflprep nbas lt nexts Y Y_in tail rfl
         convert this <;> try rw [h]
         · simp_all
         · grind
       · simp
         rw! [h]
         simp
-  case pdl Y bas r nrep next tail =>
+  case pdl Y bas r nflprep next tail =>
     simp only [ne_eq, reduceCtorEq, not_false_eq_true, forall_const]
     have p_pdl : p ⋖_ (p.append (h ▸ nil.pdl)) := by
       have := @edge_append_pdl_nil Hist X tab p
       rw! (castMode := .all) [h] at this
       simp only [Tableau.pdl.injEq, forall_and_index] at this
-      exact @this nrep bas Y r next rfl (by simp) (by simp)
+      exact @this nflprep bas Y r next rfl (by simp) (by simp)
     apply Relation.TransGen.head' p_pdl
     by_cases tail_nil : tail = .nil
     · subst_eqs
@@ -515,7 +515,7 @@ lemma PathIn.lt_append_non_nil {Hist X pHist pX tabNew} {tab : Tableau Hist X}
       convert IH ?_ ?_ tail tail_nil using 1
       · rw [PathIn.append_append, append_eq_iff_eq]
         simp
-        have := @PathIn.pdl_append _ _ _ next nrep bas r tail rfl
+        have := @PathIn.pdl_append _ _ _ next nflprep bas r tail rfl
         convert this <;> try rw [h]
         · simp_all
         · grind
@@ -1399,6 +1399,8 @@ lemma edge_TransGen_then_mem_History :
     rcases h with ⟨_, _, _, _, _, _, _, _, _, p_def⟩ | ⟨_, _, _, _, _, _, _, _, p_def⟩
     <;> subst p_def <;> apply (mem_History_append ih)
 
+/-- TODO This no longer holds, now that we continue at loaded non-lprs.
+IDEA add "or X must be free" to conclusion? Is that helpful? -/
 lemma PathIn.mem_history_multisetEqTo_then_lrep {tab : Tableau Hist X} (p : PathIn tab) :
     (∃ Y ∈ (tabAt p).1, Y.multisetEqTo (nodeAt p)) → (tabAt p).2.2.isLrep := by
   rintro ⟨Y, h1, h2⟩
@@ -1407,8 +1409,10 @@ lemma PathIn.mem_history_multisetEqTo_then_lrep {tab : Tableau Hist X} (p : Path
   simp [nodeAt] at h2
   rw [h] at h2
   cases t
-  case loc _ _   nrep _ => exact nrep ⟨Y, by have := Sequent.setEqTo_of_multisetEqTo; aesop⟩
-  case pdl _ _ _ nrep _ => exact nrep ⟨Y, by have := Sequent.setEqTo_of_multisetEqTo; aesop⟩
+  case loc _ _   nrep _ => sorry
+    -- exact nrep ⟨Y, by have := Sequent.setEqTo_of_multisetEqTo; aesop⟩
+  case pdl _ _ _ nrep _ => sorry
+    -- exact nrep ⟨Y, by have := Sequent.setEqTo_of_multisetEqTo; aesop⟩
   case lrep             => simp [Tableau.isLrep]
 
 lemma single_of_transgen {α} {r} {a c : α} : Relation.TransGen r a c → ∃ b, r a b := by

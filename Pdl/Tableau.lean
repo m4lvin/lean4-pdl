@@ -160,6 +160,28 @@ instance {H X} : Decidable (IsEmpty (LoadedPathRepeat H X)) := by
     absurd h
     aesop
 
+/-! ## Forbidden and allowed repeats
+
+In `Tableau` we only want to allow the application of a rule
+when there is no loaded-path repeat and there is no free repeat.
+For this we introduce the `flprep` abbreviation.
+-/
+
+/-- Either a free repeat or a loaded-path repeat.
+Note that the negation of this is not the same as `¬ rep` because it will still allow
+loaded repeats that are not loaded-path repeats, at which `Tableau` may continue.
+See also `posOf` that is used to define `tableauGame` later. -/
+@[grind .]
+def flprep (H : History) (X : Sequent) : Prop :=
+  (rep H X ∧ X.isFree) ∨ Nonempty (LoadedPathRepeat H X)
+
+@[simp]
+lemma flprep.nil_not : ¬ flprep [] X := by
+  simp [flprep]
+  constructor
+  rintro ⟨k, _, _⟩
+  grind
+
 /-! ## The PDL rules -/
 
 /-- A rule to go from `X` to `Y`. Note the four variants of the modal rule. -/
@@ -206,17 +228,17 @@ instance instDecidablePdlRuleIsModal {X Y} {r : PdlRule X Y} : Decidable (r.isMo
 /--
 The `Tableau [parent, grandparent, ...] child` type.
 
-A closed tableau for X is either of:
-- a local tableau for X followed by closed tableaux for all end nodes,
-- a PDL rule application
-- a successful loaded repeat (MB condition six)
+This represents a closed tableau for `X`, constructed by either of:
+- a local tableau for X followed by `Tableau` for all end nodes,
+- a PDL rule application followed by `Tableau` for all results, or
+- a loaded-path repeat (also called successful, see [MB1988] condition 6 in Def 14 on page 25).
 -/
 inductive Tableau : History → Sequent → Type
-  | loc {X} (nrep : ¬ rep Hist X) (nbas : ¬ X.basic) (lt : LocalTableau X)
+  | loc {Hist X} (nflprep : ¬ flprep Hist X) (nbas : ¬ X.basic) (lt : LocalTableau X)
             (next : ∀ Y ∈ endNodesOf lt, Tableau (X :: Hist) Y) : Tableau Hist X
-  | pdl {X Y} (nrep : ¬ rep Hist X) (bas : X.basic) (r : PdlRule X Y)
+  | pdl {Hist X Y} (nflprep : ¬ flprep Hist X) (bas : X.basic) (r : PdlRule X Y)
               (next : Tableau (X :: Hist) Y) : Tableau Hist X
-  | lrep {H X} (lpr : LoadedPathRepeat H X) : Tableau H X
+  | lrep {Hist X} (lpr : LoadedPathRepeat Hist X) : Tableau Hist X
 
 def Tableau.size {Hist X} : Tableau Hist X → Nat
   | .loc _ _ lt next => 1 + ((endNodesOf lt).attach.map (fun ⟨Y, Y_in⟩ => (next Y Y_in).size)).sum
