@@ -92,13 +92,12 @@ lemma rep.toFin_agrees (rp : rep H X) :
 reach an equal node, and all nodes on the way are loaded.
 Note: `k=0` means the first element of `Hist` is the companion. -/
 def LoadedPathRepeat (Hist : History) (X : Sequent) : Type :=
-  Subtype (fun k => (Hist.get k).multisetEqTo X ∧ ∀ m ≤ k, (Hist.get m).isLoaded)
+  Subtype (fun k => (Hist.get k).setEqTo X ∧ ∀ m ≤ k, (Hist.get m).isLoaded)
 
 lemma LoadedPathRepeat.to_rep {H X} (lpr : LoadedPathRepeat H X) : rep H X := by
   rcases lpr with ⟨k, same, all_loaded⟩
   use List.get H k
   simp_all only [List.get_eq_getElem, List.getElem_mem, true_and]
-  exact Sequent.setEqTo_of_multisetEqTo _ _ same
 
 instance {Hist X} : DecidableEq (LoadedPathRepeat Hist X) := Subtype.instDecidableEq
 
@@ -109,7 +108,7 @@ that might also give us uniqueness of LPRs? -/
 def LoadedPathRepeat.choice {H X} (ne : Nonempty (LoadedPathRepeat H X)) :
     LoadedPathRepeat H X := by
   let somek := @Fin.find? (H.length)
-    (fun k => (H.get k).multisetEqTo X ∧ ∀ m ≤ k, (H.get m).isLoaded = true)
+    (fun k => (H.get k).setEqTo X ∧ ∀ m ≤ k, (H.get m).isLoaded = true)
   rcases find_def : somek with _|⟨k⟩
   · exfalso
     rw [Fin.find?_eq_none_iff] at find_def
@@ -127,11 +126,11 @@ theorem LoadedPathRepeat_comp_isLoaded {Hist X} (lpr : LoadedPathRepeat Hist X) 
 
 theorem LoadedPathRepeat_rep_isLoaded {Hist X} (lpr : LoadedPathRepeat Hist X) : X.isLoaded := by
   rcases lpr with ⟨k, claim⟩
-  rw [← multisetEqTo_isLoaded_iff claim.1]
+  rw [← setEqTo_isLoaded_iff claim.1]
   exact claim.2 k (le_refl k)
 
 instance {H X} : Decidable (Nonempty (LoadedPathRepeat H X)) := by
-  by_cases ∃ k, (H.get k).multisetEqTo X ∧ ∀ m ≤ k, (H.get m).isLoaded
+  by_cases ∃ k, (H.get k).setEqTo X ∧ ∀ m ≤ k, (H.get m).isLoaded
   case pos h =>
     apply isTrue
     rcases h with ⟨k, same, all_le_loaded⟩
@@ -146,7 +145,7 @@ instance {H X} : Decidable (Nonempty (LoadedPathRepeat H X)) := by
     aesop
 
 instance {H X} : Decidable (IsEmpty (LoadedPathRepeat H X)) := by
-  by_cases ∃ k, (H.get k).multisetEqTo X ∧ ∀ m ≤ k, (H.get m).isLoaded
+  by_cases ∃ k, (H.get k).setEqTo X ∧ ∀ m ≤ k, (H.get m).isLoaded
   case pos h =>
     apply isFalse
     simp only [not_isEmpty_iff]

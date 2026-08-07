@@ -345,6 +345,35 @@ theorem setEqTo_isLoaded_iff {X Y : Sequent} (h : X.setEqTo Y) : X.isLoaded = Y.
   all_goals
     simp_all
 
+/-- Set-equal sequents have the same members. -/
+theorem Sequent.mem_iff_of_setEqTo {X Y : Sequent} (h : X.setEqTo Y) (f : Formula) :
+    f ∈ X ↔ f ∈ Y := by
+  rcases X with ⟨L, R, O⟩
+  rcases Y with ⟨L', R', O'⟩
+  rcases h with ⟨hL, hR, _⟩
+  rw [List.toFinset.ext_iff] at hL hR
+  simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R] at *
+  grind
+
+/-- Set-equal sequents are closed together. -/
+theorem Sequent.closed_iff_of_setEqTo {X Y : Sequent} (h : X.setEqTo Y) :
+    X.closed ↔ Y.closed := by
+  have := Sequent.mem_iff_of_setEqTo h
+  simp only [Sequent.closed]
+  grind
+
+/-- Set-equal sequents are basic together. -/
+theorem Sequent.basic_iff_of_setEqTo {X Y : Sequent} (h : X.setEqTo Y) :
+    X.basic ↔ Y.basic := by
+  have h_closed := Sequent.closed_iff_of_setEqTo h
+  rcases X with ⟨L, R, O⟩
+  rcases Y with ⟨L', R', O'⟩
+  obtain ⟨hL, hR, hO⟩ := h
+  subst hO
+  rw [List.toFinset.ext_iff] at hL hR
+  unfold Sequent.basic
+  grind
+
 theorem multisetEqTo_isLoaded_iff {X Y : Sequent} (h : X.multisetEqTo Y) :
     X.isLoaded = Y.isLoaded := by
   simp_all [Sequent.multisetEqTo, Sequent.isLoaded]

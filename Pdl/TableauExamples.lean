@@ -306,7 +306,7 @@ example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], no
       unfold LoadedPathRepeat
       simp_all
       use 1 -- go back two pdl steps, one of which makes two local steps
-      simp_all [Sequent.multisetEqTo, a]
+      simp_all [Sequent.setEqTo, a]
       constructor
       · rfl
       · intro m m_lt

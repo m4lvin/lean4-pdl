@@ -1038,8 +1038,8 @@ lemma exist_duplicates_of_infinite_among_fintype {α : Type} {f : ℕ → α} {p
 
 /-! ### Infinite chains of moves
 
-Towards `matchesFinite` we here collect facts about an infinite chain `g : ℕ → GamePos`
-with `move (g n) (g (n+1))` for all `n`, following the proof idea for Lemma 6.10:
+Towards `matchesFinite` we here collect facts about an infinite chain `g : ℕ → GamePos` with
+`move (g n) (g (n+1))` for all `n`, following the proof idea for the `matchesFinite` lemma:
 
 - at each position of the chain a move is possible, hence there is no forbidden repeat,
   i.e. `¬ flprep` (see `moveChain_not_flprep`);
@@ -1053,7 +1053,8 @@ with `move (g n) (g (n+1))` for all `n`, following the proof idea for Lemma 6.10
   onwards *all* sequents in the chain are loaded (see `moveChain_eventually_loaded`);
 - a repeat in this loaded part gives a loaded-path repeat, which also ends the match
   (see `moveChain_hist_index` and `moveChain_multisetEq_absurd`).
--/
+
+This section is from aristotle.harmonic.fun -/
 
 /-- If a move from `⟨H, X, p⟩` is possible, then `X` is neither a free repeat nor a
 loaded-path repeat in `H`. Note this is stronger than `move_then_no_frep`. -/
@@ -1253,72 +1254,22 @@ lemma moveChain_hist_index {N m n : ℕ} (hN : ∀ j, N ≤ j → (g j).2.1.isLo
       rw [this]
       exact hN m hm
 
-/-- A `multisetEqTo` repeat in the loaded part of the chain is impossible:
+/-- A `setEqTo` repeat in the loaded part of the chain is impossible:
 it would be a loaded-path repeat, at which the match ends. -/
-lemma moveChain_multisetEq_absurd {N m n : ℕ} (hN : ∀ j, N ≤ j → (g j).2.1.isLoaded)
-    (hm : N ≤ m) (h : m + 2 ≤ n) (hs : (g m).2.1.multisetEqTo (g n).2.1) : False := by
+lemma moveChain_setEq_absurd {N m n : ℕ} (hN : ∀ j, N ≤ j → (g j).2.1.isLoaded)
+    (hm : N ≤ m) (h : m + 2 ≤ n) (hs : (g m).2.1.setEqTo (g n).2.1) : False := by
   obtain ⟨k, hk1, hk2⟩ := moveChain_hist_index g_rel hN hm h
   exact moveChain_not_flprep g_rel n (Or.inr ⟨⟨k, by rw [hk1]; exact hs, hk2⟩⟩)
 
-/-- Same as `moveChain_multisetEq_absurd`, but for `setEqTo` repeats, under the assumption
-that a `setEqTo` repeat along a loaded path already gives a `LoadedPathRepeat`. -/
-lemma moveChain_setEq_absurd
-    (setEq_lpr : ∀ (H : History) (X : Sequent) (k : Fin H.length),
-      (H.get k).setEqTo X → (∀ i ≤ k, (H.get i).isLoaded) → Nonempty (LoadedPathRepeat H X))
-    {N m n : ℕ} (hN : ∀ j, N ≤ j → (g j).2.1.isLoaded)
-    (hm : N ≤ m) (h : m + 2 ≤ n) (hs : (g m).2.1.setEqTo (g n).2.1) : False := by
-  obtain ⟨k, hk1, hk2⟩ := moveChain_hist_index g_rel hN hm h
-  exact moveChain_not_flprep g_rel n (Or.inr (setEq_lpr _ _ k (by rw [hk1]; exact hs) hk2))
-
-/-- The remaining gap in the proof of `matchesFinite`.
-
-The proof idea says that in the loaded part of an infinite match some sequent must be repeated.
-Everything else of that argument is available above, but this step is *not* provided by the
-finiteness of the Fischer-Ladner closure: `Seqt.subseteq_FL_finite` says that there are only
-finitely many sequents modulo `setEqTo`, i.e. modulo the *sets* of formulas occurring in them,
-whereas `LoadedPathRepeat` demands `multisetEqTo`, i.e. it also counts multiplicities.
-Multiplicities are not bounded by staying inside the FL closure: `Sequent.subseteq_FL` is about
-the sets of formulas only, and a local rule application `applyLocalRule` uses `List.diff` to
-remove a single occurrence of the principal formula while the results it adds may again contain
-formulas that are already present.
-
-Compare `moveChain_exists_setEq_late` which is the `setEqTo` version of this statement and
-*is* proven above. Together with `moveChain_setEq_absurd` it yields `matchesFinite_of_setEq_lpr`
-below, i.e. the paper proof does go through for a set-based notion of loaded-path repeat. -/
-lemma moveChain_exists_multisetEq_late {N : ℕ} (hN : ∀ j, N ≤ j → (g j).2.1.isLoaded) :
-    ∃ m n, N ≤ m ∧ m + 2 ≤ n ∧ (g m).2.1.multisetEqTo (g n).2.1 := by
-  sorry
-
 end MoveChain
 
-/-- Lemma 6.10, assuming that `setEqTo` repeats along a loaded path give loaded-path repeats.
-This assumption would be immediate if `LoadedPathRepeat` were defined using `setEqTo` instead
-of `multisetEqTo`. Everything else of the proof idea for Lemma 6.10 is proven here. -/
-theorem matchesFinite_of_setEq_lpr
-    (setEq_lpr : ∀ (H : History) (X : Sequent) (k : Fin H.length),
-      (H.get k).setEqTo X → (∀ i ≤ k, (H.get i).isLoaded)
-        → Nonempty (LoadedPathRepeat H X)) :
-    WellFounded (Function.swap move) := by
-  -- If it's not wellfounded, then there must be an infinite sequence of moves.
-  rw [wellFounded_iff_isEmpty_descending_chain]
-  by_contra hyp
-  simp at hyp
-  rcases hyp with ⟨g, g_rel⟩
-  simp only [Function.swap] at g_rel
-  -- From some point `N` onwards all sequents in the chain are loaded.
-  obtain ⟨N, hN⟩ := moveChain_eventually_loaded g_rel
-  -- In this loaded part we find a repeat, which is a loaded-path repeat, ending the match.
-  obtain ⟨m, n, hm, hmn, hs⟩ := moveChain_exists_setEq_late g_rel N
-  exact moveChain_setEq_absurd g_rel setEq_lpr hN hm hmn hs
+/-- Lemma 6.11. The move relation is converse wellfounded (and thus all matches must be finite).
+This is similar to the proof that PDL-tableaux are finite (Lemma 4.10), relying on the finiteness
+of the Fischer-Ladner closure.
+In Lean we never needed to say 4.10 because values of the inductive type `Tableau` are always
+finite by constriction. But we do need a proof here, as this lemma is about `move`, not `Match`.
 
-/-- Lemma 6.10. The move relation is converse wellfounded (and thus all matches must be finite).
-This is similar to the proof that PDL-tableaux are finite (Lemma 4.10).
-In the paper both proofs rely on the finiteness of the Fischer-Ladner closure.
-In Lean we never needed to say 4.10 because inductive values are always finite.
-But we do need a proof here, because this lemma is about `move`, not `Match`.
-
-The whole argument is done in the `MoveChain` section above; the only remaining gap is
-`moveChain_exists_multisetEq_late`, see the comment there. -/
+The whole argument is done in the `MoveChain` section above. -/
 lemma matchesFinite : WellFounded (Function.swap move) := by
   -- If it's not wellfounded, then there must be an infinite sequence of moves.
   rw [wellFounded_iff_isEmpty_descending_chain]
@@ -1329,8 +1280,8 @@ lemma matchesFinite : WellFounded (Function.swap move) := by
   -- From some point `N` onwards all sequents in the chain are loaded.
   obtain ⟨N, hN⟩ := moveChain_eventually_loaded g_rel
   -- In this loaded part we find a repeat, which is a loaded-path repeat, ending the match.
-  obtain ⟨m, n, hm, hmn, hs⟩ := moveChain_exists_multisetEq_late g_rel hN
-  exact moveChain_multisetEq_absurd g_rel hN hm hmn hs
+  obtain ⟨m, n, hm, hmn, hs⟩ := moveChain_exists_setEq_late g_rel N
+  exact moveChain_setEq_absurd g_rel hN hm hmn hs
 
 /-! ## Actual Game Definition -/
 

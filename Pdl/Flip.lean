@@ -297,7 +297,7 @@ def LoadedPathRepeat.flip {Hist X} : LoadedPathRepeat Hist X →
   · simp_all [List.length_map]
   · rcases hk with ⟨same, path_loaded⟩
     constructor
-    · simp only [List.get_eq_getElem, List.getElem_map, Sequent.flip_multisetEqTo]
+    · simp only [List.get_eq_getElem, List.getElem_map, Sequent.flip_setEqTo_flip]
       convert same
     · simp only [List.get_eq_getElem, List.getElem_map, Sequent.flip_isLoaded]
       intro m m_lt

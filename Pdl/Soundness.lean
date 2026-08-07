@@ -150,9 +150,9 @@ theorem nodeAt_companionOf_eq_toHistory_get_lpr_val (s : PathIn tab) lpr h :
   rw [PathIn.nodeAt_rewind_eq_toHistory_get]
   simp
 
-theorem nodeAt_companionOf_multisetEq {tab : Tableau .nil X} (s : PathIn tab) lpr
+theorem nodeAt_companionOf_setEq {tab : Tableau .nil X} (s : PathIn tab) lpr
     (h : (tabAt s).2.2 = .lrep lpr)
-    : (nodeAt (companionOf s lpr h)).multisetEqTo (nodeAt s) := by
+    : (nodeAt (companionOf s lpr h)).setEqTo (nodeAt s) := by
   rcases lpr with ⟨k, k_same, _⟩
   unfold companionOf
   rw [PathIn.nodeAt_rewind_eq_toHistory_get]
@@ -213,13 +213,13 @@ theorem companion_to_repeat_all_loaded
 
 lemma not_edge_and_heart {b : PathIn tab} : ¬ (a ⋖_ b ∧ b ♥ a) := by
   intro ⟨aeb, bha⟩
-  have node_eq : Sequent.multisetEqTo (nodeAt a) (nodeAt b) := by
+  have node_eq : Sequent.setEqTo (nodeAt a) (nodeAt b) := by
     have ⟨lpr, ⟨tabAt_b_22, comp⟩⟩ := bha
     unfold companionOf at comp
     subst comp
-    apply nodeAt_companionOf_multisetEq
+    apply nodeAt_companionOf_setEq
     exact tabAt_b_22
-  have node_ne : ¬ (Sequent.multisetEqTo (nodeAt a) (nodeAt b)) := by
+  have node_ne : ¬ (Sequent.setEqTo (nodeAt a) (nodeAt b)) := by
     have a_loaded : (nodeAt a).isLoaded := by exact (companion_loaded bha).2
     have b_loaded : (nodeAt b).isLoaded := by exact (companion_loaded bha).1
     rcases aeb with ⟨Hist, X, nflprep, nbas, lt, next, Y, Y_in, tabAt_a_def, b_def⟩
@@ -241,9 +241,11 @@ lemma not_edge_and_heart {b : PathIn tab} : ¬ (a ⋖_ b ∧ b ♥ a) := by
         unfold nodeAt at *; rw [tabAt_b_def]
       subst nodeAt_a_def
       subst nodeAt_b_def
-      rw [Sequent.multisetEqTo_symm]
-      exact non_multisetEqTo_of_ltSequent
-        (@endNodesOf_nonbasic_lt_Sequent (nodeAt a) (nodeAt b) lt nbas Y_in)
+      -- Note: the `multisetEqTo` analogue of this would follow from the DM-ordering via
+      -- `non_multisetEqTo_of_ltSequent`, but that lemma has no `setEqTo` version.
+      -- Instead we use that end nodes are basic while `nodeAt a` is not.
+      intro con
+      exact nbas ((Sequent.basic_iff_of_setEqTo con).2 (endNodesOf_basic Y_in))
     · intro con
       rcases X with ⟨LX, RX, OX⟩
       let a_to_b : PathIn (tabAt a).2.2 := (tabAt_a_def ▸ PathIn.pdl PathIn.nil)
@@ -261,7 +263,7 @@ lemma not_edge_and_heart {b : PathIn tab} : ¬ (a ⋖_ b ∧ b ♥ a) := by
       unfold nodeAt at *
       have nodeAt_a_def : (tabAt a).snd.fst = (LX,RX,OX) := by rw [tabAt_a_def]
       simp [nodeAt_a_def] at *
-      simp [Sequent.multisetEqTo] at con
+      simp [Sequent.setEqTo] at con
       cases r
       case loadL => simp [Sequent.isLoaded] at a_loaded
       case loadR => simp [Sequent.isLoaded] at a_loaded
@@ -1229,12 +1231,12 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
         let u := companionOf t (tabAt_t_def ▸ next_def ▸ lpr) h
         have t_comp_u : t ♥ u := ⟨(tabAt_t_def ▸ next_def ▸ lpr), h, rfl⟩
         -- Show that the companion fulfills the conditions:
-        have u_eq_t := nodeAt_companionOf_multisetEq t (tabAt_t_def ▸ next_def ▸ lpr) h
+        have u_eq_t := nodeAt_companionOf_setEq t (tabAt_t_def ▸ next_def ▸ lpr) h
         have v_u : (M, v) ⊨ nodeAt u := by
-          rw [vDash_multisetEqTo_iff u_eq_t]
+          rw [vDash_setEqTo_iff u_eq_t]
           exact v_t
         have negLoad_in_u : (~''((⌊·a⌋AnyFormula.loadBoxes αs φ))).in_side side (nodeAt u) := by
-          rw [AnyNegFormula.in_side_of_multisetEqTo u_eq_t]
+          rw [AnyNegFormula.in_side_of_setEqTo u_eq_t]
           exact negLoad_in
         -- Now prepare and make the recursive call:
         have _forTermination :
@@ -1413,12 +1415,12 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
     let u := companionOf t (tabAt_t_def ▸ lpr) h
     have t_comp_u : t ♥ u:= ⟨(tabAt_t_def ▸ lpr), h, rfl⟩
     -- Show that the companion fulfills the conditions:
-    have u_eq_t := nodeAt_companionOf_multisetEq t (tabAt_t_def ▸ lpr) h
+    have u_eq_t := nodeAt_companionOf_setEq t (tabAt_t_def ▸ lpr) h
     have v_u : (M, v) ⊨ nodeAt u := by
-      rw [vDash_multisetEqTo_iff u_eq_t]
+      rw [vDash_setEqTo_iff u_eq_t]
       exact v_t
     have negLoad_in_u : (~''((⌊α⌋AnyFormula.loadBoxes αs φ))).in_side side (nodeAt u) := by
-      rw [AnyNegFormula.in_side_of_multisetEqTo u_eq_t]
+      rw [AnyNegFormula.in_side_of_setEqTo u_eq_t]
       exact negLoad_in
     -- Now prepare and make the recursive call:
     have _forTermination_lrep : (companionOf t (tabAt_t_def ▸ lpr) h).length < t.length := by
