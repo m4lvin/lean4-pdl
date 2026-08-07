@@ -1036,11 +1036,289 @@ lemma exist_duplicates_of_infinite_among_fintype {α : Type} {f : ℕ → α} {p
   push_neg at not_injective
   tauto
 
+/-! ### Infinite chains of moves
+
+Towards `matchesFinite` we here collect facts about an infinite chain `g : ℕ → GamePos`
+with `move (g n) (g (n+1))` for all `n`, following the proof idea for Lemma 6.10:
+
+- at each position of the chain a move is possible, hence there is no forbidden repeat,
+  i.e. `¬ flprep` (see `moveChain_not_flprep`);
+- all sequents along the chain stay inside the FL closure of the first one
+  (see `moveChain_inside_FL`), of which there are only finitely many modulo `setEqTo`
+  (see `Seqt.subseteq_FL_finite`);
+- the history at a later position contains the sequents of all earlier positions
+  (see `moveChain_hist_accum` and `moveChain_hist_split`);
+- hence a sequent that is `setEqTo` an earlier one must be loaded, because a free repeat
+  would have ended the match (see `moveChain_setEq_isLoaded`), and thus from some point
+  onwards *all* sequents in the chain are loaded (see `moveChain_eventually_loaded`);
+- a repeat in this loaded part gives a loaded-path repeat, which also ends the match
+  (see `moveChain_hist_index` and `moveChain_multisetEq_absurd`).
+-/
+
+/-- If a move from `⟨H, X, p⟩` is possible, then `X` is neither a free repeat nor a
+loaded-path repeat in `H`. Note this is stronger than `move_then_no_frep`. -/
+lemma move_then_not_flprep {H X next} {p : (ProverPos H X ⊕ BuilderPos H X)} :
+    move ⟨H, X, p⟩ next → ¬ flprep H X := by
+  simp only [move, Nonempty.forall]
+  intro next_p hyp
+  cases next_p <;> grind
+
+/-- Helper lemma for `matchesFinite`: if a property of natural numbers holds arbitrarily late,
+then we can enumerate witnesses for it with gaps of at least two. -/
+lemma exists_spread_subsequence {P : ℕ → Prop} (hS : ∀ N, ∃ n, N ≤ n ∧ P n) :
+    ∃ e : ℕ → ℕ, (∀ k, P (e k)) ∧ ∀ k1 k2, k1 < k2 → e k1 + 2 ≤ e k2 := by
+  classical
+  let e : ℕ → ℕ := fun k => Nat.rec (Classical.choose (hS 0))
+    (fun _ prev => Classical.choose (hS (prev + 2))) k
+  have e_succ : ∀ k, e (k + 1) = Classical.choose (hS (e k + 2)) := fun _ => rfl
+  have hP : ∀ k, P (e k) := by
+    intro k
+    cases k with
+    | zero => exact (Classical.choose_spec (hS 0)).2
+    | succ k => rw [e_succ]; exact (Classical.choose_spec (hS (e k + 2))).2
+  have step : ∀ k, e k + 2 ≤ e (k + 1) := by
+    intro k
+    rw [e_succ]
+    exact (Classical.choose_spec (hS (e k + 2))).1
+  refine ⟨e, hP, ?_⟩
+  intro k1 k2 hk
+  induction k2 with
+  | zero => omega
+  | succ k IH =>
+    rcases Nat.lt_or_ge k1 k with h | h
+    · have := IH h
+      have := step k
+      omega
+    · have : k1 = k := by omega
+      subst this
+      exact step k1
+
+section MoveChain
+
+variable {g : ℕ → GamePos} (g_rel : ∀ n, move (g n) (g (n + 1)))
+include g_rel
+
+/-- Because a move is possible, no position in the chain is a forbidden repeat. -/
+lemma moveChain_not_flprep (n : ℕ) : ¬ flprep (g n).1 (g n).2.1 := by
+  have h := g_rel n
+  rcases hn : g n with ⟨H, X, p⟩
+  rw [hn] at h
+  exact move_then_not_flprep h
+
+/-- One step in the chain either keeps history and sequent (the `prLocTab` case)
+or adds the current sequent to the history. -/
+lemma moveChain_hist_step (n : ℕ) :
+    ((g (n + 1)).1 = (g n).1 ∧ (g (n + 1)).2.1 = (g n).2.1)
+    ∨ (g (n + 1)).1 = (g n).2.1 :: (g n).1 := by
+  have h := g_rel n
+  rcases hn : g n with ⟨H, X, p⟩
+  rw [hn] at h
+  rcases move.hist h with ⟨newPos, h'⟩ | ⟨Y, newPos, h'⟩
+  · left; rw [h']; simp
+  · right; rw [h']
+
+/-- The history only grows, and everything added to it are sequents from the chain. -/
+lemma moveChain_hist_accum (m : ℕ) :
+    ∀ n, m ≤ n → ∃ pre : List Sequent, (g n).1 = pre ++ (g m).1
+      ∧ ∀ Y ∈ pre, ∃ j, m ≤ j ∧ j < n ∧ Y = (g j).2.1 := by
+  intro n
+  induction n with
+  | zero =>
+    intro h
+    have : m = 0 := by omega
+    subst this
+    exact ⟨[], by simp, by simp⟩
+  | succ k IH =>
+    intro h
+    by_cases hmk : m ≤ k
+    · obtain ⟨pre, hpre, hall⟩ := IH hmk
+      rcases moveChain_hist_step g_rel k with ⟨h1, _⟩ | h1
+      · refine ⟨pre, by rw [h1, hpre], fun Y hY => ?_⟩
+        obtain ⟨j, hj1, hj2, hj3⟩ := hall Y hY
+        exact ⟨j, hj1, by omega, hj3⟩
+      · refine ⟨(g k).2.1 :: pre, ?_, ?_⟩
+        · rw [h1, List.cons_append]
+          exact congrArg (fun l => (g k).2.1 :: l) hpre
+        · rintro Y hY
+          rcases List.mem_cons.mp hY with rfl | hY
+          · exact ⟨k, hmk, by omega, rfl⟩
+          · obtain ⟨j, hj1, hj2, hj3⟩ := hall Y hY
+            exact ⟨j, hj1, by omega, hj3⟩
+    · have : m = k + 1 := by omega
+      subst this
+      exact ⟨[], by simp, by simp⟩
+
+/-- After at least two moves the sequent of the earlier position is in the later history,
+and all newer entries of that history are sequents from strictly in between. -/
+lemma moveChain_hist_split {m n : ℕ} (h : m + 2 ≤ n) :
+    ∃ pre : List Sequent, (g n).1 = pre ++ ((g m).2.1 :: (g m).1)
+      ∧ ∀ Y ∈ pre, ∃ j, m < j ∧ j < n ∧ Y = (g j).2.1 := by
+  rcases moveChain_hist_step g_rel m with ⟨h1, hX1⟩ | h1
+  · -- The step from `m` did not change the history, hence the next one must do so.
+    have h2 : (g (m + 2)).1 = (g m).2.1 :: (g m).1 := by
+      rcases moveChain_hist_step g_rel (m + 1) with ⟨h2, _⟩ | h2
+      · exfalso
+        have := move_twice_hist_length (g_rel m) (g_rel (m + 1))
+        rw [show m + 1 + 1 = m + 2 from rfl] at h2
+        rw [h2, h1] at this
+        omega
+      · rw [show m + 2 = m + 1 + 1 from rfl, h2]
+        exact congrArg₂ (· :: ·) hX1 h1
+    obtain ⟨pre, hpre, hall⟩ := moveChain_hist_accum g_rel (m + 2) n (by omega)
+    refine ⟨pre, by rw [hpre, h2], fun Y hY => ?_⟩
+    obtain ⟨j, hj1, hj2, hj3⟩ := hall Y hY
+    exact ⟨j, by omega, hj2, hj3⟩
+  · obtain ⟨pre, hpre, hall⟩ := moveChain_hist_accum g_rel (m + 1) n (by omega)
+    refine ⟨pre, by rw [hpre, h1], fun Y hY => ?_⟩
+    obtain ⟨j, hj1, hj2, hj3⟩ := hall Y hY
+    exact ⟨j, by omega, hj2, hj3⟩
+
+/-- All sequents in the chain stay inside the FL closure of the first sequent. -/
+lemma moveChain_inside_FL (n : ℕ) : Seqt.subseteq_FL ⟦(g n).2.1⟧ ⟦(g 0).2.1⟧ := by
+  simp only [Seqt.subseteq_FL, Quotient.lift_mk]
+  induction n
+  · simp
+  case succ k IH =>
+    apply Sequent.subseteq_FL_trans _ _ _ ?_ IH
+    apply move_inside_FL (g_rel k)
+
+/-- A sequent in the chain that is `setEqTo` an earlier one must be loaded,
+because otherwise we would have a free repeat and the match would have ended. -/
+lemma moveChain_setEq_isLoaded {m n : ℕ} (h : m + 2 ≤ n) (hs : (g m).2.1.setEqTo (g n).2.1) :
+    (g n).2.1.isLoaded := by
+  obtain ⟨pre, hpre, _⟩ := moveChain_hist_split g_rel h
+  have h_rep : rep (g n).1 (g n).2.1 := by
+    refine ⟨(g m).2.1, ?_, hs⟩
+    rw [hpre]
+    simp
+  by_contra hfree
+  exact moveChain_not_flprep g_rel n (Or.inl ⟨h_rep, by simp [Sequent.isFree, hfree]⟩)
+
+/-- Because there are only finitely many sequents modulo `setEqTo` inside the FL closure,
+arbitrarily late in the chain we find two positions with `setEqTo` sequents. -/
+lemma moveChain_exists_setEq_late (N : ℕ) :
+    ∃ m n, N ≤ m ∧ m + 2 ≤ n ∧ (g m).2.1.setEqTo (g n).2.1 := by
+  obtain ⟨e, hP, hgap⟩ := exists_spread_subsequence (P := fun n => N ≤ n)
+    (fun M => ⟨max M N, le_max_left _ _, le_max_right _ _⟩)
+  obtain ⟨k1, k2, hne, hsame⟩ := @exist_duplicates_of_infinite_among_fintype _
+    (fun k => (⟦(g (e k)).2.1⟧ : Seqt)) (Seqt.subseteq_FL · ⟦(g 0).2.1⟧)
+    (fun k => moveChain_inside_FL g_rel (e k)) Seqt.subseteq_FL_finite
+  simp only [Quotient.eq] at hsame
+  rcases Nat.lt_or_ge k1 k2 with hlt | hge
+  · exact ⟨e k1, e k2, hP k1, hgap k1 k2 hlt, hsame⟩
+  · exact ⟨e k2, e k1, hP k2, hgap k2 k1 (by omega), (Sequent.setEqTo_symm _ _).mp hsame⟩
+
+/-- From some point onwards all sequents in the chain are loaded: there are only finitely
+many sequents modulo `setEqTo`, and free ones can never come back. -/
+lemma moveChain_eventually_loaded : ∃ N, ∀ n, N ≤ n → (g n).2.1.isLoaded := by
+  by_contra hyp
+  push_neg at hyp
+  obtain ⟨e, hP, hgap⟩ := exists_spread_subsequence hyp
+  obtain ⟨k1, k2, hne, hsame⟩ := @exist_duplicates_of_infinite_among_fintype _
+    (fun k => (⟦(g (e k)).2.1⟧ : Seqt)) (Seqt.subseteq_FL · ⟦(g 0).2.1⟧)
+    (fun k => moveChain_inside_FL g_rel (e k)) Seqt.subseteq_FL_finite
+  simp only [Quotient.eq] at hsame
+  rcases Nat.lt_or_ge k1 k2 with hlt | hge
+  · exact absurd (moveChain_setEq_isLoaded g_rel (hgap k1 k2 hlt) hsame) (hP k2)
+  · exact absurd (moveChain_setEq_isLoaded g_rel (hgap k2 k1 (by omega))
+      ((Sequent.setEqTo_symm _ _).mp hsame)) (hP k1)
+
+/-- If all sequents from `N` onwards are loaded and `N ≤ m` with `m + 2 ≤ n`, then the sequent
+of position `m` occurs in the history of position `n` at an index such that all entries up to
+and including that index are loaded. This is what is needed for a loaded-path repeat. -/
+lemma moveChain_hist_index {N m n : ℕ} (hN : ∀ j, N ≤ j → (g j).2.1.isLoaded)
+    (hm : N ≤ m) (h : m + 2 ≤ n) :
+    ∃ k : Fin (g n).1.length,
+      (g n).1.get k = (g m).2.1 ∧ ∀ i ≤ k, ((g n).1.get i).isLoaded := by
+  obtain ⟨pre, hpre, hall⟩ := moveChain_hist_split g_rel h
+  have hlen : pre.length < (g n).1.length := by
+    rw [hpre]; simp
+  refine ⟨⟨pre.length, hlen⟩, ?_, ?_⟩
+  · simp only [List.get_eq_getElem]
+    rw [List.getElem_of_eq hpre, List.getElem_append_right (by omega)]
+    simp
+  · rintro ⟨i, hi⟩ hik
+    simp only [List.get_eq_getElem, Fin.mk_le_mk] at *
+    rcases Nat.lt_or_ge i pre.length with hlt | hge
+    · have hmem : (g n).1[i] ∈ pre := by
+        rw [List.getElem_of_eq hpre, List.getElem_append_left hlt]
+        exact List.getElem_mem hlt
+      obtain ⟨j, hj1, hj2, hj3⟩ := hall _ hmem
+      rw [hj3]
+      exact hN j (by omega)
+    · have hieq : i = pre.length := by omega
+      have : (g n).1[i] = (g m).2.1 := by
+        rw [List.getElem_of_eq hpre, List.getElem_append_right (by omega)]
+        simp [hieq]
+      rw [this]
+      exact hN m hm
+
+/-- A `multisetEqTo` repeat in the loaded part of the chain is impossible:
+it would be a loaded-path repeat, at which the match ends. -/
+lemma moveChain_multisetEq_absurd {N m n : ℕ} (hN : ∀ j, N ≤ j → (g j).2.1.isLoaded)
+    (hm : N ≤ m) (h : m + 2 ≤ n) (hs : (g m).2.1.multisetEqTo (g n).2.1) : False := by
+  obtain ⟨k, hk1, hk2⟩ := moveChain_hist_index g_rel hN hm h
+  exact moveChain_not_flprep g_rel n (Or.inr ⟨⟨k, by rw [hk1]; exact hs, hk2⟩⟩)
+
+/-- Same as `moveChain_multisetEq_absurd`, but for `setEqTo` repeats, under the assumption
+that a `setEqTo` repeat along a loaded path already gives a `LoadedPathRepeat`. -/
+lemma moveChain_setEq_absurd
+    (setEq_lpr : ∀ (H : History) (X : Sequent) (k : Fin H.length),
+      (H.get k).setEqTo X → (∀ i ≤ k, (H.get i).isLoaded) → Nonempty (LoadedPathRepeat H X))
+    {N m n : ℕ} (hN : ∀ j, N ≤ j → (g j).2.1.isLoaded)
+    (hm : N ≤ m) (h : m + 2 ≤ n) (hs : (g m).2.1.setEqTo (g n).2.1) : False := by
+  obtain ⟨k, hk1, hk2⟩ := moveChain_hist_index g_rel hN hm h
+  exact moveChain_not_flprep g_rel n (Or.inr (setEq_lpr _ _ k (by rw [hk1]; exact hs) hk2))
+
+/-- The remaining gap in the proof of `matchesFinite`.
+
+The proof idea says that in the loaded part of an infinite match some sequent must be repeated.
+Everything else of that argument is available above, but this step is *not* provided by the
+finiteness of the Fischer-Ladner closure: `Seqt.subseteq_FL_finite` says that there are only
+finitely many sequents modulo `setEqTo`, i.e. modulo the *sets* of formulas occurring in them,
+whereas `LoadedPathRepeat` demands `multisetEqTo`, i.e. it also counts multiplicities.
+Multiplicities are not bounded by staying inside the FL closure: `Sequent.subseteq_FL` is about
+the sets of formulas only, and a local rule application `applyLocalRule` uses `List.diff` to
+remove a single occurrence of the principal formula while the results it adds may again contain
+formulas that are already present.
+
+Compare `moveChain_exists_setEq_late` which is the `setEqTo` version of this statement and
+*is* proven above. Together with `moveChain_setEq_absurd` it yields `matchesFinite_of_setEq_lpr`
+below, i.e. the paper proof does go through for a set-based notion of loaded-path repeat. -/
+lemma moveChain_exists_multisetEq_late {N : ℕ} (hN : ∀ j, N ≤ j → (g j).2.1.isLoaded) :
+    ∃ m n, N ≤ m ∧ m + 2 ≤ n ∧ (g m).2.1.multisetEqTo (g n).2.1 := by
+  sorry
+
+end MoveChain
+
+/-- Lemma 6.10, assuming that `setEqTo` repeats along a loaded path give loaded-path repeats.
+This assumption would be immediate if `LoadedPathRepeat` were defined using `setEqTo` instead
+of `multisetEqTo`. Everything else of the proof idea for Lemma 6.10 is proven here. -/
+theorem matchesFinite_of_setEq_lpr
+    (setEq_lpr : ∀ (H : History) (X : Sequent) (k : Fin H.length),
+      (H.get k).setEqTo X → (∀ i ≤ k, (H.get i).isLoaded)
+        → Nonempty (LoadedPathRepeat H X)) :
+    WellFounded (Function.swap move) := by
+  -- If it's not wellfounded, then there must be an infinite sequence of moves.
+  rw [wellFounded_iff_isEmpty_descending_chain]
+  by_contra hyp
+  simp at hyp
+  rcases hyp with ⟨g, g_rel⟩
+  simp only [Function.swap] at g_rel
+  -- From some point `N` onwards all sequents in the chain are loaded.
+  obtain ⟨N, hN⟩ := moveChain_eventually_loaded g_rel
+  -- In this loaded part we find a repeat, which is a loaded-path repeat, ending the match.
+  obtain ⟨m, n, hm, hmn, hs⟩ := moveChain_exists_setEq_late g_rel N
+  exact moveChain_setEq_absurd g_rel setEq_lpr hN hm hmn hs
+
 /-- Lemma 6.10. The move relation is converse wellfounded (and thus all matches must be finite).
 This is similar to the proof that PDL-tableaux are finite (Lemma 4.10).
 In the paper both proofs rely on the finiteness of the Fischer-Ladner closure.
 In Lean we never needed to say 4.10 because inductive values are always finite.
-But we do need a proof here, because this lemma is about `move`, not `Match`. -/
+But we do need a proof here, because this lemma is about `move`, not `Match`.
+
+The whole argument is done in the `MoveChain` section above; the only remaining gap is
+`moveChain_exists_multisetEq_late`, see the comment there. -/
 lemma matchesFinite : WellFounded (Function.swap move) := by
   -- If it's not wellfounded, then there must be an infinite sequence of moves.
   rw [wellFounded_iff_isEmpty_descending_chain]
@@ -1048,107 +1326,11 @@ lemma matchesFinite : WellFounded (Function.swap move) := by
   simp at hyp
   rcases hyp with ⟨g, g_rel⟩
   simp only [Function.swap] at g_rel
-  -- Idea from here onwards: the Hist and X stays inside FL, but must be different / no repeats.
-  -- Well, almost all X must be different. Single steps that keep `Hist` and `X` are sometimes
-  -- allowed, in the annyong case in `move.hist`. Hence we use double steps.
-  have all_g_moves_inside (n : ℕ) : (Seqt.subseteq_FL ⟦(g n).snd.fst⟧ ⟦(g 0).snd.fst⟧) := by
-    simp only [Seqt.subseteq_FL, Quotient.lift_mk]
-    induction n
-    · simp
-    case succ k IH =>
-      apply Sequent.subseteq_FL_trans _ _ _ ?_ IH
-      apply move_inside_FL (g_rel k)
-  -- Important TRICK: we now define another descending chain that makes TWO `moves` each time.
-  let f n := g (n*2)
-  -- The f chain stays in the FL closure.
-  have all_moves_inside (n : ℕ) : (Seqt.subseteq_FL ⟦(f n).snd.fst⟧ ⟦(f 0).snd.fst⟧) := by
-    simp only [Seqt.subseteq_FL, Quotient.lift_mk]
-    induction n
-    · simp
-    case succ k IH =>
-      apply Sequent.subseteq_FL_trans _ _ _ ?_ IH
-      unfold f
-      rw [Nat.add_mul]
-      simp only [Nat.reduceMul]
-      have h1 := move_inside_FL (g_rel (k*2))
-      have h2 := move_inside_FL (g_rel (k*2 + 1))
-      exact Sequent.subseteq_FL_trans _ _ _ h2 h1
-  -- Elements along the chain are related by the transitive closure of `move`s.
-  -- (This also holds for move instead of movemove, but we really want this one.)
-  have trans_rel : ∀ k1 k2, k1 < k2 → Relation.TransGen movemove (f k1) (f k2) := by
-    intro k1 k2 k_lt
-    rw [lt_iff_exists_add] at k_lt
-    rcases k_lt with ⟨m, m_pos, k2_def⟩
-    subst k2_def
-    induction m
-    · exfalso; cases m_pos
-    case succ m IH =>
-      cases m
-      · unfold f
-        apply Relation.TransGen.single
-        refine ⟨g (k1 * 2 + 1), ?_, ?_⟩
-        · apply g_rel
-        · convert g_rel (k1 * 2 + 1) using 2
-          linarith
-      case succ m =>
-        simp only [gt_iff_lt, add_pos_iff, zero_lt_one, or_true, forall_const] at IH
-        apply Relation.TransGen.tail IH
-        unfold f
-        refine ⟨g ((k1 + (m + 1)) * 2 + 1), ?_, ?_⟩
-        · apply g_rel
-        · convert g_rel ((k1 + (m + 1)) * 2 + 1) using 2
-          linarith
-  have no_repeats n : ¬ (rep (f n).1 (f n).2.1 ∧ (f n).2.1.isFree) :=
-    move_then_no_frep (g_rel (n * 2))
-  -- -- The histories along the `f` chain *properly* extend each other.
-  have hist_suffixes := fun k1 k2 h => movemove_trans_hist (trans_rel k1 k2 h)
-  -- There are only finitely many setEqTo-different sequents in the FL closure of the chain start.
-  have FL_fin := @Seqt.subseteq_FL_finite (Quotient.mk' (f 0).2.1)
-  -- Now we apply the general helper lemma from above. A tricky thing here is that we want to
-  -- go from "only finitely many sequents" to "finitely many GamePos" values.
-  have := @exist_duplicates_of_infinite_among_fintype _
-    (fun n => ⟦(f n).2.1⟧) (Seqt.subseteq_FL · ⟦(f 0).2.1⟧) all_moves_inside FL_fin
-  rcases this with ⟨k1, k2, k_diff, same⟩
-  simp [rep, instSetoidSequent] at same no_repeats
-  rw [Nat.ne_iff_lt_or_gt] at k_diff
-  rcases h1 : f k1 with ⟨H, X, p⟩
-  rcases h2 : f k2 with ⟨H', X', p'⟩
-  rw [h1, h2] at same
-  simp only [Quotient.eq] at same
-  rcases k_diff with k1_lt_k2 | k2_lt_k1
-  · -- k1 < k2 case
-    specialize no_repeats k2
-    rw [h2] at no_repeats
-    simp only at no_repeats
-    -- We have that the k2 history extends the k1 history.
-    specialize hist_suffixes k1 k2 k1_lt_k2
-    rw [h1, h2] at hist_suffixes
-    simp only at hist_suffixes
-    cases hist_suffixes
-    subst_eqs
-    -- exact no_repeats X (by simp) same -- PROBLEM because of new repeat def
-    have := no_repeats X (by simp) same
-    /- NOTES:
-    Now we know that X must be loaded.
-    We can probably show that between k1 and k2 there must be a free node because otherwise we
-    would have a loaded-path repeat (which would contradict the game going on).
-    So suppose we have such a free intermediate node. How to get a contradiction from it?
-
-    ALTERNATIVE try to imitate new 6.11 proof.
-    --/
-    sorry
-  · -- k2 < k1 case, analogous
-    specialize no_repeats k1
-    rw [h1] at no_repeats
-    simp only at no_repeats
-    specialize hist_suffixes k2 k1 k2_lt_k1
-    rw [h1, h2] at hist_suffixes
-    simp only at hist_suffixes
-    cases hist_suffixes
-    subst_eqs
-    -- same PROBLEM
-    have := no_repeats X' (by simp) ((Sequent.setEqTo_symm _ _).mpr same)
-    sorry
+  -- From some point `N` onwards all sequents in the chain are loaded.
+  obtain ⟨N, hN⟩ := moveChain_eventually_loaded g_rel
+  -- In this loaded part we find a repeat, which is a loaded-path repeat, ending the match.
+  obtain ⟨m, n, hm, hmn, hs⟩ := moveChain_exists_multisetEq_late g_rel hN
+  exact moveChain_multisetEq_absurd g_rel hN hm hmn hs
 
 /-! ## Actual Game Definition -/
 
