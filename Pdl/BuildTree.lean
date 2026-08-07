@@ -623,6 +623,15 @@ lemma Match.companionOf_setEqTo_sequent (m : Match bt) h :
     simp only [List.get_eq_getElem, Fin.val_cast, List.getElem_cons_succ, hist_eq]
     exact same_and_free.1
 
+/-- Going to the companion of a free repeat gives a strictly shorter `Match`. -/
+lemma Match.companionOf_length_lt {X} {bt : BuildTree [] X} (m : Match bt) (h : m.isFreeRepeat) :
+    (m.companionOf h).length < m.length := by
+  unfold companionOf
+  split
+  next k k_lt same_and_free _ =>
+    apply m.rewind_length_lt_length_of_pos
+    simp [Fin.lt_def]
+
 /-! ## move to Syntax.lean and Sequent.lean later -/
 
 /-- Unfortunately our `AnyFormula` type does not include *negated* loaded formulas, so this is yet
@@ -947,12 +956,26 @@ lemma BuildTree.collect_contains_root (bt : BuildTree [] X) :
   case freeRepeat h =>
     exact FreeRepeat_nil_impossible h
 
+/-- Any `BuildTree` that is not a free repeat collects at least one list containing its root.
+Generalisation of `BuildTree.collect_contains_root` to non-empty histories. -/
+lemma BuildTree.collect_contains_root_of_not_freeRepeat {H X} (bt : BuildTree H X)
+    (h : ¬ bt.isFreeRepeat) : ∃ π ∈ bt.collect, X ∈ π := by
+  cases bt <;> simp [collect]
+  case loc nbas someLT next =>
+    rcases List.exists_mem_of_ne_nil _ someLT with ⟨lt, lt_in⟩
+    rcases List.exists_mem_of_ne_nil _ (OpenLocalTableau.paths_nonempty lt) with ⟨π, π_in⟩
+    refine ⟨π, ⟨lt, lt.all_spec, .inl π_in⟩, ?_⟩
+    have := @LocalTableau.pathsHead_eq_self X lt.1 π
+    grind
+  case freeRepeat fr =>
+    simp [isFreeRepeat] at h
+
 /-! ## Pre-states (Def 6.13) -/
 
 /-- A pre-state is a list of sequents collected from a `BuildTree`. -/
 def PreState {H X} (bt : BuildTree H X) : Type := Subtype (· ∈ bt.collect)
 
-lemma PreState.nonempty {X} {bt : BuildTree H X} {π : PreState bt} : π.val ≠ [] := by
+lemma PreState.nonempty {H X} {bt : BuildTree H X} {π : PreState bt} : π.val ≠ [] := by
   rcases π with ⟨L, L_in⟩
   unfold BuildTree.collect at L_in
   simp_all
@@ -1182,63 +1205,81 @@ Small worry: there is no order on Pre-States, so termination of this IH might be
 Idea: use the PreState-to-Match conversion and then the Match-length as termination_by.
 -/
 
--- TODO lemma: the result of .collect in any sub-BuildTree later (reached by some Match)
--- is also part of .collect applied to the the bigger BuildTree.
+/-- The result of `BuildTree.collect` in any sub-`BuildTree` reached by a `Match`
+is also part of `BuildTree.collect` applied to the bigger `BuildTree`. -/
+lemma Match.collect_btAt_subset {H X} {bt : BuildTree H X} (m : Match bt) :
+    ∀ π ∈ m.btAt.2.2.collect, π ∈ bt.collect := by
+  induction m with
+  | nil => intro π hπ; simpa [Match.btAt] using hπ
+  | @loc H X nbas someLT next lt tail IH =>
+    intro π hπ
+    have hsub := IH π (by simpa [Match.btAt] using hπ)
+    rw [BuildTree.collect]
+    simp only [List.mem_flatMap, List.mem_append]
+    exact ⟨lt, OpenLocalTableau.all_spec, Or.inr hsub⟩
+  | @pdl H X bas someR next Y r tail IH =>
+    intro π hπ
+    have hsub := IH π (by simpa [Match.btAt] using hπ)
+    rw [BuildTree.collect]
+    simp only [List.singleton_append, List.mem_cons, List.mem_flatMap, Sigma.exists]
+    exact Or.inr ⟨Y, r, PdlRule.all_spec bas r, hsub⟩
 
 /-- For any `Match` there exists a `PreState`
 containing a sequent `setEqTo` the end nof the Match. -/
-lemma Match.existsPreState {bt : BuildTree [] X} (m : Match bt) :
+lemma Match.existsPreState {X} {bt : BuildTree [] X} (m : Match bt) :
     ∃ π : PreState bt, ∃ Z ∈ π.1, m.btAt.2.1.setEqTo Z := by
-  rcases mbtAt_def : m.btAt with ⟨H', X', bt'⟩
-  -- NOTE: tempting to use bt'.collect_contains_root but that would need `H' = []`.
-  cases bt'
-  case loc nbas someLT next =>
-    simp_all
-    rcases List.exists_mem_of_ne_nil _ someLT with ⟨lt, lt_in⟩
-    rcases List.exists_mem_of_ne_nil _ lt.paths_nonempty with ⟨L, L_in⟩
-    refine ⟨⟨L, ?_⟩ , ?_⟩
-    · -- apply "collect from sub-BuildTree" lemma
-      sorry
-    · simp_all
-      have := LocalTableau.pathsHead_eq_self L_in
-      use X'
-      simp
-      grind
-  case pdl bas someR next =>
-    refine ⟨⟨[X'], ?_⟩ , by simp⟩
-    -- apply "collect from sub-BuildTree" lemma
-    sorry
-  case freeRepeat frep =>
-    -- We don't make a PreState here but go to companion first.
-    simp only
-    cases frep
-    have m_frep : m.isFreeRepeat := by unfold isFreeRepeat; grind
-    let compy := m.companionOf m_frep
-    have IH := compy.existsPreState
-    rcases IH with ⟨π, Z, Z_in_π, _same_Z⟩
-    use π, Z, Z_in_π
-    -- Using lemma that companion has the a setEqTo sequent.
-    have := m.companionOf_setEqTo_sequent m_frep
-    refine Sequent.setEqTo_trans _ compy.btAt.snd.fst _ ?_ _same_Z
-    unfold compy
-    rw [Sequent.setEqTo_symm]
-    convert this
-    grind
-  case openLeaf =>
-    refine ⟨⟨[X'], ?_⟩, by simp⟩
-    -- apply "collect from sub-BuildTree" lemma
-    sorry
+  by_cases m_frep : m.isFreeRepeat
+  · -- We do not make a PreState here but go to the companion first.
+    have IH := (m.companionOf m_frep).existsPreState
+    rcases IH with ⟨π, Z, Z_in_π, same_Z⟩
+    refine ⟨π, Z, Z_in_π, ?_⟩
+    -- Using lemma that the companion has a `setEqTo` sequent.
+    have comp_eq := m.companionOf_setEqTo_sequent m_frep
+    exact Sequent.setEqTo_trans _ _ _ ((Sequent.setEqTo_symm _ _).mp comp_eq) same_Z
+  · -- The `BuildTree` we are at is not a free repeat, so it collects its own root.
+    have not_frep : ¬ m.btAt.2.2.isFreeRepeat := fun h => m_frep (Match.isFreeRepeat_iff.mpr h)
+    rcases m.btAt.2.2.collect_contains_root_of_not_freeRepeat not_frep with ⟨π, π_in, root_in⟩
+    exact ⟨⟨π, m.collect_btAt_subset π π_in⟩, m.btAt.2.1, root_in, Sequent.setEqTo_refl _⟩
 termination_by
   m.length
 decreasing_by
-  -- Need lemma that companion is a shorter `Match`?
-  sorry
+  exact m.companionOf_length_lt m_frep
 
--- TODO combining .exists_PreState and List.find? ???
-def Match.toPreState {bt : BuildTree [] X} (m : Match bt) : PreState bt := by
-  sorry
+/-- The Boolean predicate used by `Match.toPreState`: does the given list of sequents
+contain a sequent that is `setEqTo` the end of the given `Match`? -/
+def Match.fitsPreState {X} {bt : BuildTree [] X} (m : Match bt) (π : List Sequent) : Bool :=
+  π.any (fun Z => decide (m.btAt.2.1.setEqTo Z))
 
-def PreState.toMatch {bt : BuildTree [] X} (π : PreState bt) : Match bt := by
+lemma Match.fitsPreState_iff {X} {bt : BuildTree [] X} {m : Match bt} {π : List Sequent} :
+    m.fitsPreState π ↔ ∃ Z ∈ π, m.btAt.2.1.setEqTo Z := by
+  simp [Match.fitsPreState]
+
+/-- Reformulation of `Match.existsPreState` using `Match.fitsPreState`. -/
+lemma Match.exists_fitsPreState {X} {bt : BuildTree [] X} (m : Match bt) :
+    ∃ π ∈ bt.collect, m.fitsPreState π := by
+  rcases m.existsPreState with ⟨⟨π, π_in⟩, Z, Z_in, hZ⟩
+  exact ⟨π, π_in, Match.fitsPreState_iff.mpr ⟨Z, Z_in, hZ⟩⟩
+
+/-- Thanks to `Match.existsPreState` the search for a fitting pre-state succeeds. -/
+lemma Match.find?_fitsPreState_isSome {X} {bt : BuildTree [] X} (m : Match bt) :
+    (bt.collect.find? m.fitsPreState).isSome := by
+  cases h : bt.collect.find? m.fitsPreState
+  case some => simp
+  case none =>
+    rcases m.exists_fitsPreState with ⟨π, π_in, hπ⟩
+    exact absurd hπ (List.find?_eq_none.mp h π π_in)
+
+/-- Pick a `PreState` for a given `Match`, using `Match.existsPreState` and `List.find?`. -/
+def Match.toPreState {X} {bt : BuildTree [] X} (m : Match bt) : PreState bt :=
+  ⟨(bt.collect.find? m.fitsPreState).get m.find?_fitsPreState_isSome,
+    List.mem_of_find?_eq_some (Option.some_get _).symm⟩
+
+/-- The result of `Match.toPreState` indeed contains a sequent `setEqTo` the end of the `Match`. -/
+lemma Match.toPreState_spec {X} {bt : BuildTree [] X} (m : Match bt) :
+    ∃ Z ∈ m.toPreState.1, m.btAt.2.1.setEqTo Z :=
+  Match.fitsPreState_iff.mp (List.find?_some (Option.some_get m.find?_fitsPreState_isSome).symm)
+
+def PreState.toMatch {X} {bt : BuildTree [] X} (π : PreState bt) : Match bt := by
   rcases π with ⟨π, π_in⟩
   unfold BuildTree.collect at π_in
   cases bt <;> simp at π_in
@@ -1327,7 +1368,7 @@ instance {bt : BuildTree [] X} : Coe (PreState bt) { w : Finset Formula // w ∈
 /-- Lemma 6.18.
 Note that we use `Rel` from `BuildTree.toModel` as the `R` to use `Modelgraphs.Q`.
 
-TODO: use Match.toPreState (after defining it) to say that node `t` is "lying" on `π`.
+TODO: use `Match.toPreState` to say that node `t` is "lying" on `π`.
 Also still missing the `t < u` part. Is it needed? -/
 lemma PreState.loadedDiamondExistence {φ : AnyFormula} {π : PreState bt} :
   (~'⌊α⌋φ : WhateverFormula) ∈ π.wForms →
