@@ -433,8 +433,6 @@ def Match.append {H X} {bt : BuildTree H X} :
 | .loc tail, m2 => .loc (append tail m2)
 | .pdl tail, m2 => .pdl (append tail m2)
 
--- Maybe Match.toHistory is not actually needed? Skipping it for now.
-
 /-- Rewind a `Match`, i.e. go back up inside `bt` by `k` steps.
 The + 1 is there because going back 0 steps does nothing. -/
 def Match.rewind {H X} {bt : BuildTree H X} : (m : Match bt) → (k : Fin (m.length + 1)) → Match bt
@@ -508,14 +506,102 @@ lemma Match.btAt_newHist_length_eq_length_plus_oldHist {H X} {bt : BuildTree H X
 termination_by
   m.length
 
-/-- Roll back to the companion. Only possibe if we started with H=[] so we know the root. -/
+/-- Roll back to the companion. Only possibe if we started with H=[] so we know the root.
+The `+ 1` is there because the `FreeRepeat` values are indices of the history starting with 0,
+but `Match.rewind 0` would do nothing. (Same as the `.succ` in `companionOf` for `PathIn`.) -/
 def Match.companionOf {X} {bt : BuildTree [] X} (m : Match bt)
   (h : m.isFreeRepeat) : Match bt :=
     match m.getFreeRepeat h with
     -- The free repeat says "go k steps back" where k < length of history at `m`.
     | ⟨⟨k, k_lt⟩ , same_and_free⟩ =>
-      -- But to rewind m we need a k < length of m itself plus 1
-      m.rewind ⟨k, by grind [Match.btAt_newHist_length_eq_length_plus_oldHist]⟩
+      -- But to rewind m we need a k + 1 < length of m itself plus 1
+      m.rewind ⟨k + 1, by grind [Match.btAt_newHist_length_eq_length_plus_oldHist]⟩
+
+/-- The sequents visited by a `Match`, in reverse order and not including the last one.
+Analogous to `PathIn.toHistory`. -/
+def Match.toHistory {H X} {bt : BuildTree H X} : Match bt → History
+| .nil => []
+| .loc tail => tail.toHistory ++ [X]
+| .pdl tail => tail.toHistory ++ [X]
+
+@[simp]
+lemma Match.toHistory_length {H X} {bt : BuildTree H X} (m : Match bt) :
+    m.toHistory.length = m.length := by
+  induction m <;> simp_all [toHistory]
+
+/-- The history reached by a `Match` consists of the sequents visited, then the old history. -/
+lemma Match.toHistory_append_eq_btAt_fst {H X} {bt : BuildTree H X} (m : Match bt) :
+    m.toHistory ++ H = m.btAt.1 := by
+  induction m <;> simp_all [toHistory, btAt]
+
+@[simp]
+lemma Match.rewind_last {H X} {bt : BuildTree H X} (m : Match bt) :
+    m.rewind (Fin.last m.length) = .nil := by
+  cases m
+  · rfl
+  · rw [rewind]; exact Fin.lastCases_last
+  · rw [rewind]; exact Fin.lastCases_last
+
+/-- Rewinding a `Match` by `k` steps gives the `k`-th element of the history,
+where the end sequent of the match itself is counted as the `0`-th element.
+Inspired by `PathIn.nodeAt_rewind_eq_toHistory_get`. -/
+lemma Match.btAt_rewind_eq_toHistory_get {H X} {bt : BuildTree H X} (m : Match bt)
+    (k : Fin (m.length + 1)) :
+    (m.rewind k).btAt.2.1 = (m.btAt.2.1 :: m.toHistory).get (Fin.cast (by simp) k) := by
+  induction m
+  case nil H X bt =>
+    rcases k with ⟨k, k_lt⟩
+    simp only [length, zero_add, Nat.lt_one_iff] at k_lt
+    subst k_lt
+    simp [rewind, btAt, toHistory]
+  case loc H X nbas someLT next lt tail IH =>
+    cases k using Fin.lastCases
+    case last =>
+      have hlast : Match.rewind (bt := BuildTree.loc nbas someLT next) (Match.loc tail)
+          (Fin.last _) = Match.nil := by
+        rw [rewind]; exact Fin.lastCases_last
+      rw [hlast]
+      simp only [btAt, toHistory, length, List.get_eq_getElem, Fin.val_cast, Fin.val_last]
+      rw [List.getElem_cons_succ, List.getElem_append_right (by simp)]
+      simp
+    case cast j =>
+      have hcast : Match.rewind (bt := BuildTree.loc nbas someLT next) (Match.loc tail)
+          j.castSucc = Match.loc (tail.rewind j) := by
+        rw [rewind]; exact Fin.lastCases_castSucc ..
+      rw [hcast]
+      simp only [btAt, toHistory, List.get_eq_getElem, Fin.val_cast, Fin.val_castSucc]
+      rw [IH j]
+      simp only [List.get_eq_getElem, Fin.val_cast]
+      rcases j with ⟨jv, jv_lt⟩
+      simp only [length] at jv_lt
+      rcases jv with _ | i
+      · simp
+      · rw [List.getElem_cons_succ, List.getElem_cons_succ,
+          List.getElem_append_left (by simp; omega)]
+  case pdl H X bas someR next Y r tail IH =>
+    cases k using Fin.lastCases
+    case last =>
+      have hlast : Match.rewind (bt := BuildTree.pdl bas someR next) (Match.pdl tail)
+          (Fin.last _) = Match.nil := by
+        rw [rewind]; exact Fin.lastCases_last
+      rw [hlast]
+      simp only [btAt, toHistory, length, List.get_eq_getElem, Fin.val_cast, Fin.val_last]
+      rw [List.getElem_cons_succ, List.getElem_append_right (by simp)]
+      simp
+    case cast j =>
+      have hcast : Match.rewind (bt := BuildTree.pdl bas someR next) (Match.pdl tail)
+          j.castSucc = Match.pdl (tail.rewind j) := by
+        rw [rewind]; exact Fin.lastCases_castSucc ..
+      rw [hcast]
+      simp only [btAt, toHistory, List.get_eq_getElem, Fin.val_cast, Fin.val_castSucc]
+      rw [IH j]
+      simp only [List.get_eq_getElem, Fin.val_cast]
+      rcases j with ⟨jv, jv_lt⟩
+      simp only [length] at jv_lt
+      rcases jv with _ | i
+      · simp
+      · rw [List.getElem_cons_succ, List.getElem_cons_succ,
+          List.getElem_append_left (by simp; omega)]
 
 /-- The repeat ♥ companion relation on `Match`. -/
 def Match.companion {X} {bt : BuildTree [] X} (m n : Match bt) : Prop :=
@@ -523,14 +609,19 @@ def Match.companion {X} {bt : BuildTree [] X} (m n : Match bt) : Prop :=
 
 local notation ma:arg " ♥ " mb:arg => Match.companion ma mb
 
+/-- The sequent at the companion is `setEqTo` the sequent at the repeat.
+Analogous to `nodeAt_companionOf_setEq`. -/
 lemma Match.companionOf_setEqTo_sequent (m : Match bt) h :
     (m.companionOf h).btAt.2.1.setEqTo m.btAt.2.1 := by
-  unfold isFreeRepeat at h
-  unfold companionOf Match.getFreeRepeat
+  unfold companionOf
   split
-  simp_all
-  -- need lemma that rewind+btAt.snd.fst gives same as going back in history
-  sorry
+  next k k_lt same_and_free _ =>
+    have hist_eq : m.toHistory = m.btAt.1 := by
+      simpa using m.toHistory_append_eq_btAt_fst
+    dsimp only
+    rw [Match.btAt_rewind_eq_toHistory_get]
+    simp only [List.get_eq_getElem, Fin.val_cast, List.getElem_cons_succ, hist_eq]
+    exact same_and_free.1
 
 /-! ## move to Syntax.lean and Sequent.lean later -/
 
