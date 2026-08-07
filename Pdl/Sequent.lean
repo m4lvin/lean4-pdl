@@ -179,6 +179,13 @@ lemma Sequent.setEqTo_symm (X Y : Sequent) : X.setEqTo Y ↔ Y.setEqTo X := by
   unfold setEqTo
   tauto
 
+lemma Sequent.setEqTo_trans (X Y Z : Sequent) : X.setEqTo Y → Y.setEqTo Z → X.setEqTo Z := by
+  rcases X with ⟨L,R,O⟩
+  rcases Y with ⟨L',R',O'⟩
+  rcases Z with ⟨L'',R'',O''⟩
+  unfold setEqTo
+  grind
+
 @[simp]
 lemma Sequent.multisetEqTo_refl (X : Sequent) : X.multisetEqTo X := by
   rcases X with ⟨L,R,O⟩

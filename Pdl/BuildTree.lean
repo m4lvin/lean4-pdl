@@ -523,6 +523,15 @@ def Match.companion {X} {bt : BuildTree [] X} (m n : Match bt) : Prop :=
 
 local notation ma:arg " ♥ " mb:arg => Match.companion ma mb
 
+lemma Match.companionOf_setEqTo_sequent (m : Match bt) h :
+    (m.companionOf h).btAt.2.1.setEqTo m.btAt.2.1 := by
+  unfold isFreeRepeat at h
+  unfold companionOf Match.getFreeRepeat
+  split
+  simp_all
+  -- need lemma that rewind+btAt.snd.fst gives same as going back in history
+  sorry
+
 /-! ## move to Syntax.lean and Sequent.lean later -/
 
 /-- Unfortunately our `AnyFormula` type does not include *negated* loaded formulas, so this is yet
@@ -1065,7 +1074,94 @@ decreasing_by
   · subst_eqs
     apply @BuildTree.size_lt_pdl H X
 
--- last basic
+/-! ## PreStates to Matches and back again
+
+IDEA / TODO: to prove the existence lemmas it seems useful to have helper lemmas/defs
+to switch between Pre-states & matches. Can we show these?
+
+- every pre-state must come from some match
+
+- every match gives us a pre-state
+
+If we have these, then we can use `Match.rewind` to "roll back up".
+
+Note: the functions will not necessarily "round-trip".
+
+Small worry: there is no order on Pre-States, so termination of this IH might be an issue?
+Idea: use the PreState-to-Match conversion and then the Match-length as termination_by.
+-/
+
+-- TODO lemma: the result of .collect in any sub-BuildTree later (reached by some Match)
+-- is also part of .collect applied to the the bigger BuildTree.
+
+/-- For any `Match` there exists a `PreState`
+containing a sequent `setEqTo` the end nof the Match. -/
+lemma Match.existsPreState {bt : BuildTree [] X} (m : Match bt) :
+    ∃ π : PreState bt, ∃ Z ∈ π.1, m.btAt.2.1.setEqTo Z := by
+  rcases mbtAt_def : m.btAt with ⟨H', X', bt'⟩
+  -- NOTE: tempting to use bt'.collect_contains_root but that would need `H' = []`.
+  cases bt'
+  case loc nbas someLT next =>
+    simp_all
+    rcases List.exists_mem_of_ne_nil _ someLT with ⟨lt, lt_in⟩
+    rcases List.exists_mem_of_ne_nil _ lt.paths_nonempty with ⟨L, L_in⟩
+    refine ⟨⟨L, ?_⟩ , ?_⟩
+    · -- apply "collect from sub-BuildTree" lemma
+      sorry
+    · simp_all
+      have := LocalTableau.pathsHead_eq_self L_in
+      use X'
+      simp
+      grind
+  case pdl bas someR next =>
+    refine ⟨⟨[X'], ?_⟩ , by simp⟩
+    -- apply "collect from sub-BuildTree" lemma
+    sorry
+  case freeRepeat frep =>
+    -- We don't make a PreState here but go to companion first.
+    simp only
+    cases frep
+    have m_frep : m.isFreeRepeat := by unfold isFreeRepeat; grind
+    let compy := m.companionOf m_frep
+    have IH := compy.existsPreState
+    rcases IH with ⟨π, Z, Z_in_π, _same_Z⟩
+    use π, Z, Z_in_π
+    -- Using lemma that companion has the a setEqTo sequent.
+    have := m.companionOf_setEqTo_sequent m_frep
+    refine Sequent.setEqTo_trans _ compy.btAt.snd.fst _ ?_ _same_Z
+    unfold compy
+    rw [Sequent.setEqTo_symm]
+    convert this
+    grind
+  case openLeaf =>
+    refine ⟨⟨[X'], ?_⟩, by simp⟩
+    -- apply "collect from sub-BuildTree" lemma
+    sorry
+termination_by
+  m.length
+decreasing_by
+  -- Need lemma that companion is a shorter `Match`?
+  sorry
+
+-- TODO combining .exists_PreState and List.find? ???
+def Match.toPreState {bt : BuildTree [] X} (m : Match bt) : PreState bt := by
+  sorry
+
+def PreState.toMatch {bt : BuildTree [] X} (π : PreState bt) : Match bt := by
+  rcases π with ⟨π, π_in⟩
+  unfold BuildTree.collect at π_in
+  cases bt <;> simp at π_in
+  case loc nbas someLT next =>
+    sorry
+  case pdl =>
+    sorry
+  case openLeaf =>
+    sorry
+
+/-- Round-trip. The other order does not hold because π may occur multiple times in bt. -/
+lemma PreState.toMatch_toPreState {X} {bt : BuildTree [] X} (π : PreState bt) :
+    π.toMatch.toPreState = π := by
+  sorry
 
 /-! ## Properties of Formula (Sets? Lists?) obtained from Pre-States -/
 
@@ -1084,6 +1180,10 @@ lemma PreState.freeUnfoldDiaMem_of_nonAtom {X} {bt : BuildTree [] X} {π : PreSt
     ¬ α.isAtomic → (~⌈α⌉φ : WhateverFormula) ∈ π.wForms →
       ∃ Xδ ∈ Dset α, (Xδ.1 ∪ [~ Formula.boxes Xδ.2 φ]).all (· ∈ π.wForms) := by
   intro α_notAtom in_forms
+  rcases π with ⟨π, π_in⟩
+  -- IDEA
+  -- If π comes from a .pdl step then it must be basic, use `absurd α_notAtom`.
+  -- So π must come from a .loc step, and somewhere in the loc tab the unfold rule must be used?
   sorry
 
 /-- Lemma 6.15 *loaded* case with _more than one_ loaded box -/
@@ -1130,39 +1230,6 @@ lemma PreState.mem_toModel {X : Sequent} {bt : BuildTree [] X} {π : PreState bt
 
 instance {bt : BuildTree [] X} : Coe (PreState bt) { w : Finset Formula // w ∈ bt.toModel.1 } :=
   ⟨fun π => ⟨π.forms, π.mem_toModel⟩⟩
-
-/-! ## PreStates to Matches and back again
-
-IDEA / TODO: to prove the existence lemmas it seems useful to have helper lemmas/defs
-to switch between Pre-states & matches. Can we show these?
-
-- every pre-state must come from some match
-
-- every match gives us a pre-state
-
-If we have these, then we can use `Match.rewind` to "roll back up".
-
-Note: the functions will not necessarily "round-trip".
-
-Small worry: there is no order on Pre-States, so termination of this IH might be an issue?
-Idea: use the PreState-to-Match conversion and then the Match-length as termination_by.
--/
-
-def PreState.toMatch {bt : BuildTree [] X} (π : PreState bt) : Match bt :=
-  sorry
-
-def Match.toPreState {bt : BuildTree [] X} (m : Match bt) : PreState bt := by
-  refine ⟨(m.btAt.2.2).collect.head ?_, ?_⟩
-  · have := @BuildTree.collect_nonempty
-    sorry
-  · -- lemma? Match.btAt_collect_mem_collect or so?
-    sorry
-
-/-- Round-trip. The other order does not hold because π may occur multiple times in bt. -/
-lemma PreState.toMatch_toPreState {bt : BuildTree [] X} (π : PreState bt) :
-    π.toMatch.toPreState = π := by
-  sorry
-
 
 /-! ## Existence Lemmas -/
 
