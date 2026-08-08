@@ -964,6 +964,7 @@ lemma loaded_unfold'_child_closes_right {α : Program} {φ : Formula}
   rcases hm with ⟨Fδ, Fδ_in, heq⟩
   exact ⟨Fδ, Fδ_in, fun f hf => mem_child_right_of_pairUnload_mem (heq ▸ hf)⟩
 
+-- TODO golf/shorten this
 set_option maxHeartbeats 4000000 in
 -- lots of simp_al and aesop use, made by aristotle.harmonic.fun
 /-- Every formula at the source of a local rule is either retained by a chosen child or is the
@@ -1192,6 +1193,31 @@ lemma Sequent.basic_then_saturated {X : Sequent} : X.basic → saturated X.toFin
 and for all atoms `p ∈ X` we do not have `~p ∈ X`. Part of Def 6.2 -/
 def locallyConsistent (X : Finset Formula) : Prop :=
   ⊥ ∉ X.val ∧ ∀ pp, (·pp : Formula) ∈ X.val → (~(·pp)) ∉ X.val
+
+lemma Sequent.basic_to_locallyConsistent {X : Sequent} (bas : X.basic) :
+    locallyConsistent X.toFinset := by
+  rcases X with ⟨L, R, O⟩
+  unfold locallyConsistent Sequent.toFinset at *
+  constructor
+  · intro hbot
+    apply bas.2
+    unfold Sequent.closed
+    left
+    simp_all
+  · intro p hp hnp
+    apply bas.2
+    unfold Sequent.closed
+    right
+    refine ⟨(·p), ?_, ?_⟩
+    · simp_all
+    · simp_all
+      rcases hnp with h | h | ⟨a, rfl, ha⟩ | ⟨b, rfl, hb⟩
+      · exact Or.inl h
+      · exact Or.inr h
+      · rcases a with ⟨⟨α, af⟩⟩
+        cases af <;> simp [LoadFormula.unload] at ha
+      · rcases b with ⟨⟨α, af⟩⟩
+        cases af <;> simp [LoadFormula.unload] at hb
 
 -- TODO golf/shorten this
 /-- LocalRuleApp preserves saturatedness backwards. -/

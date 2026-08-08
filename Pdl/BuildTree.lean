@@ -581,41 +581,6 @@ lemma Match.companionOf_length_lt {X} {bt : BuildTree [] X} (m : Match bt) (h : 
     apply m.rewind_length_lt_length_of_pos
     simp [Fin.lt_def]
 
-/-! ## move to Syntax.lean and Sequent.lean later -/
-
-/-- Unfortunately our `AnyFormula` type does not include *negated* loaded formulas, so this is yet
-another type to describe "whatever formula" can be in a sequent, without losing information. -/
-inductive WhateverFormula : Type
-  | any : AnyFormula → WhateverFormula
-  | negLoad : NegLoadFormula → WhateverFormula
-  deriving Repr, DecidableEq
-
-instance : Coe Formula WhateverFormula := ⟨.any ∘ .normal⟩
-instance : Coe LoadFormula WhateverFormula := ⟨.any ∘ .loaded⟩
-instance : Coe NegLoadFormula WhateverFormula := ⟨WhateverFormula.negLoad⟩
-
-def Olf.wForms : Olf → List WhateverFormula
-  | none => []
-  | some (.inl (nφ)) => [.negLoad nφ]
-  | some (.inr (nφ)) => [.negLoad nφ]
-
-def Sequent.wForms : Sequent → List WhateverFormula
-  | ⟨L,R,O⟩ => L.map Coe.coe ++ R.map Coe.coe ++ O.wForms
-
-lemma Sequent.mem_bothSides_iff (φ : Formula) (X : Sequent) :
-    φ ∈ X.bothSides ↔
-      ((.any (.normal φ) : WhateverFormula) ∈ X.wForms
-      ∨ (∃ χ, χ.unload = φ ∧ (.any (.loaded χ) ∈ X.wForms))
-      ∨ (∃ ψ, negUnload ψ = φ ∧ (.negLoad ψ ∈ X.wForms))) := by
-  rcases X with ⟨L, R, O⟩
-  rcases O with _ | (ψ | ψ) <;>
-    simp [Sequent.bothSides, Sequent.left, Sequent.right, Sequent.wForms, Olf.wForms,
-      Olf.L, Olf.R, instCoeFormulaWhateverFormula] <;> tauto
-
-/-! ## Collect paths of sequents within a LocalTableau (move to LocalTableau.lean later?)
-
-This may be useful for the pre-states used in the completeness proof. -/
-
 /-! ## Collecting Sequents for Pre-states
 
 As possible worlds for the model graph we want to define *maximal* paths inside the build tree
@@ -789,59 +754,6 @@ decreasing_by
     apply @BuildTree.size_lt_loc H X
   · subst_eqs
     apply @BuildTree.size_lt_pdl H X
-
-lemma Sequent.basic_to_locallyConsistent {X : Sequent} (bas : X.basic) :
-    locallyConsistent X.toFinset := by
-  rcases X with ⟨L, R, O⟩
-  unfold locallyConsistent Sequent.toFinset at *
-  constructor
-  · intro hbot
-    apply bas.2
-    unfold Sequent.closed
-    left
-    simp_all
-  · intro p hp hnp
-    apply bas.2
-    unfold Sequent.closed
-    right
-    refine ⟨(·p), ?_, ?_⟩
-    · simp_all
-    · simp_all
-      rcases hnp with h | h | ⟨a, rfl, ha⟩ | ⟨b, rfl, hb⟩
-      · exact Or.inl h
-      · exact Or.inr h
-      · rcases a with ⟨⟨α, af⟩⟩
-        cases af <;> simp [LoadFormula.unload] at ha
-      · rcases b with ⟨⟨α, af⟩⟩
-        cases af <;> simp [LoadFormula.unload] at hb
-
-lemma LocalTableau.paths_locallyConsistent {X} {lt : LocalTableau X} :
-    ∀ L ∈ lt.paths,
-      locallyConsistent (List.map Sequent.bothSides L).flatten.toFinset := by
-  intro L L_in
-  have last_basic := LocalTableau.paths_last_basic L L_in
-  have last_consistent := Sequent.basic_to_locallyConsistent last_basic
-  unfold locallyConsistent at *
-  constructor
-  · intro bot_in
-    simp only [Finset.mem_val, List.mem_toFinset] at bot_in
-    apply last_consistent.1
-    rw [← Sequent.bothSides_toFinset_eq_toFinset]
-    exact List.mem_toFinset.mpr <|
-      LocalTableau.paths_local_atom_mem_last L_in ⊥ (Or.inl rfl) bot_in
-  · intro p p_in neg_p_in
-    simp only [Finset.mem_val, List.mem_toFinset] at p_in neg_p_in
-    apply last_consistent.2 p
-    · rw [← Sequent.bothSides_toFinset_eq_toFinset]
-      exact List.mem_toFinset.mpr <|
-        LocalTableau.paths_local_atom_mem_last L_in (Formula.atom_prop p)
-          (Or.inr ⟨p, Or.inl rfl⟩) p_in
-    · rw [← Sequent.bothSides_toFinset_eq_toFinset]
-      exact List.mem_toFinset.mpr <|
-        LocalTableau.paths_local_atom_mem_last L_in (~(Formula.atom_prop p))
-          (Or.inr ⟨p, Or.inr rfl⟩) neg_p_in
-
--- IDEA: helper lemma "every pre-state is either a local tableau path or a singleton and basic" ??
 
 lemma PreState.forms_locallyConsistent {H X} {bt : BuildTree H X} {π : PreState bt} :
     locallyConsistent π.forms := by

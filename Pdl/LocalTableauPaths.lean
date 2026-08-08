@@ -101,14 +101,6 @@ lemma LocalTableau.paths_last_basic {X} {lt : LocalTableau X} :
   simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists]
   grind
 
-@[simp]
-lemma Sequent.bothSides_toFinset_eq_toFinset {X : Sequent} :
-    X.bothSides.toFinset = X.toFinset := by
-  rcases X with ⟨L,R,O⟩
-  unfold Sequent.bothSides Sequent.toFinset
-  simp
-  rcases O with _|(_|_) <;> simp
-
 lemma LocalTableau.paths_saturated {X} {lt : LocalTableau X} :
     ∀ L ∈ lt.paths,
       saturated (List.map Sequent.bothSides L).flatten.toFinset := by
@@ -170,3 +162,29 @@ termination_by
 decreasing_by
   subst_eqs
   exact localRuleApp.decreases_DM _ _ Y_in
+
+lemma LocalTableau.paths_locallyConsistent {X} {lt : LocalTableau X} :
+    ∀ L ∈ lt.paths,
+      locallyConsistent (List.map Sequent.bothSides L).flatten.toFinset := by
+  intro L L_in
+  have last_basic := LocalTableau.paths_last_basic L L_in
+  have last_consistent := Sequent.basic_to_locallyConsistent last_basic
+  unfold locallyConsistent at *
+  constructor
+  · intro bot_in
+    simp only [Finset.mem_val, List.mem_toFinset] at bot_in
+    apply last_consistent.1
+    rw [← Sequent.bothSides_toFinset_eq_toFinset]
+    exact List.mem_toFinset.mpr <|
+      LocalTableau.paths_local_atom_mem_last L_in ⊥ (Or.inl rfl) bot_in
+  · intro p p_in neg_p_in
+    simp only [Finset.mem_val, List.mem_toFinset] at p_in neg_p_in
+    apply last_consistent.2 p
+    · rw [← Sequent.bothSides_toFinset_eq_toFinset]
+      exact List.mem_toFinset.mpr <|
+        LocalTableau.paths_local_atom_mem_last L_in (Formula.atom_prop p)
+          (Or.inr ⟨p, Or.inl rfl⟩) p_in
+    · rw [← Sequent.bothSides_toFinset_eq_toFinset]
+      exact List.mem_toFinset.mpr <|
+        LocalTableau.paths_local_atom_mem_last L_in (~(Formula.atom_prop p))
+          (Or.inr ⟨p, Or.inr rfl⟩) neg_p_in

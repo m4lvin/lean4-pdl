@@ -562,3 +562,45 @@ theorem Sequent.without_loaded_in_side_isFree (LRO : Sequent) ξ side :
   all_goals
     simp [Sequent.without, isFree, isLoaded, AnyNegFormula.in_side]
     try aesop
+
+/-! ## Whatever formulas
+
+A type to describe all formulas that can occur in a sequent, without losing information
+about whether they are loaded or not. -/
+
+/-- Unfortunately our `AnyFormula` type does not include *negated* loaded formulas, so this is yet
+another type to describe "whatever formula" can be in a sequent, without losing information. -/
+inductive WhateverFormula : Type
+  | any : AnyFormula → WhateverFormula
+  | negLoad : NegLoadFormula → WhateverFormula
+  deriving Repr, DecidableEq
+
+instance : Coe Formula WhateverFormula := ⟨.any ∘ .normal⟩
+instance : Coe LoadFormula WhateverFormula := ⟨.any ∘ .loaded⟩
+instance : Coe NegLoadFormula WhateverFormula := ⟨WhateverFormula.negLoad⟩
+
+def Olf.wForms : Olf → List WhateverFormula
+  | none => []
+  | some (.inl (nφ)) => [.negLoad nφ]
+  | some (.inr (nφ)) => [.negLoad nφ]
+
+def Sequent.wForms : Sequent → List WhateverFormula
+  | ⟨L,R,O⟩ => L.map Coe.coe ++ R.map Coe.coe ++ O.wForms
+
+lemma Sequent.mem_bothSides_iff (φ : Formula) (X : Sequent) :
+    φ ∈ X.bothSides ↔
+      ((.any (.normal φ) : WhateverFormula) ∈ X.wForms
+      ∨ (∃ χ, χ.unload = φ ∧ (.any (.loaded χ) ∈ X.wForms))
+      ∨ (∃ ψ, negUnload ψ = φ ∧ (.negLoad ψ ∈ X.wForms))) := by
+  rcases X with ⟨L, R, O⟩
+  rcases O with _ | (ψ | ψ) <;>
+    simp [Sequent.bothSides, Sequent.left, Sequent.right, Sequent.wForms, Olf.wForms,
+      Olf.L, Olf.R, instCoeFormulaWhateverFormula] <;> tauto
+
+@[simp]
+lemma Sequent.bothSides_toFinset_eq_toFinset {X : Sequent} :
+    X.bothSides.toFinset = X.toFinset := by
+  rcases X with ⟨L,R,O⟩
+  unfold Sequent.bothSides Sequent.toFinset
+  simp
+  rcases O with _|(_|_) <;> simp
