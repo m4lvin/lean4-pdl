@@ -1,5 +1,4 @@
 import Pdl.TableauGame
-import Pdl.AllPdlRule
 import Pdl.LocalTableauPaths
 import Pdl.PdlSteps
 
@@ -13,7 +12,7 @@ Lessons learned while working on this file:
 
 -/
 
-/-! ## BuildTree -/
+/-! ## Builder Strategy Tree -/
 
 -- See also Bml/CompletenessViaPaths.lean for inspiration that might be useful here.
 
