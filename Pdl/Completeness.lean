@@ -60,16 +60,16 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
     · -- neg loaded, use 6.18
       rcases ψ with ⟨⟨α',χ⟩ ⟩
       simp only [negUnload, Formula.neg.injEq] at ψul_def
-      rcases PreState.loadedDiamondExistence in_w with ⟨t, in_t, ρ, u, α_rel⟩
+      obtain ⟨ρ, α_rel, hanf⟩ := PreState.loadedDiamondExistence in_w
       unfold WS
       simp only [BuildTree.toModel, Finset.union_singleton, List.mem_toFinset, List.mem_map]
       refine ⟨ρ.forms, ⟨bt.exists_mem_attach_forms_eq, ?_⟩, ?_⟩
       · have : α = α' := by cases χ <;> grind [LoadFormula.unload]
         rw [this]
         exact α_rel
-      · -- use `in_t : AnyNegFormula.mem_Sequent t.btAt.snd.fst (~''χ)` here.
-        -- But better adjust the statement of `PreState.loadedDiamondExistence` first.
-        sorry
+      · have : φ = χ.unload := by cases χ <;> grind [LoadFormula.unload, AnyFormula.unload]
+        rw [this]
+        exact PreState.mem_forms_of_hasAnf hanf
   case X_in =>
     unfold WS
     -- Here the def of `BuildTree.allPreStates` matters.
