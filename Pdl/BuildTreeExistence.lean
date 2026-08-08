@@ -402,21 +402,6 @@ lemma PreState.freeAtomicStep {X} {bt : BuildTree [] X} (π : PreState bt) {a : 
 
 /-! ## Existence Lemmas -/
 
-/- The original TODO version of Lemma 6.18. It is commented out because the `Match`es `t` and
-`u` in it are not related to each other or to the pre-states in any way, which makes the
-statement unusable. The version proven below says instead that the pre-state `ρ` we reach
-contains `~''φ`, which is what is needed for Theorem 6.21.
-
-lemma PreState.loadedDiamondExistence {φ : AnyFormula} {π : PreState bt} :
-  (~'⌊α⌋φ : WhateverFormula) ∈ π.wForms →
-    ∃ t : Match bt,
-        AnyNegFormula.mem_Sequent (t.btAt).2.1 (~''φ)
-      ∧ ∃ ρ : PreState bt,
-          ∃ u : Match bt,
-        @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α π ρ := by
-  sorry
--/
-
 /-- **Lemma 6.18**: the loaded diamond existence lemma.
 If `~'⌊α⌋φ` occurs in the pre-state `π` then there is a pre-state `ρ` reached from `π` by
 `Q α` and containing `~''φ`.
