@@ -610,7 +610,8 @@ We collect the sequents along such paths directly by induction on the `BuildTree
 The local pre-states come from paths in a local tableau,
 and PDL pre-states each consist of just a single node. -/
 def BuildTree.collect {H X} : (bt : BuildTree H X) → List (List Sequent)
-  | .loc _ _ next => (OpenLocalTableau.all X).flatMap fun lt => lt.1.paths ++ (next lt).6.collect
+  | .loc _ _ next =>
+      (OpenLocalTableau.all X).flatMap fun lt => lt.1.pathsTo (next lt).4 ++ (next lt).6.collect
   | .pdl _ _ next => [ [X] ] ++ (PdlRule.all X).flatMap fun ⟨Y,r⟩ => (next Y r).collect
   | .freeRepeat _ => [ ] -- Not generating a pre-state here, go to companion instead !! ?? !!
   | .openLeaf _ _ => [ [X] ]
@@ -627,7 +628,7 @@ lemma BuildTree.collect_nonempty (bt : BuildTree [] X) :
     simp only [collect, ne_eq, List.flatMap_eq_nil_iff, List.append_eq_nil_iff, not_forall, not_and]
     rcases List.exists_mem_of_ne_nil _ someLT with ⟨lt, lt_in⟩
     use lt, lt_in
-    have := OpenLocalTableau.paths_nonempty lt -- new :-)
+    have := LocalTableau.pathsTo_ne_nil (lt := lt.1) (Y := (next lt).4) BuildChoice.frth_mem
     tauto
   all_goals
     simp [collect]
@@ -639,9 +640,10 @@ lemma BuildTree.collect_contains_root (bt : BuildTree [] X) :
   cases bt <;> simp [collect]
   case loc nbas someLT next =>
     rcases List.exists_mem_of_ne_nil _ someLT with ⟨lt, lt_in⟩
-    let πs := lt.1.paths
-    have πs_ne : πs ≠ [] := OpenLocalTableau.paths_nonempty lt
-    rcases πs.exists_mem_of_ne_nil πs_ne with ⟨π, π_in⟩
+    rcases List.exists_mem_of_ne_nil _
+      (LocalTableau.pathsTo_ne_nil (lt := lt.1) (Y := (next lt).4) BuildChoice.frth_mem)
+      with ⟨π, π_in⟩
+    rw [LocalTableau.mem_pathsTo] at π_in
     refine ⟨π, ⟨lt, lt.all_spec, .inl π_in⟩, ?_⟩
     have := @LocalTableau.pathsHead_eq_self X lt.1 π
     grind
@@ -655,7 +657,10 @@ lemma BuildTree.collect_contains_root_of_not_freeRepeat {H X} (bt : BuildTree H 
   cases bt <;> simp [collect]
   case loc nbas someLT next =>
     rcases List.exists_mem_of_ne_nil _ someLT with ⟨lt, lt_in⟩
-    rcases List.exists_mem_of_ne_nil _ (OpenLocalTableau.paths_nonempty lt) with ⟨π, π_in⟩
+    rcases List.exists_mem_of_ne_nil _
+      (LocalTableau.pathsTo_ne_nil (lt := lt.1) (Y := (next lt).4) BuildChoice.frth_mem)
+      with ⟨π, π_in⟩
+    rw [LocalTableau.mem_pathsTo] at π_in
     refine ⟨π, ⟨lt, lt.all_spec, .inl π_in⟩, ?_⟩
     have := @LocalTableau.pathsHead_eq_self X lt.1 π
     grind
@@ -676,7 +681,7 @@ lemma PreState.nonempty {H X} {bt : BuildTree H X} {π : PreState bt} : π.val �
     simp_all
     rcases L_in with ⟨lt, lt_in, L_in⟩
     rcases L_in with L_in|L_in
-    · exact LocalTableau.paths_mem_nonempty lt.1 L L_in
+    · exact LocalTableau.paths_mem_nonempty lt.1 L L_in.1
     · have IH := @PreState.nonempty _ _ (next lt).6 ⟨L, L_in⟩
       exact IH
   case pdl bas next L_in' =>
@@ -751,7 +756,7 @@ lemma PreState.forms_saturated {X} {bt : BuildTree H X} {π : PreState bt} :
   cases bt <;> simp [BuildTree.collect] at π_in <;> rename_i old_π_in
   case loc nbas next =>
     rcases π_in with ⟨lt, lt_in, π_in_lt|π_in_next⟩
-    · exact LocalTableau.paths_saturated _ π_in_lt
+    · exact LocalTableau.paths_saturated _ π_in_lt.1
     · have IH := @PreState.forms_saturated _ _ _ ⟨π, π_in_next⟩
       exact IH
   case pdl bas someR next =>
@@ -779,7 +784,7 @@ lemma PreState.forms_locallyConsistent {H X} {bt : BuildTree H X} {π : PreState
   cases bt <;> simp [BuildTree.collect] at π_in <;> rename_i π_in_old
   case loc nbas next =>
     rcases π_in with ⟨lt, lt_in, π_in_lt|π_in_next⟩
-    · exact LocalTableau.paths_locallyConsistent _ π_in_lt
+    · exact LocalTableau.paths_locallyConsistent _ π_in_lt.1
     · have IH := @PreState.forms_locallyConsistent _ _ _ ⟨π, π_in_next⟩
       exact IH
   case pdl bas someR next =>
@@ -806,7 +811,7 @@ lemma PreState.forms_last_basic {bt : BuildTree H X} {π : PreState bt} :
   cases bt <;> simp [BuildTree.collect] at π_in <;> rename_i π_in_old
   case loc nbas next =>
     rcases π_in with ⟨lt, lt_in, π_in_lt|π_in_next⟩
-    · exact LocalTableau.paths_last_basic _ π_in_lt
+    · exact LocalTableau.paths_last_basic _ π_in_lt.1
     · have IH := @PreState.forms_last_basic _ _ _ ⟨π, π_in_next⟩
       exact IH
   case pdl bas someR next =>
