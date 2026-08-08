@@ -81,14 +81,14 @@ jobs:
 
       - name: Upload website
         if: github.ref_name == 'main'
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: 'home_page/'
 
       - name: Deploy to GitHub Pages
         if: github.ref_name == 'main'
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
   stats:
     name: Stats
