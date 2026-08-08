@@ -597,6 +597,20 @@ lemma Sequent.mem_bothSides_iff (φ : Formula) (X : Sequent) :
     simp [Sequent.bothSides, Sequent.left, Sequent.right, Sequent.wForms, Olf.wForms,
       Olf.L, Olf.R, instCoeFormulaWhateverFormula] <;> tauto
 
+/-- A normal formula is in `X.wForms` iff it is on the left or on the right of `X`.
+(Note that the `Olf` part of `X` only contributes negated *loaded* formulas.) -/
+lemma Sequent.mem_wForms_normal_iff {ψ : Formula} {L R : List Formula} {O : Olf} :
+    ((ψ : WhateverFormula) ∈ Sequent.wForms ⟨L,R,O⟩) ↔ (ψ ∈ L ∨ ψ ∈ R) := by
+  rcases O with _|(nl|nl) <;> simp [Sequent.wForms, Olf.wForms, instCoeFormulaWhateverFormula]
+
+/-- In a basic sequent all free diamonds are atomic. -/
+lemma Sequent.isAtomic_of_basic_of_negBox_mem_wForms {X : Sequent} {α φ} (bas : X.basic)
+    (h : (~⌈α⌉φ : WhateverFormula) ∈ X.wForms) : α.isAtomic := by
+  rcases X with ⟨L, R, O⟩
+  rw [Sequent.mem_wForms_normal_iff] at h
+  have := bas.1 (~⌈α⌉φ) (by rw [List.mem_append]; exact Or.inl (List.mem_append.mpr h))
+  cases α <;> simp_all [Formula.basic, Program.isAtomic]
+
 @[simp]
 lemma Sequent.bothSides_toFinset_eq_toFinset {X : Sequent} :
     X.bothSides.toFinset = X.toFinset := by
@@ -604,3 +618,20 @@ lemma Sequent.bothSides_toFinset_eq_toFinset {X : Sequent} :
   unfold Sequent.bothSides Sequent.toFinset
   simp
   rcases O with _|(_|_) <;> simp
+
+/-- A negated loaded formula is in `X.wForms` iff it is the loaded formula of `X`. -/
+lemma Sequent.mem_wForms_negLoad_iff {nlf : NegLoadFormula} {L R : List Formula} {O : Olf} :
+    ((WhateverFormula.negLoad nlf) ∈ Sequent.wForms ⟨L,R,O⟩)
+    ↔ (O = some (.inl nlf) ∨ O = some (.inr nlf)) := by
+  rcases O with _|(nl|nl) <;>
+    simp [Sequent.wForms, Olf.wForms, instCoeFormulaWhateverFormula] <;> tauto
+
+/-- In a basic sequent all loaded diamonds are atomic. -/
+lemma Sequent.isAtomic_of_basic_of_negLoad_mem_wForms {X : Sequent} {α} {ξ : AnyFormula}
+    (bas : X.basic) (h : (WhateverFormula.negLoad (~'⌊α⌋ξ)) ∈ X.wForms) : α.isAtomic := by
+  rcases X with ⟨L, R, O⟩
+  rw [Sequent.mem_wForms_negLoad_iff] at h
+  have h_mem : (~ (⌊α⌋ξ).unload) ∈ L ++ R ++ (O.map (Sum.elim negUnload negUnload)).toList := by
+    rcases h with rfl | rfl <;> simp
+  have := bas.1 _ h_mem
+  cases ξ <;> cases α <;> simp_all [Formula.basic, Program.isAtomic, LoadFormula.unload]

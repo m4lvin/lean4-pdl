@@ -1295,3 +1295,159 @@ lemma LocalRuleApp.preserve_saturated_up (lra : LocalRuleApp) :
     · rcases hdia hrest with ⟨Fδ, hD, hF⟩
       simp only [List.all_eq_true, decide_eq_true_eq] at hF
       exact ⟨Fδ, hD, by simpa using fun f hf => lift_rest _ (by simpa using hF f hf)⟩
+
+/-- A free diamond at the source of a local rule application is either kept in the chosen child,
+or it is the principal formula, and then the child contains one of its unfoldings.
+Analogous to `LocalRuleApp.formula_preserved_or_expanded`, but for `Sequent.wForms`, i.e. here
+we also know that the formulas in the child occur *unloaded*. (This is why we cannot obtain this
+lemma from `LocalRuleApp.formula_preserved_or_expanded`: the latter uses `Sequent.bothSides`,
+where a formula may also come from *unloading* the loaded formula of a sequent.) -/
+lemma LocalRuleApp.wForms_negBox_preserved_or_unfolded (lra : LocalRuleApp) {Y : Sequent}
+    (hY : Y ∈ lra.C) {α φ} (h : (~⌈α⌉φ : WhateverFormula) ∈ lra.X.wForms) :
+    ((~⌈α⌉φ : WhateverFormula) ∈ Y.wForms)
+    ∨ ∃ Fδ ∈ Dset α, (Yset Fδ φ).all (fun f => (f : WhateverFormula) ∈ Y.wForms) := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, pre⟩
+  subst hC
+  simp only [LocalRuleApp.X] at h
+  rw [Sequent.mem_wForms_normal_iff] at h
+  simp only [applyLocalRule, List.mem_map] at hY
+  rcases hY with ⟨⟨Lnew, Rnew, Onew⟩, res_in, rfl⟩
+  by_cases hcond : (~⌈α⌉φ) ∈ Lcond ∨ (~⌈α⌉φ) ∈ Rcond
+  · -- The diamond is the principal formula, so the only possible rule is its unfolding.
+    right
+    cases rule with
+    | oneSidedL orule ress_def =>
+      cases orule <;> simp_all
+      rcases res_in with ⟨a, a_in, ha⟩
+      simp only [unfoldDiamond, List.mem_map] at a_in
+      rcases a_in with ⟨⟨F, δ⟩, Fδ_in, rfl⟩
+      cases ha
+      exact ⟨F, δ, Fδ_in, fun x hx => Sequent.mem_wForms_normal_iff.mpr
+        (Or.inl (List.mem_append.mpr (Or.inr hx)))⟩
+    | oneSidedR orule ress_def =>
+      cases orule <;> simp_all
+      rcases res_in with ⟨a, a_in, ha⟩
+      simp only [unfoldDiamond, List.mem_map] at a_in
+      rcases a_in with ⟨⟨F, δ⟩, Fδ_in, rfl⟩
+      cases ha
+      exact ⟨F, δ, Fδ_in, fun x hx => Sequent.mem_wForms_normal_iff.mpr
+        (Or.inr (List.mem_append.mpr (Or.inr hx)))⟩
+    | _ => simp_all
+  · -- The diamond is not the principal formula, so it is kept in the chosen child.
+    left
+    push_neg at hcond
+    rw [Sequent.mem_wForms_normal_iff]
+    rcases h with hL | hR
+    · exact Or.inl (List.mem_append.mpr (Or.inl (List.mem_diff_of_mem hL hcond.1)))
+    · exact Or.inr (List.mem_append.mpr (Or.inl (List.mem_diff_of_mem hR hcond.2)))
+
+/-- A loaded diamond at the source of a local rule application is either kept in the chosen child,
+or it is the principal formula, and then the child contains one of the results of the `LoadRule`
+that was applied to it.
+This is the loaded analogue of `LocalRuleApp.wForms_negBox_preserved_or_unfolded`. -/
+lemma LocalRuleApp.wForms_negLoad_preserved_or_unfolded (lra : LocalRuleApp) {Y : Sequent}
+    (hY : Y ∈ lra.C) {nlf : NegLoadFormula}
+    (h : (WhateverFormula.negLoad nlf) ∈ lra.X.wForms) :
+    ((WhateverFormula.negLoad nlf) ∈ Y.wForms)
+    ∨ ∃ ress, Nonempty (LoadRule nlf ress) ∧ ∃ Fo ∈ ress,
+        Fo.1.all (fun f => (f : WhateverFormula) ∈ Y.wForms)
+        ∧ Fo.2.toList.all (fun nl => (WhateverFormula.negLoad nl) ∈ Y.wForms) := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, pre⟩
+  subst hC
+  simp only [LocalRuleApp.X] at h
+  rw [Sequent.mem_wForms_negLoad_iff] at h
+  cases rule
+  case oneSidedL ress' orule ress_def | oneSidedR ress' orule ress_def =>
+    -- One-sided rules do not change the loaded formula, so it is kept.
+    subst ress_def
+    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hY
+    rcases hY with ⟨res, res_in, rfl⟩
+    left
+    rw [Sequent.mem_wForms_negLoad_iff]
+    simpa using h
+  case LRnegL ψ => simp at hY
+  case LRnegR ψ => simp at hY
+  case loadedL ress' χ lrule ress_def =>
+    subst ress_def
+    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hY
+    rcases hY with ⟨⟨Xnew, onew⟩, res_in, rfl⟩
+    right
+    have nlf_def : nlf = ~'χ := by
+      rcases pre with ⟨_, _, hO⟩
+      rcases h with hO' | hO' <;> rw [hO'] at hO <;> simp_all
+    subst nlf_def
+    refine ⟨ress', ⟨lrule⟩, ⟨Xnew, onew⟩, res_in, ?_, ?_⟩
+    · simp only [List.all_eq_true, decide_eq_true_eq]
+      intro f f_in
+      rw [Sequent.mem_wForms_normal_iff]
+      exact Or.inl (List.mem_append.mpr (Or.inr f_in))
+    · cases onew with
+      | none => simp
+      | some nl =>
+        simp only [Option.toList_some, List.all_cons, List.all_nil, Bool.and_true,
+          decide_eq_true_eq]
+        rw [Sequent.mem_wForms_negLoad_iff]
+        simp
+  case loadedR ress' χ lrule ress_def =>
+    subst ress_def
+    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hY
+    rcases hY with ⟨⟨Xnew, onew⟩, res_in, rfl⟩
+    right
+    have nlf_def : nlf = ~'χ := by
+      rcases pre with ⟨_, _, hO⟩
+      rcases h with hO' | hO' <;> rw [hO'] at hO <;> simp_all
+    subst nlf_def
+    refine ⟨ress', ⟨lrule⟩, ⟨Xnew, onew⟩, res_in, ?_, ?_⟩
+    · simp only [List.all_eq_true, decide_eq_true_eq]
+      intro f f_in
+      rw [Sequent.mem_wForms_normal_iff]
+      exact Or.inr (List.mem_append.mpr (Or.inr f_in))
+    · cases onew with
+      | none => simp
+      | some nl =>
+        simp only [Option.toList_some, List.all_cons, List.all_nil, Bool.and_true,
+          decide_eq_true_eq]
+        rw [Sequent.mem_wForms_negLoad_iff]
+        simp
+
+/-- The only `LoadRule` applicable to `~'⌊α⌋χ` for a loaded `χ` is `LoadRule.dia`. -/
+lemma LoadRule.eq_unfoldDiamondLoaded {α} {χ : LoadFormula} {ress}
+    (lr : LoadRule (~'⌊α⌋(AnyFormula.loaded χ)) ress) : ress = unfoldDiamondLoaded α χ := by
+  cases lr; rfl
+
+/-- The only `LoadRule` applicable to `~'⌊α⌋φ` for a normal `φ` is `LoadRule.dia'`. -/
+lemma LoadRule.eq_unfoldDiamondLoaded' {α} {φ : Formula} {ress}
+    (lr : LoadRule (~'⌊α⌋(AnyFormula.normal φ)) ress) : ress = unfoldDiamondLoaded' α φ := by
+  cases lr; rfl
+
+/-- Local rule applications preserve *basic* formulas: no local rule with children can have
+a basic formula as its principal formula.
+Note that `⊥` is not basic, for that case see `LocalRuleApp.preserve_bottom_down`. -/
+lemma LocalRuleApp.preserve_basic_down (lra : LocalRuleApp) :
+    ∀ Y ∈ lra.C, ∀ f, f.basic → f ∈ lra.X.bothSides → f ∈ Y.bothSides := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, pre⟩
+  subst hC
+  cases rule <;> simp_all [applyLocalRule, Sequent.bothSides, Sequent.left, Sequent.right]
+  case oneSidedL ress orule ress_def => cases orule <;> simp_all <;> grind [Program.isAtomic]
+  case oneSidedR ress orule ress_def => cases orule <;> simp_all <;> grind [Program.isAtomic]
+  case loadedL ress chi lrule ress_def =>
+    cases lrule <;> simp_all <;> intros <;> subst_eqs <;> simp_all <;> grind [Program.isAtomic]
+  case loadedR ress chi lrule ress_def =>
+    cases lrule <;> simp_all <;> intros <;> subst_eqs <;> simp_all <;> grind [Program.isAtomic]
+
+/-- Local rules never *load* a formula: if the sequent we apply a local rule to is free,
+then so are all children. (The rules `loadedL` and `loadedR` are not applicable to a free
+sequent, and all other local rules leave the `Olf` component unchanged.) -/
+lemma LocalRuleApp.preserve_free (lra : LocalRuleApp) (hfree : lra.O = none) :
+    ∀ Y ∈ lra.C, Y.O = none := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, pre⟩
+  simp only at hfree
+  subst hfree
+  subst hC
+  cases rule
+  case oneSidedL ress orule ress_def => subst ress_def; rintro Y hY; simp at hY; grind [Sequent.O]
+  case oneSidedR ress orule ress_def => subst ress_def; rintro Y hY; simp at hY; grind [Sequent.O]
+  case LRnegL => simp_all
+  case LRnegR => simp_all
+  case loadedL => exact absurd pre.2.2 (by simp)
+  case loadedR => exact absurd pre.2.2 (by simp)

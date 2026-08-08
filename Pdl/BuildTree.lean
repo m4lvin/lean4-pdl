@@ -111,6 +111,10 @@ lemma BuildChoice.snd_eq {H X YS} {bc : BuildChoice H X YS} : bc.2 = X := by cas
 @[simp]
 lemma BuildChoice.thrd_eq {H X YS} {bc : BuildChoice H X YS} : bc.3 = YS := by cases bc; rfl
 
+/-- The node picked by Builder is one of the given ones. -/
+lemma BuildChoice.frth_mem {H X YS} {bc : BuildChoice H X YS} : bc.4 ∈ YS := by
+  cases bc; assumption
+
 def BuildTree.isFreeRepeat {H X} : BuildTree H X → Prop
   | BuildTree.freeRepeat _ => True
   | _ => False
@@ -381,6 +385,20 @@ def Match.append {H X} {bt : BuildTree H X} :
 | .nil, m2 => m2
 | .loc tail, m2 => .loc (append tail m2)
 | .pdl tail, m2 => .pdl (append tail m2)
+
+/-- Appending matches: the node reached is the one reached by the second match. -/
+lemma Match.btAt_append {H X} {bt : BuildTree H X} (m : Match bt) (c : Match m.btAt.2.2) :
+    (m.append c).btAt = c.btAt := by
+  induction m with
+  | nil => rfl
+  | loc tail IH => exact IH _
+  | pdl tail IH => exact IH _
+
+/-- Appending matches: the sequent reached is the one reached by the second match. -/
+lemma Match.endSeq_append {H X} {bt : BuildTree H X} (m : Match bt) (c : Match m.btAt.2.2) :
+    (m.append c).endSeq = c.endSeq := by
+  unfold Match.endSeq
+  rw [Match.btAt_append]
 
 /-- Rewind a `Match`, i.e. go back up inside `bt` by `k` steps.
 The + 1 is there because going back 0 steps does nothing. -/
