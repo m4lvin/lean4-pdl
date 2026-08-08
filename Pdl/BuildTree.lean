@@ -1,6 +1,7 @@
 import Pdl.TableauGame
 import Pdl.AllPdlRule
 import Pdl.LocalTableauPaths
+import Pdl.PdlSteps
 
 /-! # From winning strategies to model graphs (Section 6.3)
 
@@ -28,7 +29,6 @@ def FreeRepeat (Hist : History) (X : Sequent) : Type :=
 lemma FreeRepeat_nil_impossible : FreeRepeat [] X → False := by
   rintro ⟨n, n_h⟩
   grind
-
 
 mutual
 /-- Winning Strategy Tree for Builder.
@@ -927,44 +927,351 @@ lemma Match.toPreState_spec {X} {bt : BuildTree [] X} (m : Match bt) :
     ∃ Z ∈ m.toPreState.1, m.btAt.2.1.setEqTo Z :=
   Match.fitsPreState_iff.mp (List.find?_some (Option.some_get m.find?_fitsPreState_isSome).symm)
 
-def PreState.toMatch {X} {bt : BuildTree [] X} (π : PreState bt) : Match bt := by
-  rcases π with ⟨π, π_in⟩
-  unfold BuildTree.collect at π_in
-  cases bt <;> simp at π_in
-  case loc nbas someLT next =>
-    sorry
-  case pdl =>
-    sorry
-  case openLeaf =>
-    sorry
+/-- Search for the node in `bt` at which the list `p` of sequents is collected, and return the
+`Match` leading to that node. Auxiliary function for `PreState.toMatch`, defined for all lists
+`p` of sequents. If `p` is not collected anywhere, then we return `Match.nil` as a dummy value. -/
+def BuildTree.toMatchAux : {H : History} → {X : Sequent} → (bt : BuildTree H X) →
+    (p : List Sequent) → Match bt
+  | _, X, .loc _ _ next, p =>
+      -- If `p` is collected below one of the local tableaux, then go there, else stay here.
+      match (OpenLocalTableau.all X).find? (fun lt => decide (p ∈ (next lt).6.collect)) with
+      | some lt => .loc (BuildTree.toMatchAux (next lt).6 p)
+      | none => .nil
+  | _, X, .pdl _ _ next, p =>
+      -- If `p` is collected below one of the PDL rules, then go there, else stay here.
+      match (PdlRule.all X).find? (fun Yr => decide (p ∈ (next Yr.1 Yr.2).collect)) with
+      | some ⟨Y, r⟩ => .pdl (BuildTree.toMatchAux (next Y r) p)
+      | none => .nil
+  | _, _, .freeRepeat _, _ => .nil
+  | _, _, .openLeaf _ _, _ => .nil
+termination_by _ _ bt _ => bt.size
+decreasing_by
+  · apply BuildTree.size_lt_loc
+  · apply BuildTree.size_lt_pdl
 
-/-- Round-trip. The other order does not hold because π may occur multiple times in bt. -/
-lemma PreState.toMatch_toPreState {X} {bt : BuildTree [] X} (π : PreState bt) :
+/-- A collected list of sequents is still collected in the sub-`BuildTree` found for it. -/
+lemma BuildTree.toMatchAux_mem_collect : {H : History} → {X : Sequent} → (bt : BuildTree H X) →
+    (p : List Sequent) → p ∈ bt.collect → p ∈ (bt.toMatchAux p).btAt.2.2.collect
+  | _, X, .loc nbas someLT next, p, hp => by
+      rw [BuildTree.toMatchAux]
+      cases h : (OpenLocalTableau.all X).find? (fun lt => decide (p ∈ (next lt).6.collect))
+      case some lt =>
+        have p_in := List.find?_some h
+        simp only [decide_eq_true_eq] at p_in
+        simpa [Match.btAt] using BuildTree.toMatchAux_mem_collect (next lt).6 p p_in
+      case none => simpa [Match.btAt] using hp
+  | _, X, .pdl bas someR next, p, hp => by
+      rw [BuildTree.toMatchAux]
+      cases h : (PdlRule.all X).find? (fun Yr => decide (p ∈ (next Yr.1 Yr.2).collect))
+      case some Yr =>
+        have p_in := List.find?_some h
+        simp only [decide_eq_true_eq] at p_in
+        rcases Yr with ⟨Y, r⟩
+        simpa [Match.btAt] using BuildTree.toMatchAux_mem_collect (next Y r) p p_in
+      case none => simpa [Match.btAt] using hp
+  | _, _, .freeRepeat _, p, hp => by simpa [Match.btAt, BuildTree.toMatchAux] using hp
+  | _, _, .openLeaf _ _, p, hp => by simpa [Match.btAt, BuildTree.toMatchAux] using hp
+termination_by _ _ bt _ _ => bt.size
+decreasing_by
+  · apply BuildTree.size_lt_loc
+  · apply BuildTree.size_lt_pdl
+
+/-- A collected list of sequents starts with the sequent of the node where it is collected. -/
+lemma BuildTree.toMatchAux_head? : {H : History} → {X : Sequent} → (bt : BuildTree H X) →
+    (p : List Sequent) → p ∈ bt.collect → p.head? = some (bt.toMatchAux p).btAt.2.1
+  | _, X, .loc nbas someLT next, p, hp => by
+      rw [BuildTree.toMatchAux]
+      cases h : (OpenLocalTableau.all X).find? (fun lt => decide (p ∈ (next lt).6.collect))
+      case some lt =>
+        have p_in := List.find?_some h
+        simp only [decide_eq_true_eq] at p_in
+        simpa [Match.btAt] using BuildTree.toMatchAux_head? (next lt).6 p p_in
+      case none =>
+        -- Not collected below, hence `p` must be a path in one of the local tableaux here.
+        have hnone := List.find?_eq_none.mp h
+        simp only [decide_eq_true_eq] at hnone
+        rw [BuildTree.collect] at hp
+        simp only [List.mem_flatMap, List.mem_append] at hp
+        rcases hp with ⟨lt, lt_in, hp | hp⟩
+        · rw [List.head?_eq_some_head (LocalTableau.paths_mem_nonempty lt.1 p
+              (LocalTableau.mem_pathsTo.mp hp).1),
+            LocalTableau.pathsHead_eq_self (LocalTableau.mem_pathsTo.mp hp).1]
+          simp [Match.btAt]
+        · exact absurd hp (hnone lt lt_in)
+  | _, X, .pdl bas someR next, p, hp => by
+      rw [BuildTree.toMatchAux]
+      cases h : (PdlRule.all X).find? (fun Yr => decide (p ∈ (next Yr.1 Yr.2).collect))
+      case some Yr =>
+        have p_in := List.find?_some h
+        simp only [decide_eq_true_eq] at p_in
+        rcases Yr with ⟨Y, r⟩
+        simpa [Match.btAt] using BuildTree.toMatchAux_head? (next Y r) p p_in
+      case none =>
+        -- Not collected below, hence `p` must be the singleton list `[X]` collected here.
+        have hnone := List.find?_eq_none.mp h
+        simp only [decide_eq_true_eq] at hnone
+        rw [BuildTree.collect] at hp
+        simp only [List.singleton_append, List.mem_cons, List.mem_flatMap] at hp
+        rcases hp with rfl | ⟨Yr, Yr_in, hp⟩
+        · simp [Match.btAt]
+        · exact absurd hp (hnone Yr Yr_in)
+  | _, _, .freeRepeat _, p, hp => by
+      rw [BuildTree.collect] at hp; simp at hp
+  | _, _, .openLeaf _ _, p, hp => by
+      rw [BuildTree.collect] at hp
+      simp only [List.mem_singleton] at hp
+      subst hp
+      simp [Match.btAt, BuildTree.toMatchAux]
+termination_by _ _ bt _ _ => bt.size
+decreasing_by
+  · apply BuildTree.size_lt_loc
+  · apply BuildTree.size_lt_pdl
+
+/-- Every pre-state comes from a `Match`: this is the `Match` that leads to the node of the
+`BuildTree` at which the pre-state `π` was collected.
+(Defined for any history, not only for `H = []`.) -/
+def PreState.toMatch {H X} {bt : BuildTree H X} (π : PreState bt) : Match bt :=
+  bt.toMatchAux π.val
+
+/-- Specification of `PreState.toMatch`, part one:
+the pre-state is collected already in the sub-`BuildTree` reached by the match. -/
+lemma PreState.toMatch_mem_collect {H X} {bt : BuildTree H X} (π : PreState bt) :
+    π.val ∈ π.toMatch.btAt.2.2.collect :=
+  bt.toMatchAux_mem_collect π.val π.prop
+
+/-- Specification of `PreState.toMatch`, part two:
+the pre-state starts with the sequent at the node reached by the match. -/
+lemma PreState.toMatch_head {H X} {bt : BuildTree H X} (π : PreState bt) :
+    π.val.head PreState.nonempty = π.toMatch.btAt.2.1 := by
+  have := bt.toMatchAux_head? π.val π.prop
+  rw [List.head?_eq_some_head PreState.nonempty] at this
+  exact Option.some.inj this
+
+/-- Specification of `PreState.toMatch`, part three: the sequent at the node reached by the
+match is the head of the pre-state. (Reformulation of `PreState.toMatch_head`.) -/
+lemma PreState.toMatch_endSeq {H X} {bt : BuildTree H X} (π : PreState bt) :
+    π.toMatch.endSeq = π.val.head PreState.nonempty :=
+  (π.toMatch_head).symm
+
+/-- Not only the *first* sequent of a pre-state is reached by a `Match` (this is
+`PreState.toMatch`), also the *last* sequent of a pre-state is reached by some `Match`. -/
+lemma PreState.exists_match_endSeq_eq_last {H X} {bt : BuildTree H X} (π : PreState bt) :
+    ∃ m : Match bt, m.endSeq = π.val.getLast PreState.nonempty := by
+  rcases π with ⟨p, p_in⟩
+  cases bt <;> simp [BuildTree.collect] at p_in <;> rename_i p_in_old
+  case loc nbas someLT next =>
+    rcases p_in with ⟨lt, lt_in, p_in_lt | p_in_next⟩
+    · refine ⟨Match.loc (lt := lt) Match.nil, ?_⟩
+      have hne : p ≠ [] := PreState.nonempty (π := ⟨p, p_in_old⟩)
+      have := p_in_lt.2
+      rw [List.getLast?_eq_some_getLast (l := p) (h := hne)] at this
+      simp only [Match.endSeq, Match.btAt]
+      exact (Option.some.inj this).symm
+    · rcases @PreState.exists_match_endSeq_eq_last _ _ (next lt).6 ⟨p, p_in_next⟩ with ⟨m, hm⟩
+      exact ⟨Match.loc m, hm⟩
+  case pdl bas someR next =>
+    rcases p_in with p_def | ⟨Y, r, in_rule, p_in_next⟩
+    · subst p_def; exact ⟨Match.nil, by simp [Match.endSeq, Match.btAt]⟩
+    · rcases @PreState.exists_match_endSeq_eq_last _ _ (next Y r) ⟨p, p_in_next⟩ with ⟨m, hm⟩
+      exact ⟨Match.pdl m, hm⟩
+  case openLeaf bas noRule =>
+    subst p_in
+    exact ⟨Match.nil, by simp [Match.endSeq, Match.btAt]⟩
+termination_by bt.size
+decreasing_by
+  · subst_eqs; apply @BuildTree.size_lt_loc H X
+  · subst_eqs; apply @BuildTree.size_lt_pdl H X
+
+/-- Both ends of a pre-state are reached by matches, and the match reaching the last sequent
+extends the one reaching the first sequent: the continuation `c` is a `Match` inside the
+sub-`BuildTree` at which `π` was collected, and appending it to `π.toMatch` gives a `Match` in
+the whole tree that ends at the last sequent of `π`. -/
+lemma PreState.exists_endMatch {H X} {bt : BuildTree H X} (π : PreState bt) :
+    ∃ c : Match π.toMatch.btAt.2.2,
+        π.toMatch.endSeq = π.val.head PreState.nonempty
+      ∧ (π.toMatch.append c).endSeq = π.val.getLast PreState.nonempty := by
+  obtain ⟨c, hc⟩ := PreState.exists_match_endSeq_eq_last
+    (bt := π.toMatch.btAt.2.2) ⟨π.val, π.toMatch_mem_collect⟩
+  exact ⟨c, π.toMatch_endSeq, by rw [Match.endSeq_append]; exact hc⟩
+
+/-- Weak round-trip that always holds: going from a pre-state to a match and back gives a
+pre-state that contains a sequent set-equal to the first sequent of `π`. -/
+lemma PreState.setEqTo_mem_toMatch_toPreState {X} {bt : BuildTree [] X} (π : PreState bt) :
+    ∃ Z ∈ π.toMatch.toPreState.val, (π.val.head PreState.nonempty).setEqTo Z := by
+  rw [π.toMatch_head]
+  exact Match.toPreState_spec π.toMatch
+
+/-- Round-trip: under the assumption that `π` is the only collected list that contains a
+sequent set-equal to the sequent at the node where `π` is collected, going to the match
+and back gives `π` again. -/
+lemma PreState.toMatch_toPreState {X} {bt : BuildTree [] X} (π : PreState bt)
+    (uniq : ∀ ρ ∈ bt.collect,
+      (∃ Z ∈ ρ, (π.val.head PreState.nonempty).setEqTo Z) → ρ = π.val) :
     π.toMatch.toPreState = π := by
-  sorry
+  apply Subtype.ext
+  refine uniq _ π.toMatch.toPreState.prop ?_
+  rw [π.toMatch_head]
+  exact Match.toPreState_spec π.toMatch
+
+/-- Example where the `uniq` assumption of `PreState.toMatch_toPreState` is satisfied:
+an open leaf collects only one pre-state, so there the round-trip does hold. -/
+lemma PreState.toMatch_toPreState_openLeaf {X} (bas : X.basic) (noRule : PdlRule.all X = [])
+    (π : PreState (BuildTree.openLeaf (H := []) bas noRule)) :
+    π.toMatch.toPreState = π := by
+  apply π.toMatch_toPreState
+  intro ρ ρ_in _
+  have π_in := π.prop
+  simp only [BuildTree.collect, List.mem_singleton] at ρ_in π_in
+  rw [ρ_in, π_in]
 
 /-! ## Properties of Formula (Sets? Lists?) obtained from Pre-States -/
 
 -- IDEA: rephrase these to be about the resulting chain, not about getForms !!
 
-/-- TODO Lemma 6.14 (NOTE: maybe just skip this one?!) -/
-lemma PreState.formsCases {π : PreState bt} : φ ∈ π.forms →
-      (φ.basic ∧ φ ∈ π.val.getLast PreState.nonempty)
-      -- NOTE: the `∈` might not deal with loaded formulas yet.
-    ∨ (sorry) := by -- TODO how to say `φ is principal later?`
-    -- Or can we say something else / phrase it as closure condition about π.forms directly?
-  sorry
+/-- Every *basic* formula of a pre-state already occurs in the last (basic) sequent of that
+pre-state. Note that `bothSides` is used here, so this also covers formulas from the loaded
+part of a sequent. -/
+lemma PreState.mem_bothSides_getLast_of_basic {H X} {bt : BuildTree H X} {π : PreState bt}
+    {φ : Formula} (φ_basic : φ.basic) (φ_in : φ ∈ π.forms) :
+    φ ∈ (π.val.getLast PreState.nonempty).bothSides := by
+  rcases π with ⟨p, p_in⟩
+  simp only [PreState.forms, List.mem_toFinset] at φ_in
+  cases bt <;> simp [BuildTree.collect] at p_in <;> rename_i p_in_old
+  case loc nbas someLT next =>
+    rcases p_in with ⟨lt, lt_in, p_in_lt | p_in_next⟩
+    · exact LocalTableau.paths_basic_mem_last p_in_lt.1 φ φ_basic φ_in
+    · exact @PreState.mem_bothSides_getLast_of_basic _ _ (next lt).6 ⟨p, p_in_next⟩ φ
+        φ_basic (by simpa [PreState.forms] using φ_in)
+  case pdl bas someR next =>
+    rcases p_in with p_def | ⟨Y, r, in_rule, p_in_next⟩
+    · subst p_def
+      simpa using φ_in
+    · exact @PreState.mem_bothSides_getLast_of_basic _ _ (next Y r) ⟨p, p_in_next⟩ φ
+        φ_basic (by simpa [PreState.forms] using φ_in)
+  case openLeaf bas noRule =>
+    subst p_in
+    simpa using φ_in
+termination_by
+  bt.size
+decreasing_by
+  · subst_eqs
+    apply @BuildTree.size_lt_loc H X
+  · subst_eqs
+    apply @BuildTree.size_lt_pdl H X
 
-/-- Lemma 6.15 *free* case -/
-lemma PreState.freeUnfoldDiaMem_of_nonAtom {X} {bt : BuildTree [] X} {π : PreState bt} {α φ} :
+/-- Lemma 6.14, weakened version. The original statement says that `φ` is principal in a rule
+applied later on. We do not have the rule applications available along a pre-state, so instead
+we make the case distinction on whether `φ` is basic, and give the actual content for the
+first case: any basic formula of a pre-state occurs already in its last sequent.
+(We also use `Sequent.bothSides` instead of `∈` to include the loaded formula.) -/
+lemma PreState.formsCases {π : PreState bt} (φ_in : φ ∈ π.forms) :
+      (φ.basic ∧ φ ∈ (π.val.getLast PreState.nonempty).bothSides)
+    ∨ ¬ φ.basic := by
+  by_cases φ_basic : φ.basic
+  · exact Or.inl ⟨φ_basic, PreState.mem_bothSides_getLast_of_basic φ_basic φ_in⟩
+  · exact Or.inr φ_basic
+
+/-! ### Lemma 6.15 *free* case.
+
+The helper lemmas needed for it are in `Pdl/Sequent.lean`, `Pdl/LocalRules.lean` and
+`Pdl/LocalTableauPaths.lean`. -/
+
+/-- Lemma 6.15 *free* case.
+(Generalised from `bt : BuildTree [] X` to an arbitrary history `H`, as needed for the
+recursion into sub-`BuildTree`s.) -/
+lemma PreState.freeUnfoldDiaMem_of_nonAtom {H X} {bt : BuildTree H X} {π : PreState bt} {α φ} :
     ¬ α.isAtomic → (~⌈α⌉φ : WhateverFormula) ∈ π.wForms →
       ∃ Xδ ∈ Dset α, (Xδ.1 ∪ [~ Formula.boxes Xδ.2 φ]).all (· ∈ π.wForms) := by
   intro α_notAtom in_forms
-  rcases π with ⟨π, π_in⟩
-  -- IDEA
-  -- If π comes from a .pdl step then it must be basic, use `absurd α_notAtom`.
-  -- So π must come from a .loc step, and somewhere in the loc tab the unfold rule must be used?
-  sorry
+  rcases π with ⟨p, p_in⟩
+  simp only [PreState.wForms, List.mem_toFinset] at in_forms ⊢
+  cases bt <;> simp [BuildTree.collect] at p_in
+  case loc nbas someLT next =>
+    -- If π comes from a path in one of the local tableaux here, then the unfold rule was used
+    -- somewhere along that path, otherwise we recurse into the chosen sub-`BuildTree`.
+    rcases p_in with ⟨lt, lt_in, p_in_lt | p_in_next⟩
+    · rcases LocalTableau.paths_freeUnfoldDia (lt := lt.1) α_notAtom p p_in_lt.1 in_forms
+        with ⟨Fδ, Fδ_in, hall⟩
+      rcases Fδ with ⟨F, δ⟩
+      exact ⟨⟨F, δ⟩, Fδ_in, by simpa [Yset] using hall⟩
+    · have IH := @PreState.freeUnfoldDiaMem_of_nonAtom _ _ (next lt).6 ⟨p, p_in_next⟩ α φ α_notAtom
+      simp only [PreState.wForms, List.mem_toFinset] at IH
+      exact IH in_forms
+  case pdl bas someR next =>
+    -- A pre-state coming from a `.pdl` step is basic, so α would have to be atomic.
+    rcases p_in with p_def | ⟨Y, r, in_rule, p_in_next⟩
+    · subst p_def
+      simp only [List.map_cons, List.map_nil, List.flatten_cons, List.flatten_nil,
+        List.append_nil] at in_forms
+      exact absurd (Sequent.isAtomic_of_basic_of_negBox_mem_wForms bas in_forms) α_notAtom
+    · have IH := @PreState.freeUnfoldDiaMem_of_nonAtom _ _ (next Y r) ⟨p, p_in_next⟩ α φ α_notAtom
+      simp only [PreState.wForms, List.mem_toFinset] at IH
+      exact IH in_forms
+  case openLeaf bas noRule =>
+    -- Also an open leaf is basic, so again α would have to be atomic.
+    subst p_in
+    simp only [List.map_cons, List.map_nil, List.flatten_cons, List.flatten_nil,
+      List.append_nil] at in_forms
+    exact absurd (Sequent.isAtomic_of_basic_of_negBox_mem_wForms bas in_forms) α_notAtom
+termination_by
+  bt.size
+decreasing_by
+  · subst_eqs
+    apply @BuildTree.size_lt_loc H X
+  · subst_eqs
+    apply @BuildTree.size_lt_pdl H X
+
+/-! ### Lemma 6.15 *loaded* cases.
+
+The helper lemmas needed for these are in `Pdl/Sequent.lean`, `Pdl/LocalRules.lean` and
+`Pdl/LocalTableauPaths.lean`. -/
+
+/-- Generic version of the *loaded* case of Lemma 6.15: a non-atomic loaded diamond in a
+pre-state must have been unfolded by a `LoadRule` somewhere in the pre-state.
+The two versions below are the special cases for `AnyFormula.loaded` and `AnyFormula.normal`.
+(Generalised from `bt : BuildTree [] X` to an arbitrary history `H`, as needed for the
+recursion into sub-`BuildTree`s.) -/
+lemma PreState.loadUnfoldMem_of_nonAtom {H X} {bt : BuildTree H X} {π : PreState bt} {α}
+    {ξ : AnyFormula} :
+    ¬ α.isAtomic → (.negLoad (~'⌊α⌋ξ) : WhateverFormula) ∈ π.wForms →
+      ∃ ress, Nonempty (LoadRule (~'⌊α⌋ξ) ress) ∧ ∃ Fo ∈ ress,
+        Fo.1.all (fun f => (f : WhateverFormula) ∈ π.wForms)
+        ∧ Fo.2.toList.all (fun nl => (WhateverFormula.negLoad nl) ∈ π.wForms) := by
+  intro α_notAtom in_forms
+  rcases π with ⟨p, p_in⟩
+  simp only [PreState.wForms, List.mem_toFinset] at in_forms ⊢
+  cases bt <;> simp [BuildTree.collect] at p_in
+  case loc nbas someLT next =>
+    -- If π comes from a path in one of the local tableaux here, then the load rule was used
+    -- somewhere along that path, otherwise we recurse into the chosen sub-`BuildTree`.
+    rcases p_in with ⟨lt, lt_in, p_in_lt | p_in_next⟩
+    · exact LocalTableau.paths_loadUnfoldDia (lt := lt.1) α_notAtom p p_in_lt.1 in_forms
+    · have IH := @PreState.loadUnfoldMem_of_nonAtom _ _ (next lt).6 ⟨p, p_in_next⟩ α ξ α_notAtom
+      simp only [PreState.wForms, List.mem_toFinset] at IH
+      exact IH in_forms
+  case pdl bas someR next =>
+    -- A pre-state coming from a `.pdl` step is basic, so α would have to be atomic.
+    rcases p_in with p_def | ⟨Y, r, in_rule, p_in_next⟩
+    · subst p_def
+      simp only [List.map_cons, List.map_nil, List.flatten_cons, List.flatten_nil,
+        List.append_nil] at in_forms
+      exact absurd (Sequent.isAtomic_of_basic_of_negLoad_mem_wForms bas in_forms) α_notAtom
+    · have IH := @PreState.loadUnfoldMem_of_nonAtom _ _ (next Y r) ⟨p, p_in_next⟩ α ξ α_notAtom
+      simp only [PreState.wForms, List.mem_toFinset] at IH
+      exact IH in_forms
+  case openLeaf bas noRule =>
+    -- Also an open leaf is basic, so again α would have to be atomic.
+    subst p_in
+    simp only [List.map_cons, List.map_nil, List.flatten_cons, List.flatten_nil,
+      List.append_nil] at in_forms
+    exact absurd (Sequent.isAtomic_of_basic_of_negLoad_mem_wForms bas in_forms) α_notAtom
+termination_by
+  bt.size
+decreasing_by
+  · subst_eqs
+    apply @BuildTree.size_lt_loc H X
+  · subst_eqs
+    apply @BuildTree.size_lt_pdl H X
 
 /-- Lemma 6.15 *loaded* case with _more than one_ loaded box -/
 lemma PreState.loadUnfoldDiaMem_of_nonAtom {H X} {bt : BuildTree H X} {π : PreState bt} {α}
@@ -972,7 +1279,12 @@ lemma PreState.loadUnfoldDiaMem_of_nonAtom {H X} {bt : BuildTree H X} {π : PreS
     ¬ α.isAtomic → (.negLoad (~'⌊α⌋χ) : WhateverFormula) ∈ π.wForms →
       ∃ Xδ ∈ Dset α, (Xδ.1).all (· ∈ π.wForms)
                     ∧ (YsetLoad Xδ χ).2.toList.all (· ∈ π.wForms) := by
-  sorry
+  intro α_notAtom in_forms
+  rcases PreState.loadUnfoldMem_of_nonAtom α_notAtom in_forms with ⟨ress, ⟨lr⟩, Fo, Fo_in, h1, h2⟩
+  rw [lr.eq_unfoldDiamondLoaded] at Fo_in
+  simp only [unfoldDiamondLoaded, List.mem_map] at Fo_in
+  rcases Fo_in with ⟨⟨F, δ⟩, Fδ_in, rfl⟩
+  exact ⟨⟨F, δ⟩, Fδ_in, h1, h2⟩
 
 /-- Lemma 6.15 *loaded* case with only _one_ loaded box. -/
 lemma PreState.loadUnfoldDiaMem_of_nonAtom' {H X} {bt : BuildTree H X} {π : PreState bt} {α}
@@ -980,7 +1292,16 @@ lemma PreState.loadUnfoldDiaMem_of_nonAtom' {H X} {bt : BuildTree H X} {π : Pre
     ¬ α.isAtomic → (.negLoad (~'⌊α⌋φ) : WhateverFormula) ∈ π.wForms →
       ∃ Xδ ∈ Dset α, (Xδ.1).all (· ∈ π.wForms)
                     ∧ (YsetLoad' Xδ φ).2.toList.all (· ∈ π.wForms) := by
-  sorry
+  intro α_notAtom in_forms
+  rcases PreState.loadUnfoldMem_of_nonAtom α_notAtom in_forms with ⟨ress, ⟨lr⟩, Fo, Fo_in, h1, h2⟩
+  rw [lr.eq_unfoldDiamondLoaded'] at Fo_in
+  simp only [unfoldDiamondLoaded', List.mem_map] at Fo_in
+  rcases Fo_in with ⟨⟨F, δ⟩, Fδ_in, rfl⟩
+  refine ⟨⟨F, δ⟩, Fδ_in, ?_, h2⟩
+  simp only [List.all_eq_true, decide_eq_true_eq] at h1 ⊢
+  intro f f_in
+  apply h1
+  rcases hδ : splitLast δ with _ | ⟨δ', β⟩ <;> simp [YsetLoad', hδ] <;> tauto
 
 /-- Lemma 6.16: pre-states are saturated and locally consistent, their last node is basic. -/
 lemma PreState.locConsSatBas {X} {bt : BuildTree [] X} (π : PreState bt) :
