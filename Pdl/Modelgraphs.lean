@@ -1,8 +1,7 @@
 import Mathlib.Tactic.ClearExcept
 import Mathlib.Data.Vector.Basic
 
-import Pdl.UnfoldBox
-import Pdl.UnfoldDia
+import Pdl.LocalRules
 
 /-! # Model Graphs (Section 7.1) -/
 
@@ -11,25 +10,6 @@ open Formula
 open HasLength
 
 /-! ## Definition of Model Graphs -/
-
-/-- A set of formulas is *saturated* if it is closed under:
-removing double negations, splitting (negated) conjunctions,
-unfolding boxes using any test profile, and unfolding diamonds using `H`.
-Part of Def 6.2 -/
-def saturated : Finset Formula → Prop
-  | X => ∀ (φ ψ : Formula) (α : Program),
-    -- propositional closure:
-      ((~~φ) ∈ X → φ ∈ X)
-    ∧ (φ⋀ψ ∈ X → φ ∈ X ∧ ψ ∈ X)
-    ∧ ((~(φ⋀ψ)) ∈ X → (~φ) ∈ X ∨ (~ψ) ∈ X)
-    -- programs closure, now only two general cases, no program subcases:
-    ∧ ((⌈α⌉φ) ∈ X → ∃ l : TP α, (Bset α l φ).all (fun y => y ∈ X))
-    ∧ ((~⌈α⌉φ) ∈ X → ∃ Fδ ∈ Dset α, (Yset Fδ φ).all (fun y => y ∈ X))
-
-/-- A set of formulas is *lcoally consistent* iff it does not contain `⊥`
-and for all atoms `p ∈ X` we do not have `~p ∈ X`. Part of Def 6.2 -/
-def locallyConsistent (X : Finset Formula) : Prop :=
-  ⊥ ∉ X.val ∧ ∀ pp, (·pp : Formula) ∈ X.val → (~(·pp)) ∉ X.val
 
 namespace Modelgraphs
 

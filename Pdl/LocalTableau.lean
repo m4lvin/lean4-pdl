@@ -752,6 +752,10 @@ decreasing_by
   subst_eqs
   apply localRuleApp.decreases_DM lra Y h
 
+/-- An open local tableau has at least one end node. -/
+def OpenLocalTableau (X : Sequent) : Type := {lt : LocalTableau X // endNodesOf lt ≠ []}
+deriving DecidableEq
+
 /-! ## Helper functions, relating end nodes and children -/
 
 -- TODO Computable version possible?

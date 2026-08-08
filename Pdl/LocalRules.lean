@@ -1137,3 +1137,135 @@ lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Seque
         exact ⟨Fs, δ, hD, by aesop⟩
       · left; aesop
   all_goals simp_all [applyLocalRule]
+
+/-! # Saturated and Locally Consistent Sets of Formulas -/
+
+/-- A set of formulas is *saturated* if it is closed under:
+removing double negations, splitting (negated) conjunctions,
+unfolding boxes using any test profile, and unfolding diamonds using `H`.
+Part of Def 6.2 -/
+def saturated : Finset Formula → Prop
+  | X => ∀ (φ ψ : Formula) (α : Program),
+    -- propositional closure:
+      ((~~φ) ∈ X → φ ∈ X)
+    ∧ (φ⋀ψ ∈ X → φ ∈ X ∧ ψ ∈ X)
+    ∧ ((~(φ⋀ψ)) ∈ X → (~φ) ∈ X ∨ (~ψ) ∈ X)
+    -- programs closure, now only two general cases, no program subcases:
+    ∧ ((⌈α⌉φ) ∈ X → ∃ l : TP α, (Bset α l φ).all (fun y => y ∈ X))
+    ∧ ((~⌈α⌉φ) ∈ X → ∃ Fδ ∈ Dset α, (Yset Fδ φ).all (fun y => y ∈ X))
+
+/-- Any basic sequent is also saturated. -/
+lemma Sequent.basic_then_saturated {X : Sequent} : X.basic → saturated X.toFinset := by
+  intro Xbas
+  rcases X with ⟨L,R,O⟩
+  unfold saturated
+  intro Fs φ ψ α
+  refine ⟨?_, ?_, ?_, ?box, ?dia⟩
+  · simp_all [basic, Fs, toFinset]
+    grind
+  · simp_all [basic, Fs, toFinset]
+    grind
+  · simp_all [basic, Fs, toFinset]
+    grind
+  case box =>
+    intro _in_F
+    simp_all [basic, Fs, toFinset]
+    cases α
+    case atom_prog =>
+      simp [TP, testsOfProgram,Bset,P,F]
+      exact _in_F
+    all_goals
+      simp [TP, testsOfProgram,Bset,P,F]
+      grind
+  case dia =>
+    intro _in_F
+    simp_all [basic, Fs, toFinset]
+    cases α
+    case atom_prog =>
+      simp [Dset,Yset]
+      exact _in_F
+    all_goals
+      simp [Dset,Yset]
+      grind
+
+/-- A set of formulas is *lcoally consistent* iff it does not contain `⊥`
+and for all atoms `p ∈ X` we do not have `~p ∈ X`. Part of Def 6.2 -/
+def locallyConsistent (X : Finset Formula) : Prop :=
+  ⊥ ∉ X.val ∧ ∀ pp, (·pp : Formula) ∈ X.val → (~(·pp)) ∉ X.val
+
+-- TODO golf/shorten this
+/-- LocalRuleApp preserves saturatedness backwards. -/
+lemma LocalRuleApp.preserve_saturated_up (lra : LocalRuleApp) :
+    ∀ Y ∈ lra.C, ∀ (rest : List Sequent) ,
+      Y ∈ rest →
+      saturated (rest.map Sequent.bothSides).flatten.toFinset
+        → saturated (((lra.X :: rest).map Sequent.bothSides).flatten.toFinset) := by
+  intro Y hY rest hYr hs
+  simp only [saturated] at hs ⊢
+  intro φ ψ α
+  have old_or_rest (f : Formula) :
+      f ∈ ((lra.X :: rest).map Sequent.bothSides).flatten.toFinset →
+      f ∈ lra.X.bothSides ∨ f ∈ (rest.map Sequent.bothSides).flatten.toFinset := by
+    simp only [List.map_cons, List.flatten_cons, List.mem_toFinset, List.mem_append]
+    exact id
+  have child_in_rest (f : Formula) (hf : f ∈ Y.bothSides) :
+      f ∈ (rest.map Sequent.bothSides).flatten.toFinset := by
+    simp only [List.mem_toFinset, List.mem_flatten, List.mem_map]
+    exact ⟨Y.bothSides, ⟨Y, hYr, rfl⟩, hf⟩
+  have lift_rest (f : Formula) :
+      f ∈ (rest.map Sequent.bothSides).flatten.toFinset →
+      f ∈ ((lra.X :: rest).map Sequent.bothSides).flatten.toFinset := by simp_all
+  have source_closure := lra.formula_preserved_or_expanded hY
+  rcases hs φ ψ α with ⟨hneg, hcon, hncon, hbox, hdia⟩
+  constructor
+  · intro h
+    rcases old_or_rest _ h with hsrc | hrest
+    · rcases source_closure _ hsrc with hkeep | hexpand
+      · exact lift_rest _ (hneg (child_in_rest _ hkeep))
+      · exact lift_rest _ (child_in_rest _ ((hexpand φ ψ α).1 rfl))
+    · exact lift_rest _ (hneg hrest)
+  constructor
+  · intro h
+    rcases old_or_rest _ h with hsrc | hrest
+    · rcases source_closure _ hsrc with hkeep | hexpand
+      · rcases hcon (child_in_rest _ hkeep) with ⟨hφ, hψ⟩
+        exact ⟨lift_rest _ hφ, lift_rest _ hψ⟩
+      · rcases (hexpand φ ψ α).2.1 rfl with ⟨hφ, hψ⟩
+        exact ⟨lift_rest _ (child_in_rest _ hφ), lift_rest _ (child_in_rest _ hψ)⟩
+    · rcases hcon hrest with ⟨hφ, hψ⟩
+      exact ⟨lift_rest _ hφ, lift_rest _ hψ⟩
+  constructor
+  · intro h
+    rcases old_or_rest _ h with hsrc | hrest
+    · rcases source_closure _ hsrc with hkeep | hexpand
+      · exact (hncon (child_in_rest _ hkeep)).imp (lift_rest _) (lift_rest _)
+      · rcases (hexpand φ ψ α).2.2.1 rfl with hφ | hψ
+        · exact Or.inl (lift_rest _ (child_in_rest _ hφ))
+        · exact Or.inr (lift_rest _ (child_in_rest _ hψ))
+    · exact (hncon hrest).imp (lift_rest _) (lift_rest _)
+  constructor
+  · intro h
+    rcases old_or_rest _ h with hsrc | hrest
+    · rcases source_closure _ hsrc with hkeep | hexpand
+      · rcases hbox (child_in_rest _ hkeep) with ⟨l, hl⟩
+        simp only [List.all_eq_true, decide_eq_true_eq] at hl
+        exact ⟨l, by simpa using fun f hf => lift_rest _ (by simpa using hl f hf)⟩
+      · rcases (hexpand φ ψ α).2.2.2.1 rfl with ⟨l, hl⟩
+        simp only [List.all_eq_true, decide_eq_true_eq] at hl
+        exact ⟨l, by simpa using fun f hf => lift_rest _ (child_in_rest _ (by simpa using hl f hf))⟩
+    · rcases hbox hrest with ⟨l, hl⟩
+      simp only [List.all_eq_true, decide_eq_true_eq] at hl
+      exact ⟨l, by simpa using fun f hf => lift_rest _ (by simpa using hl f hf)⟩
+  · intro h
+    rcases old_or_rest _ h with hsrc | hrest
+    · rcases source_closure _ hsrc with hkeep | hexpand
+      · rcases hdia (child_in_rest _ hkeep) with ⟨Fδ, hD, hF⟩
+        simp only [List.all_eq_true, decide_eq_true_eq] at hF
+        exact ⟨Fδ, hD, by simpa using fun f hf => lift_rest _ (by simpa using hF f hf)⟩
+      · rcases (hexpand φ ψ α).2.2.2.2 rfl with ⟨Fδ, hD, hF⟩
+        simp only [List.all_eq_true, decide_eq_true_eq] at hF
+        exact ⟨ Fδ, hD
+              , by simpa using fun f hf => lift_rest _ (child_in_rest _ (by simpa using hF f hf))⟩
+    · rcases hdia hrest with ⟨Fδ, hD, hF⟩
+      simp only [List.all_eq_true, decide_eq_true_eq] at hF
+      exact ⟨Fδ, hD, by simpa using fun f hf => lift_rest _ (by simpa using hF f hf)⟩

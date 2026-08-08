@@ -357,3 +357,18 @@ instance LocalTableau.fintype {X} : Fintype (LocalTableau X) := by
   intro ltX
   rw [List.mem_toFinset]
   exact LocalTableau.all_spec
+
+/-! # Generating all Open Local Tableaux -/
+
+def OpenLocalTableau.all (X : Sequent) : List (OpenLocalTableau X) :=
+  ((LocalTableau.all X).filter (endNodesOf · ≠ [])).attach.map (fun ⟨lt,h⟩ => ⟨lt, by simp_all⟩)
+
+lemma OpenLocalTableau.all_spec {X : Sequent} {ltX : OpenLocalTableau X} :
+    ltX ∈ OpenLocalTableau.all X := by
+  rcases ltX with ⟨lt, lt_has_ends⟩
+  unfold all
+  simp_all only [ne_eq, List.mem_map, List.mem_attach, true_and, Subtype.exists, decide_not,
+    List.mem_filter, Bool.not_eq_eq_eq_not, Bool.not_true, decide_eq_false_iff_not]
+  use lt
+  have := lt.all_spec
+  grind
