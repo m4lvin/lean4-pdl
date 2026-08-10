@@ -35,7 +35,8 @@ In the `Tableau` type this only tracks "big" steps, not steps happening within a
 The list is in reverse order, i.e. the *head is the newest* Sequent. -/
 abbrev History : Type := List Sequent
 
-/-- We have a repeat iff the history contains a node that is `setEqTo` the current node. -/
+/-- We have a repeat iff the history contains a node that is `setEqTo` the current node.
+Note that this is a `Prop`, it does not carry a specific number of steps to go back. -/
 def rep (Hist : History) (X : Sequent) : Prop := ∃ Y ∈ Hist, Y.setEqTo X
 
 instance {H X} : Decidable (rep H X) := by
@@ -159,12 +160,36 @@ instance {H X} : Decidable (IsEmpty (LoadedPathRepeat H X)) := by
     absurd h
     aesop
 
-/-! ## Forbidden and allowed repeats
+/-! ## Free, forbidden and allowed repeats
 
 In `Tableau` we only want to allow the application of a rule
 when there is no loaded-path repeat and there is no free repeat.
-For this we introduce the `flprep` abbreviation.
+For this we introduce `FreeRepeat` and the `flprep` abbreviation.
 -/
+
+/-- A free repeat is a non-loaded sequent that occured before. Values of this type are pairs:
+the number of steps to go back in the history and a proof that we then find the same set. -/
+def FreeRepeat (Hist : History) (X : Sequent) : Type :=
+  Subtype (fun k => (Hist.get k).setEqTo X ∧ ¬ X.isLoaded)
+
+lemma FreeRepeat_nil_impossible {X} : FreeRepeat [] X → False := by
+  rintro ⟨n, n_h⟩
+  grind
+
+lemma FreeRepeat_iff_rep_and_isFree {H X} :
+    Nonempty (FreeRepeat H X) ↔ rep H X ∧ X.isFree := by
+  unfold rep
+  constructor <;> intro hyp
+  · rcases hyp with ⟨k,same, Xisl⟩
+    unfold Sequent.isFree
+    simp_all
+    use H[k]
+    grind
+  · rcases hyp with ⟨⟨Y, Y_in, bla⟩, Xfree⟩
+    rcases List.get_of_mem Y_in with ⟨k, def_Y⟩
+    constructor
+    use k
+    grind [Sequent.isFree]
 
 /-- Either a free repeat or a loaded-path repeat.
 Note that the negation of this is not the same as `¬ rep` because it will still allow

@@ -466,18 +466,15 @@ theorem cpHelpA {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α
     have IHα := cpHelpA R α
     have IHβ := cpHelpA R β
     intro v_combo_w
-    simp only [Dset, List.mem_flatten, List.mem_map, Prod.exists] at in_H
-    rcases in_H with ⟨L, ⟨F, δ, in_Hα, def_l⟩, in_L⟩
+    simp only [Dset, List.mem_flatMap, Prod.exists] at in_H
+    rcases in_H with ⟨F', δ', in_Hα, F_in⟩
     simp only [Q, Relation.Comp]
-    subst def_l
-    by_cases δ = []
+    by_cases δ' = []
     · subst_eqs
-      simp only [reduceIte, List.mem_flatten, List.mem_map, Prod.exists] at in_L
-      rcases in_L with ⟨l, ⟨F', δ', F'δ'_in_Hβ, def_l⟩, in_l⟩
-      subst def_l
-      simp only [List.mem_singleton, Prod.mk.injEq] at in_l
-      cases in_l
-      subst_eqs
+      simp only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists, ↓existsAndEq, and_true,
+        List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false, exists_eq_right_right'] at F_in
+      rcases F_in with  ⟨F'', F''_in, F_def⟩
+      subst F_def
       simp_all only [Qcombo, Relation.Comp, Qtests, beq_iff_eq, List.mem_union_iff, and_imp,
         forall_exists_index]
       rcases v_combo_w with ⟨z, ⟨def_z, F_hyp⟩, z_w⟩
@@ -486,11 +483,10 @@ theorem cpHelpA {W : Finset (Finset Formula)} (R : Nat → W → W → Prop) (α
       constructor
       · apply IHα _ in_Hα _ _ _ rfl (fun τ _ => by apply F_hyp; tauto)
         simp [Qsteps]
-      · apply IHβ _ F'δ'_in_Hβ v w _ rfl (fun τ _ => by apply F_hyp; tauto) z_w
+      · apply IHβ _ F''_in v w _ rfl (fun τ _ => by apply F_hyp; tauto) z_w
     case neg hyp =>
-      simp only [hyp, reduceIte, List.mem_singleton, Prod.mk.injEq] at in_L
-      cases in_L
-      subst_eqs
+      simp only [hyp, ↓reduceIte, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false] at F_in
+      cases F_in; subst_eqs
       simp only [Qcombo, Relation.Comp, Qtests] at v_combo_w
       rcases v_combo_w with ⟨z, ⟨v_eq_z, F_hyp⟩, z_w⟩
       simp only [beq_iff_eq] at v_eq_z

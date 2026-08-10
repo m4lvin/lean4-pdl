@@ -373,45 +373,36 @@ theorem Dset_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Dset α) {
   · simp_all [Dset]
   case sequence α β =>
     simp only [lmOfFormula]
-    simp only [Dset, List.mem_flatten, List.mem_map, Prod.exists] at in_H
-    rcases in_H with ⟨l, ⟨Fs', δ', in_H, def_l⟩, in_l⟩
-    · subst def_l
-      by_cases δ' = []
+    simp only [Dset, List.mem_flatMap, Prod.exists] at in_H
+    rcases in_H with ⟨Fs', δ', in_H, Fs_in⟩
+    · by_cases δ' = []
       · subst_eqs
-        simp_all only [List.nil_append, ite_true, List.mem_flatten, List.mem_map, Prod.exists]
-        rcases in_l with ⟨l, ⟨Fs'', δ'', in_Hβ, def_l⟩, in_l⟩
-        subst def_l
-        simp only [List.mem_singleton, Prod.mk.injEq] at in_l
-        cases in_l
-        subst_eqs
-        simp_all only [List.mem_union_iff]
+        simp_all only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists, ↓existsAndEq,
+          and_true, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false,
+          exists_eq_right_right', List.map_subtype, List.unattach_attach]
+        rcases Fs_in with ⟨Fs'', Fs''_in, Fs_def⟩
+        subst Fs_def
+        simp only [List.mem_union_iff] at in_Fs
         rcases in_Fs with in_Fs'|in_Fs''
         · have IHα := Dset_goes_down α φ in_H in_Fs'
           cases α
           all_goals
             simp [lmOfFormula] at IHα
           all_goals
-            simp only [List.attach_map_val, testsOfProgram] at *
-            simp_all
-            try linarith
-        · have IHβ := Dset_goes_down β φ in_Hβ in_Fs''
+            simp_all [testsOfProgram]
+            linarith
+        · have IHβ := Dset_goes_down β φ Fs''_in in_Fs''
           cases β
           all_goals
             simp_all [Dset, testsOfProgram, lmOfFormula]
             try linarith
-      · simp_all only [ite_false, List.mem_singleton, Prod.mk.injEq, testsOfProgram,
-        List.attach_append, List.map_append, List.map_map, List.sum_append]
-        rw [Function.comp_def, Function.comp_def, List.attach_map_val, List.attach_map_val]
-        cases in_l
-        subst_eqs
+      · simp_all only [↓reduceIte, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false,
+          testsOfProgram, List.attach_append, List.map_append, List.map_map, Function.comp_apply,
+          List.map_subtype, List.unattach_attach, List.sum_append]
         have IHα := Dset_goes_down α φ in_H in_Fs
         cases α
         all_goals
-          simp_all [Dset, testsOfProgram, lmOfFormula]
-        all_goals
-          try rw [Function.comp_def, Function.comp_def, List.attach_map_val,
-            List.attach_map_val] at IHα
-          try linarith
+          simp_all [Dset, testsOfProgram, lmOfFormula] <;> linarith
   case union α β =>
     simp only [Dset, List.mem_union_iff] at in_H
     rcases in_H with hyp|hyp

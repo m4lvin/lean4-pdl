@@ -476,8 +476,7 @@ lemma PreState.freeExists {X} {bt : BuildTree [] X} (α : Program) {φ : Formula
         (PreState.qcombo_of_qsteps hF hQ), hmem⟩
 
 /-- Induction loading for 6.20.
-(The extra assumption that `ψ` is not boxed, mentioned in a `FIXME` in the original
-statement, turned out to be unnecessary: `PreState.freeExists` holds for all formulas.) -/
+(Note that `ψ` may even be boxed here, because `PreState.freeExists` holds for all formulas.) -/
 lemma freeDiamondExistenceInduction {X} {bt : BuildTree [] X}
     {ψ : Formula}
     {α} {ηs : List Program} {π : PreState bt} :

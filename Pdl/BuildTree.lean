@@ -14,21 +14,6 @@ Lessons learned while working on this file:
 
 /-! ## Builder Strategy Tree -/
 
--- See also Bml/CompletenessViaPaths.lean for inspiration that might be useful here.
-
-/-- A free repeat is a non-loaded sequent that occured before. Values of this type are pairs:
-the number of steps to go back in the history and a proof that we then find the same set.
-
-Note: this now uses `setEqTo` instead of `multisetEqTo` to agree with `rep`.
-
-IDEA: move this to `Tableau.lean` near `rep` and turn `flprep` into data? -/
-def FreeRepeat (Hist : History) (X : Sequent) : Type :=
-  Subtype (fun k => (Hist.get k).setEqTo X ∧ ¬ X.isLoaded)
-
-lemma FreeRepeat_nil_impossible : FreeRepeat [] X → False := by
-  rintro ⟨n, n_h⟩
-  grind
-
 mutual
 /-- Winning Strategy Tree for Builder.
 At each step, we consider
@@ -50,13 +35,11 @@ inductive BuildTree : History → Sequent → Type
   | pdl {H X} (bas : X.basic) (someR : PdlRule.all X ≠ [])
             (next : ∀ Y, ∀ _r : PdlRule X Y, BuildTree (X :: H) Y) : BuildTree H X
   /-- Free repeat means builder wins. -/
-  -- QUESTION: do we insist on free repeat or is any not-loaded-path repeat a builder win?
   | freeRepeat {H X} : FreeRepeat H X → BuildTree H X
   /-- Leaf that is (might be?!) not a repeat, but no rules can be applied. -/
   | openLeaf {H X} (bas : X.basic) (noRule : PdlRule.all X = []) : BuildTree H X
-  -- small worry but what about (L+) (L-), one of which is always applicable?
-  -- No. L- and L+ are not applicable when there is no diamond formula left.
-  -- (And even when there is, they would lead to a free repeat..)
+  -- Note that (L+) (L-) are *not* always applicable, because tehre might be no diamond left.
+  -- And even when there is a diamond, eventually (L+) and (L-) would lead to a free repeat.
   -- Also, we do not add a condition to be locally consistent, because
   -- already basic implies not closed and that implies locally consistent.
 

@@ -7,18 +7,16 @@ import Pdl.Star
 
 /-! ## Diamonds: Dset, Y and Φ_⋄ -/
 
--- TODO: change map + flatten to flatmap
 /-- Unfold a given program into combinations of test formulas and lists of programs,
 assuming the program is used inside a diamond. -/
 def Dset : Program → List (List Formula × List Program)
 | ·a => [ ([], [·a]) ]
 | ?'τ => [ ([τ], []) ]
 | α ⋓ β => Dset α ∪ Dset β
-| α;'β => ((Dset α).map (fun ⟨F,δ⟩ =>
+| α;'β => (Dset α).flatMap (fun ⟨F,δ⟩ =>
             if δ = []
               then ((Dset β).map (fun ⟨G,δ'⟩ => [⟨F ∪ G, δ'⟩])).flatten
               else [⟨F, δ ++ [β]⟩])
-          ).flatten
 | ∗α => [ (∅,[]) ] ∪ ((Dset α).map (fun (F,δ) => if δ = [] then [] else [(F, δ ++ [∗α])])).flatten
 
 /-- Like `Dset`, but applied to a whole list of programs.
@@ -87,6 +85,8 @@ theorem relateSeq_Dset_imp_relate {X : List Formula} {δ : List Program}
       .head relα relαS
     )
 
+-- TODO everywhere: replace in_H with in_Dset
+
 /-- A test formula coming from `Dset` comes from a test in the given program. -/
 theorem Dset_mem_test α φ {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ Dset α) (φ_in_Fs : φ ∈ Fs) :
     ∃ τ, ∃ (_ : τ ∈ testsOfProgram α), φ = τ := by
@@ -103,22 +103,20 @@ theorem Dset_mem_test α φ {Fs δ} (in_H : ⟨Fs, δ⟩ ∈ Dset α) (φ_in_Fs 
     · have IHβ := Dset_mem_test β φ in_Hβ φ_in_Fs
       aesop
   case sequence α β =>
-    simp_all only [Dset, List.mem_flatten, List.mem_map, Prod.exists, testsOfProgram,
-      List.mem_append, exists_prop, exists_eq_right']
-    rcases in_H with ⟨l, ⟨Fs', δ', in_Hα, def_l⟩ , in_l⟩
-    subst def_l
+    simp_all only [Dset, List.mem_flatMap, Prod.exists, testsOfProgram, List.mem_append,
+      exists_prop, exists_eq_right']
+    rcases in_H with ⟨Fs', δ', in_Hα, in_l⟩
     by_cases δ' = []
-    · simp_all only [List.nil_append, ite_true, List.mem_flatten, List.mem_map, Prod.exists]
+    · simp_all only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists, ↓existsAndEq,
+        and_true, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false, exists_eq_right_right']
       subst_eqs
-      rcases in_l with ⟨l', ⟨Fs'', δ'', in_Hβ, def_l'⟩ , in_l'⟩
-      subst def_l'
-      simp_all only [List.mem_singleton, Prod.mk.injEq, List.mem_union_iff]
-      cases in_l'
-      subst_eqs
+      rcases in_l with ⟨Fs'', in_Dset_β, Fs_def⟩
+      subst Fs_def
+      simp_all only [List.mem_union_iff]
       rcases φ_in_Fs with φ_in_Fs' | φ_in_Fs''
       · have IHβ := Dset_mem_test α φ in_Hα φ_in_Fs'
         aesop
-      · have IHβ := Dset_mem_test β φ in_Hβ φ_in_Fs''
+      · have IHβ := Dset_mem_test β φ in_Dset_β φ_in_Fs''
         aesop
     · simp_all only [ite_false, List.mem_singleton, Prod.mk.injEq]
       cases in_l
@@ -157,15 +155,14 @@ theorem Dset_mem_sequence α {Fs δ} (in_Dset : ⟨Fs, δ⟩ ∈ Dset α) :
     · have IHβ := Dset_mem_sequence β in_Dsetβ
       aesop
   case sequence α β =>
-    simp_all only [Dset, List.mem_flatten, List.mem_map, Prod.exists]
-    rcases in_Dset with ⟨l, ⟨Fs', δ', in_Dsetα, def_l⟩ , in_l⟩
-    subst def_l
+    simp_all only [Dset, List.mem_flatMap, Prod.exists]
+    rcases in_Dset with ⟨Fs', δ', in_Dsetα, Fs_in⟩
     by_cases δ' = []
-    · simp_all only [List.nil_append, ite_true, List.mem_flatten, List.mem_map, Prod.exists]
-      rcases in_l with ⟨l', ⟨Fs'', δ'', in_Dsetβ, def_l'⟩, in_l'⟩
-      subst def_l'
-      simp_all only [List.mem_singleton, Prod.mk.injEq]
-      have IHβ := Dset_mem_sequence β in_Dsetβ
+    · simp_all only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists, ↓existsAndEq,
+        and_true, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false, exists_eq_right_right']
+      rcases Fs_in with ⟨Fs'', Fs''_in, Fs_def⟩
+      subst Fs_def
+      have IHβ := Dset_mem_sequence β Fs''_in
       aesop
     · have IHα := Dset_mem_sequence α in_Dsetα
       aesop
@@ -257,7 +254,7 @@ theorem keepFreshDset α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ Dset α → x �
       have IHα := keepFreshDset α x_notin F δ' Fδ'_in_Hα
       aesop
 
--- FIXME is this in the notes? implicit somewhere?
+/-- This is used by `PreState.loadedExists` -/
 theorem Dset_goes_down_prog (α : Program) {Fs δ} (in_Dset : (Fs, δ) ∈ Dset α) {γ} (in_δ : γ ∈ δ) :
   (if α.isAtomic then γ = α else if α.isStar
     then lengthOfProgram γ ≤ lengthOfProgram α
@@ -266,33 +263,28 @@ theorem Dset_goes_down_prog (α : Program) {Fs δ} (in_Dset : (Fs, δ) ∈ Dset 
   · simp_all [Dset, Program.isAtomic]
   case sequence α β =>
     simp only [Program.isAtomic, Bool.false_eq_true, ↓reduceIte, Program.isStar, lengthOfProgram]
-    simp only [Dset, List.mem_flatten, List.mem_map, Prod.exists] at in_Dset
-    rcases in_Dset with ⟨l, ⟨Fs', δ', in_Dset, def_l⟩, in_l⟩
-    · subst def_l
-      by_cases δ' = []
-      · subst_eqs
-        simp_all only [List.nil_append, ite_true, List.mem_flatten, List.mem_map, Prod.exists]
-        rcases in_l with ⟨l, ⟨Fs'', δ'', in_Dsetβ, def_l⟩, in_l⟩
-        subst def_l
-        simp only [List.mem_singleton, Prod.mk.injEq] at in_l
-        cases in_l
-        subst_eqs
-        have IHβ := Dset_goes_down_prog β in_Dsetβ in_δ
-        cases β
+    simp only [Dset, List.mem_flatMap, Prod.exists] at in_Dset
+    rcases in_Dset with ⟨Fs', δ', Fs'_in, Fs_in⟩
+    by_cases δ' = []
+    · subst_eqs
+      simp_all only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists, ↓existsAndEq,
+        and_true, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false, exists_eq_right_right']
+      rcases Fs_in with ⟨Fs'', Fs''_in, Fs_def⟩
+      subst_eqs
+      have IHβ := Dset_goes_down_prog β Fs''_in in_δ
+      cases β
+      all_goals
+        simp_all [Dset, lengthOfProgram, Program.isAtomic, Program.isStar]
+        try linarith
+    · simp_all only [ite_false, List.mem_singleton, Prod.mk.injEq, List.mem_append]
+      rcases in_δ with bla | γ_eq_β
+      · have IHα := Dset_goes_down_prog α Fs'_in bla
+        cases α
         all_goals
           simp_all [Dset, lengthOfProgram, Program.isAtomic, Program.isStar]
           try linarith
-      · simp_all only [ite_false, List.mem_singleton, Prod.mk.injEq, List.mem_append]
-        cases in_l
-        subst_eqs
-        rcases in_δ with bla | γ_eq_β
-        · have IHα := Dset_goes_down_prog α in_Dset bla
-          cases α
-          all_goals
-            simp_all [Dset, lengthOfProgram, Program.isAtomic, Program.isStar]
-            try linarith
-        · subst γ_eq_β
-          linarith
+      · subst γ_eq_β
+        linarith
   case union α β =>
     simp only [Program.isAtomic, Bool.false_eq_true, ↓reduceIte, Program.isStar, lengthOfProgram]
     simp only [Dset, List.mem_union_iff] at in_Dset
@@ -473,14 +465,9 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (Dset γ).map (fun Fδ
         unfold Dset
         use ⟨Fs ∪ Gs, γ⟩
         constructor
-        · simp only [List.mem_flatten, List.mem_map, Prod.exists]
-          use ((Dset β).map (fun ⟨Gs',δ'⟩ => [⟨Fs ∪ Gs', δ'⟩])).flatten
-          simp only [List.mem_flatten, List.mem_map, Prod.exists]
-          constructor
-          · use Fs, []
-            simp only [reduceIte, and_true]
-            exact Fδ_in
-          · tauto
+        · simp only [List.mem_flatMap, Prod.exists]
+          use Fs, []
+          grind
         · simp only [Yset, conEval, List.mem_union_iff, List.mem_singleton] at *
           intro f f_in
           specialize w_Con f
@@ -498,7 +485,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (Dset γ).map (fun Fδ
           tauto
     -- upwards direction in notes:
     · rintro ⟨⟨Fs,δ⟩, ⟨Fδ_in, w_Con⟩⟩ -- ⟨⟨l, ⟨⟨a, b, ⟨ab_in, def_l⟩⟩, f_in_l⟩⟩, w_f⟩⟩
-      simp only [Dset, List.mem_flatten, List.mem_map, Prod.exists, ↓existsAndEq, and_true] at Fδ_in
+      simp only [Dset, List.mem_flatMap, Prod.exists] at Fδ_in
       rcases Fδ_in with ⟨Gs, γ, Gγ_in, Fδ_in⟩
       cases em (γ = [])
       case inl δ_is_empty => -- tricky case where we actually need the IH for β
