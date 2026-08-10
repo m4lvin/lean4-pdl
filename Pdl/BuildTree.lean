@@ -806,20 +806,8 @@ decreasing_by
 
 /-! ## PreStates to Matches and back again
 
-IDEA / TODO: to prove the existence lemmas it seems useful to have helper lemmas/defs
-to switch between Pre-states & matches. Can we show these?
-
-- every pre-state must come from some match
-
-- every match gives us a pre-state
-
-If we have these, then we can use `Match.rewind` to "roll back up".
-
-Note: the functions will not necessarily "round-trip".
-
-Small worry: there is no order on Pre-States, so termination of this IH might be an issue?
-Idea: use the PreState-to-Match conversion and then the Match-length as termination_by.
--/
+To prove the existence lemmas we first make some helper definitions and lemmas that
+allow us to switch between `PreState`s & `Match`es. -/
 
 /-- The result of `BuildTree.collect` in any sub-`BuildTree` reached by a `Match`
 is also part of `BuildTree.collect` applied to the bigger `BuildTree`. -/

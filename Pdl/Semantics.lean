@@ -268,7 +268,6 @@ theorem relate_steps_append : ∀ x z, relate M (Program.steps (as ++ bs)) x z  
       rw [IH y' z]
       tauto
 
--- TODO: remove this, special instance of previous?
 theorem rel_steps_last {as} : ∀ v w,
   relate M (Program.steps (as ++ [a])) v w ↔
     ∃ mid, relate M (Program.steps as) v mid ∧ relate M a mid w :=
