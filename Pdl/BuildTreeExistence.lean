@@ -3,10 +3,10 @@ import Pdl.BuildTreeModel
 /-! # From winning strategies to model graphs, part 3: the existence lemmas (Section 6.3)
 
 This continues `Pdl/BuildTreeModel.lean`. Here we prove the existence lemmas
-(Lemma 6.18, Lemma 6.19 and Lemma 6.20) and finally Theorem 6.21 (`strmg`).
+6.18, 6.19 and 6.20 that are needed for Theorem 6.21 (`strmg`).
 -/
 
-/-! ### The loaded diamond existence lemma (Lemma 6.18) -/
+/-! ## The loaded diamond existence lemma (Lemma 6.18) -/
 
 /-- Version of `PreState.atomicLoadedStep` with the loaded diamond given in `π.wForms`. -/
 lemma PreState.atomicLoadedStep_wForms {X} {bt : BuildTree [] X} (π : PreState bt) (mπ : Match bt)
@@ -21,9 +21,10 @@ lemma PreState.atomicLoadedStep_wForms {X} {bt : BuildTree [] X} (π : PreState 
     (Sequent.negLoad_mem_wForms_iff.mp (PreState.negLoad_atomic_mem_getLast h))
 
 /-- The claim of Lemma 6.18 for a fixed program `α`, where the size of the sub-`BuildTree`
-we are currently at is bounded by `n`. The bound `n` is used for the inner induction.
+we are currently at (`mπ.btAt`) is bounded by `n`. This `n` is used for the inner induction.
 Here `π` is the pre-state we start at and `mπ` is a `Match` witnessing where it ends,
-and `ρ` is the pre-state we reach. -/
+and `ρ` is the pre-state we reach.
+Note that we use `Rel` from `BuildTree.toModel` as the `R` to use `Modelgraphs.Q`. -/
 def LoadedExistsB {X} (bt : BuildTree [] X) (α : Program) (n : ℕ) : Prop :=
   ∀ (π : PreState bt) (mπ : Match bt), mπ.endSeq = π.val.getLast PreState.nonempty →
     mπ.btAt.2.2.size ≤ n →
@@ -64,10 +65,11 @@ lemma loadedChain {X} {bt : BuildTree [] X} : ∀ (γs : List Program),
     subst hχ
     exact le_trans (hsz1 χ rfl) (hsz0 (⌊⌊rest⌋⌋χ) AnyFormula.loadBoxes_loaded_eq_loaded_boxes)
 
-/-- **Lemma 6.18**, the loaded diamond existence lemma.
+/-- Lemma 6.18, the loaded diamond existence lemma.
 If the loaded diamond `~'⌊α⌋ξ` occurs in the pre-state `π`, then there is a pre-state `ρ`
 with `Q α (Λ⁻ π) (Λ⁻ ρ)` that has `~''ξ`. Moreover, if `ξ` is still loaded then `ρ` is
 reached without going up in the `BuildTree`.
+Note that the claim is abbreviated by `LoadedExists bt α`.
 The proof is by an outer induction on the length of `α` and an inner induction on the size
 of the sub-`BuildTree` we are at. -/
 lemma PreState.loadedExists {X} {bt : BuildTree [] X} (α : Program) : LoadedExists bt α := by
@@ -180,7 +182,20 @@ lemma PreState.loadedExists {X} {bt : BuildTree [] X} (α : Program) : LoadedExi
           exact PreState.qcombo_of_qsteps hF ⟨ρ0.toW, hQ0, hQ1⟩
 termination_by lengthOfProgram α
 
-/-! ### The free diamond existence lemma (Lemma 6.19)
+/-- If `~'⌊α⌋φ` occurs in the pre-state `π` then there is a pre-state `ρ` reached from `π` by
+`Q α` that contains `~''φ`. This is a consequence of Lemma 6.18 `PreState.loadedExists`, but
+omits the bound-related claims used for induction loading.
+Again note that we use `Rel` from `BuildTree.toModel` as the `R` to use `Modelgraphs.Q`. -/
+lemma PreState.loadedDiamondExistence {X} {bt : BuildTree [] X} {α : Program} {φ : AnyFormula}
+    {π : PreState bt} (h : (~'⌊α⌋φ : WhateverFormula) ∈ π.wForms) :
+    ∃ ρ : PreState bt,
+      @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α π.toW ρ.toW ∧ ρ.hasAnf (~''φ) := by
+  obtain ⟨mπ, hmπ⟩ := π.exists_match_endSeq_eq_last
+  obtain ⟨ρ, _, _, _, hQ, hanf⟩ :=
+    PreState.loadedExists α (mπ.btAt.2.2.size) π mπ hmπ (le_refl _) φ h
+  exact ⟨ρ, hQ, hanf⟩
+
+/-! ## The free diamond existence lemma (Lemma 6.19)
 
 To load a free diamond `~⌌·a⌍chi` with the rule `(L+)` we first have to make the sequent free
 using `(L-)`, and on the way we may have to go to the companion of a free repeat. -/
@@ -351,7 +366,7 @@ lemma Match.modalStepToPreState {X} {bt : BuildTree [] X} (m : Match bt) (bas : 
   rw [← List.mem_toFinset, heq, List.mem_toFinset]
   exact hproj f hf
 
-/-- **Lemma 6.19**: If a free diamond `~⌈·a⌉χ` with an atomic program occurs in the pre-state
+/-- Lemma 6.19: If a free diamond `~⌈·a⌉χ` with an atomic program occurs in the pre-state
 `π`, then there is an `a`-successor pre-state `ρ` of `π` that has `~''χ`, maximally loaded. -/
 lemma PreState.freeAtomicStep {X} {bt : BuildTree [] X} (π : PreState bt) {a : Nat} {χ : Formula}
     (h : (~⌈·a⌉χ : WhateverFormula) ∈ π.wForms) :
@@ -400,22 +415,7 @@ lemma PreState.freeAtomicStep {X} {bt : BuildTree [] X} (π : PreState bt) {a : 
   · have hunl := PreState.mem_forms_of_hasAnf hanf
     rwa [AnyFormula.loadBoxes_unload_eq_boxes, ← def_of_boxesOf_def (φ := χ) rfl] at hunl
 
-/-! ## Existence Lemmas -/
-
-/-- **Lemma 6.18**: the loaded diamond existence lemma.
-If `~'⌊α⌋φ` occurs in the pre-state `π` then there is a pre-state `ρ` reached from `π` by
-`Q α` and containing `~''φ`.
-Note that we use `Rel` from `BuildTree.toModel` as the `R` to use `Modelgraphs.Q`. -/
-lemma PreState.loadedDiamondExistence {X} {bt : BuildTree [] X} {α : Program} {φ : AnyFormula}
-    {π : PreState bt} (h : (~'⌊α⌋φ : WhateverFormula) ∈ π.wForms) :
-    ∃ ρ : PreState bt,
-      @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α π.toW ρ.toW ∧ ρ.hasAnf (~''φ) := by
-  obtain ⟨mπ, hmπ⟩ := π.exists_match_endSeq_eq_last
-  obtain ⟨ρ, _, _, _, hQ, hanf⟩ :=
-    PreState.loadedExists α (mπ.btAt.2.2.size) π mπ hmπ (le_refl _) φ h
-  exact ⟨ρ, hQ, hanf⟩
-
-/-! ### The free diamond existence lemma (Lemma 6.20) -/
+/-! ## The free diamond existence lemma (Lemma 6.20) -/
 
 /-- Iterating Lemma 6.18 along a list of programs, formulated with `Qsteps`.
 From a pre-state that has `~''(loadBoxes γs ξ)` we reach one that has `~''ξ`. -/
@@ -448,7 +448,7 @@ lemma PreState.freeAtomicChain {X} {bt : BuildTree [] X} {π : PreState bt} {a :
   have hunl := PreState.mem_forms_of_hasAnf hanf
   rwa [AnyFormula.loadBoxes_unload_eq_boxes, ← def_of_boxesOf_def (φ := φ) rfl] at hunl
 
-/-- The claim used to prove **Lemma 6.20**: if the free diamond `~⌈α⌉φ` occurs in the
+/-- The claim used to prove Lemma 6.20: if the free diamond `~⌈α⌉φ` occurs in the
 pre-state `π`, then there is a pre-state `ρ` with `Q α (Λ⁻ π) (Λ⁻ ρ)` that contains `~φ`. -/
 lemma PreState.freeExists {X} {bt : BuildTree [] X} (α : Program) {φ : Formula}
     {π : PreState bt} (h : (~⌈α⌉φ : WhateverFormula) ∈ π.wForms) :

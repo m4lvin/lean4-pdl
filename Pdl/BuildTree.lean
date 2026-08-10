@@ -2,15 +2,7 @@ import Pdl.TableauGame
 import Pdl.LocalTableauPaths
 import Pdl.PdlSteps
 
-/-! # From winning strategies to model graphs (Section 6.3)
-
-Lessons learned while working on this file:
-
-- Not all leafs in the BuildTree are backpointers.
-  We want open leafs (where builder wins the game) to actually build worlds :-)
-  Moreover, free repeats also let builder win.
-
--/
+/-! # From winning strategies to model graphs, part 1: BuildTree and PreState (Section 6.3) -/
 
 /-! ## Builder Strategy Tree -/
 
@@ -682,25 +674,19 @@ decreasing_by -- almost same termination proof as for Match.all etc above :-)
   · subst_eqs
     apply @BuildTree.size_lt_pdl H X
 
--- NOTE: all π.sequents have at most length 2 ??
-
 /-! ## Collecting Formulas in Pre-state Sequents -/
 
 /-- Λ(π) gets all formulas for a pre-state but keep the information what is loaded.
 Returns the `WhateverFormula` type so that lemmas like 6.15 and 6.18 are sayable. -/
-def PreState.wForms {bt : BuildTree H X} (π : PreState bt) : Finset WhateverFormula :=
+def PreState.wForms {H X} {bt : BuildTree H X} (π : PreState bt) : Finset WhateverFormula :=
   (π.val.map Sequent.wForms).flatten.toFinset
 
 /-- Λ⁻(π) gets all formulas from a pre-state π, via unloading if needed. -/
-def PreState.forms {bt : BuildTree H X} (π : PreState bt) : Finset Formula :=
+def PreState.forms {H X} {bt : BuildTree H X} (π : PreState bt) : Finset Formula :=
   (π.val.map Sequent.bothSides).flatten.toFinset
 
--- TODO lemmas connecting π.wForms and π.forms:
--- if negloaded is in wForms, then its unloading is in forms
--- if loaded is in wForms, then its unloading is in forms
--- normal is in wForms iff it is in forms
--- normal is in forms iff ...
-lemma PreState.mem_forms_iff {φ : Formula} {π : PreState bt} :
+/-- Characterizing three different ways in which a formula can be in `PreState.forms`. -/
+lemma PreState.mem_forms_iff {H X} {bt : BuildTree H X} {φ : Formula} {π : PreState bt} :
     φ ∈ π.forms ↔
       ( (.any (.normal φ) : WhateverFormula) ∈ π.wForms
       ∨ (∃ χ, χ.unload = φ ∧ (.any (.loaded χ) ∈ π.wForms))
