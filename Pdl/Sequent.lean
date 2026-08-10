@@ -147,6 +147,23 @@ instance : DecidableRel Sequent.setEqTo := by
   rintro ⟨L,R,O⟩ ⟨L',R',O'⟩
   exact instDecidableAnd
 
+def equivalenceSequentSetEqTo : Equivalence Sequent.setEqTo where
+  refl := by rintro ⟨L,R,O⟩; simp [Sequent.setEqTo]
+  symm := by rintro ⟨L,R,O⟩ ⟨L',R',O'⟩; simp [Sequent.setEqTo]; grind
+  trans := by rintro ⟨L,R,O⟩ ⟨L',R',O'⟩ ⟨L'',R'',O''⟩; simp [Sequent.setEqTo]; grind
+
+instance instSetoidSequent : Setoid Sequent := ⟨Sequent.setEqTo, equivalenceSequentSetEqTo⟩
+
+/-- Yes, it's a pun. A `Sequent` modulo `Sequent.setEqTo`. -/
+abbrev Seqt := Quotient instSetoidSequent
+
+/-- Needed to make `List.toFinset` work for `List Seqt`.
+Strange that this is not inferred from `instDecidableRelSequentSetEqTo` automatically. -/
+instance instDecidableEqSeqt : DecidableEq Seqt := by
+  have := instDecidableRelSequentSetEqTo
+  apply Quotient.decidableEq
+
+
 /-- Two `Sequent`s are multiset-equal when their components are multiset-equal.
 That is, we do not care about the order of the lists, but we do care about the side
 on which the formula is, whether it is loaded or not, and how often it occurs. -/

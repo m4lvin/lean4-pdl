@@ -777,87 +777,11 @@ instance Sequent.subseteq_FL_fintype {X : Sequent} :
     Fintype { Y // Sequent.subseteq_FL Y X } := ...
 ```
 
-Hence, we now define the Quotient modulo `Sequent.setEqTo` within which there are only finitely
-many FL-subsequents.
-
-TODO move `Seqt` to Sequent.lean and `Sequent.subseteq_FL_congr` to FischerLadner.lean later?
+Hence, we now use the `Seqt` (which is the quotient from `Sequent.setEqTo`)
+within which there are only finitely many FL-subsequents.
 -/
 
-def equivalenceSequentSetEqTo : Equivalence Sequent.setEqTo where
-  refl := by rintro ⟨L,R,O⟩; simp [Sequent.setEqTo]
-  symm := by rintro ⟨L,R,O⟩ ⟨L',R',O'⟩; simp [Sequent.setEqTo]; grind
-  trans := by rintro ⟨L,R,O⟩ ⟨L',R',O'⟩ ⟨L'',R'',O''⟩; simp [Sequent.setEqTo]; grind
-
-instance instSetoidSequent : Setoid Sequent := ⟨Sequent.setEqTo, equivalenceSequentSetEqTo⟩
-
-/-- Yes, it's a pun. A `Sequent` modulo `Sequent.setEqTo`. -/
-abbrev Seqt := Quotient instSetoidSequent
-
-/-- Needed to make `List.toFinset` work for `List Seqt`.
-Strange that this is not inferred from `instDecidableRelSequentSetEqTo` automatically. -/
-instance instDecidableEqSeqt : DecidableEq Seqt := by
-  have := instDecidableRelSequentSetEqTo
-  apply Quotient.decidableEq
-
-/-- Congruence for `Sequent.subseteq_FL`, used to make `Seqt.subseteq_FL` well-defined. -/
-lemma Sequent.subseteq_FL_congr (a₁ b₁ a₂ b₂ : Sequent) :
-    a₁ ≈ a₂ → b₁ ≈ b₂ → (a₁.subseteq_FL b₁ = a₂.subseteq_FL b₂) := by
-  rintro ⟨a_L, a_R, a_O⟩ ⟨b_L, b_R, b_O⟩
-  rw [eq_iff_iff]
-  rcases a₁ with ⟨La1,Ra1,Oa1⟩
-  rcases a₂ with ⟨La2,Ra2,Oa2⟩
-  rcases b₁ with ⟨Lb1,Rb1,Ob1⟩
-  rcases b₂ with ⟨Lb2,Rb2,Ob2⟩
-  rw [List.toFinset.ext_iff] at a_L a_R b_L b_R
-  subst a_O b_O
-  unfold subseteq_FL
-  simp only [Sequent.L, Sequent.O, Sequent.R]
-  constructor <;> rintro ⟨hL,hOL,hR,hOR⟩ <;> refine ⟨?_, ?_, ?_, ?_⟩
-  all_goals
-    intro φ φ_in
-    rw [FLL_append_eq, List.mem_append]
-    simp only at *
-  · rw [← a_L] at φ_in
-    specialize hL φ_in
-    rw [FLL_append_eq, List.mem_append] at hL
-    have := FLL_ext b_L φ
-    aesop
-  · specialize hOL φ_in
-    rw [FLL_append_eq, List.mem_append] at hOL
-    have := FLL_ext b_L φ
-    tauto
-  · rw [← a_R] at φ_in
-    specialize hR φ_in
-    rw [FLL_append_eq, List.mem_append] at hR
-    have := FLL_ext b_R φ
-    tauto
-  · specialize hOR φ_in
-    rw [FLL_append_eq, List.mem_append] at hOR
-    have := FLL_ext b_R φ
-    tauto
-  · rw [a_L] at φ_in
-    specialize hL φ_in
-    rw [FLL_append_eq, List.mem_append] at hL
-    have := FLL_ext b_L φ
-    tauto
-  · specialize hOL φ_in
-    rw [FLL_append_eq, List.mem_append] at hOL
-    have := FLL_ext b_L φ
-    tauto
-  · rw [a_R] at φ_in
-    specialize hR φ_in
-    rw [FLL_append_eq, List.mem_append] at hR
-    have := FLL_ext b_R φ
-    tauto
-  · specialize hOR φ_in
-    rw [FLL_append_eq, List.mem_append] at hOR
-    have := FLL_ext b_R φ
-    tauto
-
-def Seqt.subseteq_FL (X : Seqt) (Y : Seqt) : Prop :=
-  Quotient.lift₂ Sequent.subseteq_FL Sequent.subseteq_FL_congr X Y
-
-/-- In the quotient the moves keep us inside the FL. UNUSED, delete this? -/
+/-- In the quotient the moves keep us inside the FL. Unused but nice to have. -/
 lemma Seqt.subseteq_FL_of_move (hm : move p next) :
     Seqt.subseteq_FL (Quotient.mk' next.2.1) (Quotient.mk' p.2.1) := by
   unfold Seqt.subseteq_FL

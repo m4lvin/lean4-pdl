@@ -84,6 +84,64 @@ lemma Sequent.subseteq_FL_of_setEq_left {X Y : Sequent} (h : X.setEqTo Y) {Z : S
     have := FLL_ext R_same
     grind
 
+/-- Congruence for `Sequent.subseteq_FL`, used to make `Seqt.subseteq_FL` well-defined. -/
+lemma Sequent.subseteq_FL_congr (a₁ b₁ a₂ b₂ : Sequent) :
+    a₁ ≈ a₂ → b₁ ≈ b₂ → (a₁.subseteq_FL b₁ = a₂.subseteq_FL b₂) := by
+  rintro ⟨a_L, a_R, a_O⟩ ⟨b_L, b_R, b_O⟩
+  rw [eq_iff_iff]
+  rcases a₁ with ⟨La1,Ra1,Oa1⟩
+  rcases a₂ with ⟨La2,Ra2,Oa2⟩
+  rcases b₁ with ⟨Lb1,Rb1,Ob1⟩
+  rcases b₂ with ⟨Lb2,Rb2,Ob2⟩
+  rw [List.toFinset.ext_iff] at a_L a_R b_L b_R
+  subst a_O b_O
+  unfold subseteq_FL
+  simp only [Sequent.L, Sequent.O, Sequent.R]
+  constructor <;> rintro ⟨hL,hOL,hR,hOR⟩ <;> refine ⟨?_, ?_, ?_, ?_⟩
+  all_goals
+    intro φ φ_in
+    rw [FLL_append_eq, List.mem_append]
+    simp only at *
+  · rw [← a_L] at φ_in
+    specialize hL φ_in
+    rw [FLL_append_eq, List.mem_append] at hL
+    have := FLL_ext b_L φ
+    aesop
+  · specialize hOL φ_in
+    rw [FLL_append_eq, List.mem_append] at hOL
+    have := FLL_ext b_L φ
+    tauto
+  · rw [← a_R] at φ_in
+    specialize hR φ_in
+    rw [FLL_append_eq, List.mem_append] at hR
+    have := FLL_ext b_R φ
+    tauto
+  · specialize hOR φ_in
+    rw [FLL_append_eq, List.mem_append] at hOR
+    have := FLL_ext b_R φ
+    tauto
+  · rw [a_L] at φ_in
+    specialize hL φ_in
+    rw [FLL_append_eq, List.mem_append] at hL
+    have := FLL_ext b_L φ
+    tauto
+  · specialize hOL φ_in
+    rw [FLL_append_eq, List.mem_append] at hOL
+    have := FLL_ext b_L φ
+    tauto
+  · rw [a_R] at φ_in
+    specialize hR φ_in
+    rw [FLL_append_eq, List.mem_append] at hR
+    have := FLL_ext b_R φ
+    tauto
+  · specialize hOR φ_in
+    rw [FLL_append_eq, List.mem_append] at hOR
+    have := FLL_ext b_R φ
+    tauto
+
+def Seqt.subseteq_FL (X : Seqt) (Y : Seqt) : Prop :=
+  Quotient.lift₂ Sequent.subseteq_FL Sequent.subseteq_FL_congr X Y
+
 lemma testsOfProgram_in_FLb {φ α} (φ_in : φ ∈ testsOfProgram α) ψ : φ ∈ FLb α ψ := by
   cases α <;> simp [testsOfProgram] at *
   case sequence α β =>
