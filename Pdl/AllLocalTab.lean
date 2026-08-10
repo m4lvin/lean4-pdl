@@ -28,20 +28,29 @@ lemma OneSidedLocalRule.all_spec (osr : OneSidedLocalRule L B)
     simp [OneSidedLocalRule.all]
     try assumption
 
--- TODO instance OneSidedLocalRule.fintype : Fintype (OneSidedLocalRule L B) := ...
+instance OneSidedLocalRule.fintype {L B} : Fintype (OneSidedLocalRule L B) :=
+  match h_all: OneSidedLocalRule.all L with
+  | some ⟨B', osr⟩ => ⟨ if h : B = B' then {h ▸ osr} else {}
+                      , fun osr' => by have := OneSidedLocalRule.all_spec osr'; grind ⟩
+  | none => ⟨{}, fun osr => by have := OneSidedLocalRule.all_spec osr; grind⟩
 
 /-- Given a negated loaded formula, is there a LoadRule applicable to it? -/
 def LoadRule.the : (nχ : NegLoadFormula) → Option (Σ ress, LoadRule nχ ress)
   | (~'⌊α⌋(.loaded _)) => if notAtom : ¬ α.isAtomic then some ⟨_, dia  notAtom⟩ else none
   | (~'⌊α⌋(.normal _)) => if notAtom : ¬ α.isAtomic then some ⟨_, dia' notAtom⟩ else none
 
-lemma LoadRule.the_spec (lor : LoadRule (~'χ) ress) : some ⟨ress, lor⟩ = LoadRule.the (~'χ) := by
+lemma LoadRule.the_spec {χ ress} (lor : LoadRule (~'χ) ress) :
+    some ⟨ress, lor⟩ = LoadRule.the (~'χ) := by
   cases lor
   all_goals
     simp [LoadRule.the]
     assumption
 
--- TODO LoadRule.fintype : Fintype LoadRule := ⟨LoadRule.all, LoadRule.all_spec⟩
+instance LoadRule.fintype {nχ ress} : Fintype (LoadRule nχ ress) :=
+  match h_the : LoadRule.the (~'nχ.1) with
+  | some ⟨ress', lr⟩ => ⟨ if h : ress = ress' then {h ▸ lr} else {}
+                        , fun lr' => by have := lr'.the_spec; grind ⟩
+  | none => ⟨{}, fun lr => by have := lr.the_spec; grind⟩
 
 /-- Given a subsequent `cond` to be replaced, is there an applicable local rule?
 Note that `cond` are only the principal formulas, not the whole sequent. -/
@@ -62,7 +71,7 @@ def LocalRule.all : (cond : Sequent) → Option (Σ ress, LocalRule cond ress)
       if notAtm : ¬ α.isAtomic then some ⟨_, .loadedR _ (@LoadRule.dia' α _ notAtm) rfl⟩ else none
   | _ => none
 
-lemma LocalRule.all_spec (lr : LocalRule L B) : ⟨B, lr⟩ ∈ LocalRule.all L := by
+lemma LocalRule.all_spec {L B} (lr : LocalRule L B) : ⟨B, lr⟩ ∈ LocalRule.all L := by
   cases lr <;> simp [LocalRule.all]
   case oneSidedL precond ress osr B_def =>
     have := OneSidedLocalRule.all_spec osr
@@ -80,7 +89,11 @@ lemma LocalRule.all_spec (lr : LocalRule L B) : ⟨B, lr⟩ ∈ LocalRule.all L 
   case loadedR αχ lrule YS_def =>
     rcases αχ with ⟨α,φ|χ⟩ <;> cases lrule <;> aesop
 
--- TODO instance : Fintype (LocalRule L B) := ⟨(LocalRule.all L).toList, LocalRule.all_spec⟩
+instance LocalRule.fintype {X ress} : Fintype (LocalRule X ress) :=
+  match h_the : LocalRule.all X with
+  | some ⟨ress', lr⟩ => ⟨ if h : ress = ress' then {h ▸ lr} else {}
+                        , fun lr' => by have := lr'.all_spec; grind ⟩
+  | none => ⟨{}, fun lr => by have := lr.all_spec; grind⟩
 
 /-- Given a sequent, return a list of all possible local rule applications. -/
 def LocalRuleApp.all : (X : Sequent) → List LocalRuleApp
