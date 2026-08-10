@@ -393,9 +393,9 @@ theorem rep_needs_split_above
     simp at *
   case rep =>
     cases p
-    case nil _ _ _ _in_H' =>
+    case nil _ _ _ _ =>
       subst_eqs
-    case cons _in_H ms m m_in s next rest =>
+    case cons _ ms m m_in s next rest =>
       sorry
   case step =>
     -- Impossible, a step is not a repeat.

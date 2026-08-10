@@ -256,10 +256,6 @@ inductive NegLoadFormula : Type -- ¬χ
   | neg : LoadFormula → NegLoadFormula
   deriving Repr, DecidableEq
 
--- FIXME: find some nice short notation for this and get Lean to use it?
--- notation "n:" φ:arg => AnyFormula.normal φ
--- notation "l:" χ:arg => AnyFormula.loaded χ
-
 notation "⌊" α "⌋" χ => LoadFormula.box α χ
 notation "⌊⌊" αs "⌋⌋" χ => LoadFormula.boxes αs χ
 notation "~'" χ => NegLoadFormula.neg χ

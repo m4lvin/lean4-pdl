@@ -25,7 +25,7 @@ instance flipEdge.instIsIrrefl : @Std.Irrefl (PathIn tab) (Relation.TransGen (fl
   constructor
   intro p p_p
   rw [Relation.transGen_swap] at p_p
-  have p_in_Hist_p := edge_TransGen_then_mem_History p_p
+  have p_mem_Hist_p := edge_TransGen_then_mem_History p_p
   have := PathIn.mem_history_multisetEqTo_then_lrep p ⟨nodeAt p, by simpa⟩
   rcases (single_of_transgen p_p) with ⟨_,   ⟨_, _, _, _, _, _, _, _, h, _⟩
                                            | ⟨_, _, _, _, _, _, _, h, _⟩⟩

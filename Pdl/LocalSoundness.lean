@@ -236,7 +236,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
         -- have from_H := @existsDiamondDset W M α _ _ v_α_u
         -- Now we use `rel_existsD_dist` to also get the same distance.
         have from_H := rel_existsD_dist v_α_u
-        rcases from_H with ⟨⟨F,δ⟩, _in_H, v_F, same_dist⟩
+        rcases from_H with ⟨⟨F,δ⟩, in_D, v_F, same_dist⟩
         simp at same_dist
         have v_δ_u : relateSeq M δ v u := by
           rw [← distance_list_iff_relate_Seq]
@@ -305,7 +305,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                   · apply v_F; assumption
                   · apply v_G; assumption
                 simp [Dl]
-                refine ⟨_, _, _in_H, ?_⟩
+                refine ⟨_, _, in_D, ?_⟩
                 simp
                 refine ⟨G, in_Dl, rfl⟩
           case cons d δs =>
@@ -353,16 +353,16 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                 intro y
                 -- Idea: y cannot provide a shorter distance than u.
                 rw [same_dist, ← u_picked_minimally, distance_list_cons]
-                apply le_add_of_le_add_right ?_ (distance_le_Hdistance _in_H ?_)
+                apply le_add_of_le_add_right ?_ (distance_le_Hdistance in_D ?_)
                 · exact iInf_le_iff.mpr fun b a => a y
                 · simp [vDash.SemImplies, conEval]; assumption
               have αs_nonEmpty : αs ≠ [] := by cases αs <;> simp_all
               simp only [Dl, List.mem_flatMap, Prod.exists] -- uses `αs_nonEmpty`
-              refine ⟨F, d :: δs, _in_H, ?_⟩
+              refine ⟨F, d :: δs, in_D, ?_⟩
               simp
               -- Now show that `d` is atomic, because it resulted from `H α`.
               have ⟨a, d_atom⟩ : ∃ a, d = ((·a) : Program) := by
-                have := Dset_mem_sequence α _in_H
+                have := Dset_mem_sequence α in_D
                 rcases this with inl | ⟨a, ⟨δ, list_prop⟩⟩
                 · exfalso ; simp_all
                 · refine ⟨a, by simp_all⟩
@@ -404,7 +404,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at hC
               rw [hC]
               simp
-              refine ⟨F, [], _in_H, ?_, ?_⟩
+              refine ⟨F, [], in_D, ?_, ?_⟩
               · simp
               · cases O <;> cases side
                 all_goals
@@ -430,7 +430,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at hC
               rw [hC]
               simp
-              use F, (d :: δs), _in_H
+              use F, (d :: δs), in_D
               rw [split_def]
               simp
             -- Rest based on non-empty δ case in `dia` above; changed to work with `loadMulti`.
@@ -469,7 +469,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               · rw [dist_eq,same_dist,distance_list_singleton]
               -- Now show that `d` is atomic, because it resulted from `H α`.
               have ⟨a, d_atom⟩ : ∃ a, d = ((·a) : Program) := by
-                have := Dset_mem_sequence α _in_H
+                have := Dset_mem_sequence α in_D
                 rcases this with inl | ⟨a, ⟨δ, list_prop⟩⟩
                 · exfalso ; simp_all
                 · refine ⟨a, by simp_all⟩
@@ -477,7 +477,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               -- Hence `Dl (d :: ...)` does not actually unfold anything.
               simp at in_Dl
               rw [in_Dl.2]
-              exact _in_H
+              exact in_D
       case loadedR outputs χ lrule resNodes_def => -- COPY-PASTA from loadedL, modulo `side`
         subst resNodes_def
         -- Instead of localRuleTruth ...
@@ -490,7 +490,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
         -- have from_H := @existsDiamondDset W M α _ _ v_α_u
         -- Now we use `rel_existsD_dist` to also get the same distance.
         have from_H := rel_existsD_dist v_α_u
-        rcases from_H with ⟨⟨F,δ⟩, _in_H, v_F, same_dist⟩
+        rcases from_H with ⟨⟨F,δ⟩, in_D, v_F, same_dist⟩
         simp at same_dist
         have v_δ_u : relateSeq M δ v u := by
           rw [← distance_list_iff_relate_Seq]
@@ -560,7 +560,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                   · apply v_F; assumption
                   · apply v_G; assumption
                 simp [Dl]
-                refine ⟨_, _, _in_H, ?_⟩
+                refine ⟨_, _, in_D, ?_⟩
                 simp
                 refine ⟨G, in_Dl, rfl⟩
           case cons d δs =>
@@ -609,16 +609,16 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                 intro y
                 -- Idea: y cannot provide a shorter distance than u.
                 rw [same_dist, ← u_picked_minimally, distance_list_cons]
-                apply le_add_of_le_add_right ?_ (distance_le_Hdistance _in_H ?_)
+                apply le_add_of_le_add_right ?_ (distance_le_Hdistance in_D ?_)
                 · exact iInf_le_iff.mpr fun b a => a y
                 · simp [vDash.SemImplies, conEval]; assumption
               have αs_nonEmpty : αs ≠ [] := by cases αs <;> simp_all
               simp only [Dl, List.mem_flatMap, Prod.exists] -- uses `αs_nonEmpty`
-              refine ⟨F, d :: δs, _in_H, ?_⟩
+              refine ⟨F, d :: δs, in_D, ?_⟩
               simp
               -- Now show that `d` is atomic, because it resulted from `H α`.
               have ⟨a, d_atom⟩ : ∃ a, d = ((·a) : Program) := by
-                have := Dset_mem_sequence α _in_H
+                have := Dset_mem_sequence α in_D
                 rcases this with inl | ⟨a, ⟨δ, list_prop⟩⟩
                 · exfalso ; simp_all
                 · refine ⟨a, by simp_all⟩
@@ -658,7 +658,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at hC
               rw [hC]
               simp
-              refine ⟨F, [], _in_H, ?_, ?_⟩
+              refine ⟨F, [], in_D, ?_, ?_⟩
               · simp
               · clear IH next
                 cases O <;> cases side
@@ -688,7 +688,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               rw [hC]
               simp only [List.mem_map, Function.comp_apply, List.append_nil, Prod.mk.injEq,
                 List.append_cancel_left_eq, true_and, Prod.exists]
-              use F, (d :: δs), _in_H
+              use F, (d :: δs), in_D
               rw [split_def]
               simp
             -- Rest based on non-empty δ case in `dia` above; changed to work with `loadMulti`.
@@ -728,7 +728,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               · rw [dist_eq,same_dist,distance_list_singleton]
               -- Now show that `d` is atomic, because it resulted from `H α`.
               have ⟨a, d_atom⟩ : ∃ a, d = ((·a) : Program) := by
-                have := Dset_mem_sequence α _in_H
+                have := Dset_mem_sequence α in_D
                 rcases this with inl | ⟨a, ⟨δ, list_prop⟩⟩
                 · exfalso ; simp_all
                 · refine ⟨a, by simp_all⟩
@@ -737,7 +737,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               simp only [Dl_atomic_cons, List.mem_cons, Prod.mk.injEq, List.not_mem_nil,
                 or_false] at in_Dl
               rw [in_Dl.2]
-              exact _in_H
+              exact in_D
     case sim X X_isBasic =>
       clear no_other_loading
       -- If `X` is basic then `α` must be atomic.

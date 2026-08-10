@@ -120,57 +120,57 @@ lemma neg_testsOfProgram_in_FLb {φ α} (φ_in : φ ∈ testsOfProgram α) ψ : 
   case test τ =>
     simp_all [FLb]
 
-lemma Dset_tests_in_FL α F δ (in_H : (F, δ) ∈ Dset α) ψ : F ⊆ FLb α ψ := by
+lemma Dset_tests_in_FL α F δ (in_D : (F, δ) ∈ Dset α) ψ : F ⊆ FLb α ψ := by
   cases α <;> simp [Dset] at *
   case atom_prog =>
     grind
   case sequence α β =>
-    rcases in_H with ⟨G, γ, Gγ_in_H, Fδ_in⟩
+    rcases in_D with ⟨G, γ, Gγ_in_D, Fδ_in⟩
     by_cases γ = []
     · subst_eqs
       simp only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists, ↓existsAndEq, and_true,
         List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false, exists_eq_right_right'] at *
-      rcases Fδ_in with ⟨F', in_H', F_def⟩
-      have IHα := Dset_tests_in_FL _ _ _ Gγ_in_H
-      have IHβ := Dset_tests_in_FL _ _ _ in_H'
+      rcases Fδ_in with ⟨F', in_D', F_def⟩
+      have IHα := Dset_tests_in_FL _ _ _ Gγ_in_D
+      have IHβ := Dset_tests_in_FL _ _ _ in_D'
       grind [FLb]
     · simp_all only [↓reduceIte, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
       cases Fδ_in ; subst_eqs
-      have IH := Dset_tests_in_FL α F γ Gγ_in_H (⌈β⌉ψ)
+      have IH := Dset_tests_in_FL α F γ Gγ_in_D (⌈β⌉ψ)
       grind [FLb]
   case union α β =>
-    rcases in_H with in_H|in_H
+    rcases in_D with in_D|in_D
     all_goals
-      have IHα := Dset_tests_in_FL _ _ _ in_H ψ
+      have IHα := Dset_tests_in_FL _ _ _ in_D ψ
       grind [FLb]
   case star α =>
-    rcases in_H with ⟨⟨_⟩,⟨_⟩⟩|in_H
+    rcases in_D with ⟨⟨_⟩,⟨_⟩⟩|in_D
     · simp
-    · rcases in_H with ⟨γ, in_H, _, def_δ⟩
+    · rcases in_D with ⟨γ, in_D, _, def_δ⟩
       subst def_δ
-      have IH := Dset_tests_in_FL α F _ in_H (⌈∗α⌉ψ)
+      have IH := Dset_tests_in_FL α F _ in_D (⌈∗α⌉ψ)
       grind [FLb]
   case test =>
-    cases in_H
+    cases in_D
     subst_eqs
     simp [FLb]
 
-lemma Dset_progs_in_FL F δ α (in_H : (F, δ) ∈ Dset α) ψ : δ ≠ [] → (~⌈⌈δ⌉⌉ψ) ∈ FLb α ψ := by
+lemma Dset_progs_in_FL F δ α (in_D : (F, δ) ∈ Dset α) ψ : δ ≠ [] → (~⌈⌈δ⌉⌉ψ) ∈ FLb α ψ := by
   cases α <;> simp [Dset, FLb] at * -- pfoei
-  · cases in_H
+  · cases in_D
     subst_eqs
     simp
   case sequence α β =>
-    rcases in_H with ⟨G, γ, in_H, in_l⟩
+    rcases in_D with ⟨G, γ, in_D, in_l⟩
     by_cases γ = []
     · subst_eqs
       simp only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists] at in_l
-      rcases in_l with ⟨l, ⟨F', δ', in_H', def_l⟩ , in_l⟩
+      rcases in_l with ⟨l, ⟨F', δ', in_D', def_l⟩ , in_l⟩
       subst def_l
       simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false] at *
       cases in_l ; subst_eqs
-      have IHα := Dset_progs_in_FL _ _ _ in_H
-      have IHβ := Dset_progs_in_FL _ _ _ in_H'
+      have IHα := Dset_progs_in_FL _ _ _ in_D
+      have IHβ := Dset_progs_in_FL _ _ _ in_D'
       grind [FLb]
     case neg γ_not_nil =>
       simp_all [↓reduceIte, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
@@ -178,25 +178,25 @@ lemma Dset_progs_in_FL F δ α (in_H : (F, δ) ∈ Dset α) ψ : δ ≠ [] → (
       rw [boxes_append]
       right
       left
-      exact Dset_progs_in_FL _ _ _ in_H (⌈β⌉ψ) γ_not_nil -- IH
+      exact Dset_progs_in_FL _ _ _ in_D (⌈β⌉ψ) γ_not_nil -- IH
   case union α β =>
-    rcases in_H with in_H|in_H
+    rcases in_D with in_D|in_D
     all_goals
-      have IHα := Dset_progs_in_FL _ _ _ in_H ψ
+      have IHα := Dset_progs_in_FL _ _ _ in_D ψ
       grind [FLb]
   case star α =>
-    rcases in_H with ⟨⟨_⟩,⟨_⟩⟩|in_H
+    rcases in_D with ⟨⟨_⟩,⟨_⟩⟩|in_D
     · simp
-    · rcases in_H with ⟨γ, in_H, γ_not_nil, def_δ⟩
+    · rcases in_D with ⟨γ, in_D, γ_not_nil, def_δ⟩
       subst def_δ
-      have IH := Dset_progs_in_FL _ _ _ in_H (⌈∗α⌉ψ) γ_not_nil
+      have IH := Dset_progs_in_FL _ _ _ in_D (⌈∗α⌉ψ) γ_not_nil
       simp_all only [List.append_eq_nil_iff, List.cons_ne_self, and_self, not_false_eq_true,
         forall_const]
       rw [boxes_append]
       right
       exact IH
   case test τ =>
-    cases in_H
+    cases in_D
     subst_eqs
     simp
 
@@ -232,7 +232,7 @@ lemma unfoldDiamond_in_FL (α : Program) (ψ : Formula) (X : List Formula) :
         apply Formula.boxes_cons_neq_self
     all_goals -- sequence, union and star case work the same :-)
       simp [unfoldDiamond, Yset] at X_in
-      rcases X_in with ⟨F, δ, in_H, def_X⟩
+      rcases X_in with ⟨F, δ, in_D, def_X⟩
       subst def_X
       simp at φ_in
       rcases φ_in with φ_in|φ_def
@@ -240,14 +240,14 @@ lemma unfoldDiamond_in_FL (α : Program) (ψ : Formula) (X : List Formula) :
         Formula.box.injEq, reduceCtorEq, false_and, List.mem_append, false_or]
         right
         left
-        exact Dset_tests_in_FL _ _ _ in_H ψ φ_in
+        exact Dset_tests_in_FL _ _ _ in_D ψ φ_in
       · rw [φ_def]
         simp only [FL, List.cons_append, List.nil_append, List.mem_cons, Formula.neg.injEq,
           List.mem_append]
         right
         right
         left
-        apply Dset_progs_in_FL _ _ _ in_H ψ ?_
+        apply Dset_progs_in_FL _ _ _ in_D ψ ?_
         intro hyp
         subst hyp
         rw [Formula.boxes_nil] at φ_def

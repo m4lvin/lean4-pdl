@@ -367,14 +367,14 @@ theorem lmOfFormula.le_union_right α β φ : lmOfFormula (~⌈β⌉φ) ≤ lmOf
   all_goals
     simp [testsOfProgram]
 
-theorem Dset_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Dset α) {ψ} (in_Fs : ψ ∈ Fs) :
+theorem Dset_goes_down (α : Program) φ {Fs δ} (in_D : (Fs, δ) ∈ Dset α) {ψ} (in_Fs : ψ ∈ Fs) :
     lmOfFormula ψ < lmOfFormula (~⌈α⌉φ) := by
   cases α
   · simp_all [Dset]
   case sequence α β =>
     simp only [lmOfFormula]
-    simp only [Dset, List.mem_flatMap, Prod.exists] at in_H
-    rcases in_H with ⟨Fs', δ', in_H, Fs_in⟩
+    simp only [Dset, List.mem_flatMap, Prod.exists] at in_D
+    rcases in_D with ⟨Fs', δ', in_D, Fs_in⟩
     · by_cases δ' = []
       · subst_eqs
         simp_all only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists, ↓existsAndEq,
@@ -384,7 +384,7 @@ theorem Dset_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Dset α) {
         subst Fs_def
         simp only [List.mem_union_iff] at in_Fs
         rcases in_Fs with in_Fs'|in_Fs''
-        · have IHα := Dset_goes_down α φ in_H in_Fs'
+        · have IHα := Dset_goes_down α φ in_D in_Fs'
           cases α
           all_goals
             simp [lmOfFormula] at IHα
@@ -399,13 +399,13 @@ theorem Dset_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Dset α) {
       · simp_all only [↓reduceIte, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false,
           testsOfProgram, List.attach_append, List.map_append, List.map_map, Function.comp_apply,
           List.map_subtype, List.unattach_attach, List.sum_append]
-        have IHα := Dset_goes_down α φ in_H in_Fs
+        have IHα := Dset_goes_down α φ in_D in_Fs
         cases α
         all_goals
           simp_all [Dset, testsOfProgram, lmOfFormula] <;> linarith
   case union α β =>
-    simp only [Dset, List.mem_union_iff] at in_H
-    rcases in_H with hyp|hyp
+    simp only [Dset, List.mem_union_iff] at in_D
+    rcases in_D with hyp|hyp
     · have IHα := Dset_goes_down α φ hyp in_Fs
       suffices lmOfFormula (~⌈α⌉φ) ≤ lmOfFormula (~⌈α⋓β⌉φ) by linarith
       apply lmOfFormula.le_union_left
@@ -414,15 +414,15 @@ theorem Dset_goes_down (α : Program) φ {Fs δ} (in_H : (Fs, δ) ∈ Dset α) {
       apply lmOfFormula.le_union_right
   case star α =>
     simp only [lmOfFormula]
-    simp [Dset] at in_H
-    rcases in_H with _ | ⟨δ', in_H', in_l⟩
+    simp [Dset] at in_D
+    rcases in_D with _ | ⟨δ', in_D', in_l⟩
     · simp_all only [List.not_mem_nil]
     · by_cases δ' = []
       · simp_all
       · simp only [testsOfProgram]
         cases in_l
         subst_eqs
-        have IHα := Dset_goes_down α φ in_H' in_Fs
+        have IHα := Dset_goes_down α φ in_D' in_Fs
         cases α <;> simp_all only [lmOfFormula, not_lt_zero']
   case test τ =>
     simp_all [Dset, testsOfProgram]

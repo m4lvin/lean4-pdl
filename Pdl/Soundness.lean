@@ -1291,7 +1291,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
         -- Now distinguish the two cases coming from `localLoadedDiamondList`:
         rcases free_or_newLoadform
           with  Y_is_Free
-              | ⟨F, δ, anf_in_Y, v_seq_w, dist_eq, v_F, Fδ_in_H, Y_almost_free⟩
+              | ⟨F, δ, anf_in_Y, v_seq_w, dist_eq, v_F, Fδ_in_Dl, Y_almost_free⟩
         · -- Leaving the cluster, easy case.
           refine ⟨s1, ?_, Or.inl ⟨?_, ?_⟩⟩
           · apply Relation.TransGen.single
