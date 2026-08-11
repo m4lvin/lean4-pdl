@@ -758,18 +758,23 @@ deriving DecidableEq
 
 /-! ## Helper functions, relating end nodes and children -/
 
--- TODO Computable version possible?
-noncomputable def endNode_to_endNodeOfChildNonComp (lrA)
-  (E_in : E ∈ endNodesOf (@LocalTableau.byLocalRule X _ lrA subTabs)) :
-  @Subtype Sequent (fun x => ∃ h, E ∈ endNodesOf (subTabs x h)) := by
-  simp [endNodesOf] at E_in
-  choose l h E_in using E_in
-  aesop
+def endNode_to_endNodeOfChild {X lrA} def_X subTabs {E}
+    (E_in : E ∈ endNodesOf (@LocalTableau.byLocalRule X lrA def_X subTabs)) :
+    @Subtype Sequent (fun x => ∃ h, E ∈ endNodesOf (subTabs x h)) := by
+  simp only [endNodesOf, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
+    Subtype.exists, ↓existsAndEq] at E_in
+  let L : List Sequent :=
+    lrA.C.attach.filterMap (fun ⟨Y,Y_in⟩ =>
+      if E ∈ endNodesOf (subTabs Y Y_in) then some Y else none)
+  have L_ne : L ≠ [] := by aesop
+  have mem_L := L.head_mem L_ne
+  refine ⟨L.head L_ne, ?_⟩
+  grind
 
-theorem endNodeIsEndNodeOfChild (lrA)
-  (E_in : E ∈ endNodesOf (@LocalTableau.byLocalRule X _ lrA subTabs)) :
+theorem endNodeIsEndNodeOfChild def_X
+  (E_in : E ∈ endNodesOf (@LocalTableau.byLocalRule X _ def_X subTabs)) :
   ∃ Y h, E ∈ endNodesOf (subTabs Y h) := by
-  have := endNode_to_endNodeOfChildNonComp lrA E_in
+  have := endNode_to_endNodeOfChild def_X subTabs E_in
   use this
   aesop
 
