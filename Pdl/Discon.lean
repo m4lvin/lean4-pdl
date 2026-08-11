@@ -8,30 +8,29 @@ Here we define ⋀ and ⋁ on formulas and seveal helper lemmas.
 
 /-! ## Conjunction -/
 
--- FIXME: rename "Con" to "con"
 @[simp]
-def Con : List Formula → Formula
+def con : List Formula → Formula
   | [] => ⊤
   | [f] => f
-  | f :: rest => f⋀Con rest
+  | f :: rest => f⋀con rest
 
 @[simp]
-theorem conempty : Con ∅ = (⊤ : Formula) := by rfl
+theorem conempty : con ∅ = (⊤ : Formula) := by rfl
 
 @[simp]
-theorem consingle {f : Formula} : Con [f] = f := by rfl
+theorem consingle {f : Formula} : con [f] = f := by rfl
 
-theorem listEq_to_conEq : l1 = l2 → Con l1 = Con l2 := by
+theorem listEq_to_conEq : l1 = l2 → con l1 = con l2 := by
   aesop
 
 theorem conEvalHT {X f W M} {w : W} :
-    evaluate M w (Con (f :: X)) ↔ evaluate M w f ∧ evaluate M w (Con X) :=
+    evaluate M w (con (f :: X)) ↔ evaluate M w f ∧ evaluate M w (con X) :=
   by
   induction X
   · simp
   · simp
 
-theorem conEval {W M X} {w : W} : evaluate M w (Con X) ↔ ∀ f ∈ X, evaluate M w f :=
+theorem conEval {W M X} {w : W} : evaluate M w (con X) ↔ ∀ f ∈ X, evaluate M w f :=
   by
   induction X
   · simp
@@ -42,14 +41,14 @@ theorem conEval {W M X} {w : W} : evaluate M w (Con X) ↔ ∀ f ∈ X, evaluate
 
 /-- Vocabulary of Conjunction -/
 theorem in_voc_con n (L : List Formula) :
-    n ∈ (Con L).voc ↔ ∃ φ ∈ L, n ∈ φ.voc := by
+    n ∈ (con L).voc ↔ ∃ φ ∈ L, n ∈ φ.voc := by
   induction L
-  · simp [Con, Formula.voc]
+  · simp [con, Formula.voc]
   case cons h t IH =>
     induction t -- needed to select case in `Con`
-    · simp [Con]
+    · simp [con]
     case cons h t IH =>
-      simp [Con, Formula.voc] at *
+      simp [con, Formula.voc] at *
       rw [← IH]
 
 /-! ## Disjunction -/
@@ -101,8 +100,8 @@ theorem in_voc_dis n (L : List Formula) :
 @[simp]
 def discon : List (List Formula) → Formula
   | [] => ⊥
-  | [X] => Con X
-  | X :: rest => Con X⋁discon rest
+  | [X] => con X
+  | X :: rest => con X ⋁ discon rest
 
 @[simp]
 theorem disconempty : discon {∅} = (⊤ : Formula) := by rfl
@@ -110,7 +109,7 @@ theorem disconempty : discon {∅} = (⊤ : Formula) := by rfl
 @[simp]
 theorem disconsingle {f : Formula} : discon [[f]] = f := by rfl
 
-theorem disconEvalHT {X} : ∀ XS, discon (X :: XS)≡Con X⋁discon XS :=
+theorem disconEvalHT {X} : ∀ XS, discon (X :: XS) ≡ con X ⋁ discon XS :=
   by
   unfold semEquiv
   intro XS W M w
@@ -235,7 +234,7 @@ theorem union_elem_uplus {XS YS : Finset (Finset Formula)} {X Y : Finset Formula
 /-- Helper for `oneSidedLocalRuleTruth`, used with `g = Yset`. -/
 theorem mapCon_mapForall (M : KripkeModel W) w φ
     (g : (List Formula × List Program) → Formula → List Formula) :
-    (∃ f ∈ List.map (fun Fδ => Con (g Fδ φ)) X, evaluate M w f) ↔
+    (∃ f ∈ List.map (fun Fδ => con (g Fδ φ)) X, evaluate M w f) ↔
     ∃ fs ∈ List.map (fun Fδ => g Fδ φ) X, ∀ f ∈ fs, evaluate M w f := by
   simp_all only [List.mem_map, Prod.exists, ↓existsAndEq, and_true]
   constructor <;> grind [conEval]

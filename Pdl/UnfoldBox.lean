@@ -55,7 +55,7 @@ theorem allTP_mem (ℓ : TP α) : ℓ ∈ allTP α := by
 
 /-- σ^ℓ -/
 def signature (α : Program) (ℓ : TP α) : Formula :=
-  Con <| (testsOfProgram α).attach.map (fun τ => if ℓ τ then τ.val else ~τ.val)
+  con <| (testsOfProgram α).attach.map (fun τ => if ℓ τ then τ.val else ~τ.val)
 
 /-- This is currently unused. -/
 theorem signature_iff {W} {M : KripkeModel W} {w : W} :
@@ -605,8 +605,8 @@ theorem unfoldBox_voc {x α φ} {L} (L_in : L ∈ unfoldBox α φ) {ψ} (ψ_in :
 Note that the paper only states the third conjunct. -/
 theorem boxHelperTP α (ℓ : TP α) :
     (∀ τ, (~τ.val) ∈ F α ℓ → ℓ τ = false)
-  ∧ (Con (F α ℓ) ⋀ signature α ℓ ≡ signature α ℓ)
-  ∧ ∀ ψ, (Con (Bset α ℓ ψ) ⋀ signature α ℓ ≡ Con ((P α ℓ).map (fun αs => ⌈⌈αs⌉⌉ψ)) ⋀ signature α ℓ )
+  ∧ (con (F α ℓ) ⋀ signature α ℓ ≡ signature α ℓ)
+  ∧ ∀ ψ, (con (Bset α ℓ ψ) ⋀ signature α ℓ ≡ con ((P α ℓ).map (fun αs => ⌈⌈αs⌉⌉ψ)) ⋀ signature α ℓ )
     := by
   refine ⟨?_, ?_, ?_⟩
   · intro τ τ_in
@@ -680,8 +680,8 @@ theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
 
 /-- Show "suffices" part outside, to use `localBoxTruth` for star case in `localBoxTruthI`. -/
 theorem localBoxTruth_connector γ ψ :
-    (goal : ∀ ℓ, (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Bset γ ℓ ψ) ⋀ signature γ ℓ) →
-    (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Bset γ ℓ ψ)) ) := by
+    (goal : ∀ ℓ, (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ con (Bset γ ℓ ψ) ⋀ signature γ ℓ) →
+    (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => con (Bset γ ℓ ψ)) ) := by
   -- By the properties of the signature formulas clearly ;-)
   -- `localBoxTruthI` suffices to prove `localBoxTruth`.
   intro goal W M w
@@ -723,7 +723,7 @@ theorem localBoxTruth_connector γ ψ :
     have := Classical.propDecidable
     -- again we get a test profile ℓ from the model:
     let ℓ' : TP γ := fun ⟨τ,_⟩ => decide (evaluate M w τ)
-    have w_Xℓ' : evaluate M w (Con (Bset γ ℓ' ψ)) := by
+    have w_Xℓ' : evaluate M w (con (Bset γ ℓ' ψ)) := by
       simp only [Bset, conEval, List.mem_append, List.mem_map]
       intro φ φ_in
       cases φ_in
@@ -764,7 +764,7 @@ theorem localBoxTruth_connector γ ψ :
 set_option maxHeartbeats 2000000 in -- for simp timeouts (also triggering kernel error?)
 /-- Induction claim for `localBoxTruth`. -/
 theorem localBoxTruthI γ ψ (ℓ : TP γ) :
-    (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ Con (Bset γ ℓ ψ) ⋀ signature γ ℓ := by
+    (⌈γ⌉ψ) ⋀ signature γ ℓ ≡ con (Bset γ ℓ ψ) ⋀ signature γ ℓ := by
   intro W M w
   cases γ
   case atom_prog a =>
@@ -791,7 +791,7 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
     -- signature is true, so we can add it for free:
     have : ∀ φ, evaluate M w φ
               ↔ evaluate M w (φ ⋀ signature (α⋓β) ℓ) := by simp_all
-    rw [this (Con (Bset (α⋓β) ℓ ψ))]
+    rw [this (con (Bset (α⋓β) ℓ ψ))]
     clear this
     -- using part (3) of Lemma:
     have := (boxHelperTP (α⋓β) ℓ).2.2 ψ W M w
@@ -925,7 +925,7 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
           · simp_all
           · simp_all
   case star β =>
-    let ρ := dis ((allTP (∗β)).map (fun ℓ => Con (Bset (∗β) ℓ ψ)))
+    let ρ := dis ((allTP (∗β)).map (fun ℓ => con (Bset (∗β) ℓ ψ)))
     suffices goal : (⌈∗β⌉ψ) ≡ ρ by
       specialize goal W M w
       simp only [evaluate, relate] at goal
@@ -993,7 +993,7 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
         · rw [goal]
           unfold ρ
           rw [disEval]
-          use Con (Bset (∗β) ℓ ψ)
+          use con (Bset (∗β) ℓ ψ)
           simp_all only [List.mem_map, and_true]
           use ℓ -- seems to be only place where we actually use the given ℓ
           simp only [and_true]
@@ -1009,7 +1009,7 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
     -- We show left_to_right as a claim because we need left_to_right for right to left.
     have left_to_right : (⌈∗β⌉ψ) ⊨ ρ := by
       intro W M w
-      suffices step : ∀ ℓ, (⌈∗β⌉ψ) ⋀ signature (∗β) ℓ ⊨ Con ((P (∗β) ℓ).map fun αs => ⌈⌈αs⌉⌉ψ) by
+      suffices step : ∀ ℓ, (⌈∗β⌉ψ) ⋀ signature (∗β) ℓ ⊨ con ((P (∗β) ℓ).map fun αs => ⌈⌈αs⌉⌉ψ) by
         have := Classical.propDecidable
         let ℓ' : TP (∗β) := fun ⟨τ,_⟩ => decide (evaluate M w τ)
         intro w_bSpsi
@@ -1094,12 +1094,12 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
     · -- Right to left, "more work is required"
       let x : Nat := freshVarProg β
       have x_not_in_β : Sum.inl x ∉ β.voc := by apply freshVarProg_is_fresh
-      let φ ℓ := Con ((P β ℓ).map (fun αs => ⌈⌈αs⌉⌉·x))
+      let φ ℓ := con ((P β ℓ).map (fun αs => ⌈⌈αs⌉⌉·x))
       let T0 := (allTP β).filter (fun ℓ => [] ∈ P β ℓ)
       let T1 := (allTP β).filter (fun ℓ => [] ∉ P β ℓ)
-      let φ' ℓ := Con (((P β ℓ).filter (fun αs => αs ≠ [])).map (fun αs => ⌈⌈αs⌉⌉·x))
-      let χ0 : Formula := dis (T0.map (fun ℓ => Con (F _ ℓ) ⋀ φ' ℓ))
-      let χ1 : Formula := dis (T1.map (fun ℓ => Con (F _ ℓ) ⋀ φ' ℓ))
+      let φ' ℓ := con (((P β ℓ).filter (fun αs => αs ≠ [])).map (fun αs => ⌈⌈αs⌉⌉·x))
+      let χ0 : Formula := dis (T0.map (fun ℓ => con (F _ ℓ) ⋀ φ' ℓ))
+      let χ1 : Formula := dis (T1.map (fun ℓ => con (F _ ℓ) ⋀ φ' ℓ))
       have := guardToStar x β χ0 χ1 ρ ψ x_not_in_β ?_ ?_ ?_ W M w
       · simp only [List.mem_singleton, forall_eq] at this
         exact this
@@ -1181,7 +1181,7 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
         cases em ([] ∈ P β ℓ) -- based on this, go left or right
         case inl empty_in_Pβ =>
           left
-          simp_all [disEval, conEval, repl_in_dis, repl_in_Con]
+          simp_all [disEval, conEval, repl_in_dis, repl_in_con]
           use ℓ
           simp_all
           constructor
@@ -1214,7 +1214,7 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
         case inr empty_not_in_Pβ =>
           right
           -- exactly the same as inl case!
-          simp_all [disEval, conEval, repl_in_dis, repl_in_Con]
+          simp_all [disEval, conEval, repl_in_dis, repl_in_con]
           use ℓ
           simp_all
           constructor
@@ -1253,10 +1253,10 @@ theorem localBoxTruthI γ ψ (ℓ : TP γ) :
         left
         rfl
 
-theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => Con (Bset γ ℓ ψ)) ) :=
+theorem localBoxTruth γ ψ : (⌈γ⌉ψ) ≡ dis ( (allTP γ).map (fun ℓ => con (Bset γ ℓ ψ)) ) :=
   localBoxTruth_connector γ ψ (localBoxTruthI γ ψ)
 
-theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M, v) ⊨ Con (F γ ℓ)) :
+theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M, v) ⊨ con (F γ ℓ)) :
     ∃ δ ∈ P γ ℓ, relateSeq M δ v w := by
   cases γ
   case atom_prog =>
@@ -1272,14 +1272,14 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M, v)
     simp at v_γ_w
     cases v_γ_w
     case inl v_α_w =>
-      have v_Fℓα : evaluate M v (Con (F α ℓ)) := by
+      have v_Fℓα : evaluate M v (con (F α ℓ)) := by
         simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
       have IHα := existsBoxFP α v_α_w ℓ v_Fℓα -- using coercion from above :-)
       rcases IHα with ⟨δ, _⟩
       use δ
       simp_all [P]
     case inr v_β_w =>
-      have v_Fℓβ : evaluate M v (Con (F β ℓ)) := by
+      have v_Fℓβ : evaluate M v (con (F β ℓ)) := by
         simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
       have IHβ := existsBoxFP β v_β_w ℓ v_Fℓβ -- using coercion from above :-)
       rcases IHβ with ⟨δ, _⟩
@@ -1288,7 +1288,7 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M, v)
   case sequence α β =>
     simp only [relate] at v_γ_w
     rcases v_γ_w with ⟨u, v_α_u, u_β_w⟩
-    have v_Fℓα : evaluate M v (Con (F α ℓ)) := by
+    have v_Fℓα : evaluate M v (con (F α ℓ)) := by
       simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
     have IHα := existsBoxFP α v_α_u ℓ v_Fℓα -- using coercion from above :-)
     rcases IHα with ⟨δ, ⟨δ_in, v_δ_u⟩⟩
@@ -1299,7 +1299,7 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M, v)
       simp [relateSeq] at v_δ_u
       subst v_δ_u
       rename relate M β v w => v_β_w
-      have v_Fℓβ : evaluate M v (Con (F β ℓ)) := by
+      have v_Fℓβ : evaluate M v (con (F β ℓ)) := by
         simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
       have IHβ := existsBoxFP β v_β_w ℓ v_Fℓβ -- using coercion from above :-)
       rcases IHβ with ⟨η, ⟨η_in, v_η_w⟩⟩
@@ -1318,7 +1318,7 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M, v)
       simp_all [P,relateSeq]
     case inr hyp =>
       rcases hyp with ⟨v_neq_w, ⟨u, v_neq_u, v_β_u, u_βS_w⟩⟩
-      have v_Fℓβ : evaluate M v (Con (F β ℓ)) := by
+      have v_Fℓβ : evaluate M v (con (F β ℓ)) := by
         simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
       have IHβ := existsBoxFP β v_β_u ℓ v_Fℓβ
       rcases IHβ with ⟨δ, ⟨δ_in, v_δ_w⟩⟩

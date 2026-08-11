@@ -27,15 +27,15 @@ mutual
     | ?'φ  => ?' (repl_in_F x ψ φ)
 end
 
-theorem repl_in_Con : repl_in_F x ψ (Con l) = Con (l.map (repl_in_F x ψ)) := by
+theorem repl_in_con : repl_in_F x ψ (con l) = con (l.map (repl_in_F x ψ)) := by
   cases l
   · simp
   case cons φ1 l =>
     cases l
     · simp
     case cons φ2 l =>
-      simp [Con]
-      apply repl_in_Con
+      simp [con]
+      apply repl_in_con
 
 @[simp]
 theorem repl_in_or : repl_in_F x ψ (φ1 ⋁ φ2) = repl_in_F x ψ φ1 ⋁ repl_in_F x ψ φ2 := by

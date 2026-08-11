@@ -38,8 +38,8 @@ lemma Dl_atomic_cons : Dl (·a :: αs) =  [ ([], ((·a : Program) :: αs)) ] := 
   cases αs <;> simp_all [Dset]
 
 theorem relateSeq_Dset_imp_relate {X : List Formula} {δ : List Program}
-  : (X, δ) ∈ Dset α → (M, w) ⊨ Con X →  relateSeq M δ w v → relate M α w v :=
-  let me := (evaluate M w <| Con ·)
+  : (X, δ) ∈ Dset α → (M, w) ⊨ con X →  relateSeq M δ w v → relate M α w v :=
+  let me := (evaluate M w <| con ·)
   let mr := (relateSeq M · w v)
   fun in_D ev rel => match α with
   | ·_ =>
@@ -418,7 +418,7 @@ private theorem helper : ∀ (p : List Formula × List Program → Formula) X,
         (∃ f ∈ List.map p X, evaluate M w f)
       ↔ (∃ Fδ ∈ X, evaluate M w (p Fδ)) := by aesop
 
-theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (Dset γ).map (fun Fδ => Con (Yset Fδ ψ)) ) := by
+theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (Dset γ).map (fun Fδ => con (Yset Fδ ψ)) ) := by
   intro W M w
   cases γ
   case atom_prog a =>
@@ -450,7 +450,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (Dset γ).map (fun Fδ
       cases em (δ = [])
       case inl δ_is_empty => -- tricky case where we actually need the IH for β
         subst δ_is_empty
-        have claim : ∃ Gγ ∈ Dset β, evaluate M w (Con (Yset Gγ ψ)) := by
+        have claim : ∃ Gγ ∈ Dset β, evaluate M w (con (Yset Gγ ψ)) := by
           rw [conEval] at w_Con
           simp [Yset] at w_Con
           have := w_Con (~⌈β⌉ψ)
@@ -522,7 +522,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (Dset γ).map (fun Fδ
         simp_all [Yset, conEval, boxes_append]
         use Fs, γ
   case star β =>
-    let ρ := dis ((Dset (∗β)).map (fun Fδ => Con (Yset Fδ ψ)))
+    let ρ := dis ((Dset (∗β)).map (fun Fδ => con (Yset Fδ ψ)))
     -- "then our goal will be ..."
     suffices goal : (~⌈∗β⌉ψ) ≡ ρ by
       have := @equiv_iff _ _ goal W M w
@@ -570,9 +570,9 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (Dset γ).map (fun Fδ
       have x_not_in : Sum.inl x ∉ β.voc := by apply freshVarProg_is_fresh
       -- NOTE the use of ⊥ below - matters for rhs-to-lhs in first Lemma condition.
       let σ0 : Formula := dis <|
-        (Dset β).map (fun (F,δ) => if δ = [] then Con F else ⊥)
+        (Dset β).map (fun (F,δ) => if δ = [] then con F else ⊥)
       let σ1 : Formula := dis <|
-        ((Dset β).map (fun (F,δ) => if δ ≠ [] then Con ((~ ⌈⌈δ⌉⌉(~(·x : Formula))) :: F) else ⊥))
+        ((Dset β).map (fun (F,δ) => if δ ≠ [] then con ((~ ⌈⌈δ⌉⌉(~(·x : Formula))) :: F) else ⊥))
       -- Now we use the previous Lemma:
       have := @guardToStarDiamond β σ0 σ1 ρ ψ x x_not_in
       simp only [formCanSemImplyForm, semImpliesLists, List.mem_singleton, forall_eq] at this
@@ -662,14 +662,14 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (Dset γ).map (fun Fδ
         unfold σ1
         simp only [ne_eq, Formula.instBot, ite_not]
         have : (repl_in_F x ρ (dis ((Dset β).map
-          (fun Fδ => if Fδ.2 = [] then Formula.bottom else Con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)) ))) =
+          (fun Fδ => if Fδ.2 = [] then Formula.bottom else con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)) ))) =
             (dis ((Dset β).map (fun Fδ => if Fδ.2 = [] then Formula.bottom
-                                                    else Con ((~⌈⌈Fδ.2⌉⌉~ρ) :: Fδ.1)))) := by
+                                                    else con ((~⌈⌈Fδ.2⌉⌉~ρ) :: Fδ.1)))) := by
           suffices (repl_in_F x ρ (dis ((Dset β).map
-            (fun Fδ => if Fδ.2 = [] then Formula.bottom else Con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)) ))) =
+            (fun Fδ => if Fδ.2 = [] then Formula.bottom else con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)) ))) =
               ((dis ((Dset β).map
                 (fun Fδ => if Fδ.2 = [] then repl_in_F x ρ Formula.bottom
-                                        else repl_in_F x ρ (Con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)) )))) by
+                                        else repl_in_F x ρ (con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)) )))) by
             rw [this]
             simp only [repl_in_F, Formula.instBot]
             -- use that x not in β and thus also not in any element of H β
@@ -681,7 +681,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (Dset γ).map (fun Fδ
             · simp_all
             · simp_all only [evaluate, relate, not_forall, exists_prop, repl_in_F, Formula.instBot,
                 ite_false]
-              rw [repl_in_Con]
+              rw [repl_in_con]
               simp only [List.map_cons, repl_in_F]
               apply listEq_to_conEq
               simp only [List.cons.injEq, Formula.neg.injEq]
@@ -690,7 +690,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (Dset γ).map (fun Fδ
               · exact repl_in_list_non_occ_eq _ ((myFresh _ _ (Fδ_in_Dβ)).1)
           -- remains to push repl_in_F through dis and map
           convert repl_in_disMap x ρ (Dset β) (fun Fδ => Fδ.2 = [])
-            (fun Fδ => (Con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)))
+            (fun Fδ => (con ((~⌈⌈Fδ.2⌉⌉~·x) :: Fδ.1)))
         rw [this, disEval, helper]
         clear this
         rintro ⟨⟨Fs,δ⟩, ⟨Fδ_in, repl_w_⟩⟩
@@ -706,7 +706,7 @@ theorem localDiamondTruth γ ψ : (~⌈γ⌉ψ) ≡ dis ( (Dset γ).map (fun Fδ
           rcases this with ⟨v, w_ρ_v, v_ρ⟩ -- used for v_notStarβψ below!
           -- We now do bottom-up what the notes do, first reasoning "at w" then "at v"
           unfold ρ
-          simp_all only [evaluate, relate, not_forall, List.mem_cons, Con,
+          simp_all only [evaluate, relate, not_forall, List.mem_cons, con,
             forall_eq_or_imp, Yset, Dset, List.empty_eq, List.cons_union, List.nil_union,
             List.mem_flatten, List.mem_map, Prod.exists, ↓existsAndEq, and_true,
             List.mem_ite_nil_left, Prod.mk.injEq, List.nil_eq, List.append_eq_nil_iff,

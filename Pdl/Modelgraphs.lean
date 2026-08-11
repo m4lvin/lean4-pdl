@@ -264,7 +264,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       simp [Bset] at mysat
       have TP_eq : TP (∗β) = TP β := by simp [TP,testsOfProgram]
       -- Now we use the outer IH for C2 on all formulas in F(β,ℓ):
-      have X_ConF : evaluate MG.1 X (Con <| F β ℓ) := by
+      have X_ConF : evaluate MG.1 X (con <| F β ℓ) := by
         rw [conEval]
         intro ψ ψ_in
         -- termination here will need F_goes_down when moving this into the above?

@@ -270,7 +270,7 @@ def localInterpolantStep (lra : LocalRuleApp)
   case oneSidedR ress orule YS_def => -- rule applied in second component R
     -- Only somewhat analogous to oneSidedR. Part 2 and 3 are flipped around in a way.
     let interList := C.attach.map <| fun c => (subθs c.1 c.2).1
-    refine ⟨Con interList, ?_, ?_, ?_⟩ -- using conjunction here
+    refine ⟨con interList, ?_, ?_, ?_⟩ -- using conjunction here
     · intro n n_in_inter
       rw [in_voc_con] at n_in_inter
       rcases n_in_inter with ⟨φ, φ_in, n_in_voc_φ⟩
@@ -382,7 +382,7 @@ def localInterpolantStep (lra : LocalRuleApp)
     let interList := C.attach.map <| fun c => (subθs c.1 c.2).1
     have O_is_some : Sequent.O (L, R, o) = some (Sum.inr (~'χ)) := by
       have := precondProof.2.2; simp at this; simp; exact this.symm
-    refine ⟨Con interList, ?_, ?_, ?_⟩ -- using conjunction here
+    refine ⟨con interList, ?_, ?_, ?_⟩ -- using conjunction here
     · intro n n_in_inter
       rw [in_voc_con] at n_in_inter
       rcases n_in_inter with ⟨φ, φ_in, n_in_voc_φ⟩

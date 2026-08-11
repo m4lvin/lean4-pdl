@@ -30,7 +30,7 @@ inductive OneSidedLocalRule : List Formula → List (List Formula) → Type
   | dia (α φ) : (notAtom : ¬ α.isAtomic) → OneSidedLocalRule [~⌈α⌉φ] (unfoldDiamond α φ)
   deriving DecidableEq, Repr
 
-theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : Con X ≡ discon B :=
+theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : con X ≡ discon B :=
   by
   intro W M w
   cases lr
@@ -72,18 +72,18 @@ def LoadRule.unload : LoadRule (~'χ) B → OneSidedLocalRule [~χ.unload] (B.ma
 /-- The loaded unfold rule is sound and invertible.
 In the notes this is part of localRuleTruth. -/
 theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
-    (~χ.unload) ≡ dis (B.map (Con ∘ pairUnload)) :=
+    (~χ.unload) ≡ dis (B.map (con ∘ pairUnload)) :=
   by
   intro W M w
   have := oneSidedLocalRuleTruth (lr.unload) W M w
-  simp only [Con, evaluate, disconEval, List.mem_map] at this
+  simp only [con, evaluate, disconEval, List.mem_map] at this
   simp only [evaluate, disEval, List.mem_map]
   rw [this]
   clear this
   simp only [Prod.exists]
   constructor
   · rintro ⟨Y, ⟨a, ⟨b, ab_in_B, def_Y⟩⟩, w_Y⟩
-    use Con Y
+    use con Y
     simp_all only [conEval, implies_true, and_true]
     use a, b, ab_in_B
     rw [← def_Y]
@@ -189,7 +189,7 @@ lemma oneSidedL_sat_down (LRO : Sequent)
   rcases LRO with ⟨L,R,O⟩
   subst YS_def
   rcases LX_sat with ⟨W, M, w, satM⟩
-  have : evaluate M w (Con Lcond) := by simp [conEval]; aesop
+  have : evaluate M w (con Lcond) := by simp [conEval]; aesop
   have := (oneSidedLocalRuleTruth orule W M w).1 this
   rw [disconEval] at this
   rcases this with ⟨L', L'_in, w_L'⟩
@@ -208,7 +208,7 @@ lemma oneSidedR_sat_down (LRO : Sequent)
   rcases LRO with ⟨L,R,O⟩
   subst YS_def
   rcases RX_sat with ⟨W, M, w, satM⟩
-  have : evaluate M w (Con Rcond) := by simp [conEval]; aesop
+  have : evaluate M w (con Rcond) := by simp [conEval]; aesop
   have := (oneSidedLocalRuleTruth orule W M w).1 this
   rw [disconEval] at this
   rcases this with ⟨L', L'_in, w_L'⟩
