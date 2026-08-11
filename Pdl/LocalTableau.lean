@@ -156,37 +156,46 @@ lemma List.Subperm.append {α : Type u_1} {l₁ l₂ r₁ r₂ : List α} :
 
 theorem preconP_to_submultiset {Lcond L Rcond R Ocond O}
     (preconditionProof : List.Subperm Lcond L ∧ List.Subperm Rcond R ∧ Ocond ⊆ O)
-    : node_to_multiset (Lcond, Rcond, Ocond) ≤ node_to_multiset (L, R, O) :=
-  by
+    : node_to_multiset (Lcond, Rcond, Ocond) ≤ node_to_multiset (L, R, O) := by
   cases Ocond <;> cases O
   all_goals (try (rename_i f g; cases f; cases g))
   all_goals (try (rename_i f; cases f))
-  all_goals
-    simp [node_to_multiset] at * -- FIXME avoid non-terminal simp here!
   case none.none =>
+    simp only [Option.instHasSubsetOption, and_true, node_to_multiset, Multiset.coe_add,
+      Multiset.coe_le] at *
     exact (List.Subperm.append preconditionProof.1 preconditionProof.2)
   case none.some.inl =>
+    simp only [Option.instHasSubsetOption, and_true, node_to_multiset, Multiset.coe_add,
+      Multiset.coe_singleton] at *
     rw [Multiset.le_iff_count]
     intro f
     have := List.Subperm.count_le (List.Subperm.append preconditionProof.1 preconditionProof.2) f
     simp_all
     linarith
   case none.some.inr =>
+    simp only [Option.instHasSubsetOption, and_true, node_to_multiset, Multiset.coe_add,
+      Multiset.coe_singleton] at *
     rw [Multiset.le_iff_count]
     intro f
     have := List.Subperm.count_le (List.Subperm.append preconditionProof.1 preconditionProof.2) f
     simp_all
     linarith
   case some.some.inl.inl.neg =>
+    simp only [Option.instHasSubsetOption, Option.some_subseteq, Option.some.injEq, Sum.inl.injEq,
+      node_to_multiset, Multiset.coe_add, Multiset.coe_singleton] at *
     rw [Multiset.le_iff_count]
     intro f
     have := List.Subperm.count_le (List.Subperm.append preconditionProof.1 preconditionProof.2.1) f
     simp_all
   case some.some.inr.neg a =>
+    simp only [Option.instHasSubsetOption, Option.some_subseteq, Option.some.injEq,
+      node_to_multiset, Multiset.coe_add, Multiset.coe_singleton] at *
     rw [Multiset.le_iff_count]
     intro f
     have := List.Subperm.count_le (List.Subperm.append preconditionProof.1 preconditionProof.2.1) f
     cases g <;> (rename_i nlform; cases nlform; simp_all)
+  all_goals
+    simp at *
 
 theorem Multiset.sub_of_le {α} [DecidableEq α] {M N X Y : Multiset α} (h : N ≤ M) :
     M - N + Y = X ↔ M + Y = X + N := by

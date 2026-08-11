@@ -389,20 +389,24 @@ lemma mem_theMoves_of_move {pos next} :
     move pos next → next ∈ theMoves pos := by
   intro mov
   rcases pos with ⟨H, X, p⟩
-  rw [theMoves_iff] -- good idea?
+  rw [theMoves_iff]
   rcases mov with ⟨mov⟩
   cases mov
   case prPdl Y bas r nrep =>
-    simp_all
+    simp_all only [true_and, exists_const, not_false_eq_true, Sum.inl.injEq, reduceCtorEq,
+      false_and, not_true_eq_false, IsEmpty.exists_iff, exists_false, or_self, or_false]
     use X.1, X.2.1
-    rcases X with ⟨L,R,_|χ⟩ <;> cases r <;> try subst_eqs <;> try simp_all -- FIXME non-terminal
+    rcases X with ⟨L,R,_|χ⟩ <;> cases r <;> try subst_eqs
     case none.loadL δs δ ψ notBox in_L =>
+      simp_all only [true_and]
       left; left
       use δs, δ, ψ
     case none.loadR δs δ ψ notBox in_L =>
+      simp_all only [true_and]
       left; right
       use δs, δ, ψ
     case some.freeL δs δ ψ  =>
+      simp_all only
       right
       left -- L
       cases δs
@@ -416,7 +420,9 @@ lemma mem_theMoves_of_move {pos next} :
         all_goals
           absurd bas
           rintro ⟨bas, nclos⟩
-          simp at bas
+          simp only [Option.map_some, Sum.elim_inl, negUnload, LoadFormula.unload,
+            Option.toList_some, List.append_assoc, List.mem_append, List.mem_cons,
+            List.not_mem_nil, or_false, Formula.basic, decide_false, decide_true] at bas
           specialize bas _ (Or.inr (Or.inr rfl))
           simp at bas
       case cons α δs =>
@@ -452,7 +458,9 @@ lemma mem_theMoves_of_move {pos next} :
         all_goals
           absurd bas
           rintro ⟨bas, nclos⟩
-          simp at bas
+          simp only [Option.map_some, Sum.elim_inr, negUnload, LoadFormula.unload,
+            Option.toList_some, List.append_assoc, List.mem_append, List.mem_cons, List.not_mem_nil,
+            or_false, Formula.basic, decide_false, decide_true] at bas
           specialize bas _ (Or.inr (Or.inr rfl))
           simp at bas
       case cons α δs =>
@@ -477,16 +485,14 @@ lemma mem_theMoves_of_move {pos next} :
       right
       left
       use a, ξ
-      simp
+      simp only [true_and]
       cases ξ <;> grind
     case some.modR =>
     · grind -- sus that this works but did not in `modL` case?!
   case prLocTab nbas ltX nrep =>
-    simp_all
-    use ltX
+    grind
   case buEnd Y ltX nbas Y_in nrep =>
-    simp_all
-    use Y
+    grind
 
 lemma move.hist (mov : move ⟨Hist, X, pos⟩ next) :
       (∃ newPos, next = ⟨Hist, X, newPos⟩) -- this is for the annoying `prLocTab` case ;-)
