@@ -178,7 +178,7 @@ theorem Dset_mem_sequence α {Fs δ} (in_D : ⟨Fs, δ⟩ ∈ Dset α) :
   case test τ =>
     simp_all [Dset]
 
-theorem keepFreshDset α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ Dset α → x ∉ F.fvoc ∧ x ∉ δ.pvoc := by
+theorem keepFreshDset {x} α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ Dset α → x ∉ F.fvoc ∧ x ∉ δ.pvoc := by
   intro x_notin F δ Fδ_in_D
   cases α
   all_goals
@@ -192,13 +192,11 @@ theorem keepFreshDset α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ Dset α → x �
     cases Fδ_in_D
     subst_eqs
     aesop
-  all_goals
-    constructor -- FIXME: delay this to shorten the proof?
-  case sequence.left α β =>
+  case sequence α β =>
     rcases Fδ_in_D with ⟨F', δ', Fδ'_in, Fδ_in_l⟩
     cases em (δ' = [])
     · simp_all only [↓reduceIte, List.mem_flatten, List.mem_map, Prod.exists, ↓existsAndEq,
-      and_true, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false, exists_eq_right_right']
+        and_true, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false, exists_eq_right_right']
       subst_eqs
       have IHα := keepFreshDset α x_notin.1 F' [] Fδ'_in
       simp_all only [List.fvoc, Vocab.fromList, Finset.mem_sup, List.mem_toFinset, List.mem_map,
@@ -211,32 +209,14 @@ theorem keepFreshDset α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ Dset α → x �
       aesop
     · have := keepFreshDset α x_notin.1 F' δ' Fδ'_in
       simp_all
-  case sequence.right α β =>
-    rcases Fδ_in_D with ⟨F', δ', Fδ'_in, Fδ_in_l⟩
-    cases em (δ' = []) <;> simp_all
-    · subst_eqs
-      rcases Fδ_in_l with ⟨a', _in_Dβ, Fδ_in_l'⟩
-      subst_eqs
-      have IHβ := keepFreshDset β x_notin.2 a' _ _in_Dβ
-      simp_all
-    · intro y y_in
-      cases Fδ_in_l
-      subst_eqs
-      have IHα := keepFreshDset α x_notin.1 F δ' Fδ'_in
-      aesop
-  case union.left α β =>
+      grind
+  case union α β =>
     cases Fδ_in_D
     · have IHα := keepFreshDset α x_notin.1 F δ
       simp_all
     · have IHβ := keepFreshDset β x_notin.2 F δ
       simp_all
-  case union.right α β =>
-    cases Fδ_in_D
-    · have IHα := keepFreshDset α x_notin.1 F δ
-      simp_all
-    · have IHβ := keepFreshDset β x_notin.2 F δ
-      simp_all
-  case star.left α =>
+  case star α =>
     cases Fδ_in_D
     · simp_all
     case inr hyp =>
@@ -244,12 +224,6 @@ theorem keepFreshDset α : x ∉ α.voc → ∀ F δ, (F,δ) ∈ Dset α → x �
       have IHα := keepFreshDset α x_notin F δ' Fδ'_in_D
       subst δ_def
       simp_all
-  case star.right α =>
-    cases Fδ_in_D
-    · simp_all
-    case inr hyp =>
-      rcases hyp with ⟨δ', Fδ'_in_Dα, δ_not_nil, δ_def⟩
-      have IHα := keepFreshDset α x_notin F δ' Fδ'_in_Dα
       aesop
 
 /-- This is used by `PreState.loadedExists` -/
