@@ -869,17 +869,16 @@ lemma loadedDiamondPathsPDL
           have : tabAt tclean = ⟨ _, (_, _, some (Sum.inl (~'χ))) , next⟩ := by unfold tabAt; rfl
           rw [this]
         convert this <;> (try rw [tabAt_t_def]) <;> simp [tclean]
+    refine ⟨s, ?_, Or.inr ?_⟩
     -- ... it is then obvious that `s` satisfies the required properties:
-    use s -- was: refine ⟨s , ?_, Or.inr ⟨?_a, ?_b, ?_c⟩⟩ -- FIXME: change back? see other cases
-    constructor
-    · constructor
+    · apply Relation.TransGen.single
       constructor
       right
       refine ⟨Hist, _, nflprep, bas, _, (.modL Z_def rfl), next, tabAt_t_def, ?_⟩
       simp [s, t_to_s]
-    · apply Or.inr -- (a)
-      constructor
-      · subst Z_def
+    · refine ⟨?_, ?_, ?_⟩
+      · -- (a)
+        subst Z_def
         rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
         all_goals
           rw [nodeAt_s_def]
@@ -892,38 +891,37 @@ lemma loadedDiamondPathsPDL
             rw [tabAt_t_def]
             unfold AnyNegFormula.in_side
             simp
-      · constructor
-        · -- (b)
-          rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
-          · rw [nodeAt_s_def]
-            intro f f_in
-            simp at f_in
-            rcases f_in with (f_in|f_in|f_in)
-            · subst_eqs
-              exact w_nξ
-            all_goals
-              have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
-              apply this
-              simp only [relate]
-              exact v_α_w
-          · rw [nodeAt_s_def]
-            intro f f_in
-            simp at f_in
-            rcases f_in with ((f_in|f_in)|f_in)
-            case inr.inr =>
-              subst_eqs
-              simp only [evaluate]
-              exact w_nξ
-            all_goals
-              have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
-              apply this
-              simp only [relate]
-              exact v_α_w
-        · -- (c)
-          rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
+      · -- (b)
+        rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
+        · rw [nodeAt_s_def]
+          intro f f_in
+          simp at f_in
+          rcases f_in with (f_in|f_in|f_in)
+          · subst_eqs
+            exact w_nξ
           all_goals
-            rw [nodeAt_s_def]
-            simp_all [Sequent.isFree, Sequent.isLoaded, Sequent.without]
+            have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
+            apply this
+            simp only [relate]
+            exact v_α_w
+        · rw [nodeAt_s_def]
+          intro f f_in
+          simp at f_in
+          rcases f_in with ((f_in|f_in)|f_in)
+          case inr.inr =>
+            subst_eqs
+            simp only [evaluate]
+            exact w_nξ
+          all_goals
+            have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
+            apply this
+            simp only [relate]
+            exact v_α_w
+      · -- (c)
+        rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
+        all_goals
+          rw [nodeAt_s_def]
+          simp_all [Sequent.isFree, Sequent.isLoaded, Sequent.without]
   case modR L R a ξ' Z_def Y_def => -- COPY ADAPTATION from `modL`
     subst Y_def
     have : ξ' = ξ := by
@@ -977,19 +975,16 @@ lemma loadedDiamondPathsPDL
           have : tabAt tclean = ⟨_, (_, _, some (Sum.inr (~'χ))) , next⟩ := by unfold tabAt; rfl
           rw [this]
         convert this <;> (try rw [tabAt_t_def]) <;> simp [tclean]
+    refine ⟨s, ?_, Or.inr ?_⟩
     -- ... it is then obvious that `s` satisfies the required properties:
-    -- refine ⟨s, ?_, Or.inr ⟨?_a', ?_b', ?_c'⟩⟩ -- annoying that ' are needed here?
-    -- FIXME? refine is suddenly not working here?
-    use s
-    constructor
-    · constructor
+    · apply Relation.TransGen.single
       constructor
       right
       refine ⟨Hist, _, nflprep, bas, _, (PdlRule.modR Z_def rfl), next, tabAt_t_def, ?_⟩
       simp [s, t_to_s]
-    · right
-      constructor
-      · subst Z_def
+    · refine ⟨?_, ?_, ?_⟩
+      · -- (a)
+        subst Z_def
         rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
         all_goals
           rw [nodeAt_s_def]
@@ -1002,41 +997,37 @@ lemma loadedDiamondPathsPDL
             rw [tabAt_t_def]
             unfold AnyNegFormula.in_side
             simp
-      · constructor
-        · rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
-          · rw [nodeAt_s_def]
-            intro f f_in
-            simp at f_in
-            rcases f_in with (f_in|f_in|f_in)
-            · have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
-              apply this
-              simp only [relate]
-              exact v_α_w
-            · subst_eqs
-              simp_all
-              exact w_nξ
-            · have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
-              apply this
-              simp only [relate]
-              exact v_α_w
-          · rw [nodeAt_s_def]
-            intro f f_in
-            simp at f_in
-            rcases f_in with ((f_in|f_in)|f_in)
-            case inr.inr =>
-              subst_eqs
-              simp only [evaluate]
-              exact w_nξ
-            all_goals
-              have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
-              apply this
-              simp only [relate]
-              exact v_α_w
-        · -- (c)
-          rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
+      · -- (b)
+        rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
+        · rw [nodeAt_s_def]
+          intro f f_in
+          simp at f_in
+          rcases f_in with (f_in|f_in|f_in)
+          · have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
+            apply this
+            simp only [relate]
+            exact v_α_w
+          · subst_eqs
+            exact w_nξ
+          · have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
+            exact this _ v_α_w
+        · rw [nodeAt_s_def]
+          intro f f_in
+          simp only [Option.map_some, Sum.elim_inr, negUnload, Option.toList_some,
+            List.mem_union_iff, proj, List.mem_cons, List.not_mem_nil, or_false] at f_in
+          rcases f_in with ((f_in|f_in)|f_in)
+          case inr.inr =>
+            subst_eqs
+            exact w_nξ
           all_goals
-            rw [nodeAt_s_def]
-            simp_all [Sequent.isFree, Sequent.isLoaded, Sequent.without]
+            have : (M,v) ⊨ (⌈·a⌉f) := by apply v_t; rw [tabAt_t_def] ;simp_all
+            apply this
+            exact v_α_w
+      · -- (c)
+        rcases helper with (⟨φ, ξ'_def, nodeAt_s_def⟩|⟨χ, ξ'_def, nodeAt_s_def⟩)
+        all_goals
+          rw [nodeAt_s_def]
+          simp_all [Sequent.isFree, Sequent.isLoaded, Sequent.without]
 
 lemma SemImply_loadedNormal_ofSeqAndNormal {M u}
   (w_nφ : (M, w) ⊨ (~φ))
