@@ -312,7 +312,26 @@ lemma unfoldDiamond_in_FL (α : Program) (ψ : Formula) (X : List Formula) :
         absurd φ_def
         apply Formula.boxes_cons_neq_self
 
-/-- Helper for `LocalRule.stays_in_FL` -/
+/-- Helper for `LoadRule.stays_in_FL_left` and `LoadRule.stays_in_FL_right`. -/
+theorem pairUnload.stays_in_FL (F oχ) {α : Program} {φ : Formula}
+    (pU_in_unfD : pairUnload (F, oχ) ∈ unfoldDiamond α φ)
+    : F ⊆ FL (~⌈α⌉φ)
+    ∧ Olf.L (Option.map Sum.inl oχ) ⊆ FL (~⌈α⌉φ)
+    ∧ Olf.R (Option.map Sum.inr oχ) ⊆ FL (~⌈α⌉φ) := by
+  rcases oχ with _|nχ <;> simp [FL, pairUnload] at *
+  · intro φ φ_in
+    have := unfoldDiamond_in_FL _ _ _ pU_in_unfD _ φ_in
+    grind [FL, unfoldDiamond_in_FL]
+  · constructor
+    · intro φ φ_in
+      have := unfoldDiamond_in_FL _ _ _ pU_in_unfD
+      grind [FL, unfoldDiamond_in_FL]
+    · have := unfoldDiamond_in_FL _ _ _ pU_in_unfD (~nχ.1.unload)
+      simp only [List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false, or_true,
+        forall_const] at *
+      grind [FL]
+
+/-- Helper for `LocalRule.stays_in_FL`. -/
 lemma LoadRule.stays_in_FL_left {χ ress} (lr : LoadRule (~'χ) ress) :
     ∀ Y ∈ ress, Sequent.subseteq_FL (Y.1, ∅, Y.2.map Sum.inl) (∅, ∅, some (Sum.inl (~'χ))) := by
   simp only [List.empty_eq, Prod.forall]
@@ -322,41 +341,20 @@ lemma LoadRule.stays_in_FL_left {χ ress} (lr : LoadRule (~'χ) ress) :
     simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_inl, LoadFormula.unload,
       List.nil_append, FLL_singelton, Sequent.R_eq, Olf.R_inl, List.append_nil, FLL_nil,
       List.Subset.refl, Olf.R_map_inl, and_self, and_true]
-    have : pairUnload (F, oχ) ∈ unfoldDiamond α χ.unload := by
+    have pU_in_unfD : pairUnload (F, oχ) ∈ unfoldDiamond α χ.unload := by
       have := unfoldDiamondLoaded_eq α χ
       grind
-    -- FIXME turn the remaining part into a Lemma, it's repeated below.
-    rcases oχ with _|nχ <;> simp [FL, pairUnload] at *
-    · intro φ φ_in
-      have := unfoldDiamond_in_FL _ _ _ this _ φ_in
-      grind [FL, unfoldDiamond_in_FL]
-    · constructor
-      · intro φ φ_in
-        have := unfoldDiamond_in_FL _ _ _ this
-        grind [FL, unfoldDiamond_in_FL]
-      · have := unfoldDiamond_in_FL _ _ _ this (~nχ.1.unload)
-        simp only [List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false, or_true,
-          forall_const] at *
-        grind [FL]
+    have := pairUnload.stays_in_FL _ _ pU_in_unfD
+    tauto
   case dia' α φ notAt =>
     simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_inl, LoadFormula.unload,
       List.nil_append, FLL_singelton, Sequent.R_eq, Olf.R_inl, List.append_nil, FLL_nil,
       List.Subset.refl, Olf.R_map_inl, and_self, and_true]
-    have : pairUnload (F, oχ) ∈ unfoldDiamond α φ := by
+    have pU_in_unfD : pairUnload (F, oχ) ∈ unfoldDiamond α φ := by
       have := (unfoldDiamondLoaded'_eq α φ)
       grind
-    rcases oχ with _|nχ <;> simp [FL, pairUnload] at *
-    · intro φ φ_in
-      have := unfoldDiamond_in_FL _ _ _ this _ φ_in
-      grind [FL, unfoldDiamond_in_FL]
-    · constructor
-      · intro φ φ_in
-        have := unfoldDiamond_in_FL _ _ _ this
-        grind [FL, unfoldDiamond_in_FL]
-      · have := unfoldDiamond_in_FL _ _ _ this (~nχ.1.unload)
-        simp only [List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false, or_true,
-          forall_const] at *
-        grind [FL]
+    have := pairUnload.stays_in_FL _ _ pU_in_unfD
+    tauto
 
 /-- Helper for `LocalRule.stays_in_FL` -/
 lemma LoadRule.stays_in_FL_right (lr : LoadRule (~'χ) ress) :
@@ -369,40 +367,20 @@ lemma LoadRule.stays_in_FL_right (lr : LoadRule (~'χ) ress) :
     simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_inr, List.append_nil, FLL_nil,
       List.Subset.refl, Olf.L_map_inr, Sequent.R_eq, Olf.R_inr, LoadFormula.unload, List.nil_append,
       FLL_singelton, true_and]
-    have : pairUnload (F, oχ) ∈ unfoldDiamond α χ.unload := by
+    have pU_in_unfD : pairUnload (F, oχ) ∈ unfoldDiamond α χ.unload := by
       have := unfoldDiamondLoaded_eq α χ
       grind
-    rcases oχ with _|nχ <;> simp [FL, pairUnload] at *
-    · intro φ φ_in
-      have := unfoldDiamond_in_FL _ _ _ this _ φ_in
-      grind [FL, unfoldDiamond_in_FL]
-    · constructor
-      · intro φ φ_in
-        have := unfoldDiamond_in_FL _ _ _ this
-        grind [FL, unfoldDiamond_in_FL]
-      · have := unfoldDiamond_in_FL _ _ _ this (~nχ.1.unload)
-        simp only [List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false, or_true,
-          forall_const] at *
-        grind [FL]
+    have := pairUnload.stays_in_FL _ _ pU_in_unfD
+    tauto
   case dia' α φ notAt =>
     simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_inr, List.append_nil, FLL_nil,
       List.Subset.refl, Olf.L_map_inr, Sequent.R_eq, Olf.R_inr, LoadFormula.unload, List.nil_append,
       FLL_singelton, true_and]
-    have : pairUnload (F, oχ) ∈ unfoldDiamond α φ := by
+    have pU_in_unfD : pairUnload (F, oχ) ∈ unfoldDiamond α φ := by
       have := (unfoldDiamondLoaded'_eq α φ)
       grind
-    rcases oχ with _|nχ <;> simp [FL, pairUnload] at *
-    · intro φ φ_in
-      have := unfoldDiamond_in_FL _ _ _ this _ φ_in
-      grind [FL, unfoldDiamond_in_FL]
-    · constructor
-      · intro φ φ_in
-        have := unfoldDiamond_in_FL _ _ _ this
-        grind [FL, unfoldDiamond_in_FL]
-      · have := unfoldDiamond_in_FL _ _ _ this (~nχ.1.unload)
-        simp only [List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false, or_true,
-          forall_const] at *
-        grind [FL]
+    have := pairUnload.stays_in_FL _ _ pU_in_unfD
+    tauto
 
 lemma P_in_FL α δ ℓ ψ : δ ∈ P α ℓ → (⌈⌈δ⌉⌉ψ) ∈ FL (⌈α⌉ψ) := by
   cases α

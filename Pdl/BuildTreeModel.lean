@@ -107,7 +107,7 @@ lemma PreState.mem_forms_of_hasAnf {H X} {bt : BuildTree H X} {π : PreState bt}
     simp only [AnyFormula.unload, Sequent.bothSides_eq]
     rcases hZ with h | h <;> simp [h]
   · unfold AnyNegFormula.mem_Sequent at hZ
-    simp only [NegLoadFormula.mem_Sequent, Sequent.O_eq] at hZ
+    simp only at hZ
     simp only [AnyFormula.unload, Sequent.bothSides_eq]
     rcases hZ with rfl | rfl <;> simp [Olf.L, Olf.R]
 
