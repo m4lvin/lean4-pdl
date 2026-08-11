@@ -115,42 +115,43 @@ theorem disconEvalHT {X} : ∀ XS, discon (X :: XS) ≡ con X ⋁ discon XS :=
   intro XS W M w
   cases XS <;> simp
 
+/-- Variant of `disconEval` for a specific length of `XS` to be provable by induction. -/
 theorem disconEval' {W M} {w : W} :
     ∀ {N : Nat} XS,
-      List.length XS = N → (evaluate M w (discon XS) ↔ ∃ Y ∈ XS, ∀ f ∈ Y, evaluate M w f) :=
-  by
+      List.length XS = N → (evaluate M w (discon XS) ↔ ∃ Y ∈ XS, ∀ f ∈ Y, evaluate M w f) := by
   intro N
-  refine Nat.strong_induction_on N ?_ -- FIXME use `induction N using Nat.strong_induction_on`???
-  intro n IH XS nDef
-  subst nDef
-  rcases XS with _ | ⟨X,XS⟩
-  · simp
-  specialize IH XS.length (by simp) XS (by rfl)
-  rw [disconEvalHT]
-  rw [evalDis]
-  rw [IH]
-  constructor
-  · -- →
-    intro lhs
-    rcases lhs with lhs|lhs
-    · use X
-      simp
-      rw [conEval] at lhs
-      tauto
-    · rcases lhs with ⟨Y,claim⟩
-      use Y
-      simp
-      tauto
-  · -- ←
-    intro rhs
-    rcases rhs with ⟨Y,Y_in,Ysat⟩
-    simp at Y_in
-    rcases Y_in with Y_in|Y_in
-    · left
-      subst Y_in
-      rw [conEval]; tauto
-    · right
-      use Y
+  induction N using Nat.strong_induction_on
+  case h n IH =>
+    intro XS def_n
+    subst def_n
+    rcases XS with _ | ⟨X,XS⟩
+    · simp
+    specialize IH XS.length (by simp) XS (by rfl)
+    rw [disconEvalHT]
+    rw [evalDis]
+    rw [IH]
+    constructor
+    · -- →
+      intro lhs
+      rcases lhs with lhs|lhs
+      · use X
+        simp only [List.mem_cons, true_or, true_and]
+        rw [conEval] at lhs
+        tauto
+      · rcases lhs with ⟨Y,claim⟩
+        use Y
+        simp only [List.mem_cons]
+        tauto
+    · -- ←
+      intro rhs
+      rcases rhs with ⟨Y,Y_in,Ysat⟩
+      simp only [List.mem_cons] at Y_in
+      rcases Y_in with Y_in|Y_in
+      · left
+        subst Y_in
+        rw [conEval]; tauto
+      · right
+        use Y
 
 theorem disconEval {W M} {w : W} :
     ∀ XS,
