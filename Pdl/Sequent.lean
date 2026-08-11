@@ -294,11 +294,13 @@ instance : Decidable (NegLoadFormula.mem_Sequent ⟨L,R,O⟩ nlf) := by
   all_goals simp; tauto
 
 @[simp]
-instance : Membership NegLoadFormula Sequent := ⟨NegLoadFormula.mem_Sequent⟩
+instance instMembershipNegLoadFormulaSequent :
+    Membership NegLoadFormula Sequent := ⟨NegLoadFormula.mem_Sequent⟩
 
 def AnyNegFormula.mem_Sequent : (X : Sequent) → (anf : AnyNegFormula) → Prop
 | X, ⟨.normal φ⟩ => (~φ) ∈ X
-| X, ⟨.loaded χ⟩ => (~'χ).mem_Sequent X -- FIXME: ∈ not working here
+| X, ⟨.loaded χ⟩ => instMembershipNegLoadFormulaSequent.mem X (~'χ)
+  -- Note: writing `∈` does not work because the first argument of `Membership` is `outParam`.
 
 @[simp]
 instance : Membership AnyNegFormula Sequent := ⟨AnyNegFormula.mem_Sequent⟩
