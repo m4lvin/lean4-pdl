@@ -7,9 +7,9 @@
 The aim is to prove that Propositional Dynamic Logic (PDL) has the Craig Interpolation property.
 The main reference is the following.
 
-- Manfred Borzechowski, Malvin Gattinger, Helle Hvid Hansen, Revantha Ramanayake, Valentina Trucco Dalmas, Yde Venema:
+- Manfred Borzechowski, Malvin Gattinger, Helle Hvid Hansen, Revantha Ramanayake, Francisco Trucco Dalmas, Yde Venema:
   *Propositional Dynamic Logic has Craig Interpolation: a tableau-based proof.*
-  Preprint 2025, <https://arxiv.org/abs/2503.13276>
+  Preprint 2026, <https://arxiv.org/abs/2503.13276v2>
 
 The article contains direct links to the corresponding parts of the formalization here.
 A checkmark in the article means that the Lean statement is `sorry`-free, including all its dependencies.
