@@ -32,6 +32,16 @@ def PathIn.append (p : PathIn tab) (q : PathIn (tabAt p).2.2) : PathIn tab := ma
   | .loc Y_in tail => .loc Y_in (PathIn.append tail q)
   | .pdl tail => .pdl (PathIn.append tail q)
 
+def PathIn.isLrep (p : PathIn tab) : Prop := (tabAt p).2.2.isLrep
+
+instance instDecdidablePathInisLrep (p : PathIn tab) : Decidable p.isLrep := by
+  rcases h : tabAt p with ⟨H, X, _|_|_⟩
+  all_goals
+    simp_all [PathIn.isLrep]; rw [h]; simp [Tableau.isLrep]
+  · apply isFalse; simp
+  · apply isFalse; simp
+  · apply isTrue; simp
+
 @[simp]
 theorem append_eq_iff_eq (s : PathIn tab) p q : s.append p = s.append q ↔ p = q := by
   induction s <;> simp_all [PathIn.append]

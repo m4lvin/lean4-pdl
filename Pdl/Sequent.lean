@@ -127,6 +127,24 @@ def Olf.isRight : Olf → Prop
  | .some (Sum.inl _) => False
  | .some (Sum.inr _) => True
 
+instance instDecidableOlfisNone (o : Olf) : Decidable o.isNone := by
+  rcases o with _|(_|_)
+  · apply isTrue; simp_all
+  · apply isFalse; simp_all
+  · apply isFalse; simp_all
+
+instance instDecidableOlfisLeft (o : Olf) : Decidable o.isLeft := by
+  rcases o with _|(_|_)
+  · apply isFalse; simp_all
+  · apply isTrue; simp_all
+  · apply isFalse; simp_all
+
+instance instDecidableOlfisRight (o : Olf) : Decidable o.isRight := by
+  rcases o with _|(_|_)
+  · apply isFalse; simp_all
+  · apply isFalse; simp_all
+  · apply isTrue; simp_all
+
 /-! ## Sequents and their (multi)set quality -/
 
 /-- A tableau node is labelled with two lists of formulas and an `Olf`.

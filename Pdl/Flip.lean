@@ -1,6 +1,6 @@
 import Mathlib.Tactic.DepRewrite
 
-import Pdl.TableauPath
+import Pdl.Soundness
 
 /-! # Flipping a tableau (for section 7)
 
@@ -512,3 +512,28 @@ theorem PathIn.flip_flip {Hist X} {tab : Tableau Hist X} (p : PathIn tab) :
       apply heq_of_eq; congr 1
     all_goals (try exact proof_irrel_heq _ _)
     all_goals (try (simp))
+
+/-- Undo `PathIn.flip`: flipping twice is the identity (up to the cast). -/
+def PathIn.unflip {X} {tab : Tableau .nil X} (p : PathIn tab.flip) : PathIn tab :=
+  PathIn_type_flip_flip ▸ p.flip
+
+@[simp]
+lemma PathIn.flip_unflip {X} {tab : Tableau .nil X} (p : PathIn tab.flip) :
+    p.unflip.flip = p := by
+  sorry
+
+/-- Flipping a tableau does not change which nodes are children of which. -/
+lemma edge_flip {X} {tab : Tableau .nil X} {p q : PathIn tab} :
+    (p.flip ⋖_ q.flip) ↔ p ⋖_ q := by
+  sorry
+
+/-- Flipping a tableau changes neither the child nor the companion relation,
+hence it also does not change reachability. -/
+lemma cReach_flip {X} {tab : Tableau .nil X} {p q : PathIn tab} :
+    (p.flip ◃* q.flip) ↔ p ◃* q := by
+  sorry
+
+lemma cEquiv_flip {X} {tab : Tableau .nil X} {p q : PathIn tab} :
+    (p.flip ≡ᶜ q.flip) ↔ p ≡ᶜ q := by
+  unfold cEquiv
+  rw [cReach_flip, cReach_flip]
