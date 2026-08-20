@@ -76,6 +76,7 @@ def freePdlRuleInterpolant {X Y} (r : PdlRule X Y) (Xfree : X.isFree) (θY : Par
 
 /-! ## Cluster tools -/
 
+-- unused for now?
 def repeatsOf {tab : Tableau .nil X} (s : PathIn tab) : List (PathIn tab) :=
   sorry
 
@@ -107,32 +108,122 @@ lemma clusterListOf_spec (p : PathIn tab) :
     q ∈ clusterListOf p  ↔  p ≡ᶜ q := by
   sorry
 
--- TODO: how to convert `clusterListOf` result back to a tree?
--- Essentially, this would incorporate Lemma 8.14 (a).
+/-! ## helpers belonging elsewhere -/
 
-def rootOf : List (PathIn tab) → PathIn tab := sorry -- just take the shortest?
+-- move to TableauPath.lean later
+def PathIn.children (p : PathIn tab) : List {q : PathIn tab // p ⋖_ q} :=
+  match h : tabAt p with
+  | ⟨H, X, .loc nflprep nbas lt next⟩ =>
+      (endNodesOf lt).attach.map (fun ⟨Y,Y_in⟩ => ⟨_, edge_append_loc_nil _ _ Y_in h⟩ )
+  | ⟨H,X, .pdl nflprep bas r next⟩ =>
+      [ ⟨_, @edge_append_pdl_nil _ _ _ p (h ▸ nflprep) (h ▸ bas) _ (by convert r; grind)
+            (by convert next <;> grind) (by simp_all; grind)⟩ ]
+  | ⟨H,X, .lrep _⟩ => []
 
--- Or would it be better to already construct (partial) trees instead of lists directly?
+def PathIn.isLPR (p : PathIn tab) : Prop := (tabAt p).2.2.isLrep
 
--- OR just assume we are given the root of a cluster and use the tableau as it is to define `Q`?
+/-! ## NEW structure idea for clusters -/
 
-/-- Lemma 8.14 (b) for left side -/
-lemma cluster_all_left_loaded {p : PathIn tab} (h : (nodeAt p).2.2.isLeft) :
-    ∀ q ∈ clusterListOf p, (nodeAt q).2.2.isLeft := by
+/-! A cluster, starting at a right-loaded `root` which is not ≡ᶜ to its parent.  -/
+structure LoadedCluster {X} (tab : Tableau .nil X) where
+  /-- The node just above the cluster. Might already be loaded. -/
+  parent : PathIn tab
+  /-- The root of the cluster. -/
+  root : PathIn tab
+  root_from_parent : parent ⋖ root
+  /-- There is not ◃ path from the root to its parent. -/
+  root_not_to_parent : ¬ root ◃* parent
+  /-- The root is loaded on the right. -/
+  root_loaded_right : (nodeAt root).2.2.isRight
+  /-- List of all paths in the cluster. -/
+  CL : List (PathIn tab)
+  /-- All elements of `CL` are ≡ᶜ and thus can reach each other. -/
+  CL_equiv : ∀ s ∈ CL, ∀ t ∈ CL, s ≡ᶜ t
+  /-- All paths that are ≡ᶜ to something in `CL` are also in `CL`. -/
+  CL_complete : ∀ s ∈ CL, ∀ t, (s ≡ᶜ t) → t ∈ CL
+  root_mem_CL : ∀ s ∈ CL, root ◃* s
+
+-- IDEA
+-- given any PathIn, can we:
+-- - either return the LoadedCluster starting there
+-- - or continue down and return proof that we go on to a later cluster?
+-- wait, what about branching?
+-- maybe don't do this recursively.
+-- entry point should be in `clusterInterpolation` or even before that.
+def PathIn.makeClusterFrom (parent : PathIn tab) (root : PathIn tab) (h : parent ⋖ root)
+    : LoadedCluster tab :=
+  LoadedCluster.mk parent root h sorry sorry sorry sorry sorry sorry
+
+-- TODO: rewrite `exitsFrom` already defined somewhat below to take a `LoadedCluster` as input?
+
+-- TODO: make ≣ᶜ decidable
+
+/-- C⁺, the cluster plus its exits. -/
+def LoadedCluster.CL_plus (C : LoadedCluster tab) : List (PathIn tab) :=
   sorry
 
-/-- Lemma 8.14 (b) for right side -/
-lemma cluster_all_right_loaded {p : PathIn tab} (h : (nodeAt p).2.2.isRight) :
-    ∀ q ∈ clusterListOf p, (nodeAt q).2.2.isRight := by
+/-- Lemma 9.4 (a) -/
+lemma LoadedCluster.all_right_loaded (C : LoadedCluster tab) :
+    ∀ t ∈ C.CL, (nodeAt t).2.2.isRight := by
   sorry
+
+/-- Lemma 9.4 (b) -/
+lemma LoadedCluster.left_empty_iff_root_left_empty (C : LoadedCluster tab) :
+    ∀ t ∈ C.CL, (nodeAt t).2.1 = [] ↔ (nodeAt C.root).2.1 = [] := by
+  sorry
+
+/-- Part of Lemma 9.4 (c): All children of t belong to C⁺. -/
+lemma LoadedCluster.children_in_plus (C : LoadedCluster tab) :
+    ∀ t ∈ C.CL, ∀ c ∈ t.children, c.val ∈ C.CL_plus := by
+  sorry
+
+/-- Part of Lemma 9.4 (c): If t is not an lpr, then at least one child is in C. -/
+lemma LoadedCluster.nonLpr_some_child_in_C (C : LoadedCluster tab) :
+    ∀ t ∈ C.CL, ¬ t.isLPR → ∃ c ∈ t.children, t ∈ C.CL := by
+  sorry
+
+/-- Part of Lemma 9.4 (c): If t is an lpr, then its companion is in C. -/
+lemma LoadedCluster.lpr_comp_in_C (C : LoadedCluster tab) :
+    ∀ t ∈ C.CL, t ♥ comp → comp ∈ C.CL := by
+  sorry
+
+/-- Def 9.6: All nodes in cluster with a certain list (WORRY should it be set??) on the right.
+TODO: `.right` might not get or not keep track of the loaded formula!
+Better use `List WhateverFormula` and `Sequent.wForms` here maybe?
+-/
+def LoadedCluster.nodesWith (C : LoadedCluster tab) (Δ : List Formula) : List (PathIn tab) :=
+    C.CL.filter (fun p => decide ((nodeAt p).right = Δ))
+
+def LoadedCluster.plusNodesWith (C : LoadedCluster tab) (Δ : List Formula) : List (PathIn tab) :=
+    C.CL_plus.filter (fun p => decide ((nodeAt p).right = Δ))
+
+-- TODO defs "where a left/right rule is applied"
+
+-- TODO Lemma 9.7 (a)
+
+-- TODO Lemma 9.7 (b)
+
+-- TODO Lemma 9.7 (c)
+
+-- TODO Lemma 9.7 (d)
+
+-- TODO Lemma 9.7 (e)
+
+-- TODO Lemma 9.7 (f)
+
 
 def isExitIn : Sequent → List Sequent → Prop := sorry
 
 instance : Decidable (isExitIn X C) := sorry
 
-/-! ## Quasi-Tableaux -/
 
--- Alternative idea for Definition 9.8 quasi-tableau:
+-- Or would it be better to already construct (partial) trees instead of lists directly?
+
+-- OR just assume we are given the root of a cluster and use the tableau as it is to define `Q`?
+
+/-! ## Quasi-Tableaux (Def 9.8) -/
+
+-- Alternative idea for quasi-tableau:
 -- Instead of labelling nodes in Q with finite sequents, label them with the path to where
 -- that sequent comes from in `Λ₂[C⁺]`?
 
@@ -149,7 +240,7 @@ open QuasiTab
 
 def Qchildren (C : List Sequent) : (k : Typ) → (Hist : List Sequent) → (X : Sequent) → List QuasiTab
 | .one, Hist, X => -- case k(x)=1
-    if X ∈ Hist ∨ isExitIn X C -- if x is a repeat (TODO??: in Q) or it is an exit,
+    if X ∈ Hist ∨ isExitIn X C -- if x is a repeat (in Q) or it is an exit,
       then [ ] -- then x is a leaf.
       else [ QNode .two X (Qchildren C .two (X :: Hist) X) ]
 | .two, Hist, X => -- case k(x)=2
@@ -164,7 +255,7 @@ def Qchildren (C : List Sequent) : (k : Typ) → (Hist : List Sequent) → (X : 
       -- create children based on local rule
       sorry
 termination_by
-  1 -- O.o ... see remark after Def 7.31 ;-)
+  1 -- O.o ... remark after Def 9.8, but it does not say how to convince Lean of termination ;-)
 decreasing_by
   · sorry
   · sorry
@@ -181,55 +272,53 @@ def Q {r : PathIn tab} : QuasiTab :=
 These are the "exits" from a loaded cluster.
 A repeat has no exit (because to ensure termination we do not rewind here.)
 Free nodes are their own (only) exit. -/
-def exitsOf (tab : Tableau Hist X) : List (PathIn tab) :=
+def exitsFrom (tab : Tableau Hist X) : List (PathIn tab) :=
   if X.isLoaded
   then
     match tab with
     | .lrep _ => [] -- A repeat has no exit.
     | .loc _ _ lt next => (endNodesOf lt).attach.flatMap (fun ⟨Y,Y_in⟩ =>
-                                  (exitsOf (next Y Y_in)).map (PathIn.loc Y_in))
-    | .pdl _ _ _ next => (exitsOf next).map PathIn.pdl
+                                  (exitsFrom (next Y Y_in)).map (PathIn.loc Y_in))
+    | .pdl _ _ _ next => (exitsFrom next).map PathIn.pdl
   else
     [ .nil ] -- Free nodes are their own (only) exit.
 
-lemma loaded_iff_exitsOf_non_nil {tab : Tableau Hist X} :
-    X.isLoaded ↔ ∀ q ∈ exitsOf tab, q ≠ .nil := by
+lemma loaded_iff_exitsFrom_non_nil {tab : Tableau Hist X} :
+    X.isLoaded ↔ ∀ q ∈ exitsFrom tab, q ≠ .nil := by
   constructor
   · intro Xload q q_in
-    unfold exitsOf at q_in
+    unfold exitsFrom at q_in
     simp only [Xload, ↓reduceIte] at q_in
     cases tab <;> simp at q_in <;> grind
   · intro no_nil
-    unfold exitsOf at no_nil
+    unfold exitsFrom at no_nil
     grind
 
--- move to TableauPath.lean later
-def PathIn.children : (p : PathIn tab) → List (PathIn tab) := sorry
-
 /-- Specific version of `clusterInterpolation` where loaded formula is on the right side.
-This may need additional hypotheses to say that we start at the root of the cluster. -/
+This needs additional hypotheses to say that we start at the root of the cluster. -/
 def clusterInterpolation_right {Hist L R nlf}
     (tab : Tableau Hist (L, R, some (Sum.inr nlf)))
-    (exitIPs : ∀ e ∈ exitsOf tab, PartInterpolant (nodeAt e))
+    (exitIPs : ∀ e ∈ exitsFrom tab, PartInterpolant (nodeAt e))
     : PartInterpolant (L, R, some (Sum.inr nlf)) := by
   sorry
 
-/-! ### Helper lemmas for `mem_existsOf_of_flip` (dependent-type / HEq plumbing) -/
+/-! ### Flipping the tableaux to make left side loaded wlog.  -/
 
-/-- `PathIn.nil` over heterogeneously-equal tableaux are heterogeneously equal. -/
+/-- Helper lemmas for `mem_existsOf_of_flip`: `PathIn.nil` over
+heterogeneously-equal tableaux are heterogeneously equal. -/
 theorem PathIn_nil_heq {H1 X1 H2 X2} {t1 : Tableau H1 X1} {t2 : Tableau H2 X2}
     (hH : H1 = H2) (hX : X1 = X2) (h : HEq t1 t2) :
     HEq (PathIn.nil : PathIn t1) (PathIn.nil : PathIn t2) := by
   subst hH hX; obtain rfl := eq_of_heq h; rfl
 
-/-- This lemma about `PathIn.flip` is here because it is also about `exitsOf`. -/
+/-- This lemma about `PathIn.flip` is here because it is also about `exitsFrom`. -/
 lemma mem_existsOf_of_flip {Hist X} {tab : Tableau Hist X}
-    (s : PathIn tab.flip) (s_in : s ∈ (exitsOf tab.flip : List (PathIn tab.flip)))
-    : (PathIn_type_flip_flip ▸ s.flip) ∈ exitsOf tab := by
+    (s : PathIn tab.flip) (s_in : s ∈ (exitsFrom tab.flip : List (PathIn tab.flip)))
+    : (PathIn_type_flip_flip ▸ s.flip) ∈ exitsFrom tab := by
   induction tab with
   | loc nrep nbas lt next ih =>
     rename_i Hist X
-    unfold exitsOf at s_in ⊢
+    unfold exitsFrom at s_in ⊢
     by_cases hX : X.isLoaded
     · simp only [Sequent.flip_isLoaded, hX, ↓reduceIte] at *
       simp only [Sequent.flip, Olf.flip, Tableau.flip, List.mem_flatMap, List.mem_attach,
@@ -245,9 +334,9 @@ lemma mem_existsOf_of_flip {Hist X} {tab : Tableau Hist X}
         have Y_in' : (LY, RY, none) ∈ endNodesOf lt := by
           have := endNodesOf_flip Yf_in; simpa [Sequent.flip_flip] using this
         refine ⟨ (LY,RY,none), Y_in', .nil, ?_, ?_⟩
-        · unfold exitsOf
+        · unfold exitsFrom
           simp [Sequent.isLoaded]
-        · unfold exitsOf at e_in
+        · unfold exitsFrom at e_in
           simp [Sequent.isLoaded] at e_in
           subst e_in
           simp only [PathIn.flip]
@@ -333,14 +422,14 @@ lemma mem_existsOf_of_flip {Hist X} {tab : Tableau Hist X}
       congr 1 <;> simp
   | pdl nrep bas r next ih =>
     rename_i Hist X Y
-    unfold exitsOf at s_in ⊢
+    unfold exitsFrom at s_in ⊢
     by_cases hX : X.isLoaded
     · simp only [Sequent.flip_isLoaded, hX, ↓reduceIte] at *
       simp_all only [Sequent.flip, Olf.flip, Tableau.flip, List.mem_map]
       rcases s_in with ⟨e, e_in, def_s⟩
       rcases Y with ⟨LY, RY, (_|lr_nlf_Y)⟩ -- to get that Y is loaded
       · subst def_s
-        unfold exitsOf at ⊢ e_in
+        unfold exitsFrom at ⊢ e_in
         simp [Sequent.isLoaded] at *
         subst e_in
         -- `PathIn.flip` of `.pdl .nil` is `.pdl .nil` (up to casts).
@@ -372,7 +461,7 @@ lemma mem_existsOf_of_flip {Hist X} {tab : Tableau Hist X}
       congr 1 <;> simp
   | lrep lpr =>
     rename_i Hist X
-    unfold exitsOf at s_in ⊢
+    unfold exitsFrom at s_in ⊢
     by_cases hX : X.isLoaded
     · simp only [Sequent.flip_isLoaded, hX, ↓reduceIte] at *
       simp [Sequent.flip, Olf.flip] at *
@@ -385,9 +474,9 @@ lemma mem_existsOf_of_flip {Hist X} {tab : Tableau Hist X}
       simp only [PathIn.flip]
       congr 1 <;> simp
 
-def exitsOf_flip {tab : Tableau Hist (L, R, some nlf)}
-    (exitIPs : ∀ e ∈ exitsOf tab, PartInterpolant (nodeAt e)) :
-    ∀ e ∈ exitsOf tab.flip, PartInterpolant (nodeAt e) := by
+def exitsFrom_flip {tab : Tableau Hist (L, R, some nlf)}
+    (exitIPs : ∀ e ∈ exitsFrom tab, PartInterpolant (nodeAt e)) :
+    ∀ e ∈ exitsFrom tab.flip, PartInterpolant (nodeAt e) := by
   intro e e_in
   specialize exitIPs _ (mem_existsOf_of_flip _ e_in)
   have : (nodeAt (PathIn_type_flip_flip ▸ e.flip)) = (nodeAt e).flip := by
@@ -428,13 +517,13 @@ lemma IsPartInterpolant.flip : isPartInterpolant X θ → isPartInterpolant X.fl
 /-- Given a tableau where the root is loaded, and exit interpolants, interpolate the root. -/
 def clusterInterpolation {Hist L R snlf}
     (tab : Tableau Hist (L, R, some snlf))
-    (exitIPs : ∀ e ∈ exitsOf tab, PartInterpolant (nodeAt e))
+    (exitIPs : ∀ e ∈ exitsFrom tab, PartInterpolant (nodeAt e))
     : PartInterpolant (L, R, some snlf) := by
   cases snlf
   case inl nlf =>
     -- We "flip" the left/right sides of `tab` so we can apply the wlog version.
     let f_tab := tab.flip
-    let f_exitIPs : ∀ e ∈ exitsOf tab.flip, PartInterpolant (nodeAt e) := exitsOf_flip exitIPs
+    let f_exitIPs : ∀ e ∈ exitsFrom tab.flip, PartInterpolant (nodeAt e) := exitsFrom_flip exitIPs
     have := @clusterInterpolation_right _ _ _ nlf f_tab f_exitIPs
     rcases this with ⟨θ, isInter⟩
     refine ⟨~θ, ?_⟩
@@ -463,13 +552,13 @@ theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
       rw [tab_s_def] at s_loaded
       simp [Sequent.isLoaded] at s_loaded
     case some lr_nlf =>
-      let myExitIPs : ∀ e ∈ exitsOf tabNew, PartInterpolant (nodeAt e) := by
+      let myExitIPs : ∀ e ∈ exitsFrom tabNew, PartInterpolant (nodeAt e) := by
         intro e e_in
         specialize @IH (s.append (tab_s_def ▸ e)) ?_
         · apply PathIn.lt_append_non_nil _ tab_s_def
-          -- Use that `exitsOf` something loaded are proper successors.
+          -- Use that `exitsFrom` something loaded are proper successors.
           unfold nodeAt at s_loaded
-          have := (@loaded_iff_exitsOf_non_nil _ _ (tabAt s).2.2).mp s_loaded (tab_s_def ▸ e) ?_
+          have := (@loaded_iff_exitsFrom_non_nil _ _ (tabAt s).2.2).mp s_loaded (tab_s_def ▸ e) ?_
           · convert this <;> grind
           grind
         have := IH.choose_spec
