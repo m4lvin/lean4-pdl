@@ -72,6 +72,7 @@ def freePdlRuleInterpolant {X Y} (r : PdlRule X Y) (Xfree : X.isFree) (θY : Par
   all_goals
     exfalso
     subst_eqs
+    simp_all [Sequent.isFree, Sequent.isLoaded]
 
 /-! ## From Tableau to Interpolant -/
 
@@ -178,7 +179,6 @@ theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
       exfalso
       absurd s_free
       rw [nodeAt, s_def]
-      simp only [Bool.not_eq_false]
       apply LoadedPathRepeat_rep_isLoaded lpr
 
 theorem tabToInt {X : Sequent} (tab : Tableau .nil X) :

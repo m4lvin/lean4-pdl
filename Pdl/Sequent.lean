@@ -368,11 +368,21 @@ instance instDecidableBasic {X : Sequent} : Decidable (X.basic) := by
       push_neg at *
       assumption
 
-def Sequent.isLoaded : Sequent → Bool
+def Sequent.isLoaded : Sequent → Prop
 | ⟨_, _, none  ⟩ => False
 | ⟨_, _, some _⟩ => True
 
-def Sequent.isFree (Γ : Sequent) : Bool := ¬ Γ.isLoaded
+instance instDecidableSequentisLoaded (X : Sequent) : Decidable (X.isLoaded) := by
+  rcases X with ⟨_, _, _|_⟩
+  · apply isFalse; simp_all [Sequent.isLoaded]
+  · apply isTrue; simp_all [Sequent.isLoaded]
+
+def Sequent.isFree (Γ : Sequent) : Prop := ¬ Γ.isLoaded
+
+instance instDecidableSequentisFree (X : Sequent) : Decidable (X.isFree) := by
+  rcases X with ⟨_, _, _|_⟩
+  · apply isTrue; simp_all [Sequent.isFree, Sequent.isLoaded]
+  · apply isFalse; simp_all [Sequent.isFree, Sequent.isLoaded]
 
 @[simp]
 theorem Sequent.none_isFree L R : Sequent.isFree (L, R, none) := by

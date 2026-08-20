@@ -506,9 +506,7 @@ theorem c_claim {a : Sequent} {tab : Tableau [] a} (t l c : PathIn tab) :
       simp [Fin.cast] at this
       exact this
     simp_all
-  simp [Sequent.isFree] at t_free
-  rw [t_loaded] at t_free
-  cases t_free
+  simp_all [Sequent.isFree]
 
 theorem ePropB.c {X} {tab : Tableau .nil X} (s t : PathIn tab) :
     (nodeAt s).isFree → s < t → s <ᶜ t := by
@@ -525,9 +523,7 @@ theorem ePropB.c {X} {tab : Tableau .nil X} (s t : PathIn tab) :
         exact edge.TransGen_isAsymm.1 t s (Relation.TransGen.single tes)
       case inr ths =>
         have con := (companion_loaded ths).2
-        simp [Sequent.isFree] at s_free
-        rw [con] at s_free
-        contradiction
+        simp_all [Sequent.isFree]
     case right.head t k t_k k_s ih =>
       apply ih
       cases t_k
@@ -541,9 +537,7 @@ theorem not_cEquiv_of_free_loaded (s t : PathIn tab)
   unfold cEdge at s_t
   induction s_t using Relation.ReflTransGen.head_induction_on
   case refl =>
-    simp [Sequent.isFree] at s_free
-    rw [s_free] at t_loaded
-    contradiction
+    simp_all [Sequent.isFree]
   case head s l s_l l_t ih =>
     by_cases (nodeAt l).isFree
     case pos l_free => exact ih l_free (Relation.ReflTransGen.tail t_s s_l)
@@ -559,9 +553,7 @@ theorem not_cEquiv_of_free_loaded (s t : PathIn tab)
         case inr lnes => exact Relation.TransGen_of_ReflTransGen l_s lnes
       case inr shl =>
         have con := (companion_loaded shl).1
-        simp [Sequent.isFree] at s_free
-        rw [con] at s_free
-        contradiction
+        simp_all [Sequent.isFree]
 
 theorem ePropB.d {tab : Tableau .nil X} (s t : PathIn tab) :
     (nodeAt t).isFree → s < t → s <ᶜ t := by
@@ -578,9 +570,7 @@ constructor
       exact edge.TransGen_isAsymm.1 t s (Relation.TransGen.single tes)
     case inr ths =>
       have con := (companion_loaded ths).1
-      simp [Sequent.isFree] at t_free
-      rw [con] at t_free
-      contradiction
+      simp_all [Sequent.isFree]
   case right.head t k t_k k_s ih =>
     by_cases (nodeAt k).isFree
     case pos k_free =>
@@ -588,9 +578,7 @@ constructor
       case inl tek => exact ih k_free (Relation.TransGen.tail slt tek)
       case inr thk =>
         have con := (companion_loaded thk).1
-        simp [Sequent.isFree] at t_free
-        rw [con] at t_free
-        contradiction
+        simp_all [Sequent.isFree]
     case neg k_loaded =>
       simp [Sequent.isFree] at k_loaded
       apply not_cEquiv_of_free_loaded t k t_free k_loaded
@@ -773,11 +761,10 @@ lemma loadedDiamondPathsPDL
       aesop
     · apply not_cEquiv_of_free_loaded
       -- use lemma that load and free are never in same cluster
-      · simp only [Sequent.isFree, Sequent.isLoaded, nodeAt, decide_false, decide_true,
-        Bool.not_eq_true, Bool.decide_eq_false, Bool.not_eq_true']
-        rw [tabAt_s_def]
-      · simp only [Sequent.isLoaded, nodeAt, decide_false, decide_true]
-        rw [tabAt_t_def]
+      · simp only [Sequent.isFree, Sequent.isLoaded, nodeAt]
+        grind
+      · simp only [Sequent.isLoaded, nodeAt]
+        grind
   case freeR L R δ β φ Z_def Y_def =>
     subst Z_def Y_def
     -- Leaving cluster, interesting that IH is not needed here.
@@ -811,11 +798,10 @@ lemma loadedDiamondPathsPDL
       aesop
     · apply not_cEquiv_of_free_loaded
       -- use lemma that load and free are never in same cluster
-      · simp only [Sequent.isFree, Sequent.isLoaded, nodeAt, decide_false, decide_true,
-        Bool.not_eq_true, Bool.decide_eq_false, Bool.not_eq_true']
-        rw [tabAt_s_def]
-      · simp only [Sequent.isLoaded, nodeAt, decide_false, decide_true]
-        rw [tabAt_t_def]
+      · simp only [Sequent.isFree, Sequent.isLoaded, nodeAt]
+        grind
+      · simp only [Sequent.isLoaded, nodeAt]
+        grind
   case modL L R a ξ' Z_def Y_def =>
     subst Y_def
     have : ξ' = ξ := by
