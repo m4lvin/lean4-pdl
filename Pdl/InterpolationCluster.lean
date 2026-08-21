@@ -9,6 +9,164 @@ Note that we can skip much of Subsection 8.2 because we worked already with spli
 NOTE: We may need extra work for *uniformity* though.
 -/
 
+/-! ### Helpers for Lemma 9.4: single steps keep the loading on the right
+
+The lemmas here say that a single step in a tableau, starting at a node that is loaded
+on the right, can only lead to a node that is loaded on the right or free, and that no
+rule adds formulas to an empty left component.
+
+FIXME: All lemmas up to `pdlRule_inv` are about single rule applications and single
+steps, so they would fit better into other files, as indicated in the comments. -/
+
+-- FIXME: move to `Pdl/Sequent.lean`
+/-- A loaded sequent that is not loaded on the left is loaded on the right. -/
+lemma Sequent.isRight_of_not_isLeft {X : Sequent} (h1 : ¬ X.2.2.isLeft) (h2 : X.isLoaded) :
+    X.2.2.isRight := by
+  rcases X with ⟨L, R, _|(o|o)⟩ <;> simp_all [Sequent.isLoaded]
+
+-- FIXME: move to `Pdl/TableauPath.lean`
+/-- Transporting a path along an equation about `tabAt` does not change `tabAt`.
+Compare `PathIn.tabAt_cast` which is about an equation between two tableaux. -/
+lemma tabAt_cast_gen {Hist X} {tab : Tableau Hist X} (s : PathIn tab) (w : Σ H X, Tableau H X)
+    (h : tabAt s = w) (q : PathIn w.2.2) : tabAt (h ▸ q) = tabAt q := by
+  cases h; rfl
+
+-- FIXME: move to `Pdl/TableauPath.lean`
+/-- Any `⋖_` step is given by an end node of a local tableau or by a PDL rule. -/
+lemma nodeAt_of_edge {Hist X} {tab : Tableau Hist X} {s t : PathIn tab} (h : s ⋖_ t) :
+    (∃ lt : LocalTableau (nodeAt s), nodeAt t ∈ endNodesOf lt)
+    ∨ Nonempty (PdlRule (nodeAt s) (nodeAt t)) := by
+  rcases h with ⟨Hist', XX, nrep, nbas, lt, next, Y, Y_in, tab_def, rfl⟩
+              | ⟨Hist', XX, nrep, bas, Y, r, next, tab_def, rfl⟩
+  · left
+    have hs : nodeAt s = XX := by unfold nodeAt; rw [tab_def]
+    have ht : nodeAt (s.append (tab_def ▸ PathIn.loc Y_in .nil)) = Y := by
+      rw [nodeAt_append]
+      unfold nodeAt
+      rw [tabAt_cast_gen s _ tab_def (PathIn.loc Y_in .nil)]
+      simp [tabAt]
+    rw [hs, ht]
+    exact ⟨lt, Y_in⟩
+  · right
+    have hs : nodeAt s = XX := by unfold nodeAt; rw [tab_def]
+    have ht : nodeAt (s.append (tab_def ▸ PathIn.pdl .nil)) = Y := by
+      rw [nodeAt_append]
+      unfold nodeAt
+      rw [tabAt_cast_gen s _ tab_def (PathIn.pdl .nil)]
+      simp [tabAt]
+    rw [hs, ht]
+    exact ⟨r⟩
+
+-- FIXME: move to `Pdl/LocalRules.lean`
+/-- All one-sided local rules have a non-empty precondition. -/
+lemma OneSidedLocalRule.precond_ne_nil {precond ress} (orule : OneSidedLocalRule precond ress) :
+    precond ≠ [] := by
+  cases orule <;> simp
+
+-- FIXME: move to `Pdl/LocalRules.lean`
+/-- Local rules never load on the left: if the given sequent is not loaded on the left,
+then neither are the results of applying a local rule to it. -/
+lemma applyLocalRule_not_isLeft {Lcond Rcond Ocond ress}
+    (lr : LocalRule (Lcond, Rcond, Ocond) ress)
+    {L R O} (hO : Ocond ⊆ O) (hnl : ¬ O.isLeft) :
+    ∀ c ∈ applyLocalRule lr (L, R, O), ¬ c.2.2.isLeft := by
+  rcases lr with ⟨orule, rfl⟩|⟨orule, rfl⟩|_|_|⟨χ, lrule, rfl⟩|⟨χ, lrule, rfl⟩
+  all_goals
+    intro c hc
+    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_def] at hc
+    obtain ⟨⟨zl, zo⟩, hmem, rfl⟩ := hc
+  all_goals
+    rcases O with _|(o|o)
+    <;> simp_all [Olf.change, Option.overwrite, Option.insHasSdiff]
+  rcases zo with _|zo <;> simp_all
+
+-- FIXME: move to `Pdl/LocalRules.lean`
+/-- Local rules do not add formulas to an empty left component, provided the sequent is
+not loaded on the left. -/
+lemma applyLocalRule_L_nil {Lcond Rcond Ocond ress} (lr : LocalRule (Lcond, Rcond, Ocond) ress)
+    {L R O} (hL : L = []) (hsub : Lcond.Subperm L) (hO : Ocond ⊆ O) (hnl : ¬ O.isLeft) :
+    ∀ c ∈ applyLocalRule lr (L, R, O), c.1 = [] := by
+  subst hL
+  rw [List.subperm_nil] at hsub
+  rcases lr with ⟨orule, rfl⟩|⟨orule, rfl⟩|_|_|⟨χ, lrule, rfl⟩|⟨χ, lrule, rfl⟩
+  · exact absurd hsub orule.precond_ne_nil
+  all_goals
+    intro c hc
+    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_def] at hc
+    obtain ⟨⟨zl, zo⟩, hmem, rfl⟩ := hc
+  all_goals simp_all
+  subst hO
+  simp at hnl
+
+-- FIXME: move to `Pdl/LocalTableau.lean`
+/-- End nodes of a local tableau for a sequent that is not loaded on the left are also not
+loaded on the left, and they have an empty left component if the given sequent has. -/
+lemma endNodesOf_inv {X : Sequent} (lt : LocalTableau X) (hnl : ¬ X.2.2.isLeft) :
+    ∀ Y ∈ endNodesOf lt, ¬ Y.2.2.isLeft ∧ (X.1 = [] → Y.1 = []) := by
+  induction lt with
+  | @byLocalRule X lra X_def next IH =>
+    subst X_def
+    intro Y Y_in
+    obtain ⟨Z, Z_in, Y_in⟩ := endNodeIsEndNodeOfChild rfl Y_in
+    obtain ⟨hL, -, hOsub⟩ := lra.preconditionProof
+    rw [lra.hC] at Z_in
+    have hZ : ¬ Z.2.2.isLeft := applyLocalRule_not_isLeft lra.lr hOsub hnl Z Z_in
+    obtain ⟨h1, h2⟩ := IH Z (lra.hC ▸ Z_in) hZ Y Y_in
+    refine ⟨h1, fun hXL => h2 ?_⟩
+    exact applyLocalRule_L_nil lra.lr hXL (by simpa using hL) hOsub hnl Z Z_in
+  | sim => simp_all
+
+-- FIXME: move to `Pdl/Tableau.lean`
+/-- A PDL rule applied to a sequent that is loaded on the right leads to a sequent that is
+not loaded on the left, and it does not add formulas to an empty left component. -/
+lemma pdlRule_inv {X Y : Sequent} (r : PdlRule X Y) (h : X.2.2.isRight) :
+    ¬ Y.2.2.isLeft ∧ (X.1 = [] → Y.1 = []) := by
+  cases r
+  case modR L R A ξ hX hY => rcases ξ with φ|χ <;> simp_all [projection]
+  all_goals simp_all
+
+/-- A `⋖_` step from a node loaded on the right leads to a node that is not loaded on the
+left, and it does not add formulas to an empty left component. -/
+lemma edge_inv {Hist X} {tab : Tableau Hist X} {s t : PathIn tab} (h : s ⋖_ t)
+    (hs : (nodeAt s).2.2.isRight) :
+    ¬ (nodeAt t).2.2.isLeft ∧ ((nodeAt s).1 = [] → (nodeAt t).1 = []) := by
+  rcases nodeAt_of_edge h with ⟨lt, t_in⟩ | hr
+  · refine endNodesOf_inv lt ?_ _ t_in
+    rcases hh : (nodeAt s).2.2 with _|(o|o) <;> rw [hh] at hs <;> simp_all
+  · obtain ⟨r⟩ := hr
+    exact pdlRule_inv r hs
+
+/-- A `◃` step from a node loaded on the right to a loaded node leads to a node that is
+also loaded on the right, and it does not add formulas to an empty left component. -/
+lemma cEdge_inv {X} {tab : Tableau .nil X} {s t : PathIn tab} (h : s ◃ t)
+    (hs : (nodeAt s).2.2.isRight) (ht : (nodeAt t).isLoaded) :
+    (nodeAt t).2.2.isRight ∧ ((nodeAt s).1 = [] → (nodeAt t).1 = []) := by
+  rcases h with h | ⟨lpr, h_lrep, rfl⟩
+  · obtain ⟨h1, h2⟩ := edge_inv h hs
+    exact ⟨Sequent.isRight_of_not_isLeft h1 ht, h2⟩
+  · have same := nodeAt_companionOf_setEq s lpr h_lrep
+    rcases hs_def : nodeAt s with ⟨sL, sR, sO⟩
+    rcases ht_def : nodeAt (companionOf s lpr h_lrep) with ⟨tL, tR, tO⟩
+    rw [hs_def, ht_def] at same
+    obtain ⟨sameL, -, sameO⟩ := same
+    rw [hs_def] at hs
+    refine ⟨by rw [sameO]; exact hs, fun hsL => ?_⟩
+    exact (List.toFinset_eq_empty_iff tL).mp (by rw [sameL]; simp_all)
+
+/-- Along a `◃`-path where all nodes are loaded, the loading stays on the right and an
+empty left component stays empty. -/
+lemma cReach_inv {X} {tab : Tableau .nil X} {a b : PathIn tab} (hab : a ◃* b)
+    (hloaded : ∀ v, a ◃* v → v ◃* b → (nodeAt v).isLoaded)
+    (ha : (nodeAt a).2.2.isRight) :
+    (nodeAt b).2.2.isRight ∧ ((nodeAt a).1 = [] → (nodeAt b).1 = []) := by
+  induction hab with
+  | refl => exact ⟨ha, id⟩
+  | @tail v b hav hvb IH =>
+    obtain ⟨h1, h2⟩ := IH
+      (fun w haw hwv => hloaded w haw (hwv.trans (Relation.ReflTransGen.single hvb)))
+    obtain ⟨g1, g2⟩ := cEdge_inv hvb h1 (hloaded b (hav.tail hvb) Relation.ReflTransGen.refl)
+    exact ⟨g1, fun hn => g2 (h2 hn)⟩
+
 variable {X : Sequent} {tab : Tableau .nil X}
 
 /-! ### Computing the cluster of a node
@@ -305,30 +463,81 @@ lemma mem_exits_iff (C : LoadedCluster tab) (e : PathIn tab) :
     exact ⟨ ⟨t, (C.mem_CL_iff t).mpr t_root, t_e⟩
           , fun e_in => e_not_root ((C.mem_CL_iff e).mp e_in) ⟩
 
+/-- All nodes that are `◃`-between the root of a cluster and itself are loaded. -/
+lemma isLoaded_of_between (C : LoadedCluster tab) {v : PathIn tab}
+    (h1 : C.root ◃* v) (h2 : v ◃* C.root) : (nodeAt v).isLoaded := by
+  by_contra v_free
+  have root_eq_v : C.root = v := eq_of_cEquiv_of_isFree v_free ⟨h2, h1⟩
+  have v_right := C.root_loaded_right
+  rw [root_eq_v] at v_right
+  apply v_free
+  rcases hh : nodeAt v with ⟨L, R, _|(o|o)⟩ <;> rw [hh] at v_right <;>
+    simp_all [Sequent.isLoaded]
+
 /-- Lemma 9.4 (a) -/
 lemma all_right_loaded (C : LoadedCluster tab) :
     ∀ t ∈ C.CL, (nodeAt t).2.2.isRight := by
-  sorry
+  intro t t_in
+  have t_root : t ≡ᶜ C.root := (C.mem_CL_iff t).mp t_in
+  exact (cReach_inv t_root.2
+    (fun v h1 h2 => C.isLoaded_of_between h1 (h2.trans t_root.1)) C.root_loaded_right).1
 
-/-- Lemma 9.4 (b) -/
+/-- Lemma 9.4 (b): the left component of a node in the cluster is empty iff the left
+component of the root of the cluster is empty. Note that here the left component is the
+free side, because a `LoadedCluster` is loaded on the right.
+As `Sequent.left ⟨L,R,O⟩ = L ++ O.L` and `O.L = []` for the nodes in the cluster by
+`LoadedCluster.all_right_loaded`, this is the same as `Λ₁(t) = ∅ ↔ Λ₁(r) = ∅`. -/
 lemma left_empty_iff_root_left_empty (C : LoadedCluster tab) :
-    ∀ t ∈ C.CL, (nodeAt t).2.1 = [] ↔ (nodeAt C.root).2.1 = [] := by
-  sorry
+    ∀ t ∈ C.CL, (nodeAt t).1 = [] ↔ (nodeAt C.root).1 = [] := by
+  intro t t_in
+  have t_root : t ≡ᶜ C.root := (C.mem_CL_iff t).mp t_in
+  constructor
+  · exact (cReach_inv t_root.1
+      (fun v h1 h2 => C.isLoaded_of_between (t_root.2.trans h1) h2)
+      (C.all_right_loaded t t_in)).2
+  · exact (cReach_inv t_root.2
+      (fun v h1 h2 => C.isLoaded_of_between h1 (h2.trans t_root.1)) C.root_loaded_right).2
 
 /-- Part of Lemma 9.4 (c): All children of t belong to C⁺. -/
 lemma children_in_plus (C : LoadedCluster tab) :
     ∀ t ∈ C.CL, ∀ c ∈ t.children, c.val ∈ C.CL_plus := by
-  sorry
+  intro t t_in c _
+  rw [LoadedCluster.CL_plus, List.mem_append]
+  by_cases c_in : c.val ∈ C.CL
+  · exact Or.inl c_in
+  · refine Or.inr ((C.mem_exits_iff c.val).mpr ⟨fun c_root => c_in ?_, t, ?_, c.2⟩)
+    · exact (C.mem_CL_iff c.val).mpr c_root
+    · exact (C.mem_CL_iff t).mp t_in
 
-/-- Part of Lemma 9.4 (c): If t is not an lpr, then at least one child is in C. -/
-lemma nonLpr_some_child_in_C (C : LoadedCluster tab) :
-    ∀ t ∈ C.CL, ¬ t.isLrep → ∃ c ∈ t.children, t ∈ C.CL := by
-  sorry
+/-- Part of Lemma 9.4 (c): If `t` is not an lpr, then at least one child is in C.
+This needs that the cluster is proper, i.e. that its root lies on a `◃`-cycle. -/
+lemma nonLpr_some_child_in_C (C : LoadedCluster tab)
+    (C_proper : C.root ◃⁺ C.root) :
+    ∀ t ∈ C.CL, ¬ t.isLrep → ∃ c ∈ t.children, c.val ∈ C.CL := by
+  intro t t_in t_not_lrep
+  have t_root : t ≡ᶜ C.root := (C.mem_CL_iff t).mp t_in
+  -- Because the cluster is proper, also `t` lies on a `◃`-cycle:
+  have t_cycle : t ◃⁺ t := Relation.TransGen.trans_right t_root.1
+    (Relation.TransGen.trans_left C_proper t_root.2)
+  obtain ⟨u, t_u, u_t⟩ := Relation.TransGen.head'_iff.mp t_cycle
+  -- The first step of that cycle cannot be a ♥ step, because `t` is not an lpr:
+  rcases t_u with t_edge_u | ⟨lpr, h_lrep, rfl⟩
+  · rw [PathIn.children_spec, List.mem_map] at t_edge_u
+    obtain ⟨c, c_in, rfl⟩ := t_edge_u
+    exact ⟨c, c_in, (C.mem_CL_iff c.val).mpr ⟨u_t.trans t_root.1,
+      t_root.2.trans (Relation.ReflTransGen.single (Or.inl c.2))⟩⟩
+  · exact absurd (by unfold PathIn.isLrep; rw [h_lrep]; trivial) t_not_lrep
 
 /-- Part of Lemma 9.4 (c): If t is an lpr, then its companion is in C. -/
 lemma lpr_comp_in_C (C : LoadedCluster tab) :
     ∀ t ∈ C.CL, t ♥ comp → comp ∈ C.CL := by
-  sorry
+  intro t t_in t_comp
+  have t_root : t ≡ᶜ C.root := (C.mem_CL_iff t).mp t_in
+  refine (C.mem_CL_iff comp).mpr ⟨?_, ?_⟩
+  · -- comp ◃* root, because comp is above t.
+    exact (cReach_of_le (companion_lt t_comp).to_reflTransGen).trans t_root.1
+  · -- root ◃* comp, going via t.
+    exact t_root.2.tail (Or.inr t_comp)
 
 /-- Def 9.6: All nodes in cluster with a certain list (WORRY should it be set??) on the right.
 TODO: `.right` might not get or not keep track of the loaded formula!
@@ -340,9 +549,23 @@ def nodesWith (C : LoadedCluster tab) (Δ : List Formula) : List (PathIn tab) :=
 def plusNodesWith (C : LoadedCluster tab) (Δ : List Formula) : List (PathIn tab) :=
   C.CL_plus.filter (fun p => decide ((nodeAt p).right = Δ))
 
--- TODO defs "where a left/right rule is applied"
+/- PROBLEM -- On the `Tableau` level a `loc` is not either left or right rule, but can be a mix!
+def Tableau.usesLeftRule (tab : Tableau H X) : Prop := sorry
+-/
 
--- TODO Lemma 9.7 (a)
+-- WORRY: do we need `loc`-intermediate notes for the construction of the pseudo tableau?
+-- Then the nodes in `LoadedCluster` might not be enough.
+
+-- TODO defs "where a left/right rule is applied"
+/-- Nodes that have Δ as the right and a left rule applied to them. -/
+def nodesWithLeft (C : LoadedCluster tab) (Δ : List Formula) : List (PathIn tab) :=
+  C.CL.filter (fun p => @decide
+    ((nodeAt p).right = Δ ∧ sorry /- (tabAt p).2.2.usesLeftRule -/) sorry)
+
+-- TODO Lemma 9.7 (a) first part
+lemma nodesWith_union (C : LoadedCluster tab) (Δ : List Formula) :
+    C.nodesWith Δ = C.nodesWithLeft Δ /- ++ C.nodesWithRight Δ -/ := by
+  sorry
 
 -- TODO Lemma 9.7 (b)
 
