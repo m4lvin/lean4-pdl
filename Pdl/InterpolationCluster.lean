@@ -282,10 +282,24 @@ def LoadedCluster.exits (C : LoadedCluster tab) : List (PathIn tab) :=
 def LoadedCluster.CL_plus (C : LoadedCluster tab) : List (PathIn tab) :=
   C.CL ++ C.exits
 
+/-- The list `C.CL` contains exactly the exits in the sense of `isExitOf`. -/
+lemma LoadedCluster.mem_CL_iff (C : LoadedCluster tab) (p : PathIn tab) :
+    p ∈ C.CL ↔ p ≡ᶜ C.root :=
+  ⟨ fun p_in => C.CL_equiv p p_in C.root C.root_mem_CL
+  , fun p_c_root => C.CL_complete C.root C.root_mem_CL p ((cEquiv.symm p C.root).mp p_c_root) ⟩
+
 /-- The list `C.exits` contains exactly the exits in the sense of `isExitOf`. -/
 lemma LoadedCluster.mem_exits_iff (C : LoadedCluster tab) (e : PathIn tab) :
     e ∈ C.exits ↔ isExitOf C.root e := by
-  sorry
+  rw [LoadedCluster.exits, List.mem_filter, List.mem_flatMap]
+  simp only [decide_eq_true_eq, isExitOf, ← PathIn.children_spec]
+  constructor
+  · rintro ⟨⟨t, t_in, t_e⟩, e_not_in⟩
+    exact ⟨ fun e_c_root => e_not_in ((C.mem_CL_iff e).mpr e_c_root)
+          , t, (C.mem_CL_iff t).mp t_in, t_e ⟩
+  · rintro ⟨e_not_root, t, t_root, t_e⟩
+    exact ⟨ ⟨t, (C.mem_CL_iff t).mpr t_root, t_e⟩
+          , fun e_in => e_not_root ((C.mem_CL_iff e).mp e_in) ⟩
 
 /-- Lemma 9.4 (a) -/
 lemma LoadedCluster.all_right_loaded (C : LoadedCluster tab) :
