@@ -1338,20 +1338,24 @@ theorem exists_rewinds_middle {a b c : PathIn tab} (h : a ≤ b) (h' : b ≤ c) 
 @[simp]
 def Finset.join [DecidableEq α] (M : Finset (Finset α)) : Finset α := M.sup id
 
-def allPaths : (tab : Tableau Hist X) → Finset (PathIn tab)
-| .loc _ _ lt next => { .nil } ∪
-    ((endNodesOf lt).attach.map
-      (fun Y => (allPaths (next Y.1 Y.2)).image (fun p => PathIn.loc Y.2 p))
-    ).toFinset.join
-| .pdl _ _ _ next => { .nil } ∪ (allPaths next).image (fun p => PathIn.pdl p)
-| .lrep _ => { .nil }
+def allPaths : (tab : Tableau Hist X) → List (PathIn tab)
+| .loc _ _ lt next => .nil ::
+    (endNodesOf lt).attach.flatMap
+      (fun Y => (allPaths (next Y.1 Y.2)).map (fun p => PathIn.loc Y.2 p))
+| .pdl _ _ _ next => .nil :: (allPaths next).map (fun p => PathIn.pdl p)
+| .lrep _ => [ .nil ]
 
-theorem allPaths_loc_cases (s : PathIn _) : s ∈ allPaths (.loc nrep nbas lt next) ↔
-      s = PathIn.nil
-    ∨ ∃ (Y : Sequent) (Y_in : Y ∈ endNodesOf lt) (t : allPaths (next Y Y_in)),
-        s = PathIn.loc Y_in t := by
-  unfold allPaths
-  aesop
+theorem allPaths_loc_cases (s : PathIn _) :
+    s ∈ allPaths (.loc nrep nbas lt next) ↔
+        s = PathIn.nil
+      ∨ ∃ (Y : Sequent) (Y_in : Y ∈ endNodesOf lt) (t :  PathIn (next Y Y_in)),
+          t ∈ allPaths (next Y Y_in) ∧
+          s = PathIn.loc Y_in t := by
+  constructor <;> intro hyp
+  · unfold allPaths at hyp
+    aesop
+  · unfold allPaths
+    aesop
 
 theorem PathIn.elem_allPaths {Hist X} {tab : Tableau Hist X} (p : PathIn tab) :
     p ∈ allPaths tab := by
@@ -1376,7 +1380,7 @@ theorem PathIn.elem_allPaths {Hist X} {tab : Tableau Hist X} (p : PathIn tab) :
 /-- A Tableau is finite.
 Should be useful to get *converse* well-foundedness of `edge` -/
 instance PathIn.instFintype {tab : Tableau Hist X} : Fintype (PathIn tab) := by
-  refine ⟨allPaths tab, PathIn.elem_allPaths⟩
+  refine ⟨(allPaths tab).toFinset, fun p => List.mem_toFinset.mpr p.elem_allPaths⟩
 
 -- mathlib?
 theorem Finite.wellfounded_of_irrefl_TC {α : Type} [Finite α] (r : α → α → Prop)
