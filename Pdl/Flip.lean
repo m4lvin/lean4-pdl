@@ -512,7 +512,6 @@ theorem PathIn.flip_flip {Hist X} {tab : Tableau Hist X} (p : PathIn tab) :
       apply heq_of_eq; congr 1
     all_goals (try exact proof_irrel_heq _ _)
     all_goals (try (simp))
-
 /-- Undo `PathIn.flip`: flipping twice is the identity (up to the cast). -/
 def PathIn.unflip {X} {tab : Tableau .nil X} (p : PathIn tab.flip) : PathIn tab :=
   PathIn_type_flip_flip ▸ p.flip
@@ -520,18 +519,340 @@ def PathIn.unflip {X} {tab : Tableau .nil X} (p : PathIn tab.flip) : PathIn tab 
 @[simp]
 lemma PathIn.flip_unflip {X} {tab : Tableau .nil X} (p : PathIn tab.flip) :
     p.unflip.flip = p := by
-  sorry
+  apply eq_of_heq
+  refine HEq.trans ?_ (eqRec_heq_iff_heq.mp (heq_of_eq (PathIn.flip_flip p)))
+  refine PathIn_flip_heq (by simp) (by simp) ((flip_aux_Tableau_flip_flip_heq tab).symm) ?_
+  unfold PathIn.unflip
+  exact cast_heq _ _
+
+/-- A child of a `loc` path is again a `loc` path with the same first step. -/
+lemma edge_loc_shape {Hist X Y} {nrep nbas} {lt : LocalTableau X}
+    {next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: Hist) Y}
+    {Y_in : Y ∈ endNodesOf lt} {t : PathIn (next Y Y_in)}
+    {q : PathIn (Tableau.loc nrep nbas lt next)} :
+    (PathIn.loc Y_in t) ⋖_ q → ∃ s, q = PathIn.loc Y_in s ∧ t ⋖_ s := by
+  rintro (⟨Hist', X', nrep', nbas', lt', next', Z, Z_in, h, rfl⟩
+        | ⟨Hist', X', nrep', bas', Z, r, next', h, rfl⟩)
+  · exact ⟨t.append (h ▸ PathIn.loc Z_in .nil), rfl,
+      Or.inl ⟨Hist', X', nrep', nbas', lt', next', Z, Z_in, h, rfl⟩⟩
+  · exact ⟨t.append (h ▸ PathIn.pdl .nil), rfl,
+      Or.inr ⟨Hist', X', nrep', bas', Z, r, next', h, rfl⟩⟩
+
+/-- A child of a `pdl` path is again a `pdl` path. -/
+lemma edge_pdl_shape {Hist X Y} {nrep bas} {r : PdlRule X Y} {nx : Tableau (X :: Hist) Y}
+    {t : PathIn nx} {q : PathIn (Tableau.pdl nrep bas r nx)} :
+    (PathIn.pdl t) ⋖_ q → ∃ s, q = PathIn.pdl s ∧ t ⋖_ s := by
+  rintro (⟨Hist', X', nrep', nbas', lt', next', Z, Z_in, h, rfl⟩
+        | ⟨Hist', X', nrep', bas', Z, r', next', h, rfl⟩)
+  · exact ⟨t.append (h ▸ PathIn.loc Z_in .nil), rfl,
+      Or.inl ⟨Hist', X', nrep', nbas', lt', next', Z, Z_in, h, rfl⟩⟩
+  · exact ⟨t.append (h ▸ PathIn.pdl .nil), rfl,
+      Or.inr ⟨Hist', X', nrep', bas', Z, r', next', h, rfl⟩⟩
+
+/-- A path of length zero is the empty path. -/
+lemma PathIn.eq_nil_of_length_zero {Hist X} {tab : Tableau Hist X} {p : PathIn tab} :
+    p.length = 0 → p = .nil := by
+  cases p <;> simp
+
+/-- The `edge` relation only depends on paths up to heterogeneous equality. -/
+lemma edge_heq_congr {H1 X1 H2 X2} {t1 : Tableau H1 X1} {t2 : Tableau H2 X2}
+    {p1 q1 : PathIn t1} {p2 q2 : PathIn t2}
+    (hH : H1 = H2) (hX : X1 = X2) (ht : HEq t1 t2) (hp : HEq p1 p2) (hq : HEq q1 q2) :
+    (p1 ⋖_ q1) ↔ (p2 ⋖_ q2) := by
+  subst hH hX
+  obtain rfl := eq_of_heq ht
+  rw [eq_of_heq hp, eq_of_heq hq]
+
+/-- The length of a path only depends on it up to heterogeneous equality. -/
+lemma PathIn.length_heq_congr {H1 X1 H2 X2} {t1 : Tableau H1 X1} {t2 : Tableau H2 X2}
+    {p1 : PathIn t1} {p2 : PathIn t2}
+    (hH : H1 = H2) (hX : X1 = X2) (ht : HEq t1 t2) (hp : HEq p1 p2) :
+    p1.length = p2.length := by
+  subst hH hX
+  obtain rfl := eq_of_heq ht
+  rw [eq_of_heq hp]
+
+/-- Flipping a path does not change its length. -/
+lemma PathIn.flip_length {Hist X} {tab : Tableau Hist X} (p : PathIn tab) :
+    p.flip.length = p.length := by
+  induction p
+  case nil => simp [PathIn.flip]
+  case loc Hist X nflprep nbas lt next Y Y_in tail IH =>
+    simp only [PathIn.flip, PathIn.length]
+    rw [← IH]
+    congr 1
+    refine PathIn.length_heq_congr (by simp) (by simp) ?_ (flip_aux_eq_mpr_heq _ _)
+    refine HEq.trans (eqRec_heq _ _) ?_
+    exact Tableau_flip_heq (by simp) (by simp) (by congr 1 <;> simp)
+  case pdl IH => simp only [PathIn.flip, PathIn.length]; rw [IH]
+
+/-- Variant of `nil_edge_loc_nil` where the tail is only known to have length zero. -/
+lemma nil_edge_loc_of_length_zero {Hist X Y} {nrep nbas} {lt : LocalTableau X}
+    {next : (Y : Sequent) → Y ∈ endNodesOf lt → Tableau (X :: Hist) Y}
+    {Y_in : Y ∈ endNodesOf lt} {u : PathIn (next Y Y_in)} (hu : u.length = 0) :
+    (.nil : PathIn (Tableau.loc nrep nbas lt next)) ⋖_ (PathIn.loc Y_in u) := by
+  rw [PathIn.eq_nil_of_length_zero hu]
+  exact nil_edge_loc_nil
+
+/-- Variant of `nil_edge_pdl_nil` where the tail is only known to have length zero. -/
+lemma nil_edge_pdl_of_length_zero {Hist X Y} {nrep bas} {r : PdlRule X Y}
+    {nx : Tableau (X :: Hist) Y} {u : PathIn nx} (hu : u.length = 0) :
+    (.nil : PathIn (Tableau.pdl nrep bas r nx)) ⋖_ (PathIn.pdl u) := by
+  rw [PathIn.eq_nil_of_length_zero hu]
+  exact nil_edge_pdl_nil
+
+/-- Flipping a tableau preserves the child relation. -/
+lemma edge_flip_of_edge {Hist X} {tab : Tableau Hist X} :
+    ∀ (p q : PathIn tab), p ⋖_ q → p.flip ⋖_ q.flip := by
+  intro p
+  induction p with
+  | nil =>
+    intro q pq
+    cases q with
+    | nil => exact absurd pq edge_is_irreflexive
+    | loc Y_in s =>
+      have hs : s.length = 0 := by
+        have := length_succ_eq_length_of_edge pq
+        simp only [PathIn.length] at this
+        omega
+      simp only [PathIn.flip]
+      apply nil_edge_loc_of_length_zero
+      refine (PathIn.length_heq_congr (by simp) (by simp) ?_ (flip_aux_eq_mpr_heq _ _)).trans ?_
+      · exact HEq.trans (eqRec_heq _ _) (Tableau_flip_heq (by simp) (by simp)
+          (by congr 1 <;> simp))
+      · rw [PathIn.flip_length]; exact hs
+    | pdl s =>
+      have hs : s.length = 0 := by
+        have := length_succ_eq_length_of_edge pq
+        simp only [PathIn.length] at this
+        omega
+      simp only [PathIn.flip]
+      exact nil_edge_pdl_of_length_zero (by rw [PathIn.flip_length]; exact hs)
+  | loc Y_in t IH =>
+    intro q pq
+    obtain ⟨s, rfl, ts⟩ := edge_loc_shape pq
+    simp only [PathIn.flip]
+    rw [loc_edge_loc_iff_edge]
+    refine (edge_heq_congr (by simp) (by simp) ?_ (flip_aux_eq_mpr_heq _ _)
+      (flip_aux_eq_mpr_heq _ _)).mpr (IH s ts)
+    exact HEq.trans (eqRec_heq _ _) (Tableau_flip_heq (by simp) (by simp)
+      (by congr 1 <;> simp))
+  | pdl t IH =>
+    intro q pq
+    obtain ⟨s, rfl, ts⟩ := edge_pdl_shape pq
+    simp only [PathIn.flip]
+    rw [pdl_edge_pdl_iff_edge]
+    exact IH s ts
 
 /-- Flipping a tableau does not change which nodes are children of which. -/
-lemma edge_flip {X} {tab : Tableau .nil X} {p q : PathIn tab} :
+lemma edge_flip {H X} {tab : Tableau H X} {p q : PathIn tab} :
     (p.flip ⋖_ q.flip) ↔ p ⋖_ q := by
-  sorry
+  constructor
+  · intro h
+    refine (edge_heq_congr (H2 := H) (X2 := X) (by simp) (by simp)
+      (flip_aux_Tableau_flip_flip_heq tab)
+      (eqRec_heq_iff_heq.mp (heq_of_eq (PathIn.flip_flip p)))
+      (eqRec_heq_iff_heq.mp (heq_of_eq (PathIn.flip_flip q)))).mp (edge_flip_of_edge _ _ h)
+  · exact edge_flip_of_edge p q
+
+/-- The tableau at a path only depends on it up to heterogeneous equality. -/
+lemma tabAt_heq_congr {H1 X1 H2 X2} {t1 : Tableau H1 X1} {t2 : Tableau H2 X2}
+    {p1 : PathIn t1} {p2 : PathIn t2}
+    (hH : H1 = H2) (hX : X1 = X2) (ht : HEq t1 t2) (hp : HEq p1 p2) :
+    tabAt p1 = tabAt p2 := by
+  subst hH hX
+  obtain rfl := eq_of_heq ht
+  rw [eq_of_heq hp]
+
+/-- The history of a path only depends on it up to heterogeneous equality. -/
+lemma toHistory_heq_congr {H1 X1 H2 X2} {t1 : Tableau H1 X1} {t2 : Tableau H2 X2}
+    {p1 : PathIn t1} {p2 : PathIn t2}
+    (hH : H1 = H2) (hX : X1 = X2) (ht : HEq t1 t2) (hp : HEq p1 p2) :
+    p1.toHistory = p2.toHistory := by
+  subst hH hX
+  obtain rfl := eq_of_heq ht
+  rw [eq_of_heq hp]
+
+/-- The tableau at a flipped path is the flip of the tableau at the original path. -/
+lemma tabAt_flip {Hist X} {tab : Tableau Hist X} (p : PathIn tab) :
+    tabAt p.flip
+      = ⟨List.map Sequent.flip (tabAt p).1, (tabAt p).2.1.flip, (tabAt p).2.2.flip⟩ := by
+  induction p
+  case nil => simp [PathIn.flip, tabAt]
+  case loc Hist X nflprep nbas lt next Y Y_in tail IH =>
+    simp only [PathIn.flip]
+    change _ = (⟨List.map Sequent.flip (tabAt tail).1, (tabAt tail).2.1.flip,
+      (tabAt tail).2.2.flip⟩ : Σ H X, Tableau H X)
+    rw [← IH]
+    refine Eq.trans tabAt_loc (tabAt_heq_congr (by simp) (by simp) ?_ (flip_aux_eq_mpr_heq _ _))
+    exact HEq.trans (eqRec_heq _ _) (Tableau_flip_heq (by simp) (by simp)
+      (by congr 1 <;> simp))
+  case pdl IH => simpa only [PathIn.flip, tabAt_pdl] using IH
+
+/-- The history of a flipped path is the flip of the history of the original path. -/
+lemma toHistory_flip {Hist X} {tab : Tableau Hist X} (p : PathIn tab) :
+    p.flip.toHistory = List.map Sequent.flip p.toHistory := by
+  induction p
+  case nil => simp [PathIn.flip, PathIn.toHistory]
+  case loc Hist X nflprep nbas lt next Y Y_in tail IH =>
+    simp only [PathIn.flip, PathIn.toHistory, List.map_append, List.map_cons, List.map_nil]
+    rw [← IH]
+    congr 1
+    refine toHistory_heq_congr (by simp) (by simp) ?_ (flip_aux_eq_mpr_heq _ _)
+    exact HEq.trans (eqRec_heq _ _) (Tableau_flip_heq (by simp) (by simp)
+      (by congr 1 <;> simp))
+  case pdl IH =>
+    simp only [PathIn.flip, PathIn.toHistory, List.map_append, List.map_cons, List.map_nil]
+    rw [IH]
+
+/-- Rewinding only depends on the path up to heterogeneous equality,
+and on the index only via its value. -/
+lemma PathIn.rewind_heq_congr {H1 X1 H2 X2} {t1 : Tableau H1 X1} {t2 : Tableau H2 X2}
+    {p1 : PathIn t1} {p2 : PathIn t2} {k1 : Fin (p1.toHistory.length + 1)}
+    {k2 : Fin (p2.toHistory.length + 1)}
+    (hH : H1 = H2) (hX : X1 = X2) (ht : HEq t1 t2) (hp : HEq p1 p2) (hk : (k1 : ℕ) = (k2 : ℕ)) :
+    HEq (p1.rewind k1) (p2.rewind k2) := by
+  subst hH hX
+  obtain rfl := eq_of_heq ht
+  obtain rfl := eq_of_heq hp
+  obtain rfl : k1 = k2 := Fin.ext hk
+  rfl
+
+/-- Flipping commutes with rewinding. -/
+lemma PathIn.flip_rewind {Hist X} {tab : Tableau Hist X} (p : PathIn tab) :
+    ∀ (k : Fin (p.toHistory.length + 1)) (k' : Fin (p.flip.toHistory.length + 1)),
+    (k : ℕ) = (k' : ℕ) → (p.rewind k).flip = p.flip.rewind k' := by
+  induction p
+  case nil =>
+    intro k k' hk
+    simp [PathIn.rewind, PathIn.flip]
+  case loc Hist X nflprep nbas lt next Y Y_in tail IH =>
+    have hL : ((PathIn.loc Y_in tail :
+        PathIn (Tableau.loc nflprep nbas lt next)).flip).toHistory.length
+        = tail.toHistory.length + 1 := by rw [toHistory_flip]; simp
+    simp only [PathIn.flip] at hL
+    simp only [PathIn.flip]
+    intro k k' hk
+    cases k using Fin.lastCases with
+    | last =>
+      cases k' using Fin.lastCases with
+      | last => simp [PathIn.rewind, PathIn.flip]
+      | cast j' =>
+        exfalso
+        have hj := j'.isLt
+        simp only [Fin.val_last, Fin.val_castSucc, PathIn.loc_length_eq] at hk
+        omega
+    | cast j =>
+      cases k' using Fin.lastCases with
+      | last =>
+        exfalso
+        have hj := j.isLt
+        simp only [PathIn.loc_length_eq] at hj
+        simp only [Fin.val_last, Fin.val_castSucc] at hk
+        rw [hL] at hk
+        omega
+      | cast j' =>
+        simp only [PathIn.rewind, Fin.lastCases_castSucc, Function.comp_apply, PathIn.flip]
+        congr 1
+        have hlen : tail.flip.toHistory.length = tail.toHistory.length := by
+          rw [toHistory_flip]; simp
+        have hm : (j : ℕ) < tail.flip.toHistory.length + 1 := by
+          have := j.isLt
+          simp only [PathIn.loc_length_eq] at this
+          omega
+        apply eq_of_heq
+        refine HEq.trans (flip_aux_eq_mpr_heq _ _) ?_
+        rw [IH (Fin.cast (PathIn.loc_length_eq Y_in tail) j) ⟨j, hm⟩ rfl]
+        refine PathIn.rewind_heq_congr (by simp) (by simp) ?_ (flip_aux_eq_mpr_heq _ _).symm ?_
+        · exact (HEq.trans (eqRec_heq _ _) (Tableau_flip_heq (by simp) (by simp)
+            (by congr 1 <;> simp))).symm
+        · simp only [Fin.val_castSucc] at hk
+          simpa using hk
+  case pdl Hist X Z nrep bas r nx tail IH =>
+    simp only [PathIn.flip]
+    intro k k' hk
+    cases k using Fin.lastCases with
+    | last =>
+      cases k' using Fin.lastCases with
+      | last => simp [PathIn.rewind, PathIn.flip]
+      | cast j' =>
+        exfalso
+        have := j'.isLt
+        simp only [Fin.val_last, Fin.val_castSucc, PathIn.pdl_length_eq] at hk this
+        rw [toHistory_flip] at this
+        simp at this
+        omega
+    | cast j =>
+      cases k' using Fin.lastCases with
+      | last =>
+        exfalso
+        have := j.isLt
+        simp only [Fin.val_last, Fin.val_castSucc, PathIn.pdl_length_eq] at hk this
+        rw [toHistory_flip] at hk
+        simp at hk
+        omega
+      | cast j' =>
+        simp only [PathIn.rewind, Fin.lastCases_castSucc, Function.comp_apply, PathIn.flip]
+        congr 1
+        refine IH _ _ ?_
+        simp only [Fin.val_castSucc] at hk
+        simpa using hk
+
+/-- If a path ends in a loaded-path-repeat, then so does the flipped path,
+with a repeat at the same position in the history. -/
+lemma tabAt_flip_lrep {Hist X} {tab : Tableau Hist X} (p : PathIn tab) lpr
+    (h : (tabAt p).2.2 = .lrep lpr) :
+    ∃ lpr' : LoadedPathRepeat (tabAt p.flip).1 (tabAt p.flip).2.1,
+      (tabAt p.flip).2.2 = .lrep lpr' ∧ (lpr'.1 : ℕ) = (lpr.1 : ℕ) := by
+  rw [tabAt_flip p, h]
+  refine ⟨lpr.flip, by simp [Tableau.flip], ?_⟩
+  rcases lpr with ⟨k, hk⟩
+  simp [LoadedPathRepeat.flip]
+
+/-- Flipping a tableau preserves the companion relation. -/
+lemma companion_flip_of_companion {X} {tab : Tableau .nil X} {p q : PathIn tab} :
+    p ♥ q → p.flip ♥ q.flip := by
+  rintro ⟨lpr, h, rfl⟩
+  obtain ⟨lpr', h', hval⟩ := tabAt_flip_lrep p lpr h
+  refine ⟨lpr', h', ?_⟩
+  unfold companionOf
+  apply PathIn.flip_rewind
+  simp [hval]
+
+/-- Flipping a tableau preserves the `cEdge` relation `◃`. -/
+lemma cEdge_flip_of_cEdge {X} {tab : Tableau .nil X} {p q : PathIn tab} :
+    p ◃ q → p.flip ◃ q.flip := by
+  rintro (h | h)
+  · exact Or.inl (edge_flip_of_edge _ _ h)
+  · exact Or.inr (companion_flip_of_companion h)
+
+/-- Flipping a tableau preserves reachability via `◃`. -/
+lemma cReach_flip_of_cReach {X} {tab : Tableau .nil X} {p q : PathIn tab} :
+    p ◃* q → p.flip ◃* q.flip := by
+  intro h
+  induction h with
+  | refl => exact Relation.ReflTransGen.refl
+  | tail _ hstep ih => exact ih.tail (cEdge_flip_of_cEdge hstep)
+
+/-- Reachability via `◃` only depends on paths up to heterogeneous equality. -/
+lemma cReach_heq_congr {X1 X2} {t1 : Tableau [] X1} {t2 : Tableau [] X2}
+    {p1 q1 : PathIn t1} {p2 q2 : PathIn t2}
+    (hX : X1 = X2) (ht : HEq t1 t2) (hp : HEq p1 p2) (hq : HEq q1 q2) :
+    (p1 ◃* q1) ↔ (p2 ◃* q2) := by
+  subst hX
+  obtain rfl := eq_of_heq ht
+  rw [eq_of_heq hp, eq_of_heq hq]
 
 /-- Flipping a tableau changes neither the child nor the companion relation,
 hence it also does not change reachability. -/
 lemma cReach_flip {X} {tab : Tableau .nil X} {p q : PathIn tab} :
     (p.flip ◃* q.flip) ↔ p ◃* q := by
-  sorry
+  constructor
+  · intro h
+    exact (cReach_heq_congr (X2 := X) (by simp) (flip_aux_Tableau_flip_flip_heq tab)
+      (eqRec_heq_iff_heq.mp (heq_of_eq (PathIn.flip_flip p)))
+      (eqRec_heq_iff_heq.mp (heq_of_eq (PathIn.flip_flip q)))).mp (cReach_flip_of_cReach h)
+  · exact cReach_flip_of_cReach
 
 lemma cEquiv_flip {X} {tab : Tableau .nil X} {p q : PathIn tab} :
     (p.flip ≡ᶜ q.flip) ↔ p ≡ᶜ q := by
