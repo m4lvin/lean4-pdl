@@ -9,6 +9,8 @@ Note that we can skip much of Subsection 8.2 because we worked already with spli
 NOTE: We may need extra work for *uniformity* though.
 -/
 
+variable {X : Sequent} {tab : Tableau .nil X}
+
 /-! ### Computing the cluster of a node
 
 We define the lists `loadedBelow` and `loadedAbove` of nodes that are reachable from / can reach
@@ -18,26 +20,26 @@ those nodes that are `◃`-related to `p` in the desired direction.
 Then `clusterListOf_spec` is immediate. -/
 
 /-- Loaded nodes "below" the given one, also allowing ♥ steps. Includes the node itself. -/
-def loadedBelow {X} {tab : Tableau .nil X} (p : PathIn tab) : List (PathIn tab) :=
+def loadedBelow (p : PathIn tab) : List (PathIn tab) :=
   p :: (allPaths tab).filter (fun q => ((p ◃⁺ q) ∧ (nodeAt q).isLoaded))
 
 /-- Loaded nodes "above" the given one, also allowing *backwards* ♥ steps.
 Includes the node itself. -/
-def loadedAbove {X} {tab : Tableau .nil X} (p : PathIn tab) : List (PathIn tab) :=
+def loadedAbove (p : PathIn tab) : List (PathIn tab) :=
   p :: (allPaths tab).filter (fun q => decide ((q ◃⁺ p) ∧ (nodeAt q).isLoaded))
 
 @[simp]
-lemma mem_loadedBelow {X} {tab : Tableau .nil X} {p q : PathIn tab} :
+lemma mem_loadedBelow {p q : PathIn tab} :
     q ∈ loadedBelow p  ↔  q = p ∨ ((p ◃⁺ q) ∧ (nodeAt q).isLoaded) := by
   simp [loadedBelow, PathIn.elem_allPaths]
 
 @[simp]
-lemma mem_loadedAbove {X} {tab : Tableau .nil X} {p q : PathIn tab} :
+lemma mem_loadedAbove {p q : PathIn tab} :
     q ∈ loadedAbove p  ↔  q = p ∨ ((q ◃⁺ p) ∧ (nodeAt q).isLoaded) := by
   simp [loadedAbove, PathIn.elem_allPaths]
 
 /-- A free node is alone in its cluster (cf. Remark 4.18 in the paper). -/
-lemma eq_of_cEquiv_of_isFree {X} {tab : Tableau .nil X} {p q : PathIn tab}
+lemma eq_of_cEquiv_of_isFree {p q : PathIn tab}
     (p_free : (nodeAt p).isFree) (p_q : p ≡ᶜ q) : q = p := by
   rcases p_q with ⟨p_to_q, q_to_p⟩
   rcases Relation.ReflTransGen.cases_head p_to_q with p_eq_q | ⟨l, p_l, l_to_q⟩
@@ -58,10 +60,10 @@ lemma eq_of_cEquiv_of_isFree {X} {tab : Tableau .nil X} {p q : PathIn tab}
 
 /-- List of all other nodes in the same cluster, essentially a constructive version of `clusterOf`.
 Computed as the intersection of `loadedAbove` and `loadedBelow`. -/
-def clusterListOf {X} {tab : Tableau .nil X} (p : PathIn tab) : List (PathIn tab) :=
+def clusterListOf (p : PathIn tab) : List (PathIn tab) :=
   loadedBelow p  ∩  loadedAbove p
 
-lemma clusterListOf_spec {X} {tab : Tableau .nil X} {q : PathIn tab} (p : PathIn tab) :
+lemma clusterListOf_spec {q : PathIn tab} (p : PathIn tab) :
     q ∈ clusterListOf p  ↔  p ≡ᶜ q := by
   rw [clusterListOf, List.mem_inter_iff, mem_loadedBelow, mem_loadedAbove]
   constructor
@@ -91,10 +93,10 @@ cluster along the branch leading to `s`.
 Note that this is *vacuously true* for `.nil`, the root of the whole tableau, which has no
 parent at all. This is why we quantify over all parents instead of demanding that a parent
 exists: the root of a tableau may already be loaded. -/
-def PathIn.isClusterRoot {X} {tab : Tableau .nil X} (s : PathIn tab) : Prop :=
+def PathIn.isClusterRoot (s : PathIn tab) : Prop :=
   ∀ p : PathIn tab, p ⋖_ s → ¬ s ◃* p
 
-lemma PathIn.isClusterRoot_flip {X} {tab : Tableau .nil X} {p : PathIn tab}
+lemma PathIn.isClusterRoot_flip {p : PathIn tab}
     (h : p.isClusterRoot) : (p.flip).isClusterRoot := by
   intro q q_edge
   rw [← PathIn.flip_unflip q] at q_edge ⊢
@@ -103,7 +105,7 @@ lemma PathIn.isClusterRoot_flip {X} {tab : Tableau .nil X} {p : PathIn tab}
   exact h _ q_edge
 
 /-- The root of the whole tableau is a cluster root, because it has no parent. -/
-lemma PathIn.isClusterRoot_nil {X} {tab : Tableau .nil X} :
+lemma PathIn.isClusterRoot_nil :
     (PathIn.nil : PathIn tab).isClusterRoot := by
   intro p p_nil
   exfalso
@@ -111,7 +113,7 @@ lemma PathIn.isClusterRoot_nil {X} {tab : Tableau .nil X} :
   simp at this
 
 /-- Equivalent formulation of `PathIn.isClusterRoot` using `≡ᶜ`. -/
-lemma PathIn.isClusterRoot_iff {X} {tab : Tableau .nil X} {s : PathIn tab} :
+lemma PathIn.isClusterRoot_iff {s : PathIn tab} :
     s.isClusterRoot ↔ ∀ p : PathIn tab, p ⋖_ s → ¬ p ≡ᶜ s := by
   unfold PathIn.isClusterRoot cEquiv
   constructor
@@ -122,7 +124,7 @@ lemma PathIn.isClusterRoot_iff {X} {tab : Tableau .nil X} {s : PathIn tab} :
 
 /-- If the parent of `t` is free, then `t` is a cluster root.
 This is the case for all children of free nodes in the recursion of `tabToIntAt`. -/
-lemma PathIn.isClusterRoot_of_edge_from_free {X} {tab : Tableau .nil X} {s t : PathIn tab}
+lemma PathIn.isClusterRoot_of_edge_from_free {s t : PathIn tab}
     (s_free : (nodeAt s).isFree) (s_t : s ⋖_ t) : t.isClusterRoot := by
   rw [PathIn.isClusterRoot_iff]
   intro p p_t
@@ -132,17 +134,17 @@ lemma PathIn.isClusterRoot_of_edge_from_free {X} {tab : Tableau .nil X} {s t : P
 
 /-- If all parents of `s` are free — which for a loaded `s` says exactly that `s` is the
 first loaded node along the branch leading to it — then `s` is a cluster root. -/
-lemma PathIn.isClusterRoot_of_parents_free {X} {tab : Tableau .nil X} {s : PathIn tab}
+lemma PathIn.isClusterRoot_of_parents_free {s : PathIn tab}
     (h : ∀ p : PathIn tab, p ⋖_ s → (nodeAt p).isFree) : s.isClusterRoot := by
   intro p p_s
   exact PathIn.isClusterRoot_of_edge_from_free (h p p_s) p_s p p_s
 
 /-- Def 8.14: `e` is an *exit* of the cluster of `s`, i.e. `e ∈ C⁺ \ C` where `C` is the
 cluster of `s`: it is not in the cluster of `s`, but it is a child of a node in it. -/
-def isExitOf {X} {tab : Tableau .nil X} (s e : PathIn tab) : Prop :=
+def isExitOf (s e : PathIn tab) : Prop :=
   ¬ (e ≡ᶜ s)  ∧  ∃ t : PathIn tab, (t ≡ᶜ s) ∧ t ⋖_ e
 
-lemma isExitOf_flip {X} {tab : Tableau .nil X} {s e : PathIn tab} :
+lemma isExitOf_flip {s e : PathIn tab} :
     isExitOf s.flip e.flip ↔ isExitOf s e := by
   unfold isExitOf
   rw [cEquiv_flip]
@@ -158,7 +160,7 @@ lemma isExitOf_flip {X} {tab : Tableau .nil X} {s e : PathIn tab} :
 
 /-- Exits of a cluster are cluster roots.
 This is one of the two things needed to keep the `tabToIntAt` recursion going. -/
-lemma isClusterRoot_of_isExitOf {X} {tab : Tableau .nil X} {s e : PathIn tab}
+lemma isClusterRoot_of_isExitOf {s e : PathIn tab}
     (h : isExitOf s e) : e.isClusterRoot := by
   rcases h with ⟨e_not_s, t, t_s, t_e⟩
   rw [PathIn.isClusterRoot_iff]
@@ -170,11 +172,11 @@ lemma isClusterRoot_of_isExitOf {X} {tab : Tableau .nil X} {s e : PathIn tab}
 
 -- FIXME move / already exists with other name?
 /-- Any `⋖_` path is also a `◃` path. -/
-lemma cReach_of_le {X} {tab : Tableau .nil X} {s t : PathIn tab} (h : s ≤ t) : s ◃* t :=
+lemma cReach_of_le {s t : PathIn tab} (h : s ≤ t) : s ◃* t :=
   h.mono (fun _ _ h => Or.inl h)
 
 /-- If `u < s` then some parent of `s` is reachable from `u` (possibly `u` itself). -/
-lemma exists_parent_of_lt {X} {tab : Tableau .nil X} {u s : PathIn tab} (h : u < s) :
+lemma exists_parent_of_lt {u s : PathIn tab} (h : u < s) :
     ∃ p : PathIn tab, u ≤ p ∧ p ⋖_ s := by
   cases h with
   | single u_s => exact ⟨u, Relation.ReflTransGen.refl, u_s⟩
@@ -182,7 +184,7 @@ lemma exists_parent_of_lt {X} {tab : Tableau .nil X} {u s : PathIn tab} (h : u <
 
 /-- Lemma 8.15 (a): clusters are subtrees. Here in the form we need it: the root of a
 cluster is `≤` all nodes of its cluster. -/
-lemma PathIn.le_of_cEquiv_of_isClusterRoot {X} {tab : Tableau .nil X} {s t : PathIn tab}
+lemma PathIn.le_of_cEquiv_of_isClusterRoot {s t : PathIn tab}
     (s_cr : s.isClusterRoot) (h : s ≡ᶜ t) : s ≤ t := by
   -- No node of the cluster of `s` is a proper ancestor of `s`:
   have not_lt : ∀ u : PathIn tab, u < s → s ◃* u → False := by
@@ -217,7 +219,7 @@ lemma PathIn.le_of_cEquiv_of_isClusterRoot {X} {tab : Tableau .nil X} {s t : Pat
 /-- Exits of the cluster of a cluster root `s` are proper descendants of `s`.
 This is the second thing needed to keep the `tabToIntAt` recursion going, and it needs
 that clusters are subtrees, i.e. Lemma 8.15 (a). -/
-lemma lt_of_isExitOf {X} {tab : Tableau .nil X} {s e : PathIn tab}
+lemma lt_of_isExitOf {s e : PathIn tab}
     (s_cr : s.isClusterRoot) (h : isExitOf s e) : s < e := by
   obtain ⟨-, t, t_s, t_e⟩ := h
   have s_le_t : s ≤ t := PathIn.le_of_cEquiv_of_isClusterRoot s_cr ((cEquiv.symm t s).mp t_s)
@@ -247,12 +249,14 @@ structure LoadedCluster {X} (tab : Tableau .nil X) where
   /-- The root can reach all nodes of the cluster. -/
   root_reaches_all : ∀ s ∈ CL, root ◃* s
 
+namespace LoadedCluster
+
 -- The entry point is `clusterInterpolation`, which is given a node together with a proof
 -- that it is a cluster root, and uses `LoadedCluster.ofClusterRoot` below.
 
 /-- Make the `LoadedCluster` of a right-loaded node that is the first node of its cluster.
 This is the way `tabToIntAt` now gets hold of a `LoadedCluster`. -/
-def LoadedCluster.ofClusterRoot {X} {tab : Tableau .nil X} (s : PathIn tab)
+def ofClusterRoot (s : PathIn tab)
     (s_cr : s.isClusterRoot) (s_loaded_right : (nodeAt s).2.2.isRight) : LoadedCluster tab where
   root := s
   root_not_to_parent := s_cr
@@ -275,21 +279,21 @@ def LoadedCluster.ofClusterRoot {X} {tab : Tableau .nil X} (s : PathIn tab)
     exact u_in.1
 
 /-- The exits of the cluster, i.e. `C⁺ \ C` from Def 8.14. -/
-def LoadedCluster.exits (C : LoadedCluster tab) : List (PathIn tab) :=
+def exits (C : LoadedCluster tab) : List (PathIn tab) :=
   (C.CL.flatMap (fun t => t.children.map Subtype.val)).filter (fun e => e ∉ C.CL)
 
 /-- C⁺, the cluster plus its exits. -/
-def LoadedCluster.CL_plus (C : LoadedCluster tab) : List (PathIn tab) :=
+def CL_plus (C : LoadedCluster tab) : List (PathIn tab) :=
   C.CL ++ C.exits
 
 /-- The list `C.CL` contains exactly the exits in the sense of `isExitOf`. -/
-lemma LoadedCluster.mem_CL_iff (C : LoadedCluster tab) (p : PathIn tab) :
+lemma mem_CL_iff (C : LoadedCluster tab) (p : PathIn tab) :
     p ∈ C.CL ↔ p ≡ᶜ C.root :=
   ⟨ fun p_in => C.CL_equiv p p_in C.root C.root_mem_CL
   , fun p_c_root => C.CL_complete C.root C.root_mem_CL p ((cEquiv.symm p C.root).mp p_c_root) ⟩
 
 /-- The list `C.exits` contains exactly the exits in the sense of `isExitOf`. -/
-lemma LoadedCluster.mem_exits_iff (C : LoadedCluster tab) (e : PathIn tab) :
+lemma mem_exits_iff (C : LoadedCluster tab) (e : PathIn tab) :
     e ∈ C.exits ↔ isExitOf C.root e := by
   rw [LoadedCluster.exits, List.mem_filter, List.mem_flatMap]
   simp only [decide_eq_true_eq, isExitOf, ← PathIn.children_spec]
@@ -302,27 +306,27 @@ lemma LoadedCluster.mem_exits_iff (C : LoadedCluster tab) (e : PathIn tab) :
           , fun e_in => e_not_root ((C.mem_CL_iff e).mp e_in) ⟩
 
 /-- Lemma 9.4 (a) -/
-lemma LoadedCluster.all_right_loaded (C : LoadedCluster tab) :
+lemma all_right_loaded (C : LoadedCluster tab) :
     ∀ t ∈ C.CL, (nodeAt t).2.2.isRight := by
   sorry
 
 /-- Lemma 9.4 (b) -/
-lemma LoadedCluster.left_empty_iff_root_left_empty (C : LoadedCluster tab) :
+lemma left_empty_iff_root_left_empty (C : LoadedCluster tab) :
     ∀ t ∈ C.CL, (nodeAt t).2.1 = [] ↔ (nodeAt C.root).2.1 = [] := by
   sorry
 
 /-- Part of Lemma 9.4 (c): All children of t belong to C⁺. -/
-lemma LoadedCluster.children_in_plus (C : LoadedCluster tab) :
+lemma children_in_plus (C : LoadedCluster tab) :
     ∀ t ∈ C.CL, ∀ c ∈ t.children, c.val ∈ C.CL_plus := by
   sorry
 
 /-- Part of Lemma 9.4 (c): If t is not an lpr, then at least one child is in C. -/
-lemma LoadedCluster.nonLpr_some_child_in_C (C : LoadedCluster tab) :
+lemma nonLpr_some_child_in_C (C : LoadedCluster tab) :
     ∀ t ∈ C.CL, ¬ t.isLrep → ∃ c ∈ t.children, t ∈ C.CL := by
   sorry
 
 /-- Part of Lemma 9.4 (c): If t is an lpr, then its companion is in C. -/
-lemma LoadedCluster.lpr_comp_in_C (C : LoadedCluster tab) :
+lemma lpr_comp_in_C (C : LoadedCluster tab) :
     ∀ t ∈ C.CL, t ♥ comp → comp ∈ C.CL := by
   sorry
 
@@ -330,11 +334,11 @@ lemma LoadedCluster.lpr_comp_in_C (C : LoadedCluster tab) :
 TODO: `.right` might not get or not keep track of the loaded formula!
 Better use `List WhateverFormula` and `Sequent.wForms` here maybe?
 -/
-def LoadedCluster.nodesWith (C : LoadedCluster tab) (Δ : List Formula) : List (PathIn tab) :=
-    C.CL.filter (fun p => decide ((nodeAt p).right = Δ))
+def nodesWith (C : LoadedCluster tab) (Δ : List Formula) : List (PathIn tab) :=
+  C.CL.filter (fun p => decide ((nodeAt p).right = Δ))
 
-def LoadedCluster.plusNodesWith (C : LoadedCluster tab) (Δ : List Formula) : List (PathIn tab) :=
-    C.CL_plus.filter (fun p => decide ((nodeAt p).right = Δ))
+def plusNodesWith (C : LoadedCluster tab) (Δ : List Formula) : List (PathIn tab) :=
+  C.CL_plus.filter (fun p => decide ((nodeAt p).right = Δ))
 
 -- TODO defs "where a left/right rule is applied"
 
@@ -350,6 +354,7 @@ def LoadedCluster.plusNodesWith (C : LoadedCluster tab) (Δ : List Formula) : Li
 
 -- TODO Lemma 9.7 (f)
 
+end LoadedCluster
 
 def isExitIn : Sequent → List Sequent → Prop := sorry
 
@@ -401,7 +406,7 @@ decreasing_by
 
 /-- Quasi-Tableau from Def 9.8. Here we "start the construction", then use `Qchildren`.
 No names for the nodes as we use an inductive type, so we just write `X` for `Δₓ` -/
-def Q {X} {tab : Tableau .nil X} {r : PathIn tab} : QuasiTab :=
+def Q {r : PathIn tab} : QuasiTab :=
   let X := nodeAt r -- FIXME wlog we only want the right sequent. But `.R` is not enogh !?!?!?!?!?
   QNode .one X (Qchildren ((clusterListOf r).map nodeAt) .one [] X)
 
@@ -414,12 +419,12 @@ lemma IsPartInterpolant.flip : isPartInterpolant X θ → isPartInterpolant X.fl
   grind
 
 /-- Transport an interpolant to the flipped tableau. -/
-def PartInterpolant.flipPath {X} {tab : Tableau .nil X} {p : PathIn tab}
+def PartInterpolant.flipPath {p : PathIn tab}
     (ip : PartInterpolant (nodeAt p)) : PartInterpolant (nodeAt p.flip) :=
   ⟨~ip.1, by rw [PathIn.nodeAt_flip]; exact IsPartInterpolant.flip ip.2⟩
 
 /-- Transport an interpolant back from the flipped tableau. -/
-def PartInterpolant.unflipPath {X} {tab : Tableau .nil X} {p : PathIn tab}
+def PartInterpolant.unflipPath {p : PathIn tab}
     (ip : PartInterpolant (nodeAt p.flip)) : PartInterpolant (nodeAt p) := by
   refine ⟨~ip.1, ?_⟩
   have h : (nodeAt p.flip).flip = nodeAt p := by rw [PathIn.nodeAt_flip, Sequent.flip_flip]
@@ -429,7 +434,7 @@ def PartInterpolant.unflipPath {X} {tab : Tableau .nil X} {p : PathIn tab}
 
 /-- Lemma 9.3 for the case where the loaded formula is on the right side:
 given interpolants for all exits of the cluster `C`, interpolate the root of `C`. -/
-def clusterInterpolation_right {X} {tab : Tableau .nil X} (C : LoadedCluster tab)
+def clusterInterpolation_right (C : LoadedCluster tab)
     (exitIPs : ∀ e ∈ C.exits, PartInterpolant (nodeAt e))
     : PartInterpolant (nodeAt C.root) := by
   sorry
@@ -437,7 +442,7 @@ def clusterInterpolation_right {X} {tab : Tableau .nil X} (C : LoadedCluster tab
 /-- Lemma 9.3: Given a loaded node `s` that is the first node of its cluster, and given
 interpolants for all exits of that cluster, we get an interpolant for `s`.
 Note how `s_cr` is exactly what is needed to make a `LoadedCluster` here. -/
-def clusterInterpolation {X} {tab : Tableau .nil X} (s : PathIn tab)
+def clusterInterpolation (s : PathIn tab)
     (s_cr : s.isClusterRoot) (s_loaded : (nodeAt s).isLoaded)
     (exitIPs : ∀ e : PathIn tab, isExitOf s e → PartInterpolant (nodeAt e))
     : PartInterpolant (nodeAt s) := by
