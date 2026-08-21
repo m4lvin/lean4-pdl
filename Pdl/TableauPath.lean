@@ -332,35 +332,49 @@ instance edge.isAsymm : @Std.Asymm (PathIn tab) edge := by
   constructor
   apply WellFounded.asymmetric edge.wellFounded
 
-/-- Enable "<" notation for transitive closure of ⋖_. -/
-instance : LT (PathIn tab) := ⟨Relation.TransGen edge⟩
-
-/-- Enable "≤" notation for reflexive transitive closure of ⋖_ -/
-instance : LE (PathIn tab) := ⟨Relation.ReflTransGen edge⟩
-
-/-- The "<" in a tableau is antisymmetric. -/
-instance edge.TransGen_isAsymm : @Std.Asymm (PathIn tab) (Relation.TransGen edge) :=
-  ⟨WellFounded.asymmetric (WellFounded.transGen wellFounded)⟩
-
-theorem not_path_nil {a : PathIn tab} : ¬(a < PathIn.nil) := by
-  intro con
-  cases con <;> simp_all [not_edge_nil]
-
 theorem edge_is_strict_ordering {s t : PathIn tab} : s ⋖_ t → s ≠ t := by
   intro s_t set
   have := edge_then_length_lt s_t
   simp_all
 
-theorem path_is_strict_ordering {s t : PathIn tab} : s < t → s ≠ t := by
-intro s_t seqt
-induction s_t
-case single set =>
-  absurd seqt
-  exact edge_is_strict_ordering set
-case tail k t s_k k_t ih =>
-  apply edge.TransGen_isAsymm.1 s k s_k
-  rw [seqt]
-  apply Relation.TransGen.single k_t
+def PathIn.children (p : PathIn tab) : List {q : PathIn tab // p ⋖_ q} :=
+  match h : tabAt p with
+  | ⟨H, X, .loc nflprep nbas lt next⟩ =>
+      (endNodesOf lt).attach.map (fun ⟨Y,Y_in⟩ => ⟨_, edge_append_loc_nil _ _ Y_in h⟩ )
+  | ⟨H,X, .pdl nflprep bas r next⟩ =>
+      [ ⟨_, @edge_append_pdl_nil _ _ _ p (h ▸ nflprep) (h ▸ bas) _ (by convert r; grind)
+            (by convert next <;> grind) (by simp_all; grind)⟩ ]
+  | ⟨H,X, .lrep _⟩ => []
+
+lemma PathIn.children_spec : p ⋖_ q ↔ q ∈ p.children.map Subtype.val := by
+  constructor
+  · rintro (⟨Hist, X, nrep, nbas, lt, next, Y, Y_in, h, rfl⟩
+            | ⟨Hist, X, nrep, bas, Y, r, next, h, rfl⟩)
+      <;> (unfold PathIn.children; split)
+      <;> (rename_i heq; rw [h] at heq)
+    all_goals
+      first
+        -- The cases where the shape of `tabAt p` does not match `h` are contradictory:
+        | (obtain ⟨rfl, hh⟩ := Sigma.mk.injEq .. ▸ heq
+           obtain ⟨rfl, -⟩ := hh
+           done)
+        -- The `loc` case:
+        | (cases heq
+           simp only [List.map_map, List.mem_map, Function.comp_def]
+           exact ⟨⟨Y, Y_in⟩, List.mem_attach _ _, rfl⟩)
+        -- The `pdl` case:
+        | (cases heq
+           simp only [List.map_cons, List.map_nil, List.mem_singleton, append_eq_iff_eq]
+           rw! [h]
+           rfl)
+  · intro hq
+    simp only [List.mem_map] at hq
+    obtain ⟨x, -, rfl⟩ := hq
+    exact x.2
+
+instance instDecidableEdge {H X} {tab : Tableau H X} (p q : PathIn tab) :
+    Decidable (p ⋖_ q) :=
+  decidable_of_iff _ PathIn.children_spec.symm
 
 /-- An induction principle for `PathIn` with a base case at the root of the tableau and
 an induction step using the `edge` relation `⋖_`.
@@ -405,6 +419,33 @@ theorem PathIn.init_inductionOn t {motive : PathIn tab → Prop}
   case lrep =>
     cases t -- path at rep must be nil
     exact root
+
+/-! ## Transitive Closure of the Edge Relation -/
+
+/-- Enable "<" notation for transitive closure of ⋖_. -/
+instance : LT (PathIn tab) := ⟨Relation.TransGen edge⟩
+
+/-- Enable "≤" notation for reflexive transitive closure of ⋖_ -/
+instance : LE (PathIn tab) := ⟨Relation.ReflTransGen edge⟩
+
+/-- The "<" in a tableau is antisymmetric. -/
+instance edge.TransGen_isAsymm : @Std.Asymm (PathIn tab) (Relation.TransGen edge) :=
+  ⟨WellFounded.asymmetric (WellFounded.transGen wellFounded)⟩
+
+theorem not_path_nil {a : PathIn tab} : ¬(a < PathIn.nil) := by
+  intro con
+  cases con <;> simp_all [not_edge_nil]
+
+theorem path_is_strict_ordering {s t : PathIn tab} : s < t → s ≠ t := by
+intro s_t seqt
+induction s_t
+case single set =>
+  absurd seqt
+  exact edge_is_strict_ordering set
+case tail k t s_k k_t ih =>
+  apply edge.TransGen_isAsymm.1 s k s_k
+  rw [seqt]
+  apply Relation.TransGen.single k_t
 
 theorem PathIn.nil_le_anything : PathIn.nil ≤ t := by
   induction t using PathIn.init_inductionOn
@@ -617,7 +658,7 @@ theorem PathIn.prefix_toList_eq_toList_take {tab : Tableau Hist X}
 /-! ## Path Rewinding -/
 
 /-- Rewinding a path, removing the last `k` steps. Cannot go into Hist.
-Used to go to the companion of a repeat. Returns `.nil` when `k` is the length of the whole path.
+Used to go to the `companion` of a repeat. Returns `.nil` when `k` is the length of the whole path.
 We use +1 in the type because `rewind 0` is always possible, even with history `[]`.
 Defined using Fin.lastCases.
 

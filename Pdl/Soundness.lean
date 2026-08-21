@@ -7,6 +7,7 @@ import Pdl.TableauPath
 import Mathlib.Data.ENat.Defs
 
 import Pdl.LocalSoundness
+import Pdl.FinReach
 
 /-! # Soundness (Section 6) -/
 
@@ -133,6 +134,30 @@ def companion {X} {tab : Tableau .nil X} (s t : PathIn tab) : Prop :=
   ∃ (lpr : _) (h : (tabAt s).2.2 = .lrep lpr), t = companionOf s lpr h
 
 notation pa:arg " ♥ " pb:arg => companion pa pb
+
+instance instDecidableCompanion {X} {tab : Tableau .nil X} (p q : PathIn tab) :
+    Decidable (p ♥ q) := by
+  rcases h : (tabAt p).2.2 with _|_|lpr
+  -- If the tableau at `p` is not a repeat then `p` has no companion:
+  · apply isFalse
+    rintro ⟨lpr, h', -⟩
+    rw [h] at h'
+    cases h'
+  · apply isFalse
+    rintro ⟨lpr, h', -⟩
+    rw [h] at h'
+    cases h'
+  -- If it is a repeat, then `q` must be *the* companion of `p`:
+  · refine decidable_of_iff (q = companionOf p lpr h) ?_
+    constructor
+    · rintro rfl
+      exact ⟨lpr, h, rfl⟩
+    · rintro ⟨lpr', h', rfl⟩
+      have lpr_eq : lpr' = lpr := by
+        rw [h] at h'
+        exact (Tableau.lrep.injEq _ _ ▸ h').symm
+      subst lpr_eq
+      rfl
 
 theorem companion_lt {l c : PathIn tab} : l ♥ c → c < l := by
   intro l_hearts_c
@@ -334,6 +359,15 @@ notation pa:arg " ◃* " pb:arg => Relation.ReflTransGen cEdge pa pb
 /-- We have: ◃ = ⋖_ ∪ ♥ -/
 example : pa ◃ pb ↔ (pa ⋖_ pb) ∨ pa ♥ pb := by
   simp_all [cEdge]
+
+instance instDecidableCEdge {X} {tab : Tableau .nil X} (p q : PathIn tab) :
+    Decidable (p ◃ q) := by
+  unfold cEdge
+  infer_instance
+
+instance instDecidablecEdgeTransGen {X} {tab : Tableau .nil X} (p q : PathIn tab) :
+    Decidable (p ◃⁺ q) :=
+  FinReach.decidableTransGen cEdge p q
 
 /-! ## ≡ᶜ and Clusters -/
 

@@ -9,44 +9,6 @@ Note that we can skip much of Subsection 8.2 because we worked already with spli
 NOTE: We may need extra work for *uniformity* though.
 -/
 
-/-! ### Decidable helpers - to be moved away when done -/
-
-def PathIn.children (p : PathIn tab) : List {q : PathIn tab // p ⋖_ q} :=
-  match h : tabAt p with
-  | ⟨H, X, .loc nflprep nbas lt next⟩ =>
-      (endNodesOf lt).attach.map (fun ⟨Y,Y_in⟩ => ⟨_, edge_append_loc_nil _ _ Y_in h⟩ )
-  | ⟨H,X, .pdl nflprep bas r next⟩ =>
-      [ ⟨_, @edge_append_pdl_nil _ _ _ p (h ▸ nflprep) (h ▸ bas) _ (by convert r; grind)
-            (by convert next <;> grind) (by simp_all; grind)⟩ ]
-  | ⟨H,X, .lrep _⟩ => []
-
-lemma PathIn.children_spec : p ⋖_ q ↔ q ∈ p.children.map Subtype.val := by
-  sorry
-
-instance instDecidableEdge {H X} {tab : Tableau H X} (p q : PathIn tab) :
-    Decidable (p ⋖_ q) := by
-  rw [PathIn.children_spec]
-  simp
-  sorry
-
-instance instDecidableCompanion {X} {tab : Tableau .nil X} (p q : PathIn tab) :
-    Decidable (p ♥ q) := by
-  by_cases p.isLrep
-  · sorry
-  · apply isFalse
-    unfold companion
-    simp
-    -- easy?
-    sorry
-
-/-- TODO: `◃⁺` is decidable
-IDEA: prove that single step ◃ is deciable and apply some more general lemma? (over fintype)
--/
-instance instDecidablecEdgeTransGen {X} {tab : Tableau .nil X} (p q : PathIn tab) :
-    Decidable (p ◃⁺ q) := by
-  unfold cEdge
-  sorry
-
 /-! ### Computing the cluster of a node
 
 We define the lists `loadedBelow` and `loadedAbove` of nodes that are reachable from / can reach
