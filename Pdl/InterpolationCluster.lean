@@ -9,22 +9,84 @@ Note that we can skip much of Subsection 8.2 because we worked already with spli
 NOTE: We may need extra work for *uniformity* though.
 -/
 
+/-! ### Computing the cluster of a node
 
-/-! ## Cluster tools -/
+We define the lists `loadedBelow` and `loadedAbove` of nodes that are reachable from / can reach
+a given node via `◃` *by filtering `allPaths`*: a tableau has only finitely many nodes and
+`PathIn.elem_allPaths` says that `allPaths tab` contains all of them, so we can simply keep
+those nodes that are `◃`-related to `p` in the desired direction.
+Then `clusterListOf_spec` is immediate. -/
 
-/-- Loaded nodes "below" the given one, also allowing ♥ steps. -/
-def loadedBelow : PathIn tab → List (PathIn tab) := sorry
+/-- TODO: `◃⁺` is decidable
+IDEA: prove that single step ◃ is deciable and apply some more general lemma? (over fintype)
+-/
+instance {X} {tab : Tableau .nil X} (p q : PathIn tab) : Decidable (p ◃⁺ q) := sorry
 
-/-- Loaded nodes "above" the given one, also allowing *backwards* ♥ steps. -/
-def loadedAbove : PathIn tab → List (PathIn tab) := sorry
+-- TODO: instance (p q : PathIn tab) : Decidable (p ≣ᶜ q) := sorry
+
+/-- Loaded nodes "below" the given one, also allowing ♥ steps. Includes the node itself. -/
+def loadedBelow {X} {tab : Tableau .nil X} (p : PathIn tab) : List (PathIn tab) :=
+  p :: (allPaths tab).filter (fun q => @decide ((p ◃⁺ q) ∧ (nodeAt q).isLoaded) sorry)
+
+/-- Loaded nodes "above" the given one, also allowing *backwards* ♥ steps.
+Includes the node itself. -/
+def loadedAbove {X} {tab : Tableau .nil X} (p : PathIn tab) : List (PathIn tab) :=
+  p :: (allPaths tab).filter (fun q => decide ((q ◃⁺ p) ∧ (nodeAt q).isLoaded))
+
+@[simp]
+lemma mem_loadedBelow {X} {tab : Tableau .nil X} {p q : PathIn tab} :
+    q ∈ loadedBelow p  ↔  q = p ∨ ((p ◃⁺ q) ∧ (nodeAt q).isLoaded) := by
+  simp [loadedBelow, PathIn.elem_allPaths]
+
+@[simp]
+lemma mem_loadedAbove {X} {tab : Tableau .nil X} {p q : PathIn tab} :
+    q ∈ loadedAbove p  ↔  q = p ∨ ((q ◃⁺ p) ∧ (nodeAt q).isLoaded) := by
+  simp [loadedAbove, PathIn.elem_allPaths]
+
+/-- A free node is alone in its cluster (cf. Remark 4.18 in the paper). -/
+lemma eq_of_cEquiv_of_isFree {X} {tab : Tableau .nil X} {p q : PathIn tab}
+    (p_free : (nodeAt p).isFree) (p_q : p ≡ᶜ q) : q = p := by
+  rcases p_q with ⟨p_to_q, q_to_p⟩
+  rcases Relation.ReflTransGen.cases_head p_to_q with p_eq_q | ⟨l, p_l, l_to_q⟩
+  · exact p_eq_q.symm
+  · exfalso
+    have l_to_p : l ◃* p := Relation.ReflTransGen.trans l_to_q q_to_p
+    cases p_l
+    case inl p_edge_l =>
+      have p_lt_l := ePropB.c_single p l p_free p_edge_l
+      rcases Relation.reflTransGen_iff_eq_or_transGen.mp l_to_p with l_eq_p | l_c_p
+      · subst l_eq_p
+        exact path_is_irreflexive (Relation.TransGen.single p_edge_l)
+      · exact p_lt_l.2 l_c_p
+    case inr p_heart_l =>
+      have := (companion_loaded p_heart_l).1
+      simp only [Sequent.isFree, this] at p_free
+      simp at p_free
 
 /-- List of all other nodes in the same cluster, essentially a constructive version of `clusterOf`.
 Computed as the intersection of `loadedAbove` and `loadedBelow`. -/
-def clusterListOf (p : PathIn tab) : List (PathIn tab) := loadedBelow p  ∩  loadedBelow p
+def clusterListOf {X} {tab : Tableau .nil X} (p : PathIn tab) : List (PathIn tab) :=
+  loadedBelow p  ∩  loadedAbove p
 
-lemma clusterListOf_spec (p : PathIn tab) :
+lemma clusterListOf_spec {X} {tab : Tableau .nil X} {q : PathIn tab} (p : PathIn tab) :
     q ∈ clusterListOf p  ↔  p ≡ᶜ q := by
-  sorry
+  rw [clusterListOf, List.mem_inter_iff, mem_loadedBelow, mem_loadedAbove]
+  constructor
+  · rintro ⟨h1, h2⟩
+    rcases h1 with rfl | ⟨p_q, -⟩
+    · exact (eProp tab).1.refl _
+    · rcases h2 with rfl | ⟨q_p, -⟩
+      · exact (eProp tab).1.refl _
+      · exact ⟨p_q.to_reflTransGen, q_p.to_reflTransGen⟩
+  · intro p_c_q
+    rcases eq_or_ne q p with rfl | q_ne_p
+    · exact ⟨Or.inl rfl, Or.inl rfl⟩
+    · have q_loaded : (nodeAt q).isLoaded := by
+        by_contra q_not_loaded
+        exact q_ne_p (eq_of_cEquiv_of_isFree
+          (by simp_all [Sequent.isFree]) ((cEquiv.symm p q).mp p_c_q)).symm
+      exact ⟨ Or.inr ⟨Relation.TransGen_of_ReflTransGen p_c_q.1 (Ne.symm q_ne_p), q_loaded⟩
+            , Or.inr ⟨Relation.TransGen_of_ReflTransGen p_c_q.2 q_ne_p, q_loaded⟩ ⟩
 
 /-! ## helpers belonging elsewhere -/
 
@@ -231,8 +293,6 @@ def LoadedCluster.ofClusterRoot {X} {tab : Tableau .nil X} (s : PathIn tab)
     rw [clusterListOf_spec] at u_in
     exact u_in.1
 
--- TODO: make ≣ᶜ decidable
-
 /-- The exits of the cluster, i.e. `C⁺ \ C` from Def 8.14. -/
 def LoadedCluster.exits (C : LoadedCluster tab) : List (PathIn tab) :=
   (C.CL.flatMap (fun t => t.children.map Subtype.val)).filter (fun e => e ∉ C.CL)
@@ -346,7 +406,7 @@ decreasing_by
 
 /-- Quasi-Tableau from Def 9.8. Here we "start the construction", then use `Qchildren`.
 No names for the nodes as we use an inductive type, so we just write `X` for `Δₓ` -/
-def Q {r : PathIn tab} : QuasiTab :=
+def Q {X} {tab : Tableau .nil X} {r : PathIn tab} : QuasiTab :=
   let X := nodeAt r -- FIXME wlog we only want the right sequent. But `.R` is not enogh !?!?!?!?!?
   QNode .one X (Qchildren ((clusterListOf r).map nodeAt) .one [] X)
 
