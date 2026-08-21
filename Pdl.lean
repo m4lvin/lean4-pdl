@@ -8,9 +8,11 @@ import Pdl.Discon
 import Pdl.Distance
 import Pdl.Examples
 import Pdl.FischerLadner
+import Pdl.FinReach
 import Pdl.Flip
 import Pdl.Game
 import Pdl.Interpolation
+import Pdl.InterpolationCluster
 import Pdl.InterpolationDef
 import Pdl.Kleene
 import Pdl.LocalSoundness
