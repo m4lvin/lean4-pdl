@@ -26,7 +26,7 @@ lemma wf_of_trans_wf {α : Type} {r : α → α → Prop} (trans_wf : WellFounde
 
 theorem Finite.wf_of_irrefl_trans {α : Type} (r : α → α → Prop)
     [Finite α]
-    (trans_irrefl : IsIrrefl α (Relation.TransGen r))
+    (trans_irrefl : Std.Irrefl (Relation.TransGen r))
     : WellFounded r :=
   wf_of_trans_wf <| Finite.wellFounded_of_trans_of_irrefl (Relation.TransGen r)
 
@@ -42,7 +42,7 @@ and suppose the transitive closure of `r` is irreflexive. Then `r` is wellfounde
 theorem wf_of_finTransInvImage_of_transIrrefl {α : Type}
     (r : α → α → Prop)
     (finTransInvImage : ∀ p : α, Finite { q : α // Relation.TransGen r q p }) -- Note the inverse.
-    (trans_irrefl : IsIrrefl α (Relation.TransGen r))
+    (trans_irrefl : Std.Irrefl (Relation.TransGen r))
     : WellFounded r := by
   -- Suppose there is an infinite descending sequence.
   rw [wellFounded_iff_isEmpty_descending_chain]
@@ -56,7 +56,7 @@ theorem wf_of_finTransInvImage_of_transIrrefl {α : Type}
   let β : Type := { q : α // Relation.TransGen r q p }
   let r' : β → β → Prop := fun x y => r x.1 y.1
   -- Show that r' is also irrefelxive.
-  have r'_irrefl : IsIrrefl _ (Relation.TransGen r') := by
+  have r'_irrefl : Std.Irrefl (Relation.TransGen r') := by
     constructor
     rintro ⟨x, _⟩ r'_x_x
     absurd trans_irrefl.1 x

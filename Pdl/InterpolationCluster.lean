@@ -9,6 +9,44 @@ Note that we can skip much of Subsection 8.2 because we worked already with spli
 NOTE: We may need extra work for *uniformity* though.
 -/
 
+/-! ### Decidable helpers - to be moved away when done -/
+
+def PathIn.children (p : PathIn tab) : List {q : PathIn tab // p ⋖_ q} :=
+  match h : tabAt p with
+  | ⟨H, X, .loc nflprep nbas lt next⟩ =>
+      (endNodesOf lt).attach.map (fun ⟨Y,Y_in⟩ => ⟨_, edge_append_loc_nil _ _ Y_in h⟩ )
+  | ⟨H,X, .pdl nflprep bas r next⟩ =>
+      [ ⟨_, @edge_append_pdl_nil _ _ _ p (h ▸ nflprep) (h ▸ bas) _ (by convert r; grind)
+            (by convert next <;> grind) (by simp_all; grind)⟩ ]
+  | ⟨H,X, .lrep _⟩ => []
+
+lemma PathIn.children_spec : p ⋖_ q ↔ q ∈ p.children.map Subtype.val := by
+  sorry
+
+instance instDecidableEdge {H X} {tab : Tableau H X} (p q : PathIn tab) :
+    Decidable (p ⋖_ q) := by
+  rw [PathIn.children_spec]
+  simp
+  sorry
+
+instance instDecidableCompanion {X} {tab : Tableau .nil X} (p q : PathIn tab) :
+    Decidable (p ♥ q) := by
+  by_cases p.isLrep
+  · sorry
+  · apply isFalse
+    unfold companion
+    simp
+    -- easy?
+    sorry
+
+/-- TODO: `◃⁺` is decidable
+IDEA: prove that single step ◃ is deciable and apply some more general lemma? (over fintype)
+-/
+instance instDecidablecEdgeTransGen {X} {tab : Tableau .nil X} (p q : PathIn tab) :
+    Decidable (p ◃⁺ q) := by
+  unfold cEdge
+  sorry
+
 /-! ### Computing the cluster of a node
 
 We define the lists `loadedBelow` and `loadedAbove` of nodes that are reachable from / can reach
@@ -17,16 +55,9 @@ a given node via `◃` *by filtering `allPaths`*: a tableau has only finitely ma
 those nodes that are `◃`-related to `p` in the desired direction.
 Then `clusterListOf_spec` is immediate. -/
 
-/-- TODO: `◃⁺` is decidable
-IDEA: prove that single step ◃ is deciable and apply some more general lemma? (over fintype)
--/
-instance {X} {tab : Tableau .nil X} (p q : PathIn tab) : Decidable (p ◃⁺ q) := sorry
-
--- TODO: instance (p q : PathIn tab) : Decidable (p ≣ᶜ q) := sorry
-
 /-- Loaded nodes "below" the given one, also allowing ♥ steps. Includes the node itself. -/
 def loadedBelow {X} {tab : Tableau .nil X} (p : PathIn tab) : List (PathIn tab) :=
-  p :: (allPaths tab).filter (fun q => @decide ((p ◃⁺ q) ∧ (nodeAt q).isLoaded) sorry)
+  p :: (allPaths tab).filter (fun q => ((p ◃⁺ q) ∧ (nodeAt q).isLoaded))
 
 /-- Loaded nodes "above" the given one, also allowing *backwards* ♥ steps.
 Includes the node itself. -/
@@ -87,18 +118,6 @@ lemma clusterListOf_spec {X} {tab : Tableau .nil X} {q : PathIn tab} (p : PathIn
           (by simp_all [Sequent.isFree]) ((cEquiv.symm p q).mp p_c_q)).symm
       exact ⟨ Or.inr ⟨Relation.TransGen_of_ReflTransGen p_c_q.1 (Ne.symm q_ne_p), q_loaded⟩
             , Or.inr ⟨Relation.TransGen_of_ReflTransGen p_c_q.2 q_ne_p, q_loaded⟩ ⟩
-
-/-! ## helpers belonging elsewhere -/
-
--- move to TableauPath.lean later
-def PathIn.children (p : PathIn tab) : List {q : PathIn tab // p ⋖_ q} :=
-  match h : tabAt p with
-  | ⟨H, X, .loc nflprep nbas lt next⟩ =>
-      (endNodesOf lt).attach.map (fun ⟨Y,Y_in⟩ => ⟨_, edge_append_loc_nil _ _ Y_in h⟩ )
-  | ⟨H,X, .pdl nflprep bas r next⟩ =>
-      [ ⟨_, @edge_append_pdl_nil _ _ _ p (h ▸ nflprep) (h ▸ bas) _ (by convert r; grind)
-            (by convert next <;> grind) (by simp_all; grind)⟩ ]
-  | ⟨H,X, .lrep _⟩ => []
 
 /-! ## Cluster roots -/
 
