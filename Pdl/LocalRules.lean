@@ -49,6 +49,11 @@ theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : con X ≡ discon B
     rw [localDiamondTruth α φ W M w, disEval, disconEval]
     apply mapCon_mapForall
 
+/-- All one-sided local rules have a non-empty precondition. -/
+lemma OneSidedLocalRule.precond_ne_nil {precond ress} (orule : OneSidedLocalRule precond ress) :
+    precond ≠ [] := by
+  cases orule <;> simp
+
 /-! ## Loaded Rules -/
 
 /-- The loaded diamond rule, given by `unfoldDiamondLoaded`.

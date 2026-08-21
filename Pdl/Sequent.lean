@@ -372,6 +372,11 @@ def Sequent.isLoaded : Sequent → Prop
 | ⟨_, _, none  ⟩ => False
 | ⟨_, _, some _⟩ => True
 
+/-- A loaded sequent that is not loaded on the left is loaded on the right. -/
+lemma Sequent.isRight_of_not_isLeft_isLoaded {X : Sequent} (h1 : ¬ X.2.2.isLeft) (h2 : X.isLoaded) :
+    X.2.2.isRight := by
+  rcases X with ⟨L, R, _|(o|o)⟩ <;> simp_all [Sequent.isLoaded]
+
 instance instDecidableSequentisLoaded (X : Sequent) : Decidable (X.isLoaded) := by
   rcases X with ⟨_, _, _|_⟩
   · apply isFalse; simp_all [Sequent.isLoaded]

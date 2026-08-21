@@ -27,6 +27,12 @@ def tabAt : PathIn tab → Σ H X, Tableau H X
 | .loc _ tail => tabAt tail
 | .pdl tail => tabAt tail
 
+/-- Transporting a path along an equation about `tabAt` does not change `tabAt`.
+Compare `PathIn.tabAt_cast` which is about an equation between two tableaux. -/
+lemma tabAt_cast_gen {Hist X} {tab : Tableau Hist X} (s : PathIn tab) (w : Σ H X, Tableau H X)
+    (h : tabAt s = w) (q : PathIn w.2.2) : tabAt (h ▸ q) = tabAt q := by
+  cases h; rfl
+
 def PathIn.append (p : PathIn tab) (q : PathIn (tabAt p).2.2) : PathIn tab := match p with
   | .nil => q
   | .loc Y_in tail => .loc Y_in (PathIn.append tail q)
@@ -288,6 +294,31 @@ theorem nodeAt_loc_nil {H : List Sequent} {lt : LocalTableau X} {nrep nbas}
 theorem nodeAt_pdl_nil {nrep bas} (child : Tableau (X :: Hist) Y) (r : PdlRule X Y) :
     nodeAt (@PathIn.pdl Hist X Y nrep bas r child .nil) = Y := by
   simp [nodeAt, tabAt]
+
+/-- Any `⋖_` step is given by an end node of a local tableau or by a PDL rule. -/
+lemma nodeAt_of_edge {Hist X} {tab : Tableau Hist X} {s t : PathIn tab} (h : s ⋖_ t) :
+    (∃ lt : LocalTableau (nodeAt s), nodeAt t ∈ endNodesOf lt)
+    ∨ Nonempty (PdlRule (nodeAt s) (nodeAt t)) := by
+  rcases h with ⟨Hist', X', nrep, nbas, lt, next, Y, Y_in, tab_def, rfl⟩
+              | ⟨Hist', X', nrep, bas, Y, r, next, tab_def, rfl⟩
+  · left
+    have hs : nodeAt s = X' := by unfold nodeAt; rw [tab_def]
+    have ht : nodeAt (s.append (tab_def ▸ PathIn.loc Y_in .nil)) = Y := by
+      rw [nodeAt_append]
+      unfold nodeAt
+      rw [tabAt_cast_gen s _ tab_def (PathIn.loc Y_in .nil)]
+      simp [tabAt]
+    rw [hs, ht]
+    exact ⟨lt, Y_in⟩
+  · right
+    have hs : nodeAt s = X' := by unfold nodeAt; rw [tab_def]
+    have ht : nodeAt (s.append (tab_def ▸ PathIn.pdl .nil)) = Y := by
+      rw [nodeAt_append]
+      unfold nodeAt
+      rw [tabAt_cast_gen s _ tab_def (PathIn.pdl .nil)]
+      simp [tabAt]
+    rw [hs, ht]
+    exact ⟨r⟩
 
 /-- The length of `edge`-related paths differs by one. -/
 theorem length_succ_eq_length_of_edge {s t : PathIn tab} : s ⋖_ t → s.length + 1 = t.length := by

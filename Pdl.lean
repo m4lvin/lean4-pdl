@@ -14,6 +14,7 @@ import Pdl.Game
 import Pdl.Interpolation
 import Pdl.InterpolationCluster
 import Pdl.InterpolationDef
+import Pdl.KeepRight
 import Pdl.Kleene
 import Pdl.LocalSoundness
 import Pdl.LocalInterpolation

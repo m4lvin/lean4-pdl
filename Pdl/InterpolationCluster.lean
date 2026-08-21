@@ -1,6 +1,6 @@
 import Pdl.Flip
+import Pdl.KeepRight
 import Pdl.LocalInterpolation
-import Pdl.Soundness
 
 /-! # Defining interpolants (Section 9)
 
@@ -9,167 +9,9 @@ Note that we can skip much of Subsection 8.2 because we worked already with spli
 NOTE: We may need extra work for *uniformity* though.
 -/
 
-/-! ### Helpers for Lemma 9.4: single steps keep the loading on the right
-
-The lemmas here say that a single step in a tableau, starting at a node that is loaded
-on the right, can only lead to a node that is loaded on the right or free, and that no
-rule adds formulas to an empty left component.
-
-FIXME: All lemmas up to `pdlRule_inv` are about single rule applications and single
-steps, so they would fit better into other files, as indicated in the comments. -/
-
--- FIXME: move to `Pdl/Sequent.lean`
-/-- A loaded sequent that is not loaded on the left is loaded on the right. -/
-lemma Sequent.isRight_of_not_isLeft {X : Sequent} (h1 : ¬ X.2.2.isLeft) (h2 : X.isLoaded) :
-    X.2.2.isRight := by
-  rcases X with ⟨L, R, _|(o|o)⟩ <;> simp_all [Sequent.isLoaded]
-
--- FIXME: move to `Pdl/TableauPath.lean`
-/-- Transporting a path along an equation about `tabAt` does not change `tabAt`.
-Compare `PathIn.tabAt_cast` which is about an equation between two tableaux. -/
-lemma tabAt_cast_gen {Hist X} {tab : Tableau Hist X} (s : PathIn tab) (w : Σ H X, Tableau H X)
-    (h : tabAt s = w) (q : PathIn w.2.2) : tabAt (h ▸ q) = tabAt q := by
-  cases h; rfl
-
--- FIXME: move to `Pdl/TableauPath.lean`
-/-- Any `⋖_` step is given by an end node of a local tableau or by a PDL rule. -/
-lemma nodeAt_of_edge {Hist X} {tab : Tableau Hist X} {s t : PathIn tab} (h : s ⋖_ t) :
-    (∃ lt : LocalTableau (nodeAt s), nodeAt t ∈ endNodesOf lt)
-    ∨ Nonempty (PdlRule (nodeAt s) (nodeAt t)) := by
-  rcases h with ⟨Hist', XX, nrep, nbas, lt, next, Y, Y_in, tab_def, rfl⟩
-              | ⟨Hist', XX, nrep, bas, Y, r, next, tab_def, rfl⟩
-  · left
-    have hs : nodeAt s = XX := by unfold nodeAt; rw [tab_def]
-    have ht : nodeAt (s.append (tab_def ▸ PathIn.loc Y_in .nil)) = Y := by
-      rw [nodeAt_append]
-      unfold nodeAt
-      rw [tabAt_cast_gen s _ tab_def (PathIn.loc Y_in .nil)]
-      simp [tabAt]
-    rw [hs, ht]
-    exact ⟨lt, Y_in⟩
-  · right
-    have hs : nodeAt s = XX := by unfold nodeAt; rw [tab_def]
-    have ht : nodeAt (s.append (tab_def ▸ PathIn.pdl .nil)) = Y := by
-      rw [nodeAt_append]
-      unfold nodeAt
-      rw [tabAt_cast_gen s _ tab_def (PathIn.pdl .nil)]
-      simp [tabAt]
-    rw [hs, ht]
-    exact ⟨r⟩
-
--- FIXME: move to `Pdl/LocalRules.lean`
-/-- All one-sided local rules have a non-empty precondition. -/
-lemma OneSidedLocalRule.precond_ne_nil {precond ress} (orule : OneSidedLocalRule precond ress) :
-    precond ≠ [] := by
-  cases orule <;> simp
-
--- FIXME: move to `Pdl/LocalRules.lean`
-/-- Local rules never load on the left: if the given sequent is not loaded on the left,
-then neither are the results of applying a local rule to it. -/
-lemma applyLocalRule_not_isLeft {Lcond Rcond Ocond ress}
-    (lr : LocalRule (Lcond, Rcond, Ocond) ress)
-    {L R O} (hO : Ocond ⊆ O) (hnl : ¬ O.isLeft) :
-    ∀ c ∈ applyLocalRule lr (L, R, O), ¬ c.2.2.isLeft := by
-  rcases lr with ⟨orule, rfl⟩|⟨orule, rfl⟩|_|_|⟨χ, lrule, rfl⟩|⟨χ, lrule, rfl⟩
-  all_goals
-    intro c hc
-    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_def] at hc
-    obtain ⟨⟨zl, zo⟩, hmem, rfl⟩ := hc
-  all_goals
-    rcases O with _|(o|o)
-    <;> simp_all [Olf.change, Option.overwrite, Option.insHasSdiff]
-  rcases zo with _|zo <;> simp_all
-
--- FIXME: move to `Pdl/LocalRules.lean`
-/-- Local rules do not add formulas to an empty left component, provided the sequent is
-not loaded on the left. -/
-lemma applyLocalRule_L_nil {Lcond Rcond Ocond ress} (lr : LocalRule (Lcond, Rcond, Ocond) ress)
-    {L R O} (hL : L = []) (hsub : Lcond.Subperm L) (hO : Ocond ⊆ O) (hnl : ¬ O.isLeft) :
-    ∀ c ∈ applyLocalRule lr (L, R, O), c.1 = [] := by
-  subst hL
-  rw [List.subperm_nil] at hsub
-  rcases lr with ⟨orule, rfl⟩|⟨orule, rfl⟩|_|_|⟨χ, lrule, rfl⟩|⟨χ, lrule, rfl⟩
-  · exact absurd hsub orule.precond_ne_nil
-  all_goals
-    intro c hc
-    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_def] at hc
-    obtain ⟨⟨zl, zo⟩, hmem, rfl⟩ := hc
-  all_goals simp_all
-  subst hO
-  simp at hnl
-
--- FIXME: move to `Pdl/LocalTableau.lean`
-/-- End nodes of a local tableau for a sequent that is not loaded on the left are also not
-loaded on the left, and they have an empty left component if the given sequent has. -/
-lemma endNodesOf_inv {X : Sequent} (lt : LocalTableau X) (hnl : ¬ X.2.2.isLeft) :
-    ∀ Y ∈ endNodesOf lt, ¬ Y.2.2.isLeft ∧ (X.1 = [] → Y.1 = []) := by
-  induction lt with
-  | @byLocalRule X lra X_def next IH =>
-    subst X_def
-    intro Y Y_in
-    obtain ⟨Z, Z_in, Y_in⟩ := endNodeIsEndNodeOfChild rfl Y_in
-    obtain ⟨hL, -, hOsub⟩ := lra.preconditionProof
-    rw [lra.hC] at Z_in
-    have hZ : ¬ Z.2.2.isLeft := applyLocalRule_not_isLeft lra.lr hOsub hnl Z Z_in
-    obtain ⟨h1, h2⟩ := IH Z (lra.hC ▸ Z_in) hZ Y Y_in
-    refine ⟨h1, fun hXL => h2 ?_⟩
-    exact applyLocalRule_L_nil lra.lr hXL (by simpa using hL) hOsub hnl Z Z_in
-  | sim => simp_all
-
--- FIXME: move to `Pdl/Tableau.lean`
-/-- A PDL rule applied to a sequent that is loaded on the right leads to a sequent that is
-not loaded on the left, and it does not add formulas to an empty left component. -/
-lemma pdlRule_inv {X Y : Sequent} (r : PdlRule X Y) (h : X.2.2.isRight) :
-    ¬ Y.2.2.isLeft ∧ (X.1 = [] → Y.1 = []) := by
-  cases r
-  case modR L R A ξ hX hY => rcases ξ with φ|χ <;> simp_all [projection]
-  all_goals simp_all
-
-/-- A `⋖_` step from a node loaded on the right leads to a node that is not loaded on the
-left, and it does not add formulas to an empty left component. -/
-lemma edge_inv {Hist X} {tab : Tableau Hist X} {s t : PathIn tab} (h : s ⋖_ t)
-    (hs : (nodeAt s).2.2.isRight) :
-    ¬ (nodeAt t).2.2.isLeft ∧ ((nodeAt s).1 = [] → (nodeAt t).1 = []) := by
-  rcases nodeAt_of_edge h with ⟨lt, t_in⟩ | hr
-  · refine endNodesOf_inv lt ?_ _ t_in
-    rcases hh : (nodeAt s).2.2 with _|(o|o) <;> rw [hh] at hs <;> simp_all
-  · obtain ⟨r⟩ := hr
-    exact pdlRule_inv r hs
-
-/-- A `◃` step from a node loaded on the right to a loaded node leads to a node that is
-also loaded on the right, and it does not add formulas to an empty left component. -/
-lemma cEdge_inv {X} {tab : Tableau .nil X} {s t : PathIn tab} (h : s ◃ t)
-    (hs : (nodeAt s).2.2.isRight) (ht : (nodeAt t).isLoaded) :
-    (nodeAt t).2.2.isRight ∧ ((nodeAt s).1 = [] → (nodeAt t).1 = []) := by
-  rcases h with h | ⟨lpr, h_lrep, rfl⟩
-  · obtain ⟨h1, h2⟩ := edge_inv h hs
-    exact ⟨Sequent.isRight_of_not_isLeft h1 ht, h2⟩
-  · have same := nodeAt_companionOf_setEq s lpr h_lrep
-    rcases hs_def : nodeAt s with ⟨sL, sR, sO⟩
-    rcases ht_def : nodeAt (companionOf s lpr h_lrep) with ⟨tL, tR, tO⟩
-    rw [hs_def, ht_def] at same
-    obtain ⟨sameL, -, sameO⟩ := same
-    rw [hs_def] at hs
-    refine ⟨by rw [sameO]; exact hs, fun hsL => ?_⟩
-    exact (List.toFinset_eq_empty_iff tL).mp (by rw [sameL]; simp_all)
-
-/-- Along a `◃`-path where all nodes are loaded, the loading stays on the right and an
-empty left component stays empty. -/
-lemma cReach_inv {X} {tab : Tableau .nil X} {a b : PathIn tab} (hab : a ◃* b)
-    (hloaded : ∀ v, a ◃* v → v ◃* b → (nodeAt v).isLoaded)
-    (ha : (nodeAt a).2.2.isRight) :
-    (nodeAt b).2.2.isRight ∧ ((nodeAt a).1 = [] → (nodeAt b).1 = []) := by
-  induction hab with
-  | refl => exact ⟨ha, id⟩
-  | @tail v b hav hvb IH =>
-    obtain ⟨h1, h2⟩ := IH
-      (fun w haw hwv => hloaded w haw (hwv.trans (Relation.ReflTransGen.single hvb)))
-    obtain ⟨g1, g2⟩ := cEdge_inv hvb h1 (hloaded b (hav.tail hvb) Relation.ReflTransGen.refl)
-    exact ⟨g1, fun hn => g2 (h2 hn)⟩
-
 variable {X : Sequent} {tab : Tableau .nil X}
 
-/-! ### Computing the cluster of a node
+/-! ## Collecting Cluster Nodes in a List
 
 We define the lists `loadedBelow` and `loadedAbove` of nodes that are reachable from / can reach
 a given node via `◃` *by filtering `allPaths`*: a tableau has only finitely many nodes and
@@ -382,6 +224,8 @@ lemma lt_of_isExitOf {s e : PathIn tab}
   obtain ⟨-, t, t_s, t_e⟩ := h
   have s_le_t : s ≤ t := PathIn.le_of_cEquiv_of_isClusterRoot s_cr ((cEquiv.symm t s).mp t_s)
   exact Relation.TransGen.tail' s_le_t t_e
+
+/-! ## Loaded Clusters -/
 
 /-- A cluster, starting at a right-loaded `root` which is not ≡ᶜ to any parent of it.
 
