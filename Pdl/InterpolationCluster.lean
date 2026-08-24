@@ -1310,55 +1310,7 @@ lemma stepOf_mem_lambdaTwoPlus (C : LoadedCluster tab) (Δ : Sequent) :
       exact this.1.1
     exact C.mem_lambdaTwoPlus_of_mem_fineCLplus (C.mem_fineCLplus_of_child hf hg)
 
-
-/- PROBLEM -- On the `Tableau` level a `loc` is not either left or right rule, but can be a mix!
-def Tableau.usesLeftRule (tab : Tableau H X) : Prop := sorry
--/
-
--- WORRY: do we need `loc`-intermediate notes for the construction of the pseudo tableau?
--- Then the nodes in `LoadedCluster` might not be enough.
---
--- ANSWER: yes, we do, and this is why we now have `FinePathIn` and the definitions above.
--- The following two attempts on the `Tableau` level are therefore commented out and
--- replaced by `nodesWithFineLeft`, `nodesWithFineRight` and `mem_nodesWithFine_iff`.
-
-/-
--- TODO defs "where a left/right rule is applied"
-/-- Nodes that have Δ as the right and a left rule applied to them. -/
-def nodesWithLeft (C : LoadedCluster tab) (Δ : List Formula) : List (PathIn tab) :=
-  C.CL.filter (fun p => @decide
-    ((nodeAt p).right = Δ ∧ sorry /- (tabAt p).2.2.usesLeftRule -/) sorry)
-
--- TODO Lemma 9.7 (a) first part
-lemma nodesWith_union (C : LoadedCluster tab) (Δ : List Formula) :
-    C.nodesWith Δ = C.nodesWithLeft Δ /- ++ C.nodesWithRight Δ -/ := by
-  sorry
--/
-
--- TODO Lemma 9.7 (b)
-
--- TODO Lemma 9.7 (c)
-
--- TODO Lemma 9.7 (d)
-
--- TODO Lemma 9.7 (e)
-
--- TODO Lemma 9.7 (f)
-
 end LoadedCluster
-
--- Being an exit is now expressed by `Δ ∉ C.lambdaTwo`, i.e. by the label not occurring
--- in the cluster, so the following two placeholders are no longer needed:
-/-
-def isExitIn : Sequent → List Sequent → Prop := sorry
-
-instance : Decidable (isExitIn X C) := sorry
--/
-
-
--- Or would it be better to already construct (partial) trees instead of lists directly?
-
--- OR just assume we are given the root of a cluster and use the tableau as it is to define `Q`?
 
 /-! ## Quasi-Tableaux (Def 9.8) -/
 
@@ -1386,41 +1338,7 @@ def QuasiTab.children : QuasiTab → List QuasiTab | .QNode _ _ next => next
 def QuasiTab.subtrees : QuasiTab → List QuasiTab
   | .QNode k Δ next => .QNode k Δ next :: next.flatMap subtrees
 
--- TODO add invariant?!
-
 -- TODO use `rep` instead of `X ∈ Hist` maybe?
-
--- The following two attempts are replaced by `QuasiTab.build` and `LoadedCluster.Q`
--- below, which use the fine nodes of the cluster and do terminate.
-/-
-def Qchildren (C : List Sequent) : (k : Typ) → (Hist : List Sequent) → (X : Sequent) → List QuasiTab
-| .one, Hist, X => -- case k(x)=1
-    if X ∈ Hist ∨ isExitIn X C -- if x is a repeat (in Q) or it is an exit,
-      then [ ] -- then x is a leaf.
-      else [ QNode .two X (Qchildren C .two (X :: Hist) X) ]
-| .two, Hist, X => -- case k(x)=2
-    [ QNode .three X (Qchildren C .three (X :: Hist) X) ]
-| .three, Hist, X => -- case k(x)=3
-    if X.basic -- (Paper does "not basic" first.)
-    then
-      -- unique child with .one and result of PDL rule application
-      -- PROBLEM: needs uniformity?
-      sorry
-    else
-      -- create children based on local rule
-      sorry
-termination_by
-  1 -- O.o ... remark after Def 9.8, but it does not say how to convince Lean of termination ;-)
-decreasing_by
-  · sorry
-  · sorry
-
-/-- Quasi-Tableau from Def 9.8. Here we "start the construction", then use `Qchildren`.
-No names for the nodes as we use an inductive type, so we just write `X` for `Δₓ` -/
-def Q {r : PathIn tab} : QuasiTab :=
-  let X := nodeAt r -- FIXME wlog we only want the right sequent. But `.R` is not enogh !?!?!?!?!?
-  QNode .one X (Qchildren ((clusterListOf r).map nodeAt) .one [] X)
--/
 
 /-! ### Termination of the construction of `Q`
 
