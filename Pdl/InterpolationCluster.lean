@@ -1086,19 +1086,52 @@ def LoadedCluster.thetaOf (C : LoadedCluster tab) (θ : FinePathIn tab → Formu
     (Δ : Sequent) : Formula :=
   dis ((C.exitsWithFine Δ).map θ)
 
+/-- Membership in `C⁺_Δ \ C_Δ` means: being an exit node with right component `Δ`. -/
+lemma LoadedCluster.mem_exitsWithFine_iff (C : LoadedCluster tab) (Δ : Sequent)
+    (f : FinePathIn tab) :
+    f ∈ C.exitsWithFine Δ ↔ f ∈ C.fineExits ∧ f.label.rightOnly = Δ := by
+  simp [exitsWithFine]
+
+/-- The right component of an exit node with right component `Δ` is the right component
+of `Δ`. -/
+lemma LoadedCluster.right_of_mem_exitsWithFine (C : LoadedCluster tab) {Δ : Sequent}
+    {f : FinePathIn tab} (hf : f ∈ C.exitsWithFine Δ) : f.label.right = Δ.right := by
+  rw [← ((C.mem_exitsWithFine_iff Δ f).mp hf).2]
+  rfl
+
 open HasSat in
 /-- Lemma 9.14 (a): `Λ₁(t) ⊨ θ_Δ` for all `t ∈ C⁺_Δ \ C_Δ`. -/
 lemma LoadedCluster.thetaOf_left (C : LoadedCluster tab) (θ : FinePathIn tab → Formula)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) (Δ : Sequent) :
     ∀ f ∈ C.exitsWithFine Δ, ¬ satisfiable ((~ C.thetaOf θ Δ) :: f.label.left) := by
-  sorry
+  rintro f hf ⟨W, M, w, hw⟩
+  have hfE : f ∈ C.fineExits := ((C.mem_exitsWithFine_iff Δ f).mp hf).1
+  refine (hθ f hfE).2.1 ⟨W, M, w, ?_⟩
+  intro φ hφ
+  rcases List.mem_cons.mp hφ with rfl | hmem
+  · have h1 : evaluate M w (~ C.thetaOf θ Δ) := hw _ (List.mem_cons_self ..)
+    simp only [thetaOf, evaluate, disEval, not_exists] at h1 ⊢
+    intro hcon
+    exact h1 (θ f) ⟨List.mem_map_of_mem hf, hcon⟩
+  · exact hw _ (List.mem_cons_of_mem _ hmem)
 
 open HasSat in
 /-- Lemma 9.14 (b): `Δ ⊨ ¬θ_Δ`. -/
 lemma LoadedCluster.thetaOf_right (C : LoadedCluster tab) (θ : FinePathIn tab → Formula)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) (Δ : Sequent) :
     ¬ satisfiable (C.thetaOf θ Δ :: Δ.right) := by
-  sorry
+  rintro ⟨W, M, w, hw⟩
+  have h1 : evaluate M w (C.thetaOf θ Δ) := hw _ (List.mem_cons_self ..)
+  rw [thetaOf, disEval] at h1
+  obtain ⟨φ, hφ, hev⟩ := h1
+  simp only [List.mem_map] at hφ
+  obtain ⟨f, hf, rfl⟩ := hφ
+  have hfE : f ∈ C.fineExits := ((C.mem_exitsWithFine_iff Δ f).mp hf).1
+  refine (hθ f hfE).2.2 ⟨W, M, w, ?_⟩
+  intro ψ hψ
+  rcases List.mem_cons.mp hψ with rfl | hmem
+  · exact hev
+  · exact hw _ (List.mem_cons_of_mem _ (C.right_of_mem_exitsWithFine hf ▸ hmem))
 
 /-- Lemma 9.14 (c): the vocabulary of `θ_Δ` is included in the vocabulary of `Δ` and in the
 union of the vocabularies of the left components of the exit nodes with right component
@@ -1107,7 +1140,20 @@ lemma LoadedCluster.thetaOf_voc (C : LoadedCluster tab) (θ : FinePathIn tab →
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) (Δ : Sequent) :
     (C.thetaOf θ Δ).voc
       ⊆ Vocab.fromList ((C.exitsWithFine Δ).map (fun f => f.label.left.fvoc)) ∩ Δ.right.fvoc := by
-  sorry
+  intro n hn
+  rw [thetaOf, in_voc_dis] at hn
+  obtain ⟨φ, hφ, hn⟩ := hn
+  simp only [List.mem_map] at hφ
+  obtain ⟨f, hf, rfl⟩ := hφ
+  have hfE : f ∈ C.fineExits := ((C.mem_exitsWithFine_iff Δ f).mp hf).1
+  have hsub := (hθ f hfE).1 hn
+  simp only [jvoc, Finset.mem_inter] at hsub
+  rw [Finset.mem_inter]
+  refine ⟨?_, ?_⟩
+  · rw [Vocab.fromList_map_iff]
+    exact ⟨f, hf, hsub.1⟩
+  · rw [← C.right_of_mem_exitsWithFine hf]
+    exact hsub.2
 
 
 /-! ### Flipping Interpolants -/
