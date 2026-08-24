@@ -1026,8 +1026,10 @@ lemma cycs_root (q : QuasiTab) : q.cycs rootAddress = [] := by
 
 /-- Lemma 9.12 (c) does *not* hold as stated in the paper: from `x <_Q y` we cannot
 conclude `cycs(x) ⊆ cycs(y)`, because a repeat leaf `z ∈ cycs(x)` may lie below a
-*different* child of `x` than `y` does. See `cycs_not_monotone` below for a counterexample.
-What does hold is the following version, where we additionally demand `y ≤_Q z`. -/
+*different* child of `x` than `y` does. (For counterexamples, and for a precise account of
+when (c) does hold, see the file `Pdl.ClusterCorrection`.)
+What does hold — and what the proofs in the paper actually use — is the following version,
+where we additionally demand `y ≤_Q z`. -/
 lemma mem_cycs_of_mem_cycs_of_qlt (q : QuasiTab) {x y z : List Nat}
     (hxy : qlt x y) (hz : z ∈ q.cycs x) (hyz : qle y z) : z ∈ q.cycs y := by
   rw [mem_cycs_iff] at hz ⊢
@@ -1037,9 +1039,12 @@ lemma mem_cycs_of_mem_cycs_of_qlt (q : QuasiTab) {x y z : List Nat}
   exact hxy.2 (hxy.1.eq_of_length (le_antisymm hxy.1.length_le hcx.length_le))
 
 /-- Lemma 9.12 (d) does *not* hold as stated in the paper either: when `x` has several
-children then the inclusion `cycs(y) ⊆ cycs(x)` may be strict, see `cycs_not_eq_of_qedge`
-below. Here is the inclusion that does hold in general — and it is the direction that the
-proofs in the paper actually use. -/
+children then the inclusion `cycs(y) ⊆ cycs(x)` may be strict. (For counterexamples, and
+for a precise account of when equality does hold — namely whenever `x` has at most one
+child, hence at all nodes of a quasi-tableau of a cluster that are not of type 3 — see the
+file `Pdl.ClusterCorrection`.)
+Here is the inclusion that does hold in general, and it is the direction that the proofs in
+the paper actually use. -/
 lemma cycs_subset_of_qedge (q : QuasiTab) {x y : List Nat}
     (hx : x ∉ q.companions) (hxy : q.qedge x y) : ∀ z ∈ q.cycs y, z ∈ q.cycs x := by
   intro z hz
@@ -1064,75 +1069,6 @@ lemma cycs_subset_of_qedge (q : QuasiTab) {x y : List Nat}
       exact ⟨z, z_in, hc⟩)
 
 end QuasiTab
-
-/-! ### Counterexamples to Lemma 9.12 (c) and (d) as stated
-
-The following quasi-tableau has a node of type 3 with two children, one of which is a
-repeat leaf whose companion is the root. It witnesses that the inclusion `cycs(x) ⊆ cycs(y)`
-for `x <_Q y` and the equality `cycs(x) = cycs(y)` for `x ⋖Q y` with `x` not a companion,
-as claimed in Lemma 9.12 (c) and (d), do not hold in general. -/
-
-namespace QuasiTabCEx
-
-/-- A first label. -/
-def A : Sequent := ([], [], none)
-
-/-- A second label, different from `A`. -/
-def B : Sequent := ([], [⊥], none)
-
-open Typ QuasiTab in
-/-- A quasi-tableau in which the type 3 node `[0,0]` has two children, of which `[0,0,1]`
-is a repeat leaf with companion the root `[]`, while `[0,0,0]` is an exit leaf. -/
-def qCEx : QuasiTab :=
-  .QNode one A [ .QNode two A [ .QNode three A [ .QNode one B [], .QNode one A [] ] ] ]
-
-lemma addresses_eq : qCEx.addresses = [[], [0], [0,0], [0,0,0], [0,0,1]] := by
-  simp [QuasiTab.addresses, qCEx]
-
-lemma leaves_eq : qCEx.leaves = [[0,0,0], [0,0,1]] := by
-  simp [QuasiTab.leaves, QuasiTab.addresses, QuasiTab.isLeafAt, QuasiTab.at?, QuasiTab.children,
-    qCEx]
-
-lemma repeatLeaves_eq : qCEx.repeatLeaves = [[0,0,1]] := by
-  rw [QuasiTab.repeatLeaves, leaves_eq]; decide
-
-lemma companions_eq : qCEx.companions = [[]] := by
-  rw [QuasiTab.companions, repeatLeaves_eq]; decide
-
-lemma cycs_branching : qCEx.cycs [0,0] = [[0,0,1]] := by
-  rw [QuasiTab.cycs, repeatLeaves_eq]; decide
-
-lemma cycs_child : qCEx.cycs [0,0,0] = [] := by
-  rw [QuasiTab.cycs, repeatLeaves_eq]; decide
-
-lemma branching_not_companion : [0,0] ∉ qCEx.companions := by
-  rw [companions_eq]; simp
-
-lemma branching_qedge : qCEx.qedge [0,0] [0,0,0] := by
-  simp [QuasiTab.qedge, QuasiTab.childrenAt, QuasiTab.at?, QuasiTab.children, qCEx]
-
-lemma branching_qlt : QuasiTab.qlt [0,0] [0,0,0] := by
-  constructor
-  · exact ⟨[0], rfl⟩
-  · simp
-
-/-- Lemma 9.12 (c) as stated in the paper is false. -/
-theorem cycs_not_monotone :
-    ¬ ∀ (q : QuasiTab) (x y : List Nat), QuasiTab.qlt x y → ∀ z ∈ q.cycs x, z ∈ q.cycs y := by
-  intro h
-  have := h qCEx [0,0] [0,0,0] branching_qlt [0,0,1] (by rw [cycs_branching]; simp)
-  rw [cycs_child] at this
-  simp at this
-
-/-- Lemma 9.12 (d) as stated in the paper is false. -/
-theorem cycs_not_eq_of_qedge :
-    ¬ ∀ (q : QuasiTab) (x y : List Nat), x ∉ q.companions → q.qedge x y → q.cycs x = q.cycs y := by
-  intro h
-  have := h qCEx [0,0] [0,0,0] branching_not_companion branching_qedge
-  rw [cycs_branching, cycs_child] at this
-  simp at this
-
-end QuasiTabCEx
 
 /-! ### Interpolants for the exit regions (Def 9.13 and Lemma 9.14)
 
