@@ -376,8 +376,6 @@ can list them as a single hypothesis.
   Note that for `Γ₁ = ∅` the claim is false, which is why Definition 9.20 treats that case
   separately. -/
 structure PaperFacts (C : LoadedCluster tab) : Prop where
-  /-- The cluster is proper. -/
-  proper : C.root ◃⁺ C.root
   /-- Lemma 9.7 (d): if `C_Δ ≠ ∅` then `C^R_Δ ≠ ∅`. -/
   exists_right : ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ []
   /-- The vocabulary of the left component only shrinks below the root of the cluster. -/

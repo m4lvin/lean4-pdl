@@ -440,7 +440,7 @@ lemma rhoSat_build (C : LoadedCluster tab) (hF : C.PaperFacts)
     have h3sat : C.RhoSat θ ((x ++ [0]) ++ [0]) := by
       by_cases hb : Δ.basic
       · obtain ⟨Pi, rest, hPi⟩ : ∃ Pi rest, C.stepOf Δ = Pi :: rest :=
-          List.exists_cons_of_ne_nil (C.stepOf_ne_nil hF.proper (hF.exists_right Δ h.1))
+          List.exists_cons_of_ne_nil (C.stepOf_ne_nil (hF.exists_right Δ h.1))
         have hnextcons : next = QuasiTab.build C.lambdaTwo C.stepOf (Δ :: Hist) Pi ::
             rest.map (fun Pi => QuasiTab.build C.lambdaTwo C.stepOf (Δ :: Hist) Pi) := by
           rw [hnextdef, hPi, List.map_cons]

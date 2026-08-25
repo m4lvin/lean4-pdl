@@ -242,8 +242,10 @@ as an invariant. -/
 structure LoadedCluster {X} (tab : Tableau .nil X) where
   /-- The root of the cluster. -/
   root : PathIn tab
-  /-- There is no ◃ path from the root to any parent of it. -/
+  /-- There is no ◃ path from the root to any parent of it (so the root is indeed the root). -/
   root_not_to_parent : root.isClusterRoot
+  /-- There is ◃ path from the root to itself (so we have a proper cluster). -/
+  proper : root ◃⁺ root
   /-- The root is loaded on the right. -/
   root_loaded_right : (nodeAt root).2.2.isRight
   /-- List of all paths in the cluster. -/
@@ -266,9 +268,11 @@ namespace LoadedCluster
 /-- Make the `LoadedCluster` of a right-loaded node that is the first node of its cluster.
 This is the way `tabToIntAt` now gets hold of a `LoadedCluster`. -/
 def ofClusterRoot (s : PathIn tab)
-    (s_cr : s.isClusterRoot) (s_loaded_right : (nodeAt s).2.2.isRight) : LoadedCluster tab where
+    (s_cr : s.isClusterRoot) (s_proper : s ◃⁺ s)
+    (s_loaded_right : (nodeAt s).2.2.isRight) : LoadedCluster tab where
   root := s
   root_not_to_parent := s_cr
+  proper := s_proper
   root_loaded_right := s_loaded_right
   CL := clusterListOf s
   root_mem_CL := by
@@ -362,14 +366,13 @@ lemma children_in_plus (C : LoadedCluster tab) :
 
 /-- Part of Lemma 9.4 (c): If `t` is not an lpr, then at least one child is in C.
 This needs that the cluster is proper, i.e. that its root lies on a `◃`-cycle. -/
-lemma nonLpr_some_child_in_C (C : LoadedCluster tab)
-    (C_proper : C.root ◃⁺ C.root) :
+lemma nonLpr_some_child_in_C (C : LoadedCluster tab) :
     ∀ t ∈ C.CL, ¬ t.isLrep → ∃ c ∈ t.children, c.val ∈ C.CL := by
   intro t t_in t_not_lrep
   have t_root : t ≡ᶜ C.root := (C.mem_CL_iff t).mp t_in
   -- Because the cluster is proper, also `t` lies on a `◃`-cycle:
   have t_cycle : t ◃⁺ t := Relation.TransGen.trans_right t_root.1
-    (Relation.TransGen.trans_left C_proper t_root.2)
+    (Relation.TransGen.trans_left C.proper t_root.2)
   obtain ⟨u, t_u, u_t⟩ := Relation.TransGen.head'_iff.mp t_cycle
   -- The first step of that cycle cannot be a ♥ step, because `t` is not an lpr:
   rcases t_u with t_edge_u | ⟨lpr, h_lrep, rfl⟩
@@ -458,11 +461,11 @@ lemma exists_child_memFine (C : LoadedCluster tab) {f : FinePathIn tab}
 /-- Lemma 9.7 (c) at the fine level, in general: any fine node of the cluster that is not
 a loaded-path repeat has a child in the cluster. For coarse nodes this uses Lemma 9.4 (c),
 i.e. `nonLpr_some_child_in_C`, and hence needs that the cluster is proper. -/
-lemma exists_child_memFine_of_not_isLrep (C : LoadedCluster tab) (C_proper : C.root ◃⁺ C.root)
+lemma exists_child_memFine_of_not_isLrep (C : LoadedCluster tab)
     {f : FinePathIn tab} (hf : C.memFine f) (h_lrep : ¬ f.base.isLrep) :
     ∃ g ∈ f.children, C.memFine g := by
   by_cases hbr : f.atBigRoot
-  · obtain ⟨c, -, c_CL⟩ := C.nonLpr_some_child_in_C C_proper f.base hf.1 h_lrep
+  · obtain ⟨c, -, c_CL⟩ := C.nonLpr_some_child_in_C f.base hf.1 h_lrep
     have hmem : c.val ∈ f.base.toFine.coarseChildrenBelow :=
       PathIn.mem_coarseChildrenBelow_toFine _ _ c.2
     rw [← f.eq_toFine_base_of_atBigRoot hbr] at hmem
@@ -559,7 +562,7 @@ def stepOf (C : LoadedCluster tab) (Δ : Sequent) : List Sequent :=
 /-- If some right rule is applied at a node of the cluster with right component `Δ`, then
 `stepOf Δ` is non-empty: by Lemma 9.7 (c) that node has a child in the cluster, so the rule
 applied there cannot be a closing rule. -/
-lemma stepOf_ne_nil (C : LoadedCluster tab) (C_proper : C.root ◃⁺ C.root) {Δ : Sequent}
+lemma stepOf_ne_nil (C : LoadedCluster tab) {Δ : Sequent}
     (h : C.nodesWithFineRight Δ ≠ []) : C.stepOf Δ ≠ [] := by
   unfold stepOf
   cases hh : (C.nodesWithFineRight Δ).head? with
@@ -568,7 +571,7 @@ lemma stepOf_ne_nil (C : LoadedCluster tab) (C_proper : C.root ◃⁺ C.root) {�
     have f_in := List.mem_of_mem_head? hh
     simp only [nodesWithFineRight, nodesWithFine, List.mem_filter, decide_eq_true_eq] at f_in
     obtain ⟨⟨f_CL, -⟩, f_right⟩ := f_in
-    obtain ⟨g, g_in, -⟩ := C.exists_child_memFine_of_not_isLrep C_proper
+    obtain ⟨g, g_in, -⟩ := C.exists_child_memFine_of_not_isLrep
       ((C.mem_fineCL f).mp f_CL) (f.not_isLrep_base_of_usesRightRule f_right)
     simp only [ne_eq, List.map_eq_nil_iff]
     intro hnil
@@ -881,10 +884,10 @@ lemma LoadedCluster.Q_inner_label_mem_lambdaTwo (C : LoadedCluster tab) :
 /-- Remark 9.9 for `Q`: all leaves of the quasi-tableau have type 1. Here `h97d` is
 Lemma 9.7 (d), which we state as a hypothesis: for every label in `Λ₂[C]` there is a node
 of the cluster with that right component where a right rule is applied. -/
-lemma LoadedCluster.Q_leaf_typ (C : LoadedCluster tab) (C_proper : C.root ◃⁺ C.root)
+lemma LoadedCluster.Q_leaf_typ (C : LoadedCluster tab)
     (h97d : ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ []) :
     ∀ q ∈ C.Q.subtrees, q.children = [] → q.typ = Typ.one :=
-  QuasiTab.build_leaf_typ (fun Δ hΔ => C.stepOf_ne_nil C_proper (h97d Δ hΔ)) _ _
+  QuasiTab.build_leaf_typ (fun Δ hΔ => C.stepOf_ne_nil (h97d Δ hΔ)) _ _
 
 /-- Def 9.10: the region `Rₓ ⊆ C⁺` represented by a node `x` of the quasi-tableau.
 For type 1 and 2 these are all nodes of `C⁺` with right component `Δₓ`, and for type 3

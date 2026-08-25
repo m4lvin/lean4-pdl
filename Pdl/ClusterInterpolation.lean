@@ -1032,12 +1032,10 @@ for an arbitrary `Tableau`:
 
 We collect the two in one record. -/
 
-/-- The two assumptions that the paper makes about the fixed tableau and cluster and that
-are not provable for an arbitrary `Tableau`: the cluster is proper and the tableau is
-uniform (in the form needed here, see `LoadedCluster.HasUniformSteps`). -/
+/-- The assumption that the paper makes about the fixed tableau and cluster and that
+are not provable for an arbitrary `Tableau`: the tableau is uniform
+(in the form needed here, see `LoadedCluster.HasUniformSteps`). -/
 structure LoadedCluster.PaperAssumptions (C : LoadedCluster tab) : Prop where
-  /-- The cluster is proper, i.e. its root lies on a `◃`-cycle. -/
-  proper : C.root ◃⁺ C.root
   /-- The consequence of uniformity used in the construction of the quasi-tableau. -/
   uniform : C.HasUniformSteps
 
@@ -1080,7 +1078,7 @@ rule `(M)` for the loaded formula `~⌊·A⌋ξ` of `Δ`. Its unique child `u` s
 Properness is needed to exclude the two other right `PdlRule`s: `(L+)` is only applied at
 a free node, while `(L-)` makes its unique child free, and both contradict Lemma 9.4 (a)
 because by Lemma 9.4 (c) some child of `t` is again in the cluster. -/
-lemma basicModalStepAt (C : LoadedCluster tab) (hP : C.root ◃⁺ C.root) {Δ : Sequent}
+lemma basicModalStepAt (C : LoadedCluster tab) {Δ : Sequent}
     (hb : Δ.basic) {t : FinePathIn tab} (ht : t ∈ C.nodesWithFineRight Δ) :
     ∃ A ξ, Δ.2.2 = some (Sum.inr (~'⌊·A⌋ξ)) ∧ ∃ g, t.children = [g] ∧ g.atBigRoot
       ∧ g.label.left = projection A t.label.left
@@ -1090,7 +1088,7 @@ lemma basicModalStepAt (C : LoadedCluster tab) (hP : C.root ◃⁺ C.root) {Δ :
   have hmf : C.memFine t := (C.mem_fineCL t).mp ht_CL
   have hDl : Δ.2.2 = t.label.2.2 := by rw [← ht_lab]; rfl
   have hDr : Δ.2.1 = t.label.2.1 := by rw [← ht_lab]; rfl
-  obtain ⟨c, hc, hcmf⟩ := C.exists_child_memFine_of_not_isLrep hP hmf
+  obtain ⟨c, hc, hcmf⟩ := C.exists_child_memFine_of_not_isLrep hmf
     (t.not_isLrep_base_of_usesRightRule ht_right)
   rcases t.basicRightStep ht_right (ht_lab ▸ hb) with
     ⟨hbr, hnone⟩ | ⟨g, hg, hgbr, hgnone⟩ | ⟨A, ξ, hA, g, hg, hgbr, hg1, hg2⟩
@@ -1158,7 +1156,7 @@ no repeat is reached, the node has a child in the cluster (Lemma 9.4 (c), which 
 properness) with the same right component (Lemma 9.7 (c)), and the descent terminates by
 `FinePathIn.descent` — but a childless node of the cluster which is not a repeat would
 contradict Lemma 9.4 (c). -/
-lemma exists_right_or_lrep (C : LoadedCluster tab) (hP : C.root ◃⁺ C.root) {Δ : Sequent}
+lemma exists_right_or_lrep (C : LoadedCluster tab) {Δ : Sequent}
     (hΔ : Δ ∈ C.lambdaTwo) :
     C.nodesWithFineRight Δ ≠ [] ∨ ∃ f ∈ C.nodesWithFine Δ, f.base.isLrep := by
   by_contra hcon
@@ -1172,7 +1170,7 @@ lemma exists_right_or_lrep (C : LoadedCluster tab) (hP : C.root ◃⁺ C.root) {
     have hu' := hu
     simp only [nodesWithFine, List.mem_filter, decide_eq_true_eq] at hu'
     obtain ⟨hu_CL, hu_lab⟩ := hu'
-    obtain ⟨g, hg, hgmf⟩ := C.exists_child_memFine_of_not_isLrep hP ((C.mem_fineCL u).mp hu_CL)
+    obtain ⟨g, hg, hgmf⟩ := C.exists_child_memFine_of_not_isLrep ((C.mem_fineCL u).mp hu_CL)
       (hlrep u hu)
     refine ⟨g, hg, ?_⟩
     have huleft : u.usesLeftRule := by
@@ -1195,7 +1193,7 @@ lemma exists_right_or_lrep (C : LoadedCluster tab) (hP : C.root ◃⁺ C.root) {
     simp only [nodesWithFine, List.mem_filter] at hv
     exact hv.1
   obtain ⟨g, hg, -⟩ :=
-    C.exists_child_memFine_of_not_isLrep hP ((C.mem_fineCL v).mp hv_CL) (hlrep v hv)
+    C.exists_child_memFine_of_not_isLrep ((C.mem_fineCL v).mp hv_CL) (hlrep v hv)
   rw [hvnil] at hg
   simp at hg
 
@@ -1208,10 +1206,10 @@ is not available in this development. Note also that in the paper sequents are *
 repeat carries exactly the same label as its companion, whereas `Sequent.setEqTo` only gives
 equality of the `Olf` and of the *set* of formulas on each side; so the companion of a
 repeat in `C_Δ` need not itself be in `C_Δ`. -/
-lemma exists_right_of_proper (C : LoadedCluster tab) (hP : C.root ◃⁺ C.root) :
+lemma exists_right_of_proper (C : LoadedCluster tab) :
     ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ [] := by
   intro Δ hΔ
-  rcases C.exists_right_or_lrep hP hΔ with h | ⟨f, hf, hlrep⟩
+  rcases C.exists_right_or_lrep hΔ with h | ⟨f, hf, hlrep⟩
   · exact h
   · sorry
 
@@ -1224,18 +1222,18 @@ again in `C`, so `Λ₁(u) = (Λ₁(t))_a` is non-empty by Lemma 9.5 (b), which 
 `⌈a⌉ψ` in `Λ₁(t)`.
 
 The hypothesis `hER` is Lemma 9.7 (d), i.e. `exists_right_of_proper`. -/
-lemma loadedProgVoc_of_proper (C : LoadedCluster tab) (hP : C.root ◃⁺ C.root)
+lemma loadedProgVoc_of_proper (C : LoadedCluster tab)
     (hER : ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ []) :
     (nodeAt C.root).left ≠ [] → ∀ Δ ∈ C.lambdaTwo, Δ.basic →
       (Δ.loadedProg).voc ⊆ jvoc (nodeAt C.root) := by
   intro hG1 Δ hΔ hb
   obtain ⟨t, ht⟩ := List.exists_mem_of_ne_nil _ (hER Δ hΔ)
-  obtain ⟨A, xi, hAxi, g, hg, hgbr, hgleft, -⟩ := C.basicModalStepAt hP hb ht
+  obtain ⟨A, xi, hAxi, g, hg, hgbr, hgleft, -⟩ := C.basicModalStepAt hb ht
   have ht' := ht
   simp only [nodesWithFineRight, nodesWithFine, List.mem_filter, decide_eq_true_eq] at ht'
   obtain ⟨⟨ht_CL, ht_lab⟩, ht_right⟩ := ht'
   have hmf : C.memFine t := (C.mem_fineCL t).mp ht_CL
-  obtain ⟨c, hc, hcmf⟩ := C.exists_child_memFine_of_not_isLrep hP hmf
+  obtain ⟨c, hc, hcmf⟩ := C.exists_child_memFine_of_not_isLrep hmf
     (t.not_isLrep_base_of_usesRightRule ht_right)
   rw [hg, List.mem_singleton] at hc
   have hgmf : C.memFine g := hc ▸ hcmf
@@ -1325,15 +1323,15 @@ Note that no uniformity is needed here: by `basicModalStepAt` the right componen
 children of a node of `C^R_Δ` with `Δ` basic are determined by `Δ` alone, so the list
 `stepOf Δ`, read off the first node of `C^R_Δ`, describes the children of every node of
 `C^R_Δ`. -/
-lemma modalStep_of (C : LoadedCluster tab) (hA : C.PaperAssumptions) :
+lemma modalStep_of (C : LoadedCluster tab) (hA : C.PaperAssumptions) : -- FIXME - UNUSED but keep for uniformity later!
     ∀ Δ ∈ C.lambdaTwo, Δ.basic → ∀ t ∈ C.nodesWithFineRight Δ,
       ∀ Pi ∈ C.stepOf Δ, ∃ u ∈ C.plusNodesWithFine Pi,
         ∀ (W : Type) (M : KripkeModel W) (w v : W), (∀ ψ ∈ t.label.left, evaluate M w ψ) →
           relate M Δ.loadedProg w v → ∀ ψ ∈ u.label.left, evaluate M v ψ := by
   intro Δ _ hb t ht Pi hPi
   obtain ⟨f0, hf0, g0, hg0, hg0lab⟩ := C.exists_child_rightOnly_of_mem_stepOf hPi
-  obtain ⟨A, xi, hAxi, g, hg, -, hgleft, hgright⟩ := C.basicModalStepAt hA.proper hb ht
-  obtain ⟨A', xi', hAxi', g0', hg0', -, -, hg0right⟩ := C.basicModalStepAt hA.proper hb hf0
+  obtain ⟨A, xi, hAxi, g, hg, -, hgleft, hgright⟩ := C.basicModalStepAt hb ht
+  obtain ⟨A', xi', hAxi', g0', hg0', -, -, hg0right⟩ := C.basicModalStepAt hb hf0
   have hAA : A' = A ∧ xi' = xi := by
     rw [hAxi] at hAxi'
     simp only [Option.some.injEq, Sum.inr.injEq] at hAxi'
@@ -1360,12 +1358,11 @@ lemma modalStep_of (C : LoadedCluster tab) (hA : C.PaperAssumptions) :
 
 /-- All facts of `PaperFacts`, from the two standing assumptions of the paper. -/
 theorem paperFacts (C : LoadedCluster tab) (hA : C.PaperAssumptions) : C.PaperFacts where
-  proper := hA.proper
-  exists_right := C.exists_right_of_proper hA.proper
+  exists_right := C.exists_right_of_proper
   vocL := C.vocL_fineCLplus
   vocR := C.vocR_fineCLplus
-  loadedProgVoc := C.loadedProgVoc_of_proper hA.proper (C.exists_right_of_proper hA.proper)
-  leftPropagation := C.leftPropagation_of_proper hA.proper
+  loadedProgVoc := C.loadedProgVoc_of_proper (C.exists_right_of_proper)
+  leftPropagation := C.leftPropagation_of_proper C.proper
   rightRuleChildren := C.rightRuleChildren_of_uniform hA.uniform
   modalStep := C.modalStep_of hA
 
@@ -1451,13 +1448,13 @@ noncomputable def clusterInterpolation_right {tab : Tableau .nil X} (Xfree : X.i
 interpolants for all exits of that cluster, we get an interpolant for `s`.
 Note how `s_cr` is exactly what is needed to make a `LoadedCluster` here. -/
 noncomputable def clusterInterpolation {tab : Tableau .nil X} (Xfree : X.isFree) (s : PathIn tab)
-    (s_cr : s.isClusterRoot) (s_loaded : (nodeAt s).isLoaded)
+    (s_cr : s.isClusterRoot) (s_proper : s ◃⁺ s) (s_loaded : (nodeAt s).isLoaded)
     (exitIPs : ∀ e : PathIn tab, isExitOf s e → PartInterpolant (nodeAt e))
     : PartInterpolant (nodeAt s) := by
   by_cases s_right : (nodeAt s).2.2.isRight
   case pos =>
     -- The loaded formula is on the right, so we can use `clusterInterpolation_right`.
-    exact clusterInterpolation_right Xfree (LoadedCluster.ofClusterRoot s s_cr s_right)
+    exact clusterInterpolation_right Xfree (LoadedCluster.ofClusterRoot s s_cr s_proper s_right)
       (fun e e_in => exitIPs e ((LoadedCluster.mem_exits_iff _ e).mp e_in))
   case neg =>
     -- The loaded formula is on the left, so we "flip" the whole tableau.
@@ -1469,7 +1466,7 @@ noncomputable def clusterInterpolation {tab : Tableau .nil X} (Xfree : X.isFree)
       · simp [Sequent.isLoaded] at s_loaded
       case some val => cases val <;> simp_all [Sequent.flip, Olf.flip]
     let C : LoadedCluster tab.flip :=
-      LoadedCluster.ofClusterRoot s.flip (PathIn.isClusterRoot_flip s_cr) s_flip_right
+      LoadedCluster.ofClusterRoot s.flip (PathIn.isClusterRoot_flip s_cr) sorry s_flip_right -- TODO TransGen cEdge flip
     have flipIPs : ∀ e ∈ C.exits, PartInterpolant (nodeAt e) := by
       intro e e_in
       have e_exit : isExitOf s.flip e := (LoadedCluster.mem_exits_iff _ e).mp e_in

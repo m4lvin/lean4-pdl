@@ -99,16 +99,22 @@ theorem tabToIntAt {X : Sequent} (h_free : X.isFree) (tab : Tableau .nil X) (s :
   -- case distinction before or after `induction`?
   by_cases (nodeAt s).isLoaded
   case pos s_loaded =>
-    -- HARD case, here we want to use `clusterInterpolation` and that is why we used
-    -- `PathIn.strong_upwards_inductionOn` to have an IH applicable to "far away" exits.
-    -- The exits of the cluster of `s` are proper successors of `s` and are themselves
-    -- cluster roots, so the IH is applicable to them.
-    have myExitIPs : ∀ e : PathIn tab, isExitOf s e → PartInterpolant (nodeAt e) := by
-      intro e e_exit
-      have IHe := IH (lt_of_isExitOf s_cr e_exit) (isClusterRoot_of_isExitOf e_exit)
-      exact ⟨IHe.choose, IHe.choose_spec⟩
-    rcases clusterInterpolation h_free s s_cr s_loaded myExitIPs with ⟨θ, h_θ⟩
-    exact ⟨θ, h_θ⟩
+    by_cases s ◃⁺ s
+    case pos is_proper =>
+      -- HARD case, here we want to use `clusterInterpolation` and that is why we used
+      -- `PathIn.strong_upwards_inductionOn` to have an IH applicable to "far away" exits.
+      -- The exits of the cluster of `s` are proper successors of `s` and are themselves
+      -- cluster roots, so the IH is applicable to them.
+      have myExitIPs : ∀ e : PathIn tab, isExitOf s e → PartInterpolant (nodeAt e) := by
+        intro e e_exit
+        have IHe := IH (lt_of_isExitOf s_cr e_exit) (isClusterRoot_of_isExitOf e_exit)
+        exact ⟨IHe.choose, IHe.choose_spec⟩
+      rcases clusterInterpolation h_free s s_cr is_proper s_loaded myExitIPs with ⟨θ, h_θ⟩
+      exact ⟨θ, h_θ⟩
+    case neg is_not_proper =>
+      -- Here we have a loaded node, but still must have a singleton cluster.
+      -- TODO should be similar to the EASY `neg s_free` case below.
+      sorry
   case neg s_free =>
     -- EASY case, singleton cluster because not loaded.
     simp at s_free
