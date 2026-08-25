@@ -236,22 +236,6 @@ lemma fineExits_itp_spec (C : LoadedCluster tab)
 
 end LoadedCluster
 
-/-! ## Proving the facts of `LoadedCluster.PaperFacts`
-
-The record `LoadedCluster.PaperFacts` in `Pdl.ClusterItp` collects the facts about the
-cluster that the paper proves in its Section 9.  We prove them here.  Two of them are not
-provable for an *arbitrary* `Tableau`, and they are exactly the two standing assumptions
-that the paper makes when it fixes a tableau and a cluster:
-
-* the cluster is **proper**, i.e. its root lies on a `◃`-cycle (for a singleton cluster the
-  paper interpolates with its "easy" lemma instead), and
-* the tableau is **uniform** (conditions U1/U2 of the paper), of which we only need the
-  consequence `LoadedCluster.HasUniformSteps`.
-
-These two are collected in `LoadedCluster.PaperAssumptions` below; everything else is
-proved from them.
--/
-
 /-! ### Vocabulary preservation
 
 Lemma 9.2 of the paper: along the tableau the vocabulary of each of the two components
@@ -1019,25 +1003,15 @@ end UpwardsRight
 
 /-! ### The two standing assumptions of the paper
 
-The paper fixes a *uniform* closed tableau and a *proper* cluster in it (page
-"fixedTabAndCluster"), and both assumptions are used in Section 9.  Neither of them holds
-for an arbitrary `Tableau`:
+The paper fixes a *uniform* closed tableau and a *proper* cluster in it, and both assumptions
+are used in Section 9.  Neither of them holds for an arbitrary values of the `Tableau` type.
 
-* a loaded node whose branch closes without a loaded-path repeat is a cluster root of a
-  *singleton* cluster, and the paper interpolates at such a node with its "easy" lemma
-  (`localInterpolantStep` / `freePdlRuleInterpolant`) instead of Lemma 9.3;
 * the `Tableau` type does not force any coherence between the rules applied at different
   nodes, whereas uniformity (U1/U2) makes the rule applied at a node with a loaded,
   non-basic right component depend only on that component.
 
-We collect the two in one record. -/
-
-/-- The assumption that the paper makes about the fixed tableau and cluster and that
-are not provable for an arbitrary `Tableau`: the tableau is uniform
-(in the form needed here, see `LoadedCluster.HasUniformSteps`). -/
-structure LoadedCluster.PaperAssumptions (C : LoadedCluster tab) : Prop where
-  /-- The consequence of uniformity used in the construction of the quasi-tableau. -/
-  uniform : C.HasUniformSteps
+This is captured in the form needed here in `LoadedCluster.HasUniformSteps`.
+-/
 
 namespace LoadedCluster
 
@@ -1323,7 +1297,7 @@ Note that no uniformity is needed here: by `basicModalStepAt` the right componen
 children of a node of `C^R_Δ` with `Δ` basic are determined by `Δ` alone, so the list
 `stepOf Δ`, read off the first node of `C^R_Δ`, describes the children of every node of
 `C^R_Δ`. -/
-lemma modalStep_of (C : LoadedCluster tab) (hA : C.PaperAssumptions) : -- FIXME - UNUSED but keep for uniformity later!
+lemma modalStep_of (C : LoadedCluster tab) :
     ∀ Δ ∈ C.lambdaTwo, Δ.basic → ∀ t ∈ C.nodesWithFineRight Δ,
       ∀ Pi ∈ C.stepOf Δ, ∃ u ∈ C.plusNodesWithFine Pi,
         ∀ (W : Type) (M : KripkeModel W) (w v : W), (∀ ψ ∈ t.label.left, evaluate M w ψ) →
@@ -1357,22 +1331,23 @@ lemma modalStep_of (C : LoadedCluster tab) (hA : C.PaperAssumptions) : -- FIXME 
     exact hbox v hrel
 
 /-- All facts of `PaperFacts`, from the two standing assumptions of the paper. -/
-theorem paperFacts (C : LoadedCluster tab) (hA : C.PaperAssumptions) : C.PaperFacts where
+theorem paperFacts (C : LoadedCluster tab) (hA : C.HasUniformSteps) : C.PaperFacts where
   exists_right := C.exists_right_of_proper
   vocL := C.vocL_fineCLplus
   vocR := C.vocR_fineCLplus
   loadedProgVoc := C.loadedProgVoc_of_proper (C.exists_right_of_proper)
   leftPropagation := C.leftPropagation_of_proper C.proper
-  rightRuleChildren := C.rightRuleChildren_of_uniform hA.uniform
-  modalStep := C.modalStep_of hA
+  rightRuleChildren := C.rightRuleChildren_of_uniform hA -- only field that needs uniformity
+  modalStep := C.modalStep_of
 
 end LoadedCluster
 
 /-! ## What is proved and what is still assumed
 
 `LoadedCluster.paperFacts` derives all eight fields of `LoadedCluster.PaperFacts` from the
-two standing assumptions of the paper, collected in `LoadedCluster.PaperAssumptions`:
-properness of the cluster and uniformity of the tableau. Six of the eight are proved here:
+two assumptions that we also have properness of the cluster (which just `LoadedCluster.proper`)
+and uniformity of the tableau (which we have not actually shown yet).
+Six of the eight are proved here:
 
 * `proper` is the first assumption itself;
 * `vocL` and `vocR` are `vocL_fineCLplus` and `vocR_fineCLplus`, proved from vocabulary
@@ -1424,9 +1399,8 @@ noncomputable def clusterInterpolation_right {tab : Tableau .nil X} (Xfree : X.i
     (C : LoadedCluster tab) (exitIPs : ∀ e ∈ C.exits, PartInterpolant (nodeAt e))
     : PartInterpolant (nodeAt C.root) := by
   classical
-  -- The two standing assumptions that the paper makes about the fixed tableau and the
-  -- fixed cluster, see `LoadedCluster.PaperAssumptions`.
-  have hA : C.PaperAssumptions := sorry
+  -- The remaining assumption that the paper makes: the fixed cluster C must have uniform steps.
+  have hA : C.HasUniformSteps := sorry
   -- All facts of `PaperFacts` follow from these two, except for `exists_right` and
   -- `leftPropagation`; see the docstrings of `LoadedCluster.exists_right_of_proper` and
   -- `LoadedCluster.leftPropagation_of_proper`.
