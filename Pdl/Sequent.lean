@@ -488,6 +488,27 @@ theorem vDash_multisetEqTo_iff {X Y : Sequent} (h : X.multisetEqTo Y) (M : Kripk
   have : ∀ f, f ∈ R ↔ f ∈ R' := fun f => List.Perm.mem_iff R_iff
   aesop
 
+lemma Sequent.satisfiable_top_cons_right {X : Sequent} (h_left_nil : X.left = [])
+    (X_unsat : ¬satisfiable X) : ¬satisfiable (⊤ :: X.right) := by
+  rintro ⟨W,M,w,w_⟩
+  absurd X_unsat; clear X_unsat
+  use W, M, w
+  intro φ φ_in
+  rcases X with ⟨L,R,O⟩
+  simp only [left_eq, List.append_eq_nil_iff] at h_left_nil
+  rcases h_left_nil with ⟨L_nil, OL_nil⟩
+  subst L_nil
+  simp only [List.nil_union, List.mem_union_iff, Option.mem_toList, Option.map_eq_some_iff,
+    Sum.exists, Sum.elim_inl, negUnload, Sum.elim_inr] at φ_in
+  rcases φ_in with _|_|⟨⟨χ⟩, ⟨O_def, def_φ⟩⟩
+  · aesop
+  · aesop
+  · subst O_def def_φ
+    unfold right at w_
+    simp only [Formula.insTop, R_eq, O_eq, Olf.R_inr, List.mem_cons, List.mem_append,
+      List.not_mem_nil, or_false, forall_eq_or_imp, evaluate, not_false_eq_true, true_and] at w_
+    grind
+
 /-! ## Removing loaded formulas from sequents -/
 
 def Sequent.without : (LRO : Sequent) → (naf : AnyNegFormula) → Sequent

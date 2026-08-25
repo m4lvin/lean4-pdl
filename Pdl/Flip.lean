@@ -45,6 +45,12 @@ lemma Sequent.flip_isLoaded {X : Sequent} :
   simp only [Sequent.isLoaded, Sequent.flip, Olf.flip]
   grind
 
+@[simp]
+lemma Sequent.flip_isFree {X : Sequent} :
+    X.flip.isFree ↔ X.isFree := by
+  unfold Sequent.isFree
+  simp
+
 lemma Sequent.flip_eq_off {X Y : Sequent} : (X.flip = Y) = (X = Y.flip) := by
   rcases X with ⟨L,R,O⟩
   rcases Y with ⟨L',R',O'⟩

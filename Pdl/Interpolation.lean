@@ -22,7 +22,7 @@ theorem interpolation {φ ψ : Formula} :
     rw [← consIffSat _ (by simp)] at hyp -- using completeness
     simp [consistent,inconsistent] at hyp
     exact Classical.choice hyp
-  have partInt := tabToInt ctX -- using tableau interpolation
+  have partInt := tabToInt (Sequent.none_isFree _ _) ctX -- using tableau interpolation
   rcases partInt with ⟨θ, pI_prop⟩
   unfold isPartInterpolant at pI_prop
   use θ

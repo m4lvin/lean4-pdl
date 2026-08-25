@@ -89,9 +89,9 @@ always the first node of their own cluster.
 
 At the root of the tableau the hypothesis is free of charge: `.nil` has no parent at all,
 so `PathIn.isClusterRoot_nil` holds vacuously and `tabToInt` below can discharge it. Hence
-we do not even need the (harmless, since we always start with a free sequent) additional
-assumption that the root sequent `X` is free. -/
-theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
+for that we do not even need the additional assumption that the root sequent `X` is free,
+but we do want it inside `clusterInterpolation` later. -/
+theorem tabToIntAt {X : Sequent} (h_free : X.isFree) (tab : Tableau .nil X) (s : PathIn tab) :
     s.isClusterRoot → ∃ θ, isPartInterpolant (nodeAt s) θ := by
   induction s using PathIn.strong_upwards_inductionOn -- Strong!
   next s IH =>
@@ -107,7 +107,7 @@ theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
       intro e e_exit
       have IHe := IH (lt_of_isExitOf s_cr e_exit) (isClusterRoot_of_isExitOf e_exit)
       exact ⟨IHe.choose, IHe.choose_spec⟩
-    rcases clusterInterpolation s s_cr s_loaded myExitIPs with ⟨θ, h_θ⟩
+    rcases clusterInterpolation h_free s s_cr s_loaded myExitIPs with ⟨θ, h_θ⟩
     exact ⟨θ, h_θ⟩
   case neg s_free =>
     -- EASY case, singleton cluster because not loaded.
@@ -181,5 +181,5 @@ theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (s : PathIn tab) :
       rw [nodeAt, s_def]
       apply LoadedPathRepeat_rep_isLoaded lpr
 
-theorem tabToInt {X : Sequent} (tab : Tableau .nil X) :
-    ∃ θ, isPartInterpolant X θ := tabToIntAt tab .nil PathIn.isClusterRoot_nil
+theorem tabToInt {X : Sequent} (h_free : X.isFree) (tab : Tableau .nil X) :
+    ∃ θ, isPartInterpolant X θ := tabToIntAt h_free tab .nil PathIn.isClusterRoot_nil

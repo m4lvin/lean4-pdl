@@ -233,25 +233,6 @@ lemma fineExits_itp_spec (C : LoadedCluster tab)
     ∀ f ∈ C.fineExits, isPartInterpolant f.label (FinePathIn.itp f) :=
   fun f hf => FinePathIn.itp_spec (C.exists_itp_of_mem_fineExits exitIPs f hf)
 
-/-! ## The remaining fact about the root of the cluster
-
-Definition 9.20 sets `θ_r := ⊤` when the left component `Γ₁` of the root of the cluster is
-empty (Remark 9.19). In that case the interpolant condition on the right says that `Γ₂` is
-unsatisfiable. That is *not* a statement about the cluster at all: it is soundness of the
-closed tableau `tab` at the node `C.root`, i.e. `tableauThenNotSat`. The latter needs the
-root sequent of `tab` to be free, which is not part of the data of `clusterInterpolation`
-(nor of `tabToIntAt`, which calls it), so we record it here as a hypothesis. -/
-
-/-- The one further fact used below: if the left component of the root of the cluster is
-empty then its right component is unsatisfiable.
-
-This follows from soundness (`tableauThenNotSat`) whenever the root sequent of the tableau
-`tab` is free, which is the case in the intended application. -/
-structure RootFacts (C : LoadedCluster tab) : Prop where
-  /-- For an empty left component the right component is unsatisfiable. -/
-  emptyLeftUnsat : (nodeAt C.root).left = [] →
-    ¬ satisfiable ((⊤ : Formula) :: (nodeAt C.root).right)
-
 end LoadedCluster
 
 /-! ## Where uniformity is needed
@@ -287,14 +268,13 @@ The interpolant is `C.itp θ` from Definition 9.20, where `θ` gives the interpo
 *fine* exit nodes, obtained from the given interpolants of the coarse exits by
 `LoadedCluster.fineExits_itp_spec`. Its three defining properties are Lemma 10.1
 (`itp_voc`), Lemma 10.3 (`left_unsat_neg_itp`) and Lemma 10.8 (`right_unsat_itp`). -/
-noncomputable def clusterInterpolation_right (C : LoadedCluster tab)
-    (exitIPs : ∀ e ∈ C.exits, PartInterpolant (nodeAt e))
+noncomputable def clusterInterpolation_right {tab : Tableau .nil X} (Xfree : X.isFree)
+    (C : LoadedCluster tab) (exitIPs : ∀ e ∈ C.exits, PartInterpolant (nodeAt e))
     : PartInterpolant (nodeAt C.root) := by
   classical
   -- The facts about the cluster that are still assumed; see the docstrings of these records.
   have hF : C.PaperFacts := sorry
   have hS : C.SatDownFacts := sorry
-  have hR : C.RootFacts := sorry
   have exitIPs' : ∀ e ∈ C.exits, ∃ θ, isPartInterpolant (nodeAt e) θ :=
     fun e he => ⟨(exitIPs e he).1, (exitIPs e he).2⟩
   have hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (FinePathIn.itp f) :=
@@ -302,20 +282,21 @@ noncomputable def clusterInterpolation_right (C : LoadedCluster tab)
   refine ⟨C.itp FinePathIn.itp, C.itp_voc hF _ hθ, C.left_unsat_neg_itp hF hθ, ?_⟩
   by_cases hΓ₁ : (nodeAt C.root).left = []
   · rw [LoadedCluster.itp, if_pos hΓ₁]
-    exact hR.emptyLeftUnsat hΓ₁
+    have := tableauThenNotSat tab Xfree C.root
+    exact Sequent.satisfiable_top_cons_right hΓ₁ this
   · exact C.right_unsat_itp hS hθ hΓ₁
 
 /-- Lemma 9.3: Given a loaded node `s` that is the first node of its cluster, and given
 interpolants for all exits of that cluster, we get an interpolant for `s`.
 Note how `s_cr` is exactly what is needed to make a `LoadedCluster` here. -/
-noncomputable def clusterInterpolation (s : PathIn tab)
+noncomputable def clusterInterpolation {tab : Tableau .nil X} (Xfree : X.isFree) (s : PathIn tab)
     (s_cr : s.isClusterRoot) (s_loaded : (nodeAt s).isLoaded)
     (exitIPs : ∀ e : PathIn tab, isExitOf s e → PartInterpolant (nodeAt e))
     : PartInterpolant (nodeAt s) := by
   by_cases s_right : (nodeAt s).2.2.isRight
   case pos =>
     -- The loaded formula is on the right, so we can use `clusterInterpolation_right`.
-    exact clusterInterpolation_right (LoadedCluster.ofClusterRoot s s_cr s_right)
+    exact clusterInterpolation_right Xfree (LoadedCluster.ofClusterRoot s s_cr s_right)
       (fun e e_in => exitIPs e ((LoadedCluster.mem_exits_iff _ e).mp e_in))
   case neg =>
     -- The loaded formula is on the left, so we "flip" the whole tableau.
@@ -333,4 +314,5 @@ noncomputable def clusterInterpolation (s : PathIn tab)
       have e_exit : isExitOf s.flip e := (LoadedCluster.mem_exits_iff _ e).mp e_in
       rw [← PathIn.flip_unflip e] at e_exit ⊢
       exact PartInterpolant.flipPath (exitIPs e.unflip (isExitOf_flip.mp e_exit))
-    exact PartInterpolant.unflipPath (clusterInterpolation_right C flipIPs)
+    have : X.flip.isFree := by rw [Sequent.flip_isFree]; exact Xfree
+    exact PartInterpolant.unflipPath (clusterInterpolation_right this C flipIPs)
