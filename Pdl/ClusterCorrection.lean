@@ -23,96 +23,11 @@ namespace QuasiTab
 
 The reason why Lemma 9.12 (c) and (d) fail in general is purely a matter of the *shape* of
 the tree: if `x` has several children then a repeat leaf below one child is not below the
-other children. We now make this precise. First some basic facts about `at?` and addresses,
-then the positive result that (d) does hold at every node with a unique child
+other children. We now make this precise. Using the basic facts about `at?` and addresses
+from `Pdl.InterpolationCluster`, we first show
+the positive result that (d) does hold at every node with a unique child
 (`cycs_eq_of_childrenAt_eq_singleton`, `cycs_eq_of_qedge_of_typ_ne_three`), and finally the
 precise branching pattern that refutes (c) and (d) (`cycs_failure_of_shape`). -/
-
-lemma at?_cons_none {q : QuasiTab} {i : Nat} {rest : List Nat}
-    (h : q.children[i]? = none) : q.at? (i :: rest) = none := by
-  cases q with
-  | QNode k Δ next =>
-    simp only [QuasiTab.children] at h
-    simp only [at?, show (QNode k Δ next).children = next from rfl, h]
-
-lemma at?_append (q : QuasiTab) (x w : List Nat) :
-    q.at? (x ++ w) = (q.at? x).bind (fun n => n.at? w) := by
-  induction x generalizing q with
-  | nil => simp [at?]
-  | cons i rest ih =>
-    cases q with
-    | QNode k Δ next =>
-      simp only [List.cons_append, at?]
-      cases hc : next[i]? with
-      | none => simp [show (QNode k Δ next).children = next from rfl, hc]
-      | some c => simp only [show (QNode k Δ next).children = next from rfl, hc]; exact ih c
-
-lemma isSome_at?_of_isLeafAt {q : QuasiTab} {x : List Nat} (h : q.isLeafAt x) :
-    (q.at? x).isSome := by
-  unfold isLeafAt at h
-  cases hx : q.at? x with
-  | none => rw [hx] at h; simp at h
-  | some n => simp
-
-/-- Every address of a node of `q` is in `q.addresses`. -/
-lemma mem_addresses_of_at? (q : QuasiTab) (x : List Nat) (h : (q.at? x).isSome) :
-    x ∈ q.addresses := by
-  induction x generalizing q with
-  | nil => cases q with | QNode k Δ next => simp [addresses]
-  | cons i rest ih =>
-    cases q with
-    | QNode k Δ next =>
-      simp only [at?] at h
-      cases hc : next[i]? with
-      | none => rw [show (QNode k Δ next).children = next from rfl, hc] at h; simp at h
-      | some c =>
-        rw [show (QNode k Δ next).children = next from rfl, hc] at h
-        simp only [addresses, List.mem_cons, List.mem_flatMap, List.mem_map]
-        refine Or.inr ⟨(c.addresses, i), ?_, rest, ih c h, rfl⟩
-        rw [List.mem_zipIdx_iff_getElem?]
-        simp [hc]
-
-/-- The node at an address is one of the subtrees. -/
-lemma mem_subtrees_of_at? {q n : QuasiTab} {x : List Nat} (h : q.at? x = some n) :
-    n ∈ q.subtrees := by
-  induction x generalizing q with
-  | nil =>
-    cases q with
-    | QNode k Δ next =>
-      simp only [at?, Option.some.injEq] at h
-      subst h
-      simp [subtrees]
-  | cons i rest ih =>
-    cases q with
-    | QNode k Δ next =>
-      simp only [at?, show (QNode k Δ next).children = next from rfl] at h
-      cases hc : next[i]? with
-      | none => rw [hc] at h; simp at h
-      | some c =>
-        rw [hc] at h
-        simp only [subtrees, List.mem_cons, List.mem_flatMap]
-        exact Or.inr ⟨c, List.mem_of_getElem? hc, ih h⟩
-
-lemma childrenAt_of_at? {q n : QuasiTab} {x : List Nat} (hx : q.at? x = some n) :
-    q.childrenAt x = (List.range n.children.length).map (fun i => x ++ [i]) := by
-  unfold childrenAt; rw [hx]
-
-lemma childrenAt_eq_singleton_iff (q : QuasiTab) {x y : List Nat} :
-    q.childrenAt x = [y] ↔ ∃ n, q.at? x = some n ∧ n.children.length = 1 ∧ y = x ++ [0] := by
-  cases hx : q.at? x with
-  | none => simp [childrenAt, hx]
-  | some n =>
-    rw [childrenAt_of_at? hx]
-    constructor
-    · intro h
-      have hlen : n.children.length = 1 := by have := congrArg List.length h; simpa using this
-      rw [hlen] at h
-      refine ⟨n, rfl, hlen, ?_⟩
-      simpa using h.symm
-    · rintro ⟨n', hn', hlen, rfl⟩
-      cases Option.some.inj hn'
-      rw [hlen]
-      simp
 
 /-- Two sets of cycles that contain each other are equal (both are filters of the same
 list of repeat leaves). -/

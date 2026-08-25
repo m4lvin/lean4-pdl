@@ -1006,6 +1006,98 @@ lemma mem_cycs_iff (q : QuasiTab) (x z : List Nat) :
     simp only [Bool.and_eq_true, Bool.not_eq_eq_eq_not, Bool.not_true, beq_eq_false_iff_ne, ne_eq]
     exact ⟨⟨List.isPrefixOf_iff_prefix.mpr hcx, hcx'⟩, List.isPrefixOf_iff_prefix.mpr hxz⟩
 
+/-! ### Basic facts about addresses
+
+These general facts about `at?`, `addresses`, `subtrees` and `childrenAt` are used both
+here and in the files building on this one. -/
+
+
+lemma at?_cons_none {q : QuasiTab} {i : Nat} {rest : List Nat}
+    (h : q.children[i]? = none) : q.at? (i :: rest) = none := by
+  cases q with
+  | QNode k Δ next =>
+    simp only [QuasiTab.children] at h
+    simp only [at?, show (QNode k Δ next).children = next from rfl, h]
+
+lemma at?_append (q : QuasiTab) (x w : List Nat) :
+    q.at? (x ++ w) = (q.at? x).bind (fun n => n.at? w) := by
+  induction x generalizing q with
+  | nil => simp [at?]
+  | cons i rest ih =>
+    cases q with
+    | QNode k Δ next =>
+      simp only [List.cons_append, at?]
+      cases hc : next[i]? with
+      | none => simp [show (QNode k Δ next).children = next from rfl, hc]
+      | some c => simp only [show (QNode k Δ next).children = next from rfl, hc]; exact ih c
+
+lemma isSome_at?_of_isLeafAt {q : QuasiTab} {x : List Nat} (h : q.isLeafAt x) :
+    (q.at? x).isSome := by
+  unfold isLeafAt at h
+  cases hx : q.at? x with
+  | none => rw [hx] at h; simp at h
+  | some n => simp
+
+/-- Every address of a node of `q` is in `q.addresses`. -/
+lemma mem_addresses_of_at? (q : QuasiTab) (x : List Nat) (h : (q.at? x).isSome) :
+    x ∈ q.addresses := by
+  induction x generalizing q with
+  | nil => cases q with | QNode k Δ next => simp [addresses]
+  | cons i rest ih =>
+    cases q with
+    | QNode k Δ next =>
+      simp only [at?] at h
+      cases hc : next[i]? with
+      | none => rw [show (QNode k Δ next).children = next from rfl, hc] at h; simp at h
+      | some c =>
+        rw [show (QNode k Δ next).children = next from rfl, hc] at h
+        simp only [addresses, List.mem_cons, List.mem_flatMap, List.mem_map]
+        refine Or.inr ⟨(c.addresses, i), ?_, rest, ih c h, rfl⟩
+        rw [List.mem_zipIdx_iff_getElem?]
+        simp [hc]
+
+/-- The node at an address is one of the subtrees. -/
+lemma mem_subtrees_of_at? {q n : QuasiTab} {x : List Nat} (h : q.at? x = some n) :
+    n ∈ q.subtrees := by
+  induction x generalizing q with
+  | nil =>
+    cases q with
+    | QNode k Δ next =>
+      simp only [at?, Option.some.injEq] at h
+      subst h
+      simp [subtrees]
+  | cons i rest ih =>
+    cases q with
+    | QNode k Δ next =>
+      simp only [at?, show (QNode k Δ next).children = next from rfl] at h
+      cases hc : next[i]? with
+      | none => rw [hc] at h; simp at h
+      | some c =>
+        rw [hc] at h
+        simp only [subtrees, List.mem_cons, List.mem_flatMap]
+        exact Or.inr ⟨c, List.mem_of_getElem? hc, ih h⟩
+
+lemma childrenAt_of_at? {q n : QuasiTab} {x : List Nat} (hx : q.at? x = some n) :
+    q.childrenAt x = (List.range n.children.length).map (fun i => x ++ [i]) := by
+  unfold childrenAt; rw [hx]
+
+lemma childrenAt_eq_singleton_iff (q : QuasiTab) {x y : List Nat} :
+    q.childrenAt x = [y] ↔ ∃ n, q.at? x = some n ∧ n.children.length = 1 ∧ y = x ++ [0] := by
+  cases hx : q.at? x with
+  | none => simp [childrenAt, hx]
+  | some n =>
+    rw [childrenAt_of_at? hx]
+    constructor
+    · intro h
+      have hlen : n.children.length = 1 := by have := congrArg List.length h; simpa using this
+      rw [hlen] at h
+      refine ⟨n, rfl, hlen, ?_⟩
+      simpa using h.symm
+    · rintro ⟨n', hn', hlen, rfl⟩
+      cases Option.some.inj hn'
+      rw [hlen]
+      simp
+
 /-! ### Lemma 9.12 -/
 
 /-- Lemma 9.12 (a), first half: a repeat leaf has type 1. -/
