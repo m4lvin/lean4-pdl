@@ -235,24 +235,960 @@ lemma fineExits_itp_spec (C : LoadedCluster tab)
 
 end LoadedCluster
 
-/-! ## Where uniformity is needed
+/-! ## Proving the facts of `LoadedCluster.PaperFacts`
 
-Now that the whole argument is assembled, one can read off where uniformity (conditions
-U1/U2, formalised as `LoadedCluster.HasUniformSteps` with `LoadedCluster.stepOf_spec`) will
-be needed: in exactly **one** of the assumed facts, namely `PaperFacts.rightRuleChildren`.
+The record `LoadedCluster.PaperFacts` in `Pdl.ClusterItp` collects the facts about the
+cluster that the paper proves in its Section 9.  We prove them here.  Two of them are not
+provable for an *arbitrary* `Tableau`, and they are exactly the two standing assumptions
+that the paper makes when it fixes a tableau and a cluster:
 
-The reason is that `C.stepOf Δ` reads the right components of the children of the *first*
-node of `C^R_Δ`, while the fields of the two records quantify over the nodes of `C^R_Δ`:
+* the cluster is **proper**, i.e. its root lies on a `◃`-cycle (for a singleton cluster the
+  paper interpolates with its "easy" lemma instead), and
+* the tableau is **uniform** (conditions U1/U2 of the paper), of which we only need the
+  consequence `LoadedCluster.HasUniformSteps`.
+
+These two are collected in `LoadedCluster.PaperAssumptions` below; everything else is
+proved from them.
+-/
+
+/-! ### Vocabulary preservation
+
+Lemma 9.2 of the paper: along the tableau the vocabulary of each of the two components
+only shrinks.  "By inspection of the rules": for local rules this is
+`localRule_does_not_increase_vocab_L` and `localRule_does_not_increase_vocab_R`, and for
+the PDL rules we check the six cases directly. -/
+
+section VocPreservation
+
+lemma mem_fvoc_iff {L : List Formula} {x} : x ∈ L.fvoc ↔ ∃ φ ∈ L, x ∈ φ.voc :=
+  Vocab.fromListFormula_map_iff x L
+
+lemma List.fvoc_eq_of_toFinset_eq {L L' : List Formula} (h : L.toFinset = L'.toFinset) :
+    L.fvoc = L'.fvoc := by
+  ext x
+  simp only [List.fvoc, Vocab.fromListFormula_map_iff]
+  constructor
+  · rintro ⟨φ, hφ, hx⟩
+    exact ⟨φ, by rwa [← List.mem_toFinset, ← h, List.mem_toFinset], hx⟩
+  · rintro ⟨φ, hφ, hx⟩
+    exact ⟨φ, by rwa [← List.mem_toFinset, h, List.mem_toFinset], hx⟩
+
+lemma Sequent.left_fvoc_eq_of_setEqTo {X Y : Sequent} (h : X.setEqTo Y) :
+    X.left.fvoc = Y.left.fvoc := by
+  rcases X with ⟨L, R, O⟩
+  rcases Y with ⟨L', R', O'⟩
+  obtain ⟨hL, hR, hO⟩ := h
+  subst hO
+  simp only [Sequent.left_eq, List.fvoc, List.map_append, Vocab.fromList_append]
+  rw [show (Vocab.fromList (L.map Formula.voc)) = L'.fvoc from List.fvoc_eq_of_toFinset_eq hL]
+
+lemma Sequent.right_fvoc_eq_of_setEqTo {X Y : Sequent} (h : X.setEqTo Y) :
+    X.right.fvoc = Y.right.fvoc := by
+  rcases X with ⟨L, R, O⟩
+  rcases Y with ⟨L', R', O'⟩
+  obtain ⟨hL, hR, hO⟩ := h
+  subst hO
+  simp only [Sequent.right, Sequent.R, Sequent.O, List.fvoc, List.map_append,
+    Vocab.fromList_append]
+  rw [show (Vocab.fromList (R.map Formula.voc)) = R'.fvoc from List.fvoc_eq_of_toFinset_eq hR]
+
+/-- A local rule application does not increase the vocabulary of the left component.
+This is the left half of `localRuleApp_does_not_increase_jvoc`. -/
+lemma LocalRuleApp.left_fvoc_subset (lra : LocalRuleApp) :
+    ∀ Y ∈ lra.C, Y.left.fvoc ⊆ lra.X.left.fvoc := by
+  match lra with
+  | @LocalRuleApp.mk L R O Lcond Rcond Ocond ress lrule C hC preconditionProof =>
+    subst hC
+    rintro ⟨cL, cR, cO⟩ C_in
+    simp [applyLocalRule] at C_in
+    rcases C_in with ⟨⟨Lres, Rres, Ores⟩ , res_in, cLRO_def⟩
+    simp at cLRO_def
+    cases cLRO_def
+    intro x x_in
+    simp at * -- only
+    rcases x_in with ⟨φvoc, ⟨φ, φ_nocon, d_φvoc⟩|⟨φ, φ_L, d_φvoc⟩|⟨φ, φ_O, d_φvoc⟩, x_in_φvoc⟩
+    all_goals subst d_φvoc
+    · refine ⟨φ.voc, Or.inl ?_, x_in_φvoc⟩
+      exact ⟨φ, List.diff_subset L Lcond φ_nocon, rfl⟩
+    all_goals
+      have Lsub := @localRule_does_not_increase_vocab_L _ _ lrule _ res_in x
+      simp at Lsub
+    · specialize Lsub φ.voc (Or.inl ⟨_, φ_L, rfl⟩) x_in_φvoc
+      rcases Lsub with ⟨ψvoc, h_ψvoc, x_in_ψvoc⟩
+      refine ⟨ψvoc, ?_, x_in_ψvoc⟩
+      rcases h_ψvoc with (⟨ψ, ψ_in_Lcond, d_ψvoc⟩ | ⟨ψ, ψ_in_Ocond, d_ψvoc⟩) <;> subst d_ψvoc
+      · exact Or.inl ⟨ψ, preconditionProof.1.subset ψ_in_Lcond, rfl⟩
+      · refine Or.inr ⟨ψ, ?_, rfl⟩; aesop
+    · -- whether to use φ.voc depends on whether the localRuleApp changes the O here.
+      rcases O with _|χ <;> rcases Ocond with _|cχ <;> rcases Ores with _|resχ
+      all_goals
+        simp [Olf.change] at * -- already treats 3 cases
+      · specialize Lsub φ.voc (Or.inr ⟨φ, φ_O, rfl⟩) x_in_φvoc
+        rcases Lsub with ⟨ψ, ψ_in_Lcond, x_in_φvoc⟩
+        exact ⟨ψ, preconditionProof.1.subset ψ_in_Lcond, x_in_φvoc⟩
+      · rcases χ with ⟨⟨χ⟩⟩|⟨χ⟩ <;> simp [Olf.L] at *
+        subst φ_O
+        aesop
+      · rcases resχ with ⟨⟨resχ⟩⟩|⟨⟨resχ⟩⟩ <;> simp [Olf.L] at φ_O Lsub
+        subst φ_O
+        simp at x_in_φvoc
+        specialize Lsub (resχ.unload).voc (Or.inr rfl) x_in_φvoc
+        rcases Lsub with ⟨ψ, ψ_in_Lcond, x_in_φvoc⟩
+        exact ⟨ψ.voc, Or.inl ⟨ψ, preconditionProof.1.subset ψ_in_Lcond, rfl⟩, x_in_φvoc⟩
+      · rcases preconditionProof with ⟨Lin, Rin, same_form⟩
+        subst same_form
+        simp at φ_O
+      · specialize Lsub φ.voc (Or.inr ⟨φ, φ_O, rfl⟩) x_in_φvoc
+        rcases Lsub with ⟨ψvoc, ψ_defs, x_in_ψvoc⟩
+        rcases ψ_defs with ⟨ψ, ψ_in, ψvoc_def⟩|⟨ψ, ψ_in, ψvoc_def⟩ <;> subst ψvoc_def
+        · exact ⟨ψ.voc, Or.inl ⟨ψ, preconditionProof.1.subset ψ_in, rfl⟩, x_in_ψvoc⟩
+        · refine ⟨ψ.voc, Or.inr ⟨ψ, ?_, rfl⟩, x_in_ψvoc⟩
+          simp_all
+
+/-- A local rule application does not increase the vocabulary of the right component.
+This is the right half of `localRuleApp_does_not_increase_jvoc`. -/
+lemma LocalRuleApp.right_fvoc_subset (lra : LocalRuleApp) :
+    ∀ Y ∈ lra.C, Y.right.fvoc ⊆ lra.X.right.fvoc := by
+  match lra with
+  | @LocalRuleApp.mk L R O Lcond Rcond Ocond ress lrule C hC preconditionProof =>
+    subst hC
+    rintro ⟨cL, cR, cO⟩ C_in
+    simp [applyLocalRule] at C_in
+    rcases C_in with ⟨⟨Lres, Rres, Ores⟩ , res_in, cLRO_def⟩
+    simp at cLRO_def
+    cases cLRO_def
+    intro x x_in
+    simp at * -- only
+    rcases x_in with ⟨φvoc, ⟨φ, φ_nocon, d_φvoc⟩|⟨φ, φ_L, d_φvoc⟩|⟨φ, φ_O, d_φvoc⟩, x_in_φvoc⟩
+    all_goals subst d_φvoc
+    · refine ⟨φ.voc, Or.inl ?_, x_in_φvoc⟩
+      exact ⟨φ, List.diff_subset R Rcond φ_nocon, rfl⟩
+    all_goals
+      have Rsub := @localRule_does_not_increase_vocab_R _ _ lrule _ res_in x
+      simp at Rsub
+    · specialize Rsub φ.voc (Or.inl ⟨_, φ_L, rfl⟩) x_in_φvoc
+      rcases Rsub with ⟨ψvoc, h_ψvoc, x_in_ψvoc⟩
+      refine ⟨ψvoc, ?_, x_in_ψvoc⟩
+      rcases h_ψvoc with (⟨ψ, ψ_in_Rcond, d_ψvoc⟩ | ⟨ψ, ψ_in_Ocond, d_ψvoc⟩) <;> subst d_ψvoc
+      · exact Or.inl ⟨ψ, preconditionProof.2.1.subset ψ_in_Rcond, rfl⟩
+      · refine Or.inr ⟨ψ, ?_, rfl⟩; aesop
+    · -- whether to use φ.voc depends on whether the localRuleApp changes the O here.
+      rcases O with _|χ <;> rcases Ocond with _|cχ <;> rcases Ores with _|resχ
+      all_goals
+        simp [Olf.change] at * -- already treats 3 cases
+      · specialize Rsub φ.voc (Or.inr ⟨φ, φ_O, rfl⟩) x_in_φvoc
+        rcases Rsub with ⟨ψ, ψ_in_Rcond, x_in_φvoc⟩
+        exact ⟨ψ, preconditionProof.2.subset ψ_in_Rcond, x_in_φvoc⟩
+      · rcases χ with ⟨⟨χ⟩⟩|⟨χ⟩ <;> simp [Olf.R] at *
+        subst φ_O
+        aesop
+      · rcases resχ with ⟨⟨resχ⟩⟩|⟨⟨resχ⟩⟩ <;> simp [Olf.R] at φ_O Rsub
+        subst φ_O
+        simp at x_in_φvoc
+        specialize Rsub (resχ.unload).voc (Or.inr rfl) x_in_φvoc
+        rcases Rsub with ⟨ψ, ψ_in_Rcond, x_in_φvoc⟩
+        exact ⟨ψ.voc, Or.inl ⟨ψ, preconditionProof.2.subset ψ_in_Rcond, rfl⟩, x_in_φvoc⟩
+      · rcases preconditionProof with ⟨Lin, Rin, same_form⟩
+        subst same_form
+        simp at φ_O
+      · specialize Rsub φ.voc (Or.inr ⟨φ, φ_O, rfl⟩) x_in_φvoc
+        rcases Rsub with ⟨ψvoc, ψ_defs, x_in_ψvoc⟩
+        rcases ψ_defs with ⟨ψ, ψ_in, ψvoc_def⟩|⟨ψ, ψ_in, ψvoc_def⟩ <;> subst ψvoc_def
+        · exact ⟨ψ.voc, Or.inl ⟨ψ, preconditionProof.2.1.subset ψ_in, rfl⟩, x_in_ψvoc⟩
+        · refine ⟨ψ.voc, Or.inr ⟨ψ, ?_, rfl⟩, x_in_ψvoc⟩
+          simp_all
+
+/-- Inside a local tableau the vocabulary of the left component only shrinks. -/
+lemma LocalPathIn.last_left_fvoc_subset : ∀ {X : Sequent} {lt : LocalTableau X}
+    (lp : LocalPathIn lt), lp.last.left.fvoc ⊆ X.left.fvoc
+  | _, _, .nil => by simp [LocalPathIn.last]
+  | _, .byLocalRule lra X_def next, .cons Y_in tail => by
+      simp only [LocalPathIn.last]
+      exact subset_trans (LocalPathIn.last_left_fvoc_subset tail)
+        (X_def ▸ lra.left_fvoc_subset _ Y_in)
+
+/-- Inside a local tableau the vocabulary of the right component only shrinks. -/
+lemma LocalPathIn.last_right_fvoc_subset : ∀ {X : Sequent} {lt : LocalTableau X}
+    (lp : LocalPathIn lt), lp.last.right.fvoc ⊆ X.right.fvoc
+  | _, _, .nil => by simp [LocalPathIn.last]
+  | _, .byLocalRule lra X_def next, .cons Y_in tail => by
+      simp only [LocalPathIn.last]
+      exact subset_trans (LocalPathIn.last_right_fvoc_subset tail)
+        (X_def ▸ lra.right_fvoc_subset _ Y_in)
+
+lemma endNodesOf_left_fvoc_subset : ∀ {X : Sequent} (lt : LocalTableau X),
+    ∀ Y ∈ endNodesOf lt, Y.left.fvoc ⊆ X.left.fvoc
+  | _, .sim _, Y, hY => by simp only [endNodesOf, List.mem_singleton] at hY; simp [hY]
+  | _, .byLocalRule lra X_def next, Y, hY => by
+      simp only [endNodesOf, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
+        Subtype.exists] at hY
+      obtain ⟨-, ⟨Z, Z_in, rfl⟩, hY⟩ := hY
+      exact subset_trans (endNodesOf_left_fvoc_subset _ Y hY) (X_def ▸ lra.left_fvoc_subset _ Z_in)
+
+lemma endNodesOf_right_fvoc_subset : ∀ {X : Sequent} (lt : LocalTableau X),
+    ∀ Y ∈ endNodesOf lt, Y.right.fvoc ⊆ X.right.fvoc
+  | _, .sim _, Y, hY => by simp only [endNodesOf, List.mem_singleton] at hY; simp [hY]
+  | _, .byLocalRule lra X_def next, Y, hY => by
+      simp only [endNodesOf, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
+        Subtype.exists] at hY
+      obtain ⟨-, ⟨Z, Z_in, rfl⟩, hY⟩ := hY
+      exact subset_trans (endNodesOf_right_fvoc_subset _ Y hY)
+        (X_def ▸ lra.right_fvoc_subset _ Z_in)
+
+lemma projection_fvoc_subset (A : Nat) (L : List Formula) :
+    (projection A L).fvoc ⊆ L.fvoc := by
+  intro x hx
+  rw [mem_fvoc_iff] at hx ⊢
+  obtain ⟨ψ, hψ, hx⟩ := hx
+  exact ⟨⌈·A⌉ψ, proj.mp hψ, by simp; tauto⟩
+
+/-- A PDL rule does not increase the vocabulary of the left component. -/
+lemma PdlRule.left_fvoc_subset {X Y : Sequent} (r : PdlRule X Y) :
+    Y.left.fvoc ⊆ X.left.fvoc := by
+  intro x hx
+  rw [mem_fvoc_iff] at hx ⊢
+  obtain ⟨ψ, hψ, hx⟩ := hx
+  cases r
+  case loadR L R δ α φ hin hnb hY =>
+    subst hY; simp only [Sequent.left_eq, Olf.L, List.append_nil] at hψ ⊢
+    exact ⟨ψ, hψ, hx⟩
+  case freeR L R δ α φ hX hY =>
+    subst hX; subst hY; simp only [Sequent.left_eq, Olf.L, List.append_nil] at hψ ⊢
+    exact ⟨ψ, hψ, hx⟩
+  case loadL L δ α φ R hin hnb hY =>
+    subst hY
+    simp only [Sequent.left_eq, Olf.L, List.mem_append, List.mem_cons, List.not_mem_nil,
+      or_false, List.append_nil] at hψ ⊢
+    rcases hψ with hψ | rfl
+    · exact ⟨ψ, List.mem_of_mem_erase hψ, hx⟩
+    · exact ⟨_, hin, by simpa [LoadFormula.unload] using hx⟩
+  case freeL L R δ α φ hX hY =>
+    subst hX; subst hY
+    simp only [Sequent.left_eq, Olf.L, List.mem_append, List.mem_cons, List.not_mem_nil,
+      or_false, List.append_nil] at hψ ⊢
+    rcases List.mem_insert_iff.mp hψ with rfl | hψ
+    · exact ⟨_, Or.inr rfl, by simpa [LoadFormula.unload] using hx⟩
+    · exact ⟨ψ, Or.inl hψ, hx⟩
+  case modL L R A ξ hX hY =>
+    subst hX
+    cases ξ <;> subst hY <;>
+      simp only [Sequent.left_eq, Olf.L, List.mem_append, List.mem_cons, List.not_mem_nil,
+        or_false, List.append_nil] at hψ ⊢
+    · rcases hψ with rfl | hψ
+      · exact ⟨_, Or.inr rfl, by simp [LoadFormula.unload] at hx ⊢; tauto⟩
+      · exact ⟨_, Or.inl (proj.mp hψ), by simp; tauto⟩
+    · rcases hψ with hψ | rfl
+      · exact ⟨_, Or.inl (proj.mp hψ), by simp; tauto⟩
+      · exact ⟨_, Or.inr rfl, by simp [LoadFormula.unload] at hx ⊢; tauto⟩
+  case modR L R A ξ hX hY =>
+    subst hX
+    cases ξ <;> subst hY <;>
+      simp only [Sequent.left_eq, Olf.L, List.append_nil] at hψ ⊢
+    · exact ⟨_, proj.mp hψ, by simp; tauto⟩
+    · exact ⟨_, proj.mp hψ, by simp; tauto⟩
+
+/-- A PDL rule does not increase the vocabulary of the right component. -/
+lemma PdlRule.right_fvoc_subset {X Y : Sequent} (r : PdlRule X Y) :
+    Y.right.fvoc ⊆ X.right.fvoc := by
+  intro x hx
+  rw [mem_fvoc_iff] at hx ⊢
+  obtain ⟨ψ, hψ, hx⟩ := hx
+  cases r
+  case loadL L δ α φ R hin hnb hY =>
+    subst hY; simp only [Sequent.right, Sequent.R, Sequent.O, Olf.R, List.append_nil] at hψ ⊢
+    exact ⟨ψ, hψ, hx⟩
+  case freeL L R δ α φ hX hY =>
+    subst hX; subst hY
+    simp only [Sequent.right, Sequent.R, Sequent.O, Olf.R, List.append_nil] at hψ ⊢
+    exact ⟨ψ, hψ, hx⟩
+  case loadR L δ α φ R hin hnb hY =>
+    subst hY
+    simp only [Sequent.right, Sequent.R, Sequent.O, Olf.R, List.mem_append, List.mem_cons,
+      List.not_mem_nil, or_false, List.append_nil] at hψ ⊢
+    rcases hψ with hψ | rfl
+    · exact ⟨ψ, List.mem_of_mem_erase hψ, hx⟩
+    · exact ⟨_, hin, by simpa [LoadFormula.unload] using hx⟩
+  case freeR L R δ α φ hX hY =>
+    subst hX; subst hY
+    simp only [Sequent.right, Sequent.R, Sequent.O, Olf.R, List.mem_append, List.mem_cons,
+      List.not_mem_nil, or_false, List.append_nil] at hψ ⊢
+    rcases List.mem_insert_iff.mp hψ with rfl | hψ
+    · exact ⟨_, Or.inr rfl, by simpa [LoadFormula.unload] using hx⟩
+    · exact ⟨ψ, Or.inl hψ, hx⟩
+  case modR L R A ξ hX hY =>
+    subst hX
+    cases ξ <;> subst hY <;>
+      simp only [Sequent.right, Sequent.R, Sequent.O, Olf.R, List.mem_append, List.mem_cons,
+        List.not_mem_nil, or_false, List.append_nil] at hψ ⊢
+    · rcases hψ with rfl | hψ
+      · exact ⟨_, Or.inr rfl, by simp [LoadFormula.unload] at hx ⊢; tauto⟩
+      · exact ⟨_, Or.inl (proj.mp hψ), by simp; tauto⟩
+    · rcases hψ with hψ | rfl
+      · exact ⟨_, Or.inl (proj.mp hψ), by simp; tauto⟩
+      · exact ⟨_, Or.inr rfl, by simp [LoadFormula.unload] at hx ⊢; tauto⟩
+  case modL L R A ξ hX hY =>
+    subst hX
+    cases ξ <;> subst hY <;>
+      simp only [Sequent.right, Sequent.R, Sequent.O, Olf.R, List.append_nil] at hψ ⊢
+    · exact ⟨_, proj.mp hψ, by simp; tauto⟩
+    · exact ⟨_, proj.mp hψ, by simp; tauto⟩
+
+lemma edge_left_fvoc_subset {H : History} {Z : Sequent} {tab' : Tableau H Z} {s t : PathIn tab'}
+    (h : s ⋖_ t) : (nodeAt t).left.fvoc ⊆ (nodeAt s).left.fvoc := by
+  rcases nodeAt_of_edge h with ⟨lt, hlt⟩ | hr
+  · exact endNodesOf_left_fvoc_subset lt _ hlt
+  · obtain ⟨r⟩ := hr
+    exact r.left_fvoc_subset
+
+lemma edge_right_fvoc_subset {H : History} {Z : Sequent} {tab' : Tableau H Z} {s t : PathIn tab'}
+    (h : s ⋖_ t) : (nodeAt t).right.fvoc ⊆ (nodeAt s).right.fvoc := by
+  rcases nodeAt_of_edge h with ⟨lt, hlt⟩ | hr
+  · exact endNodesOf_right_fvoc_subset lt _ hlt
+  · obtain ⟨r⟩ := hr
+    exact r.right_fvoc_subset
+
+lemma cEdge_left_fvoc_subset {s t : PathIn tab} (h : s ◃ t) :
+    (nodeAt t).left.fvoc ⊆ (nodeAt s).left.fvoc := by
+  rcases h with h | ⟨lpr, hs, rfl⟩
+  · exact edge_left_fvoc_subset h
+  · exact le_of_eq (Sequent.left_fvoc_eq_of_setEqTo (nodeAt_companionOf_setEq s lpr hs))
+
+lemma cEdge_right_fvoc_subset {s t : PathIn tab} (h : s ◃ t) :
+    (nodeAt t).right.fvoc ⊆ (nodeAt s).right.fvoc := by
+  rcases h with h | ⟨lpr, hs, rfl⟩
+  · exact edge_right_fvoc_subset h
+  · exact le_of_eq (Sequent.right_fvoc_eq_of_setEqTo (nodeAt_companionOf_setEq s lpr hs))
+
+/-- Lemma 9.2, left component: along `◃` the vocabulary only shrinks. -/
+lemma cReach_left_fvoc_subset {s t : PathIn tab} (h : s ◃* t) :
+    (nodeAt t).left.fvoc ⊆ (nodeAt s).left.fvoc := by
+  induction h with
+  | refl => exact subset_rfl
+  | tail _ hst IH => exact subset_trans (cEdge_left_fvoc_subset hst) IH
+
+/-- Lemma 9.2, right component: along `◃` the vocabulary only shrinks. -/
+lemma cReach_right_fvoc_subset {s t : PathIn tab} (h : s ◃* t) :
+    (nodeAt t).right.fvoc ⊆ (nodeAt s).right.fvoc := by
+  induction h with
+  | refl => exact subset_rfl
+  | tail _ hst IH => exact subset_trans (cEdge_right_fvoc_subset hst) IH
+
+/-- The label of a fine node has a smaller vocabulary than the coarse node it lies in. -/
+lemma FinePathIn.label_left_fvoc_subset_base : ∀ {H : History} {Z : Sequent}
+    {tab' : Tableau H Z} (f : FinePathIn tab'),
+    f.label.left.fvoc ⊆ (nodeAt f.base).left.fvoc
+  | _, _, _, .inLoc lp _ => by
+      simpa [FinePathIn.label, FinePathIn.base, nodeAt, tabAt] using
+        LocalPathIn.last_left_fvoc_subset lp
+  | _, _, _, .pdlHere => by simp [FinePathIn.label, FinePathIn.base, nodeAt, tabAt]
+  | _, _, _, .lrepHere => by simp [FinePathIn.label, FinePathIn.base, nodeAt, tabAt]
+  | _, _, _, .loc Y_in tail => by
+      simpa [FinePathIn.label, FinePathIn.base, nodeAt, tabAt] using
+        FinePathIn.label_left_fvoc_subset_base tail
+  | _, _, _, .pdl tail => by
+      simpa [FinePathIn.label, FinePathIn.base, nodeAt, tabAt] using
+        FinePathIn.label_left_fvoc_subset_base tail
+
+lemma FinePathIn.label_right_fvoc_subset_base : ∀ {H : History} {Z : Sequent}
+    {tab' : Tableau H Z} (f : FinePathIn tab'),
+    f.label.right.fvoc ⊆ (nodeAt f.base).right.fvoc
+  | _, _, _, .inLoc lp _ => by
+      simpa [FinePathIn.label, FinePathIn.base, nodeAt, tabAt] using
+        LocalPathIn.last_right_fvoc_subset lp
+  | _, _, _, .pdlHere => by simp [FinePathIn.label, FinePathIn.base, nodeAt, tabAt]
+  | _, _, _, .lrepHere => by simp [FinePathIn.label, FinePathIn.base, nodeAt, tabAt]
+  | _, _, _, .loc Y_in tail => by
+      simpa [FinePathIn.label, FinePathIn.base, nodeAt, tabAt] using
+        FinePathIn.label_right_fvoc_subset_base tail
+  | _, _, _, .pdl tail => by
+      simpa [FinePathIn.label, FinePathIn.base, nodeAt, tabAt] using
+        FinePathIn.label_right_fvoc_subset_base tail
+
+end VocPreservation
+
+/-! ### Right rules do not change the left component
+
+The two "right" local rules only act on the right component and on a loaded formula on the
+right, so they leave the left component of the sequent unchanged.  The `(M)` rule does
+change the left component, but it is a `Tableau.pdl` step and hence only applies to a basic
+sequent, whose right component is then basic as well. -/
+
+section RightRules
+
+lemma LocalRuleApp.left_eq_of_isRightRule (lra : LocalRuleApp) (h : lra.isRightRule) :
+    ∀ Y ∈ lra.C, Y.left = lra.X.left := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
+  subst hC
+  cases lr
+  case oneSidedR Rres orule YS_def =>
+    intro Y hY
+    exact oneSidedR_preserves_left (LRO := (L,R,O)) pre.2.1.subset orule YS_def Y hY
+  case loadedR χ lrule YS_def =>
+    intro Y hY
+    refine loadedR_preserves_left (LRO := (L,R,O)) χ ?_ lrule YS_def Y hY
+    exact (Option.some_subseteq.mp pre.2.2).symm
+  all_goals
+    simp [LocalRuleApp.isRightRule, LocalRule.isRightRule] at h
+
+lemma LocalRuleApp.right_eq_of_isLeftRule (lra : LocalRuleApp) (h : lra.isLeftRule) :
+    ∀ Y ∈ lra.C, Y.right = lra.X.right := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
+  subst hC
+  cases lr
+  case oneSidedL Lres orule YS_def =>
+    intro Y hY
+    exact oneSidedL_preserves_right (LRO := (L,R,O)) pre.1.subset orule YS_def Y hY
+  case loadedL χ lrule YS_def =>
+    intro Y hY
+    refine loadedL_preserves_right (LRO := (L,R,O)) χ ?_ lrule YS_def Y hY
+    exact (Option.some_subseteq.mp pre.2.2).symm
+  all_goals
+    simp [LocalRuleApp.isLeftRule, LocalRule.isLeftRule] at h
+
+/-- The right component of a basic sequent is basic. -/
+lemma Sequent.basic_rightOnly {X : Sequent} (h : X.basic) : X.rightOnly.basic := by
+  rcases X with ⟨L, R, O⟩
+  obtain ⟨hb, hc⟩ := h
+  constructor
+  · intro f hf
+    apply hb
+    simp only [List.nil_append, List.mem_append] at hf ⊢
+    tauto
+  · intro hcl
+    apply hc
+    rcases hcl with hbot | ⟨f, hf, hnf⟩
+    · left
+      revert hbot
+      simp_all [instMembershipFormulaSequent]
+    · right
+      exact ⟨f, by simp_all [instMembershipFormulaSequent], by simp_all
+        [instMembershipFormulaSequent]⟩
+
+/-- Where a right rule is applied, it is either a local rule or the node is basic (because
+the `(M)` rule is only applied at basic nodes). -/
+lemma FinePathIn.lra_or_basic_of_usesRightRule : ∀ {H : History} {Z : Sequent}
+    {tab' : Tableau H Z} (f : FinePathIn tab'), f.usesRightRule →
+      (∃ lra, f.lra? = some lra ∧ lra.isRightRule) ∨ f.label.basic
+  | _, _, _, .inLoc lp hint, h => by
+      simp only [FinePathIn.usesRightRule, FinePathIn.lra?] at h ⊢
+      rcases hlt : lp.ltAt with ⟨lra, X_def, lnext⟩ | bas
+      · rw [hlt] at h
+        exact Or.inl ⟨lra, rfl, h⟩
+      · rw [hlt] at h; simp at h
+  | _, _, .pdl _ bas _ _, .pdlHere, _ => Or.inr bas
+  | _, _, _, .lrepHere, h => by simp [FinePathIn.usesRightRule] at h
+  | _, _, _, .loc Y_in tail, h => by
+      simp only [FinePathIn.usesRightRule] at h
+      simpa [FinePathIn.lra?, FinePathIn.label] using
+        FinePathIn.lra_or_basic_of_usesRightRule tail h
+  | _, _, _, .pdl tail, h => by
+      simp only [FinePathIn.usesRightRule] at h
+      simpa [FinePathIn.lra?, FinePathIn.label] using
+        FinePathIn.lra_or_basic_of_usesRightRule tail h
+
+/-- At a node where a right rule is applied to a non-basic right component, all children
+have the same left component as the node itself. -/
+lemma FinePathIn.children_left_eq_of_usesRightRule {H : History} {Z : Sequent}
+    {tab' : Tableau H Z} (f : FinePathIn tab') (hr : f.usesRightRule)
+    (hb : ¬ f.label.rightOnly.basic) : ∀ g ∈ f.children, g.label.left = f.label.left := by
+  rcases f.lra_or_basic_of_usesRightRule hr with ⟨lra, hlra, hright⟩ | hbas
+  · obtain ⟨hX, hC⟩ := f.lra?_spec hlra
+    intro g hg
+    have hmem : g.label ∈ lra.C := hC ▸ List.mem_map_of_mem hg
+    rw [hX]
+    exact lra.left_eq_of_isRightRule hright _ hmem
+  · exact absurd (Sequent.basic_rightOnly hbas) hb
+
+/-- A right local rule cannot be applied when the right component of the sequent is basic:
+the rule only looks at the right component and at a loaded formula on the right, so it
+would also be applicable to the sequent with an empty left component. -/
+lemma LocalRuleApp.not_rightOnly_basic_of_isRightRule (lra : LocalRuleApp)
+    (h : lra.isRightRule) : ¬ lra.X.rightOnly.basic := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
+  cases lr
+  case oneSidedR ress orule YS_def =>
+    have := nonbasic_of_localRuleApp
+      ⟨[], R, O, ∅, Rcond, none, _, LocalRule.oneSidedR orule YS_def, _, rfl,
+        ⟨List.nil_subperm, pre.2.1, by simp⟩⟩
+    simpa [Sequent.rightOnly] using this
+  case loadedR χ lrule YS_def =>
+    have := nonbasic_of_localRuleApp
+      ⟨[], R, O, ∅, ∅, some (Sum.inr (~'χ)), _, LocalRule.loadedR χ lrule YS_def, _, rfl,
+        ⟨List.nil_subperm, List.nil_subperm, pre.2.2⟩⟩
+    simpa [Sequent.rightOnly] using this
+  all_goals
+    simp [LocalRuleApp.isRightRule, LocalRule.isRightRule] at h
+
+/-- The right component of the child obtained by applying the modal rule `(M)` to a sequent
+whose loaded formula `~⌊·A⌋ξ` is on the right. Note that it only depends on `A`, on `ξ` and
+on the right component `R` of the sequent, and hence only on `Λ₂` of the node. -/
+def modRChildRightOnly (A : Nat) (ξ : AnyFormula) (R : List Formula) : Sequent :=
+  match ξ with
+  | .normal φ => ⟨[], (~φ) :: projection A R, none⟩
+  | .loaded χ => ⟨[], projection A R, some (Sum.inr (~'χ))⟩
+
+/-- At a fine node with a *basic* right component where a right rule is applied, that rule
+is one of the three `PdlRule`s acting on the right — and in particular the node is a node
+in the coarse sense. The three cases are `(L+)`, where the node is free, `(L-)`, whose
+unique child is free, and the modal rule `(M)`, whose unique child has the projected left
+component and a right component determined by `Λ₂` of the node. -/
+lemma FinePathIn.basicRightStep {H : History} {Z : Sequent} {tab' : Tableau H Z}
+    (f : FinePathIn tab') (h : f.usesRightRule) (hb : f.label.rightOnly.basic) :
+      (f.atBigRoot ∧ f.label.2.2 = none)
+      ∨ (∃ g, f.children = [g] ∧ g.atBigRoot ∧ g.label.2.2 = none)
+      ∨ (∃ A ξ, f.label.2.2 = some (Sum.inr (~'⌊·A⌋ξ)) ∧ ∃ g, f.children = [g] ∧ g.atBigRoot
+          ∧ g.label.left = projection A f.label.left
+          ∧ g.label.rightOnly = modRChildRightOnly A ξ f.label.2.1) := by
+  induction f with
+  | @inLoc Hist X nrep nbas lt next lp hint =>
+    simp only [FinePathIn.usesRightRule] at h
+    rcases hlt : lp.ltAt with ⟨lra, X_def, lnext⟩ | bas
+    · rw [hlt] at h
+      simp only [FinePathIn.label] at hb
+      rw [X_def] at hb
+      exact absurd hb (lra.not_rightOnly_basic_of_isRightRule h)
+    · rw [hlt] at h; simp at h
+  | @pdlHere Hist X Y nrep bas r next =>
+    simp only [FinePathIn.usesRightRule] at h
+    simp only [FinePathIn.label, FinePathIn.children, FinePathIn.atBigRoot]
+    cases r with
+    | loadR hmem hnb hY => exact Or.inl ⟨trivial, rfl⟩
+    | freeR hX hY =>
+      exact Or.inr (Or.inl ⟨_, rfl, by simp [FinePathIn.atBigRoot],
+        by simp [FinePathIn.label, hY]⟩)
+    | @modR Y' L R A X' ξ hX hY =>
+      subst hX
+      right; right
+      refine ⟨A, ξ, rfl, _, rfl, by simp [FinePathIn.atBigRoot], ?_, ?_⟩ <;>
+        cases ξ <;> simp_all [modRChildRightOnly, Sequent.rightOnly, FinePathIn.label]
+    | _ => simp [PdlRule.isRightRule] at h
+  | lrepHere => simp [FinePathIn.usesRightRule] at h
+  | loc Y_in tail IH =>
+    simp only [FinePathIn.usesRightRule] at h
+    simp only [FinePathIn.label] at hb ⊢
+    simp only [FinePathIn.children, FinePathIn.atBigRoot]
+    rcases IH h hb with ⟨hbr, h1⟩ | ⟨g, hg, hgbr, hg2⟩ | ⟨A, ξ, hA, g, hg, hgbr, hg1, hg2⟩
+    · exact Or.inl ⟨hbr, h1⟩
+    · exact Or.inr (Or.inl ⟨.loc Y_in g, by simp [hg], by simpa [FinePathIn.atBigRoot] using hgbr,
+        by simpa [FinePathIn.label] using hg2⟩)
+    · exact Or.inr (Or.inr ⟨A, ξ, hA, .loc Y_in g, by simp [hg],
+        by simpa [FinePathIn.atBigRoot] using hgbr,
+        by simpa [FinePathIn.label] using hg1, by simpa [FinePathIn.label] using hg2⟩)
+  | pdl tail IH =>
+    simp only [FinePathIn.usesRightRule] at h
+    simp only [FinePathIn.label] at hb ⊢
+    simp only [FinePathIn.children, FinePathIn.atBigRoot]
+    rcases IH h hb with ⟨hbr, h1⟩ | ⟨g, hg, hgbr, hg2⟩ | ⟨A, ξ, hA, g, hg, hgbr, hg1, hg2⟩
+    · exact Or.inl ⟨hbr, h1⟩
+    · exact Or.inr (Or.inl ⟨.pdl g, by simp [hg], by simpa [FinePathIn.atBigRoot] using hgbr,
+        by simpa [FinePathIn.label] using hg2⟩)
+    · exact Or.inr (Or.inr ⟨A, ξ, hA, .pdl g, by simp [hg],
+        by simpa [FinePathIn.atBigRoot] using hgbr,
+        by simpa [FinePathIn.label] using hg1, by simpa [FinePathIn.label] using hg2⟩)
+
+/-- A fine node that is a node in the coarse sense has the label of that coarse node. -/
+lemma FinePathIn.label_eq_nodeAt_base {H Z} {tab' : Tableau H Z} (f : FinePathIn tab')
+    (h : f.atBigRoot) : f.label = nodeAt f.base := by
+  have := congrArg FinePathIn.label (f.eq_toFine_base_of_atBigRoot h)
+  rwa [PathIn.label_toFine] at this
+
+/-! ### Left rules do not change the right component
+
+Dually, a left local rule leaves the right component of the sequent unchanged, provided the
+loaded formula is on the right (otherwise the `(¬)` rule for the loaded formula on the left
+would change the `Olf`). The left `PdlRule`s `(L+)`, `(L-)` and `(M)` are all only
+applicable when the loaded formula is *not* on the right. -/
+
+lemma LocalRuleApp.rightOnly_eq_of_isLeftRule (lra : LocalRuleApp) (h : lra.isLeftRule)
+    (hR : lra.O.isRight) : ∀ Y ∈ lra.C, Y.rightOnly = lra.X.rightOnly := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
+  subst hC
+  replace hR : O.isRight := hR
+  cases lr
+  case oneSidedL ress orule YS_def =>
+    subst YS_def
+    intro Y hY
+    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hY
+    obtain ⟨res, -, rfl⟩ := hY
+    simp [Sequent.rightOnly]
+  case loadedL χ lrule YS_def =>
+    exfalso
+    have hO := (Option.some_subseteq.mp pre.2.2).symm
+    simp only at hO
+    rw [hO] at hR
+    simp at hR
+  all_goals
+    simp [LocalRuleApp.isLeftRule, LocalRule.isLeftRule] at h
+
+/-- Where a left rule is applied, it is a local rule, unless the loaded formula is not on
+the right (which for a node of a `LoadedCluster` cannot happen). -/
+lemma FinePathIn.leftRuleStep {H : History} {Z : Sequent} {tab' : Tableau H Z}
+    (f : FinePathIn tab') (h : f.usesLeftRule) :
+    (∃ lra, f.lra? = some lra ∧ lra.isLeftRule) ∨ (f.atBigRoot ∧ ¬ f.label.2.2.isRight) := by
+  induction f with
+  | @inLoc Hist X nrep nbas lt next lp hint =>
+    simp only [FinePathIn.usesLeftRule] at h
+    rcases hlt : lp.ltAt with ⟨lra, X_def, lnext⟩ | bas
+    · rw [hlt] at h
+      exact Or.inl ⟨lra, by simp only [FinePathIn.lra?, hlt], h⟩
+    · rw [hlt] at h; simp at h
+  | @pdlHere Hist X Y nrep bas r next =>
+    simp only [FinePathIn.usesLeftRule] at h
+    right
+    refine ⟨by simp [FinePathIn.atBigRoot], ?_⟩
+    simp only [FinePathIn.label]
+    cases r with
+    | loadL hmem hnb hY => simp
+    | freeL hX hY => subst hX; simp
+    | modL hX hY => subst hX; simp
+    | _ => simp [PdlRule.isLeftRule] at h
+  | lrepHere => simp [FinePathIn.usesLeftRule] at h
+  | loc Y_in tail IH =>
+    simp only [FinePathIn.usesLeftRule] at h
+    rcases IH h with ⟨lra, h1, h2⟩ | ⟨h1, h2⟩
+    · exact Or.inl ⟨lra, by simpa [FinePathIn.lra?] using h1, h2⟩
+    · exact Or.inr ⟨by simpa [FinePathIn.atBigRoot] using h1, by simpa [FinePathIn.label] using h2⟩
+  | pdl tail IH =>
+    simp only [FinePathIn.usesLeftRule] at h
+    rcases IH h with ⟨lra, h1, h2⟩ | ⟨h1, h2⟩
+    · exact Or.inl ⟨lra, by simpa [FinePathIn.lra?] using h1, h2⟩
+    · exact Or.inr ⟨by simpa [FinePathIn.atBigRoot] using h1, by simpa [FinePathIn.label] using h2⟩
+
+/-- Part of Lemma 9.7 (c): at a node with the loaded formula on the right where a left rule
+is applied, all children have the same right component as the node itself. -/
+lemma FinePathIn.children_rightOnly_eq_of_usesLeftRule {H : History} {Z : Sequent}
+    {tab' : Tableau H Z} (f : FinePathIn tab') (h : f.usesLeftRule) (hR : f.label.2.2.isRight) :
+    ∀ g ∈ f.children, g.label.rightOnly = f.label.rightOnly := by
+  rcases f.leftRuleStep h with ⟨lra, hlra, hleft⟩ | ⟨-, hno⟩
+  · obtain ⟨hX, hC⟩ := f.lra?_spec hlra
+    rw [hX] at hR
+    intro g hg
+    have hmem : g.label ∈ lra.C := hC ▸ List.mem_map_of_mem hg
+    rw [hX]
+    exact lra.rightOnly_eq_of_isLeftRule hleft hR _ hmem
+  · exact absurd hR hno
+
+end RightRules
+
+/-! ### The two standing assumptions of the paper
+
+The paper fixes a *uniform* closed tableau and a *proper* cluster in it (page
+"fixedTabAndCluster"), and both assumptions are used in Section 9.  Neither of them holds
+for an arbitrary `Tableau`:
+
+* a loaded node whose branch closes without a loaded-path repeat is a cluster root of a
+  *singleton* cluster, and the paper interpolates at such a node with its "easy" lemma
+  (`localInterpolantStep` / `freePdlRuleInterpolant`) instead of Lemma 9.3;
+* the `Tableau` type does not force any coherence between the rules applied at different
+  nodes, whereas uniformity (U1/U2) makes the rule applied at a node with a loaded,
+  non-basic right component depend only on that component.
+
+We collect the two in one record. -/
+
+/-- The two assumptions that the paper makes about the fixed tableau and cluster and that
+are not provable for an arbitrary `Tableau`: the cluster is proper and the tableau is
+uniform (in the form needed here, see `LoadedCluster.HasUniformSteps`). -/
+structure LoadedCluster.PaperAssumptions (C : LoadedCluster tab) : Prop where
+  /-- The cluster is proper, i.e. its root lies on a `◃`-cycle. -/
+  proper : C.root ◃⁺ C.root
+  /-- The consequence of uniformity used in the construction of the quasi-tableau. -/
+  uniform : C.HasUniformSteps
+
+namespace LoadedCluster
+
+/-! ### The vocabulary fields -/
+
+/-- Every fine node of `C⁺` is `◃`-reachable from the root of the cluster. -/
+lemma root_cReach_base_of_mem_fineCLplus (C : LoadedCluster tab) {f : FinePathIn tab}
+    (hf : f ∈ C.fineCLplus) : C.root ◃* f.base := by
+  rcases List.mem_append.mp hf with hf | hf
+  · exact C.root_reaches_all _ ((C.mem_fineCL f).mp hf).1
+  · simp only [fineExits, List.mem_filter, List.mem_flatMap] at hf
+    obtain ⟨⟨g, hg, hfg⟩, -⟩ := hf
+    have hgr : C.root ◃* g.base := C.root_reaches_all _ ((C.mem_fineCL g).mp hg).1
+    rcases g.base_of_mem_children f hfg with h | h
+    · exact h ▸ hgr
+    · exact hgr.tail (Or.inl h)
+
+/-- The `vocL` field of `PaperFacts`: the vocabulary of the left component only shrinks
+below the root of the cluster. -/
+lemma vocL_fineCLplus (C : LoadedCluster tab) :
+    ∀ f ∈ C.fineCLplus, f.label.left.fvoc ⊆ (nodeAt C.root).left.fvoc := fun f hf =>
+  subset_trans (FinePathIn.label_left_fvoc_subset_base f)
+    (cReach_left_fvoc_subset (C.root_cReach_base_of_mem_fineCLplus hf))
+
+/-- The `vocR` field of `PaperFacts`: the vocabulary of the right component only shrinks
+below the root of the cluster. -/
+lemma vocR_fineCLplus (C : LoadedCluster tab) :
+    ∀ f ∈ C.fineCLplus, f.label.right.fvoc ⊆ (nodeAt C.root).right.fvoc := fun f hf =>
+  subset_trans (FinePathIn.label_right_fvoc_subset_base f)
+    (cReach_right_fvoc_subset (C.root_cReach_base_of_mem_fineCLplus hf))
+
+/-! ### The remaining fields -/
+
+/-- Lemma 9.7 (e): at a node `t` of `C^R_Δ` with `Δ` basic the rule applied is the modal
+rule `(M)` for the loaded formula `~⌊·A⌋ξ` of `Δ`. Its unique child `u` satisfies
+`Λ₁(u) = (Λ₁(t))_A`, and its right component only depends on `Δ`.
+
+Properness is needed to exclude the two other right `PdlRule`s: `(L+)` is only applied at
+a free node, while `(L-)` makes its unique child free, and both contradict Lemma 9.4 (a)
+because by Lemma 9.4 (c) some child of `t` is again in the cluster. -/
+lemma basicModalStepAt (C : LoadedCluster tab) (hP : C.root ◃⁺ C.root) {Δ : Sequent}
+    (hb : Δ.basic) {t : FinePathIn tab} (ht : t ∈ C.nodesWithFineRight Δ) :
+    ∃ A ξ, Δ.2.2 = some (Sum.inr (~'⌊·A⌋ξ)) ∧ ∃ g, t.children = [g] ∧ g.atBigRoot
+      ∧ g.label.left = projection A t.label.left
+      ∧ g.label.rightOnly = modRChildRightOnly A ξ Δ.2.1 := by
+  simp only [nodesWithFineRight, nodesWithFine, List.mem_filter, decide_eq_true_eq] at ht
+  obtain ⟨⟨ht_CL, ht_lab⟩, ht_right⟩ := ht
+  have hmf : C.memFine t := (C.mem_fineCL t).mp ht_CL
+  have hDl : Δ.2.2 = t.label.2.2 := by rw [← ht_lab]; rfl
+  have hDr : Δ.2.1 = t.label.2.1 := by rw [← ht_lab]; rfl
+  obtain ⟨c, hc, hcmf⟩ := C.exists_child_memFine_of_not_isLrep hP hmf
+    (t.not_isLrep_base_of_usesRightRule ht_right)
+  rcases t.basicRightStep ht_right (ht_lab ▸ hb) with
+    ⟨hbr, hnone⟩ | ⟨g, hg, hgbr, hgnone⟩ | ⟨A, ξ, hA, g, hg, hgbr, hg1, hg2⟩
+  · exfalso
+    have hrl := C.all_right_loaded t.base hmf.1
+    rw [← t.label_eq_nodeAt_base hbr, hnone] at hrl
+    simp at hrl
+  · exfalso
+    rw [hg, List.mem_singleton] at hc
+    subst hc
+    have hrl := C.all_right_loaded c.base hcmf.1
+    rw [← c.label_eq_nodeAt_base hgbr, hgnone] at hrl
+    simp at hrl
+  · exact ⟨A, ξ, by rw [hDl]; exact hA, g, hg, hgbr, hg1, by rw [hDr]; exact hg2⟩
+
+/-- Every element of `stepOf Δ` is the right component of a child of some node of `C^R_Δ`,
+namely of the first one. -/
+lemma exists_child_rightOnly_of_mem_stepOf (C : LoadedCluster tab) {Δ Pi : Sequent}
+    (hPi : Pi ∈ C.stepOf Δ) :
+    ∃ f ∈ C.nodesWithFineRight Δ, ∃ g ∈ f.children, g.label.rightOnly = Pi := by
+  unfold stepOf at hPi
+  cases hh : (C.nodesWithFineRight Δ).head? with
+  | none => rw [hh] at hPi; simp at hPi
+  | some f =>
+    rw [hh] at hPi
+    simp only [List.mem_map] at hPi
+    obtain ⟨g, hg, rfl⟩ := hPi
+    exact ⟨f, List.mem_of_mem_head? hh, g, hg, rfl⟩
+
+/-- Lemma 9.7 (d): if `C_Δ` is non-empty then so is `C^R_Δ`.
+
+Still open. The proof in the paper picks a node `t ∈ C_Δ` that is minimal in the tree order
+and then follows left-rule children downwards; by
+`FinePathIn.children_rightOnly_eq_of_usesLeftRule` this stays inside `C_Δ`, and closing
+rules are excluded because they have no children while Lemma 9.4 (c)
+(`nonLpr_some_child_in_C`, which needs properness) provides one. Two ingredients are
+missing here:
+
+* a well-founded descent principle for `FinePathIn`. The fine children of a node are not
+  structurally smaller, so this needs a measure combining the size of the tableau below the
+  base node (for which `flipEdge.wellFounded` is available) with the height of the local
+  tableau at the fine node.
+* the exclusion of loaded-path repeats along the descent. The paper uses its Fact
+  `lprAreCritical` — on the path from a companion to its repeat the modal rule is applied
+  at least once — which is not available in this development. Note also that in the paper
+  sequents are *sets*, so a repeat carries exactly the same label as its companion, whereas
+  `Sequent.setEqTo` only gives equality of the `Olf` and of the *set* of formulas on each
+  side; so the companion of a repeat in `C_Δ` need not itself be in `C_Δ`. -/
+lemma exists_right_of_proper (C : LoadedCluster tab) (hP : C.root ◃⁺ C.root) :
+    ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ [] := by
+  sorry
+
+/-- The leading atomic program of a basic label of `Λ₂[C]` is in the joint vocabulary.
+
+That it is in the vocabulary of `Γ₂` is vocabulary preservation. That it is in the
+vocabulary of `Γ₁` — which the paper does not mention, but which its Lemma 10.1 needs —
+uses Lemma 9.7 (e): the modal rule is applied at some `t ∈ C^R_Δ` and its child `u` is
+again in `C`, so `Λ₁(u) = (Λ₁(t))_a` is non-empty by Lemma 9.5 (b), which forces a box
+`⌈a⌉ψ` in `Λ₁(t)`.
+
+The hypothesis `hER` is Lemma 9.7 (d), i.e. `exists_right_of_proper`. -/
+lemma loadedProgVoc_of_proper (C : LoadedCluster tab) (hP : C.root ◃⁺ C.root)
+    (hER : ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ []) :
+    (nodeAt C.root).left ≠ [] → ∀ Δ ∈ C.lambdaTwo, Δ.basic →
+      (Δ.loadedProg).voc ⊆ jvoc (nodeAt C.root) := by
+  intro hG1 Δ hΔ hb
+  obtain ⟨t, ht⟩ := List.exists_mem_of_ne_nil _ (hER Δ hΔ)
+  obtain ⟨A, xi, hAxi, g, hg, hgbr, hgleft, -⟩ := C.basicModalStepAt hP hb ht
+  have ht' := ht
+  simp only [nodesWithFineRight, nodesWithFine, List.mem_filter, decide_eq_true_eq] at ht'
+  obtain ⟨⟨ht_CL, ht_lab⟩, ht_right⟩ := ht'
+  have hmf : C.memFine t := (C.mem_fineCL t).mp ht_CL
+  obtain ⟨c, hc, hcmf⟩ := C.exists_child_memFine_of_not_isLrep hP hmf
+    (t.not_isLrep_base_of_usesRightRule ht_right)
+  rw [hg, List.mem_singleton] at hc
+  have hgmf : C.memFine g := hc ▸ hcmf
+  -- The left component of the root is non-empty, hence so is that of every node of `C`.
+  have hroot1 : (nodeAt C.root).1 ≠ [] := by
+    intro h
+    apply hG1
+    have hrr := C.root_loaded_right
+    rcases hh : nodeAt C.root with ⟨L, R, O⟩
+    rw [hh] at h hrr
+    rcases O with _ | (o | o) <;> simp_all [Sequent.left]
+  have hg1 : (nodeAt g.base).1 ≠ [] := fun h =>
+    hroot1 ((C.left_empty_iff_root_left_empty g.base hgmf.1).mp h)
+  have hgne : g.label.left ≠ [] := by
+    rw [g.label_eq_nodeAt_base hgbr]
+    intro h
+    rcases hh : nodeAt g.base with ⟨L, R, O⟩
+    rw [hh] at h hg1
+    simp only [Sequent.left_eq, List.append_eq_nil_iff] at h
+    exact hg1 h.1
+  -- Hence there is a box `⌈·A⌉ψ` in the left component of `t`.
+  rw [hgleft] at hgne
+  obtain ⟨ψ, hψ⟩ := List.exists_mem_of_ne_nil _ hgne
+  have hbox : (⌈·A⌉ψ) ∈ t.label.left := proj.mp hψ
+  have htplus : t ∈ C.fineCLplus := List.mem_append_left _ ht_CL
+  have hAleft : (Sum.inr A : Sum Nat Nat) ∈ (nodeAt C.root).left.fvoc := by
+    apply C.vocL_fineCLplus t htplus
+    exact mem_fvoc_iff.mpr ⟨_, hbox, by simp⟩
+  have hAright : (Sum.inr A : Sum Nat Nat) ∈ (nodeAt C.root).right.fvoc := by
+    apply C.vocR_fineCLplus t htplus
+    have hO : t.label.2.2 = some (Sum.inr (~'⌊·A⌋xi)) := by rw [← ht_lab] at hAxi; exact hAxi
+    refine mem_fvoc_iff.mpr ⟨~(⌊·A⌋xi).unload, ?_, ?_⟩
+    · rcases hh : t.label with ⟨L, R, O⟩
+      rw [hh] at hO
+      subst hO
+      simp [Sequent.right, Olf.R]
+    · cases xi <;> simp [LoadFormula.unload]
+  have hlp : Δ.loadedProg = (·A : Program) := by
+    obtain ⟨L, R, O⟩ := Δ
+    simp only at hAxi
+    subst hAxi
+    cases xi <;> rfl
+  rw [hlp]
+  intro x hx
+  simp only [Program.voc, Finset.mem_singleton] at hx
+  subst hx
+  simp only [jvoc, Finset.mem_inter]
+  exact ⟨hAleft, hAright⟩
+
+/-- The inner induction in the proof of Lemma 10.3, see `PaperFacts.leftPropagation`.
+
+Still open, and for the same two reasons as `exists_right_of_proper`. The argument is again
+a descent along the children of `t`: an exit is covered by the second hypothesis and a node
+of `C^R_Δ` by the first, while at a node of `C^L_Δ` all children stay in `C⁺_Δ` (by
+`FinePathIn.children_rightOnly_eq_of_usesLeftRule` and `LoadedCluster.children_in_plus`) and
+the local invertibility of the rule applied there (`FinePathIn.locally_sound`) transfers the
+entailment back up. What is missing is the well-founded descent principle for `FinePathIn`
+and the exclusion of loaded-path repeats inside `C_Δ`. -/
+lemma leftPropagation_of_proper (C : LoadedCluster tab) (hP : C.root ◃⁺ C.root) :
+    ∀ Δ ∈ C.lambdaTwo, ∀ φ : Formula,
+      (∀ u ∈ C.nodesWithFineRight Δ, u.leftEntails φ) →
+      (∀ u ∈ C.exitsWithFine Δ, u.leftEntails φ) →
+      ∀ t ∈ C.plusNodesWithFine Δ, t.leftEntails φ := by
+  sorry
+
+/-- Lemma 9.7 (f): at a non-basic `Δ` the children of any `t ∈ C^R_Δ` are the `Λ₁(t);Π`
+for `Π ∈ stepOf Δ`.  Here only the existence of a node of `C⁺_Π` with the same left
+component as `t` is recorded, which is what the proof of Lemma 10.3 uses. -/
+lemma rightRuleChildren_of_uniform (C : LoadedCluster tab) (hU : C.HasUniformSteps) :
+    ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ t ∈ C.nodesWithFineRight Δ,
+      ∀ Pi ∈ C.stepOf Δ, ∃ u ∈ C.plusNodesWithFine Pi, u.label.left = t.label.left := by
+  intro Δ _ hnb t ht Pi hPi
+  have ht' := ht
+  simp only [nodesWithFineRight, nodesWithFine, List.mem_filter, decide_eq_true_eq] at ht'
+  obtain ⟨⟨ht_CL, ht_lab⟩, ht_right⟩ := ht'
+  rw [← C.stepOf_spec hU Δ ht] at hPi
+  simp only [List.mem_map] at hPi
+  obtain ⟨u, hu, hlab⟩ := hPi
+  refine ⟨u, ?_, ?_⟩
+  · simp only [plusNodesWithFine, List.mem_filter, decide_eq_true_eq]
+    exact ⟨C.mem_fineCLplus_of_child ht_CL hu, hlab⟩
+  · exact t.children_left_eq_of_usesRightRule ht_right (ht_lab ▸ hnb) u hu
+
+/-- Lemma 9.7 (e), in the semantic form used in the proof of Lemma 10.3.
+
+Note that no uniformity is needed here: by `basicModalStepAt` the right components of the
+children of a node of `C^R_Δ` with `Δ` basic are determined by `Δ` alone, so the list
+`stepOf Δ`, read off the first node of `C^R_Δ`, describes the children of every node of
+`C^R_Δ`. -/
+lemma modalStep_of (C : LoadedCluster tab) (hA : C.PaperAssumptions) :
+    ∀ Δ ∈ C.lambdaTwo, Δ.basic → ∀ t ∈ C.nodesWithFineRight Δ,
+      ∀ Pi ∈ C.stepOf Δ, ∃ u ∈ C.plusNodesWithFine Pi,
+        ∀ (W : Type) (M : KripkeModel W) (w v : W), (∀ ψ ∈ t.label.left, evaluate M w ψ) →
+          relate M Δ.loadedProg w v → ∀ ψ ∈ u.label.left, evaluate M v ψ := by
+  intro Δ _ hb t ht Pi hPi
+  obtain ⟨f0, hf0, g0, hg0, hg0lab⟩ := C.exists_child_rightOnly_of_mem_stepOf hPi
+  obtain ⟨A, xi, hAxi, g, hg, -, hgleft, hgright⟩ := C.basicModalStepAt hA.proper hb ht
+  obtain ⟨A', xi', hAxi', g0', hg0', -, -, hg0right⟩ := C.basicModalStepAt hA.proper hb hf0
+  have hAA : A' = A ∧ xi' = xi := by
+    rw [hAxi] at hAxi'
+    simp only [Option.some.injEq, Sum.inr.injEq] at hAxi'
+    rcases xi' with φ | χ <;> rcases xi with φ' | χ' <;> simp_all
+  rw [hAA.1, hAA.2] at hg0right
+  rw [hg0', List.mem_singleton] at hg0
+  subst hg0
+  have hPi_eq : Pi = g.label.rightOnly := by rw [← hg0lab, hg0right, hgright]
+  have ht' := ht
+  simp only [nodesWithFineRight, nodesWithFine, List.mem_filter, decide_eq_true_eq] at ht'
+  refine ⟨g, ?_, ?_⟩
+  · simp only [plusNodesWithFine, List.mem_filter, decide_eq_true_eq]
+    exact ⟨C.mem_fineCLplus_of_child ht'.1.1 (by rw [hg]; simp), hPi_eq.symm⟩
+  · have hlp : Δ.loadedProg = (·A : Program) := by
+      obtain ⟨L, R, O⟩ := Δ
+      simp only at hAxi
+      subst hAxi
+      cases xi <;> rfl
+    intro W M w v hw hrel ψ hψ
+    rw [hgleft] at hψ
+    have hbox := hw _ (proj.mp hψ)
+    rw [hlp] at hrel
+    exact hbox v hrel
+
+/-- All facts of `PaperFacts`, from the two standing assumptions of the paper. -/
+theorem paperFacts (C : LoadedCluster tab) (hA : C.PaperAssumptions) : C.PaperFacts where
+  proper := hA.proper
+  exists_right := C.exists_right_of_proper hA.proper
+  vocL := C.vocL_fineCLplus
+  vocR := C.vocR_fineCLplus
+  loadedProgVoc := C.loadedProgVoc_of_proper hA.proper (C.exists_right_of_proper hA.proper)
+  leftPropagation := C.leftPropagation_of_proper hA.proper
+  rightRuleChildren := C.rightRuleChildren_of_uniform hA.uniform
+  modalStep := C.modalStep_of hA
+
+end LoadedCluster
+
+/-! ## What is proved and what is still assumed
+
+`LoadedCluster.paperFacts` derives all eight fields of `LoadedCluster.PaperFacts` from the
+two standing assumptions of the paper, collected in `LoadedCluster.PaperAssumptions`:
+properness of the cluster and uniformity of the tableau. Six of the eight are proved here:
+
+* `proper` is the first assumption itself;
+* `vocL` and `vocR` are `vocL_fineCLplus` and `vocR_fineCLplus`, proved from vocabulary
+  preservation along `◃` (section `VocPreservation`) together with the fact that every fine
+  node of `C⁺` is `◃`-reachable from the root;
+* `rightRuleChildren` is `rightRuleChildren_of_uniform`, proved from `stepOf_spec`, i.e.
+  from the second assumption;
+* `modalStep` is `modalStep_of`, proved from properness alone via `basicModalStepAt`, which
+  is Lemma 9.7 (e): at a node of `C^R_Δ` with `Δ` basic the rule applied is the modal rule
+  `(M)` for the loaded formula of `Δ`;
+* `loadedProgVoc` is `loadedProgVoc_of_proper`, proved from properness and Lemma 9.7 (d).
+
+The two fields `exists_right` (Lemma 9.7 (d)) and `leftPropagation` are still open; see the
+docstrings of `exists_right_of_proper` and `leftPropagation_of_proper` for what exactly is
+missing.
+
+Where uniformity (conditions U1/U2, formalised as `LoadedCluster.HasUniformSteps` with
+`LoadedCluster.stepOf_spec`) is needed can now be read off: in exactly **one** of the eight
+fields, namely `rightRuleChildren`. The reason is that `C.stepOf Δ` reads the right
+components of the children of the *first* node of `C^R_Δ`, while the fields of the two
+records quantify over all nodes of `C^R_Δ`:
 
 * `PaperFacts.rightRuleChildren` (used at non-basic type-3 nodes in the proof of Lemma
   10.3) says that for *every* `t ∈ C^R_Δ` and every `Π ∈ stepOf Δ` there is a node of
-  `C⁺_Π` with the same left component as `t`. Its intended proof takes the children of `t`,
-  so it needs the right components of those children to be the list `stepOf Δ` — which for
-  a non-basic `Δ` is precisely `stepOf_spec`, i.e. uniformity.
+  `C⁺_Π` with the same left component as `t`. Its proof takes the children of `t`, so it
+  needs the right components of those children to be the list `stepOf Δ` — which for a
+  non-basic `Δ` is precisely `stepOf_spec`, i.e. uniformity.
 * `PaperFacts.modalStep` and `SatDownFacts.basicStep` also quantify over `t ∈ C^R_Δ`, but
   only for *basic* `Δ`. There the rule applied is the modal rule for the unique loaded
-  formula of `Δ` (Lemma 9.7 (e)), so the child is determined by `Δ` alone and no uniformity
-  is needed.
+  formula of `Δ` (Lemma 9.7 (e)), so the right components of the children are determined by
+  `Δ` alone; this is what `basicModalStepAt` shows, and it is why `modalStep_of` needs no
+  uniformity.
 * The remaining fields (`SatDownFacts.nonBasicStep`, `SatDownFacts.stepMeasure`,
   `PaperFacts.leftPropagation`, `exists_right`, the vocabulary fields) speak about `Δ` and
   `stepOf Δ` only, or about local invertibility at a single node, and are independent of
@@ -272,8 +1208,14 @@ noncomputable def clusterInterpolation_right {tab : Tableau .nil X} (Xfree : X.i
     (C : LoadedCluster tab) (exitIPs : ∀ e ∈ C.exits, PartInterpolant (nodeAt e))
     : PartInterpolant (nodeAt C.root) := by
   classical
-  -- The facts about the cluster that are still assumed; see the docstrings of these records.
-  have hF : C.PaperFacts := sorry
+  -- The two standing assumptions that the paper makes about the fixed tableau and the
+  -- fixed cluster, see `LoadedCluster.PaperAssumptions`.
+  have hA : C.PaperAssumptions := sorry
+  -- All facts of `PaperFacts` follow from these two, except for `exists_right` and
+  -- `leftPropagation`; see the docstrings of `LoadedCluster.exists_right_of_proper` and
+  -- `LoadedCluster.leftPropagation_of_proper`.
+  have hF : C.PaperFacts := C.paperFacts hA
+  -- The facts about the cluster that are still assumed; see the docstring of this record.
   have hS : C.SatDownFacts := sorry
   have exitIPs' : ∀ e ∈ C.exits, ∃ θ, isPartInterpolant (nodeAt e) θ :=
     fun e he => ⟨(exitIPs e he).1, (exitIPs e he).2⟩
