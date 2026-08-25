@@ -1,5 +1,4 @@
 import Pdl.ClusterRho
-import Pdl.Distance
 
 /-! # Evaluating Q-formulas, the witness distance, and basic nodes
 

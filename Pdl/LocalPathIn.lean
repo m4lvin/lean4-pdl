@@ -1,6 +1,5 @@
 import Pdl.Flip
 import Pdl.KeepRight
-import Pdl.LocalInterpolation
 
 /-! # Fine paths in local tableaux and in tableaux
 
@@ -710,4 +709,3 @@ lemma PathIn.mem_coarseChildrenBelow_toFine {H X} {tab : Tableau H X} :
 /-- The right component of a sequent, again as a sequent but with empty left component.
 This is `Λ₂` from the paper; we use it to label the nodes of the quasi-tableau. -/
 def Sequent.rightOnly (X : Sequent) : Sequent := ⟨[], X.2.1, X.2.2⟩
-

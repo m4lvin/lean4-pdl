@@ -1,4 +1,5 @@
 import Pdl.LocalPathIn
+import Pdl.LocalInterpolation
 
 /-! # Defining interpolants (Section 9)
 
