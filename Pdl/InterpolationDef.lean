@@ -1,5 +1,5 @@
 import Pdl.Flip
-import Pdl.InterpolationCluster
+import Pdl.ClusterInterpolation
 
 /-! # Defining interpolants (Section 9)
 
