@@ -1,5 +1,6 @@
 import Pdl.Flip
 import Pdl.ClusterInterpolation
+import Pdl.SingletonCluster
 
 /-! # Defining interpolants (Section 9)
 
@@ -8,71 +9,32 @@ Note that we can skip much of Subsection 8.2 because we worked already with spli
 NOTE: We may need extra work for *uniformity* though.
 -/
 
-/-! ## Interpolants for PdlRules applied to free nodes
+/-! ## Cluster roots below nodes with a singleton cluster -/
 
-The only rule treated here is (L+), i.e. `loadL` and `loadR`.
--/
+/-- If there is no `◃` cycle at `s`, then all children of `s` are cluster roots.
+This is the analogue of `PathIn.isClusterRoot_of_edge_from_free` for loaded nodes that
+form a singleton cluster. -/
+lemma PathIn.isClusterRoot_of_edge_of_not_proper {X : Sequent} {tab : Tableau .nil X}
+    {s t : PathIn tab} (h : ¬ s ◃⁺ s) (s_t : s ⋖_ t) : t.isClusterRoot := by
+  intro p p_t t_p
+  have p_eq_s : p = s := edge_leftInjective _ _ _ p_t s_t
+  have s_c_t : s ◃ t := Or.inl s_t
+  exact h (Relation.TransGen.trans_left (Relation.TransGen.single s_c_t) (p_eq_s ▸ t_p))
 
-def freePdlRuleInterpolant {X Y} (r : PdlRule X Y) (Xfree : X.isFree) (θY : PartInterpolant Y)
-    : PartInterpolant X := by
-  rcases θY with ⟨θ, θ_ip_Y⟩
-  cases r
-  case loadL in_L notBox Y_def =>
-    use θ
-    subst Y_def
-    rcases θ_ip_Y with ⟨hYvoc, hYL, hYR⟩
-    refine ⟨?_, ?_, ?_⟩
-    · intro x x_in
-      specialize hYvoc x_in
-      simp only [jvoc, List.fvoc, Vocab.fromList, Sequent.left_eq, Olf.L_inl, unload_boxes,
-        LoadFormula.unload, List.map_append, List.map_cons, Formula.voc, List.map_nil,
-        List.toFinset_append, List.toFinset_cons, List.toFinset_nil, insert_empty_eq,
-        Finset.union_singleton, Finset.sup_insert, id_eq, Finset.sup_eq_union', Sequent.right_eq,
-        Olf.R_inl, List.append_nil, Finset.mem_inter, Finset.mem_union, Finset.mem_sup,
-        List.mem_toFinset, List.mem_map, exists_exists_and_eq_and] at hYvoc
-      simp only [jvoc, List.fvoc, Vocab.fromList, Sequent.left_eq, Olf.L_none, List.append_nil,
-        Sequent.right_eq, Olf.R_none, Finset.mem_inter, Finset.mem_sup, List.mem_toFinset,
-        List.mem_map, id_eq, exists_exists_and_eq_and]
-      rcases hYvoc with ⟨x_from, ⟨φ, φ_inR, x_from_φ⟩⟩
-      constructor
-      · rcases x_from with (hx|hx)
-        · exact ⟨_, in_L, hx⟩
-        · grind
-      · use φ
-    all_goals
-      clear notBox Xfree
-      simp at *
-      grind
-  case loadR in_R notBox Y_def=>
-    use θ
-    subst Y_def
-    rcases θ_ip_Y with ⟨hYvoc, hYL, hYR⟩
-    refine ⟨?_, ?_, ?_⟩
-    · intro x x_in
-      specialize hYvoc x_in
-      simp only [jvoc, List.fvoc, Vocab.fromList, Sequent.left_eq, Olf.L_inr, List.append_nil,
-        Sequent.right_eq, Olf.R_inr, unload_boxes, LoadFormula.unload, List.map_append,
-        List.map_cons, Formula.voc, List.map_nil, List.toFinset_append, List.toFinset_cons,
-        List.toFinset_nil, insert_empty_eq, Finset.union_singleton, Finset.sup_insert, id_eq,
-        Finset.sup_eq_union', Finset.mem_inter, Finset.mem_sup, List.mem_toFinset, List.mem_map,
-        exists_exists_and_eq_and, Finset.mem_union] at hYvoc
-      simp only [jvoc, List.fvoc, Vocab.fromList, Sequent.left_eq, Olf.L_none, List.append_nil,
-        Sequent.right_eq, Olf.R_none, Finset.mem_inter, Finset.mem_sup, List.mem_toFinset,
-        List.mem_map, id_eq, exists_exists_and_eq_and]
-      rcases hYvoc with ⟨⟨φ, φ_inR, x_from_φ⟩, x_from⟩
-      constructor
-      · use φ
-      · rcases x_from with (hx|hx)
-        · exact ⟨_, in_R, hx⟩
-        · grind
-    all_goals
-      clear notBox Xfree
-      simp at *
-      grind
+/-- A loaded path repeat always is in a proper cluster: it has a `♥` step to its companion
+and the companion is an ancestor, so it can reach the repeat again. -/
+lemma PathIn.proper_of_isLrep {X : Sequent} {tab : Tableau .nil X} {s : PathIn tab}
+    (h : s.isLrep) : s ◃⁺ s := by
+  rcases h2 : (tabAt s).2.2 with _ | _ | lpr
+  case lrep =>
+    have heart : s ♥ (companionOf s lpr h2) := ⟨lpr, h2, rfl⟩
+    exact Relation.TransGen.head (Or.inr heart)
+      (Relation.TransGen.mono (fun _ _ h => Or.inl h) (companion_lt heart))
   all_goals
     exfalso
-    subst_eqs
-    simp_all [Sequent.isFree, Sequent.isLoaded]
+    unfold PathIn.isLrep at h
+    rw [h2] at h
+    simp [Tableau.isLrep] at h
 
 /-! ## From Tableau to Interpolant -/
 
@@ -112,9 +74,70 @@ theorem tabToIntAt {X : Sequent} (h_free : X.isFree) (tab : Tableau .nil X) (s :
       rcases clusterInterpolation h_free s s_cr is_proper s_loaded myExitIPs with ⟨θ, h_θ⟩
       exact ⟨θ, h_θ⟩
     case neg is_not_proper =>
-      -- Here we have a loaded node, but still must have a singleton cluster.
-      -- TODO should be similar to the EASY `neg s_free` case below.
-      sorry
+      -- Here we have a loaded node, but still a singleton cluster.
+      -- Hence we do *not* need `clusterInterpolation` and instead recurse into the
+      -- children, just like in the EASY `neg s_free` case below. The only difference is
+      -- that the children are cluster roots because there is no `◃` cycle at `s`
+      -- (instead of because `s` is free) and that we use `loadedPdlRuleInterpolant`
+      -- (instead of `freePdlRuleInterpolant`) for the PDL rules.
+      rcases s_def : tabAt s with ⟨Hist, Z, s_tab⟩
+      cases s_tab_def : s_tab
+      case loc nbas ltZ nrep nexts =>
+        have endIPsExist : ∀ Y ∈ endNodesOf ltZ, ∃ θ, isPartInterpolant Y θ := by
+          intro Y Y_in
+          subst s_tab_def
+          -- Need to make a path-step to Y, def and proofs about it inspired by `Soundness.lean`
+          let s_to_u : PathIn (tabAt s).2.2 :=
+            s_def ▸ @PathIn.loc _ _ nrep nbas ltZ nexts Y Y_in .nil
+          let u := s.append s_to_u
+          have s_u : s ⋖_ u := by
+            unfold u s_to_u
+            apply edge_append_loc_nil
+            grind
+          specialize IH (Relation.TransGen.single s_u)
+            (PathIn.isClusterRoot_of_edge_of_not_proper is_not_proper s_u)
+          have tabAt_u_def : tabAt u = ⟨_, ⟨Y, nexts Y Y_in⟩⟩ := by
+            unfold u s_to_u
+            rw [tabAt_append]
+            have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc nrep nbas ltZ nexts)))
+                = ⟨Z :: _, ⟨Y, nexts Y Y_in⟩⟩ := by simp_all
+            convert this <;> try rw [s_def]
+            rw [eqRec_heq_iff_heq]
+          unfold nodeAt at IH
+          rw [tabAt_u_def] at IH
+          exact IH
+        let ltIP := LocalTableau.interpolant ltZ ?endNodeIPsLoaded
+        · rcases ltIP with ⟨θ, Z_ip_θ⟩
+          use θ
+          unfold nodeAt
+          rw [s_def]
+          simp_all
+        · intro Y Y_in
+          specialize endIPsExist Y Y_in
+          exact ⟨endIPsExist.choose, endIPsExist.choose_spec⟩
+      case pdl Y bas r nrep next =>
+        subst s_tab_def
+        -- The def of `t` here is inspired by the proof of `tableauThenNotSat` (with s/t swapped).
+        let s_to_t : PathIn (Tableau.pdl nrep bas r next) := (.pdl .nil)
+        let t : PathIn tab := s.append (s_def ▸ s_to_t)
+        have s_t : s ⋖_ t := by
+            convert @edge_append_pdl_nil .nil _ tab s (s_def ▸ nrep)
+                                          (s_def ▸ bas) Y (s_def ▸ r) (s_def ▸ next) ?_ <;> grind
+        have def_Y : nodeAt t = Y := by
+          simp only [t, s_to_t, nodeAt_append]
+          convert @nodeAt_pdl_nil _ _ _ nrep bas next r <;> grind
+        specialize IH (Relation.TransGen.single s_t)
+          (PathIn.isClusterRoot_of_edge_of_not_proper is_not_proper s_t)
+        rw [def_Y] at IH
+        unfold nodeAt at s_loaded ⊢
+        rw [s_def] at s_loaded ⊢
+        exact loadedPdlRuleInterpolant r s_loaded IH
+      case lrep lpr =>
+        exfalso
+        refine is_not_proper (PathIn.proper_of_isLrep ?_)
+        unfold PathIn.isLrep
+        rw [s_def, s_tab_def]
+        trivial
   case neg s_free =>
     -- EASY case, singleton cluster because not loaded.
     simp at s_free
