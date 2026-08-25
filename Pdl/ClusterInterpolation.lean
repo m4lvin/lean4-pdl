@@ -1,4 +1,5 @@
 import Pdl.ClusterSatDown
+import Pdl.FinePathDescent
 
 /-! # Interpolants for proper clusters (Lemma 9.3)
 
@@ -870,6 +871,152 @@ lemma FinePathIn.children_rightOnly_eq_of_usesLeftRule {H : History} {Z : Sequen
 
 end RightRules
 
+/-! ### Loading on the right is inherited upwards, and rules with children are left or right
+
+Two ingredients for the descent of Lemma 9.7 (d) below. First, a fine node that has a
+coarse child loaded on the right is itself loaded on the right — this is what lets us apply
+`FinePathIn.children_rightOnly_eq_of_usesLeftRule` at the fine nodes of a cluster. Second,
+a fine node with children applies a left or a right rule: the only local rules that are
+neither are the closing rules, and those have no children. -/
+
+section UpwardsRight
+
+/-- If a child of a local rule application is loaded on the right, then so is its premise.
+The local rules for a loaded formula on the *left* never produce a loading on the right,
+and the one-sided rules do not change the loaded formula at all. -/
+lemma LocalRuleApp.isRight_of_mem_C (lra : LocalRuleApp) :
+    ∀ Y ∈ lra.C, Y.2.2.isRight → lra.X.2.2.isRight := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
+  subst hC
+  intro Y hY hYR
+  cases lr
+  case oneSidedL ress orule YS_def =>
+    subst YS_def
+    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hY
+    obtain ⟨res, -, rfl⟩ := hY
+    simpa using hYR
+  case oneSidedR ress orule YS_def =>
+    subst YS_def
+    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hY
+    obtain ⟨res, -, rfl⟩ := hY
+    simpa using hYR
+  case LRnegL => simp [applyLocalRule] at hY
+  case LRnegR => simp [applyLocalRule] at hY
+  case loadedL χ lrule YS_def =>
+    exfalso
+    subst YS_def
+    have hO := (Option.some_subseteq.mp pre.2.2).symm
+    simp only at hO
+    subst hO
+    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hY
+    obtain ⟨⟨Lnew, Onew⟩, -, rfl⟩ := hY
+    rcases Onew with _ | o <;> simp_all [Olf.isRight]
+  case loadedR χ lrule YS_def =>
+    have hO := (Option.some_subseteq.mp pre.2.2).symm
+    simp only at hO
+    subst hO
+    simp [Olf.isRight]
+
+/-- If some end node of a local tableau is loaded on the right, then so is its root. -/
+lemma LocalTableau.isRight_of_mem_endNodesOf : ∀ {Z : Sequent} (lt : LocalTableau Z),
+    ∀ Y ∈ endNodesOf lt, Y.2.2.isRight → Z.2.2.isRight
+  | _, .sim _, Y, hY, hYR => by
+      simp only [endNodesOf, List.mem_singleton] at hY
+      exact hY ▸ hYR
+  | _, .byLocalRule lra X_def next, Y, hY, hYR => by
+      subst X_def
+      simp only [endNodesOf, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
+        Subtype.exists] at hY
+      obtain ⟨_, ⟨W, W_in, rfl⟩, hY⟩ := hY
+      exact lra.isRight_of_mem_C W W_in
+        (LocalTableau.isRight_of_mem_endNodesOf (next W W_in) Y hY hYR)
+
+/-- The end nodes below a local path are end nodes of the local tableau at that path. -/
+lemma LocalPathIn.mem_endNodesOf_ltAt {Z : Sequent} {lt : LocalTableau Z}
+    (lp : LocalPathIn lt) :
+    ∀ Yh ∈ lp.endNodesBelow, (Yh : Sequent) ∈ endNodesOf lp.ltAt := by
+  induction lp with
+  | nil => intro Yh _; exact Yh.2
+  | cons Y_in tail IH =>
+    intro Yh h
+    simp only [LocalPathIn.endNodesBelow, List.mem_map, Subtype.exists] at h
+    obtain ⟨Z, hZ, hmem, rfl⟩ := h
+    exact IH ⟨Z, hZ⟩ hmem
+
+/-- A fine node that is not a coarse node and has a coarse child loaded on the right is
+itself loaded on the right. (For coarse nodes this is false: the `(L+)` rule loads a free
+node.) -/
+lemma FinePathIn.isRight_of_mem_coarseChildrenBelow : ∀ {H : History} {Z : Sequent}
+    {tab' : Tableau H Z} (f : FinePathIn tab'), ¬ f.atBigRoot →
+      ∀ q ∈ f.coarseChildrenBelow, (nodeAt q).2.2.isRight → f.label.2.2.isRight
+  | _, _, _, .inLoc lp _, _, q, hq, hqR => by
+      simp only [FinePathIn.coarseChildrenBelow, List.mem_map, Subtype.exists] at hq
+      obtain ⟨Y, Y_in, hmem, rfl⟩ := hq
+      rw [nodeAt_loc_nil] at hqR
+      exact LocalTableau.isRight_of_mem_endNodesOf lp.ltAt Y
+        (lp.mem_endNodesOf_ltAt ⟨Y, Y_in⟩ hmem) hqR
+  | _, _, _, .pdlHere, hbr, _, _, _ => absurd (by simp [FinePathIn.atBigRoot]) hbr
+  | _, _, _, .lrepHere, hbr, _, _, _ => absurd (by simp [FinePathIn.atBigRoot]) hbr
+  | _, _, _, .loc Y_in tail, hbr, q, hq, hqR => by
+      simp only [FinePathIn.coarseChildrenBelow, List.mem_map] at hq
+      obtain ⟨q', hq', rfl⟩ := hq
+      rw [nodeAt_loc] at hqR
+      exact tail.isRight_of_mem_coarseChildrenBelow
+        (by simpa [FinePathIn.atBigRoot] using hbr) q' hq' hqR
+  | _, _, _, .pdl tail, hbr, q, hq, hqR => by
+      simp only [FinePathIn.coarseChildrenBelow, List.mem_map] at hq
+      obtain ⟨q', hq', rfl⟩ := hq
+      rw [nodeAt_pdl] at hqR
+      exact tail.isRight_of_mem_coarseChildrenBelow
+        (by simpa [FinePathIn.atBigRoot] using hbr) q' hq' hqR
+
+/-- A local rule application with at least one child is a left or a right rule: only the
+closing rules `(¬)` are neither, and they have no results. -/
+lemma LocalRuleApp.isLeftRule_or_isRightRule_of_C_ne_nil (lra : LocalRuleApp)
+    (h : lra.C ≠ []) : lra.isLeftRule ∨ lra.isRightRule := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
+  subst hC
+  cases lr
+  case LRnegL => simp [applyLocalRule] at h
+  case LRnegR => simp [applyLocalRule] at h
+  all_goals
+    simp [LocalRuleApp.isLeftRule, LocalRuleApp.isRightRule, LocalRule.isLeftRule,
+      LocalRule.isRightRule]
+
+/-- A fine node that has children applies a left or a right rule. -/
+lemma FinePathIn.usesLeftRule_or_usesRightRule_of_children_ne_nil {H : History} {Z : Sequent}
+    {tab' : Tableau H Z} (f : FinePathIn tab') (h : f.children ≠ []) :
+    f.usesLeftRule ∨ f.usesRightRule := by
+  induction f with
+  | @inLoc Hist Y nrep nbas lt next lp lp_int =>
+    have hlp : lp.children ≠ [] := by
+      intro hnil
+      exact h (by simp [FinePathIn.children, hnil])
+    have hlab : lp.ltAt.childLabels ≠ [] := by
+      rw [← lp.map_last_children]
+      simpa using hlp
+    simp only [FinePathIn.usesLeftRule, FinePathIn.usesRightRule]
+    rcases hlt : lp.ltAt with ⟨lra, X_def, lnext⟩ | bas
+    · rw [hlt] at hlab
+      exact lra.isLeftRule_or_isRightRule_of_C_ne_nil
+        (by simpa [LocalTableau.childLabels] using hlab)
+    · exfalso
+      unfold LocalPathIn.isInternal at lp_int
+      rw [hlt] at lp_int
+      simp [LocalTableau.hasRule] at lp_int
+  | @pdlHere _ _ _ _ _ r _ =>
+    simp only [FinePathIn.usesLeftRule, FinePathIn.usesRightRule]
+    cases r <;> simp [PdlRule.isLeftRule, PdlRule.isRightRule]
+  | lrepHere => simp [FinePathIn.children] at h
+  | loc Y_in tail IH =>
+    simp only [FinePathIn.usesLeftRule, FinePathIn.usesRightRule]
+    exact IH (by intro hnil; exact h (by simp [FinePathIn.children, hnil]))
+  | pdl tail IH =>
+    simp only [FinePathIn.usesLeftRule, FinePathIn.usesRightRule]
+    exact IH (by intro hnil; exact h (by simp [FinePathIn.children, hnil]))
+
+end UpwardsRight
+
 /-! ### The two standing assumptions of the paper
 
 The paper fixes a *uniform* closed tableau and a *proper* cluster in it (page
@@ -973,28 +1120,100 @@ lemma exists_child_rightOnly_of_mem_stepOf (C : LoadedCluster tab) {Δ Pi : Sequ
     obtain ⟨g, hg, rfl⟩ := hPi
     exact ⟨f, List.mem_of_mem_head? hh, g, hg, rfl⟩
 
+/-! ### The descent for Lemma 9.7 (d)
+
+The paper picks a node `t ∈ C_Δ` that is minimal in the tree order and then follows
+left-rule children downwards; by `FinePathIn.children_rightOnly_eq_of_usesLeftRule` this
+stays inside `C_Δ`, and closing rules are excluded because they have no children while
+Lemma 9.4 (c) (`nonLpr_some_child_in_C`, which needs properness) provides one.
+
+The descent itself is `FinePathIn.descent` from `Pdl.FinePathDescent`: fine children are not
+structurally smaller, so the recursion is justified by the well-foundedness of the flipped
+fine child relation. -/
+
+/-- Every fine node of the cluster is loaded on the right, i.e. Lemma 9.4 (a) at the fine
+level. For nodes that are coarse nodes this is `all_right_loaded`; for the intermediate
+nodes of a local tableau it follows because a coarse child of theirs is in the cluster and
+loading on the right is inherited upwards inside a local tableau. -/
+lemma memFine_label_isRight (C : LoadedCluster tab) {f : FinePathIn tab} (hf : C.memFine f) :
+    f.label.2.2.isRight := by
+  by_cases hbr : f.atBigRoot
+  · rw [f.label_eq_nodeAt_base hbr]
+    exact C.all_right_loaded _ hf.1
+  · obtain ⟨q, hq, hqC⟩ := hf.2.resolve_left hbr
+    exact f.isRight_of_mem_coarseChildrenBelow hbr q hq (C.all_right_loaded q hqC)
+
+/-- Every label in `Λ₂[C]` is loaded on the right. -/
+lemma isRight_of_mem_lambdaTwo (C : LoadedCluster tab) {Δ : Sequent} (hΔ : Δ ∈ C.lambdaTwo) :
+    Δ.2.2.isRight := by
+  simp only [lambdaTwo, List.mem_dedup, List.mem_map] at hΔ
+  obtain ⟨f, hf, rfl⟩ := hΔ
+  exact C.memFine_label_isRight ((C.mem_fineCL f).mp hf)
+
+/-- The descent of Lemma 9.7 (d): if `C_Δ` is non-empty then either `C^R_Δ` is non-empty,
+or `C_Δ` contains a loaded-path repeat.
+
+Starting from any node of `C_Δ` we follow children: as long as no right rule is applied and
+no repeat is reached, the node has a child in the cluster (Lemma 9.4 (c), which needs
+properness) with the same right component (Lemma 9.7 (c)), and the descent terminates by
+`FinePathIn.descent` — but a childless node of the cluster which is not a repeat would
+contradict Lemma 9.4 (c). -/
+lemma exists_right_or_lrep (C : LoadedCluster tab) (hP : C.root ◃⁺ C.root) {Δ : Sequent}
+    (hΔ : Δ ∈ C.lambdaTwo) :
+    C.nodesWithFineRight Δ ≠ [] ∨ ∃ f ∈ C.nodesWithFine Δ, f.base.isLrep := by
+  by_contra hcon
+  push_neg at hcon
+  obtain ⟨hR, hlrep⟩ := hcon
+  obtain ⟨t, ht⟩ := List.exists_mem_of_ne_nil _ ((C.mem_lambdaTwo_iff Δ).mp hΔ)
+  have hΔR : Δ.2.2.isRight := C.isRight_of_mem_lambdaTwo hΔ
+  have down : ∀ u : FinePathIn tab, u ∈ C.nodesWithFine Δ → u.children ≠ [] →
+      ∃ g ∈ u.children, g ∈ C.nodesWithFine Δ := by
+    intro u hu hne
+    have hu' := hu
+    simp only [nodesWithFine, List.mem_filter, decide_eq_true_eq] at hu'
+    obtain ⟨hu_CL, hu_lab⟩ := hu'
+    obtain ⟨g, hg, hgmf⟩ := C.exists_child_memFine_of_not_isLrep hP ((C.mem_fineCL u).mp hu_CL)
+      (hlrep u hu)
+    refine ⟨g, hg, ?_⟩
+    have huleft : u.usesLeftRule := by
+      rcases u.usesLeftRule_or_usesRightRule_of_children_ne_nil hne with h | h
+      · exact h
+      · exfalso
+        have hmem : u ∈ C.nodesWithFineRight Δ := by
+          simp only [nodesWithFineRight, List.mem_filter]
+          exact ⟨hu, h⟩
+        rw [hR] at hmem
+        simp at hmem
+    have huR : u.label.2.2.isRight := by rw [show u.label.2.2 = Δ.2.2 by rw [← hu_lab]; rfl]
+                                         exact hΔR
+    have hgl : g.label.rightOnly = u.label.rightOnly :=
+      u.children_rightOnly_eq_of_usesLeftRule huleft huR g hg
+    simp only [nodesWithFine, List.mem_filter, decide_eq_true_eq]
+    exact ⟨(C.mem_fineCL g).mpr hgmf, by rw [hgl, hu_lab]⟩
+  obtain ⟨v, hv, hvnil⟩ := FinePathIn.descent down t ht
+  have hv_CL : v ∈ C.fineCL := by
+    simp only [nodesWithFine, List.mem_filter] at hv
+    exact hv.1
+  obtain ⟨g, hg, -⟩ :=
+    C.exists_child_memFine_of_not_isLrep hP ((C.mem_fineCL v).mp hv_CL) (hlrep v hv)
+  rw [hvnil] at hg
+  simp at hg
+
 /-- Lemma 9.7 (d): if `C_Δ` is non-empty then so is `C^R_Δ`.
 
-Still open. The proof in the paper picks a node `t ∈ C_Δ` that is minimal in the tree order
-and then follows left-rule children downwards; by
-`FinePathIn.children_rightOnly_eq_of_usesLeftRule` this stays inside `C_Δ`, and closing
-rules are excluded because they have no children while Lemma 9.4 (c)
-(`nonLpr_some_child_in_C`, which needs properness) provides one. Two ingredients are
-missing here:
-
-* a well-founded descent principle for `FinePathIn`. The fine children of a node are not
-  structurally smaller, so this needs a measure combining the size of the tableau below the
-  base node (for which `flipEdge.wellFounded` is available) with the height of the local
-  tableau at the fine node.
-* the exclusion of loaded-path repeats along the descent. The paper uses its Fact
-  `lprAreCritical` — on the path from a companion to its repeat the modal rule is applied
-  at least once — which is not available in this development. Note also that in the paper
-  sequents are *sets*, so a repeat carries exactly the same label as its companion, whereas
-  `Sequent.setEqTo` only gives equality of the `Olf` and of the *set* of formulas on each
-  side; so the companion of a repeat in `C_Δ` need not itself be in `C_Δ`. -/
+By `exists_right_or_lrep` the only remaining case is that the descent reaches a loaded-path
+repeat in `C_Δ`. Excluding this is still open: the paper uses its Fact `lprAreCritical` —
+on the path from a companion to its repeat the modal rule is applied at least once — which
+is not available in this development. Note also that in the paper sequents are *sets*, so a
+repeat carries exactly the same label as its companion, whereas `Sequent.setEqTo` only gives
+equality of the `Olf` and of the *set* of formulas on each side; so the companion of a
+repeat in `C_Δ` need not itself be in `C_Δ`. -/
 lemma exists_right_of_proper (C : LoadedCluster tab) (hP : C.root ◃⁺ C.root) :
     ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ [] := by
-  sorry
+  intro Δ hΔ
+  rcases C.exists_right_or_lrep hP hΔ with h | ⟨f, hf, hlrep⟩
+  · exact h
+  · sorry
 
 /-- The leading atomic program of a basic label of `Λ₂[C]` is in the joint vocabulary.
 
@@ -1068,13 +1287,13 @@ lemma loadedProgVoc_of_proper (C : LoadedCluster tab) (hP : C.root ◃⁺ C.root
 
 /-- The inner induction in the proof of Lemma 10.3, see `PaperFacts.leftPropagation`.
 
-Still open, and for the same two reasons as `exists_right_of_proper`. The argument is again
-a descent along the children of `t`: an exit is covered by the second hypothesis and a node
-of `C^R_Δ` by the first, while at a node of `C^L_Δ` all children stay in `C⁺_Δ` (by
-`FinePathIn.children_rightOnly_eq_of_usesLeftRule` and `LoadedCluster.children_in_plus`) and
-the local invertibility of the rule applied there (`FinePathIn.locally_sound`) transfers the
-entailment back up. What is missing is the well-founded descent principle for `FinePathIn`
-and the exclusion of loaded-path repeats inside `C_Δ`. -/
+Still open. The argument is again a descent along the children of `t`: an exit is covered by
+the second hypothesis and a node of `C^R_Δ` by the first, while at a node of `C^L_Δ` all
+children stay in `C⁺_Δ` (by `FinePathIn.children_rightOnly_eq_of_usesLeftRule` and
+`LoadedCluster.children_in_plus`) and the local invertibility of the rule applied there
+(`FinePathIn.locally_sound`) transfers the entailment back up. The descent itself is now
+available as `FinePathIn.edge_upwards_inductionOn`; what is still missing is the exclusion
+of loaded-path repeats inside `C_Δ`, as for `exists_right_of_proper`. -/
 lemma leftPropagation_of_proper (C : LoadedCluster tab) (hP : C.root ◃⁺ C.root) :
     ∀ Δ ∈ C.lambdaTwo, ∀ φ : Formula,
       (∀ u ∈ C.nodesWithFineRight Δ, u.leftEntails φ) →
