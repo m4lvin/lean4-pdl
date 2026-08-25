@@ -1,4 +1,3 @@
-import Pdl.Flip
 import Pdl.ClusterInterpolation
 import Pdl.SingletonCluster
 

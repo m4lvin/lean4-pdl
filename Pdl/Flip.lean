@@ -840,6 +840,14 @@ lemma cReach_flip_of_cReach {X} {tab : Tableau .nil X} {p q : PathIn tab} :
   | refl => exact Relation.ReflTransGen.refl
   | tail _ hstep ih => exact ih.tail (cEdge_flip_of_cEdge hstep)
 
+/-- Flipping a tableau preserves chains of `◃`. (Note the ⁺ instead of *.) -/
+lemma cEdgeTrans_flip_of_cEdgeTrans {X} {tab : Tableau .nil X} {p q : PathIn tab} :
+    p ◃⁺ q → p.flip ◃⁺ q.flip := by
+  intro h
+  induction h with
+  | single h => apply Relation.TransGen.single (cEdge_flip_of_cEdge h)
+  | tail _ hstep ih => exact ih.tail (cEdge_flip_of_cEdge hstep)
+
 /-- Reachability via `◃` only depends on paths up to heterogeneous equality. -/
 lemma cReach_heq_congr {X1 X2} {t1 : Tableau [] X1} {t2 : Tableau [] X2}
     {p1 q1 : PathIn t1} {p2 q2 : PathIn t2}

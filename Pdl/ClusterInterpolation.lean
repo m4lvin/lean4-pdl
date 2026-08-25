@@ -1465,8 +1465,9 @@ noncomputable def clusterInterpolation {tab : Tableau .nil X} (Xfree : X.isFree)
       cases O
       · simp [Sequent.isLoaded] at s_loaded
       case some val => cases val <;> simp_all [Sequent.flip, Olf.flip]
+    have s_proper_flip := cEdgeTrans_flip_of_cEdgeTrans s_proper
     let C : LoadedCluster tab.flip :=
-      LoadedCluster.ofClusterRoot s.flip (PathIn.isClusterRoot_flip s_cr) sorry s_flip_right -- TODO TransGen cEdge flip
+      LoadedCluster.ofClusterRoot s.flip (PathIn.isClusterRoot_flip s_cr) s_proper_flip s_flip_right
     have flipIPs : ∀ e ∈ C.exits, PartInterpolant (nodeAt e) := by
       intro e e_in
       have e_exit : isExitOf s.flip e := (LoadedCluster.mem_exits_iff _ e).mp e_in
