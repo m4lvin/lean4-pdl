@@ -1381,7 +1381,7 @@ records quantify over all nodes of `C^R_Δ`:
   formula of `Δ` (Lemma 9.7 (e)), so the right components of the children are determined by
   `Δ` alone; this is what `basicModalStepAt` shows, and it is why `modalStep_of` needs no
   uniformity.
-* The remaining fields (`SatDownFacts.nonBasicStep`, `SatDownFacts.stepMeasure`,
+* The remaining fields (`SatDownFacts.nonBasicStep`, `SatDownFacts.stepLT`,
   `PaperFacts.leftPropagation`, `exists_right`, the vocabulary fields) speak about `Δ` and
   `stepOf Δ` only, or about local invertibility at a single node, and are independent of
   uniformity.

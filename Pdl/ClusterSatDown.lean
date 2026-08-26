@@ -66,7 +66,7 @@ lemma at?_in_typeOneNode {Δ next t n}
                 rwa [List.getElem?_eq_getElem hilt, Option.some.injEq] at hi
               rw [hc]
               exact h
-              
+
 end QuasiTab
 
 /-! ### Helper lemmas about prefixes -/
@@ -124,13 +124,13 @@ variable {X : Sequent} {tab : Tableau .nil X} {C : LoadedCluster tab}
 
 /-- Along the subtree of a node of type 1 the measure of the label does not increase,
 unless a node of type 3 with a basic label is passed on the way. -/
-lemma measure_le_or_basicBetween (C : LoadedCluster tab) {m : Sequent → ℕ}
-    (hm : ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ Y ∈ C.stepOf Δ, m Y < m Δ) :
+lemma measure_le_or_basicBetween (C : LoadedCluster tab)
+    (hm : ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ Y ∈ C.stepOf Δ, lt_Sequent Y Δ) :
     ∀ (Hist : List Sequent) (Δ : Sequent) (x : List Nat),
       C.Q.at? x = some (QuasiTab.build C.lambdaTwo C.stepOf Hist Δ) →
       ∀ (t : List Nat) (n : QuasiTab),
         (QuasiTab.build C.lambdaTwo C.stepOf Hist Δ).at? t = some n →
-        m n.label ≤ m Δ ∨ C.Q.BasicBetween x (x ++ t) := by
+        (n.label = Δ ∨ lt_Sequent n.label Δ) /- this was ≤ -/ ∨ C.Q.BasicBetween x (x ++ t) := by
   intro Hist Δ
   induction Hist, Δ using QuasiTab.build.induct (inC := C.lambdaTwo) with
   | case1 Hist Δ h IH =>
@@ -145,15 +145,15 @@ lemma measure_le_or_basicBetween (C : LoadedCluster tab) {m : Sequent → ℕ}
     rcases QuasiTab.at?_in_typeOneNode ht with rfl | rfl | rfl | ⟨i, t', hi, rfl, ht'⟩
     · simp only [QuasiTab.at?, Option.some.injEq] at ht
       subst ht
-      exact Or.inl (le_refl _)
+      exact Or.inl (Or.inl rfl)
     · simp only [QuasiTab.at?, QuasiTab.children, List.getElem?_cons_zero,
         Option.some.injEq] at ht
       subst ht
-      exact Or.inl (le_refl _)
+      exact Or.inl (Or.inl rfl)
     · simp only [QuasiTab.at?, QuasiTab.children, List.getElem?_cons_zero,
         Option.some.injEq] at ht
       subst ht
-      exact Or.inl (le_refl _)
+      exact Or.inl (Or.inl rfl)
     · have hilt : i < (C.stepOf Δ).length := by simpa [hnextdef] using hi
       have hnexti : next[i] = QuasiTab.build C.lambdaTwo C.stepOf (Δ :: Hist) (C.stepOf Δ)[i] := by
         simp [hnextdef]
@@ -167,8 +167,18 @@ lemma measure_le_or_basicBetween (C : LoadedCluster tab) {m : Sequent → ℕ}
           rw [QuasiTab.at?_child hx3 hi, hnexti]
         have hIH := IH (C.stepOf Δ)[i] (x ++ [0, 0] ++ [i]) hat t' n (by rwa [hnexti] at ht')
         rcases hIH with hle | hbb
-        · refine Or.inl (le_of_lt (lt_of_le_of_lt hle ?_))
-          exact hm Δ h.1 hb _ (List.getElem_mem hilt)
+        · -- Old proof from when there was still a `Nat` measure placeholder.
+          -- refine Or.inl (le_of_lt (lt_of_le_of_lt hle ?_))
+          -- exact hm Δ h.1 hb _ (List.getElem_mem hilt)
+          left
+          rcases hle with nlabel_def|nlabel_lt
+          · rw [nlabel_def]
+            right
+            apply hm <;> grind
+          · right
+            -- Here we simulate the le + lt combo now, using that the DM ordering is transitive.
+            apply @Multiset.IsDershowitzMannaLT.trans _ _ _ (node_to_multiset _) _ nlabel_lt
+            apply hm <;> grind
         · rw [heq] at hbb
           exact Or.inr (hbb.mono (by simp))
   | case2 Hist Δ h =>
@@ -178,14 +188,14 @@ lemma measure_le_or_basicBetween (C : LoadedCluster tab) {m : Sequent → ℕ}
     | nil =>
       simp only [QuasiTab.at?, Option.some.injEq] at ht
       subst ht
-      exact Or.inl (le_refl _)
+      exact Or.inl (Or.inl rfl)
     | cons j t2 => exfalso; simp [QuasiTab.at?, QuasiTab.children] at ht
 
 /-- Lemma 10.6, by induction along the construction of the quasi-tableau: if `z` is a
 repeat with companion `c` then there is a node of type 3 with a basic label between `c`
 and `z`. -/
-lemma build_repeat_basicBetween (C : LoadedCluster tab) {m : Sequent → ℕ}
-    (hm : ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ Y ∈ C.stepOf Δ, m Y < m Δ) :
+lemma build_repeat_basicBetween (C : LoadedCluster tab)
+    (hm : ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ Y ∈ C.stepOf Δ, lt_Sequent Y Δ) :
     ∀ (Hist : List Sequent) (Δ : Sequent) (x : List Nat),
       C.Q.at? x = some (QuasiTab.build C.lambdaTwo C.stepOf Hist Δ) →
       ∀ z c, x <+: z → C.Q.isRepeatLeaf z → C.Q.companion? z = some c → x <+: c →
@@ -251,7 +261,15 @@ lemma build_repeat_basicBetween (C : LoadedCluster tab) {m : Sequent → ℕ}
           · exfalso
             have hlt := hm Δ h.1 hb _ (List.getElem_mem hilt)
             rw [← hlab] at hle
-            omega
+            -- contradiction, lt_Sequent is asymmetric.
+            rcases hle with delta_def | delta_lt_step
+            · rw! [← delta_def] at hlt
+              absurd hlt
+              have := @instAsymmOfIsWellFounded _ _ instIsWellFoundedSequentLt
+              exact @asymm Sequent lt_Sequent _ _ this hlt
+            · absurd hlt
+              have := @instAsymmOfIsWellFounded _ _ instIsWellFoundedSequentLt
+              exact @asymm Sequent lt_Sequent _ _ this delta_lt_step
           · rw [heq] at hbb
             exact hbb.mono (by simp)
       · obtain ⟨s, hs, rfl⟩ := prefix_sandwich hxc hcpre
@@ -318,8 +336,8 @@ can only succeed a node of type 3 with a basic label. In the construction of `Q`
 the successors of a non-basic node are smaller in some measure `m`, so a repeat — which
 has the *same* label as its companion — cannot be reached from its companion by non-basic
 steps only. -/
-theorem repeat_basicBetween (C : LoadedCluster tab) {m : Sequent → ℕ}
-    (hm : ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ Y ∈ C.stepOf Δ, m Y < m Δ)
+theorem repeat_basicBetween (C : LoadedCluster tab)
+    (hm : ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ Y ∈ C.stepOf Δ, lt_Sequent Y Δ)
     {z c : List Nat} (hz : C.Q.isRepeatLeaf z) (hc : C.Q.companion? z = some c) :
     C.Q.BasicBetween c z :=
   C.build_repeat_basicBetween hm [] (nodeAt C.root).rightOnly [] rfl z c
@@ -336,9 +354,9 @@ development. They are collected here in one record. -/
 
 * `rightLoaded` says that all `Δ ∈ Λ₂[C]` carry their loaded formula on the right; this is
   the standing assumption of Section 9 that `Γ₂` is the loaded side.
-* `stepMeasure` provides the measure needed for Lemma 10.6 (`repeat_basicBetween`).
+* `stepLT` provides a decreasing measure needed for Lemma 10.6 (`repeat_basicBetween`).
   A local rule applied to an unloaded formula, or the rule `(◇)₂` applied to the loaded
-  formula, strictly decreases a suitable measure on sequents.
+  formula, strictly decreases the DM ordering on sequents.
 * `basicStep` describes the modal step at a basic `Δ ∈ Λ₂[C]`: there is exactly one
   successor sequent `Y`, obtained by projecting along the leading atomic program `a` of
   the loaded formula and dropping `a` from it.
@@ -350,9 +368,8 @@ development. They are collected here in one record. -/
 structure SatDownFacts (C : LoadedCluster tab) : Prop where
   /-- All sequents of `Λ₂[C]` have their loaded formula on the right. -/
   rightLoaded : ∀ Δ ∈ C.lambdaTwo, Δ.isRightLoaded
-  /-- A measure that strictly decreases at the non-basic steps of the quasi-tableau. -/
-  stepMeasure : ∃ m : Sequent → ℕ,
-    ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ Y ∈ C.stepOf Δ, m Y < m Δ
+  /-- The DM measure strictly decreases at the non-basic steps of the quasi-tableau. -/
+  stepLT : ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ Y ∈ C.stepOf Δ, lt_Sequent Y Δ
   /-- The modal step at a basic sequent. -/
   basicStep : ∀ Δ ∈ C.lambdaTwo, Δ.basic → ∃ (A : Nat) (Y : Sequent),
     C.stepOf Δ = [Y]
@@ -577,7 +594,7 @@ lemma satDown_one_companion {Δ y ys} (hS : C.SatDownFacts)
     (hx : C.Q.at? x = some (.QNode .one Δ (y :: ys))) (hcomp : x ∈ C.Q.companions)
     (hylab : C.Q.labelAt (x ++ [0]) = some Δ)
     (IH : C.SatDown θ (x ++ [0])) : C.SatDown θ x := by
-  obtain ⟨m, hm⟩ := hS.stepMeasure
+  obtain hm := hS.stepLT
   have hiitpx : C.iitp θ x = (C.iitp θ (x ++ [0])).gfp x := C.iitp_one_companion hx hcomp
   have hxl : C.Q.labelAt x = some Δ := by rw [QuasiTab.labelAt, hx]; rfl
   intro W M g

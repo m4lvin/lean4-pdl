@@ -289,9 +289,12 @@ def lt_Sequent (X : Sequent) (Y : Sequent) :=
 
 -- Needed for termination of endNOdesOf.
 -- Here we use `dm_wf` from MultisetOrder.lean.
-instance : WellFoundedRelation Sequent where
+instance instWellFoundedRelationSequent : WellFoundedRelation Sequent where
   rel := lt_Sequent
   wf := InvImage.wf node_to_multiset (Multiset.wellFounded_isDershowitzMannaLT)
+
+instance instIsWellFoundedSequentLt : IsWellFounded _ lt_Sequent :=
+  ⟨instWellFoundedRelationSequent.wf⟩
 
 theorem LocalRule.cond_non_empty (rule : LocalRule (Lcond, Rcond, Ocond) X) :
     node_to_multiset (Lcond, Rcond, Ocond) ≠ ∅ :=
