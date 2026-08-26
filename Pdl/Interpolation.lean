@@ -16,13 +16,15 @@ theorem interpolation {φ ψ : Formula} :
     tautology (φ ↣ ψ) → ∃ θ : Formula, Interpolant φ ψ θ := by
   intro hyp
   let X : Sequent := ([φ], [~(ψ)], none)
-  have ctX : Tableau .nil ([φ], [~(ψ)], none) :=
-    by
+  have have_tab : ∃ u_tab : Tableau .nil ([φ], [~(ψ)], none), u_tab.isUniform := by
     rw [tautImp_iff_SequentUnsat rfl] at hyp
     rw [← consIffSat _ (by simp)] at hyp -- using completeness
     simp [consistent,inconsistent] at hyp
-    exact Classical.choice hyp
-  have partInt := tabToInt (Sequent.none_isFree _ _) ctX -- using tableau interpolation
+    have := Tableau.toUniform (Classical.choice hyp)
+    rcases this with ⟨t, t_h⟩
+    use t, t_h
+  rcases have_tab with ⟨tab, tab_uni⟩
+  have partInt := tabToInt (Sequent.none_isFree _ _) tab tab_uni -- using tableau interpolation
   rcases partInt with ⟨θ, pI_prop⟩
   unfold isPartInterpolant at pI_prop
   use θ
