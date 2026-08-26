@@ -1,4 +1,5 @@
 import Pdl.ClusterSatDown
+import Pdl.ClusterSatDownFacts
 import Pdl.FinePathDescent
 import Pdl.Uniformity
 
@@ -1407,8 +1408,8 @@ noncomputable def clusterInterpolation_right {tab : Tableau .nil X} (Xfree : X.i
   -- `leftPropagation`; see the docstrings of `LoadedCluster.exists_right_of_proper` and
   -- `LoadedCluster.leftPropagation_of_proper`.
   have hF : C.PaperFacts := C.paperFacts hA
-  -- The facts about the cluster that are still assumed; see the docstring of this record.
-  have hS : C.SatDownFacts := sorry
+  -- Get additional facts about the cluster (that used to be placeholders but are now proven).
+  have hS : C.SatDownFacts := C.satDownFacts C.exists_right_of_proper
   have exitIPs' : ∀ e ∈ C.exits, ∃ θ, isPartInterpolant (nodeAt e) θ :=
     fun e he => ⟨(exitIPs e he).1, (exitIPs e he).2⟩
   have hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (FinePathIn.itp f) :=

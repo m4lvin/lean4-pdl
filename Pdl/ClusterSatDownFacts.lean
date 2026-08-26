@@ -1,0 +1,434 @@
+import Pdl.Uniformity
+
+/-! # The facts about a proper cluster used for Lemma 10.7
+
+This file proves the four fields of `LoadedCluster.SatDownFacts` from `Pdl.ClusterSatDown`,
+i.e. everything that the proof of Lemma 10.7 assumes about the cluster `C` and the steps
+`stepOf Δ` of its quasi-tableau:
+
+* `rightLoaded`: all `Δ ∈ Λ₂[C]` are loaded on the right (Lemma 9.4 (a)),
+* `stepLT`: at a non-basic `Δ ∈ Λ₂[C]` the successors are strictly smaller in the
+  Dershowitz-Manna ordering `lt_Sequent` used for the termination of local tableaux,
+* `basicStep`: the modal step at a basic `Δ ∈ Λ₂[C]` (Lemma 9.7 (e)),
+* `nonBasicStep`: the local step at a non-basic `Δ ∈ Λ₂[C]`, with the witness distance
+  preserved — the local invertibility of the rules together with Lemma 10.5 (h).
+
+The main result is `LoadedCluster.satDownFacts`. Its only hypothesis is Lemma 9.7 (d),
+i.e. that `C^R_Δ` is non-empty for `Δ ∈ Λ₂[C]`, which in `Pdl.ClusterInterpolation` is
+`LoadedCluster.exists_right_of_proper`.
+
+We import `Pdl.Uniformity` and not `Pdl.ClusterInterpolation`, because the latter is where
+`LoadedCluster.satDownFacts` gets used; the helper lemmas about right rules that we need
+are the copies in the `Uniformity` namespace.
+-/
+
+/-! ## Splitting a boxed loaded formula -/
+
+/-- Prefixing a loaded formula with boxes prefixes its `split`. -/
+lemma LoadFormula.boxes_split (δ : List Program) (χ : LoadFormula) :
+    (⌊⌊δ⌋⌋χ).split = (δ ++ χ.split.1, χ.split.2) := by
+  induction δ with
+  | nil => simp [LoadFormula.boxes_nil]
+  | cons α δ ih => rw [LoadFormula.boxes_cons]; simp [ih]
+
+/-! ## Right rules applied to the right component only
+
+A local rule that acts on the right component can also be applied to the sequent with an
+empty left component. This is `LocalRuleApp.toContext` from `Pdl.Uniformity`, and it lets
+us transfer both the decrease in the Dershowitz-Manna ordering and the local invertibility
+from the whole sequent to its right component. -/
+
+namespace LocalRuleApp
+
+/-- The results of a local rule acting on the right have an empty left component. -/
+lemma left_nil_of_mem_ress {lra : LocalRuleApp} (h : lra.isRightRule) :
+    ∀ Z ∈ lra.ress, Z.1 = [] := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
+  simp only at h ⊢
+  cases lr
+  case oneSidedR ress' orule YS_def =>
+    subst YS_def
+    rintro Z hZ
+    simp only [List.mem_map] at hZ
+    obtain ⟨res, -, rfl⟩ := hZ
+    rfl
+  case loadedR χ lrule YS_def =>
+    subst YS_def
+    rintro Z hZ
+    simp only [List.mem_map] at hZ
+    obtain ⟨⟨F, o⟩, -, rfl⟩ := hZ
+    rfl
+  all_goals
+    simp [LocalRuleApp.isRightRule, LocalRule.isRightRule] at h
+
+/-- If the premise of a right rule has an empty left component then so have all
+conclusions. -/
+lemma C_left_nil {lra : LocalRuleApp} (h : lra.isRightRule) (hL : lra.L = []) :
+    ∀ Y ∈ lra.C, Y.1 = [] := by
+  intro Y hY
+  rw [lra.hC] at hY
+  simp only [applyLocalRule, List.mem_map] at hY
+  obtain ⟨⟨Ln, Rn, On⟩, hmem, rfl⟩ := hY
+  have hn := left_nil_of_mem_ress h _ hmem
+  simp only at hn
+  simp [hL, hn]
+
+/-- If the premise of a right rule is not loaded on the left and has an empty left
+component, then the same holds for all conclusions. -/
+lemma C_left_eq_nil {lra : LocalRuleApp} (h : lra.isRightRule) (hL : lra.X.left = []) :
+    ∀ Y ∈ lra.C, Y.left = [] := by
+  intro Y hY
+  simp only [LocalRuleApp.X, Sequent.left_eq, List.append_eq_nil_iff] at hL
+  obtain ⟨hL1, hOL⟩ := hL
+  rw [lra.hC] at hY
+  rcases hlra : lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
+  rw [hlra] at hY hL1 hOL h
+  simp only at hY hL1 hOL h
+  subst hL1
+  cases lr
+  case oneSidedR ress' orule YS_def =>
+    subst YS_def
+    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hY
+    obtain ⟨res, -, rfl⟩ := hY
+    simp [Sequent.left, Olf.change, hOL]
+  case loadedR χ lrule YS_def =>
+    subst YS_def
+    have hO := (Option.some_subseteq.mp pre.2.2).symm
+    simp only at hO
+    subst hO
+    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hY
+    obtain ⟨⟨F, o⟩, -, rfl⟩ := hY
+    rcases o with _ | o <;> simp [Sequent.left, Olf.L]
+  all_goals
+    simp [LocalRuleApp.isRightRule, LocalRule.isRightRule] at h
+
+/-- The rule application `lra`, applied to the right component of its premise only. -/
+noncomputable def rightOnlyApp (lra : LocalRuleApp) : LocalRuleApp :=
+  lra.toContext lra.X.rightOnly
+
+@[simp]
+lemma rightOnlyApp_isRightRule (lra : LocalRuleApp) :
+    lra.rightOnlyApp.isRightRule = lra.isRightRule :=
+  lra.toContext_isRightRule _
+
+lemma rightOnlyApp_X {lra : LocalRuleApp} (h : lra.isRightRule) :
+    lra.rightOnlyApp.X = lra.X.rightOnly :=
+  lra.toContext_rightOnly_X rfl h
+
+lemma rightOnlyApp_C {lra : LocalRuleApp} (h : lra.isRightRule) :
+    lra.rightOnlyApp.C = lra.C.map Sequent.rightOnly := by
+  have hr : lra.rightOnlyApp.isRightRule := by simpa [rightOnlyApp] using h
+  have hX := rightOnlyApp_X h
+  have h1 : lra.rightOnlyApp.C.map Sequent.rightOnly = lra.C.map Sequent.rightOnly :=
+    Uniformity.map_rightOnly_C_eq (lra.toContext_sameRuleAs _) (by rw [hX]; rfl)
+  rw [← h1]
+  have hL : lra.rightOnlyApp.L = [] := congrArg (fun Y => Y.1) hX
+  refine ((List.map_congr_left ?_).trans (List.map_id _)).symm
+  intro Y hY
+  have hY1 := C_left_nil hr hL Y hY
+  rcases Y with ⟨L, R, O⟩
+  simp only at hY1
+  simp [Sequent.rightOnly, hY1]
+
+/-- The right components of the conclusions of a right rule are strictly smaller than the
+right component of the premise, in the Dershowitz-Manna ordering. -/
+lemma rightOnly_lt_Sequent {lra : LocalRuleApp} (h : lra.isRightRule) :
+    ∀ Y ∈ lra.C, lt_Sequent Y.rightOnly lra.X.rightOnly := by
+  intro Y hY
+  have hdm := localRuleApp.decreases_DM lra.rightOnlyApp Y.rightOnly
+    (by rw [rightOnlyApp_C h]; exact List.mem_map_of_mem hY)
+  rwa [rightOnlyApp_X h] at hdm
+
+end LocalRuleApp
+
+/-! ## Satisfaction of a sequent with an empty left component -/
+
+lemma models_iff_right {W : Type} {M : KripkeModel W} {w : W} {X : Sequent}
+    (hL : X.left = []) : (M, w) ⊨ X ↔ ∀ φ ∈ X.right, evaluate M w φ := by
+  rcases X with ⟨L, R, O⟩
+  simp only [Sequent.left_eq, List.append_eq_nil_iff] at hL
+  obtain ⟨rfl, hO⟩ := hL
+  simp only [modelCanSemImplySequent, Sequent.right_eq, List.mem_append]
+  rcases O with _ | (o | o) <;> simp [Olf.R, Olf.L] at hO ⊢
+
+/-! ## The local step, with the witness distance
+
+This is the heart of the case `k(x) = 3` with `Δ_x` not basic in the proof of Lemma 10.7:
+when a right local rule is applied to a sequent that holds at `v`, one of the conclusions
+holds at `v` *with the same witness distance*. If the rule acts on an unloaded formula then
+the loaded formula, and hence the witness distance, is unchanged. If it acts on the loaded
+formula then the rule is `(◇)₂` and the claim is Lemma 10.5 (h),
+`existsD_of_true_diamond`. -/
+
+/-- The witness distance, computed from the split of the loaded formula. -/
+lemma witDist_eq_of_loadedSplit {W : Type} {M : KripkeModel W} {v : W} {Δ : Sequent}
+    {γ : List Program} {ψ : Formula} (h : Δ.loadedSplit = (γ, ψ)) :
+    witDist M v Δ = ⨅ w : {w : W // evaluate M w (~ψ)}, distance_list M v w γ := by
+  unfold witDist Sequent.loadedFma Sequent.loadedProgs
+  rw [h]
+
+lemma LocalRuleApp.rightRule_sat_witDist {lra : LocalRuleApp} (hr : lra.isRightRule)
+    {W : Type} {M : KripkeModel W} {v : W}
+    (hv : ∀ φ ∈ lra.X.right, evaluate M v φ) :
+    ∃ Y ∈ lra.C, (∀ φ ∈ Y.right, evaluate M v φ) ∧ witDist M v Y = witDist M v lra.X := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
+  simp only [LocalRuleApp.X, Sequent.right_eq] at hv hr ⊢
+  cases lr
+  case oneSidedR ress' orule YS_def =>
+    -- An unloaded rule: the loaded formula, and hence the witness distance, is unchanged,
+    -- and one of the conclusions holds at `v` by the invertibility of the rule.
+    subst YS_def
+    subst hC
+    have hcon : evaluate M v (con Rcond) :=
+      conEval.mpr (fun f hf => hv f (List.mem_append_left _ (pre.2.1.subset hf)))
+    have hdis := (oneSidedLocalRuleTruth orule W M v).mp hcon
+    rw [disconEval] at hdis
+    obtain ⟨res, hres, hresv⟩ := hdis
+    refine ⟨(L.diff ∅ ++ ∅, R.diff Rcond ++ res, Olf.change O none none), ?_, ?_, ?_⟩
+    · simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply]
+      exact ⟨res, hres, rfl⟩
+    · intro f hf
+      simp only [Sequent.right_eq, List.mem_append, Olf.change_old_none_none] at hf
+      rcases hf with (hf | hf) | hf
+      · exact hv f (List.mem_append_left _ (List.diff_subset _ _ hf))
+      · exact hresv f hf
+      · exact hv f (List.mem_append_right _ hf)
+    · rw [Olf.change_old_none_none]
+      exact witDist_congr (by rcases O with _ | (o | o) <;> rfl)
+  case loadedR χ lrule YS_def =>
+    -- The loaded diamond rule: this is Lemma 10.5 (h).
+    subst YS_def
+    subst hC
+    have hO : some (Sum.inr (~'χ)) = O := Option.some_subseteq.mp pre.2.2
+    subst hO
+    have hχ : evaluate M v (~χ.unload) := hv _ (by simp)
+    rw [LoadFormula.unload_eq_boxes_split] at hχ
+    cases lrule
+    case dia α χ' notAtom =>
+      simp only [LoadFormula.split, AnyFormula.split] at hχ
+      obtain ⟨⟨F, δ⟩, hFD, hFv, hbox, hdist⟩ :=
+        existsD_of_true_diamond α χ'.split.1 χ'.split.2 hχ
+      simp only at hFv hbox hdist
+      refine ⟨(L.diff ∅ ++ ∅, R.diff ∅ ++ F, some (Sum.inr (~'(⌊⌊δ⌋⌋χ')))), ?_, ?_, ?_⟩
+      · simp only [applyLocalRule, unfoldDiamondLoaded, List.map_map, List.mem_map,
+          Function.comp_apply]
+        exact ⟨(F, δ), hFD, by simp [YsetLoad, Olf.change_some]⟩
+      · intro f hf
+        simp only [Sequent.right_eq, List.mem_append, Olf.R_inr, List.mem_singleton] at hf
+        rcases hf with (hf | hf) | hf
+        · exact hv f (List.mem_append_left _ hf)
+        · exact conEval.mp hFv f hf
+        · subst hf
+          rw [LoadFormula.unload_eq_boxes_split, LoadFormula.boxes_split, boxes_append]
+          exact hbox
+      · rw [witDist_eq_of_loadedSplit (γ := δ ++ χ'.split.1) (ψ := χ'.split.2)
+            (by simp [Sequent.loadedSplit, LoadFormula.boxes_split]),
+          witDist_eq_of_loadedSplit (γ := α :: χ'.split.1) (ψ := χ'.split.2)
+            (by simp [Sequent.loadedSplit])]
+        exact hdist
+    case dia' α φ notAtom =>
+      simp only [LoadFormula.split, AnyFormula.split] at hχ
+      obtain ⟨⟨F, δ⟩, hFD, hFv, hbox, hdist⟩ := existsD_of_true_diamond α [] φ hχ
+      simp only [Formula.boxes_nil, List.append_nil] at hFv hbox hdist
+      rcases hsl : splitLast δ with _ | ⟨δ0, β⟩
+      · -- The rule unloads: the conclusion is free and both distances are `0`.
+        have hδ : δ = [] := by
+          rcases δ with _ | ⟨x, xs⟩
+          · rfl
+          · simp [splitLast] at hsl
+        subst hδ
+        have hφ : evaluate M v (~φ) := by simpa using hbox
+        refine ⟨(L.diff ∅ ++ ∅, R.diff ∅ ++ (F ∪ [~φ]), none), ?_, ?_, ?_⟩
+        · simp only [applyLocalRule, unfoldDiamondLoaded', List.map_map, List.mem_map,
+            Function.comp_apply]
+          exact ⟨(F, []), hFD, by simp [YsetLoad', Olf.change_some_some_eq]⟩
+        · intro f hf
+          simp only [Sequent.right_eq, List.mem_append, Olf.R_none, List.append_nil,
+            List.mem_union_iff, List.mem_singleton] at hf
+          rcases hf with hf | (hf | hf)
+          · exact hv f (List.mem_append_left _ hf)
+          · exact conEval.mp hFv f hf
+          · exact hf ▸ hφ
+        · rw [witDist_eq_of_loadedSplit (γ := ([] : List Program)) (ψ := (⊥ : Formula))
+              (by simp [Sequent.loadedSplit]),
+            witDist_eq_of_loadedSplit (γ := [α]) (ψ := φ) (by simp [Sequent.loadedSplit])]
+          rw [← hdist]
+          refine le_antisymm ?_ (zero_le _) |>.trans (le_antisymm (zero_le _) ?_)
+          · exact le_of_le_of_eq (iInf_le _ (⟨v, by simp⟩ :
+              {w : W // evaluate M w (~(⊥ : Formula))})) distance_list_nil_self
+          · exact le_of_le_of_eq (iInf_le _ (⟨v, hφ⟩ : {w : W // evaluate M w (~φ)}))
+              distance_list_nil_self
+      · have hδ : δ0 ++ [β] = δ := splitLast_undo_of_some hsl
+        refine ⟨(L.diff ∅ ++ ∅, R.diff ∅ ++ F, some (Sum.inr (~'(loadMulti δ0 β φ)))), ?_, ?_, ?_⟩
+        · simp only [applyLocalRule, unfoldDiamondLoaded', List.map_map, List.mem_map,
+            Function.comp_apply]
+          exact ⟨(F, δ), hFD, by simp [YsetLoad', hsl, Olf.change_some]⟩
+        · intro f hf
+          simp only [Sequent.right_eq, List.mem_append, Olf.R_inr, List.mem_singleton] at hf
+          rcases hf with (hf | hf) | hf
+          · exact hv f (List.mem_append_left _ hf)
+          · exact conEval.mp hFv f hf
+          · subst hf
+            rw [unload_loadMulti]
+            rw [← hδ, boxes_append] at hbox
+            simpa using hbox
+        · rw [witDist_eq_of_loadedSplit (γ := δ0 ++ [β]) (ψ := φ)
+              (by simp [Sequent.loadedSplit, loadMulti_split]),
+            witDist_eq_of_loadedSplit (γ := [α]) (ψ := φ) (by simp [Sequent.loadedSplit])]
+          rw [hδ]
+          exact hdist
+  all_goals simp [LocalRuleApp.isRightRule, LocalRule.isRightRule] at hr
+
+/-! ## The four fields -/
+
+namespace LoadedCluster
+
+variable {X : Sequent} {tab : Tableau .nil X}
+
+/-- Every label in `Λ₂[C]` is loaded on the right, i.e. Lemma 9.4 (a). -/
+lemma isRightLoaded_of_mem_lambdaTwo (C : LoadedCluster tab) {Δ : Sequent}
+    (hΔ : Δ ∈ C.lambdaTwo) : Δ.isRightLoaded := by
+  simp only [lambdaTwo, List.mem_dedup, List.mem_map] at hΔ
+  obtain ⟨f, hf, rfl⟩ := hΔ
+  have h := Uniformity.isRight_of_memFine C ((C.mem_fineCL f).mp hf)
+  rcases hh : f.label.2.2 with _ | (o | o) <;> rw [hh] at h <;> simp at h
+  exact ⟨o, by simp [Sequent.O, Sequent.rightOnly, hh]⟩
+
+/-- If a right rule is applied at some node with right component `Δ`, then the steps
+`stepOf Δ` are the right components of the conclusions of the local rule applied there. -/
+lemma exists_lra_stepOf (C : LoadedCluster tab) {Δ : Sequent}
+    (hne : C.nodesWithFineRight Δ ≠ []) (hb : ¬ Δ.basic) :
+    ∃ lra : LocalRuleApp, lra.isRightRule ∧ lra.X.rightOnly = Δ ∧
+      C.stepOf Δ = lra.C.map Sequent.rightOnly := by
+  unfold stepOf
+  cases hh : (C.nodesWithFineRight Δ).head? with
+  | none => exact absurd (List.head?_eq_none_iff.mp hh) hne
+  | some f =>
+    have hf := List.mem_of_mem_head? hh
+    simp only [nodesWithFineRight, nodesWithFine, List.mem_filter, decide_eq_true_eq] at hf
+    obtain ⟨⟨hf_CL, hf_lab⟩, hf_right⟩ := hf
+    have hfb : ¬ f.label.basic := fun h => hb (hf_lab ▸ Uniformity.basic_rightOnly h)
+    obtain ⟨lra, hlra, hright⟩ :=
+      (Uniformity.lra_or_basic_of_usesRightRule f hf_right).resolve_right hfb
+    obtain ⟨hX, hC⟩ := f.lra?_spec hlra
+    refine ⟨lra, hright, by rw [← hX, hf_lab], ?_⟩
+    rw [← hC]
+    simp [List.map_map, Function.comp_def]
+
+/-- The `stepLT` field: at a non-basic `Δ ∈ Λ₂[C]` the step of the quasi-tableau
+strictly decreases the Dershowitz-Manna ordering. -/
+lemma stepOf_lt_Sequent (C : LoadedCluster tab) :
+    ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ Y ∈ C.stepOf Δ, lt_Sequent Y Δ := by
+  intro Δ _ hb Y hY
+  by_cases hne : C.nodesWithFineRight Δ = []
+  · exfalso
+    unfold stepOf at hY
+    rw [List.head?_eq_none_iff.mpr hne] at hY
+    simp at hY
+  · obtain ⟨lra, hright, hX, hstep⟩ := C.exists_lra_stepOf hne hb
+    rw [hstep, List.mem_map] at hY
+    obtain ⟨Z, hZ, rfl⟩ := hY
+    rw [← hX]
+    exact LocalRuleApp.rightOnly_lt_Sequent hright Z hZ
+
+/-- The `basicStep` field: the modal step at a basic `Δ ∈ Λ₂[C]`. -/
+lemma basicStep_of (C : LoadedCluster tab)
+    (hER : ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ []) :
+    ∀ Δ ∈ C.lambdaTwo, Δ.basic → ∃ (A : Nat) (Y : Sequent),
+      C.stepOf Δ = [Y]
+      ∧ Δ.loadedProg = (·A : Program)
+      ∧ Δ.loadedProgs = (·A : Program) :: Y.loadedProgs
+      ∧ Y.loadedFma = Δ.loadedFma
+      ∧ ∀ (W : Type) (M : KripkeModel W) (w v : W), (∀ φ ∈ Δ.right, evaluate M w φ) →
+          relate M (·A : Program) w v → evaluate M v (~⌈⌈Y.loadedProgs⌉⌉Y.loadedFma) →
+          ∀ φ ∈ Y.right, evaluate M v φ := by
+  intro Δ hΔ hb
+  cases hh : (C.nodesWithFineRight Δ).head? with
+  | none => exact absurd (List.head?_eq_none_iff.mp hh) (hER Δ hΔ)
+  | some f =>
+    have hf := List.mem_of_mem_head? hh
+    obtain ⟨A, ξ, hAξ, g, hg, hglab⟩ := Uniformity.basicModalStep C hb hf
+    have hf' := hf
+    simp only [nodesWithFineRight, nodesWithFine, List.mem_filter, decide_eq_true_eq] at hf'
+    obtain ⟨⟨hf_CL, hf_lab⟩, hf_right⟩ := hf'
+    obtain ⟨c, hc, hcmf⟩ := C.exists_child_memFine_of_not_isLrep ((C.mem_fineCL f).mp hf_CL)
+      (f.not_isLrep_base_of_usesRightRule hf_right)
+    rw [hg, List.mem_singleton] at hc
+    subst hc
+    have hgR : c.label.2.2.isRight := Uniformity.isRight_of_memFine C hcmf
+    -- The child stays in the cluster, so it is loaded, i.e. `ξ` is a loaded formula.
+    obtain ⟨χ, rfl⟩ : ∃ χ, ξ = AnyFormula.loaded χ := by
+      rcases ξ with φ | χ
+      · exfalso
+        have hnone : c.label.2.2 = none := by
+          have := congrArg (fun Z => Z.2.2) hglab
+          simpa [Sequent.rightOnly, Uniformity.modRChildRight] using this
+        rw [hnone] at hgR
+        simp at hgR
+      · exact ⟨χ, rfl⟩
+    refine ⟨A, Uniformity.modRChildRight A (AnyFormula.loaded χ) Δ.2.1, ?_, ?_, ?_, ?_, ?_⟩
+    · unfold stepOf
+      rw [hh]
+      change List.map (fun g => g.label.rightOnly) f.children = _
+      rw [hg]
+      simp [hglab]
+    · rcases hD : Δ with ⟨L, R, O⟩
+      rw [hD] at hAξ
+      simp only at hAξ
+      subst hAξ
+      rfl
+    · rcases hD : Δ with ⟨L, R, O⟩
+      rw [hD] at hAξ
+      simp only at hAξ
+      subst hAξ
+      simp [Sequent.loadedProgs, Sequent.loadedSplit, Uniformity.modRChildRight]
+    · rcases hD : Δ with ⟨L, R, O⟩
+      rw [hD] at hAξ
+      simp only at hAξ
+      subst hAξ
+      simp [Sequent.loadedFma, Sequent.loadedSplit, Uniformity.modRChildRight]
+    · intro W M w v hw hrel hload φ hφ
+      simp only [Uniformity.modRChildRight, Sequent.right_eq, Olf.R_inr, List.mem_append,
+        List.mem_singleton] at hφ
+      rcases hφ with hφ | hφ
+      · have hbox : (⌈·A⌉φ) ∈ Δ.2.1 := proj.mp hφ
+        have := hw _ (List.mem_append_left _ hbox)
+        exact this v hrel
+      · subst hφ
+        rw [LoadFormula.unload_eq_boxes_split]
+        simpa [Sequent.loadedProgs, Sequent.loadedFma, Sequent.loadedSplit,
+          Uniformity.modRChildRight] using hload
+
+/-- The `nonBasicStep` field: the local step at a non-basic `Δ ∈ Λ₂[C]`. -/
+lemma nonBasicStep_of (C : LoadedCluster tab)
+    (hER : ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ []) :
+    ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ (W : Type) (M : KripkeModel W) (v : W),
+      (∀ φ ∈ Δ.right, evaluate M v φ) →
+      ∃ i, ∃ hi : i < (C.stepOf Δ).length,
+        (∀ φ ∈ ((C.stepOf Δ)[i]'hi).right, evaluate M v φ)
+        ∧ witDist M v ((C.stepOf Δ)[i]'hi) = witDist M v Δ := by
+  intro Δ hΔ hb W M v hv
+  obtain ⟨lra, hright, hX, hstep⟩ := C.exists_lra_stepOf (hER Δ hΔ) hb
+  have hX' : lra.rightOnlyApp.X = Δ := by
+    rw [LocalRuleApp.rightOnlyApp_X hright, hX]
+  have hC' : lra.rightOnlyApp.C = C.stepOf Δ := by
+    rw [LocalRuleApp.rightOnlyApp_C hright, hstep]
+  have hr' : lra.rightOnlyApp.isRightRule := by
+    rw [LocalRuleApp.rightOnlyApp_isRightRule]; exact hright
+  obtain ⟨Y, hY, hYsat, hYwd⟩ :=
+    LocalRuleApp.rightRule_sat_witDist hr' (by rw [hX']; exact hv)
+  rw [hC'] at hY
+  obtain ⟨i, hi, heq⟩ := List.mem_iff_getElem.mp hY
+  refine ⟨i, hi, ?_, ?_⟩
+  · rw [heq]; exact hYsat
+  · rw [heq, hYwd, hX']
+
+/-- All facts of `SatDownFacts`, from Lemma 9.7 (d). -/
+theorem satDownFacts (C : LoadedCluster tab)
+    (hER : ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ []) : C.SatDownFacts where
+  rightLoaded := fun _ hΔ => C.isRightLoaded_of_mem_lambdaTwo hΔ
+  stepLT := C.stepOf_lt_Sequent
+  basicStep := C.basicStep_of hER
+  nonBasicStep := C.nonBasicStep_of hER
+
+end LoadedCluster
