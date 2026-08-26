@@ -1451,4 +1451,4 @@ noncomputable def clusterInterpolation {tab : Tableau .nil X} (Xfree : X.isFree)
       rw [← PathIn.flip_unflip e] at e_exit ⊢
       exact PartInterpolant.flipPath (exitIPs e.unflip (isExitOf_flip.mp e_exit))
     have : X.flip.isFree := by rw [Sequent.flip_isFree]; exact Xfree
-    exact PartInterpolant.unflipPath (clusterInterpolation_right this t_u C flipIPs)
+    exact PartInterpolant.unflipPath (clusterInterpolation_right this t_u.flip C flipIPs)

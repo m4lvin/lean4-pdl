@@ -22,7 +22,7 @@ theorem interpolation {φ ψ : Formula} :
     simp [consistent,inconsistent] at hyp
     have := Tableau.toUniform (Classical.choice hyp)
     rcases this with ⟨t, t_h⟩
-    use t, t_h
+    exact ⟨t, t_h⟩
   rcases have_tab with ⟨tab, tab_uni⟩
   have partInt := tabToInt (Sequent.none_isFree _ _) tab tab_uni -- using tableau interpolation
   rcases partInt with ⟨θ, pI_prop⟩
