@@ -1,4 +1,4 @@
-import Pdl.BuildTree
+import Pdl.Completeness.BuildTree
 
 /-- Given a match and previous match, give all formulas since then.
 Still TODO: actually ensure that `n` is a submatch of `m`. Without this we may loop ∞.

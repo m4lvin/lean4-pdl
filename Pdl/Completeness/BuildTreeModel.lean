@@ -1,4 +1,4 @@
-import Pdl.BuildTree
+import Pdl.Completeness.BuildTree
 
 /-! # From winning strategies to model graphs, part 2: the model graph (Section 6.3)
 

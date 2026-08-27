@@ -1,5 +1,5 @@
 import Pdl.Soundness
-import Pdl.BuildTreeExistence
+import Pdl.Completeness.BuildTreeExistence
 
 /-! # Completeness Proof (Section 6.4) -/
 

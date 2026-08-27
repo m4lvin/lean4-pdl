@@ -1,4 +1,4 @@
-import Pdl.PreInterpolant
+import Pdl.Interpolation.PreInterpolant
 
 /-! # The interpolant of a cluster root and its correctness
 

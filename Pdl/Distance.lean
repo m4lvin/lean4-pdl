@@ -1,6 +1,6 @@
 import Mathlib.Data.ENat.Lattice
 
-import Pdl.UnfoldDia
+import Pdl.Local.UnfoldDia
 
 /-! # Distance between states in a Kripke model
 

@@ -1,7 +1,7 @@
 import Mathlib.Tactic.ClearExcept
 import Mathlib.Data.Vector.Basic
 
-import Pdl.LocalRules
+import Pdl.Local.Rules
 
 /-! # Model Graphs (Section 7.1) -/
 

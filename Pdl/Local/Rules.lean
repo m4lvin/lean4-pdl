@@ -4,8 +4,8 @@ import Mathlib.Algebra.Order.BigOperators.Group.Finset
 import Mathlib.Data.Multiset.DershowitzManna
 
 import Pdl.Sequent
-import Pdl.UnfoldBox
-import Pdl.UnfoldDia
+import Pdl.Local.UnfoldBox
+import Pdl.Local.UnfoldDia
 
 /-! ## Local rules and local rule applications  -/
 

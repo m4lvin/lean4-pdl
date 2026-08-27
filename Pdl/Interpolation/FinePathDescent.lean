@@ -1,4 +1,4 @@
-import Pdl.LocalPathIn
+import Pdl.Local.PathIn
 
 /-! # Well-founded descent for fine paths
 

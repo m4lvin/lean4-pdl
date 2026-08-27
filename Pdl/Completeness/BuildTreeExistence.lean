@@ -1,4 +1,4 @@
-import Pdl.BuildTreeModel
+import Pdl.Completeness.BuildTreeModel
 
 /-! # From winning strategies to model graphs, part 3: the existence lemmas (Section 6.3)
 

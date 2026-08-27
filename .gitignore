@@ -3,5 +3,6 @@
 /lake-packages/*
 .first-run-done
 .lake
-dependencies.*
+/dependencies*
 lean4checker
+scripts/venv

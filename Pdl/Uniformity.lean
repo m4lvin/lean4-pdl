@@ -1,5 +1,5 @@
-import Pdl.AllLocalTab
-import Pdl.ClusterSatDown
+import Pdl.Local.AllLocalTab
+import Pdl.Interpolation.ClusterSatDown
 
 /-! # Uniformity of split tableaux (Definition `d:uniform`)
 

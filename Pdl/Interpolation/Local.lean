@@ -1,4 +1,4 @@
-import Pdl.LocalTableau
+import Pdl.Local.Tableau
 
 open HasSat
 

@@ -150,8 +150,7 @@ theorem reachableFrom.mem_iff (r : α → α → Prop)
 termination_by
   (α_fin.elems \ here).card
 decreasing_by
-  · simp only [gt_iff_lt]
-    apply reachableFrom_terminationHelper
+  · apply reachableFrom_terminationHelper
     assumption
   · apply reachableFrom_terminationHelper
     assumption

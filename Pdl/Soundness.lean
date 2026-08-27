@@ -6,8 +6,8 @@ import Mathlib.Data.Vector.Defs
 import Pdl.TableauPath
 import Mathlib.Data.ENat.Defs
 
-import Pdl.LocalSoundness
-import Pdl.FinReach
+import Pdl.Local.Soundness
+import Pdl.General.FinReach
 
 /-! # Soundness (Section 6) -/
 

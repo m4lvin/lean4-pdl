@@ -1,16 +1,13 @@
 import Mathlib.Data.Finset.Basic
 
-import Pdl.InterpolationDef
-import Pdl.Completeness
+import Pdl.Interpolation.Basic
+import Pdl.Interpolation.Def
+import Pdl.Completeness.Theorem
 
 /-! # Interpolation (Section 7) -/
 
 open vDash HasSat
 
-/-- An interpolant θ for φ and ψ only uses the vocabulary
-in both, is implied by φ and implies ψ. -/
-def Interpolant (φ : Formula) (ψ : Formula) (θ : Formula) :=
-  θ.voc ⊆ φ.voc ∩ ψ.voc  ∧  tautology (φ ↣ θ)  ∧  tautology (θ ↣ ψ)
 
 theorem interpolation {φ ψ : Formula} :
     tautology (φ ↣ ψ) → ∃ θ : Formula, Interpolant φ ψ θ := by

@@ -1,5 +1,5 @@
-import Pdl.TableauGame
-import Pdl.LocalTableauPaths
+import Pdl.Completeness.TableauGame
+import Pdl.Local.Path
 import Pdl.PdlSteps
 
 /-! # From winning strategies to model graphs, part 1: BuildTree and PreState (Section 6.3) -/

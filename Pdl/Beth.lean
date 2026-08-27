@@ -1,4 +1,4 @@
-import Pdl.Interpolation
+import Pdl.Interpolation.Theorem
 
 /-! # Beth Definability (Corollary 7.5) -/
 

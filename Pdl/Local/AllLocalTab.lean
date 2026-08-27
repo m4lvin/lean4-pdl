@@ -2,7 +2,7 @@ import Mathlib.Data.List.Permutation
 import Mathlib.Data.List.Perm.Subperm
 import Mathlib.Data.List.ReduceOption
 
-import Pdl.LocalTableau
+import Pdl.Local.Tableau
 
 /-! # Generating all Local Tableaux
 

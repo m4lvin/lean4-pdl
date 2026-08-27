@@ -1,14 +1,14 @@
-import Pdl.LocalPathIn
-import Pdl.LocalInterpolation
+import Pdl.Local.PathIn
+import Pdl.Interpolation.Local
 
-/-! # Defining interpolants (Section 9)
+/-! # Loaded Clusters (start of Section 9)
 
 Note that we can skip much of Subsection 8.2 because we worked already with split tableaux anyway.
 
 NOTE: We may need extra work for *uniformity* though.
 
 This file covers Definitions 9.6 to 9.13 and Lemma 9.14. What comes after it is in
-separate files: `Pdl.QFormula` has Definitions 9.15 and 9.16 and Fact 9.17,
+separate files: `Pdl.Interpolation.QFormula` has Definitions 9.15 and 9.16 and Fact 9.17,
 `Pdl.PreInterpolant` has Definition 9.18, and `Pdl.ClusterInterpolation` has Lemma 9.3,
 i.e. the interpolant for the root of a proper cluster. Counterexamples to Lemma 9.12 (c)
 and (d) as stated in the paper are in `Pdl.ClusterCorrection`.

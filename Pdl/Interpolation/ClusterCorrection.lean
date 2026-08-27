@@ -1,4 +1,4 @@
-import Pdl.InterpolationCluster
+import Pdl.Interpolation.Cluster
 
 /-! # Where Lemma 9.12 (c) and (d) fail, and counterexamples
 
@@ -467,4 +467,3 @@ theorem LoadedCluster.Q_cycs_not_eq_of_qedge (C : LoadedCluster tab)
     QuasiTab.cycs_failure_of_shape (C.Q_eq_of_step_repeat h1 hstep)
   intro h
   exact h_notin ((h [0,0] [0,0,1] h_nc h_edge) ▸ h_in)
-

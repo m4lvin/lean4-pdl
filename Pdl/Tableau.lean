@@ -1,6 +1,6 @@
 import Mathlib.Data.List.ReduceOption
 
-import Pdl.LocalTableau
+import Pdl.Local.Tableau
 
 /-! # PDL-Tableaux (Section 4) -/
 

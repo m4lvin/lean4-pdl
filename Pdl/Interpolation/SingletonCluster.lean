@@ -1,5 +1,5 @@
 import Pdl.Flip
-import Pdl.LocalInterpolation
+import Pdl.Interpolation.Local
 
 /-! ## Interpolants for PdlRules applied to free nodes
 

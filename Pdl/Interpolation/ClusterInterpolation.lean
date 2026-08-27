@@ -1,6 +1,6 @@
-import Pdl.ClusterSatDown
-import Pdl.ClusterSatDownFacts
-import Pdl.FinePathDescent
+import Pdl.Interpolation.ClusterSatDown
+import Pdl.Interpolation.ClusterSatDownFacts
+import Pdl.Interpolation.FinePathDescent
 import Pdl.Uniformity
 
 /-! # Interpolants for proper clusters (Lemma 9.3)

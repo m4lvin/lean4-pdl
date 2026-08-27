@@ -1,6 +1,6 @@
-import Pdl.Game
-import Pdl.AllLocalTab
-import Pdl.Modelgraphs
+import Pdl.General.Game
+import Pdl.Local.AllLocalTab
+import Pdl.Completeness.Modelgraphs
 import Pdl.StayingInFL
 
 /-! # The Tableau Game (Section 6.2) -/

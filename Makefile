@@ -53,25 +53,10 @@ check: pdl bml delete-unused-oleans
 
 # Dependency Graph
 
-PDL_LEAN_FILES := $(wildcard Pdl/*.lean)
+dependencies.svg: scripts/venv scripts/dependencies_v1.py
+	scripts/venv/bin/python3 scripts/dependencies_v1.py
 
-dependencies.svg: dependencies.dot
-	dot -Tsvg dependencies.dot > $@
-
-dependencies.dot: $(PDL_LEAN_FILES)
-	@echo "digraph {" > $@
-	@$(foreach file, $^ ,\
-		if grep -q "sorry" "$(file)"; then \
-			echo "$(basename $(notdir $(file))) [ label = \"$(basename $(notdir $(file)))?\", color="red", href = \"$(BASE)$(basename $(notdir $(file))).html\" ]" >> $@; \
-		else \
-			echo "$(basename $(notdir $(file))) [ label = \"$(basename $(notdir $(file)))✓\", color="green", href = \"$(BASE)$(basename $(notdir $(file))).html\" ]" >> $@; \
-		fi;)
-	@(grep -nr "import Pdl" Pdl/*.lean | awk -F '[./]' '{print $$4 " -> " $$2}') >> $@
-	@echo "}" >> $@
-
-update-fix:
-	rm -rf .lake
-	echo "leanprover/lean4:v4.23.0-rc2" > lean-toolchain
-	echo "If next command fails, edit lakefile.lean manually."
-	grep v4.22.0-rc2 lakefile.lean
-	lake update -R
+scripts/venv:
+	mkdir -p build
+	python -m venv scripts/venv
+	scripts/venv/bin/pip install graphviz

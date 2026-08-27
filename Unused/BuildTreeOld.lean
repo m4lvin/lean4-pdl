@@ -1,4 +1,4 @@
-import Pdl.TableauGame
+import Pdl.Completeness.TableauGame
 import Pdl.AllPdlRule
 
 /-! # From winning strategies to model graphs (Section 6.3)

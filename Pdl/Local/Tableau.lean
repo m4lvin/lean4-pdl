@@ -3,7 +3,7 @@ import Mathlib.Algebra.Order.BigOperators.Group.List
 import Mathlib.Algebra.Order.BigOperators.Group.Finset
 import Mathlib.Data.Multiset.DershowitzManna
 
-import Pdl.LocalRules
+import Pdl.Local.Rules
 
 /-! # Local Tableaux (Section 3) -/
 
