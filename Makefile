@@ -53,10 +53,18 @@ check: pdl bml delete-unused-oleans
 
 # Dependency Graph
 
-dependencies.svg: scripts/venv scripts/dependencies_v1.py
+dependencies.svg: scripts/venv scripts/dependencies_v1.py Pdl/**/*.lean
 	scripts/venv/bin/python3 scripts/dependencies_v1.py
 
 scripts/venv:
 	mkdir -p build
 	python -m venv scripts/venv
 	scripts/venv/bin/pip install graphviz
+
+# Update top-level file
+
+Pdl.lean: Pdl/**/*.lean
+	cat Pdl.lean | grep -v "import Pdl" > footer.lean
+	find Pdl -type f | sed "s/Pdl\//import\ Pdl\./" | sed "s/\//\./g" | sed "s/\.lean//" | sort  | sort > Pdl.lean
+	cat footer.lean >> Pdl.lean
+	rm footer.lean

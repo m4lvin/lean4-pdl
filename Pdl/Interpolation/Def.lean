@@ -1,7 +1,5 @@
-import Pdl.Interpolation.Cluster
 import Pdl.Interpolation.ClusterInterpolation
 import Pdl.Interpolation.SingletonCluster
-import Pdl.Uniformity
 
 /-! # Defining interpolants (Section 9)
 

@@ -55,6 +55,13 @@ infixl:33 "⋓" => Program.union
 prefix:33 "∗" => Program.star
 prefix:33 "?'" => Program.test -- avoiding plain "?" which has a meaning in Lean 4
 
+/-- Union of a list of programs. The empty union is `?'⊥`, a program that cannot be
+executed, so that `[(⋃ ∅)*]φ` is equivalent to `φ`. -/
+def _root_.Program.unions : List Program → Program
+  | [] => ?'⊥
+  | [α] => α
+  | α :: rest => α ⋓ Program.unions rest
+
 /-- A basic formula is of the form `¬⊥`, `p`, `¬p`, `[a]_` or `¬[a]_`.
 Note: in the article also `⊥` is basic, but not here because we want
 to apply `OneSidedLocalRule.bot` to it. -/

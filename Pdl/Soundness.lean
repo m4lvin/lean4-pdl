@@ -1,13 +1,6 @@
-import Mathlib.Logic.Relation
-import Mathlib.Tactic.Ring
-import Mathlib.Tactic.Convert
-import Mathlib.Data.Prod.Lex
-import Mathlib.Data.Vector.Defs
-import Pdl.TableauPath
-import Mathlib.Data.ENat.Defs
-
-import Pdl.Local.Soundness
 import Pdl.General.FinReach
+import Pdl.Local.Soundness
+import Pdl.TableauPath
 
 /-! # Soundness (Section 6) -/
 

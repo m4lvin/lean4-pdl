@@ -1,4 +1,4 @@
-import Pdl.Uniformity
+import Pdl.Interpolation.Uniformity
 
 /-! # The facts about a proper cluster used for Lemma 10.7
 

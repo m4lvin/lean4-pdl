@@ -1,5 +1,4 @@
 import Pdl.Local.Tableau
-import Pdl.Local.Rules
 
 /-! # Paths in Local Tableaux
 

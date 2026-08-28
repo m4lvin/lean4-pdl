@@ -391,6 +391,21 @@ theorem relateSeq_iff_exists_Vector (M : KripkeModel W) (δ : List Program) (w v
           specialize claim i.succ
           aesop
 
+/-- Relating along `Program.unions L` means relating along one of the programs in `L`. -/
+lemma relate_unions {W} {M : KripkeModel W} : ∀ (L : List Program) (v u : W),
+    relate M (Program.unions L) v u ↔ ∃ a ∈ L, relate M a v u
+  | [], v, u => by simp [Program.unions, relate, evaluate]
+  | [a], v, u => by simp [Program.unions]
+  | a :: b :: L, v, u => by
+      simp only [Program.unions, relate, relate_unions (b :: L) v u, List.mem_cons]
+      constructor
+      · rintro (h | ⟨c, hc, h⟩)
+        · exact ⟨a, Or.inl rfl, h⟩
+        · exact ⟨c, Or.inr hc, h⟩
+      · rintro ⟨c, rfl | hc, h⟩
+        · exact Or.inl h
+        · exact Or.inr ⟨c, hc, h⟩
+
 theorem evalBoxes (δ : List Program) φ :
     evaluate M w (⌈⌈δ⌉⌉φ) ↔ (∀ v, relateSeq M δ w v → evaluate M v φ) := by
   induction δ generalizing w

@@ -1,7 +1,7 @@
 import Pdl.Local.AllLocalTab
 import Pdl.Interpolation.ClusterSatDown
 
-/-! # Uniformity of split tableaux (Definition `d:uniform`)
+/-! # Uniformity of split tableaux (Section 8.1)
 
 This file defines when a tableau is *uniform*, by the two conditions U1 and U2 of the
 paper, and shows that in a uniform tableau every loaded cluster has the property

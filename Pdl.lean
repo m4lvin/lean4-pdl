@@ -14,9 +14,7 @@ import Pdl.Flip
 import Pdl.General.AxiomBlame
 import Pdl.General.FinReach
 import Pdl.General.Game
-import Pdl.Interpolation.Basic
 import Pdl.Interpolation.Cluster
-import Pdl.Interpolation.ClusterCorrection
 import Pdl.Interpolation.ClusterInterpolation
 import Pdl.Interpolation.ClusterItp
 import Pdl.Interpolation.ClusterRho
@@ -24,17 +22,18 @@ import Pdl.Interpolation.ClusterSatDown
 import Pdl.Interpolation.ClusterSatDownFacts
 import Pdl.Interpolation.Def
 import Pdl.Interpolation.EvalQ
-import Pdl.Interpolation.FinePathDescent
+import Pdl.Interpolation.FinePath
 import Pdl.Interpolation.Local
 import Pdl.Interpolation.PreInterpolant
 import Pdl.Interpolation.QFormula
+import Pdl.Interpolation.QuasiTableau
 import Pdl.Interpolation.SingletonCluster
 import Pdl.Interpolation.Theorem
+import Pdl.Interpolation.Uniformity
 import Pdl.KeepRight
 import Pdl.Kleene
 import Pdl.Local.AllLocalTab
 import Pdl.Local.Path
-import Pdl.Local.PathIn
 import Pdl.Local.Rules
 import Pdl.Local.Soundness
 import Pdl.Local.Tableau
@@ -52,7 +51,6 @@ import Pdl.Syntax
 import Pdl.Tableau
 import Pdl.TableauExamples
 import Pdl.TableauPath
-import Pdl.Uniformity
 import Pdl.Vocab
 
 /-! # Propositional Dynamic Logic

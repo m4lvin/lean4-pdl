@@ -1,4 +1,4 @@
-import Pdl.Flip
+import Pdl.Tableau
 import Pdl.Interpolation.Local
 
 /-! ## Interpolants for PdlRules applied to free nodes

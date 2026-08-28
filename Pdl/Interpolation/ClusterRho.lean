@@ -20,21 +20,6 @@ lemma mem_inits_dropLast_of_prefix_ne {α} {z x : List α} (h : z <+: x)
 
 /-! ## Two semantic lemmas -/
 
-/-- Relating along `Program.unions L` means relating along one of the programs in `L`. -/
-lemma relate_unions {W} {M : KripkeModel W} : ∀ (L : List Program) (v u : W),
-    relate M (Program.unions L) v u ↔ ∃ a ∈ L, relate M a v u
-  | [], v, u => by simp [Program.unions, relate, evaluate]
-  | [a], v, u => by simp [Program.unions]
-  | a :: b :: L, v, u => by
-      simp only [Program.unions, relate, relate_unions (b :: L) v u, List.mem_cons]
-      constructor
-      · rintro (h | ⟨c, hc, h⟩)
-        · exact ⟨a, Or.inl rfl, h⟩
-        · exact ⟨c, Or.inr hc, h⟩
-      · rintro ⟨c, rfl | hc, h⟩
-        · exact Or.inl h
-        · exact Or.inr ⟨c, hc, h⟩
-
 /-- `stepToStar` in the form used in the companion case of Lemma 10.3: if `φ` is preserved
 along `α` and implies `ψ`, then `φ` implies `[α*]ψ`. -/
 lemma evaluate_boxes_star {α : Program} {φ ψ : Formula}

@@ -260,13 +260,6 @@ Given `ι` with normal form `⋀ᵢ [αᵢ]q_x ∧ ⋀ⱼ [βⱼ]q_{zⱼ} ∧ ψ
 companion `x` is `[(⋃ᵢ αᵢ)*](⋀ⱼ [βⱼ]q_{zⱼ} ∧ ψ)`. We implement this here as
 `QFormula.gfp x ι`, using `Spl` to read off the `αᵢ` and the remaining conjuncts. -/
 
-/-- Union of a list of programs. The empty union is `?'⊥`, a program that cannot be
-executed, so that `[(⋃ ∅)*]φ` is equivalent to `φ`. -/
-def _root_.Program.unions : List Program → Program
-  | [] => ?'⊥
-  | [α] => α
-  | α :: rest => α ⋓ Program.unions rest
-
 /-- The programs `αᵢ` such that `[αᵢ]q_x` is a conjunct of the normal form of `ι`. -/
 def loopProgs [DecidableEq Var] (x : Var) (ι : QFormula Var) : List Program :=
   ι.Spl.filterMap (QSimple.progTo? x)

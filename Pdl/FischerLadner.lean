@@ -1,6 +1,5 @@
 import Mathlib.Algebra.Order.BigOperators.Group.List
 
-import Pdl.Syntax
 import Pdl.Vocab
 
 /-! # Fischer-Ladner Closure

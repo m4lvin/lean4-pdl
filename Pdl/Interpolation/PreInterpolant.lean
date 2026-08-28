@@ -1,5 +1,4 @@
-import Pdl.Interpolation.QFormula
-import Pdl.Interpolation.Cluster
+import Pdl.Interpolation.QuasiTableau
 
 /-! # Pre-interpolants (Definition 9.18)
 

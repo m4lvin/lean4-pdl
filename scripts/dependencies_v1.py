@@ -4,7 +4,7 @@ import os
 import graphviz
 
 BASE = "https://github.com/m4lvin/lean4-pdl/tree/main/"
-EXCLUDE = set(['.lake', 'docbuild',".github",".devcontainer",".vscode","Bml","Unused","Pdl.lean"])
+EXCLUDE = set(['.lake', 'docbuild',".github",".devcontainer",".vscode","Bml","Unused","Pdl.lean","Bml.lean"])
 
 def add_node(dot, path, name, label) :
     with open(path, "r") as f:
@@ -36,12 +36,14 @@ def traverse(root, dot_path) :
             path = os.path.join(root, file)
             name = path[2:-5]
             add_node(dot_path, path, name, file[:-5])
+            # add_node(dot_path, path, name, path[6:] + file[:-5])
             dependencies(dot, path, name)
 
     for dir in dirs :
         if dir in EXCLUDE : continue
         path = os.path.join(root, dir)
         dot_sub = graphviz.Digraph(name=f"cluster{path}")
+        # dot_sub = graphviz.Digraph(name=f"{path}")
         dot_sub.attr(label = dir)
         dot_sub.attr(style = "rounded")
         traverse(path, dot_sub)
