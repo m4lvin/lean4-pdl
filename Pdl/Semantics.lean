@@ -72,6 +72,11 @@ instance setHasSat : HasSat (Finset Formula) :=
 instance listHasSat : HasSat (List Formula) :=
   HasSat.mk fun X => ∃ (W : _) (M : KripkeModel W) (w : _), ∀ φ ∈ X, evaluate M w φ
 
+/-- Satisfiability of a list only depends on which formulas are in it. -/
+lemma sat_congr_of_mem_iff {L L' : List Formula} (h : ∀ f, f ∈ L ↔ f ∈ L') :
+    satisfiable L ↔ satisfiable L' := by
+  constructor <;> rintro ⟨W, M, w, hw⟩ <;> exact ⟨W, M, w, fun f hf => hw f (by simp_all)⟩
+
 /-! ## Semantic implication and vDash notation -/
 
 def semImpliesSets (X : Finset Formula) (Y : Finset Formula) :=

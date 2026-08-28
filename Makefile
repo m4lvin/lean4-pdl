@@ -1,7 +1,7 @@
 
 all: pdl bml
 
-.PHONY: all pdl bml doc show-doc clean delete-unused-oleans check update-fix
+.PHONY: all pdl bml doc show-doc clean delete-unused-oleans check stats
 
 pdl: .first-run-done
 	lake build Pdl
@@ -53,7 +53,7 @@ check: pdl bml delete-unused-oleans
 
 # Dependency Graph
 
-dependencies.svg: scripts/venv scripts/dependencies_v1.py Pdl/**/*.lean
+dependencies.svg dependencies.png: scripts/venv scripts/dependencies_v1.py Pdl/**/*.lean
 	scripts/venv/bin/python3 scripts/dependencies_v1.py
 
 scripts/venv:
@@ -68,3 +68,10 @@ Pdl.lean: Pdl/**/*.lean
 	find Pdl -type f | sed "s/Pdl\//import\ Pdl\./" | sed "s/\//\./g" | sed "s/\.lean//" | sort  | sort > Pdl.lean
 	cat footer.lean >> Pdl.lean
 	rm footer.lean
+
+# Count lines
+
+SHELL:=/bin/bash -O globstar
+
+stats:
+	wc -l Pdl/**/*.lean

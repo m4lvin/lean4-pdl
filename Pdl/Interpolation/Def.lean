@@ -1,11 +1,9 @@
 import Pdl.Interpolation.ClusterInterpolation
 import Pdl.Interpolation.SingletonCluster
 
-/-! # Defining interpolants (Section 9)
+/-! # Defining interpolants (Theorem 8.13)
 
-Note that we can skip much of Subsection 8.2 because we worked already with split tableaux anyway.
-
-NOTE: We may need extra work for *uniformity* though.
+Here we put together the interpolants for singleton clusters and for proper clusters.
 -/
 
 /-! ## Cluster roots below nodes with a singleton cluster -/
@@ -37,8 +35,8 @@ lemma PathIn.proper_of_isLrep {X : Sequent} {tab : Tableau .nil X} {s : PathIn t
 
 /-! ## From Tableau to Interpolant -/
 
-/-- Ideally this would be a computable `def` and not an existential.
-But currently `PathIn.strong_upwards_inductionOn` only works with `Prop` motive.
+/-- In a tableau starting with a free sequent at the root,
+there exists a `PartInterpolant` for every cluster root in the tableau.
 
 Note the extra hypothesis `s.isClusterRoot`: to interpolate at a loaded node we need to
 know that it is the *first* node of its cluster along the branch leading to it, because
@@ -51,14 +49,18 @@ always the first node of their own cluster.
 At the root of the tableau the hypothesis is free of charge: `.nil` has no parent at all,
 so `PathIn.isClusterRoot_nil` holds vacuously and `tabToInt` below can discharge it. Hence
 for that we do not even need the additional assumption that the root sequent `X` is free,
-but we do want it inside `clusterInterpolation` later. -/
+but we do want it inside `clusterInterpolation` later.
+
+Ideally this would be a computable `def` and not an existential.
+But currently `PathIn.strong_upwards_inductionOn` only works with `Prop` motive.
+-/
 theorem tabToIntAt {X : Sequent} (h_free : X.isFree) (tab : Tableau .nil X) (t_u : tab.isUniform)
     (s : PathIn tab) :
     s.isClusterRoot → ∃ θ, isPartInterpolant (nodeAt s) θ := by
   induction s using PathIn.strong_upwards_inductionOn -- Strong!
   next s IH =>
   intro s_cr
-  -- case distinction before or after `induction`?
+  -- case distinction after `induction`.
   by_cases (nodeAt s).isLoaded
   case pos s_loaded =>
     by_cases s ◃⁺ s

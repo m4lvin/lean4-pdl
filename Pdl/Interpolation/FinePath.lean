@@ -710,7 +710,7 @@ lemma PathIn.mem_coarseChildrenBelow_toFine {H X} {tab : Tableau H X} :
 This is `Λ₂` from the paper; we use it to label the nodes of the quasi-tableau. -/
 def Sequent.rightOnly (X : Sequent) : Sequent := ⟨[], X.2.1, X.2.2⟩
 
-/-! # Well-founded descent for fine paths
+/-! ## Well-founded descent for fine paths
 
 The children of a fine node (`FinePathIn.children`) are *not* structurally smaller than the
 node itself: a child of an internal node of a local tableau is again a path in the *same*
@@ -718,7 +718,7 @@ local tableau, and a child of the last internal node is a `FinePathIn.loc` step,
 structurally bigger. So there is no induction principle for `FinePathIn` that follows the
 child relation for free.
 
-This file provides one, in the same way as `PathIn.strong_upwards_inductionOn` is obtained
+Below we provide one, in the same way as `PathIn.strong_upwards_inductionOn` is obtained
 from `flipEdge.wellFounded` for the coarse `PathIn` nodes: we equip fine paths with a
 `FinePathIn.length`, bound it by a size measure `Tableau.fineSize` of the tableau, and
 conclude that there is no infinite chain of fine children — the child relation `fineEdge`

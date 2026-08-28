@@ -84,13 +84,7 @@ lemma fvoc_subset_of_mem_voc {L L' : List Formula}
   obtain ⟨g, hg, hsub⟩ := h f hf
   exact ⟨g, hg, hsub hxf⟩
 
-open HasSat
-
-/-- Satisfiability of a list only depends on which formulas are in it. -/
-lemma sat_congr_of_mem_iff {L L' : List Formula} (h : ∀ f, f ∈ L ↔ f ∈ L') :
-    satisfiable L ↔ satisfiable L' := by
-  constructor <;> rintro ⟨W, M, w, hw⟩ <;> exact ⟨W, M, w, fun f hf => hw f (by simp_all)⟩
-
+open HasSat in
 /-- Being an interpolant only depends on which formulas are in the two components. -/
 lemma isPartInterpolant_of_mem_iff {Z Y : Sequent} {θ : Formula}
     (hl : ∀ f, f ∈ Z.left ↔ f ∈ Y.left) (hr : ∀ f, f ∈ Z.right ↔ f ∈ Y.right)
@@ -214,6 +208,7 @@ lemma exists_itp_modL {A : Nat} {L R Xl Xr Yl Yr : List Formula} {ψ θ : Formul
     · rintro ⟨W, M, w, hw⟩
       simpa using hw ⊥ (List.mem_cons_self ..)
 
+open HasSat in
 /-- Interpolant for the modal rule (M) applied to a node loaded on the right.
 The interpolant is `⌈·A⌉θ`, unless the projection of the left component is empty,
 in which case the right component is unsatisfiable and we can use `~⊥`. -/
