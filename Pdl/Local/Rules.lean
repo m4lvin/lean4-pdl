@@ -6,6 +6,7 @@ import Mathlib.Data.Multiset.DershowitzManna
 import Pdl.Sequent
 import Pdl.Local.UnfoldBox
 import Pdl.Local.UnfoldDia
+import Mathlib.Data.Finset.Sort
 
 /-! ## Local rules and local rule applications  -/
 
@@ -13,78 +14,118 @@ open HasLength
 
 /-! ## One-sided local rules -/
 
+@[simp]
+def List.toFinFin [DecidableEq α] : List (List α) → Finset (Finset α )
+  | LS => (LS.map (fun L => L.toFinset)).toFinset
+
 /-- Local rules replace a given set of formulas by other sets, one for each branch.
-The list of resulting branches can be empty, representing that the given set is closed.
+The set of resulting branches can be empty, representing that the given set is closed.
 In the Haskell prover this is done in "ruleFor" in the Logic.PDL.Prove.Tree module. -/
-inductive OneSidedLocalRule : List Formula → List (List Formula) → Type
+inductive OneSidedLocalRule : Finset Formula → Finset (Finset Formula) → Type
   -- PROP LOGIC
   -- closing rules:
-  | bot                 : OneSidedLocalRule [⊥]      ∅
-  | not (φ   : Formula) : OneSidedLocalRule [φ, ~φ]  ∅
-  | neg (φ   : Formula) : OneSidedLocalRule [~~φ]    [[φ]]
-  | con (φ ψ : Formula) : OneSidedLocalRule [φ ⋀ ψ]  [[φ,ψ]]
-  | nCo (φ ψ : Formula) : OneSidedLocalRule [~(φ⋀ψ)] [[~φ], [~ψ]]
+  | bot                 : OneSidedLocalRule {⊥}      ∅
+  | not (φ   : Formula) : OneSidedLocalRule {φ, ~φ}  ∅
+  | neg (φ   : Formula) : OneSidedLocalRule {~~φ}    {{φ}}
+  | con (φ ψ : Formula) : OneSidedLocalRule {φ ⋀ ψ}  {{φ,ψ}}
+  | nCo (φ ψ : Formula) : OneSidedLocalRule {~(φ⋀ψ)} {{~φ}, {~ψ}}
   -- PROGRAMS
   -- the two general local rules:
-  | box (α φ) : (notAtom : ¬ α.isAtomic) → OneSidedLocalRule [ ⌈α⌉φ] (unfoldBox     α φ)
-  | dia (α φ) : (notAtom : ¬ α.isAtomic) → OneSidedLocalRule [~⌈α⌉φ] (unfoldDiamond α φ)
-  deriving DecidableEq, Repr
+  | box (α φ) : (notAtom : ¬ α.isAtomic) → OneSidedLocalRule { ⌈α⌉φ} (unfoldBox     α φ).toFinFin
+  | dia (α φ) : (notAtom : ¬ α.isAtomic) → OneSidedLocalRule {~⌈α⌉φ} (unfoldDiamond α φ).toFinFin
+  deriving Repr
 
-theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) : con X ≡ discon B :=
+instance : DecidableEq (OneSidedLocalRule X B) :=
+  sorry
+
+-- FIXME move
+/-- evaluate does not care about sorting -/
+lemma evaluate_con_sort (X : Finset Formula) :
+    evaluate M w (con (X.sort fun a b ↦ a ≤ b)) ↔ ∀ φ ∈ X, evaluate M w φ := by
+  sorry
+
+theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) :
+      con X.sort ≡ B.discon :=
   by
   intro W M w
   cases lr
-  all_goals try (simp; done) -- takes care of all propositional rules
+  all_goals try (simp [Finset.disconEval, evaluate_con_sort]; (try tauto); done)
+    -- takes care of all propositional rules
   case box α φ notAtom =>
     rw [conEval]
-    simp only [List.mem_singleton, forall_eq]
-    rw [localBoxTruth α φ W M w]
-    simp only [disEval, List.mem_map, exists_exists_and_eq_and, unfoldBox, disconEval]
-    constructor
-    · rintro ⟨l,hyp⟩; use l; rw [conEval] at hyp; tauto
-    · rintro ⟨l,hyp⟩; use l; rw [conEval]; tauto
-  case dia α φ notAtom =>
+    simp [Finset.sort_singleton, forall_eq]
+    have := localBoxTruth α φ W M w
+    simp only [evaluate, disEval, List.mem_map, exists_exists_and_eq_and, unfoldBox, List.map_map,
+      Finset.disconEval, List.mem_toFinset, Function.comp_apply] at *
+    convert this
     rw [conEval]
-    simp only [List.mem_singleton, forall_eq, unfoldDiamond]
-    rw [localDiamondTruth α φ W M w, disEval, disconEval]
-    apply mapCon_mapForall
+  case dia α φ notAtom =>
+    rw [conEval, Finset.disconEval]
+    simp only [Finset.sort_singleton, List.mem_cons, List.not_mem_nil, or_false, forall_eq,
+      List.toFinFin, List.mem_toFinset, List.mem_map, exists_exists_and_eq_and]
+    have := localDiamondTruth α φ W M w
+    rw [disEval] at this
+    simp only [List.mem_map, Prod.exists, ↓existsAndEq, and_true] at this
+    unfold unfoldDiamond
+    simp only [List.mem_map, Prod.exists, ↓existsAndEq, and_true]
+    convert this
+    rw [conEval]
 
 /-- All one-sided local rules have a non-empty precondition. -/
 lemma OneSidedLocalRule.precond_ne_nil {precond ress} (orule : OneSidedLocalRule precond ress) :
-    precond ≠ [] := by
+    precond ≠ {} := by
   cases orule <;> simp
 
 /-! ## Loaded Rules -/
+
+@[simp]
+def List.toFinFinOpt [DecidableEq α] [DecidableEq β] :
+    List (List α × Option β) → Finset (Finset α × Option β)
+  | LS => (LS.map (fun ⟨L,O⟩ => ⟨L.toFinset, O⟩)).toFinset
 
 /-- The loaded diamond rule, given by `unfoldDiamondLoaded`.
 In MB page 19 these were multiple rules ¬u, ¬; ¬* and ¬?.
 It replaces the loaded formula by up to one loaded formula and a list of normal formulas.
 It's a bit annoying to need the rule twice here due to the definition of LoadFormula
 and the extra definition of `unfoldDiamondLoaded'`. -/
-inductive LoadRule : NegLoadFormula → List (List Formula × Option NegLoadFormula) → Type
+inductive LoadRule : NegLoadFormula → Finset (Finset Formula × Option NegLoadFormula) → Type
   | dia  {α χ} : (notAtom : ¬ α.isAtomic)
-                → LoadRule (~'⌊α⌋(χ : LoadFormula)) (unfoldDiamondLoaded  α χ)
+                → LoadRule (~'⌊α⌋(χ : LoadFormula)) (unfoldDiamondLoaded  α χ).toFinFinOpt
   | dia' {α φ} : (notAtom : ¬ α.isAtomic)
-                → LoadRule (~'⌊α⌋(φ : Formula    )) (unfoldDiamondLoaded' α φ)
+                → LoadRule (~'⌊α⌋(φ : Formula    )) (unfoldDiamondLoaded' α φ).toFinFinOpt
   deriving DecidableEq, Repr
+
+lemma unfoldDiamondLoaded_eqFin α χ :
+    (unfoldDiamond α χ.unload).toFinFin
+    = (Finset.image pairUnloadSet (unfoldDiamondLoaded α χ).toFinFinOpt) := by
+  have := unfoldDiamondLoaded_eq α χ
+  sorry
+
+lemma unfoldDiamondLoaded'_eqFin α φ :
+    (unfoldDiamond α φ).toFinFin
+    = (Finset.image pairUnloadSet (unfoldDiamondLoaded' α φ).toFinFinOpt) :=by
+  have := unfoldDiamondLoaded'_eq α φ
+  sorry
 
 /-- Given a LoadRule application, define the equivalent unloaded rule application.
 This allows re-using `oneSidedLocalRuleTruth` to prove `loadRuleTruth`. -/
-def LoadRule.unload : LoadRule (~'χ) B → OneSidedLocalRule [~χ.unload] (B.map pairUnload)
-| @dia α χ notAtom => unfoldDiamondLoaded_eq α χ ▸ OneSidedLocalRule.dia α χ.unload notAtom
-| @dia' α φ notAtom => unfoldDiamondLoaded'_eq α φ ▸ OneSidedLocalRule.dia α φ notAtom
+def LoadRule.unload : LoadRule (~'χ) B → OneSidedLocalRule {~χ.unload} (B.image pairUnloadSet)
+| @dia α χ notAtom => unfoldDiamondLoaded_eqFin α χ ▸ OneSidedLocalRule.dia α χ.unload notAtom
+| @dia' α φ notAtom => unfoldDiamondLoaded'_eqFin α φ ▸ OneSidedLocalRule.dia α φ notAtom
 
 /-- The loaded unfold rule is sound and invertible.
 In the notes this is part of localRuleTruth. -/
 theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
-    (~χ.unload) ≡ dis (B.map (con ∘ pairUnload)) :=
+    (~χ.unload) ≡ dis (B.image (con ∘ Finset.sort ∘ pairUnloadSet)).sort :=
   by
   intro W M w
   have := oneSidedLocalRuleTruth (lr.unload) W M w
-  simp only [con, evaluate, disconEval, List.mem_map] at this
-  simp only [evaluate, disEval, List.mem_map]
+  simp [evaluate, Finset.disconEval] at this
+  simp only [evaluate, disEval]
   rw [this]
   clear this
+  sorry
+  /-
   simp only [Prod.exists]
   constructor
   · rintro ⟨Y, ⟨a, ⟨b, ab_in_B, def_Y⟩⟩, w_Y⟩
@@ -101,6 +142,7 @@ theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
     constructor
     · use a, b
     · exact w_f
+  -/
 
 /-! ## Local Rules -/
 
@@ -113,27 +155,29 @@ because in any such case we could also close the tableau before or without loadi
 
 The `YS_def` arguments in non-terminal rules enables deriving `DecidableEq` for `LocalRule`.
 -/
-inductive LocalRule : Sequent → List Sequent → Type
+inductive LocalRule : Sequent → Finset Sequent → Type
   | oneSidedL {precond ress YS} (orule : OneSidedLocalRule precond ress)
-      (YS_def : YS = ress.map fun res => (res,∅,none)) : LocalRule (precond,∅,none) YS
+      (YS_def : YS = ress.image fun res => (res,∅,none)) : LocalRule (precond,∅,none) YS
   | oneSidedR {precond ress YS} (orule : OneSidedLocalRule precond ress)
-      (YS_def : YS = ress.map fun res => (∅,res,none)) : LocalRule (∅,precond,none) YS
-  | LRnegL (ϕ : Formula) : LocalRule ([ϕ], [~ϕ], none) ∅ --  ϕ on left side, ~ϕ on the right
-  | LRnegR (ϕ : Formula) : LocalRule ([~ϕ], [ϕ], none) ∅ -- ~ϕ on left side,  ϕ on the right
+      (YS_def : YS = ress.image fun res => (∅,res,none)) : LocalRule (∅,precond,none) YS
+  | LRnegL (ϕ : Formula) : LocalRule ({ϕ}, {~ϕ}, none) ∅ --  ϕ on left side, ~ϕ on the right
+  | LRnegR (ϕ : Formula) : LocalRule ({~ϕ}, {ϕ}, none) ∅ -- ~ϕ on left side,  ϕ on the right
   | loadedL {ress YS} (χ : LoadFormula) (lrule : LoadRule (~'χ) ress)
-      (YS_def : YS = ress.map fun (X, o) => (X, ∅, o.map Sum.inl))
+      (YS_def : YS = ress.image fun (X, o) => (X, ∅, o.map Sum.inl))
       : LocalRule (∅, ∅, some (Sum.inl (~'χ))) YS
   | loadedR {ress YS} (χ : LoadFormula) (lrule : LoadRule (~'χ) ress)
-      (YS_def : YS = ress.map fun (X, o) => (∅, X, o.map Sum.inr))
+      (YS_def : YS = ress.image fun (X, o) => (∅, X, o.map Sum.inr))
       : LocalRule (∅, ∅, some (Sum.inr (~'χ))) YS
-  deriving Repr, DecidableEq
+  deriving Repr
+
+instance : DecidableEq (LocalRule X YS) := sorry
 
 @[simp]
 def applyLocalRule {Lcond Rcond Ocond ress} :
-  LocalRule (Lcond, Rcond, Ocond) ress → Sequent → List Sequent
-  | _, ⟨L, R, O⟩ => ress.map <|
-      fun (Lnew, Rnew, Onew) => ( L.diff Lcond ++ Lnew
-                                , R.diff Rcond ++ Rnew
+  LocalRule (Lcond, Rcond, Ocond) ress → Sequent → Finset Sequent
+  | _, ⟨L, R, O⟩ => ress.image <|
+      fun (Lnew, Rnew, Onew) => ( L \ Lcond ∪ Lnew
+                                , R \ Rcond ∪ Rnew
                                 , Olf.change O Ocond Onew )
 
 /-- Helper originally written for Lemma 6.14 but currently unused. -/
@@ -162,9 +206,9 @@ def principalFormulaForLocalRule : LocalRule X YS -> AnyFormula
   | .loadedR φ _ _ => φ
 
 lemma oneSidedL_preserves_right {LRO : Sequent}
-    {Lcond : List Formula} (Lpreproof : Lcond ⊆ LRO.L)
-    {Lres : List (List Formula)} (orule : OneSidedLocalRule Lcond Lres)
-    {YS : List Sequent} (YS_def : YS = List.map (fun res => (res, ∅, none)) Lres)
+    {Lcond : Finset Formula} (Lpreproof : Lcond ⊆ LRO.L)
+    {Lres : Finset (Finset Formula)} (orule : OneSidedLocalRule Lcond Lres)
+    {YS : Finset Sequent} (YS_def : YS = Finset.image (fun res => (res, ∅, none)) Lres)
     : ∀ c ∈ applyLocalRule (LocalRule.oneSidedL orule YS_def) LRO, c.right = LRO.right := by
   rcases LRO with ⟨L,R,O⟩
   rintro ⟨L',R',O'⟩
@@ -173,9 +217,9 @@ lemma oneSidedL_preserves_right {LRO : Sequent}
   grind
 
 lemma oneSidedR_preserves_left {LRO : Sequent}
-    {Rcond : List Formula} (Rpreproof : Rcond ⊆ LRO.R)
-    {Rres : List (List Formula)} (orule : OneSidedLocalRule Rcond Rres)
-    {YS : List Sequent} (YS_def : YS = List.map (fun res => (∅, res, none)) Rres)
+    {Rcond : Finset Formula} (Rpreproof : Rcond ⊆ LRO.R)
+    {Rres : Finset (Finset Formula)} (orule : OneSidedLocalRule Rcond Rres)
+    {YS : Finset Sequent} (YS_def : YS = Finset.image (fun res => (∅, res, none)) Rres)
     : ∀ c ∈ applyLocalRule (LocalRule.oneSidedR orule YS_def) LRO, c.left = LRO.left := by
   rcases LRO with ⟨L,R,O⟩
   rintro ⟨L',R',O'⟩
@@ -186,41 +230,39 @@ lemma oneSidedR_preserves_left {LRO : Sequent}
 open HasSat
 
 lemma oneSidedL_sat_down (LRO : Sequent)
-    {Lcond : List Formula} (Lpreproof : Lcond ⊆ LRO.L)
-    {Lres : List (List Formula)} (orule : OneSidedLocalRule Lcond Lres)
-    {YS : List Sequent} (YS_def : YS = List.map (fun res => (res, ∅, none)) Lres)
-    {X : List Formula} (LX_sat : satisfiable (Sequent.left LRO ∪ X))
+    {Lcond : Finset Formula} (Lpreproof : Lcond ⊆ LRO.L)
+    {Lres : Finset (Finset Formula)} (orule : OneSidedLocalRule Lcond Lres)
+    {YS : Finset Sequent} (YS_def : YS = Finset.image (fun res => (res, ∅, none)) Lres)
+    {X : Finset Formula} (LX_sat : satisfiable (Sequent.left LRO ∪ X))
     : ∃ c ∈ applyLocalRule (LocalRule.oneSidedL orule YS_def) LRO, satisfiable (c.left ∪ X) := by
   rcases LRO with ⟨L,R,O⟩
   subst YS_def
   rcases LX_sat with ⟨W, M, w, satM⟩
-  have : evaluate M w (con Lcond) := by simp [conEval]; aesop
+  have : evaluate M w (con Lcond.sort) := by simp [conEval]; aesop
   have := (oneSidedLocalRuleTruth orule W M w).1 this
-  rw [disconEval] at this
+  rw [Finset.disconEval] at this
   rcases this with ⟨L', L'_in, w_L'⟩
   simp [applyLocalRule]
   refine ⟨L', L'_in, W, M, w, fun φ φ_in => ?_⟩
   specialize @satM φ
-  have := List.diff_subset L Lcond
   rcases φ_in with (φ_in_LnoCond | φ_in_L') | φ_in_O <;> aesop
 
 lemma oneSidedR_sat_down (LRO : Sequent)
-    {Rcond : List Formula} (Rpreproof : Rcond ⊆ LRO.R)
-    {Rres : List (List Formula)} (orule : OneSidedLocalRule Rcond Rres)
-    {YS : List Sequent} (YS_def : YS = List.map (fun res => (∅, res, none)) Rres)
-    {X : List Formula} (RX_sat : satisfiable (Sequent.right LRO ∪ X))
+    {Rcond : Finset Formula} (Rpreproof : Rcond ⊆ LRO.R)
+    {Rres : Finset (Finset Formula)} (orule : OneSidedLocalRule Rcond Rres)
+    {YS : Finset Sequent} (YS_def : YS = Finset.image (fun res => (∅, res, none)) Rres)
+    {X : Finset Formula} (RX_sat : satisfiable (Sequent.right LRO ∪ X))
     : ∃ c ∈ applyLocalRule (LocalRule.oneSidedR orule YS_def) LRO, satisfiable (c.right ∪ X) := by
   rcases LRO with ⟨L,R,O⟩
   subst YS_def
   rcases RX_sat with ⟨W, M, w, satM⟩
-  have : evaluate M w (con Rcond) := by simp [conEval]; aesop
+  have : evaluate M w (con Rcond.sort) := by simp [conEval]; aesop
   have := (oneSidedLocalRuleTruth orule W M w).1 this
-  rw [disconEval] at this
+  rw [Finset.disconEval] at this
   rcases this with ⟨L', L'_in, w_L'⟩
   simp [applyLocalRule]
   refine ⟨L', L'_in, W, M, w, fun φ φ_in => ?_⟩
   specialize @satM φ
-  have := List.diff_subset R Rcond
   rcases φ_in with (φ_in_LnoCond | φ_in_L') | φ_in_O <;> aesop
 
 -- Following four lemmas are almost the same, but then for the loaded diamond rules.
@@ -229,7 +271,7 @@ lemma oneSidedR_sat_down (LRO : Sequent)
 lemma loadedL_preserves_right {LRO : Sequent}
     (χ : LoadFormula) (Opreproof : LRO.O = some (Sum.inl (~'χ)))
     {ress} (lrule : LoadRule (~'χ) ress)
-    {YS : List Sequent} (YS_def : YS = ress.map fun (X, o) => (X, ∅, o.map Sum.inl))
+    {YS : Finset Sequent} (YS_def : YS = ress.image fun (X, o) => (X, ∅, o.map Sum.inl))
     : ∀ c ∈ applyLocalRule (LocalRule.loadedL χ lrule YS_def) LRO, c.right = LRO.right := by
   rcases LRO with ⟨L,R,O⟩
   cases Opreproof
@@ -243,7 +285,7 @@ lemma loadedL_preserves_right {LRO : Sequent}
 lemma loadedR_preserves_left {LRO : Sequent}
     (χ : LoadFormula) (Opreproof : LRO.O = some (Sum.inr (~'χ)))
     {ress} (lrule : LoadRule (~'χ) ress)
-    {YS : List Sequent} (YS_def : YS = ress.map fun (X, o) => (∅, X, o.map Sum.inr))
+    {YS : Finset Sequent} (YS_def : YS = ress.image fun (X, o) => (∅, X, o.map Sum.inr))
     : ∀ c ∈ applyLocalRule (LocalRule.loadedR χ lrule YS_def) LRO, c.left = LRO.left := by
   rcases LRO with ⟨L,R,O⟩
   cases Opreproof
@@ -258,8 +300,8 @@ even together with any other list of formulas as context. -/
 lemma loadedL_sat_down (LRO : Sequent)
     (χ : LoadFormula) (Opreproof : LRO.O = some (Sum.inl (~'χ)))
     {ress} (lrule : LoadRule (~'χ) ress)
-    {YS : List Sequent} (YS_def : YS = ress.map fun (X, o) => (X, ∅, o.map Sum.inl))
-    {X : List Formula} (LX_sat : satisfiable (Sequent.left LRO ∪ X))
+    {YS : Finset Sequent} (YS_def : YS = ress.image fun (X, o) => (X, ∅, o.map Sum.inl))
+    {X : Finset Formula} (LX_sat : satisfiable (Sequent.left LRO ∪ X))
     : ∃ c ∈ applyLocalRule (LocalRule.loadedL χ lrule YS_def) LRO, satisfiable (c.left ∪ X) := by
   rcases LRO with ⟨L,R,O⟩
   cases Opreproof
@@ -268,6 +310,8 @@ lemma loadedL_sat_down (LRO : Sequent)
   have w_nχ : evaluate M w (~χ.unload) := by apply satM; simp [Olf.L]
   have := (loadRuleTruth lrule W M w).1 w_nχ; clear w_nχ
   simp only [disEval, List.mem_map, Function.comp_apply, Prod.exists] at this
+  sorry
+  /-
   rcases this with ⟨φ, ⟨ψs, φ0, _in_ress, def_φ⟩ , w_φ⟩
   use (L ++ ψs, R, φ0.map Sum.inl)
   subst def_φ
@@ -286,14 +330,15 @@ lemma loadedL_sat_down (LRO : Sequent)
       apply w_φ
       simp
     · aesop
+  -/
 
 /-- Applying a `LoadRule` on the right preserves satisfiability of the right,
 even together with any other list of formulas as context. -/
 lemma loadedR_sat_down (LRO : Sequent)
     (χ : LoadFormula) (Opreproof : LRO.O = some (Sum.inr (~'χ)))
     {ress} (lrule : LoadRule (~'χ) ress)
-    {YS : List Sequent} (YS_def : YS = ress.map fun (X, o) => (∅, X, o.map Sum.inr))
-    {X : List Formula} (RX_sat : satisfiable (Sequent.right LRO ∪ X))
+    {YS : Finset Sequent} (YS_def : YS = ress.image fun (X, o) => (∅, X, o.map Sum.inr))
+    {X : Finset Formula} (RX_sat : satisfiable (Sequent.right LRO ∪ X))
     : ∃ c ∈ applyLocalRule (LocalRule.loadedR χ lrule YS_def) LRO, satisfiable (c.right ∪ X) := by
   rcases LRO with ⟨L,R,O⟩
   cases Opreproof
@@ -301,6 +346,8 @@ lemma loadedR_sat_down (LRO : Sequent)
   rcases RX_sat with ⟨W, M, w, satM⟩
   have w_nχ : evaluate M w (~χ.unload) := by apply satM; simp [Olf.R]
   have := (loadRuleTruth lrule W M w).1 w_nχ; clear w_nχ
+  sorry
+  /-
   simp only [disEval, List.mem_map, Function.comp_apply, Prod.exists, ↓existsAndEq,
     and_true] at this
   rcases this with ⟨ψs, φ0, _in_ress, w_φ⟩
@@ -320,6 +367,7 @@ lemma loadedR_sat_down (LRO : Sequent)
     apply w_φ
     simp
   · aesop
+  -/
 
 /-! ## Local Rule Applications -/
 
@@ -328,17 +376,17 @@ local rule `lr` replacing `⟨Lcond, Rcond, Ocond⟩` by `ress` and
 proofs that `⟨Lcond, Rcond, Ocond⟩` is a subsequent of `⟨L,R,O⟩`
 and that `C` are the results of applying `lr` to `⟨L,R,O⟩`. -/
 structure LocalRuleApp where
-    L : List Formula := by grind
-    R : List Formula := by grind
+    L : Finset Formula := by grind
+    R : Finset Formula := by grind
     O : Olf := by grind
-    Lcond : List Formula := []
-    Rcond : List Formula := []
+    Lcond : Finset Formula := {}
+    Rcond : Finset Formula := {}
     Ocond : Olf := none
-    ress : List Sequent := by grind
+    ress : Finset Sequent := by grind
     lr : LocalRule (Lcond, Rcond, Ocond) ress
-    C : List Sequent := applyLocalRule lr (L,R,O)
+    C : Finset Sequent := applyLocalRule lr (L,R,O)
     hC : C = applyLocalRule lr (L,R,O) := by rfl
-    preconditionProof : List.Subperm Lcond L ∧ List.Subperm Rcond R ∧ Ocond ⊆ O
+    preconditionProof : Lcond ⊆ L ∧ Rcond ⊆ R ∧ Ocond ⊆ O
   deriving DecidableEq
 
 @[simp]
@@ -359,18 +407,21 @@ theorem localRuleTruth
     simp [applyLocalRule] at *
     constructor
     · intro w_LRO
-      have : evaluate M w (discon ress) := by
+      have : evaluate M w (ress.discon) := by
         rw [← osTruth, conEval]
         intro f f_in; apply w_LRO
-        simp only [List.mem_union_iff]
-        exact Or.inl <| Or.inl <| List.Subperm.subset preconditionProof f_in
-      rw [disconEval] at this
+        simp only [Sequent.toFinset, Finset.union_assoc, Finset.mem_union, Option.mem_toFinset,
+          Option.mem_def, Option.map_eq_some_iff, Sum.exists, Sum.elim_inl, negUnload, Sum.elim_inr]
+        exact Or.inl <| preconditionProof <| (Finset.mem_sort _).mp f_in
+      rw [Finset.disconEval] at this
       rcases this with ⟨Y, Y_in, claim⟩
       use Y
       constructor
       · exact Y_in
       · intro f f_in
-        simp only [List.mem_union_iff, List.mem_append] at f_in
+        sorry
+        /-
+        simp only [Sequent.toFinset, List.mem_union_iff, List.mem_append] at f_in
         rcases f_in with (((f_in_L | f_in_Y) | f_in_R) | f_in_O)
         · apply w_LRO f; simp only [List.mem_union_iff]
           exact Or.inl <| Or.inl <| List.diff_subset L Lcond f_in_L
@@ -379,8 +430,11 @@ theorem localRuleTruth
           tauto
         · apply w_LRO f; simp only [List.mem_union_iff]
           exact Or.inr f_in_O
+        -/
     · rintro ⟨Y, Y_in, w_LYRO⟩
       intro f f_in
+      sorry
+      /-
       simp only [List.mem_union_iff] at f_in
       rcases f_in with ((f_in_L | f_in_R) | f_in_O)
       · rcases em (f ∈ Lcond) with f_in_cond | f_notin_cond
@@ -396,6 +450,7 @@ theorem localRuleTruth
           exact Or.inl <| Or.inl <| Or.inl <| List.mem_diff_of_mem f_in_L f_notin_cond
       · apply w_LYRO; simp_all
       · apply w_LYRO; simp_all
+      -/
   case oneSidedR ress orule ress_def =>
     subst ress_def
     -- based on oneSidedL case
@@ -404,17 +459,19 @@ theorem localRuleTruth
     simp [applyLocalRule] at *
     constructor
     · intro w_LRO
-      have : evaluate M w (discon ress) := by
+      have : evaluate M w (ress.discon) := by
         rw [← osTruth, conEval]
         intro f f_in; apply w_LRO
-        simp only [List.mem_union_iff]
-        exact Or.inl <| Or.inr <| List.Subperm.subset preconditionProof f_in
-      rw [disconEval] at this
+        simp [Sequent.toFinset]
+        exact Or.inr <| Or.inl <| preconditionProof <| (Finset.mem_sort _).mp f_in
+      rw [Finset.disconEval] at this
       rcases this with ⟨Y, Y_in, claim⟩
       use Y
       constructor
       · exact Y_in
       · intro f f_in
+        sorry
+        /-
         simp only [List.mem_union_iff, List.mem_append] at f_in
         rcases f_in with ((f_in_L | (f_in_R | f_in_Y)) | f_in_O)
         · apply w_LRO f; simp only [List.mem_union_iff]
@@ -424,8 +481,11 @@ theorem localRuleTruth
         · exact claim f f_in_Y
         · apply w_LRO f; simp only [List.mem_union_iff]
           exact Or.inr f_in_O
+        -/
     · rintro ⟨Y, Y_in, w_LYRO⟩
       intro f f_in
+      sorry
+      /-
       simp only [List.mem_union_iff] at f_in
       rcases f_in with ((f_in_L | f_in_R) | f_in_O)
       · apply w_LYRO; simp_all
@@ -441,6 +501,10 @@ theorem localRuleTruth
           simp only [List.mem_union_iff, List.mem_append]
           exact Or.inl <| Or.inr <| Or.inl <| List.mem_diff_of_mem f_in_R f_notin_cond
       · apply w_LYRO; simp_all
+      -/
+  all_goals
+  sorry
+  /-
   case LRnegL φ =>
     subst hC
     simp [applyLocalRule] at *
@@ -558,6 +622,7 @@ theorem localRuleTruth
           rcases g_in with (_|g_def)
           · apply w_Ci; simp_all
           · subst g_def; apply w_Ci; simp_all
+  -/
 
 /-- If we can apply a local rule to a sequent then it cannot be basic. -/
 lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
@@ -570,53 +635,51 @@ lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
   case oneSidedL ress orule ress_def =>
     subst_eqs
     cases orule
-    case bot => right; simp_all [Sequent.closed]
+    case bot => right; simp_all [Sequent.closed]; tauto
     case not φ =>
       right; simp_all [Sequent.closed]; right
-      have := preconditionProof.subset
-      refine ⟨φ, Or.inl ?_, Or.inl ?_⟩ <;> tauto
+      refine ⟨φ, Or.inl ?_, Or.inl ?_⟩ <;> grind
     case neg φ =>
-      left; push_neg; simp_all
+      left; push_neg; simp_all [Sequent.toFinset]
       refine ⟨~~φ, Or.inl (by simp_all), by simp⟩
     case con φ1 φ2 =>
-      left; push_neg; simp_all
+      left; push_neg; simp_all [Sequent.toFinset]
       refine ⟨φ1 ⋀ φ2, Or.inl (by simp_all), by simp⟩
     case nCo φ1 φ2 =>
-      left; push_neg; simp_all
+      left; push_neg; simp_all [Sequent.toFinset]
       refine ⟨~(φ1 ⋀ φ2), Or.inl (by simp_all), by simp⟩
     case box α φ α_nonAtom =>
-      left; push_neg; simp_all
+      left; push_neg; simp_all [Sequent.toFinset]
       refine ⟨⌈α⌉φ, Or.inl (by simp_all), ?_⟩
       cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
     case dia α φ α_nonAtom =>
-      left; push_neg; simp_all
+      left; push_neg; simp_all [Sequent.toFinset]
       refine ⟨~⌈α⌉φ, Or.inl ?_, ?_⟩
-      · exact preconditionProof
+      · apply preconditionProof.1; simp
       · cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
   case oneSidedR ress orule ress_def => -- analogous to oneSidedL
     cases orule
-    case bot => right; simp_all [Sequent.closed]
+    case bot => right; simp_all [Sequent.closed]; tauto
     case not φ =>
       right; simp_all [Sequent.closed]; right
-      have := preconditionProof.subset
-      refine ⟨φ, Or.inr ?_, Or.inr ?_⟩ <;> tauto
+      refine ⟨φ, Or.inr ?_, Or.inr ?_⟩ <;> grind
     case neg φ =>
-      left; push_neg; simp_all
+      left; push_neg; simp_all [Sequent.toFinset]
       refine ⟨~~φ, Or.inr (by simp_all), by simp⟩
     case con φ1 φ2 =>
-      left; push_neg; simp_all
+      left; push_neg; simp_all [Sequent.toFinset]
       refine ⟨φ1 ⋀ φ2, Or.inr (by simp_all), by simp⟩
     case nCo φ1 φ2 =>
-      left; push_neg; simp_all
+      left; push_neg; simp_all [Sequent.toFinset]
       refine ⟨~(φ1 ⋀ φ2), Or.inr (by simp_all), by simp⟩
     case box α φ α_nonAtom =>
-      left; push_neg; simp_all
+      left; push_neg; simp_all [Sequent.toFinset]
       refine ⟨⌈α⌉φ, Or.inr (by simp_all), ?_⟩
       cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
     case dia α φ α_nonAtom =>
-      left; push_neg; simp_all
+      left; push_neg; simp_all [Sequent.toFinset]
       refine ⟨~⌈α⌉φ, Or.inr (Or.inl ?_), ?_⟩
-      · exact preconditionProof
+      · apply preconditionProof.2.1; simp
       · cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
   case LRnegL =>
     right
@@ -632,9 +695,9 @@ lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
     cases lrule
     case dia α χ α_nonAtom =>
       rcases O with _|⟨⟨α',χ'⟩|⟨α',χ'⟩⟩
+      · simp_all [Sequent.toFinset]; sorry
       · simp_all
-      · simp_all
-        refine ⟨~(~'⌊α'⌋χ').1.unload, by aesop, ?_⟩
+        refine ⟨~(~'⌊α'⌋χ').1.unload, by sorry, ?_⟩
         · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
           subst h1 h2
           cases α <;> simp_all
@@ -645,8 +708,8 @@ lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
           cases α <;> simp_all
     case dia' α φ α_nonAtom =>
       rcases O with _|⟨⟨α',φ'⟩|⟨α',φ'⟩⟩
-      · simp_all
-      · refine ⟨~(~'⌊α'⌋φ').1.unload, by aesop, ?_⟩
+      · simp_all; sorry
+      · refine ⟨~(~'⌊α'⌋φ').1.unload, by sorry, ?_⟩
         · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
           subst h1 h2
           cases α <;> simp_all
@@ -662,11 +725,12 @@ lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
     case dia α χ α_nonAtom =>
       rcases O with _|⟨⟨α',χ'⟩|⟨α',χ'⟩⟩
       · simp_all
+        sorry
       · refine ⟨~(~'⌊α'⌋χ').1.unload, by aesop, ?_⟩
         · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
           subst h1 h2
           cases α <;> simp_all
-      · refine ⟨~(~'⌊α'⌋χ').1.unload, by aesop, ?_⟩
+      · refine ⟨~(~'⌊α'⌋χ').1.unload, by sorry, ?_⟩
         · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
           subst h1 h2
           cases α <;> simp_all
@@ -674,11 +738,12 @@ lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
     case dia' α φ α_nonAtom =>
       rcases O with _|⟨⟨α',φ'⟩|⟨α',φ'⟩⟩
       · simp_all
+        sorry
       · refine ⟨~(~'⌊α'⌋φ').1.unload, by aesop, ?_⟩
         · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
           subst h1 h2
           cases α <;> simp_all
-      · refine ⟨~(~'⌊α'⌋φ').1.unload, by aesop, ?_⟩
+      · refine ⟨~(~'⌊α'⌋φ').1.unload, by sorry, ?_⟩
         · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
           subst h1 h2
           cases α <;> simp_all
@@ -686,90 +751,78 @@ lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
 
 /-- For a given non-basic formula in the left list `L`,
 construct a `LocalRuleApp` using an appropriate `OneSidedLocalRule`. -/
-def localRuleApp_of_nonbasic_in_L (L R : List Formula) (O : Olf) (f : Formula)
+def localRuleApp_of_nonbasic_in_L (L R : Finset Formula) (O : Olf) (f : Formula)
     (f_in : f ∈ L) (f_nonBas : f.basic = false)
     : { lra : LocalRuleApp // lra.X = (L, R, O) } :=
 match f with
-  | .bottom => ⟨{ L, R, O, Lcond := [⊥], ress := []
+  | .bottom => ⟨{ L, R, O, Lcond := {⊥}, ress := {}
                   lr := .oneSidedL .bot rfl
-                  preconditionProof :=
-                    ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
+                  preconditionProof := by simp_all}, rfl⟩
   | ·n => by simp [Formula.basic] at f_nonBas
   | .neg f' => match f' with
     | .bottom => by simp [Formula.basic] at f_nonBas
     | .atom_prop n => by simp [Formula.basic] at f_nonBas
-    | .neg φ => ⟨{L, R, O, Lcond := [~~φ], ress := [([φ], [], none)]
+    | .neg φ => ⟨{L, R, O, Lcond := {~~φ}, ress := {({φ}, {}, none)}
                   lr := .oneSidedL (.neg φ) rfl
-                  preconditionProof :=
-                    ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
-    | .and φ ψ => ⟨{L, R, O, Lcond := [~(φ⋀ψ)]
-                    ress := [([~φ], [], none), ([~ψ], [], none)]
-                    lr := .oneSidedL (.nCo φ ψ) rfl
-                    preconditionProof :=
-                      ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
+                  preconditionProof := by simp_all}, rfl⟩
+    | .and φ ψ => ⟨{L, R, O, Lcond := {~(φ⋀ψ)}
+                    ress := {({~φ}, {}, none), ({~ψ}, {}, none)}
+                    lr := .oneSidedL (.nCo φ ψ) (by simp_all)
+                    preconditionProof := by simp_all}, rfl⟩
     | .box α φ =>
         have hna : ¬ α.isAtomic := by cases α <;> simp_all [Formula.basic, Program.isAtomic]
-        ⟨{L, R, O, Lcond := [~⌈α⌉φ]
-          ress := (unfoldDiamond α φ).map (fun res => (res, [], none))
+        ⟨{L, R, O, Lcond := {~⌈α⌉φ}
+          ress := ((unfoldDiamond α φ).toFinFin.image (fun res => (res, {}, none)))
           lr := .oneSidedL (.dia α φ hna) rfl
-          preconditionProof :=
-            ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
-  | .and φ ψ => ⟨{L, R, O, Lcond := [φ⋀ψ], ress := [([φ,ψ], [], none)]
+          preconditionProof := by simp_all}, rfl⟩
+  | .and φ ψ => ⟨{L, R, O, Lcond := {φ⋀ψ}, ress := {({φ,ψ}, {}, none)}
                   lr := .oneSidedL (.con φ ψ) rfl
-                  preconditionProof :=
-                    ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
+                  preconditionProof := by simp_all}, rfl⟩
   | .box α φ =>
       have hna : ¬ α.isAtomic := by cases α <;> simp_all [Formula.basic, Program.isAtomic]
-      ⟨{L, R, O, Lcond := [⌈α⌉φ]
-        ress := (unfoldBox α φ).map (fun res => (res, [], none))
+      ⟨{L, R, O, Lcond := {⌈α⌉φ}
+        ress := (unfoldBox α φ).toFinFin.image (fun res => (res, {}, none))
         lr := .oneSidedL (.box α φ hna) rfl
-        preconditionProof :=
-          ⟨by rwa [List.singleton_subperm_iff], List.nil_subperm, by simp⟩ }, rfl⟩
+        preconditionProof := by simp_all}, rfl⟩
 
 /-- For a given non-basic formula in the right list `R`,
 construct a `LocalRuleApp` using an appropriate `OneSidedLocalRule`. -/
-def localRuleApp_of_nonbasic_in_R (L R : List Formula) (O : Olf) (f : Formula)
+def localRuleApp_of_nonbasic_in_R (L R : Finset Formula) (O : Olf) (f : Formula)
     (f_in : f ∈ R) (f_nonBas : f.basic = false)
     : { lra : LocalRuleApp // lra.X = (L, R, O) } :=
   match f with
-  | .bottom => ⟨{ L, R, O, Rcond := [⊥], ress := []
+  | .bottom => ⟨{ L, R, O, Rcond := {⊥}, ress := {}
                   lr := .oneSidedR .bot rfl
-                  preconditionProof :=
-                    ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
+                  preconditionProof := by simp_all }, rfl⟩
   | .atom_prop n => by simp [Formula.basic] at f_nonBas
   | .neg f' => match f' with
     | .bottom => by simp [Formula.basic] at f_nonBas
     | .atom_prop n => by simp [Formula.basic] at f_nonBas
     | .neg φ =>
-            ⟨{L, R, O, Rcond := [~~φ], ress := [([], [φ], none)]
+            ⟨{L, R, O, Rcond := {~~φ}, ress := {({}, {φ}, none)}
               lr := .oneSidedR (.neg φ) rfl
-              preconditionProof :=
-                ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
+              preconditionProof := by simp_all }, rfl⟩
     | .and φ ψ =>
-            ⟨{L, R, O, Rcond := [~(φ⋀ψ)]
-              ress := [([], [~φ], none), ([], [~ψ], none)]
-              lr := .oneSidedR (.nCo φ ψ) rfl
-              preconditionProof :=
-                ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
+            ⟨{L, R, O, Rcond := {~(φ⋀ψ)}
+              ress := {({}, {~φ}, none), ({}, {~ψ}, none)}
+              lr := .oneSidedR (.nCo φ ψ) (by simp_all)
+              preconditionProof := by simp_all }, rfl⟩
     | .box α φ =>
           have hna : ¬ α.isAtomic := by
             cases α <;> simp_all [Formula.basic, Program.isAtomic]
-          ⟨{L, R, O, Rcond := [~⌈α⌉φ]
-            ress := (unfoldDiamond α φ).map (fun res => ([], res, none))
+          ⟨{L, R, O, Rcond := {~⌈α⌉φ}
+            ress := (unfoldDiamond α φ).toFinFin.image (fun res => ({}, res, none))
             lr := .oneSidedR (.dia α φ hna) rfl
-            preconditionProof :=
-              ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
-  | .and φ ψ => ⟨{L, R, O, Rcond := [φ⋀ψ], ress := [([], [φ,ψ], none)]
+            preconditionProof := by simp_all }, rfl⟩
+  | .and φ ψ => ⟨{L, R, O, Rcond := {φ⋀ψ}, ress := {({}, {φ,ψ}, none)}
                   lr := .oneSidedR (.con φ ψ) rfl
-                  preconditionProof :=
-                    ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
+                  preconditionProof := by simp_all }, rfl⟩
   | .box α φ =>
     have hna : ¬ α.isAtomic := by cases α <;> simp_all [Formula.basic, Program.isAtomic]
-    ⟨{L, R, O, Rcond := [⌈α⌉φ]
-      ress := (unfoldBox α φ).map (fun res => ([], res, none))
+    ⟨{L, R, O, Rcond := {⌈α⌉φ}
+      ress := (unfoldBox α φ).toFinFin.image (fun res => ({}, res, none))
       lr := .oneSidedR (.box α φ hna) rfl
-      preconditionProof :=
-        ⟨List.nil_subperm, by rwa [List.singleton_subperm_iff], by simp⟩ }, rfl⟩
+      preconditionProof := by simp_all }, rfl⟩
 
 /-- A sequent is basic iff no local rule can be applied.
 Note that in the paper (L+) and (L-) are also local rules and had to be excluded
@@ -790,27 +843,20 @@ lemma basic_iff_noLocalRuleApp {Y : Sequent} :
       · rcases Y with ⟨L,R,O⟩
         simp at *
         cases bot_in_Y
-        · exact ⟨⟨L,R,O, [⊥],[],none, [], .oneSidedL .bot rfl, [], rfl, by simp_all⟩, by simp⟩
-        · exact ⟨⟨L,R,O, [],[⊥],none, [], .oneSidedR .bot rfl, [], rfl, by simp_all⟩, by simp⟩
+        · exact ⟨⟨L,R,O, {⊥},{},none, {}, .oneSidedL .bot rfl, {}, rfl, by simp_all⟩, by simp⟩
+        · exact ⟨⟨L,R,O, {},{⊥},none, {}, .oneSidedR .bot rfl, {}, rfl, by simp_all⟩, by simp⟩
       · rcases f_not_f_in_Y with ⟨φ, φ_in, not_φ_in⟩
         rcases Y with ⟨L,R,O⟩
         simp at *
         cases φ_in <;> cases not_φ_in
-        · refine ⟨⟨L,R,O, [φ, ~φ], [], none, [], .oneSidedL (.not _) rfl, [], rfl, ?_⟩, by simp⟩
-          exact ⟨ List.cons_subperm_of_not_mem_of_mem
-                  (by simp [φ.neq_neg_self]) ‹_›
-                  (by rw [List.singleton_subperm_iff]; exact ‹_›),
-                  List.nil_subperm, by simp ⟩
-        · exact ⟨⟨L,R,O, [φ], [~φ], none, [], LocalRule.LRnegL φ, [], rfl, by simp_all⟩, by simp⟩
-        · exact ⟨⟨L,R,O, [~φ], [φ], none, [], LocalRule.LRnegR φ, [], rfl, by simp_all⟩, by simp⟩
-        · refine ⟨⟨L,R,O, [], [φ, ~φ], none, [], .oneSidedR (.not _) rfl, [], rfl, ?_⟩, by simp⟩
-          exact ⟨ List.nil_subperm,
-                  List.cons_subperm_of_not_mem_of_mem
-                  (by simp; exact φ.neq_neg_self) ‹_›
-                  (by rw [List.singleton_subperm_iff]; exact ‹_›),
-                  by simp ⟩
+        · refine ⟨⟨L,R,O, {φ, ~φ}, {}, none, {}, .oneSidedL (.not _) rfl, {}, rfl, ?_⟩, by simp⟩
+          simp_all; grind
+        · exact ⟨⟨L,R,O, {φ}, {~φ}, none, {}, LocalRule.LRnegL φ, {}, rfl, by simp_all⟩, by simp⟩
+        · exact ⟨⟨L,R,O, {~φ}, {φ}, none, {}, LocalRule.LRnegR φ, {}, rfl, by simp_all⟩, by simp⟩
+        · refine ⟨⟨L,R,O, {}, {φ, ~φ}, none, {}, .oneSidedR (.not _) rfl, {}, rfl, ?_⟩, by simp⟩
+          simp_all; grind
     rcases Y with ⟨L,R,O⟩
-    simp_all
+    simp_all [Sequent.toFinset]
     clear not_closed
     absurd no_lra
     push_neg
@@ -829,19 +875,19 @@ lemma basic_iff_noLocalRuleApp {Y : Sequent} :
           cases α <;> simp_all [LoadFormula.unload, Program.isAtomic]
         exact ⟨{ L, R, O := some (Sum.inl (~'⌊α⌋(AnyFormula.normal φ)))
                  Ocond := some (Sum.inl (~'⌊α⌋(AnyFormula.normal φ)))
-                 ress := (unfoldDiamondLoaded' α φ).map
-                   (fun (X, o) => (X, [], o.map Sum.inl))
+                 ress := (unfoldDiamondLoaded' α φ).toFinFinOpt.image
+                   (fun (X, o) => (X, {}, o.map Sum.inl))
                  lr := .loadedL _ (.dia' hna) rfl
-                 preconditionProof := ⟨List.nil_subperm, List.nil_subperm, by simp⟩ }, rfl⟩
+                 preconditionProof := by simp }, rfl⟩
       | loaded χ =>
         have hna : ¬ α.isAtomic := by
           cases α <;> simp_all [LoadFormula.unload, Program.isAtomic]
         exact ⟨{ L, R, O := some (Sum.inl (~'⌊α⌋(AnyFormula.loaded χ)))
                  Ocond := some (Sum.inl (~'⌊α⌋(AnyFormula.loaded χ)))
-                 ress := (unfoldDiamondLoaded α χ).map
-                   (fun (X, o) => (X, [], o.map Sum.inl))
+                 ress := (unfoldDiamondLoaded α χ).toFinFinOpt.image
+                   (fun (X, o) => (X, {}, o.map Sum.inl))
                  lr := .loadedL _ (.dia hna) rfl
-                 preconditionProof := ⟨List.nil_subperm, List.nil_subperm, by simp⟩ }, rfl⟩
+                 preconditionProof := by simp }, rfl⟩
     · -- O = some (Sum.inr b), symmetric to inl case
       rcases b with ⟨⟨α, af⟩⟩
       cases af with
@@ -849,26 +895,26 @@ lemma basic_iff_noLocalRuleApp {Y : Sequent} :
         have hna : ¬ α.isAtomic := by cases α <;> simp_all [LoadFormula.unload, Program.isAtomic]
         exact ⟨{ L, R, O := some (Sum.inr (~'⌊α⌋(AnyFormula.normal φ)))
                  Ocond := some (Sum.inr (~'⌊α⌋(AnyFormula.normal φ)))
-                 ress := (unfoldDiamondLoaded' α φ).map
-                   (fun (X, o) => ([], X, o.map Sum.inr))
+                 ress := (unfoldDiamondLoaded' α φ).toFinFinOpt.image
+                   (fun (X, o) => ({}, X, o.map Sum.inr))
                  lr := .loadedR _ (.dia' hna) rfl
-                 preconditionProof := ⟨List.nil_subperm, List.nil_subperm, by simp⟩ }, rfl⟩
+                 preconditionProof := by simp }, rfl⟩
       | loaded χ =>
         have hna : ¬ α.isAtomic := by cases α <;> simp_all [LoadFormula.unload, Program.isAtomic]
         exact ⟨{ L, R, O := some (Sum.inr (~'⌊α⌋(AnyFormula.loaded χ)))
                  Ocond := some (Sum.inr (~'⌊α⌋(AnyFormula.loaded χ)))
-                 ress := (unfoldDiamondLoaded α χ).map
-                   (fun (X, o) => ([], X, o.map Sum.inr))
+                 ress := (unfoldDiamondLoaded α χ).toFinFinOpt.image
+                   (fun (X, o) => ({}, X, o.map Sum.inr))
                  lr := .loadedR _ (.dia hna) rfl
-                 preconditionProof := ⟨List.nil_subperm, List.nil_subperm, by simp⟩ }, rfl⟩
+                 preconditionProof := by simp }, rfl⟩
 
 /-! ## Local rule applications preserve atomic formulas -/
 
 lemma LocalRuleApp.preserve_bottom_down (lra : LocalRuleApp) :
-    ∀ Y ∈ lra.C, ⊥ ∈ lra.X.bothSides → ⊥ ∈ Y.bothSides := by
+    ∀ Y ∈ lra.C, ⊥ ∈ lra.X.toFinset → ⊥ ∈ Y.toFinset := by
   rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, pre⟩
   subst hC
-  cases rule <;> simp_all [applyLocalRule, Sequent.bothSides, Sequent.left, Sequent.right]
+  cases rule <;> simp_all [applyLocalRule, Sequent.toFinset]
   case oneSidedL ress orule ress_def => cases orule <;> simp_all <;> grind
   case oneSidedR ress orule ress_def => cases orule <;> simp_all <;> grind
   case loadedL ress chi lrule ress_def => cases lrule <;> simp_all <;>
@@ -878,10 +924,10 @@ lemma LocalRuleApp.preserve_bottom_down (lra : LocalRuleApp) :
 
 lemma LocalRuleApp.preserve_atom_down (lra : LocalRuleApp) :
     ∀ Y ∈ lra.C, ∀ p : Nat,
-      Formula.atom_prop p ∈ lra.X.bothSides → Formula.atom_prop p ∈ Y.bothSides := by
+      Formula.atom_prop p ∈ lra.X.toFinset → Formula.atom_prop p ∈ Y.toFinset := by
   rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, pre⟩
   subst hC
-  cases rule <;> simp_all [applyLocalRule, Sequent.bothSides, Sequent.left, Sequent.right]
+  cases rule <;> simp_all [applyLocalRule, Sequent.toFinset]
   case oneSidedL ress orule ress_def => cases orule <;> simp_all <;> grind
   case oneSidedR ress orule ress_def => cases orule <;> simp_all <;> grind
   case loadedL ress chi lrule ress_def =>
@@ -891,12 +937,12 @@ lemma LocalRuleApp.preserve_atom_down (lra : LocalRuleApp) :
 
 lemma LocalRuleApp.preserve_neg_atom_down (lra : LocalRuleApp) :
     ∀ Y ∈ lra.C, ∀ p : Nat,
-      (~(Formula.atom_prop p)) ∈ lra.X.bothSides → (~(Formula.atom_prop p)) ∈ Y.bothSides := by
+      (~(Formula.atom_prop p)) ∈ lra.X.toFinset → (~(Formula.atom_prop p)) ∈ Y.toFinset := by
   rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, pre⟩
   subst hC
-  cases rule <;> simp_all [applyLocalRule, Sequent.bothSides, Sequent.left, Sequent.right]
-  case oneSidedL ress orule ress_def => cases orule <;> simp_all <;> grind
-  case oneSidedR ress orule ress_def => cases orule <;> simp_all <;> grind
+  cases rule <;> simp_all [applyLocalRule, Sequent.toFinset]
+  case oneSidedL ress orule ress_def => cases orule <;> grind
+  case oneSidedR ress orule ress_def => cases orule <;> grind
   case loadedL ress chi lrule ress_def =>
     cases lrule <;> simp_all <;> intros <;> subst_eqs <;> simp_all <;> grind
   case loadedR ress chi lrule ress_def =>
@@ -905,7 +951,7 @@ lemma LocalRuleApp.preserve_neg_atom_down (lra : LocalRuleApp) :
 lemma LocalRuleApp.preserve_local_atom_down (lra : LocalRuleApp) :
     ∀ Y ∈ lra.C, ∀ f,
       (f = ⊥ ∨ ∃ p : Nat, f = (Formula.atom_prop p) ∨ f = (~(Formula.atom_prop p))) →
-      f ∈ lra.X.bothSides → f ∈ Y.bothSides := by
+      f ∈ lra.X.toFinset → f ∈ Y.toFinset := by
   rintro Y Y_in f (rfl | ⟨p, rfl | rfl⟩) f_in
   · exact lra.preserve_bottom_down Y Y_in f_in
   · exact lra.preserve_atom_down Y Y_in p f_in
@@ -975,39 +1021,37 @@ set_option maxHeartbeats 4000000 in
 /-- Every formula at the source of a local rule is either retained by a chosen child or is the
 principal formula and has the closure data required for saturatedness in that child. -/
 lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Sequent}
-    (hY : Y ∈ lra.C) : ∀ f ∈ lra.X.bothSides,
-      f ∈ Y.bothSides ∨
+    (hY : Y ∈ lra.C) : ∀ f ∈ lra.X.toFinset,
+      f ∈ Y.toFinset ∨
         (∀ (φ ψ : Formula) (α : Program),
-          (f = (~~φ) → φ ∈ Y.bothSides) ∧
-          (f = (φ⋀ψ) → φ ∈ Y.bothSides ∧ ψ ∈ Y.bothSides) ∧
-          (f = (~(φ⋀ψ)) → (~φ) ∈ Y.bothSides ∨ (~ψ) ∈ Y.bothSides) ∧
-          (f = (⌈α⌉φ) → ∃ l : TP α, (Bset α l φ).all (· ∈ Y.bothSides)) ∧
-          (f = (~⌈α⌉φ) → ∃ Fδ ∈ Dset α, (Yset Fδ φ).all (· ∈ Y.bothSides))) := by
+          (f = (~~φ) → φ ∈ Y.toFinset) ∧
+          (f = (φ⋀ψ) → φ ∈ Y.toFinset ∧ ψ ∈ Y.toFinset) ∧
+          (f = (~(φ⋀ψ)) → (~φ) ∈ Y.toFinset ∨ (~ψ) ∈ Y.toFinset) ∧
+          (f = (⌈α⌉φ) → ∃ l : TP α, (Bset α l φ).all (· ∈ Y.toFinset)) ∧
+          (f = (~⌈α⌉φ) → ∃ Fδ ∈ Dset α, (Yset Fδ φ).all (· ∈ Y.toFinset))) := by
   rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, pre⟩
   subst C
   cases rule
   case oneSidedL orule YS_def =>
     cases orule
     case neg φ =>
-      simp_all [applyLocalRule, Sequent.bothSides]
+      simp_all [applyLocalRule, Sequent.toFinset]
       intro f hf
       by_cases hp : f = ~~φ
       · subst f; right; simp
       · left
         rcases hf with hf | hf | hf | hf
-        · have := (List.mem_erase_of_ne hp).2 hf; aesop
         all_goals aesop
     case con φ ψ =>
-      simp_all [applyLocalRule, Sequent.bothSides]
+      simp_all [applyLocalRule, Sequent.toFinset]
       intro f hf
       by_cases hp : f = φ⋀ψ
       · subst f; right; simp
       · left
         rcases hf with hf | hf | hf | hf
-        · have := (List.mem_erase_of_ne hp).2 hf; aesop
         all_goals aesop
     case nCo φ ψ =>
-      simp_all [applyLocalRule, Sequent.bothSides]
+      simp_all [applyLocalRule, Sequent.toFinset]
       intro f hf
       by_cases hp : f = ~(φ⋀ψ)
       · subst f
@@ -1017,10 +1061,9 @@ lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Seque
           simp <;> aesop
       · left
         rcases hf with hf | hf | hf | hf
-        · have := (List.mem_erase_of_ne hp).2 hf; aesop
         all_goals aesop
     case box α φ notAtom =>
-      simp_all [applyLocalRule, Sequent.bothSides]
+      simp_all [applyLocalRule, Sequent.toFinset]
       intro f hf
       by_cases hp : f = ⌈α⌉φ
       · subst f
@@ -1039,10 +1082,9 @@ lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Seque
         simp [hx]
       · left
         rcases hf with hf | hf | hf | hf
-        · have := (List.mem_erase_of_ne hp).2 hf; aesop
         all_goals aesop
     case dia α φ notAtom =>
-      simp_all [applyLocalRule, Sequent.bothSides]
+      simp_all [applyLocalRule, Sequent.toFinset]
       intro f hf
       by_cases hp : f = ~⌈α⌉φ
       · subst f
@@ -1063,21 +1105,20 @@ lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Seque
         simp [hx]
       · left
         rcases hf with hf | hf | hf | hf
-        · have := (List.mem_erase_of_ne hp).2 hf; aesop
         all_goals aesop
     all_goals simp_all [applyLocalRule]
   case oneSidedR orule YS_def =>
-    cases orule <;> simp_all [applyLocalRule, Sequent.bothSides]
+    cases orule <;> simp_all [applyLocalRule, Sequent.toFinset]
     all_goals intro f hf
-    case neg φ => by_cases hp : f = ~~φ <;> simp_all [List.mem_erase_of_ne]; aesop
-    case con φ ψ => by_cases hp : f = φ⋀ψ <;> simp_all [List.mem_erase_of_ne]; aesop
+    case neg φ => by_cases hp : f = ~~φ <;> simp_all [List.mem_erase_of_ne]
+    case con φ ψ => by_cases hp : f = φ⋀ψ <;> simp_all [List.mem_erase_of_ne]
     case nCo φ ψ => by_cases hp : f = ~(φ⋀ψ) <;> simp_all <;> aesop
     case box α φ notAtom => by_cases hp : f = ⌈α⌉φ <;> simp_all [unfoldBox] <;> aesop
     case dia α φ notAtom => by_cases hp : f = ~⌈α⌉φ <;> simp_all [unfoldDiamond] <;> aesop
   case loadedL χ lrule YS_def =>
     cases lrule
     case dia α χ notAtom =>
-      simp_all [applyLocalRule, Sequent.bothSides]
+      simp_all [applyLocalRule, Sequent.toFinset]
       intro f hf
       by_cases hp : f = ~⌈α⌉χ.unload
       · subst f
@@ -1090,10 +1131,10 @@ lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Seque
         subst β; subst φ
         rcases hY with ⟨w, o, hwo, rfl⟩
         rcases loaded_unfold_child_closes_left hwo with ⟨⟨Fs,δ⟩, hD, hclose⟩
-        exact ⟨Fs, δ, hD, by aesop⟩
+        exact ⟨Fs, δ, hD, by sorry⟩
       · left; aesop
     case dia' α φ notAtom =>
-      simp_all [applyLocalRule, Sequent.bothSides]
+      simp_all [applyLocalRule, Sequent.toFinset]
       intro f hf
       by_cases hp : f = ~⌈α⌉φ
       · subst f
@@ -1106,12 +1147,12 @@ lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Seque
         subst β; subst φ'
         rcases hY with ⟨w, o, hwo, rfl⟩
         rcases loaded_unfold'_child_closes_left hwo with ⟨⟨Fs,δ⟩, hD, hclose⟩
-        exact ⟨Fs, δ, hD, by aesop⟩
+        exact ⟨Fs, δ, hD, by sorry⟩
       · left; aesop
   case loadedR χ lrule YS_def =>
     cases lrule
     case dia α χ notAtom =>
-      simp_all [applyLocalRule, Sequent.bothSides]
+      simp_all [applyLocalRule, Sequent.toFinset]
       intro f hf
       by_cases hp : f = ~⌈α⌉χ.unload
       · subst f
@@ -1124,10 +1165,10 @@ lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Seque
         subst β; subst φ
         rcases hY with ⟨w, o, hwo, rfl⟩
         rcases loaded_unfold_child_closes_right hwo with ⟨⟨Fs,δ⟩, hD, hclose⟩
-        exact ⟨Fs, δ, hD, by aesop⟩
+        exact ⟨Fs, δ, hD, by sorry⟩
       · left; aesop
     case dia' α φ notAtom =>
-      simp_all [applyLocalRule, Sequent.bothSides]
+      simp_all [applyLocalRule, Sequent.toFinset]
       intro f hf
       by_cases hp : f = ~⌈α⌉φ
       · subst f
@@ -1140,7 +1181,7 @@ lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Seque
         subst β; subst φ'
         rcases hY with ⟨w, o, hwo, rfl⟩
         rcases loaded_unfold'_child_closes_right hwo with ⟨⟨Fs,δ⟩, hD, hclose⟩
-        exact ⟨Fs, δ, hD, by aesop⟩
+        exact ⟨Fs, δ, hD, by sorry⟩
       · left; aesop
   all_goals simp_all [applyLocalRule]
 
@@ -1224,28 +1265,25 @@ lemma Sequent.basic_to_locallyConsistent {X : Sequent} (bas : X.basic) :
       · rcases b with ⟨⟨α, af⟩⟩
         cases af <;> simp [LoadFormula.unload] at hb
 
+
 -- TODO golf/shorten this
 /-- LocalRuleApp preserves saturatedness backwards. -/
 lemma LocalRuleApp.preserve_saturated_up (lra : LocalRuleApp) :
-    ∀ Y ∈ lra.C, ∀ (rest : List Sequent) ,
+    ∀ Y ∈ lra.C, ∀ (rest : Finset Sequent) ,
       Y ∈ rest →
-      saturated (rest.map Sequent.bothSides).flatten.toFinset
-        → saturated (((lra.X :: rest).map Sequent.bothSides).flatten.toFinset) := by
+      saturated ((rest.image Sequent.toFinset).sup id)
+        → saturated ((({lra.X} ∪ rest).image Sequent.toFinset).sup id) := by
   intro Y hY rest hYr hs
   simp only [saturated] at hs ⊢
   intro φ ψ α
   have old_or_rest (f : Formula) :
-      f ∈ ((lra.X :: rest).map Sequent.bothSides).flatten.toFinset →
-      f ∈ lra.X.bothSides ∨ f ∈ (rest.map Sequent.bothSides).flatten.toFinset := by
-    simp only [List.map_cons, List.flatten_cons, List.mem_toFinset, List.mem_append]
-    exact id
-  have child_in_rest (f : Formula) (hf : f ∈ Y.bothSides) :
-      f ∈ (rest.map Sequent.bothSides).flatten.toFinset := by
-    simp only [List.mem_toFinset, List.mem_flatten, List.mem_map]
-    exact ⟨Y.bothSides, ⟨Y, hYr, rfl⟩, hf⟩
+      f ∈ (({lra.X} ∪ rest).image Sequent.toFinset).sup id →
+      f ∈ lra.X.toFinset ∨ f ∈ (rest.image Sequent.toFinset).sup id := by simp
+  have child_in_rest (f : Formula) (hf : f ∈ Y.toFinset) :
+      f ∈ (rest.image Sequent.toFinset).sup id := by simp; grind
   have lift_rest (f : Formula) :
-      f ∈ (rest.map Sequent.bothSides).flatten.toFinset →
-      f ∈ ((lra.X :: rest).map Sequent.bothSides).flatten.toFinset := by simp_all
+      f ∈ (rest.image Sequent.toFinset).sup id →
+      f ∈ (({lra.X} ∪ rest).image Sequent.toFinset).sup id := by simp_all
   have source_closure := lra.formula_preserved_or_expanded hY
   rcases hs φ ψ α with ⟨hneg, hcon, hncon, hbox, hdia⟩
   constructor
@@ -1305,7 +1343,7 @@ lemma LocalRuleApp.preserve_saturated_up (lra : LocalRuleApp) :
 or it is the principal formula, and then the child contains one of its unfoldings.
 Analogous to `LocalRuleApp.formula_preserved_or_expanded`, but for `Sequent.wForms`, i.e. here
 we also know that the formulas in the child occur *unloaded*. (This is why we cannot obtain this
-lemma from `LocalRuleApp.formula_preserved_or_expanded`: the latter uses `Sequent.bothSides`,
+lemma from `LocalRuleApp.formula_preserved_or_expanded`: the latter uses `Sequent.toFinset`,
 where a formula may also come from *unloading* the loaded formula of a sequent.) -/
 lemma LocalRuleApp.wForms_negBox_preserved_or_unfolded (lra : LocalRuleApp) {Y : Sequent}
     (hY : Y ∈ lra.C) {α φ} (h : (~⌈α⌉φ : WhateverFormula) ∈ lra.X.wForms) :
@@ -1315,7 +1353,7 @@ lemma LocalRuleApp.wForms_negBox_preserved_or_unfolded (lra : LocalRuleApp) {Y :
   subst hC
   simp only [LocalRuleApp.X] at h
   rw [Sequent.mem_wForms_normal_iff] at h
-  simp only [applyLocalRule, List.mem_map] at hY
+  simp only [applyLocalRule, Finset.mem_image] at hY
   rcases hY with ⟨⟨Lnew, Rnew, Onew⟩, res_in, rfl⟩
   by_cases hcond : (~⌈α⌉φ) ∈ Lcond ∨ (~⌈α⌉φ) ∈ Rcond
   · -- The diamond is the principal formula, so the only possible rule is its unfolding.
@@ -1327,24 +1365,24 @@ lemma LocalRuleApp.wForms_negBox_preserved_or_unfolded (lra : LocalRuleApp) {Y :
       simp only [unfoldDiamond, List.mem_map] at a_in
       rcases a_in with ⟨⟨F, δ⟩, Fδ_in, rfl⟩
       cases ha
-      exact ⟨F, δ, Fδ_in, fun x hx => Sequent.mem_wForms_normal_iff.mpr
-        (Or.inl (List.mem_append.mpr (Or.inr hx)))⟩
+      refine ⟨F, δ, Fδ_in, fun x hx => Sequent.mem_wForms_normal_iff.mpr ?_⟩
+      simp
+      grind
     | oneSidedR orule ress_def =>
       cases orule <;> simp_all
       rcases res_in with ⟨a, a_in, ha⟩
       simp only [unfoldDiamond, List.mem_map] at a_in
       rcases a_in with ⟨⟨F, δ⟩, Fδ_in, rfl⟩
       cases ha
-      exact ⟨F, δ, Fδ_in, fun x hx => Sequent.mem_wForms_normal_iff.mpr
-        (Or.inr (List.mem_append.mpr (Or.inr hx)))⟩
+      refine ⟨F, δ, Fδ_in, fun x hx => Sequent.mem_wForms_normal_iff.mpr ?_⟩
+      simp
+      grind
     | _ => simp_all
   · -- The diamond is not the principal formula, so it is kept in the chosen child.
     left
     push_neg at hcond
     rw [Sequent.mem_wForms_normal_iff]
-    rcases h with hL | hR
-    · exact Or.inl (List.mem_append.mpr (Or.inl (List.mem_diff_of_mem hL hcond.1)))
-    · exact Or.inr (List.mem_append.mpr (Or.inl (List.mem_diff_of_mem hR hcond.2)))
+    rcases h with hL | hR <;> grind
 
 /-- A loaded diamond at the source of a local rule application is either kept in the chosen child,
 or it is the principal formula, and then the child contains one of the results of the `LoadRule`
@@ -1355,7 +1393,7 @@ lemma LocalRuleApp.wForms_negLoad_preserved_or_unfolded (lra : LocalRuleApp) {Y 
     (h : (WhateverFormula.negLoad nlf) ∈ lra.X.wForms) :
     ((WhateverFormula.negLoad nlf) ∈ Y.wForms)
     ∨ ∃ ress, Nonempty (LoadRule nlf ress) ∧ ∃ Fo ∈ ress,
-        Fo.1.all (fun f => (f : WhateverFormula) ∈ Y.wForms)
+        Fo.1.sort.all (fun f => (f : WhateverFormula) ∈ Y.wForms)
         ∧ Fo.2.toList.all (fun nl => (WhateverFormula.negLoad nl) ∈ Y.wForms) := by
   rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, pre⟩
   subst hC
@@ -1365,7 +1403,8 @@ lemma LocalRuleApp.wForms_negLoad_preserved_or_unfolded (lra : LocalRuleApp) {Y 
   case oneSidedL ress' orule ress_def | oneSidedR ress' orule ress_def =>
     -- One-sided rules do not change the loaded formula, so it is kept.
     subst ress_def
-    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hY
+    simp only [applyLocalRule, Finset.sdiff_empty, Finset.mem_image, exists_exists_and_eq_and,
+      Finset.union_empty, Olf.change_old_none_none] at hY
     rcases hY with ⟨res, res_in, rfl⟩
     left
     rw [Sequent.mem_wForms_negLoad_iff]
@@ -1374,8 +1413,9 @@ lemma LocalRuleApp.wForms_negLoad_preserved_or_unfolded (lra : LocalRuleApp) {Y 
   case LRnegR ψ => simp at hY
   case loadedL ress' χ lrule ress_def =>
     subst ress_def
-    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hY
-    rcases hY with ⟨⟨Xnew, onew⟩, res_in, rfl⟩
+    simp only [applyLocalRule, Finset.sdiff_empty, Finset.mem_image, Prod.exists, ↓existsAndEq,
+      and_true, Finset.union_empty] at hY
+    rcases hY with ⟨Xnew, onew, res_in, rfl⟩
     right
     have nlf_def : nlf = ~'χ := by
       rcases pre with ⟨_, _, hO⟩
@@ -1385,7 +1425,7 @@ lemma LocalRuleApp.wForms_negLoad_preserved_or_unfolded (lra : LocalRuleApp) {Y 
     · simp only [List.all_eq_true, decide_eq_true_eq]
       intro f f_in
       rw [Sequent.mem_wForms_normal_iff]
-      exact Or.inl (List.mem_append.mpr (Or.inr f_in))
+      aesop
     · cases onew with
       | none => simp
       | some nl =>
@@ -1395,8 +1435,9 @@ lemma LocalRuleApp.wForms_negLoad_preserved_or_unfolded (lra : LocalRuleApp) {Y 
         simp
   case loadedR ress' χ lrule ress_def =>
     subst ress_def
-    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hY
-    rcases hY with ⟨⟨Xnew, onew⟩, res_in, rfl⟩
+    simp only [applyLocalRule, Finset.sdiff_empty, Finset.mem_image, Prod.exists, ↓existsAndEq,
+      and_true, Finset.union_empty] at hY
+    rcases hY with ⟨Xnew, onew, res_in, rfl⟩
     right
     have nlf_def : nlf = ~'χ := by
       rcases pre with ⟨_, _, hO⟩
@@ -1406,7 +1447,7 @@ lemma LocalRuleApp.wForms_negLoad_preserved_or_unfolded (lra : LocalRuleApp) {Y 
     · simp only [List.all_eq_true, decide_eq_true_eq]
       intro f f_in
       rw [Sequent.mem_wForms_normal_iff]
-      exact Or.inr (List.mem_append.mpr (Or.inr f_in))
+      aesop
     · cases onew with
       | none => simp
       | some nl =>
@@ -1417,22 +1458,25 @@ lemma LocalRuleApp.wForms_negLoad_preserved_or_unfolded (lra : LocalRuleApp) {Y 
 
 /-- The only `LoadRule` applicable to `~'⌊α⌋χ` for a loaded `χ` is `LoadRule.dia`. -/
 lemma LoadRule.eq_unfoldDiamondLoaded {α} {χ : LoadFormula} {ress}
-    (lr : LoadRule (~'⌊α⌋(AnyFormula.loaded χ)) ress) : ress = unfoldDiamondLoaded α χ := by
+    (lr : LoadRule (~'⌊α⌋(AnyFormula.loaded χ)) ress) :
+    ress = (unfoldDiamondLoaded α χ).toFinFinOpt := by
   cases lr; rfl
 
 /-- The only `LoadRule` applicable to `~'⌊α⌋φ` for a normal `φ` is `LoadRule.dia'`. -/
 lemma LoadRule.eq_unfoldDiamondLoaded' {α} {φ : Formula} {ress}
-    (lr : LoadRule (~'⌊α⌋(AnyFormula.normal φ)) ress) : ress = unfoldDiamondLoaded' α φ := by
+    (lr : LoadRule (~'⌊α⌋(AnyFormula.normal φ)) ress) :
+    ress = (unfoldDiamondLoaded' α φ).toFinFinOpt := by
   cases lr; rfl
 
+set_option maxHeartbeats 2000000 in
 /-- Local rule applications preserve *basic* formulas: no local rule with children can have
 a basic formula as its principal formula.
 Note that `⊥` is not basic, for that case see `LocalRuleApp.preserve_bottom_down`. -/
 lemma LocalRuleApp.preserve_basic_down (lra : LocalRuleApp) :
-    ∀ Y ∈ lra.C, ∀ f, f.basic → f ∈ lra.X.bothSides → f ∈ Y.bothSides := by
+    ∀ Y ∈ lra.C, ∀ f, f.basic → f ∈ lra.X.toFinset → f ∈ Y.toFinset := by
   rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, pre⟩
   subst hC
-  cases rule <;> simp_all [applyLocalRule, Sequent.bothSides, Sequent.left, Sequent.right]
+  cases rule <;> simp_all [applyLocalRule, Sequent.toFinset, Sequent.left, Sequent.right]
   case oneSidedL ress orule ress_def => cases orule <;> simp_all <;> grind [Program.isAtomic]
   case oneSidedR ress orule ress_def => cases orule <;> simp_all <;> grind [Program.isAtomic]
   case loadedL ress chi lrule ress_def =>

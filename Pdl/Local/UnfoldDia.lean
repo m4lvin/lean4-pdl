@@ -846,6 +846,10 @@ def pairUnload : List Formula × Option NegLoadFormula → List Formula
 | (xs, none) => xs
 | (xs, some nlf) => xs ∪ [negUnload nlf]
 
+def pairUnloadSet : Finset Formula × Option NegLoadFormula → Finset Formula
+| (xs, none) => xs
+| (xs, some nlf) => xs ∪ {negUnload nlf}
+
 theorem unfoldDiamondLoaded_eq α χ :
     (unfoldDiamondLoaded α χ).map pairUnload = unfoldDiamond α χ.unload := by
   simp [unfoldDiamondLoaded, unfoldDiamond, YsetLoad, Yset, pairUnload]

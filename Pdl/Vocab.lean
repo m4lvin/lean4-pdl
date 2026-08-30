@@ -34,16 +34,23 @@ mutual
     | ⌈α⌉ φ => α.voc ∪ φ.voc
 end
 
--- rename to Vocab.join? or use `class Hadd`?
--- QUESTION: Is there a List.flatten but for Finset?
 @[simp]
 def Vocab.fromList (L : List Vocab) : Vocab := L.toFinset.sup id
+
+@[simp]
+def Vocab.fromFinset (L : Finset Vocab) : Vocab := L.sup id
 
 @[simp]
 abbrev List.fvoc (L : List Formula) := Vocab.fromList (L.map Formula.voc)
 
 @[simp]
 abbrev List.pvoc (L : List Program) := Vocab.fromList (L.map Program.voc)
+
+@[simp]
+abbrev Finset.fvoc (L : Finset Formula) := Vocab.fromFinset (L.image Formula.voc)
+
+@[simp]
+abbrev Finset.pvoc (L : Finset Program) := Vocab.fromFinset (L.image Program.voc)
 
 @[simp]
 theorem Vocab.fromList_append : Vocab.fromList (L ++ R) = Vocab.fromList L ∪ Vocab.fromList R := by

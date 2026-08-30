@@ -1,5 +1,6 @@
 import Pdl.Semantics
 import Pdl.Vocab
+import Mathlib.Data.Finset.Sort
 
 /-! # (Big) Disjunction and Conjunction
 
@@ -194,6 +195,20 @@ theorem disconOr {XS YS} : discon (XS ∪ YS) ≡ discon XS ⋁ discon YS :=
       rcases rhs with ⟨Y, Y_in, satY⟩
       use Y
       exact ⟨Or.inr Y_in, satY⟩
+
+instance : DecidableRel (@List.le Formula instLTFormula) := by
+  sorry
+
+instance : IsTrans (List Formula) List.le := sorry
+instance : Std.Antisymm (@List.le Formula instLTFormula) := sorry
+instance : Std.Total (@List.le Formula instLTFormula) := sorry
+
+def Finset.discon : Finset (Finset Formula) → Formula
+  | XS => _root_.discon ((XS.image (Finset.sort)).sort List.le)
+
+def Finset.disconEval (XS : Finset (Finset Formula)) :
+    evaluate M w (XS.discon) ↔ ∃ Y ∈ XS, ∀ f ∈ Y, evaluate M w f :=
+  sorry
 
 /-! ## Pairwise Union -/
 

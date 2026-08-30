@@ -1,4 +1,5 @@
 import Mathlib.Algebra.BigOperators.Group.Finset.Defs
+import Mathlib.Data.Finset.Sort
 
 /-! # Syntax (Section 2.1) -/
 
@@ -674,3 +675,61 @@ instance listFormulaHasLength : HasLength (List Formula) := ⟨fun X => (X.map l
 instance programHasLength : HasLength Program := ⟨lengthOfProgram⟩
 @[simp]
 instance setProgramHasLength : HasLength (Finset Program) := ⟨fun X => X.sum lengthOfProgram⟩
+
+/-! ## Sorting formulas
+
+Needed to convert a `Finset Formula` to `List Formula`.
+-/
+
+
+mutual
+
+/-- Order: ⊥ < p < ¬φ < φ1∧φ2 < [α]φ
+
+Note that we want this to be antisymmetric later, so we cannot just use < on some measure.
+An alternative approach here would be to even go for `Denumerable`.
+-/
+def Formula.le : Formula → Formula → Prop
+  | .bottom, .bottom => True
+  | .bottom, _ => True
+  | .atom_prop p, .bottom => False
+  | .atom_prop p, .atom_prop p' => p ≤ p'
+  | .atom_prop p, _ => True
+  | .neg φ, .bottom => False
+  | .neg φ, .atom_prop p => False
+  | .neg φ, .neg φ' => φ.le φ'
+  | .neg φ, _ => True
+  | .and φ1 φ2, .bottom => False
+  | .and φ1 φ2, .atom_prop p => False
+  | .and φ1 φ2, .neg φ => False
+  | .and φ1 φ2, .and φ1' φ2' => φ1.le φ1' ∨ ((φ1 = φ1') ∧ φ2.le φ2')
+  | .and φ1 φ2, .box α φ => True
+  | .box α φ, .bottom => False
+  | .box α φ, .atom_prop _ => False
+  | .box α φ, .neg _ => False
+  | .box α φ, .and _ _  => False
+  | .box α φ, .box α' φ' => α.le α' ∨ ((α = α') ∧ φ.le φ')
+
+def Program.le : Program → Program → Prop
+  | _, _ => sorry
+
+end
+
+mutual
+instance : DecidableRel Formula.le := sorry
+instance : DecidableRel Program.le := sorry
+end
+
+instance : LE Formula := ⟨Formula.le⟩
+
+instance : LT Formula := ⟨fun φ1 φ2 ↦ φ1 ≠ φ2 ∧ φ1.le φ2⟩
+
+instance : DecidableRel Formula.le := sorry
+
+instance : DecidableRel (fun (a b : Formula) ↦ a ≤ b) := sorry
+
+instance : IsTrans Formula (fun (a b : Formula) ↦ a ≤ b) := sorry
+
+instance : Std.Antisymm (fun (a b : Formula) ↦ a ≤ b) := sorry
+
+instance : Std.Total (fun (a b : Formula) ↦ a ≤ b) := sorry
