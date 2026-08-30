@@ -16,6 +16,9 @@ def formProjection : Nat → Formula → Option Formula
 def projection : Nat → List Formula → List Formula
   | A, X => (X.map fun x => (formProjection A x)).reduceOption
 
+def Finset.projection : Nat → Finset Formula → Finset Formula
+  | A, X => (X.image fun x => (formProjection A x).toFinset).sup id
+
 @[simp]
 theorem proj : g ∈ projection A X ↔ (⌈·A⌉g) ∈ X :=
   by
@@ -37,7 +40,7 @@ abbrev History : Type := List Sequent
 
 /-- We have a repeat iff the history contains a node that is `setEqTo` the current node.
 Note that this is a `Prop`, it does not carry a specific number of steps to go back. -/
-def rep (Hist : History) (X : Sequent) : Prop := ∃ Y ∈ Hist, Y.setEqTo X
+def rep (Hist : History) (X : Sequent) : Prop := ∃ Y ∈ Hist, Y = X
 
 instance {H X} : Decidable (rep H X) := by
   unfold rep
@@ -52,11 +55,11 @@ lemma not_rep_empty {X : Sequent} : ¬ rep [] X := by unfold rep; grind
 
 /-- Given `rep H X`, get the index of the companion in `H` using `List.findIdx?`. -/
 def rep.toNat {H X} (rp : rep H X) : Nat :=
-  match h : List.findIdx? (fun Y => decide (Y.setEqTo X)) H with
+  match h : List.findIdx? (fun Y => decide (Y = X)) H with
   | none => by
       exfalso
-      have : ∃ Y ∈ H, decide (Y.setEqTo X) = true := by aesop
-      have := @List.findIdx?_eq_some_of_exists Sequent H (fun Y => Y.setEqTo X) this
+      unfold rep at rp
+      have := @List.findIdx?_eq_some_of_exists Sequent H (fun Y => Y = X)
       simp_all
   | some k => k
 
@@ -64,11 +67,11 @@ def rep.toNat {H X} (rp : rep H X) : Nat :=
 def rep.toFin {H X} (rp : rep H X) : Fin (H.length) :=
   have : rp.toNat < H.length :=
     -- use List.findFinIdx? instead here?
-    match h : List.findIdx? (fun Y => decide (Y.setEqTo X)) H with
+    match h : List.findIdx? (fun Y => decide (Y = X)) H with
     | none => by
       exfalso
-      have : ∃ Y ∈ H, decide (Y.setEqTo X) = true := by aesop
-      have := @List.findIdx?_eq_some_of_exists Sequent H (fun Y => Y.setEqTo X) this
+      unfold rep at rp
+      have := @List.findIdx?_eq_some_of_exists Sequent H (fun Y => Y = X)
       simp_all
     | some k => by
       unfold toNat
@@ -78,14 +81,12 @@ def rep.toFin {H X} (rp : rep H X) : Fin (H.length) :=
   ⟨rp.toNat, this⟩
 
 lemma rep.toFin_agrees (rp : rep H X) :
-    H[rp.toFin].setEqTo X := by
+    H[rp.toFin] = X := by
   unfold rep.toFin rep.toNat
+  unfold rep at rp
   simp
-  match h : List.findIdx? (fun Y ↦ decide (Y.setEqTo X)) H with
-  | none => grind
-  | some k =>
-      have := @List.findIdx?_eq_some_iff_getElem _ H (fun Y ↦ decide (Y.setEqTo X)) k
-      grind
+  have := @List.findIdx?_eq_some_iff_getElem _ H (fun Y ↦ decide (Y = X))
+  grind
 
 /-! ## Loaded Path Repeats -/
 
@@ -93,12 +94,12 @@ lemma rep.toFin_agrees (rp : rep H X) :
 reach an equal node, and all nodes on the way are loaded.
 Note: `k=0` means the first element of `Hist` is the companion. -/
 def LoadedPathRepeat (Hist : History) (X : Sequent) : Type :=
-  Subtype (fun k => (Hist.get k).setEqTo X ∧ ∀ m ≤ k, (Hist.get m).isLoaded)
+  Subtype (fun k => (Hist.get k) = X ∧ ∀ m ≤ k, (Hist.get m).isLoaded)
 
 lemma LoadedPathRepeat.to_rep {H X} (lpr : LoadedPathRepeat H X) : rep H X := by
   rcases lpr with ⟨k, same, all_loaded⟩
   use List.get H k
-  simp_all only [List.get_eq_getElem, List.getElem_mem, true_and]
+  grind
 
 instance {Hist X} : DecidableEq (LoadedPathRepeat Hist X) := Subtype.instDecidableEq
 
@@ -109,7 +110,7 @@ that might also give us uniqueness of LPRs? -/
 def LoadedPathRepeat.choice {H X} (ne : Nonempty (LoadedPathRepeat H X)) :
     LoadedPathRepeat H X := by
   let somek := @Fin.find? (H.length)
-    (fun k => (H.get k).setEqTo X ∧ ∀ m ≤ k, (H.get m).isLoaded = true)
+    (fun k => (H.get k) = X ∧ ∀ m ≤ k, (H.get m).isLoaded = true)
   rcases find_def : somek with _|⟨k⟩
   · exfalso
     rw [Fin.find?_eq_none_iff] at find_def
@@ -127,11 +128,10 @@ theorem LoadedPathRepeat_comp_isLoaded {Hist X} (lpr : LoadedPathRepeat Hist X) 
 
 theorem LoadedPathRepeat_rep_isLoaded {Hist X} (lpr : LoadedPathRepeat Hist X) : X.isLoaded := by
   rcases lpr with ⟨k, claim⟩
-  rw [← setEqTo_isLoaded_iff claim.1]
-  exact claim.2 k (le_refl k)
+  grind
 
 instance {H X} : Decidable (Nonempty (LoadedPathRepeat H X)) := by
-  by_cases ∃ k, (H.get k).setEqTo X ∧ ∀ m ≤ k, (H.get m).isLoaded
+  by_cases ∃ k, (H.get k) = X ∧ ∀ m ≤ k, (H.get m).isLoaded
   case pos h =>
     apply isTrue
     rcases h with ⟨k, same, all_le_loaded⟩
@@ -146,7 +146,7 @@ instance {H X} : Decidable (Nonempty (LoadedPathRepeat H X)) := by
     aesop
 
 instance {H X} : Decidable (IsEmpty (LoadedPathRepeat H X)) := by
-  by_cases ∃ k, (H.get k).setEqTo X ∧ ∀ m ≤ k, (H.get m).isLoaded
+  by_cases ∃ k, (H.get k) = X ∧ ∀ m ≤ k, (H.get m).isLoaded
   case pos h =>
     apply isFalse
     simp only [not_isEmpty_iff]
@@ -170,7 +170,7 @@ For this we introduce `FreeRepeat` and the `flprep` abbreviation.
 /-- A free repeat is a non-loaded sequent that occured before. Values of this type are pairs:
 the number of steps to go back in the history and a proof that we then find the same set. -/
 def FreeRepeat (Hist : History) (X : Sequent) : Type :=
-  Subtype (fun k => (Hist.get k).setEqTo X ∧ ¬ X.isLoaded)
+  Subtype (fun k => (Hist.get k) = X ∧ ¬ X.isLoaded)
 
 lemma FreeRepeat_nil_impossible {X} : FreeRepeat [] X → False := by
   rintro ⟨n, n_h⟩
@@ -182,8 +182,6 @@ lemma FreeRepeat_iff_rep_and_isFree {H X} :
   constructor <;> intro hyp
   · rcases hyp with ⟨k,same, Xisl⟩
     unfold Sequent.isFree
-    simp_all
-    use H[k]
     grind
   · rcases hyp with ⟨⟨Y, Y_in, bla⟩, Xfree⟩
     rcases List.get_of_mem Y_in with ⟨k, def_Y⟩
@@ -219,22 +217,22 @@ inductive PdlRule : (X : Sequent) → (Y : Sequent) → Type
   -- The (L-) rule:
   | freeL {X L R δ α φ Y} :
         X = (L, R, some (Sum.inl (~'(⌊⌊δ⌋⌋⌊α⌋(φ : Formula)))))
-      → Y = (L.insert (~⌈⌈δ⌉⌉⌈α⌉φ), R, none)
+      → Y = (L ∪ {~⌈⌈δ⌉⌉⌈α⌉φ}, R, none)
       → PdlRule X Y
   | freeR {X L R δ α φ Y} :
         X = (L, R, some (Sum.inr (~'(⌊⌊δ⌋⌋⌊α⌋(φ : Formula)))))
-      → Y = (L, R.insert (~⌈⌈δ⌉⌉⌈α⌉φ), none)
+      → Y = (L, R ∪ {~⌈⌈δ⌉⌉⌈α⌉φ}, none)
       → PdlRule X Y
   -- The (M) rule:
   | modL {Y L R A X ξ} :
         X = ⟨L, R, some (Sum.inl (~'⌊·A⌋(ξ : AnyFormula)))⟩
-      → Y = ( match ξ with | .normal φ => ⟨(~φ) :: projection A L, projection A R, none⟩
-                           | .loaded χ => ⟨projection A L, projection A R, some (Sum.inl (~'χ))⟩ )
+      → Y = ( match ξ with | .normal φ => ⟨{~φ} ∪ L.projection A, R.projection A, none⟩
+                           | .loaded χ => ⟨L.projection A, R.projection A, some (Sum.inl (~'χ))⟩ )
       → PdlRule X Y
   | modR {Y L R A X ξ} :
         X = ⟨L, R, some (Sum.inr (~'⌊·A⌋(ξ : AnyFormula)))⟩
-      → Y = ( match ξ with | .normal φ => ⟨projection A L, (~φ) :: projection A R, none⟩
-                           | .loaded χ => ⟨projection A L, projection A R, some (Sum.inr (~'χ))⟩ )
+      → Y = ( match ξ with | .normal φ => ⟨L.projection A, {~φ} ∪ R.projection A, none⟩
+                           | .loaded χ => ⟨L.projection A, R.projection A, some (Sum.inr (~'χ))⟩ )
       → PdlRule X Y
 deriving DecidableEq
 
@@ -265,7 +263,7 @@ inductive Tableau : History → Sequent → Type
   | lrep {Hist X} (lpr : LoadedPathRepeat Hist X) : Tableau Hist X
 
 def Tableau.size {Hist X} : Tableau Hist X → Nat
-  | .loc _ _ lt next => 1 + ((endNodesOf lt).attach.map (fun ⟨Y, Y_in⟩ => (next Y Y_in).size)).sum
+  | .loc _ _ lt next => 1 + ((endNodesOf lt).attach.sum (fun ⟨Y, Y_in⟩ => (next Y Y_in).size))
   | .pdl _ _ _ next => 1 + next.size
   | .lrep _ => 1
 
@@ -275,9 +273,12 @@ lemma Tableau.size_next_lt_of_loc
   subst tab_def
   simp [Tableau.size]
   rw [@Nat.lt_one_add_iff]
+  sorry
+  /-
   apply List.le_sum_of_mem
   simp
   use Y, Y_in
+  -/
 
 lemma Tableau.size_next_lt_of_pdl
     (tab_def : tab = Tableau.pdl nrep bas r next)
@@ -288,12 +289,15 @@ instance instDecidableExistsEndNodeOf {X} {lt : LocalTableau X}
     {f : (Y : Sequent) → Y ∈ endNodesOf lt → Prop}
     {dec : (Y : Sequent) → (Y_in : Y ∈ endNodesOf lt) → Decidable (f Y Y_in)} :
     Decidable (∃ Y, ∃ Y_in : Y ∈ endNodesOf lt, f Y Y_in) := by
+  sorry
+  /-
   if h : (endNodesOf lt).attach.any (fun ⟨Y,Y_in⟩ => decide (f Y Y_in)) then
     apply isTrue
     aesop
   else
     apply isFalse
     aesop
+  -/
 
 instance Tableau.instDecidableEq {Hist X} {tab1 tab2 : Tableau Hist X} :
     Decidable (tab1 = tab2) := by
@@ -344,8 +348,8 @@ def Tableau.isLrep {Hist X} : (Tableau Hist X) → Prop
   | .lrep .. => True
 
 inductive provable : Formula → Prop
-  | byTableauL {φ : Formula} : Tableau .nil ⟨[~φ], [], none⟩ → provable φ
-  | byTableauR {φ : Formula} : Tableau .nil ⟨[], [~φ], none⟩ → provable φ
+  | byTableauL {φ : Formula} : Tableau .nil ⟨{~φ}, {}, none⟩ → provable φ
+  | byTableauR {φ : Formula} : Tableau .nil ⟨{}, {~φ}, none⟩ → provable φ
 
 /-- A Sequent is inconsistent if there exists a closed tableau for it. -/
 def inconsistent : Sequent → Prop

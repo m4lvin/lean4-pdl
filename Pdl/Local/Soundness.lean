@@ -20,7 +20,7 @@ theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
     rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, precons⟩
     cases rule
     case oneSidedL =>
-      simp_all only [applyLocalRule, List.empty_eq, List.diff_nil, List.map_map, List.mem_map,
+      simp_all [applyLocalRule, List.empty_eq, List.diff_nil, List.map_map, List.mem_map,
         Function.comp_apply, List.append_nil, Olf.change_old_none_none, forall_exists_index,
         forall_and_index, endNodesOf.eq_1, List.mem_flatten, List.mem_attach, true_and,
         Subtype.exists]
@@ -197,7 +197,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
         rcases IH with ⟨Y, Y_in, v_Y⟩
         use Y
         simp_all only [and_self, and_true]
-        use (L.diff Lcond ++ res, R, O)
+        use (L \ Lcond ∪ res, R, O)
         simp_all only [exists_prop, and_true]
         grind
       case oneSidedR YS orule YS_def => -- analogous to oneSidedL
@@ -254,7 +254,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             cases side <;> aesop
           subst α_same -- But cannot do `subst χ_def`.
           -- This F,δ pair is also used for one result in `B`:
-          have in_C : (L ++ F, R, some (Sum.inl (~'⌊⌊δ⌋⌋χ'))) ∈ C := by
+          have in_C : (L ∪ F, R, some (Sum.inl (~'⌊⌊δ⌋⌋χ'))) ∈ C := by
             simp [applyLocalRule, unfoldDiamondLoaded, YsetLoad] at hC
             rw [hC]
             simp
