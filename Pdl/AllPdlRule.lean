@@ -10,30 +10,29 @@ This is also similar to the definitions in `LocalAll.lean`. -/
 def PdlRule.all (X : Sequent) : List (Σ Y, PdlRule X Y) :=
   match X with
   | ⟨L, R, none⟩ => -- (L+) if X is not loaded, choice of formula
-        (L.attach.map (fun -- Catch a negation and all boxes (≥ 1) after it to be loaded.
-                    | ⟨~φ, in_L⟩ => match bdef : boxesOf φ with
-                        | (δ@δ_def:(_::_), ψ) =>
-                          have _in'' : (~⌈⌈δ.dropLast⌉⌉⌈δ.getLast _⌉ψ) ∈ L := by
-                            rw [← boxes_last, @List.dropLast_append_getLast, δ_def,
-                              ← def_of_boxesOf_def bdef]; exact in_L
-                          [ ⟨ ( L.erase _, R
-                              , some (Sum.inl (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by simp_all)⌋ψ))))
-                            , .loadL _in'' (nonBox_of_boxesOf_def bdef) rfl
-                            ⟩ ]
-                        | ([],_) => []
-                    | _ => [] )).flatten
+        ((L.fsort).attach.map (fun -- Catch a negation and all boxes (≥ 1) after it to be loaded.
+            | ⟨~φ, in_L⟩ => match bdef : boxesOf φ with
+              | (δ@δ_def:(_::_), ψ) =>
+                  have _in'' : (~⌈⌈δ.dropLast⌉⌉⌈δ.getLast (by simp_all)⌉ψ) ∈ L := by
+                    rw [← boxes_last, @List.dropLast_append_getLast, δ_def,
+                      ← def_of_boxesOf_def bdef]; simp_all
+                  let Y :=  ( L.erase (~⌈⌈δ.dropLast⌉⌉⌈δ.getLast (by simp_all)⌉ψ), R
+                            , some (Sum.inl (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by simp_all)⌋ψ))) )
+                  [ ⟨Y, PdlRule.loadL _in'' (nonBox_of_boxesOf_def bdef) rfl ⟩ ]
+              | ([],_) => []
+            | _ => [] )).flatten
         ++
-        (R.attach.map (fun
-                    | ⟨~φ, in_R⟩ => match bdef : boxesOf φ with
-                        | (δ@δ_def:(_::_), ψ) =>
-                          have _in'' : (~⌈⌈δ.dropLast⌉⌉⌈δ.getLast _⌉ψ) ∈ R := by
-                            rw [← boxes_last, @List.dropLast_append_getLast, δ_def,
-                              ← def_of_boxesOf_def bdef]; exact in_R
-                          [ ⟨ ( L, R.erase _
-                              , some (Sum.inr (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by simp_all)⌋ψ))))
-                            , .loadR _in'' (nonBox_of_boxesOf_def bdef) rfl ⟩ ]
-                        | ([],_) => []
-                    | _ => [] )).flatten
+        (R.fsort.attach.map (fun
+            | ⟨~φ, in_R⟩ => match bdef : boxesOf φ with
+                | (δ@δ_def:(_::_), ψ) =>
+                  have _in'' : (~⌈⌈δ.dropLast⌉⌉⌈δ.getLast (by simp_all)⌉ψ) ∈ R := by
+                    rw [← boxes_last, @List.dropLast_append_getLast, δ_def,
+                      ← def_of_boxesOf_def bdef]; simp_all
+                  let Y := ( L, R.erase (~⌈⌈δ.dropLast⌉⌉⌈δ.getLast (by simp_all)⌉ψ)
+                      , some (Sum.inr (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by simp_all)⌋ψ))))
+                  [ ⟨ Y, .loadR _in'' (nonBox_of_boxesOf_def bdef) rfl ⟩ ]
+                | ([],_) => []
+            | _ => [] )).flatten
   | ⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩ =>
           ( match ξ_def : ξ with -- (M) rule, deterministic:
           | .normal φ => [ ⟨ ⟨ _, _, none                ⟩, .modL rfl rfl ⟩ ]
@@ -42,11 +41,11 @@ def PdlRule.all (X : Sequent) : List (Σ Y, PdlRule X Y) :=
           [ match ξsp_def : ξ.split with
           | ⟨δs, φ⟩ => match sp_def : splitLast δs with
             | none =>
-              ⟨ (L.insert (~(⌊·a⌋ξ).unload), R, none)
+              ⟨ (L ∪ {~(⌊·a⌋ξ).unload}, R, none)
               , by refine @PdlRule.freeL _ L R [] (·a) φ _ ?_ ?_ <;>
                   simp_all [nil_of_splitLast_none, AnyFormula.split_eq_nil_is_normal]⟩
             | some ⟨δs_, δ⟩ =>
-              ⟨ (L.insert (~(⌊·a⌋ξ).unload), R, none)
+              ⟨ (L ∪ {~(⌊·a⌋ξ).unload}, R, none)
               , by refine @PdlRule.freeL _ L R (·a :: δs_) δ φ _ ?_ ?_ <;>
                   simp [box_loadBoxes_append_eq_of_loaded_eq_loadBoxes, Formula.boxes_cons,
                     LoadFormula.split_splitLast_to_loadBoxes ξsp_def sp_def]⟩
@@ -59,11 +58,11 @@ def PdlRule.all (X : Sequent) : List (Σ Y, PdlRule X Y) :=
           [ match ξsp_def : ξ.split with
           | ⟨δs, φ⟩ => match sp_def : splitLast δs with
             | none =>
-              ⟨ (L, R.insert (~(⌊·a⌋ξ).unload), none)
+              ⟨ (L, R ∪ {~(⌊·a⌋ξ).unload}, none)
               , by refine @PdlRule.freeR _ L R [] (·a) φ _ ?_ ?_ <;>
                   simp_all [nil_of_splitLast_none, AnyFormula.split_eq_nil_is_normal]⟩
             | some ⟨δs_, δ⟩ =>
-              ⟨ (L, R.insert (~(⌊·a⌋ξ).unload), none)
+              ⟨ (L, R ∪ {~(⌊·a⌋ξ).unload}, none)
               , by refine @PdlRule.freeR _ L R (·a :: δs_) δ φ _ ?_ ?_ <;>
                   simp [box_loadBoxes_append_eq_of_loaded_eq_loadBoxes, Formula.boxes_cons,
                     LoadFormula.split_splitLast_to_loadBoxes ξsp_def sp_def]⟩
@@ -79,7 +78,7 @@ lemma PdlRule.all_spec {X Y} (bas : X.basic) (r : PdlRule X Y) : ⟨Y, r⟩ ∈ 
     subst Y_def
     unfold PdlRule.all
     simp only [List.mem_append, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
-      Subtype.exists, ↓existsAndEq]
+      Subtype.exists, Formula.mem_fsort, ↓existsAndEq]
     refine Or.inl ⟨_, in_L, ?_⟩
     simp only
     split
@@ -100,7 +99,7 @@ lemma PdlRule.all_spec {X Y} (bas : X.basic) (r : PdlRule X Y) : ⟨Y, r⟩ ∈ 
     subst Y_def
     unfold PdlRule.all
     simp only [List.mem_append, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
-      Subtype.exists, ↓existsAndEq]
+      Subtype.exists, Formula.mem_fsort, ↓existsAndEq]
     refine Or.inr ⟨_, in_R, ?_⟩
     simp only
     split
@@ -129,7 +128,7 @@ lemma PdlRule.all_spec {X Y} (bas : X.basic) (r : PdlRule X Y) : ⟨Y, r⟩ ∈ 
         absurd bas
         simp only [Sequent.basic]
         rw [not_and_or]
-        aesop
+        simp_all [Sequent.toFinset]
     case cons β βs =>
       rw! [Formula.boxes_cons, LoadFormula.boxes_cons]
       cases β_def : β <;> simp_all [PdlRule.all]
@@ -155,7 +154,7 @@ lemma PdlRule.all_spec {X Y} (bas : X.basic) (r : PdlRule X Y) : ⟨Y, r⟩ ∈ 
         absurd bas
         simp only [Sequent.basic]
         rw [not_and_or]
-        aesop
+        simp_all [Sequent.toFinset]
   case freeR L R δs α φ X_def Y_def =>
     -- COPY-PASTA from `freeL`.
     subst X_def Y_def
@@ -169,7 +168,7 @@ lemma PdlRule.all_spec {X Y} (bas : X.basic) (r : PdlRule X Y) : ⟨Y, r⟩ ∈ 
         absurd bas
         simp only [Sequent.basic]
         rw [not_and_or]
-        aesop
+        simp_all [Sequent.toFinset]
     case cons β βs =>
       rw! [Formula.boxes_cons, LoadFormula.boxes_cons]
       cases β_def : β <;> simp_all [PdlRule.all]
@@ -195,7 +194,7 @@ lemma PdlRule.all_spec {X Y} (bas : X.basic) (r : PdlRule X Y) : ⟨Y, r⟩ ∈ 
         absurd bas
         simp only [Sequent.basic]
         rw [not_and_or]
-        aesop
+        simp_all [Sequent.toFinset]
   case modL L R a ξ X_def Y_def =>
     subst X_def Y_def
     cases ξ <;> simp_all [all]

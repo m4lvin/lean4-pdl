@@ -679,8 +679,9 @@ instance setProgramHasLength : HasLength (Finset Program) := ⟨fun X => X.sum l
 /-! ## Sorting formulas
 
 Needed to convert a `Finset Formula` to `List Formula`.
--/
 
+TODO: make this a separate file
+-/
 
 mutual
 
@@ -720,16 +721,41 @@ instance : DecidableRel Formula.le := sorry
 instance : DecidableRel Program.le := sorry
 end
 
-instance : LE Formula := ⟨Formula.le⟩
+instance instLEFormula : LE Formula := ⟨Formula.le⟩
 
-instance : LT Formula := ⟨fun φ1 φ2 ↦ φ1 ≠ φ2 ∧ φ1.le φ2⟩
+instance instLTFormula : LT Formula := ⟨fun φ1 φ2 ↦ φ1 ≠ φ2 ∧ φ1.le φ2⟩
 
 instance : DecidableRel Formula.le := sorry
 
 instance : DecidableRel (fun (a b : Formula) ↦ a ≤ b) := sorry
 
-instance : IsTrans Formula (fun (a b : Formula) ↦ a ≤ b) := sorry
+lemma Formula.le_trans : ∀ (f g h : Formula), f ≤ g → g ≤ h → f ≤ h := by
+  intro f g h f_g g_h
+  unfold LE.le instLEFormula Formula.le at *
+  cases f <;> cases g <;> cases h
+  all_goals
+    simp_all
+  · grind
+  case neg.neg.neg f g h =>
+    apply Formula.le_trans f g h f_g g_h
+  case and.and.and =>
+    sorry
+  case box.box.box =>
+    sorry
+termination_by
+  f => f -- ??
+
+instance instIsTransFormulaLe : IsTrans Formula (fun (a b : Formula) ↦ a ≤ b) :=
+  ⟨Formula.le_trans⟩
 
 instance : Std.Antisymm (fun (a b : Formula) ↦ a ≤ b) := sorry
 
 instance : Std.Total (fun (a b : Formula) ↦ a ≤ b) := sorry
+
+def Finset.fsort : Finset Formula → List Formula | FS => FS.sort
+
+@[simp]
+lemma Formula.mem_fsort {X : Finset Formula} : φ ∈ X.fsort ↔ φ ∈ X := by simp [Finset.fsort]
+
+-- #eval ({(·20 : Formula), (·12 : Formula)} : Finset Formula)
+-- #eval ({(·20 : Formula), (·12 : Formula)} : Finset Formula).sort
