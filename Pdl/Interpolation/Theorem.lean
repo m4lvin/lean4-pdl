@@ -15,8 +15,8 @@ def Interpolant (φ : Formula) (ψ : Formula) (θ : Formula) :=
 theorem interpolation {φ ψ : Formula} :
     tautology (φ ↣ ψ) → ∃ θ : Formula, Interpolant φ ψ θ := by
   intro hyp
-  let X : Sequent := ([φ], [~(ψ)], none)
-  have have_tab : ∃ u_tab : Tableau .nil ([φ], [~(ψ)], none), u_tab.isUniform := by
+  let X : Sequent := ({φ}, {~(ψ)}, none)
+  have have_tab : ∃ u_tab : Tableau .nil ({φ}, {~(ψ)}, none), u_tab.isUniform := by
     rw [tautImp_iff_SequentUnsat rfl] at hyp
     rw [← consIffSat _ (by simp)] at hyp -- using completeness
     simp [consistent,inconsistent] at hyp
