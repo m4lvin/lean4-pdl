@@ -628,15 +628,6 @@ lemma combo_mem_of_forall_in {α : Type} [DecidableEq α] {q : α → Type} {L :
     specialize IH (fun y y_in => f y (by aesop))
     exact ⟨fun y y_in => g _ (by simp_all), IH _ (by grind), (by grind)⟩
 
-/-- TODO: to make .all below computable, Finsets of Sequents should also have an order and can be
-sorted, like Finsets of formulas with .fsort instead of .toList which is noncomputable. -/
-def Finset.seqSort : Finset Sequent → List Sequent :=
-  sorry
-
-@[simp]
-lemma Finset.mem_seqSort (A : Finset Sequent) : X ∈ A.seqSort ↔ X ∈ A := by
-  sorry
-
 /-- Version of `combo` for `Finset`s. -/
 def comboF {q : Sequent → Type} (s : Finset Sequent)
     (f : (x : Sequent) → x ∈ s → List (q x)) : List ((x : Sequent) → x ∈ s → q x) :=

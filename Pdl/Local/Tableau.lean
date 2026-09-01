@@ -456,14 +456,27 @@ def endNode_to_endNodeOfChild {X lrA} def_X subTabs {E}
     @Subtype Sequent (fun x => ∃ h, E ∈ endNodesOf (subTabs x h)) := by
   simp only [endNodesOf, Finset.sup_image, Function.id_comp, Finset.mem_sup, Finset.mem_attach,
     true_and, Subtype.exists] at E_in
-  let L : Finset Sequent :=
+  let A : Finset Sequent :=
     lrA.C.attach.filterMap
       (fun ⟨Y,Y_in⟩ => if E ∈ endNodesOf (subTabs Y Y_in) then some Y else none)
       (by intro _ _; grind)
-  have L_ne : L ≠ {} := by unfold L; simp; sorry
-  have L_sort_ne : @Finset.sort _ L /- TODO Sequent.le -/ sorry sorry sorry sorry sorry ≠ [] := sorry
-  refine ⟨List.head _ L_sort_ne, ?_⟩
-  sorry -- grind
+  have L_ne : A ≠ {} := by
+    unfold A; simp
+    rcases E_in with ⟨Y, Y_in, E_in⟩
+    push_neg
+    use Y
+    simp
+    grind
+  let L := A.seqSort
+  have L_ne : L ≠ {} := by
+    unfold L
+    have := @Finset.mem_seqSort (A := A)
+    -- easy?
+    sorry
+  have := L.head_mem L_ne
+  refine ⟨L.head L_ne , ?_⟩
+  -- tricky but should be doable?
+  sorry
 
 theorem endNodeIsEndNodeOfChild def_X
   (E_in : E ∈ endNodesOf (@LocalTableau.byLocalRule X _ def_X subTabs)) :
@@ -541,7 +554,8 @@ local tableau `lt` for `X` we have that `Y ≠ X`. -/
 theorem endNodesOf_nonbasic_non_eq {X Y} (lt : LocalTableau X) (X_nonbas : ¬ X.basic) :
     Y ∈ endNodesOf lt → Y ≠ X := by
   intro Y_in
-  sorry
+  have := endNodesOf_basic Y_in
+  grind
 
 -- upstream me / Haitian? ;-)
 lemma IsDershowitzMannaLT.irrefl [Preorder α] [WellFoundedLT α] (X : Multiset α) :

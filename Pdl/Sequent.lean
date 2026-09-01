@@ -526,3 +526,14 @@ lemma Sequent.isAtomic_of_basic_of_negLoad_mem_wForms {X : Sequent} {α} {ξ : A
     rcases h with rfl | rfl <;> simp [Sequent.toFinset]
   have := bas.1 _ h_mem
   cases ξ <;> cases α <;> simp_all [Formula.basic, Program.isAtomic, LoadFormula.unload]
+
+/-! ## Sorting Finsets of Sequents -/
+
+/-- TODO: to make .all and other things computable, Finsets of Sequents should have an order to be
+sorted, like Finsets of formulas with .fsort instead of .toList which is noncomputable. -/
+def Finset.seqSort : Finset Sequent → List Sequent :=
+  sorry
+
+@[simp]
+lemma Finset.mem_seqSort (A : Finset Sequent) : X ∈ A.seqSort ↔ X ∈ A := by
+  sorry

@@ -288,11 +288,18 @@ lemma FL_idem_ext {X : Finset Formula} {φ} : φ ∈ FL (FL X) ↔ φ ∈ FL X :
   constructor
   · unfold FL
     intro φ_in
-    -- have := @FL_trans
-    sorry
-  · intro φ_in
-    -- have := @FLL_refl_sub (FL X).sort
-    sorry
+    simp only [mem_sup, List.mem_toFinset] at *
+    rcases φ_in  with ⟨φ2, ⟨⟨φ3, φ3_in, φ2_in⟩, φ_in⟩⟩
+    have := FL_trans φ2_in
+    grind
+  · unfold FL
+    intro φ_in
+    simp only [mem_sup, List.mem_toFinset] at *
+    rcases φ_in with ⟨φ2, φ2_in, φ_in⟩
+    use φ2
+    simp_all only [and_true]
+    have := @FL_refl φ2
+    use φ2
 
 lemma FL_sub_FL_iff_sub_FL {X Y : Finset Formula} : X ⊆ FL Y ↔ FL X ⊆ FL Y := by
   constructor
