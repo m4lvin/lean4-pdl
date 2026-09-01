@@ -42,20 +42,20 @@ namespace LocalRuleApp
 
 /-- The results of a local rule acting on the right have an empty left component. -/
 lemma left_nil_of_mem_ress {lra : LocalRuleApp} (h : lra.isRightRule) :
-    ∀ Z ∈ lra.ress, Z.1 = [] := by
+    ∀ Z ∈ lra.ress, Z.1 = ∅ := by
   rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
   simp only at h ⊢
   cases lr
   case oneSidedR ress' orule YS_def =>
     subst YS_def
     rintro Z hZ
-    simp only [List.mem_map] at hZ
+    simp only [Finset.mem_image] at hZ
     obtain ⟨res, -, rfl⟩ := hZ
     rfl
   case loadedR χ lrule YS_def =>
     subst YS_def
     rintro Z hZ
-    simp only [List.mem_map] at hZ
+    simp only [Finset.mem_image] at hZ
     obtain ⟨⟨F, o⟩, -, rfl⟩ := hZ
     rfl
   all_goals
@@ -63,11 +63,11 @@ lemma left_nil_of_mem_ress {lra : LocalRuleApp} (h : lra.isRightRule) :
 
 /-- If the premise of a right rule has an empty left component then so have all
 conclusions. -/
-lemma C_left_nil {lra : LocalRuleApp} (h : lra.isRightRule) (hL : lra.L = []) :
-    ∀ Y ∈ lra.C, Y.1 = [] := by
+lemma C_left_nil {lra : LocalRuleApp} (h : lra.isRightRule) (hL : lra.L = ∅) :
+    ∀ Y ∈ lra.C, Y.1 = ∅ := by
   intro Y hY
   rw [lra.hC] at hY
-  simp only [applyLocalRule, List.mem_map] at hY
+  simp only [applyLocalRule, Finset.mem_image] at hY
   obtain ⟨⟨Ln, Rn, On⟩, hmem, rfl⟩ := hY
   have hn := left_nil_of_mem_ress h _ hmem
   simp only at hn
@@ -75,10 +75,10 @@ lemma C_left_nil {lra : LocalRuleApp} (h : lra.isRightRule) (hL : lra.L = []) :
 
 /-- If the premise of a right rule is not loaded on the left and has an empty left
 component, then the same holds for all conclusions. -/
-lemma C_left_eq_nil {lra : LocalRuleApp} (h : lra.isRightRule) (hL : lra.X.left = []) :
-    ∀ Y ∈ lra.C, Y.left = [] := by
+lemma C_left_eq_nil {lra : LocalRuleApp} (h : lra.isRightRule) (hL : lra.X.left = ∅) :
+    ∀ Y ∈ lra.C, Y.left = ∅ := by
   intro Y hY
-  simp only [LocalRuleApp.X, Sequent.left_eq, List.append_eq_nil_iff] at hL
+  simp only [LocalRuleApp.X, Sequent.left_eq, Finset.union_eq_empty] at hL
   obtain ⟨hL1, hOL⟩ := hL
   rw [lra.hC] at hY
   rcases hlra : lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
@@ -88,7 +88,7 @@ lemma C_left_eq_nil {lra : LocalRuleApp} (h : lra.isRightRule) (hL : lra.X.left 
   cases lr
   case oneSidedR ress' orule YS_def =>
     subst YS_def
-    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hY
+    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hY
     obtain ⟨res, -, rfl⟩ := hY
     simp [Sequent.left, Olf.change, hOL]
   case loadedR χ lrule YS_def =>
@@ -96,7 +96,7 @@ lemma C_left_eq_nil {lra : LocalRuleApp} (h : lra.isRightRule) (hL : lra.X.left 
     have hO := (Option.some_subseteq.mp pre.2.2).symm
     simp only at hO
     subst hO
-    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hY
+    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hY
     obtain ⟨⟨F, o⟩, -, rfl⟩ := hY
     rcases o with _ | o <;> simp [Sequent.left, Olf.L]
   all_goals
@@ -116,14 +116,14 @@ lemma rightOnlyApp_X {lra : LocalRuleApp} (h : lra.isRightRule) :
   lra.toContext_rightOnly_X rfl h
 
 lemma rightOnlyApp_C {lra : LocalRuleApp} (h : lra.isRightRule) :
-    lra.rightOnlyApp.C = lra.C.map Sequent.rightOnly := by
+    lra.rightOnlyApp.C = lra.C.image Sequent.rightOnly := by
   have hr : lra.rightOnlyApp.isRightRule := by simpa [rightOnlyApp] using h
   have hX := rightOnlyApp_X h
-  have h1 : lra.rightOnlyApp.C.map Sequent.rightOnly = lra.C.map Sequent.rightOnly :=
+  have h1 : lra.rightOnlyApp.C.image Sequent.rightOnly = lra.C.image Sequent.rightOnly :=
     Uniformity.map_rightOnly_C_eq (lra.toContext_sameRuleAs _) (by rw [hX]; rfl)
   rw [← h1]
-  have hL : lra.rightOnlyApp.L = [] := congrArg (fun Y => Y.1) hX
-  refine ((List.map_congr_left ?_).trans (List.map_id _)).symm
+  have hL : lra.rightOnlyApp.L = ∅ := congrArg (fun Y => Y.1) hX
+  refine ((Finset.image_congr ?_).trans (Finset.image_id)).symm
   intro Y hY
   have hY1 := C_left_nil hr hL Y hY
   rcases Y with ⟨L, R, O⟩
@@ -136,7 +136,7 @@ lemma rightOnly_lt_Sequent {lra : LocalRuleApp} (h : lra.isRightRule) :
     ∀ Y ∈ lra.C, lt_Sequent Y.rightOnly lra.X.rightOnly := by
   intro Y hY
   have hdm := localRuleApp.decreases_DM lra.rightOnlyApp Y.rightOnly
-    (by rw [rightOnlyApp_C h]; exact List.mem_map_of_mem hY)
+    (by rw [rightOnlyApp_C h]; exact Finset.mem_image_of_mem _ hY)
   rwa [rightOnlyApp_X h] at hdm
 
 end LocalRuleApp
@@ -144,12 +144,19 @@ end LocalRuleApp
 /-! ## Satisfaction of a sequent with an empty left component -/
 
 lemma models_iff_right {W : Type} {M : KripkeModel W} {w : W} {X : Sequent}
-    (hL : X.left = []) : (M, w) ⊨ X ↔ ∀ φ ∈ X.right, evaluate M w φ := by
+    (hL : X.left = ∅) : (M, w) ⊨ X ↔ ∀ φ ∈ X.right, evaluate M w φ := by
   rcases X with ⟨L, R, O⟩
-  simp only [Sequent.left_eq, List.append_eq_nil_iff] at hL
+  simp only [Sequent.left_eq, Finset.union_eq_empty] at hL
   obtain ⟨rfl, hO⟩ := hL
-  simp only [modelCanSemImplySequent, Sequent.right_eq, List.mem_append]
-  rcases O with _ | (o | o) <;> simp [Olf.R, Olf.L] at hO ⊢
+  simp only [modelCanSemImplySequent, Sequent.right_eq, Finset.mem_union]
+  rcases O with _ | (o | o) <;>
+    simp [Olf.R, Olf.L, Sequent.toFinset, negUnload] at hO ⊢
+  constructor
+  · rintro ⟨h1, h2⟩ φ (hφ | rfl)
+    · exact h2 φ hφ
+    · exact h1
+  · intro h
+    exact ⟨h _ (Or.inr rfl), fun a ha => h a (Or.inl ha)⟩
 
 /-! ## The local step, with the witness distance
 
@@ -179,20 +186,21 @@ lemma LocalRuleApp.rightRule_sat_witDist {lra : LocalRuleApp} (hr : lra.isRightR
     -- and one of the conclusions holds at `v` by the invertibility of the rule.
     subst YS_def
     subst hC
-    have hcon : evaluate M v (con Rcond) :=
-      conEval.mpr (fun f hf => hv f (List.mem_append_left _ (pre.2.1.subset hf)))
+    have hcon : evaluate M v (con Rcond.fsort) :=
+      conEval.mpr (fun f hf =>
+        hv f (Finset.mem_union_left _ (pre.2.1 (Formula.mem_fsort.mp hf))))
     have hdis := (oneSidedLocalRuleTruth orule W M v).mp hcon
-    rw [disconEval] at hdis
+    rw [Finset.disconEval] at hdis
     obtain ⟨res, hres, hresv⟩ := hdis
-    refine ⟨(L.diff ∅ ++ ∅, R.diff Rcond ++ res, Olf.change O none none), ?_, ?_, ?_⟩
-    · simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply]
+    refine ⟨(L \ ∅ ∪ ∅, R \ Rcond ∪ res, Olf.change O none none), ?_, ?_, ?_⟩
+    · simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply]
       exact ⟨res, hres, rfl⟩
     · intro f hf
-      simp only [Sequent.right_eq, List.mem_append, Olf.change_old_none_none] at hf
+      simp only [Sequent.right_eq, Finset.mem_union, Olf.change_old_none_none] at hf
       rcases hf with (hf | hf) | hf
-      · exact hv f (List.mem_append_left _ (List.diff_subset _ _ hf))
+      · exact hv f (Finset.mem_union_left _ (Finset.sdiff_subset hf))
       · exact hresv f hf
-      · exact hv f (List.mem_append_right _ hf)
+      · exact hv f (Finset.mem_union_right _ hf)
     · rw [Olf.change_old_none_none]
       exact witDist_congr (by rcases O with _ | (o | o) <;> rfl)
   case loadedR χ lrule YS_def =>
@@ -209,14 +217,22 @@ lemma LocalRuleApp.rightRule_sat_witDist {lra : LocalRuleApp} (hr : lra.isRightR
       obtain ⟨⟨F, δ⟩, hFD, hFv, hbox, hdist⟩ :=
         existsD_of_true_diamond α χ'.split.1 χ'.split.2 hχ
       simp only at hFv hbox hdist
-      refine ⟨(L.diff ∅ ++ ∅, R.diff ∅ ++ F, some (Sum.inr (~'(⌊⌊δ⌋⌋χ')))), ?_, ?_, ?_⟩
-      · simp only [applyLocalRule, unfoldDiamondLoaded, List.map_map, List.mem_map,
-          Function.comp_apply]
-        exact ⟨(F, δ), hFD, by simp [YsetLoad, Olf.change_some]⟩
+      refine ⟨(L \ ∅ ∪ ∅, R \ ∅ ∪ F.toFinset, some (Sum.inr (~'(⌊⌊δ⌋⌋χ')))), ?_, ?_, ?_⟩
+      · have hmem : (F.toFinset, (some (~'(⌊⌊δ⌋⌋χ')) : Option NegLoadFormula))
+            ∈ (unfoldDiamondLoaded α χ').toFinFinOpt := by
+          simp only [List.toFinFinOpt, List.mem_toFinset, unfoldDiamondLoaded]
+          refine List.mem_map.mpr ⟨(F, some (~'(⌊⌊δ⌋⌋χ'))), ?_, rfl⟩
+          exact List.mem_map.mpr ⟨(F, δ), hFD, rfl⟩
+        simp only [applyLocalRule]
+        refine Finset.mem_image.mpr
+          ⟨(∅, F.toFinset, some (Sum.inr (~'(⌊⌊δ⌋⌋χ')))), ?_, ?_⟩
+        · exact Finset.mem_image.mpr ⟨_, hmem, rfl⟩
+        · simp [Olf.change]
       · intro f hf
-        simp only [Sequent.right_eq, List.mem_append, Olf.R_inr, List.mem_singleton] at hf
+        simp only [Sequent.right_eq, Finset.mem_union, Olf.R_inr, Finset.mem_singleton,
+          List.mem_toFinset] at hf
         rcases hf with (hf | hf) | hf
-        · exact hv f (List.mem_append_left _ hf)
+        · exact hv f (Finset.mem_union_left _ (Finset.sdiff_subset hf))
         · exact conEval.mp hFv f hf
         · subst hf
           rw [LoadFormula.unload_eq_boxes_split, LoadFormula.boxes_split, boxes_append]
@@ -238,15 +254,22 @@ lemma LocalRuleApp.rightRule_sat_witDist {lra : LocalRuleApp} (hr : lra.isRightR
           · simp [splitLast] at hsl
         subst hδ
         have hφ : evaluate M v (~φ) := by simpa using hbox
-        refine ⟨(L.diff ∅ ++ ∅, R.diff ∅ ++ (F ∪ [~φ]), none), ?_, ?_, ?_⟩
-        · simp only [applyLocalRule, unfoldDiamondLoaded', List.map_map, List.mem_map,
-            Function.comp_apply]
-          exact ⟨(F, []), hFD, by simp [YsetLoad', Olf.change_some_some_eq]⟩
+        refine ⟨(L \ ∅ ∪ ∅, R \ ∅ ∪ (F ∪ [~φ]).toFinset, none), ?_, ?_, ?_⟩
+        · have hmem : ((F ∪ [~φ]).toFinset, (none : Option NegLoadFormula))
+              ∈ (unfoldDiamondLoaded' α φ).toFinFinOpt := by
+            simp only [List.toFinFinOpt, List.mem_toFinset, unfoldDiamondLoaded']
+            refine List.mem_map.mpr ⟨(F ∪ [~φ], none), ?_, rfl⟩
+            exact List.mem_map.mpr ⟨(F, []), hFD, by simp [YsetLoad']⟩
+          simp only [applyLocalRule]
+          refine Finset.mem_image.mpr
+            ⟨(∅, (F ∪ [~φ]).toFinset, none), ?_, ?_⟩
+          · exact Finset.mem_image.mpr ⟨_, hmem, rfl⟩
+          · simp [Olf.change]
         · intro f hf
-          simp only [Sequent.right_eq, List.mem_append, Olf.R_none, List.append_nil,
-            List.mem_union_iff, List.mem_singleton] at hf
+          simp only [Sequent.right_eq, Finset.mem_union, Olf.R_none, Finset.union_empty,
+            List.mem_toFinset, List.mem_union_iff, List.mem_singleton] at hf
           rcases hf with hf | (hf | hf)
-          · exact hv f (List.mem_append_left _ hf)
+          · exact hv f (Finset.mem_union_left _ (Finset.sdiff_subset hf))
           · exact conEval.mp hFv f hf
           · exact hf ▸ hφ
         · rw [witDist_eq_of_loadedSplit (γ := ([] : List Program)) (ψ := (⊥ : Formula))
@@ -259,14 +282,23 @@ lemma LocalRuleApp.rightRule_sat_witDist {lra : LocalRuleApp} (hr : lra.isRightR
           · exact le_of_le_of_eq (iInf_le _ (⟨v, hφ⟩ : {w : W // evaluate M w (~φ)}))
               distance_list_nil_self
       · have hδ : δ0 ++ [β] = δ := splitLast_undo_of_some hsl
-        refine ⟨(L.diff ∅ ++ ∅, R.diff ∅ ++ F, some (Sum.inr (~'(loadMulti δ0 β φ)))), ?_, ?_, ?_⟩
-        · simp only [applyLocalRule, unfoldDiamondLoaded', List.map_map, List.mem_map,
-            Function.comp_apply]
-          exact ⟨(F, δ), hFD, by simp [YsetLoad', hsl, Olf.change_some]⟩
+        refine ⟨(L \ ∅ ∪ ∅, R \ ∅ ∪ F.toFinset, some (Sum.inr (~'(loadMulti δ0 β φ)))),
+          ?_, ?_, ?_⟩
+        · have hmem : (F.toFinset, (some (~'(loadMulti δ0 β φ)) : Option NegLoadFormula))
+              ∈ (unfoldDiamondLoaded' α φ).toFinFinOpt := by
+            simp only [List.toFinFinOpt, List.mem_toFinset, unfoldDiamondLoaded']
+            refine List.mem_map.mpr ⟨(F, some (~'(loadMulti δ0 β φ))), ?_, rfl⟩
+            exact List.mem_map.mpr ⟨(F, δ), hFD, by simp [YsetLoad', hsl]⟩
+          simp only [applyLocalRule]
+          refine Finset.mem_image.mpr
+            ⟨(∅, F.toFinset, some (Sum.inr (~'(loadMulti δ0 β φ)))), ?_, ?_⟩
+          · exact Finset.mem_image.mpr ⟨_, hmem, rfl⟩
+          · simp [Olf.change]
         · intro f hf
-          simp only [Sequent.right_eq, List.mem_append, Olf.R_inr, List.mem_singleton] at hf
+          simp only [Sequent.right_eq, Finset.mem_union, Olf.R_inr, Finset.mem_singleton,
+            List.mem_toFinset] at hf
           rcases hf with (hf | hf) | hf
-          · exact hv f (List.mem_append_left _ hf)
+          · exact hv f (Finset.mem_union_left _ (Finset.sdiff_subset hf))
           · exact conEval.mp hFv f hf
           · subst hf
             rw [unload_loadMulti]
@@ -295,11 +327,14 @@ lemma isRightLoaded_of_mem_lambdaTwo (C : LoadedCluster tab) {Δ : Sequent}
   exact ⟨o, by simp [Sequent.O, Sequent.rightOnly, hh]⟩
 
 /-- If a right rule is applied at some node with right component `Δ`, then the steps
-`stepOf Δ` are the right components of the conclusions of the local rule applied there. -/
+`stepOf Δ` are the right components of the conclusions of the local rule applied there.
+
+Note that `stepOf` is a list while `LocalRuleApp.C` is a `Finset`, so we compare with
+`lra.C.toList`, matching `FinePathIn.lra?_spec`. -/
 lemma exists_lra_stepOf (C : LoadedCluster tab) {Δ : Sequent}
     (hne : C.nodesWithFineRight Δ ≠ []) (hb : ¬ Δ.basic) :
     ∃ lra : LocalRuleApp, lra.isRightRule ∧ lra.X.rightOnly = Δ ∧
-      C.stepOf Δ = lra.C.map Sequent.rightOnly := by
+      C.stepOf Δ = lra.C.toList.map Sequent.rightOnly := by
   unfold stepOf
   cases hh : (C.nodesWithFineRight Δ).head? with
   | none => exact absurd (List.head?_eq_none_iff.mp hh) hne
@@ -329,7 +364,7 @@ lemma stepOf_lt_Sequent (C : LoadedCluster tab) :
     rw [hstep, List.mem_map] at hY
     obtain ⟨Z, hZ, rfl⟩ := hY
     rw [← hX]
-    exact LocalRuleApp.rightOnly_lt_Sequent hright Z hZ
+    exact LocalRuleApp.rightOnly_lt_Sequent hright Z (Finset.mem_toList.mp hZ)
 
 /-- The `basicStep` field: the modal step at a basic `Δ ∈ Λ₂[C]`. -/
 lemma basicStep_of (C : LoadedCluster tab)
@@ -388,11 +423,11 @@ lemma basicStep_of (C : LoadedCluster tab)
       subst hAξ
       simp [Sequent.loadedFma, Sequent.loadedSplit, Uniformity.modRChildRight]
     · intro W M w v hw hrel hload φ hφ
-      simp only [Uniformity.modRChildRight, Sequent.right_eq, Olf.R_inr, List.mem_append,
-        List.mem_singleton] at hφ
+      simp only [Uniformity.modRChildRight, Sequent.right_eq, Olf.R_inr, Finset.mem_union,
+        Finset.mem_singleton] at hφ
       rcases hφ with hφ | hφ
-      · have hbox : (⌈·A⌉φ) ∈ Δ.2.1 := proj.mp hφ
-        have := hw _ (List.mem_append_left _ hbox)
+      · have hbox : (⌈·A⌉φ) ∈ Δ.2.1 := Finset.mem_projection.mp hφ
+        have := hw _ (Finset.mem_union_left _ hbox)
         exact this v hrel
       · subst hφ
         rw [LoadFormula.unload_eq_boxes_split]
@@ -411,14 +446,17 @@ lemma nonBasicStep_of (C : LoadedCluster tab)
   obtain ⟨lra, hright, hX, hstep⟩ := C.exists_lra_stepOf (hER Δ hΔ) hb
   have hX' : lra.rightOnlyApp.X = Δ := by
     rw [LocalRuleApp.rightOnlyApp_X hright, hX]
-  have hC' : lra.rightOnlyApp.C = C.stepOf Δ := by
-    rw [LocalRuleApp.rightOnlyApp_C hright, hstep]
+  have hC' : ∀ Y ∈ lra.rightOnlyApp.C, Y ∈ C.stepOf Δ := by
+    intro Y hY
+    rw [LocalRuleApp.rightOnlyApp_C hright, Finset.mem_image] at hY
+    obtain ⟨Z, hZ, rfl⟩ := hY
+    rw [hstep]
+    exact List.mem_map_of_mem (Finset.mem_toList.mpr hZ)
   have hr' : lra.rightOnlyApp.isRightRule := by
     rw [LocalRuleApp.rightOnlyApp_isRightRule]; exact hright
   obtain ⟨Y, hY, hYsat, hYwd⟩ :=
     LocalRuleApp.rightRule_sat_witDist hr' (by rw [hX']; exact hv)
-  rw [hC'] at hY
-  obtain ⟨i, hi, heq⟩ := List.mem_iff_getElem.mp hY
+  obtain ⟨i, hi, heq⟩ := List.mem_iff_getElem.mp (hC' Y hY)
   refine ⟨i, hi, ?_, ?_⟩
   · rw [heq]; exact hYsat
   · rw [heq, hYwd, hX']
