@@ -214,7 +214,7 @@ lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos}
         case neg φ =>
           by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
           · rcases h with ⟨head, tail, ψ, ψ_nonBox, bxs_def⟩
-            simp [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
+            simp only [bxs_def, Finset.mem_singleton] at next_in
             refine ⟨L, R, Or.inl ⟨ rfl, Or.inl ⟨(head :: tail).dropLast
                                  , (head :: tail).getLast (by simp), ψ, ?_⟩⟩⟩
             rw [← boxes_last, List.dropLast_append_getLast]
@@ -227,7 +227,7 @@ lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos}
         case neg φ =>
           by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
           · rcases h with ⟨head, tail, ψ, ψ_nonBox, bxs_def⟩
-            simp [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
+            simp only [bxs_def, Finset.mem_singleton] at next_in
             refine ⟨L, R, Or.inl ⟨ rfl, Or.inr ⟨(head :: tail).dropLast
                                  , (head :: tail).getLast (by simp), ψ, ?_⟩⟩⟩
             rw [← boxes_last, List.dropLast_append_getLast]
@@ -307,7 +307,7 @@ lemma move_of_mem_theMoves {pos next} :
       case neg φ =>
         by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
         · rcases h with ⟨head, tail, ψ, ψ_nonBox, bxs_def⟩
-          simp [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
+          simp only [bxs_def, Finset.mem_singleton] at next_in
           subst next
           have : ∀ h, φ = ⌈⌈(head :: tail).dropLast⌉⌉⌈(head :: tail).getLast h⌉ψ := by
             simp [def_of_boxesOf_def bxs_def]
@@ -327,7 +327,7 @@ lemma move_of_mem_theMoves {pos next} :
       case neg φ =>
         by_cases h: ∃ head tail ψ, ¬ ψ.isBox ∧ boxesOf φ = ((head :: tail), ψ)
         · rcases h with ⟨head, tail, ψ, ψ_nonBox, bxs_def⟩
-          simp [bxs_def, List.mem_cons, List.not_mem_nil, or_false] at next_in
+          simp only [bxs_def, Finset.mem_singleton] at next_in
           subst next
           have : ∀ h, φ = ⌈⌈(head :: tail).dropLast⌉⌉⌈(head :: tail).getLast h⌉ψ := by
             simp [def_of_boxesOf_def bxs_def]
@@ -421,9 +421,9 @@ lemma mem_theMoves_of_move {pos next} :
           absurd bas
           rintro ⟨bas, nclos⟩
           simp only [Sequent.toFinset, Option.map_some, Sum.elim_inl, negUnload, LoadFormula.unload,
-            Option.toFinset_some, Finset.union_assoc, Finset.union_singleton, Finset.union_insert,
-            Finset.mem_insert, Finset.mem_union, Formula.basic, decide_false, decide_true,
-            forall_eq_or_imp, Bool.false_eq_true, false_and] at bas
+            Option.toFinset_some, Finset.union_singleton, Finset.mem_insert, Finset.mem_union,
+            Formula.basic, decide_false, decide_true, forall_eq_or_imp, Bool.false_eq_true,
+            false_and] at bas
       case cons α δs =>
         cases α
         case atom_prog a =>
@@ -812,6 +812,9 @@ lemma exists_mem_sublists_toFinsetEq_of_Subset [DecidableEq α] {A B : List α} 
     true_and]
   aesop
 
+/-
+NOTE: again, this is hopefully no longer needed?
+
 lemma Sequent.allSeqt_subseteq_FL_complete (X : Sequent) :
     ∀ Y, Y.subseteq_FL X → ⟦Y⟧ ∈ X.allSeqt_subseteq_FL := by
   intro Y Y_in
@@ -939,6 +942,21 @@ instance Seqt.subseteq_FL_instFintype {Xs : Seqt} : Fintype { Ys // Seqt.subsete
 This means "there are only finitely many "sequents modulo `setEq`" that are subseteq_FL Y. -/
 lemma Seqt.subseteq_FL_finite {Xs : Seqt} : Finite { Ys // Seqt.subseteq_FL Ys Xs } :=
   @Finite.of_fintype { Ys // Seqt.subseteq_FL Ys Xs } Seqt.subseteq_FL_instFintype
+
+-/
+
+
+/-! ## New stuff, now about Sequent instead of Seqt -/
+
+instance Sequent.subseteq_FL_instFintype {X : Sequent} : Fintype { Y // Sequent.subseteq_FL Y X } :=
+  -- ⟨ Xs.all_subseteq_FL_attached, Xs.all_subseteq_FL_attached_complete ⟩
+  -- TODO
+  sorry
+
+/-- There are only finitely many FL-subset Sequents for a given Sequent.
+This means "there are only finitely many "sequents modulo `setEq`" that are subseteq_FL Y. -/
+lemma Seqt.subseteq_FL_finite {X : Sequent} : Finite { Y // Sequent.subseteq_FL Y X } :=
+  @Finite.of_fintype { Y // Sequent.subseteq_FL Y X } Sequent.subseteq_FL_instFintype
 
 /-- Helper lemma for `matchesFinite`: If we have enumerate infinitely many values, and all of them
 have a certain property, but we also know that there are only finitely many values with that
@@ -1105,17 +1123,17 @@ lemma moveChain_hist_split {m n : ℕ} (h : m + 2 ≤ n) :
     exact ⟨j, by omega, hj2, hj3⟩
 
 /-- All sequents in the chain stay inside the FL closure of the first sequent. -/
-lemma moveChain_inside_FL (n : ℕ) : Seqt.subseteq_FL ⟦(g n).2.1⟧ ⟦(g 0).2.1⟧ := by
-  simp only [Seqt.subseteq_FL, Quotient.lift_mk]
+lemma moveChain_inside_FL (n : ℕ) : Sequent.subseteq_FL (g n).2.1 (g 0).2.1 := by
+  simp only [Sequent.subseteq_FL]
   induction n
-  · simp
+  · sorry -- was: simp
   case succ k IH =>
     apply Sequent.subseteq_FL_trans _ _ _ ?_ IH
     apply move_inside_FL (g_rel k)
 
 /-- A sequent in the chain that is `setEqTo` an earlier one must be loaded,
 because otherwise we would have a free repeat and the match would have ended. -/
-lemma moveChain_setEq_isLoaded {m n : ℕ} (h : m + 2 ≤ n) (hs : (g m).2.1.setEqTo (g n).2.1) :
+lemma moveChain_setEq_isLoaded {m n : ℕ} (h : m + 2 ≤ n) (hs : (g m).2.1 = (g n).2.1) :
     (g n).2.1.isLoaded := by
   obtain ⟨pre, hpre, _⟩ := moveChain_hist_split g_rel h
   have h_rep : rep (g n).1 (g n).2.1 := by
@@ -1128,16 +1146,15 @@ lemma moveChain_setEq_isLoaded {m n : ℕ} (h : m + 2 ≤ n) (hs : (g m).2.1.set
 /-- Because there are only finitely many sequents modulo `setEqTo` inside the FL closure,
 arbitrarily late in the chain we find two positions with `setEqTo` sequents. -/
 lemma moveChain_exists_setEq_late (N : ℕ) :
-    ∃ m n, N ≤ m ∧ m + 2 ≤ n ∧ (g m).2.1.setEqTo (g n).2.1 := by
+    ∃ m n, N ≤ m ∧ m + 2 ≤ n ∧ (g m).2.1 = (g n).2.1 := by
   obtain ⟨e, hP, hgap⟩ := exists_spread_subsequence (P := fun n => N ≤ n)
     (fun M => ⟨max M N, le_max_left _ _, le_max_right _ _⟩)
   obtain ⟨k1, k2, hne, hsame⟩ := @exist_duplicates_of_infinite_among_fintype _
-    (fun k => (⟦(g (e k)).2.1⟧ : Seqt)) (Seqt.subseteq_FL · ⟦(g 0).2.1⟧)
+    (fun k => ((g (e k)).2.1 : Sequent)) (Sequent.subseteq_FL · (g 0).2.1)
     (fun k => moveChain_inside_FL g_rel (e k)) Seqt.subseteq_FL_finite
-  simp only [Quotient.eq] at hsame
   rcases Nat.lt_or_ge k1 k2 with hlt | hge
   · exact ⟨e k1, e k2, hP k1, hgap k1 k2 hlt, hsame⟩
-  · exact ⟨e k2, e k1, hP k2, hgap k2 k1 (by omega), (Sequent.setEqTo_symm _ _).mp hsame⟩
+  · exact ⟨e k2, e k1, hP k2, hgap k2 k1 (by omega), Eq.symm hsame⟩
 
 /-- From some point onwards all sequents in the chain are loaded: there are only finitely
 many sequents modulo `setEqTo`, and free ones can never come back. -/
@@ -1146,13 +1163,12 @@ lemma moveChain_eventually_loaded : ∃ N, ∀ n, N ≤ n → (g n).2.1.isLoaded
   push_neg at hyp
   obtain ⟨e, hP, hgap⟩ := exists_spread_subsequence hyp
   obtain ⟨k1, k2, hne, hsame⟩ := @exist_duplicates_of_infinite_among_fintype _
-    (fun k => (⟦(g (e k)).2.1⟧ : Seqt)) (Seqt.subseteq_FL · ⟦(g 0).2.1⟧)
+    (fun k => ((g (e k)).2.1 : Sequent)) (Sequent.subseteq_FL · (g 0).2.1)
     (fun k => moveChain_inside_FL g_rel (e k)) Seqt.subseteq_FL_finite
-  simp only [Quotient.eq] at hsame
   rcases Nat.lt_or_ge k1 k2 with hlt | hge
   · exact absurd (moveChain_setEq_isLoaded g_rel (hgap k1 k2 hlt) hsame) (hP k2)
   · exact absurd (moveChain_setEq_isLoaded g_rel (hgap k2 k1 (by omega))
-      ((Sequent.setEqTo_symm _ _).mp hsame)) (hP k1)
+      (Eq.symm hsame)) (hP k1)
 
 /-- If all sequents from `N` onwards are loaded and `N ≤ m` with `m + 2 ≤ n`, then the sequent
 of position `m` occurs in the history of position `n` at an index such that all entries up to
@@ -1187,7 +1203,7 @@ lemma moveChain_hist_index {N m n : ℕ} (hN : ∀ j, N ≤ j → (g j).2.1.isLo
 /-- A `setEqTo` repeat in the loaded part of the chain is impossible:
 it would be a loaded-path repeat, at which the match ends. -/
 lemma moveChain_setEq_absurd {N m n : ℕ} (hN : ∀ j, N ≤ j → (g j).2.1.isLoaded)
-    (hm : N ≤ m) (h : m + 2 ≤ n) (hs : (g m).2.1.setEqTo (g n).2.1) : False := by
+    (hm : N ≤ m) (h : m + 2 ≤ n) (hs : (g m).2.1 = (g n).2.1) : False := by
   obtain ⟨k, hk1, hk2⟩ := moveChain_hist_index g_rel hN hm h
   exact moveChain_not_flprep g_rel n (Or.inr ⟨⟨k, by rw [hk1]; exact hs, hk2⟩⟩)
 
@@ -1292,7 +1308,7 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
             have notBox : ¬ (boxesOf φ).2.isBox := boxesOf_output_not_isBox
             rcases boxesOf_def : boxesOf φ with ⟨_|⟨δ,αs⟩, ψ⟩
             · exfalso; simp [boxesOf_def] at χ_in
-            · simp_all only [tableauGame_turn_Prover, List.mem_cons, List.not_mem_nil, or_false]
+            · simp_all only [tableauGame_turn_Prover, Finset.mem_singleton]
               rcases χ_in with ⟨ψ_in, ⟨_⟩⟩
               have : φ = ⌈⌈δ :: αs⌉⌉ψ := def_of_boxesOf_def boxesOf_def
               subst this
@@ -1315,7 +1331,7 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
             have notBox : ¬ (boxesOf φ).2.isBox := boxesOf_output_not_isBox
             rcases boxesOf_def : boxesOf φ with ⟨_|⟨δ,αs⟩, ψ⟩
             · exfalso; simp [boxesOf_def] at χ_in
-            · simp_all only [tableauGame_turn_Prover, List.mem_cons, List.not_mem_nil, or_false]
+            · simp_all only [tableauGame_turn_Prover, Finset.mem_singleton]
               rcases χ_in with ⟨ψ_in, ⟨_⟩⟩
               have : φ = ⌈⌈δ :: αs⌉⌉ψ := def_of_boxesOf_def boxesOf_def
               subst this
