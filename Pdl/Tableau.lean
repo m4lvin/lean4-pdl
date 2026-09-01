@@ -16,9 +16,6 @@ def formProjection : Nat → Formula → Option Formula
 def projection : Nat → List Formula → List Formula
   | A, X => (X.map fun x => (formProjection A x)).reduceOption
 
-def Finset.projection : Nat → Finset Formula → Finset Formula
-  | A, X => (X.image fun x => (formProjection A x).toFinset).sup id
-
 @[simp]
 theorem proj : g ∈ projection A X ↔ (⌈·A⌉g) ∈ X :=
   by
@@ -30,6 +27,24 @@ theorem proj : g ∈ projection A X ↔ (⌈·A⌉g) ∈ X :=
     simp only [projection, formProjection, beq_iff_eq, List.map_cons, List.mem_cons]
     rw [List.reduceOption_mem_iff]
     aesop
+
+def Finset.projection : Nat → Finset Formula → Finset Formula
+  | A, X => (X.image fun x => (formProjection A x).toFinset).sup id
+
+/-- Membership in the projection of a `Finset` of formulas.
+This is the `Finset` analogue of `proj`. -/
+lemma Finset.mem_projection {A g} {X : Finset Formula} :
+    g ∈ X.projection A ↔ (⌈·A⌉g) ∈ X := by
+  constructor
+  · intro h
+    simp only [Finset.projection, Finset.mem_sup, Finset.mem_image, id_eq] at h
+    obtain ⟨s, ⟨x, hx, rfl⟩, hg⟩ := h
+    cases x <;> simp_all
+    case box α ψ =>
+      cases α <;> simp_all
+  · intro h
+    simp only [Finset.projection, Finset.mem_sup, Finset.mem_image, id_eq]
+    exact ⟨_, ⟨_, h, rfl⟩, by simp⟩
 
 /-! ## Histories and Repeats -/
 

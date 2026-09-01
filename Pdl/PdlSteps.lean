@@ -17,21 +17,6 @@ The main results are:
   `a`-successor of a free basic sequent.
 -/
 
-/-- Membership in the projection of a `Finset` of formulas.
-This is the `Finset` analogue of `proj`. -/
-lemma Finset.mem_projection {A g} {X : Finset Formula} :
-    g ∈ X.projection A ↔ (⌈·A⌉g) ∈ X := by
-  constructor
-  · intro h
-    simp only [Finset.projection, Finset.mem_sup, Finset.mem_image, id_eq] at h
-    obtain ⟨s, ⟨x, hx, rfl⟩, hg⟩ := h
-    cases x <;> simp_all
-    case box α ψ =>
-      cases α <;> simp_all
-  · intro h
-    simp only [Finset.projection, Finset.mem_sup, Finset.mem_image, id_eq]
-    exact ⟨_, ⟨_, h, rfl⟩, by simp⟩
-
 /-! ## The (L-) rule -/
 
 /-- The (L-) rule is applicable to any left-loaded sequent, and the resulting sequent is
