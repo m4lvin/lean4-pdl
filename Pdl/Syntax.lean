@@ -703,23 +703,23 @@ def Formula.le : Formula → Formula → Prop
   | .and _ _, .bottom => False
   | .and _ _, .atom_prop _ => False
   | .and _ _, .neg _ => False
-  | .and φ1 φ2, .and φ1' φ2' => φ1.le φ1' ∨ ((φ1 = φ1') ∧ φ2.le φ2')
+  | .and φ1 φ2, .and φ1' φ2' => φ1.le φ1' ∧ ((φ1 = φ1') → φ2.le φ2')
   | .and _ _, .box _ _ => True
   | .box _ _, .bottom => False
   | .box _ _, .atom_prop _ => False
   | .box _ _, .neg _ => False
   | .box _ _, .and _ _  => False
-  | .box α φ, .box α' φ' => α.le α' ∨ ((α = α') ∧ φ.le φ')
+  | .box α φ, .box α' φ' => α.le α' ∧ ((α = α') → φ.le φ')
 
 def Program.le : Program → Program → Prop
   | .atom_prog a, .atom_prog a' => a ≤ a'
   | .atom_prog _, _ => True
   | .sequence _ _, .atom_prog _ => False
-  | .sequence α β, .sequence α' β' => α.le α' ∨ (α.le α' ∧ β.le β')
+  | .sequence α β, .sequence α' β' => α.le α' ∧ ((α = α') → β.le β')
   | .sequence _ _, _ => True
   | .union _ _ , .atom_prog _ => False
   | .union _ _, .sequence _ _ => False
-  | .union α β, .union α' β' => α.le α' ∨ (α.le α' ∧ β.le β')
+  | .union α β, .union α' β' => α.le α' ∧ ((α = α') → β.le β')
   | .union _ _, .star _ => True
   | .union _ _, .test _ => True
   | .star _, .atom_prog _ => False
@@ -740,40 +740,312 @@ instance instLTFormula : LT Formula := ⟨fun φ1 φ2 ↦ φ1 ≠ φ2 ∧ φ1.le
 instance instLEProgram : LE Program := ⟨Program.le⟩
 instance instLTProgram : LT Program := ⟨fun α α' ↦ α ≠ α' ∧ α.le α'⟩
 
-instance : DecidableRel (fun (a b : Formula) ↦ a ≤ b) := sorry
+/-! ### Deciding the order -/
 
 mutual
-instance : DecidableRel Formula.le := sorry
-instance : DecidableRel Program.le := sorry
+
+/-- The order on formulas is decidable. -/
+def Formula.decLe : (f g : Formula) → Decidable (Formula.le f g)
+  | .bottom, .bottom => isTrue trivial
+  | .bottom, .atom_prop _ => isTrue trivial
+  | .bottom, .neg _ => isTrue trivial
+  | .bottom, .and _ _ => isTrue trivial
+  | .bottom, .box _ _ => isTrue trivial
+  | .atom_prop _, .bottom => isFalse not_false
+  | .atom_prop p, .atom_prop p' => Nat.decLe p p'
+  | .atom_prop _, .neg _ => isTrue trivial
+  | .atom_prop _, .and _ _ => isTrue trivial
+  | .atom_prop _, .box _ _ => isTrue trivial
+  | .neg _, .bottom => isFalse not_false
+  | .neg _, .atom_prop _ => isFalse not_false
+  | .neg φ, .neg φ' => Formula.decLe φ φ'
+  | .neg _, .and _ _ => isTrue trivial
+  | .neg _, .box _ _ => isTrue trivial
+  | .and _ _, .bottom => isFalse not_false
+  | .and _ _, .atom_prop _ => isFalse not_false
+  | .and _ _, .neg _ => isFalse not_false
+  | .and φ1 φ2, .and φ1' φ2' =>
+      @instDecidableAnd _ _ (Formula.decLe φ1 φ1')
+        (@instDecidableForall _ _ inferInstance (Formula.decLe φ2 φ2'))
+  | .and _ _, .box _ _ => isTrue trivial
+  | .box _ _, .bottom => isFalse not_false
+  | .box _ _, .atom_prop _ => isFalse not_false
+  | .box _ _, .neg _ => isFalse not_false
+  | .box _ _, .and _ _ => isFalse not_false
+  | .box α φ, .box α' φ' =>
+      @instDecidableAnd _ _ (Program.decLe α α')
+        (@instDecidableForall _ _ inferInstance (Formula.decLe φ φ'))
+
+/-- The order on programs is decidable. -/
+def Program.decLe : (α β : Program) → Decidable (Program.le α β)
+  | .atom_prog a, .atom_prog a' => Nat.decLe a a'
+  | .atom_prog _, .sequence _ _ => isTrue trivial
+  | .atom_prog _, .union _ _ => isTrue trivial
+  | .atom_prog _, .star _ => isTrue trivial
+  | .atom_prog _, .test _ => isTrue trivial
+  | .sequence _ _, .atom_prog _ => isFalse not_false
+  | .sequence α β, .sequence α' β' =>
+      @instDecidableAnd _ _ (Program.decLe α α')
+        (@instDecidableForall _ _ inferInstance (Program.decLe β β'))
+  | .sequence _ _, .union _ _ => isTrue trivial
+  | .sequence _ _, .star _ => isTrue trivial
+  | .sequence _ _, .test _ => isTrue trivial
+  | .union _ _, .atom_prog _ => isFalse not_false
+  | .union _ _, .sequence _ _ => isFalse not_false
+  | .union α β, .union α' β' =>
+      @instDecidableAnd _ _ (Program.decLe α α')
+        (@instDecidableForall _ _ inferInstance (Program.decLe β β'))
+  | .union _ _, .star _ => isTrue trivial
+  | .union _ _, .test _ => isTrue trivial
+  | .star _, .atom_prog _ => isFalse not_false
+  | .star _, .sequence _ _ => isFalse not_false
+  | .star _, .union _ _ => isFalse not_false
+  | .star α, .star α' => Program.decLe α α'
+  | .star _, .test _ => isTrue trivial
+  | .test _, .atom_prog _ => isFalse not_false
+  | .test _, .sequence _ _ => isFalse not_false
+  | .test _, .union _ _ => isFalse not_false
+  | .test _, .star _ => isFalse not_false
+  | .test τ, .test τ' => Formula.decLe τ τ'
 end
 
-lemma Formula.le_trans : ∀ (f g h : Formula), f ≤ g → g ≤ h → f ≤ h := by
-  intro f g h f_g g_h
-  unfold LE.le instLEFormula Formula.le at *
-  cases f <;> cases g <;> cases h
-  all_goals
-    simp_all
-  · grind
-  case neg.neg.neg f g h =>
-    apply Formula.le_trans f g h f_g g_h
-  case and.and.and =>
-    sorry
-  case box.box.box =>
-    sorry
-termination_by
-  f => f -- ??
+instance : DecidableRel Formula.le := Formula.decLe
+instance : DecidableRel Program.le := Program.decLe
+
+instance : DecidableRel (fun (a b : Formula) ↦ a ≤ b) := Formula.decLe
+instance : DecidableRel (fun (a b : Program) ↦ a ≤ b) := Program.decLe
+
+/-! ### The order is a linear order -/
+
+/-- Helper for the lexicographic clauses: reflexivity. -/
+private theorem lex_rfl {A B : Type} {leA : A → A → Prop} {leB : B → B → Prop}
+    {a : A} {b : B} (ha : leA a a) (hb : leB b b) :
+    leA a a ∧ ((a = a) → leB b b) := ⟨ha, fun _ => hb⟩
+
+/-- Helper for the lexicographic clauses: totality. -/
+private theorem lex_total {A B : Type} {leA : A → A → Prop} {leB : B → B → Prop}
+    {a a' : A} {b b' : B} (hrefl : leA a a)
+    (hA : leA a a' ∨ leA a' a) (hB : leB b b' ∨ leB b' b) :
+    (leA a a' ∧ ((a = a') → leB b b')) ∨ (leA a' a ∧ ((a' = a) → leB b' b)) := by
+  by_cases he : a = a'
+  · subst he
+    rcases hB with h | h
+    · exact Or.inl ⟨hrefl, fun _ => h⟩
+    · exact Or.inr ⟨hrefl, fun _ => h⟩
+  · rcases hA with h | h
+    · exact Or.inl ⟨h, fun hc => absurd hc he⟩
+    · exact Or.inr ⟨h, fun hc => absurd hc.symm he⟩
+
+mutual
+
+/-- The order on formulas is reflexive. -/
+theorem Formula.le_rfl : ∀ (φ : Formula), φ.le φ
+  | .bottom => trivial
+  | .atom_prop p => Nat.le_refl p
+  | .neg φ => Formula.le_rfl φ
+  | .and φ1 φ2 => lex_rfl (Formula.le_rfl φ1) (Formula.le_rfl φ2)
+  | .box α φ => lex_rfl (Program.le_rfl α) (Formula.le_rfl φ)
+
+/-- The order on programs is reflexive. -/
+theorem Program.le_rfl : ∀ (α : Program), α.le α
+  | .atom_prog a => Nat.le_refl a
+  | .sequence α β => lex_rfl (Program.le_rfl α) (Program.le_rfl β)
+  | .union α β => lex_rfl (Program.le_rfl α) (Program.le_rfl β)
+  | .star α => Program.le_rfl α
+  | .test τ => Formula.le_rfl τ
+end
+
+mutual
+
+/-- The order on formulas is antisymmetric. -/
+theorem Formula.le_antisymm : ∀ (φ ψ : Formula), φ.le ψ → ψ.le φ → φ = ψ
+  | .bottom, .bottom, _, _ => rfl
+  | .bottom, .atom_prop _, _, h2 => (h2 : False).elim
+  | .bottom, .neg _, _, h2 => (h2 : False).elim
+  | .bottom, .and _ _, _, h2 => (h2 : False).elim
+  | .bottom, .box _ _, _, h2 => (h2 : False).elim
+  | .atom_prop _, .bottom, h1, _ => (h1 : False).elim
+  | .atom_prop _, .atom_prop _, h1, h2 => by
+      simp only [Formula.atom_prop.injEq]
+      exact Nat.le_antisymm h1 h2
+  | .atom_prop _, .neg _, _, h2 => (h2 : False).elim
+  | .atom_prop _, .and _ _, _, h2 => (h2 : False).elim
+  | .atom_prop _, .box _ _, _, h2 => (h2 : False).elim
+  | .neg _, .bottom, h1, _ => (h1 : False).elim
+  | .neg _, .atom_prop _, h1, _ => (h1 : False).elim
+  | .neg φ, .neg ψ, h1, h2 => by rw [Formula.le_antisymm φ ψ h1 h2]
+  | .neg _, .and _ _, _, h2 => (h2 : False).elim
+  | .neg _, .box _ _, _, h2 => (h2 : False).elim
+  | .and _ _, .bottom, h1, _ => (h1 : False).elim
+  | .and _ _, .atom_prop _, h1, _ => (h1 : False).elim
+  | .and _ _, .neg _, h1, _ => (h1 : False).elim
+  | .and φ1 φ2, .and ψ1 ψ2, h1, h2 => by
+      have e1 : φ1 = ψ1 := Formula.le_antisymm φ1 ψ1 h1.1 h2.1
+      subst e1
+      rw [Formula.le_antisymm φ2 ψ2 (h1.2 rfl) (h2.2 rfl)]
+  | .and _ _, .box _ _, _, h2 => (h2 : False).elim
+  | .box _ _, .bottom, h1, _ => (h1 : False).elim
+  | .box _ _, .atom_prop _, h1, _ => (h1 : False).elim
+  | .box _ _, .neg _, h1, _ => (h1 : False).elim
+  | .box _ _, .and _ _, h1, _ => (h1 : False).elim
+  | .box α φ, .box β ψ, h1, h2 => by
+      have e1 : α = β := Program.le_antisymm α β h1.1 h2.1
+      subst e1
+      rw [Formula.le_antisymm φ ψ (h1.2 rfl) (h2.2 rfl)]
+
+/-- The order on programs is antisymmetric. -/
+theorem Program.le_antisymm : ∀ (α β : Program), α.le β → β.le α → α = β
+  | .atom_prog _, .atom_prog _, h1, h2 => by
+      simp only [Program.atom_prog.injEq]
+      exact Nat.le_antisymm h1 h2
+  | .atom_prog _, .sequence _ _, _, h2 => (h2 : False).elim
+  | .atom_prog _, .union _ _, _, h2 => (h2 : False).elim
+  | .atom_prog _, .star _, _, h2 => (h2 : False).elim
+  | .atom_prog _, .test _, _, h2 => (h2 : False).elim
+  | .sequence _ _, .atom_prog _, h1, _ => (h1 : False).elim
+  | .sequence α1 α2, .sequence β1 β2, h1, h2 => by
+      have e1 : α1 = β1 := Program.le_antisymm α1 β1 h1.1 h2.1
+      subst e1
+      rw [Program.le_antisymm α2 β2 (h1.2 rfl) (h2.2 rfl)]
+  | .sequence _ _, .union _ _, _, h2 => (h2 : False).elim
+  | .sequence _ _, .star _, _, h2 => (h2 : False).elim
+  | .sequence _ _, .test _, _, h2 => (h2 : False).elim
+  | .union _ _, .atom_prog _, h1, _ => (h1 : False).elim
+  | .union _ _, .sequence _ _, h1, _ => (h1 : False).elim
+  | .union α1 α2, .union β1 β2, h1, h2 => by
+      have e1 : α1 = β1 := Program.le_antisymm α1 β1 h1.1 h2.1
+      subst e1
+      rw [Program.le_antisymm α2 β2 (h1.2 rfl) (h2.2 rfl)]
+  | .union _ _, .star _, _, h2 => (h2 : False).elim
+  | .union _ _, .test _, _, h2 => (h2 : False).elim
+  | .star _, .atom_prog _, h1, _ => (h1 : False).elim
+  | .star _, .sequence _ _, h1, _ => (h1 : False).elim
+  | .star _, .union _ _, h1, _ => (h1 : False).elim
+  | .star α, .star β, h1, h2 => by rw [Program.le_antisymm α β h1 h2]
+  | .star _, .test _, _, h2 => (h2 : False).elim
+  | .test _, .atom_prog _, h1, _ => (h1 : False).elim
+  | .test _, .sequence _ _, h1, _ => (h1 : False).elim
+  | .test _, .union _ _, h1, _ => (h1 : False).elim
+  | .test _, .star _, h1, _ => (h1 : False).elim
+  | .test τ, .test σ, h1, h2 => by rw [Formula.le_antisymm τ σ h1 h2]
+end
+
+mutual
+
+/-- The order on formulas is total. -/
+theorem Formula.le_total : ∀ (φ ψ : Formula), φ.le ψ ∨ ψ.le φ
+  | .bottom, .bottom => Or.inl trivial
+  | .bottom, .atom_prop _ => Or.inl trivial
+  | .bottom, .neg _ => Or.inl trivial
+  | .bottom, .and _ _ => Or.inl trivial
+  | .bottom, .box _ _ => Or.inl trivial
+  | .atom_prop _, .bottom => Or.inr trivial
+  | .atom_prop p, .atom_prop p' => Nat.le_total p p'
+  | .atom_prop _, .neg _ => Or.inl trivial
+  | .atom_prop _, .and _ _ => Or.inl trivial
+  | .atom_prop _, .box _ _ => Or.inl trivial
+  | .neg _, .bottom => Or.inr trivial
+  | .neg _, .atom_prop _ => Or.inr trivial
+  | .neg φ, .neg ψ => Formula.le_total φ ψ
+  | .neg _, .and _ _ => Or.inl trivial
+  | .neg _, .box _ _ => Or.inl trivial
+  | .and _ _, .bottom => Or.inr trivial
+  | .and _ _, .atom_prop _ => Or.inr trivial
+  | .and _ _, .neg _ => Or.inr trivial
+  | .and φ1 φ2, .and ψ1 ψ2 =>
+      lex_total (Formula.le_rfl φ1) (Formula.le_total φ1 ψ1) (Formula.le_total φ2 ψ2)
+  | .and _ _, .box _ _ => Or.inl trivial
+  | .box _ _, .bottom => Or.inr trivial
+  | .box _ _, .atom_prop _ => Or.inr trivial
+  | .box _ _, .neg _ => Or.inr trivial
+  | .box _ _, .and _ _ => Or.inr trivial
+  | .box α φ, .box β ψ =>
+      lex_total (Program.le_rfl α) (Program.le_total α β) (Formula.le_total φ ψ)
+
+/-- The order on programs is total. -/
+theorem Program.le_total : ∀ (α β : Program), α.le β ∨ β.le α
+  | .atom_prog a, .atom_prog a' => Nat.le_total a a'
+  | .atom_prog _, .sequence _ _ => Or.inl trivial
+  | .atom_prog _, .union _ _ => Or.inl trivial
+  | .atom_prog _, .star _ => Or.inl trivial
+  | .atom_prog _, .test _ => Or.inl trivial
+  | .sequence _ _, .atom_prog _ => Or.inr trivial
+  | .sequence α1 α2, .sequence β1 β2 =>
+      lex_total (Program.le_rfl α1) (Program.le_total α1 β1) (Program.le_total α2 β2)
+  | .sequence _ _, .union _ _ => Or.inl trivial
+  | .sequence _ _, .star _ => Or.inl trivial
+  | .sequence _ _, .test _ => Or.inl trivial
+  | .union _ _, .atom_prog _ => Or.inr trivial
+  | .union _ _, .sequence _ _ => Or.inr trivial
+  | .union α1 α2, .union β1 β2 =>
+      lex_total (Program.le_rfl α1) (Program.le_total α1 β1) (Program.le_total α2 β2)
+  | .union _ _, .star _ => Or.inl trivial
+  | .union _ _, .test _ => Or.inl trivial
+  | .star _, .atom_prog _ => Or.inr trivial
+  | .star _, .sequence _ _ => Or.inr trivial
+  | .star _, .union _ _ => Or.inr trivial
+  | .star α, .star β => Program.le_total α β
+  | .star _, .test _ => Or.inl trivial
+  | .test _, .atom_prog _ => Or.inr trivial
+  | .test _, .sequence _ _ => Or.inr trivial
+  | .test _, .union _ _ => Or.inr trivial
+  | .test _, .star _ => Or.inr trivial
+  | .test τ, .test σ => Formula.le_total τ σ
+end
+
+mutual
+
+/-- The order on formulas is transitive. -/
+theorem Formula.le_trans_aux : ∀ (φ ψ χ : Formula), φ.le ψ → ψ.le χ → φ.le χ := by
+  intro φ ψ χ h1 h2
+  cases φ <;> cases ψ <;> cases χ <;>
+    try first
+      | exact trivial
+      | exact (h1 : False).elim
+      | exact (h2 : False).elim
+  case atom_prop.atom_prop.atom_prop => exact Nat.le_trans h1 h2
+  case neg.neg.neg φ ψ χ => exact Formula.le_trans_aux φ ψ χ h1 h2
+  case and.and.and φ1 φ2 ψ1 ψ2 χ1 χ2 =>
+    refine ⟨Formula.le_trans_aux φ1 ψ1 χ1 h1.1 h2.1, fun he => ?_⟩
+    have e : φ1 = ψ1 := Formula.le_antisymm φ1 ψ1 h1.1 (by rw [he]; exact h2.1)
+    exact Formula.le_trans_aux φ2 ψ2 χ2 (h1.2 e) (h2.2 (by rw [← e]; exact he))
+  case box.box.box α φ β ψ γ χ =>
+    refine ⟨Program.le_trans_aux α β γ h1.1 h2.1, fun he => ?_⟩
+    have e : α = β := Program.le_antisymm α β h1.1 (by rw [he]; exact h2.1)
+    exact Formula.le_trans_aux φ ψ χ (h1.2 e) (h2.2 (by rw [← e]; exact he))
+
+/-- The order on programs is transitive. -/
+theorem Program.le_trans_aux : ∀ (α β γ : Program), α.le β → β.le γ → α.le γ := by
+  intro α β γ h1 h2
+  cases α <;> cases β <;> cases γ <;>
+    try first
+      | exact trivial
+      | exact (h1 : False).elim
+      | exact (h2 : False).elim
+  case atom_prog.atom_prog.atom_prog => exact Nat.le_trans h1 h2
+  case sequence.sequence.sequence α1 α2 β1 β2 γ1 γ2 =>
+    refine ⟨Program.le_trans_aux α1 β1 γ1 h1.1 h2.1, fun he => ?_⟩
+    have e : α1 = β1 := Program.le_antisymm α1 β1 h1.1 (by rw [he]; exact h2.1)
+    exact Program.le_trans_aux α2 β2 γ2 (h1.2 e) (h2.2 (by rw [← e]; exact he))
+  case union.union.union α1 α2 β1 β2 γ1 γ2 =>
+    refine ⟨Program.le_trans_aux α1 β1 γ1 h1.1 h2.1, fun he => ?_⟩
+    have e : α1 = β1 := Program.le_antisymm α1 β1 h1.1 (by rw [he]; exact h2.1)
+    exact Program.le_trans_aux α2 β2 γ2 (h1.2 e) (h2.2 (by rw [← e]; exact he))
+  case star.star.star α β γ => exact Program.le_trans_aux α β γ h1 h2
+  case test.test.test τ σ ρ => exact Formula.le_trans_aux τ σ ρ h1 h2
+end
+
+lemma Formula.le_trans : ∀ (f g h : Formula), f ≤ g → g ≤ h → f ≤ h :=
+  Formula.le_trans_aux
 
 instance instIsTransFormulaLe : IsTrans Formula (fun (a b : Formula) ↦ a ≤ b) :=
   ⟨Formula.le_trans⟩
 
-instance : Std.Antisymm (fun (a b : Formula) ↦ a ≤ b) := sorry
+instance : Std.Antisymm (fun (a b : Formula) ↦ a ≤ b) := ⟨Formula.le_antisymm⟩
 
-instance : Std.Total (fun (a b : Formula) ↦ a ≤ b) := sorry
+instance : Std.Total (fun (a b : Formula) ↦ a ≤ b) := ⟨Formula.le_total⟩
 
 def Finset.fsort : Finset Formula → List Formula | FS => FS.sort
 
 @[simp]
 lemma Formula.mem_fsort {X : Finset Formula} : φ ∈ X.fsort ↔ φ ∈ X := by simp [Finset.fsort]
-
--- #eval ({(·20 : Formula), (·12 : Formula)} : Finset Formula)
--- #eval ({(·20 : Formula), (·12 : Formula)} : Finset Formula).sort
