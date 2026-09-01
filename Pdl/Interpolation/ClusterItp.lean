@@ -353,8 +353,8 @@ and otherwise `θ_r` is the pre-interpolant `ι_{r_Q}` of the root of the quasi-
 The latter is a `QFormula`, i.e. it may still contain internal variables; by Lemma 10.1
 (`iitp_vars`) it does not, so it does not matter which substitution we use to read it as a
 `Formula`, and we simply substitute `⊤`. -/
-def itp (C : LoadedCluster tab) (θ : FinePathIn tab → Formula) : Formula :=
-  if (nodeAt C.root).left = [] then ⊤ else (C.rootIitp θ).subst (fun _ => ⊤)
+noncomputable def itp (C : LoadedCluster tab) (θ : FinePathIn tab → Formula) : Formula :=
+  if (nodeAt C.root).left = {} then ⊤ else (C.rootIitp θ).subst (fun _ => ⊤)
 
 /-! ## Facts about the cluster that are used but not yet formalised -/
 
@@ -383,7 +383,7 @@ structure PaperFacts (C : LoadedCluster tab) : Prop where
   /-- The vocabulary of the right component only shrinks below the root of the cluster. -/
   vocR : ∀ f ∈ C.fineCLplus, f.label.right.fvoc ⊆ (nodeAt C.root).right.fvoc
   /-- The leading atomic program of a basic label of `Λ₂[C]` is in the joint vocabulary. -/
-  loadedProgVoc : (nodeAt C.root).left ≠ [] → ∀ Δ ∈ C.lambdaTwo, Δ.basic →
+  loadedProgVoc : (nodeAt C.root).left ≠ {} → ∀ Δ ∈ C.lambdaTwo, Δ.basic →
     (Δ.loadedProg).voc ⊆ jvoc (nodeAt C.root)
   /-- The conclusion of the inner induction in the proof of Lemma 10.3: if a formula
   follows from the left component of every node of `C^R_Δ` and of every exit node with
@@ -460,7 +460,7 @@ ordinary vocabulary at all, which fails at nodes of type 3 with a basic label. D
 theorem iitp_voc_aux (C : LoadedCluster tab) (hF : C.PaperFacts)
     (θ : FinePathIn tab → Formula)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f))
-    (hΓ₁ : (nodeAt C.root).left ≠ []) :
+    (hΓ₁ : (nodeAt C.root).left ≠ {}) :
     ∀ (m : Nat) (n : QuasiTab), sizeOf n ≤ m → ∀ x, C.Q.at? x = some n →
       (C.iitp θ x).voc ⊆ jvoc (nodeAt C.root) ∧
       ∀ v ∈ (C.iitp θ x).vars, ∃ z ∈ C.Q.cycs x, C.Q.companion? z = some v := by
@@ -584,7 +584,7 @@ vocabulary of the pre-interpolant `ι_x` is inside `voc(Γ₁) ∩ voc(Γ₂)`.
 See `LoadedCluster.iitp_voc_aux` for the hypothesis `Γ₁ ≠ ∅`. -/
 theorem iitp_voc (C : LoadedCluster tab) (hF : C.PaperFacts) (θ : FinePathIn tab → Formula)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f))
-    (hΓ₁ : (nodeAt C.root).left ≠ []) (x : List Nat) :
+    (hΓ₁ : (nodeAt C.root).left ≠ {}) (x : List Nat) :
     (C.iitp θ x).voc ⊆ jvoc (nodeAt C.root) := by
   cases hx : C.Q.at? x with
   | none => rw [iitp, hx]; simp
@@ -594,7 +594,7 @@ theorem iitp_voc (C : LoadedCluster tab) (hF : C.PaperFacts) (θ : FinePathIn ta
 are the companions `q_{c(z)}` of cycles `z ∈ cycs(x)`. -/
 theorem iitp_vars (C : LoadedCluster tab) (hF : C.PaperFacts) (θ : FinePathIn tab → Formula)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f))
-    (hΓ₁ : (nodeAt C.root).left ≠ []) (x : List Nat) :
+    (hΓ₁ : (nodeAt C.root).left ≠ {}) (x : List Nat) :
     ∀ v ∈ (C.iitp θ x).vars, ∃ z ∈ C.Q.cycs x, C.Q.companion? z = some v := by
   cases hx : C.Q.at? x with
   | none => rw [iitp, hx]; simp
@@ -604,7 +604,7 @@ theorem iitp_vars (C : LoadedCluster tab) (hF : C.PaperFacts) (θ : FinePathIn t
 because `cycs(r_Q) = ∅` (Lemma 9.12 (b)). -/
 theorem rootIitp_vars (C : LoadedCluster tab) (hF : C.PaperFacts) (θ : FinePathIn tab → Formula)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f))
-    (hΓ₁ : (nodeAt C.root).left ≠ []) : (C.rootIitp θ).vars = [] := by
+    (hΓ₁ : (nodeAt C.root).left ≠ {}) : (C.rootIitp θ).vars = [] := by
   rw [List.eq_nil_iff_forall_not_mem]
   intro v hv
   obtain ⟨z, hz, -⟩ := C.iitp_vars hF θ hθ hΓ₁ QuasiTab.rootAddress v hv

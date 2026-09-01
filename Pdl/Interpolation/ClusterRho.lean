@@ -81,13 +81,13 @@ variable {X : Sequent} {tab : Tableau .nil X} {C : LoadedCluster tab}
 /-- Def 10.2: the formula `ρ_x = ⋁ { ⋀ Λ₁(t) | t ∈ R_x }` for a node `x` of the
 quasi-tableau, where `R_x` is the region of `x` (Def 9.10). When there is no node at
 address `x` we return `⊥`, the empty disjunction. -/
-def rho (C : LoadedCluster tab) (x : List Nat) : Formula :=
+noncomputable def rho (C : LoadedCluster tab) (x : List Nat) : Formula :=
   match C.Q.at? x with
   | none => ⊥
-  | some n => dis ((C.regionOf n).map (fun t => con t.label.left))
+  | some n => dis ((C.regionOf n).map (fun t => con t.label.left.fsort))
 
 lemma rho_of_at? {n} (h : C.Q.at? x = some n) :
-    C.rho x = dis ((C.regionOf n).map (fun t => con t.label.left)) := by
+    C.rho x = dis ((C.regionOf n).map (fun t => con t.label.left.fsort)) := by
   rw [rho, h]
 
 /-- `ρ_x` holds iff some node of the region `R_x` has all its left formulas true. -/
@@ -97,9 +97,11 @@ lemma evaluate_rho_iff {W} {M : KripkeModel W} {w : W} {n} (h : C.Q.at? x = some
   simp only [List.mem_map]
   constructor
   · rintro ⟨_, ⟨t, ht, rfl⟩, hev⟩
-    exact ⟨t, ht, conEval.mp hev⟩
+    simp [conEval] at hev
+    grind
   · rintro ⟨t, ht, hev⟩
-    exact ⟨_, ⟨t, ht, rfl⟩, conEval.mpr hev⟩
+    simp [conEval]
+    use t
 
 /-- The region, and hence `ρ_x`, only depends on the type and the label of the node. -/
 lemma rho_eq_of_typ_label {n m} {y : List Nat} (hx : C.Q.at? x = some n)
@@ -225,9 +227,7 @@ lemma leftEntails_thetaOf (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.labe
   by_contra hcon
   exact C.thetaOf_left θ hθ Δ t ht ⟨W, M, w, by
     intro φ hφ
-    rcases List.mem_cons.mp hφ with rfl | hmem
-    · exact hcon
-    · exact hw φ hmem⟩
+    aesop⟩
 
 /-- Case `k(x) = 1` where `x` is a leaf that is not a repeat: `ι_x = θ_{Δ_x}` and every
 node of the region is an exit node, so Lemma 9.14 (a) applies. -/
@@ -474,11 +474,11 @@ open HasSat in
 with the negation of the interpolant of Definition 9.20 is unsatisfiable. -/
 theorem left_unsat_neg_itp (C : LoadedCluster tab) (hF : C.PaperFacts)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) :
-    ¬ satisfiable ((~ C.itp θ) :: (nodeAt C.root).left) := by
+    ¬ satisfiable ({~ C.itp θ} ∪ (nodeAt C.root).left) := by
   rintro ⟨W, M, w, hw⟩
-  have hneg : ¬ evaluate M w (C.itp θ) := hw _ (List.mem_cons_self ..)
+  have hneg : ¬ evaluate M w (C.itp θ) := hw (~C.itp θ) (by simp_all)
   have hleft : ∀ φ ∈ (nodeAt C.root).left, evaluate M w φ :=
-    fun φ hφ => hw φ (List.mem_cons_of_mem _ hφ)
+    fun φ hφ => hw φ (by simp_all)
   rw [itp] at hneg
   split at hneg
   case isTrue => exact hneg (by simp)

@@ -195,7 +195,7 @@ lemma LoadedCluster.root_rightOnly_mem_lambdaTwo (C : LoadedCluster tab) :
 
 /-- Def 9.8: the quasi-tableau associated with the cluster `C`. Its root has type 1 and is
 labelled with the right component `Λ₂(r)` of the root `r` of the cluster. -/
-def LoadedCluster.Q (C : LoadedCluster tab) : QuasiTab :=
+noncomputable def LoadedCluster.Q (C : LoadedCluster tab) : QuasiTab :=
   QuasiTab.build C.lambdaTwo C.stepOf [] (nodeAt C.root).rightOnly
 
 @[simp]
@@ -232,14 +232,15 @@ lemma LoadedCluster.Q_leaf_typ (C : LoadedCluster tab)
 /-- Def 9.10: the region `Rₓ ⊆ C⁺` represented by a node `x` of the quasi-tableau.
 For type 1 and 2 these are all nodes of `C⁺` with right component `Δₓ`, and for type 3
 those nodes of `C` with right component `Δₓ` where a right rule is applied. -/
-def LoadedCluster.region (C : LoadedCluster tab) : Typ → Sequent → List (FinePathIn tab)
+noncomputable def LoadedCluster.region (C : LoadedCluster tab) :
+    Typ → Sequent → List (FinePathIn tab)
   | .one, Δ => C.plusNodesWithFine Δ
   | .two, Δ => C.plusNodesWithFine Δ
   | .three, Δ => C.nodesWithFineRight Δ
 
 /-- Def 9.10, applied to a node of the quasi-tableau. -/
-def LoadedCluster.regionOf (C : LoadedCluster tab) (q : QuasiTab) : List (FinePathIn tab) :=
-  C.region q.typ q.label
+noncomputable def LoadedCluster.regionOf (C : LoadedCluster tab) (q : QuasiTab) :
+    List (FinePathIn tab) := C.region q.typ q.label
 
 /-! ### Addresses: the nodes of a quasi-tableau (Def 9.11)
 

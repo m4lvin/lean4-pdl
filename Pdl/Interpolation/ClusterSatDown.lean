@@ -732,12 +732,12 @@ The hypothesis `Γ₁ ≠ ∅` is the one of Definition 9.20: for `Γ₁ = ∅` 
 Remark 9.19, and then the statement would say that `Γ₂` itself is unsatisfiable. -/
 theorem right_unsat_itp (C : LoadedCluster tab) (hS : C.SatDownFacts)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f))
-    (hΓ₁ : (nodeAt C.root).left ≠ []) :
-    ¬ satisfiable (C.itp θ :: (nodeAt C.root).right) := by
+    (hΓ₁ : (nodeAt C.root).left ≠ {}) :
+    ¬ satisfiable ({C.itp θ} ∪ (nodeAt C.root).right) := by
   rintro ⟨W, M, w, hw⟩
-  have hitp : evaluate M w (C.itp θ) := hw _ (List.mem_cons_self ..)
+  have hitp : evaluate M w (C.itp θ) := hw _ (by simp_all)
   have hright : ∀ φ ∈ (nodeAt C.root).right, evaluate M w φ :=
-    fun φ hφ => hw φ (List.mem_cons_of_mem _ hφ)
+    fun φ hφ => hw φ (by simp_all)
   rw [itp, if_neg hΓ₁] at hitp
   have hev : QFormula.evalQ M (fun _ u => evaluate M u (⊤ : Formula)) w (C.rootIitp θ) :=
     (QFormula.evalQ_iff_evaluate_subst (C.rootIitp θ) w).mpr hitp

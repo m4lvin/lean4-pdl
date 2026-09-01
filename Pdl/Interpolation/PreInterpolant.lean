@@ -94,7 +94,7 @@ variable {X : Sequent} {tab : Tableau .nil X}
 /-- Def 9.18: the pre-interpolant `ι_x` of the node with address `x` of the quasi-tableau
 `Q` of the cluster `C`, where `θ` gives the interpolants of the exit nodes of `C`.
 When there is no node at address `x` we return the placeholder `⊤`. -/
-def iitp (C : LoadedCluster tab) (θ : FinePathIn tab → Formula) (x : List Nat) :
+noncomputable def iitp (C : LoadedCluster tab) (θ : FinePathIn tab → Formula) (x : List Nat) :
     QFormula (List Nat) :=
   match C.Q.at? x with
   | none => .fma ⊤
@@ -102,7 +102,8 @@ def iitp (C : LoadedCluster tab) (θ : FinePathIn tab → Formula) (x : List Nat
 
 /-- The pre-interpolant of the root of the quasi-tableau. This is the formula `ι_{c_Q}`
 that Def 9.20 turns into the interpolant of the root of the cluster. -/
-def rootIitp (C : LoadedCluster tab) (θ : FinePathIn tab → Formula) : QFormula (List Nat) :=
+noncomputable def rootIitp (C : LoadedCluster tab) (θ : FinePathIn tab → Formula) :
+    QFormula (List Nat) :=
   C.iitp θ QuasiTab.rootAddress
 
 end LoadedCluster
