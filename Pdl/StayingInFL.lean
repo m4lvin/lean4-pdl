@@ -242,58 +242,92 @@ theorem pairUnload.stays_in_FL (F oχ) {α : Program} {φ : Formula}
     · have := unfoldDiamond_in_FL _ _ _ pU_in_unfD (~nχ.1.unload)
       simp only [List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false, or_true,
         forall_const] at *
-      simp [FL] at this
-      sorry -- grind [FL]
+      simp only [FL, List.cons_append, List.nil_append, List.mem_cons, Formula.neg.injEq,
+        List.mem_append] at this
+      rcases this with h|h|h|h
+      · exact Or.inr (Or.inl (h ▸ neg_mem_FLb))
+      · tauto
+      · tauto
+      · tauto
+
+/-- `Finset` version of `pairUnload.stays_in_FL`. -/
+theorem pairUnloadSet.stays_in_FL {F : List Formula} {oχ} {α : Program} {φ : Formula}
+    (pU_in_unfD : pairUnload (F, oχ) ∈ unfoldDiamond α φ)
+    : F.toFinset ⊆ Finset.FL {~⌈α⌉φ}
+    ∧ Olf.L (Option.map Sum.inl oχ) ⊆ Finset.FL {~⌈α⌉φ}
+    ∧ Olf.R (Option.map Sum.inr oχ) ⊆ Finset.FL {~⌈α⌉φ} := by
+  have h := pairUnload.stays_in_FL _ _ pU_in_unfD
+  simp only [Finset.FL_singelton]
+  refine ⟨?_, h.2.1, h.2.2⟩
+  intro x hx
+  simp only [List.mem_toFinset] at *
+  exact h.1 hx
 
 /-- Helper for `LocalRule.stays_in_FL`. -/
 lemma LoadRule.stays_in_FL_left {χ ress} (lr : LoadRule (~'χ) ress) :
     ∀ Y ∈ ress, Sequent.subseteq_FL (Y.1, ∅, Y.2.map Sum.inl) (∅, ∅, some (Sum.inl (~'χ))) := by
-  simp only [List.empty_eq, Prod.forall]
+  simp only [Prod.forall]
   intro F oχ in_ress
   cases lr
   case dia α χ notAt =>
-    simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_inl, LoadFormula.unload,
-      List.nil_append, FLL_singelton, Sequent.R_eq, Olf.R_inl, List.append_nil, FLL_nil,
-      List.Subset.refl, Olf.R_map_inl, and_self, and_true]
-    have pU_in_unfD : pairUnload (F, oχ) ∈ unfoldDiamond α χ.unload := by
-      have := unfoldDiamondLoaded_eq α χ
-      grind
-    have := pairUnload.stays_in_FL _ _ pU_in_unfD
+    obtain ⟨⟨F', o'⟩, hmem, hF, hoo⟩ : ∃ p ∈ unfoldDiamondLoaded α χ,
+        p.1.toFinset = F ∧ p.2 = oχ := by
+      simpa [Prod.ext_iff] using in_ress
+    subst hF; subst hoo
+    have pU_in_unfD : pairUnload (F', o') ∈ unfoldDiamond α χ.unload := by
+      rw [← unfoldDiamondLoaded_eq]
+      exact List.mem_map_of_mem hmem
+    have := pairUnloadSet.stays_in_FL pU_in_unfD
+    simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Sequent.R_eq, Olf.L_inl,
+      Olf.R_inl, Olf.R_map_inl, Finset.empty_union, Finset.union_empty, LoadFormula.unload,
+      Finset.empty_subset, and_true]
     tauto
   case dia' α φ notAt =>
-    simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_inl, LoadFormula.unload,
-      List.nil_append, FLL_singelton, Sequent.R_eq, Olf.R_inl, List.append_nil, FLL_nil,
-      List.Subset.refl, Olf.R_map_inl, and_self, and_true]
-    have pU_in_unfD : pairUnload (F, oχ) ∈ unfoldDiamond α φ := by
-      have := (unfoldDiamondLoaded'_eq α φ)
-      grind
-    have := pairUnload.stays_in_FL _ _ pU_in_unfD
+    obtain ⟨⟨F', o'⟩, hmem, hF, hoo⟩ : ∃ p ∈ unfoldDiamondLoaded' α φ,
+        p.1.toFinset = F ∧ p.2 = oχ := by
+      simpa [Prod.ext_iff] using in_ress
+    subst hF; subst hoo
+    have pU_in_unfD : pairUnload (F', o') ∈ unfoldDiamond α φ := by
+      rw [← unfoldDiamondLoaded'_eq]
+      exact List.mem_map_of_mem hmem
+    have := pairUnloadSet.stays_in_FL pU_in_unfD
+    simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Sequent.R_eq, Olf.L_inl,
+      Olf.R_inl, Olf.R_map_inl, Finset.empty_union, Finset.union_empty, LoadFormula.unload,
+      Finset.empty_subset, and_true]
     tauto
 
 /-- Helper for `LocalRule.stays_in_FL` -/
 lemma LoadRule.stays_in_FL_right (lr : LoadRule (~'χ) ress) :
     ∀ Y ∈ ress, Sequent.subseteq_FL (∅, Y.1, Y.2.map Sum.inr) (∅, ∅, some (Sum.inr (~'χ))) := by
   -- copy-pasta based on LoadRule.stays_in_FL_left
-  simp only [List.empty_eq, Prod.forall]
+  simp only [Prod.forall]
   intro F oχ in_ress
   cases lr
   case dia α χ notAt =>
-    simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_inr, List.append_nil, FLL_nil,
-      List.Subset.refl, Olf.L_map_inr, Sequent.R_eq, Olf.R_inr, LoadFormula.unload, List.nil_append,
-      FLL_singelton, true_and]
-    have pU_in_unfD : pairUnload (F, oχ) ∈ unfoldDiamond α χ.unload := by
-      have := unfoldDiamondLoaded_eq α χ
-      grind
-    have := pairUnload.stays_in_FL _ _ pU_in_unfD
+    obtain ⟨⟨F', o'⟩, hmem, hF, hoo⟩ : ∃ p ∈ unfoldDiamondLoaded α χ,
+        p.1.toFinset = F ∧ p.2 = oχ := by
+      simpa [Prod.ext_iff] using in_ress
+    subst hF; subst hoo
+    have pU_in_unfD : pairUnload (F', o') ∈ unfoldDiamond α χ.unload := by
+      rw [← unfoldDiamondLoaded_eq]
+      exact List.mem_map_of_mem hmem
+    have := pairUnloadSet.stays_in_FL pU_in_unfD
+    simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Sequent.R_eq, Olf.L_inr,
+      Olf.R_inr, Olf.L_map_inr, Finset.empty_union, Finset.union_empty, LoadFormula.unload,
+      Finset.empty_subset, true_and]
     tauto
   case dia' α φ notAt =>
-    simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Olf.L_inr, List.append_nil, FLL_nil,
-      List.Subset.refl, Olf.L_map_inr, Sequent.R_eq, Olf.R_inr, LoadFormula.unload, List.nil_append,
-      FLL_singelton, true_and]
-    have pU_in_unfD : pairUnload (F, oχ) ∈ unfoldDiamond α φ := by
-      have := (unfoldDiamondLoaded'_eq α φ)
-      grind
-    have := pairUnload.stays_in_FL _ _ pU_in_unfD
+    obtain ⟨⟨F', o'⟩, hmem, hF, hoo⟩ : ∃ p ∈ unfoldDiamondLoaded' α φ,
+        p.1.toFinset = F ∧ p.2 = oχ := by
+      simpa [Prod.ext_iff] using in_ress
+    subst hF; subst hoo
+    have pU_in_unfD : pairUnload (F', o') ∈ unfoldDiamond α φ := by
+      rw [← unfoldDiamondLoaded'_eq]
+      exact List.mem_map_of_mem hmem
+    have := pairUnloadSet.stays_in_FL pU_in_unfD
+    simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.O_eq, Sequent.R_eq, Olf.L_inr,
+      Olf.R_inr, Olf.L_map_inr, Finset.empty_union, Finset.union_empty, LoadFormula.unload,
+      Finset.empty_subset, true_and]
     tauto
 
 lemma P_in_FL α δ ℓ ψ : δ ∈ P α ℓ → (⌈⌈δ⌉⌉ψ) ∈ FL (⌈α⌉ψ) := by
@@ -365,21 +399,38 @@ lemma unfoldBox_in_FL (α : Program) (ψ : Formula) (X : List Formula) :
 /-- Helper for `LocalRule.stays_in_FL` -/
 theorem OneSidedLocalRule.stays_in_FL
     (rule : OneSidedLocalRule precond ress) :
-    ∀ res ∈ ress, res ⊆ FLL precond := by
+    ∀ res ∈ ress, res ⊆ Finset.FL precond := by
   intro res res_in
-  cases rule <;> simp [FL] at *
-  all_goals
-    subst_eqs
-    try simp
-  case nCo φ1 φ2 =>
+  cases rule
+  case bot => simp at res_in
+  case not => simp at res_in
+  case neg φ =>
+    simp only [Finset.mem_singleton] at res_in
+    subst res_in
+    simp [FL]
+  case con φ ψ =>
+    simp only [Finset.mem_singleton] at res_in
+    subst res_in
+    intro x hx
+    simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+    rcases hx with rfl|rfl <;> simp [FL]
+  case nCo φ ψ =>
     -- NOTE: Here it matters that FL is closed under (single) negation.
-    cases res_in <;> subst_eqs <;> simp at *
+    simp only [Finset.mem_insert, Finset.mem_singleton] at res_in
+    rcases res_in with rfl|rfl <;> simp [FL]
   case box α φ notAt =>
-    exact unfoldBox_in_FL _ _ _ res_in -- a bit funny that `exact` works here!
+    obtain ⟨X, X_in, rfl⟩ : ∃ X ∈ unfoldBox α φ, X.toFinset = res := by simpa using res_in
+    intro x hx
+    simp only [List.mem_toFinset] at hx
+    simpa using unfoldBox_in_FL _ _ _ X_in x hx
   case dia α φ notAt =>
-    intro ψ ψ_in
-    have := unfoldDiamond_in_FL _ _ _ res_in ψ ψ_in
-    grind [FL]
+    obtain ⟨X, X_in, rfl⟩ : ∃ X ∈ unfoldDiamond α φ, X.toFinset = res := by simpa using res_in
+    intro x hx
+    simp only [List.mem_toFinset] at hx
+    have := unfoldDiamond_in_FL _ _ _ X_in x hx
+    simp only [Finset.FL_singelton, List.mem_toFinset]
+    simp only [FL, List.singleton_append, List.mem_cons]
+    tauto
 
 /-- Helper for `LocalTableau.stays_in_FL` -/
 theorem LocalRule.stays_in_FL {X B}
@@ -409,184 +460,96 @@ theorem LocalRule.stays_in_FL {X B}
     tauto
   case loadedL ress χ lorule B_def =>
     subst B_def
-    simp [List.empty_eq, List.mem_map, Prod.exists] at *
-    rcases Y_in_B with ⟨l, o, in_ress, def_Y⟩
-    have := LoadRule.stays_in_FL_left lorule (l, o) in_ress
-    simp_all
+    obtain ⟨⟨l, o⟩, in_ress, rfl⟩ := Finset.mem_image.mp Y_in_B
+    exact LoadRule.stays_in_FL_left lorule (l, o) in_ress
   case loadedR ress χ lorule B_def =>
     subst B_def
-    simp only [List.empty_eq, List.mem_map, Prod.exists] at *
-    rcases Y_in_B with ⟨l, o, in_ress, def_Y⟩
-    have := LoadRule.stays_in_FL_right lorule (l, o) in_ress
-    simp_all
+    obtain ⟨⟨l, o⟩, in_ress, rfl⟩ := Finset.mem_image.mp Y_in_B
+    exact LoadRule.stays_in_FL_right lorule (l, o) in_ress
 
-set_option maxHeartbeats 2000000 in -- for simp and aesop timeouts
+/-- Removing something from an `Olf` can only remove formulas on the left. -/
+lemma Olf.sdiff_L_sub (O Ocond : Olf) : (O \ Ocond).L ⊆ O.L := by
+  rcases O with _|o
+  · simp
+  rcases Ocond with _|oc
+  · simp
+  unfold Option.insHasSdiff
+  by_cases h : o = oc <;> simp_all [Olf.L]
+
+/-- Removing something from an `Olf` can only remove formulas on the right. -/
+lemma Olf.sdiff_R_sub (O Ocond : Olf) : (O \ Ocond).R ⊆ O.R := by
+  rcases O with _|o
+  · simp
+  rcases Ocond with _|oc
+  · simp
+  unfold Option.insHasSdiff
+  by_cases h : o = oc <;> simp_all [Olf.R]
+
+/-- If `Ocond ⊆ O` then the left part of `Ocond` is included in that of `O`. -/
+lemma Olf.L_sub_of_sub {O Ocond : Olf} (h : Ocond ⊆ O) : Ocond.L ⊆ O.L := by
+  rcases Ocond with _|oc
+  · simp
+  · rcases O with _|o <;> simp_all
+
+/-- If `Ocond ⊆ O` then the right part of `Ocond` is included in that of `O`. -/
+lemma Olf.R_sub_of_sub {O Ocond : Olf} (h : Ocond ⊆ O) : Ocond.R ⊆ O.R := by
+  rcases Ocond with _|oc
+  · simp
+  · rcases O with _|o <;> simp_all
+
+/-- Helper for `LocalTableau.stays_in_FL`: applying a local rule stays in the FL closure. -/
+theorem LocalRuleApp.stays_in_FL (lra : LocalRuleApp) :
+    ∀ W ∈ lra.C, W.subseteq_FL lra.X := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, ⟨hL, hR, hO⟩⟩
+  subst hC
+  intro W W_in
+  simp only [applyLocalRule, Finset.mem_image] at W_in
+  obtain ⟨⟨Lnew, Rnew, Onew⟩, new_in, rfl⟩ := W_in
+  have lem := LocalRule.stays_in_FL lr _ new_in
+  simp only [Sequent.subseteq_FL, Sequent.L_eq, Sequent.R_eq, Sequent.O_eq] at lem ⊢
+  obtain ⟨lemL, lemLO, lemR, lemRO⟩ := lem
+  have monoL : Finset.FL (Lcond ∪ Ocond.L) ⊆ Finset.FL (L ∪ O.L) :=
+    Finset.FL_sub (Finset.union_subset_union hL (Olf.L_sub_of_sub hO))
+  have monoR : Finset.FL (Rcond ∪ Ocond.R) ⊆ Finset.FL (R ∪ O.R) :=
+    Finset.FL_sub (Finset.union_subset_union hR (Olf.R_sub_of_sub hO))
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · intro x hx
+    rcases Finset.mem_union.mp hx with hx | hx
+    · exact Finset.FL_refl_sub (Finset.mem_union_left _ (Finset.mem_sdiff.mp hx).1)
+    · exact monoL (lemL hx)
+  · rcases Onew with _|onew
+    · intro x hx
+      simp only [Olf.change, Option.overwrite] at hx
+      exact Finset.FL_refl_sub (Finset.mem_union_right _ (Olf.sdiff_L_sub O Ocond hx))
+    · simp only [Olf.change_some]
+      intro x hx
+      exact monoL (lemLO hx)
+  · intro x hx
+    rcases Finset.mem_union.mp hx with hx | hx
+    · exact Finset.FL_refl_sub (Finset.mem_union_left _ (Finset.mem_sdiff.mp hx).1)
+    · exact monoR (lemR hx)
+  · rcases Onew with _|onew
+    · intro x hx
+      simp only [Olf.change, Option.overwrite] at hx
+      exact Finset.FL_refl_sub (Finset.mem_union_right _ (Olf.sdiff_R_sub O Ocond hx))
+    · simp only [Olf.change_some]
+      intro x hx
+      exact monoR (lemRO hx)
+
 /-- End nodes of a local tableau are FischerLadner-subsets of the root.
 This is used for `move_inside_FL`. -/
 theorem LocalTableau.stays_in_FL {X}
     (ltX : LocalTableau X) :
     ∀ Y ∈ endNodesOf ltX, Y.subseteq_FL X := by
-  intro Y Y_in_B
-  cases ltX
-  case byLocalRule lra next X_def =>
-    have _forTermination := localRuleApp.decreases_DM lra
-    rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, ⟨Lconp,Rconp,Oconp⟩⟩
-    subst X_def hC
-    simp only [LocalRuleApp.X] at _forTermination
-    have lr_lemma := LocalRule.stays_in_FL rule
-    simp [endNodesOf] at Y_in_B
-    rcases Y_in_B with ⟨l, ⟨W, W_in, def_l⟩ , Y_in⟩
-    subst def_l
-    have IH := LocalTableau.stays_in_FL _ Y Y_in
-    clear _forTermination -- to avoid simplifying it
-    specialize lr_lemma W W_in
-    rcases W with ⟨Lnew, Rnew, Onew⟩
-    simp at *
-    clear Y_in next
-    simp [Sequent.subseteq_FL, FLL_append_eq] at IH lr_lemma ⊢
-    obtain ⟨IHL, IHLO, IHR, IHRO⟩ := IH
-    obtain ⟨lemL, lemLO, lemR, lemRO⟩ := lr_lemma
-    refine ⟨?_, ?_ , ?_ , ?_⟩ <;> intro x x_in
-    · specialize IHL x_in
-      simp at *
-      rcases IHL with h|h|h
-      · left
-        have := @FLL_diff_sub L Lcond
-        aesop
-      · have := FLL_sub lemL h
-        simp [FLL_append_eq] at this
-        rcases this with in_Lcond|inOcondL
-        · left
-          apply @FLL_sub Lcond L (List.Subperm.subset Lconp) _ in_Lcond
-        · cases Ocond <;> rcases O with _|⟨χ|χ⟩ <;> simp_all
-      · cases Ocond <;> rcases O with _|⟨χ|χ⟩ <;> rcases Onew with _|⟨χnew|χnew⟩ <;> simp_all
-        · apply FLL_sub (List.Subperm.subset Lconp)
-          rw [← FLL_idem_ext]
-          exact List.mem_flatMap_of_mem lemLO h
-        · left
-          apply FLL_sub (List.Subperm.subset Lconp)
-          rw [← FLL_idem_ext]
-          exact List.mem_flatMap_of_mem lemLO h
-        · apply FLL_sub (List.Subperm.subset Lconp)
-          rw [← FLL_idem_ext]
-          exact List.mem_flatMap_of_mem lemLO h
-        · rcases lemLO with lemH|lemH
-          · left
-            apply FLL_sub (List.Subperm.subset Lconp)
-            rw [← FLL_idem_ext]
-            exact List.mem_flatMap_of_mem lemH h
-          · right
-            exact FL_trans lemH h
-        · apply FLL_sub (List.Subperm.subset Lconp)
-          rw [← FLL_idem_ext]
-          exact List.mem_flatMap_of_mem lemLO h
-    · specialize IHLO x_in
-      simp at *
-      rcases IHLO with h|h|h
-      · left
-        have := @FLL_diff_sub L Lcond
-        aesop
-      · have := FLL_sub lemL h
-        simp [FLL_append_eq] at this
-        rcases this with in_Lcond|inOcondR
-        · left
-          apply @FLL_sub Lcond L (List.Subperm.subset Lconp) _ in_Lcond
-        · cases Ocond <;> rcases O with _|⟨χ|χ⟩ <;> simp_all
-      · cases Ocond <;> rcases O with _|⟨χ|χ⟩ <;> rcases Onew with _|⟨χnew|χnew⟩ <;> simp_all
-        · apply FLL_sub (List.Subperm.subset Lconp)
-          rw [← FLL_idem_ext]
-          apply List.mem_flatMap_of_mem lemLO h
-        · left
-          apply FLL_sub (List.Subperm.subset Lconp)
-          rw [← FLL_idem_ext]
-          exact List.mem_flatMap_of_mem lemLO h
-        · apply FLL_sub (List.Subperm.subset Lconp)
-          rw [← FLL_idem_ext]
-          exact List.mem_flatMap_of_mem lemLO h
-        · rcases lemLO with lemH|lemH
-          · left
-            apply FLL_sub (List.Subperm.subset Lconp)
-            rw [← FLL_idem_ext]
-            exact List.mem_flatMap_of_mem lemH h
-          · right
-            exact FL_trans lemH h
-        · apply FLL_sub (List.Subperm.subset Lconp)
-          rw [← FLL_idem_ext]
-          exact List.mem_flatMap_of_mem lemLO h
-    · specialize IHR x_in
-      simp at *
-      rcases IHR with h|h|h
-      · left
-        have := @FLL_diff_sub R Rcond
-        aesop
-      · have := FLL_sub lemR h
-        simp [FLL_append_eq] at this
-        rcases this with in_Rcond|inOcondR
-        · left
-          apply @FLL_sub Rcond R (List.Subperm.subset Rconp) _ in_Rcond
-        · cases Ocond <;> rcases O with _|⟨χ|χ⟩ <;> simp_all
-      · cases Ocond <;> rcases O with _|⟨χ|χ⟩ <;> rcases Onew with _|⟨χnew|χnew⟩ <;> simp_all
-        · apply FLL_sub (List.Subperm.subset Rconp)
-          rw [← FLL_idem_ext]
-          apply List.mem_flatMap_of_mem lemRO h
-        · apply FLL_sub (List.Subperm.subset Rconp)
-          rw [← FLL_idem_ext]
-          exact List.mem_flatMap_of_mem lemRO h
-        · left
-          apply FLL_sub (List.Subperm.subset Rconp)
-          rw [← FLL_idem_ext]
-          exact List.mem_flatMap_of_mem lemRO h
-        · apply FLL_sub (List.Subperm.subset Rconp)
-          rw [← FLL_idem_ext]
-          exact List.mem_flatMap_of_mem lemRO h
-        · rcases lemRO with lemH|lemH
-          · left
-            apply FLL_sub (List.Subperm.subset Rconp)
-            rw [← FLL_idem_ext]
-            exact List.mem_flatMap_of_mem lemH h
-          · right
-            exact FL_trans lemH h
-    · specialize IHRO x_in
-      simp at *
-      rcases IHRO with h|h|h
-      · left
-        have := @FLL_diff_sub R Rcond
-        aesop
-      · have := FLL_sub lemR h
-        simp [FLL_append_eq] at this
-        rcases this with in_Rcond|inOcondR
-        · left
-          apply @FLL_sub Rcond R (List.Subperm.subset Rconp) _ in_Rcond
-        · cases Ocond <;> rcases O with _|⟨χ|χ⟩ <;> simp_all
-      · cases Ocond <;> rcases O with _|⟨χ|χ⟩ <;> rcases Onew with _|⟨χnew|χnew⟩ <;> simp_all
-        · apply FLL_sub (List.Subperm.subset Rconp)
-          rw [← FLL_idem_ext]
-          apply List.mem_flatMap_of_mem lemRO h
-        · apply FLL_sub (List.Subperm.subset Rconp)
-          rw [← FLL_idem_ext]
-          exact List.mem_flatMap_of_mem lemRO h
-        · left
-          apply FLL_sub (List.Subperm.subset Rconp)
-          rw [← FLL_idem_ext]
-          exact List.mem_flatMap_of_mem lemRO h
-        · apply FLL_sub (List.Subperm.subset Rconp)
-          rw [← FLL_idem_ext]
-          exact List.mem_flatMap_of_mem lemRO h
-        · rcases lemRO with lemH|lemH
-          · left
-            apply FLL_sub (List.Subperm.subset Rconp)
-            rw [← FLL_idem_ext]
-            exact List.mem_flatMap_of_mem lemH h
-          · right
-            exact FL_trans lemH h
-  case sim => simp_all [endNodesOf]
-termination_by
-  X
-decreasing_by
-  simp_wf
-  subst_eqs
-  simp at *
-  apply _forTermination W W_in
+  induction ltX with
+  | @byLocalRule X lra X_def next IH =>
+    subst X_def
+    intro Y Y_in
+    simp only [endNodesOf, Finset.sup_image, Function.id_comp, Finset.mem_sup, Finset.mem_attach,
+      true_and, Subtype.exists] at Y_in
+    obtain ⟨W, W_in, Y_in⟩ := Y_in
+    exact Sequent.subseteq_FL_trans _ _ _ (IH W W_in Y Y_in) (lra.stays_in_FL W W_in)
+  | sim _ => intro Y Y_in; simp_all
 
 lemma projection_sub_FLL {a L} : projection a L ⊆ FLL L := by
   intro φ φ_in
@@ -594,6 +557,32 @@ lemma projection_sub_FLL {a L} : projection a L ⊆ FLL L := by
   simp only [FLL, List.mem_flatMap]
   use ⌈·a⌉φ, φ_in
   simp [FL]
+
+@[simp]
+lemma Finset.mem_projection {A g} {X : Finset Formula} :
+    g ∈ Finset.projection A X ↔ (⌈·A⌉g) ∈ X := by
+  constructor
+  · intro h
+    simp only [Finset.projection, Finset.mem_sup, Finset.mem_image, id_eq] at h
+    obtain ⟨s, ⟨x, hx, rfl⟩, hg⟩ := h
+    cases x <;> simp_all [formProjection]
+    case box α ψ =>
+      cases α <;> simp_all
+  · intro h
+    simp only [Finset.projection, Finset.mem_sup, Finset.mem_image, id_eq]
+    exact ⟨_, ⟨_, h, rfl⟩, by simp⟩
+
+/-- Anything in the FL closure of a member of `X` is in the FL closure of `X`. -/
+lemma Finset.mem_FL_of_mem {X : Finset Formula} {ψ x : Formula}
+    (hψ : ψ ∈ X) (hx : x ∈ _root_.FL ψ) : x ∈ X.FL := by
+  simp only [Finset.FL, Finset.mem_sup, List.mem_toFinset]
+  exact ⟨ψ, hψ, hx⟩
+
+lemma Finset.projection_sub_FL {a} {X : Finset Formula} : X.projection a ⊆ X.FL := by
+  intro φ φ_in
+  rw [Finset.mem_projection] at φ_in
+  simp only [Finset.FL, Finset.mem_sup, List.mem_toFinset]
+  exact ⟨⌈·a⌉φ, φ_in, by simp [_root_.FL]⟩
 
 /-- Making a PDL rule step stays in the Fischer-Ladner closure.
 This is used for `move_inside_FL`. -/
@@ -603,74 +592,49 @@ theorem PdlRule.stays_in_FL {X Y} (rule : PdlRule X Y) :
   case loadL L δ α φ R in_L notBox Y_def =>
     subst Y_def
     simp [Sequent.subseteq_FL]
-    constructor
-    · exact List.Subset.trans List.erase_subset FLL_refl_sub
-    · exact FLL_refl_sub in_L
+    exact ⟨(Finset.erase_subset _ _).trans Finset.FL_refl_sub, Finset.FL_refl_sub in_L⟩
   case loadR L δ α φ R in_L notBox Y_def =>
     subst Y_def
     simp [Sequent.subseteq_FL]
-    constructor
-    · exact List.Subset.trans List.erase_subset FLL_refl_sub
-    · exact FLL_refl_sub in_L
+    exact ⟨(Finset.erase_subset _ _).trans Finset.FL_refl_sub, Finset.FL_refl_sub in_L⟩
   case freeL L R δ α φ X_def Y_def =>
     subst X_def
     subst Y_def
     simp [Sequent.subseteq_FL]
-    intro x x_in
-    simp at x_in
-    apply FLL_refl_sub
-    simp
-    tauto
   case freeR L R δ α φ X_def Y_def =>
     subst X_def
     subst Y_def
     simp [Sequent.subseteq_FL]
-    intro x x_in
-    simp at x_in
-    apply FLL_refl_sub
-    simp
-    tauto
   case modL L R a ξ X_def Y_def =>
     subst X_def
     subst Y_def
     cases ξ <;> simp [Sequent.subseteq_FL]
     case normal φ =>
-      refine ⟨⟨?_, ?_⟩, ?_⟩
-      · simp [FLL_append_eq]
-        right
+      constructor
+      · intro x x_in
+        rcases Finset.mem_insert.mp x_in with rfl | x_in
         -- Note: here the closure under single negation matters.
-        simp [FL, FLb]
-      · have := @projection_sub_FLL a L
-        grind [FLL_append_eq]
-      · apply projection_sub_FLL
+        · exact Finset.mem_FL_of_mem (Finset.mem_insert_self _ _) (by simp [FL, FLb])
+        · exact Finset.FL_sub (Finset.subset_insert _ _) (Finset.projection_sub_FL x_in)
+      · exact Finset.projection_sub_FL
     case loaded χ =>
-      refine ⟨?_, ?_, ?_⟩
-      · have := @projection_sub_FLL a L
-        grind [FLL_append_eq]
-      · simp [FLL_append_eq]
-        right
-        -- Note: here the closure under single negation matters.
-        simp [FL, FLb]
-      · apply projection_sub_FLL
+      refine ⟨?_, ?_, Finset.projection_sub_FL⟩
+      · exact fun _ x_in => Finset.FL_sub (Finset.subset_insert _ _) (Finset.projection_sub_FL x_in)
+      -- Note: here the closure under single negation matters.
+      · exact Finset.mem_FL_of_mem (Finset.mem_insert_self _ _) (by simp [FL, FLb])
   case modR L R a ξ X_def Y_def => -- analogous to `modL` case
     subst X_def
     subst Y_def
     cases ξ <;> simp [Sequent.subseteq_FL]
     case normal φ =>
-      refine ⟨?_, ?_, ?_⟩
-      · apply @projection_sub_FLL a L
-      · simp [FLL_append_eq]
-        right
-        -- Note: here the closure under single negation matters.
-        simp [FL, FLb]
-      · have := @projection_sub_FLL a R
-        grind [FLL_append_eq]
+      refine ⟨Finset.projection_sub_FL, ?_⟩
+      intro x x_in
+      rcases Finset.mem_insert.mp x_in with rfl | x_in
+      -- Note: here the closure under single negation matters.
+      · exact Finset.mem_FL_of_mem (Finset.mem_insert_self _ _) (by simp [FL, FLb])
+      · exact Finset.FL_sub (Finset.subset_insert _ _) (Finset.projection_sub_FL x_in)
     case loaded χ =>
-      refine ⟨?_, ?_, ?_⟩
-      · apply projection_sub_FLL
-      · have := @projection_sub_FLL a R
-        grind [FLL_append_eq]
-      · simp [FLL_append_eq]
-        right
-        -- Note: here the closure under single negation matters.
-        simp [FL, FLb]
+      refine ⟨Finset.projection_sub_FL, ?_, ?_⟩
+      · exact fun _ x_in => Finset.FL_sub (Finset.subset_insert _ _) (Finset.projection_sub_FL x_in)
+      -- Note: here the closure under single negation matters.
+      · exact Finset.mem_FL_of_mem (Finset.mem_insert_self _ _) (by simp [FL, FLb])
