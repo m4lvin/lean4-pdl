@@ -529,11 +529,258 @@ lemma Sequent.isAtomic_of_basic_of_negLoad_mem_wForms {X : Sequent} {α} {ξ : A
 
 /-! ## Sorting Finsets of Sequents -/
 
-/-- TODO: to make .all and other things computable, Finsets of Sequents should have an order to be
-sorted, like Finsets of formulas with .fsort instead of .toList which is noncomputable. -/
+/-! ### Lexicographic orders on lists and pairs
+
+NOTE: The following two definitions and their properties are general, i.e. not about PDL at all.
+These could be moved to a separate file (or even might be in newer versions of Mathlib?).
+-/
+
+/-- Lexicographic extension of a relation `le` to lists: shorter lists come first,
+and lists of the same shape are compared element-wise from left to right. -/
+def listLex {α : Type} (le : α → α → Prop) : List α → List α → Prop
+  | [], _ => True
+  | _ :: _, [] => False
+  | a :: as, b :: bs => le a b ∧ (a = b → listLex le as bs)
+
+instance listLex.instDecidableRel {α : Type} [DecidableEq α] (le : α → α → Prop)
+    [DecidableRel le] : DecidableRel (listLex le)
+  | [], _ => isTrue trivial
+  | _ :: _, [] => isFalse not_false
+  | a :: as, b :: bs => by
+      have := listLex.instDecidableRel le as bs
+      exact (inferInstance : Decidable (le a b ∧ (a = b → listLex le as bs)))
+
+lemma listLex_refl {α : Type} {le : α → α → Prop} (hrefl : ∀ a, le a a) :
+    ∀ as, listLex le as as
+  | [] => trivial
+  | a :: as => ⟨hrefl a, fun _ => listLex_refl hrefl as⟩
+
+lemma listLex_antisymm {α : Type} {le : α → α → Prop}
+    (hanti : ∀ a b, le a b → le b a → a = b) :
+    ∀ as bs, listLex le as bs → listLex le bs as → as = bs
+  | [], [], _, _ => rfl
+  | [], _ :: _, _, h2 => absurd h2 not_false
+  | _ :: _, [], h1, _ => absurd h1 not_false
+  | a :: as, b :: bs, h1, h2 => by
+      have hab : a = b := hanti a b h1.1 h2.1
+      subst hab
+      rw [listLex_antisymm hanti as bs (h1.2 rfl) (h2.2 rfl)]
+
+lemma listLex_trans {α : Type} {le : α → α → Prop}
+    (hanti : ∀ a b, le a b → le b a → a = b) (htrans : ∀ a b c, le a b → le b c → le a c) :
+    ∀ as bs cs, listLex le as bs → listLex le bs cs → listLex le as cs
+  | [], _, _, _, _ => trivial
+  | _ :: _, [], _, h1, _ => absurd h1 not_false
+  | _ :: _, _ :: _, [], _, h2 => absurd h2 not_false
+  | a :: as, b :: bs, c :: cs, h1, h2 => by
+      refine ⟨htrans a b c h1.1 h2.1, fun hac => ?_⟩
+      subst hac
+      have hab : a = b := hanti a b h1.1 h2.1
+      subst hab
+      exact listLex_trans hanti htrans as bs cs (h1.2 rfl) (h2.2 rfl)
+
+lemma listLex_total {α : Type} {le : α → α → Prop} (hrefl : ∀ a, le a a)
+    (htotal : ∀ a b, le a b ∨ le b a) :
+    ∀ as bs, listLex le as bs ∨ listLex le bs as
+  | [], _ => Or.inl trivial
+  | _ :: _, [] => Or.inr trivial
+  | a :: as, b :: bs => by
+      by_cases hab : a = b
+      · subst hab
+        rcases listLex_total hrefl htotal as bs with h | h
+        · exact Or.inl ⟨hrefl a, fun _ => h⟩
+        · exact Or.inr ⟨hrefl a, fun _ => h⟩
+      · rcases htotal a b with h | h
+        · exact Or.inl ⟨h, fun he => absurd he hab⟩
+        · exact Or.inr ⟨h, fun he => absurd he.symm hab⟩
+
+/-- Lexicographic combination of two relations on a product type. -/
+def prodLex {α β : Type} (le1 : α → α → Prop) (le2 : β → β → Prop) : α × β → α × β → Prop
+  | (a, b), (a', b') => le1 a a' ∧ (a = a' → le2 b b')
+
+instance prodLex.instDecidableRel {α β : Type} [DecidableEq α] (le1 : α → α → Prop)
+    (le2 : β → β → Prop) [DecidableRel le1] [DecidableRel le2] : DecidableRel (prodLex le1 le2)
+  | (a, b), (a', b') => (inferInstance : Decidable (le1 a a' ∧ (a = a' → le2 b b')))
+
+lemma prodLex_refl {α β : Type} {le1 : α → α → Prop} {le2 : β → β → Prop}
+    (h1 : ∀ a, le1 a a) (h2 : ∀ b, le2 b b) : ∀ x, prodLex le1 le2 x x
+  | (a, b) => ⟨h1 a, fun _ => h2 b⟩
+
+lemma prodLex_antisymm {α β : Type} {le1 : α → α → Prop} {le2 : β → β → Prop}
+    (h1 : ∀ a a', le1 a a' → le1 a' a → a = a') (h2 : ∀ b b', le2 b b' → le2 b' b → b = b') :
+    ∀ x y, prodLex le1 le2 x y → prodLex le1 le2 y x → x = y
+  | (a, b), (a', b'), hxy, hyx => by
+      have haa : a = a' := h1 a a' hxy.1 hyx.1
+      subst haa
+      rw [h2 b b' (hxy.2 rfl) (hyx.2 rfl)]
+
+lemma prodLex_trans {α β : Type} {le1 : α → α → Prop} {le2 : β → β → Prop}
+    (hanti1 : ∀ a a', le1 a a' → le1 a' a → a = a')
+    (htrans1 : ∀ a a' a'', le1 a a' → le1 a' a'' → le1 a a'')
+    (htrans2 : ∀ b b' b'', le2 b b' → le2 b' b'' → le2 b b'') :
+    ∀ x y z, prodLex le1 le2 x y → prodLex le1 le2 y z → prodLex le1 le2 x z
+  | (a, b), (a', b'), (a'', b''), hxy, hyz => by
+      refine ⟨htrans1 a a' a'' hxy.1 hyz.1, fun he => ?_⟩
+      subst he
+      have haa : a = a' := hanti1 a a' hxy.1 hyz.1
+      subst haa
+      exact htrans2 b b' b'' (hxy.2 rfl) (hyz.2 rfl)
+
+lemma prodLex_total {α β : Type} {le1 : α → α → Prop} {le2 : β → β → Prop}
+    (hrefl1 : ∀ a, le1 a a) (htotal1 : ∀ a a', le1 a a' ∨ le1 a' a)
+    (htotal2 : ∀ b b', le2 b b' ∨ le2 b' b) :
+    ∀ x y, prodLex le1 le2 x y ∨ prodLex le1 le2 y x
+  | (a, b), (a', b') => by
+      by_cases haa : a = a'
+      · subst haa
+        rcases htotal2 b b' with h | h
+        · exact Or.inl ⟨hrefl1 a, fun _ => h⟩
+        · exact Or.inr ⟨hrefl1 a, fun _ => h⟩
+      · rcases htotal1 a a' with h | h
+        · exact Or.inl ⟨h, fun he => absurd he haa⟩
+        · exact Or.inr ⟨h, fun he => absurd he.symm haa⟩
+
+/-! ### An order on loaded formulas, via a key -/
+
+/-- Every loaded formula is a non-empty sequence of loading boxes followed by a normal formula.
+The `key` of a loaded formula records exactly this data, and hence determines it uniquely.
+NOTE: This could be moved to `Pdl/Syntax.lean`. -/
+def LoadFormula.key : LoadFormula → List Program × Formula
+  | .box α (.normal φ) => ([α], φ)
+  | .box α (.loaded χ) => (α :: χ.key.1, χ.key.2)
+
+/-- Inverse of `LoadFormula.key`, see `LoadFormula.ofKey_key`.
+(The value for the empty list of programs is arbitrary.)
+NOTE: This could be moved to `Pdl/Syntax.lean`. -/
+def loadFormulaOfKey : List Program → Formula → LoadFormula
+  | [], φ => LoadFormula.box (Program.test φ) (AnyFormula.normal φ)
+  | [α], φ => LoadFormula.box α (AnyFormula.normal φ)
+  | α :: β :: δ, φ => LoadFormula.box α (AnyFormula.loaded (loadFormulaOfKey (β :: δ) φ))
+
+/-- The key of a loaded formula determines it. -/
+theorem LoadFormula.ofKey_key : ∀ χ : LoadFormula, loadFormulaOfKey χ.key.1 χ.key.2 = χ
+  | .box _ (.normal _) => rfl
+  | .box _ (.loaded χ) => by
+      have ih := LoadFormula.ofKey_key χ
+      rcases χ with ⟨β, ξ⟩
+      cases ξ <;> simp_all [LoadFormula.key, loadFormulaOfKey]
+
+theorem LoadFormula.key_injective {χ χ' : LoadFormula} (h : χ.key = χ'.key) : χ = χ' := by
+  rw [← LoadFormula.ofKey_key χ, ← LoadFormula.ofKey_key χ', h]
+
+/-! ### An order on sequents, via a key -/
+
+/-- Key of an `Olf`: which side (if any) is loaded, together with the key of the loaded formula. -/
+def Olf.key : Olf → ℕ × (List Program × Formula)
+  | none => (0, ([], Formula.bottom))
+  | some (Sum.inl (~'χ)) => (1, χ.key)
+  | some (Sum.inr (~'χ)) => (2, χ.key)
+
+lemma Olf.key_injective : ∀ {O O' : Olf}, O.key = O'.key → O = O'
+  | none, none, _ => rfl
+  | none, some (.inl (~'_)), h => by simp [Olf.key] at h
+  | none, some (.inr (~'_)), h => by simp [Olf.key] at h
+  | some (.inl (~'_)), none, h => by simp [Olf.key] at h
+  | some (.inr (~'_)), none, h => by simp [Olf.key] at h
+  | some (.inl (~'_)), some (.inr (~'_)), h => by simp [Olf.key] at h
+  | some (.inr (~'_)), some (.inl (~'_)), h => by simp [Olf.key] at h
+  | some (.inl (~'_)), some (.inl (~'_)), h => by
+      simp only [Olf.key, Prod.mk.injEq] at h
+      rw [LoadFormula.key_injective h.2]
+  | some (.inr (~'_)), some (.inr (~'_)), h => by
+      simp only [Olf.key, Prod.mk.injEq] at h
+      rw [LoadFormula.key_injective h.2]
+
+/-- Key of a sequent: the sorted lists of the left and right side, and the key of the `Olf`. -/
+def Sequent.key (X : Sequent) : List Formula × (List Formula × (ℕ × (List Program × Formula))) :=
+  (X.L.fsort, (X.R.fsort, X.O.key))
+
+/-- Finsets of formulas with the same `fsort` are equal.
+NOTE: This could be moved to `Pdl/Syntax.lean`. -/
+lemma Finset.fsort_injective {X Y : Finset Formula} (h : X.fsort = Y.fsort) : X = Y := by
+  ext φ
+  rw [← Formula.mem_fsort, ← Formula.mem_fsort, h]
+
+lemma Sequent.key_injective {X Y : Sequent} (h : X.key = Y.key) : X = Y := by
+  rcases X with ⟨L, R, O⟩
+  rcases Y with ⟨L', R', O'⟩
+  simp only [Sequent.key, Prod.mk.injEq, Sequent.L_eq, Sequent.R_eq, Sequent.O_eq] at h
+  exact Prod.ext (Finset.fsort_injective h.1)
+    (Prod.ext (Finset.fsort_injective h.2.1) (Olf.key_injective h.2.2))
+
+/-- Order used to compare the keys of `Olf`s. -/
+def olfKeyLe : (ℕ × (List Program × Formula)) → (ℕ × (List Program × Formula)) → Prop :=
+  prodLex (fun (n m : ℕ) => n ≤ m) (prodLex (listLex Program.le) Formula.le)
+
+instance : DecidableRel olfKeyLe := by unfold olfKeyLe; infer_instance
+
+lemma olfKeyLe_refl (x) : olfKeyLe x x :=
+  prodLex_refl (fun _ => Nat.le_refl _)
+    (prodLex_refl (listLex_refl Program.le_rfl) Formula.le_rfl) x
+
+lemma olfKeyLe_antisymm (x y) (h1 : olfKeyLe x y) (h2 : olfKeyLe y x) : x = y :=
+  prodLex_antisymm (fun _ _ => Nat.le_antisymm)
+    (prodLex_antisymm (listLex_antisymm Program.le_antisymm) Formula.le_antisymm) x y h1 h2
+
+lemma olfKeyLe_trans (x y z) (h1 : olfKeyLe x y) (h2 : olfKeyLe y z) : olfKeyLe x z :=
+  prodLex_trans (fun _ _ => Nat.le_antisymm) (fun _ _ _ => Nat.le_trans)
+    (prodLex_trans (listLex_antisymm Program.le_antisymm)
+      (listLex_trans Program.le_antisymm Program.le_trans_aux) Formula.le_trans) x y z h1 h2
+
+lemma olfKeyLe_total (x y) : olfKeyLe x y ∨ olfKeyLe y x :=
+  prodLex_total (fun _ => Nat.le_refl _) (fun n m => Nat.le_total n m)
+    (prodLex_total (listLex_refl Program.le_rfl)
+      (listLex_total Program.le_rfl Program.le_total) Formula.le_total) x y
+
+/-- Order used to compare the keys of sequents. -/
+def seqKeyLe : (List Formula × (List Formula × (ℕ × (List Program × Formula)))) →
+    (List Formula × (List Formula × (ℕ × (List Program × Formula)))) → Prop :=
+  prodLex (listLex Formula.le) (prodLex (listLex Formula.le) olfKeyLe)
+
+instance : DecidableRel seqKeyLe := by unfold seqKeyLe; infer_instance
+
+/-- A linear order on sequents, used to define `Finset.seqSort`. -/
+def Sequent.le (X Y : Sequent) : Prop := seqKeyLe X.key Y.key
+
+instance Sequent.instDecidableRelLe : DecidableRel Sequent.le :=
+  fun X Y => by unfold Sequent.le; infer_instance
+
+instance Sequent.instIsTransLe : IsTrans Sequent Sequent.le :=
+  ⟨fun X Y Z h1 h2 =>
+    prodLex_trans (listLex_antisymm Formula.le_antisymm)
+      (listLex_trans Formula.le_antisymm Formula.le_trans)
+      (prodLex_trans (listLex_antisymm Formula.le_antisymm)
+        (listLex_trans Formula.le_antisymm Formula.le_trans) olfKeyLe_trans)
+      X.key Y.key Z.key h1 h2⟩
+
+instance Sequent.instAntisymmLe : Std.Antisymm Sequent.le :=
+  ⟨fun X Y h1 h2 => Sequent.key_injective <|
+    prodLex_antisymm (listLex_antisymm Formula.le_antisymm)
+      (prodLex_antisymm (listLex_antisymm Formula.le_antisymm) olfKeyLe_antisymm)
+      X.key Y.key h1 h2⟩
+
+instance Sequent.instTotalLe : Std.Total Sequent.le :=
+  ⟨fun X Y =>
+    prodLex_total (listLex_refl Formula.le_rfl) (listLex_total Formula.le_rfl Formula.le_total)
+      (prodLex_total (listLex_refl Formula.le_rfl)
+        (listLex_total Formula.le_rfl Formula.le_total) olfKeyLe_total)
+      X.key Y.key⟩
+
+/-- Sort a finite set of sequents into a list, using `Sequent.le`. -/
 def Finset.seqSort : Finset Sequent → List Sequent :=
-  sorry
+  fun A => A.sort Sequent.le
 
 @[simp]
-lemma Finset.mem_seqSort (A : Finset Sequent) : X ∈ A.seqSort ↔ X ∈ A := by
-  sorry
+lemma Finset.mem_seqSort (A : Finset Sequent) : X ∈ A.seqSort ↔ X ∈ A :=
+  Finset.mem_sort Sequent.le
+
+lemma Finset.seqSort_nodup (A : Finset Sequent) : A.seqSort.Nodup :=
+  Finset.sort_nodup A Sequent.le
+
+@[simp]
+lemma Finset.length_seqSort (A : Finset Sequent) : A.seqSort.length = A.card :=
+  Finset.length_sort Sequent.le
+
+@[simp]
+lemma Finset.seqSort_eq_nil_iff {A : Finset Sequent} : A.seqSort = [] ↔ A = ∅ := by
+  rw [← List.length_eq_zero_iff, Finset.length_seqSort, Finset.card_eq_zero]
