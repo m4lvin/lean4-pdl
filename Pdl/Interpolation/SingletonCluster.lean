@@ -1,79 +1,11 @@
 import Pdl.Tableau
 import Pdl.Interpolation.Local
 
-/-! ## Interpolants for PdlRules applied to free nodes
+/-! ## Helper lemmas about vocabularies and interpolants -/
 
-The only rule treated here is (L+), i.e. `loadL` and `loadR`.
--/
-
-def freePdlRuleInterpolant {X Y} (r : PdlRule X Y) (Xfree : X.isFree) (θY : PartInterpolant Y)
-    : PartInterpolant X := by
-  rcases θY with ⟨θ, θ_ip_Y⟩
-  cases r
-  case loadL in_L notBox Y_def =>
-    use θ
-    subst Y_def
-    rcases θ_ip_Y with ⟨hYvoc, hYL, hYR⟩
-    refine ⟨?_, ?_, ?_⟩
-    · intro x x_in
-      specialize hYvoc x_in
-      simp only [jvoc, Finset.fvoc, Vocab.fromFinset, Sequent.left_eq, Olf.L_inl, unload_boxes,
-        LoadFormula.unload, Finset.union_singleton, Finset.image_insert, Formula.voc,
-        Finset.sup_insert, id_eq, Finset.sup_image, Function.id_comp, Finset.sup_eq_union',
-        Sequent.right_eq, Olf.R_inl, Finset.union_empty, Finset.mem_inter, Finset.mem_union,
-        Finset.mem_sup, Finset.mem_erase, ne_eq] at hYvoc
-      simp only [jvoc, Finset.fvoc, Vocab.fromFinset, Sequent.left_eq, Olf.L_none,
-        Finset.union_empty, Finset.sup_image, Function.id_comp, Sequent.right_eq, Olf.R_none,
-        Finset.mem_inter, Finset.mem_sup]
-      rcases hYvoc with ⟨x_from, ⟨φ, φ_inR, x_from_φ⟩⟩
-      constructor
-      · rcases x_from with (hx|hx)
-        · exact ⟨_, in_L, hx⟩
-        · grind
-      · use φ
-    all_goals
-      clear notBox Xfree
-      simp at *
-      sorry -- grind
-  case loadR in_R notBox Y_def=>
-    use θ
-    subst Y_def
-    rcases θ_ip_Y with ⟨hYvoc, hYL, hYR⟩
-    refine ⟨?_, ?_, ?_⟩
-    · intro x x_in
-      specialize hYvoc x_in
-      simp only [jvoc, Finset.fvoc, Vocab.fromFinset, Sequent.left_eq, Olf.L_inr,
-        Finset.union_empty, Finset.sup_image, Function.id_comp, Sequent.right_eq, Olf.R_inr,
-        unload_boxes, LoadFormula.unload, Finset.union_singleton, Finset.image_insert, Formula.voc,
-        Finset.sup_insert, id_eq, Finset.sup_eq_union', Finset.mem_inter, Finset.mem_sup,
-        Finset.mem_union, Finset.mem_erase, ne_eq] at hYvoc
-      simp only [jvoc, Finset.fvoc, Vocab.fromFinset, Sequent.left_eq, Olf.L_none,
-        Finset.union_empty, Finset.sup_image, Function.id_comp, Sequent.right_eq, Olf.R_none,
-        Finset.mem_inter, Finset.mem_sup]
-      rcases hYvoc with ⟨⟨φ, φ_inR, x_from_φ⟩, x_from⟩
-      constructor
-      · use φ
-      · rcases x_from with (hx|hx)
-        · exact ⟨_, in_R, hx⟩
-        · grind
-    all_goals
-      clear notBox Xfree
-      simp at *
-      sorry -- grind
-  all_goals
-    exfalso
-    subst_eqs
-    simp_all [Sequent.isFree, Sequent.isLoaded]
-
-
-/-! ## Interpolants for PdlRules applied to loaded nodes
-
-The rules treated here are (L-), i.e. `freeL` and `freeR`, and the modal rule (M), i.e.
-`modL` and `modR`. This is the part of Lemma 9.1 in the paper that is about loaded nodes
-which form a singleton cluster. -/
-
-/-- The vocabulary of a list of formulas only grows when we add formulas with larger
-vocabularies. -/
+/-- The vocabulary of a finset of formulas only grows when we add formulas with larger
+vocabularies.
+FIXME: This should be moved to `Pdl/Vocab.lean`, next to `Finset.fvoc`. -/
 lemma fvoc_subset_of_mem_voc {L L' : Finset Formula}
     (h : ∀ f ∈ L, ∃ g ∈ L', f.voc ⊆ g.voc) : L.fvoc ⊆ L'.fvoc := by
   intro x hx
@@ -98,8 +30,49 @@ lemma isPartInterpolant_of_mem_iff {Z Y : Sequent} {θ : Formula}
   · aesop
   · aesop
 
-open HasSat in
+/-! ## Interpolants for PdlRules applied to free nodes
+
+The only rule treated here is (L+), i.e. `loadL` and `loadR`.
+-/
+
+def freePdlRuleInterpolant {X Y} (r : PdlRule X Y) (Xfree : X.isFree) (θY : PartInterpolant Y)
+    : PartInterpolant X := by
+  rcases θY with ⟨θ, θ_ip_Y⟩
+  cases r
+  case loadL in_L notBox Y_def =>
+    subst Y_def
+    refine ⟨θ, isPartInterpolant_of_mem_iff ?_ ?_ θ_ip_Y⟩
+    · intro f
+      simp only [Sequent.left_eq, Olf.L_none, Finset.union_empty, Olf.L_inl, unload_boxes,
+        LoadFormula.unload, Finset.mem_union, Finset.mem_erase, Finset.mem_singleton, ne_eq]
+      grind
+    · intro f
+      simp only [Sequent.right_eq, Olf.R_none, Olf.R_inl, Finset.union_empty]
+  case loadR in_R notBox Y_def =>
+    subst Y_def
+    refine ⟨θ, isPartInterpolant_of_mem_iff ?_ ?_ θ_ip_Y⟩
+    · intro f
+      simp only [Sequent.left_eq, Olf.L_none, Olf.L_inr, Finset.union_empty]
+    · intro f
+      simp only [Sequent.right_eq, Olf.R_none, Finset.union_empty, Olf.R_inr, unload_boxes,
+        LoadFormula.unload, Finset.mem_union, Finset.mem_erase, Finset.mem_singleton, ne_eq]
+      grind
+  all_goals
+    exfalso
+    subst_eqs
+    simp_all [Sequent.isFree, Sequent.isLoaded]
+
+
+/-! ## Interpolants for PdlRules applied to loaded nodes
+
+The rules treated here are (L-), i.e. `freeL` and `freeR`, and the modal rule (M), i.e.
+`modL` and `modR`. This is the part of Lemma 9.1 in the paper that is about loaded nodes
+which form a singleton cluster. -/
+
+
 set_option maxHeartbeats 800000 in
+-- Reason: the many `simp` calls about `Finset` membership below are slow.
+open HasSat in
 /-- Interpolant for the modal rule (M) applied to a node loaded on the left.
 The lists `Xl, Xr` are the two components of the premise and `Yl, Yr` those of the
 conclusion, described by which formulas are in them.
@@ -150,14 +123,11 @@ lemma exists_itp_modL {A : Nat} {L R Xl Xr Yl Yr : Finset Formula} {ψ θ : Form
         apply fvoc_subset_of_mem_voc
         intro f hf
         exact ⟨⌈·A⌉f, (hXr _).mpr (Finset.mem_projection.mp ((hYr f).mp hf)), by simp⟩
-      have hA_l : (Sum.inr A : Sum Nat Nat) ∈ Xl.fvoc := by
-        -- rw [Vocab.fromListFormula_map_iff]
-        -- exact ⟨_, (hXl _).mpr (Or.inr rfl), by simp⟩
-        sorry
-      have hA_r : (Sum.inr A : Sum Nat Nat) ∈ Xr.fvoc := by
-        -- rw [Vocab.fromListFormula_map_iff]
-        -- exact ⟨⌈·A⌉χ, (hXr _).mpr (proj.mp hχ), by simp⟩
-        sorry
+      have hA_l : (Sum.inr A : Sum Nat Nat) ∈ Xl.fvoc :=
+        Finset.mem_fvoc.mpr ⟨_, (hXl _).mpr (Or.inr rfl), by simp⟩
+      have hA_r : (Sum.inr A : Sum Nat Nat) ∈ Xr.fvoc :=
+        Finset.mem_fvoc.mpr
+          ⟨⌈·A⌉χ, (hXr _).mpr (Finset.mem_projection.mp hχ), by simp⟩
       intro x hx
       simp only [Formula.voc, Program.voc, Finset.mem_union, Finset.mem_singleton] at hx
       rcases hx with rfl | hx
@@ -178,7 +148,7 @@ lemma exists_itp_modL {A : Nat} {L R Xl Xr Yl Yr : Finset Formula} {ψ θ : Form
       · exact hvYl f hf
     · rintro ⟨W, M, w, hw⟩
       have hXrw : ∀ f ∈ Xr, evaluate M w f := fun f hf => hw f (by simp; tauto)
-      have h1 : evaluate M w (~⌈·A⌉(~θ)) := hw _ (by sorry)
+      have h1 : evaluate M w (~⌈·A⌉(~θ)) := hw _ (by simp)
       simp only [evaluate, relate, not_forall, not_not] at h1
       obtain ⟨v, hv, hvθ⟩ := h1
       refine hR ⟨W, M, v, ?_⟩
@@ -212,8 +182,9 @@ lemma exists_itp_modL {A : Nat} {L R Xl Xr Yl Yr : Finset Formula} {ψ θ : Form
     · rintro ⟨W, M, w, hw⟩
       simp_all
 
-open HasSat in
 set_option maxHeartbeats 800000 in
+-- Reason: the many `simp` calls about `Finset` membership below are slow.
+open HasSat in
 /-- Interpolant for the modal rule (M) applied to a node loaded on the right.
 The interpolant is `⌈·A⌉θ`, unless the projection of the left component is empty,
 in which case the right component is unsatisfiable and we can use `~⊥`. -/
@@ -262,10 +233,11 @@ lemma exists_itp_modR {A : Nat} {L R Xl Xr Yl Yr : Finset Formula} {ψ θ : Form
         rcases (hYr f).mp hf with rfl | hf
         · exact ⟨_, (hXr _).mpr (Or.inr rfl), by simp⟩
         · exact ⟨⌈·A⌉f, (hXr _).mpr (Or.inl (Finset.mem_projection.mp hf)), by simp⟩
-      have hA_l : (Sum.inr A : Sum Nat Nat) ∈ Xl.fvoc := by
-        sorry
-      have hA_r : (Sum.inr A : Sum Nat Nat) ∈ Xr.fvoc := by
-        sorry
+      have hA_l : (Sum.inr A : Sum Nat Nat) ∈ Xl.fvoc :=
+        Finset.mem_fvoc.mpr
+          ⟨⌈·A⌉χ, (hXl _).mpr (Finset.mem_projection.mp hχ), by simp⟩
+      have hA_r : (Sum.inr A : Sum Nat Nat) ∈ Xr.fvoc :=
+        Finset.mem_fvoc.mpr ⟨_, (hXr _).mpr (Or.inr rfl), by simp⟩
       intro x hx
       simp only [Formula.voc, Program.voc, Finset.mem_union, Finset.mem_singleton] at hx
       rcases hx with rfl | hx
@@ -334,14 +306,14 @@ lemma loadedPdlRuleInterpolant {Z Y : Sequent} (r : PdlRule Z Y) (Zloaded : Z.is
     subst hX; subst hY
     refine ⟨θ, isPartInterpolant_of_mem_iff ?_ ?_ ⟨hvoc, hL, hR⟩⟩
     · intro f; simp [Sequent.left, Sequent.L, Sequent.O, Olf.L, unload_boxes,
-        LoadFormula.unload, List.mem_insert_iff]
+        LoadFormula.unload]
     · intro f; simp [Sequent.right, Sequent.R, Sequent.O, Olf.R]
   case freeR L R δ α φ hX hY =>
     subst hX; subst hY
     refine ⟨θ, isPartInterpolant_of_mem_iff ?_ ?_ ⟨hvoc, hL, hR⟩⟩
     · intro f; simp [Sequent.left, Sequent.L, Sequent.O, Olf.L]
     · intro f; simp [Sequent.right, Sequent.R, Sequent.O, Olf.R, unload_boxes,
-        LoadFormula.unload, List.mem_insert_iff]
+        LoadFormula.unload]
   case modL L R A ξ hX hY =>
     subst hX
     cases ξ
