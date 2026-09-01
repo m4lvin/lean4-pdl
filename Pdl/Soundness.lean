@@ -898,7 +898,8 @@ lemma loadedDiamondPathsPDL
               simp only [nodeAt]
               rw [tabAt_t_def]
               simp_all [Sequent.toFinset]
-              sorry -- ??
+              have := @Finset.mem_projection
+              grind
             apply this
             simp only [relate]
             exact v_α_w
@@ -916,7 +917,8 @@ lemma loadedDiamondPathsPDL
               simp only [nodeAt]
               rw [tabAt_t_def]
               simp_all [Sequent.toFinset]
-              sorry -- ??
+              have := @Finset.mem_projection
+              grind
             apply this
             simp only [relate]
             exact v_α_w
@@ -1017,7 +1019,8 @@ lemma loadedDiamondPathsPDL
               simp only [nodeAt]
               rw [tabAt_t_def]
               simp_all [Sequent.toFinset]
-              sorry -- ??
+              have := @Finset.mem_projection
+              grind
             apply this
             simp only [relate]
             exact v_α_w
@@ -1035,7 +1038,8 @@ lemma loadedDiamondPathsPDL
               simp only [nodeAt]
               rw [tabAt_t_def]
               simp_all [Sequent.toFinset]
-              sorry -- ??
+              have := @Finset.mem_projection
+              grind
             apply this
             exact v_α_w
       · -- (c)
