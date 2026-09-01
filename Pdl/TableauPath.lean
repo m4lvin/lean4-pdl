@@ -368,16 +368,16 @@ theorem edge_is_strict_ordering {s t : PathIn tab} : s ⋖_ t → s ≠ t := by
   have := edge_then_length_lt s_t
   simp_all
 
-def PathIn.children (p : PathIn tab) : List {q : PathIn tab // p ⋖_ q} :=
+def PathIn.children (p : PathIn tab) : Finset {q : PathIn tab // p ⋖_ q} :=
   match h : tabAt p with
   | ⟨H, X, .loc nflprep nbas lt next⟩ =>
-      (endNodesOf lt).attach.map (fun ⟨Y,Y_in⟩ => ⟨_, edge_append_loc_nil _ _ Y_in h⟩ )
+      (endNodesOf lt).attach.image (fun ⟨Y,Y_in⟩ => ⟨_, edge_append_loc_nil _ _ Y_in h⟩ )
   | ⟨H,X, .pdl nflprep bas r next⟩ =>
-      [ ⟨_, @edge_append_pdl_nil _ _ _ p (h ▸ nflprep) (h ▸ bas) _ (by convert r; grind)
-            (by convert next <;> grind) (by simp_all; grind)⟩ ]
-  | ⟨H,X, .lrep _⟩ => []
+      { ⟨_, @edge_append_pdl_nil _ _ _ p (h ▸ nflprep) (h ▸ bas) _ (by convert r; grind)
+            (by convert next <;> grind) (by simp_all; grind)⟩ }
+  | ⟨H,X, .lrep _⟩ => {}
 
-lemma PathIn.children_spec : p ⋖_ q ↔ q ∈ p.children.map Subtype.val := by
+lemma PathIn.children_spec : p ⋖_ q ↔ q ∈ p.children.image Subtype.val := by
   constructor
   · rintro (⟨Hist, X, nrep, nbas, lt, next, Y, Y_in, h, rfl⟩
             | ⟨Hist, X, nrep, bas, Y, r, next, h, rfl⟩)
@@ -391,17 +391,20 @@ lemma PathIn.children_spec : p ⋖_ q ↔ q ∈ p.children.map Subtype.val := by
            done)
         -- The `loc` case:
         | (cases heq
-           simp only [List.map_map, List.mem_map, Function.comp_def]
-           exact ⟨⟨Y, Y_in⟩, List.mem_attach _ _, rfl⟩)
+           simp
+           grind
+           )
         -- The `pdl` case:
         | (cases heq
-           simp only [List.map_cons, List.map_nil, List.mem_singleton, append_eq_iff_eq]
-           rw! [h]
-           rfl)
+           simp [append_eq_iff_eq]
+           --rw! [h]
+           --rfl
+           sorry
+           )
   · intro hq
-    simp only [List.mem_map] at hq
-    obtain ⟨x, -, rfl⟩ := hq
-    exact x.2
+    simp only [Finset.mem_image, Subtype.exists, exists_and_right, exists_eq_right] at hq
+    obtain ⟨p_q, _⟩ := hq
+    exact p_q
 
 instance instDecidableEdge {H X} {tab : Tableau H X} (p q : PathIn tab) :
     Decidable (p ⋖_ q) :=
@@ -1410,12 +1413,12 @@ theorem exists_rewinds_middle {a b c : PathIn tab} (h : a ≤ b) (h' : b ≤ c) 
 @[simp]
 def Finset.join [DecidableEq α] (M : Finset (Finset α)) : Finset α := M.sup id
 
-def allPaths : (tab : Tableau Hist X) → List (PathIn tab)
-| .loc _ _ lt next => .nil ::
-    (endNodesOf lt).attach.flatMap
-      (fun Y => (allPaths (next Y.1 Y.2)).map (fun p => PathIn.loc Y.2 p))
-| .pdl _ _ _ next => .nil :: (allPaths next).map (fun p => PathIn.pdl p)
-| .lrep _ => [ .nil ]
+def allPaths : (tab : Tableau Hist X) → Finset (PathIn tab)
+| .loc _ _ lt next => { .nil } ∪
+    (endNodesOf lt).attach.sup
+      (fun Y => (allPaths (next Y.1 Y.2)).image (fun p => PathIn.loc Y.2 p))
+| .pdl _ _ _ next => {.nil} ∪ (allPaths next).image (fun p => PathIn.pdl p)
+| .lrep _ => { .nil }
 
 theorem allPaths_loc_cases (s : PathIn _) :
     s ∈ allPaths (.loc nrep nbas lt next) ↔
@@ -1452,7 +1455,7 @@ theorem PathIn.elem_allPaths {Hist X} {tab : Tableau Hist X} (p : PathIn tab) :
 /-- A Tableau is finite.
 Should be useful to get *converse* well-foundedness of `edge` -/
 instance PathIn.instFintype {tab : Tableau Hist X} : Fintype (PathIn tab) := by
-  refine ⟨(allPaths tab).toFinset, fun p => List.mem_toFinset.mpr p.elem_allPaths⟩
+  refine ⟨(allPaths tab), fun p => elem_allPaths _⟩
 
 -- mathlib?
 theorem Finite.wellfounded_of_irrefl_TC {α : Type} [Finite α] (r : α → α → Prop)
@@ -1498,9 +1501,10 @@ lemma PathIn.length_lt_tab_size {H X} (tab : Tableau H X) (p : PathIn tab) :
     case loc Y nbas_ nflprep_ Y_in tail =>
       simp only [length, add_comm, Tableau.size, add_lt_add_iff_left]
       specialize IH Y Y_in tail
-      refine lt_of_lt_of_le IH (List.le_sum_of_mem ?_)
-      simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists]
-      grind
+      -- refine lt_of_lt_of_le IH (List.le_sum_of_mem ?_)
+      -- simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists]
+      -- grind
+      sorry
   case pdl Hist X Y nflprerp bas r next IH =>
     cases p
     · simp [Tableau.size]
