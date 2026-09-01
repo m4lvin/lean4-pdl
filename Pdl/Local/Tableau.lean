@@ -460,7 +460,7 @@ def endNode_to_endNodeOfChild {X lrA} def_X subTabs {E}
     lrA.C.attach.filterMap
       (fun ⟨Y,Y_in⟩ => if E ∈ endNodesOf (subTabs Y Y_in) then some Y else none)
       (by intro _ _; grind)
-  have L_ne : A ≠ {} := by
+  have A_ne : A ≠ {} := by
     unfold A; simp
     rcases E_in with ⟨Y, Y_in, E_in⟩
     push_neg
@@ -468,15 +468,15 @@ def endNode_to_endNodeOfChild {X lrA} def_X subTabs {E}
     simp
     grind
   let L := A.seqSort
-  have L_ne : L ≠ {} := by
-    unfold L
-    have := @Finset.mem_seqSort (A := A)
-    -- easy?
-    sorry
-  have := L.head_mem L_ne
-  refine ⟨L.head L_ne , ?_⟩
-  -- tricky but should be doable?
-  sorry
+  have L_ne : L ≠ {} := by unfold L; simp_all
+  let Y := L.head L_ne
+  have head_in : Y ∈ _ := L.head_mem L_ne
+  have Y_in_A : Y ∈ A := (Finset.mem_seqSort A).mp head_in
+  refine ⟨Y , ?_, ?_⟩
+  · unfold Y L at head_in ⊢
+    suffices A ⊆ lrA.C by apply this; exact (Finset.mem_seqSort A).mp head_in
+    grind
+  · grind
 
 theorem endNodeIsEndNodeOfChild def_X
   (E_in : E ∈ endNodesOf (@LocalTableau.byLocalRule X _ def_X subTabs)) :
