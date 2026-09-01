@@ -20,7 +20,7 @@ theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
     rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, precons⟩
     cases rule
     case oneSidedL =>
-      simp_all [applyLocalRule, List.empty_eq, List.diff_nil, List.map_map, List.mem_map,
+      simp_all [Sequent.toFinset, applyLocalRule, List.empty_eq, List.diff_nil, List.map_map, List.mem_map,
         Function.comp_apply, List.append_nil, Olf.change_old_none_none, forall_exists_index,
         forall_and_index, endNodesOf.eq_1, List.mem_flatten, List.mem_attach, true_and,
         Subtype.exists]
@@ -29,7 +29,7 @@ theorem atomicLocalLoadedDiamond (α : Program) {X : Sequent}
       · subst Z_def
         cases side
         all_goals
-        simp only [AnyNegFormula.in_side] at *
+        simp only [AnyNegFormula.in_side] at *Shonan-village Center
         exact negLoad_in
       · simp [Y_in_A, A_def]
     case oneSidedR =>
@@ -217,7 +217,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
         rcases IH with ⟨Y, Y_in, v_Y⟩
         use Y
         simp_all only [and_self, and_true]
-        use (L, R.diff Rcond ++ res, O)
+        use (L, R.diff Rcond ∪ res, O)
         simp_all only [exists_prop, and_true]
         use res
       case LRnegL φ =>
@@ -399,7 +399,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             simp at v_δ_u v_F -- Here we have v = u.
             subst v_δ_u
             -- This F,δ pair is also used for one result in `C`:
-            have in_C : (L ++ (F ∪ [~φ]), R, none) ∈ C := by
+            have in_C : (L ∪ (F.toFinset ∪ {~φ}), R, none) ∈ C := by
               clear next
               simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at hC
               rw [hC]
@@ -413,9 +413,10 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                 · subst hC; exfalso; aesop
             -- We do not know `Y` yet because ltab may continue after `(L ++ F ++ [~φ], R, none)`.
             -- So let's use localTableauTruth to find a free end node, similar to αs = [] case.
-            have v_Z : (M, v) ⊨ ((L ++ (F ∪ [~φ]), R, none) : Sequent) := by intro f f_in; aesop
+            have := modelCanSemImplySequent
+            have v_Z : (M, v) ⊨ (⟨L ∪ (F.toFinset ∪ {~φ}), R, none⟩ : Sequent) := by intro f f_in; aesop
             rcases (localTableauTruth (next _ in_C) M v).1 v_Z with ⟨Y, Y_in, v_Y⟩
-            refine ⟨Y, ⟨(L ++ (F ∪ [~φ]), R, none), in_C, Y_in⟩, ⟨v_Y, Or.inl ?Y_free⟩⟩
+            refine ⟨Y, ⟨(L ∪ (F.toFinset ∪ {~φ}), R, none), in_C, Y_in⟩, ⟨v_Y, Or.inl ?Y_free⟩⟩
             apply endNodesOf_free_are_free (next _ in_C) ?_ Y_in
             simp
           case cons d δs =>
@@ -426,7 +427,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               | none => by exfalso; simp_all [splitLast]
             have split_def : splitLast (d :: δs) = some δ_β := by rfl
             -- This F,δ pair is also used for one result in `C`:
-            have in_C : (L ++ F, R, some (Sum.inl (~'loadMulti δ_β.1 δ_β.2 φ))) ∈ C := by
+            have in_C : (L ∪ F.toFinset, R, some (Sum.inl (~'loadMulti δ_β.1 δ_β.2 φ))) ∈ C := by
               simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at hC
               rw [hC]
               simp
@@ -438,9 +439,9 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
             -- Again we prepare to use IH, but now for `d` and `δs` instead.
             specialize @IH _ in_C v u ?_ w_nξ d δs ?_ ?_ ?_
             · intro f f_in; clear IH
-              simp only [Option.map_some, Sum.elim_inl, negUnload, unload_loadMulti,
-                Option.toList_some, List.mem_union_iff, List.mem_append, List.mem_cons,
-                List.not_mem_nil, or_false] at f_in
+              simp only [Sequent.toFinset, Option.map_some, Sum.elim_inl, negUnload,
+                unload_loadMulti, Option.toList_some, List.mem_union_iff, List.mem_append,
+                List.mem_cons, List.not_mem_nil, or_false] at f_in
               rcases f_in with (((f_in|f_in)|f_in)|f_def)
               · apply v_t; simp_all
               · exact v_F _ f_in
@@ -683,7 +684,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               | none => by exfalso; simp_all [splitLast]
             have split_def : splitLast (d :: δs) = some δ_β := by rfl
             -- This F,δ pair is also used for one result in `B`:
-            have in_C : (L, R ++ F, some (Sum.inr (~'loadMulti δ_β.1 δ_β.2 φ))) ∈ C := by
+            have in_C : (L, R ∪ F, some (Sum.inr (~'loadMulti δ_β.1 δ_β.2 φ))) ∈ C := by
               simp [applyLocalRule, unfoldDiamondLoaded', YsetLoad'] at hC
               rw [hC]
               simp only [List.mem_map, Function.comp_apply, List.append_nil, Prod.mk.injEq,
