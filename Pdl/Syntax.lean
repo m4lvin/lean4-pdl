@@ -693,41 +693,59 @@ An alternative approach here would be to even go for `Denumerable`.
 def Formula.le : Formula → Formula → Prop
   | .bottom, .bottom => True
   | .bottom, _ => True
-  | .atom_prop p, .bottom => False
+  | .atom_prop _, .bottom => False
   | .atom_prop p, .atom_prop p' => p ≤ p'
-  | .atom_prop p, _ => True
-  | .neg φ, .bottom => False
-  | .neg φ, .atom_prop p => False
+  | .atom_prop _, _ => True
+  | .neg _, .bottom => False
+  | .neg _, .atom_prop _ => False
   | .neg φ, .neg φ' => φ.le φ'
-  | .neg φ, _ => True
-  | .and φ1 φ2, .bottom => False
-  | .and φ1 φ2, .atom_prop p => False
-  | .and φ1 φ2, .neg φ => False
+  | .neg _, _ => True
+  | .and _ _, .bottom => False
+  | .and _ _, .atom_prop _ => False
+  | .and _ _, .neg _ => False
   | .and φ1 φ2, .and φ1' φ2' => φ1.le φ1' ∨ ((φ1 = φ1') ∧ φ2.le φ2')
-  | .and φ1 φ2, .box α φ => True
-  | .box α φ, .bottom => False
-  | .box α φ, .atom_prop _ => False
-  | .box α φ, .neg _ => False
-  | .box α φ, .and _ _  => False
+  | .and _ _, .box _ _ => True
+  | .box _ _, .bottom => False
+  | .box _ _, .atom_prop _ => False
+  | .box _ _, .neg _ => False
+  | .box _ _, .and _ _  => False
   | .box α φ, .box α' φ' => α.le α' ∨ ((α = α') ∧ φ.le φ')
 
 def Program.le : Program → Program → Prop
-  | _, _ => sorry
-
+  | .atom_prog a, .atom_prog a' => a ≤ a'
+  | .atom_prog _, _ => True
+  | .sequence _ _, .atom_prog _ => False
+  | .sequence α β, .sequence α' β' => α.le α' ∨ (α.le α' ∧ β.le β')
+  | .sequence _ _, _ => True
+  | .union _ _ , .atom_prog _ => False
+  | .union _ _, .sequence _ _ => False
+  | .union α β, .union α' β' => α.le α' ∨ (α.le α' ∧ β.le β')
+  | .union _ _, .star _ => True
+  | .union _ _, .test _ => True
+  | .star _, .atom_prog _ => False
+  | .star _, .sequence _ _ => False
+  | .star _, .union _ _ => False
+  | .star α, .star α' => α.le α'
+  | .star _, .test _ => True
+  | .test _, .atom_prog _ => False
+  | .test _, .sequence _ _ => False
+  | .test _, .union _ _ => False
+  | .test _, .star _ => False
+  | .test τ, .test τ' => τ.le τ'
 end
+
+instance instLEFormula : LE Formula := ⟨Formula.le⟩
+instance instLTFormula : LT Formula := ⟨fun φ1 φ2 ↦ φ1 ≠ φ2 ∧ φ1.le φ2⟩
+
+instance instLEProgram : LE Program := ⟨Program.le⟩
+instance instLTProgram : LT Program := ⟨fun α α' ↦ α ≠ α' ∧ α.le α'⟩
+
+instance : DecidableRel (fun (a b : Formula) ↦ a ≤ b) := sorry
 
 mutual
 instance : DecidableRel Formula.le := sorry
 instance : DecidableRel Program.le := sorry
 end
-
-instance instLEFormula : LE Formula := ⟨Formula.le⟩
-
-instance instLTFormula : LT Formula := ⟨fun φ1 φ2 ↦ φ1 ≠ φ2 ∧ φ1.le φ2⟩
-
-instance : DecidableRel Formula.le := sorry
-
-instance : DecidableRel (fun (a b : Formula) ↦ a ≤ b) := sorry
 
 lemma Formula.le_trans : ∀ (f g h : Formula), f ≤ g → g ≤ h → f ≤ h := by
   intro f g h f_g g_h
