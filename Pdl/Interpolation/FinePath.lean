@@ -11,6 +11,37 @@ of a `LocalTableau`, and `FinePathIn`, for the nodes of a whole `Tableau` in the
 i.e. including those nodes inside a local tableau that a `loc` step jumps over.
 -/
 
+/-! ## Helpers about `Finset`s and end nodes
+
+NOTE: The following helpers about `Finset` and `endNodesOf` would fit better into
+`Pdl.Syntax` (or another general file) and `Pdl.Local.Tableau` respectively. -/
+
+/-- The elements of a finite set, as a list of elements *together with* membership proofs.
+This is the `Finset` analogue of `List.attach`. It is noncomputable because we have no
+linear order on the elements, but the order of the list is irrelevant for our purposes.
+
+still TODO: make computable version because we have `Finset.seqSort` in AllLocalTab (FIXME move it)
+-/
+noncomputable def Finset.attachList {α : Type*} (s : Finset α) : List {x // x ∈ s} :=
+  s.toList.attach.map (fun x => ⟨x.1, Finset.mem_toList.mp x.2⟩)
+
+@[simp]
+lemma Finset.mem_attachList {α : Type*} {s : Finset α} (a : {x // x ∈ s}) : a ∈ s.attachList :=
+  List.mem_map.mpr ⟨⟨a.1, Finset.mem_toList.mpr a.2⟩, List.mem_attach _ _, rfl⟩
+
+@[simp]
+lemma Finset.attachList_map_val {α : Type*} {s : Finset α} :
+    s.attachList.map Subtype.val = s.toList := by
+  simp [Finset.attachList, List.map_map, Function.comp_def]
+
+/-- Membership in the end nodes of a local tableau given by a local rule application. -/
+lemma mem_endNodesOf_byLocalRule_iff {X} {lra : LocalRuleApp} {X_def : X = lra.X}
+    {next : ∀ Y ∈ lra.C, LocalTableau Y} {Z} :
+    Z ∈ endNodesOf (LocalTableau.byLocalRule lra X_def next)
+      ↔ ∃ Y, ∃ h : Y ∈ lra.C, Z ∈ endNodesOf (next Y h) := by
+  simp only [endNodesOf, Finset.sup_image, Function.id_comp, Finset.mem_sup, Finset.mem_attach,
+    true_and, Subtype.exists]
+
 /-! ## Paths inside a local tableau
 
 The `Tableau` type applies a whole `LocalTableau` in one `loc` step, and thus the `PathIn`
@@ -70,8 +101,7 @@ def LocalPathIn.endNodeAt? {X} {lt : LocalTableau X} :
     | .byLocalRule _ _ _ => none
     | .sim _ => some ⟨X, by simp⟩
   | .cons Y_in tail => (tail.endNodeAt?).map
-      (fun ⟨Z, hZ⟩ => ⟨Z, by simp only [endNodesOf, List.mem_flatten, List.mem_map,
-        List.mem_attach, true_and, Subtype.exists]; exact ⟨_, ⟨_, Y_in, rfl⟩, hZ⟩⟩)
+      (fun ⟨Z, hZ⟩ => ⟨Z, mem_endNodesOf_byLocalRule_iff.mpr ⟨_, Y_in, hZ⟩⟩)
 
 lemma LocalPathIn.isInternal_iff_endNodeAt?_eq_none {X} {lt : LocalTableau X}
     (lp : LocalPathIn lt) : lp.isInternal ↔ lp.endNodeAt? = none := by
@@ -98,15 +128,16 @@ lemma LocalPathIn.last_of_endNodeAt? {X} {lt : LocalTableau X} (lp : LocalPathIn
     simpa [LocalPathIn.last] using IH hZ
 
 /-- The children of the node a local path points at, inside the same local tableau. -/
-def LocalPathIn.children {X} {lt : LocalTableau X} : LocalPathIn lt → List (LocalPathIn lt)
+noncomputable def LocalPathIn.children {X} {lt : LocalTableau X} :
+    LocalPathIn lt → List (LocalPathIn lt)
   | .nil => match lt with
-    | .byLocalRule _ _ _ => (LocalRuleApp.C _).attach.map (fun ⟨_, Y_in⟩ => .cons Y_in .nil)
+    | .byLocalRule lra _ _ => lra.C.attachList.map (fun ⟨_, Y_in⟩ => .cons Y_in .nil)
     | .sim _ => []
   | .cons Y_in tail => tail.children.map (.cons Y_in)
 
 /-- The sequents labelling the children of the root of a local tableau. -/
-def LocalTableau.childLabels {X} : LocalTableau X → List Sequent
-  | .byLocalRule lra _ _ => lra.C
+noncomputable def LocalTableau.childLabels {X} : LocalTableau X → List Sequent
+  | .byLocalRule lra _ _ => lra.C.toList
   | .sim _ => []
 
 lemma LocalPathIn.map_last_children {X} {lt : LocalTableau X} (lp : LocalPathIn lt) :
@@ -114,24 +145,21 @@ lemma LocalPathIn.map_last_children {X} {lt : LocalTableau X} (lp : LocalPathIn 
   induction lp
   case nil X lt =>
     cases lt
-    · simp only [LocalPathIn.children, LocalPathIn.ltAt, LocalTableau.childLabels,
-        List.map_attach_eq_pmap, List.map_pmap]
-      rw [show (fun (a : Sequent) (h : a ∈ _) => (LocalPathIn.cons h LocalPathIn.nil).last)
-            = (fun a (_ : a ∈ _) => a) from rfl]
-      simp [List.pmap_eq_map]
+    · simp only [LocalPathIn.children, LocalPathIn.ltAt, LocalTableau.childLabels, List.map_map]
+      rw [show (LocalPathIn.last ∘ fun (x : {Y : Sequent // Y ∈ _}) =>
+            LocalPathIn.cons x.2 LocalPathIn.nil) = Subtype.val from rfl]
+      exact Finset.attachList_map_val
     · simp [LocalPathIn.children, LocalPathIn.ltAt, LocalTableau.childLabels]
   case cons X lra X_def next Y Y_in tail IH =>
     simpa [LocalPathIn.children, LocalPathIn.ltAt, LocalPathIn.last, List.map_map,
       Function.comp_def] using IH
 
 /-- The end nodes of the whole local tableau that are below a given local path. -/
-def LocalPathIn.endNodesBelow {X} {lt : LocalTableau X} :
+noncomputable def LocalPathIn.endNodesBelow {X} {lt : LocalTableau X} :
     (lp : LocalPathIn lt) → List {Y : Sequent // Y ∈ endNodesOf lt}
-  | .nil => (endNodesOf lt).attach
-  | .cons Y_in tail => tail.endNodesBelow.map (fun ⟨Z, hZ⟩ => ⟨Z, by
-      simp only [endNodesOf, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
-        Subtype.exists]
-      exact ⟨_, ⟨_, Y_in, rfl⟩, hZ⟩⟩)
+  | .nil => (endNodesOf lt).attachList
+  | .cons Y_in tail => tail.endNodesBelow.map
+      (fun ⟨Z, hZ⟩ => ⟨Z, mem_endNodesOf_byLocalRule_iff.mpr ⟨_, Y_in, hZ⟩⟩)
 
 /-- A leaf of a local tableau is the only end node below itself. -/
 lemma LocalPathIn.endNodesBelow_eq_of_endNodeAt? : {X : Sequent} → {lt : LocalTableau X} →
@@ -142,7 +170,7 @@ lemma LocalPathIn.endNodesBelow_eq_of_endNodeAt? : {X : Sequent} → {lt : Local
       simp only [LocalPathIn.endNodeAt?, Option.some.injEq] at h
       subst h
       have := Yh'.2
-      simp only [endNodesOf, List.mem_singleton] at this
+      simp only [endNodesOf, Finset.mem_singleton] at this
       exact Subtype.ext this
   | _, .byLocalRule lra X_def next, .cons Y_in tail, _, h, Yh', h' => by
       simp only [LocalPathIn.endNodeAt?, Option.map_eq_some_iff] at h
@@ -161,14 +189,12 @@ lemma LocalPathIn.exists_child_endNodesBelow : {X : Sequent} → {lt : LocalTabl
   | _, .sim _, .nil, h, _, _ => by
       simp [LocalPathIn.isInternal, LocalPathIn.ltAt, LocalTableau.hasRule] at h
   | _, .byLocalRule lra X_def next, .nil, _, ⟨Z, hZ⟩, _ => by
-      have hZ2 := hZ
-      simp only [endNodesOf, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
-        Subtype.exists] at hZ2
-      obtain ⟨l, ⟨Y, Y_in, rfl⟩, hZ'⟩ := hZ2
+      obtain ⟨Y, Y_in, hZ'⟩ := mem_endNodesOf_byLocalRule_iff.mp hZ
       refine ⟨.cons Y_in .nil, ?_, ?_⟩
-      · simp only [LocalPathIn.children, List.mem_map, List.mem_attach, true_and, Subtype.exists]
+      · simp only [LocalPathIn.children, List.mem_map, Finset.mem_attachList, true_and,
+          Subtype.exists]
         exact ⟨Y, Y_in, rfl⟩
-      · simp only [LocalPathIn.endNodesBelow, List.mem_map, List.mem_attach, true_and,
+      · simp only [LocalPathIn.endNodesBelow, List.mem_map, Finset.mem_attachList, true_and,
           Subtype.exists]
         exact ⟨Z, hZ', rfl⟩
   | _, .byLocalRule lra X_def next, .cons Y_in tail, h, Yh, hYh => by
@@ -183,18 +209,19 @@ lemma LocalPathIn.exists_child_endNodesBelow : {X : Sequent} → {lt : LocalTabl
 
 /-- All internal nodes of a local tableau, i.e. those where a local rule is applied.
 Compare `allPaths` for `PathIn`. -/
-def internalLocalPaths : {X : Sequent} → (lt : LocalTableau X) → List (LocalPathIn lt)
+noncomputable def internalLocalPaths : {X : Sequent} → (lt : LocalTableau X) →
+    List (LocalPathIn lt)
   | _, .sim _ => []
   | _, .byLocalRule lra _ next => .nil ::
-      lra.C.attach.flatMap (fun ⟨Y, Y_in⟩ =>
+      lra.C.attachList.flatMap (fun ⟨Y, Y_in⟩ =>
         (internalLocalPaths (next Y Y_in)).map (LocalPathIn.cons Y_in))
 
 lemma internalLocalPaths_isInternal : {X : Sequent} → {lt : LocalTableau X} →
     ∀ lp ∈ internalLocalPaths lt, LocalPathIn.isInternal lp
   | _, .sim _, lp, h => by simp [internalLocalPaths] at h
   | _, .byLocalRule lra X_def next, lp, h => by
-      simp only [internalLocalPaths, List.mem_cons, List.mem_flatMap, List.mem_attach, true_and,
-        Subtype.exists, List.mem_map] at h
+      simp only [internalLocalPaths, List.mem_cons, List.mem_flatMap, Finset.mem_attachList,
+        true_and, Subtype.exists, List.mem_map] at h
       rcases h with rfl | ⟨Y, Y_in, lp', lp'_in, rfl⟩
       · simp [LocalPathIn.isInternal, LocalPathIn.ltAt, LocalTableau.hasRule]
       · have := internalLocalPaths_isInternal lp' lp'_in
@@ -208,8 +235,8 @@ lemma LocalPathIn.mem_internalLocalPaths {X} {lt : LocalTableau X} (lp : LocalPa
     · simp [internalLocalPaths]
     · simp [LocalPathIn.isInternal, LocalPathIn.ltAt, LocalTableau.hasRule] at h
   case cons X lra X_def next Y Y_in tail IH =>
-    simp only [internalLocalPaths, List.mem_cons, List.mem_flatMap, List.mem_attach, true_and,
-      Subtype.exists, List.mem_map]
+    simp only [internalLocalPaths, List.mem_cons, List.mem_flatMap, Finset.mem_attachList,
+      true_and, Subtype.exists, List.mem_map]
     exact Or.inr ⟨Y, Y_in, tail, IH (by simpa [LocalPathIn.isInternal, LocalPathIn.ltAt] using h),
       rfl⟩
 
@@ -268,7 +295,7 @@ def FinePathIn.base : ∀ {Hist X} {tab : Tableau Hist X}, FinePathIn tab → Pa
 /-- The children of a fine node. Note that a child of an internal node of a local tableau
 may be a node of the tableau in the coarse `PathIn` sense, namely when it is an end node
 of that local tableau. -/
-def FinePathIn.children : ∀ {Hist X} {tab : Tableau Hist X},
+noncomputable def FinePathIn.children : ∀ {Hist X} {tab : Tableau Hist X},
     FinePathIn tab → List (FinePathIn tab)
   | _, _, _, .inLoc lp _ => lp.children.map (fun lp' =>
       match h : lp'.endNodeAt? with
@@ -286,11 +313,12 @@ def PathIn.toFine : ∀ {Hist X} {tab : Tableau Hist X}, PathIn tab → FinePath
   | _, _, _, .pdl tail => .pdl tail.toFine
 
 /-- All fine nodes of a tableau. Compare `allPaths`. -/
-def allFinePaths : {H : History} → {X : Sequent} → (tab : Tableau H X) → List (FinePathIn tab)
+noncomputable def allFinePaths : {H : History} → {X : Sequent} → (tab : Tableau H X) →
+    List (FinePathIn tab)
   | _, _, .loc _ _ lt next =>
       (internalLocalPaths lt).attach.map
           (fun ⟨lp, lp_in⟩ => .inLoc lp (internalLocalPaths_isInternal lp lp_in))
-      ++ (endNodesOf lt).attach.flatMap
+      ++ (endNodesOf lt).attachList.flatMap
           (fun ⟨Y, Y_in⟩ => (allFinePaths (next Y Y_in)).map (.loc Y_in))
   | _, _, .pdl _ _ _ next => .pdlHere :: (allFinePaths next).map (.pdl)
   | _, _, .lrep _ => [ .lrepHere ]
@@ -332,7 +360,7 @@ theorem FinePathIn.mem_allFinePaths {H X} {tab : Tableau H X} (f : FinePathIn ta
   case pdlHere => simp [allFinePaths]
   case lrepHere => simp [allFinePaths]
   case loc Y_in tail IH =>
-    simp only [allFinePaths, List.mem_append, List.mem_flatMap, List.mem_attach, true_and,
+    simp only [allFinePaths, List.mem_append, List.mem_flatMap, Finset.mem_attachList, true_and,
       Subtype.exists, List.mem_map]
     exact Or.inr ⟨_, Y_in, tail, IH, rfl⟩
   case pdl tail IH =>
@@ -400,7 +428,8 @@ def FinePathIn.lra? : ∀ {H X} {tab : Tableau H X}, FinePathIn tab → Option L
 /-- If a local rule is applied at a fine node then that node is labelled with the premise
 and its children are labelled with the conclusions of that rule. -/
 lemma FinePathIn.lra?_spec {H X} {tab : Tableau H X} (f : FinePathIn tab) {lra : LocalRuleApp}
-    (h : f.lra? = some lra) : f.label = lra.X ∧ f.children.map FinePathIn.label = lra.C := by
+    (h : f.lra? = some lra) :
+    f.label = lra.X ∧ f.children.map FinePathIn.label = lra.C.toList := by
   induction f
   case inLoc lp lp_int =>
     simp only [FinePathIn.lra?] at h
@@ -434,8 +463,18 @@ theorem FinePathIn.locally_sound {H X} {tab : Tableau H X} (f : FinePathIn tab)
     {lra : LocalRuleApp} (h : f.lra? = some lra) {W} (M : KripkeModel W) (w : W) :
     (M, w) ⊨ f.label ↔ ∃ g ∈ f.children, (M, w) ⊨ g.label := by
   obtain ⟨h1, h2⟩ := f.lra?_spec h
-  rw [h1, localRuleTruth lra M w, ← h2]
-  simp
+  rw [h1, localRuleTruth lra M w]
+  constructor
+  · rintro ⟨Ci, Ci_in, hCi⟩
+    have : Ci ∈ f.children.map FinePathIn.label := by
+      rw [h2]; exact Finset.mem_toList.mpr Ci_in
+    obtain ⟨g, g_in, rfl⟩ := List.mem_map.mp this
+    exact ⟨g, g_in, hCi⟩
+  · rintro ⟨g, g_in, hg⟩
+    refine ⟨g.label, ?_, hg⟩
+    have : g.label ∈ f.children.map FinePathIn.label := List.mem_map_of_mem g_in
+    rw [h2] at this
+    exact Finset.mem_toList.mp this
 
 /-! ## Left and right rules
 
@@ -562,10 +601,10 @@ lemma PathIn.atBigRoot_toFine {H X} {tab : Tableau H X} (p : PathIn tab) :
 
 /-- The labels of those end nodes of the local tableau at `f.base` that are below `f`.
 These are the labels of the children of `f.base` that can be reached from `f`. -/
-def FinePathIn.endLabelsBelow : ∀ {H X} {tab : Tableau H X}, FinePathIn tab → List Sequent
+def FinePathIn.endLabelsBelow : ∀ {H X} {tab : Tableau H X}, FinePathIn tab → Finset Sequent
   | _, _, _, .inLoc lp _ => endNodesOf lp.ltAt
-  | _, _, _, .pdlHere => []
-  | _, _, _, .lrepHere => []
+  | _, _, _, .pdlHere => {}
+  | _, _, _, .lrepHere => {}
   | _, _, _, .loc _ tail => tail.endLabelsBelow
   | _, _, _, .pdl tail => tail.endLabelsBelow
 
@@ -573,7 +612,7 @@ def FinePathIn.endLabelsBelow : ∀ {H X} {tab : Tableau H X}, FinePathIn tab �
 Note that when `f` is a coarse node itself, i.e. `f.atBigRoot`, then these are *all*
 children of `f.base`, and that they get further restricted the deeper `f` sits inside the
 local tableau at `f.base`. -/
-def FinePathIn.coarseChildrenBelow : ∀ {H X} {tab : Tableau H X},
+noncomputable def FinePathIn.coarseChildrenBelow : ∀ {H X} {tab : Tableau H X},
     FinePathIn tab → List (PathIn tab)
   | _, _, _, .inLoc lp _ => lp.endNodesBelow.map (fun ⟨_, Y_in⟩ => PathIn.loc Y_in .nil)
   | _, _, _, .pdlHere => [PathIn.pdl .nil]
@@ -669,7 +708,7 @@ lemma PathIn.mem_coarseChildrenBelow_toFine {H X} {tab : Tableau H X} :
       change PathIn.loc Y_in PathIn.nil ∈ _
       rcases lt with ⟨lra, X_def, lnext⟩ | bas
       · simp only [PathIn.toFine, rootFine, FinePathIn.coarseChildrenBelow,
-          LocalPathIn.endNodesBelow, List.mem_map, List.mem_attach, true_and, Subtype.exists]
+          LocalPathIn.endNodesBelow, List.mem_map, Finset.mem_attachList, true_and, Subtype.exists]
         exact ⟨Y, Y_in, rfl⟩
       · exact absurd bas nbas
     · simp only [tabAt] at hh
@@ -708,7 +747,7 @@ lemma PathIn.mem_coarseChildrenBelow_toFine {H X} {tab : Tableau H X} :
 
 /-- The right component of a sequent, again as a sequent but with empty left component.
 This is `Λ₂` from the paper; we use it to label the nodes of the quasi-tableau. -/
-def Sequent.rightOnly (X : Sequent) : Sequent := ⟨[], X.2.1, X.2.2⟩
+def Sequent.rightOnly (X : Sequent) : Sequent := ⟨{}, X.2.1, X.2.2⟩
 
 /-! ## Well-founded descent for fine paths
 
@@ -741,9 +780,9 @@ def LocalPathIn.length {X} {lt : LocalTableau X} : LocalPathIn lt → ℕ
   | .cons _ tail => tail.length + 1
 
 /-- The number of nodes of a local tableau. -/
-def LocalTableau.nodeCount {X} : LocalTableau X → ℕ
+noncomputable def LocalTableau.nodeCount {X} : LocalTableau X → ℕ
   | .byLocalRule lra _ next =>
-      1 + (lra.C.attach.map (fun ⟨Y, Y_in⟩ => (next Y Y_in).nodeCount)).sum
+      1 + (lra.C.attachList.map (fun ⟨Y, Y_in⟩ => (next Y Y_in).nodeCount)).sum
   | .sim _ => 1
 
 lemma LocalTableau.nodeCount_pos {X} (lt : LocalTableau X) : 0 < lt.nodeCount := by
@@ -758,7 +797,7 @@ lemma LocalPathIn.length_lt_nodeCount {X} {lt : LocalTableau X} (lp : LocalPathI
     have key : ∀ s : ℕ, (next Y Y_in).nodeCount ≤ s → tail.length + 1 < 1 + s := by omega
     apply key
     apply List.le_sum_of_mem
-    simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists]
+    simp only [List.mem_map, Finset.mem_attachList, true_and, Subtype.exists]
     exact ⟨Y, Y_in, rfl⟩
 
 /-- Going to a child inside a local tableau increases the length. -/
@@ -768,7 +807,7 @@ lemma LocalPathIn.length_lt_of_mem_children {X} {lt : LocalTableau X} (lp : Loca
   case nil X lt =>
     intro lp' h
     cases lt
-    · simp only [LocalPathIn.children, List.mem_map, List.mem_attach, true_and,
+    · simp only [LocalPathIn.children, List.mem_map, Finset.mem_attachList, true_and,
         Subtype.exists] at h
       obtain ⟨Y, Y_in, rfl⟩ := h
       simp [LocalPathIn.length]
@@ -785,15 +824,16 @@ lemma LocalPathIn.length_lt_of_mem_children {X} {lt : LocalTableau X} (lp : Loca
 
 /-- A size measure for tableaux that also counts the intermediate nodes of the local
 tableaux, i.e. an upper bound for the length of any `FinePathIn`. -/
-def Tableau.fineSize : ∀ {H X}, Tableau H X → ℕ
+noncomputable def Tableau.fineSize : ∀ {H X}, Tableau H X → ℕ
   | _, _, .loc _ _ lt next =>
-      lt.nodeCount + (((endNodesOf lt).attach.map (fun ⟨Y, Y_in⟩ => (next Y Y_in).fineSize)).sum)
+      lt.nodeCount +
+        (((endNodesOf lt).attachList.map (fun ⟨Y, Y_in⟩ => (next Y Y_in).fineSize)).sum)
   | _, _, .pdl _ _ _ next => 1 + next.fineSize
   | _, _, .lrep _ => 1
 
 /-- The number of steps of a fine path, where a whole local tableau counts with its
 `LocalTableau.nodeCount` so that leaving it strictly increases the length. -/
-def FinePathIn.length : ∀ {H X} {tab : Tableau H X}, FinePathIn tab → ℕ
+noncomputable def FinePathIn.length : ∀ {H X} {tab : Tableau H X}, FinePathIn tab → ℕ
   | _, _, _, .inLoc lp _ => lp.length
   | _, _, _, .pdlHere => 0
   | _, _, _, .lrepHere => 0
@@ -815,7 +855,7 @@ lemma FinePathIn.length_lt_fineSize {H X} {tab : Tableau H X} (f : FinePathIn ta
         lt.nodeCount + tail.length < lt.nodeCount + s := by omega
     apply key
     apply List.le_sum_of_mem
-    simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists]
+    simp only [List.mem_map, Finset.mem_attachList, true_and, Subtype.exists]
     exact ⟨Y, Y_in, rfl⟩
   case pdl tail IH =>
     simp only [FinePathIn.length, Tableau.fineSize]

@@ -14,22 +14,22 @@ and (d) as stated in the paper are in `Pdl.ClusterCorrection`.
 
 variable {X : Sequent} {tab : Tableau .nil X}
 
-/-! ## Collecting Cluster Nodes in a List
+/-! ## Collecting Cluster Nodes in a Finset
 
-We define the lists `loadedBelow` and `loadedAbove` of nodes that are reachable from / can reach
-a given node via `◃` *by filtering `allPaths`*: a tableau has only finitely many nodes and
-`PathIn.elem_allPaths` says that `allPaths tab` contains all of them, so we can simply keep
-those nodes that are `◃`-related to `p` in the desired direction.
+We define the finite sets `loadedBelow` and `loadedAbove` of nodes that are reachable from /
+can reach a given node via `◃` *by filtering `allPaths`*: a tableau has only finitely many
+nodes and `PathIn.elem_allPaths` says that `allPaths tab` contains all of them, so we can
+simply keep those nodes that are `◃`-related to `p` in the desired direction.
 Then `clusterListOf_spec` is immediate. -/
 
 /-- Loaded nodes "below" the given one, also allowing ♥ steps. Includes the node itself. -/
-def loadedBelow (p : PathIn tab) : List (PathIn tab) :=
-  p :: (allPaths tab).filter (fun q => ((p ◃⁺ q) ∧ (nodeAt q).isLoaded))
+def loadedBelow (p : PathIn tab) : Finset (PathIn tab) :=
+  insert p ((allPaths tab).filter (fun q => ((p ◃⁺ q) ∧ (nodeAt q).isLoaded)))
 
 /-- Loaded nodes "above" the given one, also allowing *backwards* ♥ steps.
 Includes the node itself. -/
-def loadedAbove (p : PathIn tab) : List (PathIn tab) :=
-  p :: (allPaths tab).filter (fun q => decide ((q ◃⁺ p) ∧ (nodeAt q).isLoaded))
+def loadedAbove (p : PathIn tab) : Finset (PathIn tab) :=
+  insert p ((allPaths tab).filter (fun q => ((q ◃⁺ p) ∧ (nodeAt q).isLoaded)))
 
 @[simp]
 lemma mem_loadedBelow {p q : PathIn tab} :
@@ -61,14 +61,14 @@ lemma eq_of_cEquiv_of_isFree {p q : PathIn tab}
       simp only [Sequent.isFree, this] at p_free
       simp at p_free
 
-/-- List of all other nodes in the same cluster, essentially a constructive version of `clusterOf`.
-Computed as the intersection of `loadedAbove` and `loadedBelow`. -/
-def clusterListOf (p : PathIn tab) : List (PathIn tab) :=
+/-- The set of all other nodes in the same cluster, essentially a constructive version of
+`clusterOf`. Computed as the intersection of `loadedAbove` and `loadedBelow`. -/
+def clusterListOf (p : PathIn tab) : Finset (PathIn tab) :=
   loadedBelow p  ∩  loadedAbove p
 
 lemma clusterListOf_spec {q : PathIn tab} (p : PathIn tab) :
     q ∈ clusterListOf p  ↔  p ≡ᶜ q := by
-  rw [clusterListOf, List.mem_inter_iff, mem_loadedBelow, mem_loadedAbove]
+  rw [clusterListOf, Finset.mem_inter, mem_loadedBelow, mem_loadedAbove]
   constructor
   · rintro ⟨h1, h2⟩
     rcases h1 with rfl | ⟨p_q, -⟩
@@ -245,8 +245,8 @@ structure LoadedCluster {X} (tab : Tableau .nil X) where
   proper : root ◃⁺ root
   /-- The root is loaded on the right. -/
   root_loaded_right : (nodeAt root).2.2.isRight
-  /-- List of all paths in the cluster. -/
-  CL : List (PathIn tab)
+  /-- The set of all paths in the cluster. -/
+  CL : Finset (PathIn tab)
   /-- The root is in the cluster. -/
   root_mem_CL : root ∈ CL
   /-- All elements of `CL` are ≡ᶜ and thus can reach each other. -/
@@ -289,24 +289,24 @@ def ofClusterRoot (s : PathIn tab)
     exact u_in.1
 
 /-- The exits of the cluster, i.e. `C⁺ \ C` from Def 8.14. -/
-def exits (C : LoadedCluster tab) : List (PathIn tab) :=
-  (C.CL.flatMap (fun t => t.children.map Subtype.val)).filter (fun e => e ∉ C.CL)
+def exits (C : LoadedCluster tab) : Finset (PathIn tab) :=
+  (C.CL.biUnion (fun t => t.children.image Subtype.val)).filter (fun e => e ∉ C.CL)
 
 /-- C⁺, the cluster plus its exits. -/
-def CL_plus (C : LoadedCluster tab) : List (PathIn tab) :=
-  C.CL ++ C.exits
+def CL_plus (C : LoadedCluster tab) : Finset (PathIn tab) :=
+  C.CL ∪ C.exits
 
-/-- The list `C.CL` contains exactly the exits in the sense of `isExitOf`. -/
+/-- The set `C.CL` contains exactly the exits in the sense of `isExitOf`. -/
 lemma mem_CL_iff (C : LoadedCluster tab) (p : PathIn tab) :
     p ∈ C.CL ↔ p ≡ᶜ C.root :=
   ⟨ fun p_in => C.CL_equiv p p_in C.root C.root_mem_CL
   , fun p_c_root => C.CL_complete C.root C.root_mem_CL p ((cEquiv.symm p C.root).mp p_c_root) ⟩
 
-/-- The list `C.exits` contains exactly the exits in the sense of `isExitOf`. -/
+/-- The set `C.exits` contains exactly the exits in the sense of `isExitOf`. -/
 lemma mem_exits_iff (C : LoadedCluster tab) (e : PathIn tab) :
     e ∈ C.exits ↔ isExitOf C.root e := by
-  rw [LoadedCluster.exits, List.mem_filter, List.mem_flatMap]
-  simp only [decide_eq_true_eq, isExitOf, ← PathIn.children_spec]
+  rw [LoadedCluster.exits, Finset.mem_filter, Finset.mem_biUnion]
+  simp only [isExitOf, ← PathIn.children_spec]
   constructor
   · rintro ⟨⟨t, t_in, t_e⟩, e_not_in⟩
     exact ⟨ fun e_c_root => e_not_in ((C.mem_CL_iff e).mpr e_c_root)
@@ -337,10 +337,10 @@ lemma all_right_loaded (C : LoadedCluster tab) :
 /-- Lemma 9.4 (b): the left component of a node in the cluster is empty iff the left
 component of the root of the cluster is empty. Note that here the left component is the
 free side, because a `LoadedCluster` is loaded on the right.
-As `Sequent.left ⟨L,R,O⟩ = L ++ O.L` and `O.L = []` for the nodes in the cluster by
+As `Sequent.left ⟨L,R,O⟩ = L ∪ O.L` and `O.L = ∅` for the nodes in the cluster by
 `LoadedCluster.all_right_loaded`, this is the same as `Λ₁(t) = ∅ ↔ Λ₁(r) = ∅`. -/
 lemma left_empty_iff_root_left_empty (C : LoadedCluster tab) :
-    ∀ t ∈ C.CL, (nodeAt t).1 = [] ↔ (nodeAt C.root).1 = [] := by
+    ∀ t ∈ C.CL, (nodeAt t).1 = ∅ ↔ (nodeAt C.root).1 = ∅ := by
   intro t t_in
   have t_root : t ≡ᶜ C.root := (C.mem_CL_iff t).mp t_in
   constructor
@@ -354,7 +354,7 @@ lemma left_empty_iff_root_left_empty (C : LoadedCluster tab) :
 lemma children_in_plus (C : LoadedCluster tab) :
     ∀ t ∈ C.CL, ∀ c ∈ t.children, c.val ∈ C.CL_plus := by
   intro t t_in c _
-  rw [LoadedCluster.CL_plus, List.mem_append]
+  rw [LoadedCluster.CL_plus, Finset.mem_union]
   by_cases c_in : c.val ∈ C.CL
   · exact Or.inl c_in
   · refine Or.inr ((C.mem_exits_iff c.val).mpr ⟨fun c_root => c_in ?_, t, ?_, c.2⟩)
@@ -373,7 +373,7 @@ lemma nonLpr_some_child_in_C (C : LoadedCluster tab) :
   obtain ⟨u, t_u, u_t⟩ := Relation.TransGen.head'_iff.mp t_cycle
   -- The first step of that cycle cannot be a ♥ step, because `t` is not an lpr:
   rcases t_u with t_edge_u | ⟨lpr, h_lrep, rfl⟩
-  · rw [PathIn.children_spec, List.mem_map] at t_edge_u
+  · rw [PathIn.children_spec, Finset.mem_image] at t_edge_u
     obtain ⟨c, c_in, rfl⟩ := t_edge_u
     exact ⟨c, c_in, (C.mem_CL_iff c.val).mpr ⟨u_t.trans t_root.1,
       t_root.2.trans (Relation.ReflTransGen.single (Or.inl c.2))⟩⟩
@@ -390,15 +390,15 @@ lemma lpr_comp_in_C (C : LoadedCluster tab) :
   · -- root ◃* comp, going via t.
     exact t_root.2.tail (Or.inr t_comp)
 
-/-- Def 9.6: All nodes in cluster with a certain list (WORRY should it be set??) on the right.
+/-- Def 9.6: All nodes in cluster with a certain set of formulas on the right.
 TODO: `.right` might not get or not keep track of the loaded formula!
-Better use `List WhateverFormula` and `Sequent.wForms` here maybe?
+Better use `Finset WhateverFormula` and `Sequent.wForms` here maybe?
 -/
-def nodesWith (C : LoadedCluster tab) (Δ : List Formula) : List (PathIn tab) :=
-  C.CL.filter (fun p => decide ((nodeAt p).right = Δ))
+def nodesWith (C : LoadedCluster tab) (Δ : Finset Formula) : Finset (PathIn tab) :=
+  C.CL.filter (fun p => (nodeAt p).right = Δ)
 
-def plusNodesWith (C : LoadedCluster tab) (Δ : List Formula) : List (PathIn tab) :=
-  C.CL_plus.filter (fun p => decide ((nodeAt p).right = Δ))
+def plusNodesWith (C : LoadedCluster tab) (Δ : Finset Formula) : Finset (PathIn tab) :=
+  C.CL_plus.filter (fun p => (nodeAt p).right = Δ)
 
 /-! ### The cluster at the fine level
 
@@ -416,7 +416,9 @@ that base node, or one of the children of the base node below it is in `C`. -/
 def memFine (C : LoadedCluster tab) (f : FinePathIn tab) : Prop :=
   f.base ∈ C.CL ∧ ( f.atBigRoot ∨ ∃ q ∈ f.coarseChildrenBelow, q ∈ C.CL )
 
-instance instDecidableMemFine (C : LoadedCluster tab) (f : FinePathIn tab) :
+-- TODO: avoid `noncomputable` in FinePath first and then also here.
+
+noncomputable instance instDecidableMemFine (C : LoadedCluster tab) (f : FinePathIn tab) :
     Decidable (C.memFine f) := by
   unfold memFine; infer_instance
 
@@ -425,7 +427,7 @@ lemma memFine_toFine (C : LoadedCluster tab) {p : PathIn tab} (p_in : p ∈ C.CL
     C.memFine p.toFine := ⟨by simpa using p_in, Or.inl (by simp)⟩
 
 /-- All fine nodes in the cluster `C`. -/
-def fineCL (C : LoadedCluster tab) : List (FinePathIn tab) :=
+noncomputable def fineCL (C : LoadedCluster tab) : List (FinePathIn tab) :=
   (allFinePaths tab).filter (fun f => decide (C.memFine f))
 
 lemma mem_fineCL (C : LoadedCluster tab) (f : FinePathIn tab) :
@@ -470,41 +472,45 @@ lemma exists_child_memFine_of_not_isLrep (C : LoadedCluster tab)
   · exact C.exists_child_memFine hf hbr
 
 /-- All fine nodes just outside the cluster `C`, i.e. `C⁺ \ C` at the fine level. -/
-def fineExits (C : LoadedCluster tab) : List (FinePathIn tab) :=
+noncomputable def fineExits (C : LoadedCluster tab) : List (FinePathIn tab) :=
   (C.fineCL.flatMap FinePathIn.children).filter (fun f => decide (¬ C.memFine f))
 
 /-- The fine version of `C⁺`. -/
-def fineCLplus (C : LoadedCluster tab) : List (FinePathIn tab) :=
+noncomputable def fineCLplus (C : LoadedCluster tab) : List (FinePathIn tab) :=
   C.fineCL ++ C.fineExits
 
 /-- `Λ₂[C]`, the right components of the fine nodes of the cluster. -/
-def lambdaTwo (C : LoadedCluster tab) : List Sequent :=
+noncomputable def lambdaTwo (C : LoadedCluster tab) : List Sequent :=
   (C.fineCL.map (fun f => f.label.rightOnly)).dedup
 
 /-- `Λ₂[C⁺]`, the right components of the fine nodes of the cluster and of its exits. -/
-def lambdaTwoPlus (C : LoadedCluster tab) : List Sequent :=
+noncomputable def lambdaTwoPlus (C : LoadedCluster tab) : List Sequent :=
   (C.fineCLplus.map (fun f => f.label.rightOnly)).dedup
 
 /-- `C_Δ` from Def 9.6, at the fine level. -/
-def nodesWithFine (C : LoadedCluster tab) (Δ : Sequent) : List (FinePathIn tab) :=
+noncomputable def nodesWithFine (C : LoadedCluster tab) (Δ : Sequent) : List (FinePathIn tab) :=
   C.fineCL.filter (fun f => decide (f.label.rightOnly = Δ))
 
 /-- `C⁺_Δ` from Def 9.6, at the fine level. -/
-def plusNodesWithFine (C : LoadedCluster tab) (Δ : Sequent) : List (FinePathIn tab) :=
+noncomputable def plusNodesWithFine (C : LoadedCluster tab) (Δ : Sequent) :
+    List (FinePathIn tab) :=
   C.fineCLplus.filter (fun f => decide (f.label.rightOnly = Δ))
 
 /-- `C^R_Δ` from Def 9.6: nodes with right component `Δ` where a right rule is applied. -/
-def nodesWithFineRight (C : LoadedCluster tab) (Δ : Sequent) : List (FinePathIn tab) :=
+noncomputable def nodesWithFineRight (C : LoadedCluster tab) (Δ : Sequent) :
+    List (FinePathIn tab) :=
   (C.nodesWithFine Δ).filter (fun f => f.usesRightRule)
 
 /-- `C^L_Δ` from Def 9.6: nodes with right component `Δ` where a left rule is applied. -/
-def nodesWithFineLeft (C : LoadedCluster tab) (Δ : Sequent) : List (FinePathIn tab) :=
+noncomputable def nodesWithFineLeft (C : LoadedCluster tab) (Δ : Sequent) :
+    List (FinePathIn tab) :=
   (C.nodesWithFine Δ).filter (fun f => f.usesLeftRule)
 
 /-- Nodes with right component `Δ` where no rule is applied at all. These are the
 loaded-path repeats and the closing rules, which Lemma 9.7 (a) in the paper does not
 mention. -/
-def nodesWithFineNoRule (C : LoadedCluster tab) (Δ : Sequent) : List (FinePathIn tab) :=
+noncomputable def nodesWithFineNoRule (C : LoadedCluster tab) (Δ : Sequent) :
+    List (FinePathIn tab) :=
   (C.nodesWithFine Δ).filter (fun f => !f.usesLeftRule && !f.usesRightRule)
 
 /-- Lemma 9.7 (a), first part: `C_Δ` is the union of `C^L_Δ` and `C^R_Δ` and the nodes
@@ -551,7 +557,7 @@ components of its children. By uniformity (which we do not prove here) this does
 depend on the chosen node. When `C^R_Δ` is empty — which by Lemma 9.7 (d) only happens
 when `C_Δ` is empty, i.e. when `Δ ∉ Λ₂[C]` — we return the empty list, but note that the
 construction of `Q` below never uses `stepOf` in that case. -/
-def stepOf (C : LoadedCluster tab) (Δ : Sequent) : List Sequent :=
+noncomputable def stepOf (C : LoadedCluster tab) (Δ : Sequent) : List Sequent :=
   match (C.nodesWithFineRight Δ).head? with
   | some f => f.children.map (fun g => g.label.rightOnly)
   | none => []
@@ -665,12 +671,13 @@ By the assumption of Lemma 9.3 we have an interpolant `θ_t` for every exit node
 they are interpolants is `∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)`. -/
 
 /-- `C⁺_Δ \ C_Δ`, i.e. the exit nodes whose right component is `Δ`. -/
-def LoadedCluster.exitsWithFine (C : LoadedCluster tab) (Δ : Sequent) : List (FinePathIn tab) :=
+noncomputable def LoadedCluster.exitsWithFine (C : LoadedCluster tab) (Δ : Sequent) :
+    List (FinePathIn tab) :=
   C.fineExits.filter (fun f => decide (f.label.rightOnly = Δ))
 
 /-- Def 9.13: `θ_Δ`, the disjunction of the interpolants of all exit nodes whose right
 component is `Δ`. Note that `θ_Δ = ⊥` in case there are no such exit nodes. -/
-def LoadedCluster.thetaOf (C : LoadedCluster tab) (θ : FinePathIn tab → Formula)
+noncomputable def LoadedCluster.thetaOf (C : LoadedCluster tab) (θ : FinePathIn tab → Formula)
     (Δ : Sequent) : Formula :=
   dis ((C.exitsWithFine Δ).map θ)
 
@@ -691,25 +698,29 @@ open HasSat in
 /-- Lemma 9.14 (a): `Λ₁(t) ⊨ θ_Δ` for all `t ∈ C⁺_Δ \ C_Δ`. -/
 lemma LoadedCluster.thetaOf_left (C : LoadedCluster tab) (θ : FinePathIn tab → Formula)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) (Δ : Sequent) :
-    ∀ f ∈ C.exitsWithFine Δ, ¬ satisfiable ((~ C.thetaOf θ Δ) :: f.label.left) := by
+    ∀ f ∈ C.exitsWithFine Δ, ¬ satisfiable ({~ C.thetaOf θ Δ} ∪ f.label.left) := by
   rintro f hf ⟨W, M, w, hw⟩
   have hfE : f ∈ C.fineExits := ((C.mem_exitsWithFine_iff Δ f).mp hf).1
   refine (hθ f hfE).2.1 ⟨W, M, w, ?_⟩
   intro φ hφ
-  rcases List.mem_cons.mp hφ with rfl | hmem
-  · have h1 : evaluate M w (~ C.thetaOf θ Δ) := hw _ (List.mem_cons_self ..)
+  rcases Finset.mem_union.mp hφ with hφ' | hmem
+  · rw [Finset.mem_singleton] at hφ'
+    subst hφ'
+    have h1 : evaluate M w (~ C.thetaOf θ Δ) :=
+      hw _ (Finset.mem_union_left _ (Finset.mem_singleton_self _))
     simp only [thetaOf, evaluate, disEval, not_exists] at h1 ⊢
     intro hcon
     exact h1 (θ f) ⟨List.mem_map_of_mem hf, hcon⟩
-  · exact hw _ (List.mem_cons_of_mem _ hmem)
+  · exact hw _ (Finset.mem_union_right _ hmem)
 
 open HasSat in
 /-- Lemma 9.14 (b): `Δ ⊨ ¬θ_Δ`. -/
 lemma LoadedCluster.thetaOf_right (C : LoadedCluster tab) (θ : FinePathIn tab → Formula)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) (Δ : Sequent) :
-    ¬ satisfiable (C.thetaOf θ Δ :: Δ.right) := by
+    ¬ satisfiable ({C.thetaOf θ Δ} ∪ Δ.right) := by
   rintro ⟨W, M, w, hw⟩
-  have h1 : evaluate M w (C.thetaOf θ Δ) := hw _ (List.mem_cons_self ..)
+  have h1 : evaluate M w (C.thetaOf θ Δ) :=
+    hw _ (Finset.mem_union_left _ (Finset.mem_singleton_self _))
   rw [thetaOf, disEval] at h1
   obtain ⟨φ, hφ, hev⟩ := h1
   simp only [List.mem_map] at hφ
@@ -717,9 +728,11 @@ lemma LoadedCluster.thetaOf_right (C : LoadedCluster tab) (θ : FinePathIn tab �
   have hfE : f ∈ C.fineExits := ((C.mem_exitsWithFine_iff Δ f).mp hf).1
   refine (hθ f hfE).2.2 ⟨W, M, w, ?_⟩
   intro ψ hψ
-  rcases List.mem_cons.mp hψ with rfl | hmem
-  · exact hev
-  · exact hw _ (List.mem_cons_of_mem _ (C.right_of_mem_exitsWithFine hf ▸ hmem))
+  rcases Finset.mem_union.mp hψ with hψ' | hmem
+  · rw [Finset.mem_singleton] at hψ'
+    subst hψ'
+    exact hev
+  · exact hw _ (Finset.mem_union_right _ (C.right_of_mem_exitsWithFine hf ▸ hmem))
 
 /-- Lemma 9.14 (c): the vocabulary of `θ_Δ` is included in the vocabulary of `Δ` and in the
 union of the vocabularies of the left components of the exit nodes with right component
