@@ -191,19 +191,18 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
               (endNodesOf ltX.1).seqSort
             cases oY_def : oY
             · exfalso
-              have := List.find?_eq_none.mp oY_def
-              sorry -- grind
+              have hnone := List.find?_eq_none.mp oY_def
+              obtain ⟨a, a_in, ha⟩ := mY_prop
+              have := hnone a ((Finset.mem_seqSort _).mpr a_in)
+              simp only [decide_eq_true_eq] at this
+              exact this ha
             case some Y =>
               unfold oY at oY_def
               have def_mY := List.find?_some oY_def
               simp only [decide_eq_true_eq] at def_mY
-              have Y_in := List.mem_of_find?_eq_some oY_def
-              sorry
-              /-
-              have := @Move.buEnd X ltX.1 Y H nrep nbas Y_in
+              have Y_in := (Finset.mem_seqSort _).mp (List.mem_of_find?_eq_some oY_def)
               rw [← def_mY]
-              exact this
-              -/
+              exact @Move.buEnd X ltX.1 Y H nrep nbas Y_in
           rcases mY with ⟨H', Y, newP⟩ -- Happy because this does not lose mY_def.
           have H'_def : H' = X :: H := by
             simp [Game.Pos.moves, tableauGame, Game.moves] at mY_prop
@@ -596,51 +595,71 @@ decreasing_by
   · exact size_lt_loc H X _ next lt _
   · exact size_lt_pdl H X _ _ next Y r
 
-lemma BuildTree.collect_nonempty (bt : BuildTree [] X) :
-    bt.collect ≠ {} := by
-  cases bt
-  case loc nbas someLT next =>
-    simp [collect, ne_eq, List.flatMap_eq_nil_iff, List.append_eq_nil_iff, not_forall, not_and]
-    rcases List.exists_mem_of_ne_nil _ someLT with ⟨lt, lt_in⟩
-    use lt, lt_in
-    have := LocalTableau.pathsTo_ne_nil (lt := lt.1) (Y := (next lt).4) BuildChoice.frth_mem
-    tauto
-  all_goals
-    simp [collect]
-  case freeRepeat h =>
-    exact FreeRepeat_nil_impossible h
+/-! The following four `simp` lemmas describe membership in `BuildTree.collect`.
+They are the `Finset` replacements of the old list-based unfolding of `collect`. -/
 
-lemma BuildTree.collect_contains_root (bt : BuildTree [] X) :
-    ∃ π ∈ bt.collect, X ∈ π := by
-  cases bt <;> simp [collect]
-  case loc nbas someLT next =>
-    rcases List.exists_mem_of_ne_nil _ someLT with ⟨lt, lt_in⟩
-    rcases List.exists_mem_of_ne_nil _
-      (LocalTableau.pathsTo_ne_nil (lt := lt.1) (Y := (next lt).4) BuildChoice.frth_mem)
-      with ⟨π, π_in⟩
-    rw [LocalTableau.mem_pathsTo] at π_in
-    refine ⟨π, ⟨lt, lt.all_spec, .inl π_in⟩, ?_⟩
-    have := @LocalTableau.pathsHead_eq_self X lt.1 π
-    grind
-  case freeRepeat h =>
-    exact FreeRepeat_nil_impossible h
+@[simp]
+lemma BuildTree.mem_collect_loc {H X} {nbas someLT next} {p : List Sequent} :
+    p ∈ (BuildTree.loc (H := H) (X := X) nbas someLT next).collect
+    ↔ ∃ lt ∈ OpenLocalTableau.all X,
+        p ∈ lt.1.pathsTo (next lt).4 ∨ p ∈ (next lt).6.collect := by
+  rw [BuildTree.collect]
+  simp only [Finset.mem_sup, List.mem_toFinset, Finset.mem_union]
+
+@[simp]
+lemma BuildTree.mem_collect_pdl {H X} {bas someR next} {p : List Sequent} :
+    p ∈ (BuildTree.pdl (H := H) (X := X) bas someR next).collect
+    ↔ p = [X] ∨ ∃ Y, ∃ r : PdlRule X Y,
+        (⟨Y, r⟩ : Σ Y, PdlRule X Y) ∈ PdlRule.all X ∧ p ∈ (next Y r).collect := by
+  rw [BuildTree.collect]
+  simp only [Finset.mem_union, Finset.mem_singleton, Finset.mem_sup, List.mem_toFinset,
+    Sigma.exists]
+
+@[simp]
+lemma BuildTree.mem_collect_freeRepeat {H X} {fr} {p : List Sequent} :
+    p ∈ (BuildTree.freeRepeat (H := H) (X := X) fr).collect ↔ False := by
+  rw [BuildTree.collect]; simp
+
+@[simp]
+lemma BuildTree.mem_collect_openLeaf {H X} {bas noRule} {p : List Sequent} :
+    p ∈ (BuildTree.openLeaf (H := H) (X := X) bas noRule).collect ↔ p = [X] := by
+  rw [BuildTree.collect]; simp
 
 /-- Any `BuildTree` that is not a free repeat collects at least one list containing its root.
 Generalisation of `BuildTree.collect_contains_root` to non-empty histories. -/
 lemma BuildTree.collect_contains_root_of_not_freeRepeat {H X} (bt : BuildTree H X)
     (h : ¬ bt.isFreeRepeat) : ∃ π ∈ bt.collect, X ∈ π := by
-  cases bt <;> simp [collect]
+  cases bt
   case loc nbas someLT next =>
     rcases List.exists_mem_of_ne_nil _ someLT with ⟨lt, lt_in⟩
-    rcases List.exists_mem_of_ne_nil _
+    rcases Finset.nonempty_iff_ne_empty.mpr
       (LocalTableau.pathsTo_ne_nil (lt := lt.1) (Y := (next lt).4) BuildChoice.frth_mem)
       with ⟨π, π_in⟩
-    rw [LocalTableau.mem_pathsTo] at π_in
-    refine ⟨π, ⟨lt, lt.all_spec, .inl π_in⟩, ?_⟩
-    have := @LocalTableau.pathsHead_eq_self X lt.1 π
-    grind
+    refine ⟨π, ?_, ?_⟩
+    · rw [collect]
+      simp only [Finset.mem_sup, List.mem_toFinset]
+      exact ⟨lt, lt_in, Finset.mem_union_left _ π_in⟩
+    · rw [LocalTableau.mem_pathsTo] at π_in
+      have := @LocalTableau.pathsHead_eq_self X lt.1 π π_in.1
+      rw [← this]
+      exact List.head_mem _
   case freeRepeat fr =>
     simp [isFreeRepeat] at h
+  all_goals
+    exact ⟨[X], by rw [collect]; simp, by simp⟩
+
+lemma BuildTree.not_isFreeRepeat_nil {X} (bt : BuildTree [] X) : ¬ bt.isFreeRepeat := by
+  cases bt <;> simp [BuildTree.isFreeRepeat]
+  case freeRepeat h => exact FreeRepeat_nil_impossible h
+
+lemma BuildTree.collect_contains_root (bt : BuildTree [] X) :
+    ∃ π ∈ bt.collect, X ∈ π :=
+  bt.collect_contains_root_of_not_freeRepeat bt.not_isFreeRepeat_nil
+
+lemma BuildTree.collect_nonempty (bt : BuildTree [] X) :
+    bt.collect ≠ {} := by
+  obtain ⟨π, π_in, -⟩ := bt.collect_contains_root
+  exact Finset.ne_empty_of_mem π_in
 
 /-! ## Pre-states (Def 6.13) -/
 
@@ -649,23 +668,21 @@ def PreState {H X} (bt : BuildTree H X) : Type := Subtype (· ∈ bt.collect)
 
 lemma PreState.nonempty {H X} {bt : BuildTree H X} {π : PreState bt} : π.val ≠ [] := by
   rcases π with ⟨L, L_in⟩
-  unfold BuildTree.collect at L_in
-  simp_all
   cases bt
-  case loc nbas someLT next L_in' =>
-    simp_all
-    rcases L_in with ⟨lt, lt_in, L_in⟩
-    rcases L_in with L_in|L_in
+  case loc nbas someLT next =>
+    simp only [BuildTree.mem_collect_loc, LocalTableau.mem_pathsTo] at L_in
+    rcases L_in with ⟨lt, lt_in, L_in|L_in⟩
     · exact LocalTableau.paths_mem_nonempty lt.1 L L_in.1
-    · have IH := @PreState.nonempty _ _ (next lt).6 ⟨L, L_in⟩
-      exact IH
-  case pdl bas next L_in' =>
-    simp_all
+    · exact @PreState.nonempty _ _ (next lt).6 ⟨L, L_in⟩
+  case pdl bas someR next =>
+    simp only [BuildTree.mem_collect_pdl] at L_in
     rcases L_in with L_def|⟨Y, r, rule_in, L_in⟩
     · simp_all
-    · have IH := @PreState.nonempty _ _ (next Y r) ⟨L, L_in⟩
-      exact IH
-  all_goals
+    · exact @PreState.nonempty _ _ (next Y r) ⟨L, L_in⟩
+  case freeRepeat fr =>
+    simp only [BuildTree.mem_collect_freeRepeat] at L_in
+  case openLeaf bas noRule =>
+    simp only [BuildTree.mem_collect_openLeaf] at L_in
     simp_all
 termination_by
   bt.size
@@ -680,11 +697,21 @@ decreasing_by -- almost same termination proof as for Match.all etc above :-)
 /-- Λ(π) gets all formulas for a pre-state but keep the information what is loaded.
 Returns the `WhateverFormula` type so that lemmas like 6.15 and 6.18 are sayable. -/
 def PreState.wForms {H X} {bt : BuildTree H X} (π : PreState bt) : Finset WhateverFormula :=
-  (π.val.map Sequent.wForms).flatten.toFinset
+  pathWForms π.val
 
 /-- Λ⁻(π) gets all formulas from a pre-state π, via unloading if needed. -/
 def PreState.forms {H X} {bt : BuildTree H X} (π : PreState bt) : Finset Formula :=
-  (π.val.map Sequent.bothSides).flatten.toFinset
+  pathForms π.val
+
+@[simp]
+lemma PreState.mem_wForms {H X} {bt : BuildTree H X} {π : PreState bt} {f : WhateverFormula} :
+    f ∈ π.wForms ↔ ∃ Z ∈ π.val, f ∈ Z.wForms := by
+  simp [PreState.wForms]
+
+@[simp]
+lemma PreState.mem_forms {H X} {bt : BuildTree H X} {π : PreState bt} {f : Formula} :
+    f ∈ π.forms ↔ ∃ Z ∈ π.val, f ∈ Z.toFinset := by
+  simp [PreState.forms]
 
 /-- Characterizing three different ways in which a formula can be in `PreState.forms`. -/
 lemma PreState.mem_forms_iff {H X} {bt : BuildTree H X} {φ : Formula} {π : PreState bt} :
@@ -693,27 +720,18 @@ lemma PreState.mem_forms_iff {H X} {bt : BuildTree H X} {φ : Formula} {π : Pre
       ∨ (∃ χ, χ.unload = φ ∧ (.any (.loaded χ) ∈ π.wForms))
       ∨ (∃ ψ, negUnload ψ = φ ∧ (.negLoad ψ ∈ π.wForms))
       ) := by
-  simp only [PreState.forms, PreState.wForms, List.mem_toFinset]
+  simp only [PreState.mem_forms, PreState.mem_wForms]
   constructor
-  · intro h
-    rw [List.mem_flatten] at h
-    rcases h with ⟨Fs, Fs_in, hφ⟩
-    rw [List.mem_map] at Fs_in
-    rcases Fs_in with ⟨X, X_in, rfl⟩
-    rw [Sequent.mem_bothSides_iff] at hφ
-    grind
-  · rintro (h | ⟨χ, hχ, h⟩ | ⟨ψ, hψ, h⟩)
-    all_goals
-      rw [List.mem_flatten] at h
-      rcases h with ⟨wFs, wFs_in, hw⟩
-      rw [List.mem_map] at wFs_in
-      rcases wFs_in with ⟨X, X_in, rfl⟩
-      apply List.mem_flatten.mpr
-      refine ⟨X.bothSides, List.mem_map.mpr ⟨X, X_in, rfl⟩, ?_⟩
-      rw [Sequent.mem_bothSides_iff]
-    · exact Or.inl hw
-    · exact Or.inr (Or.inl ⟨χ, hχ, hw⟩)
-    · exact Or.inr (Or.inr ⟨ψ, hψ, hw⟩)
+  · rintro ⟨Z, Z_in, hφ⟩
+    rw [Sequent.mem_toFinset_iff] at hφ
+    rcases hφ with h | ⟨χ, hχ, h⟩ | ⟨ψ, hψ, h⟩
+    · exact Or.inl ⟨Z, Z_in, h⟩
+    · exact Or.inr (Or.inl ⟨χ, hχ, Z, Z_in, h⟩)
+    · exact Or.inr (Or.inr ⟨ψ, hψ, Z, Z_in, h⟩)
+  · rintro (⟨Z, Z_in, h⟩ | ⟨χ, hχ, Z, Z_in, h⟩ | ⟨ψ, hψ, Z, Z_in, h⟩)
+    · exact ⟨Z, Z_in, (Sequent.mem_toFinset_iff _ _).mpr (Or.inl h)⟩
+    · exact ⟨Z, Z_in, (Sequent.mem_toFinset_iff _ _).mpr (Or.inr (Or.inl ⟨χ, hχ, h⟩))⟩
+    · exact ⟨Z, Z_in, (Sequent.mem_toFinset_iff _ _).mpr (Or.inr (Or.inr ⟨ψ, hψ, h⟩))⟩
 
 lemma BuildTree.exists_mem_attach_forms_eq {bt : BuildTree [] H} {ρ : PreState bt} :
     ∃ a ∈ bt.collect.attach, PreState.forms a = ρ.forms := by
@@ -763,8 +781,7 @@ lemma PreState.forms_locallyConsistent {H X} {bt : BuildTree H X} {π : PreState
   case pdl bas someR next =>
     rcases π_in with π_def|⟨Y, r, in_rule, π_in_next⟩
     · subst π_def
-      simp_all only [forms, List.map_cons, List.map_nil, List.flatten_cons, List.flatten_nil,
-        List.append_nil, Sequent.bothSides_toFinset_eq_toFinset]
+      simp [forms]
       apply Sequent.basic_to_locallyConsistent bas
     · have IH := @PreState.forms_locallyConsistent _ _ _ ⟨π, π_in_next⟩
       exact IH
@@ -819,39 +836,38 @@ lemma Match.collect_btAt_subset {H X} {bt : BuildTree H X} (m : Match bt) :
   | @loc H X nbas someLT next lt tail IH =>
     intro π hπ
     have hsub := IH π (by simpa [Match.btAt] using hπ)
-    rw [BuildTree.collect]
-    simp only [List.mem_flatMap, List.mem_append]
+    simp only [BuildTree.mem_collect_loc]
     exact ⟨lt, OpenLocalTableau.all_spec, Or.inr hsub⟩
   | @pdl H X bas someR next Y r tail IH =>
     intro π hπ
     have hsub := IH π (by simpa [Match.btAt] using hπ)
-    rw [BuildTree.collect]
-    simp only [List.singleton_append, List.mem_cons, List.mem_flatMap, Sigma.exists]
+    simp only [BuildTree.mem_collect_pdl]
     exact Or.inr ⟨Y, r, PdlRule.all_spec bas r, hsub⟩
 
 /-- For any `Match` there exists a `PreState`
-containing a sequent `setEqTo` the end nof the Match. -/
+containing the sequent at the end of the Match. -/
 lemma Match.existsPreState {X} {bt : BuildTree [] X} (m : Match bt) :
-    ∃ π : PreState bt, ∃ Z ∈ π.1, m.btAt.2.1.setEqTo Z := by
+    ∃ π : PreState bt, ∃ Z ∈ π.1, m.btAt.2.1 = Z := by
   by_cases m_frep : m.isFreeRepeat
   · -- We do not make a PreState here but go to the companion first.
     have IH := (m.companionOf m_frep).existsPreState
     rcases IH with ⟨π, Z, Z_in_π, same_Z⟩
     refine ⟨π, Z, Z_in_π, ?_⟩
-    -- Using lemma that the companion has a `setEqTo` sequent.
+    -- Using lemma that the companion has the same sequent.
     have comp_eq := m.companionOf_setEqTo_sequent m_frep
-    exact Sequent.setEqTo_trans _ _ _ ((Sequent.setEqTo_symm _ _).mp comp_eq) same_Z
+    rw [← comp_eq]
+    exact same_Z
   · -- The `BuildTree` we are at is not a free repeat, so it collects its own root.
     have not_frep : ¬ m.btAt.2.2.isFreeRepeat := fun h => m_frep (Match.isFreeRepeat_iff.mpr h)
     rcases m.btAt.2.2.collect_contains_root_of_not_freeRepeat not_frep with ⟨π, π_in, root_in⟩
-    exact ⟨⟨π, m.collect_btAt_subset π π_in⟩, m.btAt.2.1, root_in, Sequent.setEqTo_refl _⟩
+    exact ⟨⟨π, m.collect_btAt_subset π π_in⟩, m.btAt.2.1, root_in, rfl⟩
 termination_by
   m.length
 decreasing_by
   exact m.companionOf_length_lt m_frep
 
 /-- The Boolean predicate used by `Match.toPreState`: does the given list of sequents
-contain a sequent that is `setEqTo` the end of the given `Match`? -/
+contain the sequent at the end of the given `Match`? -/
 def Match.fitsPreState {X} {bt : BuildTree [] X} (m : Match bt) (π : List Sequent) : Bool :=
   π.any (fun Z => decide (m.btAt.2.1 = Z))
 
@@ -859,29 +875,31 @@ lemma Match.fitsPreState_iff {X} {bt : BuildTree [] X} {m : Match bt} {π : List
     m.fitsPreState π ↔ ∃ Z ∈ π, m.btAt.2.1 = Z := by
   simp [Match.fitsPreState]
 
-/-- Reformulation of `Match.existsPreState` using `Match.fitsPreState`. -/
+/-- Reformulation of `Match.existsPreState` using `Match.fitsPreState`.
+Note that we use `Finset.toList` here to be able to use `List.find?` below. -/
 lemma Match.exists_fitsPreState {X} {bt : BuildTree [] X} (m : Match bt) :
-    ∃ π ∈ bt.collect, m.fitsPreState π := by
+    ∃ π ∈ bt.collect.toList, m.fitsPreState π := by
   rcases m.existsPreState with ⟨⟨π, π_in⟩, Z, Z_in, hZ⟩
-  exact ⟨π, π_in, Match.fitsPreState_iff.mpr ⟨Z, Z_in, hZ⟩⟩
+  exact ⟨π, Finset.mem_toList.mpr π_in, Match.fitsPreState_iff.mpr ⟨Z, Z_in, hZ⟩⟩
 
 /-- Thanks to `Match.existsPreState` the search for a fitting pre-state succeeds. -/
 lemma Match.find?_fitsPreState_isSome {X} {bt : BuildTree [] X} (m : Match bt) :
-    (bt.collect.find? m.fitsPreState).isSome := by
-  cases h : bt.collect.find? m.fitsPreState
+    (bt.collect.toList.find? m.fitsPreState).isSome := by
+  cases h : bt.collect.toList.find? m.fitsPreState
   case some => simp
   case none =>
     rcases m.exists_fitsPreState with ⟨π, π_in, hπ⟩
     exact absurd hπ (List.find?_eq_none.mp h π π_in)
 
-/-- Pick a `PreState` for a given `Match`, using `Match.existsPreState` and `List.find?`. -/
-def Match.toPreState {X} {bt : BuildTree [] X} (m : Match bt) : PreState bt :=
-  ⟨(bt.collect.find? m.fitsPreState).get m.find?_fitsPreState_isSome,
-    List.mem_of_find?_eq_some (Option.some_get _).symm⟩
+/-- Pick a `PreState` for a given `Match`, using `Match.existsPreState` and `List.find?`.
+Noncomputable because `Finset.toList` is. -/
+noncomputable def Match.toPreState {X} {bt : BuildTree [] X} (m : Match bt) : PreState bt :=
+  ⟨(bt.collect.toList.find? m.fitsPreState).get m.find?_fitsPreState_isSome,
+    Finset.mem_toList.mp (List.mem_of_find?_eq_some (Option.some_get _).symm)⟩
 
-/-- The result of `Match.toPreState` indeed contains a sequent `setEqTo` the end of the `Match`. -/
+/-- The result of `Match.toPreState` indeed contains the sequent at the end of the `Match`. -/
 lemma Match.toPreState_spec {X} {bt : BuildTree [] X} (m : Match bt) :
-    ∃ Z ∈ m.toPreState.1, m.btAt.2.1.setEqTo Z :=
+    ∃ Z ∈ m.toPreState.1, m.btAt.2.1 = Z :=
   Match.fitsPreState_iff.mp (List.find?_some (Option.some_get m.find?_fitsPreState_isSome).symm)
 
 /-- Search for the node in `bt` at which the list `p` of sequents is collected, and return the
@@ -926,7 +944,7 @@ lemma BuildTree.toMatchAux_mem_collect : {H : History} → {X : Sequent} → (bt
         rcases Yr with ⟨Y, r⟩
         simpa [Match.btAt] using BuildTree.toMatchAux_mem_collect (next Y r) p p_in
       case none => simpa [Match.btAt] using hp
-  | _, _, .freeRepeat _, p, hp => by simpa [Match.btAt, BuildTree.toMatchAux] using hp
+  | _, _, .freeRepeat _, p, hp => by simp at hp
   | _, _, .openLeaf _ _, p, hp => by simpa [Match.btAt, BuildTree.toMatchAux] using hp
 termination_by _ _ bt _ _ => bt.size
 decreasing_by
@@ -947,8 +965,7 @@ lemma BuildTree.toMatchAux_head? : {H : History} → {X : Sequent} → (bt : Bui
         -- Not collected below, hence `p` must be a path in one of the local tableaux here.
         have hnone := List.find?_eq_none.mp h
         simp only [decide_eq_true_eq] at hnone
-        rw [BuildTree.collect] at hp
-        simp only [List.mem_flatMap, List.mem_append] at hp
+        simp only [BuildTree.mem_collect_loc] at hp
         rcases hp with ⟨lt, lt_in, hp | hp⟩
         · rw [List.head?_eq_some_head (LocalTableau.paths_mem_nonempty lt.1 p
               (LocalTableau.mem_pathsTo.mp hp).1),
@@ -967,16 +984,14 @@ lemma BuildTree.toMatchAux_head? : {H : History} → {X : Sequent} → (bt : Bui
         -- Not collected below, hence `p` must be the singleton list `[X]` collected here.
         have hnone := List.find?_eq_none.mp h
         simp only [decide_eq_true_eq] at hnone
-        rw [BuildTree.collect] at hp
-        simp only [List.singleton_append, List.mem_cons, List.mem_flatMap] at hp
-        rcases hp with rfl | ⟨Yr, Yr_in, hp⟩
+        simp only [BuildTree.mem_collect_pdl] at hp
+        rcases hp with rfl | ⟨Y, r, Yr_in, hp⟩
         · simp [Match.btAt]
-        · exact absurd hp (hnone Yr Yr_in)
+        · exact absurd hp (hnone ⟨Y, r⟩ Yr_in)
   | _, _, .freeRepeat _, p, hp => by
-      rw [BuildTree.collect] at hp; simp at hp
+      simp only [BuildTree.mem_collect_freeRepeat] at hp
   | _, _, .openLeaf _ _, p, hp => by
-      rw [BuildTree.collect] at hp
-      simp only [List.mem_singleton] at hp
+      simp only [BuildTree.mem_collect_openLeaf] at hp
       subst hp
       simp [Match.btAt, BuildTree.toMatchAux]
 termination_by _ _ bt _ _ => bt.size
@@ -1052,9 +1067,9 @@ lemma PreState.exists_endMatch {H X} {bt : BuildTree H X} (π : PreState bt) :
   exact ⟨c, π.toMatch_endSeq, by rw [Match.endSeq_append]; exact hc⟩
 
 /-- Weak round-trip that always holds: going from a pre-state to a match and back gives a
-pre-state that contains a sequent set-equal to the first sequent of `π`. -/
+pre-state that contains the first sequent of `π`. -/
 lemma PreState.setEqTo_mem_toMatch_toPreState {X} {bt : BuildTree [] X} (π : PreState bt) :
-    ∃ Z ∈ π.toMatch.toPreState.val, (π.val.head PreState.nonempty).setEqTo Z := by
+    ∃ Z ∈ π.toMatch.toPreState.val, (π.val.head PreState.nonempty) = Z := by
   rw [π.toMatch_head]
   exact Match.toPreState_spec π.toMatch
 
@@ -1092,7 +1107,7 @@ lemma PreState.mem_bothSides_getLast_of_basic {H X} {bt : BuildTree H X} {π : P
     {φ : Formula} (φ_basic : φ.basic) (φ_in : φ ∈ π.forms) :
     φ ∈ (π.val.getLast PreState.nonempty).toFinset := by
   rcases π with ⟨p, p_in⟩
-  simp only [PreState.forms, List.mem_toFinset] at φ_in
+  simp only [PreState.forms] at φ_in
   cases bt <;> simp [BuildTree.collect] at p_in <;> rename_i p_in_old
   case loc nbas someLT next =>
     rcases p_in with ⟨lt, lt_in, p_in_lt | p_in_next⟩
@@ -1120,9 +1135,9 @@ decreasing_by
 applied later on. We do not have the rule applications available along a pre-state, so instead
 we make the case distinction on whether `φ` is basic, and give the actual content for the
 first case: any basic formula of a pre-state occurs already in its last sequent.
-(We also use `Sequent.bothSides` instead of `∈` to include the loaded formula.) -/
+(We also use `Sequent.toFinset` instead of `∈` to include the loaded formula.) -/
 lemma PreState.formsCases {π : PreState bt} (φ_in : φ ∈ π.forms) :
-      (φ.basic ∧ φ ∈ (π.val.getLast PreState.nonempty).bothSides)
+      (φ.basic ∧ φ ∈ (π.val.getLast PreState.nonempty).toFinset)
     ∨ ¬ φ.basic := by
   by_cases φ_basic : φ.basic
   · exact Or.inl ⟨φ_basic, PreState.mem_bothSides_getLast_of_basic φ_basic φ_in⟩
@@ -1141,8 +1156,8 @@ lemma PreState.freeUnfoldDiaMem_of_nonAtom {H X} {bt : BuildTree H X} {π : PreS
       ∃ Xδ ∈ Dset α, (Xδ.1 ∪ [~ Formula.boxes Xδ.2 φ]).all (· ∈ π.wForms) := by
   intro α_notAtom in_forms
   rcases π with ⟨p, p_in⟩
-  simp only [PreState.wForms, List.mem_toFinset] at in_forms ⊢
-  cases bt <;> simp [BuildTree.collect] at p_in
+  simp only [PreState.wForms] at in_forms ⊢
+  cases bt <;> simp [BuildTree.collect] at p_in <;> rename_i p_in_old
   case loc nbas someLT next =>
     -- If π comes from a path in one of the local tableaux here, then the unfold rule was used
     -- somewhere along that path, otherwise we recurse into the chosen sub-`BuildTree`.
@@ -1152,22 +1167,21 @@ lemma PreState.freeUnfoldDiaMem_of_nonAtom {H X} {bt : BuildTree H X} {π : PreS
       rcases Fδ with ⟨F, δ⟩
       exact ⟨⟨F, δ⟩, Fδ_in, by simpa [Yset] using hall⟩
     · have IH := @PreState.freeUnfoldDiaMem_of_nonAtom _ _ (next lt).6 ⟨p, p_in_next⟩ α φ α_notAtom
-      simp only [PreState.wForms, List.mem_toFinset] at IH
+      simp only [PreState.wForms] at IH
       exact IH in_forms
   case pdl bas someR next =>
     -- A pre-state coming from a `.pdl` step is basic, so α would have to be atomic.
     rcases p_in with p_def | ⟨Y, r, in_rule, p_in_next⟩
     · subst p_def
-      simp only [Function.const_apply, Function.comp_apply, List.mem_flatten] at in_forms
+      simp only [pathWForms_cons, pathWForms_nil, Finset.union_empty] at in_forms
       exact absurd (Sequent.isAtomic_of_basic_of_negBox_mem_wForms bas in_forms) α_notAtom
     · have IH := @PreState.freeUnfoldDiaMem_of_nonAtom _ _ (next Y r) ⟨p, p_in_next⟩ α φ α_notAtom
-      simp only [PreState.wForms, List.mem_toFinset] at IH
+      simp only [PreState.wForms] at IH
       exact IH in_forms
   case openLeaf bas noRule =>
     -- Also an open leaf is basic, so again α would have to be atomic.
     subst p_in
-    simp only [List.map_cons, List.map_nil, List.flatten_cons, List.flatten_nil,
-      List.append_nil] at in_forms
+    simp only [pathWForms_cons, pathWForms_nil, Finset.union_empty] at in_forms
     exact absurd (Sequent.isAtomic_of_basic_of_negBox_mem_wForms bas in_forms) α_notAtom
 termination_by
   bt.size
@@ -1191,35 +1205,33 @@ lemma PreState.loadUnfoldMem_of_nonAtom {H X} {bt : BuildTree H X} {π : PreStat
     {ξ : AnyFormula} :
     ¬ α.isAtomic → (.negLoad (~'⌊α⌋ξ) : WhateverFormula) ∈ π.wForms →
       ∃ ress, Nonempty (LoadRule (~'⌊α⌋ξ) ress) ∧ ∃ Fo ∈ ress,
-        Fo.1.all (fun f => (f : WhateverFormula) ∈ π.wForms)
+        Fo.1.sort.all (fun f => (f : WhateverFormula) ∈ π.wForms)
         ∧ Fo.2.toList.all (fun nl => (WhateverFormula.negLoad nl) ∈ π.wForms) := by
   intro α_notAtom in_forms
   rcases π with ⟨p, p_in⟩
-  simp only [PreState.wForms, List.mem_toFinset] at in_forms ⊢
-  cases bt <;> simp [BuildTree.collect] at p_in
+  simp only [PreState.wForms] at in_forms ⊢
+  cases bt <;> simp [BuildTree.collect] at p_in <;> rename_i p_in_old
   case loc nbas someLT next =>
     -- If π comes from a path in one of the local tableaux here, then the load rule was used
     -- somewhere along that path, otherwise we recurse into the chosen sub-`BuildTree`.
     rcases p_in with ⟨lt, lt_in, p_in_lt | p_in_next⟩
     · exact LocalTableau.paths_loadUnfoldDia (lt := lt.1) α_notAtom p p_in_lt.1 in_forms
     · have IH := @PreState.loadUnfoldMem_of_nonAtom _ _ (next lt).6 ⟨p, p_in_next⟩ α ξ α_notAtom
-      simp only [PreState.wForms, List.mem_toFinset] at IH
+      simp only [PreState.wForms] at IH
       exact IH in_forms
   case pdl bas someR next =>
     -- A pre-state coming from a `.pdl` step is basic, so α would have to be atomic.
     rcases p_in with p_def | ⟨Y, r, in_rule, p_in_next⟩
     · subst p_def
-      simp only [List.map_cons, List.map_nil, List.flatten_cons, List.flatten_nil,
-        List.append_nil] at in_forms
+      simp only [pathWForms_cons, pathWForms_nil, Finset.union_empty] at in_forms
       exact absurd (Sequent.isAtomic_of_basic_of_negLoad_mem_wForms bas in_forms) α_notAtom
     · have IH := @PreState.loadUnfoldMem_of_nonAtom _ _ (next Y r) ⟨p, p_in_next⟩ α ξ α_notAtom
-      simp only [PreState.wForms, List.mem_toFinset] at IH
+      simp only [PreState.wForms] at IH
       exact IH in_forms
   case openLeaf bas noRule =>
     -- Also an open leaf is basic, so again α would have to be atomic.
     subst p_in
-    simp only [List.map_cons, List.map_nil, List.flatten_cons, List.flatten_nil,
-      List.append_nil] at in_forms
+    simp only [pathWForms_cons, pathWForms_nil, Finset.union_empty] at in_forms
     exact absurd (Sequent.isAtomic_of_basic_of_negLoad_mem_wForms bas in_forms) α_notAtom
 termination_by
   bt.size
@@ -1238,9 +1250,15 @@ lemma PreState.loadUnfoldDiaMem_of_nonAtom {H X} {bt : BuildTree H X} {π : PreS
   intro α_notAtom in_forms
   rcases PreState.loadUnfoldMem_of_nonAtom α_notAtom in_forms with ⟨ress, ⟨lr⟩, Fo, Fo_in, h1, h2⟩
   rw [lr.eq_unfoldDiamondLoaded] at Fo_in
-  simp only [unfoldDiamondLoaded, List.mem_map] at Fo_in
-  rcases Fo_in with ⟨⟨F, δ⟩, Fδ_in, rfl⟩
-  exact ⟨⟨F, δ⟩, Fδ_in, h1, h2⟩
+  simp only [List.toFinFinOpt, List.mem_toFinset, List.mem_map] at Fo_in
+  rcases Fo_in with ⟨FO, FO_in, hFo⟩
+  simp only [unfoldDiamondLoaded, List.mem_map] at FO_in
+  rcases FO_in with ⟨⟨F, δ⟩, Fδ_in, rfl⟩
+  subst hFo
+  refine ⟨⟨F, δ⟩, Fδ_in, ?_, h2⟩
+  simp only [List.all_eq_true, decide_eq_true_eq, Finset.mem_sort, List.mem_toFinset,
+    YsetLoad] at h1 ⊢
+  exact h1
 
 /-- Lemma 6.15 *loaded* case with only _one_ loaded box. -/
 lemma PreState.loadUnfoldDiaMem_of_nonAtom' {H X} {bt : BuildTree H X} {π : PreState bt} {α}
@@ -1251,10 +1269,13 @@ lemma PreState.loadUnfoldDiaMem_of_nonAtom' {H X} {bt : BuildTree H X} {π : Pre
   intro α_notAtom in_forms
   rcases PreState.loadUnfoldMem_of_nonAtom α_notAtom in_forms with ⟨ress, ⟨lr⟩, Fo, Fo_in, h1, h2⟩
   rw [lr.eq_unfoldDiamondLoaded'] at Fo_in
-  simp only [unfoldDiamondLoaded', List.mem_map] at Fo_in
-  rcases Fo_in with ⟨⟨F, δ⟩, Fδ_in, rfl⟩
+  simp only [List.toFinFinOpt, List.mem_toFinset, List.mem_map] at Fo_in
+  rcases Fo_in with ⟨FO, FO_in, hFo⟩
+  simp only [unfoldDiamondLoaded', List.mem_map] at FO_in
+  rcases FO_in with ⟨⟨F, δ⟩, Fδ_in, rfl⟩
+  subst hFo
   refine ⟨⟨F, δ⟩, Fδ_in, ?_, h2⟩
-  simp only [List.all_eq_true, decide_eq_true_eq] at h1 ⊢
+  simp only [List.all_eq_true, decide_eq_true_eq, Finset.mem_sort, List.mem_toFinset] at h1 ⊢
   intro f f_in
   apply h1
   rcases hδ : splitLast δ with _ | ⟨δ', β⟩ <;> simp [YsetLoad', hδ] <;> tauto

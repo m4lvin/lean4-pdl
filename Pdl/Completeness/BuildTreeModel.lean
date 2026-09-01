@@ -13,18 +13,16 @@ in `Pdl/BuildTreeExistence.lean` to prove the existence lemmas.
 @[simp]
 def BuildTree.toModel {X} (bt : BuildTree [] X) :
     (Σ W : Finset (Finset Formula), KripkeModel W) :=
-  ⟨ ((bt.collect).attach.map (PreState.forms)).toFinset -- W -- NOTE .forms here, not .wforms
+  ⟨ bt.collect.attach.image PreState.forms -- W -- NOTE .forms here, not .wforms
   , { val := fun X p => Formula.atom_prop p ∈ X.1 -- valuation V(p)
     , Rel := fun a X Y => -- relation Rₐ
-        ∃ φ, (~⌈·a⌉φ) ∈ X.1 ∧ (projection a X.1.toList).toFinset ∪ {~φ} ⊆ Y.1 }⟩
+        ∃ φ, (~⌈·a⌉φ) ∈ X.1 ∧ X.1.projection a ∪ {~φ} ⊆ Y.1 }⟩
 
 /-- Helper lemma saying (the formula sets of) all pre-states are in the model graph. -/
 lemma PreState.mem_toModel {X : Sequent} {bt : BuildTree [] X} {π : PreState bt} :
     π.forms ∈ bt.toModel.fst := by
-  simp
-  use π
-  simp
-  apply List.mem_attach
+  simp only [BuildTree.toModel, Finset.mem_image]
+  exact ⟨π, Finset.mem_attach _ _, rfl⟩
 
 instance {bt : BuildTree [] X} : Coe (PreState bt) { w : Finset Formula // w ∈ bt.toModel.1 } :=
   ⟨fun π => ⟨π.forms, π.mem_toModel⟩⟩
@@ -48,43 +46,27 @@ lemma PreState.toW_val {X} {bt : BuildTree [] X} (π : PreState bt) : π.toW.val
 /-- Unfolding the atomic accessibility relation of `BuildTree.toModel`. -/
 lemma PreState.rel_iff {X} {bt : BuildTree [] X} {π ρ : PreState bt} {a : Nat} :
     bt.toModel.2.Rel a π.toW ρ.toW
-    ↔ ∃ φ, (~⌈·a⌉φ) ∈ π.forms ∧ (projection a π.forms.toList).toFinset ∪ {~φ} ⊆ ρ.forms :=
+    ↔ ∃ φ, (~⌈·a⌉φ) ∈ π.forms ∧ π.forms.projection a ∪ {~φ} ⊆ ρ.forms :=
   Iff.rfl
 
-/-! ### Set-equal sequents -/
+/-! ### Set-equal sequents
 
-/-- Set-equal sequents have the same formulas on both sides. -/
-lemma Sequent.bothSides_toFinset_eq_of_setEqTo {Z Z' : Sequent} (h : Z.setEqTo Z') :
-    Z.bothSides.toFinset = Z'.bothSides.toFinset := by
-  rcases Z with ⟨L, R, O⟩
-  rcases Z' with ⟨L', R', O'⟩
-  simp only [Sequent.setEqTo] at h
-  obtain ⟨hL, hR, rfl⟩ := h
-  simp [Sequent.bothSides_eq, hL, hR]
+Since the refactoring that makes `Sequent` use `Finset`s, being set-equal is the same as
+being equal, so the two lemmas that used to be here are now trivial and hence removed:
 
-/-- Set-equal sequents contain the same `AnyNegFormula`s. -/
-lemma AnyNegFormula.mem_Sequent_of_setEqTo {Z Z' : Sequent} (h : Z.setEqTo Z')
-    {anf : AnyNegFormula} (hmem : AnyNegFormula.mem_Sequent Z anf) :
-    AnyNegFormula.mem_Sequent Z' anf := by
-  rcases anf with ⟨_ | χ⟩
-  · exact (Sequent.mem_iff_of_setEqTo h _).mp hmem
-  · rcases Z with ⟨L, R, O⟩
-    rcases Z' with ⟨L', R', O'⟩
-    simp only [Sequent.setEqTo] at h
-    obtain ⟨_, _, rfl⟩ := h
-    exact hmem
+- `Sequent.bothSides_toFinset_eq_of_setEqTo` is now just `congrArg Sequent.toFinset`.
+- `AnyNegFormula.mem_Sequent_of_setEqTo` is now just rewriting with the equality.
+-/
 
 /-! ### Formulas of a pre-state -/
 
 lemma PreState.mem_forms_of_mem {H X} {bt : BuildTree H X} {π : PreState bt} {Z : Sequent}
-    (hZ : Z ∈ π.val) {f : Formula} (hf : f ∈ Z.bothSides) : f ∈ π.forms := by
-  simp only [PreState.forms, List.mem_toFinset, List.mem_flatten, List.mem_map]
-  exact ⟨Z.bothSides, ⟨Z, hZ, rfl⟩, hf⟩
+    (hZ : Z ∈ π.val) {f : Formula} (hf : f ∈ Z.toFinset) : f ∈ π.forms :=
+  PreState.mem_forms.mpr ⟨Z, hZ, hf⟩
 
 lemma PreState.mem_wForms_of_mem {H X} {bt : BuildTree H X} {π : PreState bt} {Z : Sequent}
-    (hZ : Z ∈ π.val) {f : WhateverFormula} (hf : f ∈ Z.wForms) : f ∈ π.wForms := by
-  simp only [PreState.wForms, List.mem_toFinset, List.mem_flatten, List.mem_map]
-  exact ⟨Z.wForms, ⟨Z, hZ, rfl⟩, hf⟩
+    (hZ : Z ∈ π.val) {f : WhateverFormula} (hf : f ∈ Z.wForms) : f ∈ π.wForms :=
+  PreState.mem_wForms.mpr ⟨Z, hZ, hf⟩
 
 /-- The last sequent of a pre-state is one of its sequents. -/
 lemma PreState.getLast_mem {H X} {bt : BuildTree H X} (π : PreState bt) :
@@ -104,12 +86,12 @@ lemma PreState.mem_forms_of_hasAnf {H X} {bt : BuildTree H X} {π : PreState bt}
   rcases ξ with φ | χ
   · unfold AnyNegFormula.mem_Sequent at hZ
     simp only [instMembershipFormulaSequent, Sequent.L_eq, Sequent.R_eq] at hZ
-    simp only [AnyFormula.unload, Sequent.bothSides_eq]
-    rcases hZ with h | h <;> simp [h]
+    simp only [AnyFormula.unload]
+    rcases hZ with h | h <;> simp [Sequent.toFinset, h]
   · unfold AnyNegFormula.mem_Sequent at hZ
     simp only at hZ
-    simp only [AnyFormula.unload, Sequent.bothSides_eq]
-    rcases hZ with rfl | rfl <;> simp [Olf.L, Olf.R]
+    simp only [AnyFormula.unload]
+    rcases hZ with rfl | rfl <;> simp [Sequent.toFinset]
 
 /-! ### Walking down the `BuildTree` -/
 
@@ -155,14 +137,14 @@ lemma Match.not_isFreeRepeat_of_loaded {H X} {bt : BuildTree H X} {m : Match bt}
   intro h
   exact absurd hl (by simpa using (BuildTree.getFreeRepeat h).2.2)
 
-/-- Any `Match` can be replaced by one that ends at a set-equal sequent and is not at a free
+/-- Any `Match` can be replaced by one that ends at the same sequent and is not at a free
 repeat: if we are at a free repeat we go to its companion, which is strictly shorter. -/
 lemma Match.exists_setEqTo_not_freeRepeat {X} {bt : BuildTree [] X} (m : Match bt) :
-    ∃ m' : Match bt, m'.endSeq.setEqTo m.endSeq ∧ ¬ m'.btAt.2.2.isFreeRepeat := by
+    ∃ m' : Match bt, m'.endSeq = m.endSeq ∧ ¬ m'.btAt.2.2.isFreeRepeat := by
   by_cases h : m.isFreeRepeat
   · obtain ⟨m', h1, h2⟩ := (m.companionOf h).exists_setEqTo_not_freeRepeat
-    exact ⟨m', Sequent.setEqTo_trans _ _ _ h1 (m.companionOf_setEqTo_sequent h), h2⟩
-  · exact ⟨m, Sequent.setEqTo_refl _, fun hc => h (Match.isFreeRepeat_iff.mpr hc)⟩
+    exact ⟨m', h1.trans (m.companionOf_setEqTo_sequent h), h2⟩
+  · exact ⟨m, rfl, fun hc => h (Match.isFreeRepeat_iff.mpr hc)⟩
 termination_by m.length
 decreasing_by exact m.companionOf_length_lt h
 
@@ -186,18 +168,20 @@ lemma Match.exists_preState_of_not_freeRepeat {X} {bt : BuildTree [] X} (m : Mat
 is the *first* sequent of the collected pre-state. -/
 lemma BuildTree.collect_contains_root_head_of_not_freeRepeat {H X} (bt : BuildTree H X)
     (h : ¬ bt.isFreeRepeat) : ∃ p ∈ bt.collect, p.head? = some X := by
-  cases bt <;> simp [BuildTree.collect]
+  cases bt
   case loc nbas someLT next =>
     rcases List.exists_mem_of_ne_nil _ someLT with ⟨lt, lt_in⟩
-    rcases List.exists_mem_of_ne_nil _
+    rcases Finset.nonempty_iff_ne_empty.mpr
       (LocalTableau.pathsTo_ne_nil (lt := lt.1) (Y := (next lt).4) BuildChoice.frth_mem)
       with ⟨p, p_in⟩
+    refine ⟨p, BuildTree.mem_collect_loc.mpr ⟨lt, lt_in, Or.inl p_in⟩, ?_⟩
     rw [LocalTableau.mem_pathsTo] at p_in
-    refine ⟨p, ⟨lt, lt.all_spec, .inl p_in⟩, ?_⟩
     have hhead := @LocalTableau.pathsHead_eq_self X lt.1 p p_in.1
     rw [List.head?_eq_some_head (LocalTableau.paths_mem_nonempty lt.1 p p_in.1), hhead]
   case freeRepeat fr =>
     simp [BuildTree.isFreeRepeat] at h
+  all_goals
+    exact ⟨[X], by simp, by simp⟩
 
 /-- If the first sequent of a pre-state is free then so is its last sequent.
 (Generalised to an arbitrary history `H`, as needed for the recursion.) -/
@@ -243,70 +227,68 @@ lemma Match.exists_preState_head_of_not_freeRepeat {X} {bt : BuildTree [] X} (m 
 
 /-- What the modal rule `(M)` gives us on the left: the child contains `~''ξ` and all
 `a`-successors of the boxes in the parent, and it is loaded whenever `ξ` is. -/
-lemma PdlRule.exists_modL {L R : List Formula} {a : Nat} {ξ : AnyFormula} :
+lemma PdlRule.exists_modL {L R : Finset Formula} {a : Nat} {ξ : AnyFormula} :
     ∃ Y, Nonempty (PdlRule ⟨L, R, some (Sum.inl (~'⌊·a⌋ξ))⟩ Y)
       ∧ AnyNegFormula.mem_Sequent Y (~''ξ)
-      ∧ (∀ f, (⌈·a⌉f) ∈ L ++ R → f ∈ Y.bothSides)
+      ∧ (∀ f, (⌈·a⌉f) ∈ L ∪ R → f ∈ Y.toFinset)
       ∧ (∀ χ, ξ = .loaded χ → Y.isLoaded) := by
   cases ξ
   case normal φ =>
-    refine ⟨⟨(~φ) :: projection a L, projection a R, none⟩, ⟨PdlRule.modL rfl rfl⟩, ?_, ?_, ?_⟩
+    refine ⟨⟨{~φ} ∪ L.projection a, R.projection a, none⟩, ⟨PdlRule.modL rfl rfl⟩, ?_, ?_, ?_⟩
     · simp [AnyNegFormula.mem_Sequent]
     · intro f hf
-      simp only [List.mem_append] at hf
-      simp only [Sequent.bothSides_eq, Olf.L, Olf.R, List.append_nil, List.mem_append,
-        List.mem_cons]
+      simp only [Finset.mem_union] at hf
+      simp only [Sequent.toFinset, Finset.mem_union]
       rcases hf with h | h
-      · have h1 : f ∈ projection a L := proj.mpr h
+      · have h1 : f ∈ L.projection a := Finset.mem_projection.mpr h
         tauto
-      · have h1 : f ∈ projection a R := proj.mpr h
+      · have h1 : f ∈ R.projection a := Finset.mem_projection.mpr h
         tauto
     · intro χ h; exact absurd h (by simp)
   case loaded χ =>
-    refine ⟨⟨projection a L, projection a R, some (Sum.inl (~'χ))⟩, ⟨PdlRule.modL rfl rfl⟩,
+    refine ⟨⟨L.projection a, R.projection a, some (Sum.inl (~'χ))⟩, ⟨PdlRule.modL rfl rfl⟩,
       ?_, ?_, ?_⟩
     · simp [AnyNegFormula.mem_Sequent]
     · intro f hf
-      simp only [List.mem_append] at hf
-      simp only [Sequent.bothSides_eq, Olf.L, Olf.R, List.mem_append]
+      simp only [Finset.mem_union] at hf
+      simp only [Sequent.toFinset, Finset.mem_union]
       rcases hf with h | h
-      · have h1 : f ∈ projection a L := proj.mpr h
+      · have h1 : f ∈ L.projection a := Finset.mem_projection.mpr h
         tauto
-      · have h1 : f ∈ projection a R := proj.mpr h
+      · have h1 : f ∈ R.projection a := Finset.mem_projection.mpr h
         tauto
-    · intro χ' h; simp [Sequent.isLoaded]
+    · intro _ _; simp [Sequent.isLoaded]
 
 /-- What the modal rule `(M)` gives us on the right. Mirrors `PdlRule.exists_modL`. -/
-lemma PdlRule.exists_modR {L R : List Formula} {a : Nat} {ξ : AnyFormula} :
+lemma PdlRule.exists_modR {L R : Finset Formula} {a : Nat} {ξ : AnyFormula} :
     ∃ Y, Nonempty (PdlRule ⟨L, R, some (Sum.inr (~'⌊·a⌋ξ))⟩ Y)
       ∧ AnyNegFormula.mem_Sequent Y (~''ξ)
-      ∧ (∀ f, (⌈·a⌉f) ∈ L ++ R → f ∈ Y.bothSides)
+      ∧ (∀ f, (⌈·a⌉f) ∈ L ∪ R → f ∈ Y.toFinset)
       ∧ (∀ χ, ξ = .loaded χ → Y.isLoaded) := by
   cases ξ
   case normal φ =>
-    refine ⟨⟨projection a L, (~φ) :: projection a R, none⟩, ⟨PdlRule.modR rfl rfl⟩, ?_, ?_, ?_⟩
+    refine ⟨⟨L.projection a, {~φ} ∪ R.projection a, none⟩, ⟨PdlRule.modR rfl rfl⟩, ?_, ?_, ?_⟩
     · simp [AnyNegFormula.mem_Sequent]
     · intro f hf
-      simp only [List.mem_append] at hf
-      simp only [Sequent.bothSides_eq, Olf.L, Olf.R, List.append_nil, List.mem_append,
-        List.mem_cons]
+      simp only [Finset.mem_union] at hf
+      simp only [Sequent.toFinset, Finset.mem_union]
       rcases hf with h | h
-      · have h1 : f ∈ projection a L := proj.mpr h
+      · have h1 : f ∈ L.projection a := Finset.mem_projection.mpr h
         tauto
-      · have h1 : f ∈ projection a R := proj.mpr h
+      · have h1 : f ∈ R.projection a := Finset.mem_projection.mpr h
         tauto
     · intro χ h; exact absurd h (by simp)
   case loaded χ =>
-    refine ⟨⟨projection a L, projection a R, some (Sum.inr (~'χ))⟩, ⟨PdlRule.modR rfl rfl⟩,
+    refine ⟨⟨L.projection a, R.projection a, some (Sum.inr (~'χ))⟩, ⟨PdlRule.modR rfl rfl⟩,
       ?_, ?_, ?_⟩
     · simp [AnyNegFormula.mem_Sequent]
     · intro f hf
-      simp only [List.mem_append] at hf
-      simp only [Sequent.bothSides_eq, Olf.L, Olf.R, List.mem_append]
+      simp only [Finset.mem_union] at hf
+      simp only [Sequent.toFinset, Finset.mem_union]
       rcases hf with h | h
-      · have h1 : f ∈ projection a L := proj.mpr h
+      · have h1 : f ∈ L.projection a := Finset.mem_projection.mpr h
         tauto
-      · have h1 : f ∈ projection a R := proj.mpr h
+      · have h1 : f ∈ R.projection a := Finset.mem_projection.mpr h
         tauto
     · intro χ' h; simp [Sequent.isLoaded]
 
@@ -320,7 +302,7 @@ lemma PreState.negLoad_atomic_mem_getLast {H X} {bt : BuildTree H X} {π : PreSt
     (h : (WhateverFormula.negLoad (~'⌊·a⌋ξ)) ∈ π.wForms) :
     (WhateverFormula.negLoad (~'⌊·a⌋ξ)) ∈ (π.val.getLast PreState.nonempty).wForms := by
   rcases π with ⟨p, p_in⟩
-  simp only [PreState.wForms, List.mem_toFinset] at h
+  simp only [PreState.wForms] at h
   cases bt <;> simp [BuildTree.collect] at p_in <;> rename_i p_in_old
   case loc nbas someLT next =>
     rcases p_in with ⟨lt, lt_in, p_in_lt | p_in_next⟩
@@ -346,9 +328,7 @@ decreasing_by
 
 lemma PreState.exists_mem_of_mem_wForms {H X} {bt : BuildTree H X} {π : PreState bt}
     {f : WhateverFormula} (h : f ∈ π.wForms) : ∃ Z ∈ π.val, f ∈ Z.wForms := by
-  simp only [PreState.wForms, List.mem_toFinset, List.mem_flatten, List.mem_map] at h
-  rcases h with ⟨_, ⟨Z, Z_in, rfl⟩, hf⟩
-  exact ⟨Z, Z_in, hf⟩
+  exact PreState.mem_wForms.mp h
 
 @[simp]
 lemma PreState.hasAnf_loaded_iff {H X} {bt : BuildTree H X} {π : PreState bt} {χ : LoadFormula} :
@@ -397,11 +377,11 @@ lemma Sequent.isLoaded_of_negLoad_mem {Z : Sequent} {nlf : NegLoadFormula}
 
 /-- An atomic box in a sequent is on the left or on the right
 (it cannot come from the loaded formula, which is always negated). -/
-lemma Sequent.box_mem_LR_of_mem_bothSides {Z : Sequent} {a : Nat} {f : Formula}
-    (h : (⌈·a⌉f) ∈ Z.bothSides) : (⌈·a⌉f) ∈ Z.L ++ Z.R := by
+lemma Sequent.box_mem_LR_of_mem_toFinset {Z : Sequent} {a : Nat} {f : Formula}
+    (h : (⌈·a⌉f) ∈ Z.toFinset) : (⌈·a⌉f) ∈ Z.L ∪ Z.R := by
   rcases Z with ⟨L, R, O⟩
-  rcases O with _ | (nl | nl) <;>
-    simp_all [Sequent.bothSides_eq, Olf.L, Olf.R]
+  rcases O with _ | (⟨χ⟩ | ⟨χ⟩) <;>
+    simp_all [Sequent.toFinset, negUnload]
 
 lemma LoadFormula.box_unload {α : Program} {ξ : AnyFormula} :
     (LoadFormula.box α ξ).unload = ⌈α⌉ξ.unload := by
@@ -416,13 +396,13 @@ lemma Match.atomicLoadedStep {X} {bt : BuildTree [] X} (m : Match bt)
     (hload : NegLoadFormula.mem_Sequent m.endSeq (~'⌊·a⌋ξ)) :
     ∃ m' : Match bt, m'.btAt.2.2.size < m.btAt.2.2.size
       ∧ AnyNegFormula.mem_Sequent m'.endSeq (~''ξ)
-      ∧ (∀ f, (⌈·a⌉f) ∈ m.endSeq.L ++ m.endSeq.R → f ∈ m'.endSeq.bothSides)
+      ∧ (∀ f, (⌈·a⌉f) ∈ m.endSeq.L ∪ m.endSeq.R → f ∈ m'.endSeq.toFinset)
       ∧ (∀ χ, ξ = .loaded χ → m'.endSeq.isLoaded) := by
   have nfr : ¬ m.btAt.2.2.isFreeRepeat :=
     Match.not_isFreeRepeat_of_loaded (Sequent.isLoaded_of_negLoad_mem hload)
   obtain ⟨Y, ⟨r⟩, h1, h2, h3⟩ :
       ∃ Y, Nonempty (PdlRule m.endSeq Y) ∧ AnyNegFormula.mem_Sequent Y (~''ξ)
-        ∧ (∀ f, (⌈·a⌉f) ∈ m.endSeq.L ++ m.endSeq.R → f ∈ Y.bothSides)
+        ∧ (∀ f, (⌈·a⌉f) ∈ m.endSeq.L ∪ m.endSeq.R → f ∈ Y.toFinset)
         ∧ (∀ χ, ξ = .loaded χ → Y.isLoaded) := by
     rcases hE : m.endSeq with ⟨L, R, O⟩
     rw [hE] at hload
@@ -438,13 +418,13 @@ lemma Match.atomicLoadedStep {X} {bt : BuildTree [] X} (m : Match bt)
 are at. If that sequent is loaded then the pre-state is found without going back up, so its
 last node is not higher up than where we are. -/
 lemma Match.exists_preState_setEqTo {X} {bt : BuildTree [] X} (m : Match bt) :
-    ∃ (ρ : PreState bt) (Z : Sequent), Z ∈ ρ.val ∧ Z.setEqTo m.endSeq
+    ∃ (ρ : PreState bt) (Z : Sequent), Z ∈ ρ.val ∧ Z = m.endSeq
       ∧ ∃ mρ : Match bt, mρ.endSeq = ρ.val.getLast PreState.nonempty
         ∧ (m.endSeq.isLoaded → mρ.btAt.2.2.size ≤ m.btAt.2.2.size) := by
   by_cases hl : m.endSeq.isLoaded
   · obtain ⟨ρ, hmem, mρ, hmρ, hsize⟩ :=
       m.exists_preState_of_not_freeRepeat (Match.not_isFreeRepeat_of_loaded hl)
-    exact ⟨ρ, m.endSeq, hmem, Sequent.setEqTo_refl _, mρ, hmρ, fun _ => hsize⟩
+    exact ⟨ρ, m.endSeq, hmem, rfl, mρ, hmρ, fun _ => hsize⟩
   · obtain ⟨m'', hset, nfr''⟩ := m.exists_setEqTo_not_freeRepeat
     obtain ⟨ρ, hmem, mρ, hmρ, _⟩ := m''.exists_preState_of_not_freeRepeat nfr''
     exact ⟨ρ, m''.endSeq, hmem, hset, mρ, hmρ, fun hc => absurd hc hl⟩
@@ -466,14 +446,10 @@ lemma PreState.atomicLoadedStep {X} {bt : BuildTree [] X} (π : PreState bt) (m�
   have hload' : NegLoadFormula.mem_Sequent mπ.endSeq (~'⌊·a⌋ξ) := by rw [hmπ]; exact hload
   obtain ⟨m', hsize, hanf, hproj, hloadedY⟩ := mπ.atomicLoadedStep bas hload'
   obtain ⟨ρ, Z, hZmem, hZset, mρ, hmρ, hsize2⟩ := m'.exists_preState_setEqTo
-  have hρanf : ρ.hasAnf (~''ξ) :=
-    ⟨Z, hZmem, AnyNegFormula.mem_Sequent_of_setEqTo ((Sequent.setEqTo_symm _ _).mp hZset) hanf⟩
-  have hZsides : ∀ f, f ∈ m'.endSeq.bothSides → f ∈ ρ.forms := by
-    intro f hf
-    refine PreState.mem_forms_of_mem hZmem ?_
-    have h := Sequent.bothSides_toFinset_eq_of_setEqTo hZset
-    rw [← List.mem_toFinset, h, List.mem_toFinset]
-    exact hf
+  subst hZset
+  have hρanf : ρ.hasAnf (~''ξ) := ⟨_, hZmem, hanf⟩
+  have hZsides : ∀ f, f ∈ m'.endSeq.toFinset → f ∈ ρ.forms :=
+    fun _ hf => PreState.mem_forms_of_mem hZmem hf
   refine ⟨ρ, mρ, hmρ, ?_, ?_, hρanf⟩
   · cases ξ
     case normal φ => exact Or.inr ⟨φ, rfl⟩
@@ -484,18 +460,15 @@ lemma PreState.atomicLoadedStep {X} {bt : BuildTree [] X} (π : PreState bt) (m�
       rw [hE] at hload
       simp only [NegLoadFormula.mem_Sequent, Sequent.O_eq] at hload
       rcases hload with rfl | rfl <;>
-        simp [Sequent.bothSides_eq, Olf.L, Olf.R, LoadFormula.box_unload]
+        simp [Sequent.toFinset, LoadFormula.box_unload]
     · intro f hf
-      simp only [PreState.toW_val, List.mem_toFinset, Finset.mem_union,
-        Finset.mem_singleton] at hf
+      simp only [PreState.toW_val, Finset.mem_union, Finset.mem_singleton] at hf
       rcases hf with hf | rfl
-      · have hbox : (⌈·a⌉f) ∈ π.forms := by
-          rw [proj] at hf
-          simpa using hf
+      · have hbox : (⌈·a⌉f) ∈ π.forms := Finset.mem_projection.mp hf
         have hlast := PreState.mem_bothSides_getLast_of_basic (φ := ⌈·a⌉f) (by simp) hbox
         refine hZsides f (hproj f ?_)
         rw [hmπ]
-        exact Sequent.box_mem_LR_of_mem_bothSides hlast
+        exact Sequent.box_mem_LR_of_mem_toFinset hlast
       · exact PreState.mem_forms_of_hasAnf hρanf
 
 /-! ### Unfolding a loaded diamond in a pre-state -/
@@ -518,9 +491,13 @@ lemma PreState.loadUnfold_of_nonAtom {H X} {bt : BuildTree H X} {π : PreState b
   case normal φ =>
     obtain ⟨ress, ⟨lr⟩, Fo, Fo_in, h1, h2⟩ := PreState.loadUnfoldMem_of_nonAtom α_notAtom h
     rw [lr.eq_unfoldDiamondLoaded'] at Fo_in
-    simp only [unfoldDiamondLoaded', List.mem_map] at Fo_in
-    rcases Fo_in with ⟨⟨F, δ⟩, Fδ_in, rfl⟩
-    simp only [List.all_eq_true, decide_eq_true_eq] at h1 h2
+    simp only [List.toFinFinOpt, List.mem_toFinset, List.mem_map] at Fo_in
+    rcases Fo_in with ⟨FO, FO_in, hFo⟩
+    simp only [unfoldDiamondLoaded', List.mem_map] at FO_in
+    rcases FO_in with ⟨⟨F, δ⟩, Fδ_in, rfl⟩
+    subst hFo
+    simp only [List.all_eq_true, decide_eq_true_eq, Finset.mem_sort, List.mem_toFinset] at h1
+    simp only [List.all_eq_true, decide_eq_true_eq] at h2
     refine ⟨⟨F, δ⟩, Fδ_in, ?_, ?_⟩
     · intro f hf
       refine h1 f ?_
