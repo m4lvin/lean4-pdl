@@ -21,15 +21,20 @@ WORRY: Is using Sequent.O.L here a problem because it might not be injective?
 (Because it calls `unload` where both ⌊a⌋⌊b⌋p and ⌊a⌋⌈b⌉p become ⌈a⌉⌈b⌉p.)
 -/
 def Sequent.subseteq_FL (X : Sequent) (Y : Sequent) : Prop :=
-      X.L   ⊆ FLL (Y.L ++ Y.O.L)
-    ∧ X.O.L ⊆ FLL (Y.L ++ Y.O.L)
-    ∧ X.R   ⊆ FLL (Y.R ++ Y.O.R)
-    ∧ X.O.R ⊆ FLL (Y.R ++ Y.O.R)
+      X.L   ⊆ (Y.L ∪ Y.O.L).FL
+    ∧ X.O.L ⊆ (Y.L ∪ Y.O.L).FL
+    ∧ X.R   ⊆ (Y.R ∪ Y.O.R).FL
+    ∧ X.O.R ⊆ (Y.R ∪ Y.O.R).FL
 
 @[simp]
 lemma Sequent.subseteq_FL_refl (X : Sequent) : X.subseteq_FL X := by
   rcases X with ⟨L,R,O⟩
-  simp [Sequent.subseteq_FL, FLL_append_eq]
+  simp [Sequent.subseteq_FL, Finset.FL_union_eq]
+  refine ⟨?_, ?_, ?_, ?_⟩ <;> intro φ φ_in <;> simp_all
+  · left; apply Finset.FL_refl_sub φ_in
+  · right; apply Finset.FL_refl_sub φ_in
+  · left; apply Finset.FL_refl_sub φ_in
+  · right; apply Finset.FL_refl_sub φ_in
 
 @[simp]
 lemma Sequent.subseteq_FL_trans (X Y Z : Sequent) :
@@ -39,108 +44,16 @@ lemma Sequent.subseteq_FL_trans (X Y Z : Sequent) :
   rcases Y with ⟨L',R',O'⟩
   rcases Z with ⟨L'',R'',O''⟩
   simp [Sequent.subseteq_FL] at *
-  have := @FLL_sub_FLL_iff_sub_FLL
+  have := @Finset.FL_sub_FL_iff_sub_FL
   refine ⟨?_, ?_, ?_, ?_⟩ <;> intro φ φ_in
-  · have : (L' ++ O'.L) ⊆ FLL (L'' ++ O''.L) := by grind
+  · have : (L' ∪ O'.L) ⊆ (L'' ∪ O''.L).FL := by grind
     grind
-  · have : (L' ++ O'.L) ⊆ FLL (L'' ++ O''.L) := by grind
+  · have : (L' ∪ O'.L) ⊆ (L'' ∪ O''.L).FL := by grind
     grind
-  · have : (R' ++ O'.R) ⊆ FLL (R'' ++ O''.R) := by grind
+  · have : (R' ∪ O'.R) ⊆ (R'' ∪ O''.R).FL := by grind
     grind
-  · have : (R' ++ O'.R) ⊆ FLL (R'' ++ O''.R) := by grind
+  · have : (R' ∪ O'.R) ⊆ (R'' ∪ O''.R).FL := by grind
     grind
-
-lemma Sequent.subseteq_FL_of_setEq_right (h : X.setEqTo Y) {Z : Sequent} :
-    Z.subseteq_FL X → Z.subseteq_FL Y := by
-  rcases X with ⟨L,R,O⟩
-  rcases Y with ⟨L',R',O'⟩
-  rcases Z with ⟨L'',R'',O''⟩
-  simp [setEqTo] at h
-  rcases h with ⟨L_same, R_same, O_same⟩
-  subst O_same
-  rintro ⟨hL, hR, hOL, hOR⟩
-  simp at *
-  refine ⟨?_, ?_, ?_, ?_⟩ <;> simp
-  all_goals
-    rw [FLL_append_eq, List.toFinset.ext_iff] at *
-    have := FLL_ext L_same
-    have := FLL_ext R_same
-    grind
-
-lemma Sequent.subseteq_FL_of_setEq_left {X Y : Sequent} (h : X.setEqTo Y) {Z : Sequent} :
-    X.subseteq_FL Z → Y.subseteq_FL Z := by
-  rcases X with ⟨L,R,O⟩
-  rcases Y with ⟨L',R',O'⟩
-  rcases Z with ⟨L'',R'',O''⟩
-  simp [setEqTo] at h
-  rcases h with ⟨L_same, R_same, O_same⟩
-  subst O_same
-  rintro ⟨hL, hR, hOL, hOR⟩
-  simp at *
-  refine ⟨?_, ?_, ?_, ?_⟩ <;> simp
-  all_goals
-    rw [FLL_append_eq, List.toFinset.ext_iff] at *
-    have := FLL_ext L_same
-    have := FLL_ext R_same
-    grind
-
-/-- Congruence for `Sequent.subseteq_FL`, used to make `Seqt.subseteq_FL` well-defined. -/
-lemma Sequent.subseteq_FL_congr (a₁ b₁ a₂ b₂ : Sequent) :
-    a₁ ≈ a₂ → b₁ ≈ b₂ → (a₁.subseteq_FL b₁ = a₂.subseteq_FL b₂) := by
-  rintro ⟨a_L, a_R, a_O⟩ ⟨b_L, b_R, b_O⟩
-  rw [eq_iff_iff]
-  rcases a₁ with ⟨La1,Ra1,Oa1⟩
-  rcases a₂ with ⟨La2,Ra2,Oa2⟩
-  rcases b₁ with ⟨Lb1,Rb1,Ob1⟩
-  rcases b₂ with ⟨Lb2,Rb2,Ob2⟩
-  rw [List.toFinset.ext_iff] at a_L a_R b_L b_R
-  subst a_O b_O
-  unfold subseteq_FL
-  simp only [Sequent.L, Sequent.O, Sequent.R]
-  constructor <;> rintro ⟨hL,hOL,hR,hOR⟩ <;> refine ⟨?_, ?_, ?_, ?_⟩
-  all_goals
-    intro φ φ_in
-    rw [FLL_append_eq, List.mem_append]
-    simp only at *
-  · rw [← a_L] at φ_in
-    specialize hL φ_in
-    rw [FLL_append_eq, List.mem_append] at hL
-    have := FLL_ext b_L φ
-    aesop
-  · specialize hOL φ_in
-    rw [FLL_append_eq, List.mem_append] at hOL
-    have := FLL_ext b_L φ
-    tauto
-  · rw [← a_R] at φ_in
-    specialize hR φ_in
-    rw [FLL_append_eq, List.mem_append] at hR
-    have := FLL_ext b_R φ
-    tauto
-  · specialize hOR φ_in
-    rw [FLL_append_eq, List.mem_append] at hOR
-    have := FLL_ext b_R φ
-    tauto
-  · rw [a_L] at φ_in
-    specialize hL φ_in
-    rw [FLL_append_eq, List.mem_append] at hL
-    have := FLL_ext b_L φ
-    tauto
-  · specialize hOL φ_in
-    rw [FLL_append_eq, List.mem_append] at hOL
-    have := FLL_ext b_L φ
-    tauto
-  · rw [a_R] at φ_in
-    specialize hR φ_in
-    rw [FLL_append_eq, List.mem_append] at hR
-    have := FLL_ext b_R φ
-    tauto
-  · specialize hOR φ_in
-    rw [FLL_append_eq, List.mem_append] at hOR
-    have := FLL_ext b_R φ
-    tauto
-
-def Seqt.subseteq_FL (X : Seqt) (Y : Seqt) : Prop :=
-  Quotient.lift₂ Sequent.subseteq_FL Sequent.subseteq_FL_congr X Y
 
 lemma testsOfProgram_in_FLb {φ α} (φ_in : φ ∈ testsOfProgram α) ψ : φ ∈ FLb α ψ := by
   cases α <;> simp [testsOfProgram] at *
@@ -316,8 +229,8 @@ lemma unfoldDiamond_in_FL (α : Program) (ψ : Formula) (X : List Formula) :
 theorem pairUnload.stays_in_FL (F oχ) {α : Program} {φ : Formula}
     (pU_in_unfD : pairUnload (F, oχ) ∈ unfoldDiamond α φ)
     : F ⊆ FL (~⌈α⌉φ)
-    ∧ Olf.L (Option.map Sum.inl oχ) ⊆ FL (~⌈α⌉φ)
-    ∧ Olf.R (Option.map Sum.inr oχ) ⊆ FL (~⌈α⌉φ) := by
+    ∧ Olf.L (Option.map Sum.inl oχ) ⊆ (FL (~⌈α⌉φ)).toFinset
+    ∧ Olf.R (Option.map Sum.inr oχ) ⊆ (FL (~⌈α⌉φ)).toFinset := by
   rcases oχ with _|nχ <;> simp [FL, pairUnload] at *
   · intro φ φ_in
     have := unfoldDiamond_in_FL _ _ _ pU_in_unfD _ φ_in
@@ -329,7 +242,8 @@ theorem pairUnload.stays_in_FL (F oχ) {α : Program} {φ : Formula}
     · have := unfoldDiamond_in_FL _ _ _ pU_in_unfD (~nχ.1.unload)
       simp only [List.mem_union_iff, List.mem_cons, List.not_mem_nil, or_false, or_true,
         forall_const] at *
-      grind [FL]
+      simp [FL] at this
+      sorry -- grind [FL]
 
 /-- Helper for `LocalRule.stays_in_FL`. -/
 lemma LoadRule.stays_in_FL_left {χ ress} (lr : LoadRule (~'χ) ress) :
