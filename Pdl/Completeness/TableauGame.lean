@@ -1,3 +1,6 @@
+import Mathlib.Data.Finset.Powerset
+import Mathlib.Data.Finset.Functor
+
 import Pdl.General.Game
 import Pdl.Local.AllLocalTab
 import Pdl.Completeness.Modelgraphs
@@ -710,26 +713,22 @@ lemma Formula.allNegLoads_complete {nχ φ} : negUnload nχ = φ → nχ ∈ φ.
       rw [loadMulti_split]
       simp [List.take_length_add_append]
 
-/-
-NOTE: removed/disabled because we no longer do/need setEqTo
-
+open Classical in -- needed for `Finset.instMonad`, but why actually?
 /-- A list of sequents that are all FL-subsequents of the given sequent.
-The list defined here is not complete because there are infinitely many such other sequents.
-But the list is exhaustive modulo `setEqTo`, as will be shown later via the `Seqt` quotient.
-Defined using `List.instMonad`.
+Defined using `Finset.instMonad`.
 -/
-def Sequent.all_subseteq_FL (Y : Sequent) : List { X : Sequent // Sequent.subseteq_FL X Y } := do
+noncomputable def Sequent.all_subseteq_FL (Y : Sequent) : Finset { X : Sequent // Sequent.subseteq_FL X Y } := do
   -- QUESTION: any way to do sublist and permutation in one go?
   -- Never mind, removed `.flatMap List.permutations` again which really should not be needed.
   -- Trying out different orders `.sublists.attach` and `.attach.sublists` here.
-  let XL  ← (FLL (Y.L.fsort ∪ Y.O.L.fsort)).sublists.attach
-  let XOL ← (FLL (Y.L.fsort ∪ Y.O.L.fsort)).sublists.attach
-  let XR  ← (FLL (Y.R.fsort ∪ Y.O.R.fsort)).sublists.attach
-  let XOR ← (FLL (Y.R.fsort ∪ Y.O.R.fsort)).sublists.attach
+  let XL  ← ((Y.L ∪ Y.O.L).FL).powerset.attach
+  let XOL ← ((Y.L ∪ Y.O.L).FL).powerset.attach
+  let XR  ← ((Y.R ∪ Y.O.R).FL).powerset.attach
+  let XOR ← ((Y.R ∪ Y.O.R).FL).powerset.attach
   -- Now we still need to generate all possible `XO : Olf` from `XOL` and `XOR`.
-  let OLs : List Olf:= XOL.1.flatMap (fun φ => φ.allNegLoads.map (some ∘ Sum.inl))
-  let ORs : List Olf:= XOR.1.flatMap (fun φ => φ.allNegLoads.map (some ∘ Sum.inr))
-  let XO ← ((none : Olf) :: OLs ++ ORs).attach
+  let OLs : Finset Olf:= XOL.1.sup (fun φ => φ.allNegLoads.toFinset.image (some ∘ Sum.inl))
+  let ORs : Finset Olf:= XOR.1.sup (fun φ => φ.allNegLoads.toFinset.image (some ∘ Sum.inr))
+  let XO ← ({(none : Olf)} ∪ OLs ∪ ORs).attach
   let X : Sequent := ⟨XL.1, XR.1, XO.1⟩
   have h : X.subseteq_FL Y := by
     unfold X
@@ -737,226 +736,59 @@ def Sequent.all_subseteq_FL (Y : Sequent) : List { X : Sequent // Sequent.subset
     refine ⟨?_, ?_, ?_, ?_⟩ <;> simp
     · have := XL.2
       simp at this
-      exact List.Sublist.subset this
+      sorry -- exact List.Sublist.subset this
     · simp only [Olf.L]
       rcases XO with ⟨none|⟨(nχ|_)⟩, XO_in⟩ <;> try simp_all
-      simp only [List.cons_append, List.mem_cons, reduceCtorEq, List.mem_append, List.mem_flatMap,
-        List.mem_map, Function.comp_apply, Option.some.injEq, Sum.inl.injEq, exists_eq_right,
-        and_false, exists_false, or_false, false_or, OLs, ORs] at XO_in
+      simp only [Finset.singleton_union, Finset.insert_union, Finset.mem_insert, reduceCtorEq,
+        Finset.mem_union, Finset.mem_sup, Finset.mem_image, List.mem_toFinset, Function.comp_apply,
+        Option.some.injEq, Sum.inl.injEq, exists_eq_right, and_false, exists_false, exists_const,
+        or_false, false_or, OLs, ORs] at XO_in
       rcases XO_in with ⟨φ, φ_in, nχ_in⟩
       have := Formula.allNegLoads_spec nχ_in
       simp only [negUnload] at this
       rw [this]
-      suffices φ ∈ (FLL (L' ++ O'.L)) by aesop
+      suffices φ ∈ (L' ∪ O'.L).FL by aesop
       have := XOL.2
-      simp only [L_eq, O_eq, List.mem_sublists] at this
-      exact List.Sublist.mem φ_in this
+      simp only [L_eq, O_eq, SetLike.coe_mem] at this
+      sorry -- exact List.Sublist.mem φ_in this
     · have := XR.2
-      simp only [R_eq, O_eq, List.mem_sublists] at this
-      exact List.Sublist.subset this
+      simp only [R_eq, O_eq, SetLike.coe_mem] at this
+      sorry -- exact List.Sublist.subset this
     · simp only [Olf.R]
       rcases XO with ⟨none|⟨(nχ|_)⟩, XO_in⟩ <;> try simp_all
-      simp only [List.cons_append, List.mem_cons, reduceCtorEq, List.mem_append, List.mem_flatMap,
-        List.mem_map, Function.comp_apply, Option.some.injEq, and_false, exists_false,
-        Sum.inr.injEq, exists_eq_right, false_or, OLs, ORs] at XO_in
+      simp only [Finset.singleton_union, Finset.insert_union, Finset.mem_insert, reduceCtorEq,
+        Finset.mem_union, Finset.mem_sup, Finset.mem_image, List.mem_toFinset, Function.comp_apply,
+        Option.some.injEq, and_false, exists_false, Sum.inr.injEq, exists_eq_right,
+        false_or, OLs, ORs] at XO_in
       rcases XO_in with ⟨φ, φ_in, nχ_in⟩
       have := Formula.allNegLoads_spec nχ_in
       simp only [negUnload] at this
       rw [this]
-      suffices φ ∈ (FLL (R' ++ O'.R)) by aesop
+      suffices φ ∈ (R' ∪ O'.R).FL by aesop
       have := XOR.2
-      simp only [R_eq, O_eq, List.mem_sublists] at this
-      exact List.Sublist.mem φ_in this
+      simp only [R_eq, O_eq, SetLike.coe_mem] at this
+      sorry -- exact List.Sublist.mem φ_in this
   return ⟨X, h⟩
 
-/-! NOTE
+/-! The following only hold because there we are now working with `Finset`. -/
 
-The following do NOT hold / do NOT exist because there are in fact infinitely many FL-subsequents
-of a given sequent, so the list returned by `all_subseteq_FL` can never contain all.
+lemma Sequent.all_subseteq_FL_complete (X Y : Sequent) (h : Y.subseteq_FL X) :
+    ⟨Y,h⟩ ∈ Sequent.all_subseteq_FL X := by
+  sorry
 
-```
-def Sequent.all_subseteq_FL_complete (X Y : Sequent) (h : Y.subseteq_FL X) :
-    ⟨Y,h⟩ ∈ Sequent.all_subseteq_FL X := ...
+noncomputable instance Sequent.subseteq_FL_fintype {X : Sequent} :
+    Fintype { Y // Sequent.subseteq_FL Y X } :=
+  ⟨ Sequent.all_subseteq_FL X, fun ⟨Y, Y_in⟩ => X.all_subseteq_FL_complete _ _ ⟩
 
-instance Sequent.subseteq_FL_fintype {X : Sequent} :
-    Fintype { Y // Sequent.subseteq_FL Y X } := ...
-```
-
-Hence, we now use the `Seqt` (which is the quotient from `Sequent.setEqTo`)
-within which there are only finitely many FL-subsequents.
--/
-
-/-- In the quotient the moves keep us inside the FL. Unused but nice to have. -/
-lemma Seqt.subseteq_FL_of_move (hm : move p next) :
-    Seqt.subseteq_FL (Quotient.mk' next.2.1) (Quotient.mk' p.2.1) := by
-  unfold Seqt.subseteq_FL
-  exact move_inside_FL hm
-
-def Sequent.allSeqt_subseteq_FL (X : Sequent) : Finset Seqt :=
-  (X.all_subseteq_FL.map (fun x => ⟦x.1⟧)).toFinset
-
-lemma Sequent.allSeqt_subseteq_FL_spec (X : Sequent) :
-    ∀ Y, ⟦Y⟧ ∈ X.allSeqt_subseteq_FL → Y.subseteq_FL X := by
-  intro Y Ys_in
-  simp [Sequent.allSeqt_subseteq_FL, instSetoidSequent, Quotient.eq] at *
-  rcases Ys_in with ⟨Z, ⟨Z_sub_X, Z_in_all⟩, Z_equiv_Y⟩
-  exact Sequent.subseteq_FL_of_setEq_left Z_equiv_Y Z_sub_X
--/
-
-/-- Small helper function. Mathlib this? -/
-lemma exists_mem_sublists_toFinsetEq_of_Subset [DecidableEq α] {A B : List α} :
-    A ⊆ B → ∃ C ∈ B.sublists, C.toFinset = A.toFinset := by
-  intro A_sub_B
-  use (List.filter (fun x => decide (x ∈ A)) B)
-  simp only [List.mem_sublists, List.filter_sublist, List.toFinset_filter, decide_eq_true_eq,
-    true_and]
-  aesop
-
-/-
-NOTE: again, this is hopefully no longer needed?
-
-lemma Sequent.allSeqt_subseteq_FL_complete (X : Sequent) :
-    ∀ Y, Y.subseteq_FL X → ⟦Y⟧ ∈ X.allSeqt_subseteq_FL := by
-  intro Y Y_in
-  simp only [instSetoidSequent, allSeqt_subseteq_FL, List.map_subtype, List.mem_toFinset,
-    List.mem_map, List.mem_unattach, Quotient.eq]
-  -- Here the above NOTE matters.
-  -- We need to work around that there is no `Sequent.all_subseteq_FL_complete`.
-  -- `use Y` would not work because `Y` might not be in `all_subseteq_FL`.
-  -- Instead, we find something that is `setEqTo Y` but also an element of `all_subseteq_FL`.
-  unfold subseteq_FL at Y_in
-  rcases Y_in with ⟨Lh, OLh, Rh, ORh⟩
-  -- Now use the lemma that for any subset of a list gives us a sublist, four times.
-  rcases exists_mem_sublists_toFinsetEq_of_Subset Lh  with ⟨L' , L'_in , L'_same ⟩
-  rcases exists_mem_sublists_toFinsetEq_of_Subset OLh with ⟨OL', OL'_in, OL'_same⟩
-  rcases exists_mem_sublists_toFinsetEq_of_Subset Rh  with ⟨R' , R'_in , R'_same ⟩
-  rcases exists_mem_sublists_toFinsetEq_of_Subset ORh with ⟨OR', OR'_in, OR'_same⟩
-  -- Now we need to reconstruct (a subOption of ???) `Y.O` from OL' and R' here ??
-  -- Or could we just use Y.O itself ?!?!
-  refine ⟨⟨L', R', Y.O⟩, ⟨?_, ?_⟩ , L'_same, R'_same, rfl⟩
-  · unfold subseteq_FL
-    simp only [L_eq, O_eq, R_eq]
-    simp_all [FLL_append_eq]
-    constructor
-    · exact List.Sublist.subset L'_in
-    · exact List.Sublist.subset R'_in
-  · rcases Y with ⟨YL, YR, YO⟩
-    rcases X with ⟨XL, XR, XO⟩
-    -- now we hope that the above procedure imitates the `all_subseteq_FL` def :-)
-    simp only [all_subseteq_FL, L, R, O]
-    simp only [List.cons_append, List.attach_cons, List.attach_append, List.map_append,
-      List.map_map, List.pure_def, List.bind_eq_flatMap, List.flatMap_cons, List.flatMap_append,
-      List.nil_append, List.mem_flatMap, List.mem_attach, List.mem_cons, Subtype.mk.injEq,
-      List.mem_append, List.mem_map, Function.comp_apply, true_and, Subtype.exists,
-      List.not_mem_nil, or_false, exists_prop, exists_eq_right, List.mem_sublists]
-    refine ⟨L', List.mem_sublists.mp L'_in, ?_⟩
-    refine ⟨OL', List.mem_sublists.mp OL'_in, ?_⟩
-    refine ⟨R', List.mem_sublists.mp R'_in, ?_⟩
-    refine ⟨OR', List.mem_sublists.mp OR'_in, ?_⟩
-    rcases YO with none|⟨nχ|nχ⟩
-    · left; rfl
-    · right; left
-      have nχ_in : negUnload nχ ∈ OL' := by
-        simp only [O_eq, Olf.L_inl, List.toFinset_cons, List.toFinset_nil,
-          insert_empty_eq, negUnload] at *
-        rw [← List.mem_toFinset, OL'_same]
-        simp
-      refine ⟨some (Sum.inl nχ), ?_, ⟨?_, rfl⟩⟩
-      · right; left
-        exact ⟨negUnload nχ, nχ_in, ⟨nχ, Formula.allNegLoads_complete rfl, rfl⟩⟩
-      · exact ⟨negUnload nχ, nχ_in, ⟨nχ, Formula.allNegLoads_complete rfl, rfl⟩⟩
-    · right; right
-      have nχ_in : negUnload nχ ∈ OR' := by
-        simp only [L_eq, O_eq, List.mem_sublists, R_eq, Olf.L_inr, List.toFinset_nil,
-          List.toFinset_eq_empty_iff, Olf.R_inr, List.toFinset_cons, insert_empty_eq,
-          List.nil_subset, List.cons_subset, and_true, negUnload] at *
-        rw [← List.mem_toFinset, OR'_same]
-        simp
-      refine ⟨some (Sum.inr nχ), ?_, ⟨?_, rfl⟩⟩
-      · right; right
-        exact ⟨negUnload nχ, nχ_in, ⟨nχ, Formula.allNegLoads_complete rfl, rfl⟩⟩
-      · exact ⟨negUnload nχ, nχ_in, ⟨nχ, Formula.allNegLoads_complete rfl, rfl⟩⟩
-
-lemma Sequent.allSeqt_subseteq_FL_congr (X Y : Sequent) (h : X ≈ Y) :
-    Sequent.allSeqt_subseteq_FL X = Sequent.allSeqt_subseteq_FL Y := by
-  ext Ys
-  simp only [allSeqt_subseteq_FL, List.map_subtype, List.mem_toFinset, List.mem_map,
-    List.mem_unattach]
-  simp [instHasEquivOfSetoid, instSetoidSequent] at h
-  constructor
-  · rintro ⟨Z, ⟨Z_sub_X, Z_in_sub_X⟩, def_YS⟩
-    subst def_YS
-    have Z_sub_Y := (Sequent.subseteq_FL_congr Z X Z Y (Setoid.refl _) h).mp Z_sub_X
-    have := Y.allSeqt_subseteq_FL_complete Z Z_sub_Y
-    simp only [instSetoidSequent, allSeqt_subseteq_FL, List.map_subtype, List.mem_toFinset,
-      List.mem_map, List.mem_unattach, Quotient.eq] at this
-    rcases this with ⟨W, ⟨W_eq_Y, _⟩, W_eq_Z⟩
-    use W
-    simp_all
-    exact Quotient.sound W_eq_Z
-  · rintro ⟨Z, ⟨Z_sub_Y, Z_in_sub_Y⟩, def_YS⟩
-    subst def_YS
-    have Z_sub_Y := (Sequent.subseteq_FL_congr Z Y Z X (Setoid.refl _) (Setoid.symm h)).mp Z_sub_Y
-    have := X.allSeqt_subseteq_FL_complete Z Z_sub_Y
-    simp only [allSeqt_subseteq_FL, List.map_subtype, List.mem_toFinset, List.mem_map,
-      List.mem_unattach, Quotient.eq] at this
-    rcases this with ⟨W, ⟨W_eq_Y, _⟩, W_eq_Z⟩
-    use W
-    simp_all
-    exact Quotient.sound W_eq_Z
-
-def Seqt.all_subseteq_FL (Xs : Seqt) : Finset Seqt  :=
-  Quotient.lift Sequent.allSeqt_subseteq_FL Sequent.allSeqt_subseteq_FL_congr Xs
-
-lemma Seqt.all_subseteq_FL_spec {Ys : Seqt} (Ys_in : Ys ∈ Xs.all_subseteq_FL) :
-    Ys.subseteq_FL Xs := by
-  rcases Ys with ⟨Y⟩
-  rcases Xs with ⟨x⟩
-  unfold Seqt.all_subseteq_FL at Ys_in
-  unfold Seqt.subseteq_FL
-  simp [instSetoidSequent] at *
-  exact Sequent.allSeqt_subseteq_FL_spec x Y Ys_in
-
-lemma Seqt.all_subseteq_FL_complete {Ys : Seqt} (Ys_in : Ys.subseteq_FL Xs) :
-    Ys ∈ Xs.all_subseteq_FL := by
-  rcases Ys with ⟨Y⟩
-  rcases Xs with ⟨X⟩
-  exact Sequent.allSeqt_subseteq_FL_complete X Y Ys_in
-
-def Seqt.all_subseteq_FL_attached (Xs : Seqt) : Finset { Ys :Seqt // Ys.subseteq_FL Xs } :=
-  Xs.all_subseteq_FL.attach.map
-    ⟨fun ⟨Ys,Ys_in⟩ => ⟨Ys, Seqt.all_subseteq_FL_spec Ys_in⟩, by rintro ⟨Ys1,_⟩ ⟨Ys2,_⟩ h; aesop⟩
-
-def Seqt.all_subseteq_FL_attached_complete (Xs : Seqt) :
-    ∀ (x : { Ys : Seqt // Ys.subseteq_FL Xs }), x ∈ Xs.all_subseteq_FL_attached := by
-  rintro ⟨Ys,Ys_in⟩
-  simp only [all_subseteq_FL_attached, Finset.mem_map, Finset.mem_attach,
-    Function.Embedding.coeFn_mk, Subtype.mk.injEq, true_and, Subtype.exists, exists_prop,
-    exists_eq_right]
-  apply Seqt.all_subseteq_FL_complete Ys_in
-
-instance Seqt.subseteq_FL_instFintype {Xs : Seqt} : Fintype { Ys // Seqt.subseteq_FL Ys Xs } :=
-  ⟨ Xs.all_subseteq_FL_attached, Xs.all_subseteq_FL_attached_complete ⟩
-
-/-- In the quotient for `setEqTo` there are only finitely many FL-subsets for a given Seqt.
-This means "there are only finitely many "sequents modulo `setEq`" that are subseteq_FL Y. -/
-lemma Seqt.subseteq_FL_finite {Xs : Seqt} : Finite { Ys // Seqt.subseteq_FL Ys Xs } :=
-  @Finite.of_fintype { Ys // Seqt.subseteq_FL Ys Xs } Seqt.subseteq_FL_instFintype
-
--/
-
+noncomputable def Sequent.allSeqt_subseteq_FL (X : Sequent) : Finset Sequent :=
+  (X.all_subseteq_FL.image (fun x => x.1))
 
 /-! ## New stuff, now about Sequent instead of Seqt -/
-
-instance Sequent.subseteq_FL_instFintype {X : Sequent} : Fintype { Y // Sequent.subseteq_FL Y X } :=
-  -- ⟨ Xs.all_subseteq_FL_attached, Xs.all_subseteq_FL_attached_complete ⟩
-  -- TODO
-  sorry
 
 /-- There are only finitely many FL-subset Sequents for a given Sequent.
 This means "there are only finitely many "sequents modulo `setEq`" that are subseteq_FL Y. -/
 lemma Seqt.subseteq_FL_finite {X : Sequent} : Finite { Y // Sequent.subseteq_FL Y X } :=
-  @Finite.of_fintype { Y // Sequent.subseteq_FL Y X } Sequent.subseteq_FL_instFintype
+  @Finite.of_fintype { Y // Sequent.subseteq_FL Y X } Sequent.subseteq_FL_fintype
 
 /-- Helper lemma for `matchesFinite`: If we have enumerate infinitely many values, and all of them
 have a certain property, but we also know that there are only finitely many values with that
