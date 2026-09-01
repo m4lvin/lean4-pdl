@@ -257,6 +257,69 @@ lemma FLL_ext (h : ∀ φ, φ ∈ L1 ↔ φ ∈ L2) φ : φ ∈ FLL L1  ↔ φ �
   simp [FLL] at *
   aesop
 
+/-! ## FL Closure of a Finset of Formulas -/
+
+namespace Finset
+
+def FL (X : Finset Formula) : Finset Formula :=
+  X.sup (fun φ => (_root_.FL φ).toFinset)
+
+@[simp]
+lemma FL_refl_sub {X : Finset Formula} : X ⊆ X.FL := by
+  intro φ φ_in
+  simp_all only [FL, mem_sup, List.mem_toFinset]
+  have := @FLL_refl_sub X.fsort
+  have := @FL_refl φ
+  use φ
+
+lemma FL_sub {X Y : Finset Formula} : X ⊆ Y → FL X ⊆ FL Y := by
+  unfold FL
+  intro h x x_in
+  aesop
+
+@[simp]
+lemma FL_nil : Finset.FL {} = {} := rfl
+
+@[simp]
+lemma FL_singelton {φ} : Finset.FL {φ} = (_root_.FL φ).toFinset := by simp [FL]
+
+@[simp]
+lemma FL_idem_ext {X : Finset Formula} {φ} : φ ∈ FL (FL X) ↔ φ ∈ FL X := by
+  constructor
+  · unfold FL
+    intro φ_in
+    -- have := @FL_trans
+    sorry
+  · intro φ_in
+    -- have := @FLL_refl_sub (FL X).sort
+    sorry
+
+lemma FL_sub_FL_iff_sub_FL {X Y : Finset Formula} : X ⊆ FL Y ↔ FL X ⊆ FL Y := by
+  constructor
+  · unfold FL
+    rintro h φ' φ'_in
+    simp_all only [mem_sup, List.mem_toFinset]
+    rcases φ'_in with ⟨φ, φ_in, φ'_in⟩
+    specialize h φ_in
+    simp only [mem_sup, List.mem_toFinset] at h
+    rcases h with ⟨φ'', φ''_in, φ_in⟩
+    use φ''
+    have := @FL_trans
+    grind
+  · intro X_U φ φ_in
+    have := @FL_refl_sub
+    grind
+
+lemma FL_union_eq {X Y : Finset Formula} :
+  FL (X ∪ Y) = FL X ∪ FL Y := by simp [FL]; grind
+
+lemma FL_diff_sub {X Y : Finset Formula} : FL (X \ Y) ⊆ FL X := by
+  simp [FL]
+  intro φ φ_in
+  aesop
+
+end Finset
+
 /-! ## FL stays in the Vocabulary -/
 
 mutual
