@@ -62,7 +62,7 @@ theorem testsOfProgram_sizeOf_lt α : ∀ τ ∈ testsOfProgram α, sizeOf τ < 
 
 open LocalTableau
 
-/-- The local measure we use together with D-M to show that LocalTableau are finite.
+/-- The local measure which together with D-M can be used to show that LocalTableau are finite.
 Note that different from the paper here we also add `lmOfFormula (~φ)` in the `~⌈α⌉φ` case.
 This is needed to get `lmOfFormula_lt_dia_of_nonAtom`. -/
 @[simp]
@@ -428,6 +428,26 @@ def endNodesOf : {X : _} → LocalTableau X → Finset Sequent
 /-- An open local tableau has at least one end node. -/
 def OpenLocalTableau (X : Sequent) : Type := {lt : LocalTableau X // endNodesOf lt ≠ {}}
 deriving DecidableEq
+
+/-! ## The Dershowitz-Manna ordering on sequents -/
+
+/-- All formulas of a sequent as a multiset, with the loaded formula (if any) unloaded. -/
+def node_to_multiset (X : Sequent) : Multiset Formula := X.L.val + X.R.val + X.O.toForm
+
+/-- The multiset of the local measures of all formulas in a sequent. -/
+def nodeMeasure (X : Sequent) : Multiset Nat := (node_to_multiset X).map lmOfFormula
+
+/-- The Dershowitz-Manna ordering on sequents: `X` is smaller than `Y` iff the multiset of
+the `lmOfFormula` measures of the formulas of `X` is smaller than the one of `Y`. -/
+def lt_Sequent (X Y : Sequent) : Prop :=
+  Multiset.IsDershowitzMannaLT (nodeMeasure X) (nodeMeasure Y)
+
+instance instIsWellFoundedSequentLt : IsWellFounded Sequent lt_Sequent :=
+  ⟨InvImage.wf nodeMeasure Multiset.wellFounded_isDershowitzMannaLT⟩
+
+theorem lt_Sequent.trans {X Y Z : Sequent} (h1 : lt_Sequent X Y) (h2 : lt_Sequent Y Z) :
+    lt_Sequent X Z :=
+  Multiset.IsDershowitzMannaLT.trans h1 h2
 
 /-! ## Helper functions, relating end nodes and children -/
 

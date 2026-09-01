@@ -178,7 +178,7 @@ lemma measure_le_or_basicBetween (C : LoadedCluster tab)
             apply hm <;> grind
           · right
             -- Here we simulate the le + lt combo now, using that the DM ordering is transitive.
-            apply @Multiset.IsDershowitzMannaLT.trans _ _ _ (node_to_multiset _) _ nlabel_lt
+            refine lt_Sequent.trans nlabel_lt ?_
             apply hm <;> grind
         · rw [heq] at hbb
           exact Or.inr (hbb.mono (by simp))
@@ -436,8 +436,9 @@ lemma satDown_one_leaf_exit {Δ} (hx : C.Q.at? x = some (.QNode .one Δ []))
   rw [C.iitp_one_leaf_exit hx hc, QFormula.evalQ_fma] at hι
   refine C.thetaOf_right θ hθ Δ ⟨W, M, v, ?_⟩
   intro φ hφ
-  rcases List.mem_cons.mp hφ with rfl | hmem
-  · exact hι
+  rcases Finset.mem_union.mp hφ with h | hmem
+  · rw [Finset.mem_singleton.mp h]
+    exact hι
   · exact hZ φ hmem
 
 /-- Case `k(x) = 1` where `x` is neither a leaf nor a companion: `ι_x = ι_y` and
@@ -472,8 +473,9 @@ lemma satDown_two {Δ y ys} (hx : C.Q.at? x = some (.QNode .two Δ (y :: ys)))
     intro hcon
     refine C.thetaOf_right θ hθ Δ ⟨W, M, v, ?_⟩
     intro φ hφ
-    rcases List.mem_cons.mp hφ with rfl | hmem
-    · exact hcon
+    rcases Finset.mem_union.mp hφ with h | hmem
+    · rw [Finset.mem_singleton.mp h]
+      exact hcon
     · exact hZ φ hmem
   rw [C.iitp_two hx, QFormula.evalQ_boxes] at hι
   have hι' : QFormula.evalQ M g v (C.iitp θ (x ++ [0])) := by
