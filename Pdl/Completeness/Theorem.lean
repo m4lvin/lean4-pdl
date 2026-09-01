@@ -9,7 +9,7 @@ open HasSat
 Uses `BuildTree.toModel`. -/
 theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (startPos X)) :
     ∃ (WS : Finset (Finset Formula)) (_ : ModelGraph WS),
-      ∃ Z ∈ WS, X.bothSides.toFinset ⊆ Z := by
+      ∃ Z ∈ WS, X.toFinset ⊆ Z := by
   unfold startPos at h
   rcases posOf_for_startPos X with ⟨proPos, posOf_def⟩
   let bt := buildTree s (posOf_def ▸ h)
@@ -32,14 +32,17 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
     simp only [M] at X_a_Y
     rcases X_a_Y with ⟨ψ, in_X, sub_Y⟩ -- relation was witnessed by ⌈a⌉ψ
     apply sub_Y -- show that φ is in projection
-    simp_all
+    simp_all only [Finset.union_singleton, Finset.mem_insert]
+    right
+    rw [Finset.mem_projection]
+    exact aφ_in_X
   case d =>
     simp only [Subtype.exists, exists_and_right, Subtype.forall]
     intro w w_in α φ in_w
     -- "The main challenge" :-)
     -- Paper proof uses Lemmas 6.18 and 6.20 here, depending on loading.
     unfold WS BuildTree.toModel at w_in
-    simp only [List.mem_toFinset, List.mem_map] at w_in
+    simp only [Finset.mem_image] at w_in
     -- w must come from some pre-state:
     rcases w_in with ⟨π, π_in, def_w⟩
     subst def_w
@@ -50,7 +53,7 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
       rcases freeDiamondExistence in_w with ⟨π', in_π'_forms, α_rel⟩
       refine ⟨π'.forms, ⟨?_, α_rel⟩, in_π'_forms⟩
       unfold WS
-      simp only [BuildTree.toModel, Finset.union_singleton, List.mem_toFinset, List.mem_map]
+      simp only [BuildTree.toModel, Finset.union_singleton, Finset.mem_image]
       exact bt.exists_mem_attach_forms_eq
     · -- loaded but not negated, cannot happen
       exfalso
@@ -62,7 +65,7 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
       simp only [negUnload, Formula.neg.injEq] at ψul_def
       obtain ⟨ρ, α_rel, hanf⟩ := PreState.loadedDiamondExistence in_w
       unfold WS
-      simp only [BuildTree.toModel, Finset.union_singleton, List.mem_toFinset, List.mem_map]
+      simp only [BuildTree.toModel, Finset.union_singleton, Finset.mem_image]
       refine ⟨ρ.forms, ⟨bt.exists_mem_attach_forms_eq, ?_⟩, ?_⟩
       · have : α = α' := by cases χ <;> grind [LoadFormula.unload]
         rw [this]
@@ -77,18 +80,15 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
     -- Use that there must be some pre-state containing the root.
     rcases bt.collect_contains_root with ⟨π, π_in, X_in_π⟩
     refine ⟨⟨π, π_in⟩, ?_, ?_⟩
-    · apply List.mem_attach
+    · apply Finset.mem_attach
     · intro φ φ_in
       unfold PreState.forms
-      simp only [List.mem_toFinset, List.mem_flatten, List.mem_map, exists_exists_and_eq_and]
+      simp only [mem_pathForms]
       use X
-      rw [← X.bothSides_toFinset_eq_toFinset] at φ_in
-      simp [-Sequent.bothSides_toFinset_eq_toFinset] at φ_in
-      grind
 
 /-- Helper for `completeness`. Uses `gameP` and `strmg`. -/
 lemma modelExistence {X} : consistent X →
-    ∃ (WS : Finset (Finset Formula)) (_ : ModelGraph WS) (W : WS), X.bothSides.toFinset ⊆ W :=
+    ∃ (WS : Finset (Finset Formula)) (_ : ModelGraph WS) (W : WS), X.toFinset ⊆ W :=
   by
   intro consX
   rcases gamedet tableauGame (startPos X) with ProverHasWinningS | BuilderHasWinningS
@@ -115,8 +115,8 @@ theorem completeness : ∀ X, consistent X → satisfiable X :=
 theorem consIffSat : ∀ X, X.isFree → (consistent X ↔ satisfiable X) :=
   fun X X_isFree => ⟨completeness X, correctness X X_isFree⟩
 
-theorem singletonConsIffSat : ∀ φ, consistent ([φ],[],none) ↔ satisfiable φ :=
+theorem singletonConsIffSat : ∀ φ, consistent ({φ},{},none) ↔ satisfiable φ :=
   by
   intro φ
-  have := consIffSat ⟨[φ], [], none⟩
-  simp [this, instSequentHasSat, modelCanSemImplySequent]
+  have := consIffSat ⟨{φ}, {}, none⟩
+  simp [this, instSequentHasSat, modelCanSemImplySequent, Sequent.toFinset]
