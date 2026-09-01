@@ -52,6 +52,26 @@ theorem in_voc_con n (L : List Formula) :
       simp [con, Formula.voc] at *
       rw [← IH]
 
+/-- The conjunction of a `Finset` of formulas, via `Finset.fsort`. -/
+def Finset.con (X : Finset Formula) : Formula := _root_.con X.fsort
+
+@[simp]
+theorem Finset.con_empty : Finset.con ∅ = (⊤ : Formula) := by
+  simp [Finset.con, Finset.fsort]
+
+@[simp]
+theorem Finset.con_singleton {f : Formula} : Finset.con {f} = f := by
+  simp [Finset.con, Finset.fsort]
+
+theorem Finset.conEval {W M} {X : Finset Formula} {w : W} :
+    evaluate M w X.con ↔ ∀ f ∈ X, evaluate M w f := by
+  simp [Finset.con, _root_.conEval]
+
+/-- Vocabulary of the conjunction of a `Finset`. -/
+theorem Finset.in_voc_con n (X : Finset Formula) :
+    n ∈ X.con.voc ↔ ∃ φ ∈ X, n ∈ φ.voc := by
+  simp [Finset.con, _root_.in_voc_con]
+
 /-! ## Disjunction -/
 
 @[simp]
@@ -95,6 +115,26 @@ theorem in_voc_dis n (L : List Formula) :
     case cons h t IH =>
       simp [dis, Formula.voc] at *
       rw [← IH]
+
+/-- The disjunction of a `Finset` of formulas, via `Finset.fsort`. -/
+def Finset.dis (X : Finset Formula) : Formula := _root_.dis X.fsort
+
+@[simp]
+theorem Finset.dis_empty : Finset.dis ∅ = (⊥ : Formula) := by
+  simp [Finset.dis, Finset.fsort]
+
+@[simp]
+theorem Finset.dis_singleton {f : Formula} : Finset.dis {f} = f := by
+  simp [Finset.dis, Finset.fsort]
+
+theorem Finset.disEval {W M} {X : Finset Formula} {w : W} :
+    evaluate M w X.dis ↔ ∃ f ∈ X, evaluate M w f := by
+  simp [Finset.dis, _root_.disEval]
+
+/-- Vocabulary of the disjunction of a `Finset`. -/
+theorem Finset.in_voc_dis n (X : Finset Formula) :
+    n ∈ X.dis.voc ↔ ∃ φ ∈ X, n ∈ φ.voc := by
+  simp [Finset.dis, _root_.in_voc_dis]
 
 /-! ## Disjunction of Conjunctions -/
 
@@ -196,19 +236,70 @@ theorem disconOr {XS YS} : discon (XS ∪ YS) ≡ discon XS ⋁ discon YS :=
       use Y
       exact ⟨Or.inr Y_in, satY⟩
 
-instance : DecidableRel (@List.le Formula instLTFormula) := by
-  sorry
+/-! ### Sorting lists of formulas
 
-instance : IsTrans (List Formula) List.le := sorry
-instance : Std.Antisymm (@List.le Formula instLTFormula) := sorry
-instance : Std.Total (@List.le Formula instLTFormula) := sorry
+To also sort a `Finset (Finset Formula)` we need an order on `List Formula`.
+We use the lexicographic order `List.le` coming from the order on formulas.
 
+TODO: these could be moved to `Pdl.Syntax`, next to `Finset.fsort`.
+-/
+
+/-- The linear order on formulas, bundling the results from `Pdl.Syntax`.
+This is only used locally, to get the lexicographic order on `List Formula`. -/
+def Formula.linearOrder : LinearOrder Formula where
+  le := Formula.le
+  lt := fun φ ψ => φ ≠ ψ ∧ φ.le ψ
+  le_refl := Formula.le_rfl
+  le_trans := Formula.le_trans
+  le_antisymm := Formula.le_antisymm
+  le_total := Formula.le_total
+  lt_iff_le_not_ge := by
+    intro φ ψ
+    constructor
+    · rintro ⟨hne, hle⟩
+      exact ⟨hle, fun hba => hne (Formula.le_antisymm _ _ hle hba)⟩
+    · rintro ⟨hle, hnot⟩
+      exact ⟨by rintro rfl; exact hnot (Formula.le_rfl _), hle⟩
+  toDecidableLE := Formula.decLe
+
+attribute [local instance] Formula.linearOrder
+
+/-- The lexicographic `List.le` on `List Formula` agrees with the `≤` coming from
+the linear order `Formula.linearOrder`. -/
+lemma List.le_iff_le_formula (l1 l2 : List Formula) : List.le l1 l2 ↔ l1 ≤ l2 := by
+  change ¬ (l2 < l1) ↔ l1 ≤ l2
+  exact not_lt
+
+instance : DecidableRel (@List.le Formula instLTFormula) :=
+  fun l1 l2 => decidable_of_iff _ (List.le_iff_le_formula l1 l2).symm
+
+instance : IsTrans (List Formula) List.le :=
+  ⟨fun _ _ _ h12 h23 => (List.le_iff_le_formula _ _).2
+    (le_trans ((List.le_iff_le_formula _ _).1 h12) ((List.le_iff_le_formula _ _).1 h23))⟩
+
+instance : Std.Antisymm (@List.le Formula instLTFormula) :=
+  ⟨fun _ _ h12 h21 => le_antisymm ((List.le_iff_le_formula _ _).1 h12)
+    ((List.le_iff_le_formula _ _).1 h21)⟩
+
+instance : Std.Total (@List.le Formula instLTFormula) :=
+  ⟨fun l1 l2 => (le_total l1 l2).imp (List.le_iff_le_formula _ _).2
+    (List.le_iff_le_formula _ _).2⟩
+
+/-- The disjunction of conjunctions given by a `Finset (Finset Formula)`.
+The inner sets are sorted with `Finset.fsort` and the outer set is then sorted
+lexicographically with `List.le`. -/
 def Finset.discon : Finset (Finset Formula) → Formula
-  | XS => _root_.discon ((XS.image (Finset.sort)).sort List.le)
+  | XS => _root_.discon ((XS.image Finset.fsort).sort List.le)
 
-def Finset.disconEval (XS : Finset (Finset Formula)) :
-    evaluate M w (XS.discon) ↔ ∃ Y ∈ XS, ∀ f ∈ Y, evaluate M w f :=
-  sorry
+theorem Finset.disconEval {W M} {w : W} (XS : Finset (Finset Formula)) :
+    evaluate M w XS.discon ↔ ∃ Y ∈ XS, ∀ f ∈ Y, evaluate M w f := by
+  rw [Finset.discon, _root_.disconEval]
+  simp only [Finset.mem_sort, Finset.mem_image]
+  constructor
+  · rintro ⟨l, ⟨Y, Y_in, rfl⟩, hl⟩
+    exact ⟨Y, Y_in, fun f f_in => hl f (Formula.mem_fsort.2 f_in)⟩
+  · rintro ⟨Y, Y_in, hY⟩
+    exact ⟨Y.fsort, ⟨Y, Y_in, rfl⟩, fun f f_in => hY f (Formula.mem_fsort.1 f_in)⟩
 
 /-! ## Pairwise Union -/
 
