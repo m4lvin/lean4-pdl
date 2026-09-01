@@ -59,12 +59,6 @@ lemma Sequent.flip_eq_off {X Y : Sequent} : (X.flip = Y) = (X = Y.flip) := by
   constructor <;> intro h <;> cases h <;> convert rfl <;> simp
 
 @[simp]
-lemma Sequent.flip_setEqTo_flip {X Y : Sequent} : X.flip.setEqTo Y.flip ↔ X.setEqTo Y := by
-  rcases X with ⟨L, R, O⟩
-  rcases Y with ⟨L', R', O'⟩
-  grind [Sequent.setEqTo, Sequent.flip, Olf.flip_inj]
-
-@[simp]
 lemma Sequent.map_flip_map_flip {Hist} :
     (List.map Sequent.flip (List.map Sequent.flip Hist)) = Hist := by
   induction Hist <;> simp_all
@@ -74,9 +68,10 @@ lemma basic_flip {X : Sequent} : X.flip.basic ↔ X.basic := by
   rcases X with ⟨L,R,O⟩
   unfold Sequent.basic Sequent.flip
   simp only
-  simp only [List.append_assoc, List.mem_append, Option.mem_toList, Option.map_eq_some_iff,
-    Sum.exists, Sum.elim_inl, Sum.elim_inr,
-    Sequent.closed]
+  simp only [Sequent.toFinset, Finset.union_assoc, Finset.mem_union, Option.mem_toFinset,
+    Option.mem_def, Option.map_eq_some_iff, Sum.exists, Sum.elim_inl, negUnload, Sum.elim_inr,
+    Formula.basic, decide_false, decide_true, Sequent.closed, instMembershipFormulaSequent,
+    Formula.instBot, Sequent.L_eq, Sequent.R_eq, not_or, not_exists, not_and]
   constructor
   · intro ⟨fs_basic, not_closed⟩
     constructor
@@ -89,16 +84,13 @@ lemma basic_flip {X : Sequent} : X.flip.basic ↔ X.basic := by
         right
         right
         simp only [Olf.flip, Option.map_eq_some_iff, Sum.exists, Sum.swap_inl, Sum.inr.injEq,
-          exists_eq_right, Sum.swap_inr, reduceCtorEq, and_false, exists_false, or_false, negUnload]
-        simp only [negUnload] at h
+          exists_eq_right, Sum.swap_inr, reduceCtorEq, and_false, exists_false, or_false]
         exact h
       · right
         right
         left
         simp only [Olf.flip, Option.map_eq_some_iff, Sum.exists, Sum.swap_inl, reduceCtorEq,
-          and_false, exists_false, Sum.swap_inr, Sum.inl.injEq, exists_eq_right, false_or,
-          negUnload]
-        simp only [negUnload] at h
+          and_false, exists_false, Sum.swap_inr, Sum.inl.injEq, exists_eq_right, false_or]
         exact h
     · aesop
   · intro ⟨fs_basic, not_closed⟩
@@ -112,26 +104,18 @@ lemma basic_flip {X : Sequent} : X.flip.basic ↔ X.basic := by
         right
         right
         simp only [Olf.flip, Option.map_eq_some_iff, Sum.exists, Sum.swap_inl, reduceCtorEq,
-          and_false, exists_false, Sum.swap_inr, Sum.inl.injEq, exists_eq_right, false_or,
-          negUnload] at h
-        simp
+          and_false, exists_false, Sum.swap_inr, Sum.inl.injEq, exists_eq_right, false_or] at h
         exact h
       · right
         right
         left
         simp only [Olf.flip, Option.map_eq_some_iff, Sum.exists, Sum.swap_inl, Sum.inr.injEq,
-          exists_eq_right, Sum.swap_inr, reduceCtorEq, and_false, exists_false, or_false,
-          negUnload] at h
-        simp
+          exists_eq_right, Sum.swap_inr, reduceCtorEq, and_false, exists_false, or_false] at h
         exact h
     · aesop
 
-/-- Unused? -/
-lemma nrep_flip (nrep : ¬rep Hist X) : ¬rep (List.map Sequent.flip Hist) X.flip := by
-  simp_all [rep]
-
 def LocalRule.flip (lr : LocalRule (Lcond, Rcond, Ocond) ress) :
-    LocalRule (Rcond, Lcond, Ocond.flip) (ress.map .flip) := by
+    LocalRule (Rcond, Lcond, Ocond.flip) (ress.image Sequent.flip) := by
   cases lr
   case oneSidedL YS orule YS_def =>
     apply LocalRule.oneSidedR orule
@@ -146,7 +130,7 @@ def LocalRule.flip (lr : LocalRule (Lcond, Rcond, Ocond) ress) :
   case loadedL YS χ lrule YS_def =>
     apply LocalRule.loadedR _ lrule
     subst YS_def
-    simp only [List.empty_eq, List.map_map, List.map_inj_left, Function.comp_apply, Prod.forall]
+    simp [List.empty_eq, List.map_map, List.map_inj_left, Function.comp_apply, Prod.forall]
     rintro L (_|_|_) <;> simp_all [Sequent.flip, Olf.flip]
   case loadedR lrule YS_def =>
     apply LocalRule.loadedL _ lrule

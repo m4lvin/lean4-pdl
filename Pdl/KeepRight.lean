@@ -10,9 +10,9 @@ rule adds formulas to an empty left component.
 /-- A PDL rule applied to a sequent that is loaded on the right leads to a sequent that is
 not loaded on the left, and it does not add formulas to an empty left component. -/
 lemma pdlRule_inv {X Y : Sequent} (r : PdlRule X Y) (h : X.2.2.isRight) :
-    ¬ Y.2.2.isLeft ∧ (X.1 = [] → Y.1 = []) := by
+    ¬ Y.2.2.isLeft ∧ (X.1 = {} → Y.1 = {}) := by
   cases r
-  case modR L R A ξ hX hY => rcases ξ with φ|χ <;> simp_all [projection]
+  case modR L R A ξ hX hY => rcases ξ with φ|χ <;> simp_all [Finset.projection]
   all_goals simp_all
 
 /-- Local rules never load on the left: if the given sequent is not loaded on the left,

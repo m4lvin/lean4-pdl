@@ -558,20 +558,6 @@ lemma projection_sub_FLL {a L} : projection a L ⊆ FLL L := by
   use ⌈·a⌉φ, φ_in
   simp [FL]
 
-@[simp]
-lemma Finset.mem_projection {A g} {X : Finset Formula} :
-    g ∈ Finset.projection A X ↔ (⌈·A⌉g) ∈ X := by
-  constructor
-  · intro h
-    simp only [Finset.projection, Finset.mem_sup, Finset.mem_image, id_eq] at h
-    obtain ⟨s, ⟨x, hx, rfl⟩, hg⟩ := h
-    cases x <;> simp_all [formProjection]
-    case box α ψ =>
-      cases α <;> simp_all
-  · intro h
-    simp only [Finset.projection, Finset.mem_sup, Finset.mem_image, id_eq]
-    exact ⟨_, ⟨_, h, rfl⟩, by simp⟩
-
 /-- Anything in the FL closure of a member of `X` is in the FL closure of `X`. -/
 lemma Finset.mem_FL_of_mem {X : Finset Formula} {ψ x : Formula}
     (hψ : ψ ∈ X) (hx : x ∈ _root_.FL ψ) : x ∈ X.FL := by
