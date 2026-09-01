@@ -7,12 +7,19 @@ import Pdl.Soundness
 As a sanity check we construct tableaux/proofs for some examples.
 -/
 
+/-- Helper: a sequent that contains a non-basic formula on the left is not basic.
+(This might also fit into `Pdl/Sequent.lean`.) -/
+lemma Sequent.not_basic_of_mem_L {L R : Finset Formula} {O : Olf} (φ : Formula)
+    (h : φ ∈ L) (hφ : ¬ φ.basic) : ¬ Sequent.basic (L, R, O) := by
+  intro bas
+  exact hφ (bas.1 φ (by simp [Sequent.toFinset]; tauto))
+
 example : provable (~⊥) := by
   apply provable.byTableauL
   apply Tableau.loc
   · simp [flprep]
     decide
-  · simp [Sequent.basic] -- works :-)
+  · exact Sequent.not_basic_of_mem_L (~~⊥) (by simp) (by simp [Formula.basic])
   case a.lt =>
     apply LocalTableau.byLocalRule
       { lr := LocalRule.oneSidedL (OneSidedLocalRule.neg ⊥) rfl
@@ -37,7 +44,7 @@ example : provable (~(p ⋀ (~p))) :=
   apply provable.byTableauL
   apply Tableau.loc
   · simp
-  · simp [Sequent.basic] -- works :-)
+  · exact Sequent.not_basic_of_mem_L (~~(p ⋀ (~p))) (by simp) (by simp [Formula.basic])
   case a.lt =>
     apply LocalTableau.byLocalRule
       { lr := (LocalRule.oneSidedL (OneSidedLocalRule.neg (p ⋀ (~p))) rfl)
@@ -59,7 +66,7 @@ example : provable (~(p ⋀ (~p))) :=
     exfalso -- endNodesOf is empty
     simp at Y_in
 
-example : Tableau [] ([·p, ~(·p)], [], none) :=
+example : Tableau [] (({(·p : Formula), ~(·p : Formula)} : Finset Formula), ∅, none) :=
   by
   apply Tableau.loc
   · simp
@@ -92,19 +99,22 @@ abbrev a : Program := · atA
 
 /-- Preparation for Example 2 from MB. -/
 def subTabForEx2 :
-    Tableau [([r⋀(~⌈a⌉p), ~ (r ⋀ (~⌈a⌉p⋀q))], [], none)] ([r, ~(⌈a⌉p), ⌈a⌉(p⋀q)], [], none) :=
+    Tableau [(({r⋀(~⌈a⌉p), ~ (r ⋀ (~⌈a⌉p⋀q))} : Finset Formula), ∅, none)]
+      (({r, ~(⌈a⌉p), ⌈a⌉(p⋀q)} : Finset Formula), ∅, none) :=
   by
-  have principal : (~(⌈a⌉p)) ∈ [r, ~(⌈a⌉p), ⌈a⌉(p⋀q)] := by simp
-  apply Tableau.pdl (by simp [flprep, rep]; decide) (by simp [Sequent.basic, Sequent.closed])
+  have principal : (~(⌈a⌉p)) ∈ ({r, ~(⌈a⌉p), ⌈a⌉(p⋀q)} : Finset Formula) := by simp
+  apply Tableau.pdl (by simp [flprep, rep]; decide)
+    (by simp [Sequent.basic, Sequent.closed]; decide)
     (@PdlRule.loadL _ [] _ _ _ _ principal (by simp [Formula.isBox]) rfl)
-  simp
-  apply Tableau.pdl (by simp [flprep, rep]; decide) (by simp [Sequent.basic, Sequent.closed])
+  change Tableau _ ({r, ⌈a⌉(p⋀q)}, ∅, some (Sum.inl (~'⌊a⌋(p : Formula))))
+  apply Tableau.pdl (by simp [flprep, rep]; decide)
+    (by simp [Sequent.basic, Sequent.closed]; decide)
     (.modL rfl rfl) -- Note: modL no longer needs to ask for basic.
-  simp [projection]
+  change Tableau _ ({~p, p⋀q}, ∅, none)
   apply Tableau.loc
   · simp [flprep, rep]
     decide
-  · simp [Sequent.basic, Sequent.closed]
+  · exact Sequent.not_basic_of_mem_L (p⋀q) (by simp) (by simp [Formula.basic])
   case lt =>
     apply LocalTableau.byLocalRule
       { lr := LocalRule.oneSidedL (OneSidedLocalRule.con p q) rfl
@@ -122,50 +132,61 @@ def subTabForEx2 :
     exfalso
     aesop
 
-/-- Example 2 from MB. -/
-example : Tableau [] ([r ⋀ (~(⌈a⌉p)), r ↣ ⌈a⌉(p ⋀ q)], [], none) :=
-  by
-  apply Tableau.loc
-  · simp
-  · simp [Sequent.basic, Sequent.closed]
-  case lt =>
-    apply LocalTableau.byLocalRule
-      { lr := LocalRule.oneSidedL (OneSidedLocalRule.con r (~(⌈a⌉p))) rfl
-        L := _, R := _, O := _, ress := _, preconditionProof := _ }
-    all_goals (try simp; try rfl)
-    intro c c_in; simp at c_in; subst c_in -- unique child node
-    apply LocalTableau.byLocalRule
-      { lr := LocalRule.oneSidedL (OneSidedLocalRule.nCo r (~(⌈a⌉(p ⋀ q)))) rfl
-        L := _, R := _, O := _, ress := _, preconditionProof := _ }
-    all_goals (try simp; try rfl)
-    intro c c_in; simp at *
+/-- The local tableau used for Example 2 from MB.
+
+Note that we never substitute the child sequents by their concrete values here.
+Doing so would leave `Eq.rec`s in the term that block the computation of `endNodesOf`. -/
+def ltForEx2 : LocalTableau (({r ⋀ (~(⌈a⌉p)), r ↣ ⌈a⌉(p ⋀ q)} : Finset Formula), ∅, none) := by
+  apply LocalTableau.byLocalRule
+    { lr := LocalRule.oneSidedL (OneSidedLocalRule.con r (~(⌈a⌉p))) rfl
+      L := _, R := _, O := _, ress := _, preconditionProof := _ }
+  all_goals (try simp; try rfl)
+  intro c c_in
+  simp at c_in
+  apply LocalTableau.byLocalRule
+    { L := c.1, R := c.2.1, O := c.2.2
+      lr := LocalRule.oneSidedL (OneSidedLocalRule.nCo r (~(⌈a⌉(p ⋀ q)))) rfl
+      ress := _, preconditionProof := ?_ } rfl ?_
+  · rw [c_in]
+    refine ⟨by decide, by simp, by simp⟩
+  · intro c' c'_in
+    simp [applyLocalRule, c_in] at c'_in
     -- now branching!
-    by_cases c = ([r, ~⌈a⌉p, ~ r], [], none) <;> simp_all
-    case pos c_def =>
-      subst c_def
-      -- first branch, apply "not"
+    by_cases hc : c' = ((({~ r, r, ~⌈a⌉p} : Finset Formula)), ∅, none)
+    · -- first branch, apply "not"
       apply LocalTableau.byLocalRule
-        { lr := LocalRule.oneSidedL (OneSidedLocalRule.not r) rfl
-          L := _, R := _, O := _, ress := _, preconditionProof := _ }
-      all_goals (try simp; try rfl)
-      · intro c c_in; simp at *
-      · decide
-    case neg hyp =>
-      subst c_in
-      -- second branch, apply "neg" and then modal step!
+        { L := c'.1, R := c'.2.1, O := c'.2.2
+          lr := LocalRule.oneSidedL (OneSidedLocalRule.not r) rfl
+          ress := _, preconditionProof := ?_ } rfl ?_
+      · rw [hc]; refine ⟨by decide, by simp, by simp⟩
+      · intro c'' hc''; simp [applyLocalRule] at hc''
+    · -- second branch, apply "neg" and then a simple end node
+      have hc2 : c' = ((({~~(⌈a⌉(p⋀q)), r, ~⌈a⌉p} : Finset Formula)), ∅, none) := by
+        rcases c'_in with h|h
+        · exfalso; apply hc; rw [h]; decide
+        · rw [h]; decide
       apply LocalTableau.byLocalRule
-        { lr := LocalRule.oneSidedL (OneSidedLocalRule.neg (⌈a⌉(p⋀q))) rfl
-          L := _, R := _, O := _, ress := _, preconditionProof := _ }
-      all_goals (try simp; try rfl)
-      intro c c_in; simp at c_in; subst c_in -- unique child node
-      -- ending local tableau with a simple node:
-      apply LocalTableau.sim
-      simp [Sequent.basic, Sequent.closed]
-  case next =>
-      intro Y Y_in
-      simp (config := {decide := true}) at *
-      subst Y_in
-      exact subTabForEx2
+        { L := c'.1, R := c'.2.1, O := c'.2.2
+          lr := LocalRule.oneSidedL (OneSidedLocalRule.neg (⌈a⌉(p⋀q))) rfl
+          ress := _, preconditionProof := ?_ } rfl ?_
+      · rw [hc2]; refine ⟨by decide, by simp, by simp⟩
+      · intro c'' hc''
+        simp [applyLocalRule, hc2] at hc''
+        apply LocalTableau.sim
+        rw [hc'']
+        simp [Sequent.basic, Sequent.closed]
+        decide
+
+/-- Example 2 from MB. -/
+example : Tableau [] (({r ⋀ (~(⌈a⌉p)), r ↣ ⌈a⌉(p ⋀ q)} : Finset Formula), ∅, none) := by
+  refine Tableau.loc ?_ ?_ ltForEx2 ?_
+  · simp
+  · exact Sequent.not_basic_of_mem_L (r ⋀ (~(⌈a⌉p))) (by simp) (by simp [Formula.basic])
+  · intro Y Y_in
+    rw [show endNodesOf ltForEx2 = {(({r, ~(⌈a⌉p), ⌈a⌉(p⋀q)} : Finset Formula), ∅, none)} from
+      by decide, Finset.mem_singleton] at Y_in
+    subst Y_in
+    exact subTabForEx2
 
 /-- Example 4.8, but shown via `soundness`.
 The corresponding partial tableau has a free repeat and is thus open. -/
@@ -206,117 +227,90 @@ lemma endNodesOf_cast_helper {h : X = Y} (ltX : LocalTableau X) :
     endNodesOf (h ▸ ltX) = endNodesOf ltX := by
   subst_eqs; simp
 
+/-- The first local tableau used for Example 4.19: one application of the (□) rule. -/
+def ltEx419 : LocalTableau (({⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q} : Finset Formula), ∅, none) := by
+  apply LocalTableau.byLocalRule
+    { lr := LocalRule.oneSidedL (OneSidedLocalRule.box (∗a) q (by decide)) rfl
+      L := _, R := _, O := _, ress := _, preconditionProof := _ }
+  all_goals (try simp; try rfl)
+  intro Y Y_in
+  apply LocalTableau.sim
+  simp [unfoldBox, allTP, testsOfProgram, Bset, F, P, a] at Y_in
+  rw [Y_in]
+  simp [Sequent.basic, Sequent.closed]
+  decide
+
+/-- The second local tableau used for Example 4.19: the (□) rule and then the (◇) rule. -/
+def ltEx419b : LocalTableau (({⌈∗a⌉q} : Finset Formula), ∅,
+    some (Sum.inl (~'⌊∗(a ⋓ (?'p))⌋(AnyFormula.normal q)))) := by
+  -- (□)
+  apply LocalTableau.byLocalRule
+    { lr := LocalRule.oneSidedL (OneSidedLocalRule.box (∗a) q (by decide)) rfl
+      L := _, R := _, O := _, ress := _, preconditionProof := _ }
+  all_goals (try simp; try rfl)
+  intro Y Y_in
+  simp [unfoldBox, allTP, testsOfProgram, Bset, F, P, a] at Y_in
+  -- (◇)
+  apply LocalTableau.byLocalRule
+    { L := Y.1, R := Y.2.1, O := Y.2.2
+      lr := LocalRule.loadedL (⌊∗(a ⋓ (?'p))⌋(AnyFormula.normal q)) (LoadRule.dia'
+        (by simp [Program.isAtomic] : ¬ (∗((·atA)⋓(?'p))).isAtomic)) rfl
+      ress := _, preconditionProof := ?_ } rfl ?_
+  · rw [Y_in]; refine ⟨by simp, by simp, by simp⟩
+  · intro Z Z_in
+    simp [applyLocalRule, Y_in, unfoldDiamondLoaded', YsetLoad', Dset, splitLast] at Z_in
+    -- branching!
+    by_cases hZ : Z = (({q, ⌈a⌉⌈∗a⌉q, ~ q} : Finset Formula), ∅, none)
+    · -- left branch: close with q and ~q
+      apply LocalTableau.byLocalRule
+        { L := Z.1, R := Z.2.1, O := Z.2.2
+          lr := LocalRule.oneSidedL (OneSidedLocalRule.not q) rfl
+          ress := _, preconditionProof := ?_ } rfl ?_
+      · rw [hZ]; refine ⟨by decide, by simp, by simp⟩
+      · intro W hW; simp [applyLocalRule] at hW
+    · -- right branch: simple
+      have hZ2 : Z = (({q, ⌈a⌉⌈∗a⌉q} : Finset Formula), ∅,
+          some (Sum.inl (~'⌊a⌋(AnyFormula.loaded (⌊∗(a ⋓ (?'p))⌋(AnyFormula.normal q)))))) := by
+        tauto
+      apply LocalTableau.sim
+      rw [hZ2]
+      simp [Sequent.basic, Sequent.closed]
+      decide
+
 /-- Example 4.19 involving a loaded-path repeat -/
-example : Tableau [] ([ ⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q ], [], none) :=
-  by
-  apply Tableau.loc
+example : Tableau [] (({⌈∗a⌉q, ~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q} : Finset Formula), ∅, none) := by
+  refine Tableau.loc ?_ ?_ ltEx419 ?_
   · simp
-  · simp [Sequent.basic, Sequent.closed]
-  case lt =>
-    -- (□)
-    apply LocalTableau.byLocalRule
-      { lr := LocalRule.oneSidedL (OneSidedLocalRule.box (∗a) q (by decide)) rfl
-        L := _, R := _, O := _, ress := _, preconditionProof := _ }
-    all_goals (try simp; try rfl)
-    intro Y Y_in
-    simp [unfoldBox, allTP, testsOfProgram, Bset, F, P, a] at *
-    subst Y_in
-    apply LocalTableau.sim
-    simp [Sequent.basic, Sequent.closed]
+  · exact Sequent.not_basic_of_mem_L (⌈∗a⌉q) (by simp) (by simp [Formula.basic])
   · intro Y Y_in
-    simp [unfoldBox, allTP, testsOfProgram, Bset, F, P, a] at Y_in
+    rw [show endNodesOf ltEx419
+      = {(({~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q, q, ⌈a⌉⌈∗a⌉q} : Finset Formula), ∅, none)} from by decide,
+      Finset.mem_singleton] at Y_in
     subst Y_in
-    have principal : (~⌈a⌉⌈∗(a)⋓(?'p)⌉q) ∈ [~⌈a⌉⌈∗(a)⋓(?'p)⌉q, q, ⌈a⌉⌈∗a⌉q] :=
-      by simp
+    have principal : (~⌈a⌉⌈∗(a ⋓ (?' p))⌉q)
+        ∈ ({~ ⌈a⌉⌈∗(a ⋓ (?' p))⌉q, q, ⌈a⌉⌈∗a⌉q} : Finset Formula) := by simp
     -- (L+)
-    apply Tableau.pdl (by simp [flprep, rep]; decide) (by simp [Sequent.basic, Sequent.closed])
+    apply Tableau.pdl (by simp [flprep, rep]; decide)
+      (by simp [Sequent.basic, Sequent.closed]; decide)
       (PdlRule.loadL (δ := [a]) principal (by simp [Formula.isBox]) rfl)
-    clear principal
-    simp
+    change Tableau _ (({q, ⌈a⌉⌈∗a⌉q} : Finset Formula), ∅,
+      some (Sum.inl (~'⌊⌊[a]⌋⌋⌊∗(a ⋓ (?'p))⌋(AnyFormula.normal q))))
     -- (M)
-    apply Tableau.pdl (by simp [flprep, rep]; decide) (by simp [Sequent.basic, Sequent.closed])
+    apply Tableau.pdl (by simp [flprep, rep]; decide)
+      (by simp [Sequent.basic, Sequent.closed]; decide)
       (PdlRule.modL rfl rfl)
-    simp [projection]
-    apply Tableau.loc
+    change Tableau _ (({⌈∗a⌉q} : Finset Formula), ∅,
+      some (Sum.inl (~'⌊∗(a ⋓ (?'p))⌋(AnyFormula.normal q))))
+    refine Tableau.loc ?_ ?_ ltEx419b ?_
     · simp [flprep, rep]; decide
-    · simp [Sequent.basic, Sequent.closed]
-    case lt =>
-      -- (□)
-      apply LocalTableau.byLocalRule
-        { lr := LocalRule.oneSidedL (OneSidedLocalRule.box (∗a) q (by decide)) rfl
-          L := _, R := _, O := _, ress := _, preconditionProof := _ }
-      all_goals (try simp; try rfl)
-      intro Y Y_in
-      simp [unfoldBox, allTP, testsOfProgram, Bset, F, P, a] at *
-      subst Y_in
-      -- (◇)
-      apply LocalTableau.byLocalRule
-        { lr := LocalRule.loadedL _ (LoadRule.dia'
-            (by simp [Program.isAtomic] : ¬ (∗((·atA)⋓(?'p))).isAtomic)) rfl
-          L := _, R := _, O := _, ress := _, preconditionProof := _ }
-      all_goals (try simp; try rfl)
-      intro Y Y_in
-      by_cases Y = ([q, ⌈·atA⌉⌈∗·atA⌉q, ~q], [], none)
-      -- branching!
-      -- cases Y_in -- type mismatch when assigning motive, so work around that.
-        <;> simp_all [unfoldDiamondLoaded', YsetLoad', Dset, splitLast]
-      · subst_eqs
-        apply LocalTableau.byLocalRule -- left branch: close with q and ~q
-          { lr := LocalRule.oneSidedL (OneSidedLocalRule.not q) rfl
-            L := _, R := _, O := _, ress := _, preconditionProof := _ }
-        all_goals (try simp; try rfl)
-        · intro _ _; simp_all
-        · decide
-      · clear Y_in
-        apply LocalTableau.sim -- right branch: simple
-        simp [Sequent.basic, Sequent.closed]
-    case next =>
-      intro Y Y_in
-      have : Y = ([q, ⌈a⌉⌈∗a⌉q], [], some (Sum.inl (~'⌊⌊[a]⌋⌋⌊∗a⋓(?'p)⌋AnyFormula.normal q)))  := by
-        simp only [List.empty_eq, applyLocalRule.eq_1, List.diff_nil, List.nil_append,
-          List.cons_append, List.map_nil, id_eq, eq_mpr_eq_cast, endNodesOf, List.mem_flatten,
-          List.mem_map, List.mem_attach, true_and, Subtype.exists, List.diff_cons,
-          List.erase_cons_head, List.map_map, Function.comp_apply, Olf.change_old_none_none,
-          ↓existsAndEq] at *
-        rcases Y_in with ⟨a, ⟨Z, Z_in, def_a⟩, Y_in_l⟩
-        subst def_a
-        -- It seems annoying to deal with all the casting here.
-        -- Less now with lra as structure, but still tricky.
-        simp only [endNodesOf_cast_helper, endNodesOf, List.mem_flatten, List.mem_map,
-          List.mem_attach, true_and, Subtype.exists, Olf.change_some_some_eq, List.map_map,
-          Function.comp_apply, Prod.exists, ↓existsAndEq] at Y_in_l
-        rcases Y_in_l with ⟨a, ⟨Z, olf, Zolf_in, def_a⟩ , Y_in_l⟩
-        subst def_a
-        simp only [unfoldDiamondLoaded', YsetLoad', Dset, List.empty_eq, List.cons_union,
-          List.nil_union, List.mem_cons, Prod.mk.injEq, List.ne_cons_self, List.cons_ne_self,
-          and_self, List.not_mem_nil, or_self, not_false_eq_true, List.insert_of_not_mem,
-          List.map_cons, ↓reduceIte, List.cons_append, List.nil_append, List.map_nil,
-          List.flatten_cons, List.flatten_nil, List.append_nil, List.nil_eq, reduceCtorEq,
-          and_false, splitLast, loadMulti_cons, loadMulti_nil, or_false] at Zolf_in
-        cases Zolf_in
-        · aesop
-        cases olf
-        · simp_all
-        · simp_all (decide := true)
-          aesop
-      clear Y_in
-      subst this
-      -- Note: goal here shows the history in which we now find a loaded-path repeat.
+    · exact Sequent.not_basic_of_mem_L (⌈∗a⌉q) (by simp) (by simp [Formula.basic])
+    · intro Z Z_in
+      rw [show endNodesOf ltEx419b = {(({q, ⌈a⌉⌈∗a⌉q} : Finset Formula), ∅,
+          some (Sum.inl (~'⌊a⌋(AnyFormula.loaded (⌊∗(a ⋓ (?'p))⌋(AnyFormula.normal q))))))} from
+        by decide, Finset.mem_singleton] at Z_in
+      subst Z_in
+      -- Note: the history here contains the companion of the loaded-path repeat.
       apply Tableau.lrep
-      unfold LoadedPathRepeat
-      simp_all
-      use 1 -- go back two pdl steps, one of which makes two local steps
-      simp_all [Sequent.setEqTo, a]
-      constructor
-      · rfl
-      · intro m m_lt
-        cases m using Fin.cases
-        · simp_all [Sequent.isLoaded]
-        case succ m =>
-          cases m using Fin.cases
-          · simp_all [Sequent.isLoaded]
-          case succ m =>
-            simp_all
-            have := Fin.one_lt_succ_succ m
-            simp_all
-            omega
+      refine ⟨1, ?_, ?_⟩
+      · decide
+      · decide

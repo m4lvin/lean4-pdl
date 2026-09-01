@@ -63,6 +63,13 @@ lemma Sequent.map_flip_map_flip {Hist} :
     (List.map Sequent.flip (List.map Sequent.flip Hist)) = Hist := by
   induction Hist <;> simp_all
 
+/-- Flipping all sequents in a `Finset` twice gives back the same set. -/
+@[simp]
+lemma Sequent.image_flip_image_flip {S : Finset Sequent} :
+    Finset.image Sequent.flip (Finset.image Sequent.flip S) = S := by
+  rw [Finset.image_image]
+  simp [Function.comp_def]
+
 @[simp]
 lemma basic_flip {X : Sequent} : X.flip.basic ↔ X.basic := by
   rcases X with ⟨L,R,O⟩
@@ -130,27 +137,31 @@ def LocalRule.flip (lr : LocalRule (Lcond, Rcond, Ocond) ress) :
   case loadedL YS χ lrule YS_def =>
     apply LocalRule.loadedR _ lrule
     subst YS_def
-    simp [List.empty_eq, List.map_map, List.map_inj_left, Function.comp_apply, Prod.forall]
-    rintro L (_|_|_) <;> simp_all [Sequent.flip, Olf.flip]
+    rw [Finset.image_image]
+    apply Finset.image_congr
+    rintro ⟨L, (_|o)⟩ - <;> simp [Sequent.flip, Olf.flip]
   case loadedR lrule YS_def =>
     apply LocalRule.loadedL _ lrule
     subst YS_def
-    simp only [List.empty_eq, List.map_map, List.map_inj_left, Function.comp_apply, Prod.forall]
-    rintro L (_|_|_) <;> simp_all [Sequent.flip, Olf.flip]
+    rw [Finset.image_image]
+    apply Finset.image_congr
+    rintro ⟨L, (_|o)⟩ - <;> simp [Sequent.flip, Olf.flip]
 
 lemma LocalRule.flip_flip (lr : LocalRule (Lcond, Rcond, Ocond) ress) :
-    lr.flip.flip = Olf.flip_flip ▸ Sequent.map_flip_map_flip ▸ lr := by
+    lr.flip.flip = Olf.flip_flip ▸ Sequent.image_flip_image_flip ▸ lr := by
   cases lr <;> simp_all [LocalRule.flip] <;> grind
 
 /-- Note: is it possible and useful to rewrite this in more term and less tactic mode? -/
 def LocalRuleApp.flip : LocalRuleApp → LocalRuleApp := by
   rintro ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, preconditionProof⟩
-  refine @LocalRuleApp.mk R L O.flip Rcond Lcond Ocond.flip _ rule.flip (C.map Sequent.flip) ?_ ?_
+  refine @LocalRuleApp.mk R L O.flip Rcond Lcond Ocond.flip _ rule.flip
+    (C.image Sequent.flip) ?_ ?_
   · subst hC
-    simp
-    rintro ⟨Lnew, Rnew, Onew⟩ Y_in
-    simp [Sequent.flip]
-    convert rfl using 3
+    simp only [applyLocalRule]
+    rw [Finset.image_image, Finset.image_image]
+    apply Finset.image_congr
+    rintro ⟨Lnew, Rnew, Onew⟩ -
+    simp only [Function.comp_apply, Sequent.flip]
     rcases O with (_|_|_) <;> rcases Onew with (_|_|_) <;> rcases Ocond with (_|_|_)
       <;> simp [Olf.flip, Olf.change, Option.insHasSdiff] <;> grind
   · rcases preconditionProof with ⟨hL, hR, hO⟩
@@ -169,14 +180,14 @@ lemma LocalRuleApp.flip_flip {lra : LocalRuleApp} :
   rw [LocalRule.flip_flip]
   grind
 
-lemma Sequent.flip_mem_of_mem_map_flip {B : List Sequent} {Y : Sequent} :
-    Y ∈ B.map Sequent.flip → Y.flip ∈ B := by aesop
+lemma Sequent.flip_mem_of_mem_image_flip {B : Finset Sequent} {Y : Sequent} :
+    Y ∈ B.image Sequent.flip → Y.flip ∈ B := by aesop
 
 def LocalTableau.flip {X} : LocalTableau X → LocalTableau X.flip
   | (@byLocalRule X lra X_def next) => .byLocalRule lra.flip
       (by subst X_def; simp [LocalRuleApp.flip, Sequent.flip])
       (fun Y Y_in =>
-        @Sequent.flip_flip Y ▸ (next Y.flip (Sequent.flip_mem_of_mem_map_flip Y_in)).flip)
+        @Sequent.flip_flip Y ▸ (next Y.flip (Sequent.flip_mem_of_mem_image_flip Y_in)).flip)
   | (@sim X Xbas) => .sim (basic_flip.mpr Xbas)
 
 lemma LocalTableau.flip_flip {lt : LocalTableau X} : lt.flip.flip = Sequent.flip_flip ▸ lt := by
@@ -207,8 +218,8 @@ lemma endNodesOf_flip {X} {lt : LocalTableau X} {Y} :
   intro Y_in
   induction lt
   case byLocalRule B next lra IH =>
-    simp only [LocalTableau.flip, endNodesOf, List.mem_flatten, List.mem_map, List.mem_attach,
-      true_and, Subtype.exists, ↓existsAndEq] at *
+    simp only [LocalTableau.flip, endNodesOf, Finset.sup_image, Function.id_comp, Finset.mem_sup,
+      Finset.mem_attach, true_and, Subtype.exists] at *
     rcases Y_in with ⟨W, W_in_B, Y_in_end⟩
     refine ⟨W.flip, ?_, ?_⟩ <;> grind
   case sim Z Zbas =>
@@ -219,8 +230,8 @@ lemma exists_flip_of_endNodesOf {X : Sequent} {ltf : LocalTableau X.flip} {Zf} :
   intro Z_in
   cases ltf
   case byLocalRule lra next X_def =>
-    simp only [endNodesOf, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
-      Subtype.exists, ↓existsAndEq, LocalTableau.flip] at *
+    simp only [endNodesOf, Finset.sup_image, Function.id_comp, Finset.mem_sup, Finset.mem_attach,
+      true_and, Subtype.exists, LocalTableau.flip] at *
     rcases Z_in with ⟨Yf, Yf_in_B, Zf_via_Yf⟩
     refine ⟨Zf.flip, ?_, ⟨Yf.flip, ?_, ?_⟩⟩
     · simp
@@ -231,7 +242,7 @@ lemma exists_flip_of_endNodesOf {X : Sequent} {ltf : LocalTableau X.flip} {Zf} :
       rw [LocalTableau.flip_flip]
       grind
   case sim Xbas =>
-    simp_all only [endNodesOf, List.mem_cons, List.not_mem_nil, or_false, LocalTableau.flip]
+    simp_all only [endNodesOf, Finset.mem_singleton, LocalTableau.flip]
     subst_eqs
     simp
 
@@ -272,13 +283,14 @@ lemma PdlRule.flip_flip {X Y} (r : PdlRule X Y) :
     r.flip.flip = (Sequent.flip_flip ▸ Sequent.flip_flip ▸ r) := by
   cases r <;> simp [PdlRule.flip] <;> grind
 
+/-- Flipping sequents is injective. -/
 @[simp]
-lemma Sequent.flip_multisetEqTo {X Y : Sequent} :
-    X.flip.multisetEqTo Y.flip ↔ X.multisetEqTo Y := by
-  rcases X with ⟨L, R, O⟩
-  rcases Y with ⟨L, R, O⟩
-  simp only [multisetEqTo, flip, Multiset.coe_eq_coe, Olf.flip_inj]
-  grind
+lemma Sequent.flip_eq_flip_iff {X Y : Sequent} : X.flip = Y.flip ↔ X = Y := by
+  constructor
+  · intro h
+    rw [← @Sequent.flip_flip X, ← @Sequent.flip_flip Y, h]
+  · rintro rfl
+    rfl
 
 def LoadedPathRepeat.flip {Hist X} : LoadedPathRepeat Hist X →
     LoadedPathRepeat (List.map Sequent.flip Hist) X.flip
@@ -287,7 +299,7 @@ def LoadedPathRepeat.flip {Hist X} : LoadedPathRepeat Hist X →
   · simp_all [List.length_map]
   · rcases hk with ⟨same, path_loaded⟩
     constructor
-    · simp only [List.get_eq_getElem, List.getElem_map, Sequent.flip_setEqTo_flip]
+    · simp only [List.get_eq_getElem, List.getElem_map, Sequent.flip_eq_flip_iff]
       convert same
     · simp only [List.get_eq_getElem, List.getElem_map, Sequent.flip_isLoaded]
       intro m m_lt
