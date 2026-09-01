@@ -628,23 +628,29 @@ lemma combo_mem_of_forall_in {α : Type} [DecidableEq α] {q : α → Type} {L :
     specialize IH (fun y y_in => f y (by aesop))
     exact ⟨fun y y_in => g _ (by simp_all), IH _ (by grind), (by grind)⟩
 
--- TODO: make things computable again, our Finsets should have enough properties
--- use .fsort instead of .toList which is noncomputable
+/-- TODO: to make .all below computable, Finsets of Sequents should also have an order and can be
+sorted, like Finsets of formulas with .fsort instead of .toList which is noncomputable. -/
+def Finset.seqSort : Finset Sequent → List Sequent :=
+  sorry
+
+@[simp]
+lemma Finset.mem_seqSort (A : Finset Sequent) : X ∈ A.seqSort ↔ X ∈ A := by
+  sorry
 
 /-- Version of `combo` for `Finset`s. -/
-noncomputable def comboF {α : Type} [DecidableEq α] {q : α → Type} (s : Finset α)
-    (f : (x : α) → x ∈ s → List (q x)) : List ((x : α) → x ∈ s → q x) :=
-  (combo (L := s.toList) (fun x hx => f x (Finset.mem_toList.mp hx))).map
-    (fun g x hx => g x (Finset.mem_toList.mpr hx))
+def comboF {q : Sequent → Type} (s : Finset Sequent)
+    (f : (x : Sequent) → x ∈ s → List (q x)) : List ((x : Sequent) → x ∈ s → q x) :=
+  (combo (L := s.seqSort) (fun x hx => f x (by simp_all))).map
+    (fun g x hx => g x (by simp_all))
 
-lemma comboF_mem_of_forall_in {α : Type} [DecidableEq α] {q : α → Type} {s : Finset α}
-    (f : (x : α) → x ∈ s → List (q x)) (g : (x : α) → x ∈ s → q x)
+lemma comboF_mem_of_forall_in {q : Sequent → Type} {s : Finset Sequent}
+    (f : (x : Sequent) → x ∈ s → List (q x)) (g : (x : Sequent) → x ∈ s → q x)
     (h : ∀ x x_in, g x x_in ∈ f x x_in) : g ∈ comboF s f := by
   simp only [comboF, List.mem_map]
-  exact ⟨fun x hx => g x (Finset.mem_toList.mp hx),
+  exact ⟨fun x hx => g x (by simp_all),
          combo_mem_of_forall_in _ _ (fun x hx => h x _), rfl⟩
 
-noncomputable def LocalTableau.all : (X : Sequent) → List (LocalTableau X) := fun X =>
+def LocalTableau.all : (X : Sequent) → List (LocalTableau X) := fun X =>
   if bas : X.basic
   then [ .sim bas ]
   else do
@@ -702,7 +708,7 @@ lemma LocalTableau.all_spec {X} {ltX : LocalTableau X} : ltX ∈ LocalTableau.al
     case neg.sim =>
       simp_all
 
-noncomputable instance LocalTableau.fintype {X} : Fintype (LocalTableau X) := by
+instance LocalTableau.fintype {X} : Fintype (LocalTableau X) := by
   refine ⟨(LocalTableau.all X).toFinset, ?_⟩
   intro ltX
   rw [List.mem_toFinset]
@@ -710,7 +716,7 @@ noncomputable instance LocalTableau.fintype {X} : Fintype (LocalTableau X) := by
 
 /-! # Generating all Open Local Tableaux -/
 
-noncomputable def OpenLocalTableau.all (X : Sequent) : List (OpenLocalTableau X) :=
+def OpenLocalTableau.all (X : Sequent) : List (OpenLocalTableau X) :=
   ((LocalTableau.all X).filter (endNodesOf · ≠ {})).attach.map (fun ⟨lt,h⟩ => ⟨lt, by simp_all⟩)
 
 lemma OpenLocalTableau.all_spec {X : Sequent} {ltX : OpenLocalTableau X} :

@@ -87,58 +87,58 @@ def theMoves : GamePos → Finset GamePos
       match X with
       | ⟨L, R, none⟩ => -- (L+) if X is not loaded, choice of formula
             -- We want to catch a negation and all boxes (≥ 1) after it to be loaded.
-            (L.map (fun | ~φ => match boxesOf φ with
+            (L.sup (fun | ~φ => match boxesOf φ with
                             | (δ@h:(_::_), ψ) =>
-                              [ ⟨ _, _, posOf (X::H) (L.erase (~φ), R
-                                , some (Sum.inl (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by grind)⌋ψ))))⟩ ]
-                            | ([],_) => []
-                        | _ => [] )).flatten.toFinset
+                              { ⟨ _, _, posOf (X::H) (L.erase (~φ), R
+                                , some (Sum.inl (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by grind)⌋ψ))))⟩ }
+                            | ([],_) => {}
+                        | _ => {} ))
             ∪
-            (R.map (fun | ~φ => match boxesOf φ with
+            (R.sup (fun | ~φ => match boxesOf φ with
                             | (δ@h:(_::_), ψ) =>
-                              [ ⟨ _, _, posOf (X::H) (L, R.erase (~φ)
-                                , some (Sum.inr (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by grind)⌋ψ))))⟩ ]
-                            | ([],_) => []
-                        | _ => [] )).flatten.toFinset
+                              { ⟨ _, _, posOf (X::H) (L, R.erase (~φ)
+                                , some (Sum.inr (~'(⌊⌊δ.dropLast⌋⌋⌊δ.getLast (by grind)⌋ψ))))⟩ }
+                            | ([],_) => {}
+                        | _ => {} ))
       | ⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩ =>
               ( match ξ with -- (M) rule, deterministic:
-              | .normal φ => { ⟨_,_,posOf (X::H) ⟨(~φ) :: projection a L, projection a R, none⟩⟩ }
-              | .loaded χ => { ⟨_,_,posOf (X::H) ⟨ projection a L, projection a R
+              | .normal φ => { ⟨_,_,posOf (X::H) ⟨{~φ} ∪ L.projection a, R.projection a, none⟩⟩ }
+              | .loaded χ => { ⟨_,_,posOf (X::H) ⟨ L.projection a, R.projection a
                                                  , some (Sum.inl (~'χ))⟩⟩ } )
               ∪ -- (L-) rule, deterministic:
-              { ⟨_, _, posOf (X::H) (L.insert (~(⌊·a⌋ξ).unload), R, none)⟩ }
+              { ⟨_, _, posOf (X::H) (L ∪ {~(⌊·a⌋ξ).unload}, R, none)⟩ }
       | ⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩ =>
               ( match ξ with -- (M) rule, deterministic:
-              | .normal φ => { ⟨_,_,posOf (X::H) ⟨projection a L, (~φ) :: projection a R, none⟩⟩ }
-              | .loaded χ => { ⟨_,_,posOf (X::H) ⟨ projection a L, projection a R
+              | .normal φ => { ⟨_,_,posOf (X::H) ⟨L.projection a, {~φ} ∪ R.projection a, none⟩⟩ }
+              | .loaded χ => { ⟨_,_,posOf (X::H) ⟨ L.projection a, R.projection a
                                                  , some (Sum.inr (~'χ))⟩⟩ } )
               ∪ -- (L-) rule, deterministic:
-              { ⟨_, _, posOf (X::H) (L, R.insert (~(⌊·a⌋ξ).unload), none)⟩ }
+              { ⟨_, _, posOf (X::H) (L, R ∪ {~(⌊·a⌋ξ).unload}, none)⟩ }
       -- Somewhat repetitive. Is there pattern matching with "did not match before" proofs?
       | ⟨L, R, some (.inl (~'⌊α;'β⌋χ))⟩ => by
           exfalso; have := Xbasic.1 (~(⌊α;'β⌋χ).unload)
-          cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
+          cases χ <;> simp [LoadFormula.unload,Sequent.basic,Sequent.toFinset] at *
       | ⟨L, R, some (.inl (~'⌊?'τ⌋χ))⟩ => by
           exfalso; have := Xbasic.1 (~(⌊?'τ⌋χ).unload)
-          cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
+          cases χ <;> simp [LoadFormula.unload,Sequent.basic,Sequent.toFinset] at *
       | ⟨L, R, some (.inl (~'⌊α ⋓ β⌋χ))⟩ => by
           exfalso; have := Xbasic.1 (~(⌊α ⋓ β⌋χ).unload)
-          cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
+          cases χ <;> simp [LoadFormula.unload,Sequent.basic,Sequent.toFinset] at *
       | ⟨L, R, some (.inl (~'⌊∗α⌋χ))⟩ => by
           exfalso; have := Xbasic.1 (~(⌊∗α⌋χ).unload)
-          cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
+          cases χ <;> simp [LoadFormula.unload,Sequent.basic,Sequent.toFinset] at *
       | ⟨L, R, some (.inr (~'⌊α;'β⌋χ))⟩ => by
           exfalso; have := Xbasic.1 (~(⌊α;'β⌋χ).unload)
-          cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
+          cases χ <;> simp [LoadFormula.unload,Sequent.basic,Sequent.toFinset] at *
       | ⟨L, R, some (.inr (~'⌊?'τ⌋χ))⟩ => by
           exfalso; have := Xbasic.1 (~(⌊?'τ⌋χ).unload)
-          cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
+          cases χ <;> simp [LoadFormula.unload,Sequent.basic,Sequent.toFinset] at *
       | ⟨L, R, some (.inr (~'⌊α ⋓ β⌋χ))⟩ => by
           exfalso; have := Xbasic.1 (~(⌊α ⋓ β⌋χ).unload)
-          cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
+          cases χ <;> simp [LoadFormula.unload,Sequent.basic,Sequent.toFinset] at *
       | ⟨L, R, some (.inr (~'⌊∗α⌋χ))⟩ => by
           exfalso; have := Xbasic.1 (~(⌊∗α⌋χ).unload)
-          cases χ <;> simp [LoadFormula.unload,Sequent.basic] at *
+          cases χ <;> simp [LoadFormula.unload,Sequent.basic,Sequent.toFinset] at *
   | ⟨H, X, .inl (.nbas nrep nbas)⟩ =>
       -- If not basic, let prover pick any `ltab : LocalTableau X` as new position.
       LocalTableau.fintype.1.image (fun ltab => ⟨H, X, .inr (.ltab nrep nbas ltab)⟩)
@@ -146,7 +146,7 @@ def theMoves : GamePos → Finset GamePos
   | ⟨H, X, .inr (.lpr lpr)⟩ => ∅ -- no moves ⇒ Prover wins
   | ⟨H, X, .inr (.ltab _ _ ltab)⟩ =>
       -- Let Builder pick an end node of `ltab`:
-      ((endNodesOf ltab).map (fun Y => ⟨(X :: H), Y, posOf (X :: H) Y⟩)).toFinset
+      ((endNodesOf ltab).image (fun Y => ⟨(X :: H), Y, posOf (X :: H) Y⟩))
 
 set_option maxHeartbeats 2000000 in -- for simp_all timeouts
 /-- Characterization of `theMoves`. -/
@@ -169,25 +169,25 @@ lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos}
         ∨
         ( ∃ a ξ, X = ⟨L, R, some (.inl (~'⌊·a⌋ξ))⟩
           ∧ ( ( ∃ φ, ξ = .normal φ -- (M) rule, deterministic
-                ∧ next = ⟨_,_,posOf (X::H) ⟨(~φ) :: projection a L, projection a R, none⟩⟩ )
+                ∧ next = ⟨_,_,posOf (X::H) ⟨{~φ} ∪ L.projection a, R.projection a, none⟩⟩ )
               ∨
               ( ∃ χ, ξ = .loaded χ
-                ∧ next = ⟨_,_,posOf (X::H) ⟨projection a L, projection a R, some (Sum.inl (~'χ))⟩⟩ )
+                ∧ next = ⟨_,_,posOf (X::H) ⟨L.projection a, R.projection a, some (Sum.inl (~'χ))⟩⟩ )
               ∨
               ( -- (L-) rule, deterministic
-                next = ⟨_, _, posOf (X::H) (L.insert (~(⌊·a⌋ξ).unload), R, none)⟩ )
+                next = ⟨_, _, posOf (X::H) (L ∪ {~(⌊·a⌋ξ).unload}, R, none)⟩ )
             )
         )
         ∨
         ( ∃ a ξ, X = ⟨L, R, some (.inr (~'⌊·a⌋ξ))⟩
           ∧ ( ( ∃ φ, ξ = .normal φ -- (M) rule, deterministic
-                ∧ next = ⟨_,_,posOf (X::H) ⟨projection a L, (~φ) :: projection a R, none⟩⟩ )
+                ∧ next = ⟨_,_,posOf (X::H) ⟨L.projection a, {~φ} ∪ R.projection a, none⟩⟩ )
               ∨
               ( ∃ χ, ξ = .loaded χ
-                ∧ next = ⟨_,_,posOf (X::H) ⟨projection a L, projection a R, some (Sum.inr (~'χ))⟩⟩)
+                ∧ next = ⟨_,_,posOf (X::H) ⟨L.projection a, R.projection a, some (Sum.inr (~'χ))⟩⟩)
               ∨
               ( -- (L-) rule, deterministic
-                next = ⟨_, _, posOf (X::H) (L, R.insert (~(⌊·a⌋ξ).unload), none)⟩
+                next = ⟨_, _, posOf (X::H) (L, R ∪ {~(⌊·a⌋ξ).unload}, none)⟩
               )
             )
         )
@@ -420,11 +420,10 @@ lemma mem_theMoves_of_move {pos next} :
         all_goals
           absurd bas
           rintro ⟨bas, nclos⟩
-          simp only [Option.map_some, Sum.elim_inl, negUnload, LoadFormula.unload,
-            Option.toList_some, List.append_assoc, List.mem_append, List.mem_cons,
-            List.not_mem_nil, or_false, Formula.basic, decide_false, decide_true] at bas
-          specialize bas _ (Or.inr (Or.inr rfl))
-          simp at bas
+          simp only [Sequent.toFinset, Option.map_some, Sum.elim_inl, negUnload, LoadFormula.unload,
+            Option.toFinset_some, Finset.union_assoc, Finset.union_singleton, Finset.union_insert,
+            Finset.mem_insert, Finset.mem_union, Formula.basic, decide_false, decide_true,
+            forall_eq_or_imp, Bool.false_eq_true, false_and] at bas
       case cons α δs =>
         cases α
         case atom_prog a =>
@@ -438,12 +437,10 @@ lemma mem_theMoves_of_move {pos next} :
         all_goals
           absurd bas
           rintro ⟨bas, nclos⟩
-          simp only [Option.map_some, Sum.elim_inl, negUnload, unload_boxes, LoadFormula.unload,
-            Formula.boxes_cons, Option.toList_some, List.append_assoc, List.mem_append,
-            List.mem_cons, List.not_mem_nil, or_false, Formula.basic, decide_false,
-            decide_true] at bas
-          specialize bas _ (Or.inr (Or.inr rfl))
-          simp at bas
+          simp only [Sequent.toFinset, Option.map_some, Sum.elim_inl, negUnload, unload_boxes,
+            LoadFormula.unload, Formula.boxes_cons, Option.toFinset_some, Finset.union_singleton,
+            Finset.mem_insert, Finset.mem_union, Formula.basic, decide_false, decide_true,
+            forall_eq_or_imp, Bool.false_eq_true, false_and] at bas
     case some.freeR δs δ ψ =>
       right
       right -- R, this is the only change here!
@@ -458,11 +455,10 @@ lemma mem_theMoves_of_move {pos next} :
         all_goals
           absurd bas
           rintro ⟨bas, nclos⟩
-          simp only [Option.map_some, Sum.elim_inr, negUnload, LoadFormula.unload,
-            Option.toList_some, List.append_assoc, List.mem_append, List.mem_cons, List.not_mem_nil,
-            or_false, Formula.basic, decide_false, decide_true] at bas
-          specialize bas _ (Or.inr (Or.inr rfl))
-          simp at bas
+          simp only [Sequent.toFinset, Option.map_some, Sum.elim_inr, negUnload, LoadFormula.unload,
+            Option.toFinset_some, Finset.union_singleton, Finset.mem_insert, Finset.mem_union,
+            Formula.basic, decide_false, decide_true, forall_eq_or_imp, Bool.false_eq_true,
+            false_and] at bas
       case cons α δs =>
         cases α
         case atom_prog a =>
@@ -476,11 +472,11 @@ lemma mem_theMoves_of_move {pos next} :
         all_goals
           absurd bas
           rintro ⟨bas, nclos⟩
-          simp only [Option.map_some, Option.toList_some, List.append_assoc, List.mem_append,
-            List.mem_cons, List.not_mem_nil, or_false, Formula.basic, decide_false,
-            decide_true] at bas
-          specialize bas _ (Or.inr (Or.inr rfl))
-          simp at bas
+          simp only [Sequent.toFinset, Option.map_some, Sum.elim_inr, negUnload, unload_boxes,
+            LoadFormula.unload, Formula.boxes_cons, Option.toFinset_some,
+            Finset.union_singleton, Finset.mem_insert, Finset.mem_union,
+            Formula.basic, decide_false, decide_true, forall_eq_or_imp, Bool.false_eq_true,
+            false_and] at bas
     case some.modL a ξ =>
       right
       left
@@ -714,6 +710,9 @@ lemma Formula.allNegLoads_complete {nχ φ} : negUnload nχ = φ → nχ ∈ φ.
       rw [loadMulti_split]
       simp [List.take_length_add_append]
 
+/-
+NOTE: removed/disabled because we no longer do/need setEqTo
+
 /-- A list of sequents that are all FL-subsequents of the given sequent.
 The list defined here is not complete because there are infinitely many such other sequents.
 But the list is exhaustive modulo `setEqTo`, as will be shown later via the `Seqt` quotient.
@@ -723,10 +722,10 @@ def Sequent.all_subseteq_FL (Y : Sequent) : List { X : Sequent // Sequent.subset
   -- QUESTION: any way to do sublist and permutation in one go?
   -- Never mind, removed `.flatMap List.permutations` again which really should not be needed.
   -- Trying out different orders `.sublists.attach` and `.attach.sublists` here.
-  let XL  ← (FLL (Y.L ++ Y.O.L)).sublists.attach
-  let XOL ← (FLL (Y.L ++ Y.O.L)).sublists.attach
-  let XR  ← (FLL (Y.R ++ Y.O.R)).sublists.attach
-  let XOR ← (FLL (Y.R ++ Y.O.R)).sublists.attach
+  let XL  ← (FLL (Y.L.fsort ∪ Y.O.L.fsort)).sublists.attach
+  let XOL ← (FLL (Y.L.fsort ∪ Y.O.L.fsort)).sublists.attach
+  let XR  ← (FLL (Y.R.fsort ∪ Y.O.R.fsort)).sublists.attach
+  let XOR ← (FLL (Y.R.fsort ∪ Y.O.R.fsort)).sublists.attach
   -- Now we still need to generate all possible `XO : Olf` from `XOL` and `XOR`.
   let OLs : List Olf:= XOL.1.flatMap (fun φ => φ.allNegLoads.map (some ∘ Sum.inl))
   let ORs : List Olf:= XOR.1.flatMap (fun φ => φ.allNegLoads.map (some ∘ Sum.inr))
@@ -802,6 +801,7 @@ lemma Sequent.allSeqt_subseteq_FL_spec (X : Sequent) :
   simp [Sequent.allSeqt_subseteq_FL, instSetoidSequent, Quotient.eq] at *
   rcases Ys_in with ⟨Z, ⟨Z_sub_X, Z_in_all⟩, Z_equiv_Y⟩
   exact Sequent.subseteq_FL_of_setEq_left Z_equiv_Y Z_sub_X
+-/
 
 /-- Small helper function. Mathlib this? -/
 lemma exists_mem_sublists_toFinsetEq_of_Subset [DecidableEq α] {A B : List α} :
