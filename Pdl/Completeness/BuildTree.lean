@@ -35,7 +35,7 @@ inductive BuildTree : History → Sequent → Type
   -- Also, we do not add a condition to be locally consistent, because
   -- already basic implies not closed and that implies locally consistent.
 
-inductive BuildChoice : History → Sequent → List Sequent → Type
+inductive BuildChoice : History → Sequent → Finset Sequent → Type
   | pick {H X YS Y} : Y ∈ YS → BuildTree (X :: H) Y → BuildChoice H X YS
 end
 
@@ -160,9 +160,8 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
         intro lt_no_ends
         have := stillWin ⟨H, ⟨X, Sum.inr (.ltab nrep nbas lt)⟩⟩ Move.prLocTab
         have has_moves := winning_has_moves (by simp) this
-        simp only [tableauGame, Game.moves, theMoves, List.toFinset_nonempty_iff, ne_eq,
-          List.map_eq_nil_iff] at has_moves
-        exact has_moves lt_no_ends
+        simp only [tableauGame, Game.moves, theMoves, Finset.image_nonempty] at has_moves
+        simp_all
       .loc nbas someLT <| fun ltX => by
         have ne : (tableauGame.moves ⟨H, ⟨X, Sum.inr (.ltab nrep nbas ltX.1)⟩⟩).Nonempty :=
           winning_has_moves (by simp) <|
@@ -186,23 +185,25 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
           exact Y'_in
         · -- now still need to make a `Move` so we can recursively call `buildTree`.
           have Mov : Move ⟨H, X, Sum.inr (.ltab nrep nbas ltX.1)⟩ mY := by
-            simp only [Game.Pos.moves, tableauGame, theMoves, List.mem_toFinset] at mY_prop
-            simp [List.mem_map] at mY_prop
-            let oY := List.find? -- No more choice thanks to this!
+            simp only [tableauGame, Game.Pos.moves, ne_eq, theMoves, Finset.mem_image] at mY_prop
+            let oY := List.find? -- No more choice thanks to this! NEW: via `seqSort` now!?
               (fun Y => @decide (⟨_, ⟨_, posOf (X :: H) Y⟩⟩ = mY) (instDecidableEqPos _ _))
-              (endNodesOf ltX.1)
+              (endNodesOf ltX.1).seqSort
             cases oY_def : oY
             · exfalso
               have := List.find?_eq_none.mp oY_def
-              grind
+              sorry -- grind
             case some Y =>
               unfold oY at oY_def
               have def_mY := List.find?_some oY_def
               simp only [decide_eq_true_eq] at def_mY
               have Y_in := List.mem_of_find?_eq_some oY_def
+              sorry
+              /-
               have := @Move.buEnd X ltX.1 Y H nrep nbas Y_in
               rw [← def_mY]
               exact this
+              -/
           rcases mY with ⟨H', Y, newP⟩ -- Happy because this does not lose mY_def.
           have H'_def : H' = X :: H := by
             simp [Game.Pos.moves, tableauGame, Game.moves] at mY_prop
@@ -550,10 +551,10 @@ def Match.companion {X} {bt : BuildTree [] X} (m n : Match bt) : Prop :=
 
 local notation ma:arg " ♥ " mb:arg => Match.companion ma mb
 
-/-- The sequent at the companion is `setEqTo` the sequent at the repeat.
-Analogous to `nodeAt_companionOf_setEq`. -/
+/-- The sequent at the companion is the same as the sequent at the repeat.
+Analogous to `nodeAt_companionOf_setEq`. FIXME outdated comment -/
 lemma Match.companionOf_setEqTo_sequent (m : Match bt) h :
-    (m.companionOf h).btAt.2.1.setEqTo m.btAt.2.1 := by
+    (m.companionOf h).btAt.2.1 = m.btAt.2.1 := by
   unfold companionOf
   split
   next k k_lt same_and_free _ =>
@@ -583,12 +584,12 @@ We collect the sequents along such paths directly by induction on the `BuildTree
 /-- Collect pre-states in the whole BuildTree.
 The local pre-states come from paths in a local tableau,
 and PDL pre-states each consist of just a single node. -/
-def BuildTree.collect {H X} : (bt : BuildTree H X) → List (List Sequent)
-  | .loc _ _ next =>
-      (OpenLocalTableau.all X).flatMap fun lt => lt.1.pathsTo (next lt).4 ++ (next lt).6.collect
-  | .pdl _ _ next => [ [X] ] ++ (PdlRule.all X).flatMap fun ⟨Y,r⟩ => (next Y r).collect
-  | .freeRepeat _ => [ ] -- Not generating a pre-state here, go to companion instead !! ?? !!
-  | .openLeaf _ _ => [ [X] ]
+def BuildTree.collect {H X} : (bt : BuildTree H X) → Finset (List Sequent)
+  | .loc _ _ next => (OpenLocalTableau.all X).toFinset.sup
+                      fun lt => lt.1.pathsTo (next lt).4 ∪ (next lt).6.collect
+  | .pdl _ _ next => { [X] } ∪ (PdlRule.all X).toFinset.sup fun ⟨Y,r⟩ => (next Y r).collect
+  | .freeRepeat _ => { } -- Not generating a pre-state here, go to companion instead !! ?? !!
+  | .openLeaf _ _ => { [X] }
 termination_by
   bt => bt.size -- size of remaining BuildTree should go down
 decreasing_by
@@ -596,10 +597,10 @@ decreasing_by
   · exact size_lt_pdl H X _ _ next Y r
 
 lemma BuildTree.collect_nonempty (bt : BuildTree [] X) :
-    bt.collect ≠ [] := by
+    bt.collect ≠ {} := by
   cases bt
   case loc nbas someLT next =>
-    simp only [collect, ne_eq, List.flatMap_eq_nil_iff, List.append_eq_nil_iff, not_forall, not_and]
+    simp [collect, ne_eq, List.flatMap_eq_nil_iff, List.append_eq_nil_iff, not_forall, not_and]
     rcases List.exists_mem_of_ne_nil _ someLT with ⟨lt, lt_in⟩
     use lt, lt_in
     have := LocalTableau.pathsTo_ne_nil (lt := lt.1) (Y := (next lt).4) BuildChoice.frth_mem
@@ -852,10 +853,10 @@ decreasing_by
 /-- The Boolean predicate used by `Match.toPreState`: does the given list of sequents
 contain a sequent that is `setEqTo` the end of the given `Match`? -/
 def Match.fitsPreState {X} {bt : BuildTree [] X} (m : Match bt) (π : List Sequent) : Bool :=
-  π.any (fun Z => decide (m.btAt.2.1.setEqTo Z))
+  π.any (fun Z => decide (m.btAt.2.1 = Z))
 
 lemma Match.fitsPreState_iff {X} {bt : BuildTree [] X} {m : Match bt} {π : List Sequent} :
-    m.fitsPreState π ↔ ∃ Z ∈ π, m.btAt.2.1.setEqTo Z := by
+    m.fitsPreState π ↔ ∃ Z ∈ π, m.btAt.2.1 = Z := by
   simp [Match.fitsPreState]
 
 /-- Reformulation of `Match.existsPreState` using `Match.fitsPreState`. -/
@@ -1062,7 +1063,7 @@ sequent set-equal to the sequent at the node where `π` is collected, going to t
 and back gives `π` again. -/
 lemma PreState.toMatch_toPreState {X} {bt : BuildTree [] X} (π : PreState bt)
     (uniq : ∀ ρ ∈ bt.collect,
-      (∃ Z ∈ ρ, (π.val.head PreState.nonempty).setEqTo Z) → ρ = π.val) :
+      (∃ Z ∈ ρ, (π.val.head PreState.nonempty) = Z) → ρ = π.val) :
     π.toMatch.toPreState = π := by
   apply Subtype.ext
   refine uniq _ π.toMatch.toPreState.prop ?_
@@ -1077,7 +1078,7 @@ lemma PreState.toMatch_toPreState_openLeaf {X} (bas : X.basic) (noRule : PdlRule
   apply π.toMatch_toPreState
   intro ρ ρ_in _
   have π_in := π.prop
-  simp only [BuildTree.collect, List.mem_singleton] at ρ_in π_in
+  simp only [BuildTree.collect, Finset.mem_singleton] at ρ_in π_in
   rw [ρ_in, π_in]
 
 /-! ## Properties of Formula (Sets? Lists?) obtained from Pre-States -/
@@ -1089,7 +1090,7 @@ pre-state. Note that `bothSides` is used here, so this also covers formulas from
 part of a sequent. -/
 lemma PreState.mem_bothSides_getLast_of_basic {H X} {bt : BuildTree H X} {π : PreState bt}
     {φ : Formula} (φ_basic : φ.basic) (φ_in : φ ∈ π.forms) :
-    φ ∈ (π.val.getLast PreState.nonempty).bothSides := by
+    φ ∈ (π.val.getLast PreState.nonempty).toFinset := by
   rcases π with ⟨p, p_in⟩
   simp only [PreState.forms, List.mem_toFinset] at φ_in
   cases bt <;> simp [BuildTree.collect] at p_in <;> rename_i p_in_old
@@ -1157,8 +1158,7 @@ lemma PreState.freeUnfoldDiaMem_of_nonAtom {H X} {bt : BuildTree H X} {π : PreS
     -- A pre-state coming from a `.pdl` step is basic, so α would have to be atomic.
     rcases p_in with p_def | ⟨Y, r, in_rule, p_in_next⟩
     · subst p_def
-      simp only [List.map_cons, List.map_nil, List.flatten_cons, List.flatten_nil,
-        List.append_nil] at in_forms
+      simp only [Function.const_apply, Function.comp_apply, List.mem_flatten] at in_forms
       exact absurd (Sequent.isAtomic_of_basic_of_negBox_mem_wForms bas in_forms) α_notAtom
     · have IH := @PreState.freeUnfoldDiaMem_of_nonAtom _ _ (next Y r) ⟨p, p_in_next⟩ α φ α_notAtom
       simp only [PreState.wForms, List.mem_toFinset] at IH
