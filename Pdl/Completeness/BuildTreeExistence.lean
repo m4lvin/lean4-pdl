@@ -200,14 +200,9 @@ lemma PreState.loadedDiamondExistence {X} {bt : BuildTree [] X} {α : Program} {
 To load a free diamond `~⌌·a⌍chi` with the rule `(L+)` we first have to make the sequent free
 using `(L-)`, and on the way we may have to go to the companion of a free repeat. -/
 
-/-- Set-equal sequents have the same loaded formula. -/
-lemma Sequent.O_eq_of_setEqTo {Z Z' : Sequent} (h : Z.setEqTo Z') : Z.O = Z'.O := by
-  rcases Z with ⟨L, R, O⟩
-  rcases Z' with ⟨L', R', O'⟩
-  exact h.2.2
-
-/-- A sequent with fewer formulas on the two sides is not closed either. -/
-lemma Sequent.not_closed_of_sub {L R L' R' : List Formula} {O O' : Olf}
+/-- A sequent with fewer formulas on the two sides is not closed either.
+(This is a general statement about sequents and would fit well in `Pdl/Sequent.lean`.) -/
+lemma Sequent.not_closed_of_sub {L R L' R' : Finset Formula} {O O' : Olf}
     (hL : ∀ f ∈ L', f ∈ L) (hR : ∀ f ∈ R', f ∈ R) (h : ¬ Sequent.closed ⟨L, R, O⟩) :
     ¬ Sequent.closed ⟨L', R', O'⟩ := by
   simp only [Sequent.closed, instMembershipFormulaSequent, Sequent.L_eq, Sequent.R_eq] at h ⊢
@@ -216,30 +211,32 @@ lemma Sequent.not_closed_of_sub {L R L' R' : List Formula} {O O' : Olf}
 /-- Applying the rule `(L-)` to free the loaded formula: all formulas we had are kept. -/
 lemma PdlRule.exists_freeStep {Z : Sequent} (hZ : Z.O ≠ none) :
     ∃ Y : Sequent, Nonempty (PdlRule Z Y) ∧ Y.O = none
-      ∧ (∀ f ∈ Z.bothSides, f ∈ Y.bothSides) := by
+      ∧ (∀ f ∈ Z.toFinset, f ∈ Y.toFinset) := by
   rcases Z with ⟨L, R, O⟩
   rcases O with _ | (⟨⟨χ⟩⟩ | ⟨⟨χ⟩⟩)
   · exact absurd rfl hZ
   · obtain ⟨δ, α, φ, rfl⟩ := LoadFormula.exists_loadMulti χ
-    refine ⟨⟨L.insert (~⌈⌈δ⌉⌉⌈α⌉φ), R, none⟩, ⟨PdlRule.freeL rfl rfl⟩, rfl, ?_⟩
+    refine ⟨⟨L ∪ {~⌈⌈δ⌉⌉⌈α⌉φ}, R, none⟩, ⟨PdlRule.freeL rfl rfl⟩, rfl, ?_⟩
     intro f hf
-    simp only [Sequent.bothSides_eq, Olf.L, Olf.R, unload_loadMulti, List.append_nil,
-      List.mem_append, List.mem_cons, List.not_mem_nil, or_false, List.mem_insert_iff] at hf ⊢
+    simp only [Sequent.toFinset, unload_loadMulti, negUnload, Finset.mem_union,
+      Option.mem_toFinset, Option.map_some, Option.mem_def, Option.some.injEq, Sum.elim_inl,
+      Finset.mem_singleton] at hf ⊢
     tauto
   · obtain ⟨δ, α, φ, rfl⟩ := LoadFormula.exists_loadMulti χ
-    refine ⟨⟨L, R.insert (~⌈⌈δ⌉⌉⌈α⌉φ), none⟩, ⟨PdlRule.freeR rfl rfl⟩, rfl, ?_⟩
+    refine ⟨⟨L, R ∪ {~⌈⌈δ⌉⌉⌈α⌉φ}, none⟩, ⟨PdlRule.freeR rfl rfl⟩, rfl, ?_⟩
     intro f hf
-    simp only [Sequent.bothSides_eq, Olf.L, Olf.R, unload_loadMulti, List.append_nil,
-      List.mem_append, List.mem_cons, List.not_mem_nil, or_false, List.mem_insert_iff] at hf ⊢
+    simp only [Sequent.toFinset, unload_loadMulti, negUnload, Finset.mem_union,
+      Option.mem_toFinset, Option.map_some, Option.mem_def, Option.some.injEq, Sum.elim_inr,
+      Finset.mem_singleton] at hf ⊢
     tauto
 
 /-- Applying the rule `(L+)` to load a free diamond `~⌌·a⌍chi` maximally, using `boxesOf`. -/
-lemma PdlRule.exists_loadStep {L R : List Formula} {a : Nat} {χ : Formula}
-    (bas : Sequent.basic ⟨L, R, none⟩) (hmem : (~⌈·a⌉χ) ∈ L ++ R) :
+lemma PdlRule.exists_loadStep {L R : Finset Formula} {a : Nat} {χ : Formula}
+    (bas : Sequent.basic ⟨L, R, none⟩) (hmem : (~⌈·a⌉χ) ∈ L ∪ R) :
     ∃ Y : Sequent, Nonempty (PdlRule ⟨L, R, none⟩ Y) ∧ Y.basic
       ∧ NegLoadFormula.mem_Sequent Y
           (~'⌊·a⌋(AnyFormula.loadBoxes (boxesOf χ).1 (boxesOf χ).2))
-      ∧ (∀ g, g ≠ (~⌈·a⌉χ) → g ∈ L ++ R → g ∈ Y.L ++ Y.R) := by
+      ∧ (∀ g, g ≠ (~⌈·a⌉χ) → g ∈ L ∪ R → g ∈ Y.L ∪ Y.R) := by
   set γs := (boxesOf χ).1 with hγs
   set ψ := (boxesOf χ).2 with hψ
   have hχ : χ = ⌈⌈γs⌉⌉ψ := def_of_boxesOf_def rfl
@@ -257,65 +254,65 @@ lemma PdlRule.exists_loadStep {L R : List Formula} {a : Nat} {χ : Formula}
   have hload' : (⌊⌊δ⌋⌋⌊α⌋ψ) = (⌊·a⌋(AnyFormula.loadBoxes γs ψ)) := by
     simpa using hload
   have hnonBox : ¬ ψ.isBox := boxesOf_output_not_isBox
-  have hbasic : ∀ f ∈ L ++ R, f.basic := by
+  have hbasic : ∀ f ∈ L ∪ R, f.basic := by
     intro f hf
-    exact bas.1 f (by simp only [List.append_assoc, List.mem_append] at hf ⊢; tauto)
-  rcases List.mem_append.mp hmem with hin | hin
+    exact bas.1 f (by simp only [Sequent.toFinset, Option.map_none, Option.toFinset_none,
+      Finset.union_empty]; exact hf)
+  have hunload_basic : (~ (⌊⌊δ⌋⌋⌊α⌋ψ).unload).basic := by
+    rw [hload', AnyFormulaBoxBoxes_eq_FormulaBoxLoadBoxes_inside_unload,
+      AnyFormula.loadBoxes_unload_eq_boxes, ← hχ]
+    exact hbasic _ hmem
+  rcases Finset.mem_union.mp hmem with hin | hin
   · refine ⟨⟨L.erase (~⌈·a⌉χ), R, some (Sum.inl (~'(⌊⌊δ⌋⌋⌊α⌋ψ)))⟩,
       ⟨PdlRule.loadL (hform ▸ hin) hnonBox (by rw [hform]) ⟩, ?_, ?_, ?_⟩
     · constructor
       · intro f hf
-        simp only [List.append_assoc, List.mem_append, Option.map_some, Option.toList_some,
-          List.mem_singleton, Sum.elim_inl, negUnload] at hf
-        rcases hf with hf | hf | hf
-        · exact hbasic f (by simp [List.mem_of_mem_erase hf])
+        simp only [Sequent.toFinset, Finset.mem_union, Option.mem_toFinset, Option.map_some,
+          Option.mem_def, Option.some.injEq, Sum.elim_inl, negUnload] at hf
+        rcases hf with (hf | hf) | hf
+        · exact hbasic f (by simp [Finset.mem_of_mem_erase hf])
         · exact hbasic f (by simp [hf])
         · subst hf
-          rw [hload', AnyFormulaBoxBoxes_eq_FormulaBoxLoadBoxes_inside_unload,
-            AnyFormula.loadBoxes_unload_eq_boxes, ← hχ]
-          rfl
-      · exact Sequent.not_closed_of_sub (fun f hf => List.mem_of_mem_erase hf)
+          exact hunload_basic
+      · exact Sequent.not_closed_of_sub (fun f hf => Finset.mem_of_mem_erase hf)
           (fun f hf => hf) bas.2
-    · simp [NegLoadFormula.mem_Sequent, Sequent.O_eq, hload']
+    · simp [hload']
     · intro g hg hgin
-      simp only [Sequent.L_eq, Sequent.R_eq, List.mem_append] at *
+      simp only [Sequent.L_eq, Sequent.R_eq, Finset.mem_union] at *
       rcases hgin with hgin | hgin
-      · exact Or.inl (List.mem_erase_of_ne hg |>.mpr hgin)
+      · exact Or.inl (Finset.mem_erase.mpr ⟨hg, hgin⟩)
       · exact Or.inr hgin
   · refine ⟨⟨L, R.erase (~⌈·a⌉χ), some (Sum.inr (~'(⌊⌊δ⌋⌋⌊α⌋ψ)))⟩,
       ⟨PdlRule.loadR (hform ▸ hin) hnonBox (by rw [hform])⟩, ?_, ?_, ?_⟩
     · constructor
       · intro f hf
-        simp only [List.append_assoc, List.mem_append, Option.map_some, Option.toList_some,
-          List.mem_singleton, Sum.elim_inr, negUnload] at hf
-        rcases hf with hf | hf | hf
+        simp only [Sequent.toFinset, Finset.mem_union, Option.mem_toFinset, Option.map_some,
+          Option.mem_def, Option.some.injEq, Sum.elim_inr, negUnload] at hf
+        rcases hf with (hf | hf) | hf
         · exact hbasic f (by simp [hf])
-        · exact hbasic f (by simp [List.mem_of_mem_erase hf])
+        · exact hbasic f (by simp [Finset.mem_of_mem_erase hf])
         · subst hf
-          rw [hload', AnyFormulaBoxBoxes_eq_FormulaBoxLoadBoxes_inside_unload,
-            AnyFormula.loadBoxes_unload_eq_boxes, ← hχ]
-          rfl
+          exact hunload_basic
       · exact Sequent.not_closed_of_sub (fun f hf => hf)
-          (fun f hf => List.mem_of_mem_erase hf) bas.2
-    · simp [NegLoadFormula.mem_Sequent, Sequent.O_eq, hload']
+          (fun f hf => Finset.mem_of_mem_erase hf) bas.2
+    · simp [hload']
     · intro g hg hgin
-      simp only [Sequent.L_eq, Sequent.R_eq, List.mem_append] at *
+      simp only [Sequent.L_eq, Sequent.R_eq, Finset.mem_union] at *
       rcases hgin with hgin | hgin
       · exact Or.inl hgin
-      · exact Or.inr (List.mem_erase_of_ne hg |>.mpr hgin)
+      · exact Or.inr (Finset.mem_erase.mpr ⟨hg, hgin⟩)
 
 /-- Getting to a `Match` at a *free* and *basic* sequent that is not a free repeat, keeping
 all basic formulas we had. Preparation for the `(L+)` rule in Lemma 6.19. -/
 lemma Match.exists_free_basic {X} {bt : BuildTree [] X} (m : Match bt) (bas : m.endSeq.basic) :
     ∃ m' : Match bt, m'.endSeq.basic ∧ m'.endSeq.O = none
       ∧ ¬ m'.btAt.2.2.isFreeRepeat
-      ∧ (∀ f, f.basic → f ∈ m.endSeq.bothSides → f ∈ m'.endSeq.bothSides) := by
+      ∧ (∀ f, f.basic → f ∈ m.endSeq.toFinset → f ∈ m'.endSeq.toFinset) := by
   obtain ⟨m0, hset0, nfr0⟩ := m.exists_setEqTo_not_freeRepeat
-  have bas0 : m0.endSeq.basic := (Sequent.basic_iff_of_setEqTo hset0).mpr bas
-  have hsub0 : ∀ f ∈ m.endSeq.bothSides, f ∈ m0.endSeq.bothSides := by
+  have bas0 : m0.endSeq.basic := by rw [hset0]; exact bas
+  have hsub0 : ∀ f ∈ m.endSeq.toFinset, f ∈ m0.endSeq.toFinset := by
     intro f hf
-    have heq := Sequent.bothSides_toFinset_eq_of_setEqTo hset0
-    rw [← List.mem_toFinset, heq, List.mem_toFinset]
+    rw [hset0]
     exact hf
   by_cases hO : m0.endSeq.O = none
   · exact ⟨m0, bas0, hO, nfr0, fun f _ hf => hsub0 f hf⟩
@@ -323,18 +320,16 @@ lemma Match.exists_free_basic {X} {bt : BuildTree [] X} (m : Match bt) (bas : m.
     obtain ⟨m1, hm1eq, _⟩ := m0.exists_step bas0 nfr0 r
     obtain ⟨m2, hset2, nfr2⟩ := m1.exists_setEqTo_not_freeRepeat
     obtain ⟨ρ, hhead, m3, hm3⟩ := m2.exists_preState_head_of_not_freeRepeat nfr2
-    have hsub2 : ∀ f ∈ m0.endSeq.bothSides, f ∈ m2.endSeq.bothSides := by
+    have hsub2 : ∀ f ∈ m0.endSeq.toFinset, f ∈ m2.endSeq.toFinset := by
       intro f hf
-      have heq := Sequent.bothSides_toFinset_eq_of_setEqTo hset2
-      rw [← List.mem_toFinset, heq, List.mem_toFinset, hm1eq]
+      rw [hset2, hm1eq]
       exact hYsub f hf
-    have h2free : m2.endSeq.O = none := by
-      rw [Sequent.O_eq_of_setEqTo hset2, hm1eq]; exact hYO
+    have h2free : m2.endSeq.O = none := by rw [hset2, hm1eq]; exact hYO
     have h3bas : m3.endSeq.basic := by rw [hm3]; exact PreState.forms_last_basic
     have h3free : m3.endSeq.O = none := by
       rw [hm3]
       exact ρ.O_getLast_eq_none (by rw [hhead]; exact h2free)
-    have h3keep : ∀ f, f.basic → f ∈ m2.endSeq.bothSides → f ∈ m3.endSeq.bothSides := by
+    have h3keep : ∀ f, f.basic → f ∈ m2.endSeq.toFinset → f ∈ m3.endSeq.toFinset := by
       intro f hfb hf
       rw [hm3]
       refine PreState.mem_bothSides_getLast_of_basic hfb ?_
@@ -342,11 +337,10 @@ lemma Match.exists_free_basic {X} {bt : BuildTree [] X} (m : Match bt) (bas : m.
       rw [← hhead]
       exact List.head_mem _
     obtain ⟨m4, hset4, nfr4⟩ := m3.exists_setEqTo_not_freeRepeat
-    refine ⟨m4, (Sequent.basic_iff_of_setEqTo hset4).mpr h3bas, ?_, nfr4, ?_⟩
-    · rw [Sequent.O_eq_of_setEqTo hset4]; exact h3free
+    refine ⟨m4, by rw [hset4]; exact h3bas, ?_, nfr4, ?_⟩
+    · rw [hset4]; exact h3free
     · intro f hfb hf
-      have heq := Sequent.bothSides_toFinset_eq_of_setEqTo hset4
-      rw [← List.mem_toFinset, heq, List.mem_toFinset]
+      rw [hset4]
       exact h3keep f hfb (hsub2 f (hsub0 f hf))
 
 /-- The modal step at the end of a `Match`, landing in a pre-state:
@@ -355,15 +349,13 @@ and all `a`-successors of the boxes we had. -/
 lemma Match.modalStepToPreState {X} {bt : BuildTree [] X} (m : Match bt) (bas : m.endSeq.basic)
     {a : Nat} {ξ : AnyFormula} (hload : NegLoadFormula.mem_Sequent m.endSeq (~'⌊·a⌋ξ)) :
     ∃ ρ : PreState bt, ρ.hasAnf (~''ξ)
-      ∧ ∀ f, (⌈·a⌉f) ∈ m.endSeq.L ++ m.endSeq.R → f ∈ ρ.forms := by
+      ∧ ∀ f, (⌈·a⌉f) ∈ m.endSeq.L ∪ m.endSeq.R → f ∈ ρ.forms := by
   obtain ⟨m', _, hanf, hproj, _⟩ := m.atomicLoadedStep bas hload
   obtain ⟨ρ, Z, hZmem, hZset, _⟩ := m'.exists_preState_setEqTo
-  refine ⟨ρ, ⟨Z, hZmem,
-    AnyNegFormula.mem_Sequent_of_setEqTo ((Sequent.setEqTo_symm _ _).mp hZset) hanf⟩, ?_⟩
+  refine ⟨ρ, ⟨Z, hZmem, by rw [hZset]; exact hanf⟩, ?_⟩
   intro f hf
   refine PreState.mem_forms_of_mem hZmem ?_
-  have heq := Sequent.bothSides_toFinset_eq_of_setEqTo hZset
-  rw [← List.mem_toFinset, heq, List.mem_toFinset]
+  rw [hZset]
   exact hproj f hf
 
 /-- Lemma 6.19: If a free diamond `~⌈·a⌉χ` with an atomic program occurs in the pre-state
@@ -374,25 +366,25 @@ lemma PreState.freeAtomicStep {X} {bt : BuildTree [] X} (π : PreState bt) {a : 
       ∧ ρ.hasAnf (~''(AnyFormula.loadBoxes (boxesOf χ).1 (boxesOf χ).2)) := by
   obtain ⟨mπ, hmπ⟩ := π.exists_match_endSeq_eq_last
   have bas : mπ.endSeq.basic := by rw [hmπ]; exact PreState.forms_last_basic
-  have hkeepπ : ∀ f : Formula, f.basic → f ∈ π.forms → f ∈ mπ.endSeq.bothSides := by
+  have hkeepπ : ∀ f : Formula, f.basic → f ∈ π.forms → f ∈ mπ.endSeq.toFinset := by
     intro f hfb hf
     rw [hmπ]
     exact PreState.mem_bothSides_getLast_of_basic hfb hf
   obtain ⟨m1, bas1, hfree1, nfr1, hkeep1⟩ := mπ.exists_free_basic bas
-  have hLR : ∀ f, f ∈ m1.endSeq.bothSides → f ∈ m1.endSeq.L ++ m1.endSeq.R := by
+  have hLR : ∀ f, f ∈ m1.endSeq.toFinset → f ∈ m1.endSeq.L ∪ m1.endSeq.R := by
     intro f hf
     rcases hE : m1.endSeq with ⟨L, R, O⟩
     rw [hE] at hf hfree1
     simp only [Sequent.O_eq] at hfree1
     subst hfree1
-    simpa [Sequent.bothSides_eq, Olf.L, Olf.R] using hf
+    simpa [Sequent.toFinset] using hf
   have hdiaπ : (~⌈·a⌉χ) ∈ π.forms := PreState.mem_forms_of_mem_wForms h
-  have hdia : (~⌈·a⌉χ) ∈ m1.endSeq.L ++ m1.endSeq.R :=
+  have hdia : (~⌈·a⌉χ) ∈ m1.endSeq.L ∪ m1.endSeq.R :=
     hLR _ (hkeep1 _ (by simp [Formula.basic]) (hkeepπ _ (by simp [Formula.basic]) hdiaπ))
   obtain ⟨Y, ⟨r⟩, basY, hloadY, hboxY⟩ : ∃ Y : Sequent, Nonempty (PdlRule m1.endSeq Y) ∧ Y.basic
       ∧ NegLoadFormula.mem_Sequent Y
           (~'⌊·a⌋(AnyFormula.loadBoxes (boxesOf χ).1 (boxesOf χ).2))
-      ∧ (∀ g, g ≠ (~⌈·a⌉χ) → g ∈ m1.endSeq.L ++ m1.endSeq.R → g ∈ Y.L ++ Y.R) := by
+      ∧ (∀ g, g ≠ (~⌈·a⌉χ) → g ∈ m1.endSeq.L ∪ m1.endSeq.R → g ∈ Y.L ∪ Y.R) := by
     rcases hE : m1.endSeq with ⟨L, R, O⟩
     rw [hE] at bas1 hfree1 hdia
     simp only [Sequent.O_eq] at hfree1
@@ -404,12 +396,10 @@ lemma PreState.freeAtomicStep {X} {bt : BuildTree [] X} (π : PreState bt) {a : 
     m2.modalStepToPreState (by rw [hm2eq]; exact basY) (by rw [hm2eq]; exact hloadY)
   refine ⟨ρ, ⟨χ, hdiaπ, ?_⟩, hanf⟩
   intro f hf
-  simp only [PreState.toW_val, List.mem_toFinset, Finset.mem_union, Finset.mem_singleton] at hf
+  simp only [PreState.toW_val, Finset.mem_union, Finset.mem_singleton] at hf
   rcases hf with hf | rfl
-  · have hboxπ : (⌈·a⌉f) ∈ π.forms := by
-      rw [proj] at hf
-      simpa using hf
-    have hbox1 : (⌈·a⌉f) ∈ m1.endSeq.L ++ m1.endSeq.R :=
+  · have hboxπ : (⌈·a⌉f) ∈ π.forms := Finset.mem_projection.mp hf
+    have hbox1 : (⌈·a⌉f) ∈ m1.endSeq.L ∪ m1.endSeq.R :=
       hLR _ (hkeep1 _ (by simp [Formula.basic]) (hkeepπ _ (by simp [Formula.basic]) hboxπ))
     exact hproj f (by rw [hm2eq]; exact hboxY _ (by simp) hbox1)
   · have hunl := PreState.mem_forms_of_hasAnf hanf
