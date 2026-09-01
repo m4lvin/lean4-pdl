@@ -35,14 +35,56 @@ inductive OneSidedLocalRule : Finset Formula → Finset (Finset Formula) → Typ
   | dia (α φ) : (notAtom : ¬ α.isAtomic) → OneSidedLocalRule {~⌈α⌉φ} (unfoldDiamond α φ).toFinFin
   deriving Repr
 
-instance : DecidableEq (OneSidedLocalRule X B) :=
-  sorry
+-- FIXME move to Pdl.Syntax
+/-- No formula is its own double negation. -/
+lemma Formula.ne_neg_neg_self (φ : Formula) : φ ≠ ~~φ := by
+  intro h; have := congrArg lengthOfFormula h; simp at this; omega
+
+-- FIXME move to Pdl.Syntax
+/-- A pair `{φ, ~φ}` is never a singleton. -/
+lemma pair_neg_ne_singleton (φ ψ : Formula) : ({φ, ~φ} : Finset Formula) ≠ {ψ} := by
+  intro h
+  have h1 : φ ∈ ({ψ} : Finset Formula) := h ▸ (by simp)
+  have h2 : (~φ) ∈ ({ψ} : Finset Formula) := h ▸ (by simp)
+  simp only [Finset.mem_singleton] at h1 h2
+  exact Formula.neq_neg_self φ (h1.trans h2.symm)
+
+-- FIXME move to Pdl.Syntax
+/-- The pairs `{φ, ~φ}` determine `φ`. -/
+lemma pair_neg_inj {φ ψ : Formula} (h : ({φ, ~φ} : Finset Formula) = {ψ, ~ψ}) : φ = ψ := by
+  have h1 : φ ∈ ({ψ, ~ψ} : Finset Formula) := h ▸ (by simp)
+  have h2 : (~φ) ∈ ({ψ, ~ψ} : Finset Formula) := h ▸ (by simp)
+  simp only [Finset.mem_insert, Finset.mem_singleton] at h1 h2
+  rcases h1 with h1 | h1
+  · exact h1
+  · rcases h2 with h2 | h2
+    · exact absurd (h2.symm.trans (congrArg Formula.neg h1)) (Formula.ne_neg_neg_self ψ)
+    · exact Formula.neg.inj h2
+
+/-- The precondition of a `OneSidedLocalRule` determines the rule. -/
+theorem OneSidedLocalRule.heq_of_precond_eq : ∀ {X B X' B' : _}
+    (a : OneSidedLocalRule X B) (b : OneSidedLocalRule X' B'), X = X' → HEq a b := by
+  intro X B X' B' a b h
+  cases a <;> cases b <;>
+    first
+      | rfl
+      | exact absurd h (pair_neg_ne_singleton _ _)
+      | exact absurd h.symm (pair_neg_ne_singleton _ _)
+      | (cases pair_neg_inj h; rfl)
+      | (exfalso; simp_all; done)
+      | (rw [Finset.singleton_inj] at h; injections; subst_eqs; rfl)
+
+instance oneSidedLocalRuleSubsingleton (X B) : Subsingleton (OneSidedLocalRule X B) :=
+  ⟨fun a b => eq_of_heq (OneSidedLocalRule.heq_of_precond_eq a b rfl)⟩
+
+instance : DecidableEq (OneSidedLocalRule X B) := fun a b => isTrue (Subsingleton.elim a b)
 
 -- FIXME move
 /-- evaluate does not care about sorting -/
 lemma evaluate_con_sort (X : Finset Formula) :
     evaluate M w (con (X.sort fun a b ↦ a ≤ b)) ↔ ∀ φ ∈ X, evaluate M w φ := by
-  sorry
+  rw [conEval]
+  simp
 
 theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) :
       con X.sort ≡ B.discon :=
@@ -95,17 +137,36 @@ inductive LoadRule : NegLoadFormula → Finset (Finset Formula × Option NegLoad
                 → LoadRule (~'⌊α⌋(φ : Formula    )) (unfoldDiamondLoaded' α φ).toFinFinOpt
   deriving DecidableEq, Repr
 
+-- FIXME move to a general list/finset file
+/-- Turning a mapped list into a `Finset` is the image of the `Finset`. -/
+lemma List.toFinset_map_eq_image {α β} [DecidableEq α] [DecidableEq β] (l : List α) (f : α → β) :
+    (l.map f).toFinset = l.toFinset.image f := by
+  ext x; simp
+
+/-- Unloading a pair and then going to `Finset`s is the same as `pairUnloadSet`. -/
+lemma toFinset_pairUnload (p : List Formula × Option NegLoadFormula) :
+    (pairUnload p).toFinset = pairUnloadSet (p.1.toFinset, p.2) := by
+  rcases p with ⟨L, _ | nlf⟩ <;> simp [pairUnload, pairUnloadSet]
+
 lemma unfoldDiamondLoaded_eqFin α χ :
     (unfoldDiamond α χ.unload).toFinFin
     = (Finset.image pairUnloadSet (unfoldDiamondLoaded α χ).toFinFinOpt) := by
-  have := unfoldDiamondLoaded_eq α χ
-  sorry
+  rw [← unfoldDiamondLoaded_eq α χ]
+  simp only [List.toFinFin, List.toFinFinOpt, List.toFinset_map_eq_image, List.map_map,
+    Finset.image_image]
+  congr 1
+  funext p
+  exact toFinset_pairUnload p
 
 lemma unfoldDiamondLoaded'_eqFin α φ :
     (unfoldDiamond α φ).toFinFin
-    = (Finset.image pairUnloadSet (unfoldDiamondLoaded' α φ).toFinFinOpt) :=by
-  have := unfoldDiamondLoaded'_eq α φ
-  sorry
+    = (Finset.image pairUnloadSet (unfoldDiamondLoaded' α φ).toFinFinOpt) := by
+  rw [← unfoldDiamondLoaded'_eq α φ]
+  simp only [List.toFinFin, List.toFinFinOpt, List.toFinset_map_eq_image, List.map_map,
+    Finset.image_image]
+  congr 1
+  funext p
+  exact toFinset_pairUnload p
 
 /-- Given a LoadRule application, define the equivalent unloaded rule application.
 This allows re-using `oneSidedLocalRuleTruth` to prove `loadRuleTruth`. -/
@@ -124,8 +185,13 @@ theorem loadRuleTruth (lr : LoadRule (~'χ) B) :
   simp only [evaluate, disEval]
   rw [this]
   clear this
-  sorry
-  /-
+  simp only [Finset.mem_sort, Finset.mem_image, Function.comp_apply]
+  constructor
+  · rintro ⟨a, b, hab, h⟩
+    exact ⟨_, ⟨(a, b), hab, rfl⟩, (evaluate_con_sort _).2 h⟩
+  · rintro ⟨f, ⟨p, hp, rfl⟩, hf⟩
+    exact ⟨p.1, p.2, hp, (evaluate_con_sort _).1 hf⟩
+  /- Old proof, before the refactoring to `Finset`:
   simp only [Prod.exists]
   constructor
   · rintro ⟨Y, ⟨a, ⟨b, ab_in_B, def_Y⟩⟩, w_Y⟩
@@ -170,7 +236,116 @@ inductive LocalRule : Sequent → Finset Sequent → Type
       : LocalRule (∅, ∅, some (Sum.inr (~'χ))) YS
   deriving Repr
 
-instance : DecidableEq (LocalRule X YS) := sorry
+/-- The loaded formula determines the `LoadRule`. -/
+theorem LoadRule.heq_of_index_eq : ∀ {χ χ' B B'}
+    (a : LoadRule χ B) (b : LoadRule χ' B'), χ = χ' → HEq a b := by
+  intro χ χ' B B' a b h
+  cases a <;> cases b <;> injections <;> subst_eqs <;> rfl
+
+instance loadRuleSubsingleton (χ B) : Subsingleton (LoadRule χ B) :=
+  ⟨fun a b => eq_of_heq (LoadRule.heq_of_index_eq a b rfl)⟩
+
+set_option maxHeartbeats 1000000 in
+-- many cases to consider
+/-- The source and the results determine a `LocalRule`. -/
+theorem LocalRule.heq_of_index_eq : ∀ {X X' YS YS'}
+    (a : LocalRule X YS) (b : LocalRule X' YS'), X = X' → YS = YS' → HEq a b := by
+  intro X X' YS YS' a b hX hYS
+  cases a <;> cases b <;>
+    (have hL := congrArg Sequent.L hX
+     have hR := congrArg Sequent.R hX
+     have hO := congrArg Sequent.O hX
+     simp only [Sequent.L_eq, Sequent.R_eq, Sequent.O_eq] at hL hR hO
+     clear hX)
+  case oneSidedL.oneSidedL precond ress orule YS_def precond' ress' orule' YS_def' =>
+    subst YS_def; subst YS_def'
+    have hress : ress = ress' := by
+      refine Finset.image_injective ?_ hYS
+      intro A A' hab
+      simpa [Sequent.L_eq] using congrArg Sequent.L hab
+    subst hress; subst hL
+    have : orule = orule' := Subsingleton.elim _ _
+    subst this; rfl
+  case oneSidedL.oneSidedR precond ress orule YS_def precond' ress' orule' YS_def' =>
+    exact absurd hL orule.precond_ne_nil
+  case oneSidedL.LRnegL => simp at hR
+  case oneSidedL.LRnegR => simp at hR
+  case oneSidedL.loadedL => simp at hO
+  case oneSidedL.loadedR => simp at hO
+  case oneSidedR.oneSidedL precond ress orule YS_def precond' ress' orule' YS_def' =>
+    exact absurd hR orule.precond_ne_nil
+  case oneSidedR.oneSidedR precond ress orule YS_def precond' ress' orule' YS_def' =>
+    subst YS_def; subst YS_def'
+    have hress : ress = ress' := by
+      refine Finset.image_injective ?_ hYS
+      intro A A' hab
+      simpa [Sequent.R_eq] using congrArg Sequent.R hab
+    subst hress; subst hR
+    have : orule = orule' := Subsingleton.elim _ _
+    subst this; rfl
+  case oneSidedR.LRnegL => simp at hL
+  case oneSidedR.LRnegR => simp at hL
+  case oneSidedR.loadedL => simp at hO
+  case oneSidedR.loadedR => simp at hO
+  case LRnegL.oneSidedL => simp at hR
+  case LRnegL.oneSidedR => simp at hL
+  case LRnegL.LRnegL => rw [Finset.singleton_inj] at hL; subst hL; rfl
+  case LRnegL.LRnegR ϕ ϕ' =>
+    rw [Finset.singleton_inj] at hL hR
+    exact absurd (hL.trans (congrArg Formula.neg hR.symm)) (Formula.ne_neg_neg_self ϕ)
+  case LRnegL.loadedL => simp at hO
+  case LRnegL.loadedR => simp at hO
+  case LRnegR.oneSidedL => simp at hR
+  case LRnegR.oneSidedR => simp at hL
+  case LRnegR.LRnegL ϕ ϕ' =>
+    rw [Finset.singleton_inj] at hL hR
+    exact absurd (hR.trans (congrArg Formula.neg hL.symm)) (Formula.ne_neg_neg_self ϕ)
+  case LRnegR.LRnegR => rw [Finset.singleton_inj] at hR; subst hR; rfl
+  case LRnegR.loadedL => simp at hO
+  case LRnegR.loadedR => simp at hO
+  case loadedL.oneSidedL => simp at hO
+  case loadedL.oneSidedR => simp at hO
+  case loadedL.LRnegL => simp at hO
+  case loadedL.LRnegR => simp at hO
+  case loadedL.loadedL ress χ lrule YS_def ress' χ' lrule' YS_def' =>
+    subst YS_def; subst YS_def'
+    simp only [Option.some.injEq, Sum.inl.injEq, NegLoadFormula.neg.injEq] at hO
+    subst hO
+    have hress : ress = ress' := by
+      refine Finset.image_injective ?_ hYS
+      rintro ⟨A, o⟩ ⟨A', o'⟩ hab
+      have h1 := congrArg Sequent.L hab
+      have h3 := congrArg Sequent.O hab
+      simp only [Sequent.L_eq, Sequent.O_eq] at h1 h3
+      cases o <;> cases o' <;> simp_all
+    subst hress
+    have : lrule = lrule' := Subsingleton.elim _ _
+    subst this; rfl
+  case loadedL.loadedR => simp at hO
+  case loadedR.oneSidedL => simp at hO
+  case loadedR.oneSidedR => simp at hO
+  case loadedR.LRnegL => simp at hO
+  case loadedR.LRnegR => simp at hO
+  case loadedR.loadedL => simp at hO
+  case loadedR.loadedR ress χ lrule YS_def ress' χ' lrule' YS_def' =>
+    subst YS_def; subst YS_def'
+    simp only [Option.some.injEq, Sum.inr.injEq, NegLoadFormula.neg.injEq] at hO
+    subst hO
+    have hress : ress = ress' := by
+      refine Finset.image_injective ?_ hYS
+      rintro ⟨A, o⟩ ⟨A', o'⟩ hab
+      have h1 := congrArg Sequent.R hab
+      have h3 := congrArg Sequent.O hab
+      simp only [Sequent.R_eq, Sequent.O_eq] at h1 h3
+      cases o <;> cases o' <;> simp_all
+    subst hress
+    have : lrule = lrule' := Subsingleton.elim _ _
+    subst this; rfl
+
+instance localRuleSubsingleton (X YS) : Subsingleton (LocalRule X YS) :=
+  ⟨fun a b => eq_of_heq (LocalRule.heq_of_index_eq a b rfl rfl)⟩
+
+instance : DecidableEq (LocalRule X YS) := fun a b => isTrue (Subsingleton.elim a b)
 
 @[simp]
 def applyLocalRule {Lcond Rcond Ocond ress} :
@@ -309,28 +484,27 @@ lemma loadedL_sat_down (LRO : Sequent)
   rcases LX_sat with ⟨W, M, w, satM⟩
   have w_nχ : evaluate M w (~χ.unload) := by apply satM; simp [Olf.L]
   have := (loadRuleTruth lrule W M w).1 w_nχ; clear w_nχ
-  simp only [disEval, List.mem_map, Function.comp_apply, Prod.exists] at this
-  sorry
-  /-
-  rcases this with ⟨φ, ⟨ψs, φ0, _in_ress, def_φ⟩ , w_φ⟩
-  use (L ++ ψs, R, φ0.map Sum.inl)
-  subst def_φ
-  simp
-  constructor
-  · use ψs, φ0, _in_ress
-  · use W, M, w
+  rw [disEval] at this
+  simp only [Finset.mem_sort, Finset.mem_image, Function.comp_apply] at this
+  rcases this with ⟨f, ⟨p, p_in, rfl⟩, w_f⟩
+  rw [evaluate_con_sort] at w_f
+  refine ⟨(L ∪ p.1, R ∪ ∅,
+    Olf.change (some (Sum.inl (~'χ))) (some (Sum.inl (~'χ))) (p.2.map Sum.inl)), ?_, ?_⟩
+  · simp only [applyLocalRule, Finset.mem_image]
+    exact ⟨_, ⟨p, p_in, rfl⟩, by simp⟩
+  · refine ⟨W, M, w, ?_⟩
     intro φ φ_in
-    specialize @satM φ
-    rcases φ_in with (φ_in_L | φ_in_ψs | φ_in_OL) | φ_in_X
-    · aesop
-    · simp [conEval, pairUnload] at w_φ; aesop
-    · simp [Olf.L] at φ_in_OL
-      cases φ0 <;> simp [conEval, pairUnload] at *
-      subst φ_in_OL
-      apply w_φ
-      simp
-    · aesop
-  -/
+    simp only [Sequent.left, Sequent.L_eq, Sequent.O_eq, Olf.change_some_some_eq,
+      Finset.mem_union] at φ_in
+    rcases φ_in with ((φ_in | φ_in) | φ_in) | φ_in
+    · exact satM φ (by simp [Sequent.left, Sequent.L_eq, φ_in])
+    · exact w_f φ (by rcases p with ⟨p1, _|nlf⟩ <;> simp [pairUnloadSet] <;> tauto)
+    · rcases p with ⟨p1, _|nlf⟩
+      · simp [Olf.L] at φ_in
+      · simp [Olf.L] at φ_in
+        subst φ_in
+        exact w_f _ (by simp [pairUnloadSet])
+    · exact satM φ (by simp [φ_in])
 
 /-- Applying a `LoadRule` on the right preserves satisfiability of the right,
 even together with any other list of formulas as context. -/
@@ -346,28 +520,27 @@ lemma loadedR_sat_down (LRO : Sequent)
   rcases RX_sat with ⟨W, M, w, satM⟩
   have w_nχ : evaluate M w (~χ.unload) := by apply satM; simp [Olf.R]
   have := (loadRuleTruth lrule W M w).1 w_nχ; clear w_nχ
-  sorry
-  /-
-  simp only [disEval, List.mem_map, Function.comp_apply, Prod.exists, ↓existsAndEq,
-    and_true] at this
-  rcases this with ⟨ψs, φ0, _in_ress, w_φ⟩
-  simp only [applyLocalRule, List.empty_eq, List.diff_nil, Olf.change_some_some_eq, List.map_map,
-    List.mem_map, Function.comp_apply, List.append_nil, Prod.exists, listHasSat, List.mem_union_iff,
-    ↓existsAndEq, and_true, Sequent.right_eq, List.append_assoc, List.mem_append]
-  use ψs, φ0, _in_ress
-  use W, M, w
-  intro φ φ_in
-  specialize @satM φ
-  rcases φ_in with (φ_in_L | φ_in_ψs | φ_in_OL) | φ_in_X
-  · aesop
-  · simp [conEval, pairUnload] at w_φ; aesop
-  · simp only [Olf.R] at φ_in_OL
-    cases φ0 <;> simp [conEval, pairUnload] at *
-    subst φ_in_OL
-    apply w_φ
-    simp
-  · aesop
-  -/
+  rw [disEval] at this
+  simp only [Finset.mem_sort, Finset.mem_image, Function.comp_apply] at this
+  rcases this with ⟨f, ⟨p, p_in, rfl⟩, w_f⟩
+  rw [evaluate_con_sort] at w_f
+  refine ⟨(L ∪ ∅, R ∪ p.1,
+    Olf.change (some (Sum.inr (~'χ))) (some (Sum.inr (~'χ))) (p.2.map Sum.inr)), ?_, ?_⟩
+  · simp only [applyLocalRule, Finset.mem_image]
+    exact ⟨_, ⟨p, p_in, rfl⟩, by simp⟩
+  · refine ⟨W, M, w, ?_⟩
+    intro φ φ_in
+    simp only [Sequent.right, Sequent.R_eq, Sequent.O_eq, Olf.change_some_some_eq,
+      Finset.mem_union] at φ_in
+    rcases φ_in with ((φ_in | φ_in) | φ_in) | φ_in
+    · exact satM φ (by simp [Sequent.right, Sequent.R_eq, φ_in])
+    · exact w_f φ (by rcases p with ⟨p1, _|nlf⟩ <;> simp [pairUnloadSet] <;> tauto)
+    · rcases p with ⟨p1, _|nlf⟩
+      · simp [Olf.R] at φ_in
+      · simp [Olf.R] at φ_in
+        subst φ_in
+        exact w_f _ (by simp [pairUnloadSet])
+    · exact satM φ (by simp [φ_in])
 
 /-! ## Local Rule Applications -/
 
@@ -419,38 +592,26 @@ theorem localRuleTruth
       constructor
       · exact Y_in
       · intro f f_in
-        sorry
-        /-
-        simp only [Sequent.toFinset, List.mem_union_iff, List.mem_append] at f_in
-        rcases f_in with (((f_in_L | f_in_Y) | f_in_R) | f_in_O)
-        · apply w_LRO f; simp only [List.mem_union_iff]
-          exact Or.inl <| Or.inl <| List.diff_subset L Lcond f_in_L
+        simp only [Sequent.toFinset, Finset.mem_union, Finset.mem_sdiff] at f_in
+        rcases f_in with ((⟨f_in_L, -⟩ | f_in_Y) | f_in_R) | f_in_O
+        · exact w_LRO f (by simp only [Sequent.toFinset, Finset.mem_union]; tauto)
         · exact claim f f_in_Y
-        · apply w_LRO f; simp only [List.mem_union_iff]
-          tauto
-        · apply w_LRO f; simp only [List.mem_union_iff]
-          exact Or.inr f_in_O
-        -/
+        · exact w_LRO f (by simp only [Sequent.toFinset, Finset.mem_union]; tauto)
+        · exact w_LRO f (by simp only [Sequent.toFinset, Finset.mem_union]; tauto)
     · rintro ⟨Y, Y_in, w_LYRO⟩
       intro f f_in
-      sorry
-      /-
-      simp only [List.mem_union_iff] at f_in
-      rcases f_in with ((f_in_L | f_in_R) | f_in_O)
+      have hcond : ∀ g ∈ Lcond, evaluate M w g := by
+        rw [← evaluate_con_sort, osTruth, Finset.disconEval]
+        exact ⟨Y, Y_in, fun g hg =>
+          w_LYRO g (by simp only [Sequent.toFinset, Finset.mem_union]; tauto)⟩
+      simp only [Sequent.toFinset, Finset.mem_union] at f_in
+      rcases f_in with (f_in_L | f_in_R) | f_in_O
       · rcases em (f ∈ Lcond) with f_in_cond | f_notin_cond
-        · have : ∀ f ∈ Lcond, evaluate M w f := by
-            rw [← conEval, osTruth, disconEval]
-            use Y
-            constructor
-            · exact Y_in
-            · intro f f_in; apply w_LYRO; simp_all
-          exact this f f_in_cond
-        · apply w_LYRO
-          simp only [List.mem_union_iff, List.mem_append]
-          exact Or.inl <| Or.inl <| Or.inl <| List.mem_diff_of_mem f_in_L f_notin_cond
-      · apply w_LYRO; simp_all
-      · apply w_LYRO; simp_all
-      -/
+        · exact hcond f f_in_cond
+        · exact w_LYRO f
+            (by simp only [Sequent.toFinset, Finset.mem_union, Finset.mem_sdiff]; tauto)
+      · exact w_LYRO f (by simp only [Sequent.toFinset, Finset.mem_union]; tauto)
+      · exact w_LYRO f (by simp only [Sequent.toFinset, Finset.mem_union]; tauto)
   case oneSidedR ress orule ress_def =>
     subst ress_def
     -- based on oneSidedL case
@@ -470,159 +631,144 @@ theorem localRuleTruth
       constructor
       · exact Y_in
       · intro f f_in
-        sorry
-        /-
-        simp only [List.mem_union_iff, List.mem_append] at f_in
-        rcases f_in with ((f_in_L | (f_in_R | f_in_Y)) | f_in_O)
-        · apply w_LRO f; simp only [List.mem_union_iff]
-          exact Or.inl <| Or.inl f_in_L
-        · apply w_LRO f; simp only [List.mem_union_iff]
-          exact Or.inl <| Or.inr <| List.diff_subset R Rcond f_in_R
+        simp only [Sequent.toFinset, Finset.mem_union, Finset.mem_sdiff] at f_in
+        rcases f_in with (f_in_L | (⟨f_in_R, -⟩ | f_in_Y)) | f_in_O
+        · exact w_LRO f (by simp only [Sequent.toFinset, Finset.mem_union]; tauto)
+        · exact w_LRO f (by simp only [Sequent.toFinset, Finset.mem_union]; tauto)
         · exact claim f f_in_Y
-        · apply w_LRO f; simp only [List.mem_union_iff]
-          exact Or.inr f_in_O
-        -/
+        · exact w_LRO f (by simp only [Sequent.toFinset, Finset.mem_union]; tauto)
     · rintro ⟨Y, Y_in, w_LYRO⟩
       intro f f_in
-      sorry
-      /-
-      simp only [List.mem_union_iff] at f_in
-      rcases f_in with ((f_in_L | f_in_R) | f_in_O)
-      · apply w_LYRO; simp_all
+      have hcond : ∀ g ∈ Rcond, evaluate M w g := by
+        rw [← evaluate_con_sort, osTruth, Finset.disconEval]
+        exact ⟨Y, Y_in, fun g hg =>
+          w_LYRO g (by simp only [Sequent.toFinset, Finset.mem_union]; tauto)⟩
+      simp only [Sequent.toFinset, Finset.mem_union] at f_in
+      rcases f_in with (f_in_L | f_in_R) | f_in_O
+      · exact w_LYRO f (by simp only [Sequent.toFinset, Finset.mem_union]; tauto)
       · rcases em (f ∈ Rcond) with f_in_cond | f_notin_cond
-        · have : ∀ f ∈ Rcond, evaluate M w f := by
-            rw [← conEval, osTruth, disconEval]
-            use Y
-            constructor
-            · exact Y_in
-            · intro f f_in; apply w_LYRO; simp_all
-          exact this f f_in_cond
-        · apply w_LYRO
-          simp only [List.mem_union_iff, List.mem_append]
-          exact Or.inl <| Or.inr <| Or.inl <| List.mem_diff_of_mem f_in_R f_notin_cond
-      · apply w_LYRO; simp_all
-      -/
-  all_goals
-  sorry
-  /-
-  case LRnegL φ =>
+        · exact hcond f f_in_cond
+        · exact w_LYRO f
+            (by simp only [Sequent.toFinset, Finset.mem_union, Finset.mem_sdiff]; tauto)
+      · exact w_LYRO f (by simp only [Sequent.toFinset, Finset.mem_union]; tauto)
+  case LRnegL ϕ =>
+    obtain ⟨hL, hR, -⟩ := preconditionProof
     subst hC
-    simp [applyLocalRule] at *
+    simp only [applyLocalRule, Finset.image_empty, Finset.notMem_empty, false_and, exists_false,
+      iff_false]
     intro hyp
-    have := hyp φ
-    have := hyp (~φ)
-    aesop
-  case LRnegR φ =>
+    have h1 := hyp ϕ (by
+      simp only [Sequent.toFinset, Finset.mem_union]; exact Or.inl (Or.inl (hL (by simp))))
+    have h2 := hyp (~ϕ) (by
+      simp only [Sequent.toFinset, Finset.mem_union]; exact Or.inl (Or.inr (hR (by simp))))
+    simp only [evaluate] at h2
+    exact h2 h1
+  case LRnegR ϕ =>
+    obtain ⟨hL, hR, -⟩ := preconditionProof
     subst hC
-    simp [applyLocalRule] at *
+    simp only [applyLocalRule, Finset.image_empty, Finset.notMem_empty, false_and, exists_false,
+      iff_false]
     intro hyp
-    have := hyp φ
-    have := hyp (~φ)
-    aesop
-  case loadedL ress χ lrule ress_def =>
-    subst ress_def
-    have := loadRuleTruth lrule W M w
-    rw [disEval] at this
-    subst hC
-    simp at preconditionProof
-    subst preconditionProof
-    simp at *
+    have h1 := hyp (~ϕ) (by
+      simp only [Sequent.toFinset, Finset.mem_union]; exact Or.inl (Or.inl (hL (by simp))))
+    have h2 := hyp ϕ (by
+      simp only [Sequent.toFinset, Finset.mem_union]; exact Or.inl (Or.inr (hR (by simp))))
+    simp only [evaluate] at h1
+    exact h1 h2
+  case loadedL ress χ lrule YS_def =>
+    obtain ⟨-, -, hO⟩ := preconditionProof
+    rw [Option.some_subseteq] at hO
+    subst hC; subst YS_def; cases hO
     constructor
     · intro hyp
-      have hyp' := hyp (~χ.unload)
-      simp only [Option.map_some, Sum.elim_inl, negUnload, Option.toList_some, List.mem_union_iff,
-        List.mem_cons, List.not_mem_nil, or_false, or_true, evaluate, forall_const] at hyp'
-      rw [this] at hyp'
-      rcases hyp' with ⟨X , O, in_ress, w_f⟩
-      cases O
-      · use X, none
-        simp_all only [Option.map_none, true_and]
-        intro g; rw [conEval] at w_f; specialize hyp g; aesop
-      case some val =>
-        use X, some val, in_ress
+      have w_nχ : evaluate M w (~χ.unload) := hyp _ (by simp [Sequent.toFinset])
+      have := (loadRuleTruth lrule W M w).1 w_nχ
+      rw [disEval] at this
+      simp only [Finset.mem_sort, Finset.mem_image, Function.comp_apply] at this
+      rcases this with ⟨f, ⟨p, p_in, rfl⟩, w_f⟩
+      rw [evaluate_con_sort] at w_f
+      refine ⟨(L ∪ p.1, R ∪ ∅,
+        Olf.change (some (Sum.inl (~'χ))) (some (Sum.inl (~'χ))) (p.2.map Sum.inl)), ?_, ?_⟩
+      · simp only [applyLocalRule, Finset.mem_image]
+        exact ⟨_, ⟨p, p_in, rfl⟩, by simp⟩
+      · have key : ∀ g ∈ Sequent.toFinset (L ∪ p.1, R ∪ ∅,
+            Olf.change (some (Sum.inl (~'χ))) (some (Sum.inl (~'χ))) (p.2.map Sum.inl)),
+            g ∈ Sequent.toFinset ((L, R, some (Sum.inl (~'χ))) : Sequent)
+              ∨ g ∈ pairUnloadSet p := by
+          rcases p with ⟨p1, _ | nlf⟩ <;> intro g hg <;>
+            simp [Sequent.toFinset, pairUnloadSet] at hg ⊢ <;> tauto
         intro g g_in
-        simp_all [pairUnload, negUnload, conEval]
-        have := w_f (~val.1.unload)
-        aesop
-    · rintro ⟨X, O, ⟨in_ress, w_Ci⟩⟩
-      intro f f_in
-      cases O <;> simp at *
-      · cases f_in
-        · aesop
-        subst_eqs
-        simp only [evaluate]
-        rw [this]
-        use X, none
-        simp_all only [pairUnload, negUnload, conEval, true_and]
-        intro f f_in
-        apply w_Ci
-        simp_all
-      case some val =>
-        rcases f_in with (f_in|f_in)|f_in
-        · apply w_Ci; simp_all
-        · apply w_Ci; simp_all
-        · subst f_in
-          simp only [evaluate]
-          rw [this]
-          use X, some val, in_ress
-          simp only [pairUnload, negUnload, conEval, List.mem_union_iff, List.mem_singleton]
-          intro g g_in
-          rcases g_in with (_|g_def)
-          · apply w_Ci; simp_all
-          · subst g_def; apply w_Ci; simp_all
-  case loadedR ress χ lrule ress_def =>
-    subst ress_def
-    -- based on loadedL case
-    have := loadRuleTruth lrule W M w
-    rw [disEval] at this
-    subst hC
-    simp at preconditionProof
-    subst preconditionProof
-    simp at *
+        rcases key g g_in with h | h
+        · exact hyp g h
+        · exact w_f g h
+    · rintro ⟨Ci, Ci_in, w_Ci⟩
+      simp only [applyLocalRule, Finset.mem_image] at Ci_in
+      rcases Ci_in with ⟨q, ⟨p, p_in, rfl⟩, rfl⟩
+      have hsub : ∀ g ∈ pairUnloadSet p, evaluate M w g := by
+        rcases p with ⟨p1, _ | nlf⟩ <;> intro g hg <;>
+          exact w_Ci g (by simp [Sequent.toFinset, pairUnloadSet] at hg ⊢; tauto)
+      intro g g_in
+      simp only [Sequent.toFinset, Finset.mem_union] at g_in
+      rcases g_in with (hg | hg) | hg
+      · exact w_Ci g (by simp [Sequent.toFinset]; tauto)
+      · exact w_Ci g (by simp [Sequent.toFinset]; tauto)
+      · simp only [Option.map_some, Option.toFinset_some, Finset.mem_singleton, Sum.elim_inl,
+          negUnload] at hg
+        subst hg
+        refine (loadRuleTruth lrule W M w).2 ?_
+        rw [disEval]
+        refine ⟨con ((pairUnloadSet p).sort fun a b => a ≤ b), ?_, ?_⟩
+        · simp only [Finset.mem_sort, Finset.mem_image, Function.comp_apply]
+          exact ⟨p, p_in, rfl⟩
+        · rw [evaluate_con_sort]
+          exact hsub
+  case loadedR ress χ lrule YS_def =>
+    obtain ⟨-, -, hO⟩ := preconditionProof
+    rw [Option.some_subseteq] at hO
+    subst hC; subst YS_def; cases hO
     constructor
     · intro hyp
-      have hyp' := hyp (~χ.unload)
-      simp only [Option.map_some, Sum.elim_inr, negUnload, Option.toList_some, List.mem_union_iff,
-        List.mem_cons, List.not_mem_nil, or_false, or_true, evaluate, forall_const] at hyp'
-      rw [this] at hyp'
-      rcases hyp' with ⟨X , O, in_ress, w_f⟩
-      cases O
-      · use X, none
-        simp_all only [Option.map_none, true_and]
-        intro g; rw [conEval] at w_f; specialize hyp g; aesop
-      case some val =>
-        use X, some val, in_ress
+      have w_nχ : evaluate M w (~χ.unload) := hyp _ (by simp [Sequent.toFinset])
+      have := (loadRuleTruth lrule W M w).1 w_nχ
+      rw [disEval] at this
+      simp only [Finset.mem_sort, Finset.mem_image, Function.comp_apply] at this
+      rcases this with ⟨f, ⟨p, p_in, rfl⟩, w_f⟩
+      rw [evaluate_con_sort] at w_f
+      refine ⟨(L ∪ ∅, R ∪ p.1,
+        Olf.change (some (Sum.inr (~'χ))) (some (Sum.inr (~'χ))) (p.2.map Sum.inr)), ?_, ?_⟩
+      · simp only [applyLocalRule, Finset.mem_image]
+        exact ⟨_, ⟨p, p_in, rfl⟩, by simp⟩
+      · have key : ∀ g ∈ Sequent.toFinset (L ∪ ∅, R ∪ p.1,
+            Olf.change (some (Sum.inr (~'χ))) (some (Sum.inr (~'χ))) (p.2.map Sum.inr)),
+            g ∈ Sequent.toFinset ((L, R, some (Sum.inr (~'χ))) : Sequent)
+              ∨ g ∈ pairUnloadSet p := by
+          rcases p with ⟨p1, _ | nlf⟩ <;> intro g hg <;>
+            simp [Sequent.toFinset, pairUnloadSet] at hg ⊢ <;> tauto
         intro g g_in
-        simp_all [pairUnload, negUnload, conEval]
-        have := w_f (~val.1.unload)
-        aesop
-    · rintro ⟨X, O, ⟨in_ress, w_Ci⟩⟩
-      intro f f_in
-      cases O <;> simp at *
-      · cases f_in
-        · aesop
-        subst_eqs
-        simp only [evaluate]
-        rw [this]
-        use X, none
-        simp_all only [pairUnload, negUnload, conEval, true_and]
-        intro f f_in
-        apply w_Ci
-        simp_all
-      case some val =>
-        rcases f_in with (f_in|f_in)|f_in
-        · apply w_Ci; simp_all
-        · apply w_Ci; simp_all
-        · subst f_in
-          simp only [evaluate]
-          rw [this]
-          use X, some val, in_ress
-          simp only [pairUnload, negUnload, conEval, List.mem_union_iff, List.mem_singleton]
-          intro g g_in
-          rcases g_in with (_|g_def)
-          · apply w_Ci; simp_all
-          · subst g_def; apply w_Ci; simp_all
-  -/
+        rcases key g g_in with h | h
+        · exact hyp g h
+        · exact w_f g h
+    · rintro ⟨Ci, Ci_in, w_Ci⟩
+      simp only [applyLocalRule, Finset.mem_image] at Ci_in
+      rcases Ci_in with ⟨q, ⟨p, p_in, rfl⟩, rfl⟩
+      have hsub : ∀ g ∈ pairUnloadSet p, evaluate M w g := by
+        rcases p with ⟨p1, _ | nlf⟩ <;> intro g hg <;>
+          exact w_Ci g (by simp [Sequent.toFinset, pairUnloadSet] at hg ⊢; tauto)
+      intro g g_in
+      simp only [Sequent.toFinset, Finset.mem_union] at g_in
+      rcases g_in with (hg | hg) | hg
+      · exact w_Ci g (by simp [Sequent.toFinset]; tauto)
+      · exact w_Ci g (by simp [Sequent.toFinset]; tauto)
+      · simp only [Option.map_some, Option.toFinset_some, Finset.mem_singleton, Sum.elim_inr,
+          negUnload] at hg
+        subst hg
+        refine (loadRuleTruth lrule W M w).2 ?_
+        rw [disEval]
+        refine ⟨con ((pairUnloadSet p).sort fun a b => a ≤ b), ?_, ?_⟩
+        · simp only [Finset.mem_sort, Finset.mem_image, Function.comp_apply]
+          exact ⟨p, p_in, rfl⟩
+        · rw [evaluate_con_sort]
+          exact hsub
 
 /-- If we can apply a local rule to a sequent then it cannot be basic. -/
 lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
@@ -690,64 +836,25 @@ lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
     simp [Sequent.closed]
     aesop
   case loadedL ress χ lrule ress_def =>
+    obtain ⟨-, -, hO⟩ := preconditionProof
+    rw [Option.some_subseteq] at hO
+    cases hO
     left
     push_neg
+    refine ⟨~χ.unload, by simp [Sequent.toFinset], ?_⟩
     cases lrule
-    case dia α χ α_nonAtom =>
-      rcases O with _|⟨⟨α',χ'⟩|⟨α',χ'⟩⟩
-      · simp_all [Sequent.toFinset]; sorry
-      · simp_all
-        refine ⟨~(~'⌊α'⌋χ').1.unload, by sorry, ?_⟩
-        · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
-          subst h1 h2
-          cases α <;> simp_all
-          simp [Program.isAtomic] at α_nonAtom
-      · refine ⟨~(~'⌊α'⌋χ').1.unload, by aesop, ?_⟩
-        · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
-          subst h1 h2
-          cases α <;> simp_all
-    case dia' α φ α_nonAtom =>
-      rcases O with _|⟨⟨α',φ'⟩|⟨α',φ'⟩⟩
-      · simp_all; sorry
-      · refine ⟨~(~'⌊α'⌋φ').1.unload, by sorry, ?_⟩
-        · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
-          subst h1 h2
-          cases α <;> simp_all
-          simp [Program.isAtomic] at α_nonAtom
-      · refine ⟨~(~'⌊α'⌋φ').1.unload, by aesop, ?_⟩
-        · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
-          subst h1 h2
-          cases α <;> simp_all
+    case dia α ξ α_nonAtom => cases α <;> simp [Program.isAtomic] at α_nonAtom ⊢
+    case dia' α φ α_nonAtom => cases α <;> simp [Program.isAtomic] at α_nonAtom ⊢
   case loadedR ress χ lrule ress_def => -- analogous to loadedL
+    obtain ⟨-, -, hO⟩ := preconditionProof
+    rw [Option.some_subseteq] at hO
+    cases hO
     left
     push_neg
+    refine ⟨~χ.unload, by simp [Sequent.toFinset], ?_⟩
     cases lrule
-    case dia α χ α_nonAtom =>
-      rcases O with _|⟨⟨α',χ'⟩|⟨α',χ'⟩⟩
-      · simp_all
-        sorry
-      · refine ⟨~(~'⌊α'⌋χ').1.unload, by aesop, ?_⟩
-        · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
-          subst h1 h2
-          cases α <;> simp_all
-      · refine ⟨~(~'⌊α'⌋χ').1.unload, by sorry, ?_⟩
-        · have ⟨h1,h2⟩ : α = α' ∧ χ = χ' := by simp_all
-          subst h1 h2
-          cases α <;> simp_all
-          simp [Program.isAtomic] at α_nonAtom
-    case dia' α φ α_nonAtom =>
-      rcases O with _|⟨⟨α',φ'⟩|⟨α',φ'⟩⟩
-      · simp_all
-        sorry
-      · refine ⟨~(~'⌊α'⌋φ').1.unload, by aesop, ?_⟩
-        · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
-          subst h1 h2
-          cases α <;> simp_all
-      · refine ⟨~(~'⌊α'⌋φ').1.unload, by sorry, ?_⟩
-        · have ⟨h1,h2⟩ : α = α' ∧ φ = φ' := by simp_all
-          subst h1 h2
-          cases α <;> simp_all
-          simp [Program.isAtomic] at α_nonAtom
+    case dia α ξ α_nonAtom => cases α <;> simp [Program.isAtomic] at α_nonAtom ⊢
+    case dia' α φ α_nonAtom => cases α <;> simp [Program.isAtomic] at α_nonAtom ⊢
 
 /-- For a given non-basic formula in the left list `L`,
 construct a `LocalRuleApp` using an appropriate `OneSidedLocalRule`. -/
@@ -1110,8 +1217,8 @@ lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Seque
   case oneSidedR orule YS_def =>
     cases orule <;> simp_all [applyLocalRule, Sequent.toFinset]
     all_goals intro f hf
-    case neg φ => by_cases hp : f = ~~φ <;> simp_all [List.mem_erase_of_ne]
-    case con φ ψ => by_cases hp : f = φ⋀ψ <;> simp_all [List.mem_erase_of_ne]
+    case neg φ => by_cases hp : f = ~~φ <;> simp_all
+    case con φ ψ => by_cases hp : f = φ⋀ψ <;> simp_all
     case nCo φ ψ => by_cases hp : f = ~(φ⋀ψ) <;> simp_all <;> aesop
     case box α φ notAtom => by_cases hp : f = ⌈α⌉φ <;> simp_all [unfoldBox] <;> aesop
     case dia α φ notAtom => by_cases hp : f = ~⌈α⌉φ <;> simp_all [unfoldDiamond] <;> aesop
@@ -1131,7 +1238,15 @@ lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Seque
         subst β; subst φ
         rcases hY with ⟨w, o, hwo, rfl⟩
         rcases loaded_unfold_child_closes_left hwo with ⟨⟨Fs,δ⟩, hD, hclose⟩
-        exact ⟨Fs, δ, hD, by sorry⟩
+        refine ⟨Fs, δ, hD, ?_⟩
+        obtain ⟨-, -, hO⟩ := pre
+        rw [Option.some_subseteq] at hO
+        cases hO
+        intro x hx
+        rcases hclose x hx with h | h
+        · simp only [Finset.mem_union, List.mem_toFinset]
+          tauto
+        · rcases w with _ | nlf <;> simp_all [Olf.L]
       · left; aesop
     case dia' α φ notAtom =>
       simp_all [applyLocalRule, Sequent.toFinset]
@@ -1147,7 +1262,15 @@ lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Seque
         subst β; subst φ'
         rcases hY with ⟨w, o, hwo, rfl⟩
         rcases loaded_unfold'_child_closes_left hwo with ⟨⟨Fs,δ⟩, hD, hclose⟩
-        exact ⟨Fs, δ, hD, by sorry⟩
+        refine ⟨Fs, δ, hD, ?_⟩
+        obtain ⟨-, -, hO⟩ := pre
+        rw [Option.some_subseteq] at hO
+        cases hO
+        intro x hx
+        rcases hclose x hx with h | h
+        · simp only [Finset.mem_union, List.mem_toFinset]
+          tauto
+        · rcases w with _ | nlf <;> simp_all [Olf.L]
       · left; aesop
   case loadedR χ lrule YS_def =>
     cases lrule
@@ -1165,7 +1288,15 @@ lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Seque
         subst β; subst φ
         rcases hY with ⟨w, o, hwo, rfl⟩
         rcases loaded_unfold_child_closes_right hwo with ⟨⟨Fs,δ⟩, hD, hclose⟩
-        exact ⟨Fs, δ, hD, by sorry⟩
+        refine ⟨Fs, δ, hD, ?_⟩
+        obtain ⟨-, -, hO⟩ := pre
+        rw [Option.some_subseteq] at hO
+        cases hO
+        intro x hx
+        rcases hclose x hx with h | h
+        · simp only [Finset.mem_union, List.mem_toFinset]
+          tauto
+        · rcases w with _ | nlf <;> simp_all [Olf.R]
       · left; aesop
     case dia' α φ notAtom =>
       simp_all [applyLocalRule, Sequent.toFinset]
@@ -1181,7 +1312,15 @@ lemma LocalRuleApp.formula_preserved_or_expanded (lra : LocalRuleApp) {Y : Seque
         subst β; subst φ'
         rcases hY with ⟨w, o, hwo, rfl⟩
         rcases loaded_unfold'_child_closes_right hwo with ⟨⟨Fs,δ⟩, hD, hclose⟩
-        exact ⟨Fs, δ, hD, by sorry⟩
+        refine ⟨Fs, δ, hD, ?_⟩
+        obtain ⟨-, -, hO⟩ := pre
+        rw [Option.some_subseteq] at hO
+        cases hO
+        intro x hx
+        rcases hclose x hx with h | h
+        · simp only [Finset.mem_union, List.mem_toFinset]
+          tauto
+        · rcases w with _ | nlf <;> simp_all [Olf.R]
       · left; aesop
   all_goals simp_all [applyLocalRule]
 
@@ -1469,6 +1608,7 @@ lemma LoadRule.eq_unfoldDiamondLoaded' {α} {φ : Formula} {ress}
   cases lr; rfl
 
 set_option maxHeartbeats 2000000 in
+-- case distinction over all local rules, with heavy `simp_all` and `grind` calls in each case
 /-- Local rule applications preserve *basic* formulas: no local rule with children can have
 a basic formula as its principal formula.
 Note that `⊥` is not basic, for that case see `LocalRuleApp.preserve_bottom_down`. -/
@@ -1476,7 +1616,7 @@ lemma LocalRuleApp.preserve_basic_down (lra : LocalRuleApp) :
     ∀ Y ∈ lra.C, ∀ f, f.basic → f ∈ lra.X.toFinset → f ∈ Y.toFinset := by
   rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, pre⟩
   subst hC
-  cases rule <;> simp_all [applyLocalRule, Sequent.toFinset, Sequent.left, Sequent.right]
+  cases rule <;> simp_all [applyLocalRule, Sequent.toFinset]
   case oneSidedL ress orule ress_def => cases orule <;> simp_all <;> grind [Program.isAtomic]
   case oneSidedR ress orule ress_def => cases orule <;> simp_all <;> grind [Program.isAtomic]
   case loadedL ress chi lrule ress_def =>
