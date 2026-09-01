@@ -2,26 +2,99 @@ import Pdl.Local.Tableau
 
 open HasSat
 
+/-! ## Finset helper lemmas
+
+All lemmas and definitions in this section are not specific to interpolation.
+They are only here because during the `List` to `Finset` refactoring we should
+not yet touch the other files.  See the `FIXME` comments for where they belong. -/
+
+/-- FIXME: This should be moved to `Pdl/Vocab.lean`, next to `Finset.fvoc`. -/
+@[simp]
+lemma Finset.mem_fvoc {X : Finset Formula} {x} : x ∈ X.fvoc ↔ ∃ φ ∈ X, x ∈ φ.voc := by
+  simp [Finset.fvoc, Vocab.fromFinset, Finset.mem_sup]
+
+/-- FIXME: This should be moved to `Pdl/Vocab.lean`, next to `Finset.fvoc`. -/
+@[simp]
+lemma Finset.fvoc_union {X Y : Finset Formula} : (X ∪ Y).fvoc = X.fvoc ∪ Y.fvoc := by
+  simp [Finset.fvoc, Vocab.fromFinset, Finset.image_union, Finset.sup_union]
+
+/-- FIXME: This should be moved to `Pdl/Vocab.lean`, next to `Finset.fvoc`. -/
+lemma Finset.fvoc_mono {X Y : Finset Formula} (h : X ⊆ Y) : X.fvoc ⊆ Y.fvoc := by
+  intro x x_in
+  rw [Finset.mem_fvoc] at *
+  rcases x_in with ⟨φ, φ_in, x_in⟩
+  exact ⟨φ, h φ_in, x_in⟩
+
+/-- FIXME: This should be moved to `Pdl/Sequent.lean`, next to `Olf.L`. -/
+lemma Olf.L_subset_of_subset {O1 O2 : Olf} (h : O1 ⊆ O2) : O1.L ⊆ O2.L := by
+  rcases O1 with _|χ <;> rcases O2 with _|χ' <;> simp_all [Olf.L]
+
+/-- FIXME: This should be moved to `Pdl/Sequent.lean`, next to `Olf.R`. -/
+lemma Olf.R_subset_of_subset {O1 O2 : Olf} (h : O1 ⊆ O2) : O1.R ⊆ O2.R := by
+  rcases O1 with _|χ <;> rcases O2 with _|χ' <;> simp_all [Olf.R]
+
+/-- FIXME: This should be moved to `Pdl/Sequent.lean`, next to `Olf.L`. -/
+lemma Olf.L_sdiff_subset {O Ocond : Olf} : (O \ Ocond).L ⊆ O.L := by
+  rcases O with _|χ
+  · simp
+  rcases Ocond with _|χ'
+  · simp
+  by_cases h : χ = χ' <;> simp_all [Option.insHasSdiff, Olf.L]
+
+/-- FIXME: This should be moved to `Pdl/Sequent.lean`, next to `Olf.R`. -/
+lemma Olf.R_sdiff_subset {O Ocond : Olf} : (O \ Ocond).R ⊆ O.R := by
+  rcases O with _|χ
+  · simp
+  rcases Ocond with _|χ'
+  · simp
+  by_cases h : χ = χ' <;> simp_all [Option.insHasSdiff, Olf.R]
+
+/-- `Finset` version of `unfoldBox_voc`.
+FIXME: This should be moved to `Pdl/Local/UnfoldBox.lean`. -/
+theorem unfoldBox_voc_fin {x α φ} {X : Finset Formula} (X_in : X ∈ (unfoldBox α φ).toFinFin)
+    {ψ} (ψ_in : ψ ∈ X) (x_in_voc_ψ : x ∈ ψ.voc) : x ∈ α.voc ∨ x ∈ φ.voc := by
+  simp only [List.toFinFin, List.mem_toFinset, List.mem_map] at X_in
+  rcases X_in with ⟨L, L_in, rfl⟩
+  exact unfoldBox_voc L_in (List.mem_toFinset.mp ψ_in) x_in_voc_ψ
+
+/-- `Finset` version of `unfoldDiamond_voc`.
+FIXME: This should be moved to `Pdl/Local/UnfoldDia.lean`. -/
+theorem unfoldDiamond_voc_fin {x α φ} {X : Finset Formula}
+    (X_in : X ∈ (unfoldDiamond α φ).toFinFin)
+    {ψ} (ψ_in : ψ ∈ X) (x_in_voc_ψ : x ∈ ψ.voc) : x ∈ α.voc ∨ x ∈ φ.voc := by
+  simp only [List.toFinFin, List.mem_toFinset, List.mem_map] at X_in
+  rcases X_in with ⟨L, L_in, rfl⟩
+  exact unfoldDiamond_voc L_in (List.mem_toFinset.mp ψ_in) x_in_voc_ψ
+
+/-- `Finset` version of `lfovoc`.
+FIXME: This should be moved to `Pdl/Sequent.lean`, next to `lfovoc`. -/
+def lfovocFin (L : Finset (Finset Formula × Option NegLoadFormula)) : Vocab :=
+  L.sup (fun ⟨fs,o⟩ => fs.fvoc ∪ (onlfvoc o))
+
 /-! ## Partition Interpolants -/
 
 def isPartInterpolant (X : Sequent) (θ : Formula) :=
-  θ.voc ⊆ jvoc X ∧ (¬ satisfiable ((~θ) :: X.left) ∧ ¬ satisfiable (θ :: X.right))
+  θ.voc ⊆ jvoc X ∧ (¬ satisfiable ({~θ} ∪ X.left) ∧ ¬ satisfiable ({θ} ∪ X.right))
 
 def PartInterpolant (N : Sequent) := Subtype <| isPartInterpolant N
 
 /-! ## Interpolants for local rules -/
 
-lemma LoadRule.voc (lr : LoadRule (~'χ) ress) : lfovoc ress ⊆ χ.voc := by
+lemma LoadRule.voc (lr : LoadRule (~'χ) ress) : lfovocFin ress ⊆ χ.voc := by
   intro x x_in
-  unfold lfovoc at x_in
-  simp at x_in
+  unfold lfovocFin at x_in
+  simp only [Finset.mem_sup, Finset.mem_union, Prod.exists] at x_in
   rcases x_in with ⟨fs, onlf, in_ress, x_in_V⟩
   cases lr
   case dia α χ notAtom =>
     have unfvoc := @unfoldDiamond_voc x α χ.unload
     rw [← unfoldDiamondLoaded_eq α χ] at unfvoc
-    specialize @unfvoc (pairUnload (fs, onlf)) (by simp only [List.mem_map]; use (fs,onlf))
-    rcases onlf with _ | ⟨⟨lf⟩⟩  <;> simp [onlfvoc] at *
+    simp only [List.toFinFinOpt, List.mem_toFinset, List.mem_map, Prod.mk.injEq,
+      Prod.exists] at in_ress
+    rcases in_ress with ⟨gs, o, in_ress, def_fs, def_onlf⟩
+    subst def_fs def_onlf
+    specialize @unfvoc (pairUnload (gs, o)) (by simp only [List.mem_map]; use (gs,o))
+    rcases o with _ | ⟨⟨lf⟩⟩  <;> simp [onlfvoc] at *
     · rcases x_in_V with ⟨f, f_in_fs, x_in⟩
       specialize unfvoc f_in_fs
       aesop
@@ -30,8 +103,12 @@ lemma LoadRule.voc (lr : LoadRule (~'χ) ress) : lfovoc ress ⊆ χ.voc := by
   case dia' α φ notAtom =>
     have unfvoc := @unfoldDiamond_voc x α φ
     rw [← unfoldDiamondLoaded'_eq α φ] at unfvoc
-    specialize @unfvoc (pairUnload (fs, onlf)) (by simp only [List.mem_map]; use (fs,onlf))
-    rcases onlf with _ | ⟨⟨lf⟩⟩  <;> simp [onlfvoc] at *
+    simp only [List.toFinFinOpt, List.mem_toFinset, List.mem_map, Prod.mk.injEq,
+      Prod.exists] at in_ress
+    rcases in_ress with ⟨gs, o, in_ress, def_fs, def_onlf⟩
+    subst def_fs def_onlf
+    specialize @unfvoc (pairUnload (gs, o)) (by simp only [List.mem_map]; use (gs,o))
+    rcases o with _ | ⟨⟨lf⟩⟩  <;> simp [onlfvoc] at *
     · rcases x_in_V with ⟨f, f_in_fs, x_in⟩
       specialize unfvoc f_in_fs
       aesop
@@ -53,32 +130,29 @@ theorem localRule_does_not_increase_vocab_L {Cond B}
     rcases x_in_res with ⟨ψ, ψ_in, x_in_voc_ψ⟩
     cases orule
     case nCo => aesop
-    case box α φ α_notAt => have := unfoldBox_voc L_in ψ_in x_in_voc_ψ; simp_all
-    case dia => have := unfoldDiamond_voc L_in ψ_in x_in_voc_ψ; simp_all
+    case box α φ α_notAt => have := unfoldBox_voc_fin L_in ψ_in x_in_voc_ψ; simp_all
+    case dia => have := unfoldDiamond_voc_fin L_in ψ_in x_in_voc_ψ; simp_all
     all_goals aesop
   case loadedL ress χ lrule B_def =>
     subst B_def
     simp at res_in_B
     rcases res_in_B with ⟨L, lnf, in_ress, def_res⟩
     subst def_res
-    simp only [List.fvoc, Vocab.fromList, Sequent.left, Sequent.L, Sequent.O, List.map_append,
-      List.toFinset_append, Finset.mem_sup, Finset.mem_union, List.mem_toFinset, List.mem_map,
-      id_eq, List.empty_eq, List.nil_append, exists_exists_and_eq_and] at *
-    rcases x_in_res with ⟨φvoc, ⟨φ, φ_in_L, def_φvoc⟩|⟨φ, φ_in_OlfL, def_φvoc⟩, x_in_φvoc⟩
-    all_goals
-      subst def_φvoc
-      simp only [Olf.L, List.mem_cons, List.not_mem_nil, or_false, exists_eq_left, Formula.voc]
-      have := lrule.voc
-      simp only [lfovoc, List.fvoc, Vocab.fromList, LoadFormula.voc] at this
-      apply this; clear this
-      simp [onlfvoc]
-      refine ⟨L, lnf, in_ress, ?_⟩
-    · left
-      use φ
+    have hsub := lrule.voc
+    have goal_iff : x ∈ (Sequent.left (∅, ∅, some (Sum.inl (~'χ)))).fvoc ↔ x ∈ χ.voc := by
+      simp [Sequent.left, Olf.L]
+    rw [goal_iff]
+    apply hsub
+    unfold lfovocFin
+    simp only [Finset.mem_sup, Finset.mem_union, Prod.exists]
+    refine ⟨L, lnf, in_ress, ?_⟩
+    simp only [Sequent.left_eq, Finset.fvoc_union, Finset.mem_union] at x_in_res
+    rcases x_in_res with h | h
+    · exact Or.inl h
     · right
-      cases lnf <;> simp [Olf.L] at *
-      subst φ_in_OlfL
-      exact x_in_φvoc
+      rcases lnf with _ | ⟨lf⟩
+      · simp [Olf.L] at h
+      · simpa [Olf.L, onlfvoc] using h
   -- other cases are all trivial (as in Bml)
   all_goals
     aesop
@@ -97,32 +171,29 @@ theorem localRule_does_not_increase_vocab_R (rule : LocalRule Cond B) :
     rcases x_in_res with ⟨ψ, ψ_in, x_in_voc_ψ⟩
     cases orule
     case nCo => aesop
-    case box α φ α_notAt => have := unfoldBox_voc L_in ψ_in x_in_voc_ψ; simp_all
-    case dia => have := unfoldDiamond_voc L_in ψ_in x_in_voc_ψ; simp_all
+    case box α φ α_notAt => have := unfoldBox_voc_fin L_in ψ_in x_in_voc_ψ; simp_all
+    case dia => have := unfoldDiamond_voc_fin L_in ψ_in x_in_voc_ψ; simp_all
     all_goals aesop
   case loadedR ress χ lrule B_def =>
     subst B_def
     simp at res_in_B
     rcases res_in_B with ⟨L, lnf, in_ress, def_res⟩
     subst def_res
-    simp only [List.fvoc, Vocab.fromList, Sequent.right, Sequent.R, Sequent.O, List.map_append,
-      List.toFinset_append, Finset.mem_sup, Finset.mem_union, List.mem_toFinset, List.mem_map,
-      id_eq, List.empty_eq, List.nil_append, exists_exists_and_eq_and] at *
-    rcases x_in_res with ⟨φvoc, ⟨φ, φ_in_L, def_φvoc⟩|⟨φ, φ_in_OlfR, def_φvoc⟩, x_in_φvoc⟩
-    all_goals
-      subst def_φvoc
-      simp only [Olf.R, List.mem_cons, List.not_mem_nil, or_false, exists_eq_left, Formula.voc]
-      have := lrule.voc
-      simp only [lfovoc, List.fvoc, Vocab.fromList, LoadFormula.voc] at this
-      apply this; clear this
-      simp [onlfvoc]
-      refine ⟨L, lnf, in_ress, ?_⟩
-    · left
-      use φ
+    have hsub := lrule.voc
+    have goal_iff : x ∈ (Sequent.right (∅, ∅, some (Sum.inr (~'χ)))).fvoc ↔ x ∈ χ.voc := by
+      simp [Sequent.right, Olf.R]
+    rw [goal_iff]
+    apply hsub
+    unfold lfovocFin
+    simp only [Finset.mem_sup, Finset.mem_union, Prod.exists]
+    refine ⟨L, lnf, in_ress, ?_⟩
+    simp only [Sequent.right_eq, Finset.fvoc_union, Finset.mem_union] at x_in_res
+    rcases x_in_res with h | h
+    · exact Or.inl h
     · right
-      cases lnf <;> simp [Olf.R] at *
-      subst φ_in_OlfR
-      exact x_in_φvoc
+      rcases lnf with _ | ⟨lf⟩
+      · simp [Olf.R] at h
+      · simpa [Olf.R, onlfvoc] using h
   -- other cases are all trivial (as in Bml)
   all_goals
     aesop
@@ -133,92 +204,54 @@ theorem localRuleApp_does_not_increase_jvoc (lra : LocalRuleApp) :
   | @LocalRuleApp.mk L R O Lcond Rcond Ocond ress lrule C hC preconditionProof =>
     subst hC
     rintro ⟨cL, cR, cO⟩ C_in
-    simp [applyLocalRule] at C_in
-    rcases C_in with ⟨⟨Lres, Rres, Ores⟩ , res_in, cLRO_def⟩
-    simp at cLRO_def
-    cases cLRO_def
-    apply jvoc_sub_of_voc_sub -- hhmmm?
-    · intro x x_in
-      simp at * -- only
-      rcases x_in with ⟨φvoc, ⟨φ, φ_nocon, d_φvoc⟩|⟨φ, φ_L, d_φvoc⟩|⟨φ, φ_O, d_φvoc⟩, x_in_φvoc⟩
-      all_goals subst d_φvoc
-      · refine ⟨φ.voc, Or.inl ?_, x_in_φvoc⟩
-        exact ⟨φ, List.diff_subset L Lcond φ_nocon, rfl⟩
-      all_goals
-        have Lsub := @localRule_does_not_increase_vocab_L _ _ lrule _ res_in x
-        simp at Lsub
-      · specialize Lsub φ.voc (Or.inl ⟨_, φ_L, rfl⟩) x_in_φvoc
-        rcases Lsub with ⟨ψvoc, h_ψvoc, x_in_ψvoc⟩
-        refine ⟨ψvoc, ?_, x_in_ψvoc⟩
-        rcases h_ψvoc with (⟨ψ, ψ_in_Lcond, d_ψvoc⟩ | ⟨ψ, ψ_in_Ocond, d_ψvoc⟩) <;> subst d_ψvoc
-        · exact Or.inl ⟨ψ, preconditionProof.1.subset ψ_in_Lcond, rfl⟩
-        · refine Or.inr ⟨ψ, ?_, rfl⟩; aesop
-      · -- whether to use φ.voc depends on whether the localRuleApp changes the O here.
-        rcases O with _|χ <;> rcases Ocond with _|cχ <;> rcases Ores with _|resχ
-        all_goals
-          simp [Olf.change] at * -- already treats 3 cases
-        · specialize Lsub φ.voc (Or.inr ⟨φ, φ_O, rfl⟩) x_in_φvoc
-          rcases Lsub with ⟨ψ, ψ_in_Lcond, x_in_φvoc⟩
-          exact ⟨ψ, preconditionProof.1.subset ψ_in_Lcond, x_in_φvoc⟩
-        · rcases χ with ⟨⟨χ⟩⟩|⟨χ⟩ <;> simp [Olf.L] at *
-          subst φ_O
-          aesop
-        · rcases resχ with ⟨⟨resχ⟩⟩|⟨⟨resχ⟩⟩ <;> simp [Olf.L] at φ_O Lsub
-          subst φ_O
-          simp at x_in_φvoc
-          specialize Lsub (resχ.unload).voc (Or.inr rfl) x_in_φvoc
-          rcases Lsub with ⟨ψ, ψ_in_Lcond, x_in_φvoc⟩
-          exact ⟨ψ.voc, Or.inl ⟨ψ, preconditionProof.1.subset ψ_in_Lcond, rfl⟩, x_in_φvoc⟩
-        · rcases preconditionProof with ⟨Lin, Rin, same_form⟩
-          subst same_form
-          simp at φ_O
-        · specialize Lsub φ.voc (Or.inr ⟨φ, φ_O, rfl⟩) x_in_φvoc
-          rcases Lsub with ⟨ψvoc, ψ_defs, x_in_ψvoc⟩
-          rcases ψ_defs with ⟨ψ, ψ_in, ψvoc_def⟩|⟨ψ, ψ_in, ψvoc_def⟩ <;> subst ψvoc_def
-          · exact ⟨ψ.voc, Or.inl ⟨ψ, preconditionProof.1.subset ψ_in, rfl⟩, x_in_ψvoc⟩
-          · refine ⟨ψ.voc, Or.inr ⟨ψ, ?_, rfl⟩, x_in_ψvoc⟩
-            simp_all
-    · -- analogous to L side, but quite some modifications
+    simp only [applyLocalRule, Finset.mem_image] at C_in
+    rcases C_in with ⟨⟨Lres, Rres, Ores⟩, res_in, def_c⟩
+    simp only at def_c
+    cases def_c
+    have Lsub := localRule_does_not_increase_vocab_L lrule _ res_in
+    have Rsub := localRule_does_not_increase_vocab_R lrule _ res_in
+    simp only [Sequent.left_eq, Sequent.right_eq] at Lsub Rsub
+    apply jvoc_sub_of_voc_sub
+    · -- left
+      have hcond : ∀ y ∈ (Lcond ∪ Ocond.L).fvoc, y ∈ L.fvoc ∨ y ∈ O.L.fvoc := by
+        intro y hy
+        rw [Finset.fvoc_union, Finset.mem_union] at hy
+        rcases hy with h | h
+        · exact Or.inl (Finset.fvoc_mono preconditionProof.1 h)
+        · exact Or.inr (Finset.fvoc_mono (Olf.L_subset_of_subset preconditionProof.2.2) h)
+      have hres : ∀ y ∈ (Lres ∪ Ores.L).fvoc, y ∈ L.fvoc ∨ y ∈ O.L.fvoc :=
+        fun y hy => hcond y (Lsub hy)
       intro x x_in
-      simp at * -- only
-      rcases x_in with ⟨φvoc, ⟨φ, φ_nocon, d_φvoc⟩|⟨φ, φ_L, d_φvoc⟩|⟨φ, φ_O, d_φvoc⟩, x_in_φvoc⟩
-      all_goals subst d_φvoc
-      · refine ⟨φ.voc, Or.inl ?_, x_in_φvoc⟩
-        exact ⟨φ, List.diff_subset R Rcond φ_nocon, rfl⟩
-      all_goals
-        have Rsub := @localRule_does_not_increase_vocab_R _ _ lrule _ res_in x
-        simp at Rsub
-      · specialize Rsub φ.voc (Or.inl ⟨_, φ_L, rfl⟩) x_in_φvoc
-        rcases Rsub with ⟨ψvoc, h_ψvoc, x_in_ψvoc⟩
-        refine ⟨ψvoc, ?_, x_in_ψvoc⟩
-        rcases h_ψvoc with (⟨ψ, ψ_in_Rcond, d_ψvoc⟩ | ⟨ψ, ψ_in_Ocond, d_ψvoc⟩) <;> subst d_ψvoc
-        · exact Or.inl ⟨ψ, preconditionProof.2.1.subset ψ_in_Rcond, rfl⟩
-        · refine Or.inr ⟨ψ, ?_, rfl⟩; aesop
-      · -- whether to use φ.voc depends on whether the localRuleApp changes the O here.
-        rcases O with _|χ <;> rcases Ocond with _|cχ <;> rcases Ores with _|resχ
-        all_goals
-          simp [Olf.change] at * -- already treats 3 cases
-        · specialize Rsub φ.voc (Or.inr ⟨φ, φ_O, rfl⟩) x_in_φvoc
-          rcases Rsub with ⟨ψ, ψ_in_Rcond, x_in_φvoc⟩
-          exact ⟨ψ, preconditionProof.2.subset ψ_in_Rcond, x_in_φvoc⟩
-        · rcases χ with ⟨⟨χ⟩⟩|⟨χ⟩ <;> simp [Olf.R] at *
-          subst φ_O
-          aesop
-        · rcases resχ with ⟨⟨resχ⟩⟩|⟨⟨resχ⟩⟩ <;> simp [Olf.R] at φ_O Rsub
-          subst φ_O
-          simp at x_in_φvoc
-          specialize Rsub (resχ.unload).voc (Or.inr rfl) x_in_φvoc
-          rcases Rsub with ⟨ψ, ψ_in_Rcond, x_in_φvoc⟩
-          exact ⟨ψ.voc, Or.inl ⟨ψ, preconditionProof.2.subset ψ_in_Rcond, rfl⟩, x_in_φvoc⟩
-        · rcases preconditionProof with ⟨Lin, Rin, same_form⟩
-          subst same_form
-          simp at φ_O
-        · specialize Rsub φ.voc (Or.inr ⟨φ, φ_O, rfl⟩) x_in_φvoc
-          rcases Rsub with ⟨ψvoc, ψ_defs, x_in_ψvoc⟩
-          rcases ψ_defs with ⟨ψ, ψ_in, ψvoc_def⟩|⟨ψ, ψ_in, ψvoc_def⟩ <;> subst ψvoc_def
-          · refine ⟨ψ.voc, Or.inl ⟨ψ, preconditionProof.2.1.subset ψ_in, rfl⟩, x_in_ψvoc⟩
-          · refine ⟨ψ.voc, Or.inr ⟨ψ, ?_, rfl⟩, x_in_ψvoc⟩
-            simp_all
+      simp only [LocalRuleApp.X, Sequent.left_eq, Finset.fvoc_union,
+        Finset.mem_union] at x_in ⊢
+      rcases x_in with (h | h) | h
+      · exact Or.inl (Finset.fvoc_mono Finset.sdiff_subset h)
+      · exact hres x (by rw [Finset.fvoc_union, Finset.mem_union]; exact Or.inl h)
+      · rcases Ores with _ | z
+        · refine Or.inr (Finset.fvoc_mono ?_ h)
+          simpa only [Olf.change, Option.overwrite] using Olf.L_sdiff_subset
+        · rw [Olf.change_some] at h
+          exact hres x (by rw [Finset.fvoc_union, Finset.mem_union]; exact Or.inr h)
+    · -- right, analogous to the left
+      have hcond : ∀ y ∈ (Rcond ∪ Ocond.R).fvoc, y ∈ R.fvoc ∨ y ∈ O.R.fvoc := by
+        intro y hy
+        rw [Finset.fvoc_union, Finset.mem_union] at hy
+        rcases hy with h | h
+        · exact Or.inl (Finset.fvoc_mono preconditionProof.2.1 h)
+        · exact Or.inr (Finset.fvoc_mono (Olf.R_subset_of_subset preconditionProof.2.2) h)
+      have hres : ∀ y ∈ (Rres ∪ Ores.R).fvoc, y ∈ R.fvoc ∨ y ∈ O.R.fvoc :=
+        fun y hy => hcond y (Rsub hy)
+      intro x x_in
+      simp only [LocalRuleApp.X, Sequent.right_eq, Finset.fvoc_union,
+        Finset.mem_union] at x_in ⊢
+      rcases x_in with (h | h) | h
+      · exact Or.inl (Finset.fvoc_mono Finset.sdiff_subset h)
+      · exact hres x (by rw [Finset.fvoc_union, Finset.mem_union]; exact Or.inl h)
+      · rcases Ores with _ | z
+        · refine Or.inr (Finset.fvoc_mono ?_ h)
+          simpa only [Olf.change, Option.overwrite] using Olf.R_sdiff_subset
+        · rw [Olf.change_some] at h
+          exact hres x (by rw [Finset.fvoc_union, Finset.mem_union]; exact Or.inr h)
 
 /-- Maehara's method for single-step *local* rule applications.
 This covers easy cases without any loaded path repeats.
@@ -232,186 +265,289 @@ def localInterpolantStep (lra : LocalRuleApp)
   -- DISTINCTION ON LOCALRULE USED
   cases def_rule : rule
   case oneSidedL ress orule YS_def => -- rule applied in first component L
-    let interList := C.attach.map <| fun c => (subθs c.1 c.2).1
-    refine ⟨dis interList, ?_, ?_, ?_⟩ -- disjunction here
+    let interSet : Finset Formula := C.attach.image <| fun c => (subθs c.1 c.2).1
+    refine ⟨dis interSet.fsort, ?_, ?_, ?_⟩ -- disjunction here
     · intro n n_in_inter
       rw [in_voc_dis] at n_in_inter
       rcases n_in_inter with ⟨φ, φ_in, n_in_voc_φ⟩
-      simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists, interList] at φ_in
+      rw [Formula.mem_fsort] at φ_in
+      simp only [Finset.mem_image, Finset.mem_attach, true_and, Subtype.exists, interSet] at φ_in
       rcases φ_in with ⟨Y, Y_in, def_φ⟩
       apply localRuleApp_does_not_increase_jvoc _ Y Y_in
       subst def_φ
       exact (subθs Y Y_in).prop.1 n_in_voc_φ
     · rintro nInter_L_sat
-      have LI_sat : satisfiable (Sequent.left (L, R, o) ∪ (interList.map Formula.neg)) := by
+      have LI_sat : satisfiable (Sequent.left (L, R, o) ∪ interSet.image Formula.neg) := by
         rcases nInter_L_sat with ⟨W, M, w, w_nInter_L⟩
-        use W, M, w
-        simp only [Sequent.left, Sequent.L, Sequent.O, List.mem_cons, List.mem_append,
-          forall_eq_or_imp, evaluate, disEval, not_exists, not_and] at w_nInter_L
-        simp only [Sequent.left, Sequent.L, Sequent.O, List.mem_union_iff, List.mem_append,
-          List.mem_map]
-        rintro φ (φ_in | ⟨θi,θi_in, φ_def⟩)
-        · apply w_nInter_L.2; assumption
-        · subst φ_def; apply w_nInter_L.1; assumption
-      have := oneSidedL_sat_down ⟨L,R,o⟩ precondProof.1.subset orule YS_def LI_sat
+        refine ⟨W, M, w, ?_⟩
+        have w_ndis : ¬ evaluate M w (dis interSet.fsort) :=
+          w_nInter_L (~ dis interSet.fsort) (by simp)
+        rw [disEval] at w_ndis
+        push_neg at w_ndis
+        intro φ φ_in
+        rcases Finset.mem_union.mp φ_in with h | h
+        · exact w_nInter_L φ (Finset.mem_union_right _ h)
+        · rcases Finset.mem_image.mp h with ⟨θ, θ_in, def_φ⟩
+          subst def_φ
+          exact w_ndis θ (Formula.mem_fsort.mpr θ_in)
+      have := oneSidedL_sat_down ⟨L,R,o⟩ precondProof.1 orule YS_def LI_sat
       rcases this with ⟨⟨L', R', o'⟩, c_in, W, M, w, w_⟩
-      refine (subθs ⟨L', R', o'⟩ (hC ▸ def_rule ▸ c_in)).2.2.1 ⟨W, M, w, ?_⟩ -- given IP property
-      intro φ φ_in; simp at φ_in
-      apply w_; simp [interList]; grind
+      have c_in' : ((L', R', o') : Sequent) ∈ C := hC ▸ def_rule ▸ c_in
+      refine (subθs ⟨L', R', o'⟩ c_in').2.2.1 ⟨W, M, w, ?_⟩ -- given IP property
+      intro φ φ_in
+      rcases Finset.mem_union.mp φ_in with h | h
+      · rw [Finset.mem_singleton] at h
+        subst h
+        refine w_ _ (Finset.mem_union_right _ (Finset.mem_image.mpr ⟨_, ?_, rfl⟩))
+        simp only [interSet, Finset.mem_image, Finset.mem_attach, true_and, Subtype.exists]
+        exact ⟨(L', R', o'), c_in', rfl⟩
+      · exact w_ φ (Finset.mem_union_left _ h)
     · rintro ⟨W, M, w, w_⟩
-      simp only [Sequent.right, Sequent.R, Sequent.O, List.mem_cons, List.mem_append,
-        forall_eq_or_imp, disEval, List.mem_map, List.mem_attach, true_and, Subtype.exists,
-        interList] at w_
-      rcases w_ with ⟨⟨θi, ⟨c, c_in, def_θi⟩, w_θi⟩, w_R⟩
-      refine (subθs c (hC ▸ c_in)).2.2.2 ⟨W, M, w, ?_⟩ -- given IP property
+      have w_dis : evaluate M w (dis interSet.fsort) := w_ _ (by simp)
+      rw [disEval] at w_dis
+      rcases w_dis with ⟨θi, θi_in, w_θi⟩
+      rw [Formula.mem_fsort] at θi_in
+      simp only [interSet, Finset.mem_image, Finset.mem_attach, true_and,
+        Subtype.exists] at θi_in
+      rcases θi_in with ⟨c, c_in, def_θi⟩
       have same_R : c.right = Sequent.right (L,R,o) :=
-        @oneSidedL_preserves_right (L,R,o) _ precondProof.1.subset _ orule _ YS_def c (hC ▸ c_in)
-      rw [same_R]; simp; grind
+        @oneSidedL_preserves_right (L,R,o) _ precondProof.1 _ orule _ YS_def c (hC ▸ c_in)
+      refine (subθs c (hC ▸ c_in)).2.2.2 ⟨W, M, w, ?_⟩ -- given IP property
+      intro φ φ_in
+      rcases Finset.mem_union.mp φ_in with h | h
+      · rw [Finset.mem_singleton] at h
+        subst h
+        rw [def_θi]
+        exact w_θi
+      · rw [same_R] at h
+        exact w_ φ (Finset.mem_union_right _ h)
   case oneSidedR ress orule YS_def => -- rule applied in second component R
-    -- Only somewhat analogous to oneSidedR. Part 2 and 3 are flipped around in a way.
-    let interList := C.attach.map <| fun c => (subθs c.1 c.2).1
-    refine ⟨con interList, ?_, ?_, ?_⟩ -- using conjunction here
+    -- Only somewhat analogous to oneSidedL. Part 2 and 3 are flipped around in a way.
+    let interSet : Finset Formula := C.attach.image <| fun c => (subθs c.1 c.2).1
+    refine ⟨con interSet.fsort, ?_, ?_, ?_⟩ -- using conjunction here
     · intro n n_in_inter
       rw [in_voc_con] at n_in_inter
       rcases n_in_inter with ⟨φ, φ_in, n_in_voc_φ⟩
-      simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists, interList] at φ_in
+      rw [Formula.mem_fsort] at φ_in
+      simp only [Finset.mem_image, Finset.mem_attach, true_and, Subtype.exists, interSet] at φ_in
       rcases φ_in with ⟨Y, Y_in, def_φ⟩
       apply localRuleApp_does_not_increase_jvoc _ Y Y_in
       subst def_φ
       exact (subθs Y Y_in).prop.1 n_in_voc_φ
     · rintro ⟨W, M, w, w_⟩
-      simp only [Sequent.left, Sequent.L, Sequent.O, List.mem_cons, List.mem_append,
-        forall_eq_or_imp, evaluate, conEval, not_forall] at w_
-      rcases w_ with ⟨⟨θi, θi_in, w_nθi⟩, w_L⟩
-      simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists, interList] at θi_in
-      rcases θi_in with ⟨⟨L', R', o'⟩, c_in, def_θi⟩
-      have same_L : Sequent.left ⟨L', R', o'⟩ = Sequent.left (L,R,o) :=
-        @oneSidedR_preserves_left (L,R,o) _ precondProof.2.1.subset _ orule _ YS_def _ (hC ▸ c_in)
-      refine (subθs ⟨L', R', o'⟩ (hC ▸ c_in)).2.2.1 ⟨W, M, w, ?_⟩
-      rw [same_L]; simp; grind
+      have w_ncon : ¬ evaluate M w (con interSet.fsort) :=
+        w_ (~ con interSet.fsort) (by simp)
+      rw [conEval] at w_ncon
+      push_neg at w_ncon
+      rcases w_ncon with ⟨θi, θi_in, w_nθi⟩
+      rw [Formula.mem_fsort] at θi_in
+      simp only [interSet, Finset.mem_image, Finset.mem_attach, true_and,
+        Subtype.exists] at θi_in
+      rcases θi_in with ⟨c, c_in, def_θi⟩
+      have same_L : c.left = Sequent.left (L,R,o) :=
+        @oneSidedR_preserves_left (L,R,o) _ precondProof.2.1 _ orule _ YS_def c (hC ▸ c_in)
+      refine (subθs c (hC ▸ c_in)).2.2.1 ⟨W, M, w, ?_⟩
+      intro φ φ_in
+      rcases Finset.mem_union.mp φ_in with h | h
+      · rw [Finset.mem_singleton] at h
+        subst h
+        rw [def_θi]
+        exact w_nθi
+      · rw [same_L] at h
+        exact w_ φ (Finset.mem_union_right _ h)
     · rintro inter_R_sat
-      have RI_sat : satisfiable (Sequent.right (L, R, o) ∪ (interList)) := by
+      have RI_sat : satisfiable (Sequent.right (L, R, o) ∪ interSet) := by
         rcases inter_R_sat with ⟨W, M, w, w_Inter_R⟩
-        use W, M, w; simp [conEval] at *; grind
-      have := oneSidedR_sat_down ⟨L,R,o⟩ precondProof.2.1.subset orule YS_def RI_sat
+        refine ⟨W, M, w, ?_⟩
+        have w_con : evaluate M w (con interSet.fsort) := w_Inter_R _ (by simp)
+        rw [conEval] at w_con
+        intro φ φ_in
+        rcases Finset.mem_union.mp φ_in with h | h
+        · exact w_Inter_R φ (Finset.mem_union_right _ h)
+        · exact w_con φ (Formula.mem_fsort.mpr h)
+      have := oneSidedR_sat_down ⟨L,R,o⟩ precondProof.2.1 orule YS_def RI_sat
       rcases this with ⟨⟨L', R', o'⟩, c_in, W, M, w, w_⟩
-      refine (subθs ⟨L', R', o'⟩ (hC ▸ def_rule ▸ c_in)).2.2.2 ⟨W, M, w, ?_⟩ -- given IP property
-      intro φ φ_in; simp at φ_in
-      simp [interList, Sequent.right] at w_
-      grind
+      have c_in' : ((L', R', o') : Sequent) ∈ C := hC ▸ def_rule ▸ c_in
+      refine (subθs ⟨L', R', o'⟩ c_in').2.2.2 ⟨W, M, w, ?_⟩ -- given IP property
+      intro φ φ_in
+      rcases Finset.mem_union.mp φ_in with h | h
+      · rw [Finset.mem_singleton] at h
+        subst h
+        refine w_ _ (Finset.mem_union_right _ ?_)
+        simp only [interSet, Finset.mem_image, Finset.mem_attach, true_and, Subtype.exists]
+        exact ⟨(L', R', o'), c_in', rfl⟩
+      · exact w_ φ (Finset.mem_union_left _ h)
   case LRnegL φ =>
     use φ
-    simp only at subθs
     simp only [LocalRuleApp.X]
     refine ⟨?_, ?_, ?_⟩
     · intro n n_in_φ
-      aesop
+      refine Finset.mem_inter.mpr ⟨?_, ?_⟩
+      · exact Finset.mem_fvoc.mpr
+          ⟨φ, Finset.mem_union_left _ (precondProof.1 (Finset.mem_singleton_self φ)), n_in_φ⟩
+      · exact Finset.mem_fvoc.mpr
+          ⟨~φ, Finset.mem_union_left _ (precondProof.2.1 (Finset.mem_singleton_self _)), n_in_φ⟩
     · rintro ⟨W, M, w, w_⟩
-      simp only [List.empty_eq, List.mem_cons, forall_eq_or_imp, evaluate] at *
-      subst_eqs
-      absurd w_.1
-      have := w_.2 φ
-      simp_all
+      have h1 : evaluate M w (~φ) :=
+        w_ (~φ) (Finset.mem_union_left _ (Finset.mem_singleton_self _))
+      have h2 : evaluate M w φ :=
+        w_ φ (Finset.mem_union_right _
+          (Finset.mem_union_left _ (precondProof.1 (Finset.mem_singleton_self φ))))
+      simp only [evaluate] at h1
+      exact h1 h2
     · rintro ⟨W, M, w, w_⟩
-      simp only [List.empty_eq, List.mem_cons, forall_eq_or_imp] at *
-      subst_eqs
-      absurd w_.1
-      have := w_.2 (~φ)
-      simp_all [evaluate]
+      have h1 : evaluate M w φ :=
+        w_ φ (Finset.mem_union_left _ (Finset.mem_singleton_self _))
+      have h2 : evaluate M w (~φ) :=
+        w_ (~φ) (Finset.mem_union_right _
+          (Finset.mem_union_left _ (precondProof.2.1 (Finset.mem_singleton_self _))))
+      simp only [evaluate] at h2
+      exact h2 h1
   case LRnegR φ =>
     use ~φ
-    simp only at subθs
     simp only [LocalRuleApp.X]
     refine ⟨?_, ?_, ?_⟩
     · intro n n_in_φ
-      aesop
+      simp only [Formula.voc] at n_in_φ
+      refine Finset.mem_inter.mpr ⟨?_, ?_⟩
+      · exact Finset.mem_fvoc.mpr
+          ⟨~φ, Finset.mem_union_left _ (precondProof.1 (Finset.mem_singleton_self _)), n_in_φ⟩
+      · exact Finset.mem_fvoc.mpr
+          ⟨φ, Finset.mem_union_left _ (precondProof.2.1 (Finset.mem_singleton_self φ)), n_in_φ⟩
     · rintro ⟨W, M, w, w_⟩
-      simp only [List.empty_eq, List.mem_cons, forall_eq_or_imp, evaluate] at *
-      subst_eqs
-      absurd w_.1
-      have := w_.2 (~φ)
-      simp_all [evaluate]
+      have h1 : evaluate M w (~~φ) :=
+        w_ (~~φ) (Finset.mem_union_left _ (Finset.mem_singleton_self _))
+      have h2 : evaluate M w (~φ) :=
+        w_ (~φ) (Finset.mem_union_right _
+          (Finset.mem_union_left _ (precondProof.1 (Finset.mem_singleton_self _))))
+      simp only [evaluate] at h1 h2
+      exact h1 h2
     · rintro ⟨W, M, w, w_⟩
-      simp only [List.empty_eq, List.mem_cons, forall_eq_or_imp, evaluate] at *
-      subst_eqs
-      absurd w_.1
-      have := w_.2 φ
-      simp_all
+      have h1 : evaluate M w (~φ) :=
+        w_ (~φ) (Finset.mem_union_left _ (Finset.mem_singleton_self _))
+      have h2 : evaluate M w φ :=
+        w_ φ (Finset.mem_union_right _
+          (Finset.mem_union_left _ (precondProof.2.1 (Finset.mem_singleton_self φ))))
+      simp only [evaluate] at h1
+      exact h1 h2
   case loadedL ress χ lrule YS_def =>
     -- similar to oneSidedL case
-    simp at YS_def
-    let interList := C.attach.map <| fun c => (subθs c.1 c.2).1
+    let interSet : Finset Formula := C.attach.image <| fun c => (subθs c.1 c.2).1
     have O_is_some : Sequent.O (L, R, o) = some (Sum.inl (~'χ)) := by
         have := precondProof.2.2; simp at this; simp; exact this.symm
-    refine ⟨dis interList, ?_, ?_, ?_⟩ -- disjunction here
+    refine ⟨dis interSet.fsort, ?_, ?_, ?_⟩ -- disjunction here
     · intro n n_in_inter
       rw [in_voc_dis] at n_in_inter
       rcases n_in_inter with ⟨φ, φ_in, n_in_voc_φ⟩
-      simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists, interList] at φ_in
+      rw [Formula.mem_fsort] at φ_in
+      simp only [Finset.mem_image, Finset.mem_attach, true_and, Subtype.exists, interSet] at φ_in
       rcases φ_in with ⟨Y, Y_in, def_φ⟩
       apply localRuleApp_does_not_increase_jvoc _ Y Y_in
       subst def_φ
       exact (subθs Y Y_in).prop.1 n_in_voc_φ
     · rintro nInter_L_sat
-      have LI_sat : satisfiable (Sequent.left (L, R, o) ∪ (interList.map Formula.neg)) := by
+      have LI_sat : satisfiable (Sequent.left (L, R, o) ∪ interSet.image Formula.neg) := by
         rcases nInter_L_sat with ⟨W, M, w, w_nInter_L⟩
-        use W, M, w
-        simp only [Sequent.left, Sequent.L, Sequent.O, List.mem_cons, List.mem_append,
-          forall_eq_or_imp, evaluate, disEval, not_exists, not_and] at w_nInter_L
-        simp only [Sequent.left, Sequent.L, Sequent.O, List.mem_union_iff, List.mem_append,
-          List.mem_map]
-        rintro φ (φ_in | ⟨θi,θi_in, φ_def⟩)
-        · apply w_nInter_L.2; assumption
-        · subst φ_def; apply w_nInter_L.1; assumption
+        refine ⟨W, M, w, ?_⟩
+        have w_ndis : ¬ evaluate M w (dis interSet.fsort) :=
+          w_nInter_L (~ dis interSet.fsort) (by simp)
+        rw [disEval] at w_ndis
+        push_neg at w_ndis
+        intro φ φ_in
+        rcases Finset.mem_union.mp φ_in with h | h
+        · exact w_nInter_L φ (Finset.mem_union_right _ h)
+        · rcases Finset.mem_image.mp h with ⟨θ, θ_in, def_φ⟩
+          subst def_φ
+          exact w_ndis θ (Formula.mem_fsort.mpr θ_in)
       have := loadedL_sat_down ⟨L,R,o⟩ χ O_is_some lrule YS_def LI_sat
       rcases this with ⟨⟨L', R', o'⟩, c_in, W, M, w, w_⟩
-      refine (subθs ⟨L', R', o'⟩ (hC ▸ def_rule ▸ c_in)).2.2.1 ⟨W, M, w, ?_⟩ -- given IP property
-      intro φ φ_in; simp at φ_in
-      apply w_; simp [interList]; grind
+      have c_in' : ((L', R', o') : Sequent) ∈ C := hC ▸ def_rule ▸ c_in
+      refine (subθs ⟨L', R', o'⟩ c_in').2.2.1 ⟨W, M, w, ?_⟩ -- given IP property
+      intro φ φ_in
+      rcases Finset.mem_union.mp φ_in with h | h
+      · rw [Finset.mem_singleton] at h
+        subst h
+        refine w_ _ (Finset.mem_union_right _ (Finset.mem_image.mpr ⟨_, ?_, rfl⟩))
+        simp only [interSet, Finset.mem_image, Finset.mem_attach, true_and, Subtype.exists]
+        exact ⟨(L', R', o'), c_in', rfl⟩
+      · exact w_ φ (Finset.mem_union_left _ h)
     · rintro ⟨W, M, w, w_⟩
-      simp only [Sequent.right, Sequent.R, Sequent.O, List.mem_cons, List.mem_append,
-        forall_eq_or_imp, disEval, List.mem_map, List.mem_attach, true_and, Subtype.exists,
-        interList] at w_
-      rcases w_ with ⟨⟨θi, ⟨c, c_in, def_θi⟩, w_θi⟩, w_R⟩
-      refine (subθs c (hC ▸ c_in)).2.2.2 ⟨W, M, w, ?_⟩ -- given IP property
+      have w_dis : evaluate M w (dis interSet.fsort) := w_ _ (by simp)
+      rw [disEval] at w_dis
+      rcases w_dis with ⟨θi, θi_in, w_θi⟩
+      rw [Formula.mem_fsort] at θi_in
+      simp only [interSet, Finset.mem_image, Finset.mem_attach, true_and,
+        Subtype.exists] at θi_in
+      rcases θi_in with ⟨c, c_in, def_θi⟩
       have same_R : c.right = Sequent.right (L,R,o) :=
         @loadedL_preserves_right ⟨L,R,o⟩ χ O_is_some ress lrule _ YS_def c (hC ▸ c_in)
-      rw [same_R]; simp; grind
+      refine (subθs c c_in).2.2.2 ⟨W, M, w, ?_⟩ -- given IP property
+      intro φ φ_in
+      rcases Finset.mem_union.mp φ_in with h | h
+      · rw [Finset.mem_singleton] at h
+        subst h
+        rw [def_θi]
+        exact w_θi
+      · rw [same_R] at h
+        exact w_ φ (Finset.mem_union_right _ h)
   case loadedR ress χ lrule YS_def =>
     -- based on oneSidedR case
-    let interList := C.attach.map <| fun c => (subθs c.1 c.2).1
+    let interSet : Finset Formula := C.attach.image <| fun c => (subθs c.1 c.2).1
     have O_is_some : Sequent.O (L, R, o) = some (Sum.inr (~'χ)) := by
       have := precondProof.2.2; simp at this; simp; exact this.symm
-    refine ⟨con interList, ?_, ?_, ?_⟩ -- using conjunction here
+    refine ⟨con interSet.fsort, ?_, ?_, ?_⟩ -- using conjunction here
     · intro n n_in_inter
       rw [in_voc_con] at n_in_inter
       rcases n_in_inter with ⟨φ, φ_in, n_in_voc_φ⟩
-      simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists, interList] at φ_in
+      rw [Formula.mem_fsort] at φ_in
+      simp only [Finset.mem_image, Finset.mem_attach, true_and, Subtype.exists, interSet] at φ_in
       rcases φ_in with ⟨Y, Y_in, def_φ⟩
       apply localRuleApp_does_not_increase_jvoc _ Y Y_in
       subst def_φ
       exact (subθs Y Y_in).prop.1 n_in_voc_φ
     · rintro ⟨W, M, w, w_⟩
-      simp only [Sequent.left, Sequent.L, Sequent.O, List.mem_cons, List.mem_append,
-        forall_eq_or_imp, evaluate, conEval, not_forall] at w_
-      rcases w_ with ⟨⟨θi, θi_in, w_nθi⟩, w_L⟩
-      simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists, interList] at θi_in
-      rcases θi_in with ⟨⟨L', R', o'⟩, c_in, def_θi⟩
-      have same_L : Sequent.left ⟨L', R', o'⟩ = Sequent.left (L,R,o) :=
-        @loadedR_preserves_left (L,R,o) _ O_is_some _ lrule _ YS_def _ (hC ▸ c_in)
-      refine (subθs ⟨L', R', o'⟩ (hC ▸ c_in)).2.2.1 ⟨W, M, w, ?_⟩
-      rw [same_L]; simp; grind
+      have w_ncon : ¬ evaluate M w (con interSet.fsort) :=
+        w_ (~ con interSet.fsort) (by simp)
+      rw [conEval] at w_ncon
+      push_neg at w_ncon
+      rcases w_ncon with ⟨θi, θi_in, w_nθi⟩
+      rw [Formula.mem_fsort] at θi_in
+      simp only [interSet, Finset.mem_image, Finset.mem_attach, true_and,
+        Subtype.exists] at θi_in
+      rcases θi_in with ⟨c, c_in, def_θi⟩
+      have same_L : c.left = Sequent.left (L,R,o) :=
+        @loadedR_preserves_left (L,R,o) χ O_is_some ress lrule _ YS_def c (hC ▸ c_in)
+      refine (subθs c c_in).2.2.1 ⟨W, M, w, ?_⟩
+      intro φ φ_in
+      rcases Finset.mem_union.mp φ_in with h | h
+      · rw [Finset.mem_singleton] at h
+        subst h
+        rw [def_θi]
+        exact w_nθi
+      · rw [same_L] at h
+        exact w_ φ (Finset.mem_union_right _ h)
     · rintro inter_R_sat
-      have RI_sat : satisfiable (Sequent.right (L, R, o) ∪ (interList)) := by
+      have RI_sat : satisfiable (Sequent.right (L, R, o) ∪ interSet) := by
         rcases inter_R_sat with ⟨W, M, w, w_Inter_R⟩
-        use W, M, w; simp [conEval] at *; grind
+        refine ⟨W, M, w, ?_⟩
+        have w_con : evaluate M w (con interSet.fsort) := w_Inter_R _ (by simp)
+        rw [conEval] at w_con
+        intro φ φ_in
+        rcases Finset.mem_union.mp φ_in with h | h
+        · exact w_Inter_R φ (Finset.mem_union_right _ h)
+        · exact w_con φ (Formula.mem_fsort.mpr h)
       have := loadedR_sat_down ⟨L,R,o⟩ χ O_is_some lrule YS_def RI_sat
       rcases this with ⟨⟨L', R', o'⟩, c_in, W, M, w, w_⟩
-      refine (subθs ⟨L', R', o'⟩ (hC ▸ def_rule ▸ c_in)).2.2.2 ⟨W, M, w, ?_⟩ -- given IP property
-      intro φ φ_in; simp at φ_in
-      simp only [Sequent.right, Sequent.R_eq, Sequent.O_eq, List.mem_union_iff, List.mem_append,
-        List.mem_map, List.mem_attach, true_and, Subtype.exists, interList] at w_
-      grind
+      have c_in' : ((L', R', o') : Sequent) ∈ C := hC ▸ def_rule ▸ c_in
+      refine (subθs ⟨L', R', o'⟩ c_in').2.2.2 ⟨W, M, w, ?_⟩ -- given IP property
+      intro φ φ_in
+      rcases Finset.mem_union.mp φ_in with h | h
+      · rw [Finset.mem_singleton] at h
+        subst h
+        refine w_ _ (Finset.mem_union_right _ ?_)
+        simp only [interSet, Finset.mem_image, Finset.mem_attach, true_and, Subtype.exists]
+        exact ⟨(L', R', o'), c_in', rfl⟩
+      · exact w_ φ (Finset.mem_union_left _ h)
 
 /-! ## Interpolants for Local Tableau -/
 
