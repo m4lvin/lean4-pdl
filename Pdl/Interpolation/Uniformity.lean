@@ -49,17 +49,17 @@ under different names.
 
 /-- The left component of a sequent, together with the loaded formula, again as a sequent.
 This is `Λ₁` from the paper; compare `Sequent.rightOnly`, which is `Λ₂`. -/
-def Sequent.leftOnly (X : Sequent) : Sequent := ⟨X.1, [], X.2.2⟩
+def Sequent.leftOnly (X : Sequent) : Sequent := ⟨X.1, ∅, X.2.2⟩
 
 /-- The left component of a sequent, without any loaded formula. When the loaded formula
 is on the right, i.e. in the situation of a `LoadedCluster`, this is the *unloaded*
 component `Λ₁` of the node, and `Sequent.leftFree X |>.basic` says that no local rule is
 applicable to it. -/
-def Sequent.leftFree (X : Sequent) : Sequent := ⟨X.1, [], none⟩
+def Sequent.leftFree (X : Sequent) : Sequent := ⟨X.1, ∅, none⟩
 
 /-- The right component of a sequent, without any loaded formula. When the loaded formula
 is on the left this is the *unloaded* component `Λ₂` of the node. -/
-def Sequent.rightFree (X : Sequent) : Sequent := ⟨[], X.2.1, none⟩
+def Sequent.rightFree (X : Sequent) : Sequent := ⟨∅, X.2.1, none⟩
 
 /-- Two local rule applications use the same rule with the same principal formulas.
 The fields `Lcond`, `Rcond` and `Ocond` are the principal formulas and `ress` is the list
@@ -194,11 +194,11 @@ lemma Sequent.flip_rightFree {X : Sequent} : X.flip.rightFree = X.leftFree.flip 
 
 @[simp]
 lemma Sequent.flip_rightOnly {X : Sequent} : X.flip.rightOnly = X.leftOnly.flip := by
-  rcases X with ⟨L, R, O⟩; rfl
+  rcases X with ⟨L, R, O⟩; simp [Sequent.flip, Sequent.rightOnly, Sequent.leftOnly]
 
 @[simp]
 lemma Sequent.flip_leftOnly {X : Sequent} : X.flip.leftOnly = X.rightOnly.flip := by
-  rcases X with ⟨L, R, O⟩; rfl
+  rcases X with ⟨L, R, O⟩; simp [Sequent.flip, Sequent.rightOnly, Sequent.leftOnly]
 
 /-- Being the same rule is preserved by flipping. -/
 lemma LocalRuleApp.SameRuleAs.flip {lra₁ lra₂ : LocalRuleApp} (h : lra₁.SameRuleAs lra₂) :
@@ -310,28 +310,30 @@ lemma LocalRuleApp.IsUniChoice.flip {lra : LocalRuleApp} (h : lra.IsUniChoice) :
 lemma Sequent.leftFree_basic_of_basic {X : Sequent} (h : X.basic) : X.leftFree.basic := by
   rcases X with ⟨L, R, o⟩
   rcases h with ⟨hall, hcl⟩
-  refine ⟨fun f hf => hall f (by simp_all), ?_⟩
-  rintro (hbot | ⟨f, hf, hnf⟩)
-  · exact hcl (Or.inl (by simp_all [instMembershipFormulaSequent]))
-  · exact hcl (Or.inr ⟨f, by simp_all [instMembershipFormulaSequent]⟩)
+  refine ⟨fun f hf => hall f ?_, ?_⟩
+  · simp only [Sequent.leftFree, Sequent.toFinset, Finset.union_empty, Finset.union_assoc,
+      Finset.mem_union] at hf ⊢
+    tauto
+  · rintro (hbot | ⟨f, hf, hnf⟩)
+    · exact hcl (Or.inl (by simp_all [Sequent.leftFree, instMembershipFormulaSequent]))
+    · exact hcl (Or.inr ⟨f, by simp_all [Sequent.leftFree, instMembershipFormulaSequent]⟩)
 
 lemma Sequent.rightFree_basic_of_basic {X : Sequent} (h : X.basic) : X.rightFree.basic := by
   rcases X with ⟨L, R, o⟩
   rcases h with ⟨hall, hcl⟩
-  refine ⟨fun f hf => hall f (by simp_all), ?_⟩
-  rintro (hbot | ⟨f, hf, hnf⟩)
-  · exact hcl (Or.inl (by simp_all [instMembershipFormulaSequent]))
-  · exact hcl (Or.inr ⟨f, by simp_all [instMembershipFormulaSequent]⟩)
+  refine ⟨fun f hf => hall f ?_, ?_⟩
+  · simp only [Sequent.rightFree, Sequent.toFinset, Finset.empty_union, Finset.union_assoc,
+      Finset.mem_union] at hf ⊢
+    tauto
+  · rintro (hbot | ⟨f, hf, hnf⟩)
+    · exact hcl (Or.inl (by simp_all [Sequent.rightFree, instMembershipFormulaSequent]))
+    · exact hcl (Or.inr ⟨f, by simp_all [Sequent.rightFree, instMembershipFormulaSequent]⟩)
 
 /-- All local rule applications inside a local tableau are uniform choices. -/
 def LocalTableau.IsUni : {X : Sequent} → LocalTableau X → Prop
   | _, (.sim _) => True
   | _, (.byLocalRule lra _ next) =>
       lra.IsUniChoice ∧ ∀ Y, ∀ h : Y ∈ lra.C, (next Y h).IsUni
-termination_by X => X
-decreasing_by
-  subst_eqs
-  apply localRuleApp.decreases_DM lra Y h
 
 /-- All local rule applications inside a tableau are uniform choices. -/
 def Tableau.IsUni : {H : History} → {X : Sequent} → Tableau H X → Prop
@@ -472,7 +474,7 @@ lemma LocalTableau.IsUni.flip {X} {lt : LocalTableau X} (h : lt.IsUni) : (lt.fli
     refine ⟨h.1.flip, ?_⟩
     intro Y Y_in
     rw [LocalTableau.IsUni_cast]
-    exact IH _ (Sequent.flip_mem_of_mem_map_flip Y_in) (h.2 _ _)
+    exact IH _ (Sequent.flip_mem_of_mem_image_flip Y_in) (h.2 _ _)
   case sim bas => rw [LocalTableau.flip, LocalTableau.IsUni]; trivial
 
 lemma Tableau.IsUni.flip {H X} {tab : Tableau H X} (h : tab.IsUni) : (tab.flip).IsUni := by
@@ -513,8 +515,8 @@ and `lpr_of_multisetEqTo`.
 The only step that is left open is `uniLocalTab_endNode_dominated`. -/
 
 /-- Put a local rule application into a different context, keeping the rule itself. -/
-def LocalRuleApp.inContext (lra : LocalRuleApp) (L R : List Formula) (O : Olf)
-    (hL : lra.Lcond.Subperm L) (hR : lra.Rcond.Subperm R) (hO : lra.Ocond ⊆ O) :
+def LocalRuleApp.inContext (lra : LocalRuleApp) (L R : Finset Formula) (O : Olf)
+    (hL : lra.Lcond ⊆ L) (hR : lra.Rcond ⊆ R) (hO : lra.Ocond ⊆ O) :
     LocalRuleApp :=
   { L := L, R := R, O := O,
     Lcond := lra.Lcond, Rcond := lra.Rcond, Ocond := lra.Ocond,
@@ -525,7 +527,7 @@ def LocalRuleApp.inContext (lra : LocalRuleApp) (L R : List Formula) (O : Olf)
 open Classical in
 /-- Put a local rule application into the context of the sequent `X`, if possible. -/
 noncomputable def LocalRuleApp.toContext (lra : LocalRuleApp) (X : Sequent) : LocalRuleApp :=
-  if h : lra.Lcond.Subperm X.1 ∧ lra.Rcond.Subperm X.2.1 ∧ lra.Ocond ⊆ X.2.2 then
+  if h : lra.Lcond ⊆ X.1 ∧ lra.Rcond ⊆ X.2.1 ∧ lra.Ocond ⊆ X.2.2 then
     lra.inContext X.1 X.2.1 X.2.2 h.1 h.2.1 h.2.2
   else lra
 
@@ -549,7 +551,7 @@ lemma LocalRuleApp.toContext_isRightRule (lra : LocalRuleApp) (X : Sequent) :
   split <;> rfl
 
 lemma LocalRuleApp.toContext_X (lra : LocalRuleApp) (X : Sequent)
-    (h : lra.Lcond.Subperm X.1 ∧ lra.Rcond.Subperm X.2.1 ∧ lra.Ocond ⊆ X.2.2) :
+    (h : lra.Lcond ⊆ X.1 ∧ lra.Rcond ⊆ X.2.1 ∧ lra.Ocond ⊆ X.2.2) :
     (lra.toContext X).X = X := by
   unfold LocalRuleApp.toContext
   rw [dif_pos h]
@@ -590,20 +592,20 @@ lemma uniLeftChoice_isSome {Y : Sequent} {lra : LocalRuleApp} (hX : lra.X = Y)
 /-! ### Shapes of left and right rules -/
 
 lemma LocalRuleApp.isLeftRule_shape {lra : LocalRuleApp} (h : lra.isLeftRule) :
-    lra.Rcond = [] ∧ (lra.Ocond = none ∨ lra.Ocond.isLeft) := by
+    lra.Rcond = ∅ ∧ (lra.Ocond = none ∨ lra.Ocond.isLeft) := by
   rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
   cases lr <;>
     simp_all [LocalRuleApp.isLeftRule, LocalRule.isLeftRule, Olf.isLeft]
 
 lemma LocalRuleApp.isRightRule_shape {lra : LocalRuleApp} (h : lra.isRightRule) :
-    lra.Lcond = [] ∧ (lra.Ocond = none ∨ lra.Ocond.isRight) := by
+    lra.Lcond = ∅ ∧ (lra.Ocond = none ∨ lra.Ocond.isRight) := by
   rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
   cases lr <;>
     simp_all [LocalRuleApp.isRightRule, LocalRule.isRightRule, Olf.isRight]
 
-/-- Any local rule applicable to a sequent of the shape `(L, [], none)` is a left rule. -/
-lemma LocalRuleApp.isLeftRule_of_X_eq {lra : LocalRuleApp} {L : List Formula}
-    (h : lra.X = (L, [], none)) : lra.isLeftRule := by
+/-- Any local rule applicable to a sequent of the shape `(L, ∅, none)` is a left rule. -/
+lemma LocalRuleApp.isLeftRule_of_X_eq {lra : LocalRuleApp} {L : Finset Formula}
+    (h : lra.X = (L, ∅, none)) : lra.isLeftRule := by
   rcases lra with ⟨L', R', O', Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
   simp only [LocalRuleApp.X] at h
   obtain ⟨rfl, rfl, rfl⟩ := h
@@ -611,7 +613,7 @@ lemma LocalRuleApp.isLeftRule_of_X_eq {lra : LocalRuleApp} {L : List Formula}
   cases lr
   case oneSidedL => simp [LocalRuleApp.isLeftRule, LocalRule.isLeftRule]
   case oneSidedR orule YS_def =>
-    exact absurd (List.subperm_nil.mp preR) (orule.precond_ne_nil)
+    exact absurd (Finset.subset_empty.mp preR) (orule.precond_ne_nil)
   case LRnegL φ => simp at preR
   case LRnegR φ => simp at preR
   case loadedL => simp at preO
@@ -623,23 +625,23 @@ lemma LocalRuleApp.toContext_X_of_leftOnly {lra : LocalRuleApp} {X : Sequent}
     (h : lra.X = X.leftOnly) : (lra.toContext X).X = X := by
   obtain ⟨preL, preR, preO⟩ := lra.preconditionProof
   have hL : lra.L = X.1 := congrArg (fun Y => Y.1) h
-  have hR : lra.R = [] := congrArg (fun Y => Y.2.1) h
+  have hR : lra.R = ∅ := congrArg (fun Y => Y.2.1) h
   have hO : lra.O = X.2.2 := congrArg (fun Y => Y.2.2) h
   refine lra.toContext_X X ⟨hL ▸ preL, ?_, hO ▸ preO⟩
   rw [hR] at preR
-  rw [List.subperm_nil.mp preR]
-  exact List.nil_subperm
+  rw [Finset.subset_empty.mp preR]
+  exact Finset.empty_subset _
 
 lemma LocalRuleApp.toContext_X_of_rightOnly {lra : LocalRuleApp} {X : Sequent}
     (h : lra.X = X.rightOnly) : (lra.toContext X).X = X := by
   obtain ⟨preL, preR, preO⟩ := lra.preconditionProof
-  have hL : lra.L = [] := congrArg (fun Y => Y.1) h
+  have hL : lra.L = ∅ := congrArg (fun Y => Y.1) h
   have hR : lra.R = X.2.1 := congrArg (fun Y => Y.2.1) h
   have hO : lra.O = X.2.2 := congrArg (fun Y => Y.2.2) h
   refine lra.toContext_X X ⟨?_, hR ▸ preR, hO ▸ preO⟩
   rw [hL] at preL
-  rw [List.subperm_nil.mp preL]
-  exact List.nil_subperm
+  rw [Finset.subset_empty.mp preL]
+  exact Finset.empty_subset _
 
 lemma LocalRuleApp.toContext_leftOnly_X {lra : LocalRuleApp} {X : Sequent}
     (hX : lra.X = X) (hl : lra.isLeftRule) : (lra.toContext X.leftOnly).X = X.leftOnly := by
@@ -647,7 +649,7 @@ lemma LocalRuleApp.toContext_leftOnly_X {lra : LocalRuleApp} {X : Sequent}
   subst hX
   refine lra.toContext_X _ ⟨preL, ?_, preO⟩
   rw [(LocalRuleApp.isLeftRule_shape hl).1]
-  exact List.nil_subperm
+  exact Finset.empty_subset _
 
 lemma LocalRuleApp.toContext_rightOnly_X {lra : LocalRuleApp} {X : Sequent}
     (hX : lra.X = X) (hr : lra.isRightRule) : (lra.toContext X.rightOnly).X = X.rightOnly := by
@@ -655,7 +657,7 @@ lemma LocalRuleApp.toContext_rightOnly_X {lra : LocalRuleApp} {X : Sequent}
   subst hX
   refine lra.toContext_X _ ⟨?_, preR, preO⟩
   rw [(LocalRuleApp.isRightRule_shape hr).1]
-  exact List.nil_subperm
+  exact Finset.empty_subset _
 
 lemma LocalRuleApp.toContext_leftFree_X {lra : LocalRuleApp} {X : Sequent}
     (hX : lra.X = X) (hl : lra.isLeftRule) (hO : lra.Ocond = none) :
@@ -664,7 +666,7 @@ lemma LocalRuleApp.toContext_leftFree_X {lra : LocalRuleApp} {X : Sequent}
   subst hX
   refine lra.toContext_X _ ⟨preL, ?_, by simp [hO, Sequent.leftFree]⟩
   rw [(LocalRuleApp.isLeftRule_shape hl).1]
-  exact List.nil_subperm
+  exact Finset.empty_subset _
 
 /-! ### When is the canonical choice available? -/
 
@@ -679,7 +681,7 @@ lemma uniLeftChoice_leftOnly_isSome {X : Sequent} (h : ¬ X.leftFree.basic) :
   have hl : lra.isLeftRule := LocalRuleApp.isLeftRule_of_X_eq hlra
   obtain ⟨preL, preR, preO⟩ := lra.preconditionProof
   have hL : lra.L = X.1 := congrArg (fun Y => Y.1) hlra
-  have hR : lra.R = [] := congrArg (fun Y => Y.2.1) hlra
+  have hR : lra.R = ∅ := congrArg (fun Y => Y.2.1) hlra
   have hO : lra.O = none := congrArg (fun Y => Y.2.2) hlra
   have hOc : lra.Ocond = none := by
     rw [hO] at preO
@@ -687,7 +689,7 @@ lemma uniLeftChoice_leftOnly_isSome {X : Sequent} (h : ¬ X.leftFree.basic) :
   refine uniLeftChoice_isSome (lra := lra.toContext X.leftOnly) ?_ (by simpa using hl)
   refine lra.toContext_X X.leftOnly ⟨hL ▸ preL, ?_, by simp [hOc, Sequent.leftOnly]⟩
   rw [(LocalRuleApp.isLeftRule_shape hl).1]
-  exact List.nil_subperm
+  exact Finset.empty_subset _
 
 lemma uniLeftChoice_leftOnly_eq_none {X : Sequent} (hb : X.leftFree.basic)
     (hO : ¬ X.2.2.isLeft) : uniLeftChoice X.leftOnly = none := by
@@ -710,7 +712,7 @@ lemma uniLeftChoice_leftOnly_eq_none {X : Sequent} (hb : X.leftFree.basic)
     refine ⟨lra.toContext X.leftFree, ?_⟩
     refine lra.toContext_X X.leftFree ⟨hLL ▸ preL, ?_, by simp [hOc, Sequent.leftFree]⟩
     rw [hRcond]
-    exact List.nil_subperm
+    exact Finset.empty_subset _
   exact (basic_iff_noLocalRuleApp.mp hb) this
 
 lemma uniRightChoice_rightOnly_isSome {X : Sequent} {lra : LocalRuleApp} (hX : lra.X = X)
@@ -870,148 +872,6 @@ termination_by X
 decreasing_by
   exact uniChoiceAt_C_lt (Option.some_get _).symm (by assumption)
 
-/-! ## Transporting tableaux along multiset-equal sequents -/
-
-lemma Sequent.multisetEqTo_iff {L R O L' R' O'} :
-    Sequent.multisetEqTo (L, R, O) (L', R', O') ↔ L.Perm L' ∧ R.Perm R' ∧ O = O' := by
-  simp [Sequent.multisetEqTo, Multiset.coe_eq_coe]
-
-lemma Sequent.multisetEqTo_trans {X Y Z : Sequent} (h1 : X.multisetEqTo Y)
-    (h2 : Y.multisetEqTo Z) : X.multisetEqTo Z := by
-  rcases X with ⟨L, R, O⟩; rcases Y with ⟨L', R', O'⟩; rcases Z with ⟨L'', R'', O''⟩
-  rw [Sequent.multisetEqTo_iff] at *
-  exact ⟨h1.1.trans h2.1, h1.2.1.trans h2.2.1, h1.2.2.trans h2.2.2⟩
-
-/-- Histories that are pointwise multiset-equal. -/
-abbrev History.multisetEqTo (H H' : History) : Prop := List.Forall₂ Sequent.multisetEqTo H H'
-
-lemma History.multisetEqTo.length {H H' : History} (h : H.multisetEqTo H') :
-    H.length = H'.length := h.length_eq
-
-lemma rep_of_multisetEqTo {H H' : History} {X X' : Sequent} (hH : H.multisetEqTo H')
-    (hX : X.multisetEqTo X') (h : rep H' X') : rep H X := by
-  obtain ⟨Y', Y'_in, hY'⟩ := h
-  obtain ⟨Y, Y_in, hY⟩ : ∃ Y ∈ H, Y.multisetEqTo Y' := by
-    induction hH with
-    | nil => simp at Y'_in
-    | cons hd tl IH =>
-        rename_i a b l₁ l₂
-        rcases List.mem_cons.mp Y'_in with rfl | hmem
-        · exact ⟨a, List.mem_cons_self, hd⟩
-        · obtain ⟨Y, Y_in, hY⟩ := IH hmem
-          exact ⟨Y, List.mem_cons_of_mem _ Y_in, hY⟩
-  refine ⟨Y, Y_in, ?_⟩
-  refine Sequent.setEqTo_trans _ _ _ (Sequent.setEqTo_of_multisetEqTo _ _ hY) ?_
-  refine Sequent.setEqTo_trans _ _ _ hY' ?_
-  exact (Sequent.setEqTo_symm _ _).mp (Sequent.setEqTo_of_multisetEqTo _ _ hX)
-
-lemma setEqTo_of_msEq {X Y : Sequent} (h : X.multisetEqTo Y) : X.setEqTo Y :=
-  Sequent.setEqTo_of_multisetEqTo _ _ h
-
-lemma msEq_get {H H' : History} (hH : H.multisetEqTo H') (k : Fin H.length)
-    (hk : (k : Nat) < H'.length) : (H.get k).multisetEqTo (H'.get ⟨k, hk⟩) :=
-  (List.forall₂_iff_get.mp hH).2 k k.2 hk
-
-/-- Loaded path repeats transfer along multiset-equal histories and sequents. -/
-def lpr_of_multisetEqTo {H H' : History} {X X' : Sequent} (hH : H.multisetEqTo H')
-    (hX : X.multisetEqTo X') (lpr : LoadedPathRepeat H' X') : LoadedPathRepeat H X := by
-  have hlen : H.length = H'.length := hH.length_eq
-  obtain ⟨k, hk_eq, hk_loaded⟩ := lpr
-  refine ⟨⟨k.1, by omega⟩, ?_, ?_⟩
-  · refine Sequent.setEqTo_trans _ _ _ (setEqTo_of_msEq (msEq_get hH ⟨k.1, by omega⟩ (by omega))) ?_
-    refine Sequent.setEqTo_trans _ _ _ ?_ ((Sequent.setEqTo_symm _ _).mp (setEqTo_of_msEq hX))
-    simpa using hk_eq
-  · intro m hm
-    have h1 : (H.get m).multisetEqTo (H'.get ⟨m.1, by omega⟩) := msEq_get hH m (by omega)
-    rw [setEqTo_isLoaded_iff (setEqTo_of_msEq h1)]
-    exact hk_loaded ⟨m.1, by omega⟩ (by simpa using hm)
-
-lemma History.multisetEqTo.symm {H H' : History} (h : H.multisetEqTo H') : H'.multisetEqTo H := by
-  induction h with
-  | nil => exact List.Forall₂.nil
-  | cons hd _ IH => exact List.Forall₂.cons ((Sequent.multisetEqTo_symm _ _).mp hd) IH
-
-lemma flprep_of_multisetEqTo {H H' : History} {X X' : Sequent} (hH : H.multisetEqTo H')
-    (hX : X.multisetEqTo X') (h : flprep H' X') : flprep H X := by
-  rcases h with ⟨hrep, hfree⟩ | lpr
-  · refine Or.inl ⟨rep_of_multisetEqTo hH hX hrep, ?_⟩
-    unfold Sequent.isFree at *
-    rw [setEqTo_isLoaded_iff (setEqTo_of_msEq hX)]
-    exact hfree
-  · exact Or.inr (lpr.elim fun l => ⟨lpr_of_multisetEqTo hH hX l⟩)
-
-lemma projection_perm {A : Nat} {L L' : List Formula} (h : L.Perm L') :
-    (projection A L).Perm (projection A L') := by
-  have : ∀ (M : List Formula), projection A M = (M.map (formProjection A)).filterMap id :=
-    fun _ => rfl
-  rw [this, this]
-  exact ((h.map _).filterMap id)
-
-/-- PDL rules can be applied to multiset-equal sequents, with multiset-equal results. -/
-lemma PdlRule.exists_of_multisetEqTo {X X' Y : Sequent} (hX : X.multisetEqTo X')
-    (r : PdlRule X Y) : ∃ Y', Nonempty (PdlRule X' Y') ∧ Y.multisetEqTo Y' := by
-  rcases X' with ⟨L', R', O'⟩
-  cases r
-  case loadL L δ α φ R hin hnb hY =>
-    rw [Sequent.multisetEqTo_iff] at hX
-    obtain ⟨hL, hR, hO⟩ := hX
-    subst hY
-    subst hO
-    exact ⟨(L'.erase (~⌈⌈δ⌉⌉⌈α⌉φ), R', some (Sum.inl (~'⌊⌊δ⌋⌋⌊α⌋AnyFormula.normal φ))),
-      ⟨PdlRule.loadL (hL.mem_iff.mp hin) hnb rfl⟩,
-      Sequent.multisetEqTo_iff.mpr ⟨hL.erase _, hR, rfl⟩⟩
-  case loadR R δ α φ L hin hnb hY =>
-    rw [Sequent.multisetEqTo_iff] at hX
-    obtain ⟨hL, hR, hO⟩ := hX
-    subst hY
-    subst hO
-    exact ⟨(L', R'.erase (~⌈⌈δ⌉⌉⌈α⌉φ), some (Sum.inr (~'⌊⌊δ⌋⌋⌊α⌋AnyFormula.normal φ))),
-      ⟨PdlRule.loadR (hR.mem_iff.mp hin) hnb rfl⟩,
-      Sequent.multisetEqTo_iff.mpr ⟨hL, hR.erase _, rfl⟩⟩
-  case freeL L R δ α φ hX_def hY =>
-    subst hX_def
-    rw [Sequent.multisetEqTo_iff] at hX
-    obtain ⟨hL, hR, hO⟩ := hX
-    subst hY
-    subst hO
-    exact ⟨(List.insert (~⌈⌈δ⌉⌉⌈α⌉φ) L', R', none), ⟨PdlRule.freeL rfl rfl⟩,
-      Sequent.multisetEqTo_iff.mpr ⟨hL.insert _, hR, rfl⟩⟩
-  case freeR L R δ α φ hX_def hY =>
-    subst hX_def
-    rw [Sequent.multisetEqTo_iff] at hX
-    obtain ⟨hL, hR, hO⟩ := hX
-    subst hY
-    subst hO
-    exact ⟨(L', List.insert (~⌈⌈δ⌉⌉⌈α⌉φ) R', none), ⟨PdlRule.freeR rfl rfl⟩,
-      Sequent.multisetEqTo_iff.mpr ⟨hL, hR.insert _, rfl⟩⟩
-  case modL L R A ξ hX_def hY =>
-    subst hX_def
-    rw [Sequent.multisetEqTo_iff] at hX
-    obtain ⟨hL, hR, hO⟩ := hX
-    subst hY
-    subst hO
-    cases ξ
-    case normal φ =>
-      exact ⟨((~φ) :: projection A L', projection A R', none), ⟨PdlRule.modL rfl rfl⟩,
-        Sequent.multisetEqTo_iff.mpr ⟨(projection_perm hL).cons _, projection_perm hR, rfl⟩⟩
-    case loaded χ =>
-      exact ⟨(projection A L', projection A R', some (Sum.inl (~'χ))), ⟨PdlRule.modL rfl rfl⟩,
-        Sequent.multisetEqTo_iff.mpr ⟨projection_perm hL, projection_perm hR, rfl⟩⟩
-  case modR L R A ξ hX_def hY =>
-    subst hX_def
-    rw [Sequent.multisetEqTo_iff] at hX
-    obtain ⟨hL, hR, hO⟩ := hX
-    subst hY
-    subst hO
-    cases ξ
-    case normal φ =>
-      exact ⟨(projection A L', (~φ) :: projection A R', none), ⟨PdlRule.modR rfl rfl⟩,
-        Sequent.multisetEqTo_iff.mpr ⟨projection_perm hL, (projection_perm hR).cons _, rfl⟩⟩
-    case loaded χ =>
-      exact ⟨(projection A L', projection A R', some (Sum.inr (~'χ))), ⟨PdlRule.modR rfl rfl⟩,
-        Sequent.multisetEqTo_iff.mpr ⟨projection_perm hL, projection_perm hR, rfl⟩⟩
-
-
 /-! ## Refutable sequents
 
 To show that the local development of a sequent does not depend on the order in which the
@@ -1026,7 +886,6 @@ it can be shown by purely syntactic means: the interesting case is when the rule
 the box or the diamond unfolding for the two clashing formulas `⌈α⌉ψ` and `~⌈α⌉ψ`. There
 the branches of `unfoldBox` and of `unfoldDiamond` clash pairwise, either on a test or on a
 formula `⌈⌈δ⌉⌉ψ`, which is `Dset_mem_P_of_tests` below. -/
-
 
 theorem Dset_mem_P_of_tests (α : Program) (ℓ : TP α) (Fs : List Formula) (δ : List Program)
     (h : (Fs, δ) ∈ Dset α) (hF : ∀ τ ∈ Fs, (~τ) ∉ F α ℓ) : δ ∈ P α ℓ := by
@@ -1092,77 +951,63 @@ theorem Dset_mem_P_of_tests (α : Program) (ℓ : TP α) (Fs : List Formula) (δ
 
 /-! ### Refutable and dominated sequents -/
 
-/-- The sequent `W` is *dominated by* the list `Ys` if it has a local tableau all of whose
-end nodes occur in `Ys`, up to permutation of the two components. -/
-def Sequent.DominatedBy (W : Sequent) (Ys : List Sequent) : Prop :=
-  ∃ lt : LocalTableau W, ∀ Y ∈ endNodesOf lt, ∃ Y' ∈ Ys, Y.multisetEqTo Y'
+/-- The sequent `W` is *dominated by* the finite set `Ys` if it has a local tableau all of
+whose end nodes occur in `Ys`. -/
+def Sequent.DominatedBy (W : Sequent) (Ys : Finset Sequent) : Prop :=
+  ∃ lt : LocalTableau W, ∀ Y ∈ endNodesOf lt, Y ∈ Ys
 
 /-- A sequent is *refutable* if it has a local tableau without any end nodes. -/
-def Sequent.Refutable (X : Sequent) : Prop := X.DominatedBy []
+def Sequent.Refutable (X : Sequent) : Prop := X.DominatedBy ∅
 
 lemma Sequent.refutable_iff {X : Sequent} :
-    X.Refutable ↔ ∃ lt : LocalTableau X, endNodesOf lt = [] := by
+    X.Refutable ↔ ∃ lt : LocalTableau X, endNodesOf lt = ∅ := by
   constructor
   · rintro ⟨lt, h⟩
-    refine ⟨lt, List.eq_nil_iff_forall_not_mem.mpr (fun Y hY => ?_)⟩
-    obtain ⟨Y', hY', _⟩ := h Y hY
-    simp at hY'
+    exact ⟨lt, Finset.eq_empty_of_forall_notMem (fun Y hY => by simpa using h Y hY)⟩
   · rintro ⟨lt, h⟩
     exact ⟨lt, fun Y hY => absurd (h ▸ hY) (by simp)⟩
 
-lemma Sequent.DominatedBy.mono {W : Sequent} {Ys Zs : List Sequent} (h : W.DominatedBy Ys)
-    (hsub : ∀ Y ∈ Ys, ∃ Z ∈ Zs, Y.multisetEqTo Z) : W.DominatedBy Zs := by
+lemma Sequent.DominatedBy.mono {W : Sequent} {Ys Zs : Finset Sequent} (h : W.DominatedBy Ys)
+    (hsub : Ys ⊆ Zs) : W.DominatedBy Zs := by
   obtain ⟨lt, hlt⟩ := h
-  refine ⟨lt, fun Y hY => ?_⟩
-  obtain ⟨Y', hY', he⟩ := hlt Y hY
-  obtain ⟨Z, hZ, he2⟩ := hsub Y' hY'
-  exact ⟨Z, hZ, Sequent.multisetEqTo_trans he he2⟩
+  exact ⟨lt, fun Y hY => hsub (hlt Y hY)⟩
 
-lemma Sequent.Refutable.dominatedBy {W : Sequent} (h : W.Refutable) (Ys : List Sequent) :
+lemma Sequent.Refutable.dominatedBy {W : Sequent} (h : W.Refutable) (Ys : Finset Sequent) :
     W.DominatedBy Ys :=
-  h.mono (by simp)
+  h.mono (Finset.empty_subset _)
 
 /-- If all children of a rule application are dominated by `Ys` then so is the sequent. -/
-lemma Sequent.DominatedBy.byRule {W : Sequent} {Ys : List Sequent} {lra : LocalRuleApp}
+lemma Sequent.DominatedBy.byRule {W : Sequent} {Ys : Finset Sequent} {lra : LocalRuleApp}
     (hX : lra.X = W) (h : ∀ V ∈ lra.C, V.DominatedBy Ys) : W.DominatedBy Ys := by
   choose f hf using h
   refine ⟨LocalTableau.byLocalRule lra hX.symm f, ?_⟩
   intro Y hY
-  simp only [endNodesOf, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
-    Subtype.exists] at hY
-  obtain ⟨_, ⟨V, hV, rfl⟩, hY⟩ := hY
+  simp only [endNodesOf, Finset.sup_image, Function.id_comp, Finset.mem_sup, Finset.mem_attach,
+    true_and, Subtype.exists] at hY
+  obtain ⟨V, hV, hY⟩ := hY
   exact hf V hV Y hY
 
 /-- A closed sequent is refutable: a closure rule can be applied to it. -/
 lemma Sequent.Refutable.of_closed {X : Sequent} (h : X.closed) : X.Refutable := by
-  have key : ∃ lra : LocalRuleApp, lra.X = X ∧ lra.C = [] := by
+  have key : ∃ lra : LocalRuleApp, lra.X = X ∧ lra.C = ∅ := by
     rcases X with ⟨L, R, O⟩
     rcases h with bot_in | ⟨φ, φ_in, not_φ_in⟩
     · simp only [instMembershipFormulaSequent] at bot_in
       cases bot_in
-      · exact ⟨⟨L, R, O, [⊥], [], none, [], .oneSidedL .bot rfl, [], rfl, by simp_all⟩,
-          by simp, rfl⟩
-      · exact ⟨⟨L, R, O, [], [⊥], none, [], .oneSidedR .bot rfl, [], rfl, by simp_all⟩,
-          by simp, rfl⟩
+      · exact ⟨⟨L, R, O, {⊥}, ∅, none, ∅, .oneSidedL .bot rfl, ∅, by simp [applyLocalRule],
+          by simp_all⟩, by simp, rfl⟩
+      · exact ⟨⟨L, R, O, ∅, {⊥}, none, ∅, .oneSidedR .bot rfl, ∅, by simp [applyLocalRule],
+          by simp_all⟩, by simp, rfl⟩
     · simp only [instMembershipFormulaSequent] at φ_in not_φ_in
       cases φ_in <;> cases not_φ_in
-      · refine ⟨⟨L, R, O, [φ, ~φ], [], none, [], .oneSidedL (.not _) rfl, [], rfl, ?_⟩,
-          by simp, rfl⟩
-        exact ⟨ List.cons_subperm_of_not_mem_of_mem
-                (by simp [φ.neq_neg_self]) ‹_›
-                (by rw [List.singleton_subperm_iff]; exact ‹_›),
-                List.nil_subperm, by simp ⟩
-      · exact ⟨⟨L, R, O, [φ], [~φ], none, [], LocalRule.LRnegL φ, [], rfl, by simp_all⟩,
-          by simp, rfl⟩
-      · exact ⟨⟨L, R, O, [~φ], [φ], none, [], LocalRule.LRnegR φ, [], rfl, by simp_all⟩,
-          by simp, rfl⟩
-      · refine ⟨⟨L, R, O, [], [φ, ~φ], none, [], .oneSidedR (.not _) rfl, [], rfl, ?_⟩,
-          by simp, rfl⟩
-        exact ⟨ List.nil_subperm,
-                List.cons_subperm_of_not_mem_of_mem
-                (by simp; exact φ.neq_neg_self) ‹_›
-                (by rw [List.singleton_subperm_iff]; exact ‹_›),
-                by simp ⟩
+      · exact ⟨⟨L, R, O, {φ, ~φ}, ∅, none, ∅, .oneSidedL (.not _) rfl, ∅,
+          by simp [applyLocalRule], by simp_all [Finset.insert_subset_iff]⟩, by simp, rfl⟩
+      · exact ⟨⟨L, R, O, {φ}, {~φ}, none, ∅, LocalRule.LRnegL φ, ∅, by simp [applyLocalRule],
+          by simp_all⟩, by simp, rfl⟩
+      · exact ⟨⟨L, R, O, {~φ}, {φ}, none, ∅, LocalRule.LRnegR φ, ∅, by simp [applyLocalRule],
+          by simp_all⟩, by simp, rfl⟩
+      · exact ⟨⟨L, R, O, ∅, {φ, ~φ}, none, ∅, .oneSidedR (.not _) rfl, ∅,
+          by simp [applyLocalRule], by simp_all [Finset.insert_subset_iff]⟩, by simp, rfl⟩
   obtain ⟨lra, hX, hC⟩ := key
   exact Sequent.DominatedBy.byRule hX (by simp [hC])
 
@@ -1176,44 +1021,46 @@ to one of the two clashing formulas. -/
 `X` and to refute all the results. The resulting sequents are only described by two
 properties, so that we do not have to care about which of the two components `p` is in:
 all formulas of `X` other than `p` are still present, and the result of the rule was added. -/
-lemma Sequent.Refutable.byOneSided {X : Sequent} {p : Formula} {ress : List (List Formula)}
-    (orule : OneSidedLocalRule [p] ress) (hp : p ∈ X)
+lemma Sequent.Refutable.byOneSided {X : Sequent} {p : Formula} {ress : Finset (Finset Formula)}
+    (orule : OneSidedLocalRule {p} ress) (hp : p ∈ X)
     (h : ∀ res ∈ ress, ∀ W : Sequent,
         (∀ f ∈ X, f ≠ p → f ∈ W) → (∀ φ ∈ res, φ ∈ W) → W.Refutable) :
     X.Refutable := by
   rcases X with ⟨L, R, O⟩
   simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R] at hp
   rcases hp with hp | hp
-  · refine Sequent.DominatedBy.byRule (lra := ⟨L, R, O, [p], [], none,
-      ress.map (fun res => (res, ∅, none)), .oneSidedL orule rfl, _, rfl,
-      ⟨by rw [List.singleton_subperm_iff]; exact hp, List.nil_subperm, by simp⟩⟩) rfl ?_
+  · refine Sequent.DominatedBy.byRule (lra := ⟨L, R, O, {p}, ∅, none,
+      ress.image (fun res => (res, ∅, none)), .oneSidedL orule rfl, _, rfl,
+      ⟨by simpa using hp, Finset.empty_subset _, by simp⟩⟩) rfl ?_
     intro V hV
-    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hV
+    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hV
     obtain ⟨res, hres, rfl⟩ := hV
     refine h res hres _ ?_ ?_
     · rintro f hf hne
-      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R] at hf ⊢
+      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union,
+        Finset.mem_sdiff, Finset.mem_singleton] at hf ⊢
       rcases hf with hf | hf
-      · exact Or.inl (List.mem_append_left _ (by
-          simpa [List.diff_cons] using (List.mem_erase_of_ne hne).mpr hf))
+      · exact Or.inl (Or.inl ⟨hf, hne⟩)
       · exact Or.inr (by simpa using hf)
     · intro φ hφ
-      exact Or.inl (List.mem_append_right _ hφ)
-  · refine Sequent.DominatedBy.byRule (lra := ⟨L, R, O, [], [p], none,
-      ress.map (fun res => (∅, res, none)), .oneSidedR orule rfl, _, rfl,
-      ⟨List.nil_subperm, by rw [List.singleton_subperm_iff]; exact hp, by simp⟩⟩) rfl ?_
+      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union]
+      exact Or.inl (Or.inr hφ)
+  · refine Sequent.DominatedBy.byRule (lra := ⟨L, R, O, ∅, {p}, none,
+      ress.image (fun res => (∅, res, none)), .oneSidedR orule rfl, _, rfl,
+      ⟨Finset.empty_subset _, by simpa using hp, by simp⟩⟩) rfl ?_
     intro V hV
-    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hV
+    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hV
     obtain ⟨res, hres, rfl⟩ := hV
     refine h res hres _ ?_ ?_
     · rintro f hf hne
-      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R] at hf ⊢
+      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union,
+        Finset.mem_sdiff, Finset.mem_singleton] at hf ⊢
       rcases hf with hf | hf
       · exact Or.inl (by simpa using hf)
-      · exact Or.inr (List.mem_append_left _ (by
-          simpa [List.diff_cons] using (List.mem_erase_of_ne hne).mpr hf))
+      · exact Or.inr (Or.inl ⟨hf, hne⟩)
     · intro φ hφ
-      exact Or.inr (List.mem_append_right _ hφ)
+      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union]
+      exact Or.inr (Or.inr hφ)
 
 /-- Two formulas of different length are different. -/
 lemma Formula.ne_of_length_lt {φ ψ : Formula}
@@ -1228,21 +1075,21 @@ lemma Formula.ne_of_length_ne {φ ψ : Formula}
   exact h rfl
 
 /-- Adding formulas to a closed sequent keeps it closed. -/
-lemma Sequent.closed.append {L R Ln Rn : List Formula} {O O' : Olf}
-    (hX : Sequent.closed (L, R, O)) : Sequent.closed (L ++ Ln, R ++ Rn, O') := by
+lemma Sequent.closed.append {L R Ln Rn : Finset Formula} {O O' : Olf}
+    (hX : Sequent.closed (L, R, O)) : Sequent.closed (L ∪ Ln, R ∪ Rn, O') := by
   rcases hX with hbot | ⟨f, hf, hnf⟩
   · left
-    simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, List.mem_append] at hbot ⊢
+    simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union] at hbot ⊢
     tauto
   · right
     refine ⟨f, ?_, ?_⟩ <;>
-      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, List.mem_append]
+      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union]
         at hf hnf ⊢ <;>
       tauto
 
 /-- A one-sided rule that is not a closure rule has exactly one principal formula. -/
-lemma OneSidedLocalRule.singleton_precond {pre : List Formula} {ress : List (List Formula)}
-    (orule : OneSidedLocalRule pre ress) (h : ress ≠ []) : ∃ p, pre = [p] := by
+lemma OneSidedLocalRule.singleton_precond {pre : Finset Formula} {ress : Finset (Finset Formula)}
+    (orule : OneSidedLocalRule pre ress) (h : ress ≠ ∅) : ∃ p, pre = {p} := by
   cases orule <;> simp_all
 
 /-- Tests are shorter than the program they occur in. -/
@@ -1313,7 +1160,7 @@ lemma refutable_of_negneg {X : Sequent} {χ : Formula} (h1 : χ ∈ X) (h2 : (~(
     X.Refutable := by
   refine Sequent.Refutable.byOneSided (OneSidedLocalRule.neg (~χ)) h2 ?_
   rintro res hres W hsurv hmem
-  simp only [List.mem_singleton] at hres
+  simp only [Finset.mem_singleton] at hres
   subst hres
   refine Sequent.Refutable.of_closed (Or.inr ⟨χ, ?_, hmem _ (by simp)⟩)
   exact hsurv χ h1 (Formula.ne_of_length_ne (by simp; omega))
@@ -1322,7 +1169,7 @@ lemma refutable_of_con_nCo {X : Sequent} {χ ρ : Formula} (h1 : χ ∈ X) (h2 :
     (h3 : (~(χ ⋀ ρ)) ∈ X) : X.Refutable := by
   refine Sequent.Refutable.byOneSided (OneSidedLocalRule.nCo χ ρ) h3 ?_
   rintro res hres W hsurv hmem
-  simp only [List.mem_cons, List.not_mem_nil, or_false] at hres
+  simp only [Finset.mem_insert, Finset.mem_singleton] at hres
   rcases hres with rfl | rfl
   · exact Sequent.Refutable.of_closed (Or.inr ⟨χ,
       hsurv χ h1 (Formula.ne_of_length_ne (by simp; omega)), hmem _ (by simp)⟩)
@@ -1333,7 +1180,7 @@ lemma refutable_of_nCo_con {X : Sequent} {χ ρ : Formula} (h1 : (~χ) ∈ X ∨
     (h2 : (χ ⋀ ρ) ∈ X) : X.Refutable := by
   refine Sequent.Refutable.byOneSided (OneSidedLocalRule.con χ ρ) h2 ?_
   rintro res hres W hsurv hmem
-  simp only [List.mem_singleton] at hres
+  simp only [Finset.mem_singleton] at hres
   subst hres
   rcases h1 with h1 | h1
   · exact Sequent.Refutable.of_closed (Or.inr ⟨χ, hmem _ (by simp), hsurv _ h1 (by simp)⟩)
@@ -1343,7 +1190,7 @@ lemma refutable_of_nCo_negneg {X : Sequent} {χ ρ : Formula} (h1 : (~χ) ∈ X 
     (h2 : (~~(χ ⋀ ρ)) ∈ X) : X.Refutable := by
   refine Sequent.Refutable.byOneSided (OneSidedLocalRule.neg (χ ⋀ ρ)) h2 ?_
   rintro res hres W hsurv hmem
-  simp only [List.mem_singleton] at hres
+  simp only [Finset.mem_singleton] at hres
   subst hres
   have k1 : (~χ) ≠ (~~(χ ⋀ ρ)) := Formula.ne_of_length_ne (by simp; omega)
   have k2 : (~ρ) ≠ (~~(χ ⋀ ρ)) := Formula.ne_of_length_ne (by simp; omega)
@@ -1357,33 +1204,37 @@ lemma refutable_of_box_dia {X : Sequent} {α : Program} {ψ : Formula} {ℓ : TP
     X.Refutable := by
   refine Sequent.Refutable.byOneSided (OneSidedLocalRule.dia α ψ hna) hd ?_
   rintro res hres W hsurv hmem
-  simp only [unfoldDiamond, List.mem_map] at hres
-  obtain ⟨⟨Fs, δ⟩, hFδ, rfl⟩ := hres
+  simp only [List.toFinFin, List.mem_toFinset, List.mem_map] at hres
+  obtain ⟨Y, hY, rfl⟩ := hres
+  simp only [unfoldDiamond, List.mem_map] at hY
+  obtain ⟨⟨Fs, δ⟩, hFδ, rfl⟩ := hY
   have hBW : ∀ φ ∈ Bset α ℓ ψ, φ ∈ W :=
     fun φ hφ => hsurv φ (hB φ hφ) (ne_neg_box_of_mem_Bset hφ)
   obtain ⟨f, hf | hf⟩ := Bset_Yset_clash (ψ := ψ) ℓ hFδ
-  · exact Sequent.Refutable.of_closed (Or.inr ⟨f, hBW _ hf.1, hmem _ hf.2⟩)
-  · exact Sequent.Refutable.of_closed (Or.inr ⟨f, hmem _ hf.2, hBW _ hf.1⟩)
+  · exact Sequent.Refutable.of_closed (Or.inr ⟨f, hBW _ hf.1, hmem _ (by simpa using hf.2)⟩)
+  · exact Sequent.Refutable.of_closed (Or.inr ⟨f, hmem _ (by simpa using hf.2), hBW _ hf.1⟩)
 
 lemma refutable_of_dia_box {X : Sequent} {α : Program} {ψ : Formula} {Fs : List Formula}
     {δ : List Program} (hna : ¬ α.isAtomic) (hFδ : (Fs, δ) ∈ Dset α)
     (hY : ∀ φ ∈ Yset (Fs, δ) ψ, φ ∈ X) (hb : (⌈α⌉ψ) ∈ X) : X.Refutable := by
   refine Sequent.Refutable.byOneSided (OneSidedLocalRule.box α ψ hna) hb ?_
   rintro res hres W hsurv hmem
-  simp only [unfoldBox, List.mem_map] at hres
-  obtain ⟨ℓ, _, rfl⟩ := hres
+  simp only [List.toFinFin, List.mem_toFinset, List.mem_map] at hres
+  obtain ⟨B, hB, rfl⟩ := hres
+  simp only [unfoldBox, List.mem_map] at hB
+  obtain ⟨ℓ, _, rfl⟩ := hB
   have hYW : ∀ φ ∈ Yset (Fs, δ) ψ, φ ∈ W :=
     fun φ hφ => hsurv φ (hY φ hφ) (ne_box_of_mem_Yset hFδ hφ).1
   obtain ⟨f, hf | hf⟩ := Bset_Yset_clash (ψ := ψ) ℓ hFδ
-  · exact Sequent.Refutable.of_closed (Or.inr ⟨f, hmem _ hf.1, hYW _ hf.2⟩)
-  · exact Sequent.Refutable.of_closed (Or.inr ⟨f, hYW _ hf.2, hmem _ hf.1⟩)
+  · exact Sequent.Refutable.of_closed (Or.inr ⟨f, hmem _ (by simpa using hf.1), hYW _ hf.2⟩)
+  · exact Sequent.Refutable.of_closed (Or.inr ⟨f, hYW _ hf.2, hmem _ (by simpa using hf.1)⟩)
 
 lemma refutable_of_dia_negneg {X : Sequent} {α : Program} {ψ : Formula} {Fs : List Formula}
     {δ : List Program} (hna : ¬ α.isAtomic) (hFδ : (Fs, δ) ∈ Dset α)
     (hY : ∀ φ ∈ Yset (Fs, δ) ψ, φ ∈ X) (hb : (~~⌈α⌉ψ) ∈ X) : X.Refutable := by
   refine Sequent.Refutable.byOneSided (OneSidedLocalRule.neg (⌈α⌉ψ)) hb ?_
   rintro res hres W hsurv hmem
-  simp only [List.mem_singleton] at hres
+  simp only [Finset.mem_singleton] at hres
   subst hres
   exact refutable_of_dia_box hna hFδ
     (fun φ hφ => hsurv φ (hY φ hφ) (ne_box_of_mem_Yset hFδ hφ).2) (hmem _ (by simp))
@@ -1392,15 +1243,19 @@ lemma refutable_of_dia_negneg {X : Sequent} {α : Program} {ψ : Formula} {Fs : 
 removing the principal formula `p` of a one-sided rule and adding one of its results, then
 `W` is refutable. -/
 lemma Sequent.Refutable.of_oneSided_step {X W : Sequent} (hX : X.closed) {p : Formula}
-    {ress : List (List Formula)} (orule : OneSidedLocalRule [p] ress) {res : List Formula}
+    {pre : Finset Formula} {ress : Finset (Finset Formula)} (orule : OneSidedLocalRule pre ress)
+    (hpre : pre = {p}) {res : Finset Formula}
     (hres : res ∈ ress) (hsurv : ∀ f ∈ X, f ≠ p → f ∈ W) (hmem : ∀ φ ∈ res, φ ∈ W) :
     W.Refutable := by
   have easy : ∀ f, f ∈ X → (~f) ∈ X → f ≠ p → (~f) ≠ p → W.Refutable := fun f h1 h2 h3 h4 =>
     Sequent.Refutable.of_closed (Or.inr ⟨f, hsurv f h1 h3, hsurv _ h2 h4⟩)
   cases orule
   case bot => simp at hres
+  case not φ => simp at hres
   case neg φ =>
-    simp only [List.mem_singleton] at hres
+    rw [Finset.singleton_inj] at hpre
+    subst hpre
+    simp only [Finset.mem_singleton] at hres
     subst hres
     have hφW : φ ∈ W := hmem _ (by simp)
     rcases hX with hbot | ⟨f, hf, hnf⟩
@@ -1416,7 +1271,9 @@ lemma Sequent.Refutable.of_oneSided_step {X W : Sequent} (hX : X.closed) {p : Fo
           exact Sequent.Refutable.of_closed (Or.inr ⟨φ, hφW, hsurv _ hf hne⟩)
         · exact easy f hf hnf h1 h2
   case con φ ψ =>
-    simp only [List.mem_singleton] at hres
+    rw [Finset.singleton_inj] at hpre
+    subst hpre
+    simp only [Finset.mem_singleton] at hres
     subst hres
     have hφW : φ ∈ W := hmem _ (by simp)
     have hψW : ψ ∈ W := hmem _ (by simp)
@@ -1427,7 +1284,9 @@ lemma Sequent.Refutable.of_oneSided_step {X W : Sequent} (hX : X.closed) {p : Fo
         exact refutable_of_con_nCo hφW hψW (hsurv _ hnf (by simp))
       · exact easy f hf hnf h1 (by simp)
   case nCo φ ψ =>
-    have hres' : res = [~φ] ∨ res = [~ψ] := by simpa using hres
+    rw [Finset.singleton_inj] at hpre
+    subst hpre
+    have hres' : res = {~φ} ∨ res = {~ψ} := by simpa using hres
     have hin : (~φ) ∈ W ∨ (~ψ) ∈ W := by
       rcases hres' with rfl | rfl
       · exact Or.inl (hmem _ (by simp))
@@ -1444,27 +1303,38 @@ lemma Sequent.Refutable.of_oneSided_step {X W : Sequent} (hX : X.closed) {p : Fo
           exact refutable_of_nCo_con hin (hsurv _ hf (by simp))
         · exact easy f hf hnf h1 h2
   case box α φ hna =>
-    simp only [unfoldBox, List.mem_map] at hres
-    obtain ⟨ℓ, _, rfl⟩ := hres
+    rw [Finset.singleton_inj] at hpre
+    subst hpre
+    simp only [List.toFinFin, List.mem_toFinset, List.mem_map] at hres
+    obtain ⟨B, hB, rfl⟩ := hres
+    simp only [unfoldBox, List.mem_map] at hB
+    obtain ⟨ℓ, _, rfl⟩ := hB
     rcases hX with hbot | ⟨f, hf, hnf⟩
     · exact Sequent.Refutable.of_closed (Or.inl (hsurv _ hbot (by simp)))
     · by_cases h1 : f = (⌈α⌉φ)
       · subst h1
-        exact refutable_of_box_dia (ℓ := ℓ) hna (fun x hx => hmem x hx) (hsurv _ hnf (by simp))
+        exact refutable_of_box_dia (ℓ := ℓ) hna (fun x hx => hmem x (by simpa using hx))
+          (hsurv _ hnf (by simp))
       · exact easy f hf hnf h1 (by simp)
   case dia α φ hna =>
-    simp only [unfoldDiamond, List.mem_map] at hres
-    obtain ⟨⟨Fs, δ⟩, hFδ, rfl⟩ := hres
+    rw [Finset.singleton_inj] at hpre
+    subst hpre
+    simp only [List.toFinFin, List.mem_toFinset, List.mem_map] at hres
+    obtain ⟨Y, hY, rfl⟩ := hres
+    simp only [unfoldDiamond, List.mem_map] at hY
+    obtain ⟨⟨Fs, δ⟩, hFδ, rfl⟩ := hY
     rcases hX with hbot | ⟨f, hf, hnf⟩
     · exact Sequent.Refutable.of_closed (Or.inl (hsurv _ hbot (by simp)))
     · by_cases h1 : f = (~⌈α⌉φ)
       · subst h1
         have hne : (~~⌈α⌉φ) ≠ (~⌈α⌉φ) := Formula.ne_of_length_ne (by simp)
-        exact refutable_of_dia_negneg hna hFδ (fun x hx => hmem x hx) (hsurv _ hnf hne)
+        exact refutable_of_dia_negneg hna hFδ (fun x hx => hmem x (by simpa using hx))
+          (hsurv _ hnf hne)
       · by_cases h2 : (~f) = (~⌈α⌉φ)
         · simp only [Formula.neg.injEq] at h2
           subst h2
-          exact refutable_of_dia_box hna hFδ (fun x hx => hmem x hx) (hsurv _ hf (by simp))
+          exact refutable_of_dia_box hna hFδ (fun x hx => hmem x (by simpa using hx))
+            (hsurv _ hf (by simp))
         · exact easy f hf hnf h1 h2
 
 /-- **A clash survives any local rule:** every child of a rule application to a closed
@@ -1478,145 +1348,44 @@ lemma Sequent.Refutable.child_of_closed {X W : Sequent} (hX : X.closed) {lra : L
   cases lr
   case oneSidedL ress' orule YS_def =>
     subst YS_def
-    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hW
+    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hW
     obtain ⟨res, hres, rfl⟩ := hW
     obtain ⟨p, rfl⟩ := orule.singleton_precond (by rintro rfl; simp at hres)
-    refine Sequent.Refutable.of_oneSided_step hX orule hres ?_ ?_
+    refine Sequent.Refutable.of_oneSided_step hX orule rfl hres ?_ ?_
     · rintro f hf hne
-      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R] at hf ⊢
-      rcases hf with hf | hf
-      · exact Or.inl (List.mem_append_left _ (by
-          simpa [List.diff_cons] using (List.mem_erase_of_ne hne).mpr hf))
-      · exact Or.inr (by simpa using hf)
+      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union,
+        Finset.mem_sdiff, Finset.mem_singleton, Finset.sdiff_empty, Finset.union_empty] at hf ⊢
+      tauto
     · intro φ hφ
-      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R]
-      exact Or.inl (List.mem_append_right _ hφ)
+      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union,
+        Finset.mem_sdiff, Finset.sdiff_empty, Finset.union_empty]
+      tauto
   case oneSidedR ress' orule YS_def =>
     subst YS_def
-    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hW
+    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hW
     obtain ⟨res, hres, rfl⟩ := hW
     obtain ⟨p, rfl⟩ := orule.singleton_precond (by rintro rfl; simp at hres)
-    refine Sequent.Refutable.of_oneSided_step hX orule hres ?_ ?_
+    refine Sequent.Refutable.of_oneSided_step hX orule rfl hres ?_ ?_
     · rintro f hf hne
-      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R] at hf ⊢
-      rcases hf with hf | hf
-      · exact Or.inl (by simpa using hf)
-      · exact Or.inr (List.mem_append_left _ (by
-          simpa [List.diff_cons] using (List.mem_erase_of_ne hne).mpr hf))
+      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union,
+        Finset.mem_sdiff, Finset.mem_singleton, Finset.sdiff_empty, Finset.union_empty] at hf ⊢
+      tauto
     · intro φ hφ
-      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R]
-      exact Or.inr (List.mem_append_right _ hφ)
+      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union,
+        Finset.mem_sdiff, Finset.sdiff_empty, Finset.union_empty]
+      tauto
   case LRnegL => simp at hW
   case LRnegR => simp at hW
   case loadedL ress' χ lrule YS_def =>
     subst YS_def
-    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hW
+    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hW
     obtain ⟨⟨Ln, on⟩, hres, rfl⟩ := hW
-    exact Sequent.Refutable.of_closed hX.append
+    exact Sequent.Refutable.of_closed (by simpa only [Finset.sdiff_empty] using hX.append)
   case loadedR ress' χ lrule YS_def =>
     subst YS_def
-    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hW
+    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hW
     obtain ⟨⟨Ln, on⟩, hres, rfl⟩ := hW
-    exact Sequent.Refutable.of_closed hX.append
-
-/-! ### Transporting local tableaux along permutations -/
-
-/-- Local rule applications can be transported along `Sequent.multisetEqTo`. -/
-lemma LocalRuleApp.exists_of_msEq {X X' : Sequent} (h : X.multisetEqTo X')
-    {lra : LocalRuleApp} (hX : lra.X = X) : ∃ lra' : LocalRuleApp, lra'.X = X' ∧
-      (∀ W' ∈ lra'.C, ∃ W ∈ lra.C, W.multisetEqTo W')
-      ∧ (∀ W ∈ lra.C, ∃ W' ∈ lra'.C, W.multisetEqTo W') := by
-  rcases lra with ⟨L, R, O, Lc, Rc, Oc, ress, lr, C, hC, pre⟩
-  simp only [LocalRuleApp.X] at hX
-  subst hX
-  subst hC
-  obtain ⟨L', R', O'⟩ := X'
-  rw [Sequent.multisetEqTo_iff] at h
-  obtain ⟨hL, hR, rfl⟩ := h
-  refine ⟨⟨L', R', O, Lc, Rc, Oc, ress, lr, _, rfl,
-    ⟨pre.1.trans hL.subperm, pre.2.1.trans hR.subperm, pre.2.2⟩⟩, rfl, ?_, ?_⟩
-  · intro W' hW'
-    simp only [applyLocalRule, List.mem_map] at hW' ⊢
-    obtain ⟨⟨Ln, Rn, On⟩, hmem, rfl⟩ := hW'
-    refine ⟨_, ⟨(Ln, Rn, On), hmem, rfl⟩, ?_⟩
-    exact Sequent.multisetEqTo_iff.mpr ⟨(hL.diff_right Lc).append_right _,
-      (hR.diff_right Rc).append_right _, rfl⟩
-  · intro W hW
-    simp only [applyLocalRule, List.mem_map] at hW ⊢
-    obtain ⟨⟨Ln, Rn, On⟩, hmem, rfl⟩ := hW
-    refine ⟨_, ⟨(Ln, Rn, On), hmem, rfl⟩, ?_⟩
-    exact Sequent.multisetEqTo_iff.mpr ⟨(hL.diff_right Lc).append_right _,
-      (hR.diff_right Rc).append_right _, rfl⟩
-
-/-- A local tableau for `X` can be transported to any sequent that is multiset-equal to `X`,
-changing the end nodes only up to permutation. -/
-lemma Sequent.dominatedBy_of_msEq : ∀ {X : Sequent} (lt : LocalTableau X) {X' : Sequent},
-    X.multisetEqTo X' → X'.DominatedBy (endNodesOf lt) := by
-  intro X lt
-  induction lt with
-  | @sim X bas =>
-      intro X' h
-      have bas' : X'.basic := (Sequent.basic_iff_of_setEqTo (setEqTo_of_msEq h)).mp bas
-      exact ⟨LocalTableau.sim bas', by
-        intro Y hY
-        simp only [endNodesOf, List.mem_singleton] at hY ⊢
-        subst hY
-        exact ⟨X, rfl, (Sequent.multisetEqTo_symm _ _).mp h⟩⟩
-  | @byLocalRule X lra X_def next IH =>
-      subst X_def
-      intro X' h
-      obtain ⟨lra', hlra', hchild, -⟩ := LocalRuleApp.exists_of_msEq h (lra := lra) rfl
-      have hdom : ∀ W' ∈ lra'.C,
-          W'.DominatedBy (endNodesOf (LocalTableau.byLocalRule lra rfl next)) := by
-        intro W' hW'
-        obtain ⟨W, hW, hWW⟩ := hchild W' hW'
-        refine (IH W hW hWW).mono (fun Y hY => ⟨Y, ?_, Sequent.multisetEqTo_refl Y⟩)
-        exact endNodeOfChild_to_endNode lra next rfl hW hY
-      refine ⟨LocalTableau.byLocalRule lra' hlra'.symm (fun W' hW' => (hdom W' hW').choose), ?_⟩
-      intro Y hY
-      obtain ⟨W', hW', hYl⟩ := endNodeIsEndNodeOfChild _ hY
-      exact (hdom W' hW').choose_spec Y hYl
-
-/-! ### Local rules commute
-
-Two local rule applications to the same sequent either have the same principal formulas —
-and then they are the same rule with the same children — or they can be applied in either
-order, leading to the same children up to permutation. -/
-
-/-- A one-sided rule is determined by its principal formulas. -/
-lemma OneSidedLocalRule.ress_eq {pre : List Formula} {ress ress' : List (List Formula)}
-    (r : OneSidedLocalRule pre ress) (r' : OneSidedLocalRule pre ress') : ress = ress' := by
-  cases r <;> cases r' <;> simp_all
-
-/-- A loaded rule is determined by its principal formula. -/
-lemma LoadRule.ress_eq {chi : LoadFormula}
-    {ress ress' : List (List Formula × Option NegLoadFormula)}
-    (r : LoadRule (~'chi) ress) (r' : LoadRule (~'chi) ress') : ress = ress' := by
-  cases r <;> cases r' <;> simp_all
-
-/-- A local rule is determined by its principal formulas. -/
-lemma LocalRule.ress_eq {Lc Rc : List Formula} {Oc : Olf} {ress ress' : List Sequent}
-    (r : LocalRule (Lc, Rc, Oc) ress) (r' : LocalRule (Lc, Rc, Oc) ress') : ress = ress' := by
-  cases r <;> cases r' <;> simp_all
-  all_goals first
-    | exact absurd rfl (OneSidedLocalRule.precond_ne_nil (by assumption))
-    | (congr 1; exact OneSidedLocalRule.ress_eq (by assumption) (by assumption))
-    | (congr 1; exact LoadRule.ress_eq (by assumption) (by assumption))
-
-/-- Two rule applications to the same sequent with the same principal formulas have the
-same children. -/
-lemma LocalRuleApp.C_eq_of_cond_eq {lra lra' : LocalRuleApp} (hX : lra.X = lra'.X)
-    (hL : lra.Lcond = lra'.Lcond) (hR : lra.Rcond = lra'.Rcond) (hO : lra.Ocond = lra'.Ocond) :
-    lra.C = lra'.C := by
-  rcases lra with ⟨L, R, O, Lc, Rc, Oc, ress, lr, C, hC, pre⟩
-  rcases lra' with ⟨L', R', O', Lc', Rc', Oc', ress', lr', C', hC', pre'⟩
-  simp only [LocalRuleApp.X] at hX
-  simp only at hL hR hO
-  obtain ⟨rfl, rfl, rfl⟩ := hX
-  subst hL; subst hR; subst hO
-  subst hC; subst hC'
-  obtain rfl := LocalRule.ress_eq lr lr'
-  simp only [applyLocalRule]
+    exact Sequent.Refutable.of_closed (by simpa only [Finset.sdiff_empty] using hX.append)
 
 /-! ### Closure rules
 
@@ -1660,7 +1429,7 @@ theorem Dset_ne_nil : ∀ (a : Program), Dset a ≠ []
   | ∗_ => by simp [Dset]
 
 /-- A rule without results is a closure rule, so the sequent it is applied to is closed. -/
-lemma LocalRuleApp.closed_of_ress_nil {lra : LocalRuleApp} (h : lra.ress = []) :
+lemma LocalRuleApp.closed_of_ress_nil {lra : LocalRuleApp} (h : lra.ress = ∅) :
     lra.X.closed := by
   rcases lra with ⟨L, R, O, Lc, Rc, Oc, ress, lr, C, hC, pre⟩
   simp only at h
@@ -1669,47 +1438,55 @@ lemma LocalRuleApp.closed_of_ress_nil {lra : LocalRuleApp} (h : lra.ress = []) :
   cases lr
   case oneSidedL ress' orule YS_def =>
     subst YS_def
-    rw [List.map_eq_nil_iff] at h
+    rw [Finset.image_eq_empty] at h
     cases orule
-    case bot => left; left; exact preL.subset (by simp)
-    case not f => right; exact ⟨f, Or.inl (preL.subset (by simp)), Or.inl (preL.subset (by simp))⟩
-    case box a f _ => exact absurd h (unfoldBox_ne_nil a f)
-    case dia a f _ => exact absurd h (by simpa [unfoldDiamond] using Dset_ne_nil a)
+    case bot => left; left; exact preL (by simp)
+    case not f => right; exact ⟨f, Or.inl (preL (by simp)), Or.inl (preL (by simp))⟩
+    case box a f _ =>
+      exact absurd (by simpa [List.toFinFin] using h) (unfoldBox_ne_nil a f)
+    case dia a f _ =>
+      exact absurd (by simpa [List.toFinFin, unfoldDiamond] using h) (Dset_ne_nil a)
     all_goals simp at h
   case oneSidedR ress' orule YS_def =>
     subst YS_def
-    rw [List.map_eq_nil_iff] at h
+    rw [Finset.image_eq_empty] at h
     cases orule
-    case bot => left; right; exact preR.subset (by simp)
-    case not f => right; exact ⟨f, Or.inr (preR.subset (by simp)), Or.inr (preR.subset (by simp))⟩
-    case box a f _ => exact absurd h (unfoldBox_ne_nil a f)
-    case dia a f _ => exact absurd h (by simpa [unfoldDiamond] using Dset_ne_nil a)
+    case bot => left; right; exact preR (by simp)
+    case not f => right; exact ⟨f, Or.inr (preR (by simp)), Or.inr (preR (by simp))⟩
+    case box a f _ =>
+      exact absurd (by simpa [List.toFinFin] using h) (unfoldBox_ne_nil a f)
+    case dia a f _ =>
+      exact absurd (by simpa [List.toFinFin, unfoldDiamond] using h) (Dset_ne_nil a)
     all_goals simp at h
   case LRnegL f =>
-    exact Or.inr ⟨f, Or.inl (preL.subset (by simp)), Or.inr (preR.subset (by simp))⟩
+    exact Or.inr ⟨f, Or.inl (preL (by simp)), Or.inr (preR (by simp))⟩
   case LRnegR f =>
-    exact Or.inr ⟨f, Or.inr (preR.subset (by simp)), Or.inl (preL.subset (by simp))⟩
+    exact Or.inr ⟨f, Or.inr (preR (by simp)), Or.inl (preL (by simp))⟩
   case loadedL ress' chi lrule YS_def =>
     subst YS_def
-    rw [List.map_eq_nil_iff] at h
+    rw [Finset.image_eq_empty] at h
     cases lrule
-    case dia a _ _ => exact absurd h (by simpa [unfoldDiamondLoaded] using Dset_ne_nil a)
-    case dia' a _ _ => exact absurd h (by simpa [unfoldDiamondLoaded'] using Dset_ne_nil a)
+    case dia a _ _ =>
+      exact absurd (by simpa [List.toFinFinOpt, unfoldDiamondLoaded] using h) (Dset_ne_nil a)
+    case dia' a _ _ =>
+      exact absurd (by simpa [List.toFinFinOpt, unfoldDiamondLoaded'] using h) (Dset_ne_nil a)
   case loadedR ress' chi lrule YS_def =>
     subst YS_def
-    rw [List.map_eq_nil_iff] at h
+    rw [Finset.image_eq_empty] at h
     cases lrule
-    case dia a _ _ => exact absurd h (by simpa [unfoldDiamondLoaded] using Dset_ne_nil a)
-    case dia' a _ _ => exact absurd h (by simpa [unfoldDiamondLoaded'] using Dset_ne_nil a)
+    case dia a _ _ =>
+      exact absurd (by simpa [List.toFinFinOpt, unfoldDiamondLoaded] using h) (Dset_ne_nil a)
+    case dia' a _ _ =>
+      exact absurd (by simpa [List.toFinFinOpt, unfoldDiamondLoaded'] using h) (Dset_ne_nil a)
 
 /-- The shape of a rule application that is not a closure rule: it has exactly one principal
 formula, in the left component, in the right component, or the loaded formula. -/
-lemma LocalRuleApp.shape_of_ress_ne_nil {lra : LocalRuleApp} (h : lra.ress ≠ []) :
-    (∃ p, lra.Lcond = [p] ∧ lra.Rcond = [] ∧ lra.Ocond = none
+lemma LocalRuleApp.shape_of_ress_ne_nil {lra : LocalRuleApp} (h : lra.ress ≠ ∅) :
+    (∃ p, lra.Lcond = {p} ∧ lra.Rcond = ∅ ∧ lra.Ocond = none
         ∧ ∀ Y ∈ lra.ress, Y.2.2 = none)
-  ∨ (∃ p, lra.Lcond = [] ∧ lra.Rcond = [p] ∧ lra.Ocond = none
+  ∨ (∃ p, lra.Lcond = ∅ ∧ lra.Rcond = {p} ∧ lra.Ocond = none
         ∧ ∀ Y ∈ lra.ress, Y.2.2 = none)
-  ∨ (lra.Lcond = [] ∧ lra.Rcond = [] ∧ lra.Ocond ≠ none) := by
+  ∨ (lra.Lcond = ∅ ∧ lra.Rcond = ∅ ∧ lra.Ocond ≠ none) := by
   rcases lra with ⟨L, R, O, Lc, Rc, Oc, ress, lr, C, hC, pre⟩
   simp only at h ⊢
   cases lr
@@ -1727,13 +1504,6 @@ lemma LocalRuleApp.shape_of_ress_ne_nil {lra : LocalRuleApp} (h : lra.ress ≠ [
   case loadedL => exact Or.inr (Or.inr ⟨rfl, rfl, by simp⟩)
   case loadedR => exact Or.inr (Or.inr ⟨rfl, rfl, by simp⟩)
 
-/-- If the principal formula of a rule is in `L` and different from `p` then it is still
-in `L.diff [p]`. -/
-lemma List.singleton_subperm_diff {L : List Formula} {p q : Formula} (hq : [q].Subperm L)
-    (hne : q ≠ p) : [q].Subperm (L.diff [p]) := by
-  rw [List.singleton_subperm_iff] at hq ⊢
-  simpa [List.diff_cons] using (List.mem_erase_of_ne hne).mpr hq
-
 /-- A loaded rule can only be applied when its condition is the loaded formula present. -/
 lemma LocalRuleApp.Ocond_eq_O {lra : LocalRuleApp} (h : lra.Ocond ≠ none) : lra.Ocond = lra.O := by
   rcases hc : lra.Ocond with _ | x
@@ -1742,315 +1512,67 @@ lemma LocalRuleApp.Ocond_eq_O {lra : LocalRuleApp} (h : lra.Ocond ≠ none) : lr
     rw [hc] at hsub
     exact hc ▸ Option.some_subseteq.mp hsub
 
-/-- **Two different rules at the same sequent are independent:** the principal formulas of
-each of them survive the application of the other one, and at most one of them touches the
-loaded formula. -/
-lemma LocalRuleApp.independent {lra1 lra2 : LocalRuleApp} (hX : lra1.X = lra2.X)
-    (h1 : lra1.ress ≠ []) (h2 : lra2.ress ≠ [])
-    (hne : ¬ (lra1.Lcond = lra2.Lcond ∧ lra1.Rcond = lra2.Rcond ∧ lra1.Ocond = lra2.Ocond)) :
-    lra2.Lcond.Subperm (lra1.L.diff lra1.Lcond)
-  ∧ lra1.Lcond.Subperm (lra2.L.diff lra2.Lcond)
-  ∧ lra2.Rcond.Subperm (lra1.R.diff lra1.Rcond)
-  ∧ lra1.Rcond.Subperm (lra2.R.diff lra2.Rcond)
-  ∧ ((lra1.Ocond = none ∧ ∀ Y ∈ lra1.ress, Y.2.2 = none)
-     ∨ (lra2.Ocond = none ∧ ∀ Y ∈ lra2.ress, Y.2.2 = none)) := by
-  have hL : lra1.L = lra2.L := congrArg (fun s => s.1) hX
-  have hR : lra1.R = lra2.R := congrArg (fun s => s.2.1) hX
-  have hO : lra1.O = lra2.O := congrArg (fun s => s.2.2) hX
-  obtain ⟨pre1L, pre1R, pre1O⟩ := lra1.preconditionProof
-  obtain ⟨pre2L, pre2R, pre2O⟩ := lra2.preconditionProof
-  rcases LocalRuleApp.shape_of_ress_ne_nil h1 with ⟨p1, e1L, e1R, e1O, e1res⟩ |
-    ⟨p1, e1L, e1R, e1O, e1res⟩ | ⟨e1L, e1R, e1O⟩
-  · have m1a : [p1].Subperm lra1.L := by rw [← e1L]; exact pre1L
-    have m1b : [p1].Subperm lra2.L := by rw [← hL]; exact m1a
-    rcases LocalRuleApp.shape_of_ress_ne_nil h2 with ⟨p2, e2L, e2R, e2O, e2res⟩ |
-      ⟨p2, e2L, e2R, e2O, e2res⟩ | ⟨e2L, e2R, e2O⟩
-    · have m2a : [p2].Subperm lra1.L := by rw [hL, ← e2L]; exact pre2L
-      have hpp : p2 ≠ p1 := by
-        rintro rfl
-        exact hne ⟨e1L.trans e2L.symm, e1R.trans e2R.symm, e1O.trans e2O.symm⟩
-      rw [e1L, e1R, e2L, e2R]
-      exact ⟨List.singleton_subperm_diff m2a hpp,
-        List.singleton_subperm_diff m1b (Ne.symm hpp), by simp, by simp, Or.inl ⟨e1O, e1res⟩⟩
-    · have m2b : [p2].Subperm lra1.R := by rw [hR, ← e2R]; exact pre2R
-      rw [e1L, e1R, e2L, e2R]
-      exact ⟨by simp, by simpa using m1b, by simpa using m2b, by simp, Or.inl ⟨e1O, e1res⟩⟩
-    · rw [e1L, e1R, e2L, e2R]
-      exact ⟨by simp, by simpa using m1b, by simp, by simp, Or.inl ⟨e1O, e1res⟩⟩
-  · have m1a : [p1].Subperm lra1.R := by rw [← e1R]; exact pre1R
-    have m1b : [p1].Subperm lra2.R := by rw [← hR]; exact m1a
-    rcases LocalRuleApp.shape_of_ress_ne_nil h2 with ⟨p2, e2L, e2R, e2O, e2res⟩ |
-      ⟨p2, e2L, e2R, e2O, e2res⟩ | ⟨e2L, e2R, e2O⟩
-    · have m2a : [p2].Subperm lra1.L := by rw [hL, ← e2L]; exact pre2L
-      rw [e1L, e1R, e2L, e2R]
-      exact ⟨by simpa using m2a, by simp, by simp, by simpa using m1b, Or.inl ⟨e1O, e1res⟩⟩
-    · have m2b : [p2].Subperm lra1.R := by rw [hR, ← e2R]; exact pre2R
-      have hpp : p2 ≠ p1 := by
-        rintro rfl
-        exact hne ⟨e1L.trans e2L.symm, e1R.trans e2R.symm, e1O.trans e2O.symm⟩
-      rw [e1L, e1R, e2L, e2R]
-      exact ⟨by simp, by simp, List.singleton_subperm_diff m2b hpp,
-        List.singleton_subperm_diff m1b (Ne.symm hpp), Or.inl ⟨e1O, e1res⟩⟩
-    · rw [e1L, e1R, e2L, e2R]
-      exact ⟨by simp, by simp, by simp, by simpa using m1b, Or.inl ⟨e1O, e1res⟩⟩
-  · rcases LocalRuleApp.shape_of_ress_ne_nil h2 with ⟨p2, e2L, e2R, e2O, e2res⟩ |
-      ⟨p2, e2L, e2R, e2O, e2res⟩ | ⟨e2L, e2R, e2O⟩
-    · have m2a : [p2].Subperm lra1.L := by rw [hL, ← e2L]; exact pre2L
-      rw [e1L, e1R, e2L, e2R]
-      exact ⟨by simpa using m2a, by simp, by simp, by simp, Or.inr ⟨e2O, e2res⟩⟩
-    · have m2b : [p2].Subperm lra1.R := by rw [hR, ← e2R]; exact pre2R
-      rw [e1L, e1R, e2L, e2R]
-      exact ⟨by simp, by simp, by simpa using m2b, by simp, Or.inr ⟨e2O, e2res⟩⟩
-    · exact absurd ⟨e1L.trans e2L.symm, e1R.trans e2R.symm,
-        ((LocalRuleApp.Ocond_eq_O e1O).trans hO).trans (LocalRuleApp.Ocond_eq_O e2O).symm⟩ hne
-
-/-! ### Local rules commute -/
-
-/-- Removing a sublist from the front of an append. -/
-lemma List.append_diff_of_subperm {alpha : Type*} [DecidableEq alpha] :
-    ∀ (C A B : List alpha), C.Subperm A → (A ++ B).diff C = A.diff C ++ B
-  | [], A, B, _ => by simp
-  | c :: C, A, B, h => by
-      have hc : c ∈ A := h.subset (by simp)
-      have hsub : C.Subperm (A.erase c) := by
-        have hcount := List.subperm_ext_iff.mp h
-        rw [List.subperm_ext_iff]
-        intro x hx
-        by_cases hxc : x = c
-        · subst hxc
-          have hle := hcount x (by simp)
-          rw [List.count_erase_self]
-          simp only [List.count_cons_self] at hle
-          omega
-        · rw [List.count_erase_of_ne hxc]
-          have hle := hcount x (by simp [hx])
-          rwa [List.count_cons_of_ne (fun hh => hxc hh.symm)] at hle
-      rw [List.diff_cons, List.diff_cons, List.erase_append_left _ hc]
-      exact List.append_diff_of_subperm C (A.erase c) B hsub
-
-lemma List.diff_erase_comm {alpha : Type*} [DecidableEq alpha] :
-    ∀ (C : List alpha) (L : List alpha) (a : alpha), (L.diff C).erase a = (L.erase a).diff C
-  | [], L, a => by simp
-  | c :: C, L, a => by
-      rw [List.diff_cons, List.diff_cons, List.diff_erase_comm C, List.erase_comm]
-
-lemma List.diff_comm {alpha : Type*} [DecidableEq alpha] :
-    ∀ (D : List alpha) (L C : List alpha), (L.diff C).diff D = (L.diff D).diff C
-  | [], L, C => by simp
-  | d :: D, L, C => by
-      rw [List.diff_cons, List.diff_cons, List.diff_erase_comm C L d, List.diff_comm D]
-
-/-- Applying two independent rules in the two possible orders gives the same sequent, up to
-permutation of the two components. -/
-lemma applyLocalRule_comm {L R Ln₁ Rn₁ Ln₂ Rn₂ Lc₁ Rc₁ Lc₂ Rc₂ : List Formula}
-    {O On₁ Oc₁ On₂ Oc₂ : Olf}
-    (hL₁ : Lc₂.Subperm (L.diff Lc₁)) (hL₂ : Lc₁.Subperm (L.diff Lc₂))
-    (hR₁ : Rc₂.Subperm (R.diff Rc₁)) (hR₂ : Rc₁.Subperm (R.diff Rc₂))
-    (hO : (Oc₁ = none ∧ On₁ = none) ∨ (Oc₂ = none ∧ On₂ = none)) :
-    Sequent.multisetEqTo
-      ((L.diff Lc₁ ++ Ln₁).diff Lc₂ ++ Ln₂, (R.diff Rc₁ ++ Rn₁).diff Rc₂ ++ Rn₂,
-        Olf.change (Olf.change O Oc₁ On₁) Oc₂ On₂)
-      ((L.diff Lc₂ ++ Ln₂).diff Lc₁ ++ Ln₁, (R.diff Rc₂ ++ Rn₂).diff Rc₁ ++ Rn₁,
-        Olf.change (Olf.change O Oc₂ On₂) Oc₁ On₁) := by
-  rw [List.append_diff_of_subperm _ _ _ hL₁, List.append_diff_of_subperm _ _ _ hL₂,
-      List.append_diff_of_subperm _ _ _ hR₁, List.append_diff_of_subperm _ _ _ hR₂]
-  refine Sequent.multisetEqTo_iff.mpr ⟨?_, ?_, ?_⟩
-  · rw [List.diff_comm Lc₂ L Lc₁, List.append_assoc, List.append_assoc]
-    exact List.perm_append_comm.append_left _
-  · rw [List.diff_comm Rc₂ R Rc₁, List.append_assoc, List.append_assoc]
-    exact List.perm_append_comm.append_left _
-  · rcases hO with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;> simp
-
 /-- The children of a rule application, written out. -/
-lemma LocalRuleApp.C_eq (lra : LocalRuleApp) : lra.C = lra.ress.map (fun Z =>
-    (lra.L.diff lra.Lcond ++ Z.1, lra.R.diff lra.Rcond ++ Z.2.1,
+lemma LocalRuleApp.C_eq (lra : LocalRuleApp) : lra.C = lra.ress.image (fun Z =>
+    (lra.L \ lra.Lcond ∪ Z.1, lra.R \ lra.Rcond ∪ Z.2.1,
       Olf.change lra.O lra.Ocond Z.2.2)) := by
   rcases lra with ⟨L, R, O, Lc, Rc, Oc, ress, lr, C, hC, pre⟩
   subst hC
   simp only [applyLocalRule]
-  exact List.map_congr_left (by rintro ⟨a, b, c⟩ _; rfl)
+  exact Finset.image_congr (by rintro ⟨a, b, c⟩ _; rfl)
 
 /-- A rule can be applied at any sequent that satisfies its precondition. -/
 lemma LocalRuleApp.exists_at (lra : LocalRuleApp) (Y : Sequent)
-    (hL : lra.Lcond.Subperm Y.1) (hR : lra.Rcond.Subperm Y.2.1) (hO : lra.Ocond ⊆ Y.2.2) :
-    ∃ lra' : LocalRuleApp, lra'.X = Y ∧ lra'.C = lra.ress.map (fun Z =>
-      (Y.1.diff lra.Lcond ++ Z.1, Y.2.1.diff lra.Rcond ++ Z.2.1,
+    (hL : lra.Lcond ⊆ Y.1) (hR : lra.Rcond ⊆ Y.2.1) (hO : lra.Ocond ⊆ Y.2.2) :
+    ∃ lra' : LocalRuleApp, lra'.X = Y ∧ lra'.C = lra.ress.image (fun Z =>
+      (Y.1 \ lra.Lcond ∪ Z.1, Y.2.1 \ lra.Rcond ∪ Z.2.1,
        Olf.change Y.2.2 lra.Ocond Z.2.2)) := by
   refine ⟨⟨Y.1, Y.2.1, Y.2.2, lra.Lcond, lra.Rcond, lra.Ocond, lra.ress, lra.lr, _, rfl,
     ⟨hL, hR, hO⟩⟩, rfl, ?_⟩
   simp only [applyLocalRule]
-  exact List.map_congr_left (by rintro ⟨a, b, c⟩ _; rfl)
-
-/-- **Two different rules at the same sequent can be applied in either order.** After
-applying the first rule we can still apply the second one, and each sequent obtained in this
-way also arises, up to permutation, by applying the two rules in the other order. -/
-lemma LocalRuleApp.swap {lra1 lra2 : LocalRuleApp} (hX : lra1.X = lra2.X)
-    (h1 : lra1.ress ≠ []) (h2 : lra2.ress ≠ [])
-    (hne : ¬ (lra1.Lcond = lra2.Lcond ∧ lra1.Rcond = lra2.Rcond ∧ lra1.Ocond = lra2.Ocond))
-    {W : Sequent} (hW : W ∈ lra1.C) :
-    ∃ lraW : LocalRuleApp, lraW.X = W ∧ ∀ V ∈ lraW.C, ∃ Z ∈ lra2.C,
-      ∃ lraZ : LocalRuleApp, lraZ.X = Z ∧ ∃ V' ∈ lraZ.C, V'.multisetEqTo V := by
-  have hL : lra1.L = lra2.L := congrArg (fun s => s.1) hX
-  have hR : lra1.R = lra2.R := congrArg (fun s => s.2.1) hX
-  have hO : lra1.O = lra2.O := congrArg (fun s => s.2.2) hX
-  obtain ⟨iL2, iL1, iR2, iR1, iO⟩ := LocalRuleApp.independent hX h1 h2 hne
-  rw [← hL] at iL1
-  rw [← hR] at iR1
-  rw [LocalRuleApp.C_eq, List.mem_map] at hW
-  obtain ⟨⟨Ln₁, Rn₁, On₁⟩, hres1, rfl⟩ := hW
-  have hOW : lra2.Ocond ⊆ Olf.change lra1.O lra1.Ocond On₁ := by
-    rcases iO with ⟨hc, hr⟩ | ⟨hc, _⟩
-    · have hn : On₁ = none := hr _ hres1
-      rw [hc, hn, Olf.change_old_none_none, hO]
-      exact lra2.preconditionProof.2.2
-    · rw [hc]; simp
-  obtain ⟨lraW, hlraWX, hlraWC⟩ := LocalRuleApp.exists_at lra2
-    (lra1.L.diff lra1.Lcond ++ Ln₁, lra1.R.diff lra1.Rcond ++ Rn₁,
-      Olf.change lra1.O lra1.Ocond On₁)
-    (by simpa using iL2.trans ((List.sublist_append_left _ _).subperm))
-    (by simpa using iR2.trans ((List.sublist_append_left _ _).subperm))
-    hOW
-  refine ⟨lraW, hlraWX, ?_⟩
-  intro V hV
-  rw [hlraWC, List.mem_map] at hV
-  obtain ⟨⟨Ln₂, Rn₂, On₂⟩, hres2, rfl⟩ := hV
-  refine ⟨(lra1.L.diff lra2.Lcond ++ Ln₂, lra1.R.diff lra2.Rcond ++ Rn₂,
-      Olf.change lra1.O lra2.Ocond On₂), ?_, ?_⟩
-  · rw [LocalRuleApp.C_eq, List.mem_map]
-    exact ⟨(Ln₂, Rn₂, On₂), hres2, by rw [hL, hR, hO]⟩
-  · have hOZ : lra1.Ocond ⊆ Olf.change lra1.O lra2.Ocond On₂ := by
-      rcases iO with ⟨hc, _⟩ | ⟨hc, hr⟩
-      · rw [hc]; simp
-      · have hn : On₂ = none := hr _ hres2
-        rw [hc, hn, Olf.change_old_none_none]
-        exact lra1.preconditionProof.2.2
-    obtain ⟨lraZ, hlraZX, hlraZC⟩ := LocalRuleApp.exists_at lra1
-      (lra1.L.diff lra2.Lcond ++ Ln₂, lra1.R.diff lra2.Rcond ++ Rn₂,
-        Olf.change lra1.O lra2.Ocond On₂)
-      (by simpa using iL1.trans ((List.sublist_append_left _ _).subperm))
-      (by simpa using iR1.trans ((List.sublist_append_left _ _).subperm))
-      hOZ
-    refine ⟨lraZ, hlraZX,
-      ((lra1.L.diff lra2.Lcond ++ Ln₂).diff lra1.Lcond ++ Ln₁,
-       (lra1.R.diff lra2.Rcond ++ Rn₂).diff lra1.Rcond ++ Rn₁,
-       Olf.change (Olf.change lra1.O lra2.Ocond On₂) lra1.Ocond On₁), ?_, ?_⟩
-    · rw [hlraZC, List.mem_map]
-      exact ⟨(Ln₁, Rn₁, On₁), hres1, rfl⟩
-    · refine (Sequent.multisetEqTo_symm _ _).mp ?_
-      refine applyLocalRule_comm iL2 iL1 iR2 iR1 ?_
-      rcases iO with ⟨hc, hr⟩ | ⟨hc, hr⟩
-      · exact Or.inl ⟨hc, hr _ hres1⟩
-      · exact Or.inr ⟨hc, hr _ hres2⟩
-
-/-- **Any rule may be applied first.** Given a local tableau for `X` and a rule application
-to `X`, each child of that rule application has a local tableau whose end nodes are, up to
-permutation, among the end nodes of the given local tableau. -/
-lemma Sequent.dominatedBy_child : ∀ {X : Sequent} (lt : LocalTableau X) {lra : LocalRuleApp},
-    lra.X = X → ∀ {W : Sequent}, W ∈ lra.C → W.DominatedBy (endNodesOf lt) := by
-  intro X lt
-  induction lt with
-  | @sim X bas => intro lra hlra _ _; exact absurd (hlra ▸ bas) (nonbasic_of_localRuleApp lra)
-  | @byLocalRule X lra2 X_def next IH =>
-      subst X_def
-      intro lra1 hX W hW
-      by_cases hcl : lra2.X.closed
-      · exact (Sequent.Refutable.child_of_closed hcl hX hW).dominatedBy _
-      · have h1 : lra1.ress ≠ [] := fun h => hcl (hX ▸ LocalRuleApp.closed_of_ress_nil h)
-        have h2 : lra2.ress ≠ [] := fun h => hcl (LocalRuleApp.closed_of_ress_nil h)
-        by_cases hsame : lra1.Lcond = lra2.Lcond ∧ lra1.Rcond = lra2.Rcond
-            ∧ lra1.Ocond = lra2.Ocond
-        · have hCC : lra1.C = lra2.C :=
-            LocalRuleApp.C_eq_of_cond_eq hX hsame.1 hsame.2.1 hsame.2.2
-          rw [hCC] at hW
-          exact ⟨next W hW, fun Y hY => ⟨Y, endNodeOfChild_to_endNode lra2 next rfl hW hY,
-            Sequent.multisetEqTo_refl Y⟩⟩
-        · obtain ⟨lraW, hlraWX, hswap⟩ := LocalRuleApp.swap hX h1 h2 hsame hW
-          refine Sequent.DominatedBy.byRule hlraWX ?_
-          intro V hV
-          obtain ⟨Z, hZ, lraZ, hlraZX, V', hV', hVV⟩ := hswap V hV
-          obtain ⟨lt', hlt'⟩ := IH Z hZ hlraZX hV'
-          refine (Sequent.dominatedBy_of_msEq lt' hVV).mono ?_
-          intro Y hY
-          obtain ⟨Y', hY', he⟩ := hlt' Y hY
-          exact ⟨Y', endNodeOfChild_to_endNode lra2 next rfl hZ hY', he⟩
+  exact Finset.image_congr (by rintro ⟨a, b, c⟩ _; rfl)
 
 /-- A local tableau for a basic sequent has that sequent as its only end node. -/
 lemma endNodesOf_of_basic {X : Sequent} (bas : X.basic) (lt : LocalTableau X) :
-    endNodesOf lt = [X] := by
+    endNodesOf lt = {X} := by
   cases lt with
   | byLocalRule lra X_def next => exact absurd (X_def ▸ bas) (nonbasic_of_localRuleApp lra)
   | sim => simp only [endNodesOf]
 
-/-- **The end nodes of a local tableau do not depend on the order in which the local rules
-are applied.**
+/-! ### Uniform tableaux
 
-Local tableaux are maximal: their end nodes are basic. Here we only need the direction that
-says that every end node of the *canonical* local tableau `uniLocalTab X'` occurs among the
-end nodes of an arbitrary local tableau for a sequent `X` that is multiset-equal to `X'`. -/
-theorem uniLocalTab_endNode_dominated {X X' : Sequent} (hX : X.multisetEqTo X')
-    (lt : LocalTableau X) {Y' : Sequent} (hY' : Y' ∈ endNodesOf (uniLocalTab X')) :
-    ∃ Y ∈ endNodesOf lt, Y.multisetEqTo Y' := by
-  rw [uniLocalTab] at hY'
-  split at hY'
-  · rename_i bas
-    have basX : X.basic := (Sequent.basic_iff_of_setEqTo (setEqTo_of_msEq hX)).mpr bas
-    rw [endNodesOf_of_basic basX lt]
-    simp only [endNodesOf, List.mem_singleton] at hY'
-    subst hY'
-    exact ⟨X, by simp, hX⟩
-  · rename_i bas
-    obtain ⟨W', hW', hY'W⟩ := endNodeIsEndNodeOfChild _ hY'
-    obtain ⟨lraX, hlraXX, -, hfwd⟩ :=
-      LocalRuleApp.exists_of_msEq ((Sequent.multisetEqTo_symm _ _).mp hX)
-        (uniChoiceAt_X (Option.some_get (uniChoiceAt_isSome bas)).symm)
-    obtain ⟨V, hV, hWV⟩ := hfwd W' hW'
-    obtain ⟨ltV, hltV⟩ := Sequent.dominatedBy_child lt hlraXX hV
-    obtain ⟨Y, hY, hYY'⟩ :=
-      uniLocalTab_endNode_dominated ((Sequent.multisetEqTo_symm _ _).mp hWV) ltV hY'W
-    obtain ⟨Z, hZ, hYZ⟩ := hltV Y hY
-    exact ⟨Z, hZ, Sequent.multisetEqTo_trans ((Sequent.multisetEqTo_symm _ _).mp hYZ) hYY'⟩
-termination_by X'
-decreasing_by
-  exact uniChoiceAt_C_lt (Option.some_get _).symm hW'
+**Warning.** The proof of `Tableau.exists_isUni` given for `List`-based sequents does not
+survive the move to `Finset`-based sequents, and neither do the statements it was built
+from. The reason is that with `Finset` components a formula that is re-created by a rule is
+no longer counted twice, so the end nodes of a local tableau really do depend on the order
+in which the rules are applied. Concretely, let `a`, `b`, `c` be atomic and consider the
+sequent with left component `L = {~(a⋀b), (~(a⋀b))⋀c}` (empty right component, no loaded
+formula).
 
+* Applying `con` to `(~(a⋀b))⋀c` first gives the single child `{~(a⋀b), c}`, and applying
+  `nCo` there gives the two end nodes `{~a, c}` and `{~b, c}`.
+* Applying `nCo` to `~(a⋀b)` first gives the children `{(~(a⋀b))⋀c, ~a}` and
+  `{(~(a⋀b))⋀c, ~b}`; unfolding the conjunction re-creates `~(a⋀b)`, which then has to be
+  unfolded again, so `{~a, ~b, c}` is an end node of every local tableau below the first
+  child.
 
-theorem Tableau.exists_isUni_of_msEq {H : History} {X : Sequent} (tab : Tableau H X) :
-    ∀ (H' : History) (X' : Sequent), H.multisetEqTo H' → X.multisetEqTo X' →
-      ∃ t : Tableau H' X', t.IsUni := by
-  induction tab with
-  | @loc H X nflprep nbas lt next IH =>
-      intro H' X' hH hX
-      have nflprep' : ¬ flprep H' X' := fun h => nflprep (flprep_of_multisetEqTo hH hX h)
-      have nbas' : ¬ X'.basic := fun h =>
-        nbas ((Sequent.basic_iff_of_setEqTo (setEqTo_of_msEq hX)).mpr h)
-      have hall : ∀ Y' ∈ endNodesOf (uniLocalTab X'), ∃ t : Tableau (X' :: H') Y', t.IsUni := by
-        intro Y' hY'
-        obtain ⟨Y, hY, hYY⟩ := uniLocalTab_endNode_dominated hX lt hY'
-        exact IH Y hY (X' :: H') Y' (List.Forall₂.cons hX hH) hYY
-      choose f hf using hall
-      exact ⟨.loc nflprep' nbas' (uniLocalTab X') f, ⟨uniLocalTab_isUni X', hf⟩⟩
-  | @pdl H X Y nflprep bas r next IH =>
-      intro H' X' hH hX
-      have nflprep' : ¬ flprep H' X' := fun h => nflprep (flprep_of_multisetEqTo hH hX h)
-      have bas' : X'.basic := (Sequent.basic_iff_of_setEqTo (setEqTo_of_msEq hX)).mp bas
-      obtain ⟨Y', ⟨r'⟩, hYY⟩ := PdlRule.exists_of_multisetEqTo hX r
-      obtain ⟨t, ht⟩ := IH (X' :: H') Y' (List.Forall₂.cons hX hH) hYY
-      exact ⟨.pdl nflprep' bas' r' t, ht⟩
-  | @lrep H X lpr =>
-      intro H' X' hH hX
-      exact ⟨.lrep (lpr_of_multisetEqTo hH.symm ((Sequent.multisetEqTo_symm _ _).mp hX) lpr),
-        trivial⟩
+So `{~a, ~b, c}` is an end node in the second order but not in the first one. (For `List`
+components this cannot happen: in the first order the child is `[~(a⋀b), ~(a⋀b), c]`, with
+two copies of the formula, and unfolding both of them also produces `[~a, ~b, c]`.)
 
-lemma History.multisetEqTo_refl (H : History) : H.multisetEqTo H := by
-  induction H with
-  | nil => exact List.Forall₂.nil
-  | cons hd tl IH => exact List.Forall₂.cons (Sequent.multisetEqTo_refl hd) IH
+Hence `Sequent.dominatedBy_child` and `uniLocalTab_endNode_dominated` above are *false* for
+`Finset`-based sequents and are commented out. The statement `Tableau.exists_isUni` itself
+is still plausible — the extra formulas of an end node of the canonical local tableau make
+it *easier* to refute — but proving it now needs a weakening argument for tableaux instead
+of the commutation argument, which is left open here. -/
 
 /-- For every tableau there is one that applies the rules in the canonical order, i.e. that
-satisfies `Tableau.IsUni`. Immediate from `Tableau.exists_isUni_of_msEq`. -/
+satisfies `Tableau.IsUni`.
+
+TODO: this needs a new proof for `Finset`-based sequents, see the note above. -/
 theorem Tableau.exists_isUni {H : History} {X : Sequent} (tab : Tableau H X) :
-    ∃ t : Tableau H X, t.IsUni :=
-  tab.exists_isUni_of_msEq H X (History.multisetEqTo_refl H) (Sequent.multisetEqTo_refl X)
+    ∃ t : Tableau H X, t.IsUni := by
+  sorry
 
 /-- If there is any tableau, then there is a uniform one. -/
 lemma Tableau.toUniform (tab : Tableau .nil X) :
@@ -2073,17 +1595,21 @@ lemma basic_rightOnly {X : Sequent} (h : X.basic) : X.rightOnly.basic := by
   constructor
   · intro f hf
     apply hb
-    simp only [List.nil_append, List.mem_append] at hf ⊢
+    simp only [Sequent.rightOnly, Sequent.toFinset, Finset.empty_union, Finset.mem_union] at hf ⊢
     tauto
   · intro hcl
     apply hc
     rcases hcl with hbot | ⟨f, hf, hnf⟩
     · left
       revert hbot
-      simp_all [instMembershipFormulaSequent]
+      simp only [Sequent.rightOnly, instMembershipFormulaSequent, Sequent.L, Sequent.R,
+        Finset.notMem_empty, false_or]
+      tauto
     · right
-      exact ⟨f, by simp_all [instMembershipFormulaSequent], by simp_all
-        [instMembershipFormulaSequent]⟩
+      refine ⟨f, ?_, ?_⟩ <;>
+        simp only [Sequent.rightOnly, instMembershipFormulaSequent, Sequent.L, Sequent.R,
+          Finset.notMem_empty, false_or] at hf hnf ⊢ <;>
+        tauto
 
 /-- A right local rule cannot be applied when the right component of the sequent is basic.
 Same as `LocalRuleApp.not_rightOnly_basic_of_isRightRule` in `Pdl.ClusterInterpolation`. -/
@@ -2093,13 +1619,13 @@ lemma not_rightOnly_basic_of_isRightRule (lra : LocalRuleApp)
   cases lr
   case oneSidedR ress orule YS_def =>
     have := nonbasic_of_localRuleApp
-      ⟨[], R, O, ∅, Rcond, none, _, LocalRule.oneSidedR orule YS_def, _, rfl,
-        ⟨List.nil_subperm, pre.2.1, by simp⟩⟩
+      ⟨∅, R, O, ∅, Rcond, none, _, LocalRule.oneSidedR orule YS_def, _, rfl,
+        ⟨Finset.empty_subset _, pre.2.1, by simp⟩⟩
     simpa [Sequent.rightOnly] using this
   case loadedR χ lrule YS_def =>
     have := nonbasic_of_localRuleApp
-      ⟨[], R, O, ∅, ∅, some (Sum.inr (~'χ)), _, LocalRule.loadedR χ lrule YS_def, _, rfl,
-        ⟨List.nil_subperm, List.nil_subperm, pre.2.2⟩⟩
+      ⟨∅, R, O, ∅, ∅, some (Sum.inr (~'χ)), _, LocalRule.loadedR χ lrule YS_def, _, rfl,
+        ⟨Finset.empty_subset _, Finset.empty_subset _, pre.2.2⟩⟩
     simpa [Sequent.rightOnly] using this
   all_goals
     simp [LocalRuleApp.isRightRule, LocalRule.isRightRule] at h
@@ -2129,10 +1655,10 @@ lemma lra_or_basic_of_usesRightRule : ∀ {H : History} {Z : Sequent}
 /-- The right component of the child obtained by applying the modal rule `(M)` to a sequent
 whose loaded formula `~⌊·A⌋ξ` is on the right.
 Same as `modRChildRightOnly` in `Pdl.ClusterInterpolation`. -/
-def modRChildRight (A : Nat) (ξ : AnyFormula) (R : List Formula) : Sequent :=
+def modRChildRight (A : Nat) (ξ : AnyFormula) (R : Finset Formula) : Sequent :=
   match ξ with
-  | .normal φ => ⟨[], (~φ) :: projection A R, none⟩
-  | .loaded χ => ⟨[], projection A R, some (Sum.inr (~'χ))⟩
+  | .normal φ => ⟨∅, {~φ} ∪ R.projection A, none⟩
+  | .loaded χ => ⟨∅, R.projection A, some (Sum.inr (~'χ))⟩
 
 /-- At a fine node with a *basic* right component where a right rule is applied, that rule
 is one of the three `PdlRule`s acting on the right.
@@ -2142,7 +1668,7 @@ lemma basicRightStep {H : History} {Z : Sequent} {tab' : Tableau H Z}
       (f.atBigRoot ∧ f.label.2.2 = none)
       ∨ (∃ g, f.children = [g] ∧ g.atBigRoot ∧ g.label.2.2 = none)
       ∨ (∃ A ξ, f.label.2.2 = some (Sum.inr (~'⌊·A⌋ξ)) ∧ ∃ g, f.children = [g] ∧ g.atBigRoot
-          ∧ g.label.left = projection A f.label.left
+          ∧ g.label.left = (f.label.left).projection A
           ∧ g.label.rightOnly = modRChildRight A ξ f.label.2.1) := by
   induction f with
   | @inLoc Hist X nrep nbas lt next lp hint =>
@@ -2208,12 +1734,12 @@ lemma isRight_of_mem_C (lra : LocalRuleApp) :
   cases lr
   case oneSidedL ress orule YS_def =>
     subst YS_def
-    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hY
+    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hY
     obtain ⟨res, -, rfl⟩ := hY
     simpa using hYR
   case oneSidedR ress orule YS_def =>
     subst YS_def
-    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hY
+    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hY
     obtain ⟨res, -, rfl⟩ := hY
     simpa using hYR
   case LRnegL => simp [applyLocalRule] at hY
@@ -2224,7 +1750,7 @@ lemma isRight_of_mem_C (lra : LocalRuleApp) :
     have hO := (Option.some_subseteq.mp pre.2.2).symm
     simp only at hO
     subst hO
-    simp only [applyLocalRule, List.map_map, List.mem_map, Function.comp_apply] at hY
+    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hY
     obtain ⟨⟨Lnew, Onew⟩, -, rfl⟩ := hY
     rcases Onew with _ | o <;> simp_all [Olf.isRight]
   case loadedR χ lrule YS_def =>
@@ -2238,13 +1764,13 @@ Same as `LocalTableau.isRight_of_mem_endNodesOf` in `Pdl.ClusterInterpolation`. 
 lemma isRight_of_mem_endNodesOf : ∀ {Z : Sequent} (lt : LocalTableau Z),
     ∀ Y ∈ endNodesOf lt, Y.2.2.isRight → Z.2.2.isRight
   | _, .sim _, Y, hY, hYR => by
-      simp only [endNodesOf, List.mem_singleton] at hY
+      simp only [endNodesOf, Finset.mem_singleton] at hY
       exact hY ▸ hYR
   | _, .byLocalRule lra X_def next, Y, hY, hYR => by
       subst X_def
-      simp only [endNodesOf, List.mem_flatten, List.mem_map, List.mem_attach, true_and,
-        Subtype.exists] at hY
-      obtain ⟨_, ⟨W, W_in, rfl⟩, hY⟩ := hY
+      simp only [endNodesOf, Finset.sup_image, Function.id_comp, Finset.mem_sup,
+        Finset.mem_attach, true_and, Subtype.exists] at hY
+      obtain ⟨W, W_in, hY⟩ := hY
       exact isRight_of_mem_C lra W W_in
         (isRight_of_mem_endNodesOf (next W W_in) Y hY hYR)
 
@@ -2336,14 +1862,14 @@ of the children agree, including their order. This holds because a local rule ap
 deletes the principal formulas from, and adds the results to, the given sequent. -/
 lemma map_rightOnly_C_eq {lra₁ lra₂ : LocalRuleApp} (hsame : lra₁.SameRuleAs lra₂)
     (hX : lra₁.X.rightOnly = lra₂.X.rightOnly) :
-    lra₁.C.map Sequent.rightOnly = lra₂.C.map Sequent.rightOnly := by
+    lra₁.C.image Sequent.rightOnly = lra₂.C.image Sequent.rightOnly := by
   obtain ⟨-, hRcond, hOcond, hress, -⟩ := hsame
   have hR : lra₁.R = lra₂.R := congrArg (fun Y => Y.2.1) hX
   have hO : lra₁.O = lra₂.O := congrArg (fun Y => Y.2.2) hX
   rw [lra₁.hC, lra₂.hC]
-  simp only [applyLocalRule, List.map_map, Function.comp_def, Sequent.rightOnly]
+  simp only [applyLocalRule, Finset.image_image, Function.comp_def, Sequent.rightOnly]
   rw [hress]
-  refine List.map_congr_left ?_
+  refine Finset.image_congr ?_
   rintro ⟨Lnew, Rnew, Onew⟩ -
   simp only [hRcond, hOcond, hR, hO]
 
@@ -2406,11 +1932,18 @@ def LoadedCluster.uniformOfUniTab {tab : Tableau .nil X}
     obtain ⟨hgX, hgC⟩ := g.lra?_spec hlrag
     have hXeq : lraf.X.rightOnly = lrag.X.rightOnly := by
       rw [← hfX, ← hgX, hf_lab, hg_lab]
-    calc f.children.map (fun h => h.label.rightOnly)
-        = (f.children.map FinePathIn.label).map Sequent.rightOnly := by
-          simp only [List.map_map, Function.comp_def]
-      _ = lraf.C.map Sequent.rightOnly := by rw [hfC]
-      _ = lrag.C.map Sequent.rightOnly := Uniformity.map_rightOnly_C_eq hsame hXeq
-      _ = (g.children.map FinePathIn.label).map Sequent.rightOnly := by rw [hgC]
-      _ = g.children.map (fun h => h.label.rightOnly) := by
-          simp only [List.map_map, Function.comp_def]
+    -- The right components of the children agree *as finite sets*:
+    have hCeq : lraf.C.image Sequent.rightOnly = lrag.C.image Sequent.rightOnly :=
+      Uniformity.map_rightOnly_C_eq hsame hXeq
+    -- TODO: this last step is open for `Finset`-based sequents.
+    -- `LoadedCluster.HasUniformSteps` (in `Pdl.Interpolation.Cluster`) compares the *lists*
+    -- of the right components of the children, and `FinePathIn.lra?_spec` gives these lists
+    -- as `lraf.C.toList` resp. `lrag.C.toList`. Since `lraf.C` and `lrag.C` are different
+    -- `Finset`s (they differ in their left components) and the order of `Finset.toList` is
+    -- arbitrary, the equality of the two *lists* does not follow from `hCeq` -- and it is in
+    -- fact wrong in general: if two results of the rule give the same child at one node but
+    -- different children at the other one, then the two lists even have different lengths.
+    -- To fix this, `HasUniformSteps` should be stated with `Finset.image` instead of
+    -- `List.map`; that is a change in `Pdl.Interpolation.Cluster`, which is left for later.
+    clear hCeq hfC hgC
+    sorry

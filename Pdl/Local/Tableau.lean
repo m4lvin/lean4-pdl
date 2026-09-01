@@ -449,6 +449,218 @@ theorem lt_Sequent.trans {X Y Z : Sequent} (h1 : lt_Sequent X Y) (h2 : lt_Sequen
     lt_Sequent X Z :=
   Multiset.IsDershowitzMannaLT.trans h1 h2
 
+/-! ## Local rules decrease the Dershowitz-Manna measure
+
+The reuslts here are used for the construction of the canonical local tableau
+ `uniLocalTab`.
+
+The key facts are:
+
+* `OneSidedLocalRule.lmOfFormula_lt`: every formula in a result of a one-sided local rule
+  is smaller — in the local measure `lmOfFormula` — than one of the formulas the rule is
+  applied to;
+* `LoadRule.lmOfFormula_lt`: the same for the loaded rules, via `LoadRule.unload`;
+* `localRuleApp.decreases_DM`: hence each child of a local rule application is strictly
+  smaller than its parent in the Dershowitz-Manna ordering `lt_Sequent`.
+-/
+
+/-- The well-founded relation on sequents used for the termination of the recursive
+definitions of local tableaux. This would also better belong to `Pdl/Local/Tableau.lean`,
+where the commented-out `termination_by` of `endNodesOf` refers to it. -/
+instance instWellFoundedRelationSequent : WellFoundedRelation Sequent :=
+  ⟨lt_Sequent, IsWellFounded.wf⟩
+
+/-- The multiset of a union of two disjoint finite sets is the sum of the two multisets. -/
+lemma Finset.union_val_of_disjoint {α : Type*} [DecidableEq α] {A C : Finset α}
+    (h : Disjoint A C) : (A ∪ C).val = A.val + C.val := by
+  rw [← Finset.disjUnion_eq_union A C h, Finset.disjUnion_val]
+
+/-- Splitting off the new elements of a union. -/
+lemma Finset.union_val_sdiff {α : Type*} [DecidableEq α] (A B : Finset α) :
+    (A ∪ B).val = A.val + (B \ A).val := by
+  rw [← Finset.union_val_of_disjoint (Finset.disjoint_sdiff)]
+  congr 1
+  ext x
+  simp only [Finset.mem_union, Finset.mem_sdiff]
+  tauto
+
+/-- Splitting off the condition of a rule from the sequent it is applied to. -/
+lemma Finset.val_eq_sdiff_add_of_subset {α : Type*} [DecidableEq α] {A B : Finset α}
+    (h : B ⊆ A) : A.val = (A \ B).val + B.val := by
+  rw [← Finset.union_val_of_disjoint (Finset.sdiff_disjoint)]
+  congr 1
+  exact (Finset.sdiff_union_of_subset h).symm
+
+/-- Every formula in a result of a one-sided local rule is smaller than one of the
+formulas the rule is applied to. -/
+lemma OneSidedLocalRule.lmOfFormula_lt {precond ress} (orule : OneSidedLocalRule precond ress) :
+    ∀ res ∈ ress, ∀ ψ ∈ res, ∃ φ ∈ precond, lmOfFormula ψ < lmOfFormula φ := by
+  cases orule
+  case bot => simp
+  case not => simp
+  case neg φ =>
+    intro res hres ψ hψ
+    simp only [Finset.mem_singleton] at hres
+    subst hres
+    simp only [Finset.mem_singleton] at hψ
+    subst hψ
+    exact ⟨~~ψ, by simp, by simp⟩
+  case con φ ψ =>
+    intro res hres χ hχ
+    simp only [Finset.mem_singleton] at hres
+    subst hres
+    simp only [Finset.mem_insert, Finset.mem_singleton] at hχ
+    refine ⟨φ ⋀ ψ, by simp, ?_⟩
+    rcases hχ with rfl | rfl <;> (simp; try omega)
+  case nCo φ ψ =>
+    intro res hres χ hχ
+    simp only [Finset.mem_insert, Finset.mem_singleton] at hres
+    refine ⟨~(φ ⋀ ψ), by simp, ?_⟩
+    rcases hres with rfl | rfl <;>
+      (simp only [Finset.mem_singleton] at hχ; subst hχ; simp; try omega)
+  case box α φ notAtom =>
+    intro res hres ψ hψ
+    simp only [List.toFinFin, List.mem_toFinset, List.mem_map] at hres
+    obtain ⟨X, hX, rfl⟩ := hres
+    rw [List.mem_toFinset] at hψ
+    exact ⟨⌈α⌉φ, by simp, unfoldBox.decreases_lmOf_nonAtomic notAtom hX hψ⟩
+  case dia α φ notAtom =>
+    intro res hres ψ hψ
+    simp only [List.toFinFin, List.mem_toFinset, List.mem_map] at hres
+    obtain ⟨X, hX, rfl⟩ := hres
+    rw [List.mem_toFinset] at hψ
+    exact ⟨~⌈α⌉φ, by simp, unfoldDiamond.decreases_lmOf_nonAtomic notAtom hX hψ⟩
+
+/-- Every formula in a result of a loaded rule — including the new loaded formula — is
+smaller than the formula the rule is applied to. -/
+lemma LoadRule.lmOfFormula_lt {χ : LoadFormula} {ress} (lrule : LoadRule (~'χ) ress) :
+    ∀ res ∈ ress, ∀ ψ ∈ pairUnloadSet res, lmOfFormula ψ < lmOfFormula (~χ.unload) := by
+  intro res hres ψ hψ
+  obtain ⟨φ, hφ, hlt⟩ := lrule.unload.lmOfFormula_lt (pairUnloadSet res)
+    (Finset.mem_image_of_mem _ hres) ψ hψ
+  rw [Finset.mem_singleton] at hφ
+  exact hφ ▸ hlt
+
+/-- A sufficient criterion for the Dershowitz-Manna ordering on sequents: the formulas of
+`Y` are those of `X`, with a non-empty part `B` replaced by formulas that are smaller. -/
+lemma lt_Sequent_of_split {X Y : Sequent} {Z A B : Multiset Formula}
+    (hY : node_to_multiset Y = Z + A) (hX : node_to_multiset X = Z + B) (hB : B ≠ 0)
+    (hlt : ∀ a ∈ A, ∃ b ∈ B, lmOfFormula a < lmOfFormula b) : lt_Sequent Y X := by
+  refine ⟨Z.map lmOfFormula, A.map lmOfFormula, B.map lmOfFormula, ?_, ?_, ?_, ?_⟩
+  · simpa using hB
+  · rw [nodeMeasure, hY, Multiset.map_add]
+  · rw [nodeMeasure, hX, Multiset.map_add]
+  · intro y hy
+    rw [Multiset.mem_map] at hy
+    obtain ⟨a, ha, rfl⟩ := hy
+    obtain ⟨b, hb, hlt'⟩ := hlt a ha
+    exact ⟨lmOfFormula b, Multiset.mem_map_of_mem _ hb, hlt'⟩
+
+/-- **Local rules decrease the Dershowitz-Manna measure.** -/
+theorem localRuleApp.decreases_DM (lra : LocalRuleApp) (Y : Sequent) (hY : Y ∈ lra.C) :
+    lt_Sequent Y lra.X := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
+  obtain ⟨preL, preR, preO⟩ := pre
+  subst hC
+  simp only [LocalRuleApp.X] at *
+  cases lr
+  case oneSidedL ress' orule YS_def =>
+    subst YS_def
+    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hY
+    obtain ⟨res, hres, rfl⟩ := hY
+    refine lt_Sequent_of_split (Z := (L \ Lcond).val + R.val + O.toForm)
+      (A := (res \ (L \ Lcond)).val) (B := Lcond.val) ?_ ?_ ?_ ?_
+    · simp only [node_to_multiset, Sequent.L, Sequent.R, Sequent.O, Olf.change_old_none_none,
+        Finset.sdiff_empty, Finset.union_empty]
+      rw [Finset.union_val_sdiff]
+      ac_rfl
+    · simp only [node_to_multiset, Sequent.L, Sequent.R, Sequent.O]
+      rw [Finset.val_eq_sdiff_add_of_subset preL]
+      ac_rfl
+    · simpa using orule.precond_ne_nil
+    · intro a ha
+      rw [Finset.mem_val, Finset.mem_sdiff] at ha
+      obtain ⟨φ, hφ, hlt⟩ := orule.lmOfFormula_lt res hres a ha.1
+      exact ⟨φ, by simpa using hφ, hlt⟩
+  case oneSidedR ress' orule YS_def =>
+    subst YS_def
+    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hY
+    obtain ⟨res, hres, rfl⟩ := hY
+    refine lt_Sequent_of_split (Z := L.val + (R \ Rcond).val + O.toForm)
+      (A := (res \ (R \ Rcond)).val) (B := Rcond.val) ?_ ?_ ?_ ?_
+    · simp only [node_to_multiset, Sequent.L, Sequent.R, Sequent.O, Olf.change_old_none_none,
+        Finset.sdiff_empty, Finset.union_empty]
+      rw [Finset.union_val_sdiff]
+      ac_rfl
+    · simp only [node_to_multiset, Sequent.L, Sequent.R, Sequent.O]
+      rw [Finset.val_eq_sdiff_add_of_subset preR]
+      ac_rfl
+    · simpa using orule.precond_ne_nil
+    · intro a ha
+      rw [Finset.mem_val, Finset.mem_sdiff] at ha
+      obtain ⟨φ, hφ, hlt⟩ := orule.lmOfFormula_lt res hres a ha.1
+      exact ⟨φ, by simpa using hφ, hlt⟩
+  case LRnegL φ => simp [applyLocalRule] at hY
+  case LRnegR φ => simp [applyLocalRule] at hY
+  case loadedL ress' χ lrule YS_def =>
+    subst YS_def
+    have hO : O = some (Sum.inl (~'χ)) := (Option.some_subseteq.mp preO).symm
+    subst hO
+    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hY
+    obtain ⟨⟨Xn, o⟩, hres, rfl⟩ := hY
+    refine lt_Sequent_of_split (Z := L.val + R.val)
+      (A := (Xn \ L).val + (Olf.change (some (Sum.inl (~'χ))) (some (Sum.inl (~'χ)))
+        (o.map Sum.inl)).toForm)
+      (B := Olf.toForm (some (Sum.inl (~'χ)))) ?_ ?_ ?_ ?_
+    · simp only [node_to_multiset, Sequent.L, Sequent.R, Sequent.O, Finset.sdiff_empty,
+        Finset.union_empty]
+      rw [Finset.union_val_sdiff]
+      ac_rfl
+    · simp only [node_to_multiset, Sequent.L, Sequent.R, Sequent.O]
+    · simp [Olf.toForm]
+    · intro a ha
+      refine ⟨~χ.unload, by simp [Olf.toForm], ?_⟩
+      rw [Multiset.mem_add] at ha
+      refine lrule.lmOfFormula_lt (Xn, o) hres a ?_
+      rcases ha with ha | ha
+      · rw [Finset.mem_val, Finset.mem_sdiff] at ha
+        rcases o with _ | nlf <;> simp [pairUnloadSet] <;> tauto
+      · rcases o with _ | nlf
+        · simp [Olf.change, Option.overwrite, Olf.toForm] at ha
+        · rcases nlf with ⟨lf⟩
+          simp only [Olf.change_some, Option.map_some, Olf.toForm, Multiset.mem_singleton] at ha
+          subst ha
+          simp [pairUnloadSet, negUnload]
+  case loadedR ress' χ lrule YS_def =>
+    subst YS_def
+    have hO : O = some (Sum.inr (~'χ)) := (Option.some_subseteq.mp preO).symm
+    subst hO
+    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hY
+    obtain ⟨⟨Xn, o⟩, hres, rfl⟩ := hY
+    refine lt_Sequent_of_split (Z := L.val + R.val)
+      (A := (Xn \ R).val + (Olf.change (some (Sum.inr (~'χ))) (some (Sum.inr (~'χ)))
+        (o.map Sum.inr)).toForm)
+      (B := Olf.toForm (some (Sum.inr (~'χ)))) ?_ ?_ ?_ ?_
+    · simp only [node_to_multiset, Sequent.L, Sequent.R, Sequent.O, Finset.sdiff_empty,
+        Finset.union_empty]
+      rw [Finset.union_val_sdiff]
+      ac_rfl
+    · simp only [node_to_multiset, Sequent.L, Sequent.R, Sequent.O]
+    · simp [Olf.toForm]
+    · intro a ha
+      refine ⟨~χ.unload, by simp [Olf.toForm], ?_⟩
+      rw [Multiset.mem_add] at ha
+      refine lrule.lmOfFormula_lt (Xn, o) hres a ?_
+      rcases ha with ha | ha
+      · rw [Finset.mem_val, Finset.mem_sdiff] at ha
+        rcases o with _ | nlf <;> simp [pairUnloadSet] <;> tauto
+      · rcases o with _ | nlf
+        · simp [Olf.change, Option.overwrite, Olf.toForm] at ha
+        · rcases nlf with ⟨lf⟩
+          simp only [Olf.change_some, Option.map_some, Olf.toForm, Multiset.mem_singleton] at ha
+          subst ha
+          simp [pairUnloadSet, negUnload]
+
 /-! ## Helper functions, relating end nodes and children -/
 
 def endNode_to_endNodeOfChild {X lrA} def_X subTabs {E}
