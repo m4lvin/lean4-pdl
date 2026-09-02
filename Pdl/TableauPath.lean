@@ -184,6 +184,16 @@ theorem edge_append_pdl_nil (h : (tabAt s).2.2 = Tableau.pdl nrep bas r next) :
   · rw [← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
   · rw [← h]
 
+/-- Variant of `edge_append_pdl_nil` where the assumption is about all of `tabAt s`,
+analogous to `edge_append_loc_nil`. -/
+theorem edge_append_pdl_nil' {X Hist} {tab : Tableau X Hist} (s : PathIn tab)
+    {sHist sX sY nrep bas} {r : PdlRule sX sY} (next : Tableau (sX :: sHist) sY)
+    (tabAt_s_def : tabAt s = ⟨sHist, sX, Tableau.pdl nrep bas r next⟩) :
+    edge s (s.append (tabAt_s_def ▸ PathIn.pdl .nil)) := by
+  unfold edge
+  right
+  use sHist, sX, nrep, bas, sY, r, next, (by assumption)
+
 -- QUESTION: Does it actually have an effect to mark this with simp?
 -- FIXME: implicit `tail` argument?
 @[simp]
@@ -370,12 +380,11 @@ theorem edge_is_strict_ordering {s t : PathIn tab} : s ⋖_ t → s ≠ t := by
 
 def PathIn.children (p : PathIn tab) : Finset {q : PathIn tab // p ⋖_ q} :=
   match h : tabAt p with
-  | ⟨H, X, .loc nflprep nbas lt next⟩ =>
-      (endNodesOf lt).attach.image (fun ⟨Y,Y_in⟩ => ⟨_, edge_append_loc_nil _ _ Y_in h⟩ )
-  | ⟨H,X, .pdl nflprep bas r next⟩ =>
-      { ⟨_, @edge_append_pdl_nil _ _ _ p (h ▸ nflprep) (h ▸ bas) _ (by convert r; grind)
-            (by convert next <;> grind) (by simp_all; grind)⟩ }
-  | ⟨H,X, .lrep _⟩ => {}
+  | ⟨_, _, .loc _ _ lt _⟩ =>
+      (endNodesOf lt).attach.image (fun ⟨_,Y_in⟩ => ⟨_, edge_append_loc_nil _ _ Y_in h⟩ )
+  | ⟨_, _, .pdl _ _ _ next⟩ =>
+      { ⟨_, edge_append_pdl_nil' _ next h⟩ }
+  | ⟨_, _, .lrep _⟩ => {}
 
 lemma PathIn.children_spec : p ⋖_ q ↔ q ∈ p.children.image Subtype.val := by
   constructor
@@ -392,15 +401,10 @@ lemma PathIn.children_spec : p ⋖_ q ↔ q ∈ p.children.image Subtype.val := 
         -- The `loc` case:
         | (cases heq
            simp
-           grind
-           )
+           exact ⟨⟨Y, Y_in, rfl⟩, edge_append_loc_nil p next Y_in h⟩)
         -- The `pdl` case:
         | (cases heq
-           simp [append_eq_iff_eq]
-           --rw! [h]
-           --rfl
-           sorry
-           )
+           simp)
   · intro hq
     simp only [Finset.mem_image, Subtype.exists, exists_and_right, exists_eq_right] at hq
     obtain ⟨p_q, _⟩ := hq
@@ -1501,10 +1505,9 @@ lemma PathIn.length_lt_tab_size {H X} (tab : Tableau H X) (p : PathIn tab) :
     case loc Y nbas_ nflprep_ Y_in tail =>
       simp only [length, add_comm, Tableau.size, add_lt_add_iff_left]
       specialize IH Y Y_in tail
-      -- refine lt_of_lt_of_le IH (List.le_sum_of_mem ?_)
-      -- simp only [List.mem_map, List.mem_attach, true_and, Subtype.exists]
-      -- grind
-      sorry
+      refine lt_of_lt_of_le IH ?_
+      exact Finset.single_le_sum (f := fun x : {x // x ∈ endNodesOf lt} => (next x.1 x.2).size)
+        (fun _ _ => Nat.zero_le _) (Finset.mem_attach _ ⟨Y, Y_in⟩)
   case pdl Hist X Y nflprerp bas r next IH =>
     cases p
     · simp [Tableau.size]

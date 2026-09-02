@@ -288,12 +288,8 @@ lemma Tableau.size_next_lt_of_loc
   subst tab_def
   simp [Tableau.size]
   rw [@Nat.lt_one_add_iff]
-  sorry
-  /-
-  apply List.le_sum_of_mem
-  simp
-  use Y, Y_in
-  -/
+  exact Finset.single_le_sum (f := fun x : {x // x ∈ endNodesOf lt} => (next x.1 x.2).size)
+    (fun _ _ => Nat.zero_le _) (Finset.mem_attach _ ⟨Y, Y_in⟩)
 
 lemma Tableau.size_next_lt_of_pdl
     (tab_def : tab = Tableau.pdl nrep bas r next)
@@ -304,15 +300,10 @@ instance instDecidableExistsEndNodeOf {X} {lt : LocalTableau X}
     {f : (Y : Sequent) → Y ∈ endNodesOf lt → Prop}
     {dec : (Y : Sequent) → (Y_in : Y ∈ endNodesOf lt) → Decidable (f Y Y_in)} :
     Decidable (∃ Y, ∃ Y_in : Y ∈ endNodesOf lt, f Y Y_in) := by
-  sorry
-  /-
-  if h : (endNodesOf lt).attach.any (fun ⟨Y,Y_in⟩ => decide (f Y Y_in)) then
-    apply isTrue
-    aesop
-  else
-    apply isFalse
-    aesop
-  -/
+  have : DecidablePred (fun x : {x // x ∈ endNodesOf lt} => f x.1 x.2) :=
+    fun x => dec x.1 x.2
+  refine decidable_of_iff (∃ x ∈ (endNodesOf lt).attach, f x.1 x.2) ?_
+  simp
 
 instance Tableau.instDecidableEq {Hist X} {tab1 tab2 : Tableau Hist X} :
     Decidable (tab1 = tab2) := by
