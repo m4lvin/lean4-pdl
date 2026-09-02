@@ -1,19 +1,24 @@
 import Pdl.Soundness
-import Pdl.Completeness.BuildTreeExistence
-import Pdl.UniCompleteness.BuildTree
+import Pdl.Completeness.Theorem
+import Pdl.UniCompleteness.UniBuildTreeExistence
 
-/-! # Completeness Proof (Section 6.4)
+/-! # Completeness Proof for the uniform game (Section 6.4)
 
-Fun fact: it seems we do *not* need to repeat any of BuildTreeModel and BuildTreeExistence
-because we are still obtaining a value of the same `BuildTree` type even when working with
-the uniform game. -/
+This is the analogue of `Pdl.Completeness.Theorem` for the uniform tableau game.
+Everything lives in the namespace `UniGame`.
+
+The point of redoing the completeness proof for the uniform game is the last result here,
+`UniGame.satisfiable_or_exists_uniform_tableau`: since one of the two players must have a
+winning strategy, and a winning strategy for Builder gives a model, any sequent for which
+Builder does *not* win has a closed tableau, which by `UniGame.gameP_isUniform` is uniform.
+-/
 
 open HasSat
 
 namespace UniGame
 
-/-- Theorem 6.21: If Builder has a winning strategy then there is a model graph.
-Uses `BuildTree.toModel`. -/
+/-- Theorem 6.21 for the uniform game: if Builder has a winning strategy then there is a
+model graph. Uses `UniGame.BuildTree.toModel`. -/
 theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (startPos X)) :
     ∃ (WS : Finset (Finset Formula)) (_ : ModelGraph WS),
       ∃ Z ∈ WS, X.toFinset ⊆ Z := by

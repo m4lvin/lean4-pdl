@@ -16,8 +16,12 @@ The gain is in `gameP_general`: a winning strategy for Prover now yields a table
 *uniform* in the sense of `Tableau.IsUni` (and hence `Tableau.isUniform` for the empty
 history), because at every `loc` step the canonical local tableau is used.
 
-Still to be done: the other results about the original game (in particular the converse
-direction, from a tableau to a winning strategy for Prover) have not yet been redone here. -/
+The remaining results about the original game are redone for this game in
+`Pdl.Completeness.UniBuildTree`, `Pdl.Completeness.UniBuildTreeModel`,
+`Pdl.Completeness.UniBuildTreeExistence` and `Pdl.Completeness.UniTheorem`, which repeat the
+completeness proof and conclude with `UniGame.satisfiable_or_exists_uniform_tableau`.
+The converse direction, from a tableau to a winning strategy for Prover, is not needed for
+that and has not been redone here. -/
 
 namespace UniGame
 
