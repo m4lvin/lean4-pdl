@@ -806,6 +806,64 @@ lemma FinePathIn.children_rightOnly_eq_of_usesLeftRule {H : History} {Z : Sequen
     exact lra.rightOnly_eq_of_isLeftRule hleft hR _ hmem
   · exact absurd hR hno
 
+/-- Local invertibility of a left rule, for the left component only: if the left component
+of the premise holds at a world, then so does the left component of one of the conclusions.
+
+Note that `localRuleTruth` does not give this, since it also speaks about the right
+component, which need not hold at the world in question. That the loaded formula is on the
+right is needed to exclude the rule for a loaded formula on the left. -/
+lemma LocalRuleApp.left_sat_of_isLeftRule {lra : LocalRuleApp} (hl : lra.isLeftRule)
+    (hR : lra.O.isRight) {W : Type} {M : KripkeModel W} {w : W}
+    (hw : ∀ φ ∈ lra.X.left, evaluate M w φ) :
+    ∃ Y ∈ lra.C, ∀ φ ∈ Y.left, evaluate M w φ := by
+  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
+  simp only [LocalRuleApp.X, Sequent.left_eq] at hw hl hR ⊢
+  cases lr
+  case oneSidedL ress' orule YS_def =>
+    subst YS_def
+    subst hC
+    have hcon : evaluate M w (con Lcond.fsort) :=
+      conEval.mpr (fun f hf =>
+        hw f (Finset.mem_union_left _ (pre.1 (Formula.mem_fsort.mp hf))))
+    have hdis := (oneSidedLocalRuleTruth orule W M w).mp hcon
+    rw [Finset.disconEval] at hdis
+    obtain ⟨res, hres, hresw⟩ := hdis
+    refine ⟨(L \ Lcond ∪ res, R \ ∅ ∪ ∅, Olf.change O none none), ?_, ?_⟩
+    · simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply]
+      exact ⟨res, hres, rfl⟩
+    · intro f hf
+      simp only [Sequent.left_eq, Finset.mem_union, Olf.change_old_none_none] at hf
+      rcases hf with (hf | hf) | hf
+      · exact hw f (Finset.mem_union_left _ (Finset.sdiff_subset hf))
+      · exact hresw f hf
+      · exact hw f (Finset.mem_union_right _ hf)
+  case loadedL χ lrule YS_def =>
+    exfalso
+    have hO := (Option.some_subseteq.mp pre.2.2).symm
+    simp only at hO
+    rw [hO] at hR
+    simp at hR
+  all_goals
+    simp [LocalRuleApp.isLeftRule, LocalRule.isLeftRule] at hl
+
+/-- Local invertibility at a fine node where a left rule is applied, for the left component
+only: if a formula follows from the left component of every child, then it follows from the
+left component of the node itself. -/
+lemma FinePathIn.leftEntails_of_children_of_usesLeftRule {H : History} {Z : Sequent}
+    {tab' : Tableau H Z} (f : FinePathIn tab') (h : f.usesLeftRule)
+    (hR : f.label.2.2.isRight) {φ : Formula}
+    (hch : ∀ g ∈ f.children, g.leftEntails φ) : f.leftEntails φ := by
+  rcases f.leftRuleStep h with ⟨lra, hlra, hleft⟩ | ⟨-, hno⟩
+  · obtain ⟨hX, hC⟩ := f.lra?_spec hlra
+    intro W M w hw
+    rw [hX] at hR hw
+    obtain ⟨Y, hY, hYw⟩ := lra.left_sat_of_isLeftRule hleft hR hw
+    have hmem : Y ∈ f.children.map FinePathIn.label := by
+      rw [hC]; exact Finset.mem_toList.mpr hY
+    obtain ⟨g, hg, rfl⟩ := List.mem_map.mp hmem
+    exact hch g hg W M w hYw
+  · exact absurd hR hno
+
 end RightRules
 
 /-! ### Loading on the right is inherited upwards, and rules with children are left or right
@@ -955,6 +1013,54 @@ lemma FinePathIn.usesLeftRule_or_usesRightRule_of_children_ne_nil {H : History} 
 
 end UpwardsRight
 
+/-! ### Loaded-path repeats and the Dershowitz-Manna measure
+
+The three lemmas here are what replaces the paper's Fact `lprAreCritical` in the proof of
+Lemma 9.7 (d) below: instead of showing that the modal rule is applied between a companion
+and its repeat we show that going down along *left* rules strictly decreases the
+Dershowitz-Manna measure of the label, while a companion carries exactly the same label as
+its repeat. -/
+
+section LrepAndMeasure
+
+/-- A node where a rule is applied is not a loaded-path repeat.
+This would better belong next to `edge` in `Pdl/TableauPath.lean`. -/
+lemma PathIn.not_isLrep_of_edge {s t : PathIn tab} (h : s ⋖_ t) : ¬ s.isLrep := by
+  unfold PathIn.isLrep
+  rcases h with ⟨_, _, _, _, _, _, _, _, hs, -⟩ | ⟨_, _, _, _, _, _, _, hs, -⟩ <;>
+    rw [hs] <;> simp [Tableau.isLrep]
+
+/-- A fine node whose base is a loaded-path repeat is that coarse node itself, because a
+loaded-path repeat is a leaf and hence has no local tableau with internal nodes.
+This would better belong next to `atBigRoot` in `Pdl/Interpolation/FinePath.lean`. -/
+lemma FinePathIn.atBigRoot_of_base_isLrep {H Z} {tab' : Tableau H Z} (f : FinePathIn tab')
+    (h : f.base.isLrep) : f.atBigRoot := by
+  induction f with
+  | inLoc lp lp_int => simp [FinePathIn.base, PathIn.isLrep, tabAt, Tableau.isLrep] at h
+  | pdlHere => simp [FinePathIn.base, PathIn.isLrep, tabAt, Tableau.isLrep] at h
+  | lrepHere => simp [FinePathIn.atBigRoot]
+  | loc Y_in tail IH =>
+    simpa [FinePathIn.atBigRoot] using IH (by simpa [FinePathIn.base, PathIn.isLrep, tabAt] using h)
+  | pdl tail IH =>
+    simpa [FinePathIn.atBigRoot] using IH (by simpa [FinePathIn.base, PathIn.isLrep, tabAt] using h)
+
+/-- Where a left rule is applied at a node with the loaded formula on the right, the labels
+of all children are strictly smaller in the Dershowitz-Manna ordering: by
+`FinePathIn.leftRuleStep` the rule applied there is a local rule, and local rules decrease
+the measure. -/
+lemma FinePathIn.children_lt_Sequent_of_usesLeftRule {H Z} {tab' : Tableau H Z}
+    (f : FinePathIn tab') (h : f.usesLeftRule) (hR : f.label.2.2.isRight) :
+    ∀ g ∈ f.children, lt_Sequent g.label f.label := by
+  rcases f.leftRuleStep h with ⟨lra, hlra, -⟩ | ⟨-, hno⟩
+  · obtain ⟨hX, hC⟩ := f.lra?_spec hlra
+    intro g hg
+    have hmem : g.label ∈ lra.C := Finset.mem_toList.mp (hC ▸ List.mem_map_of_mem hg)
+    rw [hX]
+    exact localRuleApp.decreases_DM lra _ hmem
+  · exact absurd hR hno
+
+end LrepAndMeasure
+
 /-! ### The two standing assumptions of the paper
 
 The paper fixes a *uniform* closed tableau and a *proper* cluster in it, and both assumptions
@@ -1089,7 +1195,11 @@ Starting from any node of `C_Δ` we follow children: as long as no right rule is
 no repeat is reached, the node has a child in the cluster (Lemma 9.4 (c), which needs
 properness) with the same right component (Lemma 9.7 (c)), and the descent terminates by
 `FinePathIn.descent` — but a childless node of the cluster which is not a repeat would
-contradict Lemma 9.4 (c). -/
+contradict Lemma 9.4 (c).
+
+This is the paper's descent. It is no longer needed for Lemma 9.7 (d) below, which is now
+proved via `isLrep_of_mem_nodesWithFine`, but it is kept as the direct formalisation of the
+argument in the paper. -/
 lemma exists_right_or_lrep (C : LoadedCluster tab) {Δ : Sequent}
     (hΔ : Δ ∈ C.lambdaTwo) :
     C.nodesWithFineRight Δ ≠ [] ∨ ∃ f ∈ C.nodesWithFine Δ, f.base.isLrep := by
@@ -1131,20 +1241,103 @@ lemma exists_right_or_lrep (C : LoadedCluster tab) {Δ : Sequent}
   rw [hvnil] at hg
   simp at hg
 
+/-- If a node of `C_Δ` is a loaded-path repeat then its companion is again a node of `C_Δ`,
+it carries the same label, and it is *not* a loaded-path repeat itself.
+
+That the companion is in the cluster is Lemma 9.4 (c) (`lpr_comp_in_C`); that it carries
+the same label is `nodeAt_companionOf_setEq` — note that with `Finset` sequents this is
+literal equality; and it is not a repeat because it is a proper ancestor of the repeat,
+while a repeat is a leaf. -/
+lemma exists_companion_mem_nodesWithFine (C : LoadedCluster tab) {Δ : Sequent}
+    {f : FinePathIn tab} (hf : f ∈ C.nodesWithFine Δ) (hl : f.base.isLrep) :
+    ∃ c : PathIn tab, c.toFine ∈ C.nodesWithFine Δ ∧ ¬ c.isLrep ∧ nodeAt c = f.label := by
+  have hf' := hf
+  simp only [nodesWithFine, List.mem_filter, decide_eq_true_eq] at hf'
+  obtain ⟨hf_CL, hf_lab⟩ := hf'
+  have hmf : C.memFine f := (C.mem_fineCL f).mp hf_CL
+  have hbase : f.label = nodeAt f.base :=
+    f.label_eq_nodeAt_base (f.atBigRoot_of_base_isLrep hl)
+  rcases h2 : (tabAt f.base).2.2 with _ | _ | lpr
+  case lrep =>
+    have heart : f.base ♥ (companionOf f.base lpr h2) := ⟨lpr, h2, rfl⟩
+    have hc_CL : companionOf f.base lpr h2 ∈ C.CL := C.lpr_comp_in_C f.base hmf.1 heart
+    have hc_node : nodeAt (companionOf f.base lpr h2) = f.label := by
+      rw [nodeAt_companionOf_setEq f.base lpr h2, hbase]
+    refine ⟨companionOf f.base lpr h2, ?_, ?_, hc_node⟩
+    · simp only [nodesWithFine, List.mem_filter, decide_eq_true_eq]
+      refine ⟨(C.mem_fineCL _).mpr (C.memFine_toFine hc_CL), ?_⟩
+      rw [PathIn.label_toFine, hc_node, hf_lab]
+    · obtain ⟨b, hb, -⟩ := Relation.TransGen.head'_iff.mp (companion_lt heart)
+      exact PathIn.not_isLrep_of_edge hb
+  all_goals
+    exfalso
+    unfold PathIn.isLrep at hl
+    rw [h2] at hl
+    simp [Tableau.isLrep] at hl
+
+/-- Every node of `C_Δ` is a loaded-path repeat, provided `C^R_Δ` is empty.
+
+This is the key step for Lemma 9.7 (d). The proof is by well-founded induction on the label
+along the Dershowitz-Manna ordering `lt_Sequent`: at a node of `C_Δ` that is not a repeat a
+left rule is applied — a right rule is excluded by the assumption — so by Lemma 9.4 (c)
+there is a child in the cluster, its right component is still `Δ` by Lemma 9.7 (c) and its
+label is strictly smaller. Applying the induction hypothesis to that child makes it a
+repeat, and then its companion is again in `C_Δ` with the *same*, hence still smaller,
+label, but is not a repeat — contradicting the induction hypothesis. -/
+lemma isLrep_of_mem_nodesWithFine (C : LoadedCluster tab) {Δ : Sequent}
+    (hR : C.nodesWithFineRight Δ = []) : ∀ f ∈ C.nodesWithFine Δ, f.base.isLrep := by
+  have key : ∀ Y : Sequent, ∀ f ∈ C.nodesWithFine Δ, f.label = Y → f.base.isLrep := by
+    intro Y
+    induction Y using IsWellFounded.induction lt_Sequent with
+    | _ Y IH =>
+      intro f hf hlab
+      by_contra hnl
+      have hf' := hf
+      simp only [nodesWithFine, List.mem_filter, decide_eq_true_eq] at hf'
+      obtain ⟨hf_CL, hf_lab⟩ := hf'
+      have hmf : C.memFine f := (C.mem_fineCL f).mp hf_CL
+      obtain ⟨g, hg, hgmf⟩ := C.exists_child_memFine_of_not_isLrep hmf hnl
+      have hne : f.children ≠ [] := by
+        intro hnil
+        rw [hnil] at hg
+        simp at hg
+      have hleft : f.usesLeftRule := by
+        rcases f.usesLeftRule_or_usesRightRule_of_children_ne_nil hne with h | h
+        · exact h
+        · exfalso
+          have hmem : f ∈ C.nodesWithFineRight Δ := by
+            simp only [nodesWithFineRight, List.mem_filter]
+            exact ⟨hf, h⟩
+          rw [hR] at hmem
+          simp at hmem
+      have hfR : f.label.2.2.isRight := C.memFine_label_isRight hmf
+      have hgmem : g ∈ C.nodesWithFine Δ := by
+        simp only [nodesWithFine, List.mem_filter, decide_eq_true_eq]
+        refine ⟨(C.mem_fineCL g).mpr hgmf, ?_⟩
+        rw [f.children_rightOnly_eq_of_usesLeftRule hleft hfR g hg, hf_lab]
+      have hglt : lt_Sequent g.label Y :=
+        hlab ▸ f.children_lt_Sequent_of_usesLeftRule hleft hfR g hg
+      have hglrep : g.base.isLrep := IH g.label hglt g hgmem rfl
+      obtain ⟨c, hc_mem, hc_nl, hc_lab⟩ := C.exists_companion_mem_nodesWithFine hgmem hglrep
+      exact hc_nl (by simpa using IH g.label hglt c.toFine hc_mem (by simp [hc_lab]))
+  intro f hf
+  exact key f.label f hf rfl
+
 /-- Lemma 9.7 (d): if `C_Δ` is non-empty then so is `C^R_Δ`.
 
-By `exists_right_or_lrep` the only remaining case is that the descent reaches a loaded-path
-repeat in `C_Δ`. Excluding this is still open: the paper uses its Fact `lprAreCritical` —
-on the path from a companion to its repeat the modal rule is applied at least once — which
-is not available in this development. (Since `Sequent` now uses `Finset`s, a repeat does
-carry exactly the same label as its companion, cf. `nodeAt_companionOf_setEq`, so the
-mismatch with the paper that the `List` version had is gone.) -/
+Where the paper uses its Fact `lprAreCritical` — on the path from a companion to its repeat
+the modal rule is applied at least once — we argue with the Dershowitz-Manna measure
+instead: if `C^R_Δ` were empty then by `isLrep_of_mem_nodesWithFine` all nodes of `C_Δ`
+would be loaded-path repeats, but the companion of such a repeat is again in `C_Δ` and is
+not a repeat. (Since `Sequent` now uses `Finset`s, a repeat carries exactly the same label
+as its companion, cf. `nodeAt_companionOf_setEq`.) -/
 lemma exists_right_of_proper (C : LoadedCluster tab) :
     ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ [] := by
-  intro Δ hΔ
-  rcases C.exists_right_or_lrep hΔ with h | ⟨f, hf, hlrep⟩
-  · exact h
-  · sorry
+  intro Δ hΔ hnil
+  obtain ⟨f, hf⟩ := List.exists_mem_of_ne_nil _ ((C.mem_lambdaTwo_iff Δ).mp hΔ)
+  obtain ⟨c, hc_mem, hc_nl, -⟩ :=
+    C.exists_companion_mem_nodesWithFine hf (C.isLrep_of_mem_nodesWithFine hnil f hf)
+  exact hc_nl (by simpa using C.isLrep_of_mem_nodesWithFine hnil _ hc_mem)
 
 /-- The leading atomic program of a basic label of `Λ₂[C]` is in the joint vocabulary.
 
@@ -1218,19 +1411,86 @@ lemma loadedProgVoc_of_proper (C : LoadedCluster tab)
 
 /-- The inner induction in the proof of Lemma 10.3, see `PaperFacts.leftPropagation`.
 
-Still open. The argument is again a descent along the children of `t`: an exit is covered by
-the second hypothesis and a node of `C^R_Δ` by the first, while at a node of `C^L_Δ` all
-children stay in `C⁺_Δ` (by `FinePathIn.children_rightOnly_eq_of_usesLeftRule` and
-`LoadedCluster.children_in_plus`) and the local invertibility of the rule applied there
-(`FinePathIn.locally_sound`) transfers the entailment back up. The descent itself is now
-available as `FinePathIn.edge_upwards_inductionOn`; what is still missing is the exclusion
-of loaded-path repeats inside `C_Δ`, as for `exists_right_of_proper`. -/
-lemma leftPropagation_of_proper (C : LoadedCluster tab) (hP : C.root ◃⁺ C.root) :
+The argument is a descent along the children of `t`: an exit is covered by the second
+hypothesis and a node of `C^R_Δ` by the first, while at a node of `C^L_Δ` all children stay
+in `C⁺_Δ` (by `FinePathIn.children_rightOnly_eq_of_usesLeftRule` and
+`LoadedCluster.mem_fineCLplus_of_child`) and the local invertibility of the left rule
+applied there transfers the entailment back up. That last step is
+`FinePathIn.leftEntails_of_children_of_usesLeftRule`; note that `FinePathIn.locally_sound`
+is *not* enough here, because it speaks about the whole label while `leftEntails` only
+assumes the left component, so we need the left-only invertibility
+`LocalRuleApp.left_sat_of_isLeftRule`.
+
+The descent is not along the fine child relation but, as in `isLrep_of_mem_nodesWithFine`,
+by well-founded induction on the label along the Dershowitz-Manna ordering `lt_Sequent`:
+left rules strictly decrease the label, and this makes the remaining case, a loaded-path
+repeat in `C_Δ`, work out. At such a repeat no rule is applied, but by
+`exists_companion_mem_nodesWithFine` its companion is again a node of `C_Δ` with exactly the
+same label and is not a repeat, so the claim at the companion — which is the same claim,
+since `leftEntails` only depends on the label — is obtained from the very same case
+distinction, at the same label.
+
+Properness of the cluster is used through `LoadedCluster.exists_child_memFine_of_not_isLrep`
+(Lemma 9.4 (c)), which is why no separate properness hypothesis is needed. -/
+lemma leftPropagation_of_proper (C : LoadedCluster tab) :
     ∀ Δ ∈ C.lambdaTwo, ∀ φ : Formula,
       (∀ u ∈ C.nodesWithFineRight Δ, u.leftEntails φ) →
       (∀ u ∈ C.exitsWithFine Δ, u.leftEntails φ) →
       ∀ t ∈ C.plusNodesWithFine Δ, t.leftEntails φ := by
-  sorry
+  intro Δ _ φ hRight hExit
+  -- The claim at a node of `C_Δ` that is *not* a loaded-path repeat, given the claim at
+  -- all nodes of `C⁺_Δ` with a strictly smaller label.
+  have step : ∀ Y : Sequent,
+      (∀ Y', lt_Sequent Y' Y → ∀ t' ∈ C.plusNodesWithFine Δ, t'.label = Y' → t'.leftEntails φ) →
+      ∀ u ∈ C.nodesWithFine Δ, ¬ u.base.isLrep → u.label = Y → u.leftEntails φ := by
+    intro Y IH u hu hnl hlab
+    have hu' := hu
+    simp only [nodesWithFine, List.mem_filter, decide_eq_true_eq] at hu'
+    obtain ⟨hu_CL, hu_lab⟩ := hu'
+    have hmf : C.memFine u := (C.mem_fineCL u).mp hu_CL
+    have huR : u.label.2.2.isRight := C.memFine_label_isRight hmf
+    obtain ⟨g0, hg0, -⟩ := C.exists_child_memFine_of_not_isLrep hmf hnl
+    have hne : u.children ≠ [] := by
+      intro hnil
+      rw [hnil] at hg0
+      simp at hg0
+    rcases u.usesLeftRule_or_usesRightRule_of_children_ne_nil hne with hleft | hright
+    · -- A left rule: all children are in `C⁺_Δ` and have a strictly smaller label, so the
+      -- claim holds at them, and local invertibility transfers it to `u`.
+      refine u.leftEntails_of_children_of_usesLeftRule hleft huR ?_
+      intro g hg
+      refine IH g.label (hlab ▸ u.children_lt_Sequent_of_usesLeftRule hleft huR g hg) g ?_ rfl
+      simp only [plusNodesWithFine, List.mem_filter, decide_eq_true_eq]
+      exact ⟨C.mem_fineCLplus_of_child hu_CL hg,
+        by rw [u.children_rightOnly_eq_of_usesLeftRule hleft huR g hg, hu_lab]⟩
+    · -- A right rule: this is the first hypothesis.
+      exact hRight u (by simp only [nodesWithFineRight, List.mem_filter]; exact ⟨hu, hright⟩)
+  -- The claim at all nodes of `C⁺_Δ`, by well-founded induction on the label.
+  have key : ∀ Y : Sequent, ∀ t ∈ C.plusNodesWithFine Δ, t.label = Y → t.leftEntails φ := by
+    intro Y
+    induction Y using IsWellFounded.induction lt_Sequent with
+    | _ Y IH =>
+      intro t ht hlab
+      have ht' := (C.mem_plusNodesWithFine_iff Δ t).mp ht
+      by_cases hmf : C.memFine t
+      · have htf : t ∈ C.nodesWithFine Δ := by
+          simp only [nodesWithFine, List.mem_filter, decide_eq_true_eq]
+          exact ⟨(C.mem_fineCL t).mpr hmf, ht'.2⟩
+        by_cases hl : t.base.isLrep
+        · -- A loaded-path repeat: its companion carries the same label, is again a node of
+          -- `C_Δ` and is not a repeat, so the claim there is the claim here.
+          obtain ⟨c, hc_mem, hc_nl, hc_lab⟩ := C.exists_companion_mem_nodesWithFine htf hl
+          have hc := step Y IH c.toFine hc_mem (by rw [PathIn.base_toFine]; exact hc_nl)
+            (by rw [PathIn.label_toFine, hc_lab, hlab])
+          intro W M w hw
+          exact hc W M w (by rw [PathIn.label_toFine, hc_lab]; exact hw)
+        · exact step Y IH t htf hl hlab
+      · -- Not a node of the cluster, hence an exit: this is the second hypothesis.
+        refine hExit t ((C.mem_exitsWithFine_iff Δ t).mpr ⟨?_, ht'.2⟩)
+        rcases List.mem_append.mp ht'.1 with h | h
+        · exact absurd ((C.mem_fineCL t).mp h) hmf
+        · exact h
+  exact fun t ht => key t.label t ht rfl
 
 /-- Lemma 9.7 (f): at a non-basic `Δ` the children of any `t ∈ C^R_Δ` are the `Λ₁(t);Π`
 for `Π ∈ stepOf Δ`.  Here only the existence of a node of `C⁺_Π` with the same left
@@ -1295,7 +1555,7 @@ theorem paperFacts (C : LoadedCluster tab) (hA : C.HasUniformSteps) : C.PaperFac
   vocL := C.vocL_fineCLplus
   vocR := C.vocR_fineCLplus
   loadedProgVoc := C.loadedProgVoc_of_proper (C.exists_right_of_proper)
-  leftPropagation := C.leftPropagation_of_proper C.proper
+  leftPropagation := C.leftPropagation_of_proper
   rightRuleChildren := C.rightRuleChildren_of_uniform hA -- only field that needs uniformity
   modalStep := C.modalStep_of
 
@@ -1306,7 +1566,7 @@ end LoadedCluster
 `LoadedCluster.paperFacts` derives all eight fields of `LoadedCluster.PaperFacts` from the
 two assumptions that we also have properness of the cluster (which just `LoadedCluster.proper`)
 and uniformity of the tableau (which we have not actually shown yet).
-Six of the eight are proved here:
+All of them are proved here:
 
 * `proper` is the first assumption itself;
 * `vocL` and `vocR` are `vocL_fineCLplus` and `vocR_fineCLplus`, proved from vocabulary
@@ -1317,11 +1577,10 @@ Six of the eight are proved here:
 * `modalStep` is `modalStep_of`, proved from properness alone via `basicModalStepAt`, which
   is Lemma 9.7 (e): at a node of `C^R_Δ` with `Δ` basic the rule applied is the modal rule
   `(M)` for the loaded formula of `Δ`;
-* `loadedProgVoc` is `loadedProgVoc_of_proper`, proved from properness and Lemma 9.7 (d).
-
-The two fields `exists_right` (Lemma 9.7 (d)) and `leftPropagation` are still open; see the
-docstrings of `exists_right_of_proper` and `leftPropagation_of_proper` for what exactly is
-missing.
+* `loadedProgVoc` is `loadedProgVoc_of_proper`, proved from properness and Lemma 9.7 (d);
+* `exists_right` (Lemma 9.7 (d)) is `exists_right_of_proper` and `leftPropagation` is
+  `leftPropagation_of_proper`, both proved from properness by well-founded induction on
+  the label along the Dershowitz-Manna ordering `lt_Sequent`.
 
 Where uniformity (conditions U1/U2, formalised as `LoadedCluster.HasUniformSteps` with
 `LoadedCluster.stepOf_spec`) is needed can now be read off: in exactly **one** of the eight
@@ -1361,9 +1620,7 @@ noncomputable def clusterInterpolation_right {tab : Tableau .nil X} (Xfree : X.i
   classical
   -- Because we have a uniform tableay, also the fixed cluster C must have uniform steps.
   have hA : C.HasUniformSteps := LoadedCluster.uniformOfUniTab C t_u
-  -- All facts of `PaperFacts` follow from these two, except for `exists_right` and
-  -- `leftPropagation`; see the docstrings of `LoadedCluster.exists_right_of_proper` and
-  -- `LoadedCluster.leftPropagation_of_proper`.
+  -- All facts of `PaperFacts` follow from these two.
   have hF : C.PaperFacts := C.paperFacts hA
   -- Get additional facts about the cluster (that used to be placeholders but are now proven).
   have hS : C.SatDownFacts := C.satDownFacts C.exists_right_of_proper
