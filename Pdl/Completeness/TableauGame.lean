@@ -717,7 +717,8 @@ open Classical in -- needed for `Finset.instMonad`, but why actually?
 /-- A list of sequents that are all FL-subsequents of the given sequent.
 Defined using `Finset.instMonad`.
 -/
-noncomputable def Sequent.all_subseteq_FL (Y : Sequent) : Finset { X : Sequent // Sequent.subseteq_FL X Y } := do
+noncomputable def Sequent.all_subseteq_FL (Y : Sequent) :
+    Finset { X : Sequent // Sequent.subseteq_FL X Y } := do
   -- QUESTION: any way to do sublist and permutation in one go?
   -- Never mind, removed `.flatMap List.permutations` again which really should not be needed.
   -- Trying out different orders `.sublists.attach` and `.attach.sublists` here.
@@ -735,13 +736,13 @@ noncomputable def Sequent.all_subseteq_FL (Y : Sequent) : Finset { X : Sequent /
     rcases Y with ⟨L',R',O'⟩
     refine ⟨?_, ?_, ?_, ?_⟩ <;> simp
     · have := XL.2
-      simp at this
-      sorry -- exact List.Sublist.subset this
+      simp only [Finset.mem_powerset, Sequent.L_eq, Sequent.O_eq] at this
+      exact this
     · simp only [Olf.L]
       rcases XO with ⟨none|⟨(nχ|_)⟩, XO_in⟩ <;> try simp_all
       simp only [Finset.singleton_union, Finset.insert_union, Finset.mem_insert, reduceCtorEq,
         Finset.mem_union, Finset.mem_sup, Finset.mem_image, List.mem_toFinset, Function.comp_apply,
-        Option.some.injEq, Sum.inl.injEq, exists_eq_right, and_false, exists_false, exists_const,
+        Option.some.injEq, Sum.inl.injEq, exists_eq_right, and_false, exists_false,
         or_false, false_or, OLs, ORs] at XO_in
       rcases XO_in with ⟨φ, φ_in, nχ_in⟩
       have := Formula.allNegLoads_spec nχ_in
@@ -749,11 +750,11 @@ noncomputable def Sequent.all_subseteq_FL (Y : Sequent) : Finset { X : Sequent /
       rw [this]
       suffices φ ∈ (L' ∪ O'.L).FL by aesop
       have := XOL.2
-      simp only [L_eq, O_eq, SetLike.coe_mem] at this
-      sorry -- exact List.Sublist.mem φ_in this
+      simp only [Finset.mem_powerset, L_eq, O_eq] at this
+      exact this φ_in
     · have := XR.2
-      simp only [R_eq, O_eq, SetLike.coe_mem] at this
-      sorry -- exact List.Sublist.subset this
+      simp only [Finset.mem_powerset, R_eq, O_eq] at this
+      exact this
     · simp only [Olf.R]
       rcases XO with ⟨none|⟨(nχ|_)⟩, XO_in⟩ <;> try simp_all
       simp only [Finset.singleton_union, Finset.insert_union, Finset.mem_insert, reduceCtorEq,
@@ -766,19 +767,48 @@ noncomputable def Sequent.all_subseteq_FL (Y : Sequent) : Finset { X : Sequent /
       rw [this]
       suffices φ ∈ (R' ∪ O'.R).FL by aesop
       have := XOR.2
-      simp only [R_eq, O_eq, SetLike.coe_mem] at this
-      sorry -- exact List.Sublist.mem φ_in this
+      simp only [Finset.mem_powerset, R_eq, O_eq] at this
+      exact this φ_in
   return ⟨X, h⟩
 
 /-! The following only hold because there we are now working with `Finset`. -/
 
+/-- Any `Olf` is among those generated from its own left and right parts.
+This is the key step to show that `Sequent.all_subseteq_FL` generates all `Olf` values. -/
+lemma Olf.mem_allNegLoads_of_L_R (YO : Olf) :
+    YO ∈ ({none} ∪ (YO.L).sup fun φ ↦ Finset.image (some ∘ Sum.inl) φ.allNegLoads.toFinset) ∪
+      (YO.R).sup fun φ ↦ Finset.image (some ∘ Sum.inr) φ.allNegLoads.toFinset := by
+  rcases YO with _|(χ|χ)
+  · simp
+  · rcases χ with ⟨lf⟩
+    simp only [Olf.L, Finset.mem_union, Finset.mem_singleton, Finset.mem_sup, Finset.mem_image,
+      List.mem_toFinset, Function.comp_apply]
+    exact Or.inl (Or.inr ⟨_, rfl, ~'lf, Formula.allNegLoads_complete rfl, rfl⟩)
+  · rcases χ with ⟨lf⟩
+    simp only [Olf.R, Finset.mem_union, Finset.mem_singleton, Finset.mem_sup, Finset.mem_image,
+      List.mem_toFinset, Function.comp_apply]
+    exact Or.inr ⟨_, rfl, ~'lf, Formula.allNegLoads_complete rfl, rfl⟩
+
 lemma Sequent.all_subseteq_FL_complete (X Y : Sequent) (h : Y.subseteq_FL X) :
     ⟨Y,h⟩ ∈ Sequent.all_subseteq_FL X := by
-  sorry
+  unfold Sequent.all_subseteq_FL
+  simp only [bind]
+  refine (@Finset.mem_sup _ _ (fun a b => Classical.propDecidable (a = b)) _ _ _).mpr
+    ⟨⟨Y.L, Finset.mem_powerset.mpr h.1⟩, Finset.mem_attach _ _, ?_⟩
+  refine (@Finset.mem_sup _ _ (fun a b => Classical.propDecidable (a = b)) _ _ _).mpr
+    ⟨⟨Y.O.L, Finset.mem_powerset.mpr h.2.1⟩, Finset.mem_attach _ _, ?_⟩
+  refine (@Finset.mem_sup _ _ (fun a b => Classical.propDecidable (a = b)) _ _ _).mpr
+    ⟨⟨Y.R, Finset.mem_powerset.mpr h.2.2.1⟩, Finset.mem_attach _ _, ?_⟩
+  refine (@Finset.mem_sup _ _ (fun a b => Classical.propDecidable (a = b)) _ _ _).mpr
+    ⟨⟨Y.O.R, Finset.mem_powerset.mpr h.2.2.2⟩, Finset.mem_attach _ _, ?_⟩
+  refine (@Finset.mem_sup _ _ (fun a b => Classical.propDecidable (a = b)) _ _ _).mpr
+    ⟨⟨Y.O, Olf.mem_allNegLoads_of_L_R Y.O⟩, Finset.mem_attach _ _, ?_⟩
+  rcases Y with ⟨YL, YR, YO⟩
+  simp [pure]
 
 noncomputable instance Sequent.subseteq_FL_fintype {X : Sequent} :
     Fintype { Y // Sequent.subseteq_FL Y X } :=
-  ⟨ Sequent.all_subseteq_FL X, fun ⟨Y, Y_in⟩ => X.all_subseteq_FL_complete _ _ ⟩
+  ⟨ Sequent.all_subseteq_FL X, fun ⟨Y, Y_in⟩ => X.all_subseteq_FL_complete Y Y_in ⟩
 
 noncomputable def Sequent.allSeqt_subseteq_FL (X : Sequent) : Finset Sequent :=
   (X.all_subseteq_FL.image (fun x => x.1))
@@ -958,7 +988,7 @@ lemma moveChain_hist_split {m n : ℕ} (h : m + 2 ≤ n) :
 lemma moveChain_inside_FL (n : ℕ) : Sequent.subseteq_FL (g n).2.1 (g 0).2.1 := by
   simp only [Sequent.subseteq_FL]
   induction n
-  · sorry -- was: simp
+  · exact Sequent.subseteq_FL_refl _
   case succ k IH =>
     apply Sequent.subseteq_FL_trans _ _ _ ?_ IH
     apply move_inside_FL (g_rel k)
