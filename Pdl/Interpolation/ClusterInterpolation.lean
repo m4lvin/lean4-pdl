@@ -30,16 +30,10 @@ open HasSat
 
 /-! ## Helpers for `endNodesOf`
 
-Since `endNodesOf` now returns a `Finset Sequent`, these two membership lemmas replace the
-old `simp only [endNodesOf, List.mem_flatten, ...]` incantations.
-They would better belong in `Pdl/Local/Tableau.lean`, next to `endNodesOf`. -/
-
-lemma mem_endNodesOf_byLocalRule {X : Sequent} {lra : LocalRuleApp} {hX : X = lra.X}
-    {next : ∀ Y ∈ lra.C, LocalTableau Y} {E : Sequent} :
-    E ∈ endNodesOf (LocalTableau.byLocalRule lra hX next) ↔
-      ∃ Y, ∃ h : Y ∈ lra.C, E ∈ endNodesOf (next Y h) := by
-  simp only [endNodesOf, Finset.sup_image, Function.id_comp, Finset.mem_sup, Finset.mem_attach,
-    true_and, Subtype.exists]
+Since `endNodesOf` now returns a `Finset Sequent`, this membership lemma replaces the
+old `simp only [endNodesOf, List.mem_flatten, ...]` incantations. For the `byLocalRule`
+case we use `mem_endNodesOf_byLocalRule_iff` from `Pdl/Interpolation/FinePath.lean`.
+It would better belong in `Pdl/Local/Tableau.lean`, next to `endNodesOf`. -/
 
 lemma mem_endNodesOf_sim {X : Sequent} {h : X.basic} {E : Sequent} :
     E ∈ endNodesOf (LocalTableau.sim h) ↔ E = X := by
@@ -83,7 +77,7 @@ lemma LocalPathIn.exists_mem_endNodesBelow {Y : Sequent} :
   | _, .byLocalRule lra X_def next, .cons Y_in tail, h => by
       obtain ⟨hY, hmem⟩ := LocalPathIn.exists_mem_endNodesBelow tail h
       refine ⟨?_, ?_⟩
-      · exact mem_endNodesOf_byLocalRule.mpr ⟨_, Y_in, hY⟩
+      · exact mem_endNodesOf_byLocalRule_iff.mpr ⟨_, Y_in, hY⟩
       · simp only [LocalPathIn.endNodesBelow, List.mem_map, Subtype.exists]
         exact ⟨Y, hY, hmem, rfl⟩
 
@@ -115,25 +109,25 @@ different coarse node is a coarse node itself. -/
 lemma FinePathIn.base_of_mem_children' : ∀ {H : History} {Z : Sequent} {tab' : Tableau H Z}
     (f : FinePathIn tab'), ∀ g ∈ f.children, g.base = f.base ∨ (f.base ⋖_ g.base ∧ g.atBigRoot)
   | _, _, _, .inLoc lp lp_int, g, hg => by
-      simp only [FinePathIn.children, List.mem_map] at hg
+      simp only [FinePathIn.children, Finset.mem_image] at hg
       obtain ⟨lp', -, rfl⟩ := hg
       split
       · exact Or.inr ⟨by simp [FinePathIn.base], by simp [FinePathIn.atBigRoot]⟩
       · exact Or.inl rfl
   | _, _, _, .pdlHere, g, hg => by
-      simp only [FinePathIn.children, List.mem_singleton] at hg
+      simp only [FinePathIn.children, Finset.mem_singleton] at hg
       subst hg
       exact Or.inr ⟨by simp [FinePathIn.base], by simp [FinePathIn.atBigRoot]⟩
   | _, _, _, .lrepHere, g, hg => by simp [FinePathIn.children] at hg
   | _, _, _, .loc Y_in tail, g, hg => by
-      simp only [FinePathIn.children, List.mem_map] at hg
+      simp only [FinePathIn.children, Finset.mem_image] at hg
       obtain ⟨g', hg', rfl⟩ := hg
       rcases FinePathIn.base_of_mem_children' tail g' hg' with h | ⟨h1, h2⟩
       · exact Or.inl (by simp [FinePathIn.base, h])
       · exact Or.inr ⟨by simpa [FinePathIn.base, loc_edge_loc_iff_edge] using h1,
           by simpa [FinePathIn.atBigRoot] using h2⟩
   | _, _, _, .pdl tail, g, hg => by
-      simp only [FinePathIn.children, List.mem_map] at hg
+      simp only [FinePathIn.children, Finset.mem_image] at hg
       obtain ⟨g', hg', rfl⟩ := hg
       rcases FinePathIn.base_of_mem_children' tail g' hg' with h | ⟨h1, h2⟩
       · exact Or.inl (by simp [FinePathIn.base, h])
@@ -207,7 +201,8 @@ lemma mem_exits_of_mem_coarseChildrenBelow (C : LoadedCluster tab) {f : FinePath
 /-- A fine exit of the cluster that is a coarse node is a coarse exit of the cluster. -/
 lemma mem_exits_base_of_mem_fineExits (C : LoadedCluster tab) {f : FinePathIn tab}
     (hf : f ∈ C.fineExits) (hbr : f.atBigRoot) : f.base ∈ C.exits := by
-  simp only [fineExits, List.mem_filter, List.mem_flatMap, decide_eq_true_eq] at hf
+  simp only [fineExits, Finset.mem_filter, Finset.mem_sup, List.mem_toFinset,
+    decide_eq_true_eq] at hf
   obtain ⟨⟨g, hg, hfg⟩, hnot⟩ := hf
   have hgCL : g.base ∈ C.CL := ((C.mem_fineCL g).mp hg).1
   have hfCL : f.base ∉ C.CL := fun hin => hnot ⟨hin, Or.inl hbr⟩
@@ -224,7 +219,8 @@ lemma exists_itp_of_mem_fineExits (C : LoadedCluster tab)
     ∀ f ∈ C.fineExits, ∃ θ, isPartInterpolant f.label θ := by
   intro f hf
   have hf' := hf
-  simp only [fineExits, List.mem_filter, List.mem_flatMap, decide_eq_true_eq] at hf'
+  simp only [fineExits, Finset.mem_filter, Finset.mem_sup, List.mem_toFinset,
+    decide_eq_true_eq] at hf'
   obtain ⟨⟨g, hg, hfg⟩, hnot⟩ := hf'
   by_cases hbr : f.atBigRoot
   · -- `f` is a coarse node, hence a coarse exit.
@@ -360,14 +356,14 @@ lemma endNodesOf_left_fvoc_subset : ∀ {X : Sequent} (lt : LocalTableau X),
     ∀ Y ∈ endNodesOf lt, Y.left.fvoc ⊆ X.left.fvoc
   | _, .sim _, Y, hY => by rw [mem_endNodesOf_sim] at hY; simp [hY]
   | _, .byLocalRule lra X_def next, Y, hY => by
-      obtain ⟨Z, Z_in, hY⟩ := mem_endNodesOf_byLocalRule.mp hY
+      obtain ⟨Z, Z_in, hY⟩ := mem_endNodesOf_byLocalRule_iff.mp hY
       exact subset_trans (endNodesOf_left_fvoc_subset _ Y hY) (X_def ▸ lra.left_fvoc_subset _ Z_in)
 
 lemma endNodesOf_right_fvoc_subset : ∀ {X : Sequent} (lt : LocalTableau X),
     ∀ Y ∈ endNodesOf lt, Y.right.fvoc ⊆ X.right.fvoc
   | _, .sim _, Y, hY => by rw [mem_endNodesOf_sim] at hY; simp [hY]
   | _, .byLocalRule lra X_def next, Y, hY => by
-      obtain ⟨Z, Z_in, hY⟩ := mem_endNodesOf_byLocalRule.mp hY
+      obtain ⟨Z, Z_in, hY⟩ := mem_endNodesOf_byLocalRule_iff.mp hY
       exact subset_trans (endNodesOf_right_fvoc_subset _ Y hY)
         (X_def ▸ lra.right_fvoc_subset _ Z_in)
 
@@ -631,7 +627,8 @@ lemma FinePathIn.children_left_eq_of_usesRightRule {H : History} {Z : Sequent}
   rcases f.lra_or_basic_of_usesRightRule hr with ⟨lra, hlra, hright⟩ | hbas
   · obtain ⟨hX, hC⟩ := f.lra?_spec hlra
     intro g hg
-    have hmem : g.label ∈ lra.C := Finset.mem_toList.mp (hC ▸ List.mem_map_of_mem hg)
+    have hmem : g.label ∈ lra.C := by
+      rw [← hC]; exact Finset.mem_image_of_mem FinePathIn.label hg
     rw [hX]
     exact lra.left_eq_of_isRightRule hright _ hmem
   · exact absurd (Sequent.basic_rightOnly hbas) hb
@@ -672,8 +669,8 @@ component and a right component determined by `Λ₂` of the node. -/
 lemma FinePathIn.basicRightStep {H : History} {Z : Sequent} {tab' : Tableau H Z}
     (f : FinePathIn tab') (h : f.usesRightRule) (hb : f.label.rightOnly.basic) :
       (f.atBigRoot ∧ f.label.2.2 = none)
-      ∨ (∃ g, f.children = [g] ∧ g.atBigRoot ∧ g.label.2.2 = none)
-      ∨ (∃ A ξ, f.label.2.2 = some (Sum.inr (~'⌊·A⌋ξ)) ∧ ∃ g, f.children = [g] ∧ g.atBigRoot
+      ∨ (∃ g, f.children = {g} ∧ g.atBigRoot ∧ g.label.2.2 = none)
+      ∨ (∃ A ξ, f.label.2.2 = some (Sum.inr (~'⌊·A⌋ξ)) ∧ ∃ g, f.children = {g} ∧ g.atBigRoot
           ∧ g.label.left = Finset.projection A f.label.left
           ∧ g.label.rightOnly = modRChildRightOnly A ξ f.label.2.1) := by
   induction f with
@@ -801,7 +798,8 @@ lemma FinePathIn.children_rightOnly_eq_of_usesLeftRule {H : History} {Z : Sequen
   · obtain ⟨hX, hC⟩ := f.lra?_spec hlra
     rw [hX] at hR
     intro g hg
-    have hmem : g.label ∈ lra.C := Finset.mem_toList.mp (hC ▸ List.mem_map_of_mem hg)
+    have hmem : g.label ∈ lra.C := by
+      rw [← hC]; exact Finset.mem_image_of_mem FinePathIn.label hg
     rw [hX]
     exact lra.rightOnly_eq_of_isLeftRule hleft hR _ hmem
   · exact absurd hR hno
@@ -858,9 +856,9 @@ lemma FinePathIn.leftEntails_of_children_of_usesLeftRule {H : History} {Z : Sequ
     intro W M w hw
     rw [hX] at hR hw
     obtain ⟨Y, hY, hYw⟩ := lra.left_sat_of_isLeftRule hleft hR hw
-    have hmem : Y ∈ f.children.map FinePathIn.label := by
-      rw [hC]; exact Finset.mem_toList.mpr hY
-    obtain ⟨g, hg, rfl⟩ := List.mem_map.mp hmem
+    have hmem : Y ∈ f.children.image FinePathIn.label := by
+      rw [hC]; exact hY
+    obtain ⟨g, hg, rfl⟩ := Finset.mem_image.mp hmem
     exact hch g hg W M w hYw
   · exact absurd hR hno
 
@@ -923,7 +921,7 @@ lemma LocalTableau.isRight_of_mem_endNodesOf : ∀ {Z : Sequent} (lt : LocalTabl
       exact hY ▸ hYR
   | _, .byLocalRule lra X_def next, Y, hY, hYR => by
       subst X_def
-      obtain ⟨W, W_in, hY⟩ := mem_endNodesOf_byLocalRule.mp hY
+      obtain ⟨W, W_in, hY⟩ := mem_endNodesOf_byLocalRule_iff.mp hY
       exact lra.isRight_of_mem_C W W_in
         (LocalTableau.isRight_of_mem_endNodesOf (next W W_in) Y hY hYR)
 
@@ -968,7 +966,7 @@ lemma FinePathIn.isRight_of_mem_coarseChildrenBelow : ∀ {H : History} {Z : Seq
 
 /-- A local rule application with at least one child is a left or a right rule: only the
 closing rules `(¬)` are neither, and they have no results. -/
-lemma LocalRuleApp.isLeftRule_or_isRightRule_of_C_ne_nil (lra : LocalRuleApp)
+lemma LocalRuleApp.isLeftRule_or_isRightRule_of_C_ne_empty (lra : LocalRuleApp)
     (h : lra.C ≠ ∅) : lra.isLeftRule ∨ lra.isRightRule := by
   rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
   subst hC
@@ -980,22 +978,22 @@ lemma LocalRuleApp.isLeftRule_or_isRightRule_of_C_ne_nil (lra : LocalRuleApp)
       LocalRule.isRightRule]
 
 /-- A fine node that has children applies a left or a right rule. -/
-lemma FinePathIn.usesLeftRule_or_usesRightRule_of_children_ne_nil {H : History} {Z : Sequent}
-    {tab' : Tableau H Z} (f : FinePathIn tab') (h : f.children ≠ []) :
+lemma FinePathIn.usesLeftRule_or_usesRightRule_of_children_ne_empty {H : History} {Z : Sequent}
+    {tab' : Tableau H Z} (f : FinePathIn tab') (h : f.children ≠ ∅) :
     f.usesLeftRule ∨ f.usesRightRule := by
   induction f with
   | @inLoc Hist Y nrep nbas lt next lp lp_int =>
-    have hlp : lp.children ≠ [] := by
+    have hlp : lp.children ≠ ∅ := by
       intro hnil
       exact h (by simp [FinePathIn.children, hnil])
-    have hlab : lp.ltAt.childLabels ≠ [] := by
+    have hlab : lp.ltAt.childLabels ≠ ∅ := by
       rw [← lp.map_last_children]
       simpa using hlp
     simp only [FinePathIn.usesLeftRule, FinePathIn.usesRightRule]
     rcases hlt : lp.ltAt with ⟨lra, X_def, lnext⟩ | bas
     · rw [hlt] at hlab
-      exact lra.isLeftRule_or_isRightRule_of_C_ne_nil
-        (by simpa [LocalTableau.childLabels, Finset.toList_eq_nil] using hlab)
+      exact lra.isLeftRule_or_isRightRule_of_C_ne_empty
+        (by simpa [LocalTableau.childLabels] using hlab)
     · exfalso
       unfold LocalPathIn.isInternal at lp_int
       rw [hlt] at lp_int
@@ -1054,7 +1052,8 @@ lemma FinePathIn.children_lt_Sequent_of_usesLeftRule {H Z} {tab' : Tableau H Z}
   rcases f.leftRuleStep h with ⟨lra, hlra, -⟩ | ⟨-, hno⟩
   · obtain ⟨hX, hC⟩ := f.lra?_spec hlra
     intro g hg
-    have hmem : g.label ∈ lra.C := Finset.mem_toList.mp (hC ▸ List.mem_map_of_mem hg)
+    have hmem : g.label ∈ lra.C := by
+      rw [← hC]; exact Finset.mem_image_of_mem FinePathIn.label hg
     rw [hX]
     exact localRuleApp.decreases_DM lra _ hmem
   · exact absurd hR hno
@@ -1086,9 +1085,9 @@ namespace LoadedCluster
 /-- Every fine node of `C⁺` is `◃`-reachable from the root of the cluster. -/
 lemma root_cReach_base_of_mem_fineCLplus (C : LoadedCluster tab) {f : FinePathIn tab}
     (hf : f ∈ C.fineCLplus) : C.root ◃* f.base := by
-  rcases List.mem_append.mp hf with hf | hf
-  · exact C.root_reaches_all _ ((C.mem_fineCL f).mp hf).1
-  · simp only [fineExits, List.mem_filter, List.mem_flatMap] at hf
+  rcases Finset.mem_union.mp hf with hf | hf
+  · exact C.root_reaches_all _ ((C.mem_fineCL f).mp (List.mem_toFinset.mp hf)).1
+  · simp only [fineExits, Finset.mem_filter, Finset.mem_sup, List.mem_toFinset] at hf
     obtain ⟨⟨g, hg, hfg⟩, -⟩ := hf
     have hgr : C.root ◃* g.base := C.root_reaches_all _ ((C.mem_fineCL g).mp hg).1
     rcases g.base_of_mem_children f hfg with h | h
@@ -1120,7 +1119,7 @@ a free node, while `(L-)` makes its unique child free, and both contradict Lemma
 because by Lemma 9.4 (c) some child of `t` is again in the cluster. -/
 lemma basicModalStepAt (C : LoadedCluster tab) {Δ : Sequent}
     (hb : Δ.basic) {t : FinePathIn tab} (ht : t ∈ C.nodesWithFineRight Δ) :
-    ∃ A ξ, Δ.2.2 = some (Sum.inr (~'⌊·A⌋ξ)) ∧ ∃ g, t.children = [g] ∧ g.atBigRoot
+    ∃ A ξ, Δ.2.2 = some (Sum.inr (~'⌊·A⌋ξ)) ∧ ∃ g, t.children = {g} ∧ g.atBigRoot
       ∧ g.label.left = Finset.projection A t.label.left
       ∧ g.label.rightOnly = modRChildRightOnly A ξ Δ.2.1 := by
   simp only [nodesWithFineRight, nodesWithFine, List.mem_filter, decide_eq_true_eq] at ht
@@ -1137,7 +1136,7 @@ lemma basicModalStepAt (C : LoadedCluster tab) {Δ : Sequent}
     rw [← t.label_eq_nodeAt_base hbr, hnone] at hrl
     simp at hrl
   · exfalso
-    rw [hg, List.mem_singleton] at hc
+    rw [hg, Finset.mem_singleton] at hc
     subst hc
     have hrl := C.all_right_loaded c.base hcmf.1
     rw [← c.label_eq_nodeAt_base hgbr, hgnone] at hrl
@@ -1154,7 +1153,7 @@ lemma exists_child_rightOnly_of_mem_stepOf (C : LoadedCluster tab) {Δ Pi : Sequ
   | none => rw [hh] at hPi; simp at hPi
   | some f =>
     rw [hh] at hPi
-    simp only [List.mem_map] at hPi
+    simp only [Finset.mem_image] at hPi
     obtain ⟨g, hg, rfl⟩ := hPi
     exact ⟨f, List.mem_of_mem_head? hh, g, hg, rfl⟩
 
@@ -1184,7 +1183,7 @@ lemma memFine_label_isRight (C : LoadedCluster tab) {f : FinePathIn tab} (hf : C
 /-- Every label in `Λ₂[C]` is loaded on the right. -/
 lemma isRight_of_mem_lambdaTwo (C : LoadedCluster tab) {Δ : Sequent} (hΔ : Δ ∈ C.lambdaTwo) :
     Δ.2.2.isRight := by
-  simp only [lambdaTwo, List.mem_dedup, List.mem_map] at hΔ
+  simp only [lambdaTwo, Finset.mem_image, List.mem_toFinset] at hΔ
   obtain ⟨f, hf, rfl⟩ := hΔ
   exact C.memFine_label_isRight ((C.mem_fineCL f).mp hf)
 
@@ -1208,7 +1207,7 @@ lemma exists_right_or_lrep (C : LoadedCluster tab) {Δ : Sequent}
   obtain ⟨hR, hlrep⟩ := hcon
   obtain ⟨t, ht⟩ := List.exists_mem_of_ne_nil _ ((C.mem_lambdaTwo_iff Δ).mp hΔ)
   have hΔR : Δ.2.2.isRight := C.isRight_of_mem_lambdaTwo hΔ
-  have down : ∀ u : FinePathIn tab, u ∈ C.nodesWithFine Δ → u.children ≠ [] →
+  have down : ∀ u : FinePathIn tab, u ∈ C.nodesWithFine Δ → u.children ≠ ∅ →
       ∃ g ∈ u.children, g ∈ C.nodesWithFine Δ := by
     intro u hu hne
     have hu' := hu
@@ -1218,7 +1217,7 @@ lemma exists_right_or_lrep (C : LoadedCluster tab) {Δ : Sequent}
       (hlrep u hu)
     refine ⟨g, hg, ?_⟩
     have huleft : u.usesLeftRule := by
-      rcases u.usesLeftRule_or_usesRightRule_of_children_ne_nil hne with h | h
+      rcases u.usesLeftRule_or_usesRightRule_of_children_ne_empty hne with h | h
       · exact h
       · exfalso
         have hmem : u ∈ C.nodesWithFineRight Δ := by
@@ -1297,12 +1296,12 @@ lemma isLrep_of_mem_nodesWithFine (C : LoadedCluster tab) {Δ : Sequent}
       obtain ⟨hf_CL, hf_lab⟩ := hf'
       have hmf : C.memFine f := (C.mem_fineCL f).mp hf_CL
       obtain ⟨g, hg, hgmf⟩ := C.exists_child_memFine_of_not_isLrep hmf hnl
-      have hne : f.children ≠ [] := by
+      have hne : f.children ≠ ∅ := by
         intro hnil
         rw [hnil] at hg
         simp at hg
       have hleft : f.usesLeftRule := by
-        rcases f.usesLeftRule_or_usesRightRule_of_children_ne_nil hne with h | h
+        rcases f.usesLeftRule_or_usesRightRule_of_children_ne_empty hne with h | h
         · exact h
         · exfalso
           have hmem : f ∈ C.nodesWithFineRight Δ := by
@@ -1361,7 +1360,7 @@ lemma loadedProgVoc_of_proper (C : LoadedCluster tab)
   have hmf : C.memFine t := (C.mem_fineCL t).mp ht_CL
   obtain ⟨c, hc, hcmf⟩ := C.exists_child_memFine_of_not_isLrep hmf
     (t.not_isLrep_base_of_usesRightRule ht_right)
-  rw [hg, List.mem_singleton] at hc
+  rw [hg, Finset.mem_singleton] at hc
   have hgmf : C.memFine g := hc ▸ hcmf
   -- The left component of the root is non-empty, hence so is that of every node of `C`.
   have hroot1 : (nodeAt C.root).1 ≠ ∅ := by
@@ -1384,7 +1383,7 @@ lemma loadedProgVoc_of_proper (C : LoadedCluster tab)
   rw [hgleft] at hgne
   obtain ⟨ψ, hψ⟩ := Finset.nonempty_iff_ne_empty.mpr hgne
   have hbox : (⌈·A⌉ψ) ∈ t.label.left := Finset.mem_projection.mp hψ
-  have htplus : t ∈ C.fineCLplus := List.mem_append_left _ ht_CL
+  have htplus : t ∈ C.fineCLplus := Finset.mem_union_left _ (List.mem_toFinset.mpr ht_CL)
   have hAleft : (Sum.inr A : Sum Nat Nat) ∈ (nodeAt C.root).left.fvoc := by
     apply C.vocL_fineCLplus t htplus
     exact mem_fvoc_iff.mpr ⟨_, hbox, by simp⟩
@@ -1450,17 +1449,17 @@ lemma leftPropagation_of_proper (C : LoadedCluster tab) :
     have hmf : C.memFine u := (C.mem_fineCL u).mp hu_CL
     have huR : u.label.2.2.isRight := C.memFine_label_isRight hmf
     obtain ⟨g0, hg0, -⟩ := C.exists_child_memFine_of_not_isLrep hmf hnl
-    have hne : u.children ≠ [] := by
+    have hne : u.children ≠ ∅ := by
       intro hnil
       rw [hnil] at hg0
       simp at hg0
-    rcases u.usesLeftRule_or_usesRightRule_of_children_ne_nil hne with hleft | hright
+    rcases u.usesLeftRule_or_usesRightRule_of_children_ne_empty hne with hleft | hright
     · -- A left rule: all children are in `C⁺_Δ` and have a strictly smaller label, so the
       -- claim holds at them, and local invertibility transfers it to `u`.
       refine u.leftEntails_of_children_of_usesLeftRule hleft huR ?_
       intro g hg
       refine IH g.label (hlab ▸ u.children_lt_Sequent_of_usesLeftRule hleft huR g hg) g ?_ rfl
-      simp only [plusNodesWithFine, List.mem_filter, decide_eq_true_eq]
+      simp only [plusNodesWithFine, Finset.mem_filter, decide_eq_true_eq]
       exact ⟨C.mem_fineCLplus_of_child hu_CL hg,
         by rw [u.children_rightOnly_eq_of_usesLeftRule hleft huR g hg, hu_lab]⟩
     · -- A right rule: this is the first hypothesis.
@@ -1487,8 +1486,8 @@ lemma leftPropagation_of_proper (C : LoadedCluster tab) :
         · exact step Y IH t htf hl hlab
       · -- Not a node of the cluster, hence an exit: this is the second hypothesis.
         refine hExit t ((C.mem_exitsWithFine_iff Δ t).mpr ⟨?_, ht'.2⟩)
-        rcases List.mem_append.mp ht'.1 with h | h
-        · exact absurd ((C.mem_fineCL t).mp h) hmf
+        rcases Finset.mem_union.mp ht'.1 with h | h
+        · exact absurd ((C.mem_fineCL t).mp (List.mem_toFinset.mp h)) hmf
         · exact h
   exact fun t ht => key t.label t ht rfl
 
@@ -1503,10 +1502,10 @@ lemma rightRuleChildren_of_uniform (C : LoadedCluster tab) (hU : C.HasUniformSte
   simp only [nodesWithFineRight, nodesWithFine, List.mem_filter, decide_eq_true_eq] at ht'
   obtain ⟨⟨ht_CL, ht_lab⟩, ht_right⟩ := ht'
   rw [← C.stepOf_spec hU Δ ht] at hPi
-  simp only [List.mem_map] at hPi
+  simp only [Finset.mem_image] at hPi
   obtain ⟨u, hu, hlab⟩ := hPi
   refine ⟨u, ?_, ?_⟩
-  · simp only [plusNodesWithFine, List.mem_filter, decide_eq_true_eq]
+  · simp only [plusNodesWithFine, Finset.mem_filter, decide_eq_true_eq]
     exact ⟨C.mem_fineCLplus_of_child ht_CL hu, hlab⟩
   · exact t.children_left_eq_of_usesRightRule ht_right (ht_lab ▸ hnb) u hu
 
@@ -1530,13 +1529,13 @@ lemma modalStep_of (C : LoadedCluster tab) :
     simp only [Option.some.injEq, Sum.inr.injEq] at hAxi'
     rcases xi' with φ | χ <;> rcases xi with φ' | χ' <;> simp_all
   rw [hAA.1, hAA.2] at hg0right
-  rw [hg0', List.mem_singleton] at hg0
+  rw [hg0', Finset.mem_singleton] at hg0
   subst hg0
   have hPi_eq : Pi = g.label.rightOnly := by rw [← hg0lab, hg0right, hgright]
   have ht' := ht
   simp only [nodesWithFineRight, nodesWithFine, List.mem_filter, decide_eq_true_eq] at ht'
   refine ⟨g, ?_, ?_⟩
-  · simp only [plusNodesWithFine, List.mem_filter, decide_eq_true_eq]
+  · simp only [plusNodesWithFine, Finset.mem_filter, decide_eq_true_eq]
     exact ⟨C.mem_fineCLplus_of_child ht'.1.1 (by rw [hg]; simp), hPi_eq.symm⟩
   · have hlp : Δ.loadedProg = (·A : Program) := by
       obtain ⟨L, R, O⟩ := Δ
