@@ -472,20 +472,20 @@ lemma exists_child_memFine_of_not_isLrep (C : LoadedCluster tab)
   · exact C.exists_child_memFine hf hbr
 
 /-- All fine nodes just outside the cluster `C`, i.e. `C⁺ \ C` at the fine level. -/
-noncomputable def fineExits (C : LoadedCluster tab) : List (FinePathIn tab) :=
-  (C.fineCL.flatMap FinePathIn.children).filter (fun f => decide (¬ C.memFine f))
+noncomputable def fineExits (C : LoadedCluster tab) : Finset (FinePathIn tab) :=
+  (C.fineCL.toFinset.sup FinePathIn.children).filter (fun f => decide (¬ C.memFine f))
 
 /-- The fine version of `C⁺`. -/
-noncomputable def fineCLplus (C : LoadedCluster tab) : List (FinePathIn tab) :=
-  C.fineCL ++ C.fineExits
+noncomputable def fineCLplus (C : LoadedCluster tab) : Finset (FinePathIn tab) :=
+  C.fineCL.toFinset ∪ C.fineExits
 
 /-- `Λ₂[C]`, the right components of the fine nodes of the cluster. -/
-noncomputable def lambdaTwo (C : LoadedCluster tab) : List Sequent :=
-  (C.fineCL.map (fun f => f.label.rightOnly)).dedup
+noncomputable def lambdaTwo (C : LoadedCluster tab) : Finset Sequent :=
+  (C.fineCL.toFinset.image (fun f => f.label.rightOnly))
 
 /-- `Λ₂[C⁺]`, the right components of the fine nodes of the cluster and of its exits. -/
-noncomputable def lambdaTwoPlus (C : LoadedCluster tab) : List Sequent :=
-  (C.fineCLplus.map (fun f => f.label.rightOnly)).dedup
+noncomputable def lambdaTwoPlus (C : LoadedCluster tab) : Finset Sequent :=
+  (C.fineCLplus.image (fun f => f.label.rightOnly))
 
 /-- `C_Δ` from Def 9.6, at the fine level. -/
 noncomputable def nodesWithFine (C : LoadedCluster tab) (Δ : Sequent) : List (FinePathIn tab) :=
@@ -493,7 +493,7 @@ noncomputable def nodesWithFine (C : LoadedCluster tab) (Δ : Sequent) : List (F
 
 /-- `C⁺_Δ` from Def 9.6, at the fine level. -/
 noncomputable def plusNodesWithFine (C : LoadedCluster tab) (Δ : Sequent) :
-    List (FinePathIn tab) :=
+    Finset (FinePathIn tab) :=
   C.fineCLplus.filter (fun f => decide (f.label.rightOnly = Δ))
 
 /-- `C^R_Δ` from Def 9.6: nodes with right component `Δ` where a right rule is applied. -/
@@ -539,13 +539,7 @@ lemma nodesWithFineLeft_disjoint_right (C : LoadedCluster tab) (Δ : Sequent) :
 /-- `Δ ∈ Λ₂[C]` iff `C_Δ ≠ ∅`, the remark after the invariant in Def 9.8. -/
 lemma mem_lambdaTwo_iff (C : LoadedCluster tab) (Δ : Sequent) :
     Δ ∈ C.lambdaTwo ↔ C.nodesWithFine Δ ≠ [] := by
-  simp only [lambdaTwo, List.mem_dedup, List.mem_map, ne_eq,
-    nodesWithFine, List.filter_eq_nil_iff, not_forall, decide_eq_true_eq]
-  constructor
-  · rintro ⟨f, hf, rfl⟩
-    exact ⟨f, hf, by simp⟩
-  · rintro ⟨f, hf, hf2⟩
-    exact ⟨f, hf, by simpa using hf2⟩
+  simp [lambdaTwo, ne_eq, nodesWithFine, List.filter_eq_nil_iff, not_forall, decide_eq_true_eq]
 
 /-- The right components of the children of a node in `C^R_Δ`.
 
@@ -557,16 +551,16 @@ components of its children. By uniformity (which we do not prove here) this does
 depend on the chosen node. When `C^R_Δ` is empty — which by Lemma 9.7 (d) only happens
 when `C_Δ` is empty, i.e. when `Δ ∉ Λ₂[C]` — we return the empty list, but note that the
 construction of `Q` below never uses `stepOf` in that case. -/
-noncomputable def stepOf (C : LoadedCluster tab) (Δ : Sequent) : List Sequent :=
+noncomputable def stepOf (C : LoadedCluster tab) (Δ : Sequent) : Finset Sequent :=
   match (C.nodesWithFineRight Δ).head? with
-  | some f => f.children.map (fun g => g.label.rightOnly)
-  | none => []
+  | some f => f.children.image (fun g => g.label.rightOnly)
+  | none => {}
 
 /-- If some right rule is applied at a node of the cluster with right component `Δ`, then
 `stepOf Δ` is non-empty: by Lemma 9.7 (c) that node has a child in the cluster, so the rule
 applied there cannot be a closing rule. -/
 lemma stepOf_ne_nil (C : LoadedCluster tab) {Δ : Sequent}
-    (h : C.nodesWithFineRight Δ ≠ []) : C.stepOf Δ ≠ [] := by
+    (h : C.nodesWithFineRight Δ ≠ []) : C.stepOf Δ ≠ {} := by
   unfold stepOf
   cases hh : (C.nodesWithFineRight Δ).head? with
   | none => exact absurd (List.head?_eq_none_iff.mp hh) h
@@ -576,7 +570,7 @@ lemma stepOf_ne_nil (C : LoadedCluster tab) {Δ : Sequent}
     obtain ⟨⟨f_CL, -⟩, f_right⟩ := f_in
     obtain ⟨g, g_in, -⟩ := C.exists_child_memFine_of_not_isLrep
       ((C.mem_fineCL f).mp f_CL) (f.not_isLrep_base_of_usesRightRule f_right)
-    simp only [ne_eq, List.map_eq_nil_iff]
+    simp only [ne_eq, Finset.image_eq_empty]
     intro hnil
     rw [hnil] at g_in
     simp at g_in
@@ -608,13 +602,13 @@ of the cluster with the same right component `Δ` at which a right rule is appli
 same right components below them, in the same order. Compare Lemma 9.7 (f). -/
 def HasUniformSteps (C : LoadedCluster tab) : Prop :=
   ∀ Δ : Sequent, ∀ f ∈ C.nodesWithFineRight Δ, ∀ g ∈ C.nodesWithFineRight Δ,
-    f.children.map (fun h => h.label.rightOnly) = g.children.map (fun h => h.label.rightOnly)
+    f.children.image (fun h => h.label.rightOnly) = g.children.image (fun h => h.label.rightOnly)
 
 /-- Given `HasUniformSteps`, the list `stepOf Δ` really describes the right components of
 the children of *every* node in `C^R_Δ`, and not just of the first one. -/
 lemma stepOf_spec (C : LoadedCluster tab) (hU : C.HasUniformSteps) (Δ : Sequent)
     {f : FinePathIn tab} (hf : f ∈ C.nodesWithFineRight Δ) :
-    f.children.map (fun g => g.label.rightOnly) = C.stepOf Δ := by
+    f.children.image (fun g => g.label.rightOnly) = (C.stepOf Δ) := by
   unfold stepOf
   cases hh : (C.nodesWithFineRight Δ).head? with
   | none => rw [List.head?_eq_none_iff.mp hh] at hf; simp at hf
@@ -624,24 +618,28 @@ lemma stepOf_spec (C : LoadedCluster tab) (hU : C.HasUniformSteps) (Δ : Sequent
 lemma mem_fineCLplus_of_child (C : LoadedCluster tab) {f g : FinePathIn tab}
     (hf : f ∈ C.fineCL) (hg : g ∈ f.children) : g ∈ C.fineCLplus := by
   by_cases h : C.memFine g
-  · exact List.mem_append_left _ ((C.mem_fineCL g).mpr h)
-  · refine List.mem_append_right _ ?_
-    simp only [fineExits, List.mem_filter, List.mem_flatMap, decide_eq_true_eq]
-    exact ⟨⟨f, hf, hg⟩, h⟩
+  · simp [fineCLplus, C.mem_fineCL g]
+    exact Or.inl h
+  · unfold fineCLplus
+    simp_all [fineExits]
+    grind
 
 /-- The right component of a fine node of `C⁺` is in `Λ₂[C⁺]`. -/
 lemma mem_lambdaTwoPlus_of_mem_fineCLplus (C : LoadedCluster tab) {f : FinePathIn tab}
     (hf : f ∈ C.fineCLplus) : f.label.rightOnly ∈ C.lambdaTwoPlus := by
-  simp only [lambdaTwoPlus, List.mem_dedup, List.mem_map]
+  simp only [lambdaTwoPlus, Finset.mem_image]
   exact ⟨f, hf, rfl⟩
 
 /-- `Λ₂[C] ⊆ Λ₂[C⁺]`. -/
 lemma lambdaTwo_subset_lambdaTwoPlus (C : LoadedCluster tab) :
     ∀ Δ ∈ C.lambdaTwo, Δ ∈ C.lambdaTwoPlus := by
   intro Δ hΔ
-  simp only [lambdaTwo, List.mem_dedup, List.mem_map] at hΔ
+  simp only [lambdaTwo, Finset.mem_image, List.mem_toFinset] at hΔ
   obtain ⟨f, hf, rfl⟩ := hΔ
-  exact C.mem_lambdaTwoPlus_of_mem_fineCLplus (List.mem_append_left _ hf)
+  apply C.mem_lambdaTwoPlus_of_mem_fineCLplus
+  unfold fineCLplus fineExits
+  simp
+  grind
 
 /-- The labels given by `stepOf` are in `Λ₂[C⁺]`. This is the invariant needed in Def 9.8:
 a node of `Q` is labelled with an element of `Λ₂[C⁺]`, and it is a leaf exactly when it is
@@ -654,7 +652,7 @@ lemma stepOf_mem_lambdaTwoPlus (C : LoadedCluster tab) (Δ : Sequent) :
   | none => rw [hh] at hPi; simp at hPi
   | some f =>
     rw [hh] at hPi
-    simp only [List.mem_map] at hPi
+    simp only [Finset.mem_image] at hPi
     obtain ⟨g, hg, rfl⟩ := hPi
     have hf : f ∈ C.fineCL := by
       have := List.mem_of_mem_head? hh
@@ -672,14 +670,14 @@ they are interpolants is `∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f
 
 /-- `C⁺_Δ \ C_Δ`, i.e. the exit nodes whose right component is `Δ`. -/
 noncomputable def LoadedCluster.exitsWithFine (C : LoadedCluster tab) (Δ : Sequent) :
-    List (FinePathIn tab) :=
+    Finset (FinePathIn tab) :=
   C.fineExits.filter (fun f => decide (f.label.rightOnly = Δ))
 
 /-- Def 9.13: `θ_Δ`, the disjunction of the interpolants of all exit nodes whose right
 component is `Δ`. Note that `θ_Δ = ⊥` in case there are no such exit nodes. -/
 noncomputable def LoadedCluster.thetaOf (C : LoadedCluster tab) (θ : FinePathIn tab → Formula)
     (Δ : Sequent) : Formula :=
-  dis ((C.exitsWithFine Δ).map θ)
+  ((C.exitsWithFine Δ).image θ).dis
 
 /-- Membership in `C⁺_Δ \ C_Δ` means: being an exit node with right component `Δ`. -/
 lemma LoadedCluster.mem_exitsWithFine_iff (C : LoadedCluster tab) (Δ : Sequent)
@@ -708,9 +706,10 @@ lemma LoadedCluster.thetaOf_left (C : LoadedCluster tab) (θ : FinePathIn tab �
     subst hφ'
     have h1 : evaluate M w (~ C.thetaOf θ Δ) :=
       hw _ (Finset.mem_union_left _ (Finset.mem_singleton_self _))
-    simp only [thetaOf, evaluate, disEval, not_exists] at h1 ⊢
+    simp only [evaluate, thetaOf, Finset.disEval, Finset.mem_image, exists_exists_and_eq_and,
+      not_exists, not_and] at h1 ⊢
     intro hcon
-    exact h1 (θ f) ⟨List.mem_map_of_mem hf, hcon⟩
+    grind
   · exact hw _ (Finset.mem_union_right _ hmem)
 
 open HasSat in
@@ -721,9 +720,9 @@ lemma LoadedCluster.thetaOf_right (C : LoadedCluster tab) (θ : FinePathIn tab �
   rintro ⟨W, M, w, hw⟩
   have h1 : evaluate M w (C.thetaOf θ Δ) :=
     hw _ (Finset.mem_union_left _ (Finset.mem_singleton_self _))
-  rw [thetaOf, disEval] at h1
+  rw [thetaOf, Finset.disEval] at h1
   obtain ⟨φ, hφ, hev⟩ := h1
-  simp only [List.mem_map] at hφ
+  simp only [Finset.mem_image] at hφ
   obtain ⟨f, hf, rfl⟩ := hφ
   have hfE : f ∈ C.fineExits := ((C.mem_exitsWithFine_iff Δ f).mp hf).1
   refine (hθ f hfE).2.2 ⟨W, M, w, ?_⟩
@@ -740,18 +739,21 @@ union of the vocabularies of the left components of the exit nodes with right co
 lemma LoadedCluster.thetaOf_voc (C : LoadedCluster tab) (θ : FinePathIn tab → Formula)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) (Δ : Sequent) :
     (C.thetaOf θ Δ).voc
-      ⊆ Vocab.fromList ((C.exitsWithFine Δ).map (fun f => f.label.left.fvoc)) ∩ Δ.right.fvoc := by
+      ⊆ Vocab.fromFinset ((C.exitsWithFine Δ).image
+          (fun f => f.label.left.fvoc)) ∩ Δ.right.fvoc := by
   intro n hn
-  rw [thetaOf, in_voc_dis] at hn
+  rw [thetaOf, Finset.in_voc_dis] at hn
   obtain ⟨φ, hφ, hn⟩ := hn
-  simp only [List.mem_map] at hφ
+  simp only [Finset.mem_image] at hφ
   obtain ⟨f, hf, rfl⟩ := hφ
   have hfE : f ∈ C.fineExits := ((C.mem_exitsWithFine_iff Δ f).mp hf).1
   have hsub := (hθ f hfE).1 hn
   simp only [jvoc, Finset.mem_inter] at hsub
   rw [Finset.mem_inter]
   refine ⟨?_, ?_⟩
-  · rw [Vocab.fromList_map_iff]
-    exact ⟨f, hf, hsub.1⟩
+  · rw [Vocab.fromFinset]
+    simp only [Finset.fvoc, Vocab.fromFinset, Finset.sup_image, Function.id_comp, Finset.mem_sup]
+    use f
+    simp_all
   · rw [← C.right_of_mem_exitsWithFine hf]
     exact hsub.2
