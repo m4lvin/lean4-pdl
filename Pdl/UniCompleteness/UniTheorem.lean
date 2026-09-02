@@ -1,0 +1,121 @@
+import Pdl.Soundness
+import Pdl.Completeness.BuildTreeExistence
+import Pdl.UniCompleteness.BuildTree
+
+/-! # Completeness Proof (Section 6.4)
+
+Fun fact: it seems we do *not* need to repeat any of BuildTreeModel and BuildTreeExistence
+because we are still obtaining a value of the same `BuildTree` type even when working with
+the uniform game. -/
+
+open HasSat
+
+namespace UniGame
+
+/-- Theorem 6.21: If Builder has a winning strategy then there is a model graph.
+Uses `BuildTree.toModel`. -/
+theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (startPos X)) :
+    ∃ (WS : Finset (Finset Formula)) (_ : ModelGraph WS),
+      ∃ Z ∈ WS, X.toFinset ⊆ Z := by
+  unfold startPos at h
+  rcases posOf_for_startPos X with ⟨proPos, posOf_def⟩
+  let bt := buildTree s (posOf_def ▸ h)
+  let WS := bt.toModel.1
+  let M := bt.toModel.2
+  refine ⟨WS, ⟨M, ⟨?a, ?b, ?c, ?d⟩⟩, ?X_in⟩
+  -- show the model graph properties
+  case a =>
+    rintro ⟨X, X_in⟩
+    unfold WS at X_in
+    simp at X_in
+    rcases X_in with ⟨π, in_all, def_X⟩
+    have := π.locConsSatBas -- using Lemma 6.16 for (i)
+    simp_all [PreState.forms]
+  -- "(b, c) will follow immediately from the definition"
+  case b =>
+    simp_all [M]
+  case c =>
+    intro X Y a φ X_a_Y aφ_in_X -- pick any ⌈a⌉φ
+    simp only [M] at X_a_Y
+    rcases X_a_Y with ⟨ψ, in_X, sub_Y⟩ -- relation was witnessed by ⌈a⌉ψ
+    apply sub_Y -- show that φ is in projection
+    simp_all only [Finset.union_singleton, Finset.mem_insert]
+    right
+    rw [Finset.mem_projection]
+    exact aφ_in_X
+  case d =>
+    simp only [Subtype.exists, exists_and_right, Subtype.forall]
+    intro w w_in α φ in_w
+    -- "The main challenge" :-)
+    -- Paper proof uses Lemmas 6.18 and 6.20 here, depending on loading.
+    unfold WS BuildTree.toModel at w_in
+    simp only [Finset.mem_image] at w_in
+    -- w must come from some pre-state:
+    rcases w_in with ⟨π, π_in, def_w⟩
+    subst def_w
+    -- unfold PreState.forms at in_w -- NO, use lemma to switch to wforms instead?
+    rw [PreState.mem_forms_iff] at in_w
+    rcases in_w with in_w|(⟨χ,χul_def,in_w⟩|⟨ψ,ψul_def,in_w⟩)
+    · -- normal, use 6.20
+      rcases freeDiamondExistence in_w with ⟨π', in_π'_forms, α_rel⟩
+      refine ⟨π'.forms, ⟨?_, α_rel⟩, in_π'_forms⟩
+      unfold WS
+      simp only [BuildTree.toModel, Finset.union_singleton, Finset.mem_image]
+      exact bt.exists_mem_attach_forms_eq
+    · -- loaded but not negated, cannot happen
+      exfalso
+      cases χ
+      unfold LoadFormula.unload at χul_def
+      grind
+    · -- neg loaded, use 6.18
+      rcases ψ with ⟨⟨α',χ⟩ ⟩
+      simp only [negUnload, Formula.neg.injEq] at ψul_def
+      obtain ⟨ρ, α_rel, hanf⟩ := PreState.loadedDiamondExistence in_w
+      unfold WS
+      simp only [BuildTree.toModel, Finset.union_singleton, Finset.mem_image]
+      refine ⟨ρ.forms, ⟨bt.exists_mem_attach_forms_eq, ?_⟩, ?_⟩
+      · have : α = α' := by cases χ <;> grind [LoadFormula.unload]
+        rw [this]
+        exact α_rel
+      · have : φ = χ.unload := by cases χ <;> grind [LoadFormula.unload, AnyFormula.unload]
+        rw [this]
+        exact PreState.mem_forms_of_hasAnf hanf
+  case X_in =>
+    unfold WS
+    -- Here the def of `BuildTree.allPreStates` matters.
+    simp
+    -- Use that there must be some pre-state containing the root.
+    rcases bt.collect_contains_root with ⟨π, π_in, X_in_π⟩
+    refine ⟨⟨π, π_in⟩, ?_, ?_⟩
+    · apply Finset.mem_attach
+    · intro φ φ_in
+      unfold PreState.forms
+      simp only [mem_pathForms]
+      use X
+
+/-- If there is any tableau, then there is a uniform one. Proven via `UniGame`. -/
+lemma Tableau.toUniformViaGame {X} (Xfree : X.isFree) (tab : Tableau .nil X) :
+    ∃ u_tab : Tableau .nil X, u_tab.isUniform := by
+  rcases gamedet tableauGame (startPos X) with ProverHasWinningS | BuilderHasWinningS
+  · rcases ProverHasWinningS with ⟨sP, winning_sP⟩
+    rcases gameP _ (sP) winning_sP with ⟨t, t_uni⟩
+    refine ⟨t, ?_⟩
+    simp_all [Tableau.isUniform]
+    refine ⟨?_, ?_⟩
+    · exact Tableau.IsUni.uniCore t_uni
+    · have := Tableau.IsUni.flip t_uni -- flip it once more.
+      exact Tableau.IsUni.uniCore this
+  · rcases BuilderHasWinningS with ⟨sB, winning_sB⟩
+    rcases strmg X sB winning_sB with ⟨WS, mg, Z, Z_in_WS, X_sub_Z⟩
+    -- should contradict soundness now!
+    have unsat := tableauThenNotSat tab Xfree .nil
+    simp at unsat
+    absurd unsat
+    use WS, mg.1
+    simp
+    use Z, Z_in_WS
+    intro φ φ_in
+    apply truthLemma
+    grind
+
+end UniGame

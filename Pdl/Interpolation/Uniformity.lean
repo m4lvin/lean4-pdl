@@ -1539,6 +1539,8 @@ lemma endNodesOf_of_basic {X : Sequent} (bas : X.basic) (lt : LocalTableau X) :
   | byLocalRule lra X_def next => exact absurd (X_def ▸ bas) (nonbasic_of_localRuleApp lra)
   | sim => simp only [endNodesOf]
 
+/- DISABLED, use UniTheorem instead!
+
 /-! ### Uniform tableaux
 
 **Warning.** The old proof of `Tableau.exists_isUni` for `List`-based sequents did not survive the
@@ -1576,7 +1578,7 @@ theorem Tableau.exists_isUni {H : History} {X : Sequent} (tab : Tableau H X) :
         -- TRICKY: `lt` and `uniLocalTab` might not have the *same* endNodesOf. But similar-ish?!
         -- Hm, the disjunctions over all endNodes should be equivalent or at least equi-satisfiable?
         -- But note that we can only apply the IH to `lt`.
-        have Y_in_end_lt : Y ∈ endNodesOf lt := sorry -- TODO ;-)
+        have Y_in_end_lt : Y ∈ endNodesOf lt := TODO ;-)
         apply IH Y Y_in_end_lt
       choose next uni_next using hall
       exact ⟨.loc nflprep nbas (uniLocalTab X) next, ⟨uniLocalTab_isUni X, uni_next⟩⟩
@@ -1591,6 +1593,8 @@ lemma Tableau.toUniform (tab : Tableau .nil X) :
     ∃ u_tab : Tableau .nil X, u_tab.isUniform :=
   let ⟨t, ht⟩ := tab.exists_isUni
   ⟨t, ht.isUniform⟩
+
+-/
 
 namespace Uniformity
 

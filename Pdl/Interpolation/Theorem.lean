@@ -2,6 +2,7 @@ import Mathlib.Data.Finset.Basic
 
 import Pdl.Interpolation.Def
 import Pdl.Completeness.Theorem
+import Pdl.UniCompleteness.UniTheorem
 
 /-! # Interpolation (Section 7) -/
 
@@ -20,7 +21,8 @@ theorem interpolation {φ ψ : Formula} :
     rw [tautImp_iff_SequentUnsat rfl] at hyp
     rw [← consIffSat _ (by simp)] at hyp -- using completeness
     simp [consistent,inconsistent] at hyp
-    have := Tableau.toUniform (Classical.choice hyp)
+    rcases hyp with ⟨tab⟩
+    have := UniGame.Tableau.toUniformViaGame (by simp) tab -- Yeah.
     rcases this with ⟨t, t_h⟩
     exact ⟨t, t_h⟩
   rcases have_tab with ⟨tab, tab_uni⟩
