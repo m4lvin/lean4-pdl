@@ -347,9 +347,8 @@ lemma exists_lra_stepOf (C : LoadedCluster tab) {Δ : Sequent}
       (Uniformity.lra_or_basic_of_usesRightRule f hf_right).resolve_right hfb
     obtain ⟨hX, hC⟩ := f.lra?_spec hlra
     refine ⟨lra, hright, by rw [← hX, hf_lab], ?_⟩
-    rw [← hC]
-    simp [List.map_map, Function.comp_def]
-    sorry
+    rw [← hC, Finset.image_image]
+    rfl
 
 /-- The `stepLT` field: at a non-basic `Δ ∈ Λ₂[C]` the step of the quasi-tableau
 strictly decreases the Dershowitz-Manna ordering. -/
@@ -451,18 +450,18 @@ lemma nonBasicStep_of (C : LoadedCluster tab)
     rw [LocalRuleApp.rightOnlyApp_C hright, Finset.mem_image] at hY
     obtain ⟨Z, hZ, rfl⟩ := hY
     rw [hstep]
-    sorry -- exact List.mem_map_of_mem (Finset.mem_toList.mpr hZ)
+    exact Finset.mem_image_of_mem _ hZ
   have hr' : lra.rightOnlyApp.isRightRule := by
     rw [LocalRuleApp.rightOnlyApp_isRightRule]; exact hright
   obtain ⟨Y, hY, hYsat, hYwd⟩ :=
     LocalRuleApp.rightRule_sat_witDist hr' (by rw [hX']; exact hv)
-  sorry
-  /-
-  obtain ⟨i, hi, heq⟩ := List.mem_iff_getElem.mp (hC' Y hY)
+  have hYL : Y ∈ C.stepOfL Δ := by
+    have := hC' Y hY
+    simpa [stepOfL] using this
+  obtain ⟨i, hi, heq⟩ := List.mem_iff_getElem.mp hYL
   refine ⟨i, hi, ?_, ?_⟩
   · rw [heq]; exact hYsat
   · rw [heq, hYwd, hX']
-  -/
 
 /-- All facts of `SatDownFacts`, from Lemma 9.7 (d). -/
 theorem satDownFacts (C : LoadedCluster tab)

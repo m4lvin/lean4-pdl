@@ -269,8 +269,8 @@ lemma rhoSat_two {Δ y ys} (hF : C.PaperFacts) (hΔ : Δ ∈ C.lambdaTwo)
   refine hF.leftPropagation Δ hΔ _ ?_ ?_
   · intro u hu W M w hw
     refine key W M w (Or.inr ((rhoSat_iff hchild).mp IH u ?_ W M w hw))
-    convert hu
-    sorry
+    rw [hreg]
+    exact List.mem_toFinset.mpr hu
   · intro u hu W M w hw
     exact key W M w (Or.inl (C.leftEntails_thetaOf hθ hu W M w hw))
 
@@ -285,7 +285,7 @@ lemma rhoSat_three_basic {Δ y ys} (hF : C.PaperFacts) (hΔ : Δ ∈ C.lambdaTwo
     rw [regionOf, hy1]; rfl
   rw [rhoSat_iff hx]
   intro t ht W M w hw
-  obtain ⟨u, hu, hstep⟩ := hF.modalStep Δ hΔ hb t sorry y.label hy2 -- was :ht
+  obtain ⟨u, hu, hstep⟩ := hF.modalStep Δ hΔ hb t (List.mem_toFinset.mp ht) y.label hy2
   rw [C.iitp_three_basic hx hb, QFormula.subst_boxes, evalBoxes]
   intro v hv
   rw [relateSeq_singleton] at hv
@@ -308,7 +308,8 @@ lemma rhoSat_three_not_basic {Δ next} (hF : C.PaperFacts) (hΔ : Δ ∈ C.lambd
   obtain ⟨htyp, hmem⟩ := hnext next[i] (List.getElem_mem hi)
   have hreg : C.regionOf next[i] = C.plusNodesWithFine next[i].label := by
     rw [regionOf, htyp]; rfl
-  obtain ⟨u, hu, hlab⟩ := hF.rightRuleChildren Δ hΔ hb t sorry next[i].label hmem -- was : ht
+  obtain ⟨u, hu, hlab⟩ :=
+    hF.rightRuleChildren Δ hΔ hb t (List.mem_toFinset.mp ht) next[i].label hmem
   refine (rhoSat_iff hchild).mp (IH i hi) u (hreg ▸ hu) W M w ?_
   rw [hlab]
   exact hw
@@ -431,19 +432,19 @@ lemma rhoSat_build (C : LoadedCluster tab) (hF : C.PaperFacts)
     have h3sat : C.RhoSat θ ((x ++ [0]) ++ [0]) := by
       by_cases hb : Δ.basic
       · obtain ⟨Pi, rest, hPi⟩ : ∃ Pi rest, C.stepOfL Δ = Pi :: rest :=
-          sorry -- List.exists_cons_of_ne_nil (C.stepOf_ne_nil (hF.exists_right Δ h.1))
+          List.exists_cons_of_ne_nil (C.stepOfL_ne_nil (hF.exists_right Δ h.1))
         have hnextcons :
           next = QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) Pi ::
             rest.map
               (fun Pi => QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) Pi) :=
               by rw [hnextdef, hPi, List.map_cons]
+        have hPimem : Pi ∈ C.stepOf Δ := by
+          have hmem : Pi ∈ C.stepOfL Δ := by rw [hPi]; exact List.mem_cons_self ..
+          simpa [stepOfL, Finset.mem_seqSort] using hmem
         refine C.rhoSat_three_basic hF h.1 hb (hnextcons ▸ h3) (by simp) ?_
           (IHchild 0 (by rw [hnextcons]; simp))
-        sorry
-        /-
-        rw [QuasiTab.build_label, hPi]
-        exact List.mem_cons_self ..
-        -/
+        rw [QuasiTab.build_label]
+        exact hPimem
       · refine C.rhoSat_three_not_basic hF h.1 hb h3 ?_ IHchild
         intro n hn
         rw [hnextdef, List.mem_map] at hn

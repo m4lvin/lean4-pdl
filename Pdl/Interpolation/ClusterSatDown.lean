@@ -156,7 +156,8 @@ lemma measure_le_or_basicBetween (C : LoadedCluster tab)
       subst ht
       exact Or.inl (Or.inl rfl)
     · have hilt : i < (C.stepOfL Δ).length := by simpa [hnextdef] using hi
-      have hnexti : next[i] = QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) (C.stepOfL Δ)[i] := by
+      have hnexti :
+          next[i] = QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) (C.stepOfL Δ)[i] := by
         simp [hnextdef]
       have heq : x ++ [0, 0] ++ [i] ++ t' = x ++ 0 :: 0 :: i :: t' := by simp
       by_cases hb : Δ.basic
@@ -167,19 +168,17 @@ lemma measure_le_or_basicBetween (C : LoadedCluster tab)
             = some (QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) (C.stepOfL Δ)[i]) := by
           rw [QuasiTab.at?_child hx3 hi, hnexti]
         have hIH := IH (C.stepOfL Δ)[i] (x ++ [0, 0] ++ [i]) hat t' n (by rwa [hnexti] at ht')
+        have hstepmem : (C.stepOfL Δ)[i] ∈ C.stepOf Δ :=
+          (Finset.mem_seqSort (C.stepOf Δ)).mp (List.getElem_mem hilt)
+        have hlt : lt_Sequent (C.stepOfL Δ)[i] Δ := hm Δ h.1 hb _ hstepmem
         rcases hIH with hle | hbb
-        · -- Old proof from when there was still a `Nat` measure placeholder.
-          -- refine Or.inl (le_of_lt (lt_of_le_of_lt hle ?_))
-          -- exact hm Δ h.1 hb _ (List.getElem_mem hilt)
-          left
-          rcases hle with nlabel_def|nlabel_lt
+        · left
+          right
+          rcases hle with nlabel_def | nlabel_lt
           · rw [nlabel_def]
-            right
-            apply hm <;> simp_all [stepOfL]; sorry -- grind
-          · right
-            -- Here we simulate the le + lt combo now, using that the DM ordering is transitive.
-            refine lt_Sequent.trans nlabel_lt ?_
-            apply hm <;> sorry -- grind
+            exact hlt
+          · -- Here we simulate the le + lt combo now, using that the DM ordering is transitive.
+            exact lt_Sequent.trans nlabel_lt hlt
         · rw [heq] at hbb
           exact Or.inr (hbb.mono (by simp))
   | case2 Hist Δ h =>
@@ -237,7 +236,8 @@ lemma build_repeat_basicBetween (C : LoadedCluster tab)
       simp only [Option.map_some, Option.some.injEq, QuasiTab.typ] at hztyp
       exact absurd hztyp (by simp)
     · have hilt : i < (C.stepOfL Δ).length := by simpa [hnextdef] using hi
-      have hnexti : next[i] = QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) (C.stepOfL Δ)[i] := by
+      have hnexti :
+          next[i] = QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) (C.stepOfL Δ)[i] := by
         simp [hnextdef]
       have hxi : C.Q.at? (x ++ [0, 0] ++ [i])
           = some (QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) (C.stepOfL Δ)[i]) := by
@@ -260,20 +260,17 @@ lemma build_repeat_basicBetween (C : LoadedCluster tab)
             (c ++ [0, 0] ++ [i]) hxi t' n (by rwa [hnexti] at ht')
           rcases hstep with hle | hbb
           · exfalso
-            sorry
-            /-
-            have hlt := hm Δ h.1 hb _ (List.getElem_mem hilt)
+            -- contradiction, `lt_Sequent` is irreflexive.
+            have hstepmem : (C.stepOfL Δ)[i] ∈ C.stepOf Δ :=
+              (Finset.mem_seqSort (C.stepOf Δ)).mp (List.getElem_mem hilt)
+            have hlt : lt_Sequent (C.stepOfL Δ)[i] Δ := hm Δ h.1 hb _ hstepmem
             rw [← hlab] at hle
-            -- contradiction, lt_Sequent is asymmetric.
-            rcases hle with delta_def | delta_lt_step
-            · rw! [← delta_def] at hlt
-              absurd hlt
-              have := @instAsymmOfIsWellFounded _ _ instIsWellFoundedSequentLt
-              exact @asymm Sequent lt_Sequent _ _ this hlt
-            · absurd hlt
-              have := @instAsymmOfIsWellFounded _ _ instIsWellFoundedSequentLt
-              exact @asymm Sequent lt_Sequent _ _ this delta_lt_step
-            -/
+            have hself : lt_Sequent Δ Δ := by
+              rcases hle with delta_def | delta_lt_step
+              · rw [← delta_def] at hlt
+                exact hlt
+              · exact lt_Sequent.trans delta_lt_step hlt
+            exact instIsWellFoundedSequentLt.wf.asymmetric _ _ hself hself
           · rw [heq] at hbb
             exact hbb.mono (by simp)
       · obtain ⟨s, hs, rfl⟩ := prefix_sandwich hxc hcpre
@@ -702,16 +699,16 @@ lemma satDown_build (C : LoadedCluster tab) (hS : C.SatDownFacts)
     have h3sat : C.SatDown θ ((x ++ [0]) ++ [0]) := by
       by_cases hb : Δ.basic
       · obtain ⟨A, Y, hstep, -⟩ := hS.basicStep Δ h.1 hb
+        have hstepL : C.stepOfL Δ = [Y] := by
+          simp [stepOfL, hstep, Finset.seqSort]
         have hnextcons : next = [QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) Y] := by
-          simp [stepOfL]
-          rw [hnextdef]; simp_all
-          sorry
+          rw [hnextdef, hstepL]
+          simp
         refine C.satDown_three_basic hS h.1 hb (hnextcons ▸ h3) hstep ?_
           (IHchild 0 (by rw [hnextcons]; simp))
-        have h0 : (0 : Nat) < (C.stepOfL Δ).length := by sorry -- rw [hstep]; simp
+        have h0 : (0 : Nat) < (C.stepOfL Δ).length := by rw [hstepL]; simp
         rw [hchildlab 0 h0]
-        simp [hstep]
-        sorry
+        simp [hstepL]
       · exact C.satDown_three_not_basic hS h.1 hb h3 hlen hchildlab IHchild
     have h2sat : C.SatDown θ (x ++ [0]) := C.satDown_two h2 hlab3 hθ h3sat
     by_cases hcomp : x ∈ C.Q.companions
