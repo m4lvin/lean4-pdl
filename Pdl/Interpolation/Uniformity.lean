@@ -1541,13 +1541,11 @@ lemma endNodesOf_of_basic {X : Sequent} (bas : X.basic) (lt : LocalTableau X) :
 
 /-! ### Uniform tableaux
 
-**Warning.** The proof of `Tableau.exists_isUni` given for `List`-based sequents does not
-survive the move to `Finset`-based sequents, and neither do the statements it was built
-from. The reason is that with `Finset` components a formula that is re-created by a rule is
-no longer counted twice, so the end nodes of a local tableau really do depend on the order
-in which the rules are applied. Concretely, let `a`, `b`, `c` be atomic and consider the
-sequent with left component `L = {~(a⋀b), (~(a⋀b))⋀c}` (empty right component, no loaded
-formula).
+**Warning.** The old proof of `Tableau.exists_isUni` for `List`-based sequents did not survive the
+move to `Finset`-based sequents. With `Finset` components a formula that is re-created by a rule is
+no longer counted twice, so the end nodes of a local tableau really do depend on the order in which
+the rules are applied. Concretely, let `a`, `b`, `c` be atomic and consider the sequent with left
+component `L = {~(a⋀b), (~(a⋀b))⋀c}` (empty right component, no loaded formula).
 
 * Applying `con` to `(~(a⋀b))⋀c` first gives the single child `{~(a⋀b), c}`, and applying
   `nCo` there gives the two end nodes `{~a, c}` and `{~b, c}`.
@@ -1560,8 +1558,7 @@ So `{~a, ~b, c}` is an end node in the second order but not in the first one. (F
 components this cannot happen: in the first order the child is `[~(a⋀b), ~(a⋀b), c]`, with
 two copies of the formula, and unfolding both of them also produces `[~a, ~b, c]`.)
 
-Hence `Sequent.dominatedBy_child` and `uniLocalTab_endNode_dominated` above are *false* for
-`Finset`-based sequents and are commented out. The statement `Tableau.exists_isUni` itself
+The statement `Tableau.exists_isUni` itself
 is still plausible — the extra formulas of an end node of the canonical local tableau make
 it *easier* to refute — but proving it now needs a weakening argument for tableaux instead
 of the commutation argument, which is left open here. -/
@@ -1572,7 +1569,22 @@ satisfies `Tableau.IsUni`.
 TODO: this needs a new proof for `Finset`-based sequents, see the note above. -/
 theorem Tableau.exists_isUni {H : History} {X : Sequent} (tab : Tableau H X) :
     ∃ t : Tableau H X, t.IsUni := by
-  sorry
+  induction tab with
+  | @loc H X nflprep nbas lt next IH =>
+      have hall : ∀ Y ∈ endNodesOf (uniLocalTab X), ∃ t : Tableau (X :: H) Y, t.IsUni := by
+        intro Y hY
+        -- TRICKY: `lt` and `uniLocalTab` might not have the *same* endNodesOf. But similar-ish?!
+        -- Hm, the disjunctions over all endNodes should be equivalent or at least equi-satisfiable?
+        -- But note that we can only apply the IH to `lt`.
+        have Y_in_end_lt : Y ∈ endNodesOf lt := sorry -- TODO ;-)
+        apply IH Y Y_in_end_lt
+      choose next uni_next using hall
+      exact ⟨.loc nflprep nbas (uniLocalTab X) next, ⟨uniLocalTab_isUni X, uni_next⟩⟩
+  | @pdl H X Y nflprep bas r next IH =>
+      obtain ⟨t, ht⟩ := IH
+      exact ⟨.pdl nflprep bas r t, ht⟩
+  | @lrep H X lpr =>
+      exact ⟨.lrep lpr, trivial⟩
 
 /-- If there is any tableau, then there is a uniform one. -/
 lemma Tableau.toUniform (tab : Tableau .nil X) :
