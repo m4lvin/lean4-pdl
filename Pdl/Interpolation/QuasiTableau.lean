@@ -76,7 +76,7 @@ by the invariant. Otherwise it has a unique child of type 2, which has a unique 
 type 3, whose children are given by `step` and are again of type 1.
 Note that only nodes of type 1 add their label to the history — this is the "identify
 repeats at the first opportunity" from Definition 9.11. -/
-def QuasiTab.build (inC : List Sequent) (step : Sequent → List Sequent)
+def QuasiTab.build (inC : Finset Sequent) (step : Sequent → List Sequent)
     (Hist : List Sequent) (Δ : Sequent) : QuasiTab :=
   -- The hypothesis `_h` is only used in the termination proof below.
   if _h : Δ ∈ inC ∧ Δ ∉ Hist then
@@ -84,8 +84,8 @@ def QuasiTab.build (inC : List Sequent) (step : Sequent → List Sequent)
       ((step Δ).map (fun Pi => QuasiTab.build inC step (Δ :: Hist) Pi)) ] ]
   else
     QNode one Δ []
-termination_by (inC.filter (fun Z => decide (Z ∉ Hist))).length
-decreasing_by exact length_filter_notMem_cons_lt _h.1 _h.2
+termination_by (inC.filter (fun Z => decide (Z ∉ Hist))).card
+decreasing_by sorry -- length_filter_notMem_cons_lt _h.1 _h.2 -- TODO need Finset analogue
 
 open QuasiTab Typ in
 /-- A node of `Q` of type 1 that is a repeat or an exit is a leaf. -/
@@ -136,7 +136,7 @@ lemma QuasiTab.build_leaf_typ {inC step} (hstep : ∀ Δ ∈ inC, step Δ ≠ []
 open QuasiTab Typ in
 /-- Invariant of Def 9.8: if all labels produced by `step` are in `lam`, then all nodes of
 the quasi-tableau built from a label in `lam` are again labelled with elements of `lam`. -/
-lemma QuasiTab.build_label_mem {inC lam : List Sequent} {step : Sequent → List Sequent}
+lemma QuasiTab.build_label_mem {inC lam : Finset Sequent} {step : Sequent → List Sequent}
     (hstep : ∀ Δ, ∀ Pi ∈ step Δ, Pi ∈ lam) (Hist Δ) :
     Δ ∈ lam → ∀ q ∈ (QuasiTab.build inC step Hist Δ).subtrees, q.label ∈ lam := by
   induction Hist, Δ using QuasiTab.build.induct (inC := inC) with
@@ -163,7 +163,7 @@ lemma QuasiTab.build_label_mem {inC lam : List Sequent} {step : Sequent → List
 open QuasiTab Typ in
 /-- The invariant of Def 9.8: every node of the quasi-tableau that is not a leaf has a
 label in `Λ₂[C]`, i.e. `C_{Δₓ} ≠ ∅` by `LoadedCluster.mem_lambdaTwo_iff`. -/
-lemma QuasiTab.build_inner_label_mem {inC : List Sequent} {step : Sequent → List Sequent}
+lemma QuasiTab.build_inner_label_mem {inC : Finset Sequent} {step : Sequent → List Sequent}
     (Hist Δ) :
     ∀ q ∈ (QuasiTab.build inC step Hist Δ).subtrees, q.children ≠ [] → q.label ∈ inC := by
   induction Hist, Δ using QuasiTab.build.induct (inC := inC) with
@@ -190,13 +190,13 @@ lemma QuasiTab.build_inner_label_mem {inC : List Sequent} {step : Sequent → Li
 /-- The right component of the root of the cluster is in `Λ₂[C]`. -/
 lemma LoadedCluster.root_rightOnly_mem_lambdaTwo (C : LoadedCluster tab) :
     (nodeAt C.root).rightOnly ∈ C.lambdaTwo := by
-  simp only [LoadedCluster.lambdaTwo, List.mem_dedup, List.mem_map]
+  simp only [lambdaTwo, Finset.mem_image, List.mem_toFinset]
   exact ⟨C.root.toFine, C.root_toFine_mem_fineCL, by simp⟩
 
 /-- Def 9.8: the quasi-tableau associated with the cluster `C`. Its root has type 1 and is
 labelled with the right component `Λ₂(r)` of the root `r` of the cluster. -/
 noncomputable def LoadedCluster.Q (C : LoadedCluster tab) : QuasiTab :=
-  QuasiTab.build C.lambdaTwo C.stepOf [] (nodeAt C.root).rightOnly
+  QuasiTab.build C.lambdaTwo (Finset.seqSort ∘ C.stepOf) [] (nodeAt C.root).rightOnly
 
 @[simp]
 lemma LoadedCluster.Q_typ (C : LoadedCluster tab) : C.Q.typ = Typ.one := by
@@ -212,9 +212,12 @@ lemma LoadedCluster.Q_label (C : LoadedCluster tab) :
 
 /-- All nodes of `Q` are labelled with elements of `Λ₂[C⁺]`. -/
 lemma LoadedCluster.Q_label_mem_lambdaTwoPlus (C : LoadedCluster tab) :
-    ∀ q ∈ C.Q.subtrees, q.label ∈ C.lambdaTwoPlus :=
-  QuasiTab.build_label_mem C.stepOf_mem_lambdaTwoPlus _ _
-    (C.lambdaTwo_subset_lambdaTwoPlus _ C.root_rightOnly_mem_lambdaTwo)
+    ∀ q ∈ C.Q.subtrees, q.label ∈ C.lambdaTwoPlus := by
+  apply QuasiTab.build_label_mem
+  · intro Pi Pi_in
+    have := C.stepOf_mem_lambdaTwoPlus Pi Pi_in
+    simp_all
+  · exact (C.lambdaTwo_subset_lambdaTwoPlus _ C.root_rightOnly_mem_lambdaTwo)
 
 /-- The invariant of Def 9.8 for `Q`: every inner node of `Q` has a label in `Λ₂[C]`. -/
 lemma LoadedCluster.Q_inner_label_mem_lambdaTwo (C : LoadedCluster tab) :
@@ -226,21 +229,23 @@ Lemma 9.7 (d), which we state as a hypothesis: for every label in `Λ₂[C]` the
 of the cluster with that right component where a right rule is applied. -/
 lemma LoadedCluster.Q_leaf_typ (C : LoadedCluster tab)
     (h97d : ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ []) :
-    ∀ q ∈ C.Q.subtrees, q.children = [] → q.typ = Typ.one :=
-  QuasiTab.build_leaf_typ (fun Δ hΔ => C.stepOf_ne_nil (h97d Δ hΔ)) _ _
+    ∀ q ∈ C.Q.subtrees, q.children = [] → q.typ = Typ.one := by
+  refine QuasiTab.build_leaf_typ (fun Δ hΔ => ?_) _ _
+  have := C.stepOf_ne_nil (h97d Δ hΔ)
+  simp_all
 
 /-- Def 9.10: the region `Rₓ ⊆ C⁺` represented by a node `x` of the quasi-tableau.
 For type 1 and 2 these are all nodes of `C⁺` with right component `Δₓ`, and for type 3
 those nodes of `C` with right component `Δₓ` where a right rule is applied. -/
 noncomputable def LoadedCluster.region (C : LoadedCluster tab) :
-    Typ → Sequent → List (FinePathIn tab)
+    Typ → Sequent → Finset (FinePathIn tab)
   | .one, Δ => C.plusNodesWithFine Δ
   | .two, Δ => C.plusNodesWithFine Δ
-  | .three, Δ => C.nodesWithFineRight Δ
+  | .three, Δ => (C.nodesWithFineRight Δ).toFinset -- FIXME make Finset already in Cluster.lean?
 
 /-- Def 9.10, applied to a node of the quasi-tableau. -/
 noncomputable def LoadedCluster.regionOf (C : LoadedCluster tab) (q : QuasiTab) :
-    List (FinePathIn tab) := C.region q.typ q.label
+    Finset (FinePathIn tab) := C.region q.typ q.label
 
 /-! ### Addresses: the nodes of a quasi-tableau (Def 9.11)
 

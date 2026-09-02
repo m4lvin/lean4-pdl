@@ -84,19 +84,19 @@ address `x` we return `⊥`, the empty disjunction. -/
 noncomputable def rho (C : LoadedCluster tab) (x : List Nat) : Formula :=
   match C.Q.at? x with
   | none => ⊥
-  | some n => dis ((C.regionOf n).map (fun t => con t.label.left.fsort))
+  | some n => ((C.regionOf n).image (fun t => con t.label.left.fsort)).dis
 
 lemma rho_of_at? {n} (h : C.Q.at? x = some n) :
-    C.rho x = dis ((C.regionOf n).map (fun t => con t.label.left.fsort)) := by
+    C.rho x = ((C.regionOf n).image (fun t => con t.label.left.fsort)).dis := by
   rw [rho, h]
 
 /-- `ρ_x` holds iff some node of the region `R_x` has all its left formulas true. -/
 lemma evaluate_rho_iff {W} {M : KripkeModel W} {w : W} {n} (h : C.Q.at? x = some n) :
     evaluate M w (C.rho x) ↔ ∃ t ∈ C.regionOf n, ∀ φ ∈ t.label.left, evaluate M w φ := by
-  rw [rho_of_at? h, disEval]
-  simp only [List.mem_map]
+  rw [rho_of_at? h, Finset.disEval]
+  simp only [Finset.mem_image, exists_exists_and_eq_and]
   constructor
-  · rintro ⟨_, ⟨t, ht, rfl⟩, hev⟩
+  · rintro ⟨_, t, hev⟩
     simp [conEval] at hev
     grind
   · rintro ⟨t, ht, hev⟩
@@ -186,12 +186,12 @@ lemma mem_plusNodesWithFine_iff (Δ : Sequent) (f : FinePathIn tab) :
 lemma mem_plusNodesWithFine_of_mem_exitsWithFine {Δ : Sequent} {f : FinePathIn tab}
     (hf : f ∈ C.exitsWithFine Δ) : f ∈ C.plusNodesWithFine Δ := by
   rw [C.mem_exitsWithFine_iff] at hf
-  exact (C.mem_plusNodesWithFine_iff Δ f).mpr ⟨List.mem_append_right _ hf.1, hf.2⟩
+  exact (C.mem_plusNodesWithFine_iff Δ f).mpr ⟨by simp_all [fineCLplus], hf.2⟩
 
 lemma mem_plusNodesWithFine_of_mem_nodesWithFine {Δ : Sequent} {f : FinePathIn tab}
     (hf : f ∈ C.nodesWithFine Δ) : f ∈ C.plusNodesWithFine Δ := by
   simp only [nodesWithFine, List.mem_filter, decide_eq_true_eq] at hf
-  exact (C.mem_plusNodesWithFine_iff Δ f).mpr ⟨List.mem_append_left _ hf.1, hf.2⟩
+  exact (C.mem_plusNodesWithFine_iff Δ f).mpr ⟨by simp_all [fineCLplus], hf.2⟩
 
 lemma mem_plusNodesWithFine_of_mem_nodesWithFineRight {Δ : Sequent} {f : FinePathIn tab}
     (hf : f ∈ C.nodesWithFineRight Δ) : f ∈ C.plusNodesWithFine Δ :=
@@ -204,8 +204,10 @@ lemma mem_exitsWithFine_of_notMem_lambdaTwo {Δ : Sequent} {f : FinePathIn tab}
   obtain ⟨hmem, hlab⟩ := hf
   rw [C.mem_exitsWithFine_iff]
   refine ⟨?_, hlab⟩
-  rcases List.mem_append.mp hmem with h | h
-  · exact absurd (by simp only [lambdaTwo, List.mem_dedup, List.mem_map]; exact ⟨f, h, hlab⟩) hΔ
+  simp_all [fineCLplus, fineExits]
+  rcases hmem with h | h
+  · exact absurd
+      (by simp only [lambdaTwo, Finset.mem_image, List.mem_toFinset]; exact ⟨f, h, hlab⟩) hΔ
   · exact h
 
 /-- The claim `RhoSat` in the form used in the proof: `Λ₁(t) ⊨ ι_x⟨σ⟩` for all `t ∈ R_x`. -/
@@ -249,7 +251,7 @@ lemma rhoSat_two {Δ y ys} (hF : C.PaperFacts) (hΔ : Δ ∈ C.lambdaTwo)
     (hy : y = .QNode .three Δ y.children)
     (IH : C.RhoSat θ (x ++ [0])) : C.RhoSat θ x := by
   have hchild : C.Q.at? (x ++ [0]) = some y := QuasiTab.at?_child hx (by simp)
-  have hreg : C.regionOf y = C.nodesWithFineRight Δ := by rw [hy]; rfl
+  have hreg : C.regionOf y = (C.nodesWithFineRight Δ).toFinset := by rw [hy]; rfl
   rw [rhoSat_iff hx]
   -- `σ(ι_x)` is implied both by `θ_Δ` and by `σ(ι_y)`
   have key : ∀ (W : Type) (M : KripkeModel W) (w : W),
@@ -266,7 +268,9 @@ lemma rhoSat_two {Δ y ys} (hF : C.PaperFacts) (hΔ : Δ ∈ C.lambdaTwo)
     · exact h
   refine hF.leftPropagation Δ hΔ _ ?_ ?_
   · intro u hu W M w hw
-    exact key W M w (Or.inr ((rhoSat_iff hchild).mp IH u (hreg ▸ hu) W M w hw))
+    refine key W M w (Or.inr ((rhoSat_iff hchild).mp IH u ?_ W M w hw))
+    convert hu
+    sorry
   · intro u hu W M w hw
     exact key W M w (Or.inl (C.leftEntails_thetaOf hθ hu W M w hw))
 
@@ -281,7 +285,7 @@ lemma rhoSat_three_basic {Δ y ys} (hF : C.PaperFacts) (hΔ : Δ ∈ C.lambdaTwo
     rw [regionOf, hy1]; rfl
   rw [rhoSat_iff hx]
   intro t ht W M w hw
-  obtain ⟨u, hu, hstep⟩ := hF.modalStep Δ hΔ hb t ht y.label hy2
+  obtain ⟨u, hu, hstep⟩ := hF.modalStep Δ hΔ hb t sorry y.label hy2 -- was :ht
   rw [C.iitp_three_basic hx hb, QFormula.subst_boxes, evalBoxes]
   intro v hv
   rw [relateSeq_singleton] at hv
@@ -304,7 +308,7 @@ lemma rhoSat_three_not_basic {Δ next} (hF : C.PaperFacts) (hΔ : Δ ∈ C.lambd
   obtain ⟨htyp, hmem⟩ := hnext next[i] (List.getElem_mem hi)
   have hreg : C.regionOf next[i] = C.plusNodesWithFine next[i].label := by
     rw [regionOf, htyp]; rfl
-  obtain ⟨u, hu, hlab⟩ := hF.rightRuleChildren Δ hΔ hb t ht next[i].label hmem
+  obtain ⟨u, hu, hlab⟩ := hF.rightRuleChildren Δ hΔ hb t sorry next[i].label hmem -- was : ht
   refine (rhoSat_iff hchild).mp (IH i hi) u (hreg ▸ hu) W M w ?_
   rw [hlab]
   exact hw
@@ -383,7 +387,7 @@ what makes a leaf whose label is in the history a repeat. -/
 lemma rhoSat_build (C : LoadedCluster tab) (hF : C.PaperFacts)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) :
     ∀ (Hist : List Sequent) (Δ : Sequent) (x : List Nat),
-      C.Q.at? x = some (QuasiTab.build C.lambdaTwo C.stepOf Hist Δ) →
+      C.Q.at? x = some (QuasiTab.build C.lambdaTwo C.stepOfL Hist Δ) →
       (∀ Z ∈ Hist, ∃ z, z <+: x ∧ z ≠ x ∧ C.Q.labelAt z = some Z ∧
         C.Q.typAt z = some Typ.one) →
       C.RhoSat θ x := by
@@ -392,7 +396,8 @@ lemma rhoSat_build (C : LoadedCluster tab) (hF : C.PaperFacts)
   | case1 Hist Δ h IH =>
     intro x hx hHist
     rw [QuasiTab.build_of_node h] at hx
-    set next := (C.stepOf Δ).map (fun Pi => QuasiTab.build C.lambdaTwo C.stepOf (Δ :: Hist) Pi)
+    set next := (C.stepOfL Δ).map
+      (fun Pi => QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) Pi)
       with hnextdef
     have h2 : C.Q.at? (x ++ [0]) = some (.QNode .two Δ [.QNode .three Δ next]) :=
       QuasiTab.at?_child hx (by simp)
@@ -403,12 +408,13 @@ lemma rhoSat_build (C : LoadedCluster tab) (hF : C.PaperFacts)
     -- the induction hypothesis for the children of the node of type 3
     have IHchild : ∀ i, i < next.length → C.RhoSat θ ((x ++ [0]) ++ [0] ++ [i]) := by
       intro i hi
-      have hi' : i < (C.stepOf Δ).length := by simpa [hnextdef] using hi
+      have hi' : i < (C.stepOfL Δ).length := by simpa [hnextdef] using hi
       have hat : C.Q.at? ((x ++ [0]) ++ [0] ++ [i])
-          = some (QuasiTab.build C.lambdaTwo C.stepOf (Δ :: Hist) (C.stepOf Δ)[i]) := by
+          = some (QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist)
+                    (C.stepOfL Δ)[i]) := by
         rw [QuasiTab.at?_child h3 hi]
         simp [hnextdef]
-      refine IH (C.stepOf Δ)[i] _ hat ?_
+      refine IH (C.stepOfL Δ)[i] _ hat ?_
       intro Z hZ
       rcases List.mem_cons.mp hZ with rfl | hZ'
       · obtain ⟨hp, -⟩ := prefix_append_ne (z := x) (x := x) (List.prefix_refl x)
@@ -424,20 +430,25 @@ lemma rhoSat_build (C : LoadedCluster tab) (hF : C.PaperFacts)
     -- the node of type 3
     have h3sat : C.RhoSat θ ((x ++ [0]) ++ [0]) := by
       by_cases hb : Δ.basic
-      · obtain ⟨Pi, rest, hPi⟩ : ∃ Pi rest, C.stepOf Δ = Pi :: rest :=
-          List.exists_cons_of_ne_nil (C.stepOf_ne_nil (hF.exists_right Δ h.1))
-        have hnextcons : next = QuasiTab.build C.lambdaTwo C.stepOf (Δ :: Hist) Pi ::
-            rest.map (fun Pi => QuasiTab.build C.lambdaTwo C.stepOf (Δ :: Hist) Pi) := by
-          rw [hnextdef, hPi, List.map_cons]
+      · obtain ⟨Pi, rest, hPi⟩ : ∃ Pi rest, C.stepOfL Δ = Pi :: rest :=
+          sorry -- List.exists_cons_of_ne_nil (C.stepOf_ne_nil (hF.exists_right Δ h.1))
+        have hnextcons :
+          next = QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) Pi ::
+            rest.map
+              (fun Pi => QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) Pi) :=
+              by rw [hnextdef, hPi, List.map_cons]
         refine C.rhoSat_three_basic hF h.1 hb (hnextcons ▸ h3) (by simp) ?_
           (IHchild 0 (by rw [hnextcons]; simp))
+        sorry
+        /-
         rw [QuasiTab.build_label, hPi]
         exact List.mem_cons_self ..
+        -/
       · refine C.rhoSat_three_not_basic hF h.1 hb h3 ?_ IHchild
         intro n hn
         rw [hnextdef, List.mem_map] at hn
         obtain ⟨Pi, hPi, rfl⟩ := hn
-        exact ⟨by simp, by simpa using hPi⟩
+        exact ⟨by simp, by simpa [stepOfL] using hPi⟩
     -- the node of type 2 and the node of type 1
     have h2sat : C.RhoSat θ (x ++ [0]) := C.rhoSat_two hF h.1 hθ h2 rfl h3sat
     by_cases hcomp : x ∈ C.Q.companions

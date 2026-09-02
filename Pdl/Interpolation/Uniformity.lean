@@ -1666,8 +1666,8 @@ Same as `FinePathIn.basicRightStep` in `Pdl.ClusterInterpolation`. -/
 lemma basicRightStep {H : History} {Z : Sequent} {tab' : Tableau H Z}
     (f : FinePathIn tab') (h : f.usesRightRule) (hb : f.label.rightOnly.basic) :
       (f.atBigRoot ∧ f.label.2.2 = none)
-      ∨ (∃ g, f.children = [g] ∧ g.atBigRoot ∧ g.label.2.2 = none)
-      ∨ (∃ A ξ, f.label.2.2 = some (Sum.inr (~'⌊·A⌋ξ)) ∧ ∃ g, f.children = [g] ∧ g.atBigRoot
+      ∨ (∃ g, f.children = {g} ∧ g.atBigRoot ∧ g.label.2.2 = none)
+      ∨ (∃ A ξ, f.label.2.2 = some (Sum.inr (~'⌊·A⌋ξ)) ∧ ∃ g, f.children = {g} ∧ g.atBigRoot
           ∧ g.label.left = (f.label.left).projection A
           ∧ g.label.rightOnly = modRChildRight A ξ f.label.2.1) := by
   induction f with
@@ -1832,7 +1832,7 @@ unique child of `t` only depends on `Δ`.
 Same as `LoadedCluster.basicModalStepAt` in `Pdl.ClusterInterpolation`. -/
 lemma basicModalStep (C : LoadedCluster tab) {Δ : Sequent}
     (hb : Δ.basic) {t : FinePathIn tab} (ht : t ∈ C.nodesWithFineRight Δ) :
-    ∃ A ξ, Δ.2.2 = some (Sum.inr (~'⌊·A⌋ξ)) ∧ ∃ g, t.children = [g]
+    ∃ A ξ, Δ.2.2 = some (Sum.inr (~'⌊·A⌋ξ)) ∧ ∃ g, t.children = {g}
       ∧ g.label.rightOnly = modRChildRight A ξ Δ.2.1 := by
   simp only [LoadedCluster.nodesWithFineRight, LoadedCluster.nodesWithFine, List.mem_filter,
     decide_eq_true_eq] at ht
@@ -1849,7 +1849,7 @@ lemma basicModalStep (C : LoadedCluster tab) {Δ : Sequent}
     rw [← label_eq_nodeAt_base t hbr, hnone] at hrl
     simp at hrl
   · exfalso
-    rw [hg, List.mem_singleton] at hc
+    simp only [hg, Finset.mem_singleton] at hc
     subst hc
     have hrl := C.all_right_loaded c.base hcmf.1
     rw [← label_eq_nodeAt_base c hgbr, hgnone] at hrl
@@ -1903,7 +1903,7 @@ def LoadedCluster.uniformOfUniTab {tab : Tableau .nil X}
       rcases ξ' with φ | χ <;> rcases ξ with φ' | χ' <;> simp_all
     rw [hAA.1, hAA.2] at hcg_right
     rw [hcf, hcg]
-    simp only [List.map_cons, List.map_nil, hcf_right, hcg_right]
+    simp only [Finset.image_singleton, hcf_right, hcg_right]
   · -- Lemma 9.7 (f): the same local rule is applied at both nodes, by U1 and U2.
     have hfb : ¬ f.label.basic := fun h => hb (hf_lab ▸ Uniformity.basic_rightOnly h)
     have hgb : ¬ g.label.basic := fun h => hb (hg_lab ▸ Uniformity.basic_rightOnly h)
@@ -1943,7 +1943,6 @@ def LoadedCluster.uniformOfUniTab {tab : Tableau .nil X}
     -- arbitrary, the equality of the two *lists* does not follow from `hCeq` -- and it is in
     -- fact wrong in general: if two results of the rule give the same child at one node but
     -- different children at the other one, then the two lists even have different lengths.
-    -- To fix this, `HasUniformSteps` should be stated with `Finset.image` instead of
-    -- `List.map`; that is a change in `Pdl.Interpolation.Cluster`, which is left for later.
-    clear hCeq hfC hgC
+    -- To fix this, `HasUniformSteps` is now stated with `Finset.image` instead of `List.map`
+    -- and the remaining thing here should now be easy?????
     sorry

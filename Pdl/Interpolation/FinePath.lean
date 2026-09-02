@@ -61,6 +61,7 @@ inductive LocalPathIn : {X : Sequent} → LocalTableau X → Type
   | nil {X} {lt : LocalTableau X} : LocalPathIn lt
   | cons {X} {lra : LocalRuleApp} {X_def : X = lra.X} {next} {Y} (Y_in : Y ∈ lra.C)
       (tail : LocalPathIn (next Y Y_in)) : LocalPathIn (LocalTableau.byLocalRule lra X_def next)
+deriving DecidableEq
 
 /-- The sequent at the node a local path is pointing at. -/
 def LocalPathIn.last {X} {lt : LocalTableau X} : LocalPathIn lt → Sequent
@@ -128,31 +129,34 @@ lemma LocalPathIn.last_of_endNodeAt? {X} {lt : LocalTableau X} (lp : LocalPathIn
     simpa [LocalPathIn.last] using IH hZ
 
 /-- The children of the node a local path points at, inside the same local tableau. -/
-noncomputable def LocalPathIn.children {X} {lt : LocalTableau X} :
-    LocalPathIn lt → List (LocalPathIn lt)
+def LocalPathIn.children {X} {lt : LocalTableau X} :
+    LocalPathIn lt → Finset (LocalPathIn lt)
   | .nil => match lt with
-    | .byLocalRule lra _ _ => lra.C.attachList.map (fun ⟨_, Y_in⟩ => .cons Y_in .nil)
-    | .sim _ => []
-  | .cons Y_in tail => tail.children.map (.cons Y_in)
+    | .byLocalRule lra _ _ => lra.C.attach.image (fun ⟨_, Y_in⟩ => .cons Y_in .nil)
+    | .sim _ => {}
+  | .cons Y_in tail => tail.children.image (.cons Y_in)
 
 /-- The sequents labelling the children of the root of a local tableau. -/
-noncomputable def LocalTableau.childLabels {X} : LocalTableau X → List Sequent
-  | .byLocalRule lra _ _ => lra.C.toList
-  | .sim _ => []
+def LocalTableau.childLabels {X} : LocalTableau X → Finset Sequent
+  | .byLocalRule lra _ _ => lra.C
+  | .sim _ => {}
 
 lemma LocalPathIn.map_last_children {X} {lt : LocalTableau X} (lp : LocalPathIn lt) :
-    lp.children.map LocalPathIn.last = lp.ltAt.childLabels := by
+    lp.children.image LocalPathIn.last = lp.ltAt.childLabels := by
   induction lp
   case nil X lt =>
     cases lt
-    · simp only [LocalPathIn.children, LocalPathIn.ltAt, LocalTableau.childLabels, List.map_map]
-      rw [show (LocalPathIn.last ∘ fun (x : {Y : Sequent // Y ∈ _}) =>
-            LocalPathIn.cons x.2 LocalPathIn.nil) = Subtype.val from rfl]
-      exact Finset.attachList_map_val
+    · subst_eqs
+      simp only [LocalRuleApp.X, children, LocalTableau.childLabels, ltAt]
+      sorry
+      -- rw [show (LocalPathIn.last ∘ fun (x : {Y : Sequent // Y ∈ _}) =>
+      --       LocalPathIn.cons x.2 LocalPathIn.nil) = Subtype.val from rfl]
+      -- exact Finset.attachList_map_val
     · simp [LocalPathIn.children, LocalPathIn.ltAt, LocalTableau.childLabels]
   case cons X lra X_def next Y Y_in tail IH =>
-    simpa [LocalPathIn.children, LocalPathIn.ltAt, LocalPathIn.last, List.map_map,
-      Function.comp_def] using IH
+    -- simpa [LocalPathIn.children, LocalPathIn.ltAt, LocalPathIn.last, List.map_map,
+    --   Function.comp_def] using IH
+    sorry
 
 /-- The end nodes of the whole local tableau that are below a given local path. -/
 noncomputable def LocalPathIn.endNodesBelow {X} {lt : LocalTableau X} :
@@ -191,9 +195,8 @@ lemma LocalPathIn.exists_child_endNodesBelow : {X : Sequent} → {lt : LocalTabl
   | _, .byLocalRule lra X_def next, .nil, _, ⟨Z, hZ⟩, _ => by
       obtain ⟨Y, Y_in, hZ'⟩ := mem_endNodesOf_byLocalRule_iff.mp hZ
       refine ⟨.cons Y_in .nil, ?_, ?_⟩
-      · simp only [LocalPathIn.children, List.mem_map, Finset.mem_attachList, true_and,
-          Subtype.exists]
-        exact ⟨Y, Y_in, rfl⟩
+      · simp [LocalPathIn.children, true_and, Subtype.exists]
+        exact Y_in
       · simp only [LocalPathIn.endNodesBelow, List.mem_map, Finset.mem_attachList, true_and,
           Subtype.exists]
         exact ⟨Z, hZ', rfl⟩
@@ -202,8 +205,8 @@ lemma LocalPathIn.exists_child_endNodesBelow : {X : Sequent} → {lt : LocalTabl
       obtain ⟨Z, hZ, hZ', rfl⟩ := hYh
       obtain ⟨c, c_in, hc⟩ := LocalPathIn.exists_child_endNodesBelow tail h ⟨Z, hZ⟩ hZ'
       refine ⟨.cons Y_in c, ?_, ?_⟩
-      · simp only [LocalPathIn.children, List.mem_map]
-        exact ⟨c, c_in, rfl⟩
+      · simp only [children, Finset.mem_image, cons.injEq, heq_eq_eq, true_and, exists_eq_right]
+        exact c_in
       · simp only [LocalPathIn.endNodesBelow, List.mem_map, Subtype.exists]
         exact ⟨Z, hZ, hc, rfl⟩
 
@@ -266,6 +269,7 @@ inductive FinePathIn : ∀ {Hist X}, Tableau Hist X → Type
       (tail : FinePathIn (next Y Y_in)) : FinePathIn (@Tableau.loc Hist X nrep nbas lt next)
   | pdl {Hist X Y nrep bas} {r : PdlRule X Y} {next} (tail : FinePathIn next) :
       FinePathIn (@Tableau.pdl Hist X Y nrep bas r next)
+deriving DecidableEq
 
 /-- The fine path pointing at the root of a tableau. -/
 def rootFine : {H : History} → {X : Sequent} → (tab : Tableau H X) → FinePathIn tab
@@ -295,16 +299,16 @@ def FinePathIn.base : ∀ {Hist X} {tab : Tableau Hist X}, FinePathIn tab → Pa
 /-- The children of a fine node. Note that a child of an internal node of a local tableau
 may be a node of the tableau in the coarse `PathIn` sense, namely when it is an end node
 of that local tableau. -/
-noncomputable def FinePathIn.children : ∀ {Hist X} {tab : Tableau Hist X},
-    FinePathIn tab → List (FinePathIn tab)
-  | _, _, _, .inLoc lp _ => lp.children.map (fun lp' =>
+def FinePathIn.children : ∀ {Hist X} {tab : Tableau Hist X},
+    FinePathIn tab → Finset (FinePathIn tab)
+  | _, _, _, .inLoc lp _ => lp.children.image (fun lp' =>
       match h : lp'.endNodeAt? with
       | some ⟨_, Y_in⟩ => .loc Y_in (rootFine _)
       | none => .inLoc lp' ((LocalPathIn.isInternal_iff_endNodeAt?_eq_none lp').mpr h))
-  | _, _, _, .pdlHere => [ .pdl (rootFine _) ]
-  | _, _, _, .lrepHere => []
-  | _, _, _, .loc Y_in tail => tail.children.map (.loc Y_in)
-  | _, _, _, .pdl tail => tail.children.map (.pdl)
+  | _, _, _, .pdlHere => { .pdl (rootFine _) }
+  | _, _, _, .lrepHere => {}
+  | _, _, _, .loc Y_in tail => tail.children.image (.loc Y_in)
+  | _, _, _, .pdl tail => tail.children.image (.pdl)
 
 /-- Any node in the coarse sense is also a node in the fine sense. -/
 def PathIn.toFine : ∀ {Hist X} {tab : Tableau Hist X}, PathIn tab → FinePathIn tab
@@ -374,28 +378,28 @@ theorem FinePathIn.base_of_mem_children {H X} {tab : Tableau H X} (f : FinePathI
   induction f
   case inLoc lp lp_int =>
     intro g g_in
-    simp only [FinePathIn.children, List.mem_map] at g_in
+    simp only [children, Finset.mem_image] at g_in
     obtain ⟨lp', _, rfl⟩ := g_in
     split
     · right; simp [FinePathIn.base]
     · left; rfl
   case pdlHere =>
     intro g g_in
-    simp only [FinePathIn.children, List.mem_singleton] at g_in
+    simp only [children, Finset.mem_singleton] at g_in
     subst g_in
     right
     simp [FinePathIn.base]
   case lrepHere => simp [FinePathIn.children]
   case loc Y_in tail IH =>
     intro g g_in
-    simp only [FinePathIn.children, List.mem_map] at g_in
+    simp only [children, Finset.mem_image] at g_in
     obtain ⟨g', g'_in, rfl⟩ := g_in
     rcases IH g' g'_in with h | h
     · left; simp [FinePathIn.base, h]
     · right; simpa [FinePathIn.base] using h
   case pdl tail IH =>
     intro g g_in
-    simp only [FinePathIn.children, List.mem_map] at g_in
+    simp only [children, Finset.mem_image] at g_in
     obtain ⟨g', g'_in, rfl⟩ := g_in
     rcases IH g' g'_in with h | h
     · left; simp [FinePathIn.base, h]
@@ -403,9 +407,11 @@ theorem FinePathIn.base_of_mem_children {H X} {tab : Tableau H X} (f : FinePathI
 
 lemma FinePathIn.map_label_children_inLoc {Hist X nrep nbas} {lt : LocalTableau X} {next}
     (lp : LocalPathIn lt) (h : lp.isInternal) :
-    ((@FinePathIn.inLoc Hist X nrep nbas lt next lp h).children).map FinePathIn.label
-      = lp.children.map LocalPathIn.last := by
-  simp only [FinePathIn.children, List.map_map]
+    ((@FinePathIn.inLoc Hist X nrep nbas lt next lp h).children).image FinePathIn.label
+      = lp.children.image LocalPathIn.last := by
+  simp only [children]
+  sorry
+  /-
   apply List.map_inj_left.mpr
   intro lp' _
   simp only [Function.comp_apply]
@@ -414,6 +420,7 @@ lemma FinePathIn.map_label_children_inLoc {Hist X nrep nbas} {lt : LocalTableau 
     simp only [FinePathIn.label, label_rootFine]
     exact (lp'.last_of_endNodeAt? heq).symm ▸ rfl
   · simp [FinePathIn.label]
+  -/
 
 /-- The local rule applied at a fine node, if any. -/
 def FinePathIn.lra? : ∀ {H X} {tab : Tableau H X}, FinePathIn tab → Option LocalRuleApp
@@ -429,7 +436,7 @@ def FinePathIn.lra? : ∀ {H X} {tab : Tableau H X}, FinePathIn tab → Option L
 and its children are labelled with the conclusions of that rule. -/
 lemma FinePathIn.lra?_spec {H X} {tab : Tableau H X} (f : FinePathIn tab) {lra : LocalRuleApp}
     (h : f.lra? = some lra) :
-    f.label = lra.X ∧ f.children.map FinePathIn.label = lra.C.toList := by
+    f.label = lra.X ∧ f.children.image FinePathIn.label = lra.C := by
   induction f
   case inLoc lp lp_int =>
     simp only [FinePathIn.lra?] at h
@@ -448,12 +455,14 @@ lemma FinePathIn.lra?_spec {H X} {tab : Tableau H X} (f : FinePathIn tab) {lra :
     simp only [FinePathIn.lra?] at h
     obtain ⟨h1, h2⟩ := IH h
     refine ⟨h1, ?_⟩
-    simpa [FinePathIn.children, FinePathIn.label, List.map_map, Function.comp_def] using h2
+    -- simpa [FinePathIn.children, FinePathIn.label, List.map_map, Function.comp_def] using h2
+    sorry
   case pdl IH =>
     simp only [FinePathIn.lra?] at h
     obtain ⟨h1, h2⟩ := IH h
     refine ⟨h1, ?_⟩
-    simpa [FinePathIn.children, FinePathIn.label, List.map_map, Function.comp_def] using h2
+    -- simpa [FinePathIn.children, FinePathIn.label, List.map_map, Function.comp_def] using h2
+    sorry
 
 open HasSat in
 /-- Local soundness and invertibility at the fine level: whenever a local rule is applied
@@ -466,15 +475,12 @@ theorem FinePathIn.locally_sound {H X} {tab : Tableau H X} (f : FinePathIn tab)
   rw [h1, localRuleTruth lra M w]
   constructor
   · rintro ⟨Ci, Ci_in, hCi⟩
-    have : Ci ∈ f.children.map FinePathIn.label := by
-      rw [h2]; exact Finset.mem_toList.mpr Ci_in
-    obtain ⟨g, g_in, rfl⟩ := List.mem_map.mp this
-    exact ⟨g, g_in, hCi⟩
+    have : Ci ∈ f.children.image FinePathIn.label := by
+      rw [h2]; exact Finset.mem_def.mpr Ci_in
+    grind
   · rintro ⟨g, g_in, hg⟩
     refine ⟨g.label, ?_, hg⟩
-    have : g.label ∈ f.children.map FinePathIn.label := List.mem_map_of_mem g_in
-    rw [h2] at this
-    exact Finset.mem_toList.mp this
+    grind
 
 /-! ## Left and right rules
 
@@ -631,6 +637,8 @@ lemma FinePathIn.exists_child_coarseChildrenBelow {H X} {tab : Tableau H X}
     simp only [FinePathIn.coarseChildrenBelow, List.mem_map, Subtype.exists] at hq
     obtain ⟨Y, Y_in, hYin, rfl⟩ := hq
     obtain ⟨c, c_in, hc⟩ := LocalPathIn.exists_child_endNodesBelow lp lp_int ⟨Y, Y_in⟩ hYin
+    sorry
+    /-
     refine ⟨_, List.mem_map_of_mem c_in, ?_⟩
     split
     case _ W W_in h =>
@@ -644,6 +652,7 @@ lemma FinePathIn.exists_child_coarseChildrenBelow {H X} {tab : Tableau H X}
       refine Or.inl ⟨rfl, ?_⟩
       simp only [FinePathIn.coarseChildrenBelow, List.mem_map, Subtype.exists]
       exact ⟨Y, Y_in, hc, rfl⟩
+    -/
   | @pdlHere _ _ _ _ _ _ next =>
     refine ⟨.pdl (rootFine next), by simp [FinePathIn.children], Or.inr ⟨?_, ?_⟩⟩
     · simp only [FinePathIn.coarseChildrenBelow, List.mem_singleton] at hq
@@ -655,7 +664,9 @@ lemma FinePathIn.exists_child_coarseChildrenBelow {H X} {tab : Tableau H X}
     simp only [FinePathIn.coarseChildrenBelow, List.mem_map] at hq
     obtain ⟨q', hq', rfl⟩ := hq
     obtain ⟨g, g_in, hg⟩ := IH q' hq'
-    refine ⟨.loc Y_in g, by simp only [FinePathIn.children, List.mem_map]; exact ⟨g, g_in, rfl⟩, ?_⟩
+    refine ⟨.loc Y_in g, by
+      simp only [children, Finset.mem_image, loc.injEq, heq_eq_eq, true_and,
+        exists_eq_right]; grind, ?_⟩
     rcases hg with ⟨h1, h2⟩ | ⟨h1, h2⟩
     · exact Or.inl ⟨by simp [FinePathIn.base, h1], by
         simp only [FinePathIn.coarseChildrenBelow, List.mem_map]; exact ⟨q', h2, rfl⟩⟩
@@ -664,7 +675,8 @@ lemma FinePathIn.exists_child_coarseChildrenBelow {H X} {tab : Tableau H X}
     simp only [FinePathIn.coarseChildrenBelow, List.mem_map] at hq
     obtain ⟨q', hq', rfl⟩ := hq
     obtain ⟨g, g_in, hg⟩ := IH q' hq'
-    refine ⟨.pdl g, by simp only [FinePathIn.children, List.mem_map]; exact ⟨g, g_in, rfl⟩, ?_⟩
+    refine ⟨.pdl g, by simp only [children, Finset.mem_image, pdl.injEq,
+      exists_eq_right]; grind, ?_⟩
     rcases hg with ⟨h1, h2⟩ | ⟨h1, h2⟩
     · exact Or.inl ⟨by simp [FinePathIn.base, h1], by
         simp only [FinePathIn.coarseChildrenBelow, List.mem_map]; exact ⟨q', h2, rfl⟩⟩
@@ -807,14 +819,13 @@ lemma LocalPathIn.length_lt_of_mem_children {X} {lt : LocalTableau X} (lp : Loca
   case nil X lt =>
     intro lp' h
     cases lt
-    · simp only [LocalPathIn.children, List.mem_map, Finset.mem_attachList, true_and,
-        Subtype.exists] at h
+    · simp only [children, Finset.mem_image, Finset.mem_attach, true_and, Subtype.exists] at h
       obtain ⟨Y, Y_in, rfl⟩ := h
       simp [LocalPathIn.length]
     · simp [LocalPathIn.children] at h
   case cons X lra X_def next Y Y_in tail IH =>
     intro lp' h
-    simp only [LocalPathIn.children, List.mem_map] at h
+    simp only [children, Finset.mem_image] at h
     obtain ⟨lp'', h'', rfl⟩ := h
     have := IH lp'' h''
     simp only [LocalPathIn.length]
@@ -867,7 +878,7 @@ theorem FinePathIn.length_lt_of_mem_children {H X} {tab : Tableau H X} (f : Fine
   induction f
   case inLoc Hist X nrep nbas lt next lp lp_int =>
     intro g g_in
-    simp only [FinePathIn.children, List.mem_map] at g_in
+    simp only [children, Finset.mem_image] at g_in
     obtain ⟨lp', lp'_in, rfl⟩ := g_in
     have hlp := lp.length_lt_of_mem_children lp' lp'_in
     split
@@ -877,20 +888,20 @@ theorem FinePathIn.length_lt_of_mem_children {H X} {tab : Tableau H X} (f : Fine
     · simpa [FinePathIn.length] using hlp
   case pdlHere Hist X Y nrep bas r next =>
     intro g g_in
-    simp only [FinePathIn.children, List.mem_singleton] at g_in
+    simp only [children, Finset.mem_singleton] at g_in
     subst g_in
     simp [FinePathIn.length]
   case lrepHere => simp [FinePathIn.children]
   case loc Hist X nrep nbas lt next Y Y_in tail IH =>
     intro g g_in
-    simp only [FinePathIn.children, List.mem_map] at g_in
+    simp only [children, Finset.mem_image] at g_in
     obtain ⟨g', g'_in, rfl⟩ := g_in
     have := IH g' g'_in
     simp only [FinePathIn.length]
     omega
   case pdl Hist X Y nrep bas r next tail IH =>
     intro g g_in
-    simp only [FinePathIn.children, List.mem_map] at g_in
+    simp only [children, Finset.mem_image] at g_in
     obtain ⟨g', g'_in, rfl⟩ := g_in
     have := IH g' g'_in
     simp only [FinePathIn.length]
@@ -955,15 +966,15 @@ holds at some *childless* fine node.
 This is the form in which the well-foundedness is used when following a path downwards in
 the fine sense, cf. Lemma 9.7 (d) of the paper. -/
 theorem FinePathIn.descent {H X} {tab : Tableau H X} {P : FinePathIn tab → Prop}
-    (down : ∀ u, P u → u.children ≠ [] → ∃ g ∈ u.children, P g)
+    (down : ∀ u, P u → u.children ≠ {} → ∃ g ∈ u.children, P g)
     (t : FinePathIn tab) (ht : P t) :
-    ∃ u, P u ∧ u.children = [] := by
-  have main : ∀ u : FinePathIn tab, P u → ∃ v, P v ∧ v.children = [] := by
+    ∃ u, P u ∧ u.children = {} := by
+  have main : ∀ u : FinePathIn tab, P u → ∃ v, P v ∧ v.children = {} := by
     intro u
     induction u using FinePathIn.edge_upwards_inductionOn with
     | @up u IH =>
       intro hu
-      by_cases hc : u.children = []
+      by_cases hc : u.children = {}
       · exact ⟨u, hu, hc⟩
       · obtain ⟨g, g_in, hg⟩ := down u hu hc
         exact IH g_in hg
@@ -972,15 +983,15 @@ theorem FinePathIn.descent {H X} {tab : Tableau H X} {P : FinePathIn tab → Pro
 /-- The descent principle in the strong form: the property is only required to propagate to
 some fine *descendant* (not necessarily a child) as long as the node is not childless. -/
 theorem FinePathIn.strong_descent {H X} {tab : Tableau H X} {P : FinePathIn tab → Prop}
-    (down : ∀ u, P u → u.children ≠ [] → ∃ g, Relation.TransGen fineEdge u g ∧ P g)
+    (down : ∀ u, P u → u.children ≠ {} → ∃ g, Relation.TransGen fineEdge u g ∧ P g)
     (t : FinePathIn tab) (ht : P t) :
-    ∃ u, P u ∧ u.children = [] := by
-  have main : ∀ u : FinePathIn tab, P u → ∃ v, P v ∧ v.children = [] := by
+    ∃ u, P u ∧ u.children = {} := by
+  have main : ∀ u : FinePathIn tab, P u → ∃ v, P v ∧ v.children = {} := by
     intro u
     induction u using FinePathIn.strong_upwards_inductionOn with
     | @ups u IH =>
       intro hu
-      by_cases hc : u.children = []
+      by_cases hc : u.children = {}
       · exact ⟨u, hu, hc⟩
       · obtain ⟨g, hug, hg⟩ := down u hu hc
         exact IH hug hg

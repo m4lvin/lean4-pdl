@@ -320,7 +320,7 @@ variable {X : Sequent} {tab : Tableau .nil X}
 /-- Every label in `Λ₂[C]` is loaded on the right, i.e. Lemma 9.4 (a). -/
 lemma isRightLoaded_of_mem_lambdaTwo (C : LoadedCluster tab) {Δ : Sequent}
     (hΔ : Δ ∈ C.lambdaTwo) : Δ.isRightLoaded := by
-  simp only [lambdaTwo, List.mem_dedup, List.mem_map] at hΔ
+  simp only [lambdaTwo, Finset.mem_image, List.mem_toFinset] at hΔ
   obtain ⟨f, hf, rfl⟩ := hΔ
   have h := Uniformity.isRight_of_memFine C ((C.mem_fineCL f).mp hf)
   rcases hh : f.label.2.2 with _ | (o | o) <;> rw [hh] at h <;> simp at h
@@ -334,7 +334,7 @@ Note that `stepOf` is a list while `LocalRuleApp.C` is a `Finset`, so we compare
 lemma exists_lra_stepOf (C : LoadedCluster tab) {Δ : Sequent}
     (hne : C.nodesWithFineRight Δ ≠ []) (hb : ¬ Δ.basic) :
     ∃ lra : LocalRuleApp, lra.isRightRule ∧ lra.X.rightOnly = Δ ∧
-      C.stepOf Δ = lra.C.toList.map Sequent.rightOnly := by
+      C.stepOf Δ = lra.C.image Sequent.rightOnly := by
   unfold stepOf
   cases hh : (C.nodesWithFineRight Δ).head? with
   | none => exact absurd (List.head?_eq_none_iff.mp hh) hne
@@ -349,6 +349,7 @@ lemma exists_lra_stepOf (C : LoadedCluster tab) {Δ : Sequent}
     refine ⟨lra, hright, by rw [← hX, hf_lab], ?_⟩
     rw [← hC]
     simp [List.map_map, Function.comp_def]
+    sorry
 
 /-- The `stepLT` field: at a non-basic `Δ ∈ Λ₂[C]` the step of the quasi-tableau
 strictly decreases the Dershowitz-Manna ordering. -/
@@ -361,16 +362,17 @@ lemma stepOf_lt_Sequent (C : LoadedCluster tab) :
     rw [List.head?_eq_none_iff.mpr hne] at hY
     simp at hY
   · obtain ⟨lra, hright, hX, hstep⟩ := C.exists_lra_stepOf hne hb
-    rw [hstep, List.mem_map] at hY
+    simp only [hstep, Finset.mem_image] at hY
     obtain ⟨Z, hZ, rfl⟩ := hY
     rw [← hX]
-    exact LocalRuleApp.rightOnly_lt_Sequent hright Z (Finset.mem_toList.mp hZ)
+    refine LocalRuleApp.rightOnly_lt_Sequent hright Z (Finset.mem_toList.mp ?_)
+    simp_all
 
 /-- The `basicStep` field: the modal step at a basic `Δ ∈ Λ₂[C]`. -/
 lemma basicStep_of (C : LoadedCluster tab)
     (hER : ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ []) :
     ∀ Δ ∈ C.lambdaTwo, Δ.basic → ∃ (A : Nat) (Y : Sequent),
-      C.stepOf Δ = [Y]
+      C.stepOf Δ = {Y}
       ∧ Δ.loadedProg = (·A : Program)
       ∧ Δ.loadedProgs = (·A : Program) :: Y.loadedProgs
       ∧ Y.loadedFma = Δ.loadedFma
@@ -388,7 +390,7 @@ lemma basicStep_of (C : LoadedCluster tab)
     obtain ⟨⟨hf_CL, hf_lab⟩, hf_right⟩ := hf'
     obtain ⟨c, hc, hcmf⟩ := C.exists_child_memFine_of_not_isLrep ((C.mem_fineCL f).mp hf_CL)
       (f.not_isLrep_base_of_usesRightRule hf_right)
-    rw [hg, List.mem_singleton] at hc
+    simp only [hg, Finset.mem_singleton] at hc
     subst hc
     have hgR : c.label.2.2.isRight := Uniformity.isRight_of_memFine C hcmf
     -- The child stays in the cluster, so it is loaded, i.e. `ξ` is a loaded formula.
@@ -404,9 +406,7 @@ lemma basicStep_of (C : LoadedCluster tab)
     refine ⟨A, Uniformity.modRChildRight A (AnyFormula.loaded χ) Δ.2.1, ?_, ?_, ?_, ?_, ?_⟩
     · unfold stepOf
       rw [hh]
-      change List.map (fun g => g.label.rightOnly) f.children = _
-      rw [hg]
-      simp [hglab]
+      simp [hg, hglab]
     · rcases hD : Δ with ⟨L, R, O⟩
       rw [hD] at hAξ
       simp only at hAξ
@@ -439,9 +439,9 @@ lemma nonBasicStep_of (C : LoadedCluster tab)
     (hER : ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ []) :
     ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ (W : Type) (M : KripkeModel W) (v : W),
       (∀ φ ∈ Δ.right, evaluate M v φ) →
-      ∃ i, ∃ hi : i < (C.stepOf Δ).length,
-        (∀ φ ∈ ((C.stepOf Δ)[i]'hi).right, evaluate M v φ)
-        ∧ witDist M v ((C.stepOf Δ)[i]'hi) = witDist M v Δ := by
+      ∃ i, ∃ hi : i < (C.stepOfL Δ).length,
+        (∀ φ ∈ ((C.stepOfL Δ)[i]'hi).right, evaluate M v φ)
+        ∧ witDist M v ((C.stepOfL Δ)[i]'hi) = witDist M v Δ := by
   intro Δ hΔ hb W M v hv
   obtain ⟨lra, hright, hX, hstep⟩ := C.exists_lra_stepOf (hER Δ hΔ) hb
   have hX' : lra.rightOnlyApp.X = Δ := by
@@ -451,15 +451,18 @@ lemma nonBasicStep_of (C : LoadedCluster tab)
     rw [LocalRuleApp.rightOnlyApp_C hright, Finset.mem_image] at hY
     obtain ⟨Z, hZ, rfl⟩ := hY
     rw [hstep]
-    exact List.mem_map_of_mem (Finset.mem_toList.mpr hZ)
+    sorry -- exact List.mem_map_of_mem (Finset.mem_toList.mpr hZ)
   have hr' : lra.rightOnlyApp.isRightRule := by
     rw [LocalRuleApp.rightOnlyApp_isRightRule]; exact hright
   obtain ⟨Y, hY, hYsat, hYwd⟩ :=
     LocalRuleApp.rightRule_sat_witDist hr' (by rw [hX']; exact hv)
+  sorry
+  /-
   obtain ⟨i, hi, heq⟩ := List.mem_iff_getElem.mp (hC' Y hY)
   refine ⟨i, hi, ?_, ?_⟩
   · rw [heq]; exact hYsat
   · rw [heq, hYwd, hX']
+  -/
 
 /-- All facts of `SatDownFacts`, from Lemma 9.7 (d). -/
 theorem satDownFacts (C : LoadedCluster tab)

@@ -128,16 +128,16 @@ unless a node of type 3 with a basic label is passed on the way. -/
 lemma measure_le_or_basicBetween (C : LoadedCluster tab)
     (hm : ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ Y ∈ C.stepOf Δ, lt_Sequent Y Δ) :
     ∀ (Hist : List Sequent) (Δ : Sequent) (x : List Nat),
-      C.Q.at? x = some (QuasiTab.build C.lambdaTwo C.stepOf Hist Δ) →
+      C.Q.at? x = some (QuasiTab.build C.lambdaTwo C.stepOfL Hist Δ) →
       ∀ (t : List Nat) (n : QuasiTab),
-        (QuasiTab.build C.lambdaTwo C.stepOf Hist Δ).at? t = some n →
+        (QuasiTab.build C.lambdaTwo C.stepOfL Hist Δ).at? t = some n →
         (n.label = Δ ∨ lt_Sequent n.label Δ) /- this was ≤ -/ ∨ C.Q.BasicBetween x (x ++ t) := by
   intro Hist Δ
   induction Hist, Δ using QuasiTab.build.induct (inC := C.lambdaTwo) with
   | case1 Hist Δ h IH =>
     intro x hx t n ht
     rw [QuasiTab.build_of_node h] at hx ht
-    set next := (C.stepOf Δ).map (fun Pi => QuasiTab.build C.lambdaTwo C.stepOf (Δ :: Hist) Pi)
+    set next := (C.stepOfL Δ).map (fun Pi => QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) Pi)
       with hnextdef
     have hx2 : C.Q.at? (x ++ [0]) = some (.QNode .two Δ [.QNode .three Δ next]) :=
       QuasiTab.at?_child hx (by simp)
@@ -155,8 +155,8 @@ lemma measure_le_or_basicBetween (C : LoadedCluster tab)
         Option.some.injEq] at ht
       subst ht
       exact Or.inl (Or.inl rfl)
-    · have hilt : i < (C.stepOf Δ).length := by simpa [hnextdef] using hi
-      have hnexti : next[i] = QuasiTab.build C.lambdaTwo C.stepOf (Δ :: Hist) (C.stepOf Δ)[i] := by
+    · have hilt : i < (C.stepOfL Δ).length := by simpa [hnextdef] using hi
+      have hnexti : next[i] = QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) (C.stepOfL Δ)[i] := by
         simp [hnextdef]
       have heq : x ++ [0, 0] ++ [i] ++ t' = x ++ 0 :: 0 :: i :: t' := by simp
       by_cases hb : Δ.basic
@@ -164,9 +164,9 @@ lemma measure_le_or_basicBetween (C : LoadedCluster tab)
         · rw [QuasiTab.typAt, hx3]; rfl
         · rw [QuasiTab.labelAt, hx3]; rfl
       · have hat : C.Q.at? (x ++ [0, 0] ++ [i])
-            = some (QuasiTab.build C.lambdaTwo C.stepOf (Δ :: Hist) (C.stepOf Δ)[i]) := by
+            = some (QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) (C.stepOfL Δ)[i]) := by
           rw [QuasiTab.at?_child hx3 hi, hnexti]
-        have hIH := IH (C.stepOf Δ)[i] (x ++ [0, 0] ++ [i]) hat t' n (by rwa [hnexti] at ht')
+        have hIH := IH (C.stepOfL Δ)[i] (x ++ [0, 0] ++ [i]) hat t' n (by rwa [hnexti] at ht')
         rcases hIH with hle | hbb
         · -- Old proof from when there was still a `Nat` measure placeholder.
           -- refine Or.inl (le_of_lt (lt_of_le_of_lt hle ?_))
@@ -175,11 +175,11 @@ lemma measure_le_or_basicBetween (C : LoadedCluster tab)
           rcases hle with nlabel_def|nlabel_lt
           · rw [nlabel_def]
             right
-            apply hm <;> grind
+            apply hm <;> simp_all [stepOfL]; sorry -- grind
           · right
             -- Here we simulate the le + lt combo now, using that the DM ordering is transitive.
             refine lt_Sequent.trans nlabel_lt ?_
-            apply hm <;> grind
+            apply hm <;> sorry -- grind
         · rw [heq] at hbb
           exact Or.inr (hbb.mono (by simp))
   | case2 Hist Δ h =>
@@ -198,7 +198,7 @@ and `z`. -/
 lemma build_repeat_basicBetween (C : LoadedCluster tab)
     (hm : ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ Y ∈ C.stepOf Δ, lt_Sequent Y Δ) :
     ∀ (Hist : List Sequent) (Δ : Sequent) (x : List Nat),
-      C.Q.at? x = some (QuasiTab.build C.lambdaTwo C.stepOf Hist Δ) →
+      C.Q.at? x = some (QuasiTab.build C.lambdaTwo C.stepOfL Hist Δ) →
       ∀ z c, x <+: z → C.Q.isRepeatLeaf z → C.Q.companion? z = some c → x <+: c →
         C.Q.BasicBetween c z := by
   intro Hist Δ
@@ -212,7 +212,7 @@ lemma build_repeat_basicBetween (C : LoadedCluster tab)
       simp only [QuasiTab.isRepeatLeaf, Bool.and_eq_true] at hrep
       exact hrep.1.1
     rw [QuasiTab.build_of_node h] at hx
-    set next := (C.stepOf Δ).map (fun Pi => QuasiTab.build C.lambdaTwo C.stepOf (Δ :: Hist) Pi)
+    set next := (C.stepOfL Δ).map (fun Pi => QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) Pi)
       with hnextdef
     have hx2 : C.Q.at? (x ++ [0]) = some (.QNode .two Δ [.QNode .three Δ next]) :=
       QuasiTab.at?_child hx (by simp)
@@ -236,11 +236,11 @@ lemma build_repeat_basicBetween (C : LoadedCluster tab)
       rw [QuasiTab.typAt, hx3] at hztyp
       simp only [Option.map_some, Option.some.injEq, QuasiTab.typ] at hztyp
       exact absurd hztyp (by simp)
-    · have hilt : i < (C.stepOf Δ).length := by simpa [hnextdef] using hi
-      have hnexti : next[i] = QuasiTab.build C.lambdaTwo C.stepOf (Δ :: Hist) (C.stepOf Δ)[i] := by
+    · have hilt : i < (C.stepOfL Δ).length := by simpa [hnextdef] using hi
+      have hnexti : next[i] = QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) (C.stepOfL Δ)[i] := by
         simp [hnextdef]
       have hxi : C.Q.at? (x ++ [0, 0] ++ [i])
-          = some (QuasiTab.build C.lambdaTwo C.stepOf (Δ :: Hist) (C.stepOf Δ)[i]) := by
+          = some (QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) (C.stepOfL Δ)[i]) := by
         rw [QuasiTab.at?_child hx3 hi, hnexti]
       have hprefz : x ++ [0, 0] ++ [i] <+: x ++ 0 :: 0 :: i :: t' := ⟨t', by simp⟩
       have heq : x ++ [0, 0] ++ [i] ++ t' = x ++ 0 :: 0 :: i :: t' := by simp
@@ -256,10 +256,12 @@ lemma build_repeat_basicBetween (C : LoadedCluster tab)
               rw [QuasiTab.labelAt, hn]; rfl
             rw [h1, h2] at hclab
             exact Option.some.inj hclab
-          have hstep := C.measure_le_or_basicBetween hm (Δ :: Hist) (C.stepOf Δ)[i]
+          have hstep := C.measure_le_or_basicBetween hm (Δ :: Hist) (C.stepOfL Δ)[i]
             (c ++ [0, 0] ++ [i]) hxi t' n (by rwa [hnexti] at ht')
           rcases hstep with hle | hbb
           · exfalso
+            sorry
+            /-
             have hlt := hm Δ h.1 hb _ (List.getElem_mem hilt)
             rw [← hlab] at hle
             -- contradiction, lt_Sequent is asymmetric.
@@ -271,6 +273,7 @@ lemma build_repeat_basicBetween (C : LoadedCluster tab)
             · absurd hlt
               have := @instAsymmOfIsWellFounded _ _ instIsWellFoundedSequentLt
               exact @asymm Sequent lt_Sequent _ _ this delta_lt_step
+            -/
           · rw [heq] at hbb
             exact hbb.mono (by simp)
       · obtain ⟨s, hs, rfl⟩ := prefix_sandwich hxc hcpre
@@ -302,7 +305,7 @@ lemma build_repeat_basicBetween (C : LoadedCluster tab)
                 subst hl
                 exact ⟨s3, by simp⟩
         obtain ⟨s', rfl⟩ := hs3
-        refine IH (C.stepOf Δ)[i] (x ++ [0, 0] ++ [i]) hxi (x ++ 0 :: 0 :: i :: t')
+        refine IH (C.stepOfL Δ)[i] (x ++ [0, 0] ++ [i]) hxi (x ++ 0 :: 0 :: i :: t')
           (x ++ ([0, 0, i] ++ s')) hprefz hrep hc ⟨s', by simp⟩
   | case2 Hist Δ h =>
     intro x hx z c hxz hrep hc hxc
@@ -373,7 +376,7 @@ structure SatDownFacts (C : LoadedCluster tab) : Prop where
   stepLT : ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ Y ∈ C.stepOf Δ, lt_Sequent Y Δ
   /-- The modal step at a basic sequent. -/
   basicStep : ∀ Δ ∈ C.lambdaTwo, Δ.basic → ∃ (A : Nat) (Y : Sequent),
-    C.stepOf Δ = [Y]
+    C.stepOf Δ = {Y}
     ∧ Δ.loadedProg = (·A : Program)
     ∧ Δ.loadedProgs = (·A : Program) :: Y.loadedProgs
     ∧ Y.loadedFma = Δ.loadedFma
@@ -383,9 +386,9 @@ structure SatDownFacts (C : LoadedCluster tab) : Prop where
   /-- The local step at a non-basic sequent. -/
   nonBasicStep : ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ (W : Type) (M : KripkeModel W) (v : W),
     (∀ φ ∈ Δ.right, evaluate M v φ) →
-    ∃ i, ∃ hi : i < (C.stepOf Δ).length,
-      (∀ φ ∈ ((C.stepOf Δ)[i]'hi).right, evaluate M v φ)
-      ∧ witDist M v ((C.stepOf Δ)[i]'hi) = witDist M v Δ
+    ∃ i, ∃ hi : i < (C.stepOfL Δ).length,
+      (∀ φ ∈ ((C.stepOfL Δ)[i]'hi).right, evaluate M v φ)
+      ∧ witDist M v ((C.stepOfL Δ)[i]'hi) = witDist M v Δ
 
 /-! ## The claim in the proof of Lemma 10.7 -/
 
@@ -492,7 +495,7 @@ lemma satDown_two {Δ y ys} (hx : C.Q.at? x = some (.QNode .two Δ (y :: ys)))
 distance by exactly one. -/
 lemma satDown_three_basic {Δ Y y ys} (hS : C.SatDownFacts) (hΔ : Δ ∈ C.lambdaTwo)
     (hb : Δ.basic) (hx : C.Q.at? x = some (.QNode .three Δ (y :: ys)))
-    (hstep : C.stepOf Δ = [Y]) (hylab : C.Q.labelAt (x ++ [0]) = some Y)
+    (hstep : C.stepOf Δ = {Y}) (hylab : C.Q.labelAt (x ++ [0]) = some Y)
     (IH : C.SatDown θ (x ++ [0])) : C.SatDown θ x := by
   intro W M g v Z hxlab hZ hι
   have hZeq : Δ = Z := by rw [QuasiTab.labelAt, hx] at hxlab; simpa using hxlab
@@ -564,9 +567,9 @@ lemma satDown_three_basic {Δ Y y ys} (hS : C.SatDownFacts) (hΔ : Δ ∈ C.lamb
 one of the children holds at the same state with the same witness distance. -/
 lemma satDown_three_not_basic {Δ next} (hS : C.SatDownFacts) (hΔ : Δ ∈ C.lambdaTwo)
     (hb : ¬ Δ.basic) (hx : C.Q.at? x = some (.QNode .three Δ next))
-    (hlen : next.length = (C.stepOf Δ).length)
-    (hlab : ∀ i, (hi : i < (C.stepOf Δ).length) →
-      C.Q.labelAt (x ++ [i]) = some ((C.stepOf Δ)[i]'hi))
+    (hlen : next.length = (C.stepOfL Δ).length)
+    (hlab : ∀ i, (hi : i < (C.stepOfL Δ).length) →
+      C.Q.labelAt (x ++ [i]) = some ((C.stepOfL Δ)[i]'hi))
     (IH : ∀ i, i < next.length → C.SatDown θ (x ++ [i])) : C.SatDown θ x := by
   intro W M g v Z hxlab hZ hι
   have hZeq : Δ = Z := by rw [QuasiTab.labelAt, hx] at hxlab; simpa using hxlab
@@ -667,14 +670,14 @@ leaf-to-root induction along the construction of `Q` (Definition 9.8). -/
 lemma satDown_build (C : LoadedCluster tab) (hS : C.SatDownFacts)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) :
     ∀ (Hist : List Sequent) (Δ : Sequent) (x : List Nat),
-      C.Q.at? x = some (QuasiTab.build C.lambdaTwo C.stepOf Hist Δ) →
+      C.Q.at? x = some (QuasiTab.build C.lambdaTwo C.stepOfL Hist Δ) →
       C.SatDown θ x := by
   intro Hist Δ
   induction Hist, Δ using QuasiTab.build.induct (inC := C.lambdaTwo) with
   | case1 Hist Δ h IH =>
     intro x hx
     rw [QuasiTab.build_of_node h] at hx
-    set next := (C.stepOf Δ).map (fun Pi => QuasiTab.build C.lambdaTwo C.stepOf (Δ :: Hist) Pi)
+    set next := (C.stepOfL Δ).map (fun Pi => QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) Pi)
       with hnextdef
     have h2 : C.Q.at? (x ++ [0]) = some (.QNode .two Δ [.QNode .three Δ next]) :=
       QuasiTab.at?_child hx (by simp)
@@ -682,30 +685,33 @@ lemma satDown_build (C : LoadedCluster tab) (hS : C.SatDownFacts)
       QuasiTab.at?_child h2 (by simp)
     have hlab2 : C.Q.labelAt (x ++ [0]) = some Δ := by rw [QuasiTab.labelAt, h2]; rfl
     have hlab3 : C.Q.labelAt ((x ++ [0]) ++ [0]) = some Δ := by rw [QuasiTab.labelAt, h3]; rfl
-    have hlen : next.length = (C.stepOf Δ).length := by simp [hnextdef]
-    have hchildlab : ∀ i, (hi : i < (C.stepOf Δ).length) →
-        C.Q.labelAt ((x ++ [0]) ++ [0] ++ [i]) = some ((C.stepOf Δ)[i]'hi) := by
+    have hlen : next.length = (C.stepOfL Δ).length := by simp [hnextdef]
+    have hchildlab : ∀ i, (hi : i < (C.stepOfL Δ).length) →
+        C.Q.labelAt ((x ++ [0]) ++ [0] ++ [i]) = some ((C.stepOfL Δ)[i]'hi) := by
       intro i hi
       rw [QuasiTab.labelAt, QuasiTab.at?_child h3 (by omega)]
       simp [hnextdef]
     have IHchild : ∀ i, i < next.length → C.SatDown θ ((x ++ [0]) ++ [0] ++ [i]) := by
       intro i hi
-      have hi' : i < (C.stepOf Δ).length := by omega
+      have hi' : i < (C.stepOfL Δ).length := by omega
       have hat : C.Q.at? ((x ++ [0]) ++ [0] ++ [i])
-          = some (QuasiTab.build C.lambdaTwo C.stepOf (Δ :: Hist) (C.stepOf Δ)[i]) := by
+          = some (QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) (C.stepOfL Δ)[i]) := by
         rw [QuasiTab.at?_child h3 hi]
         simp [hnextdef]
-      exact IH (C.stepOf Δ)[i] _ hat
+      exact IH (C.stepOfL Δ)[i] _ hat
     have h3sat : C.SatDown θ ((x ++ [0]) ++ [0]) := by
       by_cases hb : Δ.basic
       · obtain ⟨A, Y, hstep, -⟩ := hS.basicStep Δ h.1 hb
-        have hnextcons : next = [QuasiTab.build C.lambdaTwo C.stepOf (Δ :: Hist) Y] := by
-          rw [hnextdef, hstep]; simp
+        have hnextcons : next = [QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) Y] := by
+          simp [stepOfL]
+          rw [hnextdef]; simp_all
+          sorry
         refine C.satDown_three_basic hS h.1 hb (hnextcons ▸ h3) hstep ?_
           (IHchild 0 (by rw [hnextcons]; simp))
-        have h0 : (0 : Nat) < (C.stepOf Δ).length := by rw [hstep]; simp
+        have h0 : (0 : Nat) < (C.stepOfL Δ).length := by sorry -- rw [hstep]; simp
         rw [hchildlab 0 h0]
         simp [hstep]
+        sorry
       · exact C.satDown_three_not_basic hS h.1 hb h3 hlen hchildlab IHchild
     have h2sat : C.SatDown θ (x ++ [0]) := C.satDown_two h2 hlab3 hθ h3sat
     by_cases hcomp : x ∈ C.Q.companions

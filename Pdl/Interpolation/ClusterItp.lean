@@ -420,14 +420,18 @@ lemma thetaOf_voc_sub_jvoc (C : LoadedCluster tab) (hF : C.PaperFacts)
   have hsub := C.thetaOf_voc θ hθ Δ hn
   rw [Finset.mem_inter] at hsub
   obtain ⟨hn1, hn2⟩ := hsub
-  rw [Vocab.fromList_map_iff] at hn1
+  simp only [Vocab.fromFinset, Finset.fvoc, Finset.sup_image, Function.id_comp,
+    Finset.mem_sup] at hn1
   obtain ⟨f, hf, hn1⟩ := hn1
   have hfE : f ∈ C.fineExits := ((C.mem_exitsWithFine_iff Δ f).mp hf).1
+  sorry
+  /-
   have hfP : f ∈ C.fineCLplus := List.mem_append_right _ hfE
   rw [jvoc, Finset.mem_inter]
   refine ⟨hF.vocL f hfP hn1, hF.vocR f hfP ?_⟩
   rw [C.right_of_mem_exitsWithFine hf]
   exact hn2
+  -/
 
 end LoadedCluster
 

@@ -575,6 +575,16 @@ lemma stepOf_ne_nil (C : LoadedCluster tab) {Δ : Sequent}
     rw [hnil] at g_in
     simp at g_in
 
+noncomputable def stepOfL (C : LoadedCluster tab) : (Δ : Sequent) → List Sequent :=
+  Finset.seqSort ∘ C.stepOf
+
+lemma stepOfL_ne_nil (C : LoadedCluster tab) {Δ : Sequent}
+    (h : C.nodesWithFineRight Δ ≠ []) : C.stepOfL Δ ≠ [] := by
+  have := stepOf_ne_nil C h
+  unfold stepOfL
+  simp
+  grind
+
 /-! ### Uniformity
 
 `stepOf` reads off the children of the *first* node of `C^R_Δ`. Using `head?` is a legitimate
@@ -740,7 +750,7 @@ lemma LoadedCluster.thetaOf_voc (C : LoadedCluster tab) (θ : FinePathIn tab →
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) (Δ : Sequent) :
     (C.thetaOf θ Δ).voc
       ⊆ Vocab.fromFinset ((C.exitsWithFine Δ).image
-          (fun f => f.label.left.fvoc)) ∩ Δ.right.fvoc := by
+        (fun f => f.label.left.fvoc)) ∩ Δ.right.fvoc := by
   intro n hn
   rw [thetaOf, Finset.in_voc_dis] at hn
   obtain ⟨φ, hφ, hn⟩ := hn
