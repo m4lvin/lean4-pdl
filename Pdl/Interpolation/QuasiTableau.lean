@@ -85,7 +85,13 @@ def QuasiTab.build (inC : Finset Sequent) (step : Sequent → List Sequent)
   else
     QNode one Δ []
 termination_by (inC.filter (fun Z => decide (Z ∉ Hist))).card
-decreasing_by sorry -- length_filter_notMem_cons_lt _h.1 _h.2 -- TODO need Finset analogue
+decreasing_by
+  apply Finset.card_lt_card
+  rw [Finset.ssubset_iff_of_subset]
+  · exact ⟨Δ, by simp [_h.1, _h.2], by simp⟩
+  · intro z hz
+    simp only [Finset.mem_filter, decide_eq_true_eq, List.mem_cons, not_or] at hz ⊢
+    exact ⟨hz.1, hz.2.2⟩
 
 open QuasiTab Typ in
 /-- A node of `Q` of type 1 that is a repeat or an exit is a leaf. -/

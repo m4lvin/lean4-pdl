@@ -1935,14 +1935,13 @@ def LoadedCluster.uniformOfUniTab {tab : Tableau .nil X}
     -- The right components of the children agree *as finite sets*:
     have hCeq : lraf.C.image Sequent.rightOnly = lrag.C.image Sequent.rightOnly :=
       Uniformity.map_rightOnly_C_eq hsame hXeq
-    -- TODO: this last step is open for `Finset`-based sequents.
-    -- `LoadedCluster.HasUniformSteps` (in `Pdl.Interpolation.Cluster`) compares the *lists*
-    -- of the right components of the children, and `FinePathIn.lra?_spec` gives these lists
-    -- as `lraf.C.toList` resp. `lrag.C.toList`. Since `lraf.C` and `lrag.C` are different
-    -- `Finset`s (they differ in their left components) and the order of `Finset.toList` is
-    -- arbitrary, the equality of the two *lists* does not follow from `hCeq` -- and it is in
-    -- fact wrong in general: if two results of the rule give the same child at one node but
-    -- different children at the other one, then the two lists even have different lengths.
-    -- To fix this, `HasUniformSteps` is now stated with `Finset.image` instead of `List.map`
-    -- and the remaining thing here should now be easy?????
-    sorry
+    -- Hence so do the right components of the children of the two nodes, because the
+    -- labels of the children are exactly the elements of `lraf.C` resp. `lrag.C`.
+    calc f.children.image (fun h => h.label.rightOnly)
+        = (f.children.image FinePathIn.label).image Sequent.rightOnly := by
+          rw [Finset.image_image]; rfl
+      _ = lraf.C.image Sequent.rightOnly := by rw [hfC]
+      _ = lrag.C.image Sequent.rightOnly := hCeq
+      _ = (g.children.image FinePathIn.label).image Sequent.rightOnly := by rw [hgC]
+      _ = g.children.image (fun h => h.label.rightOnly) := by
+          rw [Finset.image_image]; rfl

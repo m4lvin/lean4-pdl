@@ -148,15 +148,12 @@ lemma LocalPathIn.map_last_children {X} {lt : LocalTableau X} (lp : LocalPathIn 
     cases lt
     · subst_eqs
       simp only [LocalRuleApp.X, children, LocalTableau.childLabels, ltAt]
-      sorry
-      -- rw [show (LocalPathIn.last ∘ fun (x : {Y : Sequent // Y ∈ _}) =>
-      --       LocalPathIn.cons x.2 LocalPathIn.nil) = Subtype.val from rfl]
-      -- exact Finset.attachList_map_val
+      rw [Finset.image_image]
+      exact Finset.attach_image_val
     · simp [LocalPathIn.children, LocalPathIn.ltAt, LocalTableau.childLabels]
   case cons X lra X_def next Y Y_in tail IH =>
-    -- simpa [LocalPathIn.children, LocalPathIn.ltAt, LocalPathIn.last, List.map_map,
-    --   Function.comp_def] using IH
-    sorry
+    rw [LocalPathIn.children, Finset.image_image]
+    exact IH
 
 /-- The end nodes of the whole local tableau that are below a given local path. -/
 noncomputable def LocalPathIn.endNodesBelow {X} {lt : LocalTableau X} :
@@ -410,17 +407,15 @@ lemma FinePathIn.map_label_children_inLoc {Hist X nrep nbas} {lt : LocalTableau 
     ((@FinePathIn.inLoc Hist X nrep nbas lt next lp h).children).image FinePathIn.label
       = lp.children.image LocalPathIn.last := by
   simp only [children]
-  sorry
-  /-
-  apply List.map_inj_left.mpr
+  rw [Finset.image_image]
+  refine Finset.image_congr ?_
   intro lp' _
   simp only [Function.comp_apply]
   split
   · rename_i Y Y_in heq
     simp only [FinePathIn.label, label_rootFine]
-    exact (lp'.last_of_endNodeAt? heq).symm ▸ rfl
+    exact (lp'.last_of_endNodeAt? heq).symm
   · simp [FinePathIn.label]
-  -/
 
 /-- The local rule applied at a fine node, if any. -/
 def FinePathIn.lra? : ∀ {H X} {tab : Tableau H X}, FinePathIn tab → Option LocalRuleApp
@@ -455,14 +450,14 @@ lemma FinePathIn.lra?_spec {H X} {tab : Tableau H X} (f : FinePathIn tab) {lra :
     simp only [FinePathIn.lra?] at h
     obtain ⟨h1, h2⟩ := IH h
     refine ⟨h1, ?_⟩
-    -- simpa [FinePathIn.children, FinePathIn.label, List.map_map, Function.comp_def] using h2
-    sorry
+    rw [FinePathIn.children, Finset.image_image]
+    exact h2
   case pdl IH =>
     simp only [FinePathIn.lra?] at h
     obtain ⟨h1, h2⟩ := IH h
     refine ⟨h1, ?_⟩
-    -- simpa [FinePathIn.children, FinePathIn.label, List.map_map, Function.comp_def] using h2
-    sorry
+    rw [FinePathIn.children, Finset.image_image]
+    exact h2
 
 open HasSat in
 /-- Local soundness and invertibility at the fine level: whenever a local rule is applied
@@ -637,9 +632,7 @@ lemma FinePathIn.exists_child_coarseChildrenBelow {H X} {tab : Tableau H X}
     simp only [FinePathIn.coarseChildrenBelow, List.mem_map, Subtype.exists] at hq
     obtain ⟨Y, Y_in, hYin, rfl⟩ := hq
     obtain ⟨c, c_in, hc⟩ := LocalPathIn.exists_child_endNodesBelow lp lp_int ⟨Y, Y_in⟩ hYin
-    sorry
-    /-
-    refine ⟨_, List.mem_map_of_mem c_in, ?_⟩
+    refine ⟨_, Finset.mem_image_of_mem _ c_in, ?_⟩
     split
     case _ W W_in h =>
       refine Or.inr ⟨?_, by simp [FinePathIn.atBigRoot]⟩
@@ -652,7 +645,6 @@ lemma FinePathIn.exists_child_coarseChildrenBelow {H X} {tab : Tableau H X}
       refine Or.inl ⟨rfl, ?_⟩
       simp only [FinePathIn.coarseChildrenBelow, List.mem_map, Subtype.exists]
       exact ⟨Y, Y_in, hc, rfl⟩
-    -/
   | @pdlHere _ _ _ _ _ _ next =>
     refine ⟨.pdl (rootFine next), by simp [FinePathIn.children], Or.inr ⟨?_, ?_⟩⟩
     · simp only [FinePathIn.coarseChildrenBelow, List.mem_singleton] at hq
