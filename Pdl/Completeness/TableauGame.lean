@@ -1,5 +1,6 @@
 import Mathlib.Data.Finset.Powerset
 import Mathlib.Data.Finset.Functor
+import Pdl.Interpolation.Uniformity
 
 import Pdl.General.Game
 import Pdl.Local.AllLocalTab
@@ -7,6 +8,16 @@ import Pdl.Completeness.Modelgraphs
 import Pdl.StayingInFL
 
 /-! # The Tableau Game (Section 6.2) -/
+
+/-!
+Different from the paper proof, here we directly set up the tableau game such that we
+also get a *uniform* tableau: Prover is not free to choose *any* local tableau: at a
+non-basic sequent `X` the only move available is the one to the canonical local
+tableau `uniLocalTab X` defined in `Pdl.Interpolation.Uniformity`.
+The gain is in `gameP_general`: a winning strategy for Prover yields a tableau with
+the property `Tableau.IsUni` (and hence `Tableau.isUniform` for the empty history)
+because at every `loc` step the canonical local tableau is used.
+-/
 
 /-! ## Prover and Builder positions -/
 
@@ -51,16 +62,19 @@ lemma posOf_eq_inr_then_lpr {H X p} :
 /-! ## Moves -/
 
 /-- The relation `Move old next` says that we can move from `old` to `next`.
-There are three kinds of moves. -/
+There are three kinds of moves.
+
+Note that in the `prLocTab` move Prover has no choice:
+the local tableau must be the canonical uniform one, `uniLocalTab X`. -/
 inductive Move : (old : GamePos) → (new : GamePos) → Type
 /-- When the sequent is basic and no repeat, let prover apply a PDL rule. -/
 | prPdl {X Y Hist nrep Xbasic} : PdlRule X Y →
     Move ⟨Hist, X, .inl (.bas nrep Xbasic)⟩
          ⟨(X :: Hist), Y, posOf (X :: Hist) Y⟩
-/-- If not basic, let prover pick any `ltab : LocalTableau X` as new position. -/
-| prLocTab {Hist X nrep nbas ltab} :
+/-- If not basic, Prover must move to the uniform local tableau `uniLocalTab X`. -/
+| prLocTab {Hist X nrep nbas} :
     Move ⟨Hist, X, .inl (.nbas nrep nbas)⟩
-         ⟨Hist, X, .inr (.ltab nrep nbas ltab)⟩
+         ⟨Hist, X, .inr (.ltab nrep nbas (uniLocalTab X))⟩
 /-- Let Builder pick an end node of `ltab` -/
 | buEnd {X ltab Y Hist nrep nbas} : Y ∈ endNodesOf (ltab : LocalTableau X) →
     Move ⟨Hist, X, .inr (.ltab nrep nbas ltab)⟩
@@ -143,8 +157,8 @@ def theMoves : GamePos → Finset GamePos
           exfalso; have := Xbasic.1 (~(⌊∗α⌋χ).unload)
           cases χ <;> simp [LoadFormula.unload,Sequent.basic,Sequent.toFinset] at *
   | ⟨H, X, .inl (.nbas nrep nbas)⟩ =>
-      -- If not basic, let prover pick any `ltab : LocalTableau X` as new position.
-      LocalTableau.fintype.1.image (fun ltab => ⟨H, X, .inr (.ltab nrep nbas ltab)⟩)
+      -- If not basic, Prover must move to the uniform local tableau `uniLocalTab X`.
+      { ⟨H, X, .inr (.ltab nrep nbas (uniLocalTab X))⟩ }
   -- BuilderPos:
   | ⟨H, X, .inr (.lpr lpr)⟩ => ∅ -- no moves ⇒ Prover wins
   | ⟨H, X, .inr (.ltab _ _ ltab)⟩ =>
@@ -197,8 +211,8 @@ lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos}
       )
     )
     ∨
-    ( ∃ nrep nbas, p = .inl (.nbas nrep nbas) -- not basic, prover picks ltab
-      ∧ ∃ ltab : LocalTableau X, next = ⟨H, X, .inr (.ltab nrep nbas ltab)⟩
+    ( ∃ nrep nbas, p = .inl (.nbas nrep nbas) -- not basic, prover must take `uniLocalTab X`
+      ∧ next = ⟨H, X, .inr (.ltab nrep nbas (uniLocalTab X))⟩
     )
     ∨
     -- BuilderPos:
@@ -279,10 +293,8 @@ lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos}
       · grind
       · grind
     · simp
-      rcases hyp with ⟨ltab, next_def⟩
-      subst next_def
-      use ltab
-      simp [LocalTableau.fintype.complete]
+      subst hyp
+      simp
     · simp
       grind
 
@@ -375,12 +387,10 @@ lemma move_of_mem_theMoves {pos next} :
       · constructor; apply Move.prPdl; apply PdlRule.modR rfl rfl
     all_goals
       grind
-  · rcases mv with ⟨lt, lt_in, def_next⟩
-    subst def_next
-    constructor; apply Move.prLocTab
-  · rcases mv with ⟨lt, lt_in, def_next⟩
-    subst def_next
-    constructor; apply Move.prLocTab
+  · subst mv
+    exact ⟨Move.prLocTab⟩
+  · subst mv
+    exact ⟨Move.prLocTab⟩
   · rcases mv with ⟨lt, lt_in, def_next⟩
     subst def_next
     constructor; apply Move.buEnd lt_in
@@ -488,7 +498,7 @@ lemma mem_theMoves_of_move {pos next} :
       cases ξ <;> grind
     case some.modR =>
     · grind -- sus that this works but did not in `modL` case?!
-  case prLocTab nbas ltX nrep =>
+  case prLocTab nbas nrep =>
     grind
   case buEnd Y ltX nbas Y_in nrep =>
     grind
@@ -560,15 +570,15 @@ lemma move_twice_hist_length {A B C : GamePos} (A_B : move A B) (B_C : move B C)
   cases A_B
   case prPdl Xbasic nrep r =>
     generalize h : posOf (A :: HA) B = stepP at *
-    cases B_C <;> simp_all <;> linarith
+    cases B_C <;> simp_all
   case prLocTab ltA nrep =>
     cases B_C -- must be buEnd :-)
     case buEnd nbas nrep' C_in =>
-      have := @endNodesOf_nonbasic_non_eq _ C ltA nbas C_in
+      have := endNodesOf_nonbasic_non_eq (uniLocalTab A) nbas C_in
       grind
   case buEnd ltA nbas nrep B_in =>
     generalize h : posOf (A :: HA) B = stepP at *
-    cases B_C <;> simp_all <;> linarith
+    cases B_C <;> simp_all
 
 /-- Insert obligatory "We like to move it move it" joke here. -/
 abbrev movemove := Relation.Comp move move
@@ -588,7 +598,7 @@ lemma movemove.hist {A B C : GamePos} (A_B : move A B) (B_C : move B C) :
   case prLocTab ltA nrep =>
     cases B_C -- must be buEnd :-)
     case buEnd nbas nrep' C_in =>
-      have := @endNodesOf_nonbasic_non_eq _ C ltA nbas C_in
+      have := endNodesOf_nonbasic_non_eq (uniLocalTab A) nbas C_in
       grind
   case buEnd ltA nbas nrep B_in =>
     generalize h : posOf (A :: HA) B = stepP at *
@@ -1131,13 +1141,44 @@ lemma tableauGame_winner_lpr_eq_Prover :
   simp [winner, tableauGame]
 
 /-! ## From Prover winning strategies to tableau -/
+/-- A game position is *uniform* if any local tableau in it is the canonical one. -/
+def GamePos.IsUni : GamePos → Prop
+  | ⟨_, X, .inr (.ltab _ _ lt)⟩ => lt = uniLocalTab X
+  | _ => True
 
-/-- After history `Hist`, if Prover has a winning strategy then there is a closed tableau.
+/-- Positions given by `posOf` are uniform: they are never `ltab` positions. -/
+lemma posOf_isUni (H : History) (X : Sequent) : GamePos.IsUni ⟨H, X, posOf H X⟩ := by
+  unfold posOf
+  split
+  · trivial
+  · split
+    · trivial
+    · split <;> trivial
+
+/-- All moves lead to uniform positions. -/
+lemma theMoves_isUni {p next : GamePos} (h : next ∈ theMoves p) : GamePos.IsUni next := by
+  rcases move_of_mem_theMoves h with ⟨mov⟩
+  cases mov
+  case prPdl => exact posOf_isUni _ _
+  case prLocTab => rfl
+  case buEnd => exact posOf_isUni _ _
+
+/-! ## From Prover winning strategies to uniform tableaux -/
+
+/-- Helper for `gameP_general`: prefixing a uniform tableau with a PDL rule keeps it uniform. -/
+lemma exists_isUni_of_pdl {Hist X Y} (nrep : ¬ flprep Hist X) (bas : X.basic) (r : PdlRule X Y)
+    {next : Tableau (X :: Hist) Y} (h : next.IsUni) : ∃ tab : Tableau Hist X, tab.IsUni :=
+  ⟨.pdl nrep bas r next, h⟩
+
+/-- After history `Hist`, if Prover has a winning strategy then there is a closed tableau,
+and moreover that tableau is uniform in the sense of `Tableau.IsUni`, because
+Prover has to play the canonical local tableau `uniLocalTab`.
 Note: we skip Definition 6.9 (Strategy Tree for Prover) and just use the `Strategy` type.
 This is the induction loading for `gameP`. -/
 theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos : _)
+    (pos_uni : GamePos.IsUni ⟨Hist, X, pos⟩)
     (h : winning sP ⟨Hist, X, pos⟩)
-    : Nonempty (Tableau Hist X) := by
+    : ∃ tab : Tableau Hist X, tab.IsUni := by
   rcases pos_def : pos with proPos|builPos
   -- ProverPos:
   · cases proPos
@@ -1157,10 +1198,10 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
       -- Using lemma that if sP is winning here then sP is still winning after sP moves.
       have still_winning : winning sP the_move := winning_of_winning_move P_turn (pos_def ▸ h)
       -- Now use IH to get the remaining tableau.
-      have IH := gameP_general _ _ sP _ still_winning -- okay ??
-      rcases IH with ⟨new_tab_from_IH⟩
+      have IH := gameP_general _ _ sP _ (theMoves_isUni the_move.2) still_winning -- okay ??
       rcases the_move with ⟨⟨newHist, newX, newPos⟩, nextPosIn⟩
-      simp at new_tab_from_IH
+      simp only at IH
+      obtain ⟨new_tab_from_IH, new_uni⟩ := IH
       simp only [tableauGame, Game.Pos.moves, pos_def, Game.moves] at nextPosIn
       rcases X with ⟨L,R,_|(⟨⟨χ⟩⟩|⟨⟨χ⟩⟩)⟩ <;> simp at *
       · -- no loaded formula yet, the only PDL rule we can apply is (L+)
@@ -1174,11 +1215,9 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
               rcases χ_in with ⟨ψ_in, ⟨_⟩⟩
               have : φ = ⌈⌈δ :: αs⌉⌉ψ := def_of_boxesOf_def boxesOf_def
               subst this
-              constructor -- leaving Prop
-              apply Tableau.pdl nrep Xbas
+              refine exists_isUni_of_pdl nrep Xbas
                 (@PdlRule.loadL _ ((δ :: αs).dropLast)
-                  ((δ :: αs).getLast (by simp)) ψ _ _ ?_ notBox ?_)
-                new_tab_from_IH
+                  ((δ :: αs).getLast (by simp)) ψ _ _ ?_ notBox ?_) new_uni
               · rw [← boxes_last]
                 rw [@List.dropLast_append_getLast]
                 simp_all only [Formula.boxes_cons]
@@ -1197,11 +1236,9 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
               rcases χ_in with ⟨ψ_in, ⟨_⟩⟩
               have : φ = ⌈⌈δ :: αs⌉⌉ψ := def_of_boxesOf_def boxesOf_def
               subst this
-              constructor -- leaving Prop
-              apply Tableau.pdl nrep Xbas
+              refine exists_isUni_of_pdl nrep Xbas
                 (@PdlRule.loadR _ ((δ :: αs).dropLast)
-                  ((δ :: αs).getLast (by simp)) ψ _ _ ?_ notBox ?_)
-                new_tab_from_IH
+                  ((δ :: αs).getLast (by simp)) ψ _ _ ?_ notBox ?_) new_uni
               · rw [← boxes_last]
                 rw [@List.dropLast_append_getLast]
                 simp_all only [Formula.boxes_cons]
@@ -1221,21 +1258,19 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
             cases nextPosIn
             cases ψ
             case normal φ0 =>
-              constructor
-              apply Tableau.pdl nrep Xbas ?_ new_tab_from_IH
+              refine exists_isUni_of_pdl nrep Xbas ?_ new_uni
               apply @PdlRule.freeL _ L R [] _ φ0 _ _ rfl
               simp
             case loaded χ =>
               rcases LoadFormula.exists_loadMulti χ with ⟨δ,α,φ,χ_def⟩
               subst χ_def
-              constructor
-              apply Tableau.pdl nrep Xbas ?_ new_tab_from_IH
+              refine exists_isUni_of_pdl nrep Xbas ?_ new_uni
               apply @PdlRule.freeL _ L R (·a :: δ) _ _ _ rfl
               simp
           · -- applying (M)
             cases ψ <;> simp at nextPosIn <;> cases nextPosIn
             all_goals
-              exact ⟨Tableau.pdl nrep Xbas (PdlRule.modL rfl rfl) new_tab_from_IH⟩
+              exact exists_isUni_of_pdl nrep Xbas (PdlRule.modL rfl rfl) new_uni
         all_goals
           -- non-atomic program is impossible, X would not have been basic then
           exfalso
@@ -1251,27 +1286,25 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
             cases nextPosIn
             cases ψ
             case normal φ0 =>
-              constructor
-              apply Tableau.pdl nrep Xbas ?_ new_tab_from_IH
+              refine exists_isUni_of_pdl nrep Xbas ?_ new_uni
               apply @PdlRule.freeR _ L R [] _ φ0 _ _ rfl
               simp
             case loaded χ =>
               rcases LoadFormula.exists_loadMulti χ with ⟨δ,α,φ,χ_def⟩
               subst χ_def
-              constructor
-              apply Tableau.pdl nrep Xbas ?_ new_tab_from_IH
+              refine exists_isUni_of_pdl nrep Xbas ?_ new_uni
               apply @PdlRule.freeR _ L R (·a :: δ) _ _ _ rfl
               simp
           · -- applying (M)
             cases ψ <;> simp at nextPosIn <;> cases nextPosIn
             all_goals
-              exact ⟨Tableau.pdl nrep Xbas (by apply PdlRule.modR <;> rfl) new_tab_from_IH⟩
+              exact exists_isUni_of_pdl nrep Xbas (by apply PdlRule.modR <;> rfl) new_uni
         all_goals
           -- non-atomic program is impossible, X would not have been basic then
           exfalso
           grind
     case nbas nrep X_nbas =>
-      -- not basic, Prover should make a local tableau
+      -- not basic, Prover must move to the uniform local tableau
       -- COPY PASTA from bas case ...
       rw [pos_def] at h
       have P_turn : tableauGame.turn ⟨Hist, ⟨X, pos⟩⟩ = Prover := by
@@ -1284,35 +1317,36 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
       -- Using lemma that if sP is winning here then sP is still winning after sP moves.
       have still_winning : winning sP the_move := winning_of_winning_move P_turn (pos_def ▸ h)
       -- Now use IH to get the remaining tableau.
-      have IH := gameP_general _ _ sP _ still_winning -- okay ??
-      rcases IH with ⟨new_tab_from_IH⟩
+      have IH := gameP_general _ _ sP _ (theMoves_isUni the_move.2) still_winning -- okay ??
       rcases the_move with ⟨⟨newHist, newX, newPos⟩, nextPosIn⟩
-      simp at new_tab_from_IH
+      simp only at IH
       simp only [tableauGame, Game.Pos.moves, pos_def, Game.moves] at nextPosIn
       --- ... until here
-      -- No need to look into `lt` here, we just use the IH for the `BuilderPos` case!
-      simp at nextPosIn
-      rcases nextPosIn with ⟨lt, lt_in, same⟩
-      cases same
-      constructor
-      exact new_tab_from_IH
+      -- No need to look into the local tableau here, we use the IH for the `BuilderPos` case!
+      simp only [theMoves, Finset.mem_singleton] at nextPosIn
+      obtain ⟨rfl, rfl, -⟩ := nextPosIn
+      exact IH
   -- BuilderPos:
-  · rcases builPos with ⟨lpr⟩|⟨nrep, nbas, ltX⟩
-    · use Tableau.lrep lpr
+  · rw [pos_def] at pos_uni
+    rcases builPos with ⟨lpr⟩|⟨nrep, nbas, ltX⟩
+    · exact ⟨Tableau.lrep lpr, trivial⟩
     · -- We have a local tableau and it is the turn of Builder.
       -- Now each `Y : endNodesOf lt` is a possible move.
       -- Because `sP` wins against all moves by Builder we can use `sP` to define `next`.
-      -- Note that all is non-constructive here via Nonempty.
-      have next' : ∀ Y (Y_in : Y ∈ endNodesOf ltX), Nonempty (Tableau (X :: Hist) Y) := by
+      -- Note that all is non-constructive here via choice.
+      have ltX_def : ltX = uniLocalTab X := pos_uni
+      subst ltX_def
+      have next' : ∀ Y (_ : Y ∈ endNodesOf (uniLocalTab X)),
+          ∃ t : Tableau (X :: Hist) Y, t.IsUni := by
         intro Y Y_in
-        apply gameP_general (X :: Hist) Y sP (by apply posOf) -- the IH
+        apply gameP_general (X :: Hist) Y sP (posOf (X :: Hist) Y) (posOf_isUni _ _) -- the IH
         subst pos_def
         -- The main work is done by the following lemma
         have := winning_of_whatever_other_move (by simp) h
         simp [tableauGame, Game.moves] at this
         exact this _ Y_in
-      have next := fun Y Y_in => Classical.choice (next' Y Y_in)
-      use Tableau.loc nrep nbas ltX next
+      choose next next_uni using next'
+      exact ⟨Tableau.loc nrep nbas (uniLocalTab X) next, uniLocalTab_isUni X, next_uni⟩
 termination_by
   tableauGame.wf.2.wrap ⟨Hist, X, pos⟩ -- note `pos`, not `posOf` here.
 decreasing_by
@@ -1336,6 +1370,13 @@ lemma posOf_for_startPos (X : Sequent) : ∃ proPos, posOf [] X = Sum.inl proPos
     simp only [h, ↓reduceDIte, not_rep_empty]
     by_cases X.basic <;> simp_all
 
-/-- If Prover has a winning strategy then there is a closed tableau. -/
+/-- If Prover has a winning strategy then there is a closed tableau, and it is uniform. -/
 theorem gameP (X : Sequent) (s : Strategy tableauGame Prover) (h : winning s (startPos X)) :
-    Nonempty (Tableau [] X) := gameP_general [] X s _ h
+    ∃ tab : Tableau [] X, tab.IsUni := gameP_general [] X s _ (posOf_isUni _ _) h
+
+/-- If Prover has a winning strategy then there is a *uniform* closed tableau,
+i.e. one satisfying the conditions U1 and U2. -/
+theorem gameP_isUniform (X : Sequent) (s : Strategy tableauGame Prover)
+    (h : winning s (startPos X)) : ∃ tab : Tableau [] X, tab.isUniform := by
+  obtain ⟨tab, tab_uni⟩ := gameP X s h
+  exact ⟨tab, tab_uni.isUniform⟩

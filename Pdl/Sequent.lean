@@ -33,6 +33,16 @@ theorem Option.some_subseteq {O : Option α} : (some x ⊆ O) ↔ some x = O := 
   all_goals simp
 
 -- mathlib this?
+/-- The subset relation on `Option α` from `Option.instHasSubsetOption` is decidable. -/
+instance Option.instDecidableSubset [DecidableEq α] (o1 o2 : Option α) :
+    Decidable (o1 ⊆ o2) := by
+  rcases o1 with _ | a
+  · exact isTrue trivial
+  · rcases o2 with _ | b
+    · exact isFalse id
+    · exact decidable_of_iff (a = b) (by simp)
+
+-- mathlib this?
 /-- Instance that is used to say `(O : Olf) \ (O' : Olf)`. -/
 instance Option.insHasSdiff [DecidableEq α] : SDiff (Option α) := SDiff.mk
   fun o1 del =>

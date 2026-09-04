@@ -139,7 +139,7 @@ theorem nodeAt_companionOf_eq_toHistory_get_lpr_val (s : PathIn tab) lpr h :
 
 theorem nodeAt_companionOf_setEq {tab : Tableau .nil X} (s : PathIn tab) lpr
     (h : (tabAt s).2.2 = .lrep lpr)
-    : (nodeAt (companionOf s lpr h)) = (nodeAt s) := by
+    : nodeAt (companionOf s lpr h) = nodeAt s := by
   rcases lpr with ⟨k, k_same, _⟩
   unfold companionOf
   rw [PathIn.nodeAt_rewind_eq_toHistory_get]

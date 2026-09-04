@@ -95,10 +95,37 @@ lemma modelExistence {X} : consistent X →
   · absurd consX
     rcases ProverHasWinningS with ⟨sP, winning_sP⟩
     simp_all [inconsistent]
-    exact gameP _ (sP) winning_sP
+    rcases gameP _ (sP) winning_sP with ⟨t, _⟩ -- here we don't need the uniformity.
+    exact ⟨t⟩
   · rcases BuilderHasWinningS with ⟨sB, winning_sB⟩
     rcases strmg X sB winning_sB with ⟨WS, mg, Z, Z_in_WS, X_sub_Z⟩
     exact ⟨WS, mg, ⟨Z, Z_in_WS⟩, X_sub_Z⟩
+
+/-- If there is any tableau, then there is a uniform one.
+Proven via `gameP` and used to show `interpolation`. -/
+lemma Tableau.toUniformViaGame {X} (Xfree : X.isFree) (tab : Tableau .nil X) :
+    ∃ u_tab : Tableau .nil X, u_tab.isUniform := by
+  rcases gamedet tableauGame (startPos X) with ProverHasWinningS | BuilderHasWinningS
+  · rcases ProverHasWinningS with ⟨sP, winning_sP⟩
+    rcases gameP _ (sP) winning_sP with ⟨t, t_uni⟩
+    refine ⟨t, ?_⟩
+    simp_all [Tableau.isUniform]
+    refine ⟨?_, ?_⟩
+    · exact Tableau.IsUni.uniCore t_uni
+    · have := Tableau.IsUni.flip t_uni -- flip it once more.
+      exact Tableau.IsUni.uniCore this
+  · rcases BuilderHasWinningS with ⟨sB, winning_sB⟩
+    rcases strmg X sB winning_sB with ⟨WS, mg, Z, Z_in_WS, X_sub_Z⟩
+    -- Nowe can contradict soundness here.
+    have unsat := tableauThenNotSat tab Xfree .nil
+    simp at unsat
+    absurd unsat
+    use WS, mg.1
+    simp
+    use Z, Z_in_WS
+    intro φ φ_in
+    apply truthLemma
+    grind
 
 /-- Theorem 6.1 -/
 theorem completeness : ∀ X, consistent X → satisfiable X :=

@@ -524,9 +524,8 @@ def LocalRuleApp.inContext (lra : LocalRuleApp) (L R : Finset Formula) (O : Olf)
     C := applyLocalRule lra.lr (L, R, O), hC := rfl,
     preconditionProof := ⟨hL, hR, hO⟩ }
 
-open Classical in
 /-- Put a local rule application into the context of the sequent `X`, if possible. -/
-noncomputable def LocalRuleApp.toContext (lra : LocalRuleApp) (X : Sequent) : LocalRuleApp :=
+def LocalRuleApp.toContext (lra : LocalRuleApp) (X : Sequent) : LocalRuleApp :=
   if h : lra.Lcond ⊆ X.1 ∧ lra.Rcond ⊆ X.2.1 ∧ lra.Ocond ⊆ X.2.2 then
     lra.inContext X.1 X.2.1 X.2.2 h.1 h.2.1 h.2.2
   else lra
@@ -725,7 +724,7 @@ lemma uniRightChoice_rightOnly_isSome {X : Sequent} {lra : LocalRuleApp} (hX : l
 open Classical in
 /-- The canonical rule application for a sequent that is free or loaded on the right:
 first reduce the left component, then use the canonical rule for the right component. -/
-noncomputable def uniChoiceRL (X : Sequent) : Option LocalRuleApp :=
+def uniChoiceRL (X : Sequent) : Option LocalRuleApp :=
   match uniLeftChoice X.leftOnly with
   | some lra => some (lra.toContext X)
   | none =>
@@ -808,7 +807,7 @@ lemma uniChoiceRL_isUniChoice {X : Sequent} {lra : LocalRuleApp} (hnl : ¬ X.2.2
 open Classical in
 /-- The canonical local rule application at a sequent: when the sequent is loaded on the
 left we flip, use `uniChoiceRL` and flip back. -/
-noncomputable def uniChoiceAt (X : Sequent) : Option LocalRuleApp :=
+def uniChoiceAt (X : Sequent) : Option LocalRuleApp :=
   if X.2.2.isLeft then (uniChoiceRL X.flip).map LocalRuleApp.flip else uniChoiceRL X
 
 lemma uniChoiceAt_X {X : Sequent} {lra : LocalRuleApp} (h : uniChoiceAt X = some lra) :
@@ -847,7 +846,7 @@ lemma uniChoiceAt_C_lt {X : Sequent} {lra : LocalRuleApp} (h : uniChoiceAt X = s
 
 open Classical in
 /-- The canonical local tableau: always apply the canonical rule `uniChoiceAt`. -/
-noncomputable def uniLocalTab : (X : Sequent) → LocalTableau X
+def uniLocalTab : (X : Sequent) → LocalTableau X
   | X =>
     if bas : X.basic then .sim bas
     else

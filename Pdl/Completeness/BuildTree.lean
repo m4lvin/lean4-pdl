@@ -4,6 +4,32 @@ import Pdl.PdlSteps
 
 /-! # From winning strategies to model graphs, part 1: BuildTree and PreState (Section 6.3) -/
 
+/-! ## The uniform open local tableau -/
+
+/-- Open local tableaux for `X` that are *the* uniform one, i.e. `uniLocalTab X`.
+This type has at most one element, and it is inhabited iff `uniLocalTab X` has an end node. -/
+def UniOpenLT (X : Sequent) : Type :=
+  {lt : LocalTableau X // endNodesOf lt ≠ {} ∧ lt = uniLocalTab X}
+
+instance UniOpenLT.instDecidableEq {X} : DecidableEq (UniOpenLT X) :=
+  fun s t => decidable_of_iff (s.1 = t.1) Subtype.ext_iff.symm
+
+/-- All uniform open local tableaux for `X`: the singleton list containing `uniLocalTab X`
+if that has an end node, and the empty list otherwise.
+Analogue of `OpenLocalTableau.all`. -/
+def UniOpenLT.all (X : Sequent) : List (UniOpenLT X) :=
+  if h : endNodesOf (uniLocalTab X) ≠ {} then [⟨uniLocalTab X, h, rfl⟩] else []
+
+/-- Analogue of `OpenLocalTableau.all_spec`. -/
+lemma UniOpenLT.all_spec {X : Sequent} {ltX : UniOpenLT X} : ltX ∈ UniOpenLT.all X := by
+  rcases ltX with ⟨lt, lt_open, rfl⟩
+  simp [UniOpenLT.all, lt_open]
+
+lemma UniOpenLT.all_ne_nil_iff {X : Sequent} :
+    UniOpenLT.all X ≠ [] ↔ endNodesOf (uniLocalTab X) ≠ {} := by
+  unfold UniOpenLT.all
+  split <;> simp_all
+
 /-! ## Builder Strategy Tree -/
 
 mutual
@@ -19,9 +45,10 @@ Instead of the .lpr constructor here we have .fpr because we only make a `RuleTr
 wins and thus we can never reach an lpr where Prover would win, but do allow free repeats.
 As in `Tableau` note that the history is stored in reverse. -/
 inductive BuildTree : History → Sequent → Type
-  /-- Prover chooses local tab, we pick an end node (which must exist as otherwise prover wins). -/
-  | loc {H X} (nbas : ¬ X.basic) (someLT : OpenLocalTableau.all X ≠ [])
-            (next : (lt : OpenLocalTableau X) → BuildChoice H X (endNodesOf lt.1))
+  /-- Prover plays the uniform local tab, we pick an end node
+  (which must exist as otherwise prover wins). -/
+  | loc {H X} (nbas : ¬ X.basic) (someLT : UniOpenLT.all X ≠ [])
+            (next : (lt : UniOpenLT X) → BuildChoice H X (endNodesOf lt.1))
             : BuildTree H X
   /-- Prover chooses PDL rule, never branches, so continue with unique child. -/
   | pdl {H X} (bas : X.basic) (someR : PdlRule.all X ≠ [])
@@ -41,24 +68,24 @@ end
 
 mutual
 /-- Manual replacement for `sizeOf (bt : BuildTree)` so we also count the `next` parts. -/
-def BuildTree.size : BuildTree H X → Nat
-  | .loc _ _ next => 1 + ((OpenLocalTableau.all X).map (fun lt => (next lt).size)).sum
+noncomputable def BuildTree.size : BuildTree H X → Nat
+  | .loc _ _ next => 1 + ((UniOpenLT.all X).map (fun lt => (next lt).size)).sum
   | .pdl _ _ next => 1 + ((PdlRule.all X).map (fun ⟨Y,r⟩ => (next Y r).size)).sum
   | .freeRepeat _ => 1
   | .openLeaf _ _ => 1
 
-def BuildChoice.size : BuildChoice H X YS → Nat
+noncomputable def BuildChoice.size : BuildChoice H X YS → Nat
   | .pick _ bt_Y => bt_Y.size
 end
 
 lemma BuildTree.size_lt_loc (H : History) (X : Sequent) (nbas : ¬X.basic)
-    (next : (lt : OpenLocalTableau X) → BuildChoice H X (endNodesOf lt.1))
-    (ltX : OpenLocalTableau X) someLT :
+    (next : (lt : UniOpenLT X) → BuildChoice H X (endNodesOf lt.1))
+    (ltX : UniOpenLT X) someLT :
     (next ltX).6.size < (BuildTree.loc nbas someLT next).size := by
   simp [BuildTree.size]
-  have : (next ltX).6.size ∈ ((OpenLocalTableau.all X).map (fun lt => (next lt).6.size)) := by
+  have : (next ltX).6.size ∈ ((UniOpenLT.all X).map (fun lt => (next lt).6.size)) := by
     simp only [List.mem_map]
-    use ltX, OpenLocalTableau.all_spec
+    use ltX, UniOpenLT.all_spec
   have := List.le_sum_of_mem this
   have : ∀ lt, (next lt).size = (next lt).6.size := fun lt => by
     cases next lt; simp [BuildChoice.size]
@@ -117,8 +144,8 @@ def FreeRepeat.of_rep_free {X : Sequent} (rp : rep H X)
 NEW: note the `Sum.inl p` here. This ensure we start tree building from a Prover position, i.e.
 - not allowing BuilderPos.lpr here (easy, was forbidden already anyway as prover wins there.)
 - not allowing BuilderPos.ltab because we cannot use BuildTree.loc for a single fixed local tab. -/
-def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X, Sum.inl p⟩) :
-    BuildTree H X :=
+noncomputable def buildTree (s : Strategy tableauGame Builder) {H X p}
+    (h : winning s ⟨H, X, Sum.inl p⟩) : BuildTree H X :=
   match p_def : p with
   -- Prover positions:
   | (ProverPos.frep rp) => -- Builder wins free rep.
@@ -153,23 +180,25 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
       have stillWin : ∀ newP, ∀ _ : Move ⟨_,_,Sum.inl (.nbas nrep nbas)⟩ newP, winning s newP :=
         fun newPos mov =>
           @winning_of_whatever_other_move _ _ s _ (by simp) h ⟨newPos, mem_theMoves_of_move ⟨mov⟩⟩
-      have someLT : OpenLocalTableau.all X ≠ [] := by
-        -- We show that there is no lt without end nodes because prover could use it to win.
-        rcases List.exists_mem_of_ne_nil _ (LocalTableau.all_nonempty X) with ⟨lt, lt_in⟩
-        apply List.ne_nil_of_mem (@OpenLocalTableau.all_spec X ⟨lt, ?_⟩)
+      have someLT : UniOpenLT.all X ≠ [] := by
+        -- We show that `uniLocalTab X` has an end node, as otherwise prover could win.
+        rw [UniOpenLT.all_ne_nil_iff]
         intro lt_no_ends
-        have := stillWin ⟨H, ⟨X, Sum.inr (.ltab nrep nbas lt)⟩⟩ Move.prLocTab
+        have := stillWin ⟨H, ⟨X, Sum.inr (.ltab nrep nbas (uniLocalTab X))⟩⟩ Move.prLocTab
         have has_moves := winning_has_moves (by simp) this
         simp only [tableauGame, Game.moves, theMoves, Finset.image_nonempty] at has_moves
         simp_all
       .loc nbas someLT <| fun ltX => by
-        have ne : (tableauGame.moves ⟨H, ⟨X, Sum.inr (.ltab nrep nbas ltX.1)⟩⟩).Nonempty :=
+        rcases ltX with ⟨lt, -, rfl⟩
+        have ne : (tableauGame.moves
+            ⟨H, ⟨X, Sum.inr (.ltab nrep nbas (uniLocalTab X))⟩⟩).Nonempty :=
           winning_has_moves (by simp) <|
-            stillWin ⟨H, ⟨X, Sum.inr (.ltab nrep nbas ltX.1)⟩⟩ Move.prLocTab
+            stillWin ⟨H, ⟨X, Sum.inr (.ltab nrep nbas (uniLocalTab X))⟩⟩ Move.prLocTab
         -- IDEA: use strategy `s` to choose move `mY` that picks the `Y ∈ endNodeOf ltX`:
         -- We want to define mY and then do rcases, but keep the information how it was defined.
-        let mY_raw := s ⟨H, X, Sum.inr (.ltab nrep nbas ltX.1)⟩ (by simp) ne
-        have mY_def : mY_raw.1 = s ⟨H, X, Sum.inr (.ltab nrep nbas ltX.1)⟩ (by simp) ne := rfl
+        let mY_raw := s ⟨H, X, Sum.inr (.ltab nrep nbas (uniLocalTab X))⟩ (by simp) ne
+        have mY_def : mY_raw.1
+            = s ⟨H, X, Sum.inr (.ltab nrep nbas (uniLocalTab X))⟩ (by simp) ne := rfl
         rcases mY_raw with ⟨mY, mY_prop⟩
         simp at mY_def
         -- We continue the BuildTree with the chosen `Y`:
@@ -184,11 +213,11 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
           simp
           exact Y'_in
         · -- now still need to make a `Move` so we can recursively call `buildTree`.
-          have Mov : Move ⟨H, X, Sum.inr (.ltab nrep nbas ltX.1)⟩ mY := by
-            simp only [tableauGame, Game.Pos.moves, ne_eq, theMoves, Finset.mem_image] at mY_prop
+          have Mov : Move ⟨H, X, Sum.inr (.ltab nrep nbas (uniLocalTab X))⟩ mY := by
+            simp only [tableauGame, Game.Pos.moves, theMoves, Finset.mem_image] at mY_prop
             let oY := List.find? -- No more choice thanks to this! NEW: via `seqSort` now!?
               (fun Y => @decide (⟨_, ⟨_, posOf (X :: H) Y⟩⟩ = mY) (instDecidableEqPos _ _))
-              (endNodesOf ltX.1).seqSort
+              (endNodesOf (uniLocalTab X)).seqSort
             cases oY_def : oY
             · exfalso
               have hnone := List.find?_eq_none.mp oY_def
@@ -202,7 +231,7 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
               simp only [decide_eq_true_eq] at def_mY
               have Y_in := (Finset.mem_seqSort _).mp (List.mem_of_find?_eq_some oY_def)
               rw [← def_mY]
-              exact @Move.buEnd X ltX.1 Y H nrep nbas Y_in
+              exact @Move.buEnd X (uniLocalTab X) Y H nrep nbas Y_in
           rcases mY with ⟨H', Y, newP⟩ -- Happy because this does not lose mY_def.
           have H'_def : H' = X :: H := by
             simp [Game.Pos.moves, tableauGame, Game.moves] at mY_prop
@@ -217,7 +246,7 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
                 unfold WellFoundedRelation.rel Game.wf tableauGame
                 simp
                 apply @Relation.TransGen.trans _ _ _
-                  ⟨H, ⟨X, Sum.inr (BuilderPos.ltab nrep nbas ltX.1)⟩⟩
+                  ⟨H, ⟨X, Sum.inr (BuilderPos.ltab nrep nbas (uniLocalTab X))⟩⟩
                 · exact Relation.TransGen.single ⟨Mov⟩
                 · rw [p_def]; exact Relation.TransGen.single ⟨Move.prLocTab⟩
             refine H'_def ▸ @buildTree s H' Y myP ?_
@@ -226,7 +255,7 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
             -- Note that *two* moves have happened now, one by prover and one by Builder using `s`.
             -- Remains to show that `s` still wins.
             apply winning_of_winning_move
-            exact stillWin ⟨_, X, Sum.inr (BuilderPos.ltab nrep nbas ltX.1)⟩ Move.prLocTab
+            exact stillWin ⟨_, X, Sum.inr (BuilderPos.ltab nrep nbas (uniLocalTab X))⟩ Move.prLocTab
           | .inr mY_BP =>
               exfalso -- fingers crossed ;-)
               subst H'_def
@@ -241,7 +270,8 @@ def buildTree (s : Strategy tableauGame Builder) {H X p} (h : winning s ⟨H, X,
                   simp [winning] at this
                 rw [mY_def]
                 apply @winning_of_winning_move _ _ s
-                exact stillWin ⟨_, X, Sum.inr (BuilderPos.ltab nrep nbas ltX.1)⟩ Move.prLocTab
+                exact stillWin ⟨_, X, Sum.inr (BuilderPos.ltab nrep nbas (uniLocalTab X))⟩
+                  Move.prLocTab
               case ltab => -- impossible
                 clear mY_def mY_prop newP
                 have := mem_theMoves_of_move (⟨Mov⟩)
@@ -287,10 +317,10 @@ def Match.btAt {H X} {bt : BuildTree H X} : Match bt → Σ H' Y, BuildTree H' Y
 def Match.endSeq {bt : BuildTree H X} (m : Match bt) : Sequent := m.btAt.2.1
 
 /- All possible Matches in a given BuildTree. -/
-def Match.all {H X} : (bt : BuildTree H X) → List (Match bt)
+noncomputable def Match.all {H X} : (bt : BuildTree H X) → List (Match bt)
   | .loc nbas someLT next =>
       Match.nil ::
-      (OpenLocalTableau.all X >>= fun ltX => return Match.loc (← Match.all (next ltX).6))
+      (UniOpenLT.all X >>= fun ltX => return Match.loc (← Match.all (next ltX).6))
   | .pdl bas someRule next =>
       Match.nil ::
       (PdlRule.all X >>= fun ⟨Y,r⟩ => return Match.pdl (← (Match.all (next Y r))))
@@ -310,7 +340,7 @@ theorem Match.all_spec {H X} {bt : BuildTree H X} {m} :
     rw[Match.all]
     simp
     refine ⟨lt,?_ ⟩
-    refine ⟨ OpenLocalTableau.all_spec ,tail,IH,?_⟩
+    refine ⟨ UniOpenLT.all_spec ,tail,IH,?_⟩
     simp
   | @pdl _ _ bas someR next Y r tail => by
     have IH := @Match.all_spec _ _ _ tail
@@ -551,7 +581,7 @@ def Match.companion {X} {bt : BuildTree [] X} (m n : Match bt) : Prop :=
 local notation ma:arg " ♥ " mb:arg => Match.companion ma mb
 
 /-- The sequent at the companion is the same as the sequent at the repeat.
-Analogous to `nodeAt_companionOf_setEq`. FIXME outdated comment -/
+Similar to `nodeAt_companionOf_setEq`. -/
 lemma Match.companionOf_setEqTo_sequent (m : Match bt) h :
     (m.companionOf h).btAt.2.1 = m.btAt.2.1 := by
   unfold companionOf
@@ -584,7 +614,7 @@ We collect the sequents along such paths directly by induction on the `BuildTree
 The local pre-states come from paths in a local tableau,
 and PDL pre-states each consist of just a single node. -/
 def BuildTree.collect {H X} : (bt : BuildTree H X) → Finset (List Sequent)
-  | .loc _ _ next => (OpenLocalTableau.all X).toFinset.sup
+  | .loc _ _ next => (UniOpenLT.all X).toFinset.sup
                       fun lt => lt.1.pathsTo (next lt).4 ∪ (next lt).6.collect
   | .pdl _ _ next => { [X] } ∪ (PdlRule.all X).toFinset.sup fun ⟨Y,r⟩ => (next Y r).collect
   | .freeRepeat _ => { } -- Not generating a pre-state here, go to companion instead !! ?? !!
@@ -601,7 +631,7 @@ They are the `Finset` replacements of the old list-based unfolding of `collect`.
 @[simp]
 lemma BuildTree.mem_collect_loc {H X} {nbas someLT next} {p : List Sequent} :
     p ∈ (BuildTree.loc (H := H) (X := X) nbas someLT next).collect
-    ↔ ∃ lt ∈ OpenLocalTableau.all X,
+    ↔ ∃ lt ∈ UniOpenLT.all X,
         p ∈ lt.1.pathsTo (next lt).4 ∨ p ∈ (next lt).6.collect := by
   rw [BuildTree.collect]
   simp only [Finset.mem_sup, List.mem_toFinset, Finset.mem_union]
@@ -837,7 +867,7 @@ lemma Match.collect_btAt_subset {H X} {bt : BuildTree H X} (m : Match bt) :
     intro π hπ
     have hsub := IH π (by simpa [Match.btAt] using hπ)
     simp only [BuildTree.mem_collect_loc]
-    exact ⟨lt, OpenLocalTableau.all_spec, Or.inr hsub⟩
+    exact ⟨lt, UniOpenLT.all_spec, Or.inr hsub⟩
   | @pdl H X bas someR next Y r tail IH =>
     intro π hπ
     have hsub := IH π (by simpa [Match.btAt] using hπ)
@@ -909,7 +939,7 @@ def BuildTree.toMatchAux : {H : History} → {X : Sequent} → (bt : BuildTree H
     (p : List Sequent) → Match bt
   | _, X, .loc _ _ next, p =>
       -- If `p` is collected below one of the local tableaux, then go there, else stay here.
-      match (OpenLocalTableau.all X).find? (fun lt => decide (p ∈ (next lt).6.collect)) with
+      match (UniOpenLT.all X).find? (fun lt => decide (p ∈ (next lt).6.collect)) with
       | some lt => .loc (BuildTree.toMatchAux (next lt).6 p)
       | none => .nil
   | _, X, .pdl _ _ next, p =>
@@ -929,7 +959,7 @@ lemma BuildTree.toMatchAux_mem_collect : {H : History} → {X : Sequent} → (bt
     (p : List Sequent) → p ∈ bt.collect → p ∈ (bt.toMatchAux p).btAt.2.2.collect
   | _, X, .loc nbas someLT next, p, hp => by
       rw [BuildTree.toMatchAux]
-      cases h : (OpenLocalTableau.all X).find? (fun lt => decide (p ∈ (next lt).6.collect))
+      cases h : (UniOpenLT.all X).find? (fun lt => decide (p ∈ (next lt).6.collect))
       case some lt =>
         have p_in := List.find?_some h
         simp only [decide_eq_true_eq] at p_in
@@ -956,7 +986,7 @@ lemma BuildTree.toMatchAux_head? : {H : History} → {X : Sequent} → (bt : Bui
     (p : List Sequent) → p ∈ bt.collect → p.head? = some (bt.toMatchAux p).btAt.2.1
   | _, X, .loc nbas someLT next, p, hp => by
       rw [BuildTree.toMatchAux]
-      cases h : (OpenLocalTableau.all X).find? (fun lt => decide (p ∈ (next lt).6.collect))
+      cases h : (UniOpenLT.all X).find? (fun lt => decide (p ∈ (next lt).6.collect))
       case some lt =>
         have p_in := List.find?_some h
         simp only [decide_eq_true_eq] at p_in
