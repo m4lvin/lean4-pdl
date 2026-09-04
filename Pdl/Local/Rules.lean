@@ -14,10 +14,6 @@ open HasLength
 
 /-! ## One-sided local rules -/
 
-@[simp]
-def List.toFinFin [DecidableEq α] : List (List α) → Finset (Finset α )
-  | LS => (LS.map (fun L => L.toFinset)).toFinset
-
 /-- Local rules replace a given set of formulas by other sets, one for each branch.
 The set of resulting branches can be empty, representing that the given set is closed.
 In the Haskell prover this is done in "ruleFor" in the Logic.PDL.Prove.Tree module. -/
@@ -34,32 +30,6 @@ inductive OneSidedLocalRule : Finset Formula → Finset (Finset Formula) → Typ
   | box (α φ) : (notAtom : ¬ α.isAtomic) → OneSidedLocalRule { ⌈α⌉φ} (unfoldBox     α φ).toFinFin
   | dia (α φ) : (notAtom : ¬ α.isAtomic) → OneSidedLocalRule {~⌈α⌉φ} (unfoldDiamond α φ).toFinFin
   deriving Repr
-
--- FIXME move to Pdl.Syntax
-/-- No formula is its own double negation. -/
-lemma Formula.ne_neg_neg_self (φ : Formula) : φ ≠ ~~φ := by
-  intro h; have := congrArg lengthOfFormula h; simp at this; omega
-
--- FIXME move to Pdl.Syntax
-/-- A pair `{φ, ~φ}` is never a singleton. -/
-lemma pair_neg_ne_singleton (φ ψ : Formula) : ({φ, ~φ} : Finset Formula) ≠ {ψ} := by
-  intro h
-  have h1 : φ ∈ ({ψ} : Finset Formula) := h ▸ (by simp)
-  have h2 : (~φ) ∈ ({ψ} : Finset Formula) := h ▸ (by simp)
-  simp only [Finset.mem_singleton] at h1 h2
-  exact Formula.neq_neg_self φ (h1.trans h2.symm)
-
--- FIXME move to Pdl.Syntax
-/-- The pairs `{φ, ~φ}` determine `φ`. -/
-lemma pair_neg_inj {φ ψ : Formula} (h : ({φ, ~φ} : Finset Formula) = {ψ, ~ψ}) : φ = ψ := by
-  have h1 : φ ∈ ({ψ, ~ψ} : Finset Formula) := h ▸ (by simp)
-  have h2 : (~φ) ∈ ({ψ, ~ψ} : Finset Formula) := h ▸ (by simp)
-  simp only [Finset.mem_insert, Finset.mem_singleton] at h1 h2
-  rcases h1 with h1 | h1
-  · exact h1
-  · rcases h2 with h2 | h2
-    · exact absurd (h2.symm.trans (congrArg Formula.neg h1)) (Formula.ne_neg_neg_self ψ)
-    · exact Formula.neg.inj h2
 
 /-- The precondition of a `OneSidedLocalRule` determines the rule. -/
 theorem OneSidedLocalRule.heq_of_precond_eq : ∀ {X B X' B' : _}
@@ -78,13 +48,6 @@ instance oneSidedLocalRuleSubsingleton (X B) : Subsingleton (OneSidedLocalRule X
   ⟨fun a b => eq_of_heq (OneSidedLocalRule.heq_of_precond_eq a b rfl)⟩
 
 instance : DecidableEq (OneSidedLocalRule X B) := fun a b => isTrue (Subsingleton.elim a b)
-
--- FIXME move
-/-- evaluate does not care about sorting -/
-lemma evaluate_con_sort (X : Finset Formula) :
-    evaluate M w (con (X.sort fun a b ↦ a ≤ b)) ↔ ∀ φ ∈ X, evaluate M w φ := by
-  rw [conEval]
-  simp
 
 theorem oneSidedLocalRuleTruth (lr : OneSidedLocalRule X B) :
       con X.sort ≡ B.discon :=
@@ -136,12 +99,6 @@ inductive LoadRule : NegLoadFormula → Finset (Finset Formula × Option NegLoad
   | dia' {α φ} : (notAtom : ¬ α.isAtomic)
                 → LoadRule (~'⌊α⌋(φ : Formula    )) (unfoldDiamondLoaded' α φ).toFinFinOpt
   deriving DecidableEq, Repr
-
--- FIXME move to a general list/finset file
-/-- Turning a mapped list into a `Finset` is the image of the `Finset`. -/
-lemma List.toFinset_map_eq_image {α β} [DecidableEq α] [DecidableEq β] (l : List α) (f : α → β) :
-    (l.map f).toFinset = l.toFinset.image f := by
-  ext x; simp
 
 /-- Unloading a pair and then going to `Finset`s is the same as `pairUnloadSet`. -/
 lemma toFinset_pairUnload (p : List Formula × Option NegLoadFormula) :

@@ -306,13 +306,6 @@ def LoadedPathRepeat.flip {Hist X} : LoadedPathRepeat Hist X →
       apply path_loaded ⟨m, by grind⟩
       omega
 
--- move elsewhere?
-lemma LoadedPathRepeat.ext {Hist X} (lprA lprB : LoadedPathRepeat Hist X) :
-    lprA.1 = lprB.1 → lprA = lprB := by
-  rcases lprA with ⟨a, ha⟩
-  rcases lprB with ⟨b, hb⟩
-  grind
-
 lemma LoadedPathRepeat.flip_flip {Hist X} (lpr : LoadedPathRepeat Hist X) :
     lpr.flip.flip = Sequent.map_flip_map_flip ▸ Sequent.flip_flip ▸ lpr := by
   rcases lpr with ⟨k, hk⟩

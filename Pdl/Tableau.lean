@@ -116,6 +116,12 @@ lemma LoadedPathRepeat.to_rep {H X} (lpr : LoadedPathRepeat H X) : rep H X := by
   use List.get H k
   grind
 
+lemma LoadedPathRepeat.ext {Hist X} (lprA lprB : LoadedPathRepeat Hist X) :
+    lprA.1 = lprB.1 → lprA = lprB := by
+  rcases lprA with ⟨a, ha⟩
+  rcases lprB with ⟨b, hb⟩
+  grind
+
 instance {Hist X} : DecidableEq (LoadedPathRepeat Hist X) := Subtype.instDecidableEq
 
 /-- If there is any loaded path repeat, then we can compute one.

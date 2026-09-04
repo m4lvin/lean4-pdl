@@ -676,6 +676,29 @@ instance programHasLength : HasLength Program := ⟨lengthOfProgram⟩
 @[simp]
 instance setProgramHasLength : HasLength (Finset Program) := ⟨fun X => X.sum lengthOfProgram⟩
 
+/-- No formula is its own double negation. -/
+lemma Formula.ne_neg_neg_self (φ : Formula) : φ ≠ ~~φ := by
+  intro h; have := congrArg lengthOfFormula h; simp at this; omega
+
+/-- A pair `{φ, ~φ}` is never a singleton. -/
+lemma pair_neg_ne_singleton (φ ψ : Formula) : ({φ, ~φ} : Finset Formula) ≠ {ψ} := by
+  intro h
+  have h1 : φ ∈ ({ψ} : Finset Formula) := h ▸ (by simp)
+  have h2 : (~φ) ∈ ({ψ} : Finset Formula) := h ▸ (by simp)
+  simp only [Finset.mem_singleton] at h1 h2
+  exact Formula.neq_neg_self φ (h1.trans h2.symm)
+
+/-- The pairs `{φ, ~φ}` determine `φ`. -/
+lemma pair_neg_inj {φ ψ : Formula} (h : ({φ, ~φ} : Finset Formula) = {ψ, ~ψ}) : φ = ψ := by
+  have h1 : φ ∈ ({ψ, ~ψ} : Finset Formula) := h ▸ (by simp)
+  have h2 : (~φ) ∈ ({ψ, ~ψ} : Finset Formula) := h ▸ (by simp)
+  simp only [Finset.mem_insert, Finset.mem_singleton] at h1 h2
+  rcases h1 with h1 | h1
+  · exact h1
+  · rcases h2 with h2 | h2
+    · exact absurd (h2.symm.trans (congrArg Formula.neg h1)) (Formula.ne_neg_neg_self ψ)
+    · exact Formula.neg.inj h2
+
 /-! ## Sorting formulas
 
 Needed to convert a `Finset Formula` to `List Formula`.

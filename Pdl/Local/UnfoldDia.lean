@@ -1,5 +1,6 @@
 import Mathlib.Tactic.Linarith
 
+import Pdl.General.ListFinset
 import Pdl.Substitution
 import Pdl.Star
 
@@ -348,6 +349,14 @@ theorem unfoldDiamond_voc {x α φ} {L} (L_in : L ∈ unfoldDiamond α φ) {ψ} 
       tauto
     · right
       assumption
+
+/-- `Finset` version of `unfoldDiamond_voc`. -/
+theorem unfoldDiamond_voc_fin {x α φ} {X : Finset Formula}
+    (X_in : X ∈ (unfoldDiamond α φ).toFinFin)
+    {ψ} (ψ_in : ψ ∈ X) (x_in_voc_ψ : x ∈ ψ.voc) : x ∈ α.voc ∨ x ∈ φ.voc := by
+  simp only [List.toFinFin, List.mem_toFinset, List.mem_map] at X_in
+  rcases X_in with ⟨L, L_in, rfl⟩
+  exact unfoldDiamond_voc L_in (List.mem_toFinset.mp ψ_in) x_in_voc_ψ
 
 theorem guardToStarDiamond (x : Nat)
     (x_notin_beta : Sum.inl x ∉ β.voc)

@@ -3,17 +3,6 @@ import Pdl.Interpolation.Local
 
 /-! ## Helper lemmas about vocabularies and interpolants -/
 
-/-- The vocabulary of a finset of formulas only grows when we add formulas with larger
-vocabularies.
-FIXME: This should be moved to `Pdl/Vocab.lean`, next to `Finset.fvoc`. -/
-lemma fvoc_subset_of_mem_voc {L L' : Finset Formula}
-    (h : ∀ f ∈ L, ∃ g ∈ L', f.voc ⊆ g.voc) : L.fvoc ⊆ L'.fvoc := by
-  intro x hx
-  rw [Finset.mem_fvoc] at hx ⊢
-  obtain ⟨f, hf, hxf⟩ := hx
-  obtain ⟨g, hg, hsub⟩ := h f hf
-  exact ⟨g, hg, hsub hxf⟩
-
 open HasSat in
 /-- Being an interpolant only depends on which formulas are in the two components. -/
 lemma isPartInterpolant_of_mem_iff {Z Y : Sequent} {θ : Formula}

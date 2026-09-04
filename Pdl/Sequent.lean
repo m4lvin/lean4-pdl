@@ -17,34 +17,6 @@ def Olf.voc : Olf → Vocab
 | some (Sum.inl nlf) => nlf.voc
 | some (Sum.inr nlf) => nlf.voc
 
-def Olf.L : Olf → Finset Formula
-| none => {}
-| some (Sum.inl ⟨lf⟩) => {~ lf.unload}
-| some (Sum.inr _) =>{}
-
-@[simp]
-lemma Olf.L_none : Olf.L none = {} := by rfl
-@[simp]
-lemma Olf.L_inr : Olf.L (some (Sum.inr lf)) = {} := by rfl
-@[simp]
-lemma Olf.L_map_inr : Olf.L (Option.map Sum.inr olf) = {} := by cases olf <;> rfl
-@[simp]
-lemma Olf.L_inl : Olf.L (some (Sum.inl lf)) = {~lf.1.unload} := by simp only [L]
-
-def Olf.R : Olf → Finset Formula
-| none => {}
-| some (Sum.inl _) => {}
-| some (Sum.inr ⟨lf⟩) => {~ lf.unload}
-
-@[simp]
-lemma Olf.R_none : Olf.R none = {} := by rfl
-@[simp]
-lemma Olf.R_inl : Olf.R (some (Sum.inl lf)) = {} := by rfl
-@[simp]
-lemma Olf.R_map_inl : Olf.R (Option.map Sum.inl olf) = {} := by cases olf <;> rfl
-@[simp]
-lemma Olf.R_inr : Olf.R (some (Sum.inr lf)) = {~lf.1.unload} := by simp only [R]
-
 -- mathlib this?
 @[simp]
 instance Option.instHasSubsetOption : HasSubset (Option α) := HasSubset.mk
@@ -86,6 +58,54 @@ lemma Option.insHasSdiff_remove_sem_eq_none [DecidableEq α] :
     (some x) \ (some x : Option α) = none := by
   unfold Option.insHasSdiff
   grind
+
+def Olf.L : Olf → Finset Formula
+| none => {}
+| some (Sum.inl ⟨lf⟩) => {~ lf.unload}
+| some (Sum.inr _) =>{}
+
+@[simp]
+lemma Olf.L_none : Olf.L none = {} := by rfl
+@[simp]
+lemma Olf.L_inr : Olf.L (some (Sum.inr lf)) = {} := by rfl
+@[simp]
+lemma Olf.L_map_inr : Olf.L (Option.map Sum.inr olf) = {} := by cases olf <;> rfl
+@[simp]
+lemma Olf.L_inl : Olf.L (some (Sum.inl lf)) = {~lf.1.unload} := by simp only [L]
+
+lemma Olf.L_subset_of_subset {O1 O2 : Olf} (h : O1 ⊆ O2) : O1.L ⊆ O2.L := by
+  rcases O1 with _|χ <;> rcases O2 with _|χ' <;> simp_all [Olf.L]
+
+lemma Olf.L_sdiff_subset {O Ocond : Olf} : (O \ Ocond).L ⊆ O.L := by
+  rcases O with _|χ
+  · simp
+  rcases Ocond with _|χ'
+  · simp
+  by_cases h : χ = χ' <;> simp_all [Option.insHasSdiff, Olf.L]
+
+def Olf.R : Olf → Finset Formula
+| none => {}
+| some (Sum.inl _) => {}
+| some (Sum.inr ⟨lf⟩) => {~ lf.unload}
+
+@[simp]
+lemma Olf.R_none : Olf.R none = {} := by rfl
+@[simp]
+lemma Olf.R_inl : Olf.R (some (Sum.inl lf)) = {} := by rfl
+@[simp]
+lemma Olf.R_map_inl : Olf.R (Option.map Sum.inl olf) = {} := by cases olf <;> rfl
+@[simp]
+lemma Olf.R_inr : Olf.R (some (Sum.inr lf)) = {~lf.1.unload} := by simp only [R]
+
+lemma Olf.R_subset_of_subset {O1 O2 : Olf} (h : O1 ⊆ O2) : O1.R ⊆ O2.R := by
+  rcases O1 with _|χ <;> rcases O2 with _|χ' <;> simp_all [Olf.R]
+
+lemma Olf.R_sdiff_subset {O Ocond : Olf} : (O \ Ocond).R ⊆ O.R := by
+  rcases O with _|χ
+  · simp
+  rcases Ocond with _|χ'
+  · simp
+  by_cases h : χ = χ' <;> simp_all [Option.insHasSdiff, Olf.R]
 
 @[simp]
 def Option.overwrite : Option α → Option α → Option α
@@ -188,6 +208,10 @@ def onlfvoc : Option NegLoadFormula → Vocab
 
 def lfovoc (L : List (List Formula × Option NegLoadFormula)) : Vocab :=
   L.toFinset.sup (fun ⟨fs,o⟩ => fs.fvoc ∪ (onlfvoc o))
+
+/-- `Finset` version of `lfovoc`. -/
+def lfovocFin (L : Finset (Finset Formula × Option NegLoadFormula)) : Vocab :=
+  L.sup (fun ⟨fs,o⟩ => fs.fvoc ∪ (onlfvoc o))
 
 /-- The joint vocabulary occurring on both the left and the right side. -/
 @[simp]

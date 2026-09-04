@@ -53,6 +53,30 @@ abbrev Finset.fvoc (L : Finset Formula) := Vocab.fromFinset (L.image Formula.voc
 abbrev Finset.pvoc (L : Finset Program) := Vocab.fromFinset (L.image Program.voc)
 
 @[simp]
+lemma Finset.mem_fvoc {X : Finset Formula} {x} : x ∈ X.fvoc ↔ ∃ φ ∈ X, x ∈ φ.voc := by
+  simp [Finset.fvoc, Vocab.fromFinset, Finset.mem_sup]
+
+@[simp]
+lemma Finset.fvoc_union {X Y : Finset Formula} : (X ∪ Y).fvoc = X.fvoc ∪ Y.fvoc := by
+  simp [Finset.fvoc, Vocab.fromFinset, Finset.image_union, Finset.sup_union]
+
+lemma Finset.fvoc_mono {X Y : Finset Formula} (h : X ⊆ Y) : X.fvoc ⊆ Y.fvoc := by
+  intro x x_in
+  rw [Finset.mem_fvoc] at *
+  rcases x_in with ⟨φ, φ_in, x_in⟩
+  exact ⟨φ, h φ_in, x_in⟩
+
+/-- The vocabulary of a finset of formulas only grows when we add formulas with larger
+vocabularies. -/
+lemma fvoc_subset_of_mem_voc {L L' : Finset Formula}
+    (h : ∀ f ∈ L, ∃ g ∈ L', f.voc ⊆ g.voc) : L.fvoc ⊆ L'.fvoc := by
+  intro x hx
+  rw [Finset.mem_fvoc] at hx ⊢
+  obtain ⟨f, hf, hxf⟩ := hx
+  obtain ⟨g, hg, hsub⟩ := h f hf
+  exact ⟨g, hg, hsub hxf⟩
+
+@[simp]
 theorem Vocab.fromList_append : Vocab.fromList (L ++ R) = Vocab.fromList L ∪ Vocab.fromList R := by
   induction L <;> induction R <;> simp_all
 

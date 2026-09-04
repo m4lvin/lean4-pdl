@@ -326,6 +326,10 @@ notation pa:arg " ◃* " pb:arg => Relation.ReflTransGen cEdge pa pb
 example : pa ◃ pb ↔ (pa ⋖_ pb) ∨ pa ♥ pb := by
   simp_all [cEdge]
 
+/-- Any `⋖_` path is also a `◃` path. -/
+lemma cReach_of_le {X} {tab : Tableau .nil X} {s t : PathIn tab} (h : s ≤ t) : s ◃* t :=
+  h.mono (fun _ _ h => Or.inl h)
+
 instance instDecidableCEdge {X} {tab : Tableau .nil X} (p q : PathIn tab) :
     Decidable (p ◃ q) := by
   unfold cEdge

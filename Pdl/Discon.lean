@@ -67,6 +67,12 @@ theorem Finset.conEval {W M} {X : Finset Formula} {w : W} :
     evaluate M w X.con ↔ ∀ f ∈ X, evaluate M w f := by
   simp [Finset.con, _root_.conEval]
 
+/-- Evaluating a conjunction does not care about sorting. -/
+lemma evaluate_con_sort (X : Finset Formula) :
+    evaluate M w (con (X.sort fun a b ↦ a ≤ b)) ↔ ∀ φ ∈ X, evaluate M w φ := by
+  rw [conEval]
+  simp
+
 /-- Vocabulary of the conjunction of a `Finset`. -/
 theorem Finset.in_voc_con n (X : Finset Formula) :
     n ∈ X.con.voc ↔ ∃ φ ∈ X, n ∈ φ.voc := by

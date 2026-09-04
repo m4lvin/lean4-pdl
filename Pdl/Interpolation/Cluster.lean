@@ -173,11 +173,6 @@ lemma isClusterRoot_of_isExitOf {s e : PathIn tab}
   subst p_eq_t
   exact ⟨p_e_equiv.2.trans t_s.1, t_s.2.trans p_e_equiv.1⟩
 
--- FIXME move / already exists with other name?
-/-- Any `⋖_` path is also a `◃` path. -/
-lemma cReach_of_le {s t : PathIn tab} (h : s ≤ t) : s ◃* t :=
-  h.mono (fun _ _ h => Or.inl h)
-
 /-- If `u < s` then some parent of `s` is reachable from `u` (possibly `u` itself). -/
 lemma exists_parent_of_lt {u s : PathIn tab} (h : u < s) :
     ∃ p : PathIn tab, u ≤ p ∧ p ⋖_ s := by

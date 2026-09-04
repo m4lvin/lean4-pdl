@@ -11,37 +11,6 @@ of a `LocalTableau`, and `FinePathIn`, for the nodes of a whole `Tableau` in the
 i.e. including those nodes inside a local tableau that a `loc` step jumps over.
 -/
 
-/-! ## Helpers about `Finset`s and end nodes
-
-NOTE: The following helpers about `Finset` and `endNodesOf` would fit better into
-`Pdl.Syntax` (or another general file) and `Pdl.Local.Tableau` respectively. -/
-
-/-- The elements of a finite set, as a list of elements *together with* membership proofs.
-This is the `Finset` analogue of `List.attach`. It is noncomputable because we have no
-linear order on the elements, but the order of the list is irrelevant for our purposes.
-
-still TODO: make computable version because we have `Finset.seqSort` in AllLocalTab (FIXME move it)
--/
-noncomputable def Finset.attachList {α : Type*} (s : Finset α) : List {x // x ∈ s} :=
-  s.toList.attach.map (fun x => ⟨x.1, Finset.mem_toList.mp x.2⟩)
-
-@[simp]
-lemma Finset.mem_attachList {α : Type*} {s : Finset α} (a : {x // x ∈ s}) : a ∈ s.attachList :=
-  List.mem_map.mpr ⟨⟨a.1, Finset.mem_toList.mpr a.2⟩, List.mem_attach _ _, rfl⟩
-
-@[simp]
-lemma Finset.attachList_map_val {α : Type*} {s : Finset α} :
-    s.attachList.map Subtype.val = s.toList := by
-  simp [Finset.attachList, List.map_map, Function.comp_def]
-
-/-- Membership in the end nodes of a local tableau given by a local rule application. -/
-lemma mem_endNodesOf_byLocalRule_iff {X} {lra : LocalRuleApp} {X_def : X = lra.X}
-    {next : ∀ Y ∈ lra.C, LocalTableau Y} {Z} :
-    Z ∈ endNodesOf (LocalTableau.byLocalRule lra X_def next)
-      ↔ ∃ Y, ∃ h : Y ∈ lra.C, Z ∈ endNodesOf (next Y h) := by
-  simp only [endNodesOf, Finset.sup_image, Function.id_comp, Finset.mem_sup, Finset.mem_attach,
-    true_and, Subtype.exists]
-
 /-! ## Paths inside a local tableau
 
 The `Tableau` type applies a whole `LocalTableau` in one `loc` step, and thus the `PathIn`

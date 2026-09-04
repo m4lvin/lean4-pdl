@@ -2,6 +2,7 @@ import Mathlib.Data.Fintype.Pi
 import Mathlib.Data.List.Sublists
 import Mathlib.Tactic.Linarith
 
+import Pdl.General.ListFinset
 import Pdl.Substitution
 import Pdl.Star
 
@@ -600,6 +601,13 @@ theorem unfoldBox_voc {x α φ} {L} (L_in : L ∈ unfoldBox α φ) {ψ} (ψ_in :
       rcases x_in with ⟨β, β_in, x_in_βvoc⟩
       exact subprograms_voc (sub_α.2 β β_in) x_in_βvoc
     · exact Or.inr x_in
+
+/-- `Finset` version of `unfoldBox_voc`. -/
+theorem unfoldBox_voc_fin {x α φ} {X : Finset Formula} (X_in : X ∈ (unfoldBox α φ).toFinFin)
+    {ψ} (ψ_in : ψ ∈ X) (x_in_voc_ψ : x ∈ ψ.voc) : x ∈ α.voc ∨ x ∈ φ.voc := by
+  simp only [List.toFinFin, List.mem_toFinset, List.mem_map] at X_in
+  rcases X_in with ⟨L, L_in, rfl⟩
+  exact unfoldBox_voc L_in (List.mem_toFinset.mp ψ_in) x_in_voc_ψ
 
 /-- A helper theorem about `Bset` and `signature`.
 Note that the paper only states the third conjunct. -/

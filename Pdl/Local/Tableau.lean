@@ -721,6 +721,14 @@ theorem endNodeOfChild_to_endNode
       true_and, Subtype.exists]
     grind
 
+/-- Membership in the end nodes of a local tableau given by a local rule application. -/
+lemma mem_endNodesOf_byLocalRule_iff {X} {lra : LocalRuleApp} {X_def : X = lra.X}
+    {next : ∀ Y ∈ lra.C, LocalTableau Y} {Z} :
+    Z ∈ endNodesOf (LocalTableau.byLocalRule lra X_def next)
+      ↔ ∃ Y, ∃ h : Y ∈ lra.C, Z ∈ endNodesOf (next Y h) := by
+  simp only [endNodesOf, Finset.sup_image, Function.id_comp, Finset.mem_sup, Finset.mem_attach,
+    true_and, Subtype.exists]
+
 /-! ## Overall Soundness and Invertibility of LocalTableau -/
 
 theorem localTableauTruth {X} (lt : LocalTableau X) {W} (M : KripkeModel W) (w : W) :
