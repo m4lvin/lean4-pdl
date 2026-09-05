@@ -29,19 +29,15 @@ clean:
 
 BASE = https://m4lvin.github.io/lean4-pdl/docs/Pdl/
 
-OLEANS = $(wildcard .lake/build/lib/lean/Pdl/*.olean) $(wildcard .lake/build/lib/lean/Bml/*.olean)
+OLEAN_DIRS = .lake/build/lib/lean/Pdl .lake/build/lib/lean/Bml
+OLEANS = $(shell find $(OLEAN_DIRS) -name "*.olean" 2>/dev/null)
 
 delete-unused-oleans:
 	@for olean in $(OLEANS); do \
-		dir=$$(dirname $$olean); \
-		base=$$(basename $$olean .olean); \
-		lean=$$base.lean; \
-		if [ "$$dir" = ".lake/build/lib/lean/Pdl" ] && [ ! -f ./Pdl/$$lean ]; then \
+		lean_src=$$(echo "$$olean" | sed 's|^\.lake/build/lib/lean/||' | sed 's|\.olean$$|.lean|'); \
+		if [ ! -f "./$$lean_src" ]; then \
 			echo "Deleting $$olean"; \
-			rm -f $$olean; \
-		elif [ "$$dir" = ".lake/build/lib/lean/Bml" ] && [ ! -f ./Bml/$$lean ]; then \
-			echo "Deleting $$olean"; \
-			rm -f $$olean; \
+			rm -f "$$olean"; \
 		fi \
 	done
 	@echo "Deleted unused .olean files."
