@@ -327,9 +327,9 @@ lemma Sublist.pmap {α β : Type*} {p p2 : α → Prop}
   | cons _ _ h =>
     apply Sublist.cons
     apply h
-  | cons₂ _ _ h =>
+  | cons_cons _ _ h =>
     rw [pmap.eq_2, pmap.eq_2]
-    convert Sublist.cons₂ ..
+    convert Sublist.cons_cons ..
     · exact (agree ..).symm
     · exact h
 
@@ -429,8 +429,8 @@ def tabToInt {LR : TNode} (tab : ClosedTableau LR) : PartInterpolant LR :=
       · exact projection_reflects_unsat_R_R nBoxφ_in_R pθ.2.2.2
 termination_by tab.length
 decreasing_by
-all_goals
-  subst_eqs
-  simp [ClosedTableau.length]
-· exact childNext_lt subTabs next cLR c_in_C
-· apply simple_lt isSimple next
+  all_goals
+    subst_eqs
+    simp [ClosedTableau.length]
+  · exact childNext_lt subTabs next cLR c_in_C
+  · apply simple_lt isSimple next

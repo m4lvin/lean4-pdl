@@ -30,6 +30,18 @@ theorem formulasInNegBoxIff {X α} : α ∈ formulasInNegBox X ↔  ~(□α) ∈
       · exact a
       · simp_all only [Finset.mem_singleton]
 
+/-- `TNode` is a plain `def`, so since Lean 4.29 `simp` no longer sees through it to apply
+`Prod.mk.injEq`.  This restates that lemma at type `TNode`. -/
+theorem TNode_mk_eq {a b c d : Finset Formula} :
+    (@Eq TNode (a, b) (c, d)) = (a = c ∧ b = d) :=
+  Prod.mk.injEq a b c d
+
+/-- Since Lean 4.29 the `@[simp] instance` mechanism is inert, so unfolding
+`Satisfiable` on a `TNode` needs an explicit lemma. -/
+theorem sat_TNode_pair {L R : Finset Formula} :
+    @HasSat.Satisfiable TNode TNodeHasSat (L, R) = HasSat.Satisfiable (L ∪ R) := rfl
+
+@[implicit_reducible]
 def ConsTNode := Subtype fun Y => Consistent Y
 
 @[simp]
@@ -131,9 +143,11 @@ theorem pathSaturated {consLR} (path : Path consLR) : Saturated (pathToFinset pa
   intro P Q
   induction path
   case endNode LR LR_cons LR_simple =>
-    unfold Simple SimpleSet at LR_simple
-    rcases LR_simple with ⟨L_simple, R_simple⟩
-    simp_all
+    obtain ⟨L, R⟩ := LR
+    have LR_simple' := LR_simple
+    unfold Simple SimpleSet at LR_simple'
+    rcases LR_simple' with ⟨L_simple, R_simple⟩
+    simp only [pathToFinset, Finset.mem_union]
     constructor
     · intro nnP_in
       cases nnP_in
@@ -352,37 +366,28 @@ theorem pathConsistent (path : Path TN) :
     ∧ ∀ (pp: Char), (·pp) ∈ pathToFinset path → ~(·pp) ∉ pathToFinset path := by
   induction path
   case endNode LR consistentLR simpleLR =>
-      unfold Consistent Inconsistent at consistentLR
-      simp at consistentLR
+      obtain ⟨L, R⟩ := LR
+      have consistentLR' := consistentLR
+      unfold Consistent Inconsistent at consistentLR'
+      simp at consistentLR'
+      simp only [pathToFinset, Finset.mem_union]
       constructor
-      · by_contra bot_in
-        simp at bot_in
-        cases bot_in
-        case inl bot_in =>
-          exact IsEmpty.false (botTableauL bot_in)
-        case inr bot_in =>
-          exact IsEmpty.false (botTableauR bot_in)
-      · intro pp pp_in
-        by_contra npp_in
-        simp_all
-        cases pp_in
-        case inl pp_in =>
-          cases npp_in
-          case inl npp_in =>
-            exact IsEmpty.false (notTableauLL pp_in npp_in)
-          case inr npp_in =>
-            exact IsEmpty.false (notTableauLR pp_in npp_in)
-        case inr pp_in =>
-          cases npp_in
-          case inl npp_in =>
-            exact IsEmpty.false (notTableauRL pp_in npp_in)
-          case inr npp_in =>
-            exact IsEmpty.false (notTableauRR pp_in npp_in)
+      · rintro (bot_in | bot_in)
+        · exact IsEmpty.false (botTableauL (LR := (L, R)) bot_in)
+        · exact IsEmpty.false (botTableauR (LR := (L, R)) bot_in)
+      · rintro pp (pp_in | pp_in) (npp_in | npp_in)
+        · exact IsEmpty.false (notTableauLL (LR := (L, R)) pp_in npp_in)
+        · exact IsEmpty.false (notTableauLR (LR := (L, R)) pp_in npp_in)
+        · exact IsEmpty.false (notTableauRL (LR := (L, R)) pp_in npp_in)
+        · exact IsEmpty.false (notTableauRR (LR := (L, R)) pp_in npp_in)
   case interNode LR C LR' LR'_cons LR_cons lrApp LR'_in tail IH =>
+    obtain ⟨L', R'⟩ := LR'
     constructor
     · by_contra h
-      unfold Consistent Inconsistent at *
-      simp at LR'_cons LR_cons
+      have LR_cons' := LR_cons
+      have LR'_cons' := LR'_cons
+      unfold Consistent Inconsistent at LR_cons' LR'_cons'
+      simp at LR_cons' LR'_cons'
       simp_all -- handels the case ⊥ ∈ pathToFinset tail
       cases h
       case inl bot_in =>
@@ -394,33 +399,46 @@ theorem pathConsistent (path : Path TN) :
       rcases IH with ⟨IH1, IH2⟩
       specialize IH2 pp
       have : (·pp) ∈ pathToFinset tail ∧  (~·pp) ∈ pathToFinset tail:= by
+        simp only [pathToFinset, Finset.mem_union] at pp_in npp_in
         rcases lrApp with ⟨ress, Lcond,Rcond, lr, Lcond_in, Rcond_in⟩
         rename_i L R C_eq
         subst C_eq
         simp_all
         constructor
-        · rcases pp_in with pp_in | pp_in | pp_in
+        · rcases pp_in with (pp_in | pp_in) | pp_in
           · apply LR_in_PathLR
             simp
             apply Or.inl
+            clear npp_in IH1 IH2 tail LR'_cons LR_cons
             cases_type* LocalRule OneSidedLocalRule
+            all_goals try simp_all only [TNode_mk_eq]
+            all_goals try simp_all
             all_goals aesop
           · apply LR_in_PathLR
             simp
             apply Or.inr
+            clear npp_in IH1 IH2 tail LR'_cons LR_cons
             cases_type* LocalRule OneSidedLocalRule
+            all_goals try simp_all only [TNode_mk_eq]
+            all_goals try simp_all
             all_goals aesop
           · assumption
-        · rcases npp_in with npp_in | npp_in | npp_in
+        · rcases npp_in with (npp_in | npp_in) | npp_in
           · apply LR_in_PathLR
             simp
             apply Or.inl
+            clear pp_in IH1 IH2 tail LR'_cons LR_cons
             cases_type* LocalRule OneSidedLocalRule
+            all_goals try simp_all only [TNode_mk_eq]
+            all_goals try simp_all
             all_goals aesop
           · apply LR_in_PathLR
             simp
             apply Or.inr
+            clear pp_in IH1 IH2 tail LR'_cons LR_cons
             cases_type* LocalRule OneSidedLocalRule
+            all_goals try simp_all only [TNode_mk_eq]
+            all_goals try simp_all
             all_goals aesop
           · assumption
       simp_all
@@ -580,7 +598,6 @@ theorem modelExistence : Consistent (L,R) →
                 all_goals simp_all
               apply (LR_in_PathLR _) nf_in
             · have h := M₀.inductiveL w' w'_in v'_def
-              simp at h
               specialize h f nboxf_in
               use u'
               simp_all only [union_singleton_is_insert, and_true]
@@ -634,4 +651,4 @@ theorem singletonCompleteness : ∀ φ, Consistent ({φ},{}) ↔ Satisfiable φ 
   by
   intro f
   have := completeness ({f},{})
-  simp_all!
+  simp_all! [sat_TNode_pair]

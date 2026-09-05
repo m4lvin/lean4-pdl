@@ -137,7 +137,9 @@ def LoadedPathRepeat.choice {H X} (ne : Nonempty (LoadedPathRepeat H X)) :
     rw [Fin.find?_eq_none_iff] at find_def
     rcases ne with ⟨⟨k,bla⟩⟩
     specialize find_def k
-    aesop
+    simp only [List.get_eq_getElem, eq_iff_iff, iff_true, Bool.decide_and, Bool.and_eq_false_imp,
+      decide_eq_true_eq, decide_eq_false_iff_not, not_forall] at *
+    simp_all
   · refine ⟨k, ?_⟩
     rw [Fin.find?_eq_some_iff] at find_def
     aesop
@@ -162,7 +164,7 @@ instance {H X} : Decidable (Nonempty (LoadedPathRepeat H X)) := by
     simp only [not_nonempty_iff]
     constructor
     rintro ⟨k, same, all_le_loaded⟩
-    push_neg at h
+    push Not at h
     specialize h k same
     aesop
 
@@ -302,7 +304,7 @@ lemma Tableau.size_next_lt_of_pdl
     : next.size < tab.size := by
   simp_all [Tableau.size]
 
-instance instDecidableExistsEndNodeOf {X} {lt : LocalTableau X}
+def decidableExistsEndNodeOf {X} {lt : LocalTableau X}
     {f : (Y : Sequent) → Y ∈ endNodesOf lt → Prop}
     {dec : (Y : Sequent) → (Y_in : Y ∈ endNodesOf lt) → Decidable (f Y Y_in)} :
     Decidable (∃ Y, ∃ Y_in : Y ∈ endNodesOf lt, f Y Y_in) := by
@@ -311,6 +313,7 @@ instance instDecidableExistsEndNodeOf {X} {lt : LocalTableau X}
   refine decidable_of_iff (∃ x ∈ (endNodesOf lt).attach, f x.1 x.2) ?_
   simp
 
+@[instance_reducible]
 instance Tableau.instDecidableEq {Hist X} {tab1 tab2 : Tableau Hist X} :
     Decidable (tab1 = tab2) := by
   rcases tab1_def : tab1 with (⟨nrep1,nbas1,lt1,next1⟩|@⟨_,X2,Y2,nrep2,bas2,r2,next2⟩|_)
@@ -322,7 +325,7 @@ instance Tableau.instDecidableEq {Hist X} {tab1 tab2 : Tableau Hist X} :
       have := fun (Y : Sequent) (Y_in : Y ∈ endNodesOf lt1) =>
         @Tableau.instDecidableEq _ _ (next1 Y Y_in) (next2 Y Y_in)
       have : Decidable (∃ Y, ∃ Y_in : Y ∈ endNodesOf lt1, next1 Y Y_in ≠ next2 Y Y_in) := by
-        apply instDecidableExistsEndNodeOf
+        apply decidableExistsEndNodeOf
         intro Y Y_in
         simp only [ne_eq]
         exact @instDecidableNot _ (this Y Y_in)

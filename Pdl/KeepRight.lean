@@ -29,7 +29,7 @@ lemma applyLocalRule_not_isLeft {Lcond Rcond Ocond ress}
     try obtain ⟨z, zo, hz, rfl⟩ := hc
     rcases O with _|(o|o)
     <;> (try rcases z with ⟨zl, _|zo⟩)
-    <;> simp_all [Olf.change, Option.overwrite, Option.insHasSdiff]
+    <;> simp_all [Olf.change, Option.overwrite]
 
 /-- Local rules do not add formulas to an empty left component,
 provided the sequent is not loaded on the left. -/

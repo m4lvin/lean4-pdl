@@ -51,7 +51,7 @@ def isNeg : Formula → Prop
 
 lemma FL_single_neg_closed {φ} :
     ¬ isNeg φ → ~φ ∈ FL φ := by
-  cases φ <;> simp [FL, isNeg]
+  cases φ <;> simp [FL, isNeg, Bot.bot]
 
 @[simp]
 lemma FL_refl {φ} :
@@ -60,7 +60,7 @@ lemma FL_refl {φ} :
   case box α φ =>
     cases α <;> simp [FL, FLb]
   all_goals
-    simp [FL]
+    simp [FL, Bot.bot]
 
 @[simp]
 lemma FLb_refl {α φ} :
@@ -321,7 +321,7 @@ lemma FL_union_eq {X Y : Finset Formula} :
   FL (X ∪ Y) = FL X ∪ FL Y := by simp [FL]; grind
 
 lemma FL_diff_sub {X Y : Finset Formula} : FL (X \ Y) ⊆ FL X := by
-  simp [FL]
+  simp only [FL,]
   intro φ φ_in
   aesop
 
@@ -359,7 +359,7 @@ lemma FL_stays_in_voc {φ ψ} (ψ_in_FL : ψ ∈ FL φ) : ψ.voc ⊆ φ.voc := b
     · have IH := FL_stays_in_voc h
       grind
   all_goals
-    grind [Formula.voc]
+    cases ψ_in_FL <;> simp_all
 
 lemma FLb_stays_in_voc {α φ ψ} (ψ_in_FLb : ψ ∈ FLb α φ) : ψ.voc ⊆ α.voc ∪ φ.voc := by
   cases α <;> simp_all [FLb]

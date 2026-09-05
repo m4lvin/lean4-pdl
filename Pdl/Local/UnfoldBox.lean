@@ -2,7 +2,6 @@ import Mathlib.Data.Fintype.Pi
 import Mathlib.Data.List.Sublists
 import Mathlib.Tactic.Linarith
 
-import Pdl.General.ListFinset
 import Pdl.Substitution
 import Pdl.Star
 
@@ -11,11 +10,9 @@ import Pdl.Star
 /-! ## Preparation for Boxes: Test Profiles -/
 
 /-- Type of test profiles for a given program. -/
-def TP (α : Program) : Type := {τ // τ ∈ testsOfProgram α} → Bool
+abbrev TP (α : Program) : Type := {τ // τ ∈ testsOfProgram α} → Bool
 
-instance : Fintype (TP α) := by
-  unfold TP
-  apply Pi.instFintype
+instance : Fintype (TP α) := Pi.instFintype
 
 theorem TP_eq_iff {α} {ℓ ℓ' : TP α} : (ℓ = ℓ') ↔ ∀ τ ∈ (testsOfProgram α).attach, ℓ τ = ℓ' τ := by
   constructor
@@ -45,12 +42,13 @@ Note that in contrast to `Fintype.elems : Finset (TP α)`
 here we get a computable List (TP α). -/
 def allTP α : List (TP α) := (testsOfProgram α).sublists.map (fun l ⟨τ, _⟩ => τ ∈ l)
 
+set_option linter.tacticCheckInstances true in
 /-- All test profiles are in the list of all test profiles.
 Thanks to Floris van Doorn
 https://leanprover.zulipchat.com/#narrow/stream/217875-Is-there-code-for-X.3F/topic/List.20of.20.28provably.29.20all.20functions.20from.20given.20List.20to.20Bool
 -/
 theorem allTP_mem (ℓ : TP α) : ℓ ∈ allTP α := by
-  simp_rw [allTP, List.mem_map, List.mem_sublists]
+  simp [allTP, List.mem_map, List.mem_sublists]
   use (testsOfProgram α).filter (fun τ ↦ ∃ h : τ ∈ testsOfProgram α, ℓ ⟨τ, h⟩)
   simp (config := {contextual := true}) [TP, List.mem_filter, funext_iff]
 
@@ -544,7 +542,6 @@ theorem unfoldBoxContent α ψ :
       subst def_φ
       cases α <;> simp_all [P, subprograms, Program.isAtomic, Program.isStar]
       case atom_prog a =>
-        subst bht
         right
         use []
         simp
@@ -662,7 +659,7 @@ theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
         · simp
       have obvious : (M,w) ⊨ (repl_in_F x ρ) (·x) := by simp; exact w_rho
       have : (M,w) ⊨ (repl_in_F x ρ) (((·x) ⋀ χ0) ⋁ χ1) := by
-        simp [evaluate, modelCanSemImplyForm] at *
+        simp [evaluate, vDash.SemImplies] at *
         tauto
       -- Now we want to "rewrite" with beta_equiv.
       have := repl_in_F_equiv x ρ beta_equiv
@@ -672,7 +669,7 @@ theorem guardToStar (x : Nat) β χ0 χ1 ρ ψ
       rw [equiv_iff _ _ this]
       simp_all
     -- It is then immediate...
-    simp [evaluate, modelCanSemImplyForm] at this
+    simp [evaluate, vDash.SemImplies] at this
     exact this v w_β_v -- This finishes the proof of (46).
   -- To see how the Lemma follows from this...
   intro W M w
@@ -1275,20 +1272,20 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M, v)
     rcases v_γ_w with ⟨v_is_w, v_τ⟩
     cases em (ℓ ⟨τ, by simp [testsOfProgram]⟩ )
     all_goals
-      simp_all [modelCanSemImplyForm, evaluatePoint, F, P, relateSeq, testsOfProgram]
+      simp_all [vDash.SemImplies, evaluatePoint, F, P, relateSeq, testsOfProgram]
   case union α β =>
     simp at v_γ_w
     cases v_γ_w
     case inl v_α_w =>
       have v_Fℓα : evaluate M v (con (F α ℓ)) := by
-        simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+        simp_all [conEval, F, vDash.SemImplies, evaluatePoint]
       have IHα := existsBoxFP α v_α_w ℓ v_Fℓα -- using coercion from above :-)
       rcases IHα with ⟨δ, _⟩
       use δ
       simp_all [P]
     case inr v_β_w =>
       have v_Fℓβ : evaluate M v (con (F β ℓ)) := by
-        simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+        simp_all [conEval, F, vDash.SemImplies, evaluatePoint]
       have IHβ := existsBoxFP β v_β_w ℓ v_Fℓβ -- using coercion from above :-)
       rcases IHβ with ⟨δ, _⟩
       use δ
@@ -1297,7 +1294,7 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M, v)
     simp only [relate] at v_γ_w
     rcases v_γ_w with ⟨u, v_α_u, u_β_w⟩
     have v_Fℓα : evaluate M v (con (F α ℓ)) := by
-      simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+      simp_all [conEval, F, vDash.SemImplies, evaluatePoint]
     have IHα := existsBoxFP α v_α_u ℓ v_Fℓα -- using coercion from above :-)
     rcases IHα with ⟨δ, ⟨δ_in, v_δ_u⟩⟩
     -- "We make a further case distinction"
@@ -1308,7 +1305,7 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M, v)
       subst v_δ_u
       rename relate M β v w => v_β_w
       have v_Fℓβ : evaluate M v (con (F β ℓ)) := by
-        simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+        simp_all [conEval, F, vDash.SemImplies, evaluatePoint]
       have IHβ := existsBoxFP β v_β_w ℓ v_Fℓβ -- using coercion from above :-)
       rcases IHβ with ⟨η, ⟨η_in, v_η_w⟩⟩
       use η
@@ -1327,7 +1324,7 @@ theorem existsBoxFP γ (v_γ_w : relate M γ v w) (ℓ : TP γ) (v_conF : (M, v)
     case inr hyp =>
       rcases hyp with ⟨v_neq_w, ⟨u, v_neq_u, v_β_u, u_βS_w⟩⟩
       have v_Fℓβ : evaluate M v (con (F β ℓ)) := by
-        simp_all [conEval, F, modelCanSemImplyForm, evaluatePoint]
+        simp_all [conEval, F, vDash.SemImplies, evaluatePoint]
       have IHβ := existsBoxFP β v_β_u ℓ v_Fℓβ
       rcases IHβ with ⟨δ, ⟨δ_in, v_δ_w⟩⟩
       have claim : δ ≠ [] := by by_contra hyp; subst hyp; simp_all [relateSeq];

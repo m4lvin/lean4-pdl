@@ -45,6 +45,13 @@ instance formHasSat : HasSat Formula :=
 instance setHasSat : HasSat (Finset Formula) :=
   HasSat.mk fun X => ∃ (W : _) (M : KripkeModel W) (w : _), ∀ φ ∈ X, Evaluate (M, w) φ
 
+-- Note: since Lean 4.29 `simp` no longer unfolds instances, so marking the two instances above
+-- as `@[simp]` is not enough. These lemmas restore the previous simp normal form.
+@[simp] theorem sat_form_iff {φ : Formula} :
+    Satisfiable φ = ∃ (W : _) (M : KripkeModel W) (w : _), Evaluate (M, w) φ := rfl
+@[simp] theorem sat_set_iff {X : Finset Formula} :
+    Satisfiable X = ∃ (W : _) (M : KripkeModel W) (w : _), ∀ φ ∈ X, Evaluate (M, w) φ := rfl
+
 theorem notsatisfnotThenTaut : ∀ φ, ¬Satisfiable (~φ) → Tautology φ :=
   by
   intro phi
@@ -53,19 +60,19 @@ theorem notsatisfnotThenTaut : ∀ φ, ¬Satisfiable (~φ) → Tautology φ :=
   simp
 
 theorem subsetSat {X Y : Finset Formula} : Satisfiable X → Y ⊆ X → Satisfiable Y :=
-  by aesop
+  by simp [Satisfiable]; aesop
 
 @[simp]
 theorem singletonSat_iff_sat : ∀ φ, Satisfiable ({φ} : Finset Formula) ↔ Satisfiable φ :=
   by
   intro phi
-  simp
+  simp [Satisfiable]
 
 theorem tautImp_iff_comboNotUnsat {ϕ ψ} :
     Tautology (ϕ↣ψ) ↔ ¬Satisfiable ({ϕ, ~ψ} : Finset Formula) :=
   by
   unfold Tautology
-  simp
+  simp [Satisfiable]
 
 def SemImpliesSets (X : Finset Formula) (Y : Finset Formula) :=
   ∀ (W : Type) (M : KripkeModel W) (w), (∀ φ ∈ X, Evaluate (M, w) φ) → ∀ ψ ∈ Y, Evaluate (M, w) ψ
@@ -73,9 +80,9 @@ def SemImpliesSets (X : Finset Formula) (Y : Finset Formula) :=
 def semEquiv (φ : Formula) (ψ : Formula) :=
   ∀ (W : Type) (M : KripkeModel W) (w), Evaluate (M, w) φ ↔ Evaluate (M, w) ψ
 
-theorem semEquiv.transitive : Transitive semEquiv :=
+theorem semEquiv.transitive : IsTrans Formula semEquiv :=
   by
-  unfold Transitive
+  constructor
   unfold semEquiv
   intro f g h f_is_g g_is_h W M w
   specialize f_is_g W M w
@@ -103,6 +110,13 @@ infixl:40 " ⊨ " => SemImplies
 infixl:40 " ≡ " => semEquiv
 
 infixl:40 " ⊭ " => fun a b => ¬a⊨b
+
+-- Note: since Lean 4.29 `simp` no longer unfolds instances, so marking the two instances above
+-- as `@[simp]` is not enough. These lemmas restore the previous simp normal form.
+@[simp] theorem models_form_iff {W} {Mw : KripkeModel W × W} {φ : Formula} :
+    (Mw ⊨ φ) = Evaluate Mw φ := rfl
+@[simp] theorem models_set_iff {W} {Mw : KripkeModel W × W} {X : Finset Formula} :
+    (Mw ⊨ X) = ∀ f ∈ X, Evaluate Mw f := rfl
 
 /-- Semantic equivalence between pointed models. -/
 def modelEquiv {W W' : Type} (Mw : KripkeModel W × W) (Mw' : KripkeModel W' × W') : Prop :=

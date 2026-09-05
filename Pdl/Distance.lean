@@ -46,8 +46,8 @@ theorem fdist_cast (h : ∀ {x y} (_ : relate M α x y), f x y ≠ ⊤) :
   iInf_congr fun p => by induction p with
   | nil => rfl
   | cons r _ _ IH => calc
-    _ = _ := congr_arg₂ _ (ENat.coe_toNat <| h r).symm <| IH h
-    _ = _ := (ENat.coe_add _ _).symm
+    _ = _ := congr_arg₂ _ (ENat.natCast_toNat <| h r).symm <| IH h
+    _ = _ := (ENat.natCast_add _ _).symm
 
 def Reachable (M : KripkeModel W) (α : Program) (w v : W) : Prop := Nonempty (Walk M α w v)
 
@@ -75,8 +75,8 @@ theorem reachable_iff_star_relate {M} {α : Program} {w v : W} :
 /-- Unused -/
 theorem star_relate_of_Chain : List.IsChain (relate M α) (w :: l ++ [v]) → relate M (∗α) w v :=
   fun h => match l with
-  | .nil => .single <| List.IsChain.rel_head h
-  | .cons x xs => .head (b := x) (List.IsChain.rel_head h) <| star_relate_of_Chain (l := xs) <|
+  | .nil => .single <| List.IsChain.rel h
+  | .cons x xs => .head (b := x) (List.IsChain.rel h) <| star_relate_of_Chain (l := xs) <|
       match h with | .cons_cons _ h => h
 
 /-! ## Distance -/
@@ -104,7 +104,7 @@ theorem dist_iff_rel : (distance M α w v) ≠ ⊤ ↔ relate M α w v :=
   | ·_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.one_ne_top).symm
   | ?'_ => ite_ne_right_iff.trans <| (iff_self_and.mpr fun _ => ENat.zero_ne_top).symm
   | _ ⋓ _ => (min_eq_top.not.trans not_and_or).trans <| or_congr (dist_iff_rel ..) (dist_iff_rel ..)
-  | ∗_ => ENat.iInf_coe_ne_top.trans <| reachable_iff_star_relate ..
+  | ∗_ => ENat.iInf_natCast_ne_top.trans <| reachable_iff_star_relate ..
   | _ ;' _ => iInf_eq_top.not.trans <| not_forall.trans <| exists_congr fun _ =>
     WithTop.add_ne_top.trans <| and_congr (dist_iff_rel ..) (dist_iff_rel ..)
 
@@ -216,12 +216,12 @@ theorem distance_star_le x :
    (let ⟨hwx, hxv⟩ := WithTop.add_ne_top.mp ·
     let ⟨p, h⟩ := iInf_exists_eq_of_ne_top hxv
     let rwx := dist_iff_rel.mp hwx
-    by_cases (p := w = x) (fun _ => by simp_all only [ne_eq, self_le_add_left]) (
+    by_cases (p := w = x) (fun _ => by simp_all [self_le_add_left]) (
     let p' : Walk M α w v := .cons rwx p ·
     calc
     _ ≤ _ := iInf_le _ p'
-    _ = _ := ENat.coe_add _ _
-    _ ≤ _ := add_le_add (ENat.coe_toNat_le_self _) <| le_of_eq h.symm)
+    _ = _ := ENat.natCast_add _ _
+    _ ≤ _ := add_le_add (ENat.natCast_toNat_le_self _) <| le_of_eq h.symm)
    )
 
 /-! ## Distance of diamond unfoldings
@@ -467,7 +467,7 @@ theorem existsD_of_true_diamond α γ (ψ : Formula) (v_ : evaluate M v (~⌈⌈
                   = ⨅ w : {w // evaluate M w (~ψ)}, distance_list M v w (α :: γ) := by
   simp only [evaluate] at v_
   rw [evalBoxes] at v_
-  push_neg at v_
+  push Not at v_
   rcases v_ with ⟨w1, v_αγ_w1, w1_not_ψ⟩
   -- Let `w0` be the witness to minimize the `α :: γ` distance from `w0` to `~ψ`:
   have := @iInf_exists_eq {w // evaluate M w (~ψ)} ⟨w1, w1_not_ψ⟩

@@ -101,30 +101,6 @@ def Olf.toForm : Olf → Multiset Formula
 | some (Sum.inl (~'χ)) => {~χ.unload}
 | some (Sum.inr (~'χ)) => {~χ.unload}
 
-
--- mathlib this?
-lemma List.Subperm.append {α : Type u_1} {l₁ l₂ r₁ r₂ : List α} :
-    l₁.Subperm l₂ → r₁.Subperm r₂ → (l₁ ++ r₁).Subperm (l₂ ++ r₂) := by
-  intro hl hr
-  cases l₁
-  case nil =>
-    simp
-    apply List.Subperm.trans hr
-    induction l₂
-    · simp
-      exact Subperm.refl r₂
-    case cons IH =>
-      simp_all
-      apply List.Subperm.cons_right
-      exact IH
-  case cons h t =>
-    have : (h :: t ++ r₁).Subperm (l₂ ++ r₁) := by
-      rw [List.subperm_append_right]
-      exact hl
-    apply List.Subperm.trans this
-    rw [List.subperm_append_left]
-    exact hr
-
 theorem Multiset_diff_append_of_le [DecidableEq α] {R Rcond Rnew : List α} :
     Multiset.ofList (R.diff Rcond ++ Rnew)
     = Multiset.ofList R - Multiset.ofList Rcond + Multiset.ofList Rnew := by
@@ -278,7 +254,7 @@ theorem Dset_goes_down (α : Program) φ {Fs δ} (in_D : (Fs, δ) ∈ Dset α) {
         cases in_l
         subst_eqs
         have IHα := Dset_goes_down α φ in_D' in_Fs
-        cases α <;> simp_all only [lmOfFormula, not_lt_zero']
+        cases α <;> simp_all only [lmOfFormula, not_lt_zero]
   case test τ =>
     simp_all [Dset, testsOfProgram]
 
@@ -675,10 +651,9 @@ def endNode_to_endNodeOfChild {X lrA} def_X subTabs {E}
   have A_ne : A ≠ {} := by
     unfold A; simp
     rcases E_in with ⟨Y, Y_in, E_in⟩
-    push_neg
+    push Not
     use Y
-    simp
-    grind
+    exact (Finset.mem_filterMap _).mpr ⟨⟨Y, Y_in⟩, Finset.mem_attach _ _, by simp [E_in]⟩
   let L := A.seqSort
   have L_ne : L ≠ {} := by unfold L; simp_all
   let Y := L.head L_ne

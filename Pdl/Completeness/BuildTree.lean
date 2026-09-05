@@ -24,6 +24,7 @@ def UniOpenLT.all (X : Sequent) : List (UniOpenLT X) :=
 lemma UniOpenLT.all_spec {X : Sequent} {ltX : UniOpenLT X} : ltX ∈ UniOpenLT.all X := by
   rcases ltX with ⟨lt, lt_open, rfl⟩
   simp [UniOpenLT.all, lt_open]
+  exact List.Mem.head _
 
 lemma UniOpenLT.all_ne_nil_iff {X : Sequent} :
     UniOpenLT.all X ≠ [] ↔ endNodesOf (uniLocalTab X) ≠ {} := by
@@ -186,7 +187,7 @@ noncomputable def buildTree (s : Strategy tableauGame Builder) {H X p}
         intro lt_no_ends
         have := stillWin ⟨H, ⟨X, Sum.inr (.ltab nrep nbas (uniLocalTab X))⟩⟩ Move.prLocTab
         have has_moves := winning_has_moves (by simp) this
-        simp only [tableauGame, Game.moves, theMoves, Finset.image_nonempty] at has_moves
+        simp only [Game.moves, theMoves, Finset.image_nonempty] at has_moves
         simp_all
       .loc nbas someLT <| fun ltX => by
         rcases ltX with ⟨lt, -, rfl⟩
@@ -214,14 +215,16 @@ noncomputable def buildTree (s : Strategy tableauGame Builder) {H X p}
           exact Y'_in
         · -- now still need to make a `Move` so we can recursively call `buildTree`.
           have Mov : Move ⟨H, X, Sum.inr (.ltab nrep nbas (uniLocalTab X))⟩ mY := by
-            simp only [tableauGame, Game.Pos.moves, theMoves, Finset.mem_image] at mY_prop
+            have mY_prop' := mY_prop
+            unfold Game.Pos.moves Game.moves tableauGame at mY_prop'
+            simp only [theMoves, Finset.mem_image] at mY_prop'
             let oY := List.find? -- No more choice thanks to this! NEW: via `seqSort` now!?
               (fun Y => @decide (⟨_, ⟨_, posOf (X :: H) Y⟩⟩ = mY) (instDecidableEqPos _ _))
               (endNodesOf (uniLocalTab X)).seqSort
             cases oY_def : oY
             · exfalso
               have hnone := List.find?_eq_none.mp oY_def
-              obtain ⟨a, a_in, ha⟩ := mY_prop
+              obtain ⟨a, a_in, ha⟩ := mY_prop'
               have := hnone a ((Finset.mem_seqSort _).mpr a_in)
               simp only [decide_eq_true_eq] at this
               exact this ha
@@ -234,7 +237,7 @@ noncomputable def buildTree (s : Strategy tableauGame Builder) {H X p}
               exact @Move.buEnd X (uniLocalTab X) Y H nrep nbas Y_in
           rcases mY with ⟨H', Y, newP⟩ -- Happy because this does not lose mY_def.
           have H'_def : H' = X :: H := by
-            simp [Game.Pos.moves, tableauGame, Game.moves] at mY_prop
+            simp [Game.Pos.moves, Game.moves] at mY_prop
             grind
           -- Case distinction here to ensure newP from mY is a ProverPos for recursion.
           match newP with
@@ -302,12 +305,13 @@ deriving DecidableEq
 
 /-- Inspired by `PathIn.length`. Counting the steps made by a `Match` in a `BuildTree`.
 Note that such a step is a combination of a prover and a builder move. -/
-@[simp]
+@[simp, implicit_reducible]
 def Match.length {H : History} {X : Sequent} {bt : BuildTree H X} : Match bt → Nat
   | .nil => 0
   | .loc tail => tail.length + 1
   | .pdl tail => tail.length + 1
 
+@[implicit_reducible]
 def Match.btAt {H X} {bt : BuildTree H X} : Match bt → Σ H' Y, BuildTree H' Y
 | .nil => ⟨_, _, bt⟩
 | .loc tail => btAt tail
@@ -376,7 +380,8 @@ instance instMatchDecidableIsFreeRepeat {H X} {bt : BuildTree H X} {m : Match bt
 lemma Match.isFreeRepeat_iff {H X} {bt : BuildTree H X} {m : Match bt} :
     m.isFreeRepeat ↔ (btAt m).2.2.isFreeRepeat := by
   unfold BuildTree.isFreeRepeat Match.isFreeRepeat
-  grind
+  rcases hm : m.btAt with ⟨H', X', bt'⟩
+  cases bt' <;> rfl
 
 /-- Get the `FreeRepeat` (rewind-index and same-sequent proof) of a `Match`. -/
 def Match.getFreeRepeat {X} {bt : BuildTree [] X} (m : Match bt)
@@ -417,7 +422,7 @@ lemma Match.rewind_zero {H X} {bt : BuildTree H X} (m : Match bt) : m.rewind 0 =
   induction m <;> simp only [rewind]
   case loc H X nbas someLT next lt tail IH => -- idea from PathIn.rewind_zero
     have : 0 ≠ Fin.last (@loc H X nbas someLT next lt tail).length := by
-      simp_all [Fin.last]
+      simp_all [Fin.ext_iff]
     rw [← Fin.exists_castSucc_eq] at this
     rcases this with ⟨k,kdef⟩
     simp only [← kdef, Fin.lastCases_castSucc, Function.comp_apply, loc.injEq, heq_eq_eq, true_and]
@@ -426,7 +431,7 @@ lemma Match.rewind_zero {H X} {bt : BuildTree H X} (m : Match bt) : m.rewind 0 =
     simp_all
   case pdl H X bas someR next Y r tail IH =>
     have : 0 ≠ Fin.last (@pdl H X bas someR next Y r tail).length := by
-      simp_all [Fin.last]
+      simp_all [Fin.ext_iff]
     rw [← Fin.exists_castSucc_eq] at this
     rcases this with ⟨k,kdef⟩
     simp [← kdef, Fin.lastCases_castSucc, Function.comp_apply, pdl.injEq]
@@ -490,6 +495,7 @@ def Match.companionOf {X} {bt : BuildTree [] X} (m : Match bt)
 
 /-- The sequents visited by a `Match`, in reverse order and not including the last one.
 Analogous to `PathIn.toHistory`. -/
+@[implicit_reducible]
 def Match.toHistory {H X} {bt : BuildTree H X} : Match bt → History
 | .nil => []
 | .loc tail => tail.toHistory ++ [X]
@@ -766,6 +772,7 @@ lemma PreState.mem_forms_iff {H X} {bt : BuildTree H X} {φ : Formula} {π : Pre
 lemma BuildTree.exists_mem_attach_forms_eq {bt : BuildTree [] H} {ρ : PreState bt} :
     ∃ a ∈ bt.collect.attach, PreState.forms a = ρ.forms := by
   simp
+  exact ⟨ρ.1, ρ.2, rfl⟩
 
 lemma PreState.forms_saturated {X} {bt : BuildTree H X} {π : PreState bt} :
     saturated π.forms := by
@@ -975,7 +982,9 @@ lemma BuildTree.toMatchAux_mem_collect : {H : History} → {X : Sequent} → (bt
         simpa [Match.btAt] using BuildTree.toMatchAux_mem_collect (next Y r) p p_in
       case none => simpa [Match.btAt] using hp
   | _, _, .freeRepeat _, p, hp => by simp at hp
-  | _, _, .openLeaf _ _, p, hp => by simpa [Match.btAt, BuildTree.toMatchAux] using hp
+  | _, _, .openLeaf _ _, p, hp => by
+      rw [BuildTree.toMatchAux]
+      simpa [Match.btAt] using hp
 termination_by _ _ bt _ _ => bt.size
 decreasing_by
   · apply BuildTree.size_lt_loc
@@ -1023,7 +1032,8 @@ lemma BuildTree.toMatchAux_head? : {H : History} → {X : Sequent} → (bt : Bui
   | _, _, .openLeaf _ _, p, hp => by
       simp only [BuildTree.mem_collect_openLeaf] at hp
       subst hp
-      simp [Match.btAt, BuildTree.toMatchAux]
+      rw [BuildTree.toMatchAux]
+      simp [Match.btAt]
 termination_by _ _ bt _ _ => bt.size
 decreasing_by
   · apply BuildTree.size_lt_loc

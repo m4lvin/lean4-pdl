@@ -377,7 +377,8 @@ lemma oneSidedL_sat_down (LRO : Sequent)
   simp [applyLocalRule]
   refine ⟨L', L'_in, W, M, w, fun φ φ_in => ?_⟩
   specialize @satM φ
-  rcases φ_in with (φ_in_LnoCond | φ_in_L') | φ_in_O <;> aesop
+  simp only [Finset.mem_union, Finset.mem_sdiff] at φ_in
+  rcases φ_in with φ_in_LnoCond | φ_in_L' | φ_in_O <;> aesop
 
 lemma oneSidedR_sat_down (LRO : Sequent)
     {Rcond : Finset Formula} (Rpreproof : Rcond ⊆ LRO.R)
@@ -395,7 +396,8 @@ lemma oneSidedR_sat_down (LRO : Sequent)
   simp [applyLocalRule]
   refine ⟨L', L'_in, W, M, w, fun φ φ_in => ?_⟩
   specialize @satM φ
-  rcases φ_in with (φ_in_LnoCond | φ_in_L') | φ_in_O <;> aesop
+  simp only [Finset.mem_union, Finset.mem_sdiff] at φ_in
+  rcases φ_in with φ_in_LnoCond | φ_in_L' | φ_in_O <;> aesop
 
 -- Following four lemmas are almost the same, but then for the loaded diamond rules.
 
@@ -743,20 +745,20 @@ lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
       right; simp_all [Sequent.closed]; right
       refine ⟨φ, Or.inl ?_, Or.inl ?_⟩ <;> grind
     case neg φ =>
-      left; push_neg; simp_all [Sequent.toFinset]
+      left; push Not; simp_all [Sequent.toFinset]
       refine ⟨~~φ, Or.inl (by simp_all), by simp⟩
     case con φ1 φ2 =>
-      left; push_neg; simp_all [Sequent.toFinset]
+      left; push Not; simp_all [Sequent.toFinset]
       refine ⟨φ1 ⋀ φ2, Or.inl (by simp_all), by simp⟩
     case nCo φ1 φ2 =>
-      left; push_neg; simp_all [Sequent.toFinset]
+      left; push Not; simp_all [Sequent.toFinset]
       refine ⟨~(φ1 ⋀ φ2), Or.inl (by simp_all), by simp⟩
     case box α φ α_nonAtom =>
-      left; push_neg; simp_all [Sequent.toFinset]
+      left; push Not; simp_all [Sequent.toFinset]
       refine ⟨⌈α⌉φ, Or.inl (by simp_all), ?_⟩
       cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
     case dia α φ α_nonAtom =>
-      left; push_neg; simp_all [Sequent.toFinset]
+      left; push Not; simp_all [Sequent.toFinset]
       refine ⟨~⌈α⌉φ, Or.inl ?_, ?_⟩
       · apply preconditionProof.1; simp
       · cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
@@ -767,20 +769,20 @@ lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
       right; simp_all [Sequent.closed]; right
       refine ⟨φ, Or.inr ?_, Or.inr ?_⟩ <;> grind
     case neg φ =>
-      left; push_neg; simp_all [Sequent.toFinset]
+      left; push Not; simp_all [Sequent.toFinset]
       refine ⟨~~φ, Or.inr (by simp_all), by simp⟩
     case con φ1 φ2 =>
-      left; push_neg; simp_all [Sequent.toFinset]
+      left; push Not; simp_all [Sequent.toFinset]
       refine ⟨φ1 ⋀ φ2, Or.inr (by simp_all), by simp⟩
     case nCo φ1 φ2 =>
-      left; push_neg; simp_all [Sequent.toFinset]
+      left; push Not; simp_all [Sequent.toFinset]
       refine ⟨~(φ1 ⋀ φ2), Or.inr (by simp_all), by simp⟩
     case box α φ α_nonAtom =>
-      left; push_neg; simp_all [Sequent.toFinset]
+      left; push Not; simp_all [Sequent.toFinset]
       refine ⟨⌈α⌉φ, Or.inr (by simp_all), ?_⟩
       cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
     case dia α φ α_nonAtom =>
-      left; push_neg; simp_all [Sequent.toFinset]
+      left; push Not; simp_all [Sequent.toFinset]
       refine ⟨~⌈α⌉φ, Or.inr (Or.inl ?_), ?_⟩
       · apply preconditionProof.2.1; simp
       · cases α <;> simp_all; simp [Program.isAtomic] at α_nonAtom
@@ -797,7 +799,7 @@ lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
     rw [Option.some_subseteq] at hO
     cases hO
     left
-    push_neg
+    push Not
     refine ⟨~χ.unload, by simp [Sequent.toFinset], ?_⟩
     cases lrule
     case dia α ξ α_nonAtom => cases α <;> simp [Program.isAtomic] at α_nonAtom ⊢
@@ -807,7 +809,7 @@ lemma nonbasic_of_localRuleApp (lra : LocalRuleApp) : ¬ lra.X.basic := by
     rw [Option.some_subseteq] at hO
     cases hO
     left
-    push_neg
+    push Not
     refine ⟨~χ.unload, by simp [Sequent.toFinset], ?_⟩
     cases lrule
     case dia α ξ α_nonAtom => cases α <;> simp [Program.isAtomic] at α_nonAtom ⊢
@@ -821,7 +823,7 @@ def localRuleApp_of_nonbasic_in_L (L R : Finset Formula) (O : Olf) (f : Formula)
 match f with
   | .bottom => ⟨{ L, R, O, Lcond := {⊥}, ress := {}
                   lr := .oneSidedL .bot rfl
-                  preconditionProof := by simp_all}, rfl⟩
+                  preconditionProof := by simp_all [Bot.bot]}, rfl⟩
   | ·n => by simp [Formula.basic] at f_nonBas
   | .neg f' => match f' with
     | .bottom => by simp [Formula.basic] at f_nonBas
@@ -857,7 +859,7 @@ def localRuleApp_of_nonbasic_in_R (L R : Finset Formula) (O : Olf) (f : Formula)
   match f with
   | .bottom => ⟨{ L, R, O, Rcond := {⊥}, ress := {}
                   lr := .oneSidedR .bot rfl
-                  preconditionProof := by simp_all }, rfl⟩
+                  preconditionProof := by simp_all [Bot.bot]}, rfl⟩
   | .atom_prop n => by simp [Formula.basic] at f_nonBas
   | .neg f' => match f' with
     | .bottom => by simp [Formula.basic] at f_nonBas
@@ -923,7 +925,7 @@ lemma basic_iff_noLocalRuleApp {Y : Sequent} :
     simp_all [Sequent.toFinset]
     clear not_closed
     absurd no_lra
-    push_neg
+    push Not
     -- Y_nonbas: ∃ formula in L ∪ R ∪ O that's not basic
     rcases Y_nonbas with ⟨f, f_where, f_nonBas⟩
     rcases f_where with f_in_L | f_in_R | ⟨a, rfl, rfl⟩ | ⟨b, rfl, rfl⟩
@@ -1322,13 +1324,15 @@ lemma Sequent.basic_then_saturated {X : Sequent} : X.basic → saturated X.toFin
       grind
   case dia =>
     intro _in_F
-    simp_all [basic, Fs, toFinset]
     cases α
     case atom_prog =>
-      simp [Dset,Yset]
+      -- Note: we must not unfold `Fs` here, because since Lean 4.33 that would leave the
+      -- `Decidable` instance inside `decide` mentioning `Fs`, blocking `decide_eq_true_eq`.
+      simp [Dset, Yset]
       exact _in_F
     all_goals
-      simp [Dset,Yset]
+      simp_all [basic, Fs, toFinset]
+      simp [Dset, Yset]
       grind
 
 /-- A set of formulas is *lcoally consistent* iff it does not contain `⊥`
@@ -1476,7 +1480,7 @@ lemma LocalRuleApp.wForms_negBox_preserved_or_unfolded (lra : LocalRuleApp) {Y :
     | _ => simp_all
   · -- The diamond is not the principal formula, so it is kept in the chosen child.
     left
-    push_neg at hcond
+    push Not at hcond
     rw [Sequent.mem_wForms_normal_iff]
     rcases h with hL | hR <;> grind
 

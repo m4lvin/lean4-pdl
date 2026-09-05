@@ -18,7 +18,6 @@ def Olf.voc : Olf → Vocab
 | some (Sum.inr nlf) => nlf.voc
 
 -- mathlib this?
-@[simp]
 instance Option.instHasSubsetOption : HasSubset (Option α) := HasSubset.mk
   fun o1 o2 =>
   match o1, o2 with
@@ -30,7 +29,11 @@ instance Option.instHasSubsetOption : HasSubset (Option α) := HasSubset.mk
 @[simp]
 theorem Option.some_subseteq {O : Option α} : (some x ⊆ O) ↔ some x = O := by
   cases O
-  all_goals simp
+  all_goals simp [HasSubset.Subset]
+
+-- mathlib this?
+@[simp]
+theorem Option.none_subseteq {O : Option α} : none ⊆ O := trivial
 
 -- mathlib this?
 /-- The subset relation on `Option α` from `Option.instHasSubsetOption` is decidable. -/
@@ -91,7 +94,7 @@ lemma Olf.L_sdiff_subset {O Ocond : Olf} : (O \ Ocond).L ⊆ O.L := by
   · simp
   rcases Ocond with _|χ'
   · simp
-  by_cases h : χ = χ' <;> simp_all [Option.insHasSdiff, Olf.L]
+  by_cases h : χ = χ' <;> simp_all [SDiff.sdiff, Olf.L]
 
 def Olf.R : Olf → Finset Formula
 | none => {}
@@ -115,7 +118,7 @@ lemma Olf.R_sdiff_subset {O Ocond : Olf} : (O \ Ocond).R ⊆ O.R := by
   · simp
   rcases Ocond with _|χ'
   · simp
-  by_cases h : χ = χ' <;> simp_all [Option.insHasSdiff, Olf.R]
+  by_cases h : χ = χ' <;> simp_all [SDiff.sdiff, Olf.R]
 
 @[simp]
 def Option.overwrite : Option α → Option α → Option α
@@ -126,11 +129,11 @@ def Olf.change (oldO : Olf) (Ocond : Olf) (newO : Olf) : Olf := (oldO \ Ocond).o
 
 @[simp]
 theorem Olf.change_old_none_none {oldO} : Olf.change oldO none none = oldO := by
-  cases oldO <;> simp [Olf.change, Option.overwrite, Option.insHasSdiff]
+  cases oldO <;> simp [Olf.change, Option.overwrite, SDiff.sdiff]
 
 @[simp]
 theorem Olf.change_none_none_new {newO} : Olf.change none none newO = newO := by
-  cases newO <;> simp [Olf.change, Option.overwrite, Option.insHasSdiff]
+  cases newO <;> simp [Olf.change, Option.overwrite, SDiff.sdiff]
 
 @[simp]
 theorem Olf.change_some {oldO whatever wnlf} :
@@ -181,6 +184,7 @@ instance instDecidableOlfisRight (o : Olf) : Decidable o.isRight := by
 
 /-- A tableau node is labelled with two finite sets of formulas and an `Olf`.
 Each formula is placed on the left or right and up to one formula may be loaded. -/
+@[implicit_reducible]
 def Sequent := Finset Formula × Finset Formula × Olf -- ⟨L, R, o⟩
   deriving DecidableEq, Repr
 
@@ -189,8 +193,11 @@ def Sequent.toFinset : Sequent → Finset Formula
 
 /-! ## Components and sides of sequents -/
 
+@[grind .]
 def Sequent.L : Sequent → Finset Formula | ⟨L,_,_⟩ => L
+@[grind .]
 def Sequent.R : Sequent → Finset Formula | ⟨_,R,_⟩ => R
+@[grind .]
 def Sequent.O : Sequent → Olf | ⟨_,_,O⟩ => O
 
 @[simp]
@@ -206,7 +213,7 @@ def Sequent.right (X : Sequent) : Finset Formula := X.R ∪ X.O.R
 @[simp]
 lemma Sequent.left_eq {L R O} : Sequent.left ⟨L,R,O⟩ = L ∪ O.L := by simp [Sequent.left]
 @[simp]
-def Sequent.right_eq {L R O} : Sequent.right ⟨L,R,O⟩ = R ∪ O.R := by simp [Sequent.right]
+lemma Sequent.right_eq {L R O} : Sequent.right ⟨L,R,O⟩ = R ∪ O.R := by simp [Sequent.right]
 
 
 /-! ## (Joint) vocabulary of sequents -/
@@ -243,14 +250,18 @@ lemma jvoc_sub_of_voc_sub {Y X : Sequent}
 @[simp]
 instance instMembershipFormulaSequent : Membership Formula Sequent := ⟨fun X φ => φ ∈ X.L ∨ φ ∈ X.R⟩
 
+@[simp]
+lemma Sequent.mem_def {φ : Formula} {X : Sequent} : φ ∈ X ↔ φ ∈ X.L ∨ φ ∈ X.R := Iff.rfl
+
 instance instDecidableMemFormulaSequent {φ : Formula} {X : Sequent} : Decidable (φ ∈ X) := by
   rcases X with ⟨L,R,o⟩
-  simp only [instMembershipFormulaSequent]
+  unfold Membership.mem instMembershipFormulaSequent
   infer_instance
 
 instance instFintypeSubtypeMemSequent {X : Sequent} : Fintype (Subtype (fun x => x ∈ X)) := by
   rcases X with ⟨L,R,o⟩
-  simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R]
+  unfold Membership.mem instMembershipFormulaSequent
+  simp only [Sequent.L, Sequent.R]
   apply Fintype.subtype (L ∪ R)
   aesop
 
@@ -313,10 +324,10 @@ instance instDecidableBasic {X : Sequent} : Decidable (X.basic) := by
     simp only [h, not_false_eq_true, and_true]
     by_cases ∃ f ∈ X.toFinset, f.basic ≠ true
     · apply isFalse
-      push_neg
+      push Not
       assumption
     · apply isTrue
-      push_neg at *
+      push Not at *
       assumption
 
 def Sequent.isLoaded : Sequent → Prop
@@ -362,13 +373,13 @@ theorem tautImp_iff_SequentUnsat {φ ψ} {X : Sequent} :
     X = ({φ}, {~ψ}, none) → (tautology (φ ↣ ψ) ↔ ¬ satisfiable X) := by
   intro defX
   subst defX
-  simp_all [Sequent.toFinset, tautology, satisfiable, modelCanSemImplySequent]
+  simp_all [Sequent.toFinset, tautology, satisfiable, vDash.SemImplies]
 
 theorem vDash_setEqTo_iff {X Y : Sequent} (h : X = Y) (M : KripkeModel W) (w : W) :
     (M,w) ⊨ X ↔ (M,w) ⊨ Y := by
   rcases X with ⟨L, R, O⟩
   rcases Y with ⟨L',R',O'⟩
-  simp only [modelCanSemImplySequent]
+  simp only [vDash.SemImplies]
   cases h
   simp_all
 
@@ -389,7 +400,7 @@ lemma Sequent.satisfiable_top_cons_right {X : Sequent} (h_left_nil : X.left = {}
   · aesop
   · subst O_def def_φ
     unfold right at w_
-    simp only [Formula.insTop, R_eq, O_eq, Olf.R_inr] at w_
+    simp only [Top.top, R_eq, O_eq, Olf.R_inr] at w_
     grind
 
 /-! ## Removing loaded formulas from sequents -/
@@ -528,13 +539,13 @@ lemma Sequent.mem_toFinset_iff (φ : Formula) (X : Sequent) :
       ∨ (∃ ψ, negUnload ψ = φ ∧ (.negLoad ψ ∈ X.wForms))) := by
   rcases X with ⟨L, R, O⟩
   rcases O with _ | (ψ | ψ) <;>
-    simp [Sequent.toFinset, Sequent.wForms, Olf.wForms, instCoeFormulaWhateverFormula] <;> tauto
+    simp [Sequent.toFinset, Sequent.wForms, Olf.wForms, Coe.coe] <;> tauto
 
 /-- A normal formula is in `X.wForms` iff it is on the left or on the right of `X`.
 (Note that the `Olf` part of `X` only contributes negated *loaded* formulas.) -/
 lemma Sequent.mem_wForms_normal_iff {ψ : Formula} {L R : Finset Formula} {O : Olf} :
     ((ψ : WhateverFormula) ∈ Sequent.wForms ⟨L,R,O⟩) ↔ (ψ ∈ L ∨ ψ ∈ R) := by
-  rcases O with _|(nl|nl) <;> simp [Sequent.wForms, Olf.wForms, instCoeFormulaWhateverFormula]
+  rcases O with _|(nl|nl) <;> simp [Sequent.wForms, Olf.wForms, Coe.coe]
 
 /-- In a basic sequent all free diamonds are atomic. -/
 lemma Sequent.isAtomic_of_basic_of_negBox_mem_wForms {X : Sequent} {α φ} (bas : X.basic)
@@ -549,7 +560,7 @@ lemma Sequent.mem_wForms_negLoad_iff {nlf : NegLoadFormula} {L R : Finset Formul
     ((WhateverFormula.negLoad nlf) ∈ Sequent.wForms ⟨L,R,O⟩)
     ↔ (O = some (.inl nlf) ∨ O = some (.inr nlf)) := by
   rcases O with _|(nl|nl) <;>
-    simp [Sequent.wForms, Olf.wForms, instCoeFormulaWhateverFormula] <;> tauto
+    simp [Sequent.wForms, Olf.wForms, Coe.coe] <;> tauto
 
 /-- In a basic sequent all loaded diamonds are atomic. -/
 lemma Sequent.isAtomic_of_basic_of_negLoad_mem_wForms {X : Sequent} {α} {ξ : AnyFormula}

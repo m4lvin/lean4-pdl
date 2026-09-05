@@ -39,6 +39,7 @@ inductive BuilderPos (H : History) (X : Sequent) : Type where
   deriving DecidableEq
 
 /-- Game position where either Prover (`isLeft`) or Builder (`isRight`) should make a move. -/
+@[implicit_reducible]
 def GamePos := Σ H X, (ProverPos H X ⊕ BuilderPos H X)
   deriving DecidableEq
 
@@ -281,15 +282,31 @@ lemma theMoves_iff {H X} {p : ProverPos H X ⊕ BuilderPos H X} {next : GamePos}
           have := @boxesOf_def_of_def_of_nonBox _ (δs ++ [δ]) ψ rfl ψ_noBox
           rw [boxes_last] at this
           simp_all
-          cases δs <;> simp
-          grind
+          have e1 : ∀ (x : Program) (l : List Program),
+              (x :: (l ++ [δ])).dropLast = x :: l :=
+            fun x l => List.dropLast_concat (l₁ := x :: l) (b := δ)
+          have e2 : ∀ (x : Program) (l : List Program) (h), (x :: (l ++ [δ])).getLast h = δ :=
+            fun x l _ => List.getLast_concat (l := x :: l) (a := δ)
+          cases δs
+          · simp
+            grind
+          · simp
+            rw [e1, e2]
         · right
           use (~⌈⌈δs⌉⌉⌈δ⌉ψ)
           have := @boxesOf_def_of_def_of_nonBox _ (δs ++ [δ]) ψ rfl ψ_noBox
           rw [boxes_last] at this
           simp_all
-          cases δs <;> simp
-          grind
+          have e1 : ∀ (x : Program) (l : List Program),
+              (x :: (l ++ [δ])).dropLast = x :: l :=
+            fun x l => List.dropLast_concat (l₁ := x :: l) (b := δ)
+          have e2 : ∀ (x : Program) (l : List Program) (h), (x :: (l ++ [δ])).getLast h = δ :=
+            fun x l _ => List.getLast_concat (l := x :: l) (a := δ)
+          cases δs
+          · simp
+            grind
+          · simp
+            rw [e1, e2]
       · grind
       · grind
     · simp
@@ -303,7 +320,7 @@ lemma no_moves_of_rep {H X pos} (h : rep H X ∧ X.isFree) :
     theMoves ⟨H, X, pos⟩ = ∅ := by
   by_contra hyp
   rw [Finset.eq_empty_iff_forall_notMem] at hyp
-  push_neg at hyp
+  push Not at hyp
   rcases hyp with ⟨p, p_in⟩
   unfold theMoves at p_in
   rcases X with ⟨L,R,_|o⟩ <;> rcases pos with (_|_|_)|(_|_) <;> aesop
@@ -371,7 +388,8 @@ lemma move_of_mem_theMoves {pos next} :
         subst χ
         rw [unload_loadMulti]
         constructor; apply Move.prPdl;
-        convert @PdlRule.freeL _ L R (·a :: δ) α φ _ rfl rfl using 1
+        convert @PdlRule.freeL _ L R (·a :: δ) α φ _ rfl rfl using 1 <;>
+          simp [loadMulti, LoadFormula.boxes]
       · constructor; apply Move.prPdl (PdlRule.modL rfl rfl)
     case inl.bas.some.inr.normal.atom_prog a nrep bas =>
       cases mv <;> subst_eqs
@@ -383,7 +401,8 @@ lemma move_of_mem_theMoves {pos next} :
         subst χ
         rw [unload_loadMulti]
         constructor; apply Move.prPdl;
-        convert @PdlRule.freeR _ L R (·a :: δ) α φ _ rfl rfl using 1
+        convert @PdlRule.freeR _ L R (·a :: δ) α φ _ rfl rfl using 1 <;>
+          simp [loadMulti, LoadFormula.boxes]
       · constructor; apply Move.prPdl; apply PdlRule.modR rfl rfl
     all_goals
       grind
@@ -840,8 +859,8 @@ lemma exist_duplicates_of_infinite_among_fintype {α : Type} {f : ℕ → α} {p
   have range_finite : Finite (Set.range f) := by
     apply Set.Finite.subset h_fin
     intro x ⟨n, def_x⟩
-    convert h_p n
-    rw [def_x]
+    subst def_x
+    exact h_p n
   -- ℕ is infinite, so f cannot be injective
   have not_injective : ¬Function.Injective f := by
     intro hinj
@@ -853,7 +872,7 @@ lemma exist_duplicates_of_infinite_among_fintype {α : Type} {f : ℕ → α} {p
     exact this.not_finite range_finite
   -- Non-injective means there exist distinct inputs with same output
   rw [Function.Injective] at not_injective
-  push_neg at not_injective
+  push Not at not_injective
   tauto
 
 /-! ### Infinite chains of moves
@@ -1032,7 +1051,7 @@ lemma moveChain_exists_setEq_late (N : ℕ) :
 many sequents modulo `setEqTo`, and free ones can never come back. -/
 lemma moveChain_eventually_loaded : ∃ N, ∀ n, N ≤ n → (g n).2.1.isLoaded := by
   by_contra hyp
-  push_neg at hyp
+  push Not at hyp
   obtain ⟨e, hP, hgap⟩ := exists_spread_subsequence hyp
   obtain ⟨k1, k2, hne, hsame⟩ := @exist_duplicates_of_infinite_among_fintype _
     (fun k => ((g (e k)).2.1 : Sequent)) (Sequent.subseteq_FL · (g 0).2.1)
@@ -1104,6 +1123,7 @@ lemma matchesFinite : WellFounded (Function.swap move) := by
 /-! ## Actual Game Definition -/
 
 /-- The game defined in Section 6.2. -/
+@[instance_reducible]
 def tableauGame : Game where
   Pos := GamePos
   turn | ⟨_, _, .inl _⟩ => Prover
@@ -1114,7 +1134,7 @@ def tableauGame : Game where
 
 /-- This helps to pick up the derived instance `DecidableEq GamePos` above. -/
 instance instDecidableEqPos : DecidableEq tableauGame.Pos := by
-  simp only [Game.Pos, tableauGame]
+  change DecidableEq GamePos
   exact instDecidableEqOfLawfulBEq
 
 @[simp]
@@ -1133,12 +1153,16 @@ lemma tableauGame_turn_Builder {Hist X lpr} :
 @[simp]
 lemma tableauGame_winner_nlpRep_eq_Builder :
     @winner i tableauGame sI sJ ⟨Hist, X, .inl (.frep h)⟩ = Builder := by
-  simp [winner, tableauGame]
+  have hm : tableauGame.moves ⟨Hist, X, .inl (.frep h)⟩ = ∅ := rfl
+  rw [winner]
+  simp [hm]
 
 @[simp]
 lemma tableauGame_winner_lpr_eq_Prover :
     @winner i tableauGame sI sJ ⟨Hist, X, .inr (.lpr lpr)⟩ = Prover := by
-  simp [winner, tableauGame]
+  have hm : tableauGame.moves ⟨Hist, X, .inr (.lpr lpr)⟩ = ∅ := rfl
+  rw [winner]
+  simp [hm]
 
 /-! ## From Prover winning strategies to tableau -/
 /-- A game position is *uniform* if any local tableau in it is the canonical one. -/
@@ -1202,7 +1226,7 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
       rcases the_move with ⟨⟨newHist, newX, newPos⟩, nextPosIn⟩
       simp only at IH
       obtain ⟨new_tab_from_IH, new_uni⟩ := IH
-      simp only [tableauGame, Game.Pos.moves, pos_def, Game.moves] at nextPosIn
+      simp only [Game.Pos.moves, pos_def, Game.moves] at nextPosIn
       rcases X with ⟨L,R,_|(⟨⟨χ⟩⟩|⟨⟨χ⟩⟩)⟩ <;> simp at *
       · -- no loaded formula yet, the only PDL rule we can apply is (L+)
         rcases nextPosIn with ⟨χ, χ_in⟩|⟨χ, χ_in⟩
@@ -1320,7 +1344,7 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
       have IH := gameP_general _ _ sP _ (theMoves_isUni the_move.2) still_winning -- okay ??
       rcases the_move with ⟨⟨newHist, newX, newPos⟩, nextPosIn⟩
       simp only at IH
-      simp only [tableauGame, Game.Pos.moves, pos_def, Game.moves] at nextPosIn
+      simp only [Game.Pos.moves, pos_def, Game.moves] at nextPosIn
       --- ... until here
       -- No need to look into the local tableau here, we use the IH for the `BuilderPos` case!
       simp only [theMoves, Finset.mem_singleton] at nextPosIn
@@ -1343,7 +1367,7 @@ theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos
         subst pos_def
         -- The main work is done by the following lemma
         have := winning_of_whatever_other_move (by simp) h
-        simp [tableauGame, Game.moves] at this
+        simp [Game.moves] at this
         exact this _ Y_in
       choose next next_uni using next'
       exact ⟨Tableau.loc nrep nbas (uniLocalTab X) next, uniLocalTab_isUni X, next_uni⟩
@@ -1354,7 +1378,7 @@ decreasing_by
     apply tableauGame.move_rel
     simp [WellFounded.wrap]
   · subst pos_def
-    simp [tableauGame, Game.moves]
+    simp [Game.moves]
     use Y
 
 /-- The starting position for the given sequent.

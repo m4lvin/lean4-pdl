@@ -1,12 +1,15 @@
 import Mathlib.Data.Finset.Dedup
 import Mathlib.Data.Finset.Image
 import Mathlib.Data.List.Basic
+import Mathlib.Data.Vector.Basic
 
-/-! # General helpers about `List`s and `Finset`s
+/-! # General helper lemmas
 
 Nothing in this file is about PDL. These are helper definitions and lemmas that are
 used in several places and might also be in (newer versions of) Mathlib.
 -/
+
+/-! ## Helpers about `List`s and `Finset`s -/
 
 @[simp]
 def List.toFinFin [DecidableEq α] : List (List α) → Finset (Finset α )
@@ -32,3 +35,12 @@ lemma Finset.mem_attachList {α : Type*} {s : Finset α} (a : {x // x ∈ s}) : 
 lemma Finset.attachList_map_val {α : Type*} {s : Finset α} :
     s.attachList.map Subtype.val = s.toList := by
   simp [Finset.attachList, List.map_map, Function.comp_def]
+
+/-! ## Helpers about `List.Vector` -/
+
+lemma List.Vector.tail_last_eq_last {k : Nat} (l : List.Vector α k.succ.succ) :
+    l.tail.last = l.last := by
+  rcases l with ⟨l, h_l⟩
+  cases l with
+  | nil => simp at h_l
+  | cons => rfl

@@ -26,7 +26,7 @@ lemma PathIn.proper_of_isLrep {X : Sequent} {tab : Tableau .nil X} {s : PathIn t
   case lrep =>
     have heart : s ♥ (companionOf s lpr h2) := ⟨lpr, h2, rfl⟩
     exact Relation.TransGen.head (Or.inr heart)
-      (Relation.TransGen.mono (fun _ _ h => Or.inl h) (companion_lt heart))
+      (Relation.TransGen.mono (fun _ _ h => Or.inl h) _ _ (companion_lt heart))
   all_goals
     exfalso
     unfold PathIn.isLrep at h
@@ -104,7 +104,7 @@ theorem tabToIntAt {X : Sequent} (h_free : X.isFree) (tab : Tableau .nil X) (t_u
             have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc nrep nbas ltZ nexts)))
                 = ⟨Z :: _, ⟨Y, nexts Y Y_in⟩⟩ := by simp_all
             convert this <;> try rw [s_def]
-            rw [eqRec_heq_iff_heq]
+            rw [eqRec_heq_iff]
           unfold nodeAt at IH
           rw [tabAt_u_def] at IH
           exact IH
@@ -142,7 +142,6 @@ theorem tabToIntAt {X : Sequent} (h_free : X.isFree) (tab : Tableau .nil X) (t_u
         trivial
   case neg s_free =>
     -- EASY case, singleton cluster because not loaded.
-    simp at s_free
     have s_isFree : (nodeAt s).isFree := by simp [Sequent.isFree, s_free]
     rcases s_def : tabAt s with ⟨Hist, X, s_tab⟩
     cases s_tab_def : s_tab
@@ -169,7 +168,7 @@ theorem tabToIntAt {X : Sequent} (h_free : X.isFree) (tab : Tableau .nil X) (t_u
           have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc nrep nbas ltX nexts)))
               = ⟨X :: _, ⟨Y, nexts Y Y_in⟩⟩ := by simp_all
           convert this <;> try rw [s_def]
-          rw [eqRec_heq_iff_heq]
+          rw [eqRec_heq_iff]
         unfold nodeAt at IH
         rw [tabAt_u_def] at IH
         exact IH

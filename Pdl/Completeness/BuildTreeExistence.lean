@@ -52,7 +52,8 @@ lemma loadedChain {X} {bt : BuildTree [] X} : ∀ (γs : List Program),
   induction γs
   case nil =>
     intro _ π mπ hmπ ξ hξ
-    exact ⟨π, mπ, hmπ, fun _ _ => le_refl _, by simp [Qsteps], by simpa using hξ⟩
+    exact ⟨ π, mπ, hmπ, fun _ _ => le_refl _, by simp only [Qsteps]; exact ReflBEq.rfl
+          , by simpa using! hξ ⟩
   case cons γ rest IH =>
     intro hall π mπ hmπ ξ hξ
     rw [AnyFormula.loadBoxes_cons, PreState.hasAnf_loaded_iff] at hξ
@@ -93,7 +94,8 @@ lemma PreState.loadedExists {X} {bt : BuildTree [] X} (α : Program) : LoadedExi
     · -- No steps to make: stay where we are.
       subst hδdef
       refine ⟨π, mπ, hmπ, fun _ _ => le_refl _, ?_, by simpa using hδ⟩
-      exact cpHelpA _ α (F, []) hFδ _ _ (PreState.qcombo_of_qsteps hF (by simp [Qsteps]))
+      exact cpHelpA _ α (F, []) hFδ _ _
+        (PreState.qcombo_of_qsteps hF (by simp only [Qsteps]; exact ReflBEq.rfl))
     · -- The first program in `δ` is atomic, we make a modal step with it.
       subst hδdef
       obtain ⟨a, rfl⟩ : ∃ a, γ0 = (·a : Program) := by
@@ -205,7 +207,7 @@ using `(L-)`, and on the way we may have to go to the companion of a free repeat
 lemma Sequent.not_closed_of_sub {L R L' R' : Finset Formula} {O O' : Olf}
     (hL : ∀ f ∈ L', f ∈ L) (hR : ∀ f ∈ R', f ∈ R) (h : ¬ Sequent.closed ⟨L, R, O⟩) :
     ¬ Sequent.closed ⟨L', R', O'⟩ := by
-  simp only [Sequent.closed, instMembershipFormulaSequent, Sequent.L_eq, Sequent.R_eq] at h ⊢
+  simp only [Sequent.closed, Sequent.mem_def, Sequent.L_eq, Sequent.R_eq] at h ⊢
   grind
 
 /-- Applying the rule `(L-)` to free the loaded formula: all formulas we had are kept. -/
@@ -252,7 +254,7 @@ lemma PdlRule.exists_loadStep {L R : Finset Formula} {a : Nat} {χ : Formula}
       = AnyFormula.loaded (⌊·a⌋(AnyFormula.loadBoxes γs ψ)) := by
     rw [loadMulti_eq_loadBoxes, hsplit, AnyFormula.loadBoxes_cons]
   have hload' : (⌊⌊δ⌋⌋⌊α⌋ψ) = (⌊·a⌋(AnyFormula.loadBoxes γs ψ)) := by
-    simpa using hload
+    simpa using! hload
   have hnonBox : ¬ ψ.isBox := boxesOf_output_not_isBox
   have hbasic : ∀ f ∈ L ∪ R, f.basic := by
     intro f hf
@@ -448,7 +450,7 @@ lemma PreState.freeExists {X} {bt : BuildTree [] X} (α : Program) {φ : Formula
   · -- Atomic case, this is Lemma 6.19.
     obtain ⟨a, rfl⟩ := Program.isAtomic_iff.mp hatom
     obtain ⟨ρ, hQ, hmem⟩ := PreState.freeAtomicChain (γs := []) (by simpa using h)
-    exact ⟨ρ, by simpa using hQ, hmem⟩
+    exact ⟨ρ, Qsteps_single.mp hQ, hmem⟩
   · -- Non-atomic case: unfold the diamond and then use Lemma 6.19 and Lemma 6.18.
     obtain ⟨⟨F, δ⟩, hFδ, hall⟩ := PreState.freeUnfoldDiaMem_of_nonAtom hatom h
     simp only [List.all_eq_true, decide_eq_true_eq] at hall
@@ -459,7 +461,7 @@ lemma PreState.freeExists {X} {bt : BuildTree [] X} (α : Program) {φ : Formula
     rcases Dset_mem_sequence α hFδ with rfl | ⟨a, γs, rfl⟩
     · -- No steps to make: stay where we are.
       refine ⟨π, cpHelpA _ α (F, []) hFδ _ _
-        (PreState.qcombo_of_qsteps hF (by simp [Qsteps])), ?_⟩
+        (PreState.qcombo_of_qsteps hF (by simp only [Qsteps]; exact ReflBEq.rfl)), ?_⟩
       exact PreState.mem_forms_of_mem_wForms (by simpa using hbox)
     · obtain ⟨ρ, hQ, hmem⟩ := PreState.freeAtomicChain (by simpa using hbox)
       exact ⟨ρ, cpHelpA _ α (F, (·a : Program) :: γs) hFδ _ _

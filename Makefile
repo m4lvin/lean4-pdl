@@ -43,9 +43,8 @@ delete-unused-oleans:
 	@echo "Deleted unused .olean files."
 
 check: pdl bml delete-unused-oleans
-	rm -rf lean4checker
-	chmod +x ./scripts/run_lean4checker.sh
-	./scripts/run_lean4checker.sh
+	lake env leanchecker Pdl
+	lake env leanchecker Bml
 
 # Dependency Graph
 

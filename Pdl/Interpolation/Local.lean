@@ -214,7 +214,7 @@ def localInterpolantStep (lra : LocalRuleApp)
         have w_ndis : ¬ evaluate M w (dis interSet.fsort) :=
           w_nInter_L (~ dis interSet.fsort) (by simp)
         rw [disEval] at w_ndis
-        push_neg at w_ndis
+        push Not at w_ndis
         intro φ φ_in
         rcases Finset.mem_union.mp φ_in with h | h
         · exact w_nInter_L φ (Finset.mem_union_right _ h)
@@ -269,7 +269,7 @@ def localInterpolantStep (lra : LocalRuleApp)
       have w_ncon : ¬ evaluate M w (con interSet.fsort) :=
         w_ (~ con interSet.fsort) (by simp)
       rw [conEval] at w_ncon
-      push_neg at w_ncon
+      push Not at w_ncon
       rcases w_ncon with ⟨θi, θi_in, w_nθi⟩
       rw [Formula.mem_fsort] at θi_in
       simp only [interSet, Finset.mem_image, Finset.mem_attach, true_and,
@@ -383,7 +383,7 @@ def localInterpolantStep (lra : LocalRuleApp)
         have w_ndis : ¬ evaluate M w (dis interSet.fsort) :=
           w_nInter_L (~ dis interSet.fsort) (by simp)
         rw [disEval] at w_ndis
-        push_neg at w_ndis
+        push Not at w_ndis
         intro φ φ_in
         rcases Finset.mem_union.mp φ_in with h | h
         · exact w_nInter_L φ (Finset.mem_union_right _ h)
@@ -440,7 +440,7 @@ def localInterpolantStep (lra : LocalRuleApp)
       have w_ncon : ¬ evaluate M w (con interSet.fsort) :=
         w_ (~ con interSet.fsort) (by simp)
       rw [conEval] at w_ncon
-      push_neg at w_ncon
+      push Not at w_ncon
       rcases w_ncon with ⟨θi, θi_in, w_nθi⟩
       rw [Formula.mem_fsort] at θi_in
       simp only [interSet, Finset.mem_image, Finset.mem_attach, true_and,

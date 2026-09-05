@@ -46,7 +46,7 @@ variable {X : Sequent} {tab : Tableau .nil X}
 /-- When `X` is an interpolant for `X`, then `~θ` is an interpolant for `X.flip`. -/
 lemma IsPartInterpolant.flip : isPartInterpolant X θ → isPartInterpolant X.flip (~θ) := by
   rintro ⟨voc, l_ip, r_ip⟩
-  refine ⟨?_, ?_, ?_⟩ <;> simp_all
+  refine ⟨?_, ?_, ?_⟩ <;> simp_all [HasSat.satisfiable]
   grind
 
 /-- Transport an interpolant to the flipped tableau. -/
@@ -592,10 +592,10 @@ lemma Sequent.basic_rightOnly {X : Sequent} (h : X.basic) : X.rightOnly.basic :=
     rcases hcl with hbot | ⟨f, hf, hnf⟩
     · left
       revert hbot
-      simp_all [instMembershipFormulaSequent, Sequent.rightOnly, Sequent.L, Sequent.R]
+      simp_all [Sequent.rightOnly, Sequent.L, Sequent.R]
     · right
       refine ⟨f, ?_, ?_⟩ <;>
-        simp_all [instMembershipFormulaSequent, Sequent.rightOnly, Sequent.L, Sequent.R]
+        simp_all [Sequent.rightOnly, Sequent.L, Sequent.R]
 
 /-- Where a right rule is applied, it is either a local rule or the node is basic (because
 the `(M)` rule is only applied at basic nodes). -/
@@ -749,7 +749,6 @@ lemma LocalRuleApp.rightOnly_eq_of_isLeftRule (lra : LocalRuleApp) (h : lra.isLe
   case loadedL χ lrule YS_def =>
     exfalso
     have hO := (Option.some_subseteq.mp pre.2.2).symm
-    simp only at hO
     rw [hO] at hR
     simp at hR
   all_goals
@@ -838,7 +837,6 @@ lemma LocalRuleApp.left_sat_of_isLeftRule {lra : LocalRuleApp} (hl : lra.isLeftR
   case loadedL χ lrule YS_def =>
     exfalso
     have hO := (Option.some_subseteq.mp pre.2.2).symm
-    simp only at hO
     rw [hO] at hR
     simp at hR
   all_goals
@@ -901,7 +899,6 @@ lemma LocalRuleApp.isRight_of_mem_C (lra : LocalRuleApp) :
     exfalso
     subst YS_def
     have hO := (Option.some_subseteq.mp pre.2.2).symm
-    simp only at hO
     subst hO
     simp only [applyLocalRule, Finset.mem_image] at hY
     obtain ⟨res, hres, rfl⟩ := hY
@@ -909,7 +906,6 @@ lemma LocalRuleApp.isRight_of_mem_C (lra : LocalRuleApp) :
     rcases Onew with _ | o <;> simp_all [Olf.isRight, Olf.change]
   case loadedR χ lrule YS_def =>
     have hO := (Option.some_subseteq.mp pre.2.2).symm
-    simp only at hO
     subst hO
     simp [Olf.isRight]
 
@@ -1203,7 +1199,7 @@ lemma exists_right_or_lrep (C : LoadedCluster tab) {Δ : Sequent}
     (hΔ : Δ ∈ C.lambdaTwo) :
     C.nodesWithFineRight Δ ≠ [] ∨ ∃ f ∈ C.nodesWithFine Δ, f.base.isLrep := by
   by_contra hcon
-  push_neg at hcon
+  push Not at hcon
   obtain ⟨hR, hlrep⟩ := hcon
   obtain ⟨t, ht⟩ := List.exists_mem_of_ne_nil _ ((C.mem_lambdaTwo_iff Δ).mp hΔ)
   have hΔR : Δ.2.2.isRight := C.isRight_of_mem_lambdaTwo hΔ

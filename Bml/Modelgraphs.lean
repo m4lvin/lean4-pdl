@@ -91,7 +91,7 @@ theorem truthLemma {Worlds : Set (Finset Formula)} (MG : ModelGraph Worlds) :
         rcases IH X with ⟨_, _, oh_IH_X⟩
         exact oh_IH_X boxP_in_X Y X_rel_Y
       · intro notBoxP_in_X; unfold Evaluate
-        push_neg
+        push Not
         rcases iv X P notBoxP_in_X with ⟨Y, X_rel_Y, notP_in_Y⟩
         refine ⟨Y, X_rel_Y, ?_⟩
         rcases IH Y with ⟨_, minus_IH_Y, _⟩

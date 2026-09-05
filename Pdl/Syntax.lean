@@ -642,14 +642,14 @@ lemma loadMulti_of_splitLast_cons {α αs βs β φ} (h : splitLast (α :: αs) 
 /-! ## Measures -/
 
 mutual
-  @[simp]
+  @[simp, implicit_reducible]
   def lengthOfProgram : Program → Nat
     | ·_ => 1
     | α;'β => 1 + lengthOfProgram α + lengthOfProgram β
     | α⋓β => 1 + lengthOfProgram α + lengthOfProgram β
     | ∗α => 1 + lengthOfProgram α
     | ?'φ => 2 + lengthOfFormula φ -- 2 not 1, to make F^ℓ go down ;-)
-  @[simp]
+  @[simp, implicit_reducible]
   def lengthOfFormula : Formula → Nat
     | Formula.bottom => 1
     | ·_ => 1

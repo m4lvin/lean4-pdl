@@ -5,7 +5,7 @@ import Mathlib.Tactic.NormNum
 import Bml.Syntax
 import Bml.Setsimp
 
-@[simp]
+@[simp, implicit_reducible]
 def vocabOfFormula : Formula → Finset Char
   | ⊥ => { }
   | ·c => {c}
@@ -13,7 +13,7 @@ def vocabOfFormula : Formula → Finset Char
   | φ⋀ψ => vocabOfFormula φ ∪ vocabOfFormula ψ
   | □φ => vocabOfFormula φ
 
-@[simp]
+@[simp, implicit_reducible]
 def vocabOfSetFormula : Finset Formula → Finset Char
   | X => Finset.biUnion X vocabOfFormula
 
@@ -29,6 +29,11 @@ instance formulaHasVocabulary : HasVocabulary Formula :=
 @[simp]
 instance setFormulaHasVocabulary : HasVocabulary (Finset Formula) :=
   HasVocabulary.mk vocabOfSetFormula
+
+-- Note: since Lean 4.29 `simp` no longer unfolds instances, so marking the instances
+-- as `@[simp]` is not enough. These lemmas restore the previous simp normal form.
+@[simp] theorem voc_form (φ : Formula) : voc φ = vocabOfFormula φ := rfl
+@[simp] theorem voc_set (X : Finset Formula) : voc X = vocabOfSetFormula X := rfl
 
 @[simp]
 theorem vocOfNeg {ϕ} : vocabOfFormula (~ϕ) = vocabOfFormula ϕ := by constructor
@@ -64,7 +69,7 @@ theorem vocErase {X : Finset Formula} {ϕ : Formula} : voc (X \ {ϕ}) ⊆ voc X 
 
 theorem vocUnion {X Y : Finset Formula} : voc (X ∪ Y) = voc X ∪ voc Y :=
   by
-  simp
+  simp [voc]
   ext1
   aesop
 
@@ -72,7 +77,7 @@ theorem vocPreserved (X : Finset Formula) (ψ ϕ) :
     ψ ∈ X → voc ϕ = voc ψ → voc X = voc (X \ {ψ} ∪ {ϕ}) :=
   by
   intro psi_in_X eq_voc
-  simp at *
+  simp [voc] at *
   ext1
   constructor
   all_goals intro a_in
@@ -88,7 +93,7 @@ theorem vocPreservedTwo {X : Finset Formula} (ψ ϕ1 ϕ2) :
   by
   intro psi_in_X eq_voc
   rw [vocUnion]
-  simp at *
+  simp [voc] at *
   ext1
   constructor
   all_goals intro a_in; norm_num at *
@@ -108,7 +113,7 @@ theorem vocPreservedSub {X : Finset Formula} (ψ ϕ) :
     ψ ∈ X → voc ϕ ⊆ voc ψ → voc (X \ {ψ} ∪ {ϕ}) ⊆ voc X :=
   by
   intro psi_in_X sub_voc
-  simp at *
+  simp [voc] at *
   intro a a_in; norm_num at *
   cases a_in
   · use ψ; rw [Finset.subset_iff] at sub_voc ; tauto

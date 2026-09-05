@@ -50,7 +50,7 @@ lemma LocalRuleApp.preserve_in_side_atomic (lra : LocalRuleApp) {α : Program} {
   case loadedL ress' χ lrule ress_def =>
     exfalso
     have hO := precons.2.2
-    simp only [Option.instHasSubsetOption, Option.some_subseteq] at hO
+    simp only [Option.some_subseteq] at hO
     cases side
     · rw [← hO] at h
       simp only [Option.some.injEq, Sum.inl.injEq, NegLoadFormula.neg.injEq] at h
@@ -63,7 +63,7 @@ lemma LocalRuleApp.preserve_in_side_atomic (lra : LocalRuleApp) {α : Program} {
   case loadedR ress' χ lrule ress_def =>
     exfalso
     have hO := precons.2.2
-    simp only [Option.instHasSubsetOption, Option.some_subseteq] at hO
+    simp only [Option.some_subseteq] at hO
     cases side
     · rw [← hO] at h
       simp at h
@@ -182,7 +182,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
       -- Soundness and invertibility of the local rule:
       have locRulTru := @localRuleTruth lra W M
       rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, rule, C, hC, precons⟩
-      simp only [AnyFormula.loadBoxes_cons, modelCanSemImplyList, LocalRuleApp.X,
+      simp only [AnyFormula.loadBoxes_cons, LocalRuleApp.X,
         endNodesOf.eq_1] at *
       -- We distinguish which rule was applied.
       cases rule
@@ -282,7 +282,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                   simp only [evaluate, Formula.boxes_cons, not_forall]
                   rcases u_αs_w with ⟨x, v_α_x, bla⟩
                   use x, v_α_x; rw [evalBoxes]
-                  push_neg; use w; tauto
+                  push Not; use w; tauto
               · clear IH next
                 cases side <;> subst_eqs <;> simp_all [AnyNegFormula.in_side, LoadFormula.boxes]
               · clear IH next
@@ -328,7 +328,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                 rcases v_δ_u with ⟨x, v_d_x, x_δs_u⟩
                 refine ⟨x, v_d_x, ⟨u, x_δs_u, ?_⟩⟩
                 rw [loaded_eq_to_unload_eq χ' _ _ χ_def, evalBoxes]
-                push_neg; use w; tauto
+                push Not; use w; tauto
             · simp_rw [relateSeq_cons, relateSeq_append]
               rw [relateSeq_cons] at v_δ_u
               rcases v_δ_u with ⟨x, v_d_x, x_δ_u⟩
@@ -410,8 +410,8 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               · simp
               · cases O <;> cases side
                 all_goals
-                  simp [splitLast, Olf.change, Option.insHasSdiff, AnyNegFormula.in_side] at *
-                · exact negLoad_in
+                  simp [splitLast, Olf.change, AnyNegFormula.in_side] at *
+                · rw [negLoad_in]; simp
                 · subst hC; exfalso; aesop
             -- We do not know `Y` yet because ltab may continue after `(L ++ F ++ [~φ], R, none)`.
             -- So let's use localTableauTruth to find a free end node, similar to αs = [] case.
@@ -547,7 +547,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                   simp only [evaluate, Formula.boxes_cons, not_forall]
                   rcases u_αs_w with ⟨x, v_α_x, bla⟩
                   use x, v_α_x; rw [evalBoxes]
-                  push_neg; use w; tauto
+                  push Not; use w; tauto
               · clear IH next
                 cases side <;> simp_all [AnyNegFormula.in_side, LoadFormula.boxes]
               · clear IH next
@@ -594,7 +594,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
                 rcases v_δ_u with ⟨x, v_d_x, x_δs_u⟩
                 refine ⟨x, v_d_x, ⟨u, x_δs_u, ?_⟩⟩
                 rw [loaded_eq_to_unload_eq χ' _ _ χ_def, evalBoxes]
-                push_neg; use w; tauto
+                push Not; use w; tauto
             · simp_rw [relateSeq_cons, relateSeq_append]
               rw [relateSeq_cons] at v_δ_u
               rcases v_δ_u with ⟨x, v_d_x, x_δ_u⟩
@@ -646,7 +646,7 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
           have ⟨α_same, φ_same, αs_empty⟩ : α = α' ∧ φ = φ' ∧ αs = [] := by
             simp [AnyNegFormula.in_side] at negLoad_in
             have := precons.2.2
-            simp only [Option.instHasSubsetOption, Option.some_subseteq] at this
+            simp only [Option.some_subseteq] at this
             rw [← this] at negLoad_in
             cases side
             · subst this
@@ -676,9 +676,9 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
               · simp
               · cases O <;> cases side
                 all_goals
-                  simp [splitLast, Olf.change, Option.insHasSdiff, AnyNegFormula.in_side] at *
+                  simp [splitLast, Olf.change, AnyNegFormula.in_side] at *
                 · subst hC; exfalso; aesop
-                · exact negLoad_in
+                · rw [negLoad_in]; simp
             -- No IH needed because we reach a free node.
             clear IH
             -- We do not know `Y` yet because ltab may continue after `(L, R ∪ F ∪ {~φ}, none)`.
@@ -775,4 +775,4 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
       subst α_def
       -- We can use X itself as the end node.
       refine ⟨X, ?_, v_t, Or.inr ⟨[], ·a :: αs, negLoad_in,  ?_,  ?_,  ?_⟩ ⟩ <;> simp_all
-      exact Sequent.without_loaded_in_side_isFree X _ side negLoad_in
+      exact ⟨by simp [vDash.SemImplies], Sequent.without_loaded_in_side_isFree X _ side negLoad_in⟩

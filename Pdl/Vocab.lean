@@ -106,6 +106,7 @@ def NegLoadFormula.voc (nlf : NegLoadFormula) : Vocab := (negUnload nlf).voc
 /-! ## Tests in a program -/
 
 /-- Test(α) -/
+@[implicit_reducible]
 def testsOfProgram : Program → List Formula
 | ·_ => []
 | ?' τ => [τ] -- no sub-tests etc. needed?

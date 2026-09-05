@@ -252,6 +252,7 @@ TODO: these could be moved to `Pdl.Syntax`, next to `Finset.fsort`.
 
 /-- The linear order on formulas, bundling the results from `Pdl.Syntax`.
 This is only used locally, to get the lexicographic order on `List Formula`. -/
+@[instance_reducible]
 def Formula.linearOrder : LinearOrder Formula where
   le := Formula.le
   lt := fun φ ψ => φ ≠ ψ ∧ φ.le ψ
@@ -332,7 +333,7 @@ theorem disconAnd {XS YS} : discon (XS ⊎ YS) ≡ discon XS ⋀ discon YS :=
   unfold semEquiv
   intro W M w
   rw [disconEval (XS ⊎ YS)]
-  simp
+  simp [HasUplus.pairunion]
   rw [disconEval XS]
   rw [disconEval YS]
   aesop
@@ -341,7 +342,7 @@ theorem union_elem_uplus {XS YS : Finset (Finset Formula)} {X Y : Finset Formula
   X ∈ XS → Y ∈ YS → ((X ∪ Y) ∈ (XS ⊎ YS)) :=
   by
   intro X_in Y_in
-  simp
+  simp [HasUplus.pairunion]
   exact ⟨X, X_in, Y, Y_in, rfl⟩
 
 /-- Helper for `oneSidedLocalRuleTruth`, used with `g = Yset`. -/

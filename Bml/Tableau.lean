@@ -16,6 +16,12 @@ open Formula
 open HasLength
 open HasVocabulary
 
+/-
+Bridging simp lemmas.  Since Lean 4.29 the `@[simp]` attribute on an `instance`
+declaration is inert, so `⊥`, `lengthOf` and `voc` no longer get unfolded by
+`simp`.  The following (file-local) lemmas restore the old behaviour.
+-/
+
 -- TNodes
 @[simp]
 instance : HasSubset (Finset Formula × Finset Formula) :=
@@ -25,6 +31,7 @@ instance : HasSubset (Finset Formula × Finset Formula) :=
 instance : Union (Finset Formula × Finset Formula) :=
   ⟨fun (L1, R1) (L2, R2) => (L1 ∪ L2, R1 ∪ R2)⟩
 
+@[implicit_reducible]
 def TNode := Finset Formula × Finset Formula
   deriving DecidableEq, HasSubset, Union
 
@@ -177,6 +184,7 @@ inductive OneSidedLocalRule : Finset Formula → List (Finset Formula) → Type
   | con  (φ ψ : Formula) : OneSidedLocalRule {φ ⋀ ψ}  [{φ,ψ}]
   | ncon (φ ψ : Formula) : OneSidedLocalRule {~(φ⋀ψ)} [{~φ}, {~ψ}]
 
+@[implicit_reducible]
 def SubPair := Finset Formula × Finset Formula
 deriving DecidableEq
 
@@ -571,6 +579,11 @@ def zlengthOf : Formula → Int := fun f => ((lengthOfFormula f : Nat) : Int)
 
 theorem zlengthOf.pos : 0 ≤ zlengthOf φ := Int.natCast_nonneg (lengthOfFormula φ)
 
+/-- `simp` does not eta-expand the function argument of `Finset.sum`, so we
+state the unfolding of `zlengthOf` under a sum explicitly. -/
+@[local simp] theorem sum_zlengthOf (X : Finset Formula) :
+    X.sum zlengthOf = ∑ x ∈ X, ((lengthOfFormula x : ℕ) : ℤ) := rfl
+
 @[simp]
 def zlengthOfSet : Finset Formula → Int := fun X => X.sum zlengthOf
 
@@ -819,8 +832,6 @@ noncomputable def aLocalTableauFor (LR : TNode) : LocalTableau LR :=
       aLocalTableauFor c)
   termination_by
     lengthOf LR
-  decreasing_by
-    simp_wf; assumption
 
 instance : Nonempty (LocalTableau LR) := Nonempty.intro (aLocalTableauFor LR)
 

@@ -5,10 +5,10 @@ import Pdl.Star
 
 /-! ## Defining the Quotient of Formulas -/
 
-def semEquiv.Equivalence : Equivalence semEquiv :=
-  ⟨ semEquiv.refl
-  , fun xy => semEquiv.symm xy
-  , fun xy yz => semEquiv.trans xy yz ⟩
+theorem semEquiv.Equivalence : Equivalence semEquiv :=
+  ⟨ semEquiv.refl.1
+  , fun xy => semEquiv.symm.1 _ _ xy
+  , fun xy yz => semEquiv.trans.1 _ _ _ xy yz ⟩
 
 instance Formula.instSetoid : Setoid Formula := ⟨semEquiv, semEquiv.Equivalence⟩
 
@@ -17,10 +17,10 @@ abbrev SemProp := Quotient Formula.instSetoid
 
 /-! ## Defining the Quotient of Programs -/
 
-def relEquiv.Equivalence : Equivalence relEquiv :=
-  ⟨ relEquiv.refl
-  , fun xy => relEquiv.symm xy
-  , fun xy yz => relEquiv.trans xy yz ⟩
+theorem relEquiv.Equivalence : Equivalence relEquiv :=
+  ⟨ relEquiv.refl.1
+  , fun xy => relEquiv.symm.1 _ _ xy
+  , fun xy yz => relEquiv.trans.1 _ _ _ xy yz ⟩
 
 instance Program.instSetoid : Setoid Program := ⟨relEquiv, relEquiv.Equivalence⟩
 
@@ -44,28 +44,30 @@ lemma congr_liftFun₂ {α β : Type} [HasEquiv α] [HasEquiv β] [HasEquiv γ] 
 
 /-! ## Lifting formula connectives to the quotient -/
 
-lemma Formula.neg_congr {φ ψ : Formula} (h : φ ≈ ψ) : Formula.neg φ ≈ Formula.neg ψ :=
-  by simp [HasEquiv.Equiv, Setoid.r, semEquiv] at *
-     intros W M w
-     simp_all only
+lemma Formula.neg_congr {φ ψ : Formula} (h : φ ≈ ψ) : ~φ ≈ ~ψ := by
+  intros W M w
+  specialize h W M w
+  simp_all
 
 def SemProp.neg : SemProp → SemProp :=
   Quotient.map Formula.neg (congr_liftFun <| fun _ _ => Formula.neg_congr)
 
 lemma Formula.and_congr {φ₁ ψ₁ φ₂ ψ₂ : Formula} (h₁ : φ₁ ≈ φ₂) (h₂ : ψ₁ ≈ ψ₂) :
-  φ₁.and ψ₁ ≈ φ₂.and ψ₂ :=
-  by simp [HasEquiv.Equiv, Setoid.r, semEquiv] at *
-     intros W M w
-     simp_all only
+    φ₁.and ψ₁ ≈ φ₂.and ψ₂ := by
+  intros W M w
+  specialize h₁ W M w
+  specialize h₂ W M w
+  simp_all
 
 def SemProp.and : SemProp → SemProp → SemProp :=
   Quotient.map₂ Formula.and (congr_liftFun₂ <| fun _ _ _ _ hx hy => Formula.and_congr hx hy)
 
 lemma Formula.box_congr {α β : Program} {φ ψ : Formula} (h₁ : α ≈ β) (h₂ : φ ≈ ψ) :
-  φ.box α ≈ ψ.box β :=
-  by simp [HasEquiv.Equiv, Setoid.r, semEquiv, relEquiv] at *
-     intros W M w
-     simp_all only
+    φ.box α ≈ ψ.box β := by
+  intros W M w
+  specialize h₁ W M
+  specialize h₂ W M
+  aesop
 
 def SemProp.box : RelProp → SemProp → SemProp :=
   Quotient.map₂ Formula.box (fun _ _ hx _ _ hy => Formula.box_congr hx hy)

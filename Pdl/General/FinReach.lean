@@ -78,7 +78,7 @@ lemma reachStep_iterate_card_fixed (s : Finset α) :
       rw [hN]
       simpa using Finset.card_le_univ ((reachStep r)^[N + 1] s)
     omega
-  · push_neg at hgrow
+  · push Not at hgrow
     obtain ⟨m, hm, heq⟩ := hgrow
     have h1 := reachStep_iterate_eq_of_eq r s heq N (by omega)
     have h2 := reachStep_iterate_eq_of_eq r s heq (N + 1) (by omega)

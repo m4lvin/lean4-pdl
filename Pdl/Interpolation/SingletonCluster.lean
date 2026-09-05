@@ -16,8 +16,8 @@ lemma isPartInterpolant_of_mem_iff {Z Y : Sequent} {θ : Formula}
     have := fvoc_subset_of_mem_voc (fun f hf => ⟨f, (hl f).mpr hf, subset_rfl⟩) x_in.1
     have := fvoc_subset_of_mem_voc (fun f hf => ⟨f, (hr f).mpr hf, subset_rfl⟩) x_in.2
     grind
-  · aesop
-  · aesop
+  · rw [Finset.ext hl]; exact hL
+  · rw [Finset.ext hr]; exact hR
 
 /-! ## Interpolants for PdlRules applied to free nodes
 
@@ -147,7 +147,7 @@ lemma exists_itp_modL {A : Nat} {L R Xl Xr Yl Yr : Finset Formula} {ψ θ : Form
       · exact hvθ
       · exact succ_Yr W M w v hXrw hv f hf
   · -- The projection of the right component is empty, hence `Xl` is unsatisfiable.
-    push_neg at hemp
+    push Not at hemp
     have θ_unsat : ∀ (W : Type) (M : KripkeModel W) (w : W), ¬ evaluate M w θ := by
       intro W M w hw
       refine hR ⟨W, M, w, ?_⟩
@@ -257,7 +257,7 @@ lemma exists_itp_modR {A : Nat} {L R Xl Xr Yl Yr : Finset Formula} {ψ θ : Form
       · exact h1 v hv
       · exact hvYr f hf
   · -- The projection of the left component is empty, hence `Xr` is unsatisfiable.
-    push_neg at hemp
+    push Not at hemp
     have θ_valid : ∀ (W : Type) (M : KripkeModel W) (w : W), evaluate M w θ := by
       intro W M w
       by_contra hw

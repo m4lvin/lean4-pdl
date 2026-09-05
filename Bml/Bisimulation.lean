@@ -29,13 +29,13 @@ theorem modelEquiv_iff_bisimilar {W : Type} (finW : Fintype W) (finW' : Fintype 
     · intro w w' c v w_v -- showing the forth condition
       unfold modelEquiv at c
       unfold modelEquiv
-      simp only [modelCanSemImplyForm]
+      simp only [models_form_iff]
       by_contra hyp
       simp only [not_exists, not_and] at hyp
       have claim : ∀ wᵢ' : Subtype (M'.Rel w'),
           ∃ (ψᵢ : Formula), (M,v) ⊨ ψᵢ ∧ ¬ (M', wᵢ'.val) ⊨ ψᵢ := by
         rintro ⟨wᵢ', w'_wᵢ'⟩
-        simp only [modelCanSemImplyForm]
+        simp only [models_form_iff]
         specialize hyp wᵢ'
         rw [propext (not_iff_false_intro w'_wᵢ')] at hyp
         simp only [imp_false, not_forall] at hyp
@@ -75,13 +75,13 @@ theorem modelEquiv_iff_bisimilar {W : Type} (finW : Fintype W) (finW' : Fintype 
       -- COPY-PASTA from forth direction, just adding and removing primes :-)
       unfold modelEquiv at c
       unfold modelEquiv
-      simp only [modelCanSemImplyForm]
+      simp only [models_form_iff]
       by_contra hyp
       simp only [not_exists, not_and] at hyp
       have claim : ∀ wᵢ : Subtype (M.Rel w),
           ∃ (ψᵢ : Formula), (M',v') ⊨ ψᵢ ∧ ¬ (M, wᵢ.val) ⊨ ψᵢ := by
         rintro ⟨wᵢ, w_wᵢ⟩
-        simp only [modelCanSemImplyForm]
+        simp only [models_form_iff]
         specialize hyp wᵢ
         rw [propext (not_iff_false_intro w_wᵢ)] at hyp
         simp only [imp_false, not_forall] at hyp

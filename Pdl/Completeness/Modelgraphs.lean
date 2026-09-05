@@ -64,7 +64,7 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
     (⌈⌈δ.drop i⌉⌉φ) ∈ ((X :: l ++ [Y]).get i).val := by
   induction i using Fin.inductionOn
   case zero =>
-    simp_all only [insTop, List.cons_append, List.zip_cons_cons, Subtype.forall,
+    simp_all only [List.cons_append, List.zip_cons_cons, Subtype.forall,
       List.length_cons, Fin.val_zero, List.drop_zero, List.get_cons_zero]
       -- uses δφ_in_X
   case succ i IH =>
@@ -79,7 +79,7 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
         rw [this]
         simp only [Fin.getElem_fin, Fin.val_cast, List.append_eq, List.getElem_cons_drop]
         cases i
-        simp_all only [insTop, List.zip_cons_cons, Subtype.forall, List.append_eq,
+        simp_all only [List.zip_cons_cons, Subtype.forall, List.append_eq,
           Fin.castSucc_mk]
         rw [Formula.boxes_cons]
       rw [this]
@@ -90,15 +90,14 @@ theorem loadClaimHelper {Worlds : Finset (Finset Formula)}
       rw [List.isChain_iff_getElem] at lchain
       specialize lchain i ?_
       · rcases i with ⟨val, hyp⟩
-        simp_all only [insTop, List.zip_cons_cons, List.length_cons, List.length_zip,
+        simp_all only [List.zip_cons_cons, List.length_cons, List.length_zip,
           List.length_append, min_self, List.get_eq_getElem, List.getElem_cons_succ,
           List.getElem_zip, Subtype.forall, List.append_eq, Fin.castSucc_mk]
         rw [← length_def]
         simp only [List.append_eq, List.length_append, List.length_cons, List.length_nil,
           zero_add] at hyp
         linarith
-      simp [pairRel, insTop, List.zip_cons_cons, List.length_cons, List.append_eq,
-        List.getElem_zip] at lchain
+      simp [pairRel, List.zip_cons_cons, List.append_eq, List.getElem_zip] at lchain
       convert lchain
       apply get_eq_getzip
 
@@ -140,7 +139,7 @@ theorem Q_then_relate {Worlds} (MG : ModelGraph Worlds) α (X Y : Worlds) :
     · tauto
     · tauto
 termination_by
-  lengthOf α
+  lengthOfProgram α
 
 /-- C1 and C2 in notes -/
 theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
@@ -222,7 +221,7 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
         specialize minus_Y nP_in_Y
         convert minus_Y
 termination_by
-  f => lengthOf f
+  f => lengthOfFormula f
 
 /-- C4 in notes -/
 theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
@@ -257,8 +256,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       have X_β_Z : relate MG.1 β X Z := by
         specialize relSteps 0
         unfold Z
-        convert relSteps
-        aesop
+        convert relSteps <;> aesop
       have := ((MG.2.1 X).1 φ φ (∗β)).right.right.right.left boxP_in_X
       rcases this with ⟨ℓ, mysat⟩
       simp [Bset] at mysat
@@ -314,7 +312,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
           have IHδ : ∀ d ∈ δ, ∀ (X' Y' : Worlds),
               ∀ φ', (⌈d⌉φ') ∈ X'.val → relate MG.val d X' Y' → φ' ∈ Y'.val := by
             intro d d_in_δ X' Y' φ' dφ_in_X' X'_d_Y'
-            have _forTermination : lengthOf d < lengthOf (∗β) := by
+            have _forTermination : lengthOfProgram d < lengthOfProgram (∗β) := by
               have := PgoesDown d_in_δ δ_in_P
               cases em β.isAtomic <;> cases em β.isStar
               all_goals
@@ -368,7 +366,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       subst α_def
       simp_all only [relate, Subtype.exists, lengthOfProgram, true_or, forall_true_left]
     have := existsBoxFP _ X_rel_Y (α_def ▸ ℓ)
-      (by simp [modelCanSemImplyForm,conEval]; exact X_F)
+      (by simp [vDash.SemImplies, conEval]; exact X_F)
     rcases this with ⟨δ, δ_in_P, X_δ_Y⟩
     have δφ_in_X : (⌈⌈δ⌉⌉φ) ∈ X.val := by
       simp_all only [relate, Subtype.exists]
@@ -380,7 +378,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
     have IHδ : ∀ d ∈ δ, ∀ (X' Y' : Worlds), ∀ φ',
         (⌈d⌉φ') ∈ X'.val → relate MG.val d X' Y' → φ' ∈ Y'.val := by
       intro d d_in_δ X' Y' φ' dφ_in_X' X'_d_Y'
-      have _forTermination : lengthOf d < lengthOf α := by
+      have _forTermination : lengthOfProgram d < lengthOfProgram α := by
         have := PgoesDown d_in_δ δ_in_P
         simp_all [Program.isAtomic, Program.isStar]
       exact loadedTruthLemmaProg MG d X' φ' dφ_in_X' Y' X'_d_Y'
@@ -404,7 +402,7 @@ theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
       exact loadClaimHelper length_def δφ_in_X lchain IHδ i
 
 termination_by
-  _ _ _ => lengthOf α
+  _ _ _ => lengthOfProgram α
 
 end
 

@@ -7,7 +7,7 @@ import Bml.Tableau
 theorem noBot : Provable (~⊥) := by
   apply Provable.byTableau
   apply ClosedTableau.loc
-  case a.lt =>
+  case lt =>
     apply LocalTableau.fromRule
     · apply LocalRuleApp.mk _ {~~⊥} {} (LocalRule.oneSidedL (OneSidedLocalRule.neg ⊥))
       · simp
@@ -26,7 +26,7 @@ theorem noBot : Provable (~⊥) := by
         aesop
       simp at ltBot
       exact ltBot
-  case a.next =>
+  case next =>
     -- show that endNodesOf is empty
     intro Y Y_in
     exfalso
@@ -36,7 +36,7 @@ theorem noContradiction : Provable (~(p⋀~p)) :=
   by
   apply Provable.byTableau
   apply ClosedTableau.loc
-  case a.lt =>
+  case lt =>
     apply LocalTableau.fromRule
     · apply LocalRuleApp.mk _ {~~(p⋀~p)} {} (LocalRule.oneSidedL (OneSidedLocalRule.neg (p⋀~p)))
       all_goals (try simp; try rfl) -- easier than guessing "use applyLocalRule ..."
@@ -58,7 +58,7 @@ theorem noContradiction : Provable (~(p⋀~p)) :=
           aesop
         exact ltC
       exact ltB
-  case a.next =>
+  case next =>
     -- show that endNodesOf is empty
     intro Y Y_in
     exfalso

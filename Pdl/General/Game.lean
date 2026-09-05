@@ -109,6 +109,7 @@ instance Strategy.instNonempty {g i} : Nonempty (Strategy g i) := ⟨fun _ _ => 
 /-- Winner of a game, if the given strategies are used.
 A player loses iff it is their turn and there are no moves.
 A player wins if the opponent loses. -/
+@[implicit_reducible]
 def winner {i} {g : Game} (sI : Strategy g i) (sJ : Strategy g (other i)) (p : g.Pos) : Player :=
   if h1 : (g.moves p).Nonempty
     then if h2 : g.turn p = i --
@@ -204,11 +205,7 @@ theorem good_cone {i} {g : Game} {p r : g.Pos} (W : good i p) (h : inMyCone (goo
     exact (ih.resolve_left (not_and_of_not_left _ <| not_eq_i_eq_other.mpr turn)).right _ h
   | @myStep q a nempty turn ih =>
     unfold good_strat
-    if good i q
-      then
-        simp only [ih, ↓reduceDIte]
-        exact (good_strat._proof_1 i q turn (of_eq_true (eq_true ih))).choose_spec.choose_spec
-      else contradiction
+    grind
 
 /-! ## Zermelo's Theorem -/
 
@@ -317,18 +314,20 @@ lemma same_winner_of_same_in_cone {i g} {sI : Strategy g i} {sJ sJ' : Strategy g
 termination_by p
 decreasing_by all_goals apply g.move_rel; exact Subtype.mem _
 
+set_option backward.defeqAttrib.useBackward true in
 /-- Helper for `gameP_general`. -/
 theorem winning_of_whatever_other_move {i g} {sI : Strategy g i}
     {p : g.Pos} (h : g.turn p = other i) (sI_wins_p : winning sI p) (m : g.moves p)
     : winning sI m.val := by
   have : DecidableEq g.Pos := by exact Classical.typeDecidableEq Game.Pos
   unfold winning
+  unfold winning winner at sI_wins_p
   intro sJ
   let sJ_m : Strategy g (other i) := fun npos npos_Bui_turn nonE =>
     -- At `p` we use the given `m`, otherwise d othe same as `sJ`.
     if same_p : npos = p then same_p ▸ m else  sJ _ npos_Bui_turn nonE
   specialize sI_wins_p sJ_m
-  unfold sJ_m winner at sI_wins_p
+  unfold sJ_m at sI_wins_p
   have : (Game.moves p).Nonempty := ⟨m.1,m.2⟩
   have : ¬ Game.turn p = i := by aesop
   simp [*] at sI_wins_p

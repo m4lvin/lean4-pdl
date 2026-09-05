@@ -94,7 +94,6 @@ lemma C_left_eq_nil {lra : LocalRuleApp} (h : lra.isRightRule) (hL : lra.X.left 
   case loadedR χ lrule YS_def =>
     subst YS_def
     have hO := (Option.some_subseteq.mp pre.2.2).symm
-    simp only at hO
     subst hO
     simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hY
     obtain ⟨⟨F, o⟩, -, rfl⟩ := hY
@@ -148,7 +147,7 @@ lemma models_iff_right {W : Type} {M : KripkeModel W} {w : W} {X : Sequent}
   rcases X with ⟨L, R, O⟩
   simp only [Sequent.left_eq, Finset.union_eq_empty] at hL
   obtain ⟨rfl, hO⟩ := hL
-  simp only [modelCanSemImplySequent, Sequent.right_eq, Finset.mem_union]
+  simp only [vDash.SemImplies, Sequent.right_eq, Finset.mem_union]
   rcases O with _ | (o | o) <;>
     simp [Olf.R, Olf.L, Sequent.toFinset, negUnload] at hO ⊢
   constructor
@@ -276,7 +275,7 @@ lemma LocalRuleApp.rightRule_sat_witDist {lra : LocalRuleApp} (hr : lra.isRightR
               (by simp [Sequent.loadedSplit]),
             witDist_eq_of_loadedSplit (γ := [α]) (ψ := φ) (by simp [Sequent.loadedSplit])]
           rw [← hdist]
-          refine le_antisymm ?_ (zero_le _) |>.trans (le_antisymm (zero_le _) ?_)
+          refine le_antisymm ?_ zero_le |>.trans (le_antisymm zero_le ?_)
           · exact le_of_le_of_eq (iInf_le _ (⟨v, by simp⟩ :
               {w : W // evaluate M w (~(⊥ : Formula))})) distance_list_nil_self
           · exact le_of_le_of_eq (iInf_le _ (⟨v, hφ⟩ : {w : W // evaluate M w (~φ)}))

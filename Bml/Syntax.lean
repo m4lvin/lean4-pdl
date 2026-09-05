@@ -39,12 +39,18 @@ infixr:55 "↣" => impl
 
 infixl:77 "⟷" => fun ϕ ψ => (ϕ↣ψ)⋀(ψ↣ϕ)
 
-@[simp]
+@[simp, implicit_reducible]
 instance : Bot Formula :=
   ⟨Formula.bottom⟩
 
+@[implicit_reducible]
 instance : Top Formula :=
   ⟨Formula.neg Formula.bottom⟩
+
+-- Note: since Lean 4.29 `simp` no longer unfolds instances, so marking the instances below
+-- as `@[simp]` is not enough. These lemmas restore the previous simp normal form.
+@[simp] theorem bot_is_bottom : (⊥ : Formula) = Formula.bottom := rfl
+@[simp] theorem top_is_neg_bottom : (⊤ : Formula) = ~Formula.bottom := rfl
 
 -- Convienient constructors
 def BigConjunction : List Formula → Formula :=
@@ -86,6 +92,12 @@ open HasLength
 instance formulaHasLength : HasLength Formula := ⟨lengthOfFormula⟩
 @[simp]
 instance setFormulaHasLength : HasLength (Finset Formula) := ⟨lengthOfSet⟩
+
+-- Note: since Lean 4.29 `simp` no longer unfolds instances, so marking the instances below
+-- as `@[simp]` is not enough. These lemmas restore the previous simp normal form.
+@[simp] theorem lengthOf_form (φ : Formula) : lengthOf φ = lengthOfFormula φ := rfl
+@[simp] theorem lengthOf_set (X : Finset Formula) : lengthOf X = lengthOfSet X := rfl
+
 
 @[simp]
 def complexityOfFormula : Formula → ℕ

@@ -431,7 +431,7 @@ lemma satDown_one_leaf_exit {Δ} (hx : C.Q.at? x = some (.QNode .one Δ []))
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) : C.SatDown θ x := by
   intro W M g v Z hlab hZ hι
   exfalso
-  have hZeq : Δ = Z := by rw [QuasiTab.labelAt, hx] at hlab; simpa using hlab
+  have hZeq : Δ = Z := by rw [QuasiTab.labelAt, hx] at hlab; simpa using! hlab
   subst hZeq
   rw [C.iitp_one_leaf_exit hx hc, QFormula.evalQ_fma] at hι
   refine C.thetaOf_right θ hθ Δ ⟨W, M, v, ?_⟩
@@ -447,7 +447,7 @@ lemma satDown_one_inner {Δ y ys} (hx : C.Q.at? x = some (.QNode .one Δ (y :: y
     (hcomp : x ∉ C.Q.companions) (hylab : C.Q.labelAt (x ++ [0]) = some Δ)
     (IH : C.SatDown θ (x ++ [0])) : C.SatDown θ x := by
   intro W M g v Z hlab hZ hι
-  have hZeq : Δ = Z := by rw [QuasiTab.labelAt, hx] at hlab; simpa using hlab
+  have hZeq : Δ = Z := by rw [QuasiTab.labelAt, hx] at hlab; simpa using! hlab
   subst hZeq
   rw [C.iitp_one_inner hx hcomp] at hι
   obtain ⟨z, hz, Y, u, h1, h2, h3, h4, h5⟩ := IH W M g v Δ hylab hZ hι
@@ -462,7 +462,7 @@ lemma satDown_two {Δ y ys} (hx : C.Q.at? x = some (.QNode .two Δ (y :: ys)))
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f))
     (IH : C.SatDown θ (x ++ [0])) : C.SatDown θ x := by
   intro W M g v Z hlab hZ hι
-  have hZeq : Δ = Z := by rw [QuasiTab.labelAt, hx] at hlab; simpa using hlab
+  have hZeq : Δ = Z := by rw [QuasiTab.labelAt, hx] at hlab; simpa using! hlab
   subst hZeq
   have hcomp : x ∉ C.Q.companions := by
     intro hcon
@@ -495,7 +495,7 @@ lemma satDown_three_basic {Δ Y y ys} (hS : C.SatDownFacts) (hΔ : Δ ∈ C.lamb
     (hstep : C.stepOf Δ = {Y}) (hylab : C.Q.labelAt (x ++ [0]) = some Y)
     (IH : C.SatDown θ (x ++ [0])) : C.SatDown θ x := by
   intro W M g v Z hxlab hZ hι
-  have hZeq : Δ = Z := by rw [QuasiTab.labelAt, hx] at hxlab; simpa using hxlab
+  have hZeq : Δ = Z := by rw [QuasiTab.labelAt, hx] at hxlab; simpa using! hxlab
   subst hZeq
   have hcomp : x ∉ C.Q.companions := by
     intro hcon
@@ -510,7 +510,7 @@ lemma satDown_three_basic {Δ Y y ys} (hS : C.SatDownFacts) (hΔ : Δ ∈ C.lamb
     hZ _ (Sequent.negBoxes_mem_right (hS.rightLoaded Δ hΔ))
   simp only [evaluate] at hloaded
   rw [evalBoxes] at hloaded
-  push_neg at hloaded
+  push Not at hloaded
   obtain ⟨w1, hw1rel, hw1⟩ := hloaded
   -- a state `w0` at minimal witness distance
   have hne : Nonempty {w : W // evaluate M w (~ Δ.loadedFma)} := ⟨⟨w1, hw1⟩⟩
@@ -548,7 +548,7 @@ lemma satDown_three_basic {Δ Y y ys} (hS : C.SatDownFacts) (hΔ : Δ ∈ C.lamb
   have hYloaded : evaluate M v' (~⌈⌈Y.loadedProgs⌉⌉Y.loadedFma) := by
     simp only [evaluate]
     rw [evalBoxes]
-    push_neg
+    push Not
     exact ⟨(w0 : W), hgam, hw0Y⟩
   have hYright : ∀ φ ∈ Y.right, evaluate M v' φ := hproj W M v v' hZ hAv' hYloaded
   rw [C.iitp_three_basic hx hb, QFormula.evalQ_boxes] at hι
@@ -569,7 +569,7 @@ lemma satDown_three_not_basic {Δ next} (hS : C.SatDownFacts) (hΔ : Δ ∈ C.la
       C.Q.labelAt (x ++ [i]) = some ((C.stepOfL Δ)[i]'hi))
     (IH : ∀ i, i < next.length → C.SatDown θ (x ++ [i])) : C.SatDown θ x := by
   intro W M g v Z hxlab hZ hι
-  have hZeq : Δ = Z := by rw [QuasiTab.labelAt, hx] at hxlab; simpa using hxlab
+  have hZeq : Δ = Z := by rw [QuasiTab.labelAt, hx] at hxlab; simpa using! hxlab
   subst hZeq
   have hcomp : x ∉ C.Q.companions := by
     intro hcon
@@ -621,7 +621,7 @@ lemma satDown_one_companion {Δ y ys} (hS : C.SatDownFacts)
         simp only [QuasiTab.repeatLeaves, List.mem_filter] at hzrepl
         exact hzrepl.2
       obtain ⟨Z'', hzat⟩ := QuasiTab.at?_of_isRepeatLeaf hzrep
-      have hZeq : Z'' = Z' := by rw [QuasiTab.labelAt, hzat] at hzlab; simpa using hzlab
+      have hZeq : Z'' = Z' := by rw [QuasiTab.labelAt, hzat] at hzlab; simpa using! hzlab
       subst hZeq
       have hzitp : C.iitp θ z = .var c := C.iitp_one_leaf_repeat hzat hc
       by_cases hcx : c = x

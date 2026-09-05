@@ -322,37 +322,87 @@ theorem ruleImpliesChildSat
     rcases satLR with ⟨W, M, w, satM⟩
     rcases ruleApp with ⟨ress, Lcond, Rcond, lrule, preproofL, preproofR⟩
     let Δ := (L ∪ R) \ (Lcond ∪ Rcond)
-    have : ∃res ∈ ress, (M, w) ⊨ (Δ ∪ res.1 ∪ res.2) :=
+    have hres : ∃res ∈ ress, (M, w) ⊨ (Δ ∪ res.1 ∪ res.2) :=
       localRuleSoundness M w lrule Δ (by simp (config := {zetaDelta := true}); aesop)
-    aesop
+    obtain ⟨res, res_in, hsat⟩ := hres
+    refine ⟨(L \ Lcond ∪ res.1, R \ Rcond ∪ res.2), ?_, ?_⟩
+    · aesop
+    refine ⟨W, M, w, ?_⟩
+    intro f hf
+    simp only [Finset.mem_union, Finset.mem_sdiff] at hf
+    rcases hf with (⟨hf, -⟩ | hf) | (⟨hf, -⟩ | hf)
+    · exact satM f (by simp [hf])
+    · exact hsat f (by simp [hf])
+    · exact satM f (by simp [hf])
+    · exact hsat f (by simp [hf])
 
 theorem oneSidedRule_implies_child_sat_L
   {ruleApp : LocalRuleApp (L, R) C}
-  (def_ruleA : ruleApp =
+  (_def_ruleA : ruleApp =
     (@LocalRuleApp.mk L R C (List.map (fun res => (res, ∅)) _) _ _ rule hC preproof))
   (rule_is_left : rule = LocalRule.oneSidedL orule)
   : Satisfiable (L ∪ X) → ∃c ∈ C.attach, Satisfiable (c.1.1 ∪ X) :=
   by
     intro hyp
     rcases hyp with ⟨W, M, w, satM⟩
-    rcases ruleApp with ⟨ress, Lcond, Rcond, lrule, preproofL, preproofR⟩
-    have : ∃res ∈ ress, (M, w) ⊨ (X ∪ res.1 ∪ res.2) :=
-      localRuleSoundness M w lrule X (by aesop)
-    aesop
+    subst _def_ruleA -- FIXME weird warning if we remove "_"
+    subst rule_is_left
+    rename_i fst l
+    obtain ⟨preL, -⟩ := preproof
+    have hres := localRuleSoundness M w (LocalRule.oneSidedL orule) X (by
+      intro f hf
+      simp only [Finset.mem_union] at hf
+      rcases hf with (hf | hf) | hf
+      · exact satM f (by simp [hf])
+      · exact satM f (by simp [preL hf])
+      · exact absurd hf (Finset.notMem_empty f))
+    obtain ⟨res, res_in, hsat⟩ := hres
+    simp only [List.mem_map] at res_in
+    obtain ⟨r, r_in, rfl⟩ := res_in
+    subst hC
+    refine ⟨⟨(L \ fst ∪ r, R \ ∅ ∪ ∅), ?_⟩, List.mem_attach _ _, W, M, w, ?_⟩
+    · simp only [applyLocalRule, List.mem_map]
+      exact ⟨(r, ∅), ⟨r, r_in, rfl⟩, rfl⟩
+    · intro f hf
+      simp only [Finset.mem_union, Finset.mem_sdiff] at hf
+      rcases hf with (⟨hf, -⟩ | hf) | hf
+      · exact satM f (by simp [hf])
+      · exact hsat f (by simp [hf])
+      · exact hsat f (by simp [hf])
 
 theorem oneSidedRule_implies_child_sat_R
   {ruleApp : LocalRuleApp (L, R) C}
-  (def_ruleA : ruleApp =
+  (_def_ruleA : ruleApp =
     (@LocalRuleApp.mk L R C (List.map (fun res => (∅, res)) _) _ _ rule hC preproof))
   (rule_is_right : rule = LocalRule.oneSidedR orule)
   : Satisfiable (R ∪ X) → ∃c ∈ C.attach, Satisfiable (c.1.2 ∪ X) :=
     by
       intro hyp
       rcases hyp with ⟨W, M, w, satM⟩
-      rcases ruleApp with ⟨ress, Lcond, Rcond, lrule, preproofL, preproofR⟩
-      have : ∃res ∈ ress, (M, w) ⊨ (X ∪ res.1 ∪ res.2) :=
-        localRuleSoundness M w lrule X (by aesop)
-      aesop
+      subst _def_ruleA -- FIXME weird warning if we remove "_"
+      subst rule_is_right
+      rename_i fst l
+      obtain ⟨-, preR⟩ := preproof
+      have hres := localRuleSoundness M w (LocalRule.oneSidedR orule) X (by
+        intro f hf
+        simp only [Finset.mem_union] at hf
+        rcases hf with (hf | hf) | hf
+        · exact satM f (by simp [hf])
+        · exact absurd hf (Finset.notMem_empty f)
+        · exact satM f (by simp [preR hf]))
+      obtain ⟨res, res_in, hsat⟩ := hres
+      simp only [List.mem_map] at res_in
+      obtain ⟨r, r_in, rfl⟩ := res_in
+      subst hC
+      refine ⟨⟨(L \ ∅ ∪ ∅, R \ fst ∪ r), ?_⟩, List.mem_attach _ _, W, M, w, ?_⟩
+      · simp only [applyLocalRule, List.mem_map]
+        exact ⟨(∅, r), ⟨r, r_in, rfl⟩, rfl⟩
+      · intro f hf
+        simp only [Finset.mem_union, Finset.mem_sdiff] at hf
+        rcases hf with (⟨hf, -⟩ | hf) | hf
+        · exact satM f (by simp [hf])
+        · exact hsat f (by simp [hf])
+        · exact hsat f (by simp [hf])
 
 /--
 The critical rule is sound and preserves satisfiability "downwards".
@@ -443,8 +493,7 @@ theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
     constructor
     · tauto
     · convert notSatProj
-      simp only [diamondProjectTNode, setHasSat, Finset.mem_union, Finset.mem_insert,
-        forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
+      simp only [diamondProjectTNode, union_singleton_is_insert]
       constructor
       · rintro ⟨W,M,w,claim⟩
         use W, M, w
@@ -464,13 +513,12 @@ theorem tableauThenNotSat : ∀ X, ClosedTableau X → ¬Satisfiable X :=
     constructor
     · tauto
     · convert notSatProj
-      simp only [diamondProjectTNode, setHasSat, Finset.mem_union, Finset.mem_insert,
-        forall_eq_or_imp, Evaluate, TNodeHasSat, union_singleton_is_insert]
+      simp only [diamondProjectTNode, union_singleton_is_insert]
       constructor <;>
       ( rintro ⟨W,M,w,claim⟩
         use W, M, w)
       · intro f f_in
-        have := claim.2 (~φ)
+        have := claim (~φ) (Finset.mem_insert_self _ _)
         aesop
       · have := claim (~φ)
         aesop

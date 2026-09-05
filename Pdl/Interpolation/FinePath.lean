@@ -80,7 +80,7 @@ lemma LocalPathIn.isInternal_iff_endNodeAt?_eq_none {X} {lt : LocalTableau X}
     cases lt <;> simp [LocalPathIn.isInternal, LocalPathIn.ltAt, LocalTableau.hasRule,
       LocalPathIn.endNodeAt?]
   case cons IH =>
-    simpa [LocalPathIn.isInternal, LocalPathIn.ltAt, LocalPathIn.endNodeAt?] using IH
+    simpa [LocalPathIn.isInternal, LocalPathIn.ltAt, LocalPathIn.endNodeAt?] using! IH
 
 lemma LocalPathIn.last_of_endNodeAt? {X} {lt : LocalTableau X} (lp : LocalPathIn lt)
     {Yh : {Y : Sequent // Y ∈ endNodesOf lt}} (h : lp.endNodeAt? = some Yh) :
@@ -194,7 +194,7 @@ lemma internalLocalPaths_isInternal : {X : Sequent} → {lt : LocalTableau X} �
       rcases h with rfl | ⟨Y, Y_in, lp', lp'_in, rfl⟩
       · simp [LocalPathIn.isInternal, LocalPathIn.ltAt, LocalTableau.hasRule]
       · have := internalLocalPaths_isInternal lp' lp'_in
-        simpa [LocalPathIn.isInternal, LocalPathIn.ltAt] using this
+        simpa [LocalPathIn.isInternal, LocalPathIn.ltAt] using! this
 
 lemma LocalPathIn.mem_internalLocalPaths {X} {lt : LocalTableau X} (lp : LocalPathIn lt)
     (h : lp.isInternal) : lp ∈ internalLocalPaths lt := by
@@ -206,7 +206,7 @@ lemma LocalPathIn.mem_internalLocalPaths {X} {lt : LocalTableau X} (lp : LocalPa
   case cons X lra X_def next Y Y_in tail IH =>
     simp only [internalLocalPaths, List.mem_cons, List.mem_flatMap, Finset.mem_attachList,
       true_and, Subtype.exists, List.mem_map]
-    exact Or.inr ⟨Y, Y_in, tail, IH (by simpa [LocalPathIn.isInternal, LocalPathIn.ltAt] using h),
+    exact Or.inr ⟨Y, Y_in, tail, IH (by simpa [LocalPathIn.isInternal, LocalPathIn.ltAt] using! h),
       rfl⟩
 
 /-! ## Fine paths: all nodes of a tableau

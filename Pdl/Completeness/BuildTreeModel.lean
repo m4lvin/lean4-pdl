@@ -21,8 +21,8 @@ def BuildTree.toModel {X} (bt : BuildTree [] X) :
 /-- Helper lemma saying (the formula sets of) all pre-states are in the model graph. -/
 lemma PreState.mem_toModel {X : Sequent} {bt : BuildTree [] X} {π : PreState bt} :
     π.forms ∈ bt.toModel.fst := by
-  simp only [BuildTree.toModel, Finset.mem_image]
-  exact ⟨π, Finset.mem_attach _ _, rfl⟩
+  simp only [BuildTree.toModel]
+  exact Finset.mem_image.mpr ⟨π, Finset.mem_attach _ _, rfl⟩
 
 instance {bt : BuildTree [] X} : Coe (PreState bt) { w : Finset Formula // w ∈ bt.toModel.1 } :=
   ⟨fun π => ⟨π.forms, π.mem_toModel⟩⟩
@@ -85,7 +85,7 @@ lemma PreState.mem_forms_of_hasAnf {H X} {bt : BuildTree H X} {π : PreState bt}
   rcases Z with ⟨L, R, O⟩
   rcases ξ with φ | χ
   · unfold AnyNegFormula.mem_Sequent at hZ
-    simp only [instMembershipFormulaSequent, Sequent.L_eq, Sequent.R_eq] at hZ
+    simp only [Sequent.mem_def, Sequent.L_eq, Sequent.R_eq] at hZ
     simp only [AnyFormula.unload]
     rcases hZ with h | h <;> simp [Sequent.toFinset, h]
   · unfold AnyNegFormula.mem_Sequent at hZ
@@ -135,7 +135,7 @@ lemma Match.exists_step {H X} {bt : BuildTree H X} (m : Match bt) (bas : m.endSe
 lemma Match.not_isFreeRepeat_of_loaded {H X} {bt : BuildTree H X} {m : Match bt}
     (hl : m.endSeq.isLoaded) : ¬ m.btAt.2.2.isFreeRepeat := by
   intro h
-  exact absurd hl (by simpa using (BuildTree.getFreeRepeat h).2.2)
+  exact absurd hl (by simpa using! (BuildTree.getFreeRepeat h).2.2)
 
 /-- Any `Match` can be replaced by one that ends at the same sequent and is not at a free
 repeat: if we are at a free repeat we go to its companion, which is strictly shorter. -/
@@ -248,7 +248,7 @@ lemma PdlRule.exists_modL {L R : Finset Formula} {a : Nat} {ξ : AnyFormula} :
   case loaded χ =>
     refine ⟨⟨L.projection a, R.projection a, some (Sum.inl (~'χ))⟩, ⟨PdlRule.modL rfl rfl⟩,
       ?_, ?_, ?_⟩
-    · simp [AnyNegFormula.mem_Sequent]
+    · exact Or.inl rfl
     · intro f hf
       simp only [Finset.mem_union] at hf
       simp only [Sequent.toFinset, Finset.mem_union]
@@ -281,7 +281,7 @@ lemma PdlRule.exists_modR {L R : Finset Formula} {a : Nat} {ξ : AnyFormula} :
   case loaded χ =>
     refine ⟨⟨L.projection a, R.projection a, some (Sum.inr (~'χ))⟩, ⟨PdlRule.modR rfl rfl⟩,
       ?_, ?_, ?_⟩
-    · simp [AnyNegFormula.mem_Sequent]
+    · exact Or.inr rfl
     · intro f hf
       simp only [Finset.mem_union] at hf
       simp only [Sequent.toFinset, Finset.mem_union]
@@ -338,13 +338,13 @@ lemma PreState.hasAnf_loaded_iff {H X} {bt : BuildTree H X} {π : PreState bt} {
     refine PreState.mem_wForms_of_mem Z_in ?_
     rcases Z with ⟨L, R, O⟩
     rw [Sequent.mem_wForms_negLoad_iff]
-    simpa using hZ
+    simpa using! hZ
   · intro h
     obtain ⟨Z, Z_in, hZ⟩ := PreState.exists_mem_of_mem_wForms h
     refine ⟨Z, Z_in, ?_⟩
     rcases Z with ⟨L, R, O⟩
     rw [Sequent.mem_wForms_negLoad_iff] at hZ
-    simpa using hZ
+    simpa using! hZ
 
 @[simp]
 lemma PreState.hasAnf_normal_iff {H X} {bt : BuildTree H X} {π : PreState bt} {φ : Formula} :
@@ -354,13 +354,13 @@ lemma PreState.hasAnf_normal_iff {H X} {bt : BuildTree H X} {π : PreState bt} {
     refine PreState.mem_wForms_of_mem Z_in ?_
     rcases Z with ⟨L, R, O⟩
     rw [Sequent.mem_wForms_normal_iff]
-    simpa using hZ
+    simpa using! hZ
   · intro h
     obtain ⟨Z, Z_in, hZ⟩ := PreState.exists_mem_of_mem_wForms h
     refine ⟨Z, Z_in, ?_⟩
     rcases Z with ⟨L, R, O⟩
     rw [Sequent.mem_wForms_normal_iff] at hZ
-    simpa using hZ
+    simpa using! hZ
 
 /-- A normal formula in `π.wForms` is also in `π.forms`. -/
 lemma PreState.mem_forms_of_mem_wForms {H X} {bt : BuildTree H X} {π : PreState bt} {φ : Formula}
@@ -532,4 +532,4 @@ lemma PreState.qcombo_of_qsteps {X} {bt : BuildTree [] X} {F : List Formula} {δ
     {π ρ : PreState bt} (hF : ∀ f ∈ F, (f : WhateverFormula) ∈ π.wForms)
     (h : Qsteps bt.toModel.2.Rel δ π.toW ρ.toW) :
     Qcombo bt.toModel.2.Rel F δ π.toW ρ.toW :=
-  ⟨π.toW, ⟨by simp, fun τ hτ => ⟨rfl, PreState.mem_forms_of_mem_wForms (hF τ hτ)⟩⟩, h⟩
+  ⟨π.toW, ⟨ReflBEq.rfl, fun τ hτ => ⟨rfl, PreState.mem_forms_of_mem_wForms (hF τ hτ)⟩⟩, h⟩

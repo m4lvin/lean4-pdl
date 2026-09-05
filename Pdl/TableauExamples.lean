@@ -20,7 +20,7 @@ example : provable (~⊥) := by
   · simp [flprep]
     decide
   · exact Sequent.not_basic_of_mem_L (~~⊥) (by simp) (by simp [Formula.basic])
-  case a.lt =>
+  case lt =>
     apply LocalTableau.byLocalRule
       { lr := LocalRule.oneSidedL (OneSidedLocalRule.neg ⊥) rfl
         L := _, R := _, O := _, ress := _, preconditionProof := _ } rfl ?_
@@ -34,7 +34,7 @@ example : provable (~⊥) := by
         , L := _, R := _, O := _, ress := _, preconditionProof := _ } rfl ?_
       · simp
       · aesop
-  case a.next =>
+  case next =>
     intro Y Y_in
     exfalso -- endNodesOf is empty
     simp at Y_in
@@ -45,7 +45,7 @@ example : provable (~(p ⋀ (~p))) :=
   apply Tableau.loc
   · simp
   · exact Sequent.not_basic_of_mem_L (~~(p ⋀ (~p))) (by simp) (by simp [Formula.basic])
-  case a.lt =>
+  case lt =>
     apply LocalTableau.byLocalRule
       { lr := (LocalRule.oneSidedL (OneSidedLocalRule.neg (p ⋀ (~p))) rfl)
         L := _, R := _, O := none, ress := _, preconditionProof := _ } rfl ?_
@@ -61,7 +61,7 @@ example : provable (~(p ⋀ (~p))) :=
         L := _, R := _, O := _, ress := _, preconditionProof := _ }
     all_goals (try simp; try rfl)
     intro c c_in; simp at c_in
-  case a.next =>
+  case next =>
     intro Y Y_in
     exfalso -- endNodesOf is empty
     simp at Y_in
@@ -195,7 +195,7 @@ example : ¬ provable ((⌈∗a⌉~⌈a⌉p) ↣ p) := by
   have := soundness _ hyp
   unfold tautology at this
   absurd this
-  push_neg
+  push Not
   -- We define a single-world model with a loop where all atoms are false
   refine ⟨ Unit, ?_, (), ?_⟩
   · exact ⟨ fun w q => False
@@ -210,7 +210,7 @@ example (p q : Nat) (notSame : q ≠ p) :
   have := soundness _ hyp
   unfold tautology at this
   absurd this
-  push_neg
+  push Not
   -- We define a two-world model where only p holds at a loop at the end.
   refine ⟨ Fin 2, ?_, 0, ?_⟩
   · exact ⟨ fun w r => w = 1 ∧ r = p

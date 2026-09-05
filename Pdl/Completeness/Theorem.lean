@@ -19,9 +19,8 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
   -- show the model graph properties
   case a =>
     rintro ⟨X, X_in⟩
-    unfold WS at X_in
-    simp at X_in
-    rcases X_in with ⟨π, in_all, def_X⟩
+    unfold WS BuildTree.toModel at X_in
+    rcases Finset.mem_image.mp X_in with ⟨π, in_all, def_X⟩
     have := π.locConsSatBas -- using Lemma 6.16 for (i)
     simp_all [PreState.forms]
   -- "(b, c) will follow immediately from the definition"
@@ -42,9 +41,8 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
     -- "The main challenge" :-)
     -- Paper proof uses Lemmas 6.18 and 6.20 here, depending on loading.
     unfold WS BuildTree.toModel at w_in
-    simp only [Finset.mem_image] at w_in
     -- w must come from some pre-state:
-    rcases w_in with ⟨π, π_in, def_w⟩
+    rcases Finset.mem_image.mp w_in with ⟨π, π_in, def_w⟩
     subst def_w
     -- unfold PreState.forms at in_w -- NO, use lemma to switch to wforms instead?
     rw [PreState.mem_forms_iff] at in_w
@@ -53,8 +51,8 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
       rcases freeDiamondExistence in_w with ⟨π', in_π'_forms, α_rel⟩
       refine ⟨π'.forms, ⟨?_, α_rel⟩, in_π'_forms⟩
       unfold WS
-      simp only [BuildTree.toModel, Finset.union_singleton, Finset.mem_image]
-      exact bt.exists_mem_attach_forms_eq
+      simp only [BuildTree.toModel]
+      exact Finset.mem_image.mpr bt.exists_mem_attach_forms_eq
     · -- loaded but not negated, cannot happen
       exfalso
       cases χ
@@ -65,8 +63,8 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
       simp only [negUnload, Formula.neg.injEq] at ψul_def
       obtain ⟨ρ, α_rel, hanf⟩ := PreState.loadedDiamondExistence in_w
       unfold WS
-      simp only [BuildTree.toModel, Finset.union_singleton, Finset.mem_image]
-      refine ⟨ρ.forms, ⟨bt.exists_mem_attach_forms_eq, ?_⟩, ?_⟩
+      simp only [BuildTree.toModel]
+      refine ⟨ρ.forms, ⟨Finset.mem_image.mpr bt.exists_mem_attach_forms_eq, ?_⟩, ?_⟩
       · have : α = α' := by cases χ <;> grind [LoadFormula.unload]
         rw [this]
         exact α_rel
@@ -74,17 +72,15 @@ theorem strmg (X : Sequent) (s : Strategy tableauGame Builder) (h : winning s (s
         rw [this]
         exact PreState.mem_forms_of_hasAnf hanf
   case X_in =>
-    unfold WS
-    -- Here the def of `BuildTree.allPreStates` matters.
-    simp
+    unfold WS BuildTree.toModel
     -- Use that there must be some pre-state containing the root.
     rcases bt.collect_contains_root with ⟨π, π_in, X_in_π⟩
-    refine ⟨⟨π, π_in⟩, ?_, ?_⟩
-    · apply Finset.mem_attach
-    · intro φ φ_in
-      unfold PreState.forms
-      simp only [mem_pathForms]
-      use X
+    refine ⟨PreState.forms ⟨π, π_in⟩,
+      Finset.mem_image.mpr ⟨⟨π, π_in⟩, Finset.mem_attach _ _, rfl⟩, ?_⟩
+    intro φ φ_in
+    unfold PreState.forms
+    simp only [mem_pathForms]
+    use X
 
 /-- Helper for `completeness`. Uses `gameP` and `strmg`. -/
 lemma modelExistence {X} : consistent X →
@@ -133,7 +129,7 @@ theorem completeness : ∀ X, consistent X → satisfiable X :=
   rintro ⟨L, R, O⟩ X_is_consistent
   have ⟨WS, M, w, h⟩ := modelExistence X_is_consistent
   use WS, M.val, w
-  simp [modelCanSemImplySequent] at *
+  simp [vDash.SemImplies] at *
   intro f f_in
   apply truthLemma M w f
   apply h
@@ -146,4 +142,4 @@ theorem singletonConsIffSat : ∀ φ, consistent ({φ},{},none) ↔ satisfiable 
   by
   intro φ
   have := consIffSat ⟨{φ}, {}, none⟩
-  simp [this, instSequentHasSat, modelCanSemImplySequent, Sequent.toFinset]
+  simp [this, HasSat.satisfiable, vDash.SemImplies, Sequent.toFinset]

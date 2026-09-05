@@ -24,7 +24,7 @@ theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := b
   case loadL => -- FIXME strange that this is different than loadR ?
     use W, M, w
     subst_eqs
-    simp [modelCanSemImplySequent]
+    simp [vDash.SemImplies]
     intro φ φ_in
     simp [Sequent.toFinset] at φ_in
     rcases φ_in with φ_def | ⟨φ_neq, bla⟩ | bla <;>
@@ -32,13 +32,13 @@ theorem pdlRuleSat (r : PdlRule X Y) (satX : satisfiable X) : satisfiable Y := b
       apply w_; simp [Sequent.toFinset]; grind
   case loadR =>
     use W, M, w
-    simp_all [modelCanSemImplySequent, Sequent.toFinset]
+    simp_all [vDash.SemImplies, Sequent.toFinset]
   case freeL =>
     use W, M, w
-    simp_all [modelCanSemImplySequent, Sequent.toFinset]
+    simp_all [vDash.SemImplies, Sequent.toFinset]
   case freeR =>
     use W, M, w
-    simp_all [modelCanSemImplySequent, Sequent.toFinset]
+    simp_all [vDash.SemImplies, Sequent.toFinset]
   case modL L R a χ X_def Y_def =>
     subst X_def Y_def
     use W, M -- but not the same world!
@@ -152,18 +152,18 @@ theorem nodeAt_companionOf_setEq {tab : Tableau .nil X} (s : PathIn tab) lpr
 
 /-- Any repeat and companion are both loaded. -/
 theorem companion_loaded : s ♥ t → (nodeAt s).isLoaded ∧ (nodeAt t).isLoaded := by
-intro s_comp_t
-unfold companion at s_comp_t
-rcases s_comp_t with ⟨lpr, h, t_def⟩
-constructor
-· simp_all only [nodeAt] -- takes care of s
-  exact LoadedPathRepeat_rep_isLoaded lpr
-· subst t_def
-  rw [nodeAt_companionOf_eq_toHistory_get_lpr_val]
-  have := PathIn.toHistory_eq_Hist s
-  simp only [List.append_nil] at this
-  convert lpr.2.2 lpr.val (by simp)
-  exact (Fin.heq_ext_iff (congrArg List.length this)).mpr rfl
+  intro s_comp_t
+  unfold companion at s_comp_t
+  rcases s_comp_t with ⟨lpr, h, t_def⟩
+  constructor
+  · simp_all only [nodeAt] -- takes care of s
+    exact LoadedPathRepeat_rep_isLoaded lpr
+  · subst t_def
+    rw [nodeAt_companionOf_eq_toHistory_get_lpr_val]
+    have := PathIn.toHistory_eq_Hist s
+    simp only [List.append_nil] at this
+    convert lpr.2.2 lpr.val (by simp)
+    exact (Fin.heq_ext_iff (congrArg List.length this)).mpr rfl
 
 /-- The companion is strictly before the the repeat. -/
 theorem companionOf_length_lt_length {t : PathIn tab} lpr h :
@@ -328,7 +328,7 @@ example : pa ◃ pb ↔ (pa ⋖_ pb) ∨ pa ♥ pb := by
 
 /-- Any `⋖_` path is also a `◃` path. -/
 lemma cReach_of_le {X} {tab : Tableau .nil X} {s t : PathIn tab} (h : s ≤ t) : s ◃* t :=
-  h.mono (fun _ _ h => Or.inl h)
+  Relation.ReflTransGen.mono (fun _ _ h => Or.inl h) _ _ h
 
 instance instDecidableCEdge {X} {tab : Tableau .nil X} (p q : PathIn tab) :
     Decidable (p ◃ q) := by
@@ -376,8 +376,9 @@ theorem before.irrefl :
   simp [before]
 
 /-- The `<ᶜ` relation is transitive. -/
-theorem before.trans :
-    Transitive (@before X tab) := by
+instance before.trans :
+    IsTrans _ (@before X tab) := by
+  constructor
   intro p q r p_c_q q_c_r
   rcases p_c_q with ⟨p_q, not_q_p⟩
   rcases q_c_r with ⟨q_r, not_r_q⟩
@@ -390,7 +391,7 @@ theorem before.trans :
 /-- The transitive closure of `<ᶜ` (which in fact is the same as `<ᶜ`) is irreflexive. -/
 theorem trans_before.irrefl {X tab} :
     Std.Irrefl (Relation.TransGen (@before X tab)) := by
-  rw [Relation.transGen_eq_self before.trans]
+  rw [Relation.transGen_eq_self]
   exact before.irrefl
 
 /-- The `before` relation in a tableau is well-founded. -/
@@ -561,36 +562,36 @@ theorem not_cEquiv_of_free_loaded (s t : PathIn tab)
 
 theorem ePropB.d {tab : Tableau .nil X} (s t : PathIn tab) :
     (nodeAt t).isFree → s < t → s <ᶜ t := by
-intro t_free slt
-constructor
-· apply Relation.TransGen_or_left; exact slt
-· intro con
-  unfold cEdge at con
-  induction con using Relation.TransGen.head_induction_on
-  case right.single t hyp =>
-    cases hyp
-    case inl tes =>
-      absurd slt
-      exact edge.TransGen_isAsymm.1 t s (Relation.TransGen.single tes)
-    case inr ths =>
-      have con := (companion_loaded ths).1
-      simp_all [Sequent.isFree]
-  case right.head t k t_k k_s ih =>
-    by_cases (nodeAt k).isFree
-    case pos k_free =>
-      cases t_k
-      case inl tek => exact ih k_free (Relation.TransGen.tail slt tek)
-      case inr thk =>
-        have con := (companion_loaded thk).1
+  intro t_free slt
+  constructor
+  · apply Relation.TransGen_or_left; exact slt
+  · intro con
+    unfold cEdge at con
+    induction con using Relation.TransGen.head_induction_on
+    case right.single t hyp =>
+      cases hyp
+      case inl tes =>
+        absurd slt
+        exact edge.TransGen_isAsymm.1 t s (Relation.TransGen.single tes)
+      case inr ths =>
+        have con := (companion_loaded ths).1
         simp_all [Sequent.isFree]
-    case neg k_loaded =>
-      simp [Sequent.isFree] at k_loaded
-      apply not_cEquiv_of_free_loaded t k t_free k_loaded
-      constructor
-      · exact Relation.ReflTransGen.single t_k
-      · exact Relation.ReflTransGen.trans
-          (Relation.TransGen.to_reflTransGen k_s)
-          (Relation.ReflTransGen_or_left (Relation.TransGen.to_reflTransGen slt))
+    case right.head t k t_k k_s ih =>
+      by_cases (nodeAt k).isFree
+      case pos k_free =>
+        cases t_k
+        case inl tek => exact ih k_free (Relation.TransGen.tail slt tek)
+        case inr thk =>
+          have con := (companion_loaded thk).1
+          simp_all [Sequent.isFree]
+      case neg k_loaded =>
+        simp [Sequent.isFree] at k_loaded
+        apply not_cEquiv_of_free_loaded t k t_free k_loaded
+        constructor
+        · exact Relation.ReflTransGen.single t_k
+        · exact Relation.ReflTransGen.trans
+            (Relation.TransGen.to_reflTransGen k_s)
+            (Relation.ReflTransGen_or_left (Relation.TransGen.to_reflTransGen slt))
 
 -- do we still need this?
 theorem ePropB.c_single {X} {tab : Tableau .nil X} (s t : PathIn tab) :
@@ -856,6 +857,7 @@ lemma loadedDiamondPathsPDL
           have : tabAt tclean = ⟨ _ :: _, (_, _, none) , next⟩ := by unfold tabAt; rfl
           rw [this]
         convert this <;> (try rw [tabAt_t_def]) <;> simp [tclean]
+        all_goals apply eqRec_heq_self
       case loaded χ =>
         right
         use χ
@@ -977,6 +979,7 @@ lemma loadedDiamondPathsPDL
           have : tabAt tclean = ⟨ _ :: _, _ , next⟩ := by unfold tabAt; rfl
           rw [this]
         convert this <;> (try rw [tabAt_t_def]) <;> simp [tclean]
+        all_goals apply eqRec_heq_self
       case loaded χ =>
         right
         use χ
@@ -1158,7 +1161,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
         have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc nflprep nbas ltZ next)))
             = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by simp_all
         convert this <;> try rw [tabAt_t_def]
-        rw [eqRec_heq_iff_heq]
+        rw [eqRec_heq_iff]
       have v_s1 : (M,v) ⊨ nodeAt s1 := by
         intro φ φ_in
         apply w_Y
@@ -1205,9 +1208,10 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
               have := distance_list_iff_relate_Seq.2 u_αs_w
               cases dist_list_def : (distance_list M u w (β :: βs))
               · exfalso ; exact this dist_list_def
-              · have := ENat.coe_one
+              · have := ENat.natCast_one
                 rw [←this]
-                simp only [←ENat.coe_add, ENat.coe_lt_coe, lt_add_iff_pos_left, Nat.lt_one_iff]
+                simp only [←ENat.natCast_add, ENat.natCast_lt_natCast, lt_add_iff_pos_left,
+                  Nat.lt_one_iff]
             have ⟨k, ⟨s_k, k_props⟩⟩ :=
               loadedDiamondPaths β βs tab root_free s u_s φ (αs_def ▸ in_con) (αs_def ▸ u_αs_w) w_nφ
             clear _forTermination_loc_atom_pdl
@@ -1298,7 +1302,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
           have : (tabAt (PathIn.loc Y_in PathIn.nil : PathIn (Tableau.loc nflprep nbas ltZ next)))
               = ⟨Z :: _, ⟨Y, next Y Y_in⟩⟩ := by simp_all
           convert this <;> try rw [tabAt_t_def]
-          rw [eqRec_heq_iff_heq]
+          rw [eqRec_heq_iff]
         have v_s1 : (M,v) ⊨ nodeAt s1 := by
           intro φ φ_in
           apply w_Y
@@ -1336,7 +1340,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
           -- If δ is empty then we have found the node we want.
           cases δ
           · subst_eqs
-            simp_all only [modelCanSemImplyList, AnyFormula.boxes_nil, relateSeq_nil,
+            simp_all only [AnyFormula.boxes_nil, relateSeq_nil,
               Sequent.without_normal_isFree_iff_isFree]
             subst_eqs
             refine ⟨s1, Relation.TransGen.single (Or.inl t_s), Or.inr ⟨?_, v_s1, ?_⟩⟩
@@ -1351,9 +1355,9 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
           -- We get a sequence of worlds from the δ relation:
           case cons β βs =>
             have anf_in_s1 : (~''((⌊β⌋AnyFormula.loadBoxes βs φ))).in_side side (nodeAt s1) := by
-              convert anf_in_Y
-              unfold nodeAt
-              rw [tabAt_s_def]
+              have hY : nodeAt s1 = Y := congrArg (fun x => x.2.1) tabAt_s_def
+              rw [hY]
+              exact anf_in_Y
             have _for_termination_all : lengthOfProgram β < lengthOfProgram α := by
               have := endNodesOf_basic Y_in
               have : β.isAtomic := firstBox_isAtomic_of_basic this anf_in_Y
@@ -1391,10 +1395,8 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
       · have _forTermination_pdl :
             distance_list M u w (β :: βs) < distance_list M v w (α :: αs) := by
           have : α.isAtomic := by
-            apply firstBox_isAtomic_of_basic bas
-            convert negLoad_in
-            · unfold nodeAt
-              rw [tabAt_t_def]
+            have hZ : nodeAt t = Z := congrArg (fun x => x.2.1) tabAt_t_def
+            exact firstBox_isAtomic_of_basic bas (hZ ▸ negLoad_in)
           rw [Program.isAtomic_iff] at this
           rcases this with ⟨a, α_def⟩
           subst α_def
@@ -1403,10 +1405,13 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
           have := distance_list_iff_relate_Seq.2 u_αs_w
           cases dist_list_def : (distance_list M u w (β :: βs))
           · exfalso ; exact this dist_list_def
-          · simp [distance, v_α_u]
-            have := ENat.coe_one
+          case coe n =>
+            simp [distance, v_α_u]
+            have := ENat.natCast_one
             rw [←this]
-            simp only [←ENat.coe_add, ENat.coe_lt_coe, lt_add_iff_pos_left, Nat.lt_one_iff]
+            simp
+            have : n < 1 + n := by omega
+            exact_mod_cast this
         have ⟨s, ⟨s1_s, s_props⟩⟩ :=
           loadedDiamondPaths β βs tab root_free s1 u_s1 φ (αs_def ▸ in_con) (αs_def ▸ u_αs_w) w_nφ
         clear _forTermination_pdl
@@ -1498,7 +1503,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
         unfold s t_to_s
         have := edge_append_loc_nil t next Y_in (by rw [← t_def])
         convert this
-        rw [← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
+        rw [← heq_iff_eq, heq_eqRec_iff, eqRec_heq_iff]
       have : Y = nodeAt s := by
         unfold s t_to_s
         simp
@@ -1605,7 +1610,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
         simp [evaluate, not_forall, Classical.not_imp] at this
         rw [← @boxes_last] at this
         simp_rw [evalBoxes] at this
-        push_neg at this
+        push Not at this
         rcases this with ⟨w, v_β_w, u, w_δα_u, u_not_φ⟩
         have v_βδα_u : relateSeq M (β :: (δ ++ [α])) v u := by
           rw [@relateSeq_cons]

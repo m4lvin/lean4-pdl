@@ -22,6 +22,7 @@ inductive PathIn : ∀ {Hist X}, Tableau Hist X → Type
     : PathIn (Tableau.pdl nrep bas r next)
 deriving DecidableEq
 
+@[implicit_reducible]
 def tabAt : PathIn tab → Σ H X, Tableau H X
 | .nil => ⟨_,_,tab⟩
 | .loc _ tail => tabAt tail
@@ -50,16 +51,18 @@ instance instDecdidablePathInisLrep (p : PathIn tab) : Decidable p.isLrep := by
 
 @[simp]
 theorem append_eq_iff_eq (s : PathIn tab) p q : s.append p = s.append q ↔ p = q := by
-  induction s <;> simp_all [PathIn.append]
+  induction s
+  case nil => exact Iff.rfl
+  case loc IH => simp only [PathIn.append, PathIn.loc.injEq, heq_eq_eq, true_and]; exact IH _ _
+  case pdl IH => simp only [PathIn.append, PathIn.pdl.injEq]; exact IH _ _
 
 @[simp]
 theorem PathIn.eq_append_iff_other_eq_nil (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
     p = p.append q ↔ q = nil := by
-  induction p <;> cases tab
-  all_goals
-    unfold PathIn.append
-    try simp at *
-    aesop
+  induction p
+  case nil => exact eq_comm
+  case loc IH => simp only [PathIn.append, PathIn.loc.injEq, heq_eq_eq, true_and]; exact IH _
+  case pdl IH => simp only [PathIn.append, PathIn.pdl.injEq]; exact IH _
 
 theorem PathIn.nil_eq_append_iff_both_eq_nil (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
     .nil = p.append q ↔ p = .nil ∧ q = .nil := by
@@ -79,15 +82,9 @@ theorem PathIn.nil_eq_append_iff_both_eq_nil (p : PathIn tab) (q : PathIn (tabAt
 theorem tabAt_append (p : PathIn tab) (q : PathIn (tabAt p).2.2) :
     tabAt (p.append q) = tabAt q := by
   induction p
-  case nil => simp [PathIn.append]
-  case loc IH =>
-    simp [PathIn.append]
-    rw [← IH]
-    simp [tabAt]
-  case pdl IH =>
-    simp [PathIn.append]
-    rw [← IH]
-    simp [tabAt]
+  case nil => rfl
+  case loc IH => exact IH _
+  case pdl IH => exact IH _
 
 @[simp]
 theorem tabAt_nil {tab : Tableau Hist X} : tabAt (.nil : PathIn tab) = ⟨_, _, tab⟩ := by
@@ -129,16 +126,21 @@ def PathIn.head {tab : Tableau Hist X} (_ : PathIn tab) : Sequent := X
 def PathIn.last (t : PathIn tab) : Sequent := (tabAt t).2.1
 
 /-- The length of a path is the number of actual steps. -/
-@[simp]
+@[simp, implicit_reducible]
 def PathIn.length : (t : PathIn tab) → ℕ
 | .nil => 0
 | .pdl tail => tail.length + 1
 | .loc _ tail => tail.length + 1
 
 theorem append_length {p : PathIn tab} q : (p.append q).length = p.length + q.length := by
-  induction p <;> simp [PathIn.append]
-  case loc IH => rw [IH]; linarith
-  case pdl IH => rw [IH]; linarith
+  induction p <;> simp only [PathIn.append, PathIn.length]
+  case nil => exact (Nat.zero_add _).symm
+  case loc _ _ _ _ _ _ _ _ tail IH =>
+    have h : (tail.append q).length = tail.length + q.length := IH q
+    omega
+  case pdl _ _ _ _ _ _ _ tail IH =>
+    have h : (tail.append q).length = tail.length + q.length := IH q
+    omega
 
 /-! ## Edge Relation -/
 
@@ -170,7 +172,7 @@ theorem edge_append_loc_nil {X} {Hist} {tab : Tableau X Hist} (s : PathIn tab)
   left
   use sHist, sX, nrep, nbas, lt, next, (by assumption), Y_in
   constructor
-  · rw [append_eq_iff_eq, ← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
+  · rw [append_eq_iff_eq, ← heq_iff_eq, heq_eqRec_iff, eqRec_heq_iff]
   · rw [← tabAt_s_def]
 
 /-- Appending a one-step `pdl` path is also a ⋖_ child. -/
@@ -181,7 +183,7 @@ theorem edge_append_pdl_nil (h : (tabAt s).2.2 = Tableau.pdl nrep bas r next) :
   right
   use (tabAt s).1, (tabAt s).2.1, nrep, bas, (by assumption), r, next
   constructor
-  · rw [← heq_iff_eq, heq_eqRec_iff_heq, eqRec_heq_iff_heq]
+  · rw [← heq_iff_eq, heq_eqRec_iff, eqRec_heq_iff]
   · rw [← h]
 
 /-- Variant of `edge_append_pdl_nil` where the assumption is about all of `tabAt s`,
@@ -342,7 +344,7 @@ theorem length_succ_eq_length_of_edge {s t : PathIn tab} : s ⋖_ t → s.length
     · simp_all only [PathIn.length, zero_add]
     · rw [tabAt_s_def]
     · rw [tabAt_s_def]
-    · subst_eqs; simp_all only [heq_eq_eq, eqRec_heq_iff_heq]
+    · subst_eqs; simp_all only [heq_eq_eq, eqRec_heq_iff]
   · subst t_def
     rw [append_length, add_right_inj]
     have : 1 = (.pdl .nil : PathIn (Tableau.pdl nrep bas r' next')).length := by simp
@@ -350,7 +352,7 @@ theorem length_succ_eq_length_of_edge {s t : PathIn tab} : s ⋖_ t → s.length
     · simp_all only [PathIn.length, zero_add]
     · rw [tabAt_s_def]
     · rw [tabAt_s_def]
-    · subst_eqs; simp_all only [heq_eq_eq, eqRec_heq_iff_heq]
+    · subst_eqs; simp_all only [heq_eq_eq, eqRec_heq_iff]
 
 theorem edge_then_length_lt {s t : PathIn tab} (s_t : s ⋖_ t) : s.length < t.length := by
   have := length_succ_eq_length_of_edge s_t
@@ -367,7 +369,7 @@ theorem edge.wellFounded : WellFounded (@edge Hist X tab) := by
   apply @RelHomClass.wellFounded _ Nat (@edge Hist X tab) Nat.lt _ _ _ edge_natLT_relHom
   have := instWellFoundedLTNat
   rcases this with ⟨nat_wf⟩
-  convert nat_wf
+  exact nat_wf
 
 instance edge.isAsymm : @Std.Asymm (PathIn tab) edge := by
   constructor
@@ -475,15 +477,15 @@ theorem not_path_nil {a : PathIn tab} : ¬(a < PathIn.nil) := by
   cases con <;> simp_all [not_edge_nil]
 
 theorem path_is_strict_ordering {s t : PathIn tab} : s < t → s ≠ t := by
-intro s_t seqt
-induction s_t
-case single set =>
-  absurd seqt
-  exact edge_is_strict_ordering set
-case tail k t s_k k_t ih =>
-  apply edge.TransGen_isAsymm.1 s k s_k
-  rw [seqt]
-  apply Relation.TransGen.single k_t
+  intro s_t seqt
+  induction s_t
+  case single set =>
+    absurd seqt
+    exact edge_is_strict_ordering set
+  case tail k t s_k k_t ih =>
+    apply edge.TransGen_isAsymm.1 s k s_k
+    rw [seqt]
+    apply Relation.TransGen.single k_t
 
 theorem PathIn.nil_le_anything : PathIn.nil ≤ t := by
   induction t using PathIn.init_inductionOn
@@ -544,7 +546,10 @@ lemma PathIn.tabAt_cast (p : PathIn tab) (h : tab = tab2) :
 lemma PathIn.append_append {tab : Tableau Hist X}
     (p : PathIn tab) (q : PathIn (tabAt p).2.2) (r : PathIn (tabAt (p.append q)).2.2)
     : (p.append q).append r = p.append (q.append (tabAt_append p q ▸ r)) := by
-  induction p <;> simp_all [PathIn.append]
+  induction p
+  case nil => rfl
+  case loc _ _ _ _ _ _ _ Y_in tail IH => exact congrArg (PathIn.loc Y_in) (IH q r)
+  case pdl _ _ _ _ _ _ _ tail IH => exact congrArg PathIn.pdl (IH q r)
 
 @[simp]
 lemma PathIn.loc_append {X Hist} {nflprep : ¬ flprep Hist X} {nbas : ¬X.basic} {lt : LocalTableau X}
@@ -577,6 +582,7 @@ lemma PathIn.lt_append_non_nil {Hist X pHist pX tabNew} {tab : Tableau Hist X}
     · subst_eqs
       exact Relation.ReflTransGen.refl
     · apply Relation.TransGen.to_reflTransGen
+      change (_ : PathIn tab) < _
       have IH := @PathIn.lt_append_non_nil Hist X _ _ (nexts Y Y_in) tab
       convert IH ?_ ?_ tail tail_nil using 1
       · rw [PathIn.append_append, append_eq_iff_eq]
@@ -600,6 +606,7 @@ lemma PathIn.lt_append_non_nil {Hist X pHist pX tabNew} {tab : Tableau Hist X}
     · subst_eqs
       exact Relation.ReflTransGen.refl
     · apply Relation.TransGen.to_reflTransGen
+      change (_ : PathIn tab) < _
       have IH := @PathIn.lt_append_non_nil _ _ _ _ next tab
       convert IH ?_ ?_ tail tail_nil using 1
       · rw [PathIn.append_append, append_eq_iff_eq]
@@ -624,6 +631,7 @@ decreasing_by
 /-- Convert a path to a History.
 Does not include the last node.
 The history of `.nil` is `[]` because this will not go into `Hist`. -/
+@[implicit_reducible]
 def PathIn.toHistory {tab : Tableau Hist X} : (t : PathIn tab) → History
 | .nil => []
 | .pdl tail => tail.toHistory ++ [X]
@@ -670,6 +678,7 @@ def PathIn.prefix {tab : Tableau Hist X} : (t : PathIn tab) → (k : Fin (t.leng
 | .pdl tail, k => Fin.cases (.nil) (fun j => .pdl (tail.prefix j)) k
 | .loc Y_in tail, k => Fin.cases (.nil) (fun j => .loc Y_in (tail.prefix j)) k
 
+set_option backward.isDefEq.respectTransparency.types false in
 /-- The list of a prefix of a path is the same as the prefix of the list of the path. -/
 theorem PathIn.prefix_toList_eq_toList_take {tab : Tableau Hist X}
     (t : PathIn tab) (k : Fin (t.length + 1))
@@ -681,14 +690,18 @@ theorem PathIn.prefix_toList_eq_toList_take {tab : Tableau Hist X}
       simp [PathIn.toList, PathIn.prefix]
     case loc Z Z_in tail =>
       simp [PathIn.toList, PathIn.prefix]
-      induction k using Fin.inductionOn <;> simp_all [PathIn.toList]
+      induction k using Fin.inductionOn
+      case zero => rfl
+      case succ => simp_all [PathIn.toList]
   case pdl =>
     cases t
     case nil =>
       simp_all [PathIn.toList, PathIn.prefix]
     case pdl rest Y Z r tab IH tail =>
       simp [PathIn.toList, PathIn.prefix]
-      induction k using Fin.inductionOn <;> simp_all [PathIn.toList]
+      induction k using Fin.inductionOn
+      case zero => rfl
+      case succ => simp_all [PathIn.toList]
   case lrep =>
     cases t
     simp_all [PathIn.toList, PathIn.prefix]
@@ -806,6 +819,7 @@ theorem PathIn.rewind_lt_of_gt_zero {Hist X} {tab : Tableau Hist X}
   have length_eq : (t.rewind k).length = t.length := by simp [con]
   simp_all
 
+set_option backward.isDefEq.respectTransparency.types false in
 /-- The node we get from rewinding `k` steps is element `k+1` in the history. -/
 theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
     (t : PathIn tab) (k : Fin (t.toHistory.length + 1))
@@ -838,15 +852,13 @@ theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
       · simp [PathIn.toHistory, PathIn.rewind] at *
       case cast j =>
         specialize IH tail
-        simp only [List.get_eq_getElem, List.length_cons, toHistory, nodeAt_pdl] at *
-        simp_all only [rewind, Fin.lastCases_castSucc, Function.comp_apply, nodeAt_pdl,
-          Fin.val_cast, Fin.val_castSucc]
+        simp_all only [List.get_eq_getElem, List.length_cons, rewind, toHistory,
+          Fin.lastCases_castSucc, Function.comp_apply, nodeAt_pdl, Fin.val_cast, Fin.val_castSucc]
         rcases j with ⟨j,j_lt⟩
         rw [pdl_length_eq] at j_lt
         have := @List.getElem_append _ (nodeAt tail :: tail.toHistory) [Z] j ?_
         · simp only [List.cons_append, List.length_cons, List.getElem_singleton] at this
-          rw [this]
-          simp_all
+          simp_all only [dite_true]
         · simp only [List.cons_append, List.length_cons, List.length_append]
           exact Nat.lt_add_right 1 j_lt
   case lrep =>
@@ -855,11 +867,11 @@ theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
 
 theorem nil_iff_length_zero {a : PathIn tab} :
     a = PathIn.nil ↔ a.toHistory = [] := by
-constructor
-· intro a_nil
-  subst a_nil
-  simp [PathIn.toHistory]
-· cases a <;> simp [PathIn.toHistory]
+  constructor
+  · intro a_nil
+    subst a_nil
+    simp [PathIn.toHistory]
+  · cases a <;> simp [PathIn.toHistory]
 
 lemma PathIn.loc_injective {Hist X nrep nbas lt next Y Y_in ta tb} :
     @PathIn.loc Hist X nrep nbas lt next Y Y_in ta = PathIn.loc Y_in tb → ta = tb := by
@@ -870,9 +882,9 @@ lemma PathIn.pdl_injective {Hist X Y nrep bas next} r ta tb :
   simp
 
 theorem edge_is_irreflexive {a : PathIn tab} : ¬(a ⋖_ a) := by
-intro con
-have := edge_then_length_lt con
-simp_all
+  intro con
+  have := edge_then_length_lt con
+  simp_all
 
 theorem path_then_length_lt {s t : PathIn tab} (s_t : s < t) : s.length < t.length := by
   induction s_t
@@ -1014,7 +1026,9 @@ theorem rewind_of_edge_is_eq {a b : PathIn tab} (a_b : a ⋖_ b) : b.rewind 1 = 
           by_contra con
           have t_nil := nil_iff_length_zero.2 con
           simp_all
-        have hyp : 1 ≠ Fin.last (List.length (tail.toHistory ++ [Y])) := by
+        have hyp : (1 : Fin ((PathIn.loc Z_in tail
+              : PathIn (Tableau.loc nrep' nbas' lt next)).toHistory.length + 1))
+            ≠ Fin.last _ := by
           simp_all [Fin.last, Fin.eq_mk_iff_val_eq]
         rw [← Fin.exists_castSucc_eq] at hyp
         rcases hyp with ⟨k,kdef⟩
@@ -1055,7 +1069,9 @@ theorem rewind_of_edge_is_eq {a b : PathIn tab} (a_b : a ⋖_ b) : b.rewind 1 = 
           by_contra con
           have t_nil := nil_iff_length_zero.2 con
           simp_all
-        have hyp : 1 ≠ Fin.last (List.length (tail.toHistory ++ [Y])) := by
+        have hyp : (1 : Fin ((PathIn.pdl tail
+              : PathIn (Tableau.pdl nrep' bas' r tab)).toHistory.length + 1))
+            ≠ Fin.last _ := by
           simp_all [Fin.last, Fin.eq_mk_iff_val_eq]
         rw [← Fin.exists_castSucc_eq] at hyp
         rcases hyp with ⟨k,kdef⟩
@@ -1228,7 +1244,9 @@ theorem edge_inc_length_by_one {a b : PathIn tab} (a_b : edge a b) :
       subst tail_eq_nil
       rfl
     case neg tail_ne_nil =>
-      have helper : 1 ≠ Fin.last (List.length (tail.toHistory ++ [X])) := by
+      have helper : (1 : Fin ((PathIn.loc Y_in tail
+            : PathIn (Tableau.loc nrep nbas lt next)).toHistory.length + 1))
+          ≠ Fin.last _ := by
         have hyp : ¬ (1 = (List.length tail.toHistory + 1)) := by
           simp only [Nat.right_eq_add, List.length_eq_zero_iff]
           intro con
@@ -1250,7 +1268,9 @@ theorem edge_inc_length_by_one {a b : PathIn tab} (a_b : edge a b) :
       subst tail_eq_nil
       rfl
     case neg tail_ne_nil =>
-      have helper : 1 ≠ Fin.last (List.length (tail.toHistory ++ [X])) := by
+      have helper : (1 : Fin ((PathIn.pdl tail
+            : PathIn (Tableau.pdl nrep bas r next)).toHistory.length + 1))
+          ≠ Fin.last _ := by
         have hyp : ¬ (1 = (List.length tail.toHistory + 1)) := by
           simp only [Nat.right_eq_add, List.length_eq_zero_iff]
           intro con
@@ -1397,7 +1417,15 @@ theorem exists_rewinds_middle {a b c : PathIn tab} (h : a ≤ b) (h' : b ≤ c) 
     cases eq_or_ne c PathIn.nil
     case inl c_eq_nil =>
       subst c_eq_nil
-      simp_all [PathIn.toHistory]
+      have hk : (k : ℕ) = 0 := by
+        have := k.isLt
+        simp only [PathIn.toHistory, List.length_nil, Nat.zero_add] at this
+        omega
+      have hk' : (k' : ℕ) = 0 := by
+        have := k'.isLt
+        simp only [PathIn.toHistory, List.length_nil, Nat.zero_add] at this
+        omega
+      simp [Fin.le_def]
     case inr c_ne_nil =>
     by_contra k_lt_k
     apply not_le.1 at k_lt_k
@@ -1470,13 +1498,13 @@ theorem Finite.wellfounded_of_irrefl_TC {α : Type} [Finite α] (r : α → α �
 lemma nodeAt_mem_History_of_edge : p ⋖_ q → nodeAt p ∈ (tabAt q).1 := by
   rintro ( ⟨Hist, XX, nrep, nbas, lt, next, Y, Y_in, tab_def, q_def⟩
          | ⟨Hist, XX, nrep, bas, Y, r, next, tab_def, q_def⟩ )
-  <;> induction p <;> (simp at tab_def; aesop)
+  <;> induction p <;> (simp at tab_def; try aesop)
 
 lemma mem_History_of_edge : p ⋖_ q → x ∈ (tabAt p).1 → x ∈ (tabAt q).1 := by
   intro hedge hmemp
   rcases hedge with ( ⟨Hist, XX, nrep, nbas, lt, next, Y, Y_in, tab_def, q_def⟩
                     | ⟨Hist, XX, nrep, bas, Y, r, next, tab_def, q_def⟩ )
-  <;> induction p <;> (simp at tab_def; aesop)
+  <;> induction p <;> (simp at tab_def; try aesop)
 
 lemma mem_History_append : X ∈ (tabAt p).1 → X ∈ (tabAt (p.append q)).1 := by
   intro h
@@ -1570,7 +1598,7 @@ lemma Relation.TransGen_flip_iff {r : α → α → Prop} :
     case single t s_t =>
       exact TransGen.single s_t
     case tail b c _ c_b b_s =>
-      simp only [flip] at c_b
+      try simp only [flip] at c_b
       exact TransGen.trans (TransGen.single c_b) b_s
 
 /-- Strong induction from the leaves (= childless nodes) to the root.
@@ -1592,14 +1620,14 @@ theorem PathIn.strong_upwards_inductionOn {Hist X} {tab : Tableau Hist X}
     apply ups
     rintro s t_s
     cases t_s
-    case a.single t_s => -- easy case, like in non-strong induction
+    case single t_s => -- easy case, like in non-strong induction
       rcases t_s with ⟨_, _, _, _, _, _, _, _, tabAt_t_eq, _⟩
                     | ⟨_, _, _, _, _, _, _, tabAt_t_eq, _⟩
       · rw [tabT_def] at tabAt_t_eq
         cases tabAt_t_eq
       · rw [tabT_def] at tabAt_t_eq
         cases tabAt_t_eq
-    case a.tail b c t__b b_c =>
+    case tail b c t__b b_c =>
       apply IH
       rw [Relation.TransGen_flip_iff]
       exact Relation.TransGen.trans t__b (Relation.TransGen.single b_c)

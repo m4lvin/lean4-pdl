@@ -24,21 +24,21 @@ theorem vocOfBigDis {l : List Formula} : x ∈ voc (bigDis l) → ∃φ ∈ l, x
   by
     intro hyp
     induction l
-    case nil  => aesop
+    · simp_all [voc]
     case cons head tail ih =>
+      simp_all only [voc, List.mem_cons, exists_eq_or_imp]
       cases em (x ∈ vocabOfFormula head)
-      · simp; tauto
+      · tauto
       · unfold bigDis at hyp; aesop
 
 theorem vocOfBigCon {l : List Formula} : x ∈ voc (bigCon l) → ∃φ ∈ l, x ∈ voc φ :=
   by
     intro hyp
     induction l
-    case nil  => aesop
+    · simp_all [voc]
     case cons head tail ih =>
-      cases em (x ∈ vocabOfFormula head)
-      · simp; tauto
-      · unfold bigCon at hyp; aesop
+      cases em (x ∈ vocabOfFormula head) <;> simp_all [voc]
+      unfold bigCon at hyp; aesop
 
 @[simp]
 theorem conempty : bigCon ∅ = (⊤ : Formula) := by rfl
@@ -146,12 +146,12 @@ instance listHasUplus : HasUplus List := ⟨pairunionList⟩
 @[simp]
 instance finsetHasUplus : HasUplus Finset := ⟨pairunionFinset⟩
 
-theorem disconAnd {XS YS} : discon (XS ⊎ YS) ≡ discon XS ⋀ discon YS :=
-  by
+theorem disconAnd {XS YS} : discon (XS ⊎ YS) ≡ discon XS ⋀ discon YS := by
   unfold semEquiv
   intro W M w
   rw [disconEval (XS ⊎ YS) (by rfl)]
-  simp
+  simp only [HasUplus.pairunion, pairunionList, List.mem_flatten, List.mem_map,
+    exists_exists_and_eq_and, exists_exists_and_exists_and_eq_and, List.mem_append, Evaluate]
   rw [disconEval XS (by rfl)]
   rw [disconEval YS (by rfl)]
   aesop
@@ -195,7 +195,7 @@ theorem union_elem_uplus {XS YS : Finset (Finset Formula)} {X Y : Finset Formula
   X ∈ XS → Y ∈ YS → ((X ∪ Y) ∈ (XS ⊎ YS)) :=
   by
   intro X_in Y_in
-  simp
+  simp only [HasUplus.pairunion, pairunionFinset, Finset.mem_biUnion, Finset.mem_singleton]
   exact ⟨X, X_in, Y, Y_in, rfl⟩
 
 @[simp]
@@ -244,21 +244,23 @@ lemma bigCon_sat {l : List Formula} {M : KripkeModel W} {w : W} :
 
 lemma bigDis_union_sat_down {X : Finset Formula} {l : List Formula} :
     Satisfiable (X ∪ {bigDis l}) → ∃φ ∈ l, Satisfiable (X ∪ {φ}) :=
-  by simp at *; tauto
+  by simp [Satisfiable] at *; tauto
 
 lemma bigCon_union_sat_down {X : Finset Formula} {l : List Formula} :
     Satisfiable (X ∪ {bigCon l}) → ∀φ ∈ l, Satisfiable (X ∪ {φ}) :=
-  by simp at *; tauto
+  by simp [Satisfiable] at *; tauto
 
 lemma bigConNeg_union_sat_down {X : Finset Formula} {l : List Formula} :
     Satisfiable (X ∪ {bigCon (l.map (~·))}) → ∀φ ∈ l, Satisfiable (X ∪ {~φ}) :=
   by
     intro hyp
     rcases hyp with ⟨W, M, w, sat⟩
-    simp at *
+    simp only [union_singleton_is_insert, Finset.mem_insert, forall_eq_or_imp, bigCon_sat,
+      List.mem_map, forall_exists_index, and_imp, forall_apply_eq_imp_iff₂, Evaluate] at *
     rcases sat with ⟨lNotSat, XSat⟩
     intro φ inl
     use W, M, w
+    simp only [Finset.mem_insert, forall_eq_or_imp, Evaluate]
     apply And.intro (lNotSat φ inl) (XSat)
 
 
@@ -270,7 +272,7 @@ lemma eval_negBigCon_iff_eval_bigDisNeg {l : List Formula} {M : KripkeModel W} {
     Evaluate (M, w) (~(bigCon l)) ↔ Evaluate (M, w) (bigDis (l.map (~·))) := by aesop
 
 lemma sat_negBigDis_iff_sat_bigConNeg {l : List Formula} :
-    Satisfiable (~(bigDis l)) ↔ Satisfiable (~~bigCon (l.map (~·))) := by aesop
+    Satisfiable (~(bigDis l)) ↔ Satisfiable (~~bigCon (l.map (~·))) := by simp [Satisfiable]
 
 lemma sat_negBigCon_iff_sat_bigDisNeg {l : List Formula} :
-    Satisfiable (~(bigCon l)) ↔ Satisfiable (bigDis (l.map (~·))) := by aesop
+    Satisfiable (~(bigCon l)) ↔ Satisfiable (bigDis (l.map (~·))) := by simp [Satisfiable]

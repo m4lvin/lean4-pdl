@@ -315,8 +315,8 @@ lemma Sequent.leftFree_basic_of_basic {X : Sequent} (h : X.basic) : X.leftFree.b
       Finset.mem_union] at hf ⊢
     tauto
   · rintro (hbot | ⟨f, hf, hnf⟩)
-    · exact hcl (Or.inl (by simp_all [Sequent.leftFree, instMembershipFormulaSequent]))
-    · exact hcl (Or.inr ⟨f, by simp_all [Sequent.leftFree, instMembershipFormulaSequent]⟩)
+    · exact hcl (Or.inl (by simp_all [Sequent.leftFree, Sequent.mem_def]))
+    · exact hcl (Or.inr ⟨f, by simp_all [Sequent.leftFree, Sequent.mem_def]⟩)
 
 lemma Sequent.rightFree_basic_of_basic {X : Sequent} (h : X.basic) : X.rightFree.basic := by
   rcases X with ⟨L, R, o⟩
@@ -326,8 +326,8 @@ lemma Sequent.rightFree_basic_of_basic {X : Sequent} (h : X.basic) : X.rightFree
       Finset.mem_union] at hf ⊢
     tauto
   · rintro (hbot | ⟨f, hf, hnf⟩)
-    · exact hcl (Or.inl (by simp_all [Sequent.rightFree, instMembershipFormulaSequent]))
-    · exact hcl (Or.inr ⟨f, by simp_all [Sequent.rightFree, instMembershipFormulaSequent]⟩)
+    · exact hcl (Or.inl (by simp_all [Sequent.rightFree, Sequent.mem_def]))
+    · exact hcl (Or.inr ⟨f, by simp_all [Sequent.rightFree, Sequent.mem_def]⟩)
 
 /-- All local rule applications inside a local tableau are uniform choices. -/
 def LocalTableau.IsUni : {X : Sequent} → LocalTableau X → Prop
@@ -991,13 +991,13 @@ lemma Sequent.Refutable.of_closed {X : Sequent} (h : X.closed) : X.Refutable := 
   have key : ∃ lra : LocalRuleApp, lra.X = X ∧ lra.C = ∅ := by
     rcases X with ⟨L, R, O⟩
     rcases h with bot_in | ⟨φ, φ_in, not_φ_in⟩
-    · simp only [instMembershipFormulaSequent] at bot_in
+    · simp only [Sequent.mem_def] at bot_in
       cases bot_in
       · exact ⟨⟨L, R, O, {⊥}, ∅, none, ∅, .oneSidedL .bot rfl, ∅, by simp [applyLocalRule],
           by simp_all⟩, by simp, rfl⟩
       · exact ⟨⟨L, R, O, ∅, {⊥}, none, ∅, .oneSidedR .bot rfl, ∅, by simp [applyLocalRule],
           by simp_all⟩, by simp, rfl⟩
-    · simp only [instMembershipFormulaSequent] at φ_in not_φ_in
+    · simp only [Sequent.mem_def] at φ_in not_φ_in
       cases φ_in <;> cases not_φ_in
       · exact ⟨⟨L, R, O, {φ, ~φ}, ∅, none, ∅, .oneSidedL (.not _) rfl, ∅,
           by simp [applyLocalRule], by simp_all [Finset.insert_subset_iff]⟩, by simp, rfl⟩
@@ -1026,7 +1026,7 @@ lemma Sequent.Refutable.byOneSided {X : Sequent} {p : Formula} {ress : Finset (F
         (∀ f ∈ X, f ≠ p → f ∈ W) → (∀ φ ∈ res, φ ∈ W) → W.Refutable) :
     X.Refutable := by
   rcases X with ⟨L, R, O⟩
-  simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R] at hp
+  simp only [Sequent.mem_def, Sequent.L, Sequent.R] at hp
   rcases hp with hp | hp
   · refine Sequent.DominatedBy.byRule (lra := ⟨L, R, O, {p}, ∅, none,
       ress.image (fun res => (res, ∅, none)), .oneSidedL orule rfl, _, rfl,
@@ -1036,13 +1036,13 @@ lemma Sequent.Refutable.byOneSided {X : Sequent} {p : Formula} {ress : Finset (F
     obtain ⟨res, hres, rfl⟩ := hV
     refine h res hres _ ?_ ?_
     · rintro f hf hne
-      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union,
+      simp only [Sequent.mem_def, Sequent.L, Sequent.R, Finset.mem_union,
         Finset.mem_sdiff, Finset.mem_singleton] at hf ⊢
       rcases hf with hf | hf
       · exact Or.inl (Or.inl ⟨hf, hne⟩)
       · exact Or.inr (by simpa using hf)
     · intro φ hφ
-      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union]
+      simp only [Sequent.mem_def, Sequent.L, Sequent.R, Finset.mem_union]
       exact Or.inl (Or.inr hφ)
   · refine Sequent.DominatedBy.byRule (lra := ⟨L, R, O, ∅, {p}, none,
       ress.image (fun res => (∅, res, none)), .oneSidedR orule rfl, _, rfl,
@@ -1052,13 +1052,13 @@ lemma Sequent.Refutable.byOneSided {X : Sequent} {p : Formula} {ress : Finset (F
     obtain ⟨res, hres, rfl⟩ := hV
     refine h res hres _ ?_ ?_
     · rintro f hf hne
-      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union,
+      simp only [Sequent.mem_def, Sequent.L, Sequent.R, Finset.mem_union,
         Finset.mem_sdiff, Finset.mem_singleton] at hf ⊢
       rcases hf with hf | hf
       · exact Or.inl (by simpa using hf)
       · exact Or.inr (Or.inl ⟨hf, hne⟩)
     · intro φ hφ
-      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union]
+      simp only [Sequent.mem_def, Sequent.L, Sequent.R, Finset.mem_union]
       exact Or.inr (Or.inr hφ)
 
 /-- Two formulas of different length are different. -/
@@ -1078,11 +1078,11 @@ lemma Sequent.closed.append {L R Ln Rn : Finset Formula} {O O' : Olf}
     (hX : Sequent.closed (L, R, O)) : Sequent.closed (L ∪ Ln, R ∪ Rn, O') := by
   rcases hX with hbot | ⟨f, hf, hnf⟩
   · left
-    simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union] at hbot ⊢
+    simp only [Sequent.mem_def, Sequent.L, Sequent.R, Finset.mem_union] at hbot ⊢
     tauto
   · right
     refine ⟨f, ?_, ?_⟩ <;>
-      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union]
+      simp only [Sequent.mem_def, Sequent.L, Sequent.R, Finset.mem_union]
         at hf hnf ⊢ <;>
       tauto
 
@@ -1151,7 +1151,7 @@ lemma Bset_Yset_clash {α : Program} {ψ : Formula} (ℓ : TP α) {Fs : List For
     · simp only [Bset, List.mem_append, List.mem_map]
       exact Or.inr ⟨δ, hδ, rfl⟩
     · simp [Yset]
-  · push_neg at hcase
+  · push Not at hcase
     obtain ⟨τ, hτ, hτF⟩ := hcase
     exact ⟨τ, Or.inr ⟨by simp [Bset, hτF], by simp [Yset]; tauto⟩⟩
 
@@ -1352,11 +1352,11 @@ lemma Sequent.Refutable.child_of_closed {X W : Sequent} (hX : X.closed) {lra : L
     obtain ⟨p, rfl⟩ := orule.singleton_precond (by rintro rfl; simp at hres)
     refine Sequent.Refutable.of_oneSided_step hX orule rfl hres ?_ ?_
     · rintro f hf hne
-      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union,
+      simp only [Sequent.mem_def, Sequent.L, Sequent.R, Finset.mem_union,
         Finset.mem_sdiff, Finset.mem_singleton, Finset.sdiff_empty, Finset.union_empty] at hf ⊢
       tauto
     · intro φ hφ
-      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union,
+      simp only [Sequent.mem_def, Sequent.L, Sequent.R, Finset.mem_union,
         Finset.mem_sdiff, Finset.sdiff_empty, Finset.union_empty]
       tauto
   case oneSidedR ress' orule YS_def =>
@@ -1366,11 +1366,11 @@ lemma Sequent.Refutable.child_of_closed {X W : Sequent} (hX : X.closed) {lra : L
     obtain ⟨p, rfl⟩ := orule.singleton_precond (by rintro rfl; simp at hres)
     refine Sequent.Refutable.of_oneSided_step hX orule rfl hres ?_ ?_
     · rintro f hf hne
-      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union,
+      simp only [Sequent.mem_def, Sequent.L, Sequent.R, Finset.mem_union,
         Finset.mem_sdiff, Finset.mem_singleton, Finset.sdiff_empty, Finset.union_empty] at hf ⊢
       tauto
     · intro φ hφ
-      simp only [instMembershipFormulaSequent, Sequent.L, Sequent.R, Finset.mem_union,
+      simp only [Sequent.mem_def, Sequent.L, Sequent.R, Finset.mem_union,
         Finset.mem_sdiff, Finset.sdiff_empty, Finset.union_empty]
       tauto
   case LRnegL => simp at hW
@@ -1432,7 +1432,7 @@ lemma LocalRuleApp.closed_of_ress_nil {lra : LocalRuleApp} (h : lra.ress = ∅) 
     lra.X.closed := by
   rcases lra with ⟨L, R, O, Lc, Rc, Oc, ress, lr, C, hC, pre⟩
   simp only at h
-  simp only [LocalRuleApp.X, Sequent.closed, instMembershipFormulaSequent, Sequent.L, Sequent.R]
+  simp only [LocalRuleApp.X, Sequent.closed, Sequent.mem_def, Sequent.L, Sequent.R]
   obtain ⟨preL, preR, preO⟩ := pre
   cases lr
   case oneSidedL ress' orule YS_def =>
@@ -1617,12 +1617,12 @@ lemma basic_rightOnly {X : Sequent} (h : X.basic) : X.rightOnly.basic := by
     rcases hcl with hbot | ⟨f, hf, hnf⟩
     · left
       revert hbot
-      simp only [Sequent.rightOnly, instMembershipFormulaSequent, Sequent.L, Sequent.R,
+      simp only [Sequent.rightOnly, Sequent.mem_def, Sequent.L, Sequent.R,
         Finset.notMem_empty, false_or]
       tauto
     · right
       refine ⟨f, ?_, ?_⟩ <;>
-        simp only [Sequent.rightOnly, instMembershipFormulaSequent, Sequent.L, Sequent.R,
+        simp only [Sequent.rightOnly, Sequent.mem_def, Sequent.L, Sequent.R,
           Finset.notMem_empty, false_or] at hf hnf ⊢ <;>
         tauto
 
@@ -1763,14 +1763,12 @@ lemma isRight_of_mem_C (lra : LocalRuleApp) :
     exfalso
     subst YS_def
     have hO := (Option.some_subseteq.mp pre.2.2).symm
-    simp only at hO
     subst hO
     simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hY
     obtain ⟨⟨Lnew, Onew⟩, -, rfl⟩ := hY
     rcases Onew with _ | o <;> simp_all [Olf.isRight]
   case loadedR χ lrule YS_def =>
     have hO := (Option.some_subseteq.mp pre.2.2).symm
-    simp only at hO
     subst hO
     simp [Olf.isRight]
 
@@ -1897,7 +1895,7 @@ component `Δ` at which a right rule is applied have the same right components b
 The case where `Δ` is basic does not use uniformity: there the rule applied is the modal
 rule for the loaded formula of `Δ` (Lemma 9.7 (e)). The case where `Δ` is not basic is
 Lemma 9.7 (f), and uses both U1 and U2. -/
-def LoadedCluster.uniformOfUniTab {tab : Tableau .nil X}
+theorem LoadedCluster.uniformOfUniTab {tab : Tableau .nil X}
     (C : LoadedCluster tab) (uni_tab : tab.isUniform)
     : C.HasUniformSteps := by
   obtain ⟨u1, u2⟩ := uni_tab.1

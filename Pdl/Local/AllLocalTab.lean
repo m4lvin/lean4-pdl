@@ -144,9 +144,11 @@ lemma all_spec {L B} (osr : OneSidedLocalRule L B) : all L = some ⟨B, osr⟩ :
   case con φ ψ => rw [all_eq_ofSorted (Finset.fsort_singleton _), ofSorted_con]; simp
   case nCo φ ψ => rw [all_eq_ofSorted (Finset.fsort_singleton _), ofSorted_nCo]; simp
   case box α φ notAtm =>
-    rw [all_eq_ofSorted (Finset.fsort_singleton _), ofSorted_box, dif_pos notAtm]; simp
+    rw [all_eq_ofSorted (Finset.fsort_singleton _), ofSorted_box, dif_pos notAtm]
+    simp only [osrCast_self]
   case dia α φ notAtm =>
-    rw [all_eq_ofSorted (Finset.fsort_singleton _), ofSorted_dia, dif_pos notAtm]; simp
+    rw [all_eq_ofSorted (Finset.fsort_singleton _), ofSorted_dia, dif_pos notAtm]
+    simp only [osrCast_self]
   case not φ =>
     have hne : φ ≠ ~φ := Formula.ne_neg φ
     have hlen : (({φ, ~φ} : Finset Formula)).fsort.length = 2 := by
@@ -456,8 +458,9 @@ lemma lm_sum_Dset_le_tests {α : Program} {F : List Formula} {δ : List Program}
     rcases Dset_mem_test α x in_D hx with ⟨τ, τ_in, rfl⟩
     exact Or.inr (Or.inl τ_in)
   have := finset_sum_trichotomy lmOfFormula F ⊥ (testsOfProgram α) tri
+  have hbot : lmOfFormula ⊥ = 0 := by simp [Bot.bot, lmOfFormula]
   simp only [List.map_subtype, List.unattach_attach]
-  simpa using this
+  simpa [hbot] using this
 
 /-- Unfolding the measure of a diamond with a non-atomic program. -/
 lemma lm_dia_eq {α : Program} {φ : Formula} (h : ¬ α.isAtomic) :
@@ -713,9 +716,6 @@ def OpenLocalTableau.all (X : Sequent) : List (OpenLocalTableau X) :=
 lemma OpenLocalTableau.all_spec {X : Sequent} {ltX : OpenLocalTableau X} :
     ltX ∈ OpenLocalTableau.all X := by
   rcases ltX with ⟨lt, lt_has_ends⟩
-  unfold all
-  simp_all only [ne_eq, List.mem_map, List.mem_attach, true_and, Subtype.exists, decide_not,
-    List.mem_filter, Bool.not_eq_eq_eq_not, Bool.not_true, decide_eq_false_iff_not]
-  use lt
-  have := lt.all_spec
-  grind
+  have hmem : lt ∈ (LocalTableau.all X).filter (endNodesOf · ≠ {}) :=
+    List.mem_filter.mpr ⟨LocalTableau.all_spec, decide_eq_true lt_has_ends⟩
+  exact List.mem_map_of_mem (List.mem_attach _ ⟨lt, hmem⟩)
