@@ -3,7 +3,7 @@
 import os
 import graphviz
 
-BASE = "https://github.com/m4lvin/lean4-pdl/tree/main/"
+BASE = "https://m4lvin.github.io/lean4-pdl/docs/"
 EXCLUDE = set(['.lake', 'docbuild',".github",".devcontainer",".vscode","Bml","Unused","Pdl.lean","Bml.lean"])
 
 def add_node(dot, path, name, label) :
