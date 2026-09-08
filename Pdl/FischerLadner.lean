@@ -1,6 +1,8 @@
-import Mathlib.Algebra.Order.BigOperators.Group.List
+module
 
-import Pdl.Vocab
+public import Mathlib.Algebra.Order.BigOperators.Group.List
+
+public import Pdl.Vocab
 
 /-! # Fischer-Ladner Closure
 
@@ -17,6 +19,8 @@ An alternative version following the proof of Theorem 3.2 in [FL1979]
 but unfinished is in `Unused/FischerLadnerViaPreForms.lean`.
 
 -/
+
+@[expose] public section
 
 /-! ## Definition  -/
 

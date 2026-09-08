@@ -1,6 +1,8 @@
-import Mathlib.Data.ENat.Lattice
+module
 
-import Pdl.Local.UnfoldDia
+public import Mathlib.Data.ENat.Lattice
+
+public import Pdl.Local.UnfoldDia
 
 /-! # Distance between states in a Kripke model
 
@@ -8,6 +10,8 @@ In the article these are used for the correctness of cluster interpolants in Sec
 Here we also use them to state and prove `localLoadedDiamondList`, a local version
 of the `loadedDiamondPaths` lemma that is part of the Soundness proof in Section 6.
 -/
+
+@[expose] public section
 
 /-! ## Walks -/
 

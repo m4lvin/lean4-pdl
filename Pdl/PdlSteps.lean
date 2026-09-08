@@ -1,4 +1,6 @@
-import Pdl.AllPdlRule
+module
+
+public import Pdl.AllPdlRule
 
 /-! # Concrete PDL rule applications
 
@@ -16,6 +18,8 @@ The main results are:
 - `Sequent.exists_atomic_modal_steps`: the combination of (L+) and (M), giving the
   `a`-successor of a free basic sequent.
 -/
+
+@[expose] public section
 
 /-! ## The (L-) rule -/
 

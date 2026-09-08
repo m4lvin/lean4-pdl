@@ -1,5 +1,7 @@
-import Mathlib.Data.Vector.Basic
-import Mathlib.Logic.Relation
+module
+
+public import Mathlib.Data.Vector.Basic
+public import Mathlib.Logic.Relation
 
 /-!
 # Helper Lemmas about the Kleene Star
@@ -7,6 +9,8 @@ import Mathlib.Logic.Relation
 Nothing here is specific about PDL, but we prove some useful results about the reflexive-transitive
 closure `ReflTransGen` and the transitive closure `TransGen`.
 -/
+
+@[expose] public section
 
 /-- A version of `Relation.ReflTransGen.cases_tail` also giving (in)equalities. -/
 theorem ReflTransGen.cases_tail_eq_neq {r : α → α → Prop} (h : Relation.ReflTransGen r x z) :

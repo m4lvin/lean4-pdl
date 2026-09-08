@@ -1,11 +1,15 @@
-import Mathlib.Algebra.BigOperators.Group.Finset.Basic
-import Mathlib.Algebra.Order.BigOperators.Group.List
-import Mathlib.Algebra.Order.BigOperators.Group.Finset
-import Mathlib.Data.Multiset.DershowitzManna
+module
 
-import Pdl.Local.Rules
+public import Mathlib.Algebra.BigOperators.Group.Finset.Basic
+public import Mathlib.Algebra.Order.BigOperators.Group.List
+public import Mathlib.Algebra.Order.BigOperators.Group.Finset
+public import Mathlib.Data.Multiset.DershowitzManna
+
+public import Pdl.Local.Rules
 
 /-! # Local Tableaux (Section 3) -/
+
+@[expose] public section
 
 /-- Local tableau for `X`, maximal by definition. -/
 inductive LocalTableau : (X : Sequent) → Type

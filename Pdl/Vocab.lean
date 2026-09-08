@@ -1,11 +1,15 @@
-import Mathlib.Data.Finset.Basic
-import Mathlib.Data.Finset.Union
-import Mathlib.Data.Finset.Fold
-import Mathlib.Data.Finset.Lattice.Fold
+module
 
-import Pdl.Syntax
+public import Mathlib.Data.Finset.Basic
+public import Mathlib.Data.Finset.Union
+public import Mathlib.Data.Finset.Fold
+public import Mathlib.Data.Finset.Lattice.Fold
+
+public import Pdl.Syntax
 
 /-! # Vocabulary and other Syntax functions (part of Section 2.1) -/
+
+@[expose] public section
 
 /-! ## Vocab -/
 

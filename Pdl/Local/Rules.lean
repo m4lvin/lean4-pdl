@@ -1,14 +1,18 @@
-import Mathlib.Algebra.BigOperators.Group.Finset.Basic
-import Mathlib.Algebra.Order.BigOperators.Group.List
-import Mathlib.Algebra.Order.BigOperators.Group.Finset
-import Mathlib.Data.Multiset.DershowitzManna
+module
 
-import Pdl.Sequent
-import Pdl.Local.UnfoldBox
-import Pdl.Local.UnfoldDia
-import Mathlib.Data.Finset.Sort
+public import Mathlib.Algebra.BigOperators.Group.Finset.Basic
+public import Mathlib.Algebra.Order.BigOperators.Group.List
+public import Mathlib.Algebra.Order.BigOperators.Group.Finset
+public import Mathlib.Data.Multiset.DershowitzManna
+
+public import Pdl.Sequent
+public import Pdl.Local.UnfoldBox
+public import Pdl.Local.UnfoldDia
+public import Mathlib.Data.Finset.Sort
 
 /-! ## Local rules and local rule applications  -/
+
+@[expose] public section
 
 open HasLength
 

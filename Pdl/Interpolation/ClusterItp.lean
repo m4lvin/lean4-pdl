@@ -1,4 +1,6 @@
-import Pdl.Interpolation.PreInterpolant
+module
+
+public import Pdl.Interpolation.PreInterpolant
 
 /-! # The interpolant of a cluster root and its correctness
 
@@ -9,6 +11,8 @@ This file continues the development of `Pdl.PreInterpolant` with
 
 Definition 10.2 and Lemma 10.3 are in `Pdl.ClusterRho`.
 -/
+
+@[expose] public section
 
 /-! ## Two small vocabulary lemmas -/
 

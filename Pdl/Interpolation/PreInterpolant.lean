@@ -1,4 +1,6 @@
-import Pdl.Interpolation.QuasiTableau
+module
+
+public import Pdl.Interpolation.QuasiTableau
 
 /-! # Pre-interpolants (Definition 9.18)
 
@@ -18,6 +20,8 @@ that are not part of the data type, namely that nodes of type 2 and basic nodes 
 have a unique child. For nodes without children where the paper assumes one we return the
 placeholder `⊤`; by Remark 9.9 (`QuasiTab.build_leaf_typ`) this does not happen in `C.Q`.
 -/
+
+@[expose] public section
 
 /-! ## The leading program of the loaded formula -/
 

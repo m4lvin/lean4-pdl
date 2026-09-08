@@ -1,5 +1,7 @@
-import Pdl.Local.AllLocalTab
-import Pdl.Interpolation.ClusterSatDown
+module
+
+public import Pdl.Local.AllLocalTab
+public import Pdl.Interpolation.ClusterSatDown
 
 /-! # Uniformity of split tableaux (Section 8.1)
 
@@ -44,6 +46,8 @@ The file `Pdl.ClusterInterpolation` imports this file (it uses `Tableau.isUnifor
 proved there. The section `Uniformity` below therefore repeats those that are needed here,
 under different names.
 -/
+
+@[expose] public section
 
 /-! ## The components of a sequent -/
 

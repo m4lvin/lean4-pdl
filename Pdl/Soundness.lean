@@ -1,8 +1,12 @@
-import Pdl.General.FinReach
-import Pdl.Local.Soundness
-import Pdl.TableauPath
+module
+
+public import Pdl.General.FinReach
+public import Pdl.Local.Soundness
+public import Pdl.TableauPath
 
 /-! # Soundness (Section 6) -/
+
+@[expose] public section
 
 open HasSat
 

@@ -1,6 +1,8 @@
-import Mathlib.Tactic.DepRewrite
+module
 
-import Pdl.Soundness
+public import Mathlib.Tactic.DepRewrite
+
+public import Pdl.Soundness
 
 /-! # Flipping a tableau (for section 7)
 
@@ -9,6 +11,8 @@ For the case where the loaded formula is on the left, we flip the tableau left-t
 
 The lemmas here then allow us to prove `clusterInterpolation` from `clusterInterpolation_right`.
 -/
+
+@[expose] public section
 
 def Olf.flip : Olf → Olf := Option.map Sum.swap
 
@@ -364,8 +368,8 @@ lemma Tableau.flip_flip {Hist X} {tab : Tableau Hist X} :
       specialize IH Y Y_in
       rw! (castMode := .all) [@Sequent.flip_flip Y]
       simp_all
-    · simp
-    · rfl
+    all_goals
+      grind
   case pdl r next IH =>
     nth_rewrite 1 [Tableau.flip]
     nth_rewrite 1 [Tableau.flip]

@@ -1,4 +1,6 @@
-import Pdl.Interpolation.ClusterItp
+module
+
+public import Pdl.Interpolation.ClusterItp
 
 /-! # The region formulas and the left half of the correctness of `θ_r`
 
@@ -7,6 +9,8 @@ This file continues the development of `Pdl.ClusterItp` with
 * Definition 10.2: the region formulas `ρ_x`, and
 * Lemma 10.3: `Γ₁ ⊨ θ_r`.
 -/
+
+@[expose] public section
 
 /-- A proper prefix of `x` is one of the addresses searched by `QuasiTab.companion?`. -/
 lemma mem_inits_dropLast_of_prefix_ne {α} {z x : List α} (h : z <+: x)

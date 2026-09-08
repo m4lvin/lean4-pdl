@@ -1,10 +1,14 @@
-import Pdl.Completeness.BuildTreeModel
+module
+
+public import Pdl.Completeness.BuildTreeModel
 
 /-! # From winning strategies to model graphs, part 3: the existence lemmas (Section 6.3)
 
 This continues `Pdl/BuildTreeModel.lean`. Here we prove the existence lemmas
 6.18, 6.19 and 6.20 that are needed for Theorem 6.21 (`strmg`).
 -/
+
+@[expose] public section
 
 /-! ## The loaded diamond existence lemma (Lemma 6.18) -/
 

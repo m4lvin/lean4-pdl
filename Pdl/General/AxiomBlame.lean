@@ -1,5 +1,8 @@
-import Lean.Elab.Command
-import Lean.Util.FoldConsts
+module
+
+public import Lean.Elab.Command
+public import Lean.Util.FoldConsts
+public meta import Lean.Elab.Command
 
 /-!
 # Find why something depends on which axioms
@@ -20,6 +23,8 @@ Importing this file provides a comment `#axiom_blame` that creates output like t
 * propext: FinEnum.toList → List.finRange → List.finRange.proof_1 → List.mem_range → Init.Data.List.Nat.Range._auxLemma.10 → propext
 ```
 -/
+
+@[expose] public meta section
 
 section
 open Lean Elab Command

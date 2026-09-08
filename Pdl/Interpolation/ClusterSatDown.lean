@@ -1,5 +1,7 @@
-import Pdl.Interpolation.EvalQ
-import Pdl.Interpolation.ClusterRho
+module
+
+public import Pdl.Interpolation.EvalQ
+public import Pdl.Interpolation.ClusterRho
 
 /-! # Satisfiability down the quasi-tableau, and the right half of the correctness of `θ_r`
 
@@ -14,6 +16,8 @@ where they are numbered 7.47. The auxiliary notions used below — the evaluatio
 Q-formulas with an assignment, the witness distance `witDist`, and `BasicBetween` — are in
 `Pdl.EvalQ`.
 -/
+
+@[expose] public section
 /-! ## Lemma 10.6
 
 If `x` is a repeat in `Q` then the path from `c(x)` to `x` passes through a node with a

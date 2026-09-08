@@ -1,4 +1,6 @@
-import Pdl.Interpolation.Uniformity
+module
+
+public import Pdl.Interpolation.Uniformity
 
 /-! # The facts about a proper cluster used for Lemma 10.7
 
@@ -21,6 +23,8 @@ We import `Pdl.Uniformity` and not `Pdl.ClusterInterpolation`, because the latte
 `LoadedCluster.satDownFacts` gets used; the helper lemmas about right rules that we need
 are the copies in the `Uniformity` namespace.
 -/
+
+@[expose] public section
 
 /-! ## Splitting a boxed loaded formula -/
 

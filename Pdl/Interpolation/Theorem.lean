@@ -1,9 +1,13 @@
-import Mathlib.Data.Finset.Basic
+module
 
-import Pdl.Interpolation.Def
-import Pdl.Completeness.Theorem
+public import Mathlib.Data.Finset.Basic
+
+public import Pdl.Interpolation.Def
+public import Pdl.Completeness.Theorem
 
 /-! # Interpolation (Section 7) -/
+
+@[expose] public section
 
 open vDash HasSat
 

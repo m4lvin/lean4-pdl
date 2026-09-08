@@ -1,14 +1,18 @@
-import Mathlib.Data.Finset.Basic
-import Mathlib.Data.Vector.Basic
-import Mathlib.Data.Set.Lattice
-import Mathlib.Logic.Relation
-import Mathlib.Order.CompleteLattice.Basic
-import Mathlib.Order.FixedPoints
+module
 
-import Pdl.Syntax
-import Pdl.General.ListFinset
+public import Mathlib.Data.Finset.Basic
+public import Mathlib.Data.Vector.Basic
+public import Mathlib.Data.Set.Lattice
+public import Mathlib.Logic.Relation
+public import Mathlib.Order.CompleteLattice.Basic
+public import Mathlib.Order.FixedPoints
+
+public import Pdl.Syntax
+public import Pdl.General.ListFinset
 
 /-! # Semantics (Section 2.2) -/
+
+@[expose] public section
 
 /-! ## Models and Truth -/
 

@@ -1,4 +1,6 @@
-import Pdl.Completeness.BuildTree
+module
+
+public import Pdl.Completeness.BuildTree
 
 /-! # From winning strategies to model graphs, part 2: the model graph (Section 6.3)
 
@@ -6,6 +8,8 @@ This continues `Pdl/BuildTree.lean`. Here we define the model graph `BuildTree.t
 obtained from a `BuildTree` (Definition 6.17) and provide the infrastructure that is used
 in `Pdl/BuildTreeExistence.lean` to prove the existence lemmas.
 -/
+
+@[expose] public section
 
 /-! ## Defining The Model Graph -/
 

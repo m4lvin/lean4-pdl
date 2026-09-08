@@ -1,5 +1,7 @@
-import Pdl.Interpolation.FinePath
-import Pdl.Interpolation.Local
+module
+
+public import Pdl.Interpolation.FinePath
+public import Pdl.Interpolation.Local
 
 /-! # Loaded Clusters (start of Section 9)
 
@@ -11,6 +13,8 @@ separate files: `Pdl.Interpolation.QFormula` has Definitions 9.15 and 9.16 and F
 i.e. the interpolant for the root of a proper cluster. Counterexamples to Lemma 9.12 (c)
 and (d) as stated in the paper are in `Pdl.ClusterCorrection`.
 -/
+
+@[expose] public section
 
 variable {X : Sequent} {tab : Tableau .nil X}
 

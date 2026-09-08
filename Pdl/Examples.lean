@@ -1,16 +1,20 @@
-import Mathlib.Data.Vector.Basic
-import Mathlib.Tactic.FinCases
-import Mathlib.Data.Fin.Basic
-import Mathlib.Logic.Relation
-import Mathlib.Data.Vector.Snoc
+module
 
-import Pdl.Semantics
-import Pdl.Star
+public import Mathlib.Data.Vector.Basic
+public import Mathlib.Tactic.FinCases
+public import Mathlib.Data.Fin.Basic
+public import Mathlib.Logic.Relation
+public import Mathlib.Data.Vector.Snoc
+
+public import Pdl.Semantics
+public import Pdl.Star
 
 /-! # Examples
 
 Easy *semantic* examples. Nothing here is about tableaux yet.
 -/
+
+@[expose] public section
 open HasSat
 
 theorem mytaut1 (p : Nat) : tautology ((·p) ↣ (·p)) :=

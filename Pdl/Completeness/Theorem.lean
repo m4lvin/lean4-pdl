@@ -1,7 +1,11 @@
-import Pdl.Soundness
-import Pdl.Completeness.BuildTreeExistence
+module
+
+public import Pdl.Soundness
+public import Pdl.Completeness.BuildTreeExistence
 
 /-! # Completeness Proof (Section 6.4) -/
+
+@[expose] public section
 
 open HasSat
 

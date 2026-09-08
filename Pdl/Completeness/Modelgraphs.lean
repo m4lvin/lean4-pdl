@@ -1,9 +1,13 @@
-import Mathlib.Tactic.ClearExcept
-import Mathlib.Data.Vector.Basic
+module
 
-import Pdl.Local.Rules
+public import Mathlib.Tactic.ClearExcept
+public import Mathlib.Data.Vector.Basic
+
+public import Pdl.Local.Rules
 
 /-! # Model Graphs (Section 7.1) -/
+
+@[expose] public section
 
 open Formula
 

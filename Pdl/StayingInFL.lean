@@ -1,5 +1,7 @@
-import Pdl.FischerLadner
-import Pdl.Tableau
+module
+
+public import Pdl.FischerLadner
+public import Pdl.Tableau
 
 /-! # Staying inside the Fischer-Ladner closure
 
@@ -13,6 +15,8 @@ FL of (L,R,O). To be precise, each side left/right stays within its own FL closu
 However, this does *not* mean that `L'` must be in the FL of `L`, because the `O` may also
 contribute to the left part. This makes `Sequent.subseteq_FL` tricky to define.
 -/
+
+@[expose] public section
 
 /-- Sequent `Y` is a component-wise subset of the FL-closure of `X`.
 Note that by component we mean left and right (and not L, R, O).

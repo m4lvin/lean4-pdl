@@ -1,7 +1,11 @@
-import Pdl.Distance
-import Pdl.Local.Tableau
+module
+
+public import Pdl.Distance
+public import Pdl.Local.Tableau
 
 /-! # Local Lemmas for Soundness (part of Section 6) -/
+
+@[expose] public section
 
 /-- Formulas on the left of a sequent are in `Sequent.toFinset`. -/
 lemma Sequent.mem_toFinset_of_mem_left {L R : Finset Formula} {O : Olf} {f : Formula}

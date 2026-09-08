@@ -1,7 +1,11 @@
-import Pdl.Interpolation.QFormula
-import Pdl.Interpolation.Cluster
+module
+
+public import Pdl.Interpolation.QFormula
+public import Pdl.Interpolation.Cluster
 
 /-! ## Quasi-Tableaux (Def 9.8) -/
+
+@[expose] public section
 
 -- Alternative idea for quasi-tableau:
 -- Instead of labelling nodes in Q with finite sequents, label them with the path to where

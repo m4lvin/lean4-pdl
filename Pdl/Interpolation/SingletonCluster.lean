@@ -1,7 +1,11 @@
-import Pdl.Tableau
-import Pdl.Interpolation.Local
+module
+
+public import Pdl.Tableau
+public import Pdl.Interpolation.Local
 
 /-! ## Helper lemmas about vocabularies and interpolants -/
+
+@[expose] public section
 
 open HasSat in
 /-- Being an interpolant only depends on which formulas are in the two components. -/

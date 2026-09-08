@@ -1,8 +1,10 @@
-import Mathlib.Data.List.Permutation
-import Mathlib.Data.List.Perm.Subperm
-import Mathlib.Data.List.ReduceOption
+module
 
-import Pdl.Local.Tableau
+public import Mathlib.Data.List.Permutation
+public import Mathlib.Data.List.Perm.Subperm
+public import Mathlib.Data.List.ReduceOption
+
+public import Pdl.Local.Tableau
 
 /-! # Generating all Local Tableaux
 
@@ -10,6 +12,8 @@ We show that for any `X` the type `LocalTableau` is finite.
 
 This is needed to define `BuildTree` as a finite tree.
 -/
+
+@[expose] public section
 
 /-! ## Helpers about `Finset.fsort` -/
 

@@ -1,10 +1,14 @@
-import Pdl.Interpolation.ClusterInterpolation
-import Pdl.Interpolation.SingletonCluster
+module
+
+public import Pdl.Interpolation.ClusterInterpolation
+public import Pdl.Interpolation.SingletonCluster
 
 /-! # Defining interpolants (Theorem 8.13)
 
 Here we put together the interpolants for singleton clusters and for proper clusters.
 -/
+
+@[expose] public section
 
 /-! ## Cluster roots below nodes with a singleton cluster -/
 

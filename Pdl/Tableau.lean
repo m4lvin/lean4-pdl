@@ -1,8 +1,12 @@
-import Mathlib.Data.List.ReduceOption
+module
 
-import Pdl.Local.Tableau
+public import Mathlib.Data.List.ReduceOption
+
+public import Pdl.Local.Tableau
 
 /-! # PDL-Tableaux (Section 4) -/
+
+@[expose] public section
 
 open HasLength
 

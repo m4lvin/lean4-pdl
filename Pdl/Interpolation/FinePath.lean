@@ -1,5 +1,7 @@
-import Pdl.Flip
-import Pdl.KeepRight
+module
+
+public import Pdl.Flip
+public import Pdl.KeepRight
 
 /-! # Fine paths in local tableaux and in tableaux
 
@@ -10,6 +12,8 @@ The two main definitions are `LocalPathIn`, for paths to arbitrary (also interme
 of a `LocalTableau`, and `FinePathIn`, for the nodes of a whole `Tableau` in the *fine* sense,
 i.e. including those nodes inside a local tableau that a `loc` step jumps over.
 -/
+
+@[expose] public section
 
 /-! ## Paths inside a local tableau
 

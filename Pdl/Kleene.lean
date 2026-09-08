@@ -1,12 +1,16 @@
-import Mathlib.Algebra.Order.Kleene
+module
 
-import Pdl.SemQuot
+public import Mathlib.Algebra.Order.Kleene
+
+public import Pdl.SemQuot
 
 /-! # PDL programs form a Kleene Algebra
 
 This file provides `RelProp.kleeneAlgebra`.
 It shows that the semantic quotient of PDL `Program`s as `RelProp`s forms a `KleeneAlgebra`.
 -/
+
+@[expose] public section
 
 instance : KStar Program :=
   { kstar := fun α ↦ ∗α }
