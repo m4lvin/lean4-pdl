@@ -642,29 +642,12 @@ lemma LocalRuleApp.toContext_X_of_rightOnly {lra : LocalRuleApp} {X : Sequent}
   rw [Finset.subset_empty.mp preL]
   exact Finset.empty_subset _
 
-lemma LocalRuleApp.toContext_leftOnly_X {lra : LocalRuleApp} {X : Sequent}
-    (hX : lra.X = X) (hl : lra.isLeftRule) : (lra.toContext X.leftOnly).X = X.leftOnly := by
-  obtain ⟨preL, preR, preO⟩ := lra.preconditionProof
-  subst hX
-  refine lra.toContext_X _ ⟨preL, ?_, preO⟩
-  rw [(LocalRuleApp.isLeftRule_shape hl).1]
-  exact Finset.empty_subset _
-
 lemma LocalRuleApp.toContext_rightOnly_X {lra : LocalRuleApp} {X : Sequent}
     (hX : lra.X = X) (hr : lra.isRightRule) : (lra.toContext X.rightOnly).X = X.rightOnly := by
   obtain ⟨preL, preR, preO⟩ := lra.preconditionProof
   subst hX
   refine lra.toContext_X _ ⟨?_, preR, preO⟩
   rw [(LocalRuleApp.isRightRule_shape hr).1]
-  exact Finset.empty_subset _
-
-lemma LocalRuleApp.toContext_leftFree_X {lra : LocalRuleApp} {X : Sequent}
-    (hX : lra.X = X) (hl : lra.isLeftRule) (hO : lra.Ocond = none) :
-    (lra.toContext X.leftFree).X = X.leftFree := by
-  obtain ⟨preL, preR, preO⟩ := lra.preconditionProof
-  subst hX
-  refine lra.toContext_X _ ⟨preL, ?_, by simp [hO, Sequent.leftFree]⟩
-  rw [(LocalRuleApp.isLeftRule_shape hl).1]
   exact Finset.empty_subset _
 
 /-! ### When is the canonical choice available? -/
@@ -1426,110 +1409,6 @@ theorem Dset_ne_nil : ∀ (a : Program), Dset a ≠ []
         simp at hh
       · simp [hd] at hthis
   | ∗_ => by simp [Dset]
-
-/-- A rule without results is a closure rule, so the sequent it is applied to is closed. -/
-lemma LocalRuleApp.closed_of_ress_nil {lra : LocalRuleApp} (h : lra.ress = ∅) :
-    lra.X.closed := by
-  rcases lra with ⟨L, R, O, Lc, Rc, Oc, ress, lr, C, hC, pre⟩
-  simp only at h
-  simp only [LocalRuleApp.X, Sequent.closed, Sequent.mem_def, Sequent.L, Sequent.R]
-  obtain ⟨preL, preR, preO⟩ := pre
-  cases lr
-  case oneSidedL ress' orule YS_def =>
-    subst YS_def
-    rw [Finset.image_eq_empty] at h
-    cases orule
-    case bot => left; left; exact preL (by simp)
-    case not f => right; exact ⟨f, Or.inl (preL (by simp)), Or.inl (preL (by simp))⟩
-    case box a f _ =>
-      exact absurd (by simpa [List.toFinFin] using h) (unfoldBox_ne_nil a f)
-    case dia a f _ =>
-      exact absurd (by simpa [List.toFinFin, unfoldDiamond] using h) (Dset_ne_nil a)
-    all_goals simp at h
-  case oneSidedR ress' orule YS_def =>
-    subst YS_def
-    rw [Finset.image_eq_empty] at h
-    cases orule
-    case bot => left; right; exact preR (by simp)
-    case not f => right; exact ⟨f, Or.inr (preR (by simp)), Or.inr (preR (by simp))⟩
-    case box a f _ =>
-      exact absurd (by simpa [List.toFinFin] using h) (unfoldBox_ne_nil a f)
-    case dia a f _ =>
-      exact absurd (by simpa [List.toFinFin, unfoldDiamond] using h) (Dset_ne_nil a)
-    all_goals simp at h
-  case LRnegL f =>
-    exact Or.inr ⟨f, Or.inl (preL (by simp)), Or.inr (preR (by simp))⟩
-  case LRnegR f =>
-    exact Or.inr ⟨f, Or.inr (preR (by simp)), Or.inl (preL (by simp))⟩
-  case loadedL ress' chi lrule YS_def =>
-    subst YS_def
-    rw [Finset.image_eq_empty] at h
-    cases lrule
-    case dia a _ _ =>
-      exact absurd (by simpa [List.toFinFinOpt, unfoldDiamondLoaded] using h) (Dset_ne_nil a)
-    case dia' a _ _ =>
-      exact absurd (by simpa [List.toFinFinOpt, unfoldDiamondLoaded'] using h) (Dset_ne_nil a)
-  case loadedR ress' chi lrule YS_def =>
-    subst YS_def
-    rw [Finset.image_eq_empty] at h
-    cases lrule
-    case dia a _ _ =>
-      exact absurd (by simpa [List.toFinFinOpt, unfoldDiamondLoaded] using h) (Dset_ne_nil a)
-    case dia' a _ _ =>
-      exact absurd (by simpa [List.toFinFinOpt, unfoldDiamondLoaded'] using h) (Dset_ne_nil a)
-
-/-- The shape of a rule application that is not a closure rule: it has exactly one principal
-formula, in the left component, in the right component, or the loaded formula. -/
-lemma LocalRuleApp.shape_of_ress_ne_nil {lra : LocalRuleApp} (h : lra.ress ≠ ∅) :
-    (∃ p, lra.Lcond = {p} ∧ lra.Rcond = ∅ ∧ lra.Ocond = none
-        ∧ ∀ Y ∈ lra.ress, Y.2.2 = none)
-  ∨ (∃ p, lra.Lcond = ∅ ∧ lra.Rcond = {p} ∧ lra.Ocond = none
-        ∧ ∀ Y ∈ lra.ress, Y.2.2 = none)
-  ∨ (lra.Lcond = ∅ ∧ lra.Rcond = ∅ ∧ lra.Ocond ≠ none) := by
-  rcases lra with ⟨L, R, O, Lc, Rc, Oc, ress, lr, C, hC, pre⟩
-  simp only at h ⊢
-  cases lr
-  case oneSidedL ress' orule YS_def =>
-    subst YS_def
-    obtain ⟨p, rfl⟩ := orule.singleton_precond (by rintro rfl; simp at h)
-    exact Or.inl ⟨p, rfl, rfl, rfl, by intro Y hY; simp at hY; obtain ⟨r, _, rfl⟩ := hY; rfl⟩
-  case oneSidedR ress' orule YS_def =>
-    subst YS_def
-    obtain ⟨p, rfl⟩ := orule.singleton_precond (by rintro rfl; simp at h)
-    exact Or.inr (Or.inl ⟨p, rfl, rfl, rfl,
-      by intro Y hY; simp at hY; obtain ⟨r, _, rfl⟩ := hY; rfl⟩)
-  case LRnegL => simp at h
-  case LRnegR => simp at h
-  case loadedL => exact Or.inr (Or.inr ⟨rfl, rfl, by simp⟩)
-  case loadedR => exact Or.inr (Or.inr ⟨rfl, rfl, by simp⟩)
-
-/-- A loaded rule can only be applied when its condition is the loaded formula present. -/
-lemma LocalRuleApp.Ocond_eq_O {lra : LocalRuleApp} (h : lra.Ocond ≠ none) : lra.Ocond = lra.O := by
-  rcases hc : lra.Ocond with _ | x
-  · exact absurd hc h
-  · have hsub := lra.preconditionProof.2.2
-    rw [hc] at hsub
-    exact hc ▸ Option.some_subseteq.mp hsub
-
-/-- The children of a rule application, written out. -/
-lemma LocalRuleApp.C_eq (lra : LocalRuleApp) : lra.C = lra.ress.image (fun Z =>
-    (lra.L \ lra.Lcond ∪ Z.1, lra.R \ lra.Rcond ∪ Z.2.1,
-      Olf.change lra.O lra.Ocond Z.2.2)) := by
-  rcases lra with ⟨L, R, O, Lc, Rc, Oc, ress, lr, C, hC, pre⟩
-  subst hC
-  simp only [applyLocalRule]
-  exact Finset.image_congr (by rintro ⟨a, b, c⟩ _; rfl)
-
-/-- A rule can be applied at any sequent that satisfies its precondition. -/
-lemma LocalRuleApp.exists_at (lra : LocalRuleApp) (Y : Sequent)
-    (hL : lra.Lcond ⊆ Y.1) (hR : lra.Rcond ⊆ Y.2.1) (hO : lra.Ocond ⊆ Y.2.2) :
-    ∃ lra' : LocalRuleApp, lra'.X = Y ∧ lra'.C = lra.ress.image (fun Z =>
-      (Y.1 \ lra.Lcond ∪ Z.1, Y.2.1 \ lra.Rcond ∪ Z.2.1,
-       Olf.change Y.2.2 lra.Ocond Z.2.2)) := by
-  refine ⟨⟨Y.1, Y.2.1, Y.2.2, lra.Lcond, lra.Rcond, lra.Ocond, lra.ress, lra.lr, _, rfl,
-    ⟨hL, hR, hO⟩⟩, rfl, ?_⟩
-  simp only [applyLocalRule]
-  exact Finset.image_congr (by rintro ⟨a, b, c⟩ _; rfl)
 
 /-- A local tableau for a basic sequent has that sequent as its only end node. -/
 lemma endNodesOf_of_basic {X : Sequent} (bas : X.basic) (lt : LocalTableau X) :

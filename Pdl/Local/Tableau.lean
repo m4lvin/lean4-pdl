@@ -123,9 +123,6 @@ theorem List.count_eq_diff_of_subperm [DecidableEq α] {L M : List α} (h : M.Su
     tauto
   apply List.Perm_diff_append_of_Subperm h
 
-theorem Multiset.sub_add_of_subset_eq [DecidableEq α] {M : Multiset α} (h : X ≤ M) :
-    M = M - X + X := (tsub_add_cancel_of_le h).symm
-
 theorem unfoldBox.decreases_lmOf_nonAtomic {α : Program} {φ : Formula} {X : List Formula}
     (α_non_atomic : ¬ α.isAtomic)
     (X_in : X ∈ unfoldBox α φ)

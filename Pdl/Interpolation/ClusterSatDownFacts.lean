@@ -73,34 +73,6 @@ lemma C_left_nil {lra : LocalRuleApp} (h : lra.isRightRule) (hL : lra.L = ∅) :
   simp only at hn
   simp [hL, hn]
 
-/-- If the premise of a right rule is not loaded on the left and has an empty left
-component, then the same holds for all conclusions. -/
-lemma C_left_eq_nil {lra : LocalRuleApp} (h : lra.isRightRule) (hL : lra.X.left = ∅) :
-    ∀ Y ∈ lra.C, Y.left = ∅ := by
-  intro Y hY
-  simp only [LocalRuleApp.X, Sequent.left_eq, Finset.union_eq_empty] at hL
-  obtain ⟨hL1, hOL⟩ := hL
-  rw [lra.hC] at hY
-  rcases hlra : lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
-  rw [hlra] at hY hL1 hOL h
-  simp only at hY hL1 hOL h
-  subst hL1
-  cases lr
-  case oneSidedR ress' orule YS_def =>
-    subst YS_def
-    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hY
-    obtain ⟨res, -, rfl⟩ := hY
-    simp [Sequent.left, Olf.change, hOL]
-  case loadedR χ lrule YS_def =>
-    subst YS_def
-    have hO := (Option.some_subseteq.mp pre.2.2).symm
-    subst hO
-    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hY
-    obtain ⟨⟨F, o⟩, -, rfl⟩ := hY
-    rcases o with _ | o <;> simp [Sequent.left, Olf.L]
-  all_goals
-    simp [LocalRuleApp.isRightRule, LocalRule.isRightRule] at h
-
 /-- The rule application `lra`, applied to the right component of its premise only. -/
 def rightOnlyApp (lra : LocalRuleApp) : LocalRuleApp :=
   lra.toContext lra.X.rightOnly

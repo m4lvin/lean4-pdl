@@ -135,13 +135,6 @@ lemma PathIn.isClusterRoot_of_edge_from_free {s t : PathIn tab}
   subst p_eq_s
   exact ePropB.h _ _ (ePropB.c_single _ _ s_free s_t)
 
-/-- If all parents of `s` are free — which for a loaded `s` says exactly that `s` is the
-first loaded node along the branch leading to it — then `s` is a cluster root. -/
-lemma PathIn.isClusterRoot_of_parents_free {s : PathIn tab}
-    (h : ∀ p : PathIn tab, p ⋖_ s → (nodeAt p).isFree) : s.isClusterRoot := by
-  intro p p_s
-  exact PathIn.isClusterRoot_of_edge_from_free (h p p_s) p_s p p_s
-
 /-- Def 8.14: `e` is an *exit* of the cluster of `s`, i.e. `e ∈ C⁺ \ C` where `C` is the
 cluster of `s`: it is not in the cluster of `s`, but it is a child of a node in it. -/
 def isExitOf (s e : PathIn tab) : Prop :=

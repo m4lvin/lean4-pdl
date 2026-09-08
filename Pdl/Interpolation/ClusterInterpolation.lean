@@ -563,21 +563,6 @@ lemma LocalRuleApp.left_eq_of_isRightRule (lra : LocalRuleApp) (h : lra.isRightR
   all_goals
     simp [LocalRuleApp.isRightRule, LocalRule.isRightRule] at h
 
-lemma LocalRuleApp.right_eq_of_isLeftRule (lra : LocalRuleApp) (h : lra.isLeftRule) :
-    ∀ Y ∈ lra.C, Y.right = lra.X.right := by
-  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
-  subst hC
-  cases lr
-  case oneSidedL Lres orule YS_def =>
-    intro Y hY
-    exact oneSidedL_preserves_right (LRO := (L,R,O)) pre.1 orule YS_def Y hY
-  case loadedL χ lrule YS_def =>
-    intro Y hY
-    refine loadedL_preserves_right (LRO := (L,R,O)) χ ?_ lrule YS_def Y hY
-    exact (Option.some_subseteq.mp pre.2.2).symm
-  all_goals
-    simp [LocalRuleApp.isLeftRule, LocalRule.isLeftRule] at h
-
 /-- The right component of a basic sequent is basic. -/
 lemma Sequent.basic_rightOnly {X : Sequent} (h : X.basic) : X.rightOnly.basic := by
   rcases X with ⟨L, R, O⟩

@@ -6,3 +6,4 @@
 /dependencies*
 lean4checker
 scripts/venv
+scripts/unseen_defs.txt
