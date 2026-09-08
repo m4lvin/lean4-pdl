@@ -102,7 +102,7 @@ lemma C_left_eq_nil {lra : LocalRuleApp} (h : lra.isRightRule) (hL : lra.X.left 
     simp [LocalRuleApp.isRightRule, LocalRule.isRightRule] at h
 
 /-- The rule application `lra`, applied to the right component of its premise only. -/
-noncomputable def rightOnlyApp (lra : LocalRuleApp) : LocalRuleApp :=
+def rightOnlyApp (lra : LocalRuleApp) : LocalRuleApp :=
   lra.toContext lra.X.rightOnly
 
 @[simp]

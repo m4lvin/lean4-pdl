@@ -69,13 +69,13 @@ end
 
 mutual
 /-- Manual replacement for `sizeOf (bt : BuildTree)` so we also count the `next` parts. -/
-noncomputable def BuildTree.size : BuildTree H X → Nat
+def BuildTree.size : BuildTree H X → Nat
   | .loc _ _ next => 1 + ((UniOpenLT.all X).map (fun lt => (next lt).size)).sum
   | .pdl _ _ next => 1 + ((PdlRule.all X).map (fun ⟨Y,r⟩ => (next Y r).size)).sum
   | .freeRepeat _ => 1
   | .openLeaf _ _ => 1
 
-noncomputable def BuildChoice.size : BuildChoice H X YS → Nat
+def BuildChoice.size : BuildChoice H X YS → Nat
   | .pick _ bt_Y => bt_Y.size
 end
 
@@ -145,7 +145,7 @@ def FreeRepeat.of_rep_free {X : Sequent} (rp : rep H X)
 NEW: note the `Sum.inl p` here. This ensure we start tree building from a Prover position, i.e.
 - not allowing BuilderPos.lpr here (easy, was forbidden already anyway as prover wins there.)
 - not allowing BuilderPos.ltab because we cannot use BuildTree.loc for a single fixed local tab. -/
-noncomputable def buildTree (s : Strategy tableauGame Builder) {H X p}
+def buildTree (s : Strategy tableauGame Builder) {H X p}
     (h : winning s ⟨H, X, Sum.inl p⟩) : BuildTree H X :=
   match p_def : p with
   -- Prover positions:
@@ -321,7 +321,7 @@ def Match.btAt {H X} {bt : BuildTree H X} : Match bt → Σ H' Y, BuildTree H' Y
 def Match.endSeq {bt : BuildTree H X} (m : Match bt) : Sequent := m.btAt.2.1
 
 /- All possible Matches in a given BuildTree. -/
-noncomputable def Match.all {H X} : (bt : BuildTree H X) → List (Match bt)
+def Match.all {H X} : (bt : BuildTree H X) → List (Match bt)
   | .loc nbas someLT next =>
       Match.nil ::
       (UniOpenLT.all X >>= fun ltX => return Match.loc (← Match.all (next ltX).6))

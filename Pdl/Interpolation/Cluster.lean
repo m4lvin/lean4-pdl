@@ -411,9 +411,7 @@ that base node, or one of the children of the base node below it is in `C`. -/
 def memFine (C : LoadedCluster tab) (f : FinePathIn tab) : Prop :=
   f.base ∈ C.CL ∧ ( f.atBigRoot ∨ ∃ q ∈ f.coarseChildrenBelow, q ∈ C.CL )
 
--- TODO: avoid `noncomputable` in FinePath first and then also here.
-
-noncomputable instance instDecidableMemFine (C : LoadedCluster tab) (f : FinePathIn tab) :
+instance instDecidableMemFine (C : LoadedCluster tab) (f : FinePathIn tab) :
     Decidable (C.memFine f) := by
   unfold memFine; infer_instance
 
@@ -422,7 +420,7 @@ lemma memFine_toFine (C : LoadedCluster tab) {p : PathIn tab} (p_in : p ∈ C.CL
     C.memFine p.toFine := ⟨by simpa using p_in, Or.inl (by simp)⟩
 
 /-- All fine nodes in the cluster `C`. -/
-noncomputable def fineCL (C : LoadedCluster tab) : List (FinePathIn tab) :=
+def fineCL (C : LoadedCluster tab) : List (FinePathIn tab) :=
   (allFinePaths tab).filter (fun f => decide (C.memFine f))
 
 lemma mem_fineCL (C : LoadedCluster tab) (f : FinePathIn tab) :
@@ -467,44 +465,44 @@ lemma exists_child_memFine_of_not_isLrep (C : LoadedCluster tab)
   · exact C.exists_child_memFine hf hbr
 
 /-- All fine nodes just outside the cluster `C`, i.e. `C⁺ \ C` at the fine level. -/
-noncomputable def fineExits (C : LoadedCluster tab) : Finset (FinePathIn tab) :=
+def fineExits (C : LoadedCluster tab) : Finset (FinePathIn tab) :=
   (C.fineCL.toFinset.sup FinePathIn.children).filter (fun f => decide (¬ C.memFine f))
 
 /-- The fine version of `C⁺`. -/
-noncomputable def fineCLplus (C : LoadedCluster tab) : Finset (FinePathIn tab) :=
+def fineCLplus (C : LoadedCluster tab) : Finset (FinePathIn tab) :=
   C.fineCL.toFinset ∪ C.fineExits
 
 /-- `Λ₂[C]`, the right components of the fine nodes of the cluster. -/
-noncomputable def lambdaTwo (C : LoadedCluster tab) : Finset Sequent :=
+def lambdaTwo (C : LoadedCluster tab) : Finset Sequent :=
   (C.fineCL.toFinset.image (fun f => f.label.rightOnly))
 
 /-- `Λ₂[C⁺]`, the right components of the fine nodes of the cluster and of its exits. -/
-noncomputable def lambdaTwoPlus (C : LoadedCluster tab) : Finset Sequent :=
+def lambdaTwoPlus (C : LoadedCluster tab) : Finset Sequent :=
   (C.fineCLplus.image (fun f => f.label.rightOnly))
 
 /-- `C_Δ` from Def 9.6, at the fine level. -/
-noncomputable def nodesWithFine (C : LoadedCluster tab) (Δ : Sequent) : List (FinePathIn tab) :=
+def nodesWithFine (C : LoadedCluster tab) (Δ : Sequent) : List (FinePathIn tab) :=
   C.fineCL.filter (fun f => decide (f.label.rightOnly = Δ))
 
 /-- `C⁺_Δ` from Def 9.6, at the fine level. -/
-noncomputable def plusNodesWithFine (C : LoadedCluster tab) (Δ : Sequent) :
+def plusNodesWithFine (C : LoadedCluster tab) (Δ : Sequent) :
     Finset (FinePathIn tab) :=
   C.fineCLplus.filter (fun f => decide (f.label.rightOnly = Δ))
 
 /-- `C^R_Δ` from Def 9.6: nodes with right component `Δ` where a right rule is applied. -/
-noncomputable def nodesWithFineRight (C : LoadedCluster tab) (Δ : Sequent) :
+def nodesWithFineRight (C : LoadedCluster tab) (Δ : Sequent) :
     List (FinePathIn tab) :=
   (C.nodesWithFine Δ).filter (fun f => f.usesRightRule)
 
 /-- `C^L_Δ` from Def 9.6: nodes with right component `Δ` where a left rule is applied. -/
-noncomputable def nodesWithFineLeft (C : LoadedCluster tab) (Δ : Sequent) :
+def nodesWithFineLeft (C : LoadedCluster tab) (Δ : Sequent) :
     List (FinePathIn tab) :=
   (C.nodesWithFine Δ).filter (fun f => f.usesLeftRule)
 
 /-- Nodes with right component `Δ` where no rule is applied at all. These are the
 loaded-path repeats and the closing rules, which Lemma 9.7 (a) in the paper does not
 mention. -/
-noncomputable def nodesWithFineNoRule (C : LoadedCluster tab) (Δ : Sequent) :
+def nodesWithFineNoRule (C : LoadedCluster tab) (Δ : Sequent) :
     List (FinePathIn tab) :=
   (C.nodesWithFine Δ).filter (fun f => !f.usesLeftRule && !f.usesRightRule)
 
@@ -546,7 +544,7 @@ components of its children. By uniformity (which we do not prove here) this does
 depend on the chosen node. When `C^R_Δ` is empty — which by Lemma 9.7 (d) only happens
 when `C_Δ` is empty, i.e. when `Δ ∉ Λ₂[C]` — we return the empty list, but note that the
 construction of `Q` below never uses `stepOf` in that case. -/
-noncomputable def stepOf (C : LoadedCluster tab) (Δ : Sequent) : Finset Sequent :=
+def stepOf (C : LoadedCluster tab) (Δ : Sequent) : Finset Sequent :=
   match (C.nodesWithFineRight Δ).head? with
   | some f => f.children.image (fun g => g.label.rightOnly)
   | none => {}
@@ -570,7 +568,7 @@ lemma stepOf_ne_nil (C : LoadedCluster tab) {Δ : Sequent}
     rw [hnil] at g_in
     simp at g_in
 
-noncomputable def stepOfL (C : LoadedCluster tab) : (Δ : Sequent) → List Sequent :=
+def stepOfL (C : LoadedCluster tab) : (Δ : Sequent) → List Sequent :=
   Finset.seqSort ∘ C.stepOf
 
 lemma stepOfL_ne_nil (C : LoadedCluster tab) {Δ : Sequent}
@@ -674,13 +672,13 @@ By the assumption of Lemma 9.3 we have an interpolant `θ_t` for every exit node
 they are interpolants is `∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)`. -/
 
 /-- `C⁺_Δ \ C_Δ`, i.e. the exit nodes whose right component is `Δ`. -/
-noncomputable def LoadedCluster.exitsWithFine (C : LoadedCluster tab) (Δ : Sequent) :
+def LoadedCluster.exitsWithFine (C : LoadedCluster tab) (Δ : Sequent) :
     Finset (FinePathIn tab) :=
   C.fineExits.filter (fun f => decide (f.label.rightOnly = Δ))
 
 /-- Def 9.13: `θ_Δ`, the disjunction of the interpolants of all exit nodes whose right
 component is `Δ`. Note that `θ_Δ = ⊥` in case there are no such exit nodes. -/
-noncomputable def LoadedCluster.thetaOf (C : LoadedCluster tab) (θ : FinePathIn tab → Formula)
+def LoadedCluster.thetaOf (C : LoadedCluster tab) (θ : FinePathIn tab → Formula)
     (Δ : Sequent) : Formula :=
   ((C.exitsWithFine Δ).image θ).dis
 
