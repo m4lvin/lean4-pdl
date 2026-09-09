@@ -2,19 +2,21 @@ import Pdl.Interpolation.Uniformity
 
 /-! # The facts about a proper cluster used for Lemma 10.7
 
-This file proves the four fields of `LoadedCluster.SatDownFacts` from `Pdl.ClusterSatDown`,
-i.e. everything that the proof of Lemma 10.7 assumes about the cluster `C` and the steps
-`stepOf Δ` of its quasi-tableau:
+This file proves the four facts about the cluster `C` and the steps `stepOf Δ` of its
+quasi-tableau that the proof of Lemma 10.7 in `Pdl.ClusterSatDown` uses:
 
-* `rightLoaded`: all `Δ ∈ Λ₂[C]` are loaded on the right (Lemma 9.4 (a)),
-* `stepLT`: at a non-basic `Δ ∈ Λ₂[C]` the successors are strictly smaller in the
-  Dershowitz-Manna ordering `lt_Sequent` used for the termination of local tableaux,
-* `basicStep`: the modal step at a basic `Δ ∈ Λ₂[C]` (Lemma 9.7 (e)),
-* `nonBasicStep`: the local step at a non-basic `Δ ∈ Λ₂[C]`, with the witness distance
-  preserved — the local invertibility of the rules together with Lemma 10.5 (h).
+* `LoadedCluster.isRightLoaded_of_mem_lambdaTwo`: all `Δ ∈ Λ₂[C]` are loaded on the right
+  (Lemma 9.4 (a)),
+* `LoadedCluster.stepOf_lt_Sequent`: at a non-basic `Δ ∈ Λ₂[C]` the successors are strictly
+  smaller in the Dershowitz-Manna ordering `lt_Sequent` used for the termination of local
+  tableaux,
+* `LoadedCluster.basicStep_of`: the modal step at a basic `Δ ∈ Λ₂[C]` (Lemma 9.7 (e)),
+* `LoadedCluster.nonBasicStep_of`: the local step at a non-basic `Δ ∈ Λ₂[C]`, with the
+  witness distance preserved — the local invertibility of the rules together with
+  Lemma 10.5 (h).
 
-The main result is `LoadedCluster.satDownFacts`. It only uses properness of the cluster,
-via Lemma 9.7 (d), i.e. `LoadedCluster.exists_right_of_proper` from `Pdl.ClusterFacts`.
+They only use properness of the cluster, via Lemma 9.7 (d), i.e.
+`LoadedCluster.exists_right_of_proper` from `Pdl.ClusterFacts`.
 
 The helper lemmas about right rules that we use here are the copies in the `Uniformity`
 namespace.
@@ -319,8 +321,8 @@ lemma exists_lra_stepOf (C : LoadedCluster tab) {Δ : Sequent}
     rw [← hC, Finset.image_image]
     rfl
 
-/-- The `stepLT` field: at a non-basic `Δ ∈ Λ₂[C]` the step of the quasi-tableau
-strictly decreases the Dershowitz-Manna ordering. -/
+/-- At a non-basic `Δ ∈ Λ₂[C]` the step of the quasi-tableau strictly decreases the
+Dershowitz-Manna ordering. -/
 lemma stepOf_lt_Sequent (C : LoadedCluster tab) :
     ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ Y ∈ C.stepOf Δ, lt_Sequent Y Δ := by
   intro Δ _ hb Y hY
@@ -336,7 +338,7 @@ lemma stepOf_lt_Sequent (C : LoadedCluster tab) :
     refine LocalRuleApp.rightOnly_lt_Sequent hright Z (Finset.mem_toList.mp ?_)
     simp_all
 
-/-- The `basicStep` field: the modal step at a basic `Δ ∈ Λ₂[C]`. -/
+/-- The modal step at a basic `Δ ∈ Λ₂[C]`. -/
 lemma basicStep_of (C : LoadedCluster tab) :
     ∀ Δ ∈ C.lambdaTwo, Δ.basic → ∃ (A : Nat) (Y : Sequent),
       C.stepOf Δ = {Y}
@@ -401,7 +403,7 @@ lemma basicStep_of (C : LoadedCluster tab) :
         simpa [Sequent.loadedProgs, Sequent.loadedFma, Sequent.loadedSplit,
           Uniformity.modRChildRight] using hload
 
-/-- The `nonBasicStep` field: the local step at a non-basic `Δ ∈ Λ₂[C]`. -/
+/-- The local step at a non-basic `Δ ∈ Λ₂[C]`. -/
 lemma nonBasicStep_of (C : LoadedCluster tab) :
     ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ (W : Type) (M : KripkeModel W) (v : W),
       (∀ φ ∈ Δ.right, evaluate M v φ) →
@@ -429,12 +431,5 @@ lemma nonBasicStep_of (C : LoadedCluster tab) :
   refine ⟨i, hi, ?_, ?_⟩
   · rw [heq]; exact hYsat
   · rw [heq, hYwd, hX']
-
-/-- All facts of `SatDownFacts`, for a proper cluster. -/
-theorem satDownFacts (C : LoadedCluster tab) : C.SatDownFacts where
-  rightLoaded := fun _ hΔ => C.isRightLoaded_of_mem_lambdaTwo hΔ
-  stepLT := C.stepOf_lt_Sequent
-  basicStep := C.basicStep_of
-  nonBasicStep := C.nonBasicStep_of
 
 end LoadedCluster

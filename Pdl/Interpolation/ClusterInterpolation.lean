@@ -1,4 +1,4 @@
-import Pdl.Interpolation.ClusterSatDownFacts
+import Pdl.Interpolation.ClusterSatDown
 
 /-! # Interpolants for proper clusters (Lemma 9.3)
 
@@ -254,12 +254,12 @@ node of `C^R_Δ`, while the facts quantify over all nodes of `C^R_Δ`:
   of `C⁺_Π` with the same left component as `t`. Its proof takes the children of `t`, so it
   needs the right components of those children to be the list `stepOf Δ` — which for a
   non-basic `Δ` is precisely `stepOf_spec`, i.e. uniformity.
-* `LoadedCluster.modalStep_of` and `SatDownFacts.basicStep` also quantify over
+* `LoadedCluster.modalStep_of` and `LoadedCluster.basicStep_of` also quantify over
   `t ∈ C^R_Δ`, but only for *basic* `Δ`. There the rule applied is the modal rule for the
   unique loaded formula of `Δ` (Lemma 9.7 (e)), so the right components of the children are
   determined by `Δ` alone; this is what `LoadedCluster.basicModalStepAt` shows, and it is
   why `modalStep_of` needs no uniformity.
-* The remaining facts (`SatDownFacts.nonBasicStep`, `SatDownFacts.stepLT`,
+* The remaining facts (`LoadedCluster.nonBasicStep_of`, `LoadedCluster.stepOf_lt_Sequent`,
   `LoadedCluster.leftPropagation_of_proper`, `LoadedCluster.exists_right_of_proper`, the
   vocabulary facts) speak about `Δ` and `stepOf Δ` only, or about local invertibility at a
   single node, and are independent of uniformity.
@@ -281,8 +281,6 @@ noncomputable def clusterInterpolation_right {tab : Tableau .nil X} (Xfree : X.i
   classical
   -- Because we have a uniform tableau, also the fixed cluster C must have uniform steps.
   have hU : C.HasUniformSteps := LoadedCluster.uniformOfUniTab C t_u
-  -- The facts about the cluster used for Lemma 10.7.
-  have hS : C.SatDownFacts := C.satDownFacts
   have exitIPs' : ∀ e ∈ C.exits, ∃ θ, isPartInterpolant (nodeAt e) θ :=
     fun e he => ⟨(exitIPs e he).1, (exitIPs e he).2⟩
   have hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (FinePathIn.itp f) :=
@@ -292,7 +290,7 @@ noncomputable def clusterInterpolation_right {tab : Tableau .nil X} (Xfree : X.i
   · rw [LoadedCluster.itp, if_pos hΓ₁]
     have := tableauThenNotSat tab Xfree C.root
     exact Sequent.satisfiable_top_cons_right hΓ₁ this
-  · exact C.right_unsat_itp hS hθ hΓ₁
+  · exact C.right_unsat_itp hθ hΓ₁
 
 /-- Lemma 9.3: Given a loaded node `s` that is the first node of its cluster, and given
 interpolants for all exits of that cluster, we get an interpolant for `s`.

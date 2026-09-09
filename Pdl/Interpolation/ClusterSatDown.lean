@@ -1,5 +1,5 @@
-import Pdl.Interpolation.EvalQ
 import Pdl.Interpolation.ClusterRho
+import Pdl.Interpolation.ClusterSatDownFacts
 
 /-! # Satisfiability down the quasi-tableau, and the right half of the correctness of `θ_r`
 
@@ -13,7 +13,11 @@ Definition 10.4 (the distance `d_α`) and Lemma 10.5 (its properties) are in `Pd
 where they are numbered 7.47. The auxiliary notions used below — the evaluation `evalQ` of
 Q-formulas with an assignment, the witness distance `witDist`, and `BasicBetween` — are in
 `Pdl.EvalQ`.
+
+The facts about the cluster `C` and the steps `stepOf Δ` of its quasi-tableau that are used
+here are proved in `Pdl.ClusterSatDownFacts`.
 -/
+
 /-! ## Lemma 10.6
 
 If `x` is a repeat in `Q` then the path from `c(x)` to `x` passes through a node with a
@@ -125,8 +129,7 @@ variable {X : Sequent} {tab : Tableau .nil X} {C : LoadedCluster tab}
 
 /-- Along the subtree of a node of type 1 the measure of the label does not increase,
 unless a node of type 3 with a basic label is passed on the way. -/
-lemma measure_le_or_basicBetween (C : LoadedCluster tab)
-    (hm : ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ Y ∈ C.stepOf Δ, lt_Sequent Y Δ) :
+lemma measure_le_or_basicBetween (C : LoadedCluster tab) :
     ∀ (Hist : List Sequent) (Δ : Sequent) (x : List Nat),
       C.Q.at? x = some (QuasiTab.build C.lambdaTwo C.stepOfL Hist Δ) →
       ∀ (t : List Nat) (n : QuasiTab),
@@ -170,7 +173,7 @@ lemma measure_le_or_basicBetween (C : LoadedCluster tab)
         have hIH := IH (C.stepOfL Δ)[i] (x ++ [0, 0] ++ [i]) hat t' n (by rwa [hnexti] at ht')
         have hstepmem : (C.stepOfL Δ)[i] ∈ C.stepOf Δ :=
           (Finset.mem_seqSort (C.stepOf Δ)).mp (List.getElem_mem hilt)
-        have hlt : lt_Sequent (C.stepOfL Δ)[i] Δ := hm Δ h.1 hb _ hstepmem
+        have hlt : lt_Sequent (C.stepOfL Δ)[i] Δ := C.stepOf_lt_Sequent Δ h.1 hb _ hstepmem
         rcases hIH with hle | hbb
         · left
           right
@@ -194,8 +197,7 @@ lemma measure_le_or_basicBetween (C : LoadedCluster tab)
 /-- Lemma 10.6, by induction along the construction of the quasi-tableau: if `z` is a
 repeat with companion `c` then there is a node of type 3 with a basic label between `c`
 and `z`. -/
-lemma build_repeat_basicBetween (C : LoadedCluster tab)
-    (hm : ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ Y ∈ C.stepOf Δ, lt_Sequent Y Δ) :
+lemma build_repeat_basicBetween (C : LoadedCluster tab) :
     ∀ (Hist : List Sequent) (Δ : Sequent) (x : List Nat),
       C.Q.at? x = some (QuasiTab.build C.lambdaTwo C.stepOfL Hist Δ) →
       ∀ z c, x <+: z → C.Q.isRepeatLeaf z → C.Q.companion? z = some c → x <+: c →
@@ -256,14 +258,14 @@ lemma build_repeat_basicBetween (C : LoadedCluster tab)
               rw [QuasiTab.labelAt, hn]; rfl
             rw [h1, h2] at hclab
             exact Option.some.inj hclab
-          have hstep := C.measure_le_or_basicBetween hm (Δ :: Hist) (C.stepOfL Δ)[i]
+          have hstep := C.measure_le_or_basicBetween (Δ :: Hist) (C.stepOfL Δ)[i]
             (c ++ [0, 0] ++ [i]) hxi t' n (by rwa [hnexti] at ht')
           rcases hstep with hle | hbb
           · exfalso
             -- contradiction, `lt_Sequent` is irreflexive.
             have hstepmem : (C.stepOfL Δ)[i] ∈ C.stepOf Δ :=
               (Finset.mem_seqSort (C.stepOf Δ)).mp (List.getElem_mem hilt)
-            have hlt : lt_Sequent (C.stepOfL Δ)[i] Δ := hm Δ h.1 hb _ hstepmem
+            have hlt : lt_Sequent (C.stepOfL Δ)[i] Δ := C.stepOf_lt_Sequent Δ h.1 hb _ hstepmem
             rw [← hlab] at hle
             have hself : lt_Sequent Δ Δ := by
               rcases hle with delta_def | delta_lt_step
@@ -334,60 +336,16 @@ The proof in the paper argues that a repeat is of type 1, and that in `Q` a node
 can only succeed a node of type 3 with a basic label. In the construction of `Q`
 (Definition 9.8) the children of a node of type 3 are of type 1 also when the label is
 *not* basic, so that argument does not apply directly. We use instead that the labels of
-the successors of a non-basic node are smaller in some measure `m`, so a repeat — which
+the successors of a non-basic node are smaller in the Dershowitz-Manna ordering
+(`LoadedCluster.stepOf_lt_Sequent`), so a repeat — which
 has the *same* label as its companion — cannot be reached from its companion by non-basic
 steps only. -/
-theorem repeat_basicBetween (C : LoadedCluster tab)
-    (hm : ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ Y ∈ C.stepOf Δ, lt_Sequent Y Δ)
-    {z c : List Nat} (hz : C.Q.isRepeatLeaf z) (hc : C.Q.companion? z = some c) :
+theorem repeat_basicBetween (C : LoadedCluster tab) {z c : List Nat}
+    (hz : C.Q.isRepeatLeaf z) (hc : C.Q.companion? z = some c) :
     C.Q.BasicBetween c z :=
-  C.build_repeat_basicBetween hm [] (nodeAt C.root).rightOnly [] rfl z c
+  C.build_repeat_basicBetween [] (nodeAt C.root).rightOnly [] rfl z c
     (List.nil_prefix) hz hc (List.nil_prefix)
 
-
-/-! ## Assumptions about the steps of the quasi-tableau
-
-Just like the facts in `Pdl.ClusterFacts` for Lemma 10.3, the proof of Lemma 10.7 uses multiple
-facts about the tableau `tab` and the sequents `Λ₂[C]`. They are collected here in one record.
-
-TODO: now that all these are proven, get rid of the Structure type, use lemmas/theorems.
--/
-
-/-- Facts about the cluster `C` used in the proof of Lemma 10.7.
-
-* `rightLoaded` says that all `Δ ∈ Λ₂[C]` carry their loaded formula on the right; this is
-  the standing assumption of Section 9 that `Γ₂` is the loaded side.
-* `stepLT` provides a decreasing measure needed for Lemma 10.6 (`repeat_basicBetween`).
-  A local rule applied to an unloaded formula, or the rule `(◇)₂` applied to the loaded
-  formula, strictly decreases the DM ordering on sequents.
-* `basicStep` describes the modal step at a basic `Δ ∈ Λ₂[C]`: there is exactly one
-  successor sequent `Y`, obtained by projecting along the leading atomic program `a` of
-  the loaded formula and dropping `a` from it.
-* `nonBasicStep` describes the local step at a non-basic `Δ ∈ Λ₂[C]`: whenever `Δ` holds at
-  a state, one of the successor sequents holds at the same state, with the same witness
-  distance. In the paper this is proved by a case distinction on whether the rule was
-  applied to an unloaded formula (local invertibility) or to the loaded formula (in which
-  case it is Lemma 10.5(h), `existsD_of_true_diamond`). -/
-structure SatDownFacts (C : LoadedCluster tab) : Prop where
-  /-- All sequents of `Λ₂[C]` have their loaded formula on the right. -/
-  rightLoaded : ∀ Δ ∈ C.lambdaTwo, Δ.isRightLoaded
-  /-- The DM measure strictly decreases at the non-basic steps of the quasi-tableau. -/
-  stepLT : ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ Y ∈ C.stepOf Δ, lt_Sequent Y Δ
-  /-- The modal step at a basic sequent. -/
-  basicStep : ∀ Δ ∈ C.lambdaTwo, Δ.basic → ∃ (A : Nat) (Y : Sequent),
-    C.stepOf Δ = {Y}
-    ∧ Δ.loadedProg = (·A : Program)
-    ∧ Δ.loadedProgs = (·A : Program) :: Y.loadedProgs
-    ∧ Y.loadedFma = Δ.loadedFma
-    ∧ ∀ (W : Type) (M : KripkeModel W) (w v : W), (∀ φ ∈ Δ.right, evaluate M w φ) →
-        relate M (·A : Program) w v → evaluate M v (~⌈⌈Y.loadedProgs⌉⌉Y.loadedFma) →
-        ∀ φ ∈ Y.right, evaluate M v φ
-  /-- The local step at a non-basic sequent. -/
-  nonBasicStep : ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ (W : Type) (M : KripkeModel W) (v : W),
-    (∀ φ ∈ Δ.right, evaluate M v φ) →
-    ∃ i, ∃ hi : i < (C.stepOfL Δ).length,
-      (∀ φ ∈ ((C.stepOfL Δ)[i]'hi).right, evaluate M v φ)
-      ∧ witDist M v ((C.stepOfL Δ)[i]'hi) = witDist M v Δ
 
 /-! ## The claim in the proof of Lemma 10.7 -/
 
@@ -492,7 +450,7 @@ lemma satDown_two {Δ y ys} (hx : C.Q.at? x = some (.QNode .two Δ (y :: ys)))
 /-- Case `k(x) = 3` with `Δ_x` basic: the loaded formula is `¬⌊a γ⃗⌋ψ` with `a` atomic and
 `ι_x = [a]ι_y`. Going to a state `v'` at minimal witness distance decreases the witness
 distance by exactly one. -/
-lemma satDown_three_basic {Δ Y y ys} (hS : C.SatDownFacts) (hΔ : Δ ∈ C.lambdaTwo)
+lemma satDown_three_basic {Δ Y y ys} (hΔ : Δ ∈ C.lambdaTwo)
     (hb : Δ.basic) (hx : C.Q.at? x = some (.QNode .three Δ (y :: ys)))
     (hstep : C.stepOf Δ = {Y}) (hylab : C.Q.labelAt (x ++ [0]) = some Y)
     (IH : C.SatDown θ (x ++ [0])) : C.SatDown θ x := by
@@ -504,12 +462,12 @@ lemma satDown_three_basic {Δ Y y ys} (hS : C.SatDownFacts) (hΔ : Δ ∈ C.lamb
     have := C.Q.typAt_of_mem_companions hcon
     rw [QuasiTab.typAt, hx] at this
     simp [QuasiTab.typ] at this
-  obtain ⟨A, Y', hstep', hprog, hprogs, hfma, hproj⟩ := hS.basicStep Δ hΔ hb
+  obtain ⟨A, Y', hstep', hprog, hprogs, hfma, hproj⟩ := C.basicStep_of Δ hΔ hb
   have hYY : Y' = Y := by rw [hstep] at hstep'; simp at hstep'; exact hstep'.symm
   rw [hYY] at hprogs hfma hproj
   -- the loaded formula `¬⌈⌈a γ⃗⌉⌉ψ` holds at `v`
   have hloaded : evaluate M v (~⌈⌈Δ.loadedProgs⌉⌉Δ.loadedFma) :=
-    hZ _ (Sequent.negBoxes_mem_right (hS.rightLoaded Δ hΔ))
+    hZ _ (Sequent.negBoxes_mem_right (C.isRightLoaded_of_mem_lambdaTwo hΔ))
   simp only [evaluate] at hloaded
   rw [evalBoxes] at hloaded
   push Not at hloaded
@@ -562,9 +520,10 @@ lemma satDown_three_basic {Δ Y y ys} (hS : C.SatDownFacts) (hΔ : Δ ∈ C.lamb
   exact ⟨z, QuasiTab.cycs_subset_of_qedge _ hcomp (QuasiTab.qedge_snoc hx (by simp)) z hz,
     Z', u, h1, h2, h3, le_of_lt (lt_of_le_of_lt h4 hlt), fun _ => lt_of_le_of_lt h4 hlt⟩
 
-/-- Case `k(x) = 3` with `Δ_x` not basic: `ι_x = ⋀ᵢ ι_{y_i}` and by `SatDownFacts.nonBasicStep`
-one of the children holds at the same state with the same witness distance. -/
-lemma satDown_three_not_basic {Δ next} (hS : C.SatDownFacts) (hΔ : Δ ∈ C.lambdaTwo)
+/-- Case `k(x) = 3` with `Δ_x` not basic: `ι_x = ⋀ᵢ ι_{y_i}` and by
+`LoadedCluster.nonBasicStep_of` one of the children holds at the same state with the same
+witness distance. -/
+lemma satDown_three_not_basic {Δ next} (hΔ : Δ ∈ C.lambdaTwo)
     (hb : ¬ Δ.basic) (hx : C.Q.at? x = some (.QNode .three Δ next))
     (hlen : next.length = (C.stepOfL Δ).length)
     (hlab : ∀ i, (hi : i < (C.stepOfL Δ).length) →
@@ -578,7 +537,7 @@ lemma satDown_three_not_basic {Δ next} (hS : C.SatDownFacts) (hΔ : Δ ∈ C.la
     have := C.Q.typAt_of_mem_companions hcon
     rw [QuasiTab.typAt, hx] at this
     simp [QuasiTab.typ] at this
-  obtain ⟨i, hi, hright, hwd⟩ := hS.nonBasicStep Δ hΔ hb W M v hZ
+  obtain ⟨i, hi, hright, hwd⟩ := C.nonBasicStep_of Δ hΔ hb W M v hZ
   have hi' : i < next.length := by omega
   rw [C.iitp_three_not_basic hx hb, QFormula.evalQ_conj] at hι
   have hii : QFormula.evalQ M g v (C.iitp θ (x ++ [i])) := by
@@ -595,11 +554,10 @@ lemma satDown_three_not_basic {Δ next} (hS : C.SatDownFacts) (hΔ : Δ ∈ C.la
 internal variable `q_x` by `ι_x` turns `ι_x` into `ι_y`, and a repeat `z ∈ cycs(y)` whose
 companion is `x` itself sends us back to `x`, but with a strictly smaller witness distance
 by Lemma 10.6, so the secondary induction applies. -/
-lemma satDown_one_companion {Δ y ys} (hS : C.SatDownFacts)
+lemma satDown_one_companion {Δ y ys}
     (hx : C.Q.at? x = some (.QNode .one Δ (y :: ys))) (hcomp : x ∈ C.Q.companions)
     (hylab : C.Q.labelAt (x ++ [0]) = some Δ)
     (IH : C.SatDown θ (x ++ [0])) : C.SatDown θ x := by
-  obtain hm := hS.stepLT
   have hiitpx : C.iitp θ x = (C.iitp θ (x ++ [0])).gfp x := C.iitp_one_companion hx hcomp
   have hxl : C.Q.labelAt x = some Δ := by rw [QuasiTab.labelAt, hx]; rfl
   intro W M g
@@ -635,7 +593,7 @@ lemma satDown_one_companion {Δ y ys} (hS : C.SatDownFacts)
           exact (Option.some.inj hclab).symm
         subst hZΔ
         have hlt : witDist M u Z'' < witDist M v Z'' :=
-          hstrict ((C.repeat_basicBetween hm hzrep hc).child
+          hstrict ((C.repeat_basicBetween hzrep hc).child
             (QuasiTab.prefix_of_mem_cycs hz) (by simp)
             (QuasiTab.notBasic_of_typ_ne hx (by simp)))
         have hui : QFormula.evalQ M g u (C.iitp θ x) := by
@@ -666,7 +624,7 @@ lemma satDown_one_companion {Δ y ys} (hS : C.SatDownFacts)
 
 /-- The Claim in the proof of Lemma 10.7, for all nodes of the quasi-tableau, by
 leaf-to-root induction along the construction of `Q` (Definition 9.8). -/
-lemma satDown_build (C : LoadedCluster tab) (hS : C.SatDownFacts)
+lemma satDown_build (C : LoadedCluster tab)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) :
     ∀ (Hist : List Sequent) (Δ : Sequent) (x : List Nat),
       C.Q.at? x = some (QuasiTab.build C.lambdaTwo C.stepOfL Hist Δ) →
@@ -700,21 +658,21 @@ lemma satDown_build (C : LoadedCluster tab) (hS : C.SatDownFacts)
       exact IH (C.stepOfL Δ)[i] _ hat
     have h3sat : C.SatDown θ ((x ++ [0]) ++ [0]) := by
       by_cases hb : Δ.basic
-      · obtain ⟨A, Y, hstep, -⟩ := hS.basicStep Δ h.1 hb
+      · obtain ⟨A, Y, hstep, -⟩ := C.basicStep_of Δ h.1 hb
         have hstepL : C.stepOfL Δ = [Y] := by
           simp [stepOfL, hstep, Finset.seqSort]
         have hnextcons : next = [QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) Y] := by
           rw [hnextdef, hstepL]
           simp
-        refine C.satDown_three_basic hS h.1 hb (hnextcons ▸ h3) hstep ?_
+        refine C.satDown_three_basic h.1 hb (hnextcons ▸ h3) hstep ?_
           (IHchild 0 (by rw [hnextcons]; simp))
         have h0 : (0 : Nat) < (C.stepOfL Δ).length := by rw [hstepL]; simp
         rw [hchildlab 0 h0]
         simp [hstepL]
-      · exact C.satDown_three_not_basic hS h.1 hb h3 hlen hchildlab IHchild
+      · exact C.satDown_three_not_basic h.1 hb h3 hlen hchildlab IHchild
     have h2sat : C.SatDown θ (x ++ [0]) := C.satDown_two h2 hlab3 hθ h3sat
     by_cases hcomp : x ∈ C.Q.companions
-    · exact C.satDown_one_companion hS hx hcomp hlab2 h2sat
+    · exact C.satDown_one_companion hx hcomp hlab2 h2sat
     · exact C.satDown_one_inner hx hcomp hlab2 h2sat
   | case2 Hist Δ h =>
     intro x hx
@@ -724,10 +682,10 @@ lemma satDown_build (C : LoadedCluster tab) (hS : C.SatDownFacts)
     | none => exact C.satDown_one_leaf_exit hx hc hθ
 
 /-- **Lemma 10.7** at the root of the quasi-tableau. -/
-theorem satDown_root (C : LoadedCluster tab) (hS : C.SatDownFacts)
+theorem satDown_root (C : LoadedCluster tab)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) :
     C.SatDown θ QuasiTab.rootAddress :=
-  C.satDown_build hS hθ [] (nodeAt C.root).rightOnly QuasiTab.rootAddress rfl
+  C.satDown_build hθ [] (nodeAt C.root).rightOnly QuasiTab.rootAddress rfl
 
 /-! ## Lemma 10.8 -/
 
@@ -737,7 +695,7 @@ together with the interpolant of Definition 9.20 is unsatisfiable.
 
 The hypothesis `Γ₁ ≠ ∅` is the one of Definition 9.20: for `Γ₁ = ∅` we have `θ_r = ⊤` by
 Remark 9.19, and then the statement would say that `Γ₂` itself is unsatisfiable. -/
-theorem right_unsat_itp (C : LoadedCluster tab) (hS : C.SatDownFacts)
+theorem right_unsat_itp (C : LoadedCluster tab)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f))
     (hΓ₁ : (nodeAt C.root).left ≠ {}) :
     ¬ satisfiable ({C.itp θ} ∪ (nodeAt C.root).right) := by
@@ -751,7 +709,7 @@ theorem right_unsat_itp (C : LoadedCluster tab) (hS : C.SatDownFacts)
   have hroot : C.Q.at? QuasiTab.rootAddress = some C.Q := rfl
   have hlab : C.Q.labelAt QuasiTab.rootAddress = some (nodeAt C.root).rightOnly := by
     simp [QuasiTab.labelAt, hroot]
-  obtain ⟨z, hz, -⟩ := C.satDown_root hS hθ W M _ w (nodeAt C.root).rightOnly hlab
+  obtain ⟨z, hz, -⟩ := C.satDown_root hθ W M _ w (nodeAt C.root).rightOnly hlab
     hright hev
   rw [C.Q.cycs_root] at hz
   exact absurd hz (List.not_mem_nil)
