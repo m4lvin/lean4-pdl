@@ -1,4 +1,4 @@
-import Pdl.Interpolation.PreInterpolant
+import Pdl.Interpolation.ClusterFacts
 
 /-! # The interpolant of a cluster root and its correctness
 
@@ -23,15 +23,6 @@ lemma Program.voc_steps : ∀ as : List Program, (Program.steps as).voc = as.pvo
       simp only [Program.steps, Program.voc, Program.voc_steps as, List.pvoc, List.map_cons,
         Vocab.fromList, List.toFinset_cons, Finset.sup_insert, id_eq]
       rfl
-
-/-! ## Entailment from the left component of a node -/
-
-/-- `Λ₁(t) ⊨ φ`: the formula `φ` follows from the left component of the fine node `t`. -/
-def FinePathIn.leftEntails {Hist} {Y : Sequent} {tab : Tableau Hist Y}
-    (t : FinePathIn tab) (φ : Formula) : Prop :=
-  ∀ (W : Type) (M : KripkeModel W) (w : W),
-    (∀ ψ ∈ t.label.left, evaluate M w ψ) → evaluate M w φ
-
 
 /-! ## The vocabulary of a Q-formula
 
@@ -356,63 +347,9 @@ The latter is a `QFormula`, i.e. it may still contain internal variables; by Lem
 noncomputable def itp (C : LoadedCluster tab) (θ : FinePathIn tab → Formula) : Formula :=
   if (nodeAt C.root).left = {} then ⊤ else (C.rootIitp θ).subst (fun _ => ⊤)
 
-/-! ## Facts about the cluster that are used but not yet formalised -/
-
-/-- Facts about the cluster `C` that the paper establishes elsewhere, but that are not
-available in this Lean development yet. They are collected here so that the results below
-can list them as a single hypothesis.
-
-* `proper` says that the cluster is proper, as assumed throughout Section 9.
-* `exists_right` is Lemma 9.7 (d): if `C_Δ` is non-empty then so is `C^R_Δ`.
-* `vocL` and `vocR` are instances of the fact that the vocabulary of both components only
-  shrinks along a tableau; here applied to the nodes of `C⁺`, all of which are below the
-  root `r` of the cluster.
-* `loadedProgVoc` says that the leading atomic program `a` of the loaded formula of a
-  basic `Δ ∈ Λ₂[C]` is in the joint vocabulary of the root. That `a ∈ voc(Γ₂)` is again
-  vocabulary preservation. That `a ∈ voc(Γ₁)` — which the paper does not mention, but
-  which its Lemma 10.1 needs — holds when `Γ₁ ≠ ∅` because by Lemma 9.7 (e) the modal rule
-  is applied at some `t ∈ C^R_Δ` and its child `u` is again in `C`, so that
-  `Λ₁(u) = (Λ₁(t))_a` is non-empty by Lemma 9.5 (b), which forces a box `⌈a⌉ψ` in `Λ₁(t)`.
-  Note that for `Γ₁ = ∅` the claim is false, which is why Definition 9.20 treats that case
-  separately. -/
-structure PaperFacts (C : LoadedCluster tab) : Prop where
-  /-- Lemma 9.7 (d): if `C_Δ ≠ ∅` then `C^R_Δ ≠ ∅`. -/
-  exists_right : ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ []
-  /-- The vocabulary of the left component only shrinks below the root of the cluster. -/
-  vocL : ∀ f ∈ C.fineCLplus, f.label.left.fvoc ⊆ (nodeAt C.root).left.fvoc
-  /-- The vocabulary of the right component only shrinks below the root of the cluster. -/
-  vocR : ∀ f ∈ C.fineCLplus, f.label.right.fvoc ⊆ (nodeAt C.root).right.fvoc
-  /-- The leading atomic program of a basic label of `Λ₂[C]` is in the joint vocabulary. -/
-  loadedProgVoc : (nodeAt C.root).left ≠ {} → ∀ Δ ∈ C.lambdaTwo, Δ.basic →
-    (Δ.loadedProg).voc ⊆ jvoc (nodeAt C.root)
-  /-- The conclusion of the inner induction in the proof of Lemma 10.3: if a formula
-  follows from the left component of every node of `C^R_Δ` and of every exit node with
-  right component `Δ`, then it follows from the left component of every node of `C⁺_Δ`.
-  This packages Lemma 9.7 (a) — every node of `C_Δ` is in `C^L_Δ` or in `C^R_Δ` — with the
-  local invertibility of the rules applied at the nodes of `C^L_Δ`. -/
-  leftPropagation : ∀ Δ ∈ C.lambdaTwo, ∀ φ : Formula,
-    (∀ u ∈ C.nodesWithFineRight Δ, u.leftEntails φ) →
-    (∀ u ∈ C.exitsWithFine Δ, u.leftEntails φ) →
-    ∀ t ∈ C.plusNodesWithFine Δ, t.leftEntails φ
-  /-- For a non-basic `Δ ∈ Λ₂[C]` and every `t ∈ C^R_Δ`, the children of `t` in the
-  tableau are the nodes `Λ₁(t);Π` for `Π ∈ stepOf Δ`, and they are in `C⁺_Π`.
-  We only record what is used in the proof of Lemma 10.3: the existence of a node of
-  `C⁺_Π` with the same left component as `t`. -/
-  rightRuleChildren : ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ t ∈ C.nodesWithFineRight Δ,
-    ∀ Pi ∈ C.stepOf Δ, ∃ u ∈ C.plusNodesWithFine Pi, u.label.left = t.label.left
-  /-- For a basic `Δ ∈ Λ₂[C]` the modal rule is applied at every `t ∈ C^R_Δ`, and its
-  unique child `u` is in `C` and satisfies `Λ₁(u) = (Λ₁(t))_a` where `a` is the leading
-  atomic program of the loaded formula of `Δ`. We only record the semantic consequence
-  used in the proof of Lemma 10.3: from `Λ₁(t)` at a state `w` we get `Λ₁(u)` at every
-  `a`-successor of `w`. -/
-  modalStep : ∀ Δ ∈ C.lambdaTwo, Δ.basic → ∀ t ∈ C.nodesWithFineRight Δ,
-    ∀ Pi ∈ C.stepOf Δ, ∃ u ∈ C.plusNodesWithFine Pi,
-      ∀ (W : Type) (M : KripkeModel W) (w v : W), (∀ ψ ∈ t.label.left, evaluate M w ψ) →
-        relate M Δ.loadedProg w v → ∀ ψ ∈ u.label.left, evaluate M v ψ
-
 /-- The vocabulary of `θ_Δ` is inside the joint vocabulary of the root of the cluster.
 This is Lemma 9.14 (c) together with vocabulary preservation. -/
-lemma thetaOf_voc_sub_jvoc (C : LoadedCluster tab) (hF : C.PaperFacts)
+lemma thetaOf_voc_sub_jvoc (C : LoadedCluster tab)
     (θ : FinePathIn tab → Formula)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) (Δ : Sequent) :
     (C.thetaOf θ Δ).voc ⊆ jvoc (nodeAt C.root) := by
@@ -426,9 +363,9 @@ lemma thetaOf_voc_sub_jvoc (C : LoadedCluster tab) (hF : C.PaperFacts)
   have hfE : f ∈ C.fineExits := ((C.mem_exitsWithFine_iff Δ f).mp hf).1
   have hfP : f ∈ C.fineCLplus := Finset.mem_union_right _ hfE
   rw [jvoc, Finset.mem_inter]
-  refine ⟨hF.vocL f hfP (by
+  refine ⟨C.vocL_fineCLplus f hfP (by
     simpa only [Finset.fvoc, Vocab.fromFinset, Finset.sup_image, Function.id_comp,
-      Finset.mem_sup] using hn1), hF.vocR f hfP ?_⟩
+      Finset.mem_sup] using hn1), C.vocR_fineCLplus f hfP ?_⟩
   rw [C.right_of_mem_exitsWithFine hf]
   exact hn2
 
@@ -460,7 +397,7 @@ vocabulary, and the internal variables of `ι_x` are companions of elements of `
 The hypothesis `Γ₁ ≠ ∅` is needed: for `Γ₁ = ∅` the claim would say that `ι_x` has no
 ordinary vocabulary at all, which fails at nodes of type 3 with a basic label. Definition
 9.20 covers that case separately, see Remark 9.19. -/
-theorem iitp_voc_aux (C : LoadedCluster tab) (hF : C.PaperFacts)
+theorem iitp_voc_aux (C : LoadedCluster tab)
     (θ : FinePathIn tab → Formula)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f))
     (hΓ₁ : (nodeAt C.root).left ≠ {}) :
@@ -501,7 +438,7 @@ theorem iitp_voc_aux (C : LoadedCluster tab) (hF : C.PaperFacts)
         exact ⟨rfl, trivial⟩
       | none =>
         rw [C.iitp_one_leaf_exit hx hc]
-        exact ⟨by simpa using C.thetaOf_voc_sub_jvoc hF θ hθ Δ, by simp⟩
+        exact ⟨by simpa using C.thetaOf_voc_sub_jvoc θ hθ Δ, by simp⟩
     | cons y ys =>
       obtain ⟨IHvoc, IHvars⟩ := IHchild 0 (by simp)
       have hqedge : C.Q.qedge x (x ++ [0]) := QuasiTab.qedge_snoc hx (by simp)
@@ -536,7 +473,7 @@ theorem iitp_voc_aux (C : LoadedCluster tab) (hF : C.PaperFacts)
         rcases hnv with hnv | hnv
         · rw [List.pvoc, List.map_cons, List.map_nil, Vocab.fromList_singleton,
             Program.voc, Formula.voc] at hnv
-          exact C.thetaOf_voc_sub_jvoc hF θ hθ Δ hnv
+          exact C.thetaOf_voc_sub_jvoc θ hθ Δ hnv
         · exact IHvoc hnv
       · intro v hv
         simp only [QFormula.vars_boxes] at hv
@@ -563,7 +500,7 @@ theorem iitp_voc_aux (C : LoadedCluster tab) (hF : C.PaperFacts)
           simp only [QFormula.voc_boxes, Finset.mem_union] at hnv
           rcases hnv with hnv | hnv
           · rw [List.pvoc, List.map_cons, List.map_nil, Vocab.fromList_singleton] at hnv
-            exact hF.loadedProgVoc hΓ₁ Δ hΔ hb hnv
+            exact C.loadedProgVoc_of_proper hΓ₁ Δ hΔ hb hnv
           · exact IHvoc hnv
         · intro v hv
           simp only [QFormula.vars_boxes] at hv
@@ -585,44 +522,44 @@ theorem iitp_voc_aux (C : LoadedCluster tab) (hF : C.PaperFacts)
 /-- Lemma 10.1, first part: for every node `x` of the quasi-tableau, the ordinary
 vocabulary of the pre-interpolant `ι_x` is inside `voc(Γ₁) ∩ voc(Γ₂)`.
 See `LoadedCluster.iitp_voc_aux` for the hypothesis `Γ₁ ≠ ∅`. -/
-theorem iitp_voc (C : LoadedCluster tab) (hF : C.PaperFacts) (θ : FinePathIn tab → Formula)
+theorem iitp_voc (C : LoadedCluster tab) (θ : FinePathIn tab → Formula)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f))
     (hΓ₁ : (nodeAt C.root).left ≠ {}) (x : List Nat) :
     (C.iitp θ x).voc ⊆ jvoc (nodeAt C.root) := by
   cases hx : C.Q.at? x with
   | none => rw [iitp, hx]; simp
-  | some n => exact (C.iitp_voc_aux hF θ hθ hΓ₁ (sizeOf n) n le_rfl x hx).1
+  | some n => exact (C.iitp_voc_aux θ hθ hΓ₁ (sizeOf n) n le_rfl x hx).1
 
 /-- Lemma 10.1, second part: the internal variables occurring in the pre-interpolant `ι_x`
 are the companions `q_{c(z)}` of cycles `z ∈ cycs(x)`. -/
-theorem iitp_vars (C : LoadedCluster tab) (hF : C.PaperFacts) (θ : FinePathIn tab → Formula)
+theorem iitp_vars (C : LoadedCluster tab) (θ : FinePathIn tab → Formula)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f))
     (hΓ₁ : (nodeAt C.root).left ≠ {}) (x : List Nat) :
     ∀ v ∈ (C.iitp θ x).vars, ∃ z ∈ C.Q.cycs x, C.Q.companion? z = some v := by
   cases hx : C.Q.at? x with
   | none => rw [iitp, hx]; simp
-  | some n => exact (C.iitp_voc_aux hF θ hθ hΓ₁ (sizeOf n) n le_rfl x hx).2
+  | some n => exact (C.iitp_voc_aux θ hθ hΓ₁ (sizeOf n) n le_rfl x hx).2
 
 /-- The pre-interpolant of the root of the quasi-tableau contains no internal variables,
 because `cycs(r_Q) = ∅` (Lemma 9.12 (b)). -/
-theorem rootIitp_vars (C : LoadedCluster tab) (hF : C.PaperFacts) (θ : FinePathIn tab → Formula)
+theorem rootIitp_vars (C : LoadedCluster tab) (θ : FinePathIn tab → Formula)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f))
     (hΓ₁ : (nodeAt C.root).left ≠ {}) : (C.rootIitp θ).vars = [] := by
   rw [List.eq_nil_iff_forall_not_mem]
   intro v hv
-  obtain ⟨z, hz, -⟩ := C.iitp_vars hF θ hθ hΓ₁ QuasiTab.rootAddress v hv
+  obtain ⟨z, hz, -⟩ := C.iitp_vars θ hθ hΓ₁ QuasiTab.rootAddress v hv
   rw [C.Q.cycs_root] at hz
   simp at hz
 
 /-- Lemma 10.1, the corollary: the interpolant of the root of the cluster only uses the
 joint vocabulary of `Γ₁` and `Γ₂`. -/
-theorem itp_voc (C : LoadedCluster tab) (hF : C.PaperFacts) (θ : FinePathIn tab → Formula)
+theorem itp_voc (C : LoadedCluster tab) (θ : FinePathIn tab → Formula)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) :
     (C.itp θ).voc ⊆ jvoc (nodeAt C.root) := by
   rw [itp]
   split
   case isTrue => simp
   case isFalse hΓ₁ =>
-    exact (QFormula.voc_subst_top _).trans (C.iitp_voc hF θ hθ hΓ₁ QuasiTab.rootAddress)
+    exact (QFormula.voc_subst_top _).trans (C.iitp_voc θ hθ hΓ₁ QuasiTab.rootAddress)
 
 end LoadedCluster

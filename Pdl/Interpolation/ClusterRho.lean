@@ -179,10 +179,6 @@ lemma rhoSat_one_inner {Δ y ys} (hx : C.Q.at? x = some (.QNode .one Δ (y :: ys
 The claim of the proof of Lemma 10.3 is often used in the equivalent form
 `ρ_x ⊨ ι_x⟨σ⟩  iff  Λ₁(t) ⊨ ι_x⟨σ⟩ for all t ∈ R_x`, see `rhoSat_iff`. -/
 
-lemma mem_plusNodesWithFine_iff (Δ : Sequent) (f : FinePathIn tab) :
-    f ∈ C.plusNodesWithFine Δ ↔ f ∈ C.fineCLplus ∧ f.label.rightOnly = Δ := by
-  simp [plusNodesWithFine]
-
 lemma mem_plusNodesWithFine_of_mem_exitsWithFine {Δ : Sequent} {f : FinePathIn tab}
     (hf : f ∈ C.exitsWithFine Δ) : f ∈ C.plusNodesWithFine Δ := by
   rw [C.mem_exitsWithFine_iff] at hf
@@ -244,8 +240,8 @@ lemma rhoSat_one_leaf_exit {Δ} (hx : C.Q.at? x = some (.QNode .one Δ []))
 
 /-- Case `k(x) = 2`: the unique child `y` has type 3 and the same label `Δ`, and
 `ι_x = [¬θ_Δ?]ι_y`. Here `R_x = C⁺_Δ` but `R_y = C^R_Δ`, so we use the inner induction of
-the paper, which is `PaperFacts.leftPropagation`. -/
-lemma rhoSat_two {Δ y ys} (hF : C.PaperFacts) (hΔ : Δ ∈ C.lambdaTwo)
+the paper, which is `LoadedCluster.leftPropagation_of_proper`. -/
+lemma rhoSat_two {Δ y ys} (hΔ : Δ ∈ C.lambdaTwo)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f))
     (hx : C.Q.at? x = some (.QNode .two Δ (y :: ys)))
     (hy : y = .QNode .three Δ y.children)
@@ -266,7 +262,7 @@ lemma rhoSat_two {Δ y ys} (hF : C.PaperFacts) (hΔ : Δ ∈ C.lambdaTwo)
     rcases hw with h | h
     · exact absurd h hneg
     · exact h
-  refine hF.leftPropagation Δ hΔ _ ?_ ?_
+  refine C.leftPropagation_of_proper Δ hΔ _ ?_ ?_
   · intro u hu W M w hw
     refine key W M w (Or.inr ((rhoSat_iff hchild).mp IH u ?_ W M w hw))
     rw [hreg]
@@ -276,7 +272,7 @@ lemma rhoSat_two {Δ y ys} (hF : C.PaperFacts) (hΔ : Δ ∈ C.lambdaTwo)
 
 /-- Case `k(x) = 3` with `Δ_x` basic: the unique child `y` has type 1 and its label is the
 sequent obtained by applying the modal rule, and `ι_x = [a]ι_y`. -/
-lemma rhoSat_three_basic {Δ y ys} (hF : C.PaperFacts) (hΔ : Δ ∈ C.lambdaTwo) (hb : Δ.basic)
+lemma rhoSat_three_basic {Δ y ys} (hΔ : Δ ∈ C.lambdaTwo) (hb : Δ.basic)
     (hx : C.Q.at? x = some (.QNode .three Δ (y :: ys)))
     (hy1 : y.typ = Typ.one) (hy2 : y.label ∈ C.stepOf Δ)
     (IH : C.RhoSat θ (x ++ [0])) : C.RhoSat θ x := by
@@ -285,7 +281,7 @@ lemma rhoSat_three_basic {Δ y ys} (hF : C.PaperFacts) (hΔ : Δ ∈ C.lambdaTwo
     rw [regionOf, hy1]; rfl
   rw [rhoSat_iff hx]
   intro t ht W M w hw
-  obtain ⟨u, hu, hstep⟩ := hF.modalStep Δ hΔ hb t (List.mem_toFinset.mp ht) y.label hy2
+  obtain ⟨u, hu, hstep⟩ := C.modalStep_of Δ hΔ hb t (List.mem_toFinset.mp ht) y.label hy2
   rw [C.iitp_three_basic hx hb, QFormula.subst_boxes, evalBoxes]
   intro v hv
   rw [relateSeq_singleton] at hv
@@ -293,7 +289,7 @@ lemma rhoSat_three_basic {Δ y ys} (hF : C.PaperFacts) (hΔ : Δ ∈ C.lambdaTwo
 
 /-- Case `k(x) = 3` with `Δ_x` not basic: the children `y_i` have type 1 and are labelled
 with the sequents `Π_i` of the right rule applied at `Δ_x`, and `ι_x = ⋀ᵢ ι_{y_i}`. -/
-lemma rhoSat_three_not_basic {Δ next} (hF : C.PaperFacts) (hΔ : Δ ∈ C.lambdaTwo)
+lemma rhoSat_three_not_basic {Δ next} (hU : C.HasUniformSteps) (hΔ : Δ ∈ C.lambdaTwo)
     (hb : ¬ Δ.basic) (hx : C.Q.at? x = some (.QNode .three Δ next))
     (hnext : ∀ n ∈ next, n.typ = Typ.one ∧ n.label ∈ C.stepOf Δ)
     (IH : ∀ i, i < next.length → C.RhoSat θ (x ++ [i])) : C.RhoSat θ x := by
@@ -309,7 +305,7 @@ lemma rhoSat_three_not_basic {Δ next} (hF : C.PaperFacts) (hΔ : Δ ∈ C.lambd
   have hreg : C.regionOf next[i] = C.plusNodesWithFine next[i].label := by
     rw [regionOf, htyp]; rfl
   obtain ⟨u, hu, hlab⟩ :=
-    hF.rightRuleChildren Δ hΔ hb t (List.mem_toFinset.mp ht) next[i].label hmem
+    C.rightRuleChildren_of_uniform hU Δ hΔ hb t (List.mem_toFinset.mp ht) next[i].label hmem
   refine (rhoSat_iff hchild).mp (IH i hi) u (hreg ▸ hu) W M w ?_
   rw [hlab]
   exact hw
@@ -385,7 +381,7 @@ lemma prefix_append_ne {α} {z x : List α} (hz : z <+: x) {l : List α} (hl : l
 The hypothesis on the history is the invariant of Definition 9.8: every sequent in the
 history of the construction is the label of a node of type 1 strictly above `x`, which is
 what makes a leaf whose label is in the history a repeat. -/
-lemma rhoSat_build (C : LoadedCluster tab) (hF : C.PaperFacts)
+lemma rhoSat_build (C : LoadedCluster tab) (hU : C.HasUniformSteps)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) :
     ∀ (Hist : List Sequent) (Δ : Sequent) (x : List Nat),
       C.Q.at? x = some (QuasiTab.build C.lambdaTwo C.stepOfL Hist Δ) →
@@ -432,7 +428,7 @@ lemma rhoSat_build (C : LoadedCluster tab) (hF : C.PaperFacts)
     have h3sat : C.RhoSat θ ((x ++ [0]) ++ [0]) := by
       by_cases hb : Δ.basic
       · obtain ⟨Pi, rest, hPi⟩ : ∃ Pi rest, C.stepOfL Δ = Pi :: rest :=
-          List.exists_cons_of_ne_nil (C.stepOfL_ne_nil (hF.exists_right Δ h.1))
+          List.exists_cons_of_ne_nil (C.stepOfL_ne_nil (C.exists_right_of_proper Δ h.1))
         have hnextcons :
           next = QuasiTab.build C.lambdaTwo C.stepOfL (Δ :: Hist) Pi ::
             rest.map
@@ -441,17 +437,17 @@ lemma rhoSat_build (C : LoadedCluster tab) (hF : C.PaperFacts)
         have hPimem : Pi ∈ C.stepOf Δ := by
           have hmem : Pi ∈ C.stepOfL Δ := by rw [hPi]; exact List.mem_cons_self ..
           simpa [stepOfL, Finset.mem_seqSort] using hmem
-        refine C.rhoSat_three_basic hF h.1 hb (hnextcons ▸ h3) (by simp) ?_
+        refine C.rhoSat_three_basic h.1 hb (hnextcons ▸ h3) (by simp) ?_
           (IHchild 0 (by rw [hnextcons]; simp))
         rw [QuasiTab.build_label]
         exact hPimem
-      · refine C.rhoSat_three_not_basic hF h.1 hb h3 ?_ IHchild
+      · refine C.rhoSat_three_not_basic hU h.1 hb h3 ?_ IHchild
         intro n hn
         rw [hnextdef, List.mem_map] at hn
         obtain ⟨Pi, hPi, rfl⟩ := hn
         exact ⟨by simp, by simpa [stepOfL] using hPi⟩
     -- the node of type 2 and the node of type 1
-    have h2sat : C.RhoSat θ (x ++ [0]) := C.rhoSat_two hF h.1 hθ h2 rfl h3sat
+    have h2sat : C.RhoSat θ (x ++ [0]) := C.rhoSat_two h.1 hθ h2 rfl h3sat
     by_cases hcomp : x ∈ C.Q.companions
     · exact C.rhoSat_one_companion hx hcomp rfl h2sat
     · exact C.rhoSat_one_inner hx hcomp rfl h2sat
@@ -474,17 +470,17 @@ lemma rhoSat_build (C : LoadedCluster tab) (hF : C.PaperFacts)
       exact hnot (by rw [hz3, hlab]) hz4
 
 /-- The claim `ρ_x ⊨ ι_x⟨σ⟩` at the root of the quasi-tableau. -/
-theorem rhoSat_root (C : LoadedCluster tab) (hF : C.PaperFacts)
+theorem rhoSat_root (C : LoadedCluster tab) (hU : C.HasUniformSteps)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) :
     C.RhoSat θ QuasiTab.rootAddress :=
-  C.rhoSat_build hF hθ [] (nodeAt C.root).rightOnly QuasiTab.rootAddress rfl (by simp)
+  C.rhoSat_build hU hθ [] (nodeAt C.root).rightOnly QuasiTab.rootAddress rfl (by simp)
 
 /-! ## Lemma 10.3 -/
 
 open HasSat in
 /-- Lemma 10.3: `Γ₁ ⊨ θ_r`, i.e. the left component of the root of the cluster together
 with the negation of the interpolant of Definition 9.20 is unsatisfiable. -/
-theorem left_unsat_neg_itp (C : LoadedCluster tab) (hF : C.PaperFacts)
+theorem left_unsat_neg_itp (C : LoadedCluster tab) (hU : C.HasUniformSteps)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) :
     ¬ satisfiable ({~ C.itp θ} ∪ (nodeAt C.root).left) := by
   rintro ⟨W, M, w, hw⟩
@@ -503,11 +499,11 @@ theorem left_unsat_neg_itp (C : LoadedCluster tab) (hF : C.PaperFacts)
       exact ⟨C.root_toFine_mem_fineCL, by simp⟩
     have hrho : evaluate M w (C.rho QuasiTab.rootAddress) :=
       (evaluate_rho_iff hroot).mpr ⟨C.root.toFine, hregion, by simpa using hleft⟩
-    have hsat : evaluate M w ((C.rootIitp θ).subst C.rho) := C.rhoSat_root hF hθ W M w hrho
+    have hsat : evaluate M w ((C.rootIitp θ).subst C.rho) := C.rhoSat_root hU hθ W M w hrho
     have heq : (C.rootIitp θ).subst C.rho = (C.rootIitp θ).subst (fun _ => ⊤) := by
       refine QFormula.subst_congr _ ?_
       intro v hv
-      rw [C.rootIitp_vars hF θ hθ hΓ₁] at hv
+      rw [C.rootIitp_vars θ hθ hΓ₁] at hv
       simp at hv
     rw [heq] at hsat
     exact hneg hsat

@@ -347,9 +347,11 @@ theorem repeat_basicBetween (C : LoadedCluster tab)
 
 /-! ## Assumptions about the steps of the quasi-tableau
 
-Just like `LoadedCluster.PaperFacts` for Lemma 10.3, the proof of Lemma 10.7 uses facts
-about the tableau `tab` and the sequents `Λ₂[C]` that are not (yet) available in this Lean
-development. They are collected here in one record. -/
+Just like the facts in `Pdl.ClusterFacts` for Lemma 10.3, the proof of Lemma 10.7 uses multiple
+facts about the tableau `tab` and the sequents `Λ₂[C]`. They are collected here in one record.
+
+TODO: now that all these are proven, get rid of the Structure type, use lemmas/theorems.
+-/
 
 /-- Facts about the cluster `C` used in the proof of Lemma 10.7.
 

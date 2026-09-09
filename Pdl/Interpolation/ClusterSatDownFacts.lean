@@ -13,13 +13,11 @@ i.e. everything that the proof of Lemma 10.7 assumes about the cluster `C` and t
 * `nonBasicStep`: the local step at a non-basic `Δ ∈ Λ₂[C]`, with the witness distance
   preserved — the local invertibility of the rules together with Lemma 10.5 (h).
 
-The main result is `LoadedCluster.satDownFacts`. Its only hypothesis is Lemma 9.7 (d),
-i.e. that `C^R_Δ` is non-empty for `Δ ∈ Λ₂[C]`, which in `Pdl.ClusterInterpolation` is
-`LoadedCluster.exists_right_of_proper`.
+The main result is `LoadedCluster.satDownFacts`. It only uses properness of the cluster,
+via Lemma 9.7 (d), i.e. `LoadedCluster.exists_right_of_proper` from `Pdl.ClusterFacts`.
 
-We import `Pdl.Uniformity` and not `Pdl.ClusterInterpolation`, because the latter is where
-`LoadedCluster.satDownFacts` gets used; the helper lemmas about right rules that we need
-are the copies in the `Uniformity` namespace.
+The helper lemmas about right rules that we use here are the copies in the `Uniformity`
+namespace.
 -/
 
 /-! ## Splitting a boxed loaded formula -/
@@ -339,8 +337,7 @@ lemma stepOf_lt_Sequent (C : LoadedCluster tab) :
     simp_all
 
 /-- The `basicStep` field: the modal step at a basic `Δ ∈ Λ₂[C]`. -/
-lemma basicStep_of (C : LoadedCluster tab)
-    (hER : ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ []) :
+lemma basicStep_of (C : LoadedCluster tab) :
     ∀ Δ ∈ C.lambdaTwo, Δ.basic → ∃ (A : Nat) (Y : Sequent),
       C.stepOf Δ = {Y}
       ∧ Δ.loadedProg = (·A : Program)
@@ -351,7 +348,7 @@ lemma basicStep_of (C : LoadedCluster tab)
           ∀ φ ∈ Y.right, evaluate M v φ := by
   intro Δ hΔ hb
   cases hh : (C.nodesWithFineRight Δ).head? with
-  | none => exact absurd (List.head?_eq_none_iff.mp hh) (hER Δ hΔ)
+  | none => exact absurd (List.head?_eq_none_iff.mp hh) (C.exists_right_of_proper Δ hΔ)
   | some f =>
     have hf := List.mem_of_mem_head? hh
     obtain ⟨A, ξ, hAξ, g, hg, hglab⟩ := Uniformity.basicModalStep C hb hf
@@ -405,15 +402,14 @@ lemma basicStep_of (C : LoadedCluster tab)
           Uniformity.modRChildRight] using hload
 
 /-- The `nonBasicStep` field: the local step at a non-basic `Δ ∈ Λ₂[C]`. -/
-lemma nonBasicStep_of (C : LoadedCluster tab)
-    (hER : ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ []) :
+lemma nonBasicStep_of (C : LoadedCluster tab) :
     ∀ Δ ∈ C.lambdaTwo, ¬ Δ.basic → ∀ (W : Type) (M : KripkeModel W) (v : W),
       (∀ φ ∈ Δ.right, evaluate M v φ) →
       ∃ i, ∃ hi : i < (C.stepOfL Δ).length,
         (∀ φ ∈ ((C.stepOfL Δ)[i]'hi).right, evaluate M v φ)
         ∧ witDist M v ((C.stepOfL Δ)[i]'hi) = witDist M v Δ := by
   intro Δ hΔ hb W M v hv
-  obtain ⟨lra, hright, hX, hstep⟩ := C.exists_lra_stepOf (hER Δ hΔ) hb
+  obtain ⟨lra, hright, hX, hstep⟩ := C.exists_lra_stepOf (C.exists_right_of_proper Δ hΔ) hb
   have hX' : lra.rightOnlyApp.X = Δ := by
     rw [LocalRuleApp.rightOnlyApp_X hright, hX]
   have hC' : ∀ Y ∈ lra.rightOnlyApp.C, Y ∈ C.stepOf Δ := by
@@ -434,12 +430,11 @@ lemma nonBasicStep_of (C : LoadedCluster tab)
   · rw [heq]; exact hYsat
   · rw [heq, hYwd, hX']
 
-/-- All facts of `SatDownFacts`, from Lemma 9.7 (d). -/
-theorem satDownFacts (C : LoadedCluster tab)
-    (hER : ∀ Δ ∈ C.lambdaTwo, C.nodesWithFineRight Δ ≠ []) : C.SatDownFacts where
+/-- All facts of `SatDownFacts`, for a proper cluster. -/
+theorem satDownFacts (C : LoadedCluster tab) : C.SatDownFacts where
   rightLoaded := fun _ hΔ => C.isRightLoaded_of_mem_lambdaTwo hΔ
   stepLT := C.stepOf_lt_Sequent
-  basicStep := C.basicStep_of hER
-  nonBasicStep := C.nonBasicStep_of hER
+  basicStep := C.basicStep_of
+  nonBasicStep := C.nonBasicStep_of
 
 end LoadedCluster

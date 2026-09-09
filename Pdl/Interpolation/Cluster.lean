@@ -482,6 +482,10 @@ def plusNodesWithFine (C : LoadedCluster tab) (Δ : Sequent) :
     Finset (FinePathIn tab) :=
   C.fineCLplus.filter (fun f => decide (f.label.rightOnly = Δ))
 
+lemma mem_plusNodesWithFine_iff (C : LoadedCluster tab) (Δ : Sequent) (f : FinePathIn tab) :
+    f ∈ C.plusNodesWithFine Δ ↔ f ∈ C.fineCLplus ∧ f.label.rightOnly = Δ := by
+  simp [plusNodesWithFine]
+
 /-- `C^R_Δ` from Def 9.6: nodes with right component `Δ` where a right rule is applied. -/
 def nodesWithFineRight (C : LoadedCluster tab) (Δ : Sequent) :
     List (FinePathIn tab) :=

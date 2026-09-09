@@ -392,11 +392,10 @@ def endNodesOf : {X : _} → LocalTableau X → Finset Sequent
   | .(_), (@byLocalRule X lra _ next) =>
       (lra.C.attach.image (fun ⟨Y, h⟩ => endNodesOf (next Y h))).sup id
   | .(_), (@sim X _) => {X}
--- termination_by
---   X => X -- pick up instance WellFoundedRelation Sequent from above!
--- decreasing_by
---   subst_eqs
---   apply localRuleApp.decreases_DM lra Y h
+
+lemma mem_endNodesOf_sim {X : Sequent} {h : X.basic} {E : Sequent} :
+    E ∈ endNodesOf (LocalTableau.sim h) ↔ E = X := by
+  simp [endNodesOf]
 
 /-- An open local tableau has at least one end node. -/
 def OpenLocalTableau (X : Sequent) : Type := {lt : LocalTableau X // endNodesOf lt ≠ {}}
