@@ -27,7 +27,7 @@ have the same principal formulas (`Lcond`, `Rcond` and `Ocond`) and the same res
 The main result is `LoadedCluster.uniformOfUniTab`. Its proof splits into two cases, and
 only the second one uses uniformity:
 
-* If `Δ` is basic then by Lemma 9.7 (e) — here `Uniformity.basicModalStep` — the rule
+* If `Δ` is basic then by Lemma 9.7 (e) — here `LoadedCluster.basicModalStepAt` — the rule
   applied at a node of `C^R_Δ` is the modal rule `(M)` for the loaded formula of `Δ`, and
   hence the right component of the unique child only depends on `Δ`.
 * If `Δ` is not basic then the rule applied at a node of `C^R_Δ` is a local rule acting on
@@ -35,7 +35,7 @@ only the second one uses uniformity:
   the same rule with the same principal formula is used at all these nodes. Since a local
   rule application only changes the right component by deleting its principal formulas and
   adding the results, the right components of the children agree — this is
-  `Uniformity.map_rightOnly_C_eq`.
+  `LocalRuleApp.SameRuleAs.map_rightOnly_C_eq`.
 
 ## Duplicated helper lemmas
 
@@ -225,6 +225,23 @@ lemma LocalRuleApp.SameRuleAs.trans {lra₁ lra₂ lra₃ : LocalRuleApp}
     (h : lra₁.SameRuleAs lra₂) (h' : lra₂.SameRuleAs lra₃) : lra₁.SameRuleAs lra₃ :=
   ⟨h.1.trans h'.1, h.2.1.trans h'.2.1, h.2.2.1.trans h'.2.2.1,
     h.2.2.2.1.trans h'.2.2.2.1, h.2.2.2.2.trans h'.2.2.2.2⟩
+
+/-- The key computation for condition U2: if the same local rule with the same principal
+formulas is applied at two nodes with the same right component, then the right components
+of the children agree, including their order. This holds because a local rule application
+deletes the principal formulas from, and adds the results to, the given sequent. -/
+lemma LocalRuleApp.SameRuleAs.map_rightOnly_C_eq {lra₁ lra₂ : LocalRuleApp}
+    (hsame : lra₁.SameRuleAs lra₂) (hX : lra₁.X.rightOnly = lra₂.X.rightOnly) :
+    lra₁.C.image Sequent.rightOnly = lra₂.C.image Sequent.rightOnly := by
+  obtain ⟨-, hRcond, hOcond, hress, -⟩ := hsame
+  have hR : lra₁.R = lra₂.R := congrArg (fun Y => Y.2.1) hX
+  have hO : lra₁.O = lra₂.O := congrArg (fun Y => Y.2.2) hX
+  rw [lra₁.hC, lra₂.hC]
+  simp only [applyLocalRule, Finset.image_image, Function.comp_def, Sequent.rightOnly]
+  rw [hress]
+  refine Finset.image_congr ?_
+  rintro ⟨Lnew, Rnew, Onew⟩ -
+  simp only [hRcond, hOcond, hR, hO]
 
 /-! ### The canonical rule for a component -/
 
@@ -1474,299 +1491,6 @@ lemma Tableau.toUniform (tab : Tableau .nil X) :
 
 -/
 
-namespace Uniformity
-
-/-! ## Helpers
-
-These are copies of results in `Pdl.ClusterInterpolation`, which are not available here
-because that file imports this one. -/
-
-/-- The right component of a basic sequent is basic.
-Same as `Sequent.basic_rightOnly` in `Pdl.ClusterInterpolation`. -/
-lemma basic_rightOnly {X : Sequent} (h : X.basic) : X.rightOnly.basic := by
-  rcases X with ⟨L, R, O⟩
-  obtain ⟨hb, hc⟩ := h
-  constructor
-  · intro f hf
-    apply hb
-    simp only [Sequent.rightOnly, Sequent.toFinset, Finset.empty_union, Finset.mem_union] at hf ⊢
-    tauto
-  · intro hcl
-    apply hc
-    rcases hcl with hbot | ⟨f, hf, hnf⟩
-    · left
-      revert hbot
-      simp only [Sequent.rightOnly, Sequent.mem_def, Sequent.L, Sequent.R,
-        Finset.notMem_empty, false_or]
-      tauto
-    · right
-      refine ⟨f, ?_, ?_⟩ <;>
-        simp only [Sequent.rightOnly, Sequent.mem_def, Sequent.L, Sequent.R,
-          Finset.notMem_empty, false_or] at hf hnf ⊢ <;>
-        tauto
-
-/-- A right local rule cannot be applied when the right component of the sequent is basic.
-Same as `LocalRuleApp.not_rightOnly_basic_of_isRightRule` in `Pdl.ClusterInterpolation`. -/
-lemma not_rightOnly_basic_of_isRightRule (lra : LocalRuleApp)
-    (h : lra.isRightRule) : ¬ lra.X.rightOnly.basic := by
-  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
-  cases lr
-  case oneSidedR ress orule YS_def =>
-    have := nonbasic_of_localRuleApp
-      ⟨∅, R, O, ∅, Rcond, none, _, LocalRule.oneSidedR orule YS_def, _, rfl,
-        ⟨Finset.empty_subset _, pre.2.1, by simp⟩⟩
-    simpa [Sequent.rightOnly] using this
-  case loadedR χ lrule YS_def =>
-    have := nonbasic_of_localRuleApp
-      ⟨∅, R, O, ∅, ∅, some (Sum.inr (~'χ)), _, LocalRule.loadedR χ lrule YS_def, _, rfl,
-        ⟨Finset.empty_subset _, Finset.empty_subset _, pre.2.2⟩⟩
-    simpa [Sequent.rightOnly] using this
-  all_goals
-    simp [LocalRuleApp.isRightRule, LocalRule.isRightRule] at h
-
-/-- Where a right rule is applied, it is either a local rule or the node is basic.
-Same as `FinePathIn.lra_or_basic_of_usesRightRule` in `Pdl.ClusterInterpolation`. -/
-lemma lra_or_basic_of_usesRightRule : ∀ {H : History} {Z : Sequent}
-    {tab' : Tableau H Z} (f : FinePathIn tab'), f.usesRightRule →
-      (∃ lra, f.lra? = some lra ∧ lra.isRightRule) ∨ f.label.basic
-  | _, _, _, .inLoc lp hint, h => by
-      simp only [FinePathIn.usesRightRule, FinePathIn.lra?] at h ⊢
-      rcases hlt : lp.ltAt with ⟨lra, X_def, lnext⟩ | bas
-      · rw [hlt] at h
-        exact Or.inl ⟨lra, rfl, h⟩
-      · rw [hlt] at h; simp at h
-  | _, _, .pdl _ bas _ _, .pdlHere, _ => Or.inr bas
-  | _, _, _, .lrepHere, h => by simp [FinePathIn.usesRightRule] at h
-  | _, _, _, .loc Y_in tail, h => by
-      simp only [FinePathIn.usesRightRule] at h
-      simpa [FinePathIn.lra?, FinePathIn.label] using
-        lra_or_basic_of_usesRightRule tail h
-  | _, _, _, .pdl tail, h => by
-      simp only [FinePathIn.usesRightRule] at h
-      simpa [FinePathIn.lra?, FinePathIn.label] using
-        lra_or_basic_of_usesRightRule tail h
-
-/-- The right component of the child obtained by applying the modal rule `(M)` to a sequent
-whose loaded formula `~⌊·A⌋ξ` is on the right.
-Same as `modRChildRightOnly` in `Pdl.ClusterInterpolation`. -/
-def modRChildRight (A : Nat) (ξ : AnyFormula) (R : Finset Formula) : Sequent :=
-  match ξ with
-  | .normal φ => ⟨∅, {~φ} ∪ R.projection A, none⟩
-  | .loaded χ => ⟨∅, R.projection A, some (Sum.inr (~'χ))⟩
-
-/-- At a fine node with a *basic* right component where a right rule is applied, that rule
-is one of the three `PdlRule`s acting on the right.
-Same as `FinePathIn.basicRightStep` in `Pdl.ClusterInterpolation`. -/
-lemma basicRightStep {H : History} {Z : Sequent} {tab' : Tableau H Z}
-    (f : FinePathIn tab') (h : f.usesRightRule) (hb : f.label.rightOnly.basic) :
-      (f.atBigRoot ∧ f.label.2.2 = none)
-      ∨ (∃ g, f.children = {g} ∧ g.atBigRoot ∧ g.label.2.2 = none)
-      ∨ (∃ A ξ, f.label.2.2 = some (Sum.inr (~'⌊·A⌋ξ)) ∧ ∃ g, f.children = {g} ∧ g.atBigRoot
-          ∧ g.label.left = (f.label.left).projection A
-          ∧ g.label.rightOnly = modRChildRight A ξ f.label.2.1) := by
-  induction f with
-  | @inLoc Hist X nrep nbas lt next lp hint =>
-    simp only [FinePathIn.usesRightRule] at h
-    rcases hlt : lp.ltAt with ⟨lra, X_def, lnext⟩ | bas
-    · rw [hlt] at h
-      simp only [FinePathIn.label] at hb
-      rw [X_def] at hb
-      exact absurd hb (not_rightOnly_basic_of_isRightRule lra h)
-    · rw [hlt] at h; simp at h
-  | @pdlHere Hist X Y nrep bas r next =>
-    simp only [FinePathIn.usesRightRule] at h
-    simp only [FinePathIn.label, FinePathIn.children, FinePathIn.atBigRoot]
-    cases r with
-    | loadR hmem hnb hY => exact Or.inl ⟨trivial, rfl⟩
-    | freeR hX hY =>
-      exact Or.inr (Or.inl ⟨_, rfl, by simp [FinePathIn.atBigRoot],
-        by simp [FinePathIn.label, hY]⟩)
-    | @modR Y' L R A X' ξ hX hY =>
-      subst hX
-      right; right
-      refine ⟨A, ξ, rfl, _, rfl, by simp [FinePathIn.atBigRoot], ?_, ?_⟩ <;>
-        cases ξ <;> simp_all [modRChildRight, Sequent.rightOnly, FinePathIn.label]
-    | _ => simp [PdlRule.isRightRule] at h
-  | lrepHere => simp [FinePathIn.usesRightRule] at h
-  | loc Y_in tail IH =>
-    simp only [FinePathIn.usesRightRule] at h
-    simp only [FinePathIn.label] at hb ⊢
-    simp only [FinePathIn.children, FinePathIn.atBigRoot]
-    rcases IH h hb with ⟨hbr, h1⟩ | ⟨g, hg, hgbr, hg2⟩ | ⟨A, ξ, hA, g, hg, hgbr, hg1, hg2⟩
-    · exact Or.inl ⟨hbr, h1⟩
-    · exact Or.inr (Or.inl ⟨.loc Y_in g, by simp [hg], by simpa [FinePathIn.atBigRoot] using hgbr,
-        by simpa [FinePathIn.label] using hg2⟩)
-    · exact Or.inr (Or.inr ⟨A, ξ, hA, .loc Y_in g, by simp [hg],
-        by simpa [FinePathIn.atBigRoot] using hgbr,
-        by simpa [FinePathIn.label] using hg1, by simpa [FinePathIn.label] using hg2⟩)
-  | pdl tail IH =>
-    simp only [FinePathIn.usesRightRule] at h
-    simp only [FinePathIn.label] at hb ⊢
-    simp only [FinePathIn.children, FinePathIn.atBigRoot]
-    rcases IH h hb with ⟨hbr, h1⟩ | ⟨g, hg, hgbr, hg2⟩ | ⟨A, ξ, hA, g, hg, hgbr, hg1, hg2⟩
-    · exact Or.inl ⟨hbr, h1⟩
-    · exact Or.inr (Or.inl ⟨.pdl g, by simp [hg], by simpa [FinePathIn.atBigRoot] using hgbr,
-        by simpa [FinePathIn.label] using hg2⟩)
-    · exact Or.inr (Or.inr ⟨A, ξ, hA, .pdl g, by simp [hg],
-        by simpa [FinePathIn.atBigRoot] using hgbr,
-        by simpa [FinePathIn.label] using hg1, by simpa [FinePathIn.label] using hg2⟩)
-
-/-- A fine node that is a node in the coarse sense has the label of that coarse node.
-Same as `FinePathIn.label_eq_nodeAt_base` in `Pdl.ClusterInterpolation`. -/
-lemma label_eq_nodeAt_base {H Z} {tab' : Tableau H Z} (f : FinePathIn tab')
-    (h : f.atBigRoot) : f.label = nodeAt f.base := by
-  have := congrArg FinePathIn.label (f.eq_toFine_base_of_atBigRoot h)
-  rwa [PathIn.label_toFine] at this
-
-/-- If a child of a local rule application is loaded on the right, then so is its premise.
-Same as `LocalRuleApp.isRight_of_mem_C` in `Pdl.ClusterInterpolation`. -/
-lemma isRight_of_mem_C (lra : LocalRuleApp) :
-    ∀ Y ∈ lra.C, Y.2.2.isRight → lra.X.2.2.isRight := by
-  rcases lra with ⟨L, R, O, Lcond, Rcond, Ocond, ress, lr, C, hC, pre⟩
-  subst hC
-  intro Y hY hYR
-  cases lr
-  case oneSidedL ress orule YS_def =>
-    subst YS_def
-    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hY
-    obtain ⟨res, -, rfl⟩ := hY
-    simpa using hYR
-  case oneSidedR ress orule YS_def =>
-    subst YS_def
-    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hY
-    obtain ⟨res, -, rfl⟩ := hY
-    simpa using hYR
-  case LRnegL => simp [applyLocalRule] at hY
-  case LRnegR => simp [applyLocalRule] at hY
-  case loadedL χ lrule YS_def =>
-    exfalso
-    subst YS_def
-    have hO := (Option.some_subseteq.mp pre.2.2).symm
-    subst hO
-    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hY
-    obtain ⟨⟨Lnew, Onew⟩, -, rfl⟩ := hY
-    rcases Onew with _ | o <;> simp_all [Olf.isRight]
-  case loadedR χ lrule YS_def =>
-    have hO := (Option.some_subseteq.mp pre.2.2).symm
-    subst hO
-    simp [Olf.isRight]
-
-/-- If some end node of a local tableau is loaded on the right, then so is its root.
-Same as `LocalTableau.isRight_of_mem_endNodesOf` in `Pdl.ClusterInterpolation`. -/
-lemma isRight_of_mem_endNodesOf : ∀ {Z : Sequent} (lt : LocalTableau Z),
-    ∀ Y ∈ endNodesOf lt, Y.2.2.isRight → Z.2.2.isRight
-  | _, .sim _, Y, hY, hYR => by
-      simp only [endNodesOf, Finset.mem_singleton] at hY
-      exact hY ▸ hYR
-  | _, .byLocalRule lra X_def next, Y, hY, hYR => by
-      subst X_def
-      simp only [endNodesOf, Finset.sup_image, Function.id_comp, Finset.mem_sup,
-        Finset.mem_attach, true_and, Subtype.exists] at hY
-      obtain ⟨W, W_in, hY⟩ := hY
-      exact isRight_of_mem_C lra W W_in
-        (isRight_of_mem_endNodesOf (next W W_in) Y hY hYR)
-
-/-- The end nodes below a local path are end nodes of the local tableau at that path.
-Same as `LocalPathIn.mem_endNodesOf_ltAt` in `Pdl.ClusterInterpolation`. -/
-lemma mem_endNodesOf_ltAt {Z : Sequent} {lt : LocalTableau Z} (lp : LocalPathIn lt) :
-    ∀ Yh ∈ lp.endNodesBelow, (Yh : Sequent) ∈ endNodesOf lp.ltAt := by
-  induction lp with
-  | nil => intro Yh _; exact Yh.2
-  | cons Y_in tail IH =>
-    intro Yh h
-    simp only [LocalPathIn.endNodesBelow, List.mem_map, Subtype.exists] at h
-    obtain ⟨Z, hZ, hmem, rfl⟩ := h
-    exact IH ⟨Z, hZ⟩ hmem
-
-/-- A fine node that is not a coarse node and has a coarse child loaded on the right is
-itself loaded on the right.
-Same as `FinePathIn.isRight_of_mem_coarseChildrenBelow` in `Pdl.ClusterInterpolation`. -/
-lemma isRight_of_mem_coarseChildrenBelow : ∀ {H : History} {Z : Sequent}
-    {tab' : Tableau H Z} (f : FinePathIn tab'), ¬ f.atBigRoot →
-      ∀ q ∈ f.coarseChildrenBelow, (nodeAt q).2.2.isRight → f.label.2.2.isRight
-  | _, _, _, .inLoc lp _, _, q, hq, hqR => by
-      simp only [FinePathIn.coarseChildrenBelow, List.mem_map, Subtype.exists] at hq
-      obtain ⟨Y, Y_in, hmem, rfl⟩ := hq
-      rw [nodeAt_loc_nil] at hqR
-      exact isRight_of_mem_endNodesOf lp.ltAt Y (mem_endNodesOf_ltAt lp ⟨Y, Y_in⟩ hmem) hqR
-  | _, _, _, .pdlHere, hbr, _, _, _ => absurd (by simp [FinePathIn.atBigRoot]) hbr
-  | _, _, _, .lrepHere, hbr, _, _, _ => absurd (by simp [FinePathIn.atBigRoot]) hbr
-  | _, _, _, .loc Y_in tail, hbr, q, hq, hqR => by
-      simp only [FinePathIn.coarseChildrenBelow, List.mem_map] at hq
-      obtain ⟨q', hq', rfl⟩ := hq
-      rw [nodeAt_loc] at hqR
-      exact isRight_of_mem_coarseChildrenBelow tail
-        (by simpa [FinePathIn.atBigRoot] using hbr) q' hq' hqR
-  | _, _, _, .pdl tail, hbr, q, hq, hqR => by
-      simp only [FinePathIn.coarseChildrenBelow, List.mem_map] at hq
-      obtain ⟨q', hq', rfl⟩ := hq
-      rw [nodeAt_pdl] at hqR
-      exact isRight_of_mem_coarseChildrenBelow tail
-        (by simpa [FinePathIn.atBigRoot] using hbr) q' hq' hqR
-
-variable {X : Sequent} {tab : Tableau .nil X}
-
-/-- Lemma 9.4 (a) at the fine level: every fine node of a loaded cluster is loaded on the
-right. For a coarse node this is `LoadedCluster.all_right_loaded`, and for a node inside a
-local tableau it follows because that node has a coarse child in the cluster. -/
-lemma isRight_of_memFine (C : LoadedCluster tab) {f : FinePathIn tab}
-    (hf : C.memFine f) : f.label.2.2.isRight := by
-  by_cases hbr : f.atBigRoot
-  · rw [label_eq_nodeAt_base f hbr]
-    exact C.all_right_loaded _ hf.1
-  · rcases hf.2 with h | ⟨q, hq, hqC⟩
-    · exact absurd h hbr
-    · exact isRight_of_mem_coarseChildrenBelow f hbr q hq (C.all_right_loaded q hqC)
-
-/-- Lemma 9.7 (e): at a node `t` of `C^R_Δ` with `Δ` basic the rule applied is the modal
-rule `(M)` for the loaded formula `~⌊·A⌋ξ` of `Δ`, so that the right component of the
-unique child of `t` only depends on `Δ`.
-Same as `LoadedCluster.basicModalStepAt` in `Pdl.ClusterInterpolation`. -/
-lemma basicModalStep (C : LoadedCluster tab) {Δ : Sequent}
-    (hb : Δ.basic) {t : FinePathIn tab} (ht : t ∈ C.nodesWithFineRight Δ) :
-    ∃ A ξ, Δ.2.2 = some (Sum.inr (~'⌊·A⌋ξ)) ∧ ∃ g, t.children = {g}
-      ∧ g.label.rightOnly = modRChildRight A ξ Δ.2.1 := by
-  simp only [LoadedCluster.nodesWithFineRight, LoadedCluster.nodesWithFine, List.mem_filter,
-    decide_eq_true_eq] at ht
-  obtain ⟨⟨ht_CL, ht_lab⟩, ht_right⟩ := ht
-  have hmf : C.memFine t := (C.mem_fineCL t).mp ht_CL
-  have hDl : Δ.2.2 = t.label.2.2 := by rw [← ht_lab]; rfl
-  have hDr : Δ.2.1 = t.label.2.1 := by rw [← ht_lab]; rfl
-  obtain ⟨c, hc, hcmf⟩ := C.exists_child_memFine_of_not_isLrep hmf
-    (t.not_isLrep_base_of_usesRightRule ht_right)
-  rcases basicRightStep t ht_right (ht_lab ▸ hb) with
-    ⟨hbr, hnone⟩ | ⟨g, hg, hgbr, hgnone⟩ | ⟨A, ξ, hA, g, hg, hgbr, hg1, hg2⟩
-  · exfalso
-    have hrl := C.all_right_loaded t.base hmf.1
-    rw [← label_eq_nodeAt_base t hbr, hnone] at hrl
-    simp at hrl
-  · exfalso
-    simp only [hg, Finset.mem_singleton] at hc
-    subst hc
-    have hrl := C.all_right_loaded c.base hcmf.1
-    rw [← label_eq_nodeAt_base c hgbr, hgnone] at hrl
-    simp at hrl
-  · exact ⟨A, ξ, by rw [hDl]; exact hA, g, hg, by rw [hDr]; exact hg2⟩
-
-/-- The key computation for condition U2: if the same local rule with the same principal
-formulas is applied at two nodes with the same right component, then the right components
-of the children agree, including their order. This holds because a local rule application
-deletes the principal formulas from, and adds the results to, the given sequent. -/
-lemma map_rightOnly_C_eq {lra₁ lra₂ : LocalRuleApp} (hsame : lra₁.SameRuleAs lra₂)
-    (hX : lra₁.X.rightOnly = lra₂.X.rightOnly) :
-    lra₁.C.image Sequent.rightOnly = lra₂.C.image Sequent.rightOnly := by
-  obtain ⟨-, hRcond, hOcond, hress, -⟩ := hsame
-  have hR : lra₁.R = lra₂.R := congrArg (fun Y => Y.2.1) hX
-  have hO : lra₁.O = lra₂.O := congrArg (fun Y => Y.2.2) hX
-  rw [lra₁.hC, lra₂.hC]
-  simp only [applyLocalRule, Finset.image_image, Function.comp_def, Sequent.rightOnly]
-  rw [hress]
-  refine Finset.image_congr ?_
-  rintro ⟨Lnew, Rnew, Onew⟩ -
-  simp only [hRcond, hOcond, hR, hO]
-
-end Uniformity
-
 /-- In a uniform tableau any loaded cluster has the property `HasUniformSteps` needed for
 the construction of the quasi-tableau: any two nodes of the cluster with the same right
 component `Δ` at which a right rule is applied have the same right components below them.
@@ -1787,8 +1511,8 @@ theorem LoadedCluster.uniformOfUniTab {tab : Tableau .nil X}
   obtain ⟨⟨hg_CL, hg_lab⟩, hg_right⟩ := hg'
   by_cases hb : Δ.basic
   · -- Lemma 9.7 (e): the modal rule is applied at both nodes, to the loaded formula of `Δ`.
-    obtain ⟨A, ξ, hAξ, cf, hcf, hcf_right⟩ := Uniformity.basicModalStep C hb hf
-    obtain ⟨A', ξ', hAξ', cg, hcg, hcg_right⟩ := Uniformity.basicModalStep C hb hg
+    obtain ⟨A, ξ, hAξ, cf, hcf, -, -, hcf_right⟩ := C.basicModalStepAt hb hf
+    obtain ⟨A', ξ', hAξ', cg, hcg, -, -, hcg_right⟩ := C.basicModalStepAt hb hg
     have hAA : A' = A ∧ ξ' = ξ := by
       rw [hAξ] at hAξ'
       simp only [Option.some.injEq, Sum.inr.injEq] at hAξ'
@@ -1797,17 +1521,17 @@ theorem LoadedCluster.uniformOfUniTab {tab : Tableau .nil X}
     rw [hcf, hcg]
     simp only [Finset.image_singleton, hcf_right, hcg_right]
   · -- Lemma 9.7 (f): the same local rule is applied at both nodes, by U1 and U2.
-    have hfb : ¬ f.label.basic := fun h => hb (hf_lab ▸ Uniformity.basic_rightOnly h)
-    have hgb : ¬ g.label.basic := fun h => hb (hg_lab ▸ Uniformity.basic_rightOnly h)
+    have hfb : ¬ f.label.basic := fun h => hb (hf_lab ▸ Sequent.basic_rightOnly h)
+    have hgb : ¬ g.label.basic := fun h => hb (hg_lab ▸ Sequent.basic_rightOnly h)
     obtain ⟨lraf, hlraf, hfR⟩ :=
-      (Uniformity.lra_or_basic_of_usesRightRule f hf_right).resolve_right hfb
+      (f.lra_or_basic_of_usesRightRule hf_right).resolve_right hfb
     obtain ⟨lrag, hlrag, hgR⟩ :=
-      (Uniformity.lra_or_basic_of_usesRightRule g hg_right).resolve_right hgb
+      (g.lra_or_basic_of_usesRightRule hg_right).resolve_right hgb
     -- Both nodes are loaded on the right, being nodes of the cluster.
     have hfRight : f.label.2.2.isRight :=
-      Uniformity.isRight_of_memFine C ((C.mem_fineCL f).mp hf_CL)
+      C.memFine_label_isRight ((C.mem_fineCL f).mp hf_CL)
     have hgRight : g.label.2.2.isRight :=
-      Uniformity.isRight_of_memFine C ((C.mem_fineCL g).mp hg_CL)
+      C.memFine_label_isRight ((C.mem_fineCL g).mp hg_CL)
     -- By U1 their left components are basic, because a right rule is applied at them.
     have hfleft : f.label.leftFree.basic := by
       by_contra hcon
@@ -1826,7 +1550,7 @@ theorem LoadedCluster.uniformOfUniTab {tab : Tableau .nil X}
       rw [← hfX, ← hgX, hf_lab, hg_lab]
     -- The right components of the children agree *as finite sets*:
     have hCeq : lraf.C.image Sequent.rightOnly = lrag.C.image Sequent.rightOnly :=
-      Uniformity.map_rightOnly_C_eq hsame hXeq
+      hsame.map_rightOnly_C_eq hXeq
     -- Hence so do the right components of the children of the two nodes, because the
     -- labels of the children are exactly the elements of `lraf.C` resp. `lrag.C`.
     calc f.children.image (fun h => h.label.rightOnly)

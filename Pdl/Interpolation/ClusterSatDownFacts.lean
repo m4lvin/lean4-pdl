@@ -91,7 +91,8 @@ lemma rightOnlyApp_C {lra : LocalRuleApp} (h : lra.isRightRule) :
   have hr : lra.rightOnlyApp.isRightRule := by simpa [rightOnlyApp] using h
   have hX := rightOnlyApp_X h
   have h1 : lra.rightOnlyApp.C.image Sequent.rightOnly = lra.C.image Sequent.rightOnly :=
-    Uniformity.map_rightOnly_C_eq (lra.toContext_sameRuleAs _) (by rw [hX]; rfl)
+    LocalRuleApp.SameRuleAs.map_rightOnly_C_eq (lra.toContext_sameRuleAs _)
+      (by rw [hX]; rfl)
   rw [← h1]
   have hL : lra.rightOnlyApp.L = ∅ := congrArg (fun Y => Y.1) hX
   refine ((Finset.image_congr ?_).trans (Finset.image_id)).symm
@@ -293,7 +294,7 @@ lemma isRightLoaded_of_mem_lambdaTwo (C : LoadedCluster tab) {Δ : Sequent}
     (hΔ : Δ ∈ C.lambdaTwo) : Δ.isRightLoaded := by
   simp only [lambdaTwo, Finset.mem_image, List.mem_toFinset] at hΔ
   obtain ⟨f, hf, rfl⟩ := hΔ
-  have h := Uniformity.isRight_of_memFine C ((C.mem_fineCL f).mp hf)
+  have h := C.memFine_label_isRight ((C.mem_fineCL f).mp hf)
   rcases hh : f.label.2.2 with _ | (o | o) <;> rw [hh] at h <;> simp at h
   exact ⟨o, by simp [Sequent.O, Sequent.rightOnly, hh]⟩
 
@@ -313,9 +314,9 @@ lemma exists_lra_stepOf (C : LoadedCluster tab) {Δ : Sequent}
     have hf := List.mem_of_mem_head? hh
     simp only [nodesWithFineRight, nodesWithFine, List.mem_filter, decide_eq_true_eq] at hf
     obtain ⟨⟨hf_CL, hf_lab⟩, hf_right⟩ := hf
-    have hfb : ¬ f.label.basic := fun h => hb (hf_lab ▸ Uniformity.basic_rightOnly h)
+    have hfb : ¬ f.label.basic := fun h => hb (hf_lab ▸ Sequent.basic_rightOnly h)
     obtain ⟨lra, hlra, hright⟩ :=
-      (Uniformity.lra_or_basic_of_usesRightRule f hf_right).resolve_right hfb
+      (f.lra_or_basic_of_usesRightRule hf_right).resolve_right hfb
     obtain ⟨hX, hC⟩ := f.lra?_spec hlra
     refine ⟨lra, hright, by rw [← hX, hf_lab], ?_⟩
     rw [← hC, Finset.image_image]
@@ -353,7 +354,7 @@ lemma basicStep_of (C : LoadedCluster tab) :
   | none => exact absurd (List.head?_eq_none_iff.mp hh) (C.exists_right_of_proper Δ hΔ)
   | some f =>
     have hf := List.mem_of_mem_head? hh
-    obtain ⟨A, ξ, hAξ, g, hg, hglab⟩ := Uniformity.basicModalStep C hb hf
+    obtain ⟨A, ξ, hAξ, g, hg, -, -, hglab⟩ := C.basicModalStepAt hb hf
     have hf' := hf
     simp only [nodesWithFineRight, nodesWithFine, List.mem_filter, decide_eq_true_eq] at hf'
     obtain ⟨⟨hf_CL, hf_lab⟩, hf_right⟩ := hf'
@@ -361,18 +362,18 @@ lemma basicStep_of (C : LoadedCluster tab) :
       (f.not_isLrep_base_of_usesRightRule hf_right)
     simp only [hg, Finset.mem_singleton] at hc
     subst hc
-    have hgR : c.label.2.2.isRight := Uniformity.isRight_of_memFine C hcmf
+    have hgR : c.label.2.2.isRight := C.memFine_label_isRight hcmf
     -- The child stays in the cluster, so it is loaded, i.e. `ξ` is a loaded formula.
     obtain ⟨χ, rfl⟩ : ∃ χ, ξ = AnyFormula.loaded χ := by
       rcases ξ with φ | χ
       · exfalso
         have hnone : c.label.2.2 = none := by
           have := congrArg (fun Z => Z.2.2) hglab
-          simpa [Sequent.rightOnly, Uniformity.modRChildRight] using this
+          simpa [Sequent.rightOnly, modRChildRightOnly] using this
         rw [hnone] at hgR
         simp at hgR
       · exact ⟨χ, rfl⟩
-    refine ⟨A, Uniformity.modRChildRight A (AnyFormula.loaded χ) Δ.2.1, ?_, ?_, ?_, ?_, ?_⟩
+    refine ⟨A, modRChildRightOnly A (AnyFormula.loaded χ) Δ.2.1, ?_, ?_, ?_, ?_, ?_⟩
     · unfold stepOf
       rw [hh]
       simp [hg, hglab]
@@ -385,14 +386,14 @@ lemma basicStep_of (C : LoadedCluster tab) :
       rw [hD] at hAξ
       simp only at hAξ
       subst hAξ
-      simp [Sequent.loadedProgs, Sequent.loadedSplit, Uniformity.modRChildRight]
+      simp [Sequent.loadedProgs, Sequent.loadedSplit, modRChildRightOnly]
     · rcases hD : Δ with ⟨L, R, O⟩
       rw [hD] at hAξ
       simp only at hAξ
       subst hAξ
-      simp [Sequent.loadedFma, Sequent.loadedSplit, Uniformity.modRChildRight]
+      simp [Sequent.loadedFma, Sequent.loadedSplit, modRChildRightOnly]
     · intro W M w v hw hrel hload φ hφ
-      simp only [Uniformity.modRChildRight, Sequent.right_eq, Olf.R_inr, Finset.mem_union,
+      simp only [modRChildRightOnly, Sequent.right_eq, Olf.R_inr, Finset.mem_union,
         Finset.mem_singleton] at hφ
       rcases hφ with hφ | hφ
       · have hbox : (⌈·A⌉φ) ∈ Δ.2.1 := Finset.mem_projection.mp hφ
@@ -401,7 +402,7 @@ lemma basicStep_of (C : LoadedCluster tab) :
       · subst hφ
         rw [LoadFormula.unload_eq_boxes_split]
         simpa [Sequent.loadedProgs, Sequent.loadedFma, Sequent.loadedSplit,
-          Uniformity.modRChildRight] using hload
+          modRChildRightOnly] using hload
 
 /-- The local step at a non-basic `Δ ∈ Λ₂[C]`. -/
 lemma nonBasicStep_of (C : LoadedCluster tab) :
