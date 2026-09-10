@@ -224,27 +224,6 @@ lemma endNodesOf_flip {X} {lt : LocalTableau X} {Y} :
   case sim Z Zbas =>
     simp_all [LocalTableau.flip]
 
-lemma exists_flip_of_endNodesOf {X : Sequent} {ltf : LocalTableau X.flip} {Zf} :
-     Zf ∈ endNodesOf ltf → ∃ Z, Zf = Z.flip ∧ Z ∈ endNodesOf ltf.flip := by
-  intro Z_in
-  cases ltf
-  case byLocalRule lra next X_def =>
-    simp only [endNodesOf, Finset.sup_image, Function.id_comp, Finset.mem_sup, Finset.mem_attach,
-      true_and, Subtype.exists, LocalTableau.flip] at *
-    rcases Z_in with ⟨Yf, Yf_in_B, Zf_via_Yf⟩
-    refine ⟨Zf.flip, ?_, ⟨Yf.flip, ?_, ?_⟩⟩
-    · simp
-    · grind [LocalRuleApp.flip]
-    · rw! (castMode := .all) [@Sequent.flip_flip Yf]
-      simp only
-      apply endNodesOf_flip
-      rw [LocalTableau.flip_flip]
-      grind
-  case sim Xbas =>
-    simp_all only [endNodesOf, Finset.mem_singleton, LocalTableau.flip]
-    subst_eqs
-    simp
-
 def PdlRule.flip {X Y} (r : PdlRule X Y) : PdlRule X.flip Y.flip := by
   cases r
   case loadL L δs α φ R in_L notBox Y_def =>

@@ -678,34 +678,6 @@ def PathIn.prefix {tab : Tableau Hist X} : (t : PathIn tab) → (k : Fin (t.leng
 | .pdl tail, k => Fin.cases (.nil) (fun j => .pdl (tail.prefix j)) k
 | .loc Y_in tail, k => Fin.cases (.nil) (fun j => .loc Y_in (tail.prefix j)) k
 
-set_option backward.isDefEq.respectTransparency.types false in
-/-- The list of a prefix of a path is the same as the prefix of the list of the path. -/
-theorem PathIn.prefix_toList_eq_toList_take {tab : Tableau Hist X}
-    (t : PathIn tab) (k : Fin (t.length + 1))
-    : (t.prefix k).toList = (t.toList).take (k + 1) := by
-  induction tab
-  case loc rest Y lt next IH =>
-    cases t
-    case nil =>
-      simp [PathIn.toList, PathIn.prefix]
-    case loc Z Z_in tail =>
-      simp [PathIn.toList, PathIn.prefix]
-      induction k using Fin.inductionOn
-      case zero => rfl
-      case succ => simp_all [PathIn.toList]
-  case pdl =>
-    cases t
-    case nil =>
-      simp_all [PathIn.toList, PathIn.prefix]
-    case pdl rest Y Z r tab IH tail =>
-      simp [PathIn.toList, PathIn.prefix]
-      induction k using Fin.inductionOn
-      case zero => rfl
-      case succ => simp_all [PathIn.toList]
-  case lrep =>
-    cases t
-    simp_all [PathIn.toList, PathIn.prefix]
-
 /-! ## Path Rewinding -/
 
 /-- Rewinding a path, removing the last `k` steps. Cannot go into Hist.

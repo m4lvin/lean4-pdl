@@ -690,30 +690,6 @@ lemma uniLeftChoice_leftOnly_isSome {X : Sequent} (h : ¬ X.leftFree.basic) :
   rw [(LocalRuleApp.isLeftRule_shape hl).1]
   exact Finset.empty_subset _
 
-lemma uniLeftChoice_leftOnly_eq_none {X : Sequent} (hb : X.leftFree.basic)
-    (hO : ¬ X.2.2.isLeft) : uniLeftChoice X.leftOnly = none := by
-  rcases hc : uniLeftChoice X.leftOnly with _ | lra
-  · rfl
-  exfalso
-  obtain ⟨hX, hl⟩ := uniLeftChoice_spec hc
-  obtain ⟨hRcond, hOcond⟩ := LocalRuleApp.isLeftRule_shape hl
-  obtain ⟨preL, preR, preO⟩ := lra.preconditionProof
-  have hLL : lra.L = X.1 := congrArg (fun Y => Y.1) hX
-  have hOO : lra.O = X.2.2 := congrArg (fun Y => Y.2.2) hX
-  have hOc : lra.Ocond = none := by
-    rcases hOcond with h' | h'
-    · exact h'
-    · exfalso
-      rw [hOO] at preO
-      rcases hOcond' : lra.Ocond with _|(a|b) <;> rcases hX22 : X.2.2 with _|(c|d) <;>
-        simp_all [Olf.isLeft]
-  have : ∃ lra' : LocalRuleApp, lra'.X = X.leftFree := by
-    refine ⟨lra.toContext X.leftFree, ?_⟩
-    refine lra.toContext_X X.leftFree ⟨hLL ▸ preL, ?_, by simp [hOc, Sequent.leftFree]⟩
-    rw [hRcond]
-    exact Finset.empty_subset _
-  exact (basic_iff_noLocalRuleApp.mp hb) this
-
 lemma uniRightChoice_rightOnly_isSome {X : Sequent} {lra : LocalRuleApp} (hX : lra.X = X)
     (hr : lra.isRightRule) : (uniRightChoice X.rightOnly).isSome :=
   uniRightChoice_isSome (lra := lra.toContext X.rightOnly)
@@ -1336,56 +1312,6 @@ lemma Sequent.Refutable.of_oneSided_step {X W : Sequent} (hX : X.closed) {p : Fo
             (hsurv _ hf (by simp))
         · exact easy f hf hnf h1 h2
 
-/-- **A clash survives any local rule:** every child of a rule application to a closed
-sequent is refutable. -/
-lemma Sequent.Refutable.child_of_closed {X W : Sequent} (hX : X.closed) {lra : LocalRuleApp}
-    (hXl : lra.X = X) (hW : W ∈ lra.C) : W.Refutable := by
-  rcases lra with ⟨L, R, O, Lc, Rc, Oc, ress, lr, C, hC, pre⟩
-  simp only [LocalRuleApp.X] at hXl
-  subst hXl
-  subst hC
-  cases lr
-  case oneSidedL ress' orule YS_def =>
-    subst YS_def
-    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hW
-    obtain ⟨res, hres, rfl⟩ := hW
-    obtain ⟨p, rfl⟩ := orule.singleton_precond (by rintro rfl; simp at hres)
-    refine Sequent.Refutable.of_oneSided_step hX orule rfl hres ?_ ?_
-    · rintro f hf hne
-      simp only [Sequent.mem_def, Sequent.L, Sequent.R, Finset.mem_union,
-        Finset.mem_sdiff, Finset.mem_singleton, Finset.sdiff_empty, Finset.union_empty] at hf ⊢
-      tauto
-    · intro φ hφ
-      simp only [Sequent.mem_def, Sequent.L, Sequent.R, Finset.mem_union,
-        Finset.mem_sdiff, Finset.sdiff_empty, Finset.union_empty]
-      tauto
-  case oneSidedR ress' orule YS_def =>
-    subst YS_def
-    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hW
-    obtain ⟨res, hres, rfl⟩ := hW
-    obtain ⟨p, rfl⟩ := orule.singleton_precond (by rintro rfl; simp at hres)
-    refine Sequent.Refutable.of_oneSided_step hX orule rfl hres ?_ ?_
-    · rintro f hf hne
-      simp only [Sequent.mem_def, Sequent.L, Sequent.R, Finset.mem_union,
-        Finset.mem_sdiff, Finset.mem_singleton, Finset.sdiff_empty, Finset.union_empty] at hf ⊢
-      tauto
-    · intro φ hφ
-      simp only [Sequent.mem_def, Sequent.L, Sequent.R, Finset.mem_union,
-        Finset.mem_sdiff, Finset.sdiff_empty, Finset.union_empty]
-      tauto
-  case LRnegL => simp at hW
-  case LRnegR => simp at hW
-  case loadedL ress' χ lrule YS_def =>
-    subst YS_def
-    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hW
-    obtain ⟨⟨Ln, on⟩, hres, rfl⟩ := hW
-    exact Sequent.Refutable.of_closed (by simpa only [Finset.sdiff_empty] using hX.append)
-  case loadedR ress' χ lrule YS_def =>
-    subst YS_def
-    simp only [applyLocalRule, Finset.image_image, Finset.mem_image, Function.comp_apply] at hW
-    obtain ⟨⟨Ln, on⟩, hres, rfl⟩ := hW
-    exact Sequent.Refutable.of_closed (by simpa only [Finset.sdiff_empty] using hX.append)
-
 /-! ### Closure rules
 
 A local rule has no results if and only if it is one of the closure rules. For the direction
@@ -1426,70 +1352,6 @@ theorem Dset_ne_nil : ∀ (a : Program), Dset a ≠ []
         simp at hh
       · simp [hd] at hthis
   | ∗_ => by simp [Dset]
-
-/-- A local tableau for a basic sequent has that sequent as its only end node. -/
-lemma endNodesOf_of_basic {X : Sequent} (bas : X.basic) (lt : LocalTableau X) :
-    endNodesOf lt = {X} := by
-  cases lt with
-  | byLocalRule lra X_def next => exact absurd (X_def ▸ bas) (nonbasic_of_localRuleApp lra)
-  | sim => simp only [endNodesOf]
-
-/- DISABLED, use UniTheorem instead!
-
-/-! ### Uniform tableaux
-
-**Warning.** The old proof of `Tableau.exists_isUni` for `List`-based sequents did not survive the
-move to `Finset`-based sequents. With `Finset` components a formula that is re-created by a rule is
-no longer counted twice, so the end nodes of a local tableau really do depend on the order in which
-the rules are applied. Concretely, let `a`, `b`, `c` be atomic and consider the sequent with left
-component `L = {~(a⋀b), (~(a⋀b))⋀c}` (empty right component, no loaded formula).
-
-* Applying `con` to `(~(a⋀b))⋀c` first gives the single child `{~(a⋀b), c}`, and applying
-  `nCo` there gives the two end nodes `{~a, c}` and `{~b, c}`.
-* Applying `nCo` to `~(a⋀b)` first gives the children `{(~(a⋀b))⋀c, ~a}` and
-  `{(~(a⋀b))⋀c, ~b}`; unfolding the conjunction re-creates `~(a⋀b)`, which then has to be
-  unfolded again, so `{~a, ~b, c}` is an end node of every local tableau below the first
-  child.
-
-So `{~a, ~b, c}` is an end node in the second order but not in the first one. (For `List`
-components this cannot happen: in the first order the child is `[~(a⋀b), ~(a⋀b), c]`, with
-two copies of the formula, and unfolding both of them also produces `[~a, ~b, c]`.)
-
-The statement `Tableau.exists_isUni` itself
-is still plausible — the extra formulas of an end node of the canonical local tableau make
-it *easier* to refute — but proving it now needs a weakening argument for tableaux instead
-of the commutation argument, which is left open here. -/
-
-/-- For every tableau there is one that applies the rules in the canonical order, i.e. that
-satisfies `Tableau.IsUni`.
-
-TODO: this needs a new proof for `Finset`-based sequents, see the note above. -/
-theorem Tableau.exists_isUni {H : History} {X : Sequent} (tab : Tableau H X) :
-    ∃ t : Tableau H X, t.IsUni := by
-  induction tab with
-  | @loc H X nflprep nbas lt next IH =>
-      have hall : ∀ Y ∈ endNodesOf (uniLocalTab X), ∃ t : Tableau (X :: H) Y, t.IsUni := by
-        intro Y hY
-        -- TRICKY: `lt` and `uniLocalTab` might not have the *same* endNodesOf. But similar-ish?!
-        -- Hm, the disjunctions over all endNodes should be equivalent or at least equi-satisfiable?
-        -- But note that we can only apply the IH to `lt`.
-        have Y_in_end_lt : Y ∈ endNodesOf lt := TODO ;-)
-        apply IH Y Y_in_end_lt
-      choose next uni_next using hall
-      exact ⟨.loc nflprep nbas (uniLocalTab X) next, ⟨uniLocalTab_isUni X, uni_next⟩⟩
-  | @pdl H X Y nflprep bas r next IH =>
-      obtain ⟨t, ht⟩ := IH
-      exact ⟨.pdl nflprep bas r t, ht⟩
-  | @lrep H X lpr =>
-      exact ⟨.lrep lpr, trivial⟩
-
-/-- If there is any tableau, then there is a uniform one. -/
-lemma Tableau.toUniform (tab : Tableau .nil X) :
-    ∃ u_tab : Tableau .nil X, u_tab.isUniform :=
-  let ⟨t, ht⟩ := tab.exists_isUni
-  ⟨t, ht.isUniform⟩
-
--/
 
 /-- In a uniform tableau any loaded cluster has the property `HasUniformSteps` needed for
 the construction of the quasi-tableau: any two nodes of the cluster with the same right
