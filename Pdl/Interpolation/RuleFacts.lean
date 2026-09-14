@@ -273,19 +273,26 @@ lemma cEdge_right_fvoc_subset {s t : PathIn tab} (h : s ◃ t) :
   · exact edge_right_fvoc_subset h
   · exact le_of_eq (Sequent.right_fvoc_eq_of_eq (nodeAt_companionOf_setEq s lpr hs))
 
-/-- Lemma 9.2, left component: along `◃` the vocabulary only shrinks. -/
+/-- Lemma 8.10, left component: along `◃` the vocabulary only shrinks. -/
 lemma cReach_left_fvoc_subset {s t : PathIn tab} (h : s ◃* t) :
     (nodeAt t).left.fvoc ⊆ (nodeAt s).left.fvoc := by
   induction h with
   | refl => exact subset_rfl
   | tail _ hst IH => exact subset_trans (cEdge_left_fvoc_subset hst) IH
 
-/-- Lemma 9.2, right component: along `◃` the vocabulary only shrinks. -/
+/-- Lemma 8.10, right component: along `◃` the vocabulary only shrinks. -/
 lemma cReach_right_fvoc_subset {s t : PathIn tab} (h : s ◃* t) :
     (nodeAt t).right.fvoc ⊆ (nodeAt s).right.fvoc := by
   induction h with
   | refl => exact subset_rfl
   | tail _ hst IH => exact subset_trans (cEdge_right_fvoc_subset hst) IH
+
+/-- Lemma 8.10 combination of both components. Not used directly. -/
+lemma cReach_fvoc_subset {s t : PathIn tab} (h : s ◃* t) :
+    (nodeAt t).left.fvoc ⊆ (nodeAt s).left.fvoc ∧
+    (nodeAt t).right.fvoc ⊆ (nodeAt s).right.fvoc :=
+  ⟨ cReach_left_fvoc_subset h
+  , cReach_right_fvoc_subset h ⟩
 
 /-- The label of a fine node has a smaller vocabulary than the coarse node it lies in. -/
 lemma FinePathIn.label_left_fvoc_subset_base : ∀ {H : History} {Z : Sequent}

@@ -37,12 +37,6 @@ only the second one uses uniformity:
   adding the results, the right components of the children agree — this is
   `LocalRuleApp.SameRuleAs.map_rightOnly_C_eq`.
 
-## Duplicated helper lemmas
-
-The file `Pdl.ClusterInterpolation` imports this file (it uses `Tableau.isUniform` and
-`LoadedCluster.uniformOfUniTab`), so we cannot use the lemmas about right rules that are
-proved there. The section `Uniformity` below therefore repeats those that are needed here,
-under different names.
 -/
 
 /-! ## The components of a sequent -/
@@ -72,7 +66,7 @@ def LocalRuleApp.SameRuleAs (lra₁ lra₂ : LocalRuleApp) : Prop :=
 /-! ## Uniformity -/
 
 /-- Condition U1: at a node with a loaded component, a rule is applied to the *unloaded*
-component unless the latter is basic. Since every rule is a left rule or a right rule but
+component unless this component is basic. Since every rule is a left rule or a right rule but
 not both (`FinePathIn.not_left_and_right`), we state this as: a rule on the unloaded side
 is applied.
 

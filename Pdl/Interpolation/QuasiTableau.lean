@@ -253,7 +253,7 @@ noncomputable def LoadedCluster.region (C : LoadedCluster tab) :
 noncomputable def LoadedCluster.regionOf (C : LoadedCluster tab) (q : QuasiTab) :
     Finset (FinePathIn tab) := C.region q.typ q.label
 
-/-! ### Addresses: the nodes of a quasi-tableau (Def 9.11)
+/-! ### Addresses: the nodes of a quasi-tableau
 
 `QuasiTab` is an inductive tree, so its nodes are not determined by their type and label:
 several nodes of `Q` may carry the same type and the same label. To speak about the *nodes*
@@ -315,25 +315,25 @@ def qlt (x y : List Nat) : Prop := x <+: y ∧ x ≠ y
 /-- `x ⋖Q y`, i.e. `y` is a child of `x`. -/
 def qedge (q : QuasiTab) (x y : List Nat) : Prop := y ∈ q.childrenAt x
 
-/-- Def 9.11: the companion `c(x)` of a repeat leaf `x`, that is, the node `z <_Q x` of
+/-- The companion `c(x)` of a repeat leaf `x`, that is, the node `z <_Q x` of
 type 1 with the same label as `x`. Because repeats are identified at the first opportunity
 there is at most one such node in a quasi-tableau; here we simply take the one closest to
 the root. -/
 def companion? (q : QuasiTab) (x : List Nat) : Option (List Nat) :=
   x.inits.dropLast.find? (fun z => decide (q.labelAt z = q.labelAt x ∧ q.typAt z = some .one))
 
-/-- Def 9.8: `x` is a *repeat* leaf of `q`, i.e. a leaf of type 1 that has a companion. -/
+/-- `x` is a *repeat* leaf of `q`, i.e. a leaf of type 1 that has a companion. -/
 def isRepeatLeaf (q : QuasiTab) (x : List Nat) : Bool :=
   q.isLeafAt x && decide (q.typAt x = some .one) && (q.companion? x).isSome
 
 /-- All repeat leaves of `q`. -/
 def repeatLeaves (q : QuasiTab) : List (List Nat) := q.leaves.filter q.isRepeatLeaf
 
-/-- Def 9.11: `K_Q`, the set of companions. -/
+/-- `K_Q`, the set of companions. -/
 def companions (q : QuasiTab) : List (List Nat) :=
   (q.repeatLeaves.filterMap q.companion?).dedup
 
-/-- Def 9.11: `cycs(x)`, the set of repeat leaves `z` with `c(z) <_Q x ≤_Q z`, i.e. the
+/-- `cycs(x)`, the set of repeat leaves `z` with `c(z) <_Q x ≤_Q z`, i.e. the
 repeat leaves below `x` whose companion is a proper ancestor of `x`. -/
 def cycs (q : QuasiTab) (x : List Nat) : List (List Nat) :=
   q.repeatLeaves.filter (fun z =>
@@ -478,6 +478,8 @@ lemma cycs_root (q : QuasiTab) : q.cycs rootAddress = [] := by
   cases q.companion? z with
   | none => simp
   | some c => cases c <;> simp [List.isPrefixOf]
+
+-- TODO: align comment and code below with new version in paper
 
 /-- Lemma 9.12 (c) does *not* hold as stated in the paper: from `x <_Q y` we cannot
 conclude `cycs(x) ⊆ cycs(y)`, because a repeat leaf `z ∈ cycs(x)` may lie below a
