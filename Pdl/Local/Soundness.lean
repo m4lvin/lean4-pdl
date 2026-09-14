@@ -1,4 +1,4 @@
-import Pdl.Distance
+import Pdl.Local.Distance
 import Pdl.Local.Tableau
 
 /-! # Local Lemmas for Soundness (part of Section 6) -/

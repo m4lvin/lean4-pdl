@@ -1,9 +1,8 @@
 import Mathlib.Data.Finset.Powerset
 import Mathlib.Data.Finset.Functor
-import Pdl.Interpolation.Uniformity
 
 import Pdl.General.Game
-import Pdl.Local.AllLocalTab
+import Pdl.Interpolation.Uniformity
 import Pdl.Completeness.Modelgraphs
 import Pdl.StayingInFL
 

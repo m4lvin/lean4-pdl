@@ -1,4 +1,3 @@
-import Pdl.Soundness
 import Pdl.Completeness.BuildTreeExistence
 
 /-! # Completeness Proof (Section 6.4) -/

@@ -1,5 +1,5 @@
+import Pdl.Interpolation.ClusterFacts
 import Pdl.Local.AllLocalTab
-import Pdl.Interpolation.EvalQ
 
 /-! # Uniformity of split tableaux (Section 8.1)
 

@@ -7,7 +7,6 @@ import Pdl.Completeness.Modelgraphs
 import Pdl.Completeness.TableauGame
 import Pdl.Completeness.Theorem
 import Pdl.Discon
-import Pdl.Distance
 import Pdl.Examples
 import Pdl.FischerLadner
 import Pdl.Flip
@@ -16,6 +15,7 @@ import Pdl.General.FinReach
 import Pdl.General.Game
 import Pdl.General.ListFinset
 import Pdl.Interpolation.Cluster
+import Pdl.Interpolation.ClusterFacts
 import Pdl.Interpolation.ClusterInterpolation
 import Pdl.Interpolation.ClusterItp
 import Pdl.Interpolation.ClusterRho
@@ -28,12 +28,14 @@ import Pdl.Interpolation.Local
 import Pdl.Interpolation.PreInterpolant
 import Pdl.Interpolation.QFormula
 import Pdl.Interpolation.QuasiTableau
+import Pdl.Interpolation.RuleFacts
 import Pdl.Interpolation.SingletonCluster
 import Pdl.Interpolation.Theorem
 import Pdl.Interpolation.Uniformity
 import Pdl.KeepRight
 import Pdl.Kleene
 import Pdl.Local.AllLocalTab
+import Pdl.Local.Distance
 import Pdl.Local.Path
 import Pdl.Local.Rules
 import Pdl.Local.Soundness
