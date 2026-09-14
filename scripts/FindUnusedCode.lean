@@ -122,8 +122,35 @@ elab "#index " : command => do
       h.write (decl.toString ++ ", " ++ mod.toString ++ ", " ++
         ranges.range.pos.line.repr ++ ", " ++ ranges.range.pos.column.repr ++ "\n").toUTF8)
 
+/-- The source file of a module, relative to the root of the project. -/
+def moduleFile (mod : Name) : String :=
+  String.intercalate "/" (mod.components.map toString) ++ ".lean"
+
+/-- An unused declaration: where it is defined and how many lines it takes. -/
+structure UnusedDecl where
+  /-- Name of the declaration. -/
+  name : Name
+  /-- Source file of the declaration, relative to the root of the project. -/
+  file : String
+  /-- Line where the declaration starts, one-based. -/
+  line : Nat
+  /-- Column where the declaration starts, one-based. -/
+  column : Nat
+  /-- Number of lines taken by the declaration, including its body or proof. -/
+  length : Nat
+
+/-- Order in which unused declarations are listed: by file, then by decreasing
+number of lines, so that the biggest ones come first. -/
+def UnusedDecl.before (a b : UnusedDecl) : Bool :=
+  if a.file = b.file then
+    if a.length = b.length then a.line < b.line else a.length > b.length
+  else
+    a.file < b.file
+
 /-- `#unseen` computes a list of the declarations in the project that are
-defined but not used. The list is stored in `unseen_defs.txt`. -/
+defined but not used. The list is stored in `unseen_defs.txt`, grouped by file
+and in the same format as `rg`, i.e. a file name followed by `line:column:`
+prefixed matches, so that editors can jump to the unused code. -/
 elab "#unseen " : command => do
   let env ← getEnv
   let allDecls ← allDecls env
@@ -131,10 +158,33 @@ elab "#unseen " : command => do
   let unseen := env.constants.fold (init := allDecls) fun unseen name info =>
     info.getUsedConstantsAsSet.foldl (init := unseen) fun unseen x =>
       if x = name then unseen else unseen.erase x
+  -- Look up where the unused declarations are and how long they are.
+  let mut found : Array UnusedDecl := #[]
+  let mut lost : Array Name := #[]
+  for name in unseen.toList do
+    match (← findDeclarationRanges? name), (← findModuleOf? name) with
+    | some ranges, some mod =>
+      -- `ranges.range` covers the whole declaration, including its body or proof.
+      found := found.push
+        { name, file := moduleFile mod
+          line := ranges.range.pos.line
+          column := ranges.range.pos.column + 1
+          length := ranges.range.endPos.line + 1 - ranges.range.pos.line }
+    | _, _ => lost := lost.push name
   IO.FS.withFile "scripts/unseen_defs.txt" IO.FS.Mode.write (fun h => do
-    for v in unseen.toList.mergeSort (toString · < toString ·) do
-      h.write (v.toString ++ "\n").toUTF8)
+    let mut currentFile := ""
+    for d in found.toList.mergeSort UnusedDecl.before do
+      if d.file != currentFile then
+        if !currentFile.isEmpty then h.write "\n".toUTF8
+        h.write (d.file ++ "\n").toUTF8
+        currentFile := d.file
+      let lines := if d.length = 1 then "1 line" else s!"{d.length} lines"
+      h.write s!"{d.line}:{d.column}:{d.name} ({lines})\n".toUTF8)
+  unless lost.isEmpty do
+    logWarning m!"could not locate {lost.size} unused declarations: {lost.toList}"
   let timeEnd ← IO.monoMsNow
-  logInfo m!"operation took {(timeEnd - timeStart) / 1000}s"
+  logInfo m!"found {found.size} unused declarations taking \
+    {found.foldl (fun n d => n + d.length) 0} lines, operation took \
+    {(timeEnd - timeStart) / 1000}s"
 
 -- #unseen
