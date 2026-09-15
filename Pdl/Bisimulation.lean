@@ -3,24 +3,34 @@ import Pdl.Vocab
 
 /-! # Bisimulation -/
 
-/-! ## Internal Bisimulation — TODO generalize to non-internal -/
-
 section Bisim
 
-variable {W : Type} (M : KripkeModel W) (Z : W → W → Prop) (vo : Vocab)
+/-- A bisimulation between `M` and `M2`, for the given vocabulary. -/
+structure IsBisim {W W2 : Type} (M : KripkeModel W) (M2 : KripkeModel W2)
+  (Z : W → W2 → Prop) (vo : Vocab) : Prop where
+  atoms : ∀ x y, Z x y → ∀ n ∈ vo.atomProps, (M.val x n ↔ M2.val y n)
+  zig : ∀ x y, Z x y → ∀ c ∈ vo.atomProgs, ∀ x', M.Rel c x x' → ∃ y', M2.Rel c y y' ∧ Z x' y'
+  zag : ∀ x y, Z x y → ∀ c ∈ vo.atomProgs, ∀ y', M2.Rel c y y' → ∃ x', M.Rel c x x' ∧ Z x' y'
 
-/-- A bisimulation on `M`, for the given vocabulary. -/
-structure IsBisim : Prop where
-  symm : ∀ x y, Z x y → Z y x
-  atoms : ∀ x y, Z x y → ∀ n ∈ vo.atomProps, (M.val x n ↔ M.val y n)
-  zig : ∀ x y, Z x y → ∀ c ∈ vo.atomProgs, ∀ x', M.Rel c x x' → ∃ y', M.Rel c y y' ∧ Z x' y'
-
-variable {M Z letters}
+theorem IsBisim.symm (hZ : IsBisim M M2 Z vo) : IsBisim M2 M (flip Z) vo := by
+  constructor
+  case atoms =>
+    intro x y hxy p p_in
+    rw [hZ.atoms y x hxy p p_in]
+  case zig =>
+    intro x y hxy a a_in x' xx'
+    rcases hZ.zag y x hxy a a_in x' xx' with ⟨y', yy', Zy'x'⟩
+    grind [flip]
+  case zag =>
+    intro x y hxy a a_in y' yy'
+    rcases hZ.zig y x hxy a a_in y' yy' with ⟨x', xx', Zx'y'⟩
+    grind [flip]
 
 mutual
 
-theorem IsBisim.relate (hZ : IsBisim M Z vo) :
-    ∀ α, α.voc ⊆ vo → ∀ x y x', Z x y → relate M α x x' → ∃ y', relate M α y y' ∧ Z x' y'
+/-- Extend `IsBisim.zig` from atomic programs to all programs. -/
+theorem IsBisim.relate (hZ : IsBisim M M2 Z vo) :
+    ∀ α, α.voc ⊆ vo → ∀ x y x', Z x y → relate M α x x' → ∃ y', relate M2 α y y' ∧ Z x' y'
   | ·c, hv, x, y, x', hxy, h => hZ.zig x y hxy c (by simp_all [Vocab.atomProgs]) x' h
   | α ;' β, hv, x, y, x', hxy, h => by
       obtain ⟨z, h1, h2⟩ := h
@@ -49,8 +59,9 @@ theorem IsBisim.relate (hZ : IsBisim M Z vo) :
       subst same_x
       exact ⟨x_τ, hxy⟩
 
-theorem IsBisim.evaluate (hZ : IsBisim M Z vo) :
-    ∀ φ, φ.voc ⊆ vo → ∀ x y, Z x y → (evaluate M x φ ↔ evaluate M y φ)
+/-- Bisimilar states agree on all formulas in the given vocabulary. -/
+theorem IsBisim.evaluate (hZ : IsBisim M M2 Z vo) :
+    ∀ φ, φ.voc ⊆ vo → ∀ x y, Z x y → (evaluate M x φ ↔ evaluate M2 y φ)
   | ⊥, _, _, _, _ => Iff.rfl
   | ·n, hv, x, y, hxy => hZ.atoms x y hxy n (by simp_all [Vocab.atomProps])
   | ~φ, hv, x, y, hxy => by
@@ -65,9 +76,10 @@ theorem IsBisim.evaluate (hZ : IsBisim M Z vo) :
       simp only [_root_.evaluate]
       constructor
       · intro h y' hyy'
+        -- In order to apply IsBisim.relate to hZ.symm we avoid `variable {W W2} M M2` etc. above.
         obtain ⟨x', hxx', hx'y'⟩ :=
-          hZ.relate α (by simp_all; grind) y x y' (hZ.symm x y hxy) hyy'
-        exact (hZ.evaluate φ hvφ x' y' (hZ.symm _ _ hx'y')).mp (h x' hxx')
+          hZ.symm.relate α (by simp_all; grind) y x y' hxy hyy'
+        exact (hZ.evaluate φ hvφ x' y' hx'y').mp (h x' hxx')
       · intro h x' hxx'
         obtain ⟨y', hyy', hx'y'⟩ :=
           hZ.relate α (by simp_all; grind) x y x' (by simp_all) hxx'
