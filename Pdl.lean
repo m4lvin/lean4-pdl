@@ -1,5 +1,6 @@
 import Pdl.AllPdlRule
 import Pdl.Beth
+import Pdl.Bisimulation
 import Pdl.Completeness.BuildTree
 import Pdl.Completeness.BuildTreeExistence
 import Pdl.Completeness.BuildTreeModel
