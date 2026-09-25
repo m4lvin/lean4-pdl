@@ -4,9 +4,9 @@ import Pdl.Local.UnfoldDia
 
 /-! # Distance between states in a Kripke model
 
-In the article these are used for the correctness of cluster interpolants in Section 7.
+In the article these are used for the correctness of cluster interpolants in Section 10.
 Here we also use them to state and prove `localLoadedDiamondList`, a local version
-of the `loadedDiamondPaths` lemma that is part of the Soundness proof in Section 6.
+of the `loadedDiamondPaths` lemma that is part of the Soundness proof in Section 5.
 -/
 
 /-! ## Walks -/
@@ -496,7 +496,7 @@ theorem existsD_of_true_diamond α γ (ψ : Formula) (v_ : evaluate M v (~⌈⌈
       have e := fun w : {w // evaluate M w (~ψ)} => distList_le_of_Hsat M v w _ γ in_D v_X -- (e)
       exact iInf_mono e
 
-/-- Summary definition of Lemma 7.47 -/
+/-- Summary definition of Lemma 10.5 -/
 theorem distanceProps W M α {w v : W} δ :
       (distance M α w v ≠ ⊤ ↔ relate M α w v) -- a
     ∧ (distance_list M v w δ = distance M (Program.steps δ) v w) -- b

@@ -339,7 +339,7 @@ lemma iitp_three_basic_leaf {Δ} (h : C.Q.at? x = some (.QNode .three Δ []))
 
 /-- Def 9.20: the interpolant `θ_r` of the root `r` of the cluster `C`.
 
-If the left component `Γ₁` of the root is empty then `θ_r := ⊤` (see Remark 9.19),
+If the left component `Γ₁` of the root is empty then `θ_r := ⊤` (see Remark 9.5),
 and otherwise `θ_r` is the pre-interpolant `ι_{r_Q}` of the root of the quasi-tableau.
 The latter is a `QFormula`, i.e. it may still contain internal variables; by Lemma 10.1
 (`iitp_vars`) it does not, so it does not matter which substitution we use to read it as a

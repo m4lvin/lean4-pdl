@@ -1196,7 +1196,7 @@ lemma exists_isUni_of_pdl {Hist X Y} (nrep : ¬ flprep Hist X) (bas : X.basic) (
 /-- After history `Hist`, if Prover has a winning strategy then there is a closed tableau,
 and moreover that tableau is uniform in the sense of `Tableau.IsUni`, because
 Prover has to play the canonical local tableau `uniLocalTab`.
-Note: we skip Definition 6.9 (Strategy Tree for Prover) and just use the `Strategy` type.
+Note: we skip Definition 6.8 (Strategy Tree for Prover) and just use the `Strategy` type.
 This is the induction loading for `gameP`. -/
 theorem gameP_general Hist (X : Sequent) (sP : Strategy tableauGame Prover) (pos : _)
     (pos_uni : GamePos.IsUni ⟨Hist, X, pos⟩)
@@ -1393,7 +1393,7 @@ lemma posOf_for_startPos (X : Sequent) : ∃ proPos, posOf [] X = Sum.inl proPos
     simp only [h, ↓reduceDIte, not_rep_empty]
     by_cases X.basic <;> simp_all
 
-/-- If Prover has a winning strategy then there is a closed tableau, and it is uniform. -/
+/-- Lemma 6.9. If Prover has a winning strategy then there is a closed tableau, and it is uniform. -/
 theorem gameP (X : Sequent) (s : Strategy tableauGame Prover) (h : winning s (startPos X)) :
     ∃ tab : Tableau [] X, tab.IsUni := gameP_general [] X s _ (posOf_isUni _ _) h
 

@@ -9,8 +9,8 @@ This file continues the development of `Pdl.ClusterRho` with
 * Lemma 10.7: if `Δ_x, ι_x` is satisfiable then so is `Δ_z, ι_z` for some `z ∈ cycs(x)`,
 * Lemma 10.8: `Γ₂ ⊨ ¬θ_r`.
 
-Definition 10.4 (the distance `d_α`) and Lemma 10.5 (its properties) are in `Pdl.Distance`,
-where they are numbered 7.47. The auxiliary notions used below — the evaluation `evalQ` of
+Definition 10.4 (the distance `d_α`) and Lemma 10.5 (its properties) are in `Pdl.Distance`.
+The auxiliary notions used below — the evaluation `evalQ` of
 Q-formulas with an assignment, the witness distance `witDist`, and `BasicBetween` — are in
 `Pdl.EvalQ`.
 
@@ -694,7 +694,7 @@ open HasSat in
 together with the interpolant of Definition 9.20 is unsatisfiable.
 
 The hypothesis `Γ₁ ≠ ∅` is the one of Definition 9.20: for `Γ₁ = ∅` we have `θ_r = ⊤` by
-Remark 9.19, and then the statement would say that `Γ₂` itself is unsatisfiable. -/
+Remark 9.5, and then the statement would say that `Γ₂` itself is unsatisfiable. -/
 theorem right_unsat_itp (C : LoadedCluster tab)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f))
     (hΓ₁ : (nodeAt C.root).left ≠ {}) :

@@ -1,7 +1,7 @@
 import Pdl.Local.Distance
 import Pdl.Local.Tableau
 
-/-! # Local Lemmas for Soundness (part of Section 6) -/
+/-! # Local Lemmas for Soundness (part of Section 5) -/
 
 /-- Formulas on the left of a sequent are in `Sequent.toFinset`. -/
 lemma Sequent.mem_toFinset_of_mem_left {L R : Finset Formula} {O : Olf} {f : Formula}

@@ -2,7 +2,7 @@ import Mathlib.Tactic.DepRewrite
 
 import Pdl.Soundness
 
-/-! # Flipping a tableau (for section 7)
+/-! # Flipping a tableau (for the proof of Lemma 9.3)
 
 Like the paper, we only prove interpolation for clusters with a loaded formulas on the right side.
 For the case where the loaded formula is on the left, we flip the tableau left-to-right.

@@ -55,7 +55,7 @@ def freePdlRuleInterpolant {X Y} (r : PdlRule X Y) (Xfree : X.isFree) (θY : Par
 /-! ## Interpolants for PdlRules applied to loaded nodes
 
 The rules treated here are (L-), i.e. `freeL` and `freeR`, and the modal rule (M), i.e.
-`modL` and `modR`. This is the part of Lemma 9.1 in the paper that is about loaded nodes
+`modL` and `modR`. This is the part of Lemma 9.2 in the paper that is about loaded nodes
 which form a singleton cluster. -/
 
 

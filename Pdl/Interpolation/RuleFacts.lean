@@ -5,7 +5,8 @@ import Pdl.Interpolation.Cluster
 This file collects the facts about the rules of a (split) tableau that the facts about a
 proper cluster in `Pdl.ClusterFacts` are proved from:
 
-* vocabulary preservation (Lemma 9.2): along the tableau the vocabulary of each of the two
+* vocabulary preservation (Lemma 8.10 `cReach_fvoc_subset`):
+  along the tableau the vocabulary of each of the two
   components only shrinks;
 * right rules do not change the left component, and left rules do not change the right
   component (provided the loaded formula is on the right);
@@ -29,7 +30,7 @@ def FinePathIn.leftEntails {Hist} {Y : Sequent} {tab : Tableau Hist Y}
 
 /-! ### Vocabulary preservation
 
-Lemma 9.2 of the paper: along the tableau the vocabulary of each of the two components
+Lemma 8.10 of the paper: along the tableau the vocabulary of each of the two components
 only shrinks.  "By inspection of the rules": for local rules this is
 `localRule_does_not_increase_vocab_L` and `localRule_does_not_increase_vocab_R`, and for
 the PDL rules we check the six cases directly. -/

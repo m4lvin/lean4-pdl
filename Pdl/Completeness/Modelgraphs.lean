@@ -3,7 +3,7 @@ import Mathlib.Data.Vector.Basic
 
 import Pdl.Local.Rules
 
-/-! # Model Graphs (Section 7.1) -/
+/-! # Model Graphs (Section 6.1) -/
 
 open Formula
 

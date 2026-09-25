@@ -11,7 +11,7 @@ inductive Typ | one | two | three -- lower case because these are not `Type`s.
   deriving DecidableEq
 open Typ
 
-/-- Simple tree data type for `Q` in Def. 7.31. -/
+/-- Simple tree data type for `Q` in Def. 9.8. -/
 inductive QuasiTab : Type | QNode : (k : Typ) → (Δ : Sequent) → (next : List QuasiTab) → QuasiTab
 open QuasiTab
 

@@ -314,7 +314,7 @@ lemma exists_right_of_proper (C : LoadedCluster tab) :
 That it is in the vocabulary of `Γ₂` is vocabulary preservation. That it is in the
 vocabulary of `Γ₁` — which the paper does not mention, but which its Lemma 10.1 needs —
 uses Lemma 9.7 (e): the modal rule is applied at some `t ∈ C^R_Δ` and its child `u` is
-again in `C`, so `Λ₁(u) = (Λ₁(t))_a` is non-empty by Lemma 9.5 (b), which forces a box
+again in `C`, so `Λ₁(u) = (Λ₁(t))_a` is non-empty by Lemma 9.4 (b), which forces a box
 `⌈a⌉ψ` in `Λ₁(t)`. -/
 lemma loadedProgVoc_of_proper (C : LoadedCluster tab) :
     (nodeAt C.root).left ≠ {} → ∀ Δ ∈ C.lambdaTwo, Δ.basic →

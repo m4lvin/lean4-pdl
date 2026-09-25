@@ -2,7 +2,7 @@ import Pdl.General.FinReach
 import Pdl.Local.Soundness
 import Pdl.TableauPath
 
-/-! # Soundness (Section 6) -/
+/-! # Soundness (Section 5) -/
 
 open HasSat
 

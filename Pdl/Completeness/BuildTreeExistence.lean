@@ -197,7 +197,7 @@ lemma PreState.loadedDiamondExistence {X} {bt : BuildTree [] X} {α : Program} {
     PreState.loadedExists α (mπ.btAt.2.2.size) π mπ hmπ (le_refl _) φ h
   exact ⟨ρ, hQ, hanf⟩
 
-/-! ## The free diamond existence lemma (Lemma 6.19)
+/-! ## Atomic free diamond existence lemma (Lemma 6.19)
 
 To load a free diamond `~⌌·a⌍chi` with the rule `(L+)` we first have to make the sequent free
 using `(L-)`, and on the way we may have to go to the companion of a free repeat. -/
