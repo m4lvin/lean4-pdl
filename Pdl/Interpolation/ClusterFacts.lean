@@ -312,10 +312,9 @@ lemma exists_right_of_proper (C : LoadedCluster tab) :
 /-- The leading atomic program of a basic label of `Λ₂[C]` is in the joint vocabulary.
 
 That it is in the vocabulary of `Γ₂` is vocabulary preservation. That it is in the
-vocabulary of `Γ₁` — which the paper does not mention, but which its Lemma 10.1 needs —
-uses Lemma 9.7 (e): the modal rule is applied at some `t ∈ C^R_Δ` and its child `u` is
-again in `C`, so `Λ₁(u) = (Λ₁(t))_a` is non-empty by Lemma 9.4 (b), which forces a box
-`⌈a⌉ψ` in `Λ₁(t)`. -/
+vocabulary of `Γ₁` uses Lemma 9.7 (d) and (e) and Remark 9.5. The modal rule is applied
+at some `t ∈ C^R_Δ` and its child `u` is again in `C`, so `Λ₁(u) = (Λ₁(t))_a` is
+non-empty by Lemma 9.4 (b), which forces a box `⌈a⌉ψ` in `Λ₁(t)`. -/
 lemma loadedProgVoc_of_proper (C : LoadedCluster tab) :
     (nodeAt C.root).left ≠ {} → ∀ Δ ∈ C.lambdaTwo, Δ.basic →
       (Δ.loadedProg).voc ⊆ jvoc (nodeAt C.root) := by

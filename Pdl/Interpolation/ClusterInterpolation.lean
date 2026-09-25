@@ -7,10 +7,12 @@ exit nodes of a cluster, we build an interpolant for the root of the cluster.
 
 The ingredients live in the files imported here:
 `Pdl.InterpolationCluster` (the cluster `C`, its quasi-tableau `Q` of Def 9.8, the region
-formulas `θ_Δ` of Def 9.13 and Lemma 9.14), `Pdl.QFormula` (Def 9.15, Def 9.16 and
-Fact 9.17), `Pdl.PreInterpolant` (the pre-interpolants of Def 9.18), `Pdl.ClusterItp`
-(Def 9.20 and Lemma 10.1), `Pdl.ClusterRho` (Def 10.2 and Lemma 10.3) and
-`Pdl.ClusterSatDown` (Lemmas 10.6, 10.7 and 10.8).
+formulas `θ_Δ` of Def 9.13 and Lemma 9.14),
+`Pdl.Interpolation.QFormula` (Def 9.15, Def 9.16 and Fact 9.17),
+`Pdl.Interpolation.PreInterpolant` (the pre-interpolants of Def 9.18),
+`Pdl.Interpolation.ClusterItp` (Def 9.20 and Lemma 10.1),
+`Pdl.Interpolation.ClusterRho` (Def 10.2 and Lemma 10.3)
+and `Pdl.Interpolation.ClusterSatDown` (Lemmas 10.6, 10.7 and 10.8).
 
 The three conditions on the interpolant `θ_r := C.itp θ` of Definition 9.20 are exactly
 

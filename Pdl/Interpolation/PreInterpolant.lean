@@ -6,7 +6,7 @@ Given the quasi-tableau `Q` of the cluster `C` (Def 9.8, `LoadedCluster.Q`) and 
 formulas `θ_Δ` of Def 9.13 (`LoadedCluster.thetaOf`), we define by a leaf-to-root
 induction a *pre-interpolant* `ι_x` for every node `x` of `Q`.
 
-As in `Pdl.InterpolationCluster` a node of the quasi-tableau is given by its *address*,
+As in `Pdl.Interpolation.QuasiTableau` a node of the quasi-tableau is given by its *address*,
 the list of child indices leading to it from the root. Hence the internal variables `q_x`
 for `x ∈ K_Q` are indexed by `List Nat`, and pre-interpolants are elements of
 `QFormula (List Nat)`, the Q-formulas of Def 9.15.
@@ -100,7 +100,7 @@ noncomputable def iitp (C : LoadedCluster tab) (θ : FinePathIn tab → Formula)
   | none => .fma ⊤
   | some n => QuasiTab.iitpAt C.Q (C.thetaOf θ) n x
 
-/-- The pre-interpolant of the root of the quasi-tableau. This is the formula `ι_{c_Q}`
+/-- The pre-interpolant of the root of the quasi-tableau. This is the formula `ι_{r_Q}`
 that Def 9.20 turns into the interpolant of the root of the cluster. -/
 noncomputable def rootIitp (C : LoadedCluster tab) (θ : FinePathIn tab → Formula) :
     QFormula (List Nat) :=

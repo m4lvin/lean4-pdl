@@ -9,10 +9,10 @@ This file continues the development of `Pdl.ClusterRho` with
 * Lemma 10.7: if `Δ_x, ι_x` is satisfiable then so is `Δ_z, ι_z` for some `z ∈ cycs(x)`,
 * Lemma 10.8: `Γ₂ ⊨ ¬θ_r`.
 
-Definition 10.4 (the distance `d_α`) and Lemma 10.5 (its properties) are in `Pdl.Distance`.
+Definition 10.4 (the distance `d_α`) and Lemma 10.5 (its properties) are in `Pdl.Local.Distance`.
 The auxiliary notions used below — the evaluation `evalQ` of
 Q-formulas with an assignment, the witness distance `witDist`, and `BasicBetween` — are in
-`Pdl.EvalQ`.
+`Pdl.Interpolation.EvalQ`.
 
 The facts about the cluster `C` and the steps `stepOf Δ` of its quasi-tableau that are used
 here are proved in `Pdl.ClusterSatDownFacts`.

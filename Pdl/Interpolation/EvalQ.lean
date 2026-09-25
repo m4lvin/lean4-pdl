@@ -3,7 +3,7 @@ import Pdl.Interpolation.ClusterItp
 /-! # Evaluating Q-formulas, the witness distance, and basic nodes
 
 This file collects the notions needed for Lemmas 10.6, 10.7 and 10.8 in
-`Pdl.ClusterSatDown`:
+`Pdl.Interpolation.ClusterSatDown`:
 
 * `QFormula.evalQ`, the evaluation of a Q-formula with an assignment for the internal
   variables, together with `QFormula.evalQ_gfp_unfold`, the unfolding of the fixpoint used
