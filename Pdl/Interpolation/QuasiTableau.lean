@@ -471,7 +471,7 @@ lemma typAt_of_mem_companions (q : QuasiTab) {x : List Nat} (h : x ∈ q.compani
   simp only [decide_eq_true_eq] at this
   exact this.2
 
-/-- Lemma 9.12 (b): the root has no cycles below it, `cycs(r_Q) = ∅`. -/
+/-- Lemma 9.12 (b) first part: the root has no cycles below it, `cycs(r_Q) = ∅`. -/
 lemma cycs_root (q : QuasiTab) : q.cycs rootAddress = [] := by
   simp only [cycs, rootAddress, List.filter_eq_nil_iff]
   intro z _

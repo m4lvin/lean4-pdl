@@ -57,8 +57,9 @@ prefix:33 "∗" => Program.star
 prefix:33 "?'" => Program.test -- avoiding plain "?" which has a meaning in Lean 4
 
 /-- Union of a list of programs. The empty union is `?'⊥`, a program that cannot be
-executed, so that `[(⋃ ∅)*]φ` is equivalent to `φ`. -/
-def _root_.Program.unions : List Program → Program
+executed, so that `[(⋃ ∅)*]φ` is equivalent to `φ`.
+This is used for Def 9.18 `LoadedCluster.iitp` via `QFormula.gfp`. -/
+def Program.unions : List Program → Program
   | [] => ?'⊥
   | [α] => α
   | α :: rest => α ⋓ Program.unions rest

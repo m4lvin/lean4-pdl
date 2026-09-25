@@ -59,7 +59,7 @@ def iitpAt (q : QuasiTab) (θ : Sequent → Formula) :
     (n : QuasiTab) → (x : List Nat) → QFormula (List Nat)
   | .QNode .one Δ [], x =>
       match q.companion? x with
-      | some c => .var c
+      | some c => .var c -- for a repeat use the fresh q indexed with the companion
       | none => .fma (θ Δ)
   | .QNode .one _ (y :: _), x =>
       let ι := iitpAt q θ y (x ++ [0])
@@ -69,7 +69,7 @@ def iitpAt (q : QuasiTab) (θ : Sequent → Formula) :
   | .QNode .three Δ next, x =>
       if Δ.basic then
         match next with
-        | [] => .fma ⊤ -- does not occur, see Remark 9.9
+        | [] => .fma ⊤ -- does not occur, by Remark 9.9 .three is never a leaf
         | (y :: _) => .boxes [Δ.loadedProg] (iitpAt q θ y (x ++ [0]))
       else
         QFormula.conj (iitpList q θ next x 0)
