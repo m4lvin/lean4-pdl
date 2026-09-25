@@ -55,7 +55,10 @@ jobs:
 
       - name: Setup Graphviz
         if: github.ref_name == 'main'
-        uses: ts-graphviz/setup-graphviz@v2
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes graphviz
+          dot -V
 
       - name: Build dependencies graph
         if: github.ref_name == 'main'

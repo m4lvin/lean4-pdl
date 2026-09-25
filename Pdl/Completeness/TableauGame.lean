@@ -1393,7 +1393,7 @@ lemma posOf_for_startPos (X : Sequent) : ∃ proPos, posOf [] X = Sum.inl proPos
     simp only [h, ↓reduceDIte, not_rep_empty]
     by_cases X.basic <;> simp_all
 
-/-- Lemma 6.9. If Prover has a winning strategy then there is a closed tableau, and it is uniform. -/
+/-- Lemma 6.9. If Prover has a winning strategy then there is a uniform closed tableau. -/
 theorem gameP (X : Sequent) (s : Strategy tableauGame Prover) (h : winning s (startPos X)) :
     ∃ tab : Tableau [] X, tab.IsUni := gameP_general [] X s _ (posOf_isUni _ _) h
 
