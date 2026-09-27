@@ -333,8 +333,8 @@ def repeatLeaves (q : QuasiTab) : List (List Nat) := q.leaves.filter q.isRepeatL
 def companions (q : QuasiTab) : List (List Nat) :=
   (q.repeatLeaves.filterMap q.companion?).dedup
 
-/-- `cycs(x)`, the set of repeat leaves `z` with `c(z) <_Q x ≤_Q z`, i.e. the
-repeat leaves below `x` whose companion is a proper ancestor of `x`. -/
+/-- `q.cycs x` written L_<x in the paper is the set of repeat leaves `z` with `c(z) <_Q x ≤_Q z`,
+i.e. the repeat leaves below `x` whose companion is a proper ancestor of `x` in `q`. -/
 def cycs (q : QuasiTab) (x : List Nat) : List (List Nat) :=
   q.repeatLeaves.filter (fun z =>
     match q.companion? z with
@@ -454,6 +454,173 @@ lemma childrenAt_eq_singleton_iff (q : QuasiTab) {x y : List Nat} :
       rw [hlen]
       simp
 
+/-! ### Auxiliary facts for Lemma 9.12 -/
+
+/-- A prefix of the address of a node is again the address of a node. -/
+lemma isSome_at?_of_prefix {q : QuasiTab} {x z : List Nat} (hxz : x <+: z)
+    (hz : (q.at? z).isSome) : (q.at? x).isSome := by
+  obtain ⟨w, rfl⟩ := hxz
+  rw [at?_append] at hz
+  cases hx : q.at? x with
+  | none => rw [hx] at hz; simp at hz
+  | some n => simp
+
+/-- If `x ++ i :: w` is a node, then `x` is a node with at least `i + 1` children. -/
+lemma exists_at?_of_isSome_at?_append_cons {q : QuasiTab} {x w : List Nat} {i : Nat}
+    (h : (q.at? (x ++ i :: w)).isSome) : ∃ n, q.at? x = some n ∧ i < n.children.length := by
+  rw [at?_append] at h
+  cases hx : q.at? x with
+  | none => rw [hx] at h; simp at h
+  | some n =>
+    rw [hx] at h
+    refine ⟨n, rfl, ?_⟩
+    by_contra hi
+    have : n.children[i]? = none := List.getElem?_eq_none (by omega)
+    simp [at?_cons_none this] at h
+
+/-- The only node below a leaf is the leaf itself. -/
+lemma eq_of_isLeafAt_of_prefix {q : QuasiTab} {x z : List Nat} (hx : q.isLeafAt x)
+    (hxz : x <+: z) (hz : (q.at? z).isSome) : x = z := by
+  obtain ⟨w, rfl⟩ := hxz
+  cases w with
+  | nil => simp
+  | cons i w =>
+    exfalso
+    obtain ⟨n, hn, hi⟩ := exists_at?_of_isSome_at?_append_cons hz
+    unfold isLeafAt at hx
+    rw [hn] at hx
+    simp only [List.isEmpty_iff] at hx
+    simp [hx] at hi
+
+/-- The elements of `l.inits.dropLast` are the proper prefixes of `l`. -/
+lemma qlt_of_mem_inits_dropLast {c l : List Nat} (h : c ∈ l.inits.dropLast) : qlt c l := by
+  obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem h
+  simp only [List.length_dropLast, List.length_inits, Nat.add_sub_cancel] at hi
+  rw [List.getElem_dropLast, List.getElem_inits]
+  refine ⟨List.take_prefix _ _, fun h => ?_⟩
+  have := congrArg List.length h
+  simp only [List.length_take] at this
+  omega
+
+/-- The companion of a node is a proper ancestor of it. -/
+lemma qlt_of_companion? {q : QuasiTab} {z c : List Nat} (h : q.companion? z = some c) :
+    qlt c z :=
+  qlt_of_mem_inits_dropLast (List.mem_of_find?_eq_some h)
+
+lemma mem_repeatLeaves (q : QuasiTab) (z : List Nat) :
+    z ∈ q.repeatLeaves ↔ q.isRepeatLeaf z := by
+  simp only [repeatLeaves, leaves, List.mem_filter, and_iff_right_iff_imp]
+  intro h
+  have hleaf : q.isLeafAt z := by
+    simp only [isRepeatLeaf, Bool.and_eq_true] at h
+    exact h.1.1
+  exact ⟨mem_addresses_of_at? q z (isSome_at?_of_isLeafAt hleaf), hleaf⟩
+
+lemma isLeafAt_of_isRepeatLeaf {q : QuasiTab} {z : List Nat} (h : q.isRepeatLeaf z) :
+    q.isLeafAt z := by
+  simp only [isRepeatLeaf, Bool.and_eq_true] at h
+  exact h.1.1
+
+/-- Every element of `q.addresses` is the address of a node. -/
+theorem isSome_at?_of_mem_addresses :
+    ∀ (q : QuasiTab) (x : List Nat), x ∈ q.addresses → (q.at? x).isSome
+  | .QNode k Δ next, x, hx => by
+    simp only [addresses, List.mem_cons, List.mem_flatMap, List.mem_map] at hx
+    rcases hx with rfl | ⟨⟨a, i⟩, hp, w, hw, rfl⟩
+    · simp [at?]
+    · rw [List.mem_zipIdx_iff_getElem?, List.getElem?_map] at hp
+      cases hc : next[i]? with
+      | none => rw [hc] at hp; simp at hp
+      | some c =>
+        rw [hc] at hp
+        simp only [Option.map_some, Option.some.injEq] at hp
+        subst hp
+        have hmem : c ∈ next := List.mem_of_getElem? hc
+        simp only [at?, show (QNode k Δ next).children = next from rfl, hc]
+        exact isSome_at?_of_mem_addresses c w hw
+termination_by q => sizeOf q
+decreasing_by
+  have := List.sizeOf_lt_of_mem hmem
+  simp only [QNode.sizeOf_spec]
+  omega
+
+lemma mem_addresses_iff (q : QuasiTab) (x : List Nat) :
+    x ∈ q.addresses ↔ (q.at? x).isSome :=
+  ⟨isSome_at?_of_mem_addresses q x, mem_addresses_of_at? q x⟩
+
+lemma pairwise_snd_lt_zipIdx {α} (l : List α) (n : Nat) :
+    (l.zipIdx n).Pairwise (fun a b => a.2 < b.2) := by
+  induction l generalizing n with
+  | nil => simp
+  | cons a l ih =>
+    rw [List.zipIdx_cons, List.pairwise_cons]
+    refine ⟨fun b hb => ?_, ih (n + 1)⟩
+    have := (List.mem_zipIdx (x := b.1) (i := b.2) hb).1
+    simp only at this ⊢
+    omega
+
+lemma append_lt_append_left {p a b : List Nat} (h : a < b) : p ++ a < p ++ b := by
+  induction p with
+  | nil => simpa using h
+  | cons i p ih => exact List.cons_lt_cons_iff.2 (Or.inr ⟨rfl, ih⟩)
+
+/-- The addresses are listed in (strictly increasing) lexicographic order. -/
+theorem addresses_pairwise : ∀ q : QuasiTab, q.addresses.Pairwise (· < ·)
+  | .QNode k Δ next => by
+    have ih : ∀ c ∈ next, c.addresses.Pairwise (· < ·) := fun c hc => addresses_pairwise c
+    simp only [addresses]
+    refine List.Pairwise.cons ?_ ?_
+    · intro a ha
+      simp only [List.mem_flatMap, List.mem_map] at ha
+      obtain ⟨_, _, w, _, rfl⟩ := ha
+      exact List.nil_lt_cons _ _
+    · rw [List.pairwise_flatMap]
+      constructor
+      · rintro ⟨a, i⟩ hp
+        rw [List.mem_zipIdx_iff_getElem?, List.getElem?_map] at hp
+        cases hc : next[i]? with
+        | none => rw [hc] at hp; simp at hp
+        | some c =>
+          rw [hc] at hp
+          simp only [Option.map_some, Option.some.injEq] at hp
+          subst hp
+          rw [List.pairwise_map]
+          exact (ih c (List.mem_of_getElem? hc)).imp
+            (fun h => List.cons_lt_cons_iff.2 (Or.inr ⟨rfl, h⟩))
+      · refine (pairwise_snd_lt_zipIdx _ 0).imp ?_
+        rintro ⟨a, i⟩ ⟨b, j⟩ hij u hu v hv
+        simp only [List.mem_map] at hu hv
+        obtain ⟨u, -, rfl⟩ := hu
+        obtain ⟨v, -, rfl⟩ := hv
+        exact List.cons_lt_cons_iff.2 (Or.inl hij)
+termination_by q => sizeOf q
+decreasing_by
+  have := List.sizeOf_lt_of_mem hc
+  simp only [QNode.sizeOf_spec]
+  omega
+
+lemma repeatLeaves_pairwise (q : QuasiTab) : q.repeatLeaves.Pairwise (· < ·) :=
+  ((addresses_pairwise q).filter _).filter _
+
+lemma cycs_pairwise (q : QuasiTab) (x : List Nat) : (q.cycs x).Pairwise (· < ·) :=
+  (repeatLeaves_pairwise q).filter _
+
+/-- A node that is not a leaf and has a unique child `x ++ [0]` lies above every
+node strictly below it only via that child. -/
+lemma prefix_of_qlt_of_length_eq_one {q n : QuasiTab} {x z : List Nat}
+    (hn : q.at? x = some n) (hlen : n.children.length = 1) (hxz : qlt x z)
+    (hz : (q.at? z).isSome) : x ++ [0] <+: z := by
+  obtain ⟨⟨w, rfl⟩, hne⟩ := hxz
+  cases w with
+  | nil => simp at hne
+  | cons i w =>
+    obtain ⟨n', hn', hi⟩ := exists_at?_of_isSome_at?_append_cons hz
+    rw [hn] at hn'
+    cases Option.some.inj hn'
+    have : i = 0 := by omega
+    subst this
+    exact ⟨w, by simp⟩
+
 /-! ### Lemma 9.12 -/
 
 /-- Lemma 9.12 (a), first half: a repeat leaf has type 1. -/
@@ -479,14 +646,10 @@ lemma cycs_root (q : QuasiTab) : q.cycs rootAddress = [] := by
   | none => simp
   | some c => cases c <;> simp [List.isPrefixOf]
 
--- TODO: align comment and code below with new version in paper
-
-/-- Lemma 9.12 (c) does *not* hold as stated in the paper: from `x <_Q y` we cannot
-conclude `cycs(x) ⊆ cycs(y)`, because a repeat leaf `z ∈ cycs(x)` may lie below a
-*different* child of `x` than `y` does. (For counterexamples, and for a precise account of
-when (c) does hold, see the file `Pdl.ClusterCorrection`.)
-What does hold — and what the proofs in the paper actually use — is the following version,
-where we additionally demand `y ≤_Q z`. -/
+/-- Helper for Lemma 9.12 (d).
+Note that from `x <_Q y` alone we cannot conclude `cycs(x) ⊆ cycs(y)`, because a repeat
+leaf `z ∈ cycs(x)` may lie below a *different* child of `x` than `y` does.
+Hence here we additionally demand `y ≤_Q z`. -/
 lemma mem_cycs_of_mem_cycs_of_qlt (q : QuasiTab) {x y z : List Nat}
     (hxy : qlt x y) (hz : z ∈ q.cycs x) (hyz : qle y z) : z ∈ q.cycs y := by
   rw [mem_cycs_iff] at hz ⊢
@@ -495,13 +658,9 @@ lemma mem_cycs_of_mem_cycs_of_qlt (q : QuasiTab) {x y z : List Nat}
   rintro rfl
   exact hxy.2 (hxy.1.eq_of_length (le_antisymm hxy.1.length_le hcx.length_le))
 
-/-- Lemma 9.12 (d) does *not* hold as stated in the paper either: when `x` has several
-children then the inclusion `cycs(y) ⊆ cycs(x)` may be strict. (For counterexamples, and
-for a precise account of when equality does hold — namely whenever `x` has at most one
-child, hence at all nodes of a quasi-tableau of a cluster that are not of type 3 — see the
-file `Pdl.ClusterCorrection`.)
-Here is the inclusion that does hold in general, and it is the direction that the proofs in
-the paper actually use. -/
+/-- Helper for Lemma 9.12 (d) `cycs_of_noRep_noComp`.
+Note that when `x` has several children then the inclusion `cycs(y) ⊆ cycs(x)` may be strict.
+Still the inclusion holds in general, and it is the direction that we actually use. -/
 lemma cycs_subset_of_qedge (q : QuasiTab) {x y : List Nat}
     (hx : x ∉ q.companions) (hxy : q.qedge x y) : ∀ z ∈ q.cycs y, z ∈ q.cycs x := by
   intro z hz
@@ -524,5 +683,119 @@ lemma cycs_subset_of_qedge (q : QuasiTab) {x y : List Nat}
     exact hx (by
       simp only [companions, List.mem_dedup, List.mem_filterMap]
       exact ⟨z, z_in, hc⟩)
+
+/-- Lemma 9.12 (b) second part: every repeat only has itself in `cycs`. -/
+lemma cycs_repeat (q : QuasiTab) : q.isRepeatLeaf r → q.cycs r = [r] := by
+  intro isRep
+  refine List.Pairwise.eq_of_mem_iff (r := (· < ·)) (cycs_pairwise q r)
+    (List.pairwise_singleton _ _) (fun z => ?_)
+  rw [mem_cycs_iff, List.mem_singleton]
+  constructor
+  · rintro ⟨z_in, -, -, -, hrz⟩
+    rw [mem_repeatLeaves] at z_in
+    exact (eq_of_isLeafAt_of_prefix (isLeafAt_of_isRepeatLeaf isRep) hrz
+      (isSome_at?_of_isLeafAt (isLeafAt_of_isRepeatLeaf z_in))).symm
+  · rintro rfl
+    have hc : (q.companion? z).isSome := by
+      simp only [isRepeatLeaf, Bool.and_eq_true] at isRep
+      exact isRep.2
+    obtain ⟨c, hc⟩ := Option.isSome_iff_exists.mp hc
+    exact ⟨(mem_repeatLeaves q z).2 isRep, c, hc, qlt_of_companion? hc, List.prefix_refl _⟩
+
+/-- Lemma 9.12 (c) main part, without the companion assumption:
+if `x` has unique child `y`, then `cycs(y)` consists (up to permutation) of
+`cycs(x)` together with the repeat leaves whose companion is `x`. -/
+lemma cycs_of_one_child (q : QuasiTab) {x y : List Nat}
+    (one_child : q.childrenAt x = [y]) :
+    (q.cycs y).Perm (q.cycs x ++ q.repeatLeaves.filter (fun z => q.companion? z = some x)) := by
+  obtain ⟨n, hn, hlen, rfl⟩ := (childrenAt_eq_singleton_iff q).1 one_child
+  have hnodup : (q.cycs x ++ q.repeatLeaves.filter (fun z => q.companion? z = some x)).Nodup := by
+    rw [List.nodup_append]
+    refine ⟨(cycs_pairwise q x).nodup, ((repeatLeaves_pairwise q).filter _).nodup, ?_⟩
+    intro a ha b hb hab
+    subst hab
+    rw [mem_cycs_iff] at ha
+    obtain ⟨-, c, hc, hcx, -⟩ := ha
+    simp only [List.mem_filter, decide_eq_true_eq] at hb
+    rw [hb.2, Option.some.injEq] at hc
+    exact hcx.2 hc.symm
+  rw [List.perm_ext_iff_of_nodup (cycs_pairwise q _).nodup hnodup]
+  intro z
+  rw [List.mem_append, List.mem_filter, mem_cycs_iff, mem_cycs_iff, decide_eq_true_eq]
+  constructor
+  · rintro ⟨z_in, c, hc, hcy, hyz⟩
+    rcases List.prefix_concat_iff.mp hcy.1 with h | h
+    · exact absurd h hcy.2
+    · by_cases hcx : c = x
+      · subst hcx
+        exact Or.inr ⟨z_in, hc⟩
+      · exact Or.inl ⟨z_in, c, hc, ⟨h, hcx⟩, (List.prefix_append _ _).trans hyz⟩
+  · have hc_lt : ∀ c, c <+: x → qlt c (x ++ [0]) := fun c h =>
+      ⟨h.trans (List.prefix_append _ _), fun h' => by
+        have := congrArg List.length h'
+        have := h.length_le
+        simp only [List.length_append, List.length_singleton] at *
+        omega⟩
+    have hzSome : ∀ z, z ∈ q.repeatLeaves → (q.at? z).isSome := fun z hz =>
+      isSome_at?_of_isLeafAt (isLeafAt_of_isRepeatLeaf ((mem_repeatLeaves q z).1 hz))
+    rintro (⟨z_in, c, hc, hcx, hxz⟩ | ⟨z_in, hc⟩)
+    · have hxz' : qlt x z := ⟨hxz, by
+        rintro rfl
+        have := isLeafAt_of_isRepeatLeaf ((mem_repeatLeaves q x).1 z_in)
+        unfold isLeafAt at this
+        rw [hn] at this
+        simp only [List.isEmpty_iff] at this
+        simp [this] at hlen⟩
+      exact ⟨z_in, c, hc, hc_lt c hcx.1,
+        prefix_of_qlt_of_length_eq_one hn hlen hxz' (hzSome z z_in)⟩
+    · exact ⟨z_in, x, hc, hc_lt x (List.prefix_refl _),
+        prefix_of_qlt_of_length_eq_one hn hlen (qlt_of_companion? hc) (hzSome z z_in)⟩
+
+/-- Lemma 9.12 (c), disjointness: no element of `cycs(x)` has `x` as its companion -/
+lemma cycs_comp_unique_child_disjoint (q : QuasiTab) (x : List Nat) :
+    ∀ z ∈ q.cycs x, z ∉ q.repeatLeaves.filter (fun z => q.companion? z = some x) := by
+  intro z hz hz'
+  rw [mem_cycs_iff] at hz
+  obtain ⟨-, c, hc, hcx, -⟩ := hz
+  simp only [List.mem_filter, decide_eq_true_eq] at hz'
+  rw [hz'.2, Option.some.injEq] at hc
+  exact hcx.2 hc.symm
+
+/-- Lemma 9.12 (d): If `x` is neither a repeat leaf nor a companion,
+then `cycs x` consists of `cycs y` for all children `y` of `x`. -/
+lemma cycs_of_noRep_noComp (q : QuasiTab) {x : List Nat} :
+    ¬ q.isRepeatLeaf x → ¬ x ∈ q.companions → q.cycs x = (q.childrenAt x).flatMap q.cycs := by
+  intro hRep hComp
+  refine List.Pairwise.eq_of_mem_iff (r := (· < ·)) (cycs_pairwise q x) ?_ (fun z => ?_)
+  · rw [List.pairwise_flatMap]
+    refine ⟨fun y _ => cycs_pairwise q y, ?_⟩
+    cases hn : q.at? x with
+    | none => simp [childrenAt, hn]
+    | some n =>
+      rw [childrenAt_of_at? hn, List.pairwise_map]
+      refine (List.pairwise_lt_range (n := n.children.length)).imp ?_
+      intro i j hij a ha b hb
+      obtain ⟨-, -, -, -, u, rfl⟩ := (mem_cycs_iff q _ a).1 ha
+      obtain ⟨-, -, -, -, v, rfl⟩ := (mem_cycs_iff q _ b).1 hb
+      simp only [List.append_assoc, List.singleton_append]
+      exact append_lt_append_left (List.cons_lt_cons_iff.2 (Or.inl hij))
+  · rw [List.mem_flatMap]
+    constructor
+    · intro hz
+      have hz' := hz
+      rw [mem_cycs_iff] at hz
+      obtain ⟨z_in, c, hc, hcx, hxz⟩ := hz
+      have hzRep := (mem_repeatLeaves q z).1 z_in
+      have hxz' : x ≠ z := by rintro rfl; exact hRep hzRep
+      obtain ⟨w, rfl⟩ := hxz
+      cases w with
+      | nil => simp at hxz'
+      | cons i w =>
+        obtain ⟨n, hn, hi⟩ := exists_at?_of_isSome_at?_append_cons
+          (isSome_at?_of_isLeafAt (isLeafAt_of_isRepeatLeaf hzRep))
+        refine ⟨x ++ [i], by rw [childrenAt_of_at? hn]; simp [hi], ?_⟩
+        exact mem_cycs_of_mem_cycs_of_qlt q ⟨List.prefix_append _ _, by simp⟩ hz' ⟨w, by simp⟩
+    · rintro ⟨y, hy, hz⟩
+      exact cycs_subset_of_qedge q hComp hy z hz
 
 end QuasiTab
