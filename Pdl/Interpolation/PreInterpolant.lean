@@ -224,12 +224,12 @@ lemma iitp_one_leaf_exit {Δ} (h : C.Q.at? x = some (.QNode .one Δ []))
 /-- Def 9.18, case `k(x) = 1` where `x` is a companion: `ι_x` is the fixpoint. -/
 lemma iitp_one_companion {Δ y ys} (h : C.Q.at? x = some (.QNode .one Δ (y :: ys)))
     (hx : x ∈ C.Q.companions) : C.iitp θ x = (C.iitp θ (x ++ [0])).gfp x := by
-  rw [iitp_of_at? h, QuasiTab.iitpAt_one_node, if_pos hx, iitp_first_child h]
+  rw [iitp_of_at? h, QuasiTab.iitpAt_one_node, ite_eq_left hx, iitp_first_child h]
 
 /-- Def 9.18, case `k(x) = 1` where `x` is neither a leaf nor a companion: `ι_x = ι_y`. -/
 lemma iitp_one_inner {Δ y ys} (h : C.Q.at? x = some (.QNode .one Δ (y :: ys)))
     (hx : x ∉ C.Q.companions) : C.iitp θ x = C.iitp θ (x ++ [0]) := by
-  rw [iitp_of_at? h, QuasiTab.iitpAt_one_node, if_neg hx, iitp_first_child h]
+  rw [iitp_of_at? h, QuasiTab.iitpAt_one_node, ite_eq_right hx, iitp_first_child h]
 
 /-- Def 9.18, case `k(x) = 2`: `ι_x = [¬θ_{Δ_x}?] ι_y`. -/
 lemma iitp_two {Δ y ys} (h : C.Q.at? x = some (.QNode .two Δ (y :: ys))) :

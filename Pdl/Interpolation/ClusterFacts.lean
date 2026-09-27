@@ -258,7 +258,7 @@ lemma isLrep_of_mem_nodesWithFine (C : LoadedCluster tab) {Δ : Sequent}
     (hR : C.nodesWithFineRight Δ = []) : ∀ f ∈ C.nodesWithFine Δ, f.base.isLrep := by
   have key : ∀ Y : Sequent, ∀ f ∈ C.nodesWithFine Δ, f.label = Y → f.base.isLrep := by
     intro Y
-    induction Y using IsWellFounded.induction lt_Sequent with
+    induction Y using WellFounded.induction instWellFoundedSequentLt with
     | _ Y IH =>
       intro f hf hlab
       by_contra hnl
@@ -438,7 +438,7 @@ lemma leftPropagation_of_proper (C : LoadedCluster tab) :
   -- The claim at all nodes of `C⁺_Δ`, by well-founded induction on the label.
   have key : ∀ Y : Sequent, ∀ t ∈ C.plusNodesWithFine Δ, t.label = Y → t.leftEntails φ := by
     intro Y
-    induction Y using IsWellFounded.induction lt_Sequent with
+    induction Y using WellFounded.induction instWellFoundedSequentLt with
     | _ Y IH =>
       intro t ht hlab
       have ht' := (C.mem_plusNodesWithFine_iff Δ t).mp ht

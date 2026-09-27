@@ -135,11 +135,11 @@ lemma PreState.loadedExists {X} {bt : BuildTree [] X} (α : Program) : LoadedExi
           have hle : lengthOfProgram γ ≤ lengthOfProgram β := by
             have := Dset_goes_down_prog β hδ0 (List.mem_cons_of_mem _ hγ)
             by_cases hb : β.isAtomic
-            · rw [if_pos hb] at this; exact le_of_eq (by rw [this])
-            · rw [if_neg hb] at this
+            · rw [ite_eq_left hb] at this; exact le_of_eq (by rw [this])
+            · rw [ite_eq_right hb] at this
               by_cases hb2 : β.isStar
-              · rw [if_pos hb2] at this; exact this
-              · rw [if_neg hb2] at this; omega
+              · rw [ite_eq_left hb2] at this; exact this
+              · rw [ite_eq_right hb2] at this; omega
           have hlt : lengthOfProgram γ < lengthOfProgram α := by
             rw [hβ]; simp only [lengthOfProgram]; omega
           exact PreState.loadedExists γ
@@ -168,7 +168,7 @@ lemma PreState.loadedExists {X} {bt : BuildTree [] X} (α : Program) : LoadedExi
           intro γ hγ
           have hlt : lengthOfProgram γ < lengthOfProgram α := by
             have := Dset_goes_down_prog α hFδ (List.mem_cons_of_mem _ hγ)
-            rw [if_neg hatom, if_neg hstar] at this
+            rw [ite_eq_right hatom, ite_eq_right hstar] at this
             exact this
           exact PreState.loadedExists γ
         obtain ⟨ρ, mρ, hmρ, hsz1, hQ1, hanf1⟩ := loadedChain rest hmid ρ0 m0 hm0 ξ hanf0

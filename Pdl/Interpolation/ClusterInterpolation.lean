@@ -172,7 +172,7 @@ noncomputable def FinePathIn.itp {H : History} {Z : Sequent} {tab' : Tableau H Z
 
 lemma FinePathIn.itp_spec {H : History} {Z : Sequent} {tab' : Tableau H Z} {f : FinePathIn tab'}
     (h : ∃ θ, isPartInterpolant f.label θ) : isPartInterpolant f.label f.itp := by
-  rw [FinePathIn.itp, dif_pos h]
+  rw [FinePathIn.itp, dite_eq_left h]
   exact h.choose_spec
 
 namespace LoadedCluster
@@ -289,7 +289,7 @@ noncomputable def clusterInterpolation_right {tab : Tableau .nil X} (Xfree : X.i
     C.fineExits_itp_spec exitIPs'
   refine ⟨C.itp FinePathIn.itp, C.itp_voc _ hθ, C.left_unsat_neg_itp hU hθ, ?_⟩
   by_cases hΓ₁ : (nodeAt C.root).left = {}
-  · rw [LoadedCluster.itp, if_pos hΓ₁]
+  · rw [LoadedCluster.itp, ite_eq_left hΓ₁]
     have := tableauThenNotSat tab Xfree C.root
     exact Sequent.satisfiable_top_cons_right hΓ₁ this
   · exact C.right_unsat_itp hθ hΓ₁

@@ -144,10 +144,10 @@ lemma all_spec {L B} (osr : OneSidedLocalRule L B) : all L = some ⟨B, osr⟩ :
   case con φ ψ => rw [all_eq_ofSorted (Finset.fsort_singleton _), ofSorted_con]; simp
   case nCo φ ψ => rw [all_eq_ofSorted (Finset.fsort_singleton _), ofSorted_nCo]; simp
   case box α φ notAtm =>
-    rw [all_eq_ofSorted (Finset.fsort_singleton _), ofSorted_box, dif_pos notAtm]
+    rw [all_eq_ofSorted (Finset.fsort_singleton _), ofSorted_box, dite_eq_left notAtm]
     simp only [osrCast_self]
   case dia α φ notAtm =>
-    rw [all_eq_ofSorted (Finset.fsort_singleton _), ofSorted_dia, dif_pos notAtm]
+    rw [all_eq_ofSorted (Finset.fsort_singleton _), ofSorted_dia, dite_eq_left notAtm]
     simp only [osrCast_self]
   case not φ =>
     have hne : φ ≠ ~φ := Formula.ne_neg φ
@@ -160,9 +160,9 @@ lemma all_spec {L B} (osr : OneSidedLocalRule L B) : all L = some ⟨B, osr⟩ :
     have hset := fsort_eq_pair hab
     rw [all_eq_ofSorted hab, ofSorted_pair]
     rcases pair_neg_cases hset hne2 with ⟨ha', hb'⟩ | ⟨ha', hb'⟩
-    · subst ha'; subst hb'; rw [dif_pos rfl]; simp
+    · subst ha'; subst hb'; rw [dite_eq_left rfl]; simp
     · subst hb'; subst ha'
-      rw [dif_neg (Formula.ne_neg_neg _), dif_pos rfl]; simp
+      rw [dite_eq_right (Formula.ne_neg_neg _), dite_eq_left rfl]; simp
 
 end OneSidedLocalRule
 
@@ -317,42 +317,42 @@ lemma LocalRule.all_spec {L B} (lr : LocalRule L B) : ⟨B, lr⟩ ∈ LocalRule.
   cases lr
   case oneSidedL precond ress orule YS_def =>
     subst YS_def
-    rw [LocalRule.all_none, dif_pos rfl, OneSidedLocalRule.all_spec orule]
+    rw [LocalRule.all_none, dite_eq_left rfl, OneSidedLocalRule.all_spec orule]
     simp
   case oneSidedR precond ress orule YS_def =>
     subst YS_def
-    rw [LocalRule.all_none, dif_neg orule.precond_ne_empty, dif_pos rfl,
+    rw [LocalRule.all_none, dite_eq_right orule.precond_ne_empty, dite_eq_left rfl,
       OneSidedLocalRule.all_spec orule]
     simp
   case LRnegL φ =>
-    rw [LocalRule.all_none, dif_neg (by simp), dif_neg (by simp),
+    rw [LocalRule.all_none, dite_eq_right (by simp), dite_eq_right (by simp),
       LocalRule.negPairOf_eq (Finset.fsort_singleton φ) (Finset.fsort_singleton (~φ)),
-      LocalRule.negPairOf_singletons, dif_pos rfl]
+      LocalRule.negPairOf_singletons, dite_eq_left rfl]
     simp
   case LRnegR φ =>
-    rw [LocalRule.all_none, dif_neg (by simp), dif_neg (by simp),
+    rw [LocalRule.all_none, dite_eq_right (by simp), dite_eq_right (by simp),
       LocalRule.negPairOf_eq (Finset.fsort_singleton (~φ)) (Finset.fsort_singleton φ),
-      LocalRule.negPairOf_singletons, dif_neg (Formula.ne_neg_neg φ), dif_pos rfl]
+      LocalRule.negPairOf_singletons, dite_eq_right (Formula.ne_neg_neg φ), dite_eq_left rfl]
     simp
   case loadedL χ lrule YS_def =>
     subst YS_def
     rcases χ with ⟨α, ξ⟩
     cases lrule
     case dia χ notAtm =>
-      rw [LocalRule.all_inl_loaded, dif_pos rfl, dif_pos rfl, dif_pos notAtm]
+      rw [LocalRule.all_inl_loaded, dite_eq_left rfl, dite_eq_left rfl, dite_eq_left notAtm]
       simp
     case dia' φ notAtm =>
-      rw [LocalRule.all_inl_normal, dif_pos rfl, dif_pos rfl, dif_pos notAtm]
+      rw [LocalRule.all_inl_normal, dite_eq_left rfl, dite_eq_left rfl, dite_eq_left notAtm]
       simp
   case loadedR χ lrule YS_def =>
     subst YS_def
     rcases χ with ⟨α, ξ⟩
     cases lrule
     case dia χ notAtm =>
-      rw [LocalRule.all_inr_loaded, dif_pos rfl, dif_pos rfl, dif_pos notAtm]
+      rw [LocalRule.all_inr_loaded, dite_eq_left rfl, dite_eq_left rfl, dite_eq_left notAtm]
       simp
     case dia' φ notAtm =>
-      rw [LocalRule.all_inr_normal, dif_pos rfl, dif_pos rfl, dif_pos notAtm]
+      rw [LocalRule.all_inr_normal, dite_eq_left rfl, dite_eq_left rfl, dite_eq_left notAtm]
       simp
 
 instance LocalRule.fintype {X ress} : Fintype (LocalRule X ress) :=

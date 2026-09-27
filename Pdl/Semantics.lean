@@ -1,12 +1,5 @@
-import Mathlib.Data.Finset.Basic
-import Mathlib.Data.Vector.Basic
-import Mathlib.Data.Set.Lattice
-import Mathlib.Logic.Relation
-import Mathlib.Order.CompleteLattice.Basic
-import Mathlib.Order.FixedPoints
-
-import Pdl.Syntax
 import Pdl.General.ListFinset
+import Pdl.Syntax
 
 /-! # Semantics (Section 2.2) -/
 
@@ -482,8 +475,7 @@ theorem SemImplyAnyNegFormula_loadBoxes_iff {M : KripkeModel W} {ξ : AnyFormula
       simp only [relateSeq_cons]
       constructor
       · use u
-      · convert z_
-        rfl
+      · exact z_
     · rintro ⟨v, w_v, v_⟩
       simp only [relateSeq_cons] at w_v
       rcases w_v with ⟨u, w_u, u_v⟩

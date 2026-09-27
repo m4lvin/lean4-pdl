@@ -366,14 +366,10 @@ Proven by lifting the relation to the length of histories.
 That length goes up with `⋖_`, so because `<` is wellfounded on `Nat`
 also `⋖_` is well-founded via `RelHomClass.wellFounded`. -/
 theorem edge.wellFounded : WellFounded (@edge Hist X tab) := by
-  apply @RelHomClass.wellFounded _ Nat (@edge Hist X tab) Nat.lt _ _ _ edge_natLT_relHom
-  have := instWellFoundedLTNat
-  rcases this with ⟨nat_wf⟩
-  exact nat_wf
+  exact RelHomClass.wellFounded edge_natLT_relHom instWellFoundedLTNat
 
-instance edge.isAsymm : @Std.Asymm (PathIn tab) edge := by
-  constructor
-  apply WellFounded.asymmetric edge.wellFounded
+instance edge.isAsymm : @Std.Asymm (PathIn tab) edge :=
+   ⟨@WellFounded.asymmetric _ _ edge.wellFounded⟩
 
 theorem edge_is_strict_ordering {s t : PathIn tab} : s ⋖_ t → s ≠ t := by
   intro s_t set
@@ -469,8 +465,11 @@ instance : LT (PathIn tab) := ⟨Relation.TransGen edge⟩
 instance : LE (PathIn tab) := ⟨Relation.ReflTransGen edge⟩
 
 /-- The "<" in a tableau is antisymmetric. -/
-instance edge.TransGen_isAsymm : @Std.Asymm (PathIn tab) (Relation.TransGen edge) :=
-  ⟨WellFounded.asymmetric (WellFounded.transGen wellFounded)⟩
+instance edge.TransGen_isAsymm : @Std.Asymm (PathIn tab) (Relation.TransGen edge) := by
+  have := @edge.wellFounded _ _ tab
+  have := @WellFounded.transGen _ (@edge _ _ tab) this
+  have := @WellFounded.asymmetric _ _ this
+  exact ⟨this⟩
 
 theorem not_path_nil {a : PathIn tab} : ¬(a < PathIn.nil) := by
   intro con

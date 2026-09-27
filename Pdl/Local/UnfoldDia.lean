@@ -55,7 +55,7 @@ theorem relateSeq_Dset_imp_relate {X : List Formula} {δ : List Program}
     let ⟨⟨_, δα⟩, in_Dα, h⟩ := List.exists_of_mem_flatMap in_D
     if c : δα = []
       then
-        let h := (if_pos c).subst h
+        let h := (ite_eq_left c).subst h
         let ⟨_, in_Dβ, h⟩ := List.exists_of_mem_flatMap h
         let ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton <| h
         let relα := c.symm.subst (motive := (relateSeq _ · _ _)) <| relateSeq_nil.mpr rfl
@@ -65,7 +65,7 @@ theorem relateSeq_Dset_imp_relate {X : List Formula} {δ : List Program}
         let evβ := conEval.mpr (List.forall_mem_union.mp <| conEval.mp ev).2
         ⟨w, relateSeq_Dset_imp_relate in_Dα evα relα, relateSeq_Dset_imp_relate in_Dβ evβ relβ⟩
       else
-        let h := (if_neg c).subst h
+        let h := (ite_eq_right c).subst h
         let ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton <| h
         let ⟨u, relα, relβ⟩ :=  relateSeq_append.mp <| hδ.subst (motive := mr) rel
         let evα := hX.subst (motive := me) ev

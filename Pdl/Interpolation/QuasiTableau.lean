@@ -44,15 +44,15 @@ lemma countP_lt_countP_of_mem {α} {l : List α} {p q : α → Bool} (h : ∀ x 
   | cons b l ih =>
     have hmono : l.countP p ≤ l.countP q := List.countP_mono_left (fun x hx => h x (by simp [hx]))
     rcases List.mem_cons.mp ha with rfl | ha'
-    · simp only [List.countP_cons, hp, hq, Bool.false_eq_true, if_false, if_true]
+    · simp only [List.countP_cons, hp, hq, Bool.false_eq_true, ite_false, ite_true]
       omega
     · have hlt := ih (fun x hx => h x (by simp [hx])) ha'
       simp only [List.countP_cons]
       by_cases hb : p b
       · have hb' := h b (by simp) hb
-        simp only [hb, hb', if_true]
+        simp only [hb, hb', ite_true]
         omega
-      · simp only [hb, Bool.false_eq_true, if_false]
+      · simp only [hb, Bool.false_eq_true, ite_false]
         split <;> omega
 
 lemma length_filter_notMem_cons_lt {α} [DecidableEq α] {l Hist : List α} {a : α}

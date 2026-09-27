@@ -144,7 +144,7 @@ theorem domain_nonempty_of_iInf_ne_top {f : ι → ℕ∞} (h : iInf f ≠ ⊤) 
 open Classical in
 theorem ENat.iInf_eq_find_of_ne_top {f : ι → ℕ∞} (h : iInf f ≠ ⊤)
     : iInf f = Nat.find (domain_nonempty_of_iInf_ne_top h) :=
-  (ite_eq_right_of_ne_left h).trans <| congr_arg _ <| dif_pos _
+  (ite_eq_right_of_ne_left h).trans <| congr_arg _ <| dite_eq_left _
 
 open Classical in
 theorem iInf_exists_eq_of_ne_top {f : ι → ℕ∞} (h : iInf f ≠ ⊤) : ∃ i, iInf f = f i :=
@@ -183,7 +183,7 @@ theorem distance_list_append (δ₁ δ₂ : List Program)
     (fun x => by_cases
       (by simp_all only [List.nil_append, self_le_add_left, implies_true])
       (fun h => le_of_le_of_eq le_top
-        ((if_neg h : distance_list _ _ _ [] = _) ▸ (top_add (distance_list ..)).symm)))
+        ((ite_eq_right h : distance_list _ _ _ [] = _) ▸ (top_add (distance_list ..)).symm)))
     fun _ _ => ⟨w, by simp_all only [List.nil_append, distance_list, ite_true, zero_add]⟩
   | (α::δ₁') =>
     let IH u := distance_list_append δ₁' δ₂
@@ -309,7 +309,7 @@ theorem distance_le_Hdistance (in_D : (X, δ) ∈ Dset α) :
           _ = distance M β' w v := distance_list_singleton
           _ ≤ distance_list M w v δ := IHβ'
       else
-        let h := (if_neg c).subst h
+        let h := (ite_eq_right c).subst h
         let ⟨hX, hδ⟩ := Prod.eq_iff_fst_eq_snd_eq.mp <| List.eq_of_mem_singleton <| h
         let evα := hX.subst (motive := me) ev
         let IHβ x := (distance_le_Hdistance (v := x) in_Dβ evα)
@@ -328,7 +328,7 @@ theorem distance_le_Hdistance (in_D : (X, δ) ∈ Dset α) :
         _ ≤ _ := bot_le)
       (fun c => calc
         _ ≤ _ := le_top
-        _ = _ := Eq.symm <| hδ.symm.subst (motive := (distance_list _ _ _ · = _)) <| if_neg c)
+        _ = _ := Eq.symm <| hδ.symm.subst (motive := (distance_list _ _ _ · = _)) <| ite_eq_right c)
     ) (
       let ⟨_, in_Dα, h⟩ := List.exists_of_mem_flatMap ·
       let ⟨_, h⟩ := List.mem_ite_nil_left.mp h
@@ -378,7 +378,7 @@ theorem rel_existsD_dist (w_α_v : relate M α w v)
     if c : δα = []
       then
         let wu : w = u := eq_of_distance_nil <| ne_of_eq_of_ne (c ▸ dlα) dα_fin
-        let dα : distance M α w u = 0 := dlα.symm.trans <| c ▸ if_pos wu
+        let dα : distance M α w u = 0 := dlα.symm.trans <| c ▸ ite_eq_left wu
         let d : distance M (α;'β) w v = distance M β w v := min_u.trans (dα ▸ wu ▸ zero_add _)
         ⟨⟨Xα ∪ Xβ, δβ⟩, List.mem_flatMap_of_mem in_Dα (by aesop),
         conEval.mpr <| List.forall_mem_union.mpr ⟨conEval.mp evα, conEval.mp <| wu ▸ evβ⟩,

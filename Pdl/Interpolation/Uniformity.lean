@@ -564,7 +564,7 @@ lemma LocalRuleApp.toContext_X (lra : LocalRuleApp) (X : Sequent)
     (h : lra.Lcond ⊆ X.1 ∧ lra.Rcond ⊆ X.2.1 ∧ lra.Ocond ⊆ X.2.2) :
     (lra.toContext X).X = X := by
   unfold LocalRuleApp.toContext
-  rw [dif_pos h]
+  rw [dite_eq_left h]
   rfl
 
 lemma uniRightChoice_spec {Y : Sequent} {lra : LocalRuleApp} (h : uniRightChoice Y = some lra) :

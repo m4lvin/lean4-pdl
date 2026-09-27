@@ -1,15 +1,13 @@
 -- TABLEAU
 
-import Mathlib.Algebra.Order.BigOperators.Ring.Finset
-import Mathlib.Data.Finset.Basic
-import Mathlib.Data.Finset.PImage
-import Mathlib.Logic.IsEmpty.Basic
-import Mathlib.Order.WellFoundedSet
-import Mathlib.Tactic.Ring
+import Mathlib.Algebra.BigOperators.Ring.Finset
+import Mathlib.Algebra.Order.BigOperators.Group.Finset
+import Mathlib.Tactic.Linarith.Lemmas
+import Mathlib.Tactic.Ring.Basic
+import Mathlib.Tactic.Zify
 import Mathlib.Tactic.Linarith
 
 import Bml.Semantics
-import Bml.Setsimp
 import Bml.Vocabulary
 
 open Formula

@@ -414,8 +414,8 @@ the `lmOfFormula` measures of the formulas of `X` is smaller than the one of `Y`
 def lt_Sequent (X Y : Sequent) : Prop :=
   Multiset.IsDershowitzMannaLT (nodeMeasure X) (nodeMeasure Y)
 
-instance instIsWellFoundedSequentLt : IsWellFounded Sequent lt_Sequent :=
-  ⟨InvImage.wf nodeMeasure Multiset.wellFounded_isDershowitzMannaLT⟩
+instance instWellFoundedSequentLt : WellFounded lt_Sequent :=
+  InvImage.wf nodeMeasure Multiset.wellFounded_isDershowitzMannaLT
 
 theorem lt_Sequent.trans {X Y Z : Sequent} (h1 : lt_Sequent X Y) (h2 : lt_Sequent Y Z) :
     lt_Sequent X Z :=
@@ -437,10 +437,9 @@ The key facts are:
 -/
 
 /-- The well-founded relation on sequents used for the termination of the recursive
-definitions of local tableaux. This would also better belong to `Pdl/Local/Tableau.lean`,
-where the commented-out `termination_by` of `endNodesOf` refers to it. -/
+definitions of local tableaux. -/
 instance instWellFoundedRelationSequent : WellFoundedRelation Sequent :=
-  ⟨lt_Sequent, IsWellFounded.wf⟩
+  ⟨lt_Sequent, by infer_instance⟩
 
 /-- The multiset of a union of two disjoint finite sets is the sum of the two multisets. -/
 lemma Finset.union_val_of_disjoint {α : Type*} [DecidableEq α] {A C : Finset α}

@@ -272,7 +272,7 @@ lemma build_repeat_basicBetween (C : LoadedCluster tab) :
               · rw [← delta_def] at hlt
                 exact hlt
               · exact lt_Sequent.trans delta_lt_step hlt
-            exact instIsWellFoundedSequentLt.wf.asymmetric _ _ hself hself
+            exact instWellFoundedSequentLt.asymmetric _ _ hself hself
           · rw [heq] at hbb
             exact hbb.mono (by simp)
       · obtain ⟨s, hs, rfl⟩ := prefix_sandwich hxc hcpre
@@ -488,7 +488,7 @@ lemma satDown_three_basic {Δ Y y ys} (hΔ : Δ ∈ C.lambdaTwo)
   have hd : distance_list M v' (w0 : W) Y.loadedProgs ≠ ⊤ :=
     distance_list_iff_relate_Seq.mpr hgam
   have hone : distance M (·A : Program) v v' = 1 := by
-    simp only [distance, if_pos hAv']
+    simp only [distance, ite_eq_left hAv']
   have hw0Y : evaluate M (w0 : W) (~ Y.loadedFma) := by rw [hfma]; exact w0.2
   have hwdY : witDist M v' Y ≤ distance_list M v' (w0 : W) Y.loadedProgs :=
     iInf_le (fun w : {w : W // evaluate M w (~ Y.loadedFma)} =>
@@ -698,7 +698,7 @@ theorem right_unsat_itp (C : LoadedCluster tab)
   have hitp : evaluate M w (C.itp θ) := hw _ (by simp_all)
   have hright : ∀ φ ∈ (nodeAt C.root).right, evaluate M w φ :=
     fun φ hφ => hw φ (by simp_all)
-  rw [itp, if_neg hΓ₁] at hitp
+  rw [itp, ite_eq_right hΓ₁] at hitp
   have hev : QFormula.evalQ M (fun _ u => evaluate M u (⊤ : Formula)) w (C.rootIitp θ) :=
     (QFormula.evalQ_iff_evaluate_subst (C.rootIitp θ) w).mpr hitp
   have hroot : C.Q.at? QuasiTab.rootAddress = some C.Q := rfl

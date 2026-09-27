@@ -67,7 +67,7 @@ theorem lengthSetRemove (X Y : Finset Formula) (h : Y ⊆ X) :
       · rw [Nat.add_comm, Nat.add_assoc,
           Nat.add_comm (lengthOfFormula ϕ) (lengthOfSet (Finset.erase (X \ S) ϕ))]
         rw [lengthRemove (X \ S) ϕ, Nat.add_comm, ih subs_X]
-        · rw [lengthRemove X]; assumption
+        · rwa [lengthRemove X]
         · simp; exact And.intro phi_in_X not_in_S
       · exact not_in_S
       · exact phi_in_X
