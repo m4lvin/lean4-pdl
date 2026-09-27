@@ -194,7 +194,7 @@ lemma measure_le_or_basicBetween (C : LoadedCluster tab) :
       exact Or.inl (Or.inl rfl)
     | cons j t2 => exfalso; simp [QuasiTab.at?, QuasiTab.children] at ht
 
-/-- Lemma 10.6, by induction along the construction of the quasi-tableau: if `z` is a
+/-- Induction for Lemma 10.6, along the construction of the quasi-tableau: if `z` is a
 repeat with companion `c` then there is a node of type 3 with a basic label between `c`
 and `z`. -/
 lemma build_repeat_basicBetween (C : LoadedCluster tab) :
@@ -332,14 +332,9 @@ lemma build_repeat_basicBetween (C : LoadedCluster tab) :
 /-- **Lemma 10.6**: if `z` is a repeat in `Q` with companion `c(z)`, then the path from
 `c(z)` to `z` passes through a node of type 3 whose label is basic.
 
-The proof in the paper argues that a repeat is of type 1, and that in `Q` a node of type 1
-can only succeed a node of type 3 with a basic label. In the construction of `Q`
-(Definition 9.8) the children of a node of type 3 are of type 1 also when the label is
-*not* basic, so that argument does not apply directly. We use instead that the labels of
-the successors of a non-basic node are smaller in the Dershowitz-Manna ordering
-(`LoadedCluster.stepOf_lt_Sequent`), so a repeat — which
-has the *same* label as its companion — cannot be reached from its companion by non-basic
-steps only. -/
+We use that the labels of the successors of a non-basic node are smaller in the Dershowitz-Manna
+ordering (`LoadedCluster.stepOf_lt_Sequent`), so a repeat — which has the *same* label as its
+companion — cannot be reached from its companion by non-basic steps only. -/
 theorem repeat_basicBetween (C : LoadedCluster tab) {z c : List Nat}
     (hz : C.Q.isRepeatLeaf z) (hc : C.Q.companion? z = some c) :
     C.Q.BasicBetween c z :=
