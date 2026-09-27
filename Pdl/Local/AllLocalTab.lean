@@ -490,7 +490,7 @@ lemma OneSidedLocalRule.decreases_lm {precond ress} (orule : OneSidedLocalRule p
     simp only [Finset.mem_insert, Finset.mem_singleton] at res_in
     rcases res_in with rfl | rfl
     · simp; omega
-    · simp
+    · grind [lmOfFormula]
   case box a φ notAtom =>
     simp only [List.toFinFin, List.mem_toFinset, List.mem_map] at res_in
     obtain ⟨X, X_in, rfl⟩ := res_in

@@ -73,7 +73,7 @@ def lmOfFormula : (f : Formula) → Nat
 | ~·_ => 0
 | ~~φ => 1 + lmOfFormula φ
 | φ⋀ψ => 1 + lmOfFormula φ + lmOfFormula ψ
-| ~(φ⋀ψ) => 1 + lmOfFormula (~φ) + lmOfFormula (~ψ)
+| ~(φ⋀ψ) => 1 + max (lmOfFormula (~φ)) (lmOfFormula (~ψ))
 | ⌈·_⌉ _ => 0 -- No more local steps
 | ~⌈·_⌉ _ => 0 -- No more local steps
 | ⌈α⌉φ => 1 + lmOfFormula φ -- unfoldBox
@@ -342,8 +342,8 @@ lemma measureProp {α : Program} {φ φ₁ φ₂ : Formula} :
   refine ⟨?a, ?b, ?c1, ?c2, ?d, ?e⟩
   case a => simp
   case b => simp
-  case c1 => simp; linarith
-  case c2 => simp
+  case c1 => grind [lmOfFormula]
+  case c2 => grind [lmOfFormula]
   case d =>
     intro α_non_atomic X X_in
     cases α_def : α
