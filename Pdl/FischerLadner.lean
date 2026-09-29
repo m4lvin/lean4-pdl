@@ -4,7 +4,7 @@ import Pdl.Vocab
 
 /-! # Fischer-Ladner Closure
 
-Here we define a closure on sets (well, actually lists) of formulas.
+Here we define a closure on sets (`Finset.FL`) and lists (`FLL`) of formulas.
 Our main reference for this closure is Section 6.1 of [HKT2000]
 which also was used in a Rocq formalization in [DB2018].
 The code for that work can be found at
@@ -23,7 +23,7 @@ but unfinished is in `Unused/FischerLadnerViaPreForms.lean`.
 mutual
 /-- The Fischer-Ladner closure of a formula.
 See Section 6.1 of [HKT2000]. Note that there only implication is given.
-For our `Formula` type we also need to cover conjunction and negation.
+For our `Formula` type we need to cover conjunction and negation.
 Also note that we are closing under single negations as well here.
 The main work is done by `FLb`, which also ensures termination. -/
 def FL : Formula → List Formula

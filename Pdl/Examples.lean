@@ -9,7 +9,7 @@ import Pdl.Star
 
 /-! # Examples
 
-Easy *semantic* examples. Nothing here is about tableaux yet.
+Easy *semantic* examples. Nothing here is about tableaux.
 -/
 open HasSat
 
@@ -26,11 +26,11 @@ theorem mytaut2 (p : Nat) : tautology ((~~·p)↣·p) :=
   simp
 
 /-- An infinite Kripke model with ℕ as the set of states.
-All atomic propositions alre true at all states, and all
+All atomic propositions are true at all states, and all
 atomic programs lead from any state to state 1. -/
 def myModel : KripkeModel ℕ where
   val _ _ := True
-  Rel _ _ v := HEq v 1
+  Rel _ _ v := v = 1
 
 theorem mysat (p : Nat) : satisfiable (·p : Formula) :=
   by
@@ -158,7 +158,7 @@ example (a b : Program) (X : Formula) :
   · rintro ⟨w_X, aBox, bBox⟩ v w_aSubS_v
     aesop
 
-/-- The induction axiom is semantically valid. Example 1 in [Bor88]. -/
+/-- The induction axiom is semantically valid. Example 1 in [MB1988]. -/
 theorem inductionAxiom (a : Program) (φ : Formula) :
     tautology ((φ ⋀ ⌈∗a⌉(φ ↣ (⌈a⌉φ))) ↣ (⌈∗a⌉φ)) :=
   by

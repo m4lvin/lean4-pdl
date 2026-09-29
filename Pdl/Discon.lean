@@ -4,7 +4,7 @@ import Mathlib.Data.Finset.Sort
 
 /-! # (Big) Disjunction and Conjunction
 
-Here we define ⋀ and ⋁ on formulas and seveal helper lemmas.
+Here we define ⋀ and ⋁ on lists of formulas and several helper lemmas.
 -/
 
 /-! ## Conjunction -/
@@ -246,8 +246,6 @@ theorem disconOr {XS YS} : discon (XS ∪ YS) ≡ discon XS ⋁ discon YS :=
 
 To also sort a `Finset (Finset Formula)` we need an order on `List Formula`.
 We use the lexicographic order `List.le` coming from the order on formulas.
-
-TODO: these could be moved to `Pdl.Syntax`, next to `Finset.fsort`.
 -/
 
 /-- The linear order on formulas, bundling the results from `Pdl.Syntax`.

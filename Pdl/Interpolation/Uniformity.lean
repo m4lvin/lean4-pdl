@@ -137,7 +137,7 @@ lemma Tableau.isUniform.flip {H : History} {X : Sequent} {tab : Tableau H X}
 
 /-! ## Uniform tableaux by construction
 
-To obtain uniform tableaux we follow approach (B): instead of repairing a given tableau we
+To obtain a uniform tableau we do not try to repair a given tableau, but instead we
 describe how a uniform one is built, by fixing *which* local rule is applied at each node.
 The conditions U1 and U2 only speak about the local rules applied at the nodes, and both are
 conditions that can be read off a single rule application together with the sequent it is
@@ -507,23 +507,16 @@ lemma Tableau.IsUni.flip {H X} {tab : Tableau H X} (h : tab.IsUni) : (tab.flip).
 theorem Tableau.IsUni.isUniform {X} {tab : Tableau .nil X} (h : tab.IsUni) : tab.isUniform :=
   ⟨h.uniCore, h.flip.uniCore⟩
 
-/-! ## Building a uniform tableau
+/-! ## Building a uniform local tableau
 
-We now show `Tableau.exists_isUni`: for every tableau there is one that applies the rules in
-the canonical order. The construction is deterministic: `uniChoiceAt` picks, at each sequent,
-the canonical rule application (first a rule for the unloaded component, and once that is
-basic the canonical rule for the loaded component), and `uniLocalTab` iterates this to a
-local tableau all of whose rule applications are uniform choices (`uniLocalTab_isUni`).
+We now define `uniLocalTab`, a tableau that applies the rules in the canonical order.
+The construction is deterministic: `uniChoiceAt` picks, at each sequent, the canonical rule
+application (first a rule for the unloaded component, and once that is basic the canonical
+rule for the loaded component), and `uniLocalTab` iterates this to a local tableau all of
+whose rule applications are uniform choices (`uniLocalTab_isUni`).
 
-Given an arbitrary tableau we then re-build it, replacing the local tableau at each `loc`
-step by the canonical one. Because the end nodes of the canonical local tableau need not be
-literally the same lists as the end nodes of the original one, we prove the statement in the
-more flexible form `Tableau.exists_isUni_of_msEq`, allowing the sequent and the history to
-change up to `Sequent.multisetEqTo`, i.e. up to permutation of the two lists in a sequent.
-That the calculus does not care about such permutations is `PdlRule.exists_of_multisetEqTo`
-and `lpr_of_multisetEqTo`.
-
-The only step that is left open is `uniLocalTab_endNode_dominated`. -/
+Later the this uniform local tableau is used in `Move` and `gameP_general`.
+-/
 
 /-- Put a local rule application into a different context, keeping the rule itself. -/
 def LocalRuleApp.inContext (lra : LocalRuleApp) (L R : Finset Formula) (O : Olf)

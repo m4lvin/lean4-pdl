@@ -334,7 +334,8 @@ def companions (q : QuasiTab) : List (List Nat) :=
   (q.repeatLeaves.filterMap q.companion?).dedup
 
 /-- `q.cycs x` written L_<x in the paper is the set of repeat leaves `z` with `c(z) <_Q x ≤_Q z`,
-i.e. the repeat leaves below `x` whose companion is a proper ancestor of `x` in `q`. -/
+i.e. the repeat leaves below `x` whose companion is a proper ancestor of `x` in `q`.
+Part of Definition 9.11. -/
 def cycs (q : QuasiTab) (x : List Nat) : List (List Nat) :=
   q.repeatLeaves.filter (fun z =>
     match q.companion? z with

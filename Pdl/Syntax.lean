@@ -703,8 +703,6 @@ lemma pair_neg_inj {φ ψ : Formula} (h : ({φ, ~φ} : Finset Formula) = {ψ, ~�
 /-! ## Sorting formulas
 
 Needed to convert a `Finset Formula` to `List Formula`.
-
-TODO: make this a separate file
 -/
 
 mutual

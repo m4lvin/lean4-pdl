@@ -360,7 +360,7 @@ def clusterOf {X} {tab : Tableau .nil X} (p : PathIn tab) :=
 
 /-- We have `before s t` iff there is a path from s to t but not from t to s.
 This means the cluster of `s` comes before the cluster of `t` in `tab`.
-NB: The notes use ◃* here but we use ◃⁺. The definitions are equivalent. -/
+NB: The paper uses ◃* here but we use ◃⁺. The definitions are equivalent. -/
 def before {X} {tab : Tableau .nil X} (s t : PathIn tab) : Prop :=
   s ◃⁺ t  ∧  ¬ t ◃⁺ s
 

@@ -15,11 +15,9 @@ contribute to the left part. This makes `Sequent.subseteq_FL` tricky to define.
 -/
 
 /-- Sequent `Y` is a component-wise subset of the FL-closure of `X`.
-Note that by component we mean left and right (and not L, R, O).
-
-WORRY: Is using Sequent.O.L here a problem because it might not be injective?
-(Because it calls `unload` where both ⌊a⌋⌊b⌋p and ⌊a⌋⌈b⌉p become ⌈a⌉⌈b⌉p.)
--/
+This relation does *not* care about loading. That is, by component here we mean the left and right
+sides, not the `L` and `R` fields in `(L, R, O)`). We use `Sequent.O.L` which is not injective:
+it calls `unload`, so both `⌊a⌋⌊b⌋p` and `⌊a⌋⌈b⌉p` are `⌈a⌉⌈b⌉p`. -/
 def Sequent.subseteq_FL (X : Sequent) (Y : Sequent) : Prop :=
       X.L   ⊆ (Y.L ∪ Y.O.L).FL
     ∧ X.O.L ⊆ (Y.L ∪ Y.O.L).FL

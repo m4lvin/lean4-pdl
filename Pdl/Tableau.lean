@@ -275,7 +275,7 @@ The `Tableau [parent, grandparent, ...] child` type.
 
 This represents a closed tableau for `X`, constructed by either of:
 - a local tableau for X followed by `Tableau` for all end nodes,
-- a PDL rule application followed by `Tableau` for all results, or
+- a PDL rule application followed by `Tableau` for the result, or
 - a loaded-path repeat (also called successful, see [MB1988] condition 6 in Def 14 on page 25).
 -/
 inductive Tableau : History → Sequent → Type
