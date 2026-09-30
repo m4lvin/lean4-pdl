@@ -11,7 +11,7 @@ The main reference is the following.
 
 - Manfred Borzechowski, Malvin Gattinger, Helle Hvid Hansen, Revantha Ramanayake, Francisco Trucco Dalmas, Yde Venema:
   *Propositional Dynamic Logic has Craig Interpolation: a tableau-based proof.*
-  Preprint 2026, <https://arxiv.org/abs/2503.13276v2>
+  LMCS 2026, <https://arxiv.org/abs/2503.13276>
 
 The article contains direct links to the corresponding parts of the formalization here.
 There is no separate blueprint.
