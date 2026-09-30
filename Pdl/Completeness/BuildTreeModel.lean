@@ -2,9 +2,9 @@ import Pdl.Completeness.BuildTree
 
 /-! # From winning strategies to model graphs, part 2: the model graph (Section 6.3)
 
-This continues `Pdl/BuildTree.lean`. Here we define the model graph `BuildTree.toModel`
+This continues `Pdl.Completeness.BuildTree`. Here we define the model graph `BuildTree.toModel`
 obtained from a `BuildTree` (Definition 6.17) and provide the infrastructure that is used
-in `Pdl/BuildTreeExistence.lean` to prove the existence lemmas.
+in `Pdl.Completeness.BuildTreeExistence` to prove the existence lemmas.
 -/
 
 /-! ## Defining The Model Graph -/
@@ -48,15 +48,6 @@ lemma PreState.rel_iff {X} {bt : BuildTree [] X} {π ρ : PreState bt} {a : Nat}
     bt.toModel.2.Rel a π.toW ρ.toW
     ↔ ∃ φ, (~⌈·a⌉φ) ∈ π.forms ∧ π.forms.projection a ∪ {~φ} ⊆ ρ.forms :=
   Iff.rfl
-
-/-! ### Set-equal sequents
-
-Since the refactoring that makes `Sequent` use `Finset`s, being set-equal is the same as
-being equal, so the two lemmas that used to be here are now trivial and hence removed:
-
-- `Sequent.bothSides_toFinset_eq_of_setEqTo` is now just `congrArg Sequent.toFinset`.
-- `AnyNegFormula.mem_Sequent_of_setEqTo` is now just rewriting with the equality.
--/
 
 /-! ### Formulas of a pre-state -/
 
@@ -139,11 +130,11 @@ lemma Match.not_isFreeRepeat_of_loaded {H X} {bt : BuildTree H X} {m : Match bt}
 
 /-- Any `Match` can be replaced by one that ends at the same sequent and is not at a free
 repeat: if we are at a free repeat we go to its companion, which is strictly shorter. -/
-lemma Match.exists_setEqTo_not_freeRepeat {X} {bt : BuildTree [] X} (m : Match bt) :
+lemma Match.exists_eq_not_freeRepeat {X} {bt : BuildTree [] X} (m : Match bt) :
     ∃ m' : Match bt, m'.endSeq = m.endSeq ∧ ¬ m'.btAt.2.2.isFreeRepeat := by
   by_cases h : m.isFreeRepeat
-  · obtain ⟨m', h1, h2⟩ := (m.companionOf h).exists_setEqTo_not_freeRepeat
-    exact ⟨m', h1.trans (m.companionOf_setEqTo_sequent h), h2⟩
+  · obtain ⟨m', h1, h2⟩ := (m.companionOf h).exists_eq_not_freeRepeat
+    exact ⟨m', h1.trans (m.companionOf_eq_sequent h), h2⟩
   · exact ⟨m, rfl, fun hc => h (Match.isFreeRepeat_iff.mpr hc)⟩
 termination_by m.length
 decreasing_by exact m.companionOf_length_lt h
@@ -417,7 +408,7 @@ lemma Match.atomicLoadedStep {X} {bt : BuildTree [] X} (m : Match bt)
 /-- After any `Match` there is a pre-state containing a sequent set-equal to the sequent we
 are at. If that sequent is loaded then the pre-state is found without going back up, so its
 last node is not higher up than where we are. -/
-lemma Match.exists_preState_setEqTo {X} {bt : BuildTree [] X} (m : Match bt) :
+lemma Match.exists_preState_eq {X} {bt : BuildTree [] X} (m : Match bt) :
     ∃ (ρ : PreState bt) (Z : Sequent), Z ∈ ρ.val ∧ Z = m.endSeq
       ∧ ∃ mρ : Match bt, mρ.endSeq = ρ.val.getLast PreState.nonempty
         ∧ (m.endSeq.isLoaded → mρ.btAt.2.2.size ≤ m.btAt.2.2.size) := by
@@ -425,7 +416,7 @@ lemma Match.exists_preState_setEqTo {X} {bt : BuildTree [] X} (m : Match bt) :
   · obtain ⟨ρ, hmem, mρ, hmρ, hsize⟩ :=
       m.exists_preState_of_not_freeRepeat (Match.not_isFreeRepeat_of_loaded hl)
     exact ⟨ρ, m.endSeq, hmem, rfl, mρ, hmρ, fun _ => hsize⟩
-  · obtain ⟨m'', hset, nfr''⟩ := m.exists_setEqTo_not_freeRepeat
+  · obtain ⟨m'', hset, nfr''⟩ := m.exists_eq_not_freeRepeat
     obtain ⟨ρ, hmem, mρ, hmρ, _⟩ := m''.exists_preState_of_not_freeRepeat nfr''
     exact ⟨ρ, m''.endSeq, hmem, hset, mρ, hmρ, fun hc => absurd hc hl⟩
 
@@ -445,7 +436,7 @@ lemma PreState.atomicLoadedStep {X} {bt : BuildTree [] X} (π : PreState bt) (m�
   have bas : (mπ.endSeq).basic := by rw [hmπ]; exact PreState.forms_last_basic
   have hload' : NegLoadFormula.mem_Sequent mπ.endSeq (~'⌊·a⌋ξ) := by rw [hmπ]; exact hload
   obtain ⟨m', hsize, hanf, hproj, hloadedY⟩ := mπ.atomicLoadedStep bas hload'
-  obtain ⟨ρ, Z, hZmem, hZset, mρ, hmρ, hsize2⟩ := m'.exists_preState_setEqTo
+  obtain ⟨ρ, Z, hZmem, hZset, mρ, hmρ, hsize2⟩ := m'.exists_preState_eq
   subst hZset
   have hρanf : ρ.hasAnf (~''ξ) := ⟨_, hZmem, hanf⟩
   have hZsides : ∀ f, f ∈ m'.endSeq.toFinset → f ∈ ρ.forms :=

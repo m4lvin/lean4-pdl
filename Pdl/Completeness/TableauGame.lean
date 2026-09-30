@@ -638,16 +638,12 @@ lemma movemove_trans_hist {A B : GamePos} (A_B : Relation.TransGen movemove A B)
 
 /-! ## Termination via finite FL closure
 
-See also `StayingInFL.lean` where`Sequent.subseteq_FL` is defined.
+See also `Pdl.StayingInFL` where `Sequent.subseteq_FL` is defined.
 
-We are working with lists (or, by ignoring their order, multisets) and thus staying in
-the FL closure does not imply that there are only finitely many sequents reachable: by repeating
-the same formulas the length of the list may increase.
-To tackle this we want to use that `rep` is defined with `setEqTo` that ignores multiplicity, so
-that even if there are infinitely many different lists and thus sequents in principle reachable,
-we still cannot have an infinite chain because that would mean we must have a "set-repeat" that
-is not allowed.
-
+Note that when using lists (or, by ignoring their order, multisets) staying in the FL closure does
+not imply that there are only finitely many sequents reachable: by repeating the same formulas the
+length of the list may increase. This previously needed the workaround of `setEqTo`.
+As we are (now) working with `Finset` we no longer have this problem.
 -/
 
 lemma move_inside_FL {p next} (mov : move p next) : next.2.1.subseteq_FL p.2.1 := by
@@ -882,11 +878,11 @@ Towards `matchesFinite` we here collect facts about an infinite chain `g : ℕ �
 - at each position of the chain a move is possible, hence there is no forbidden repeat,
   i.e. `¬ flprep` (see `moveChain_not_flprep`);
 - all sequents along the chain stay inside the FL closure of the first one
-  (see `moveChain_inside_FL`), of which there are only finitely many modulo `setEqTo`
+  (see `moveChain_inside_FL`), of which there are only finitely many
   (see `Seqt.subseteq_FL_finite`);
 - the history at a later position contains the sequents of all earlier positions
   (see `moveChain_hist_accum` and `moveChain_hist_split`);
-- hence a sequent that is `setEqTo` an earlier one must be loaded, because a free repeat
+- hence a sequent that is equal to an earlier one must be loaded, because a free repeat
   would have ended the match (see `moveChain_setEq_isLoaded`), and thus from some point
   onwards *all* sequents in the chain are loaded (see `moveChain_eventually_loaded`);
 - a repeat in this loaded part gives a loaded-path repeat, which also ends the match
@@ -1021,9 +1017,9 @@ lemma moveChain_inside_FL (n : ℕ) : Sequent.subseteq_FL (g n).2.1 (g 0).2.1 :=
     apply Sequent.subseteq_FL_trans _ _ _ ?_ IH
     apply move_inside_FL (g_rel k)
 
-/-- A sequent in the chain that is `setEqTo` an earlier one must be loaded,
+/-- A sequent in the chain that is equal an earlier one must be loaded,
 because otherwise we would have a free repeat and the match would have ended. -/
-lemma moveChain_setEq_isLoaded {m n : ℕ} (h : m + 2 ≤ n) (hs : (g m).2.1 = (g n).2.1) :
+lemma moveChain_eq_isLoaded {m n : ℕ} (h : m + 2 ≤ n) (hs : (g m).2.1 = (g n).2.1) :
     (g n).2.1.isLoaded := by
   obtain ⟨pre, hpre, _⟩ := moveChain_hist_split g_rel h
   have h_rep : rep (g n).1 (g n).2.1 := by
@@ -1033,8 +1029,8 @@ lemma moveChain_setEq_isLoaded {m n : ℕ} (h : m + 2 ≤ n) (hs : (g m).2.1 = (
   by_contra hfree
   exact moveChain_not_flprep g_rel n (Or.inl ⟨h_rep, by simp [Sequent.isFree, hfree]⟩)
 
-/-- Because there are only finitely many sequents modulo `setEqTo` inside the FL closure,
-arbitrarily late in the chain we find two positions with `setEqTo` sequents. -/
+/-- Because there are only finitely many sequents inside the FL closure,
+somewhere later in the chain we find two positions with equal sequents. -/
 lemma moveChain_exists_setEq_late (N : ℕ) :
     ∃ m n, N ≤ m ∧ m + 2 ≤ n ∧ (g m).2.1 = (g n).2.1 := by
   obtain ⟨e, hP, hgap⟩ := exists_spread_subsequence (P := fun n => N ≤ n)
@@ -1046,8 +1042,8 @@ lemma moveChain_exists_setEq_late (N : ℕ) :
   · exact ⟨e k1, e k2, hP k1, hgap k1 k2 hlt, hsame⟩
   · exact ⟨e k2, e k1, hP k2, hgap k2 k1 (by omega), Eq.symm hsame⟩
 
-/-- From some point onwards all sequents in the chain are loaded: there are only finitely
-many sequents modulo `setEqTo`, and free ones can never come back. -/
+/-- From some point onwards all sequents in the chain are loaded.
+This holds because there are only finitely many sequents, and free ones can never come back. -/
 lemma moveChain_eventually_loaded : ∃ N, ∀ n, N ≤ n → (g n).2.1.isLoaded := by
   by_contra hyp
   push Not at hyp
@@ -1056,8 +1052,8 @@ lemma moveChain_eventually_loaded : ∃ N, ∀ n, N ≤ n → (g n).2.1.isLoaded
     (fun k => ((g (e k)).2.1 : Sequent)) (Sequent.subseteq_FL · (g 0).2.1)
     (fun k => moveChain_inside_FL g_rel (e k)) Seqt.subseteq_FL_finite
   rcases Nat.lt_or_ge k1 k2 with hlt | hge
-  · exact absurd (moveChain_setEq_isLoaded g_rel (hgap k1 k2 hlt) hsame) (hP k2)
-  · exact absurd (moveChain_setEq_isLoaded g_rel (hgap k2 k1 (by omega))
+  · exact absurd (moveChain_eq_isLoaded g_rel (hgap k1 k2 hlt) hsame) (hP k2)
+  · exact absurd (moveChain_eq_isLoaded g_rel (hgap k2 k1 (by omega))
       (Eq.symm hsame)) (hP k1)
 
 /-- If all sequents from `N` onwards are loaded and `N ≤ m` with `m + 2 ≤ n`, then the sequent
@@ -1090,7 +1086,7 @@ lemma moveChain_hist_index {N m n : ℕ} (hN : ∀ j, N ≤ j → (g j).2.1.isLo
       rw [this]
       exact hN m hm
 
-/-- A `setEqTo` repeat in the loaded part of the chain is impossible:
+/-- A repeat in the loaded part of the chain is impossible:
 it would be a loaded-path repeat, at which the match ends. -/
 lemma moveChain_setEq_absurd {N m n : ℕ} (hN : ∀ j, N ≤ j → (g j).2.1.isLoaded)
     (hm : N ≤ m) (h : m + 2 ≤ n) (hs : (g m).2.1 = (g n).2.1) : False := by

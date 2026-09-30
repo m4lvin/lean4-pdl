@@ -2,7 +2,7 @@ import Pdl.Interpolation.ClusterItp
 
 /-! # The region formulas and the left half of the correctness of `θ_r`
 
-This file continues the development of `Pdl.ClusterItp` with
+This file continues the development of `Pdl.Interpolation.ClusterItp` with
 
 * Definition 10.2: the region formulas `ρ_x`, and
 * Lemma 10.3: `Γ₁ ⊨ θ_r`.

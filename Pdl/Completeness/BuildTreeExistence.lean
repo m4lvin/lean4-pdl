@@ -2,7 +2,7 @@ import Pdl.Completeness.BuildTreeModel
 
 /-! # From winning strategies to model graphs, part 3: the existence lemmas (Section 6.3)
 
-This continues `Pdl/BuildTreeModel.lean`. Here we prove the existence lemmas
+This continues `Pdl.Completeness.BuildTreeModel`. Here we prove the existence lemmas
 6.18, 6.19 and 6.20 that are needed for Theorem 6.21 (`strmg`).
 -/
 
@@ -199,7 +199,7 @@ lemma PreState.loadedDiamondExistence {X} {bt : BuildTree [] X} {α : Program} {
 
 /-! ## Atomic free diamond existence lemma (Lemma 6.19)
 
-To load a free diamond `~⌌·a⌍chi` with the rule `(L+)` we first have to make the sequent free
+To load a free diamond `~⌈·a⌉χ` with the rule `(L+)` we first have to make the sequent free
 using `(L-)`, and on the way we may have to go to the companion of a free repeat. -/
 
 /-- A sequent with fewer formulas on the two sides is not closed either.
@@ -310,7 +310,7 @@ lemma Match.exists_free_basic {X} {bt : BuildTree [] X} (m : Match bt) (bas : m.
     ∃ m' : Match bt, m'.endSeq.basic ∧ m'.endSeq.O = none
       ∧ ¬ m'.btAt.2.2.isFreeRepeat
       ∧ (∀ f, f.basic → f ∈ m.endSeq.toFinset → f ∈ m'.endSeq.toFinset) := by
-  obtain ⟨m0, hset0, nfr0⟩ := m.exists_setEqTo_not_freeRepeat
+  obtain ⟨m0, hset0, nfr0⟩ := m.exists_eq_not_freeRepeat
   have bas0 : m0.endSeq.basic := by rw [hset0]; exact bas
   have hsub0 : ∀ f ∈ m.endSeq.toFinset, f ∈ m0.endSeq.toFinset := by
     intro f hf
@@ -320,7 +320,7 @@ lemma Match.exists_free_basic {X} {bt : BuildTree [] X} (m : Match bt) (bas : m.
   · exact ⟨m0, bas0, hO, nfr0, fun f _ hf => hsub0 f hf⟩
   · obtain ⟨Y, ⟨r⟩, hYO, hYsub⟩ := PdlRule.exists_freeStep hO
     obtain ⟨m1, hm1eq, _⟩ := m0.exists_step bas0 nfr0 r
-    obtain ⟨m2, hset2, nfr2⟩ := m1.exists_setEqTo_not_freeRepeat
+    obtain ⟨m2, hset2, nfr2⟩ := m1.exists_eq_not_freeRepeat
     obtain ⟨ρ, hhead, m3, hm3⟩ := m2.exists_preState_head_of_not_freeRepeat nfr2
     have hsub2 : ∀ f ∈ m0.endSeq.toFinset, f ∈ m2.endSeq.toFinset := by
       intro f hf
@@ -338,7 +338,7 @@ lemma Match.exists_free_basic {X} {bt : BuildTree [] X} (m : Match bt) (bas : m.
       refine PreState.mem_forms_of_mem (Z := m2.endSeq) ?_ hf
       rw [← hhead]
       exact List.head_mem _
-    obtain ⟨m4, hset4, nfr4⟩ := m3.exists_setEqTo_not_freeRepeat
+    obtain ⟨m4, hset4, nfr4⟩ := m3.exists_eq_not_freeRepeat
     refine ⟨m4, by rw [hset4]; exact h3bas, ?_, nfr4, ?_⟩
     · rw [hset4]; exact h3free
     · intro f hfb hf
@@ -353,7 +353,7 @@ lemma Match.modalStepToPreState {X} {bt : BuildTree [] X} (m : Match bt) (bas : 
     ∃ ρ : PreState bt, ρ.hasAnf (~''ξ)
       ∧ ∀ f, (⌈·a⌉f) ∈ m.endSeq.L ∪ m.endSeq.R → f ∈ ρ.forms := by
   obtain ⟨m', _, hanf, hproj, _⟩ := m.atomicLoadedStep bas hload
-  obtain ⟨ρ, Z, hZmem, hZset, _⟩ := m'.exists_preState_setEqTo
+  obtain ⟨ρ, Z, hZmem, hZset, _⟩ := m'.exists_preState_eq
   refine ⟨ρ, ⟨Z, hZmem, by rw [hZset]; exact hanf⟩, ?_⟩
   intro f hf
   refine PreState.mem_forms_of_mem hZmem ?_
@@ -480,7 +480,7 @@ lemma freeDiamondExistenceInduction {X} {bt : BuildTree [] X}
   obtain ⟨π', hQ, hmem⟩ := PreState.freeExists α in_forms
   exact ⟨π', hmem, hQ⟩
 
-/-- Lemma 6.20: free diamond existence lemma for pre-states -/
+/-- Lemma 6.20: free diamond existence lemma for pre-states. -/
 lemma freeDiamondExistence {X} {bt : BuildTree [] X} {α} {φ : Formula} {π : PreState bt} :
   (~⌈α⌉φ : WhateverFormula) ∈ π.wForms → ∃ π' : PreState bt,
       ~φ ∈ π'.forms ∧ @Modelgraphs.Q bt.toModel.1 bt.toModel.2.Rel α π π' := by

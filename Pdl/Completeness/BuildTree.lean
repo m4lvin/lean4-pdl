@@ -587,8 +587,8 @@ def Match.companion {X} {bt : BuildTree [] X} (m n : Match bt) : Prop :=
 local notation ma:arg " ♥ " mb:arg => Match.companion ma mb
 
 /-- The sequent at the companion is the same as the sequent at the repeat.
-Similar to `nodeAt_companionOf_setEq`. -/
-lemma Match.companionOf_setEqTo_sequent (m : Match bt) h :
+Similar to `nodeAt_companionOf_eq`. -/
+lemma Match.companionOf_eq_sequent (m : Match bt) h :
     (m.companionOf h).btAt.2.1 = m.btAt.2.1 := by
   unfold companionOf
   split
@@ -891,7 +891,7 @@ lemma Match.existsPreState {X} {bt : BuildTree [] X} (m : Match bt) :
     rcases IH with ⟨π, Z, Z_in_π, same_Z⟩
     refine ⟨π, Z, Z_in_π, ?_⟩
     -- Using lemma that the companion has the same sequent.
-    have comp_eq := m.companionOf_setEqTo_sequent m_frep
+    have comp_eq := m.companionOf_eq_sequent m_frep
     rw [← comp_eq]
     exact same_Z
   · -- The `BuildTree` we are at is not a free repeat, so it collects its own root.
@@ -1108,7 +1108,7 @@ lemma PreState.exists_endMatch {H X} {bt : BuildTree H X} (π : PreState bt) :
 
 /-- Weak round-trip that always holds: going from a pre-state to a match and back gives a
 pre-state that contains the first sequent of `π`. -/
-lemma PreState.setEqTo_mem_toMatch_toPreState {X} {bt : BuildTree [] X} (π : PreState bt) :
+lemma PreState.eq_mem_toMatch_toPreState {X} {bt : BuildTree [] X} (π : PreState bt) :
     ∃ Z ∈ π.toMatch.toPreState.val, (π.val.head PreState.nonempty) = Z := by
   rw [π.toMatch_head]
   exact Match.toPreState_spec π.toMatch
@@ -1136,9 +1136,7 @@ lemma PreState.toMatch_toPreState_openLeaf {X} (bas : X.basic) (noRule : PdlRule
   simp only [BuildTree.collect, Finset.mem_singleton] at ρ_in π_in
   rw [ρ_in, π_in]
 
-/-! ## Properties of Formula (Sets? Lists?) obtained from Pre-States -/
-
--- IDEA: rephrase these to be about the resulting chain, not about getForms !!
+/-! ## Properties of Formula obtained from Pre-States -/
 
 /-- Every *basic* formula of a pre-state already occurs in the last (basic) sequent of that
 pre-state. Note that `bothSides` is used here, so this also covers formulas from the loaded

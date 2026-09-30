@@ -1253,7 +1253,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
         -- Show that the companion fulfills the conditions:
         have u_eq_t := nodeAt_companionOf_setEq t (tabAt_t_def ▸ next_def ▸ lpr) h
         have v_u : (M, v) ⊨ nodeAt u := by
-          rw [vDash_setEqTo_iff u_eq_t]
+          rw [vDash_eq_iff u_eq_t]
           exact v_t
         have negLoad_in_u : (~''((⌊·a⌋AnyFormula.loadBoxes αs φ))).in_side side (nodeAt u) := by
           rw [u_eq_t]
@@ -1439,7 +1439,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
     -- Show that the companion fulfills the conditions:
     have u_eq_t := nodeAt_companionOf_setEq t (tabAt_t_def ▸ lpr) h
     have v_u : (M, v) ⊨ nodeAt u := by
-      rw [vDash_setEqTo_iff u_eq_t]
+      rw [vDash_eq_iff u_eq_t]
       exact v_t
     have negLoad_in_u : (~''((⌊α⌋AnyFormula.loadBoxes αs φ))).in_side side (nodeAt u) := by
       rw [u_eq_t]

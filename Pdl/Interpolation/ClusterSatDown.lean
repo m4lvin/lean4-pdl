@@ -3,7 +3,7 @@ import Pdl.Interpolation.ClusterSatDownFacts
 
 /-! # Satisfiability down the quasi-tableau, and the right half of the correctness of `θ_r`
 
-This file continues the development of `Pdl.ClusterRho` with
+This file continues the development of `Pdl.Interpolation.ClusterRho` with
 
 * Lemma 10.6: between a companion and its repeat there is a basic node,
 * Lemma 10.7: if `Δ_x, ι_x` is satisfiable then so is `Δ_z, ι_z` for some `z ∈ cycs(x)`,
@@ -15,20 +15,14 @@ Q-formulas with an assignment, the witness distance `witDist`, and `BasicBetween
 `Pdl.Interpolation.EvalQ`.
 
 The facts about the cluster `C` and the steps `stepOf Δ` of its quasi-tableau that are used
-here are proved in `Pdl.ClusterSatDownFacts`.
+here are proved in `Pdl.Interpolation.ClusterSatDownFacts`.
 -/
 
 /-! ## Lemma 10.6
 
 If `x` is a repeat in `Q` then the path from `c(x)` to `x` passes through a node with a
 basic label.
-
-The proof in the paper claims that nodes of type 1 can only succeed nodes of type 3 with a
-basic label; that is not the case, see Definition 9.8. What is true, and what we use here,
-is that the label of a node of type 3 with a *non-basic* label strictly decreases when
-passing to the children: the rule applied there is a local rule. Hence if no basic node
-occurred between `c(x)` and `x` then `Δ_x` would be strictly smaller than `Δ_{c(x)}`,
-contradicting `Δ_x = Δ_{c(x)}`. -/
+-/
 
 namespace QuasiTab
 

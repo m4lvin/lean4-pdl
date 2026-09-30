@@ -375,7 +375,7 @@ theorem tautImp_iff_SequentUnsat {φ ψ} {X : Sequent} :
   subst defX
   simp_all [Sequent.toFinset, tautology, satisfiable, vDash.SemImplies]
 
-theorem vDash_setEqTo_iff {X Y : Sequent} (h : X = Y) (M : KripkeModel W) (w : W) :
+theorem vDash_eq_iff {X Y : Sequent} (h : X = Y) (M : KripkeModel W) (w : W) :
     (M,w) ⊨ X ↔ (M,w) ⊨ Y := by
   rcases X with ⟨L, R, O⟩
   rcases Y with ⟨L',R',O'⟩

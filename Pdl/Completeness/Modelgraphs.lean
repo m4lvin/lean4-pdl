@@ -106,7 +106,7 @@ set_option maxHeartbeats 2000000 in
 
 mutual
 
-/-- C3 in notes.
+/-- Condition C3 for the proof of Lemma 6.5.
 Originally MB Lemma 9, page 32, stronger version for induction loading.
 Now also using Q relation to overwrite tests. -/
 theorem Q_then_relate {Worlds} (MG : ModelGraph Worlds) α (X Y : Worlds) :
@@ -141,7 +141,7 @@ theorem Q_then_relate {Worlds} (MG : ModelGraph Worlds) α (X Y : Worlds) :
 termination_by
   lengthOfProgram α
 
-/-- C1 and C2 in notes -/
+/-- Conditions C1 and C2 for the proof of Lemma 6.5. -/
 theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
     ∀ P, (P ∈ X.val → evaluate MG.val X P) -- (+)
     ∧ ((~P) ∈ X.val → ¬evaluate MG.val X P) -- (-)
@@ -223,7 +223,7 @@ theorem loadedTruthLemma {Worlds} (MG : ModelGraph Worlds) X:
 termination_by
   f => lengthOfFormula f
 
-/-- C4 in notes -/
+/-- Condition C4 for the proof of Lemma 6.5. -/
 theorem loadedTruthLemmaProg {Worlds} (MG : ModelGraph Worlds) α :
     ∀ X φ, ((⌈α⌉φ) ∈ X.val → (∀ (Y : Worlds), relate MG.val α X Y → φ ∈ Y.val)) -- (0)
     := by

@@ -7,7 +7,8 @@ Note that we skip much of Subsection 8.2 because we worked already with split ta
 
 This file covers Definitions 9.6 to 9.13 and Lemma 9.14. What comes after it is in
 separate files: `Pdl.Interpolation.QFormula` has Definitions 9.15 and 9.16 and Fact 9.17,
-`Pdl.PreInterpolant` has Definition 9.18, and `Pdl.ClusterInterpolation` has Lemma 9.3,
+`Pdl.Interpolation.PreInterpolant` has Definition 9.18,
+and `Pdl.Interpolation.ClusterInterpolation` has Lemma 9.3,
 i.e. the interpolant for the root of a proper cluster.
 -/
 
@@ -591,10 +592,7 @@ Second, `stepOf` produces an ordered *list*, so what is needed is agreement of t
 lists including their order; since the right components of the children of a node in
 `C^R_Δ` are determined by `Δ` together with the rule and its principal formula, this follows
 from uniformity in the form of Lemma 9.7 (f).
-
-Uniformity is not available in this development yet, so for now we state the property that
-is needed as an explicit assumption, and `stepOf_spec` shows that it suffices to justify the
-use of `head?`. -/
+-/
 
 /-- The consequence of uniformity that the quasi-tableau construction needs: any two nodes
 of the cluster with the same right component `Δ` at which a right rule is applied have the

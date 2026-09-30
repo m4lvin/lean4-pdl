@@ -2,8 +2,8 @@ import Pdl.Discon
 
 /-! # Q-formulas and their normal form (Definitions 9.15, 9.16 and Fact 9.17)
 
-The pre-interpolants of Definition 9.18 are not arbitrary formulas: they are built from
-"ordinary" formulas and from *internal variables* `q_x`, one for each companion node `x`
+The pre-interpolants of Definition 9.18 are built from "ordinary" formulas
+and from *internal variables* `q_x`, one for each companion node `x`
 of the quasi-tableau `Q`, using only conjunction and (sequences of) boxes.
 
 Instead of using fresh proposition letters for the internal variables we use a separate

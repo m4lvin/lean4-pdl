@@ -9,15 +9,16 @@ This code is by Kyle Miller from https://is.gd/Ug5sXu
 Importing this file provides a comment `#axiom_blame` that creates output like this:
 
 ```
-#axiom_blame FinEnum.toList
+#axiom_blame interpolation
 
-'FinEnum.toList' depends on axioms:
+'interpolation' depends on axioms:
 
-* Quot.sound: FinEnum.toList → Equiv.instFunLike → Equiv.instFunLike.proof_1 → EquivLike.toFunLike → EquivLike.toFunLike.proof_1 → Function.LeftInverse.eq_rightInverse → Function.RightInverse.comp_eq_id → funext → Quot.sound
+* Quot.sound: interpolation → Interpolant → Vocab → Finset → Finset.mk → Multiset.Nodup → Multiset.Nodup._proof_1 → List.Perm.nodup_iff → List.Perm.pairwise_iff → List.pairwise_middle → List.pairwise_append → forall_congr → funext → Quot.sound
 
-* Classical.choice: FinEnum.toList → List.finRange → List.finRange.proof_1 → List.mem_range → Init.Data.List.Nat.Range._auxLemma.10 → List.mem_range'_1 → Init.Data.List.Nat.Range._auxLemma.9 → List.mem_range' → Init.Data.Nat.Lemmas._auxLemma.9 → Nat.self_eq_add_left → Classical.propDecidable → Classical.choice
+* Classical.choice: interpolation → Interpolant → Finset.instPartialOrder → Finset.instSetLike → Finset.instSetLike._proof_1 → Multiset.Nodup.ext → List.perm_ext_iff_of_nodup → Classical.propDecidable → Classical.choice
 
-* propext: FinEnum.toList → List.finRange → List.finRange.proof_1 → List.mem_range → Init.Data.List.Nat.Range._auxLemma.10 → propext
+* propext: interpolation → Interpolant → Vocab → Finset → Finset.mk → Multiset.Nodup → Multiset.Nodup._proof_1 → propext
+Theorem.lean:54:0
 ```
 -/
 

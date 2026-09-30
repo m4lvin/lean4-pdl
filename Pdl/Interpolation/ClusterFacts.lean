@@ -1,9 +1,9 @@
 import Pdl.Interpolation.PreInterpolant
 import Pdl.Interpolation.RuleFacts
 
-/-! # Facts about a proper cluster (Section 9 of the paper)
+/-! # Facts about proper clusters
 
-This file proves the facts about a proper loaded cluster `C` that the proofs of
+This file proves facts about a proper loaded cluster `C` that the proofs of
 Lemma 10.1 (`Pdl.ClusterItp`) and Lemma 10.3 (`Pdl.ClusterRho`) use:
 
 * `LoadedCluster.exists_right_of_proper` is Lemma 9.7 (d): if `C_Δ` is non-empty then so
@@ -24,7 +24,7 @@ All of them are proved from properness of the cluster, which is part of `LoadedC
 except for `rightRuleChildren_of_uniform` which also needs
 `LoadedCluster.HasUniformSteps`.
 
-The facts about the rules of the tableau that they rely on are in `Pdl.RuleFacts`.
+The facts about the rules of the tableau that they rely on are in `Pdl.Interpolation.RuleFacts`.
 -/
 
 open HasSat
@@ -44,9 +44,8 @@ This is captured in the form needed here in `LoadedCluster.HasUniformSteps`.
 
 Note that this file never *unfolds* `LoadedCluster.HasUniformSteps`: it is only used
 opaquely, as the hypothesis of `LoadedCluster.stepOf_spec` and as the conclusion of
-`LoadedCluster.uniformOfUniTab`.  So the definition of `HasUniformSteps` may still be
-changed (for example from a `List` comparison to a `Finset.image` one) without affecting
-anything here, as long as those two statements are kept.
+`LoadedCluster.uniformOfUniTab`.  So the definition of `HasUniformSteps` is not used
+here, only those two statements about it.
 -/
 
 namespace LoadedCluster

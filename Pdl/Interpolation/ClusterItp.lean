@@ -1,13 +1,14 @@
 import Pdl.Interpolation.ClusterFacts
 
-/-! # The interpolant of a cluster root and its correctness
+/-! # The interpolant of a cluster root and its vocabulary
 
-This file continues the development of `Pdl.PreInterpolant` with
+This file continues the development of `Pdl.Interpolation.PreInterpolant`
+and `Pdl.Interpolation.ClusterFacts` with:
 
-* Definition 9.20: the interpolant `θ_r` of the root `r` of the cluster `C`, and
-* Lemma 10.1: the vocabulary of the pre-interpolants.
+* Definition 9.20 `LoadedCluster.itp`: the interpolant `θ_r` of the root `r` of the cluster `C`, and
+* Lemma 10.1 `iitp_voc` and `iitp_vars`: the vocabulary of the pre-interpolants.
 
-Definition 10.2 and Lemma 10.3 are in `Pdl.ClusterRho`.
+Definition 10.2 and Lemma 10.3 are in `Pdl.Interpolation.ClusterRho`.
 -/
 
 /-! ## Two small vocabulary lemmas -/
@@ -551,7 +552,7 @@ theorem rootIitp_vars (C : LoadedCluster tab) (θ : FinePathIn tab → Formula)
   rw [C.Q.cycs_root] at hz
   simp at hz
 
-/-- Lemma 10.1, the corollary: the interpolant of the root of the cluster only uses the
+/-- Corollary of Lemma 10.1: the interpolant of the root of the cluster only uses the
 joint vocabulary of `Γ₁` and `Γ₂`. -/
 theorem itp_voc (C : LoadedCluster tab) (θ : FinePathIn tab → Formula)
     (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) :

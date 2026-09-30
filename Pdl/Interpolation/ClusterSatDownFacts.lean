@@ -1,10 +1,10 @@
 import Pdl.Interpolation.EvalQ
 import Pdl.Interpolation.Uniformity
 
-/-! # The facts about a proper cluster used for Lemma 10.7
+/-! # Four facts about proper clusters (used for Lemma 10.7)
 
 This file proves the four facts about the cluster `C` and the steps `stepOf Δ` of its
-quasi-tableau that the proof of Lemma 10.7 in `Pdl.ClusterSatDown` uses:
+quasi-tableau that the proof of Lemma 10.7 in `Pdl.Interpolation.ClusterSatDown` uses:
 
 * `LoadedCluster.isRightLoaded_of_mem_lambdaTwo`: all `Δ ∈ Λ₂[C]` are loaded on the right
   (Lemma 9.4 (a)),
@@ -17,10 +17,7 @@ quasi-tableau that the proof of Lemma 10.7 in `Pdl.ClusterSatDown` uses:
   Lemma 10.5 (h).
 
 They only use properness of the cluster, via Lemma 9.7 (d), i.e.
-`LoadedCluster.exists_right_of_proper` from `Pdl.ClusterFacts`.
-
-The helper lemmas about right rules that we use here are the copies in the `Uniformity`
-namespace.
+`LoadedCluster.exists_right_of_proper` from `Pdl.Interpolation.ClusterFacts`.
 -/
 
 /-! ## Splitting a boxed loaded formula -/
@@ -284,7 +281,7 @@ lemma LocalRuleApp.rightRule_sat_witDist {lra : LocalRuleApp} (hr : lra.isRightR
           exact hdist
   all_goals simp [LocalRuleApp.isRightRule, LocalRule.isRightRule] at hr
 
-/-! ## The four fields -/
+/-! ## The four facts about proper clusters -/
 
 namespace LoadedCluster
 

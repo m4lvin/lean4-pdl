@@ -53,7 +53,7 @@ In the `Tableau` type this only tracks "big" steps, not steps happening within a
 The list is in reverse order, i.e. the *head is the newest* Sequent. -/
 abbrev History : Type := List Sequent
 
-/-- We have a repeat iff the history contains a node that is `setEqTo` the current node.
+/-- We have a repeat iff the history contains a node that is equal to the current node.
 Note that this is a `Prop`, it does not carry a specific number of steps to go back. -/
 def rep (Hist : History) (X : Sequent) : Prop := ∃ Y ∈ Hist, Y = X
 
