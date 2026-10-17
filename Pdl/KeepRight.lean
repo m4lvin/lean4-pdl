@@ -1,4 +1,6 @@
-import Pdl.Soundness
+module
+
+public import Pdl.Soundness
 
 /-! ## Helpers for Lemma 9.4: single steps keep the loading on the right
 
@@ -6,6 +8,8 @@ The lemmas here say that a single step in a tableau, starting at a node that is 
 on the right, can only lead to a node that is loaded on the right or free, and that no
 rule adds formulas to an empty left component.
 -/
+
+@[expose] public section
 
 /-- A PDL rule applied to a sequent that is loaded on the right leads to a sequent that is
 not loaded on the left, and it does not add formulas to an empty left component. -/

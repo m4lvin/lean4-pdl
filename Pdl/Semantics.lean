@@ -1,7 +1,11 @@
-import Pdl.General.ListFinset
-import Pdl.Syntax
+module
+
+public import Pdl.General.ListFinset
+public import Pdl.Syntax
 
 /-! # Semantics (Section 2.2) -/
+
+@[expose] public section
 
 /-! ## Models and Truth -/
 

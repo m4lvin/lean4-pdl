@@ -1,8 +1,12 @@
-import Mathlib.Data.List.ReduceOption
+module
 
-import Pdl.Local.Tableau
+public import Mathlib.Data.List.ReduceOption
+
+public import Pdl.Local.Tableau
 
 /-! # PDL-Tableaux (Section 4) -/
+
+@[expose] public section
 
 open HasLength
 
@@ -336,7 +340,6 @@ instance Tableau.instDecidableEq {Hist X} {tab1 tab2 : Tableau Hist X} :
   all_goals
     try simp_all
     try exact instDecidableFalse
-    try exact instDecidableTrue
     try infer_instance
   case pdl.pdl =>
     by_cases h : Y1 = Y2

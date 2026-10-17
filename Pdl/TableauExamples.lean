@@ -1,11 +1,15 @@
-import Mathlib.Data.Finset.Basic
+module
 
-import Pdl.Soundness
+public import Mathlib.Data.Finset.Basic
+
+public import Pdl.Soundness
 
 /-! # Tableau Examples
 
 As a sanity check we construct tableaux/proofs for some examples.
 -/
+
+@[expose] public section
 
 /-- Helper: a sequent that contains a non-basic formula on the left is not basic.
 (This might also fit into `Pdl/Sequent.lean`.) -/
@@ -49,7 +53,7 @@ example : provable (~(p ⋀ (~p))) :=
     apply LocalTableau.byLocalRule
       { lr := (LocalRule.oneSidedL (OneSidedLocalRule.neg (p ⋀ (~p))) rfl)
         L := _, R := _, O := none, ress := _, preconditionProof := _ } rfl ?_
-    all_goals (try simp; try rfl)
+    all_goals (try simp)
     intro c c_in; simp at c_in; subst c_in
     apply LocalTableau.byLocalRule
       { lr := LocalRule.oneSidedL (OneSidedLocalRule.con p (~p)) rfl

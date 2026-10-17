@@ -1,6 +1,9 @@
 -- SOUNDNESS
+module
 
-import Bml.Tableau
+public import Bml.Tableau
+
+@[expose] public section
 
 
 open HasSat

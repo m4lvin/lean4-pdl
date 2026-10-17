@@ -1,9 +1,13 @@
-import Mathlib.Tactic.Linarith
+module
 
-import Pdl.Substitution
-import Pdl.Star
+public import Mathlib.Tactic.Linarith
+
+public import Pdl.Substitution
+public import Pdl.Star
 
 /-! # Local Diamond Unfolding (Section 3.2 and 3.3) -/
+
+@[expose] public section
 
 /-! ## Diamonds: Dset, Y and Φ_⋄ -/
 

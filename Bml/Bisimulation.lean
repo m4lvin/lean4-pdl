@@ -1,5 +1,9 @@
-import Bml.Semantics
-import Bml.BigConDis
+module
+
+public import Bml.Semantics
+public import Bml.BigConDis
+
+@[expose] public section
 
 def isBisimulation {W W' : Type} (Z : W → W' → Prop)
   (M : KripkeModel W) (M' : KripkeModel W') : Prop :=

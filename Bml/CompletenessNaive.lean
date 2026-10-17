@@ -2,8 +2,11 @@
 
 -- NOTE: This file is broken and obsolete.
 -- See instead "CompletenessViaPaths.lean".
+module
 
-import Bml.Soundness
+public import Bml.Soundness
+
+@[expose] public section
 
 open HasSat
 

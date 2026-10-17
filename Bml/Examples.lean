@@ -1,6 +1,9 @@
 -- EXAMPLES
+module
 
-import Bml.Semantics
+public import Bml.Semantics
+
+@[expose] public section
 
 open HasSat
 

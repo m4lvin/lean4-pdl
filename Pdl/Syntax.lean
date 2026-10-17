@@ -1,7 +1,11 @@
-import Mathlib.Algebra.BigOperators.Group.Finset.Defs
-import Mathlib.Data.Finset.Sort
+module
+
+public import Mathlib.Algebra.BigOperators.Group.Finset.Defs
+public import Mathlib.Data.Finset.Sort
 
 /-! # Syntax (Section 2.1) -/
+
+@[expose] public section
 
 mutual
   inductive Formula : Type

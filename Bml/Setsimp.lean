@@ -1,7 +1,11 @@
 -- SETSIMP
-import Mathlib.Algebra.BigOperators.Group.Finset.Basic
+module
 
-import Bml.Syntax
+public import Mathlib.Algebra.BigOperators.Group.Finset.Basic
+
+public import Bml.Syntax
+
+@[expose] public section
 
 @[simp]
 theorem union_singleton_is_insert {X : Finset Formula} {ϕ : Formula} : X ∪ {ϕ} = insert ϕ X :=

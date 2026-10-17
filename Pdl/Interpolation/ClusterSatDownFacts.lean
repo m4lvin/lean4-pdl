@@ -1,5 +1,7 @@
-import Pdl.Interpolation.EvalQ
-import Pdl.Interpolation.Uniformity
+module
+
+public import Pdl.Interpolation.EvalQ
+public import Pdl.Interpolation.Uniformity
 
 /-! # Four facts about proper clusters (used for Lemma 10.7)
 
@@ -19,6 +21,8 @@ quasi-tableau that the proof of Lemma 10.7 in `Pdl.Interpolation.ClusterSatDown`
 They only use properness of the cluster, via Lemma 9.7 (d), i.e.
 `LoadedCluster.exists_right_of_proper` from `Pdl.Interpolation.ClusterFacts`.
 -/
+
+@[expose] public section
 
 /-! ## Splitting a boxed loaded formula -/
 

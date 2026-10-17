@@ -1,9 +1,12 @@
 -- VOCABULARY
+module
 
-import Mathlib.Tactic.NormNum
+public import Mathlib.Tactic.NormNum
 
-import Bml.Syntax
-import Bml.Setsimp
+public import Bml.Syntax
+public import Bml.Setsimp
+
+@[expose] public section
 
 @[simp, implicit_reducible]
 def vocabOfFormula : Formula → Finset Char
@@ -101,8 +104,7 @@ theorem vocPreservedTwo {X : Finset Formula} (ψ ϕ1 ϕ2) :
     by_cases h : θ = ψ
     · right; subst h; unfold vocabOfSetFormula vocabOfFormula at *
       rw [← eq_voc] at a_in_vocTheta ; simp at a_in_vocTheta ; tauto
-    · constructor
-      · use θ
+    · left; use θ
   cases a_in
   · aesop
   · use ψ; constructor

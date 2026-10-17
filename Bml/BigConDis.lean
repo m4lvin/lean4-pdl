@@ -1,8 +1,11 @@
 -- All copied from pdl/Discon.lean
 -- not all parts might make sense yet
+module
 
-import Bml.Vocabulary
-import Bml.Semantics
+public import Bml.Vocabulary
+public import Bml.Semantics
+
+@[expose] public section
 
 open HasSat
 

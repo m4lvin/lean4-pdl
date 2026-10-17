@@ -1,12 +1,16 @@
-import Mathlib.Data.Finset.Powerset
-import Mathlib.Data.Finset.Functor
+module
 
-import Pdl.General.Game
-import Pdl.Interpolation.Uniformity
-import Pdl.Completeness.Modelgraphs
-import Pdl.StayingInFL
+public import Mathlib.Data.Finset.Powerset
+public import Mathlib.Data.Finset.Functor
+
+public import Pdl.General.Game
+public import Pdl.Interpolation.Uniformity
+public import Pdl.Completeness.Modelgraphs
+public import Pdl.StayingInFL
 
 /-! # The Tableau Game (Section 6.2) -/
+
+@[expose] public section
 
 /-!
 Different from the paper proof, here we directly set up the tableau game such that we

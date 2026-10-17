@@ -1,8 +1,11 @@
 -- PARTITIONS
+module
 
-import Bml.Tableau
-import Bml.Soundness
-import Bml.BigConDis
+public import Bml.Tableau
+public import Bml.Soundness
+public import Bml.BigConDis
+
+@[expose] public section
 
 open HasVocabulary HasSat
 

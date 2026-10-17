@@ -1,4 +1,6 @@
-import Pdl.Local.Tableau
+module
+
+public import Pdl.Local.Tableau
 
 /-! # Paths in Local Tableaux
 
@@ -6,6 +8,8 @@ Here we collect the paths of sequents within a `LocalTableau`, i.e. the lists of
 from the root to an end node, and show that they are saturated and locally consistent.
 
 This is used for the pre-states in the completeness proof, see `BuildTree.lean`. -/
+
+@[expose] public section
 
 /-! ## Formulas occurring along a list of sequents -/
 

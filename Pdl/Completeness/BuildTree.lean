@@ -1,8 +1,12 @@
-import Pdl.Completeness.TableauGame
-import Pdl.Local.Path
-import Pdl.PdlSteps
+module
+
+public import Pdl.Completeness.TableauGame
+public import Pdl.Local.Path
+public import Pdl.PdlSteps
 
 /-! # From winning strategies to model graphs, part 1: BuildTree and PreState (Section 6.3) -/
+
+@[expose] public section
 
 /-! ## The uniform open local tableau -/
 

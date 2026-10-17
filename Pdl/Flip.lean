@@ -1,6 +1,8 @@
-import Mathlib.Tactic.DepRewrite
+module
 
-import Pdl.Soundness
+public meta import Mathlib.Tactic.DepRewrite
+
+public import Pdl.Soundness
 
 /-! # Flipping a tableau (for the proof of Lemma 9.3)
 
@@ -9,6 +11,8 @@ For the case where the loaded formula is on the left, we flip the tableau left-t
 
 The lemmas here then allow us to prove `clusterInterpolation` from `clusterInterpolation_right`.
 -/
+
+@[expose] public section
 
 def Olf.flip : Olf → Olf := Option.map Sum.swap
 
@@ -342,7 +346,8 @@ lemma Tableau.flip_flip {Hist X} {tab : Tableau Hist X} :
       specialize IH Y Y_in
       rw! (castMode := .all) [@Sequent.flip_flip Y]
       simp_all
-    · simp
+    · simp_all
+    · simp_all
     · rfl
   case pdl r next IH =>
     nth_rewrite 1 [Tableau.flip]
@@ -434,8 +439,7 @@ theorem PathIn.flip_flip {Hist X} {tab : Tableau Hist X} (p : PathIn tab) :
       rw [PdlRule.flip_flip, eqRec_heq_iff, eqRec_heq_iff]
     have hnext : HEq next.flip.flip next := by
       rw! [Tableau.flip_flip]; rw [eqRec_heq_iff, eqRec_heq_iff]
-    congr 1 <;> first
-      | rfl | exact hIH | exact hr | exact hnext | exact proof_irrel_heq _ _ | simp_all
+    congr 1 <;> first | exact proof_irrel_heq _ _ | simp_all
   | @loc Hist X nflprep nbas lt next Y Y_in tail IH =>
     apply eq_of_heq
     rw [eqRec_heq_iff]

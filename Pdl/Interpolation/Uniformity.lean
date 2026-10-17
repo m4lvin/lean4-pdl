@@ -1,5 +1,7 @@
-import Pdl.Interpolation.ClusterFacts
-import Pdl.Local.AllLocalTab
+module
+
+public import Pdl.Interpolation.ClusterFacts
+public import Pdl.Local.AllLocalTab
 
 /-! # Uniformity of split tableaux (Section 8.1)
 
@@ -38,6 +40,8 @@ only the second one uses uniformity:
   `LocalRuleApp.SameRuleAs.map_rightOnly_C_eq`.
 
 -/
+
+@[expose] public section
 
 /-! ## The components of a sequent -/
 

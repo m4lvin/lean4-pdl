@@ -1,4 +1,6 @@
-import Pdl.Interpolation.ClusterSatDown
+module
+
+public import Pdl.Interpolation.ClusterSatDown
 
 /-! # Interpolants for proper clusters (Lemma 9.3)
 
@@ -18,6 +20,8 @@ coarse `PathIn` sense. The first half of the file bridges that gap, by pushing t
 interpolants of the coarse exits upwards through the local tableaux with
 `LocalTableau.interpolant`.
 -/
+
+@[expose] public section
 
 open HasSat
 

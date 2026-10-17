@@ -1,8 +1,11 @@
 -- TABLEAU-EXAMPLES
+module
 
-import Mathlib.Data.Finset.Basic
+public import Mathlib.Data.Finset.Basic
 
-import Bml.Tableau
+public import Bml.Tableau
+
+@[expose] public section
 
 theorem noBot : Provable (~⊥) := by
   apply Provable.byTableau

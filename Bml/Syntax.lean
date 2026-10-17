@@ -1,6 +1,10 @@
 -- SYNTAX
-import Mathlib.Algebra.BigOperators.Group.Finset.Defs
-import Mathlib.Data.Finset.Basic
+module
+
+public import Mathlib.Algebra.BigOperators.Group.Finset.Defs
+public import Mathlib.Data.Finset.Basic
+
+@[expose] public section
 
 -- Definition 1, page 4
 inductive Formula : Type

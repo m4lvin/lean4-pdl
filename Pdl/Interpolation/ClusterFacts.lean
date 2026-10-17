@@ -1,5 +1,7 @@
-import Pdl.Interpolation.PreInterpolant
-import Pdl.Interpolation.RuleFacts
+module
+
+public import Pdl.Interpolation.PreInterpolant
+public import Pdl.Interpolation.RuleFacts
 
 /-! # Facts about proper clusters
 
@@ -26,6 +28,8 @@ except for `rightRuleChildren_of_uniform` which also needs
 
 The facts about the rules of the tableau that they rely on are in `Pdl.Interpolation.RuleFacts`.
 -/
+
+@[expose] public section
 
 open HasSat
 

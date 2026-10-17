@@ -1,10 +1,14 @@
-import Mathlib.Data.Finset.Option
-import Mathlib.Data.Finset.Sort
+module
+
+public import Mathlib.Data.Finset.Option
+public import Mathlib.Data.Finset.Sort
 -- note: https://leanprover.zulipchat.com/#narrow/channel/113488-general/topic/Can.27t.20.23eval.20a.20Finset.20Nat.3F/near/577761910
 
-import Pdl.Discon
+public import Pdl.Discon
 
 /-! # Sequents -/
+
+@[expose] public section
 
 /-! ## Optional loaded formulas (Olfs) -/
 

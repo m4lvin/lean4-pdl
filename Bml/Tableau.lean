@@ -1,14 +1,17 @@
 -- TABLEAU
+module
 
-import Mathlib.Algebra.BigOperators.Ring.Finset
-import Mathlib.Algebra.Order.BigOperators.Group.Finset
-import Mathlib.Tactic.Linarith.Lemmas
-import Mathlib.Tactic.Ring.Basic
-import Mathlib.Tactic.Zify
-import Mathlib.Tactic.Linarith
+public import Mathlib.Algebra.BigOperators.Ring.Finset
+public import Mathlib.Algebra.Order.BigOperators.Group.Finset
+public import Mathlib.Tactic.Linarith.Lemmas
+public import Mathlib.Tactic.Ring.Basic
+public import Mathlib.Tactic.Zify
+public import Mathlib.Tactic.Linarith
 
-import Bml.Semantics
-import Bml.Vocabulary
+public import Bml.Semantics
+public import Bml.Vocabulary
+
+@[expose] public section
 
 open Formula
 open HasLength

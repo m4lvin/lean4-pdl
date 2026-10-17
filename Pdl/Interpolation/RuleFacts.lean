@@ -1,4 +1,6 @@
-import Pdl.Interpolation.Cluster
+module
+
+public import Pdl.Interpolation.Cluster
 
 /-! # How the rules of a tableau act on the two components
 
@@ -15,6 +17,8 @@ proper cluster in `Pdl.ClusterFacts` are proved from:
 * loaded-path repeats and the Dershowitz-Manna measure: going down along left rules
   strictly decreases the label.
 -/
+
+@[expose] public section
 
 open HasSat
 

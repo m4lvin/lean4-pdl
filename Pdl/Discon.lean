@@ -1,11 +1,15 @@
-import Pdl.Semantics
-import Pdl.Vocab
-import Mathlib.Data.Finset.Sort
+module
+
+public import Pdl.Semantics
+public import Pdl.Vocab
+public import Mathlib.Data.Finset.Sort
 
 /-! # (Big) Disjunction and Conjunction
 
 Here we define ⋀ and ⋁ on lists of formulas and several helper lemmas.
 -/
+
+@[expose] public section
 
 /-! ## Conjunction -/
 

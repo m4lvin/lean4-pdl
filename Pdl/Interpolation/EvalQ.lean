@@ -1,4 +1,6 @@
-import Pdl.Interpolation.ClusterItp
+module
+
+public import Pdl.Interpolation.ClusterItp
 
 /-! # Evaluating Q-formulas, the witness distance, and basic nodes
 
@@ -24,6 +26,8 @@ therefore evaluate a Q-formula directly with respect to an assignment
 and hence all distances, untouched, which is exactly the "`M` and `M'` have the same
 relational structure" of the paper.
 -/
+
+@[expose] public section
 
 /-! ## Evaluating Q-formulas with an assignment for the internal variables -/
 

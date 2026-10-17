@@ -1,8 +1,12 @@
-import Pdl.General.FinReach
-import Pdl.Local.Soundness
-import Pdl.TableauPath
+module
+
+public import Pdl.General.FinReach
+public import Pdl.Local.Soundness
+public import Pdl.TableauPath
 
 /-! # Soundness (Section 5) -/
+
+@[expose] public section
 
 open HasSat
 
@@ -871,7 +875,7 @@ lemma loadedDiamondPathsPDL
     refine ⟨s, ?_, Or.inr ?_⟩
     -- ... it is then obvious that `s` satisfies the required properties:
     · apply Relation.TransGen.single
-      constructor
+      left
       right
       refine ⟨Hist, _, nflprep, bas, _, (.modL Z_def rfl), next, tabAt_t_def, ?_⟩
       simp [s, t_to_s]
@@ -993,7 +997,7 @@ lemma loadedDiamondPathsPDL
     refine ⟨s, ?_, Or.inr ?_⟩
     -- ... it is then obvious that `s` satisfies the required properties:
     · apply Relation.TransGen.single
-      constructor
+      left
       right
       refine ⟨Hist, _, nflprep, bas, _, (PdlRule.modR Z_def rfl), next, tabAt_t_def, ?_⟩
       simp [s, t_to_s]

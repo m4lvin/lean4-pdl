@@ -1,7 +1,10 @@
 -- INTERPOLATION
+module
 
-import Bml.CompletenessViaPaths
-import Bml.Partitions
+public import Bml.CompletenessViaPaths
+public import Bml.Partitions
+
+@[expose] public section
 
 open HasVocabulary
 

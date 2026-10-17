@@ -1,11 +1,15 @@
-import Mathlib.Data.Fintype.Pi
-import Mathlib.Data.List.Sublists
-import Mathlib.Tactic.Linarith
+module
 
-import Pdl.Substitution
-import Pdl.Star
+public import Mathlib.Data.Fintype.Pi
+public import Mathlib.Data.List.Sublists
+public import Mathlib.Tactic.Linarith
+
+public import Pdl.Substitution
+public import Pdl.Star
 
 /-! # Local Box Unfolding (Section 3.1) -/
+
+@[expose] public section
 
 /-! ## Preparation for Boxes: Test Profiles -/
 

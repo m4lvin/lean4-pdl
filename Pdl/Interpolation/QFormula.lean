@@ -1,4 +1,6 @@
-import Pdl.Discon
+module
+
+public import Pdl.Discon
 
 /-! # Q-formulas and their normal form (Definitions 9.15, 9.16 and Fact 9.17)
 
@@ -18,6 +20,8 @@ stand for. This is done by `QFormula.subst σ` where `σ : Var → Formula`. Tak
 the paper, but the extra generality is exactly what is needed later: in the correctness
 proof the internal variables get replaced by other formulas.
 -/
+
+@[expose] public section
 
 /-! ## Definition 9.15: the language `L_Q` -/
 

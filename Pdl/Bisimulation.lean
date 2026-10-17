@@ -1,7 +1,11 @@
-import Pdl.Semantics
-import Pdl.Vocab
+module
+
+public import Pdl.Semantics
+public import Pdl.Vocab
 
 /-! # Bisimulation -/
+
+@[expose] public section
 
 section Bisim
 

@@ -1,4 +1,6 @@
-import Mathlib.Data.Finset.Basic
+module
+
+public import Mathlib.Data.Finset.Basic
 
 /-! # A General Theory for Determined Two-player Games
 
@@ -7,6 +9,8 @@ definition of games and show that one of the two players
 must have a winning strategy: `gamedet` at the end.
 
 -/
+
+@[expose] public section
 
 /-! ## Games -/
 

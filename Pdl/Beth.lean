@@ -1,6 +1,10 @@
-import Pdl.Interpolation.Theorem
+module
+
+public import Pdl.Interpolation.Theorem
 
 /-! # Beth Definability (Corollary 7.5) -/
+
+@[expose] public section
 
 open vDash HasSat
 

@@ -1,7 +1,11 @@
-import Pdl.Semantics
-import Pdl.Star
+module
+
+public import Pdl.Semantics
+public import Pdl.Star
 
 /-! # Semantic Quotients -/
+
+@[expose] public section
 
 /-! ## Defining the Quotient of Formulas -/
 

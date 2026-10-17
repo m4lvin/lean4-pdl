@@ -1,4 +1,8 @@
-import Pdl.Local.Tableau
+module
+
+public import Pdl.Local.Tableau
+
+@[expose] public section
 
 open HasSat
 

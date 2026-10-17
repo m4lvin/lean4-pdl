@@ -1,4 +1,6 @@
-import Pdl.Interpolation.ClusterFacts
+module
+
+public import Pdl.Interpolation.ClusterFacts
 
 /-! # The interpolant of a cluster root and its vocabulary
 
@@ -10,6 +12,8 @@ and `Pdl.Interpolation.ClusterFacts` with:
 
 Definition 10.2 and Lemma 10.3 are in `Pdl.Interpolation.ClusterRho`.
 -/
+
+@[expose] public section
 
 /-! ## Two small vocabulary lemmas -/
 

@@ -1,6 +1,10 @@
 -- MODELGRAPHS
-import Bml.Syntax
-import Bml.Semantics
+module
+
+public import Bml.Syntax
+public import Bml.Semantics
+
+@[expose] public section
 
 open Formula
 

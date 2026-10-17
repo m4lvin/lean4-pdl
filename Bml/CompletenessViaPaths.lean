@@ -1,7 +1,11 @@
-import Mathlib.Data.Finset.Basic
+module
 
-import Bml.Modelgraphs
-import Bml.Soundness
+public import Mathlib.Data.Finset.Basic
+
+public import Bml.Modelgraphs
+public import Bml.Soundness
+
+@[expose] public section
 
 open LocalTableau
 open HasLength

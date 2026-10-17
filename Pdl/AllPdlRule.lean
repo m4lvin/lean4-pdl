@@ -1,9 +1,13 @@
-import Pdl.Tableau
+module
+
+public import Pdl.Tableau
 
 /-! # Generating all possible PdlRule applications
 
 Similar to `LocalTableau.all`, this is needed to define `BuildTree` as a finite tree.
 -/
+
+@[expose] public section
 
 /-- List of all `PdlRule`s applicable to `X`. Code is based on part of `theMoves`.
 This is also similar to the definitions in `LocalAll.lean`. -/

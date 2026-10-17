@@ -1,10 +1,14 @@
-import Pdl.Discon
+module
+
+public import Pdl.Discon
 
 /-!
 # Substitution and Helper Lemmas
 
 The lemmas here are mostly from Sections 2.1 and 2.2.
 -/
+
+@[expose] public section
 
 /-! ## Single-step replacing -/
 

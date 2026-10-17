@@ -1,6 +1,9 @@
 -- SEMANTICS
+module
 
-import Bml.Syntax
+public import Bml.Syntax
+
+@[expose] public section
 
 -- Definition 2, page 6
 structure KripkeModel (W : Type) : Type where

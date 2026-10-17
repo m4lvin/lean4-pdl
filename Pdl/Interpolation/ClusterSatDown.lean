@@ -1,5 +1,7 @@
-import Pdl.Interpolation.ClusterRho
-import Pdl.Interpolation.ClusterSatDownFacts
+module
+
+public import Pdl.Interpolation.ClusterRho
+public import Pdl.Interpolation.ClusterSatDownFacts
 
 /-! # Satisfiability down the quasi-tableau, and the right half of the correctness of `θ_r`
 
@@ -17,6 +19,8 @@ Q-formulas with an assignment, the witness distance `witDist`, and `BasicBetween
 The facts about the cluster `C` and the steps `stepOf Δ` of its quasi-tableau that are used
 here are proved in `Pdl.Interpolation.ClusterSatDownFacts`.
 -/
+
+@[expose] public section
 
 /-! ## Lemma 10.6
 
