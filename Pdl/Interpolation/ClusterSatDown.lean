@@ -678,21 +678,38 @@ theorem satDown_root (C : LoadedCluster tab)
 
 /-! ## Lemma 10.8 -/
 
+/-- The subtableau starting with the given loaded cluster.
+This is not the same as `tabAt C.root` because here the history is `[]`. -/
+def subtab (C : LoadedCluster tab) : Tableau [] (nodeAt C.root) := by
+  sorry
+
+open HasSat in
+theorem root_unsat (C : LoadedCluster tab) :
+    ¬ satisfiable (nodeAt C.root) :=
+  @tableauThenNotSat (nodeAt C.root) C.subtab .nil
+
 open HasSat in
 /-- **Lemma 10.8**: `Γ₂ ⊨ ¬θ_r`, i.e. the right component of the root of the cluster
-together with the interpolant of Definition 9.20 is unsatisfiable.
-
-The hypothesis `Γ₁ ≠ ∅` is the one of Definition 9.20: for `Γ₁ = ∅` we have `θ_r = ⊤` by
-Remark 9.5, and then the statement would say that `Γ₂` itself is unsatisfiable. -/
+together with the interpolant of Definition 9.20 is unsatisfiable. -/
 theorem right_unsat_itp (C : LoadedCluster tab)
-    (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f))
-    (hΓ₁ : (nodeAt C.root).left ≠ {}) :
+    (hθ : ∀ f ∈ C.fineExits, isPartInterpolant f.label (θ f)) :
     ¬ satisfiable ({C.itp θ} ∪ (nodeAt C.root).right) := by
   rintro ⟨W, M, w, hw⟩
+  wlog hΓ₁ : (nodeAt C.root).left ≠ {}
+  · simp only [ne_eq, Decidable.not_not] at hΓ₁
+    have := C.root_unsat
+    simp only [satisfiable, not_exists] at this
+    absurd this W M w
+    intro φ
+    rcases nCr_def : nodeAt C.root with ⟨L,R,O⟩
+    simp only [Sequent.toFinset, Finset.union_assoc, Finset.mem_union, Option.mem_toFinset,
+      Option.mem_def, Option.map_eq_some_iff, Sum.exists, Sum.elim_inl, negUnload, Sum.elim_inr]
+    rintro (φ_in|φ_in|⟨_,_,_⟩|⟨_,_,_⟩) <;> apply hw <;> simp_all
   have hitp : evaluate M w (C.itp θ) := hw _ (by simp_all)
   have hright : ∀ φ ∈ (nodeAt C.root).right, evaluate M w φ :=
     fun φ hφ => hw φ (by simp_all)
-  rw [itp, ite_eq_right hΓ₁] at hitp
+  rw [itp] at hitp
+  rw [ite_eq_right hΓ₁] at hitp
   have hev : QFormula.evalQ M (fun _ u => evaluate M u (⊤ : Formula)) w (C.rootIitp θ) :=
     (QFormula.evalQ_iff_evaluate_subst (C.rootIitp θ) w).mpr hitp
   have hroot : C.Q.at? QuasiTab.rootAddress = some C.Q := rfl

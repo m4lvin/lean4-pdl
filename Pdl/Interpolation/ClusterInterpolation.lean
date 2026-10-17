@@ -283,7 +283,7 @@ noncomputable def clusterInterpolation_right {tab : Tableau .nil X}
   · rw [LoadedCluster.itp, ite_eq_left hΓ₁]
     have := tableauThenNotSat tab C.root
     exact Sequent.satisfiable_top_cons_right hΓ₁ this
-  · exact C.right_unsat_itp hθ hΓ₁
+  · exact C.right_unsat_itp hθ
 
 /-- Lemma 9.3: Given a loaded node `s` that is the first node of its cluster, and given
 interpolants for all exits of that cluster, we get an interpolant for `s`.
