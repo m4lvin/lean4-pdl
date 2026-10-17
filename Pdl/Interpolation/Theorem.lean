@@ -18,14 +18,14 @@ theorem interpolation {φ ψ : Formula} :
   let X : Sequent := ({φ}, {~(ψ)}, none)
   have have_tab : ∃ u_tab : Tableau .nil ({φ}, {~(ψ)}, none), u_tab.isUniform := by
     rw [tautImp_iff_SequentUnsat rfl] at hyp
-    rw [← consIffSat _ (by simp)] at hyp -- using completeness
+    rw [← consIffSat _] at hyp -- using completeness
     simp [consistent,inconsistent] at hyp
     rcases hyp with ⟨tab⟩
-    have := Tableau.toUniformViaGame (by simp) tab -- Yeah.
+    have := Tableau.toUniformViaGame tab -- Yeah.
     rcases this with ⟨t, t_h⟩
     exact ⟨t, t_h⟩
   rcases have_tab with ⟨tab, tab_uni⟩
-  have partInt := tabToInt (Sequent.none_isFree _ _) tab tab_uni -- using tableau interpolation
+  have partInt := tabToInt tab tab_uni -- using tableau interpolation
   rcases partInt with ⟨θ, pI_prop⟩
   unfold isPartInterpolant at pI_prop
   use θ

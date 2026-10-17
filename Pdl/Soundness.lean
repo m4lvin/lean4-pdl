@@ -1105,7 +1105,6 @@ The star case is then actually handled just like the other connectives.
 -/
 theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
   (tab : Tableau .nil X) -- .nil to prevent repeats from "above"
-  (root_free : X.isFree) -- ADDED / not/implicit in Notes?
   (t : PathIn tab)
   {W}
   {M : KripkeModel W} {v w : W}
@@ -1123,18 +1122,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
         ∧ (nodeAt s).isFree
         )
     ) := by
-  -- We do not need induction, but use `PathIn.init_inductionOn` to first distinguish whether we
-  -- are the rooot, and in the step case we look at what happens at the *end* of the path.
-  cases t using PathIn.init_inductionOn
-  case root =>
-    exfalso
-    unfold AnyNegFormula.in_side at negLoad_in
-    unfold Sequent.isFree Sequent.isLoaded at root_free
-    rcases X with ⟨L,R,O⟩
-    cases O <;> cases side <;> simp at *
-  case step t0 IH s_t0 => -- NOTE: not indenting from here.
-  clear IH -- Not needed, came from `PathIn.init_inductionOn`.
-  -- Notes first take care of cases where rule is applied to non-loaded formula.
+  -- The paper first takes care of the cases where a rule is applied to non-loaded formula.
   -- For this, we need to distinguish what happens at `t`.
   rcases tabAt_t_def : tabAt t with ⟨Hist, Z, tZ⟩
   cases tZ
@@ -1213,7 +1201,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
                 simp only [←ENat.natCast_add, ENat.natCast_lt_natCast, lt_add_iff_pos_left,
                   Nat.lt_one_iff]
             have ⟨k, ⟨s_k, k_props⟩⟩ :=
-              loadedDiamondPaths β βs tab root_free s u_s φ (αs_def ▸ in_con) (αs_def ▸ u_αs_w) w_nφ
+              loadedDiamondPaths β βs tab s u_s φ (αs_def ▸ in_con) (αs_def ▸ u_αs_w) w_nφ
             clear _forTermination_loc_atom_pdl
             rcases k_props with ⟨sat_con, eq_con⟩ | inr
             · refine ⟨k, ⟨?_, Or.inl ⟨sat_con, ?_⟩⟩⟩
@@ -1268,7 +1256,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
             unfold u at t_comp_u
             rw [con] at t_comp_u
             exact not_edge_and_heart (And.intro t'_s t_comp_u)
-        have := loadedDiamondPaths (·a) αs tab root_free u v_u φ negLoad_in_u v_α_αs_w w_nφ
+        have := loadedDiamondPaths (·a) αs tab u v_u φ negLoad_in_u v_α_αs_w w_nφ
         rcases this with ⟨s, u_s, (⟨s_sat, not_s_u⟩|reached)⟩
         all_goals
           refine ⟨s, ?_, ?_⟩
@@ -1371,7 +1359,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
               simp [this]
               try omega
             have ⟨s, s1_s, s_cons⟩ :=
-              loadedDiamondPaths β βs tab root_free s1 v_s1 φ anf_in_s1 v_seq_w w_nφ
+              loadedDiamondPaths β βs tab s1 v_s1 φ anf_in_s1 v_seq_w w_nφ
             rcases s_cons with ⟨sat_con, ne_con⟩ | inr
             · refine ⟨s, ?_, Or.inl ⟨sat_con, ?_⟩⟩
               · exact Relation.TransGen.head (Or.inl t_s) s1_s
@@ -1413,7 +1401,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
             have : n < 1 + n := by omega
             exact_mod_cast this
         have ⟨s, ⟨s1_s, s_props⟩⟩ :=
-          loadedDiamondPaths β βs tab root_free s1 u_s1 φ (αs_def ▸ in_con) (αs_def ▸ u_αs_w) w_nφ
+          loadedDiamondPaths β βs tab s1 u_s1 φ (αs_def ▸ in_con) (αs_def ▸ u_αs_w) w_nφ
         clear _forTermination_pdl
         rcases s_props with ⟨sat_con, eq_con⟩ | inr
         · refine ⟨s, ⟨?_, Or.inl ⟨sat_con, ?_⟩⟩⟩
@@ -1447,7 +1435,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
     -- Now prepare and make the recursive call:
     have _forTermination_lrep : (companionOf t (tabAt_t_def ▸ lpr) h).length < t.length := by
       apply companionOf_length_lt_length
-    have := loadedDiamondPaths α αs tab root_free u v_u φ negLoad_in_u v_α_αs_w w_nφ
+    have := loadedDiamondPaths α αs tab u v_u φ negLoad_in_u v_α_αs_w w_nφ
     rcases this with ⟨s, u_s, (⟨s_sat, not_s_u⟩|reached)⟩
     all_goals
       refine ⟨s, ?_, ?_⟩
@@ -1475,7 +1463,7 @@ theorem loadedDiamondPaths (α : Program) (αs : List Program) {X : Sequent}
 
 /-- Any node in a closed tableau with a free root is not satisfiable.
 This is the main argument for soundness. -/
-theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) (t : PathIn tab) :
+theorem tableauThenNotSat (tab : Tableau .nil Root) (t : PathIn tab) :
     ¬satisfiable (nodeAt t) :=
   by
   -- by induction on the *converse* well-founded strict partial order <ᶜ called `before`.
@@ -1578,7 +1566,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
         rw [unload_loadMulti] at this
         simp [Formula.boxes_nil, evaluate, not_forall, Classical.not_imp] at this
         rcases this with ⟨w, v_α_w, not_w_φ⟩
-        have := loadedDiamondPaths α [] tab Root_isFree t v_ φ in_t
+        have := loadedDiamondPaths α [] tab t v_ φ in_t
           (by simp; exact v_α_w) (not_w_φ)
         rcases this with ⟨s, t_to_s, (⟨s_sat, notequi⟩ | ⟨in_s, w_s, rest_s_free⟩)⟩
         · -- "Together wit the observation ..."
@@ -1622,7 +1610,7 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
           try apply LoadFormula.in_side_of_lf_inr
           simp_all [nodeAt, loadMulti_cons]
           apply loadMulti_eq_loadBoxes
-        have := loadedDiamondPaths β (δ ++ [α]) tab Root_isFree t v_ φ in_t v_βδα_u u_not_φ
+        have := loadedDiamondPaths β (δ ++ [α]) tab t v_ φ in_t v_βδα_u u_not_φ
         rcases this with ⟨s, t_to_s, s_property⟩
         rcases s_property with ⟨s_sat, notequi⟩ | ⟨not_af_in_s, w_s, rest_s_free⟩
         · -- We left the cluster, use outer IH to get contradiction.
@@ -1642,20 +1630,20 @@ theorem tableauThenNotSat (tab : Tableau .nil Root) (Root_isFree : Root.isFree) 
               aesop
             apply ePropB.e_help _ _ this rest_s_free t_to_s
 
-theorem correctness : ∀ LR : Sequent, LR.isFree → satisfiable LR → consistent LR := by
-  intro LR LR_isFRee
+theorem correctness : ∀ LR : Sequent, satisfiable LR → consistent LR := by
+  intro LR
   contrapose
   unfold consistent
   unfold inconsistent
   simp only [not_nonempty_iff, not_isEmpty_iff, Nonempty.forall]
   intro hyp
-  apply tableauThenNotSat hyp LR_isFRee .nil
+  apply tableauThenNotSat hyp .nil
 
 theorem soundTableau : ∀ φ, provable φ → ¬satisfiable ({~φ} : Finset Formula) := by
   intro φ prov
   rcases prov with ⟨tabl⟩|⟨tabl⟩
-  · exact tableauThenNotSat tabl (by simp) .nil
-  · exact tableauThenNotSat tabl (by simp) .nil
+  · exact tableauThenNotSat tabl .nil
+  · exact tableauThenNotSat tabl .nil
 
 /-- All provable formulas are semantic tautologies.
 See `tableauThenNotSat` for what the notes call soundness. -/

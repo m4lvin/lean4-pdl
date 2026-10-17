@@ -98,7 +98,7 @@ lemma modelExistence {X} : consistent X →
 
 /-- If there is any tableau, then there is a uniform one.
 Proven via `gameP` and used to show `interpolation`. -/
-lemma Tableau.toUniformViaGame {X} (Xfree : X.isFree) (tab : Tableau .nil X) :
+lemma Tableau.toUniformViaGame {X} (tab : Tableau .nil X) :
     ∃ u_tab : Tableau .nil X, u_tab.isUniform := by
   rcases gamedet tableauGame (startPos X) with ProverHasWinningS | BuilderHasWinningS
   · rcases ProverHasWinningS with ⟨sP, winning_sP⟩
@@ -112,7 +112,7 @@ lemma Tableau.toUniformViaGame {X} (Xfree : X.isFree) (tab : Tableau .nil X) :
   · rcases BuilderHasWinningS with ⟨sB, winning_sB⟩
     rcases strmg X sB winning_sB with ⟨WS, mg, Z, Z_in_WS, X_sub_Z⟩
     -- Nowe can contradict soundness here.
-    have unsat := tableauThenNotSat tab Xfree .nil
+    have unsat := tableauThenNotSat tab .nil
     simp at unsat
     absurd unsat
     use WS, mg.1
@@ -134,8 +134,8 @@ theorem completeness : ∀ X, consistent X → satisfiable X :=
   apply h
   aesop
 
-theorem consIffSat : ∀ X, X.isFree → (consistent X ↔ satisfiable X) :=
-  fun X X_isFree => ⟨completeness X, correctness X X_isFree⟩
+theorem consIffSat : ∀ X, consistent X ↔ satisfiable X :=
+  fun X => ⟨completeness X, correctness X⟩
 
 theorem singletonConsIffSat : ∀ φ, consistent ({φ},{},none) ↔ satisfiable φ :=
   by

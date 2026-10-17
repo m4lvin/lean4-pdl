@@ -54,7 +54,7 @@ but we do want it inside `clusterInterpolation` later.
 Ideally this would be a computable `def` and not an existential.
 But currently `PathIn.strong_upwards_inductionOn` only works with `Prop` motive.
 -/
-theorem tabToIntAt {X : Sequent} (h_free : X.isFree) (tab : Tableau .nil X) (t_u : tab.isUniform)
+theorem tabToIntAt {X : Sequent} (tab : Tableau .nil X) (t_u : tab.isUniform)
     (s : PathIn tab) :
     s.isClusterRoot → ∃ θ, isPartInterpolant (nodeAt s) θ := by
   induction s using PathIn.strong_upwards_inductionOn -- Strong!
@@ -73,7 +73,7 @@ theorem tabToIntAt {X : Sequent} (h_free : X.isFree) (tab : Tableau .nil X) (t_u
         intro e e_exit
         have IHe := IH (lt_of_isExitOf s_cr e_exit) (isClusterRoot_of_isExitOf e_exit)
         exact ⟨IHe.choose, IHe.choose_spec⟩
-      rcases clusterInterpolation h_free t_u s s_cr is_proper s_loaded myExitIPs with ⟨θ, h_θ⟩
+      rcases clusterInterpolation t_u s s_cr is_proper s_loaded myExitIPs with ⟨θ, h_θ⟩
       exact ⟨θ, h_θ⟩
     case neg is_not_proper =>
       -- Here we have a loaded node, but still a singleton cluster.
@@ -211,5 +211,5 @@ theorem tabToIntAt {X : Sequent} (h_free : X.isFree) (tab : Tableau .nil X) (t_u
       rw [nodeAt, s_def]
       apply LoadedPathRepeat_rep_isLoaded lpr
 
-theorem tabToInt {X : Sequent} (h_free : X.isFree) (tab : Tableau .nil X) (t_u : tab.isUniform) :
-    ∃ θ, isPartInterpolant X θ := tabToIntAt h_free tab t_u .nil PathIn.isClusterRoot_nil
+theorem tabToInt {X : Sequent} (tab : Tableau .nil X) (t_u : tab.isUniform) :
+    ∃ θ, isPartInterpolant X θ := tabToIntAt tab t_u .nil PathIn.isClusterRoot_nil

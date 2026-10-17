@@ -267,7 +267,7 @@ The interpolant is `C.itp θ` from Definition 9.20, where `θ` gives the interpo
 *fine* exit nodes, obtained from the given interpolants of the coarse exits by
 `LoadedCluster.fineExits_itp_spec`. Its three defining properties are Lemma 10.1
 (`itp_voc`), Lemma 10.3 (`left_unsat_neg_itp`) and Lemma 10.8 (`right_unsat_itp`). -/
-noncomputable def clusterInterpolation_right {tab : Tableau .nil X} (Xfree : X.isFree)
+noncomputable def clusterInterpolation_right {tab : Tableau .nil X}
     (t_u : tab.isUniform)
     (C : LoadedCluster tab) (exitIPs : ∀ e ∈ C.exits, PartInterpolant (nodeAt e))
     : PartInterpolant (nodeAt C.root) := by
@@ -281,14 +281,14 @@ noncomputable def clusterInterpolation_right {tab : Tableau .nil X} (Xfree : X.i
   refine ⟨C.itp FinePathIn.itp, C.itp_voc _ hθ, C.left_unsat_neg_itp hU hθ, ?_⟩
   by_cases hΓ₁ : (nodeAt C.root).left = {}
   · rw [LoadedCluster.itp, ite_eq_left hΓ₁]
-    have := tableauThenNotSat tab Xfree C.root
+    have := tableauThenNotSat tab C.root
     exact Sequent.satisfiable_top_cons_right hΓ₁ this
   · exact C.right_unsat_itp hθ hΓ₁
 
 /-- Lemma 9.3: Given a loaded node `s` that is the first node of its cluster, and given
 interpolants for all exits of that cluster, we get an interpolant for `s`.
 Note how `s_cr` is exactly what is needed to make a `LoadedCluster` here. -/
-noncomputable def clusterInterpolation {tab : Tableau .nil X} (Xfree : X.isFree)
+noncomputable def clusterInterpolation {tab : Tableau .nil X}
     (t_u : tab.isUniform) (s : PathIn tab)
     (s_cr : s.isClusterRoot) (s_proper : s ◃⁺ s) (s_loaded : (nodeAt s).isLoaded)
     (exitIPs : ∀ e : PathIn tab, isExitOf s e → PartInterpolant (nodeAt e))
@@ -296,7 +296,7 @@ noncomputable def clusterInterpolation {tab : Tableau .nil X} (Xfree : X.isFree)
   by_cases s_right : (nodeAt s).2.2.isRight
   case pos =>
     -- The loaded formula is on the right, so we can use `clusterInterpolation_right`.
-    exact clusterInterpolation_right Xfree t_u (LoadedCluster.ofClusterRoot s s_cr s_proper s_right)
+    exact clusterInterpolation_right t_u (LoadedCluster.ofClusterRoot s s_cr s_proper s_right)
       (fun e e_in => exitIPs e ((LoadedCluster.mem_exits_iff _ e).mp e_in))
   case neg =>
     -- The loaded formula is on the left, so we "flip" the whole tableau.
@@ -315,5 +315,4 @@ noncomputable def clusterInterpolation {tab : Tableau .nil X} (Xfree : X.isFree)
       have e_exit : isExitOf s.flip e := (LoadedCluster.mem_exits_iff _ e).mp e_in
       rw [← PathIn.flip_unflip e] at e_exit ⊢
       exact PartInterpolant.flipPath (exitIPs e.unflip (isExitOf_flip.mp e_exit))
-    have : X.flip.isFree := by rw [Sequent.flip_isFree]; exact Xfree
-    exact PartInterpolant.unflipPath (clusterInterpolation_right this t_u.flip C flipIPs)
+    exact PartInterpolant.unflipPath (clusterInterpolation_right t_u.flip C flipIPs)
