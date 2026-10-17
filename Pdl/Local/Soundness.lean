@@ -201,8 +201,6 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
         rcases IH with ⟨Y, Y_in, v_Y⟩
         use Y
         simp_all only [and_self, and_true]
-        use (L \ Lcond ∪ res, R, O)
-        simp_all only [exists_prop, and_true]
         grind
       case oneSidedR YS orule YS_def => -- analogous to oneSidedL
         simp_all [applyLocalRule] -- uses locRulTru
@@ -218,8 +216,6 @@ theorem localLoadedDiamondList (αs : List Program) {X : Sequent}
         rcases IH with ⟨Y, Y_in, v_Y⟩
         use Y
         simp_all only [and_self, and_true]
-        use (L, R \ Rcond ∪ res, O)
-        simp_all only [exists_prop, and_true]
         grind
       case LRnegL φ =>
         simp_all
