@@ -678,10 +678,46 @@ theorem satDown_root (C : LoadedCluster tab)
 
 /-! ## Lemma 10.8 -/
 
+/-- In the subtableau at the root of a cluster, all loaded-path repeats point back into this
+subtableau, because otherwise the root could reach one of its parents. -/
+lemma lprBounded_root (C : LoadedCluster tab) :
+    (tabAt C.root).2.2.lprBounded ([] : History).length := by
+  apply Tableau.lprBounded_of_paths
+  intro v lpr hv
+  obtain ⟨lpr', hq, hval⟩ := exists_lrep_of_eq (tabAt_append C.root v) hv
+  simp only [List.length_nil, zero_add]
+  by_contra hge
+  have q_c : (C.root.append v) ♥ (companionOf _ lpr' hq) := ⟨lpr', hq, rfl⟩
+  have c_lt_q := companion_lt q_c
+  have c_len :
+      (companionOf _ lpr' hq).length + (lpr'.val.val + 1) = (C.root.append v).length := by
+    have := PathIn.rewind_length (C.root.append v)
+      ((Fin.cast (tabAt_fst_length_eq_toHistory_length _) lpr'.val).succ)
+    simpa [companionOf] using this
+  have q_len : (C.root.append v).length = C.root.length + v.length := append_length v
+  have c_len_lt : (companionOf _ lpr' hq).length < C.root.length := by omega
+  have root_le_q : C.root ≤ C.root.append v := PathIn.le_append C.root v
+  have c_lt_root : companionOf _ lpr' hq < C.root := by
+    have c_le_root : companionOf _ lpr' hq ≤ C.root := by
+      rcases eq_or_ne C.root (C.root.append v) with h | h
+      · exact (congrArg (companionOf _ lpr' hq ≤ ·) h).mpr c_lt_q.to_reflTransGen
+      · rcases path_revEuclidean' _ C.root _ c_lt_q (Relation.TransGen_of_ReflTransGen root_le_q h)
+          with h' | h'
+        · exact h'
+        · have := PathIn.length_le_of_le h'; omega
+    refine Relation.TransGen_of_ReflTransGen c_le_root ?_
+    intro h
+    rw [h] at c_len_lt
+    omega
+  obtain ⟨p, c_le_p, p_root⟩ := exists_parent_of_lt c_lt_root
+  apply C.root_not_to_parent p p_root
+  exact (cReach_of_le root_le_q).trans
+    (Relation.ReflTransGen.head (Or.inr q_c) (cReach_of_le c_le_p))
+
 /-- The subtableau starting with the given loaded cluster.
 This is not the same as `tabAt C.root` because here the history is `[]`. -/
-def subtab (C : LoadedCluster tab) : Tableau [] (nodeAt C.root) := by
-  sorry
+def subtab (C : LoadedCluster tab) : Tableau [] (nodeAt C.root) :=
+  (tabAt C.root).2.2.dropHist [] (tabAt C.root).1 (by simp) C.lprBounded_root
 
 open HasSat in
 theorem root_unsat (C : LoadedCluster tab) :

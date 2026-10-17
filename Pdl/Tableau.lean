@@ -373,3 +373,54 @@ def inconsistent : Sequent → Prop
 /-- A `Sequent` is consistent iff it is not inconsistent. -/
 def consistent : Sequent → Prop
   | LR => ¬inconsistent LR
+
+/-! ## Dropping part of the history of a tableau -/
+
+/-- Every loaded-path repeat in `tab` that is reached after `d` steps goes back fewer than
+`n + d` steps, i.e. its companion is inside `tab` or among the `n` newest history entries. -/
+def Tableau.lprBounded {Hist X} : Tableau Hist X → (n : Nat) → Prop
+  | .loc _ _ _ next, n => ∀ Y Y_in, (next Y Y_in).lprBounded (n + 1)
+  | .pdl _ _ _ next, n => next.lprBounded (n + 1)
+  | .lrep lpr, n => lpr.val.val < n
+
+/-- A loaded-path repeat with respect to a prefix of a history. -/
+def LoadedPathRepeat.ofAppend {H' H X} (lpr : LoadedPathRepeat H' X) :
+    LoadedPathRepeat (H' ++ H) X :=
+  ⟨⟨lpr.val.val, by simp; omega⟩, by
+    rcases lpr with ⟨⟨k, k_lt⟩, k_same, k_loaded⟩
+    refine ⟨by simpa [List.getElem_append_left k_lt] using k_same, ?_⟩
+    rintro ⟨m, m_lt⟩ m_le
+    have m_lt' : m < H'.length := by simp at m_le; omega
+    simpa [List.getElem_append_left m_lt'] using k_loaded ⟨m, m_lt'⟩ m_le⟩
+
+/-- If there is no free or loaded-path repeat with a longer history, then neither is there one
+with a prefix of that history. -/
+lemma not_flprep_of_append {H' H X} (h : ¬ flprep (H' ++ H) X) : ¬ flprep H' X := by
+  rintro (⟨⟨Y, Y_in, Y_eq⟩, X_free⟩ | lpr)
+  · exact h (Or.inl ⟨⟨Y, List.mem_append_left H Y_in, Y_eq⟩, X_free⟩)
+  · exact h (Or.inr (lpr.map LoadedPathRepeat.ofAppend))
+
+/-- Given a tableau with history `H' ++ H` in which all loaded-path repeats point back at most
+into `H'`, make the same tableau with history `H'`. -/
+def Tableau.dropHist {Hist X} (H' H : History) :
+    (tab : Tableau Hist X) → Hist = H' ++ H → tab.lprBounded H'.length → Tableau H' X
+  | .loc nrep nbas lt next, hH, hb =>
+      .loc (not_flprep_of_append (hH ▸ nrep)) nbas lt
+        (fun Y Y_in => (next Y Y_in).dropHist (X :: H') H (by simp [hH]) (hb Y Y_in))
+  | .pdl nrep bas r next, hH, hb =>
+      .pdl (not_flprep_of_append (hH ▸ nrep)) bas r (next.dropHist (X :: H') H (by simp [hH]) hb)
+  | .lrep lpr, hH, hb => .lrep <| by
+      subst hH
+      rcases lpr with ⟨⟨k, k_lt⟩, k_same, k_loaded⟩
+      have k_lt' : k < H'.length := hb
+      refine ⟨⟨k, k_lt'⟩, ?_, ?_⟩
+      · simpa [List.getElem_append_left k_lt'] using k_same
+      · rintro ⟨m, m_lt⟩ m_le
+        have := k_loaded ⟨m, by simp; omega⟩ m_le
+        simpa [List.getElem_append_left m_lt] using this
+
+/-- Transport a loaded-path repeat along an equation between two tableaux. -/
+lemma exists_lrep_of_eq {a b : Σ H X, Tableau H X} (h : a = b) {lpr} (hb : b.2.2 = .lrep lpr) :
+    ∃ lpr', a.2.2 = .lrep lpr' ∧ lpr'.val.val = lpr.val.val := by
+  subst h
+  exact ⟨lpr, hb, rfl⟩

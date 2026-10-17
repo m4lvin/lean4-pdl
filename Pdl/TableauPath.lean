@@ -511,6 +511,13 @@ theorem PathIn.pdl_le_pdl_of_le {t1 t2} (h : t1 ≤ t2) :
     simp
     exact s_t
 
+/-- Paths further down are longer. -/
+lemma PathIn.length_le_of_le {Hist X} {tab : Tableau Hist X} {s t : PathIn tab} (h : s ≤ t) :
+    s.length ≤ t.length := by
+  induction h with
+  | refl => rfl
+  | tail _ e ih => have := edge_then_length_lt e; omega
+
 /-! ## Path cast and append lemmas
 
 Lemmas developed for `tabToIntAt`.
@@ -625,6 +632,16 @@ decreasing_by
   · subst_eqs
     apply Tableau.size_next_lt_of_pdl rfl
 
+/-- Appending to a path goes further down. -/
+lemma PathIn.le_append {Hist X} {tab : Tableau Hist X} (p : PathIn tab)
+    (q : PathIn (tabAt p).2.2) : p ≤ p.append q := by
+  by_cases hq : q = .nil
+  · subst hq
+    have h := (PathIn.eq_append_iff_other_eq_nil p .nil).mpr rfl
+    rw [← h]
+    exact Relation.ReflTransGen.refl
+  · exact (p.lt_append_non_nil rfl q hq).to_reflTransGen
+
 /-! ## From Path to History -/
 
 /-- Convert a path to a History.
@@ -635,6 +652,11 @@ def PathIn.toHistory {tab : Tableau Hist X} : (t : PathIn tab) → History
 | .nil => []
 | .pdl tail => tail.toHistory ++ [X]
 | .loc _ tail => tail.toHistory ++ [X]
+
+/-- The history of a path has one entry for each step of the path. -/
+lemma PathIn.toHistory_length_eq_length {Hist X} {tab : Tableau Hist X} (t : PathIn tab) :
+    t.toHistory.length = t.length := by
+  induction t <;> simp_all [toHistory]
 
 /-- Convert a path to a list of nodes. Reverse of the history and does include the last node.
 The list of `.nil` is `[X]`. -/
@@ -753,31 +775,38 @@ theorem PathIn.rewind_le (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) : t
     simp only [rewind]
     exact Relation.ReflTransGen.refl
 
+/-- Rewinding a path by `k` steps makes it `k` steps shorter. -/
+lemma PathIn.rewind_length {Hist X} {tab : Tableau Hist X} (t : PathIn tab)
+    (k : Fin (t.toHistory.length + 1)) : (t.rewind k).length + k = t.length := by
+  induction t with
+  | nil =>
+    have := k.2
+    simp only [toHistory, List.length_nil, Nat.reduceAdd, Fin.val_eq_zero, zero_add,
+      zero_lt_one] at this
+    simp [rewind]
+  | loc Y_in tail IH =>
+    cases k using Fin.lastCases with
+    | last => simp [rewind, toHistory_length_eq_length]
+    | cast j =>
+      have := IH (Fin.cast (loc_length_eq Y_in tail) j)
+      simp only [rewind, Fin.lastCases_castSucc, Function.comp_apply, length]
+      simp only [Fin.val_cast, Fin.val_castSucc] at this ⊢
+      omega
+  | pdl tail IH =>
+    cases k using Fin.lastCases with
+    | last => simp [rewind, toHistory_length_eq_length]
+    | cast j =>
+      have := IH (Fin.cast (pdl_length_eq tail) j)
+      simp only [rewind, Fin.lastCases_castSucc, Function.comp_apply, length]
+      simp only [Fin.val_cast, Fin.val_castSucc] at this ⊢
+      omega
+
 /-- If we rewind by `k > 0` steps then the length goes down. -/
 theorem PathIn.rewind_length_lt_length_of_gt_zero {Hist X} {tab : Tableau Hist X}
     (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) (k_gt_zero : k > 0)
     : (t.rewind k).length < t.length := by
-  induction t
-  · exfalso
-    rcases k with ⟨k, k_prop⟩
-    simp only [toHistory, List.length_nil, zero_add, Nat.lt_one_iff] at k_prop
-    subst k_prop
-    simp_all
-  case loc H Z Y ltX next Y_in tail IH =>
-      cases k using Fin.lastCases
-      · simp [PathIn.toHistory, PathIn.rewind] at *
-      case cast j =>
-        specialize IH ⟨j, by rcases j with ⟨j,j_lt⟩; rw [loc_length_eq] at j_lt; simp_all⟩ k_gt_zero
-        simp only [rewind, Fin.lastCases_castSucc, Function.comp_apply, length,
-          add_lt_add_iff_right]
-        convert IH <;> simp [Fin.heq_ext_iff _]
-  case pdl Z Y H next r tail IH =>
-    cases k using Fin.lastCases
-    · simp [PathIn.toHistory, PathIn.rewind] at *
-    case cast j =>
-      specialize IH ⟨j, by rcases j with ⟨j,j_lt⟩; rw [pdl_length_eq] at j_lt; simp_all⟩ k_gt_zero
-      simp only [rewind, Fin.lastCases_castSucc, Function.comp_apply, length, add_lt_add_iff_right]
-      convert IH <;> simp [Fin.heq_ext_iff _]
+  have := t.rewind_length k
+  omega
 
 theorem PathIn.rewind_lt_of_gt_zero {Hist X} {tab : Tableau Hist X}
     (t : PathIn tab) (k : Fin (t.toHistory.length + 1)) (k_gt_zero : k > 0) :
@@ -790,7 +819,6 @@ theorem PathIn.rewind_lt_of_gt_zero {Hist X} {tab : Tableau Hist X}
   have length_eq : (t.rewind k).length = t.length := by simp [con]
   simp_all
 
-set_option backward.isDefEq.respectTransparency.types false in
 /-- The node we get from rewinding `k` steps is element `k+1` in the history. -/
 theorem PathIn.nodeAt_rewind_eq_toHistory_get {tab : Tableau Hist X}
     (t : PathIn tab) (k : Fin (t.toHistory.length + 1))
@@ -1602,3 +1630,24 @@ theorem PathIn.strong_upwards_inductionOn {Hist X} {tab : Tableau Hist X}
       apply IH
       rw [Relation.TransGen_flip_iff]
       exact Relation.TransGen.trans t__b (Relation.TransGen.single b_c)
+
+/-- To show `lprBounded` it suffices to bound all loaded-path repeats reached by paths. -/
+lemma Tableau.lprBounded_of_paths {Hist X} (tab : Tableau Hist X) (n : Nat)
+    (h : ∀ (q : PathIn tab) lpr, (tabAt q).2.2 = .lrep lpr → lpr.val.val < n + q.length) :
+    tab.lprBounded n := by
+  induction tab generalizing n with
+  | loc nrep nbas lt next IH =>
+    intro Y Y_in
+    apply IH Y Y_in (n + 1)
+    intro q lpr hq
+    have := h (.loc Y_in q) lpr hq
+    simp only [PathIn.length] at this
+    omega
+  | pdl nrep bas r next IH =>
+    apply IH (n + 1)
+    intro q lpr hq
+    have := h (.pdl q) lpr hq
+    simp only [PathIn.length] at this
+    omega
+  | lrep lpr =>
+    simpa [Tableau.lprBounded] using h .nil lpr rfl
