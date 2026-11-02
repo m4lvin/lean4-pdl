@@ -138,7 +138,7 @@ theorem List.exists_mem_singleton {p : α → Prop} : (∃ x ∈ [a], p x) ↔ p
 theorem ite_eq_right_of_ne_left [Decidable c] (h : ite c t e ≠ t) : ite c t e = e :=
   (ite_eq_or_eq ..).elim (False.elim ∘ h) id
 
-def WithTop.domain (f : ι → WithTop α) : Set α := fun a => ∃ i, f i = a
+def WithTop.domain (f : ι → WithTop α) : Set α := { a | ∃ i, f i = a }
 
 theorem domain_nonempty_of_iInf_ne_top {f : ι → ℕ∞} (h : iInf f ≠ ⊤) :
     (WithTop.domain f).Nonempty :=
