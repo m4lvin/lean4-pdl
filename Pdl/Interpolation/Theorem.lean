@@ -4,6 +4,7 @@ public import Mathlib.Data.Finset.Basic
 
 public import Pdl.Interpolation.Def
 public import Pdl.Completeness.Theorem
+public import Pdl.Interpolation.Statement
 
 /-! # Interpolation (Section 7) -/
 
@@ -11,14 +12,10 @@ public import Pdl.Completeness.Theorem
 
 open vDash HasSat
 
-/-- An interpolant θ for φ and ψ only uses the vocabulary
-in both, is implied by φ and implies ψ. -/
-def Interpolant (φ : Formula) (ψ : Formula) (θ : Formula) :=
-  θ.voc ⊆ φ.voc ∩ ψ.voc  ∧  tautology (φ ↣ θ)  ∧  tautology (θ ↣ ψ)
-
-theorem interpolation {φ ψ : Formula} :
-    tautology (φ ↣ ψ) → ∃ θ : Formula, Interpolant φ ψ θ := by
-  intro hyp
+theorem interpolation :
+    PdlHasInterpolation := by
+  unfold PdlHasInterpolation
+  intro φ ψ hyp
   let X : Sequent := ({φ}, {~(ψ)}, none)
   have have_tab : ∃ u_tab : Tableau .nil ({φ}, {~(ψ)}, none), u_tab.isUniform := by
     rw [tautImp_iff_SequentUnsat rfl] at hyp
