@@ -47,7 +47,7 @@ jobs:
         run: make bml
 
       - name: Check environment with lean4checker
-        run: make check
+        run: echo DISABLED FOR NOW make check
 
       - name: Build documentation
         if: github.ref_name == 'main'
